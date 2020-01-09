@@ -1899,30 +1899,9 @@ half GetMaterialRoughness(FPixelMaterialInputs PixelMaterialInputs)
 #if MATERIAL_FULLY_ROUGH
 	return 1;
 #endif
-#if (ES2_PROFILE || ES3_1_PROFILE)
-	// The smallest normalized value that can be represented in IEEE 754 (FP16) is 2^-14 = 6.1e-5.
-	// The code will make the following computation involving roughness: 1.0 / Roughness^4.
-	// Therefore to prevent division by zero on devices that do not support denormals, Roughness^4
-	// must be >= 6.1e-5. We will clamp to 0.09 because 0.09^4 = 6.5e-5.
-	//
-	// Note that we also clamp to 1.0 to match the deferred renderer on PC where the roughness is 
-	// stored in an 8-bit value and thus automatically clamped at 1.0.
-
-	half Roughness = GetMaterialRoughnessRaw(PixelMaterialInputs);
-
-	#if MOBILE_EMULATION
-	{
-		// this is only needed for mobile preview on PC
-		Roughness = Roughness * ResolvedView.RoughnessOverrideParameter.y + ResolvedView.RoughnessOverrideParameter.x;
-	}
-	#endif
-
-	// Increase value from 0.09 to 0.12 to fix missing specular lobe problem on device
-	return clamp( Roughness, 0.12, 1.0 );
-#else
 	half Roughness = saturate(GetMaterialRoughnessRaw(PixelMaterialInputs));
 	
-	#if (USE_EDITOR_SHADERS && !ESDEFERRED_PROFILE)
+	#if (USE_EDITOR_SHADERS && !ESDEFERRED_PROFILE) || MOBILE_EMULATION
 	{
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 		Roughness = Roughness * ResolvedView.RoughnessOverrideParameter.y + ResolvedView.RoughnessOverrideParameter.x;
@@ -1930,7 +1909,6 @@ half GetMaterialRoughness(FPixelMaterialInputs PixelMaterialInputs)
 	#endif
 	
 	return Roughness;
-#endif
 }
 
 half GetMaterialTranslucencyDirectionalLightingIntensity()

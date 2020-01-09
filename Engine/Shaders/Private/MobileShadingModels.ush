@@ -1,0 +1,181 @@
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "BRDF.ush"
+#include "MobileGGX.ush"
+
+struct FMobileDirectLighting
+{
+	half3 Diffuse;
+	half3 Specular;
+};
+
+struct FMobileShadingModelContext
+{
+	half Opacity;
+	half3 BaseColor;
+	half Metallic;
+	half Specular;
+	half Roughness;
+	half RoughnessWithClamp;
+
+	half3 DiffuseColor;
+#if NONMETAL
+	half SpecularColor;
+#else
+	half3 SpecularColor;
+#endif
+
+#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+	half ClearCoat;
+	half ClearCoatRoughness;
+	float NoV;
+#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	half BaseMaterialCoverageOverWater;
+	half WaterVisibility;
+	float3 WaterDiffuseIndirectLuminance;
+#endif
+};
+
+
+
+#if NONMETAL
+half GetEnvBRDF(half SpecularColor, half Roughness, float NoV)
+{
+	// If nothing is hooked up to Metalic and Specular,
+	// then defaults are the same as a non-metal,
+	// so this define is safe.
+	return EnvBRDFApproxNonmetal(Roughness, NoV);
+}
+#else
+half3 GetEnvBRDF(half3 SpecularColor, half Roughness, float NoV)
+{
+#if FORWARDSHADING_USE_HQ_ENV_BRDF
+	return EnvBRDF(SpecularColor, Roughness, NoV);
+#else
+	return EnvBRDFApprox(SpecularColor, Roughness, NoV);
+#endif
+}
+#endif
+
+void InitShadingModelContext( inout FMobileShadingModelContext ShadingModelContext, FMaterialPixelParameters MaterialParameters)
+{
+#if !FULLY_ROUGH
+	float NoV = max(dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector), 0);
+#endif
+
+#if NONMETAL
+	ShadingModelContext.DiffuseColor = BaseColor;
+	ShadingModelContext.SpecularColor = 0.04;
+#else
+
+	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+		ShadingModelContext.ClearCoat = saturate(GetMaterialCustomData0(MaterialParameters));
+		ShadingModelContext.ClearCoatRoughness = clamp(GetMaterialCustomData1(MaterialParameters), 0.12, 1.0);
+		const half MetalSpec = 0.9;
+
+		// Approximation of refraction's effect on EnvBRDF
+		half RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * ShadingModelContext.Roughness) + 1;
+
+		// Approximation of absorption integral, tuned for Roughness=0.4
+		half3 AbsorptionColor = ShadingModelContext.BaseColor * (1 / MetalSpec);
+		half3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
+
+		// F_Schlick
+		half F0 = 0.04;
+		half Fc = Pow5(1 - NoV);
+		half F = Fc + (1 - Fc) * F0;
+		half LayerAttenuation = lerp(1, (1 - F), ShadingModelContext.ClearCoat);
+
+		ShadingModelContext.Specular *= lerp(1, RefractionScale, ShadingModelContext.ClearCoat);
+		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;
+
+		// Adjust BaseColor according to ClearCoat layer attenuation
+		ShadingModelContext.BaseColor = lerp(ShadingModelContext.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, ShadingModelContext.Metallic * ShadingModelContext.ClearCoat);
+		const half Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
+		ShadingModelContext.BaseColor += Dither / 255.f;
+
+		// This is to prevent Vis to get inf when both NoL and NoV are 0.
+		ShadingModelContext.NoV = saturate(abs(NoV) + 1e-5);
+
+	#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+		ShadingModelContext.BaseMaterialCoverageOverWater = ShadingModelContext.Opacity;
+		ShadingModelContext.WaterVisibility = 1.0 - ShadingModelContext.BaseMaterialCoverageOverWater;
+
+		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 1 mad
+		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+
+	#else // MATERIAL_SHADINGMODEL_DEFAULTLIT
+		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 1 mad
+		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+
+	#endif
+
+#endif
+
+#if FULLY_ROUGH
+	EnvBRDFApproxFullyRough(ShadingModelContext.DiffuseColor, ShadingModelContext.SpecularColor);
+#else
+	ShadingModelContext.SpecularColor = GetEnvBRDF(ShadingModelContext.SpecularColor, ShadingModelContext.Roughness, NoV);
+#endif
+
+#if MOBILE_EMULATION
+	{
+		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
+		ShadingModelContext.DiffuseColor = ShadingModelContext.DiffuseColor * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
+#if NONMETAL
+		ShadingModelContext.SpecularColor = ShadingModelContext.SpecularColor * ResolvedView.SpecularOverrideParameter.w + ResolvedView.SpecularOverrideParameter.x;
+#else
+		ShadingModelContext.SpecularColor = ShadingModelContext.SpecularColor * ResolvedView.SpecularOverrideParameter.w + ResolvedView.SpecularOverrideParameter.xyz;
+#endif
+	}
+#endif
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	// Fade out diffuse as this will be handled by the single scattering lighting. when over the water surface.
+	// We keep the SpecularColor for sun/water interactions
+	ShadingModelContext.WaterDiffuseIndirectLuminance = 0;
+	ShadingModelContext.DiffuseColor *= ShadingModelContext.BaseMaterialCoverageOverWater;
+#endif
+}
+
+half CalcSpecular(half Roughness, half RoughnessWithClamp, float RoL, float NoH, float3 H, float3 N)
+{
+#if USE_LEGACY_SPECULAR
+	return PhongApprox(Roughness, RoL);
+#else
+	return (Roughness*0.25 + 0.25) * GGX_Mobile(RoughnessWithClamp, NoH, H, N);
+#endif
+}
+
+FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingModelContext, float NoL, float RoL, float3 V, float3 N, float3 H, float3 NoH)
+{
+	FMobileDirectLighting Lighting;
+#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+	float VoH = max(0, dot(V, H));
+	half F0 = 0.04;
+	half Fc = Pow5(1 - VoH);
+	half F = Fc + (1 - Fc) * F0;
+	F *= ShadingModelContext.ClearCoat;
+	half LayerAttenuation = 1 - F;
+
+	// Vis_SmithJointApprox
+	half a = ShadingModelContext.ClearCoatRoughness * ShadingModelContext.ClearCoatRoughness;
+	float Vis_SmithV = NoL * (ShadingModelContext.NoV * (1 - a) + a);
+	float Vis_SmithL = ShadingModelContext.NoV * (NoL * (1 - a) + a);
+	float Vis = 0.5 * rcp(Vis_SmithV + Vis_SmithL);
+
+	Lighting.Specular = F * Vis * GGX_Mobile(ShadingModelContext.ClearCoatRoughness, NoH, H, N);
+	Lighting.Specular += LayerAttenuation * ShadingModelContext.SpecularColor * CalcSpecular(ShadingModelContext.Roughness, ShadingModelContext.RoughnessWithClamp, RoL, NoH, H, N);
+	Lighting.Diffuse = LayerAttenuation * ShadingModelContext.DiffuseColor;
+#else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
+	Lighting.Specular = ShadingModelContext.SpecularColor * CalcSpecular(ShadingModelContext.Roughness, ShadingModelContext.RoughnessWithClamp, RoL, NoH, H, N);
+	Lighting.Diffuse = ShadingModelContext.DiffuseColor;
+#endif
+	return Lighting;
+}
