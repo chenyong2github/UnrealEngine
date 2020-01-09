@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "openvr.h"
 #include "GameFramework/WorldSettings.h"
 #include "HAL/FileManagerGeneric.h"
+#include "SteamVRInputDevice.h"
 using namespace vr;
 //#endif // STEAMVRCONTROLLER_SUPPORTED_PLATFORMS
 
