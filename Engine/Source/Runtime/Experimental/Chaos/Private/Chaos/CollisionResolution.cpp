@@ -109,11 +109,11 @@ namespace Chaos
 		template<class T, int d>
 		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T Thickness)
 		{
-			return CastHelper(A, [&](const auto& ADowncast)
+			return CastHelper(A, ATM, [&](const auto& ADowncast, const TRigidTransform<T,d>& AFullTM)
 			{
-				return CastHelper(B, [&](const auto& BDowncast)
+				return CastHelper(B, BTM, [&](const auto& BDowncast, const TRigidTransform<T,d>& BFullTM)
 				{
-					return GJKContactPoint(ADowncast, ATM, BDowncast, BTM, Thickness);
+					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, Thickness);
 				});
 			});
 		}
