@@ -7,6 +7,8 @@
 #include "Rigs/RigControlHierarchy.h"
 #include "Rigs/RigSpaceHierarchy.h"
 #include "ControlRigGizmoLibrary.h"
+#include "UObject/Interface.h"
+#include "IControlRigManipulatable.generated.h"
 
 /**
  *
@@ -19,11 +21,19 @@
 
 class IControlRigObjectBinding;
 
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
+class CONTROLRIG_API UControlRigManipulatable : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
+
 class CONTROLRIG_API IControlRigManipulatable
 {
 public:
+
+	GENERATED_IINTERFACE_BODY()
+
 	IControlRigManipulatable();
-	virtual ~IControlRigManipulatable();
 
 	/** Bindable event for external objects to contribute to / filter a control value */
 	DECLARE_EVENT_ThreeParams(IControlRigManipulatable, FFilterControlEvent, IControlRigManipulatable*, const FRigControl&, FRigControlValue&);
