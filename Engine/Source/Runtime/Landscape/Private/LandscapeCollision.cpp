@@ -550,6 +550,9 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
 #if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::ChaosLandscape);
+#else
+	//NOTE: this currently gets ignored because of low level allocator
+	LLM_SCOPE(ELLMTag::PhysXLandscape);
 #endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))
