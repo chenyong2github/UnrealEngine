@@ -16,14 +16,14 @@ namespace Chaos
 		enum class EDebugDrawJointFeature
 		{
 			None = 0,
-			Connector = 1 << 0,
-			Stretch = 1 << 1,
-			Axes = 1 << 2,
-			Level = 1 << 3,
-			Index = 1 << 4,
+			CoMConnector = 1 << 0,
+			ActorConnector = 1 << 1,
+			Stretch = 1 << 2,
+			Axes = 1 << 3,
+			Level = 1 << 4,
+			Index = 1 << 5,
 
-			Default = Connector | Stretch,
-			All = Connector | Axes | Level
+			Default = ActorConnector | Stretch
 		};
 
 		CHAOS_API void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color);
