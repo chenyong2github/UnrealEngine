@@ -462,6 +462,12 @@ private:
 	/** Handler for when the view combo button is clicked */
 	TSharedRef<SWidget> GetViewButtonContent();
 
+	/** Register menu for when the view combo button is clicked */
+	static void RegisterGetViewButtonMenu();
+
+	/** Fill in menu content for when the view combo button is clicked */
+	void PopulateViewButtonMenu(class UToolMenu* Menu);
+
 	/** Toggle whether folders should be shown or not */
 	void ToggleShowFolders();
 
