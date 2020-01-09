@@ -1200,6 +1200,20 @@ void DrawCoordinateSystem(FPrimitiveDrawInterface* PDI, FVector const& AxisLoc, 
 	PDI->DrawLine(AxisLoc, AxisLoc + Z*Scale, FLinearColor::Blue, DepthPriority, Thickness );
 }
 
+
+void DrawCoordinateSystem(FPrimitiveDrawInterface* PDI, FVector const& AxisLoc, FRotator const& AxisRot, float Scale, const FLinearColor& InColor, uint8 DepthPriority, float Thickness)
+{
+	FRotationMatrix R(AxisRot);
+	FVector const X = R.GetScaledAxis(EAxis::X);
+	FVector const Y = R.GetScaledAxis(EAxis::Y);
+	FVector const Z = R.GetScaledAxis(EAxis::Z);
+
+	PDI->DrawLine(AxisLoc, AxisLoc + X * Scale, InColor, DepthPriority, Thickness);
+	PDI->DrawLine(AxisLoc, AxisLoc + Y * Scale, InColor, DepthPriority, Thickness);
+	PDI->DrawLine(AxisLoc, AxisLoc + Z * Scale, InColor, DepthPriority, Thickness);
+}
+
+
 void DrawDirectionalArrow(FPrimitiveDrawInterface* PDI,const FMatrix& ArrowToWorld,const FLinearColor& InColor,float Length,float ArrowSize,uint8 DepthPriority,float Thickness)
 {
 	PDI->DrawLine(ArrowToWorld.TransformPosition(FVector(Length,0,0)),ArrowToWorld.TransformPosition(FVector::ZeroVector),InColor,DepthPriority,Thickness);
