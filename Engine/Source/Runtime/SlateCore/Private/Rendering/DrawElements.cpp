@@ -736,36 +736,38 @@ void FSlateWindowElementList::EndDeferredGroup()
 	bNeedsDeferredResolve = true;
 }
 
-void FSlateWindowElementList::PushPaintingWidget(const SWidget& CurrentWidget, int32 StartingLayerId, FSlateCachedElementListNode* CurrentCacheNode)
+void FSlateWindowElementList::PushPaintingWidget(const SWidget& CurrentWidget, int32 StartingLayerId, FSlateCachedElementsHandle& CurrentCacheHandle)
 {
 	FSlateCachedElementData* CurrentCachedElementData = GetCurrentCachedElementData();
 	if (CurrentCachedElementData)
 	{
-		const FWidgetDrawElementState& PreviousState = WidgetDrawStack.Num() ? WidgetDrawStack.Top() : FWidgetDrawElementState(nullptr, false, nullptr);
-
-		WidgetDrawStack.Emplace(CurrentCacheNode, CurrentWidget.IsVolatileIndirectly() || CurrentWidget.IsVolatile(), &CurrentWidget);
-
 		// When a widget is pushed reset its draw elements.  They are being recached or possibly going away
-		if (CurrentCacheNode != nullptr)
+		if (CurrentCacheHandle.IsValid())
 		{
 #if WITH_SLATE_DEBUGGING
-			check(CurrentCacheNode->GetValue().Widget == &CurrentWidget);
+			check(CurrentCacheHandle.IsOwnedByWidget(&CurrentWidget));
 #endif
-			CurrentCachedElementData->ResetCache(CurrentCacheNode);
+			CurrentCacheHandle.ClearCachedElements();
 		}
+
+		WidgetDrawStack.Emplace(CurrentCacheHandle, CurrentWidget.IsVolatileIndirectly() || CurrentWidget.IsVolatile(), &CurrentWidget);
 	}
 }
 
-
-FSlateCachedElementListNode* FSlateWindowElementList::PopPaintingWidget()
+FSlateCachedElementsHandle FSlateWindowElementList::PopPaintingWidget(const SWidget& CurrentWidget)
 {
 	FSlateCachedElementData* CurrentCachedElementData = GetCurrentCachedElementData();
 	if (CurrentCachedElementData)
 	{
-		return WidgetDrawStack.Pop().CacheNode;
+#if WITH_SLATE_DEBUGGING
+		check(WidgetDrawStack.Top().Widget == &CurrentWidget);
+#endif
+
+		const bool bAllowShrinking = false;
+		return WidgetDrawStack.Pop(bAllowShrinking).CacheHandle;
 	}
 
-	return nullptr;
+	return FSlateCachedElementsHandle::Invalid;
 }
 
 /*
@@ -808,12 +810,12 @@ FSlateDrawElement& FSlateWindowElementList::AddCachedElement()
 	FWidgetDrawElementState& CurrentWidgetState = WidgetDrawStack.Top();
 	check(!CurrentWidgetState.bIsVolatile);
 
-	if (CurrentWidgetState.CacheNode == nullptr)
+	if (!CurrentWidgetState.CacheHandle.IsValid())
 	{
-		CurrentWidgetState.CacheNode = CurrentCachedElementData->AddCache(CurrentWidgetState.Widget);
+		CurrentWidgetState.CacheHandle = CurrentCachedElementData->AddCache(CurrentWidgetState.Widget);
 	}
 
-	return CurrentCachedElementData->AddCachedElement(CurrentWidgetState.CacheNode, GetClippingManager(), CurrentWidgetState.Widget);
+	return CurrentCachedElementData->AddCachedElement(CurrentWidgetState.CacheHandle, GetClippingManager(), CurrentWidgetState.Widget);
 }
 
 void FSlateWindowElementList::PushCachedElementData(FSlateCachedElementData& CachedElementData)
@@ -826,7 +828,6 @@ void FSlateWindowElementList::PopCachedElementData()
 {
 	CachedElementDataListStack.Pop();
 }
-
 
 int32 FSlateWindowElementList::PushClip(const FSlateClippingZone& InClipZone)
 {
@@ -919,53 +920,77 @@ static const FSlateClippingState* GetClipStateFromParent(const FSlateClippingMan
 	}
 }
 
-FSlateCachedElementListNode* FSlateCachedElementData::AddCache(const SWidget* Widget)
+void FSlateCachedElementData::Empty()
+{
+	if (CachedElementLists.Num())
+	{
+		UE_LOG(LogSlate, Log, TEXT("Resetting cached element data.  Num: %d"), CachedElementLists.Num());
+	}
+
+	CachedElementLists.Empty();
+	CachedBatches.Empty();
+	CachedClipStates.Empty();
+	ListsWithNewData.Empty();
+}
+
+FSlateCachedElementsHandle FSlateCachedElementData::AddCache(const SWidget* Widget)
 {
 #if WITH_SLATE_DEBUGGING
-	for (FSlateCachedElementList& CachedElementList : CachedElementLists)
+	for (TSharedPtr<FSlateCachedElementList>& CachedElementList : CachedElementLists)
 	{
-		ensure(CachedElementList.Widget != Widget);
+		ensure(CachedElementList->OwningWidget != Widget);
 	}
 #endif
 
-	FSlateCachedElementListNode* NewNode = new FSlateCachedElementListNode(FSlateCachedElementList(this, Widget));
+	TSharedRef<FSlateCachedElementList> NewList = MakeShared<FSlateCachedElementList>(this, Widget);
+	NewList->Initialize();
 
-	CachedElementLists.AddTail(NewNode);
-	NewNode->GetValue().Initialize();
+	CachedElementLists.Add(NewList);
 
-	return NewNode;
+	return FSlateCachedElementsHandle(NewList);
 }
 
-FSlateDrawElement& FSlateCachedElementData::AddCachedElement(FSlateCachedElementListNode* CacheNode, const FSlateClippingManager& ParentClipManager, const SWidget* CurrentWidget)
+FSlateDrawElement& FSlateCachedElementData::AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* CurrentWidget)
 {
+	TSharedPtr<FSlateCachedElementList> List = CacheHandle.Ptr.Pin();
+
 #if WITH_SLATE_DEBUGGING
-	check(CacheNode->GetValue().Widget == CurrentWidget);
+	check(List->OwningWidget == CurrentWidget);
 	check(CurrentWidget->GetParentWidget().IsValid());
 #endif
 
-	FSlateCachedElementList& List = CacheNode->GetValue();
-	FSlateDrawElement& NewElement = List.DrawElements.AddDefaulted_GetRef();
+	FSlateDrawElement& NewElement = List->DrawElements.AddDefaulted_GetRef();
 	NewElement.SetIsCached(true);
 
-	List.bNewData = true;
+	// Check if slow vs checking a flag on the list to see if it contains new data.
+	ListsWithNewData.AddUnique(List.Get());
+
 	const FSlateClippingState* ExistingClipState = GetClipStateFromParent(ParentClipManager);
 
 	if (ExistingClipState)
 	{
 		// We need to cache this clip state for the next time the element draws
 		FSlateCachedClipState& CachedClipState = FindOrAddCachedClipState(ExistingClipState);
-		List.AddCachedClipState(CachedClipState);
+		List->AddCachedClipState(CachedClipState);
 		NewElement.SetCachedClippingState(&CachedClipState.ClippingState.Get());
 	}
 
 	return NewElement;
 }
 
-void FSlateCachedElementData::AddReferencedObjects(FReferenceCollector& Collector)
+FSlateRenderBatch& FSlateCachedElementData::AddCachedRenderBatch(FSlateRenderBatch&& NewBatch, int32& OutIndex)
 {
-	for (FSlateCachedElementList& CachedElementList : CachedElementLists)
+	// Check perf against add.  AddAtLowest makes it generally re-add elements at the same index it just removed which is nicer on the cache
+	int32 LowestFreedIndex = 0;
+	OutIndex = CachedBatches.AddAtLowestFreeIndex(NewBatch, LowestFreedIndex);
+	return CachedBatches[OutIndex];
+}
+
+void FSlateCachedElementData::RemoveCachedRenderBatches(const TArray<int32>& CachedRenderBatchIndices)
+{
+	for (int32 Index : CachedRenderBatchIndices)
 	{
-		CachedElementList.AddReferencedObjects(Collector);
+		CachedBatches.RemoveAt(Index);
 	}
 }
 
@@ -998,21 +1023,24 @@ void FSlateCachedElementData::CleanupUnusedClipStates()
 	}
 }
 
-FSlateCachedElementList::~FSlateCachedElementList()
+
+void FSlateCachedElementData::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	DestroyCachedVertexData();
-	Widget->PersistentState.CachedElementListNode = nullptr;
+	for (TSharedPtr<FSlateCachedElementList>& CachedElementList : CachedElementLists)
+	{
+		CachedElementList->AddReferencedObjects(Collector);
+	}
 }
 
-void FSlateCachedElementList::Reset()
+FSlateCachedElementList::~FSlateCachedElementList()
 {
-	DrawElements.Reset();
+	DestroyCachedData();
+}
 
-	CachedBatches.Reset();
-
-
+void FSlateCachedElementList::ClearCachedElements()
+{
 	// Destroy vertex data in a thread safe way
-	DestroyCachedVertexData();
+	DestroyCachedData();
 
 	CachedRenderingData = new FSlateCachedFastPathRenderingData;
 
@@ -1022,13 +1050,21 @@ void FSlateCachedElementList::Reset()
 		UE_LOG(LogSlate, Log, TEXT("Cleared out data in cached ElementList for Widget: %s before it was batched"), *Widget->GetTag().ToString());
 	}
 #endif
-
-	bNewData = false;
 }
 
 FSlateRenderBatch& FSlateCachedElementList::AddRenderBatch(int32 InLayer, const FShaderParams& InShaderParams, const FSlateShaderResource* InResource, ESlateDrawPrimitive InPrimitiveType, ESlateShader InShaderType, ESlateDrawEffect InDrawEffects, ESlateBatchDrawFlag InDrawFlags, int8 SceneIndex)
 {
-	return CachedBatches.Emplace_GetRef(InLayer, InShaderParams, InResource, InPrimitiveType, InShaderType, InDrawEffects, InDrawFlags, SceneIndex, &CachedRenderingData->Vertices, &CachedRenderingData->Indices, CachedRenderingData->Vertices.Num(), CachedRenderingData->Indices.Num());
+	FSlateRenderBatch NewRenderBatch(InLayer, InShaderParams, InResource, InPrimitiveType, InShaderType, InDrawEffects, InDrawFlags, SceneIndex, &CachedRenderingData->Vertices, &CachedRenderingData->Indices, CachedRenderingData->Vertices.Num(), CachedRenderingData->Indices.Num());
+	int32 RenderBatchIndex = INDEX_NONE;
+	FSlateRenderBatch& AddedBatchRef = ParentData->AddCachedRenderBatch(MoveTemp(NewRenderBatch), RenderBatchIndex);
+	
+	check(RenderBatchIndex != INDEX_NONE);
+
+	CachedRenderBatchIndices.Add(RenderBatchIndex);
+
+	return AddedBatchRef;
+	
+	//return CachedBatches.Emplace_GetRef(InLayer, InShaderParams, InResource, InPrimitiveType, InShaderType, InDrawEffects, InDrawFlags, SceneIndex, &CachedRenderingData->Vertices, &CachedRenderingData->Indices, CachedRenderingData->Vertices.Num(), CachedRenderingData->Indices.Num());
 }
 
 void FSlateCachedElementList::AddCachedClipState(FSlateCachedClipState& ClipStateToCache)
@@ -1044,7 +1080,7 @@ void FSlateCachedElementList::AddReferencedObjects(FReferenceCollector& Collecto
 	}
 }
 
-void FSlateCachedElementList::DestroyCachedVertexData()
+void FSlateCachedElementList::DestroyCachedData()
 {
 	if (CachedRenderingData)
 	{
@@ -1059,4 +1095,43 @@ void FSlateCachedElementList::DestroyCachedVertexData()
 	}
 
 	CachedRenderingData = nullptr;
+
+	if (CachedRenderBatchIndices.Num())
+	{
+		ParentData->RemoveCachedRenderBatches(CachedRenderBatchIndices);
+		CachedRenderBatchIndices.Reset();
+	}
+
+	DrawElements.Reset();
+}
+
+FSlateCachedElementsHandle FSlateCachedElementsHandle::Invalid;
+
+void FSlateCachedElementsHandle::ClearCachedElements()
+{
+	if (TSharedPtr<FSlateCachedElementList> List = Ptr.Pin())
+	{
+		List->ClearCachedElements();
+	}
+}
+
+void FSlateCachedElementsHandle::RemoveFromCache()
+{
+	if (TSharedPtr<FSlateCachedElementList> List = Ptr.Pin())
+	{
+		List->GetOwningData()->RemoveList(*this);
+		ensure(List.IsUnique());
+	}
+
+	check(!Ptr.IsValid());
+}
+
+bool FSlateCachedElementsHandle::IsOwnedByWidget(const SWidget* Widget) const
+{
+	if (const TSharedPtr<FSlateCachedElementList> List = Ptr.Pin())
+	{
+		return List->OwningWidget == Widget;
+	}
+
+	return false;
 }
