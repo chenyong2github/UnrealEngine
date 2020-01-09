@@ -114,3 +114,8 @@ FText UEnvQueryTest_GameplayTags::GetDescriptionDetails() const
 {
 	return FText::FromString(TagQueryToMatch.GetDescription());
 }
+
+void UEnvQueryTest_GameplayTags::SetTagQueryToMatch(FGameplayTagQuery& GameplayTagQuery)
+{
+	TagQueryToMatch = GameplayTagQuery;
+}
