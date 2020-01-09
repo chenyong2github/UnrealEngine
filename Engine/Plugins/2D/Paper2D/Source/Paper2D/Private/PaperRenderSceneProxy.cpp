@@ -260,6 +260,11 @@ void FPaperRenderSceneProxy::RecreateCachedRenderData()
 				VertexFactory.Init(&VertexBuffer);
 			}
 		}
+		else
+		{
+			VertexBuffer.InitResource();
+			VertexFactory.Init(&VertexBuffer);
+		}
 	}
 }
 
@@ -465,6 +470,8 @@ bool FPaperRenderSceneProxy::GetMeshElement(int32 SectionIndex, uint8 DepthPrior
 	const FSpriteRenderSection& Section = BatchedSections[SectionIndex];
 	if (Section.IsValid())
 	{
+		checkSlow(VertexBuffer.IsInitialized() && VertexFactory.IsInitialized());
+
 		OutMeshBatch.bCanApplyViewModeOverrides = true;
 		OutMeshBatch.bUseWireframeSelectionColoring = bIsSelected;
 

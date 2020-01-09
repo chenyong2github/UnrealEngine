@@ -243,8 +243,9 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 {
 	DEFINE_LOG_CATEGORY_STATIC(FMeshElementCollector_AddMesh, Warning, All);
 
-	//checkSlow(MeshBatch.GetNumPrimitives() > 0);
-	checkSlow(MeshBatch.VertexFactory && MeshBatch.MaterialRenderProxy);
+	checkSlow(MeshBatch.VertexFactory);
+	checkSlow(MeshBatch.VertexFactory->IsInitialized());
+	checkSlow(MeshBatch.MaterialRenderProxy);
 	checkSlow(PrimitiveSceneProxy);
 
 	PrimitiveSceneProxy->VerifyUsedMaterial(MeshBatch.MaterialRenderProxy);
