@@ -63,6 +63,8 @@ UReplicationGraph::InitConnectionGraphNodes
 
 #include "ReplicationGraph.generated.h"
 
+struct FReplicationGraphDestructionSettings;
+
 #define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 UCLASS(transient, config=Engine)
@@ -1020,14 +1022,17 @@ struct FLastLocationGatherInfo
 {
 	GENERATED_BODY()
 
-	FLastLocationGatherInfo() : Connection(nullptr), LastLocation(FVector(ForceInitToZero)) {}
-	FLastLocationGatherInfo(const UNetConnection* InConnection, FVector InLastLocation) : Connection(InConnection), LastLocation(InLastLocation) {}
+	FLastLocationGatherInfo() : Connection(nullptr), LastLocation(ForceInitToZero), LastOutOfRangeLocationCheck(ForceInitToZero) {}
+	FLastLocationGatherInfo(const UNetConnection* InConnection, FVector InLastLocation) : Connection(InConnection), LastLocation(InLastLocation), LastOutOfRangeLocationCheck(InLastLocation)  {}
 
 	UPROPERTY()
 	const UNetConnection* Connection;
 
 	UPROPERTY()
 	FVector LastLocation;
+
+	UPROPERTY()
+	FVector LastOutOfRangeLocationCheck;
 
 	bool operator==(UNetConnection* Other) const
 	{
@@ -1139,6 +1144,12 @@ private:
 	
 	int64 ReplicateDormantDestructionInfos();
 
+	/** Update the last location for viewers on a connection */
+	void UpdateGatherLocationsForConnection(const FNetViewerArray& ConnectionViewers, const FReplicationGraphDestructionSettings& DestructionSettings);
+
+    /** Update the location info of a specific viewer */
+	void OnUpdateViewerLocation(FLastLocationGatherInfo* LocationInfo, const FNetViewer& Viewer, const FReplicationGraphDestructionSettings& DestructionSettings);
+
 	UPROPERTY()
 	TArray<UReplicationGraphNode*> ConnectionGraphNodes;
 
@@ -1149,6 +1160,7 @@ private:
 	struct FCachedDestructInfo
 	{
 		FCachedDestructInfo(FActorDestructionInfo* InDestructInfo) : DestructionInfo(InDestructInfo), CachedPosition(InDestructInfo->DestroyedPosition) {}
+		bool operator==(const FCachedDestructInfo& rhs) const { return DestructionInfo == rhs.DestructionInfo; };
 		bool operator==(const FActorDestructionInfo* InDestructInfo) const { return InDestructInfo == DestructionInfo; };
 		
 		FActorDestructionInfo* DestructionInfo;
@@ -1164,8 +1176,17 @@ private:
 		}
 	};
 
+	/** 
+	* List of destroyed actors that were too far from the connection to be relevant.
+	* Is periodically evaluated when the viewer crosses a specific distance.
+	*/
+	TArray<FCachedDestructInfo> OutOfRangeDestroyedActors;
+
+	/** List of destroyed actors that need to be replicated */
 	TArray<FCachedDestructInfo> PendingDestructInfoList;
-	TSet<FActorDestructionInfo*> TrackedDestructionInfoPtrs; // Set used to guard against double adds into PendingDestructInfoList
+
+	/** Set used to guard against double adds into PendingDestructInfoList */
+	TSet<FActorDestructionInfo*> TrackedDestructionInfoPtrs;
 
 	struct FCachedDormantDestructInfo
 	{
@@ -1175,6 +1196,7 @@ private:
 		FString PathName;
 	};
 
+	/** List of dormant actors that should be removed from the client */
 	TArray<FCachedDormantDestructInfo> PendingDormantDestructList;
 };
 
@@ -1239,4 +1261,18 @@ public:
 	UNetReplicationGraphConnection* ConnectionManager;
 
 	virtual UNetConnection* GetNetConnection() const override;
+};
+
+// --------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------------------------------
+struct FReplicationGraphDestructionSettings
+{
+	FReplicationGraphDestructionSettings(float InDestructInfoMaxDistanceSquared, float InOutOfRangeDistanceCheckThresholdSquared)
+		: DestructInfoMaxDistanceSquared(InDestructInfoMaxDistanceSquared)
+		, OutOfRangeDistanceCheckThresholdSquared(InOutOfRangeDistanceCheckThresholdSquared)
+	{ }
+
+	float DestructInfoMaxDistanceSquared;
+	float OutOfRangeDistanceCheckThresholdSquared;
 };
