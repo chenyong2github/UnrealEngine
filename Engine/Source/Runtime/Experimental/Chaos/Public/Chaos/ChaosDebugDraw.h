@@ -17,11 +17,12 @@ namespace Chaos
 		{
 			None = 0,
 			Connector = 1 << 0,
-			Axes = 1 << 1,
-			Level = 1 << 2,
-			Index = 1 << 3,
+			Stretch = 1 << 1,
+			Axes = 1 << 2,
+			Level = 1 << 3,
+			Index = 1 << 4,
 
-			Default = Connector | Index,
+			Default = Connector | Stretch,
 			All = Connector | Axes | Level
 		};
 
