@@ -1706,7 +1706,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
 					UPackage* Package = It->GetOutermost();
-					if (Package != nullptr && Package->IsDirty())
+					if (Package != nullptr && Package->IsDirty() && !Package->HasAnyFlags(RF_Transient))
 					{
 						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 					}
