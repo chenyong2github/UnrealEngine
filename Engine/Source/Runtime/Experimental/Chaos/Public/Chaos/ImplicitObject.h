@@ -79,6 +79,7 @@ namespace EImplicitObject
 	{
 		IsConvex = 1,
 		HasBoundingBox = 1 << 1,
+		DisableCollisions = 1 << 2
 	};
 
 	const int32 FiniteConvex = IsConvex | HasBoundingBox;
@@ -176,10 +177,12 @@ public:
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
 	virtual const class TAABB<FReal, 3> BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
+
 	bool IsConvex() const { return bIsConvex; }
+	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
+
 	void SetDoCollide(const bool Collide ) { bDoCollide = Collide; }
 	bool GetDoCollide() const { return bDoCollide; }
-	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
 	
 #if TRACK_CHAOS_GEOMETRY
 	//Turn on memory tracking. Must pass object itself as a serializable ptr so we can save it out

@@ -1523,7 +1523,6 @@ bool CalculateMassPropertiesOfImplicitType(
 	if (ImplicitObject)
 	{
 		// Hack to handle Transformed and Scaled<ImplicitObjectTriangleMesh> until CastHelper can properly support transformed
-		Chaos::FRigidTransform3 Transform(FMatrix::Identity);
 		// Commenting this out temporarily as it breaks vehicles
 		/*	if (Chaos::IsScaled(ImplicitObject->GetType(true)) && Chaos::GetInnerType(ImplicitObject->GetType(true)) & Chaos::ImplicitObjectType::TriangleMesh)
 			{

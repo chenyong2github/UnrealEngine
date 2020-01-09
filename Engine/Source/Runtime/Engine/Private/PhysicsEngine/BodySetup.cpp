@@ -742,6 +742,14 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	}
 #endif
 
+#if WITH_CHAOS
+	// Force trimesh collisions off
+	for (auto& TriMesh : ChaosTriMeshes)
+	{
+		TriMesh->SetDoCollide(false);
+	}
+#endif
+
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)
 	{
