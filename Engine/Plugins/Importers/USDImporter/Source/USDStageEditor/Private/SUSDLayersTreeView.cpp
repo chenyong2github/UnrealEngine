@@ -32,29 +32,6 @@
 
 #define LOCTEXT_NAMESPACE "SUSDLayersTreeView"
 
-namespace UsdLayersTreeViewImpl
-{
-	bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& LayerHandle, const FString& SubLayerFile )
-	{
-		if ( LayerHandle.Get() )
-		{
-			FScopedUsdAllocs UsdAllocs;
-
-			std::string UsdLayerFilePath = LayerHandle.Get()->GetRealPath();
-			FString LayerFilePath = UsdToUnreal::ConvertString( UsdLayerFilePath );
-
-			FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
-			FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
-
-			LayerHandle.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get() );
-
-			return true;
-		}
-
-		return false;
-	}
-}
-
 struct FUsdLayerData : public TSharedFromThis< FUsdLayerData >
 {
 	FText GetDisplayName() const { return DisplayName; }
@@ -517,7 +494,7 @@ void SUsdLayersTreeView::OnAddSubLayer()
 
 	for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
 	{
-		UsdLayersTreeViewImpl::InsertSubLayer( SelectedItem->GetLayerHandle(), SubLayerFile.GetValue() );
+		UsdUtils::InsertSubLayer( SelectedItem->GetLayerHandle(), *SubLayerFile.GetValue() );
 
 		break;
 	}
@@ -540,9 +517,7 @@ void SUsdLayersTreeView::OnNewSubLayer()
 		FScopedUsdAllocs UsdAllocs;
 		for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
 		{
-			pxr::SdfLayerRefPtr SubLayerHandle = UsdUtils::CreateNewLayer( SelectedItem->UsdStage, *SubLayerFile.GetValue() ).Get();
-
-			UsdLayersTreeViewImpl::InsertSubLayer( SelectedItem->GetLayerHandle(), SubLayerFile.GetValue() );
+			UsdUtils::CreateNewLayer( SelectedItem->UsdStage, SelectedItem->GetLayerHandle(), *SubLayerFile.GetValue() );
 
 			break;
 		}

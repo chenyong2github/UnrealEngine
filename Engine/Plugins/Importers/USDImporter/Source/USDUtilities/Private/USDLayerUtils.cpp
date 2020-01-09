@@ -3,6 +3,7 @@
 #include "USDLayerUtils.h"
 
 #include "USDTypesConversion.h"
+#include "USDErrorUtils.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -20,6 +21,26 @@
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDLayerUtils"
+
+bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile )
+{
+	if ( !ParentLayer.Get() )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	std::string UsdLayerFilePath = ParentLayer.Get()->GetRealPath();
+	FString LayerFilePath = UsdToUnreal::ConvertString( UsdLayerFilePath );
+
+	FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
+	FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
+
+	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get() );
+
+	return true;
+}
 
 TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget )
 {
@@ -44,14 +65,14 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 			if ( DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), TEXT("usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"), EFileDialogFlags::None, OutFiles ) )
 			{
-				return OutFiles[0];
+				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
 			}
 			break;
 
 		case EBrowseFileMode::Save :
 			if ( DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), TEXT("usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"), EFileDialogFlags::None, OutFiles ) )
 			{
-				return OutFiles[0];
+				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
 			}
 			break;
 
@@ -62,7 +83,7 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 	return {};
 }
 
-TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TCHAR* LayerFilePath )
+TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore<pxr::SdfLayerRefPtr>& ParentLayer, const TCHAR* LayerFilePath )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -75,7 +96,17 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 		return {};
 	}
 
+	// New layer needs to be created and in the stage layer stack before we can edit it
+	UsdUtils::InsertSubLayer(ParentLayer, LayerFilePath);
+
+	UsdUtils::StartMonitoringErrors();
 	pxr::UsdEditContext UsdEditContext( UsdStage.Get(), LayerRef );
+	bool bHadErrors = UsdUtils::ShowErrorsAndStopMonitoring();
+
+	if (bHadErrors)
+	{
+		return {};
+	}
 
 	// Create default prim
 	FString PrimPath = TEXT("/") + FPaths::GetBaseFilename( UsdToUnreal::ConvertString( LayerRef->GetDisplayName() ) );

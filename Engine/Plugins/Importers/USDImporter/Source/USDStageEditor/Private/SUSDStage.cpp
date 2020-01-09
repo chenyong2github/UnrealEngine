@@ -398,6 +398,14 @@ void SUsdStage::OnReloadStage()
 		{
 			UsdStage->Reload();
 
+			// If we were editing an unsaved layer, when we reload the edit target will be cleared.
+			// We need to make sure we're always editing something or else UsdEditContext might trigger some errors
+			const pxr::UsdEditTarget& EditTarget = UsdStage->GetEditTarget();
+			if (!EditTarget.IsValid() || EditTarget.IsNull())
+			{
+				UsdStage->SetEditTarget(UsdStage->GetRootLayer());
+			}
+
 			if ( UsdLayersTreeView )
 			{
 				UsdLayersTreeView->Refresh( UsdStageActor.Get(), true );
