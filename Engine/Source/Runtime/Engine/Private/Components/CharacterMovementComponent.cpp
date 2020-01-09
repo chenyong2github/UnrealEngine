@@ -9124,7 +9124,7 @@ void UCharacterMovementComponent::SendClientAdjustment()
 			ServerLastClientAdjustmentTime = CurrentTime;
 
 			const bool bIsPlayingNetworkedRootMotionMontage = CharacterOwner->IsPlayingNetworkedRootMotionMontage();
-			if (HasRootMotionSources())
+			if (CurrentRootMotion.HasActiveRootMotionSources())
 			{
 				FRotator Rotation = ServerData->PendingAdjustment.NewRot.GetNormalized();
 				FVector_NetQuantizeNormal CompressedRotation(Rotation.Pitch / 180.f, Rotation.Yaw / 180.f, Rotation.Roll / 180.f);
