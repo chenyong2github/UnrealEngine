@@ -64,6 +64,15 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 #if CHAOS_CHECKED
 		RigidHandle->SetDebugName(Data->DebugName);
 #endif
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
 	}
 }
 
@@ -135,6 +144,16 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 			WorldSpaceBox.ThickenSymmetrically(Data->MV);
 			RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
+
 	}
 }
 

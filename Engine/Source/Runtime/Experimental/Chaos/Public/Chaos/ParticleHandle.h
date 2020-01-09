@@ -1568,7 +1568,15 @@ public:
 #if CHAOS_CHECKED
 		, DebugName(InParticle.DebugName())
 #endif
-	{}
+	{
+		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
+		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
+		{
+			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+		}
+
+	}
 
 	void Reset() 
 	{ 
@@ -1579,6 +1587,7 @@ public:
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		HashResult = 0;
 		DirtyFlags.Clear();
+		ShapeCollisionDisableFlags.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1590,9 +1599,11 @@ public:
 	FSpatialAccelerationIdx SpatialIdx;
 	uint32 HashResult;
 	FParticleDirtyFlags DirtyFlags;
+	TBitArray<> ShapeCollisionDisableFlags;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
+
 };
 
 
@@ -2034,13 +2045,6 @@ public:
 		, MGravityEnabled(InParticle.IsGravityEnabled())
 	{
 		Type = EParticleType::Rigid;
-
-		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
-		ShapeCollisionDisableFlags.Empty(Shapes.Num());
-		for(const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
-		{
-			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
-		}
 	}
 
 
@@ -2065,7 +2069,6 @@ public:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
-	TBitArray<> ShapeCollisionDisableFlags;
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
@@ -2091,7 +2094,6 @@ public:
 		MDisabled = false;
 		MToBeRemovedOnFracture = false;
 		MGravityEnabled = false;
-		ShapeCollisionDisableFlags.Reset();
 	}
 };
 
