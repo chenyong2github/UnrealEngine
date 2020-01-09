@@ -163,7 +163,6 @@ struct FSlateWidgetPersistentState
 
 	static const FSlateWidgetPersistentState NoState;
 };
-template <> struct TIsPODType<FSlateWidgetPersistentState> { enum { Value = true }; };
 
 struct FWidgetStackData
 {
