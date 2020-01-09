@@ -4748,6 +4748,11 @@ bool UEngine::HandleShaderComplexityCommand( const TCHAR* Cmd, FOutputDevice& Ar
 
 bool UEngine::HandleProfileGPUHitchesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
+	if (!FApp::CanEverRender())
+	{
+		return true;
+	}
+
 	GTriggerGPUHitchProfile = !GTriggerGPUHitchProfile;
 	if (GTriggerGPUHitchProfile)
 	{
@@ -4853,6 +4858,11 @@ bool UEngine::HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if ( FParse::Command(&Cmd,TEXT("GPU")) )
 	{
+		if (!FApp::CanEverRender())
+		{
+			return true;
+		}
+
 		if (!GTriggerGPUHitchProfile)
 		{
 			GTriggerGPUProfile = true;
@@ -4872,6 +4882,11 @@ bool UEngine::HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 #if WITH_PROFILEGPU
 bool UEngine::HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
+	if (!FApp::CanEverRender())
+	{
+		return true;
+	}
+
 	if (FParse::Command(&Cmd, TEXT("TRACE")))
 	{
 		FString Filename = CreateProfileDirectoryAndFilename(TEXT(""), TEXT(".rtt"));
