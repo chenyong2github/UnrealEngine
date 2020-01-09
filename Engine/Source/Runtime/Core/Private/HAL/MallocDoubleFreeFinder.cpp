@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "HAL/MallocDoubleFreeFinder.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Parse.h"""
 #include "Misc/ScopeLock.h"
 //#include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
