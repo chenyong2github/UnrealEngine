@@ -1650,7 +1650,11 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 #if POST_PROCESS_MATERIAL
 		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
 		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
-		Input0 = Decode32BPPHDR(Input0);
+			Input0 = Decode32BPPHDR(Input0);
+			#if METAL_PROFILE
+				// If MSAA is in use undo PreTonemapMSAA, it is reapplied at the end of post process material
+				Input0.rgb = lerp(Input0.rgb, Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0), ResolvedView.IsMobileMSAA);
+			#endif
 		#endif
 		// We need to preserve original SceneColor Alpha as it's used by tonemapper on mobile
 		Parameters.BackupSceneColorAlpha = Input0.a;
