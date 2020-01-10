@@ -26,6 +26,7 @@ protected:
 	virtual void FillWorldGravity(const USkeletalMeshComponent* InComponent);
 	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent);
 	virtual void FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta);
+	virtual void FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
 
 	// Set the wind velocity and return the wind adaptation if required
 	float SetWindFromComponent(const USkeletalMeshComponent* Component);
@@ -48,6 +49,9 @@ public:
 
 	// Delta for this tick
 	float DeltaSeconds;
+
+	// Whether and how we should teleport the simulation this tick
+	EClothingTeleportMode TeleportMode;
 };
 
 // Base simulation to fill in common data for the base context
