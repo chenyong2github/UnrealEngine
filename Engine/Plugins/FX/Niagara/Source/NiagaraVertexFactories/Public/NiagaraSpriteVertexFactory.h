@@ -20,7 +20,6 @@ class FMaterial;
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FNiagaraSpriteUniformParameters, NIAGARAVERTEXFACTORIES_API)
 	SHADER_PARAMETER( uint32, bLocalSpace)
-	SHADER_PARAMETER_EX( FVector, CustomFacingVectorMask, EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX( FVector4, TangentSelector, EShaderPrecisionModifier::Half )
 	SHADER_PARAMETER_EX( FVector4, NormalsSphereCenter, EShaderPrecisionModifier::Half )
 	SHADER_PARAMETER_EX( FVector4, NormalsCylinderUnitDirection, EShaderPrecisionModifier::Half )
