@@ -634,6 +634,10 @@ namespace PropertyEditorHelpers
 		{
 			PropertyHandle = MakeShareable( new FPropertyHandleMap( PropertyNode, NotifyHook, PropertyUtilities ) );
 		}
+		else if (FPropertyHandleFieldPath::Supports(PropertyNode))
+		{
+			PropertyHandle = MakeShareable(new FPropertyHandleFieldPath(PropertyNode, NotifyHook, PropertyUtilities));
+		}
 		else
 		{
 			// Untyped or doesn't support getting the property directly but the property is still valid(probably struct property)
