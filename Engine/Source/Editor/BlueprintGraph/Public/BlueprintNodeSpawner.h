@@ -235,10 +235,10 @@ public:
 	virtual bool IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const;
 
 	// IBlueprintNodeBinder interface
-	virtual bool IsBindingCompatible(UObject const* BindingCandidate) const override { return false; }
+	virtual bool IsBindingCompatible(FBindingObject BindingCandidate) const override { return false; }
 	virtual bool CanBindMultipleObjects() const override { return false; }
 protected:
-	virtual bool BindToNode(UEdGraphNode* Node, UObject* Binding) const override { return false; }
+	virtual bool BindToNode(UEdGraphNode* Node, FBindingObject Binding) const override { return false; }
 	// End IBlueprintNodeBinder interface
 
 	/**

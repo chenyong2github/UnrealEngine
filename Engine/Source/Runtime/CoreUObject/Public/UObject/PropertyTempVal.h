@@ -9,7 +9,7 @@
 // functions called on it.
 struct COREUOBJECT_API FPropertyTempVal
 {
-	explicit FPropertyTempVal(UProperty* InProp);
+	explicit FPropertyTempVal(FProperty* InProp);
 	~FPropertyTempVal();
 
 	// Uncopyable
@@ -36,7 +36,7 @@ struct COREUOBJECT_API FPropertyTempVal
 
 private:
 	// The property which is used to manage to underlying instance.
-	UProperty* Prop;
+	FProperty* Prop;
 
 	// The memory of 
 	void* Value;

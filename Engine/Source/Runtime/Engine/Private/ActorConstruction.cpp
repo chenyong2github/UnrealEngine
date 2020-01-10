@@ -48,9 +48,9 @@ static TArray<FRandomStream*> FindRandomStreams(AActor* InActor)
 	check(InActor);
 	TArray<FRandomStream*> OutStreams;
 	UScriptStruct* RandomStreamStruct = TBaseStructure<FRandomStream>::Get();
-	for( TFieldIterator<UStructProperty> It(InActor->GetClass()) ; It ; ++It )
+	for( TFieldIterator<FStructProperty> It(InActor->GetClass()) ; It ; ++It )
 	{
-		UStructProperty* StructProp = *It;
+		FStructProperty* StructProp = *It;
 		if( StructProp->Struct == RandomStreamStruct )
 		{
 			FRandomStream* StreamPtr = StructProp->ContainerPtrToValuePtr<FRandomStream>(InActor);
@@ -70,11 +70,11 @@ void AActor::SeedAllRandomStreams()
 }
 #endif //WITH_EDITOR
 
-bool IsBlueprintAddedContainer(UProperty* Prop)
+bool IsBlueprintAddedContainer(FProperty* Prop)
 {
-	if (Prop->IsA<UArrayProperty>() || Prop->IsA<USetProperty>() || Prop->IsA<UMapProperty>())
+	if (Prop->IsA<FArrayProperty>() || Prop->IsA<FSetProperty>() || Prop->IsA<FMapProperty>())
 	{
-		return Prop->IsInBlueprint();
+		return Prop->GetOwnerUObject()->IsInBlueprint();
 	}
 
 	return false;
@@ -93,11 +93,11 @@ void AActor::ResetPropertiesForConstruction()
 	const bool bIsPlayInEditor = World && World->IsPlayInEditor();
 
 	// Iterate over properties
-	for( TFieldIterator<UProperty> It(GetClass()) ; It ; ++It )
+	for( TFieldIterator<FProperty> It(GetClass()) ; It ; ++It )
 	{
-		UProperty* Prop = *It;
-		UStructProperty* StructProp = Cast<UStructProperty>(Prop);
-		UClass* PropClass = CastChecked<UClass>(Prop->GetOuter()); // get the class that added this property
+		FProperty* Prop = *It;
+		FStructProperty* StructProp = CastField<FStructProperty>(Prop);
+		UClass* PropClass = Prop->GetOwnerChecked<UClass>(); // get the class that added this property
 
 		// First see if it is a random stream, if so reset before running construction script
 		if( (StructProp != nullptr) && (StructProp->Struct != nullptr) && (StructProp->Struct->GetFName() == RandomStreamName) )
@@ -115,8 +115,8 @@ void AActor::ResetPropertiesForConstruction()
 			if (!bExposedOnSpawn
 				&& !bCanEditInstanceValue
 				&& bCanBeSetInBlueprints
-				&& !Prop->IsA<UDelegateProperty>()
-				&& !Prop->IsA<UMulticastDelegateProperty>())
+				&& !Prop->IsA<FDelegateProperty>()
+				&& !Prop->IsA<FMulticastDelegateProperty>())
 			{
 				Prop->CopyCompleteValue_InContainer(this, Default);
 			}

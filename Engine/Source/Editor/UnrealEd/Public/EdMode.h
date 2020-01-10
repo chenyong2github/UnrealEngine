@@ -312,9 +312,9 @@ public:
 	/** Returns true if this structure can support creating a widget in the editor */
 	static bool CanCreateWidgetForStructure(const UStruct* InPropStruct);
 	/** Returns true if this property can support creating a widget in the editor */
-	static bool CanCreateWidgetForProperty(UProperty* InProp);
+	static bool CanCreateWidgetForProperty(FProperty* InProp);
 	/** See if we should create a widget for the supplied property when selecting an actor instance */
-	static bool ShouldCreateWidgetForProperty(UProperty* InProp);
+	static bool ShouldCreateWidgetForProperty(FProperty* InProp);
 
 public:
 

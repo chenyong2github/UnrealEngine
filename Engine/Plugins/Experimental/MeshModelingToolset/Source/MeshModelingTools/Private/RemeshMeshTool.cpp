@@ -215,7 +215,7 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

@@ -93,6 +93,7 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	ENGINE_API void OverrideLayerGraph(const FMaterialLayersFunctions* OverrideLayers);
 	bool ValidateLayerConfiguration(FMaterialCompiler* Compiler, bool bReportErrors);
 
+	bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const;
 	void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const;
 	UMaterialFunctionInterface* GetParameterAssociatedFunction(const FMaterialParameterInfo& ParameterInfo) const;
 	void GetParameterAssociatedFunctions(const FMaterialParameterInfo& ParameterInfo, TArray<UMaterialFunctionInterface*>& AssociatedFunctions) const;

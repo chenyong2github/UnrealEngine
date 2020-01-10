@@ -517,7 +517,7 @@ void ULevelEditorPlaySettings::PostInitProperties()
 #endif
 }
 
-bool ULevelEditorPlaySettings::CanEditChange(const UProperty* InProperty) const
+bool ULevelEditorPlaySettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 	FName PropertyName = InProperty->GetFName();
@@ -1102,7 +1102,7 @@ void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& P
 	}
 }
 
-bool UProjectPackagingSettings::CanEditChange( const UProperty* InProperty ) const
+bool UProjectPackagingSettings::CanEditChange( const FProperty* InProperty ) const
 {
 	if (InProperty->GetFName() == FName(TEXT("NativizeBlueprintAssets")))
 	{

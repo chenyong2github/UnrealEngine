@@ -57,7 +57,7 @@ protected:
 	/** Populates all properties that have 'ConsoleVariable' meta data with the respective console variable values */
 	void ImportConsoleVariableValues();
 	/** If property has 'ConsoleVariable' meta data, exports the property value to the specified console variable */
-	void ExportValuesToConsoleVariables(UProperty* PropertyThatChanged);
+	void ExportValuesToConsoleVariables(FProperty* PropertyThatChanged);
 
 #endif
 };

@@ -140,7 +140,7 @@ public:
 	 *
 	 * @param Path	The path to the property.  Can be just a name of the property or a path in the format outer.outer.value[optional_index_for_static_arrays]
 	 * @param ClassOutermost	Optional outer class if accessing a property outside of the current class being customized
-	 * @param InstanceName		Optional instance name if multiple UProperty's of the same type exist. such as two identical structs, the instance name is one of the struct variable names)
+	 * @param InstanceName		Optional instance name if multiple FProperty's of the same type exist. such as two identical structs, the instance name is one of the struct variable names)
 	    Examples:
 
 		struct MyStruct
@@ -182,7 +182,7 @@ public:
 	 * @param Path						The path to the property.  Can be just a name of the property or a path in the format outer.outer.value[optional_index_for_static_arrays]
 	 * @param NewLocalizedDisplayName	Optional display name to show instead of the default name
 	 * @param ClassOutermost			Optional outer class if accessing a property outside of the current class being customized
-	 * @param InstanceName				Optional instance name if multiple UProperty's of the same type exist. such as two identical structs, the instance name is one of the struct variable names)
+	 * @param InstanceName				Optional instance name if multiple FProperty's of the same type exist. such as two identical structs, the instance name is one of the struct variable names)
 	 * See IDetailCategoryBuilder::GetProperty for clarification of parameters
 	 */
 	virtual void HideProperty( FName PropertyPath, const UStruct* ClassOutermost = NULL, FName InstanceName = NAME_None ) = 0;

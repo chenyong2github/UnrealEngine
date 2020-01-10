@@ -113,6 +113,8 @@ void FAnimNode_SkeletalControlBase::Update_AnyThread(const FAnimationUpdateConte
 			UpdateInternal(Context);
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
 }
 
 bool ContainsNaN(const TArray<FBoneTransform> & BoneTransforms)

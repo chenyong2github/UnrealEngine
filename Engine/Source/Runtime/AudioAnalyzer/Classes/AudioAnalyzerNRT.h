@@ -139,7 +139,7 @@ class AUDIOANALYZER_API UAudioAnalyzerNRT : public UAudioAnalyzerAsset
 		 * if the UPROPERTY is a UAudioAnalyzerNRTSettings. If so, the previous settings' 
 		 * AnalyzeAudioDelegate will be unbound from this object's AnalyzeAudio()
 		 */
-		void PreEditChange(UProperty* PropertyAboutToChange) override;
+		void PreEditChange(FProperty* PropertyAboutToChange) override;
 
 		/**
 		 * Called when a UPROPERTY of this class is edited. Triggering 
@@ -178,7 +178,7 @@ class AUDIOANALYZER_API UAudioAnalyzerNRT : public UAudioAnalyzerAsset
 	private:
 
 		// Returns UAudioAnalyzerNRTSettings* if property points to a valid UAudioAnalyzerNRTSettings, otherwise returns nullptr.
-		UAudioAnalyzerNRTSettings* GetSettingsFromProperty(UProperty* Property);
+		UAudioAnalyzerNRTSettings* GetSettingsFromProperty(FProperty* Property);
 
 		TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> Result;
 

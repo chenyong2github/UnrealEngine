@@ -39,7 +39,7 @@ class UFoliageType_InstancedStaticMesh : public UFoliageType
 
 #if WITH_EDITOR
 	virtual void UpdateBounds() override;
-	virtual bool IsSourcePropertyChange(const UProperty* Property) const override
+	virtual bool IsSourcePropertyChange(const FProperty* Property) const override
 	{
 		return Property && Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFoliageType_InstancedStaticMesh, Mesh);
 	}

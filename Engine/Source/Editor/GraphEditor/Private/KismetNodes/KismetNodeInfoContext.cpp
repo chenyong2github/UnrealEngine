@@ -48,7 +48,7 @@ FKismetNodeInfoContext::FKismetNodeInfoContext(UEdGraph* SourceGraph)
 					const FString& WorldContextPinName = Function->GetMetaData(FBlueprintMetadata::MD_WorldContext);
 					if (UEdGraphPin* ContextPin = FunctionNode->FindPin(WorldContextPinName))
 					{
-						if (UObjectPropertyBase* ContextProperty = Cast<UObjectPropertyBase>(ClassDebugData.FindClassPropertyForPin(ContextPin)))
+						if (FObjectPropertyBase* ContextProperty = CastField<FObjectPropertyBase>(ClassDebugData.FindClassPropertyForPin(ContextPin)))
 						{
 							UObject* PropertyValue = ContextProperty->GetObjectPropertyValue_InContainer(ActiveObjectBeingDebugged);
 							if (PropertyValue != NULL)

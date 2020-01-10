@@ -58,7 +58,7 @@ void USinglePropertyView::BuildContentWidget()
 		}
 		else
 		{
-			UProperty* Property = ViewedObject->GetClass()->FindPropertyByName(PropertyName);
+			FProperty* Property = ViewedObject->GetClass()->FindPropertyByName(PropertyName);
 			if (Property == nullptr)
 			{
 				MissingWidgetText = FPropertyViewHelper::UnknownPropertyText;
@@ -67,8 +67,8 @@ void USinglePropertyView::BuildContentWidget()
 			{
 				MissingWidgetText = FPropertyViewHelper::InvalidPropertyText;
 			}
-			else if (Cast<UStructProperty>(Property) || Cast<UArrayProperty>(Property)
-				|| Cast<UMapProperty>(Property) || Cast<USetProperty>(Property)
+			else if (CastField<FStructProperty>(Property) || CastField<FArrayProperty>(Property)
+				|| CastField<FMapProperty>(Property) || CastField<FSetProperty>(Property)
 				)
 			{
 				MissingWidgetText = FPropertyViewHelper::UnsupportedPropertyText;

@@ -339,7 +339,7 @@ void UTextBlock::OnCreationFromPalette()
 	Text = LOCTEXT("TextBlockDefaultValue", "Text Block");
 }
 
-bool UTextBlock::CanEditChange(const UProperty* InProperty) const
+bool UTextBlock::CanEditChange(const FProperty* InProperty) const
 {
 	if (bSimpleTextMode && InProperty)
 	{

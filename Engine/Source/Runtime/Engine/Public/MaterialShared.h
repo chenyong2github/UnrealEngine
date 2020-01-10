@@ -1745,6 +1745,11 @@ public:
 	static void RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
+	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() {};
+	ENGINE_API virtual void EndAllowCachingStaticParameterValues() {};
+#endif // WITH_EDITOR
+
 protected:
 	
 	// shared code needed for GetUniformScalarParameterExpressions, GetUniformVectorParameterExpressions, GetUniformCubeTextureExpressions..
@@ -2198,6 +2203,10 @@ public:
 	// FMaterial interface.
 	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const override;
 	ENGINE_API virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override;
+#if WITH_EDITOR
+	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() override;
+	ENGINE_API virtual void EndAllowCachingStaticParameterValues() override;
+#endif // WITH_EDITOR
 	ENGINE_API virtual EMaterialDomain GetMaterialDomain() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;

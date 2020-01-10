@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
+#include "UObject/Field.h"
 
 class UField;
 
@@ -52,11 +53,36 @@ public:
 	void GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const;
 
 	/** Helper function that checks if the field is a dynamic type (can be constructed post-startup) */
-	static bool IsDynamic(const UField* Field);
+	template <typename T>
+	static bool IsDynamic(const T* Field)
+	{
+		static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
+		return Field->HasMetaData(NAME_ReplaceConverted);
+	}
 
 	/** Helper function that checks if the field is belongs to a dynamic type */
 	static bool IsOwnedByDynamicType(const UField* Field);
+	static bool IsOwnedByDynamicType(const FField* Field);
 
 	/** Helper function to get the source replaced package name */
-	static FString GetTypePackageName(const UField* Field);
+	template <typename T>
+	static FString GetTypePackageName(const T* Field)
+	{
+		static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
+		FString PackageName = Field->GetMetaData(NAME_ReplaceConverted);
+		if (PackageName.Len())
+		{
+			int32 ObjectDotIndex = INDEX_NONE;
+			// Strip the object name
+			if (PackageName.FindChar(TEXT('.'), ObjectDotIndex))
+			{
+				PackageName = PackageName.Mid(0, ObjectDotIndex);
+			}
+		}
+		else
+		{
+			PackageName = Field->GetOutermost()->GetName();
+		}
+		return PackageName;
+	}
 };

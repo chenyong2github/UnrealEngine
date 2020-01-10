@@ -38,7 +38,7 @@ struct FMovieSceneEventPtrs
 	UFunction* Function;
 
 	UPROPERTY()
-	UProperty* BoundObjectProperty;
+	TFieldPath<FProperty> BoundObjectProperty;
 };
 
 USTRUCT(BlueprintType)

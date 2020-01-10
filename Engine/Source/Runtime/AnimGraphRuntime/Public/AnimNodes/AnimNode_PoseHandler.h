@@ -41,7 +41,7 @@ public:
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
-	virtual float GetAccumulatedTime() {return 0.f;}
+	virtual float GetAccumulatedTime() const {return 0.f;}
 	virtual void SetAccumulatedTime(const float& NewTime) {}
 	virtual UAnimationAsset* GetAnimAsset() {return PoseAsset;}
 	// End of FAnimNode_AssetPlayerBase Interface

@@ -198,8 +198,8 @@ FString UVariantManagerBlueprintLibrary::GetPropertyTypeString(UPropertyValue* P
 		return FString();
 	}
 
-	UClass* PropClass = PropVal->GetPropertyClass();
-	if (PropClass->IsChildOf(UStructProperty::StaticClass()))
+	FFieldClass* PropClass = PropVal->GetPropertyClass();
+	if (PropClass->IsChildOf(FStructProperty::StaticClass()))
 	{
 		if (UStruct* Struct = PropVal->GetStructPropertyStruct())
 		{
@@ -237,7 +237,7 @@ FString UVariantManagerBlueprintLibrary::GetPropertyTypeString(UPropertyValue* P
 			}
 		}
 	}
-	else if (PropClass->IsChildOf(UNumericProperty::StaticClass()))
+	else if (PropClass->IsChildOf(FNumericProperty::StaticClass()))
 	{
 		if (PropVal->IsNumericPropertyFloatingPoint())
 		{
@@ -248,17 +248,17 @@ FString UVariantManagerBlueprintLibrary::GetPropertyTypeString(UPropertyValue* P
 			return TEXT("int");
 		}
 	}
-	else if (PropClass->IsChildOf(UBoolProperty::StaticClass()))
+	else if (PropClass->IsChildOf(FBoolProperty::StaticClass()))
 	{
 		return TEXT("bool");
 	}
-	else if (PropClass->IsChildOf(UStrProperty::StaticClass()) ||
-		     PropClass->IsChildOf(UTextProperty::StaticClass()) ||
-		     PropClass->IsChildOf(UNameProperty::StaticClass()))
+	else if (PropClass->IsChildOf(FStrProperty::StaticClass()) ||
+		     PropClass->IsChildOf(FTextProperty::StaticClass()) ||
+		     PropClass->IsChildOf(FNameProperty::StaticClass()))
 	{
 		return TEXT("string");
 	}
-	else if (PropClass->IsChildOf(UObjectProperty::StaticClass()) || PropClass->IsChildOf(UInterfaceProperty::StaticClass()))
+	else if (PropClass->IsChildOf(FObjectProperty::StaticClass()) || PropClass->IsChildOf(FInterfaceProperty::StaticClass()))
 	{
 		return TEXT("object");
 	}
@@ -484,7 +484,7 @@ void UVariantManagerBlueprintLibrary::SetValueBool(UPropertyValue* Property, boo
 	int32 SizeInValue = sizeof(bool);
 	int32 PropValSize = Property->GetValueSizeInBytes();
 
-	if (SizeInValue == PropValSize && Property->GetPropertyClass()->IsChildOf(UBoolProperty::StaticClass()))
+	if (SizeInValue == PropValSize && Property->GetPropertyClass()->IsChildOf(FBoolProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, InValue);
 	}
@@ -506,40 +506,40 @@ void UVariantManagerBlueprintLibrary::SetValueInt(UPropertyValue* Property, int3
 		return;
 	}
 
-	UClass* PropertyClass = Property->GetPropertyClass();
+	FFieldClass* PropertyClass = Property->GetPropertyClass();
 
 	// Technically blueprint-exposed properties can only be int32 or uint8, but this should handle all
 	// cases. The two most common are first
-	if (PropertyClass->IsChildOf(UIntProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FIntProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, InValue);
 	}
-	else if (PropertyClass->IsChildOf(UByteProperty::StaticClass()))
+	else if (PropertyClass->IsChildOf(FByteProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<uint8>(InValue));
 	}
-	else if (PropertyClass->IsChildOf(UUInt64Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt64Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<uint64>(InValue));
 	}
-	else if (PropertyClass->IsChildOf(UUInt32Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt32Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<uint32>(InValue));
 	}
-	else if (PropertyClass->IsChildOf(UUInt16Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt16Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<uint16>(InValue));
 	}
 
-	else if (PropertyClass->IsChildOf(UInt64Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt64Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<int64>(InValue));
 	}
-	else if (PropertyClass->IsChildOf(UInt16Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt16Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<int16>(InValue));
 	}
-	else if (PropertyClass->IsChildOf(UInt8Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt8Property::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<int8>(InValue));
 	}
@@ -556,39 +556,39 @@ int32 UVariantManagerBlueprintLibrary::GetValueInt(UPropertyValue* Property)
 		return 0;
 	}
 
-	UClass* PropertyClass = Property->GetPropertyClass();
+	FFieldClass* PropertyClass = Property->GetPropertyClass();
 
 	// Technically blueprint-exposed properties can only be int32 or uint8, but this should handle all
 	// cases. The two most common are first
-	if (PropertyClass->IsChildOf(UIntProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FIntProperty::StaticClass()))
 	{
 		return GetPropertyValueImpl<int32>(Property, 0);
 	}
-	else if (PropertyClass->IsChildOf(UByteProperty::StaticClass()))
+	else if (PropertyClass->IsChildOf(FByteProperty::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<uint8>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UUInt64Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt64Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<uint64>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UUInt32Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt32Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<uint32>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UUInt16Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FUInt16Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<uint16>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UInt64Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt64Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<int64>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UInt16Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt16Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<int16>(Property, 0));
 	}
-	else if (PropertyClass->IsChildOf(UInt8Property::StaticClass()))
+	else if (PropertyClass->IsChildOf(FInt8Property::StaticClass()))
 	{
 		return static_cast<int32>(GetPropertyValueImpl<int8>(Property, 0));
 	}
@@ -603,13 +603,13 @@ void UVariantManagerBlueprintLibrary::SetValueFloat(UPropertyValue* Property, fl
 		return;
 	}
 
-	UClass* PropertyClass = Property->GetPropertyClass();
+	FFieldClass* PropertyClass = Property->GetPropertyClass();
 
-	if (PropertyClass->IsChildOf(UFloatProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FFloatProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, InValue);
 	}
-	else if (PropertyClass->IsChildOf(UDoubleProperty::StaticClass()))
+	else if (PropertyClass->IsChildOf(FDoubleProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, static_cast<double>(InValue));
 	}
@@ -626,13 +626,13 @@ float UVariantManagerBlueprintLibrary::GetValueFloat(UPropertyValue* Property)
 		return 0.0f;
 	}
 
-	UClass* PropertyClass = Property->GetPropertyClass();
+	FFieldClass* PropertyClass = Property->GetPropertyClass();
 
-	if (PropertyClass->IsChildOf(UFloatProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FFloatProperty::StaticClass()))
 	{
 		return GetPropertyValueImpl<float>(Property, 0.0f);
 	}
-	else if (PropertyClass->IsChildOf(UDoubleProperty::StaticClass()))
+	else if (PropertyClass->IsChildOf(FDoubleProperty::StaticClass()))
 	{
 		return static_cast<float>(GetPropertyValueImpl<double>(Property, 0.0));
 	}
@@ -647,8 +647,8 @@ void UVariantManagerBlueprintLibrary::SetValueObject(UPropertyValue* Property, U
 		return;
 	}
 
-	UClass* PropClass = Property->GetPropertyClass();
-	if (PropClass->IsChildOf(UObjectProperty::StaticClass()) || PropClass->IsChildOf(UInterfaceProperty::StaticClass()))
+	FFieldClass* PropClass = Property->GetPropertyClass();
+	if (PropClass->IsChildOf(FObjectProperty::StaticClass()) || PropClass->IsChildOf(FInterfaceProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, InValue);
 	}
@@ -670,15 +670,15 @@ void UVariantManagerBlueprintLibrary::SetValueString(UPropertyValue* Property, c
 		return;
 	}
 
-	if (Property->GetPropertyClass()->IsChildOf(UStrProperty::StaticClass()))
+	if (Property->GetPropertyClass()->IsChildOf(FStrProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, InValue);
 	}
-	else if (Property->GetPropertyClass()->IsChildOf(UTextProperty::StaticClass()))
+	else if (Property->GetPropertyClass()->IsChildOf(FTextProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, FText::FromString(InValue));
 	}
-	else if (Property->GetPropertyClass()->IsChildOf(UNameProperty::StaticClass()))
+	else if (Property->GetPropertyClass()->IsChildOf(FNameProperty::StaticClass()))
 	{
 		SetPropertyValueImpl(Property, FName(*InValue));
 	}
@@ -695,15 +695,15 @@ FString UVariantManagerBlueprintLibrary::GetValueString(UPropertyValue* Property
 		return FString();
 	}
 
-	if (Property->GetPropertyClass()->IsChildOf(UStrProperty::StaticClass()))
+	if (Property->GetPropertyClass()->IsChildOf(FStrProperty::StaticClass()))
 	{
 		return GetPropertyValueRefTypeImpl(Property, FString());
 	}
-	else if (Property->GetPropertyClass()->IsChildOf(UTextProperty::StaticClass()))
+	else if (Property->GetPropertyClass()->IsChildOf(FTextProperty::StaticClass()))
 	{
 		return GetPropertyValueRefTypeImpl(Property, FText()).ToString();
 	}
-	else if (Property->GetPropertyClass()->IsChildOf(UNameProperty::StaticClass()))
+	else if (Property->GetPropertyClass()->IsChildOf(FNameProperty::StaticClass()))
 	{
 		return GetPropertyValueRefTypeImpl(Property, FName()).ToString();
 	}

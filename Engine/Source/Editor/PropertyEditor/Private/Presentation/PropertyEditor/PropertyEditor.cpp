@@ -40,7 +40,7 @@ FPropertyEditor::FPropertyEditor( const TSharedRef<FPropertyNode>& InPropertyNod
 	// FPropertyEditor isn't built to handle CategoryNodes
 	check( InPropertyNode->AsCategoryNode() == NULL );
 
-	UProperty* Property = InPropertyNode->GetProperty();
+	FProperty* Property = InPropertyNode->GetProperty();
 
 	if( Property )
 	{
@@ -100,7 +100,7 @@ FString FPropertyEditor::GetDocumentationLink() const
 
 	if( PropertyNode->AsItemPropertyNode() )
 	{
-		UProperty* Property = PropertyNode->GetProperty();
+		FProperty* Property = PropertyNode->GetProperty();
 		DocumentationLink = PropertyEditorHelpers::GetDocumentationLink( Property );
 	}
 
@@ -113,7 +113,7 @@ FString FPropertyEditor::GetDocumentationExcerptName() const
 
 	if( PropertyNode->AsItemPropertyNode() )
 	{
-		UProperty* Property = PropertyNode->GetProperty();
+		FProperty* Property = PropertyNode->GetProperty();
 		ExcerptName = PropertyEditorHelpers::GetDocumentationExcerptName( Property );
 	}
 
@@ -168,7 +168,7 @@ FText FPropertyEditor::GetValueAsDisplayText() const
 	return Text;
 }
 
-bool FPropertyEditor::PropertyIsA(const UClass* Class) const
+bool FPropertyEditor::PropertyIsA(const FFieldClass* Class) const
 {
 	return PropertyNode->GetProperty() != NULL ? PropertyNode->GetProperty()->IsA( Class ) : false;
 }
@@ -279,8 +279,8 @@ void FPropertyEditor::OnClearItem()
 
 void FPropertyEditor::MakeNewBlueprint()
 {
-	UProperty* NodeProperty = PropertyNode->GetProperty();
-	UClassProperty* ClassProp = Cast<UClassProperty>(NodeProperty);
+	FProperty* NodeProperty = PropertyNode->GetProperty();
+	FClassProperty* ClassProp = CastField<FClassProperty>(NodeProperty);
 	UClass* Class = (ClassProp ? ClassProp->MetaClass : FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass")));
 
 	UClass* RequiredInterface = FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MustImplement"));
@@ -305,7 +305,7 @@ void FPropertyEditor::MakeNewBlueprint()
 
 void FPropertyEditor::EditConfigHierarchy()
 {
-	UProperty* NodeProperty = PropertyNode->GetProperty();
+	FProperty* NodeProperty = PropertyNode->GetProperty();
 
 	IConfigEditorModule& ConfigEditorModule = FModuleManager::LoadModuleChecked<IConfigEditorModule>("ConfigEditor");
 	ConfigEditorModule.CreateHierarchyEditor(NodeProperty);
@@ -454,7 +454,7 @@ void FPropertyEditor::ToggleEditConditionState()
 
 	PropertyNode->NotifyPreChange( PropertyNode->GetProperty(), PropertyUtilities->GetNotifyHook() );
 
-	const UBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
+	const FBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 	check(EditConditionProperty != nullptr);
 
 	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
@@ -516,9 +516,9 @@ void FPropertyEditor::ToggleEditConditionState()
 
 void FPropertyEditor::OnGetClassesForAssetPicker( TArray<const UClass*>& OutClasses )
 {
-	UProperty* NodeProperty = GetPropertyNode()->GetProperty();
+	FProperty* NodeProperty = GetPropertyNode()->GetProperty();
 
-	UObjectPropertyBase* ObjProp = Cast<UObjectPropertyBase>( NodeProperty );
+	FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>( NodeProperty );
 
 	// This class and its children are the classes that we can show objects for
 	UClass* AllowedClass = ObjProp ? ObjProp->PropertyClass : UObject::StaticClass();
@@ -545,9 +545,9 @@ void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<SceneOutline
 		static bool IsFilteredActor( const AActor* Actor, TSharedRef<FPropertyEditor> PropertyEditor )
 		{
 			const TSharedRef<FPropertyNode> PropertyNode = PropertyEditor->GetPropertyNode();
-			UProperty* NodeProperty = PropertyNode->GetProperty();
+			FProperty* NodeProperty = PropertyNode->GetProperty();
 
-			UObjectPropertyBase* ObjProp = Cast<UObjectPropertyBase>( NodeProperty );
+			FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>( NodeProperty );
 
 			// This class and its children are the classes that we can show objects for
 			UClass* AllowedClass = ObjProp ? ObjProp->PropertyClass : AActor::StaticClass();
@@ -577,7 +577,7 @@ void FPropertyEditor::RequestRefresh()
 bool FPropertyEditor::IsOnlyVisibleWhenEditConditionMet() const
 {
 	static const FName Name_EditConditionHides("EditConditionHides");
-	UProperty* Property = PropertyNode->GetProperty();
+	FProperty* Property = PropertyNode->GetProperty();
 	if (Property && Property->HasMetaData(Name_EditConditionHides))
 	{
 		return HasEditCondition();
@@ -611,12 +611,12 @@ bool FPropertyEditor::IsEditConditionMet() const
 
 bool FPropertyEditor::SupportsEditConditionToggle() const
 {
-	UProperty* Property = PropertyNode->GetProperty();
+	FProperty* Property = PropertyNode->GetProperty();
 
 	static const FName Name_HideEditConditionToggle("HideEditConditionToggle");
 	if (EditConditionExpression.IsValid() && !Property->HasMetaData(Name_HideEditConditionToggle))
 	{
-		const UBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
+		const FBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 		if (ConditionalProperty != nullptr)
 		{
 			// There are 2 valid states for inline edit conditions:
@@ -670,7 +670,7 @@ TSharedRef< FPropertyNode > FPropertyEditor::GetPropertyNode() const
 	return PropertyNode;
 }
 
-const UProperty* FPropertyEditor::GetProperty() const
+const FProperty* FPropertyEditor::GetProperty() const
 {
 	return PropertyNode->GetProperty();
 }
@@ -691,10 +691,10 @@ void FPropertyEditor::SyncToObjectsInNode( const TWeakPtr< FPropertyNode >& Weak
 
 	TSharedPtr< FPropertyNode > PropertyNode = WeakPropertyNode.Pin();
 	check(PropertyNode.IsValid());
-	UProperty* NodeProperty = PropertyNode->GetProperty();
+	FProperty* NodeProperty = PropertyNode->GetProperty();
 
-	UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>( NodeProperty );
-	UInterfaceProperty* IntProp = Cast<UInterfaceProperty>( NodeProperty );
+	FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>( NodeProperty );
+	FInterfaceProperty* IntProp = CastField<FInterfaceProperty>( NodeProperty );
 	{
 		UClass* PropertyClass = UObject::StaticClass();
 		if( ObjectProperty )

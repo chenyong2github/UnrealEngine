@@ -51,7 +51,7 @@ protected:
 	TSharedPtr<SErrorText> ErrorTextWidget;
 		
 private:
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	
 	bool GetMeshPaintEditorIsEnabled() const;
 };

@@ -22,12 +22,12 @@ public:
 
 protected:
 
-	void OnChangeProperty(UProperty* ItemSelected, ESelectInfo::Type SelectInfo);
+	void OnChangeProperty(FProperty* ItemSelected, ESelectInfo::Type SelectInfo);
 
-	FGuid GetPropertyGuid(UProperty* Property) const;
-	FString GetPropertyName(UProperty* Property) const;
+	FGuid GetPropertyGuid(FProperty* Property) const;
+	FString GetPropertyName(FProperty* Property) const;
 
-	TSharedRef<SWidget> GeneratePropertyWidget(UProperty* Property);
+	TSharedRef<SWidget> GeneratePropertyWidget(FProperty* Property);
 
 	FText GetSelectedValueText() const;
 
@@ -36,7 +36,7 @@ protected:
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
 	TSharedPtr<IPropertyHandle> GuidPropertyHandle;
 
-	TArray<UProperty*> PropertyOptions;
+	TArray<FProperty*> PropertyOptions;
 
-	UProperty* SelectedProperty;
+	FProperty* SelectedProperty;
 };

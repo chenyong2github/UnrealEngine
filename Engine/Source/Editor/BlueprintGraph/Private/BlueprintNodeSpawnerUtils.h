@@ -16,7 +16,7 @@ struct FBlueprintNodeSpawnerUtils
 	 * @param  BlueprintAction	The node-spawner you want an associated field for.
 	 * @return The action's associated field (null if it doesn't have one).
 	 */
-	static UField const* GetAssociatedField(UBlueprintNodeSpawner const* BlueprintAction);
+	static FFieldVariant GetAssociatedField(UBlueprintNodeSpawner const* BlueprintAction);
 
 	/**
 	 * Certain node-spawners are associated with specific UFunctions (call-
@@ -36,7 +36,7 @@ struct FBlueprintNodeSpawnerUtils
 	 * @param  BlueprintAction	The node-spawner you want an associated property for.
 	 * @return The action's associated property (null if it doesn't have one).
 	 */
-	static UProperty const* GetAssociatedProperty(UBlueprintNodeSpawner const* BlueprintAction);
+	static FProperty const* GetAssociatedProperty(UBlueprintNodeSpawner const* BlueprintAction);
 
 	/**
 	 * Utility function to pull UClass info from a tentative binding object 
@@ -46,7 +46,7 @@ struct FBlueprintNodeSpawnerUtils
 	 * @param  Binding	The binding you want a class for.
 	 * @return A UClass that corresponds to the supplied binding.
 	 */
-	static UClass* GetBindingClass(const UObject* Binding);
+	static UClass* GetBindingClass(FBindingObject Binding);
 
 	/**
 	 * Checks if the node-spawner's associated action is stale (meaning it 

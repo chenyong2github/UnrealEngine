@@ -102,7 +102,7 @@ void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	bPolygonsValid = false;
 	GetToolManager()->PostInvalidation();

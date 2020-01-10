@@ -48,7 +48,7 @@ public:
 	SLATE_END_ARGS()
 
 	static bool Supports(const TSharedRef< class FPropertyEditor >& InPropertyEditor);
-	static bool Supports(const UProperty* InProperty);
+	static bool Supports(const FProperty* InProperty);
 
 	void Construct(const FArguments& InArgs, const TSharedPtr< class FPropertyEditor >& InPropertyEditor = nullptr);
 

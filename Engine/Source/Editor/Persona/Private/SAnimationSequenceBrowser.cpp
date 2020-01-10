@@ -1250,7 +1250,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 		{
 			// Check for DisplayName metadata
 			FText DisplayName;
-			if (UProperty* Field = FindField<UProperty>(AssetClass, TagPair.Key))
+			if (FProperty* Field = FindField<FProperty>(AssetClass, TagPair.Key))
 			{
 				DisplayName = Field->GetDisplayNameText();
 			}

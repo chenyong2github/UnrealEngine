@@ -299,7 +299,7 @@ void UVariantObjectBinding::ExecuteTargetFunction(FName FunctionName)
 	}
 	else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
 	{
-		if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(Func->PropertyLink))
+		if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
 		{
 			if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
 			{
@@ -363,7 +363,7 @@ void UVariantObjectBinding::ExecuteAllTargetFunctions()
 		}
 		else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
 		{
-			if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(Func->PropertyLink))
+			if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
 			{
 				if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
 				{

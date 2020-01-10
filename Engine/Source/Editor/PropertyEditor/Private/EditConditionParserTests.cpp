@@ -612,13 +612,13 @@ bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
 
 	{
 		TSharedPtr<FEditConditionExpression> Expression = Parser.Parse(FString(TEXT("BoolProperty")));
-		const UBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
+		const FBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
 		TestNotNull(TEXT("Bool"), Property);
 	}
 
 	{
 		TSharedPtr<FEditConditionExpression> Expression = Parser.Parse(FString(TEXT("UintBitfieldProperty")));
-		const UBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
+		const FBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
 		TestNotNull(TEXT("Uint Bitfield"), Property);
 	}
 

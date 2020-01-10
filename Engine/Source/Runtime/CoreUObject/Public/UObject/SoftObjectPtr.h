@@ -124,14 +124,14 @@ public:
 	}
 	
 	/** Construct from another soft pointer */
-	template <class U, class = typename TEnableIf<TPointerIsConvertibleFromTo<U, T>::Value>::Type>
+	template <class U, class = decltype(ImplicitConv<T*>((U*)nullptr))>
 	FORCEINLINE TSoftObjectPtr(const TSoftObjectPtr<U>& Other)
 		: SoftObjectPtr(Other.SoftObjectPtr)
 	{
 	}
 
 	/** Construct from a moveable soft pointer */
-	template <class U, class = typename TEnableIf<TPointerIsConvertibleFromTo<U, T>::Value>::Type>
+	template <class U, class = decltype(ImplicitConv<T*>((U*)nullptr))>
 	FORCEINLINE TSoftObjectPtr(TSoftObjectPtr<U>&& Other)
 		: SoftObjectPtr(MoveTemp(Other.SoftObjectPtr))
 	{
@@ -191,7 +191,7 @@ public:
 	}
 
 	/** Copy from a weak pointer to an object already in memory */
-	template <class U, class = typename TEnableIf<TPointerIsConvertibleFromTo<U, T>::Value>::Type>
+	template <class U, class = decltype(ImplicitConv<T*>((U*)nullptr))>
 	FORCEINLINE TSoftObjectPtr& operator=(const TWeakObjectPtr<U>& Other)
 	{
 		SoftObjectPtr = Other;
@@ -199,7 +199,7 @@ public:
 	}
 
 	/** Copy from another soft pointer */
-	template <class U, class = typename TEnableIf<TPointerIsConvertibleFromTo<U, T>::Value>::Type>
+	template <class U, class = decltype(ImplicitConv<T*>((U*)nullptr))>
 	FORCEINLINE TSoftObjectPtr& operator=(TSoftObjectPtr<U> Other)
 	{
 		SoftObjectPtr = MoveTemp(Other.SoftObjectPtr);
@@ -409,7 +409,7 @@ public:
 	}
 		
 	/** Construct from another soft pointer */
-	template <class TClassA, class = typename TEnableIf<TPointerIsConvertibleFromTo<TClassA, TClass>::Value>::Type>
+	template <class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSoftClassPtr(const TSoftClassPtr<TClassA>& Other)
 		: SoftObjectPtr(Other.SoftObjectPtr)
 	{
@@ -452,7 +452,7 @@ public:
 	}
 
 	/** Copy from a weak pointer already in memory */
-	template<class TClassA, class = typename TEnableIf<TPointerIsConvertibleFromTo<TClassA, UClass>::Value>::Type>
+	template<class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSoftClassPtr& operator=(const TWeakObjectPtr<TClassA>& Other)
 	{
 		SoftObjectPtr = Other;
@@ -460,7 +460,7 @@ public:
 	}
 
 	/** Copy from another soft pointer */
-	template<class TClassA, class = typename TEnableIf<TPointerIsConvertibleFromTo<TClassA, TClass>::Value>::Type>
+	template<class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSoftClassPtr& operator=(const TSoftObjectPtr<TClassA>& Other)
 	{
 		SoftObjectPtr = Other.SoftObjectPtr;

@@ -55,7 +55,7 @@ bool FCheckFastPathLatentCommand::Update()
 			IAnimClassInterface* AnimClassInterface = Cast<IAnimClassInterface>(AnimBlueprint->GeneratedClass);
 			if (AnimClassInterface && DefaultAnimInstance)
 			{
-				for (UStructProperty* Property : AnimClassInterface->GetAnimNodeProperties())
+				for (const FStructPropertyPath& Property : AnimClassInterface->GetAnimNodeProperties())
 				{
 					if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()) && !Property->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 					{

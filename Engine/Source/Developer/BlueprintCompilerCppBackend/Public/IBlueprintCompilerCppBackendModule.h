@@ -11,7 +11,7 @@ struct FCompilerNativizationOptions;
 
 struct FNativizationSummary
 {
-	TMap<FSoftObjectPath, int32> InaccessiblePropertyStat;
+	TMap<FString, int32> InaccessiblePropertyStat;
 
 	struct FAnimBlueprintDetails
 	{

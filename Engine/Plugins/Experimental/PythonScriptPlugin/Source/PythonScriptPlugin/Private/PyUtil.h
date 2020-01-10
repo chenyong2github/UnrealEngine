@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
 #include "Logging/LogMacros.h"
+#include "UObject/Field.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPython, Log, All);
 
@@ -78,7 +79,7 @@ namespace PyUtil
 	class FPropValueOnScope
 	{
 	public:
-		explicit FPropValueOnScope(const UProperty* InProp);
+		explicit FPropValueOnScope(const FProperty* InProp);
 		~FPropValueOnScope();
 
 		FPropValueOnScope(FPropValueOnScope&) = delete;
@@ -88,12 +89,12 @@ namespace PyUtil
 
 		bool IsValid() const;
 
-		const UProperty* GetProp() const;
+		const FProperty* GetProp() const;
 
 		void* GetValue(const int32 InArrayIndex = 0) const;
 
 	private:
-		const UProperty* Prop;
+		const FProperty* Prop;
 		void* Value;
 	};
 
@@ -101,35 +102,35 @@ namespace PyUtil
 	class FFixedArrayElementOnScope : public FPropValueOnScope
 	{
 	public:
-		explicit FFixedArrayElementOnScope(const UProperty* InProp);
+		explicit FFixedArrayElementOnScope(const FProperty* InProp);
 	};
 
 	/** Helper used to hold the value for a single array element on the stack */
 	class FArrayElementOnScope : public FPropValueOnScope
 	{
 	public:
-		explicit FArrayElementOnScope(const UArrayProperty* InProp);
+		explicit FArrayElementOnScope(const FArrayProperty* InProp);
 	};
 
 	/** Helper used to hold the value for a single set element on the stack */
 	class FSetElementOnScope : public FPropValueOnScope
 	{
 	public:
-		explicit FSetElementOnScope(const USetProperty* InProp);
+		explicit FSetElementOnScope(const FSetProperty* InProp);
 	};
 
 	/** Helper used to hold the value for a single map key on the stack */
 	class FMapKeyOnScope : public FPropValueOnScope
 	{
 	public:
-		explicit FMapKeyOnScope(const UMapProperty* InProp);
+		explicit FMapKeyOnScope(const FMapProperty* InProp);
 	};
 
 	/** Helper used to hold the value for a single map value on the stack */
 	class FMapValueOnScope : public FPropValueOnScope
 	{
 	public:
-		explicit FMapValueOnScope(const UMapProperty* InProp);
+		explicit FMapValueOnScope(const FMapProperty* InProp);
 	};
 
 	/** Struct containing information needed to construct a property instance */
@@ -143,7 +144,7 @@ namespace PyUtil
 		{
 		}
 
-		explicit FPropertyDef(UClass* InPropertyClass, UObject* InPropertySubType = nullptr, TSharedPtr<FPropertyDef> InKeyDef = nullptr, TSharedPtr<FPropertyDef> InValueDef = nullptr)
+		explicit FPropertyDef(FFieldClass* InPropertyClass, UObject* InPropertySubType = nullptr, TSharedPtr<FPropertyDef> InKeyDef = nullptr, TSharedPtr<FPropertyDef> InValueDef = nullptr)
 			: PropertyClass(InPropertyClass)
 			, PropertySubType(InPropertySubType)
 			, KeyDef(InKeyDef)
@@ -151,7 +152,7 @@ namespace PyUtil
 		{
 		}
 
-		FPropertyDef(const UProperty* InProperty);
+		FPropertyDef(const FProperty* InProperty);
 
 		FORCEINLINE bool operator==(const FPropertyDef& Other) const
 		{
@@ -167,7 +168,7 @@ namespace PyUtil
 		}
 
 		/** Class of the property to create */
-		UClass* PropertyClass;
+		FFieldClass* PropertyClass;
 
 		/** Sub-type of the property (the class for object properties, the struct for struct properties, the enum for enum properties, the function for delegate properties) */
 		UObject* PropertySubType;
@@ -186,22 +187,22 @@ namespace PyUtil
 	bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef);
 
 	/** Given a property definition, create a property instance */
-	UProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
+	FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
 
 	/** Given a Python type, create a compatible property instance */
-	UProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
+	FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
 
 	/** Given a Python instance, create a compatible property instance */
-	UProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
+	FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = NAME_None);
 
 	/** Check to see if the given property is an input parameter for a function */
-	bool IsInputParameter(const UProperty* InParam);
+	bool IsInputParameter(const FProperty* InParam);
 
 	/** Check to see if the given property is an output parameter for a function */
-	bool IsOutputParameter(const UProperty* InParam);
+	bool IsOutputParameter(const FProperty* InParam);
 
 	/** Import a UHT default value on the given property */
-	void ImportDefaultValue(const UProperty* InProp, void* InPropValue, const FString& InDefaultValue);
+	void ImportDefaultValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue);
 
 	/** Invoke a function call. Returns false if a Python exception was raised */
 	bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBaseParamsAddr, const TCHAR* InErrorCtxt);
@@ -216,7 +217,7 @@ namespace PyUtil
 	int ValidateContainerLenParam(PyObject* InPyObj, int32 &OutLen, const char* InPythonArgName, const TCHAR* InErrorCtxt);
 
 	/** Validate that the given index is valid for the container length */
-	int ValidateContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen, const UProperty* InProp, const TCHAR* InErrorCtxt);
+	int ValidateContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen, const FProperty* InProp, const TCHAR* InErrorCtxt);
 
 	/** Resolve a container index (taking into account negative indices) */
 	Py_ssize_t ResolveContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen);
@@ -229,10 +230,10 @@ namespace PyUtil
 	UObject* GetOwnerObject(PyObject* InPyObj);
 
 	/** Get the current value of the given property from the given struct */
-	PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
+	PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const FProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
 
 	/** Set the current value of the given property from the given struct */
-	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
+	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
 
 	/**
 	 * Check to see if the given object implements a length function.
@@ -298,7 +299,7 @@ namespace PyUtil
 	/**
 	 * Get the friendly value of the given property that can be used when stringifying property values for Python.
 	 */
-	FString GetFriendlyPropertyValue(const UProperty* InProp, const void* InPropValue, const uint32 InPropPortFlags);
+	FString GetFriendlyPropertyValue(const FProperty* InProp, const void* InPropValue, const uint32 InPropPortFlags);
 
 	/**
 	 * Get the friendly typename of the given object that can be used in error reporting.

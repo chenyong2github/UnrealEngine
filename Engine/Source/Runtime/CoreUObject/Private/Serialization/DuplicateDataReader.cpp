@@ -105,3 +105,8 @@ FArchive& FDuplicateDataReader::operator<<(FSoftObjectPath& SoftObjectPath)
 	
 	return *this;
 }
+
+//FArchive& FDuplicateDataReader::operator<<(FField*& Field)
+//{
+//
+//}

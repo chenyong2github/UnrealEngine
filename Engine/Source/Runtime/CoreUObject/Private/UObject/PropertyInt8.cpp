@@ -5,10 +5,6 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UInt8Property.
+	FInt8Property.
 -----------------------------------------------------------------------------*/
 
-IMPLEMENT_CORE_INTRINSIC_CLASS(UInt8Property, UNumericProperty,
-	{
-	}
-);

@@ -64,7 +64,7 @@ private:
 public:
 
 	/**
-	 * Called from FSoftObjectPath::PostLoadPath, registers this for later querying
+	 * Called from FSoftObjectPath::PostLoadPath, registers the given SoftObjectPath for later querying
 	 * @param InPath The soft object path that was loaded
 	 * @Param InArchive The archive that loaded this path
 	 */

@@ -40,7 +40,7 @@ UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitia
 
 
 #if WITH_EDITOR
-void UNiagaraDataInterfaceVectorField::PreEditChange(UProperty* PropertyAboutToChange)
+void UNiagaraDataInterfaceVectorField::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 	

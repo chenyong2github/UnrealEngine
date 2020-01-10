@@ -17,12 +17,12 @@
 #include "UObject/UObjectThreadContext.h"
 #include "Templates/RefCounting.h"
 #include "Serialization/AsyncPackageLoader.h"
-class IAsyncReadRequest;
+#include "Async/AsyncFileHandle.h"
+
 struct FAsyncPackage;
 struct FFlushTree;
 class FAsyncLoadingThread;
 
-struct FAsyncPackage;
 /** [EDL] Async Package Loading State */
 enum class EAsyncPackageLoadingState : uint8
 {
@@ -655,7 +655,7 @@ public:
 		}
 	};
 
-	TMap<IAsyncReadRequest*, FExportIORequest> PrecacheRequests;
+	TMap<IAsyncReadRequest*, FAsyncPackage::FExportIORequest> PrecacheRequests;
 	TMap<int32, IAsyncReadRequest*> ExportIndexToPrecacheRequest;
 	int64 CurrentBlockOffset;
 	int64 CurrentBlockBytes;

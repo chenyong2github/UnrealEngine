@@ -104,12 +104,12 @@ FReply SClassPropertyRecorderSettings::HandleChoosePropertiesButtonClicked()
 	return FReply::Handled();
 }
 
-bool ShouldShowProperty_Recursive(const UProperty* InProperty)
+bool ShouldShowProperty_Recursive(const FProperty* InProperty)
 {
-	if (InProperty->IsA<UStructProperty>())
+	if (InProperty->IsA<FStructProperty>())
 	{
-		const UStructProperty* StructProperty = CastChecked<const UStructProperty>(InProperty);
-		for (const UProperty* Property = StructProperty->Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		const FStructProperty* StructProperty = CastFieldChecked<const FStructProperty>(InProperty);
+		for (const FProperty* Property = StructProperty->Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
 			if (Property->HasAnyPropertyFlags(CPF_Interp) && FMovieSceneMultiPropertyRecorder::CanPropertyBeRecorded(*Property))
 			{

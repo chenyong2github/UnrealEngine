@@ -6,6 +6,7 @@
 #include "MeshTypes.h"
 #include "MeshElementRemappings.h"
 #include "Misc/TVariant.h"
+#include "Templates/CopyQualifiersFromTo.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 

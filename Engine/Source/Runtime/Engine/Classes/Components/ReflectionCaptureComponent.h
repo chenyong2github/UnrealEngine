@@ -103,7 +103,7 @@ class UReflectionCaptureComponent : public USceneComponent
 	virtual void PostInitProperties() override;	
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* Property) const override;
+	virtual bool CanEditChange(const FProperty* Property) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFeatureLevel) override;
 #endif // WITH_EDITOR

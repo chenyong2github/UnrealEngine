@@ -138,7 +138,7 @@ void UGameplayEffect::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	if (PropertyThatChanged)
 	{
 		UGameplayEffect* Parent = Cast<UGameplayEffect>(GetClass()->GetSuperClass()->GetDefaultObject());
@@ -2579,7 +2579,7 @@ void FActiveGameplayEffectsContainer::SetAttributeBaseValue(FGameplayAttribute A
 	bool bIsGameplayAttributeDataProperty = FGameplayAttribute::IsGameplayAttributeDataProperty(Attribute.GetUProperty());
 	if (bIsGameplayAttributeDataProperty)
 	{
-		const UStructProperty* StructProperty = Cast<UStructProperty>(Attribute.GetUProperty());
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.GetUProperty());
 		check(StructProperty);
 		FGameplayAttributeData* DataPtr = StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(const_cast<UAttributeSet*>(Set));
 		if (ensure(DataPtr))
@@ -2617,7 +2617,7 @@ float FActiveGameplayEffectsContainer::GetAttributeBaseValue(FGameplayAttribute 
 		// if this attribute is of type FGameplayAttributeData then use the base value stored there
 		if (FGameplayAttribute::IsGameplayAttributeDataProperty(Attribute.GetUProperty()))
 		{
-			const UStructProperty* StructProperty = Cast<UStructProperty>(Attribute.GetUProperty());
+			const FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.GetUProperty());
 			check(StructProperty);
 			const FGameplayAttributeData* DataPtr = StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(AttributeSet);
 			if (DataPtr)

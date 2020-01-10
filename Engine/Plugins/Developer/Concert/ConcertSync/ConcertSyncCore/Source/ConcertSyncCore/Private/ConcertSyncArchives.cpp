@@ -24,14 +24,14 @@ static const FName SkipAssetsMarker = TEXT("SKIPASSETS");
 
 namespace ConcertSyncUtil
 {
-	bool ShouldSkipTransientProperty(const UProperty* Property)
+	bool ShouldSkipTransientProperty(const FProperty* Property)
 	{
 		if (Property->HasAnyPropertyFlags(CPF_Transient))
 		{
 			const UConcertSyncConfig* SyncConfig = GetDefault<UConcertSyncConfig>();
-			for (const FSoftObjectPath& TransactionProperty : SyncConfig->AllowedTransientProperties)
+			for (const TFieldPath<FProperty>& TransactionProperty : SyncConfig->AllowedTransientProperties)
 			{
-				UProperty* FilterProperty = Cast<UProperty>(TransactionProperty.TryLoad());
+				FProperty* FilterProperty = TransactionProperty.Get();
 				if (Property == FilterProperty)
 				{
 					// Allowed transient property, do not skip
@@ -86,7 +86,7 @@ void FConcertSyncObjectWriter::SerializeObject(UObject* InObject, const TArray<F
 {
 	if (InPropertyNamesToWrite)
 	{
-		ShouldSkipPropertyFunc = [InObject, InPropertyNamesToWrite](const UProperty* InProperty) -> bool
+		ShouldSkipPropertyFunc = [InObject, InPropertyNamesToWrite](const FProperty* InProperty) -> bool
 		{
 			return InProperty->GetOwnerStruct() == InObject->GetClass() && !InPropertyNamesToWrite->Contains(InProperty->GetFName());
 		};
@@ -101,7 +101,7 @@ void FConcertSyncObjectWriter::SerializeObject(UObject* InObject, const TArray<F
 	}
 }
 
-void FConcertSyncObjectWriter::SerializeProperty(UProperty* InProp, UObject* InObject)
+void FConcertSyncObjectWriter::SerializeProperty(FProperty* InProp, UObject* InObject)
 {
 	for (int32 Idx = 0; Idx < InProp->ArrayDim; ++Idx)
 	{
@@ -157,7 +157,7 @@ FString FConcertSyncObjectWriter::GetArchiveName() const
 	return TEXT("FConcertSyncObjectWriter");
 }
 
-bool FConcertSyncObjectWriter::ShouldSkipProperty(const UProperty* InProperty) const
+bool FConcertSyncObjectWriter::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	return (ShouldSkipPropertyFunc && ShouldSkipPropertyFunc(InProperty)) || 
 		ConcertSyncUtil::ShouldSkipTransientProperty(InProperty);
@@ -202,7 +202,7 @@ void FConcertSyncObjectReader::SerializeObject(UObject* InObject)
 	InObject->Serialize(*this);
 }
 
-void FConcertSyncObjectReader::SerializeProperty(UProperty* InProp, UObject* InObject)
+void FConcertSyncObjectReader::SerializeProperty(FProperty* InProp, UObject* InObject)
 {
 	for (int32 Idx = 0; Idx < InProp->ArrayDim; ++Idx)
 	{

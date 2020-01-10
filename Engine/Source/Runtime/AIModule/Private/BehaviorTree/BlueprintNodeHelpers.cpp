@@ -15,7 +15,7 @@
 
 namespace BlueprintNodeHelpers
 {
-	uint16 GetPropertiesMemorySize(const TArray<UProperty*>& PropertyData)
+	uint16 GetPropertiesMemorySize(const TArray<FProperty*>& PropertyData)
 	{
 		int32 TotalMem = 0;
 		for (int32 PropertyIndex = 0; PropertyIndex < PropertyData.Num(); PropertyIndex++)
@@ -34,18 +34,18 @@ namespace BlueprintNodeHelpers
 #define GET_STRUCT_NAME_CHECKED(StructName) \
 	((void)sizeof(StructName), TEXT(#StructName))
 
-	bool CanUsePropertyType(const UProperty* TestProperty)
+	bool CanUsePropertyType(const FProperty* TestProperty)
 	{
-		if (TestProperty->IsA(UNumericProperty::StaticClass()) ||
-			TestProperty->IsA(UBoolProperty::StaticClass()) ||
-			TestProperty->IsA(UNameProperty::StaticClass()) ||
-			TestProperty->IsA(UStrProperty::StaticClass()) ||
-			TestProperty->IsA(UTextProperty::StaticClass()) )
+		if (TestProperty->IsA(FNumericProperty::StaticClass()) ||
+			TestProperty->IsA(FBoolProperty::StaticClass()) ||
+			TestProperty->IsA(FNameProperty::StaticClass()) ||
+			TestProperty->IsA(FStrProperty::StaticClass()) ||
+			TestProperty->IsA(FTextProperty::StaticClass()) )
 		{
 			return true;
 		}
 
-		const UStructProperty* StructProp = Cast<const UStructProperty>(TestProperty);
+		const FStructProperty* StructProp = CastField<const FStructProperty>(TestProperty);
 		if (StructProp)
 		{
 			FString CPPType = StructProp->GetCPPType(NULL, CPPF_None);
@@ -59,15 +59,15 @@ namespace BlueprintNodeHelpers
 		return false;
 	}
 
-	void CollectPropertyData(const UObject* Ob, const UClass* StopAtClass, TArray<UProperty*>& PropertyData)
+	void CollectPropertyData(const UObject* Ob, const UClass* StopAtClass, TArray<FProperty*>& PropertyData)
 	{
 		UE_LOG(LogBehaviorTree, Verbose, TEXT("Looking for runtime properties of class: %s"), *GetNameSafe(Ob->GetClass()));
 
 		PropertyData.Reset();
-		for (UProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOuter() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -88,11 +88,11 @@ namespace BlueprintNodeHelpers
 		}
 	}
 
-	FString DescribeProperty(const UProperty* Prop, const uint8* PropertyAddr)
+	FString DescribeProperty(const FProperty* Prop, const uint8* PropertyAddr)
 	{
 		FString ExportedStringValue;
-		const UStructProperty* StructProp = Cast<const UStructProperty>(Prop);
-		const UFloatProperty* FloatProp = Cast<const UFloatProperty>(Prop);
+		const FStructProperty* StructProp = CastField<const FStructProperty>(Prop);
+		const FFloatProperty* FloatProp = CastField<const FFloatProperty>(Prop);
 
 		if (StructProp && StructProp->GetCPPType(NULL, CPPF_None).Contains(GET_STRUCT_NAME_CHECKED(FBlackboardKeySelector)))
 		{
@@ -123,16 +123,16 @@ namespace BlueprintNodeHelpers
 			Prop->ExportTextItem(ExportedStringValue, PropertyAddr, NULL, NULL, PPF_PropertyWindow, NULL);
 		}
 
-		const bool bIsBool = Prop->IsA(UBoolProperty::StaticClass());
+		const bool bIsBool = Prop->IsA(FBoolProperty::StaticClass());
 		return FString::Printf(TEXT("%s: %s"), *FName::NameToDisplayString(Prop->GetName(), bIsBool), *ExportedStringValue);
 	}
 
 	void CollectBlackboardSelectors(const UObject* Ob, const UClass* StopAtClass, TArray<FName>& KeyNames)
 	{
-		for (UProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOuter() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -144,7 +144,7 @@ namespace BlueprintNodeHelpers
 				continue;
 			}
 
-			const UStructProperty* StructProp = Cast<const UStructProperty>(TestProperty);
+			const FStructProperty* StructProp = CastField<const FStructProperty>(TestProperty);
 			if (StructProp && StructProp->GetCPPType(NULL, CPPF_None).Contains(GET_STRUCT_NAME_CHECKED(FBlackboardKeySelector)))
 			{
 				const FBlackboardKeySelector* PropData = TestProperty->ContainerPtrToValuePtr<FBlackboardKeySelector>(Ob);
@@ -155,15 +155,15 @@ namespace BlueprintNodeHelpers
 
 	void ResolveBlackboardSelectors(UObject& Ob, const UClass& StopAtClass, const UBlackboardData& BlackboardAsset)
 	{
-		for (UProperty* TestProperty = Ob.GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = Ob.GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOuter() == &StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == &StopAtClass)
 			{
 				break;
 			}
 
-			UStructProperty* StructProp = Cast<UStructProperty>(TestProperty);
+			FStructProperty* StructProp = CastField<FStructProperty>(TestProperty);
 			if (StructProp && StructProp->GetCPPType(NULL, CPPF_None).Contains(GET_STRUCT_NAME_CHECKED(FBlackboardKeySelector)))
 			{
 				FBlackboardKeySelector* PropData = const_cast<FBlackboardKeySelector*>(TestProperty->ContainerPtrToValuePtr<FBlackboardKeySelector>(&Ob));
@@ -176,10 +176,10 @@ namespace BlueprintNodeHelpers
 	{
 		bool bResult = false;
 
-		for (UProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOuter() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -191,7 +191,7 @@ namespace BlueprintNodeHelpers
 				continue;
 			}
 
-			const UStructProperty* StructProp = Cast<const UStructProperty>(TestProperty);
+			const FStructProperty* StructProp = CastField<const FStructProperty>(TestProperty);
 			if (StructProp && StructProp->GetCPPType(NULL, CPPF_None).Contains(GET_STRUCT_NAME_CHECKED(FBlackboardKeySelector)))
 			{
 				bResult = true;
@@ -204,13 +204,13 @@ namespace BlueprintNodeHelpers
 
 #undef GET_STRUCT_NAME_CHECKED
 
-	FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<UProperty*>& PropertyData)
+	FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<FProperty*>& PropertyData)
 	{
 		FString RetString;
-		for (UProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOuter() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -223,8 +223,8 @@ namespace BlueprintNodeHelpers
 				continue;
 			}
 
-			if (TestProperty->IsA(UClassProperty::StaticClass()) ||
-				TestProperty->IsA(UStructProperty::StaticClass()) ||
+			if (TestProperty->IsA(FClassProperty::StaticClass()) ||
+				TestProperty->IsA(FStructProperty::StaticClass()) ||
 				CanUsePropertyType(TestProperty))
 			{
 				if (RetString.Len())
@@ -240,11 +240,11 @@ namespace BlueprintNodeHelpers
 		return RetString;
 	}
 
-	void DescribeRuntimeValues(const UObject* Ob, const TArray<UProperty*>& PropertyData, TArray<FString>& RuntimeValues)
+	void DescribeRuntimeValues(const UObject* Ob, const TArray<FProperty*>& PropertyData, TArray<FString>& RuntimeValues)
 	{
 		for (int32 PropertyIndex = 0; PropertyIndex < PropertyData.Num(); PropertyIndex++)
 		{
-			UProperty* TestProperty = PropertyData[PropertyIndex];
+			FProperty* TestProperty = PropertyData[PropertyIndex];
 			const uint8* PropAddr = TestProperty->ContainerPtrToValuePtr<uint8>(Ob);
 
 			RuntimeValues.Add(DescribeProperty(TestProperty, PropAddr));

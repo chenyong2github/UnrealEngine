@@ -39,7 +39,7 @@ public:
  * Call CreateInWorld() to set it up, and Disconnect() to shut it down.
  * 
  * Currently implemented via an internal Actor that has a USimpleDynamicMeshComponent root component,
- * with an AABBTree created/updated if UProperty bBuildSpatialDataStructure=true.
+ * with an AABBTree created/updated if FProperty bBuildSpatialDataStructure=true.
  * The Actor is destroyed on Disconnect().
  * 
  * The intention with UPreviewMesh is to provide a higher-level interface than the Component.

@@ -136,7 +136,7 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 	ReplacementMap.GenerateKeyArray(ReplaceableObjects);
 
 	// Find all the properties (and their corresponding objects) that refer to any of the objects to be replaced
-	TMap< UObject*, TArray<UProperty*> > ReferencingPropertiesMap;
+	TMap< UObject*, TArray<FProperty*> > ReferencingPropertiesMap;
 	for (FObjectIterator ObjIter; ObjIter; ++ObjIter)
 	{
 		UObject* CurObject = *ObjIter;
@@ -148,13 +148,13 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 		// changed, and store both the object doing the referencing as well as the properties that were changed in a map (so that
 		// we can correctly call PostEditChange later)
 		TMap<UObject*, int32> CurNumReferencesMap;
-		TMultiMap<UObject*, UProperty*> CurReferencingPropertiesMMap;
+		TMultiMap<UObject*, FProperty*> CurReferencingPropertiesMMap;
 		if (FindRefsArchive.GetReferenceCounts(CurNumReferencesMap, CurReferencingPropertiesMMap) > 0)
 		{
-			TArray<UProperty*> CurReferencedProperties;
+			TArray<FProperty*> CurReferencedProperties;
 			CurReferencingPropertiesMMap.GenerateValueArray(CurReferencedProperties);
 			ReferencingPropertiesMap.Add(CurObject, CurReferencedProperties);
-			for (TArray<UProperty*>::TConstIterator RefPropIter(CurReferencedProperties); RefPropIter; ++RefPropIter)
+			for (TArray<FProperty*>::TConstIterator RefPropIter(CurReferencedProperties); RefPropIter; ++RefPropIter)
 			{
 				CurObject->PreEditChange(*RefPropIter);
 			}
@@ -165,16 +165,16 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 	// Iterate over the map of referencing objects/changed properties, forcefully replacing the references and then
 	// alerting the referencing objects the change has completed via PostEditChange
 	int32 NumObjsReplaced = 0;
-	for (TMap< UObject*, TArray<UProperty*> >::TConstIterator MapIter(ReferencingPropertiesMap); MapIter; ++MapIter)
+	for (TMap< UObject*, TArray<FProperty*> >::TConstIterator MapIter(ReferencingPropertiesMap); MapIter; ++MapIter)
 	{
 		++NumObjsReplaced;
 
 		UObject* CurReplaceObj = MapIter.Key();
-		const TArray<UProperty*>& RefPropArray = MapIter.Value();
+		const TArray<FProperty*>& RefPropArray = MapIter.Value();
 
 		FArchiveReplaceObjectRef<UObject> ReplaceAr(CurReplaceObj, ReplacementMap, false, true, false);
 
-		for (TArray<UProperty*>::TConstIterator RefPropIter(RefPropArray); RefPropIter; ++RefPropIter)
+		for (TArray<FProperty*>::TConstIterator RefPropIter(RefPropArray); RefPropIter; ++RefPropIter)
 		{
 			FPropertyChangedEvent PropertyEvent(*RefPropIter);
 			CurReplaceObj->PostEditChangeProperty(PropertyEvent);
@@ -224,7 +224,7 @@ UClass* FAutomationEditorCommonUtils::GetFactoryClassForType(const FString& Asse
 * Applies settings to an object by finding UProperties by name and calling ImportText
 *
 * @param InObject - The object to search for matching properties
-* @param PropertyChain - The list UProperty names recursively to search through
+* @param PropertyChain - The list FProperty names recursively to search through
 * @param Value - The value to import on the found property
 */
 void FAutomationEditorCommonUtils::ApplyCustomFactorySetting(UObject* InObject, TArray<FString>& PropertyChain, const FString& Value)
@@ -232,7 +232,7 @@ void FAutomationEditorCommonUtils::ApplyCustomFactorySetting(UObject* InObject, 
 	const FString PropertyName = PropertyChain[0];
 	PropertyChain.RemoveAt(0);
 
-	UProperty* TargetProperty = FindField<UProperty>(InObject->GetClass(), *PropertyName);
+	FProperty* TargetProperty = FindField<FProperty>(InObject->GetClass(), *PropertyName);
 	if (TargetProperty)
 	{
 		if (PropertyChain.Num() == 0)
@@ -241,8 +241,8 @@ void FAutomationEditorCommonUtils::ApplyCustomFactorySetting(UObject* InObject, 
 		}
 		else
 		{
-			UStructProperty* StructProperty = Cast<UStructProperty>(TargetProperty);
-			UObjectProperty* ObjectProperty = Cast<UObjectProperty>(TargetProperty);
+			FStructProperty* StructProperty = CastField<FStructProperty>(TargetProperty);
+			FObjectProperty* ObjectProperty = CastField<FObjectProperty>(TargetProperty);
 
 			UObject* SubObject = NULL;
 			bool bValidPropertyType = true;

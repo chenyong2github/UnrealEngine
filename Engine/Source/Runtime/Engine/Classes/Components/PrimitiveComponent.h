@@ -1112,9 +1112,9 @@ public:
 	virtual bool CanEditSimulatePhysics();
 
 	/**
-	 * Sets the constraint mode of the component.
-	 * @param ConstraintMode	The type of constraint to use.
-	 */
+	* Sets the constraint mode of the component.
+	* @param ConstraintMode	The type of constraint to use.
+	*/
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Constraint Mode", Keywords = "set locked axis constraint physics"), Category = Physics)
 	virtual void SetConstraintMode(EDOFMode::Type ConstraintMode);
 
@@ -1718,12 +1718,12 @@ public:
 	
 	/**
 	 * Returns BodyInstance of the component.
-	 *
-	 * @param BoneName		Used to get body associated with specific bone. NAME_None automatically gets the root most body
-	 * @param bGetWelded	If the component has been welded to another component and bGetWelded is true we return the single welded BodyInstance that is used in the simulation
-	 *
-	 * @return		Returns the BodyInstance based on various states (does component have multiple bodies? Is the body welded to another body?)
-	 */
+	*
+	* @param BoneName				Used to get body associated with specific bone. NAME_None automatically gets the root most body
+	* @param bGetWelded				If the component has been welded to another component and bGetWelded is true we return the single welded BodyInstance that is used in the simulation
+	*
+	* @return		Returns the BodyInstance based on various states (does component have multiple bodies? Is the body welded to another body?)
+	*/
 	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true) const;
 
 	/** 
@@ -1739,13 +1739,13 @@ public:
 
 	/** 
 	 * Returns Distance to closest Body Instance surface. 
-	 *
-	 * @param Point				World 3D vector
-	 * @param OutPointOnBody	Point on the surface of collision closest to Point
-	 * 
-	 * @return		Success if returns > 0.f, if returns 0.f, point is inside the geometry
-	 *				If returns < 0.f, this primitive does not have collsion or if geometry is not supported
-	 */	
+	*
+	* @param Point				World 3D vector
+	* @param OutPointOnBody	Point on the surface of collision closest to Point
+	* 
+	* @return		Success if returns > 0.f, if returns 0.f, point is inside the geometry
+	*				If returns < 0.f, this primitive does not have collsion or if geometry is not supported
+	*/	
 	float GetDistanceToCollision(const FVector& Point, FVector& ClosestPointOnCollision) const 
 	{
 		float DistanceSqr = -1.f;
@@ -1932,7 +1932,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void UpdateCollisionProfile();
 	virtual void PostEditImport() override;
 #endif // WITH_EDITOR

@@ -19,8 +19,7 @@ class UInterpTrackInstBoolProp : public UInterpTrackInstProperty
 	void* BoolPropertyAddress;
 
 	/** Mask that indicates which bit the boolean property actually uses of the value pointed to by BoolProp. */
-	UPROPERTY(transient)
-	UBoolProperty* BoolProperty;
+	FBoolProperty* BoolProperty;
 
 	/** Saved value for restoring state when exiting Matinee. */
 	UPROPERTY()

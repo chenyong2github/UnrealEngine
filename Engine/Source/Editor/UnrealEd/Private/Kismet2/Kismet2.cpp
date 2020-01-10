@@ -841,11 +841,11 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		}
 
 		UClass* ComponentClass = Component->GetClass();
-		for (TFieldIterator<UArrayProperty> ArrayPropIt(NativeSuperClass); ArrayPropIt; ++ArrayPropIt)
+		for (TFieldIterator<FArrayProperty> ArrayPropIt(NativeSuperClass); ArrayPropIt; ++ArrayPropIt)
 		{
-			UArrayProperty* ArrayProp = *ArrayPropIt;
+			FArrayProperty* ArrayProp = *ArrayPropIt;
 
-			UObjectProperty* ObjInnerProp = Cast<UObjectProperty>(ArrayProp->Inner);
+			FObjectProperty* ObjInnerProp = CastField<FObjectProperty>(ArrayProp->Inner);
 			if ((ObjInnerProp == nullptr) || !ComponentClass->IsChildOf(ObjInnerProp->PropertyClass))
 			{
 				continue;
@@ -881,9 +881,9 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 	};
 
 	// 
-	for (TFieldIterator<UObjectProperty> ObjPropIt(NativeSuperClass); ObjPropIt; ++ObjPropIt)
+	for (TFieldIterator<FObjectProperty> ObjPropIt(NativeSuperClass); ObjPropIt; ++ObjPropIt)
 	{
-		UObjectProperty* ObjectProp = *ObjPropIt;
+		FObjectProperty* ObjectProp = *ObjPropIt;
 		UObject* PropObjValue = ObjectProp->GetObjectPropertyValue_InContainer(ActorCDO);
 
 		if (DestroyedComponents.Contains(PropObjValue))
@@ -1881,7 +1881,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForActor(AActor* Actor, FName Ev
 	if ((Actor != nullptr) && (EventName != NAME_None))
 	{
 		// First, find the property we want to bind to
-		if (UMulticastDelegateProperty* DelegateProperty = FindField<UMulticastDelegateProperty>(Actor->GetClass(), EventName))
+		if (FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Actor->GetClass(), EventName))
 		{
 			// Get the correct level script blueprint
 			if (ULevelScriptBlueprint* LSB = Actor->GetLevel()->GetLevelScriptBlueprint())
@@ -1912,7 +1912,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForActor(AActor* Actor, FName Ev
 	}
 }
 
-void FKismetEditorUtilities::CreateNewBoundEventForComponent(UObject* Component, FName EventName, UBlueprint* Blueprint, UObjectProperty* ComponentProperty)
+void FKismetEditorUtilities::CreateNewBoundEventForComponent(UObject* Component, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty)
 {
 	if ( Component != nullptr )
 	{
@@ -1920,12 +1920,12 @@ void FKismetEditorUtilities::CreateNewBoundEventForComponent(UObject* Component,
 	}
 }
 
-void FKismetEditorUtilities::CreateNewBoundEventForClass(UClass* Class, FName EventName, UBlueprint* Blueprint, UObjectProperty* ComponentProperty)
+void FKismetEditorUtilities::CreateNewBoundEventForClass(UClass* Class, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty)
 {
 	if ( ( Class != nullptr ) && ( EventName != NAME_None ) && ( Blueprint != nullptr ) && ( ComponentProperty != nullptr ) )
 	{
 		// First, find the property we want to bind to
-		UMulticastDelegateProperty* DelegateProperty = FindField<UMulticastDelegateProperty>(Class, EventName);
+		FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Class, EventName);
 		if ( DelegateProperty != nullptr )
 		{
 			UEdGraph* TargetGraph = Blueprint->GetLastEditedUberGraph();
@@ -2120,9 +2120,9 @@ bool FKismetEditorUtilities::AnyBoundLevelScriptEventForActor(AActor* Actor, boo
 {
 	if (IsActorValidForLevelScript(Actor))
 	{
-		for (TFieldIterator<UMulticastDelegateProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FMulticastDelegateProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			// Check for multicast delegates that we can safely assign
 			if (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable))
 			{
@@ -2170,15 +2170,15 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UToolMenu* Menu,
 		struct FEventCategory
 		{
 			FString CategoryName;
-			TArray<UProperty*> EventProperties;
+			TArray<FProperty*> EventProperties;
 		};
 		// ARray of event properties by category
 		TArray<FEventCategory> CategorizedEvents;
 
 		// Find all events we can assign
-		for (TFieldIterator<UMulticastDelegateProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FMulticastDelegateProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			// Check for multicast delegates that we can safely assign
 			if (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable))
 			{
@@ -2210,7 +2210,7 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UToolMenu* Menu,
 		{
 			FToolMenuSection& Section = Menu->AddSection(NAME_None, FText::FromString(Category.CategoryName));
 
-			for(UProperty* Property : Category.EventProperties)
+			for(FProperty* Property : Category.EventProperties)
 			{
 				const FName EventName = Property->GetFName();
 				const UK2Node_ActorBoundEvent* ExistingNode = FKismetEditorUtilities::FindBoundEventForActor(Actor, EventName);

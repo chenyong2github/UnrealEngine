@@ -64,7 +64,7 @@ void FGameplayTimingViewExtender::ExtendFilterMenu(Insights::ITimingViewSession&
 
 #if WITH_ENGINE
 
-static UWorld* GetWorldToVisualize()
+UWorld* FGameplayTimingViewExtender::GetWorldToVisualize()
 {
 	UWorld* World = nullptr;
 
@@ -100,3 +100,15 @@ void FGameplayTimingViewExtender::TickVisualizers(float DeltaTime)
 	}
 #endif
 }
+
+#if WITH_EDITOR
+
+void FGameplayTimingViewExtender::GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
+{
+	for(auto& PerSessionData : PerSessionDataMap)
+	{
+		PerSessionData.Value.AnimationSharedData->GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
+	}
+}
+
+#endif

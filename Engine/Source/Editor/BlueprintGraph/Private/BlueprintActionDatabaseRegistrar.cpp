@@ -80,7 +80,16 @@ bool FBlueprintActionDatabaseRegistrar::AddBlueprintAction(UBlueprintNodeSpawner
 	// if this spawner wraps some member function/property, then we want it 
 	// recorded under that class (so we can update the action if the class 
 	// changes... like, if the member is deleted, or if one is added)
-	if (UField const* MemberField = FBlueprintNodeSpawnerUtils::GetAssociatedField(NodeSpawner))
+	const UField* MemberField = FBlueprintNodeSpawnerUtils::GetAssociatedFunction(NodeSpawner);
+	if (!MemberField)
+	{
+		const FProperty* MemberProperty = FBlueprintNodeSpawnerUtils::GetAssociatedProperty(NodeSpawner);
+		if (MemberProperty)
+		{
+			MemberField = MemberProperty->GetOwnerUField();
+		}
+	}
+	if (MemberField)
 	{
 		ActionKey = MemberField;
 	}
@@ -289,7 +298,7 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterClassFactoryActions(const UClas
 				return false;
 			}
 
-			UObjectProperty* ReturnProperty = Cast<UObjectProperty>(Function->GetReturnProperty());
+			FObjectProperty* ReturnProperty = CastField<FObjectProperty>(Function->GetReturnProperty());
 			// see if the function is a static factory method
 			bool const bIsFactoryMethod = (ReturnProperty != nullptr) && ReturnProperty->PropertyClass->IsChildOf(InTargetType);
 

@@ -43,7 +43,7 @@ struct FMetaSettingGatherer
 	{
 	}
 
-	void AddEntry(UObject* SettingsObject, UProperty* Property, FText NewValue, bool bModified)
+	void AddEntry(UObject* SettingsObject, FProperty* Property, FText NewValue, bool bModified)
 	{
 		if (bModified || bIncludeUnmodifiedProperties)
 		{
@@ -125,7 +125,7 @@ static FName HardwareTargetingConsoleVariableMetaFName(TEXT("ConsoleVariable"));
 { \
 	Class* SettingsObject = GetMutableDefault<Class>(); \
 	bool bModified = SettingsObject->PropertyName != (TargetValue); \
-	UProperty* Property = FindFieldChecked<UProperty>(Class::StaticClass(), GET_MEMBER_NAME_CHECKED(Class, PropertyName)); \
+	FProperty* Property = FindFieldChecked<FProperty>(Class::StaticClass(), GET_MEMBER_NAME_CHECKED(Class, PropertyName)); \
 	if (!Builder.bReadOnly) { \
 		const FString& CVarName = Property->GetMetaData(HardwareTargetingConsoleVariableMetaFName); \
 		if (!CVarName.IsEmpty()) { IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName); \

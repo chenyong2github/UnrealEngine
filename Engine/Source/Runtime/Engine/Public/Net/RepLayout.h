@@ -21,6 +21,7 @@
 #include "UObject/GCObject.h"
 #include "Containers/StaticBitArray.h"
 #include "Net/GuidReferences.h"
+#include "Templates/CopyQualifiersFromTo.h"
 
 class FGuidReferences;
 class FNetFieldExportGroup;
@@ -485,13 +486,13 @@ public:
 	FGuidReferencesMap GuidReferencesMap;
 
 	/** List of properties that have RepNotifies that we will need to call on Clients. */
-	TArray<UProperty*> RepNotifies;
+	TArray<FProperty*> RepNotifies;
 
 	/**
 	 * Holds MetaData (such as array index) for RepNotifies.
 	 * Only used for CustomDeltaProperties.
 	 */
-	TMap<UProperty*, TArray<uint8>> RepNotifyMetaData;
+	TMap<FProperty*, TArray<uint8>> RepNotifyMetaData;
 };
 
 /** Replication State that is only needed when sending properties. */
@@ -689,7 +690,7 @@ enum class ERepParentFlags : uint32
 	IsConfig			= (1 << 2),	//! This property is defaulted from a config file
 	IsCustomDelta		= (1 << 3),	//! This property uses custom delta compression. Mutually exclusive with IsNetSerialize.
 	IsNetSerialize		= (1 << 4), //! This property uses a custom net serializer. Mutually exclusive with IsCustomDelta.
-	IsStructProperty	= (1 << 5),	//! This property is a UStructProperty.
+	IsStructProperty	= (1 << 5),	//! This property is a FStructProperty.
 	IsZeroConstructible	= (1 << 6),	//! This property is ZeroConstructible.
 	IsFastArray			= (1 << 7), //! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
 									//! these Custom Delta structs will have their inner properties tracked.
@@ -706,7 +707,7 @@ class FRepParentCmd
 {
 public:
 
-	FRepParentCmd(UProperty* InProperty, int32 InArrayIndex): 
+	FRepParentCmd(FProperty* InProperty, int32 InArrayIndex): 
 		Property(InProperty),
 		CachedPropertyName(InProperty ? InProperty->GetFName() : NAME_None),
 		ArrayIndex(InArrayIndex),
@@ -719,7 +720,7 @@ public:
 		Flags(ERepParentFlags::None)
 	{}
 
-	UProperty* Property;
+	FProperty* Property;
 
 	const FName CachedPropertyName;
 
@@ -782,7 +783,7 @@ class FRepLayoutCmd
 public:
 
 	/** Pointer back to property, used for NetSerialize calls, etc. */
-	UProperty* Property;
+	FProperty* Property;
 
 	/** For arrays, this is the cmd index to jump to, to skip this arrays inner elements. */
 	uint16 EndCmd;
@@ -1297,7 +1298,7 @@ public:
 	 */
 	template<ERepDataBufferType DstType, ERepDataBufferType SrcType>
 	bool DiffProperties(
-		TArray<UProperty*>* RepNotifies,
+		TArray<FProperty*>* RepNotifies,
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source,
 		const EDiffPropertiesFlags Flags) const;
@@ -1321,7 +1322,7 @@ public:
 	 */
 	template<ERepDataBufferType DstType, ERepDataBufferType SrcType>
 	bool DiffStableProperties(
-		TArray<UProperty*>* RepNotifies,
+		TArray<FProperty*>* RepNotifies,
 		TArray<UObject*>* ObjReferences,
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source) const;
@@ -1706,7 +1707,7 @@ private:
 
 	/**
 	 * @param CustomDeltaIndex	The index of the Custom Delta Property.
-	 *							This is not the same as UProperty::RepIndex!
+	 *							This is not the same as FProperty::RepIndex!
 	 *							@see FLifetimeCustomDeltaState.
 	 */
 	bool SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, const uint16 CustomDeltaIndex) const;
@@ -1726,7 +1727,7 @@ private:
 	bool ReceiveCustomDeltaProperty(
 		FReceivingRepState* RESTRICT ReceivingRepState,
 		FNetDeltaSerializeInfo& Params,
-		UStructProperty* Property) const;
+		FStructProperty* Property) const;
 
 	bool DeltaSerializeFastArrayProperty(struct FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const;
 
@@ -1750,7 +1751,7 @@ private:
 
 	const uint16 GetNumLifetimeCustomDeltaProperties() const;
 
-	UProperty* GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPropertyIndex) const;
+	FProperty* GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPropertyIndex) const;
 
 	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 

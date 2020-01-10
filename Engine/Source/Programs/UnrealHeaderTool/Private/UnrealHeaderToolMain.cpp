@@ -13,7 +13,6 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CompilationResult.h"
 #include "UnrealHeaderToolGlobals.h"
-
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(UnrealHeaderTool, "UnrealHeaderTool");

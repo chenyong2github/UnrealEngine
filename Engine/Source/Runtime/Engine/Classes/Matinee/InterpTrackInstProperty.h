@@ -6,10 +6,12 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Matinee/InterpTrackInst.h"
+#include "UObject/FieldPath.h"
 #include "InterpTrackInstProperty.generated.h"
 
 class AActor;
 class UInterpTrack;
+class FProperty;
 
 UCLASS()
 class UInterpTrackInstProperty : public UInterpTrackInst
@@ -18,7 +20,7 @@ class UInterpTrackInstProperty : public UInterpTrackInst
 
 	/** Function to call after updating the value of the color property. */
 	UPROPERTY()
-	class UProperty* InterpProperty;
+	TFieldPath<FProperty> InterpProperty;
 
 	/** Pointer to the UObject instance that is the outer of the color property we are interpolating on, this is used to process the property update callback. */
 	UPROPERTY()

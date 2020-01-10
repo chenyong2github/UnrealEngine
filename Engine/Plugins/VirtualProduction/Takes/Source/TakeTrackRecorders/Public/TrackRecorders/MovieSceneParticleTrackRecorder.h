@@ -23,7 +23,7 @@ public:
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
 
 	// Particle Systems are entire components and you can't animate them as a property
-	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const override { return false; }
+	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override { return false; }
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const override { return nullptr; }
 	
 	virtual FText GetDisplayName() const override { return NSLOCTEXT("MovieSceneParticleTrackRecorderFactory", "DisplayName", "Particle System Track"); }

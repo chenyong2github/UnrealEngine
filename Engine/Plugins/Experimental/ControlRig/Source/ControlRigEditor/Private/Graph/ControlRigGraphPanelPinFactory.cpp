@@ -38,7 +38,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 					FString NodeName, PropertyName;
 					if (InPin->GetName().Split(TEXT("."), &NodeName, &PropertyName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 					{
-						UProperty* Property = Struct->FindPropertyByName(*PropertyName);
+						FProperty* Property = Struct->FindPropertyByName(*PropertyName);
 						if (Property)
 						{
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))

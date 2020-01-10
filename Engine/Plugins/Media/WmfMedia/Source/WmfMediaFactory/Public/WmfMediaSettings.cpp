@@ -25,7 +25,7 @@ void UWmfMediaSettings::EnableHardwareAcceleratedCodecRegistered()
 
 #if WITH_EDITOR
 
-bool UWmfMediaSettings::CanEditChange(const UProperty* InProperty) const
+bool UWmfMediaSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{

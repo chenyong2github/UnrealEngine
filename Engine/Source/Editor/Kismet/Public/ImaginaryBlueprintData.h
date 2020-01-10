@@ -233,7 +233,7 @@ public:
 	}
 	/** End FImaginaryFiBData Interface */
 
-	/** Returns TRUE if the metadata is informing that the UProperty and children should be hidden */
+	/** Returns TRUE if the metadata is informing that the FProperty and children should be hidden */
 	bool IsHidden() const
 	{
 		// While handled separately, when hidden it should always be explicit
@@ -241,16 +241,16 @@ public:
 		return bIsHidden;
 	}
 
-	/** Returns TRUE if the metadata is informing that the UProperty and children should be explicit */
+	/** Returns TRUE if the metadata is informing that the FProperty and children should be explicit */
 	bool IsExplicit() const
 	{
 		return bIsExplicit;
 	}
 protected:
-	/** TRUE if the UProperty this metadata represents is hidden */
+	/** TRUE if the FProperty this metadata represents is hidden */
 	bool bIsHidden;
 
-	/** TRUE if the UProperty this metadata represents is explicit, should always be true if bIsHidden is true */
+	/** TRUE if the FProperty this metadata represents is explicit, should always be true if bIsHidden is true */
 	bool bIsExplicit;
 };
 
@@ -382,7 +382,7 @@ protected:
 	FString SchemaName;
 };
 
-/** An "imaginary" representation of a UProperty, featuring raw strings or other imaginary objects in the place of more structured substances */
+/** An "imaginary" representation of a FProperty, featuring raw strings or other imaginary objects in the place of more structured substances */
 class FImaginaryProperty : public FImaginaryFiBData
 {
 public:
@@ -400,7 +400,7 @@ protected:
 	/** End FImaginaryFiBData Interface */
 };
 
-/** An "imaginary" representation of a UProperty of an instanced component, featuring raw strings or other imaginary objects in the place of more structured substances */
+/** An "imaginary" representation of a FProperty of an instanced component, featuring raw strings or other imaginary objects in the place of more structured substances */
 class FImaginaryComponent : public FImaginaryProperty
 {
 public:

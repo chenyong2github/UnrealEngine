@@ -11,7 +11,7 @@ void ULiveLinkSourceSettings::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-bool ULiveLinkSourceSettings::CanEditChange(const UProperty* InProperty) const
+bool ULiveLinkSourceSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (Super::CanEditChange(InProperty))
 	{

@@ -530,7 +530,7 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 	check( UsdStageActor.IsValid() );
 	UsdStageActor->RootLayer.FilePath = FilePath;
 
-	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< UProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
+	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
 	UsdStageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
 }
 

@@ -18,7 +18,7 @@ void UPersonaPreviewSceneAnimationController::UninitializeView(UPersonaPreviewSc
 
 }
 
-IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControllerPropertyToDetails(const TSharedRef<IPersonaToolkit>& PersonaToolkit, IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category, const UProperty* Property, const EPropertyLocation::Type PropertyLocation)
+IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControllerPropertyToDetails(const TSharedRef<IPersonaToolkit>& PersonaToolkit, IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category, const FProperty* Property, const EPropertyLocation::Type PropertyLocation)
 {
 	TArray<UObject*> ListOfPreviewController{ this };
 

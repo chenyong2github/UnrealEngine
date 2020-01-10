@@ -87,7 +87,7 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;

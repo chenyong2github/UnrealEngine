@@ -161,7 +161,7 @@ protected:
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property);
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property);
 	
 
 

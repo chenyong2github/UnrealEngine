@@ -57,7 +57,7 @@ namespace RemoteControlUtil
 		return Function;
 	}
 
-	bool IsPropertyAllowed(const UProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
+	bool IsPropertyAllowed(const FProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
 	{
 
 		// The property is allowed to be accessed if it exists...
@@ -172,7 +172,7 @@ public:
 				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
 				if (!PropertyName.IsEmpty())
 				{
-					UProperty* Property = Object->GetClass()->FindPropertyByName(*PropertyName);
+					FProperty* Property = Object->GetClass()->FindPropertyByName(*PropertyName);
 					if (Property && RemoteControlUtil::IsPropertyAllowed(Property, AccessType, bObjectInGame))
 					{
 						OutObjectRef.Object = Object;
@@ -219,7 +219,7 @@ public:
 			FStructSerializerPolicies Policies;
 			if (ObjectAccess.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const UProperty* CurrentProp, const UProperty* ParentProp)
+				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
 					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
 				};
@@ -227,7 +227,7 @@ public:
 			else
 			{
 				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const UProperty* CurrentProp, const UProperty* ParentProp)
+				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
 					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, ObjectAccess.Access, bObjectInGame) || ParentProp != nullptr;
 				};
@@ -257,7 +257,7 @@ public:
 			FStructDeserializerPolicies Policies;
 			if (ObjectAccess.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const UProperty* CurrentProp, const UProperty* ParentProp)
+				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
 					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
 				};
@@ -265,7 +265,7 @@ public:
 			else
 			{
 				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const UProperty* CurrentProp, const UProperty* ParentProp)
+				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
 					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, ObjectAccess.Access, bObjectInGame) || ParentProp != nullptr;
 				};

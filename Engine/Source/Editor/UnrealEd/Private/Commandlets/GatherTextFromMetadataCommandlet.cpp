@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/PropertyIterator.h"
 #include "SourceCodeNavigation.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherTextFromMetaDataCommandlet, Log, All);
@@ -239,17 +240,9 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObjects(const TArray<FStr
 			continue;
 		}
 
-		// Skip editor-only properties if we're not gathering for editor-only data.
-		UProperty* Property = Cast<UProperty>(*It);
-		if (Property && !ShouldGatherFromEditorOnlyData && Property->HasAnyPropertyFlags(CPF_EditorOnly))
-		{
-			continue;
-		}
-
 		FString SourceFilePath;
 		FSourceCodeNavigation::FindClassHeaderPath(*It, SourceFilePath);
 		SourceFilePath = FPaths::ConvertRelativePathToFull(SourceFilePath);
-
 		check(!SourceFilePath.IsEmpty());
 
 		const FFuzzyPathMatcher::EPathMatch PathMatch = FuzzyPathMatcher.TestPath(SourceFilePath);
@@ -259,68 +252,91 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObjects(const TArray<FStr
 		}
 
 		const FName MetaDataPlatformName = GetSplitPlatformNameFromPath(SourceFilePath);
+
+		UStruct* Struct = Cast<UStruct>(*It);
+		if (Struct)
+		{
+			for (TFieldIterator<FField> FieldIt(Struct); FieldIt; ++FieldIt)
+			{
+				// Skip editor-only properties if we're not gathering for editor-only data.
+				FProperty* Property = CastField<FProperty>(*FieldIt);
+				if (Property && !ShouldGatherFromEditorOnlyData && Property->HasAnyPropertyFlags(CPF_EditorOnly))
+				{
+					continue;
+				}
+				GatherTextFromField(*FieldIt, Arguments, MetaDataPlatformName);
+			}
+		}
+
 		GatherTextFromUObject(*It, Arguments, MetaDataPlatformName);
 	}
 }
+
+template <typename TFieldType>
+void GatherTextFromFieldImplementation(TFieldType* const Field, const UGatherTextFromMetaDataCommandlet::FGatherParameters& Arguments, const FName InPlatformName, FLocTextHelper* GatherManifestHelper)
+{
+	for (int32 i = 0; i < Arguments.InputKeys.Num(); ++i)
+	{
+		FFormatNamedArguments PatternArguments;
+		PatternArguments.Add(TEXT("FieldPath"), FText::FromString(Field->GetFullGroupName(false)));
+
+		if (Field->HasMetaData(*Arguments.InputKeys[i]))
+		{
+			const FString& MetaDataValue = Field->GetMetaData(*Arguments.InputKeys[i]);
+			if (!MetaDataValue.IsEmpty())
+			{
+				PatternArguments.Add(TEXT("MetaDataValue"), FText::FromString(MetaDataValue));
+
+				const UStruct* FieldOwnerType = Field->GetOwnerStruct();
+				const FString Namespace = Arguments.OutputNamespaces[i];
+				FLocItem LocItem(MetaDataValue);
+				FManifestContext Context;
+				Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
+				Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s (type: %s, owner: %s)"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true), *Field->GetClass()->GetName(), FieldOwnerType ? *FieldOwnerType->GetName() : TEXT("<null>"));
+				Context.PlatformName = InPlatformName;
+				GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
+			}
+		}
+	}
+}
+
 
 void UGatherTextFromMetaDataCommandlet::GatherTextFromUObject(UField* const Field, const FGatherParameters& Arguments, const FName InPlatformName)
 {
 	// Gather for object.
 	{
-		if( !Field->HasMetaData( TEXT("DisplayName") ) )
+		if (!Field->HasMetaData(TEXT("DisplayName")))
 		{
-			Field->SetMetaData( TEXT("DisplayName"), *FName::NameToDisplayString( Field->GetName(), Field->IsA( UBoolProperty::StaticClass() ) ) );
+			Field->SetMetaData(TEXT("DisplayName"), *FName::NameToDisplayString(Field->GetName(), false));
 		}
 
-		for(int32 i = 0; i < Arguments.InputKeys.Num(); ++i)
-		{
-			FFormatNamedArguments PatternArguments;
-			PatternArguments.Add( TEXT("FieldPath"), FText::FromString( Field->GetFullGroupName(false) ) );
-
-			if( Field->HasMetaData( *Arguments.InputKeys[i] ) )
-			{
-				const FString& MetaDataValue = Field->GetMetaData(*Arguments.InputKeys[i]);
-				if( !MetaDataValue.IsEmpty() )
-				{
-					PatternArguments.Add( TEXT("MetaDataValue"), FText::FromString(MetaDataValue) );
-
-					const UStruct* FieldOwnerType = Field->GetOwnerStruct();
-					const FString Namespace = Arguments.OutputNamespaces[i];
-					FLocItem LocItem(MetaDataValue);
-					FManifestContext Context;
-					Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
-					Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s (type: %s, owner: %s)"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true), *Field->GetClass()->GetName(), FieldOwnerType ? *FieldOwnerType->GetName() : TEXT("<null>"));
-					Context.PlatformName = InPlatformName;
-					GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
-				}
-			}
-		}
+		GatherTextFromFieldImplementation<UField>(Field, Arguments, InPlatformName, GatherManifestHelper.Get());
 	}
 
 	// For enums, also gather for enum values.
 	{
 		UEnum* Enum = Cast<UEnum>(Field);
-		if(Enum)
+		if (Enum)
 		{
 			const int32 ValueCount = Enum->NumEnums();
-			for(int32 i = 0; i < ValueCount; ++i)
+			for (int32 i = 0; i < ValueCount; ++i)
 			{
-				if( !Enum->HasMetaData(TEXT("DisplayName"), i) )
+				if (!Enum->HasMetaData(TEXT("DisplayName"), i))
 				{
 					Enum->SetMetaData(TEXT("DisplayName"), *FName::NameToDisplayString(Enum->GetNameStringByIndex(i), false), i);
 				}
 
-				for(int32 j = 0; j < Arguments.InputKeys.Num(); ++j)
+				for (int32 j = 0; j < Arguments.InputKeys.Num(); ++j)
 				{
 					FFormatNamedArguments PatternArguments;
-					PatternArguments.Add( TEXT("FieldPath"), FText::FromString( Enum->GetFullGroupName(false) + TEXT(".") + Enum->GetNameStringByIndex(i) ) );
+					PatternArguments.Add(TEXT("FieldPath"), FText::FromString(Enum->GetFullGroupName(false) + TEXT(".") + Enum->GetNameStringByIndex(i)));
 
-					if( Enum->HasMetaData(*Arguments.InputKeys[j], i) )
+					if (Enum->HasMetaData(*Arguments.InputKeys[j], i))
 					{
 						const FString& MetaDataValue = Enum->GetMetaData(*Arguments.InputKeys[j], i);
-						if( !MetaDataValue.IsEmpty() )
+						if (!MetaDataValue.IsEmpty())
 						{
-							PatternArguments.Add( TEXT("MetaDataValue"), FText::FromString(MetaDataValue) );
+							PatternArguments.Add(TEXT("MetaDataValue"), FText::FromString(MetaDataValue));
 
 							const FString Namespace = Arguments.OutputNamespaces[j];
 							FLocItem LocItem(MetaDataValue);
@@ -370,4 +386,14 @@ bool UGatherTextFromMetaDataCommandlet::ShouldGatherFromField(const UField* Fiel
 	};
 
 	return ShouldGatherFieldByType() && ShouldGatherFieldByOwnerType();
+}
+
+void UGatherTextFromMetaDataCommandlet::GatherTextFromField(FField* const Field, const FGatherParameters& Arguments, const FName InPlatformName)
+{
+	if (!Field->HasMetaData(TEXT("DisplayName")))
+	{
+		Field->SetMetaData(TEXT("DisplayName"), *FName::NameToDisplayString(Field->GetName(), Field->IsA(FBoolProperty::StaticClass())));
+	}
+
+	GatherTextFromFieldImplementation<FField>(Field, Arguments, InPlatformName, GatherManifestHelper.Get());
 }

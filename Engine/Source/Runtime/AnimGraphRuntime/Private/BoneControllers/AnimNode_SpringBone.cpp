@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_SpringBone.h"
 #include "GameFramework/WorldSettings.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_SpringBone
@@ -213,6 +214,8 @@ void FAnimNode_SpringBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePose
 
 	// Output new transform for current bone.
 	OutBoneTransforms.Add(FBoneTransform(SpringBoneIndex, OutBoneTM));
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Remaining Time"), RemainingTime);
 }
 
 

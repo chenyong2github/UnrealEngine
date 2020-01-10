@@ -97,7 +97,7 @@ public:
 	// UObject interface.
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	virtual void SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad = nullptr) const override;
-	virtual FString GetAuthoredNameForField(const UField* Field) const override;
+	virtual FString GetAuthoredNameForField(const FField* Field) const override;
 	// End of UObject interface.
 
 	// UScriptStruct interface.
@@ -106,7 +106,7 @@ public:
 	virtual void RecursivelyPreload() override;
 	virtual FGuid GetCustomGuid() const override;
 	virtual FString GetStructCPPName() const override;
-	virtual UProperty* CustomFindProperty(const FName Name) const override;
+	virtual FProperty* CustomFindProperty(const FName Name) const override;
 	// End of  UScriptStruct interface.
 
 	/** Returns the raw memory of the default instance */

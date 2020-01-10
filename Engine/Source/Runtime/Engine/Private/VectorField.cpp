@@ -694,7 +694,7 @@ void UVectorFieldComponent::SetIntensity(float NewIntensity)
 }
 
 
-void UVectorFieldComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void UVectorFieldComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	static const FName IntensityPropertyName(TEXT("Intensity"));
 

@@ -9,7 +9,7 @@ namespace Trace
 
 const FName FCounterProvider::ProviderName("CounterProvider");
 
-FCounter::FCounter(ILinearAllocator& Allocator, const TArray<double>& InFrameStartTimes)
+FCounter::FCounter(ILinearAllocator& Allocator, const TArray64<double>& InFrameStartTimes)
 	: FrameStartTimes(InFrameStartTimes)
 	, IntCounterData(Allocator)
 	, DoubleCounterData(Allocator)
@@ -18,13 +18,13 @@ FCounter::FCounter(ILinearAllocator& Allocator, const TArray<double>& InFrameSta
 }
 
 template<typename CounterType, typename EnumerationType>
-static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TArray<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, EnumerationType)> Callback)
+static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TArray64<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, EnumerationType)> Callback)
 {
 	if (!CounterData.Num())
 	{
 		return;
 	}
-	TArray<double> NoFrameStartTimes;
+	TArray64<double> NoFrameStartTimes;
 	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
 	bool bFirstValue = true;
 	bool bFirstEnumeratedValue = true;

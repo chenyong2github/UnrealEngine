@@ -45,7 +45,7 @@ UObject* UNiagaraStackObject::GetObject()
 	return Object;
 }
 
-void UNiagaraStackObject::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void UNiagaraStackObject::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	OnDataObjectModified().Broadcast(Object);
 }

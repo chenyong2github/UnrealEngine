@@ -86,7 +86,7 @@ void FFoliageTypePaintingCustomization::ShowFoliagePropertiesForCategory(IDetail
 	for (auto& PropertyHandle : CategoryProperties)
 	{
 		bool bShowingProperty = false;
-		if (UProperty* Property = PropertyHandle->GetProperty())
+		if (FProperty* Property = PropertyHandle->GetProperty())
 		{
 			if (Property->GetFName() == MobilityName)
 			{

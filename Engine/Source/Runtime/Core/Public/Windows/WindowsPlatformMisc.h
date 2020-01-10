@@ -85,6 +85,7 @@ struct CORE_API FWindowsPlatformMisc
 	static FString GetDefaultLocale();
 
 	static uint32 GetLastError();
+	static void SetLastError(uint32 ErrorCode);
 	static void RaiseException( uint32 ExceptionCode );
 	static bool SetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, const FString& InValue);
 	static bool GetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, FString& OutValue);

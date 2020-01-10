@@ -336,20 +336,25 @@ public:
 private:
 	FRepLayoutCmd*		ParamRepCmd;
 
-	UProperty*			OriginalParam;
+	FProperty*			OriginalParam;
 };
 
 /**
  * Implements the actual hook for the above class
  */
-class UNetPropertyHook : public UProperty
+class FNetPropertyHook : public FProperty
 {
-	DECLARE_CLASS_INTRINSIC(UNetPropertyHook, UProperty, 0, TEXT("/Script/NetcodeUnitTest"))
+	DECLARE_FIELD(FNetPropertyHook, FProperty, (CASTCLASS_FMulticastSparseDelegateProperty << 1))
 
 private:
 	virtual bool NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData /*=nullptr*/) const override;
 
 public:
+
+	FNetPropertyHook(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FProperty(InOwner, InName, InObjectFlags)
+	{}
+
 	FOnNetSerializeItem SerializeHook;
 };
 

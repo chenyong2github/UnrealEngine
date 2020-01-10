@@ -2200,9 +2200,9 @@ void UAssetManager::ExtractSoftObjectPaths(const UStruct* Struct, const void* St
 		return;
 	}
 
-	for (TPropertyValueIterator<const UProperty> It(Struct, StructValue); It; ++It)
+	for (TPropertyValueIterator<const FProperty> It(Struct, StructValue); It; ++It)
 	{
-		const UProperty* Property = It.Key();
+		const FProperty* Property = It.Key();
 		const void* PropertyValue = It.Value();
 		
 		if (PropertiesToSkip.Contains(Property->GetFName()))
@@ -2212,7 +2212,7 @@ void UAssetManager::ExtractSoftObjectPaths(const UStruct* Struct, const void* St
 		}
 
 		FSoftObjectPath FoundRef;
-		if (const USoftClassProperty* AssetClassProp = Cast<USoftClassProperty>(Property))
+		if (const FSoftClassProperty* AssetClassProp = CastField<FSoftClassProperty>(Property))
 		{
 			const TSoftClassPtr<UObject>* AssetClassPtr = reinterpret_cast<const TSoftClassPtr<UObject>*>(PropertyValue);
 			if (AssetClassPtr)
@@ -2220,7 +2220,7 @@ void UAssetManager::ExtractSoftObjectPaths(const UStruct* Struct, const void* St
 				FoundRef = AssetClassPtr->ToSoftObjectPath();
 			}
 		}
-		else if (const USoftObjectProperty* AssetProp = Cast<USoftObjectProperty>(Property))
+		else if (const FSoftObjectProperty* AssetProp = CastField<FSoftObjectProperty>(Property))
 		{
 			const TSoftObjectPtr<UObject>* AssetPtr = reinterpret_cast<const TSoftObjectPtr<UObject>*>(PropertyValue);
 			if (AssetPtr)
@@ -2228,7 +2228,7 @@ void UAssetManager::ExtractSoftObjectPaths(const UStruct* Struct, const void* St
 				FoundRef = AssetPtr->ToSoftObjectPath();
 			}
 		}
-		else if (const UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			// SoftClassPath is binary identical with SoftObjectPath
 			if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get() || StructProperty->Struct == TBaseStructure<FSoftClassPath>::Get())
@@ -3700,13 +3700,13 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 
 	AllVisitedStructValues.Add(StructValue);
 
-	for (TPropertyValueIterator<const UProperty> It(Struct, StructValue); It; ++It)
+	for (TPropertyValueIterator<const FProperty> It(Struct, StructValue); It; ++It)
 	{
-		const UProperty* Property = It.Key();
+		const FProperty* Property = It.Key();
 		const void* PropertyValue = It.Value();
 
 		FSoftObjectPath FoundRef;
-		if (const USoftClassProperty* AssetClassProp = Cast<USoftClassProperty>(Property))
+		if (const FSoftClassProperty* AssetClassProp = CastField<FSoftClassProperty>(Property))
 		{
 			const TSoftClassPtr<UObject>* AssetClassPtr = reinterpret_cast<const TSoftClassPtr<UObject>*>(PropertyValue);
 			if (AssetClassPtr)
@@ -3714,7 +3714,7 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 				FoundRef = AssetClassPtr->ToSoftObjectPath();
 			}
 		}
-		else if (const USoftObjectProperty* AssetProp = Cast<USoftObjectProperty>(Property))
+		else if (const FSoftObjectProperty* AssetProp = CastField<FSoftObjectProperty>(Property))
 		{
 			const TSoftObjectPtr<UObject>* AssetPtr = reinterpret_cast<const TSoftObjectPtr<UObject>*>(PropertyValue);
 			if (AssetPtr)
@@ -3722,7 +3722,7 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 				FoundRef = AssetPtr->ToSoftObjectPath();
 			}
 		}
-		else if (const UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			// SoftClassPath is binary identical with SoftObjectPath
 			if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get() || StructProperty->Struct == TBaseStructure<FSoftClassPath>::Get())
@@ -3736,7 +3736,7 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 				It.SkipRecursiveProperty();
 			}
 		}
-		else if (const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
+		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{
 			if (ObjectProperty->PropertyFlags & CPF_InstancedReference || ObjectProperty->HasMetaData(IncludeAssetBundlesName))
 			{
@@ -3756,10 +3756,10 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 				// Compute the intersection of all specified bundle sets in this property and parent properties
 				TSet<FName> BundleSet;
 
-				TArray<const UProperty*> PropertyChain;
+				TArray<const FProperty*> PropertyChain;
 				It.GetPropertyChain(PropertyChain);
 
-				for (const UProperty* PropertyToSearch : PropertyChain)
+				for (const FProperty* PropertyToSearch : PropertyChain)
 				{
 					if (PropertyToSearch->HasMetaData(AssetBundlesName))
 					{

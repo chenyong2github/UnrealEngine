@@ -231,7 +231,7 @@ void ULightComponentBase::OnRegister()
 	}
 }
 
-bool ULightComponentBase::CanEditChange(const UProperty* InProperty) const
+bool ULightComponentBase::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -571,7 +571,7 @@ void ULightComponent::PreSave(const class ITargetPlatform* TargetPlatform)
 	ValidateLightGUIDs();
 }
 
-bool ULightComponent::CanEditChange(const UProperty* InProperty) const
+bool ULightComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -645,7 +645,7 @@ bool ULightComponent::CanEditChange(const UProperty* InProperty) const
 
 void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
 
 	Intensity = FMath::Max(0.0f, Intensity);
@@ -1285,7 +1285,7 @@ void ULightComponent::InitializeStaticShadowDepthMap()
 			});
 
 		BeginInitResource(&StaticShadowDepthMap);
-	}
+			}
 }
 
 FLinearColor ULightComponent::GetColoredLightBrightness() const
@@ -1327,7 +1327,7 @@ void ULightComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMate
 *
 * @param PropertyThatChanged	Property that changed
 */
-void ULightComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void ULightComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	static FName LightColorName(TEXT("LightColor"));
 	static FName IntensityName(TEXT("Intensity"));

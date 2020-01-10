@@ -108,7 +108,7 @@ struct F3DTransformChannelEditorData
 
 	static TOptional<FVector> GetTranslation(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
-		const UStructProperty* TransformProperty = Bindings ? Cast<UStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
+		const FStructProperty* TransformProperty = Bindings ? CastField<FStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
 
 		if (TransformProperty)
 		{
@@ -140,7 +140,7 @@ struct F3DTransformChannelEditorData
 
 	static TOptional<FRotator> GetRotator(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
-		const UStructProperty* TransformProperty = Bindings ? Cast<UStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
+		const FStructProperty* TransformProperty = Bindings ? CastField<FStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
 
 		if (TransformProperty)
 		{
@@ -172,7 +172,7 @@ struct F3DTransformChannelEditorData
 
 	static TOptional<FVector> GetScale(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
-		const UStructProperty* TransformProperty = Bindings ? Cast<UStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
+		const FStructProperty* TransformProperty = Bindings ? CastField<FStructProperty>(Bindings->GetProperty(InObject)) : nullptr;
 
 		if (TransformProperty)
 		{

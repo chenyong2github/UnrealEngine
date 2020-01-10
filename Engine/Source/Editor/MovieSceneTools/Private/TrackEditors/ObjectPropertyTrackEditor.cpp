@@ -28,7 +28,7 @@ void FObjectPropertyTrackEditor::InitializeNewTrack(UMovieSceneObjectPropertyTra
 {
 	FPropertyTrackEditor::InitializeNewTrack(NewTrack, PropertyChangedParams);
 
-	UObjectPropertyBase* KeyedProperty = Cast<UObjectPropertyBase>(PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get());
+	FObjectPropertyBase* KeyedProperty = CastField<FObjectPropertyBase>(PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get());
 	if (KeyedProperty)
 	{
 		NewTrack->PropertyClass = KeyedProperty->PropertyClass;

@@ -81,7 +81,7 @@ public:
 	SLATE_END_ARGS()
 
 	static bool Supports( const TSharedRef< class FPropertyEditor >& InPropertyEditor );
-	static bool Supports( const UProperty* NodeProperty );
+	static bool Supports( const FProperty* NodeProperty );
 
 	/**
 	 * Construct the widget.
@@ -317,12 +317,12 @@ private:
 	 * @param	Property	The supplied property for the widget
 	 * @return	The class of the property. Asserts if this tries to return null.
 	 */
-	static UClass* GetObjectPropertyClass(const UProperty* Property);
+	static UClass* GetObjectPropertyClass(const FProperty* Property);
 
 	/**
 	 * Initialize the AllowedClasses and DisallowedClasses arrays based on the property metadata.
 	 */
-	void InitializeClassFilters(const UProperty* Property);
+	void InitializeClassFilters(const FProperty* Property);
 
 	/** Check if the given class is allowed by the AllowedClasses and DisallowedClasses as defined in the property metadata. */
 	bool IsClassAllowed(const UClass* InClass) const;
@@ -330,7 +330,7 @@ private:
 	/**
 	 * Initialize DisallowedAssetDataTags based on the property metadata.
 	 */
-	void InitializeAssetDataTags(const UProperty* Property);
+	void InitializeAssetDataTags(const FProperty* Property);
 
 	/** @return Returns true if the asset is relevant for this property*/
 	bool IsAssetAllowed(const FAssetData& InAssetData);

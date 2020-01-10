@@ -99,7 +99,7 @@ protected:
 	TArray<UBlueprint*> Dependencies;
 
 	/** Mappings from old fields before recompilation to their new equivalents */
-	TMap<FName, UProperty*> PropertyMap;
+	TMap<FName, FProperty*> PropertyMap;
 	TMap<FName, UFunction*> FunctionMap;
 
 	/** Whether or not this resinstancer has already reinstanced  */
@@ -148,7 +148,7 @@ public:
 	void SaveClassFieldMapping(UClass* InClassToReinstance);
 
 	/** Helper to gather mappings from the old class's fields to the new class's version */
-	void GenerateFieldMappings(TMap<UObject*, UObject*>& FieldMapping);
+	void GenerateFieldMappings(TMap<FFieldVariant, FFieldVariant>& FieldMapping);
 
 	/** Reinstances all objects in the ObjectReinstancingMap */
 	void ReinstanceObjects(bool bForceAlwaysReinstance = false);

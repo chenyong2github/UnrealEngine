@@ -17,7 +17,7 @@ public:
 	 */
 	static TArray<FAnimatedPropertyKey, TInlineAllocator<1>> GetAnimatedPropertyTypes()
 	{
-		return TArray<FAnimatedPropertyKey, TInlineAllocator<1>>({ FAnimatedPropertyKey::FromPropertyType(UObjectPropertyBase::StaticClass()) });
+		return TArray<FAnimatedPropertyKey, TInlineAllocator<1>>({ FAnimatedPropertyKey::FromPropertyType(FObjectPropertyBase::StaticClass()) });
 	}
 
 	/** Factory function */

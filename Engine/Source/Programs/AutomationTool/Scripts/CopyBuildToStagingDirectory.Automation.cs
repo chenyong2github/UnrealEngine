@@ -2928,11 +2928,12 @@ public partial class Project : CommandUtils
 			{
 				TargetPlatformDescriptor DataPlatformDesc = Params.GetCookedDataPlatformForClientTarget(ClientPlatform);
 				String TargetPlatformName = Platform.Platforms[DataPlatformDesc].GetCookPlatform(false, Params.Client);
-
-				DirectoryReference OutputDirectory = DirectoryReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
-
+				DirectoryReference OutputDirectory = DirectoryReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name, "Content", "Containers");
 				String CommandletParams = String.Format("-TargetPlatform={0} -OutputDirectory={1}", TargetPlatformName, OutputDirectory.FullName);
-
+				if (SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC))
+				{
+					CommandletParams += String.Format(" -ChunkListFile={0}", GetChunkPakManifestListFilename(Params, SC));
+				}
 				RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
 			}
 		}

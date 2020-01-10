@@ -5,7 +5,7 @@
 void UVPUtilitiesEditorSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UVPUtilitiesEditorSettings, bUseTransformGizmo))
 	{

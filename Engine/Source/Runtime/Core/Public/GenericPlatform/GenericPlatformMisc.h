@@ -608,6 +608,8 @@ struct CORE_API FGenericPlatformMisc
 		return 0;
 	}
 
+	static void SetLastError(uint32 ErrorCode) {}
+
 	static void RaiseException( uint32 ExceptionCode );
 
 public:

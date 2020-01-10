@@ -75,9 +75,9 @@ void FAnimMontageSegmentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 	IDetailCategoryBuilder& SegmentCategory = DetailBuilder.EditCategory("Animation Segment", LOCTEXT("AnimationSegmentCategoryTitle", "Animation Segment") );
 
 	TSharedRef<IPropertyHandle> TargetPropertyHandle = DetailBuilder.GetProperty("AnimSegment.AnimReference");
-	UProperty* TargetProperty = TargetPropertyHandle->GetProperty();
+	FProperty* TargetProperty = TargetPropertyHandle->GetProperty();
 
-	const UObjectPropertyBase* ObjectProperty = CastChecked<const UObjectPropertyBase>(TargetProperty);
+	const FObjectPropertyBase* ObjectProperty = CastFieldChecked<const FObjectPropertyBase>(TargetProperty);
 
 	IDetailPropertyRow& PropertyRow = SegmentCategory.AddProperty(TargetPropertyHandle);
 	PropertyRow.DisplayName(LOCTEXT("AnimationReferenceLabel", "Animation Reference"));

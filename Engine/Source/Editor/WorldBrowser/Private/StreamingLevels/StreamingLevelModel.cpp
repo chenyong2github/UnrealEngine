@@ -96,7 +96,7 @@ void FStreamingLevelModel::SetLevelColor(FLinearColor InColor)
 {
 	if (LevelStreaming.IsValid())
 	{
-		UProperty* DrawColorProperty = FindField<UProperty>(LevelStreaming->GetClass(), "LevelColor");
+		FProperty* DrawColorProperty = FindField<FProperty>(LevelStreaming->GetClass(), "LevelColor");
 		LevelStreaming->PreEditChange(DrawColorProperty);
 
 		LevelStreaming.Get()->LevelColor = InColor;

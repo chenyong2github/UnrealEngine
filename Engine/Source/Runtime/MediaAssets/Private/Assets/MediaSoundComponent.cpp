@@ -324,7 +324,7 @@ void UMediaSoundComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 {
 	static const FName MediaPlayerName = GET_MEMBER_NAME_CHECKED(UMediaSoundComponent, MediaPlayer);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if (PropertyThatChanged != nullptr)
 	{

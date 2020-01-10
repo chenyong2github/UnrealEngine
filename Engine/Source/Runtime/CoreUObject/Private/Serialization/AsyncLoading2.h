@@ -10,12 +10,13 @@
 #include "Serialization/AsyncPackageLoader.h"
 
 class FAsyncLoadingThread2Impl;
+class FIoDispatcher;
 
 class FAsyncLoadingThread2
 	: public IAsyncPackageLoader
 {
 public:
-	FAsyncLoadingThread2(IEDLBootNotificationManager& InEDLBootNotificationManager);
+	FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager);
 	virtual ~FAsyncLoadingThread2();
 
 	void InitializeLoading() override;

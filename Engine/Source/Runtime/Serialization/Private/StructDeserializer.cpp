@@ -23,7 +23,7 @@ namespace StructDeserializer
 		void* Data = nullptr;
 
 		/** Holds the property's meta data. */
-		UProperty* Property = nullptr;
+		FProperty* Property = nullptr;
 
 		/** Holds a pointer to the UStruct describing the data. */
 		UStruct* TypeInfo = nullptr;
@@ -42,15 +42,15 @@ namespace StructDeserializer
 
 		if (State.Property != nullptr)
 		{
-			UProperty* ParentProperty = State.Property;
+			FProperty* ParentProperty = State.Property;
 
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(ParentProperty))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ParentProperty))
 			{
 				ParentProperty = ArrayProperty->Inner;
 			}
 
-			UStructProperty* StructProperty = Cast<UStructProperty>(ParentProperty);
-			UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(ParentProperty);
+			FStructProperty* StructProperty = CastField<FStructProperty>(ParentProperty);
+			FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(ParentProperty);
 
 			if (StructProperty != nullptr)
 			{
@@ -103,7 +103,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 		case EStructDeserializerBackendTokens::ArrayEnd:
 			{
 				// rehash the set now that we are done with it
-				if (USetProperty* SetProperty = Cast<USetProperty>(CurrentState.Property))
+				if (FSetProperty* SetProperty = CastField<FSetProperty>(CurrentState.Property))
 				{
 					FScriptSetHelper SetHelper(SetProperty, CurrentState.Data);
 					SetHelper.Rehash();
@@ -124,7 +124,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 			{
 				FReadState NewState;
 
-				NewState.Property = FindField<UProperty>(CurrentState.TypeInfo, *PropertyName);
+				NewState.Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 				if (NewState.Property != nullptr)
 				{
@@ -135,7 +135,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					}
 
 					// handle set property
-					if (USetProperty* SetProperty = Cast<USetProperty>(NewState.Property))
+					if (FSetProperty* SetProperty = CastField<FSetProperty>(NewState.Property))
 					{
 						NewState.Data = SetProperty->ContainerPtrToValuePtr<void>(CurrentState.Data, CurrentState.ArrayIndex);
 						FScriptSetHelper SetHelper(SetProperty, NewState.Data);
@@ -144,7 +144,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					// handle array property
 					else if (NewState.Property != nullptr)
 					{
-						NewState.Data = CurrentState.Data;
+					NewState.Data = CurrentState.Data;
 					}
 
 					NewState.TypeInfo = FindClass(NewState);
@@ -177,12 +177,12 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 		case EStructDeserializerBackendTokens::Property:
 			{
 				// Set are serialized as array, so no property name will be set for each entry
-				if (PropertyName.IsEmpty() && (CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == USetProperty::StaticClass()))
+				if (PropertyName.IsEmpty() && (CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == FSetProperty::StaticClass()))
 				{
 					// handle set element
-					USetProperty* SetProperty = Cast<USetProperty>(CurrentState.Property);
+					FSetProperty* SetProperty = CastField<FSetProperty>(CurrentState.Property);
 					FScriptSetHelper SetHelper(SetProperty, CurrentState.Data);
-					UProperty* Property = SetProperty->ElementProp;
+					FProperty* Property = SetProperty->ElementProp;
 
 					const int32 ElementIndex = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
 					uint8* ElementPtr = SetHelper.GetElementPtr(ElementIndex);
@@ -196,8 +196,8 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 				else if (PropertyName.IsEmpty())
 				{
 					// handle array element
-					UArrayProperty* ArrayProperty = Cast<UArrayProperty>(CurrentState.Property);
-					UProperty* Property = nullptr;
+					FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.Property);
+					FProperty* Property = nullptr;
 
 					if (ArrayProperty != nullptr)
 					{
@@ -227,12 +227,12 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 
 					++CurrentState.ArrayIndex;
 				}
-				else if ((CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == UMapProperty::StaticClass()))
+				else if ((CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == FMapProperty::StaticClass()))
 				{
 					// handle map element
-					UMapProperty* MapProperty = Cast<UMapProperty>(CurrentState.Property);
+					FMapProperty* MapProperty = CastField<FMapProperty>(CurrentState.Property);
 					FScriptMapHelper MapHelper(MapProperty, CurrentState.Data);
-					UProperty* Property = MapProperty->ValueProp;
+					FProperty* Property = MapProperty->ValueProp;
 
 					int32 PairIndex = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
 					uint8* PairPtr = MapHelper.GetPairPtr(PairIndex);
@@ -247,7 +247,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 				else
 				{
 					// handle scalar property
-					UProperty* Property = FindField<UProperty>(CurrentState.TypeInfo, *PropertyName);
+					FProperty* Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 					if (Property != nullptr)
 					{
@@ -281,7 +281,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 		case EStructDeserializerBackendTokens::StructureEnd:
 			{
 				// rehash if value was a map
-				UMapProperty* MapProperty = Cast<UMapProperty>(CurrentState.Property);
+				FMapProperty* MapProperty = CastField<FMapProperty>(CurrentState.Property);
 				if (MapProperty != nullptr)
 				{			
 					FScriptMapHelper MapHelper(MapProperty, CurrentState.Data);
@@ -312,7 +312,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					}
 
 					// handle struct element inside set
-					if (USetProperty* SetProperty = Cast<USetProperty>(CurrentState.Property))
+					if (FSetProperty* SetProperty = CastField<FSetProperty>(CurrentState.Property))
 					{
 						FScriptSetHelper SetHelper(SetProperty, CurrentState.Data);
 						const int32 ElementIndex = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
@@ -322,7 +322,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 						NewState.Property = SetProperty->ElementProp;
 					}
 					// handle struct element inside array
-					else if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(CurrentState.Property))
+					else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.Property))
 					{
 						FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(CurrentState.Data));
 						const int32 ArrayIndex = ArrayHelper.AddValue();
@@ -337,9 +337,9 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					}
 				}
 				// handle map or struct element inside map
-				else if ((CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == UMapProperty::StaticClass()))
+				else if ((CurrentState.Property != nullptr) && (CurrentState.Property->GetClass() == FMapProperty::StaticClass()))
 				{
-					UMapProperty* MapProperty = Cast<UMapProperty>(CurrentState.Property);
+					FMapProperty* MapProperty = CastField<FMapProperty>(CurrentState.Property);
 					FScriptMapHelper MapHelper(MapProperty, CurrentState.Data);
 					int32 PairIndex = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
 					uint8* PairPtr = MapHelper.GetPairPtr(PairIndex);
@@ -351,7 +351,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 				}
 				else
 				{
-					NewState.Property = FindField<UProperty>(CurrentState.TypeInfo, *PropertyName);
+					NewState.Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 					// unrecognized property
 					if (NewState.Property == nullptr)
@@ -368,7 +368,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 						}
 					}
 					// handle map property start
-					else if (UMapProperty* MapProperty = Cast<UMapProperty>(NewState.Property))
+					else if (FMapProperty* MapProperty = CastField<FMapProperty>(NewState.Property))
 					{
 						NewState.Data = MapProperty->ContainerPtrToValuePtr<void>(CurrentState.Data, CurrentState.ArrayIndex);
 						FScriptMapHelper MapHelper(MapProperty, NewState.Data);

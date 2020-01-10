@@ -100,17 +100,6 @@ struct FCompression
 	 */
 	CORE_API static bool VerifyCompressionFlagsValid(int32 InCompressionFlags);
 
-
-
-
-
-	UE_DEPRECATED(4.20, "Use the FName based version of CompressMemoryBound")
-	CORE_API static int32 CompressMemoryBound(ECompressionFlags Flags, int32 UncompressedSize, int32 BitWindow = DEFAULT_ZLIB_BIT_WINDOW);
-	UE_DEPRECATED(4.20, "Use the FName based version of CompressMemory")
-	CORE_API static bool CompressMemory(ECompressionFlags Flags, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, int32 BitWindow = DEFAULT_ZLIB_BIT_WINDOW);
-	UE_DEPRECATED(4.20, "Use the FName based version of UncompressMemory")
-	CORE_API static bool UncompressMemory(ECompressionFlags Flags, void* UncompressedBuffer, int32 UncompressedSize, const void* CompressedBuffer, int32 CompressedSize, bool bIsSourcePadded = false, int32 BitWindow = DEFAULT_ZLIB_BIT_WINDOW);
-
 	CORE_API static FName GetCompressionFormatFromDeprecatedFlags(ECompressionFlags DeprecatedFlags);
 
 private:
