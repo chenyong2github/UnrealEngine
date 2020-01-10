@@ -83,3 +83,13 @@ FARFilter UAssetRegistryHelpers::SetFilterTagsAndValues(const FARFilter& InFilte
 	return FilterCopy;
 }
 
+UAssetRegistryHelpers::FTemporaryCachingModeScope::FTemporaryCachingModeScope(bool InTempCachingMode)
+{
+	PreviousCachingMode = UAssetRegistryHelpers::GetAssetRegistry()->GetTemporaryCachingMode();
+	UAssetRegistryHelpers::GetAssetRegistry()->SetTemporaryCachingMode(InTempCachingMode);
+}
+
+UAssetRegistryHelpers::FTemporaryCachingModeScope::~FTemporaryCachingModeScope()
+{
+	UAssetRegistryHelpers::GetAssetRegistry()->SetTemporaryCachingMode(PreviousCachingMode);
+}
