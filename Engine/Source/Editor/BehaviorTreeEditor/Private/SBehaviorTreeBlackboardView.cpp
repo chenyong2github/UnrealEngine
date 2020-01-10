@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
@@ -23,6 +24,7 @@
 #include "SGraphActionMenu.h"
 #include "SGraphPalette.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardAssetProvider.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/CoreStyle.h"
 #include "ScopedTransaction.h"
@@ -217,6 +219,16 @@ private:
 			BlackboardEntryAction->BlackboardData->Modify();
 			BlackboardEntryAction->Key.EntryName = NewName;
 
+			UProperty* KeysArrayProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+			UProperty* NameProperty = FindField<UProperty>(FBlackboardEntry::StaticStruct(), GET_MEMBER_NAME_CHECKED(FBlackboardEntry, EntryName));
+			FEditPropertyChain PropertyChain;
+			PropertyChain.AddHead(KeysArrayProperty);
+			PropertyChain.AddTail(NameProperty);
+			PropertyChain.SetActiveMemberPropertyNode(KeysArrayProperty);
+			PropertyChain.SetActivePropertyNode(NameProperty);
+
+			BlackboardEntryAction->BlackboardData->PreEditChange(PropertyChain);
+
 			BlackboardEntryAction->Update();
 
 			OnBlackboardKeyChanged.ExecuteIfBound(BlackboardEntryAction->BlackboardData, &BlackboardEntryAction->Key);
@@ -225,13 +237,33 @@ private:
 			{
 				UpdateExternalBlackboardKeyReferences(OldName, NewName, ExternalBTAssetsWithKeyReferences);
 			}
+
+			FPropertyChangedEvent PropertyChangedEvent(NameProperty, EPropertyChangeType::ValueSet);
+			FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+			BlackboardEntryAction->BlackboardData->PostEditChangeChainProperty(PropertyChangedChainEvent);
 		}
 
 		BlackboardEntryAction->bIsNew = false;
 	}
 
+	void GetBlackboardOwnerClasses(TArray<const UClass*>& BlackboardOwnerClasses)
+	{
+		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+		{
+			class UClass* Class = *ClassIt;
+			if (Class->ImplementsInterface(UBlackboardAssetProvider::StaticClass()))
+			{
+				BlackboardOwnerClasses.Add(Class);
+			}
+		}
+	}
+
 	void LoadReferencerBehaviorTrees(const UBlackboardData& InBlackboardData, TArray<UObject*>& OutExternalBTAssetsWithKeyReferences)
 	{
+		// Get classes and derived classes which implement UBlackboardAssetProvider.
+		TArray<const UClass*> BlackboardOwnerClasses;
+		GetBlackboardOwnerClasses(BlackboardOwnerClasses);
+
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		TArray<FName> ReferencerPackages;
@@ -249,14 +281,15 @@ private:
 
 				for (const FAssetData& Asset : Assets)
 				{
-					if (Asset.GetClass()->IsChildOf(UBehaviorTree::StaticClass()))
+					if (BlackboardOwnerClasses.Find(Asset.GetClass()) != INDEX_NONE)
 					{
 						SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("CheckingBehaviorTree", "Key renamed, loading {0}"), FText::FromName(Asset.AssetName)));
 
-						UBehaviorTree* BehaviorTree = Cast<UBehaviorTree>(Asset.GetAsset());
-						if (BehaviorTree->BlackboardAsset == &InBlackboardData)
+						UObject* AssetObject = Asset.GetAsset();
+						const IBlackboardAssetProvider* BlackboardProvider = Cast<const IBlackboardAssetProvider>(AssetObject);
+						if (BlackboardProvider && BlackboardProvider->GetBlackboardAsset() == &InBlackboardData)
 						{
-							OutExternalBTAssetsWithKeyReferences.Add(BehaviorTree);
+							OutExternalBTAssetsWithKeyReferences.Add(AssetObject);
 						}
 					}
 				}

@@ -114,6 +114,9 @@ void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 			const FScopedTransaction Transaction(LOCTEXT("BlackboardEntryDeleteTransaction", "Delete Blackboard Entry"));
 			BlackboardData->SetFlags(RF_Transactional);
 			BlackboardData->Modify();
+
+			UProperty* KeysProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+			BlackboardData->PreEditChange(KeysProperty);
 		
 			for(int32 ItemIndex = 0; ItemIndex < BlackboardData->Keys.Num(); ItemIndex++)
 			{
@@ -132,6 +135,9 @@ void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 			{
 				OnEntrySelected.Execute(nullptr, false);
 			}
+
+			FPropertyChangedEvent PropertyChangedEvent(KeysProperty, EPropertyChangeType::ArrayRemove);
+			BlackboardData->PostEditChangeProperty(PropertyChangedEvent);
 		}
 	}
 }
@@ -240,6 +246,9 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	BlackboardData->SetFlags(RF_Transactional);
 	BlackboardData->Modify();
 
+	UProperty* KeysProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+	BlackboardData->PreEditChange(KeysProperty);
+
 	// create a name for this new key
 	FString NewKeyName = InClass->GetDisplayNameText().ToString();
 	NewKeyName = NewKeyName.Replace(TEXT(" "), TEXT(""));
@@ -291,6 +300,9 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	BlackboardEntryAction->bIsNew = true;
 
 	GraphActionMenu->OnRequestRenameOnActionNode();
+
+	FPropertyChangedEvent PropertyChangedEvent(KeysProperty, EPropertyChangeType::ArrayAdd);
+	BlackboardData->PostEditChangeProperty(PropertyChangedEvent);
 }
 
 bool SBehaviorTreeBlackboardEditor::CanCreateNewEntry() const
