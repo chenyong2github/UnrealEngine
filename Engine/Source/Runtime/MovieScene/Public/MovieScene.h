@@ -19,6 +19,8 @@
 #include "MovieSceneTimeController.h"
 #include "MovieScene.generated.h"
 
+struct FMovieSceneTimeController;
+
 class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
@@ -688,11 +690,29 @@ public:
 	}
 
 	/**
+	 * Retrieve a time controller from this sequence instance, if the clock source is set to custom
+	 */
+	TSharedPtr<FMovieSceneTimeController> MakeCustomTimeController(UObject* PlaybackContext);
+
+	/**
 	 * Assign the clock source to be used for this moviescene
 	 */
 	void SetClockSource(EUpdateClockSource InNewClockSource)
 	{
 		ClockSource = InNewClockSource;
+		if (ClockSource != EUpdateClockSource::Custom)
+		{
+			CustomClockSourcePath.Reset();
+		}
+	}
+
+	/**
+	 * Assign the clock source to be used for this moviescene
+	 */
+	void SetClockSource(UObject* InNewClockSource)
+	{
+		ClockSource = EUpdateClockSource::Custom;
+		CustomClockSourcePath = InNewClockSource;
 	}
 
 	/*
@@ -1014,6 +1034,9 @@ private:
 
 	UPROPERTY()
 	EUpdateClockSource ClockSource;
+
+	UPROPERTY()
+	FSoftObjectPath CustomClockSourcePath;
 
 	/** The set of user-marked frames */
 	UPROPERTY()

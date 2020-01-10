@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "CommonFrameRates.h"
 
 #define LOCTEXT_NAMESPACE "MovieScene"
@@ -1241,6 +1242,11 @@ void UMovieScene::MoveBindingContents(const FGuid& SourceBindingId, const FGuid&
 			}
 		}
 	}
+}
+
+TSharedPtr<FMovieSceneTimeController> UMovieScene::MakeCustomTimeController(UObject* PlaybackContext)
+{
+	return MakeShared<FMovieSceneTimeController_Custom>(CustomClockSourcePath, PlaybackContext);
 }
 
 void UMovieScene::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
