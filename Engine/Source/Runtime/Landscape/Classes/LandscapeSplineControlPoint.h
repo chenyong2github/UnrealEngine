@@ -60,8 +60,8 @@ class ULandscapeSplineControlPoint : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
 	FRotator Rotation;
 
-	/** Width of the spline at this point. */
-	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
+	/** Half-Width of the spline at this point. */
+	UPROPERTY(EditAnywhere, Category=LandscapeSpline, meta = (DisplayName = "Half-Width"))
 	float Width;
 
 	/** Layer Width ratio of the spline at this point. */
