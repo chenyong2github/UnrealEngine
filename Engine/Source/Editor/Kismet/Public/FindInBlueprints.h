@@ -206,6 +206,26 @@ private:
 	EGraphType GraphType;
 };
 
+// Cache bar widgets.
+enum class EFiBCacheBarWidget
+{
+	ProgressBar,
+	CloseButton,
+	CancelButton,
+	CacheAllUnindexedButton,
+	CurrentAssetNameText,
+	UnresponsiveEditorWarningText,
+	ShowCacheFailuresButton
+};
+
+// Search bar widgets.
+enum class EFiBSearchBarWidget
+{
+	StatusText,
+	Throbber,
+	ProgressBar,
+};
+
 /*Widget for searching for (functions/events) across all blueprints or just a single blueprint */
 class SFindInBlueprints: public SCompoundWidget
 {
@@ -240,7 +260,7 @@ public:
 	void OnCacheStarted(EFiBCacheOpType InOpType, EFiBCacheOpFlags InOpFlags);
 	
 	/** Called when caching Blueprints is complete */
-	void OnCacheComplete(EFiBCacheOpType InOpType);
+	void OnCacheComplete(EFiBCacheOpType InOpType, EFiBCacheOpFlags InOpFlags);
 
 	/**
 	 * Asynchronously caches all Blueprints below a specified version.
@@ -298,8 +318,8 @@ private:
 	/** Returns the percent complete on the search for the progress bar */
 	TOptional<float> GetPercentCompleteSearch() const;
 
-	/** Returns the progress bar visiblity */
-	EVisibility GetSearchbarVisiblity() const;
+	/** Returns the search bar visiblity for the given widget */
+	EVisibility GetSearchBarWidgetVisiblity(EFiBSearchBarWidget InSearchBarWidget) const;
 
 	/** Adds the "cache" bar at the bottom of the Find-in-Blueprints widget, to notify the user that the search is incomplete */
 	void ConditionallyAddCacheBar();
@@ -308,10 +328,10 @@ private:
 	FReply OnRemoveCacheBar();
 
 	/** Callback to return the cache bar's display text, informing the user of the situation */
-	FText GetUnindexedAssetWarningText() const;
+	FText GetCacheBarStatusText() const;
 
-	/** Callback to return the cache bar's current indexing Blueprint name */
-	FText GetCurrentCacheBlueprintName() const;
+	/** Callback to return the current asset name during a cache operation */
+	FText GetCacheBarCurrentAssetName() const;
 
 	/** Callback to cache all unindexed Blueprints */
 	FReply OnCacheAllUnindexedBlueprints();
@@ -328,32 +348,20 @@ private:
 	/** Gets the percent complete of the caching process */
 	TOptional<float> GetPercentCompleteCache() const;
 
-	/** Returns the visibility of the caching progress bar, visible when in progress, hidden when not */
-	EVisibility GetCachingProgressBarVisiblity() const;
-
-	/** Returns the visibility of the "Cache All" button, visible when not caching, collapsed when caching is in progress */
-	EVisibility GetCacheAllUnindexedButtonVisibility() const;
-
-	/** Returns the visibility of the "Cancel" button, visible when caching is in progress, collapsed when not caching */
-	EVisibility GetCacheAllCancelButtonVisibility() const;
-
 	/** Returns the caching bar's visibility, it goes invisible when there is nothing to be cached. The next search will remove this bar or make it visible again */
-	EVisibility GetCachingBarVisibility() const;
+	EVisibility GetCacheBarVisibility() const;
 
-	/** Returns the visibility of the caching Blueprint name, visible when in progress, collapsed when not */
-	EVisibility GetCachingBlueprintNameVisiblity() const;
-
-	/** Returns the visibility of the popup button that displays the list of Blueprints that failed to cache */
-	EVisibility GetFailedToCacheListVisibility() const;
-
-	/** Returns the visibility of the unresponsive editor warning note text in the caching progress bar */
-	EVisibility GetUnresponsiveEditorWarningVisibility() const;
+	/** Returns the cache bar visibility for the given widget */
+	EVisibility GetCacheBarWidgetVisibility(EFiBCacheBarWidget InCacheBarWidget) const;
 
 	/** Returns TRUE if Blueprint caching is in progress */
 	bool IsCacheInProgress() const;
 
-	/** Returns the color of the caching bar */
-	FSlateColor GetCachingBarColor() const;
+	/** Returns the color of the cache bar */
+	FSlateColor GetCacheBarColor() const;
+
+	/** Returns the BG image used for the cache bar */
+	const FSlateBrush* GetCacheBarImage() const;
 
 	/** Callback to build the context menu when right clicking in the tree */
 	TSharedPtr<SWidget> OnContextMenuOpening();
@@ -401,9 +409,6 @@ private:
 	/* The string to search for */
 	FString	SearchValue;
 
-	/** Should we search within the current blueprint only (rather than all blueprints) */
-	bool bIsInFindWithinBlueprintMode;
-
 	/** Thread object that searches through Blueprint data on a separate thread */
 	TSharedPtr< class FStreamSearch> StreamSearch;
 
@@ -428,6 +433,27 @@ private:
 	/** Tab hosting this widget. May be invalid. */
 	TWeakPtr<SDockTab> HostTab;
 
+	/** Last cached asset name (used during continuous cache operations). */
+	mutable FName LastCachedAssetName;
+
+	/** Should we search within the current blueprint only (rather than all blueprints) */
+	bool bIsInFindWithinBlueprintMode;
+
 	/** True if current search should not be changed by an external source */
 	bool bIsLocked;
+
+	/** True if progress bar widgets should be hidden */
+	bool bHideProgressBars;
+
+	/** True if users should be allowed to close the cache bar while caching */
+	bool bShowCacheBarCloseButton;
+
+	/** True if users should be allowed to cancel the active caching operation */
+	bool bShowCacheBarCancelButton;
+
+	/** True if the unresponsive warning text should be visible in the cache bar */
+	bool bShowCacheBarUnresponsiveEditorWarningText;
+
+	/** True if cache bar should remain visible after a caching operation has ended */
+	bool bKeepCacheBarProgressVisible;
 };
