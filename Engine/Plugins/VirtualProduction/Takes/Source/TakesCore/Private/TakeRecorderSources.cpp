@@ -568,31 +568,27 @@ FQualifiedFrameTime UTakeRecorderSources::GetCurrentRecordingFrameTime(const FTi
 
 	if (GEngine)
 	{
-		const UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider();
-
 		// If their is a a Timecode Provider that is synchronized then we will sample the engine Timecode
 		// to determine what frame the data should go on. If the engine is ticking faster than the given
 		// Timecode framerate then there will be multiple frames submitted with the same qualified time
 		// and the data sources will end up only storing the latest call on that frame.
 
-		if (TimecodeProvider && TimecodeProvider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+		const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+		if (CurrentFrameTime.IsSet())
 		{
-			FTimecode Timecode = FApp::GetTimecode();
-			const FFrameNumber QualifiedFrameNumber = Timecode.ToFrameNumber(FApp::GetTimecodeFrameRate());
-			FrameTime = FQualifiedFrameTime(FFrameTime(QualifiedFrameNumber), FApp::GetTimecodeFrameRate());
-
+			FrameTime = CurrentFrameTime.GetValue();
 			bHasValidTimecodeSource = true;
 		}
 		else
 		{
-			UE_LOG(LogTakesCore, Error, TEXT("Attempted to sample timecode from custom Timecode Provider %s while provider was not synchronized! Falling back to engine clock for timecode source!"), TimecodeProvider != nullptr ? *TimecodeProvider->GetName() : TEXT(""));
+			UE_LOG(LogTakesCore, Error, TEXT("Attempted to sample timecode from the engine and failed! Falling back to engine clock for timecode source!"));
 			bHasValidTimecodeSource = false;
 		}
 	}
 
 	if (!bHasValidTimecodeSource)
 	{
-		// If no Timecode Provider is specified (or it has an error) then we want to fall back to the normal Engine tickrate and capture
+		// If no Timecode Provider is specified (or it has an error) then we want to fall back to the normal Engine tick rate and capture
 		//Use Level Sequence TickRate to make conversions cleaner later on.
 		const FFrameNumber FrameNumber = TargetLevelSequenceTickResolution.AsFrameNumber(TimeSinceRecordingStarted);
 		FrameTime = FQualifiedFrameTime(FFrameTime(FrameNumber), TargetLevelSequenceTickResolution);

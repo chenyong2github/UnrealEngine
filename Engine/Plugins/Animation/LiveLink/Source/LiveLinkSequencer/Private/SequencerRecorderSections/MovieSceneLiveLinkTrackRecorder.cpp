@@ -194,16 +194,17 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 
 		if (FramesToProcess.Num() > 0)
 		{
+			const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
 			for (const FLiveLinkFrameDataStruct& Frame : FramesToProcess)
 			{
 				FFrameNumber FrameNumber;
 
-				if (bSyncedOrForced && GEngine && GEngine->GetTimecodeProvider() && GEngine->GetTimecodeProvider()->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+				if (bSyncedOrForced && CurrentFrameTime.IsSet())
 				{
 					//Get StartTime on Section in TimeCode FrameRate
 					//Convert that to LiveLink FrameRate and subtract out from LiveLink Frame to get section starting from zero.
 					//Finally convert that to the actual MovieScene Section FrameRate(TickResolution).
-					const FQualifiedFrameTime TimeProviderStartFrameTime = FQualifiedFrameTime(MovieSceneSection->TimecodeSource.Timecode, FApp::GetTimecodeFrameRate());
+					const FQualifiedFrameTime TimeProviderStartFrameTime = FQualifiedFrameTime(MovieSceneSection->TimecodeSource.Timecode, CurrentFrameTime.GetValue().Rate);
 					FQualifiedFrameTime LiveLinkFrameTime = Frame.GetBaseData()->MetaData.SceneTime;
 					const FFrameNumber FrameNumberStart = TimeProviderStartFrameTime.ConvertTo(LiveLinkFrameTime.Rate).FrameNumber;
 					LiveLinkFrameTime.Time.FrameNumber -= FrameNumberStart;
