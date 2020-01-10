@@ -715,7 +715,7 @@ void UNiagaraNodeFunctionCall::SubsumeExternalDependencies(TMap<const UObject*, 
 	}
 }
 
-void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const
+void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
 	if (FunctionScript && FunctionScript->GetOutermost() != this->GetOutermost())
 	{
@@ -733,7 +733,7 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage 
 				if (FoundGuid.IsValid() && FoundCompileHash.IsValid())
 				{
 					InReferencedCompileHashes.Add(FoundCompileHash);
-					InReferencedObjs.Add(FunctionGraph);
+					InReferencedObjs.Add(FunctionGraph->GetPathName());
 					FunctionGraph->GatherExternalDependencyData((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
 				}
 			}

@@ -132,3 +132,5 @@ private:
 	const uint32 ScriptUniqueAssetID;
 	const TSharedPtr<INiagaraScriptGraphFocusInfo> ScriptGraphFocusInfo;
 };
+
+

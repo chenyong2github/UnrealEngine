@@ -42,6 +42,7 @@ private:
 	bool bCreated;
 };
 
+
 /** Container for UNiagaraGraph cached data for managing CompileIds and Traversals.*/
 USTRUCT()
 struct FNiagaraGraphScriptUsageInfo
@@ -66,6 +67,14 @@ public:
 	/** The hash that we calculated last traversal. */
 	UPROPERTY()
 	FNiagaraCompileHash CompileHash;
+
+	/** The hash that we calculated last traversal. */
+	UPROPERTY()
+	FNiagaraCompileHash CompileHashFromGraph;
+
+	UPROPERTY(Transient)
+	TArray<FNiagaraCompileHashVisitorDebugInfo> CompileLastObjects;
+
 
 	/** The traversal of output to input nodes for this graph. This is not a recursive traversal, it just includes nodes from this graph.*/
 	UPROPERTY()
@@ -181,7 +190,7 @@ class UNiagaraGraph : public UEdGraph
 	void GetAllReferencedGraphs(TArray<const UNiagaraGraph*>& Graphs) const;
 
 	/** Gather all the change ids of external references for this specific graph traversal.*/
-	void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs);
+	void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs);
 
 	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
 	void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions);
@@ -241,7 +250,7 @@ class UNiagaraGraph : public UEdGraph
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
 
-	void InvalidateCachedCompileIds();
+	void ForceGraphToRecompileOnNextCheck();
 
 	/** Add a listener for OnGraphNeedsRecompile events */
 	FDelegateHandle AddOnGraphNeedsRecompileHandler(const FOnGraphChanged::FDelegate& InHandler);
@@ -270,6 +279,7 @@ protected:
 	bool bNeedNumericCacheRebuilt;
 	TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition> CachedNumericConversions;
 	void ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEdGraphNode* Node);
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, const TArray<UNiagaraNode*>& InTraversal) const;
 
 private:
 	virtual void NotifyGraphChanged(const FEdGraphEditAction& InAction) override;
@@ -289,6 +299,10 @@ private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
 	FGuid ChangeId;
+
+	/** Internal value used to invalidate a DDC key for the script no matter what.*/
+	UPROPERTY()
+	FGuid ForceRebuildId;
 
 	UPROPERTY()
 	FGuid LastBuiltTraversalDataChangeId;

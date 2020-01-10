@@ -2,6 +2,7 @@
 
 #include "NiagaraParameterCollection.h"
 #include "NiagaraDataInterface.h"
+#include "Misc/SecureHash.h"
 #if WITH_EDITORONLY_DATA
 	#include "IAssetTools.h"
 #endif
@@ -297,7 +298,7 @@ FNiagaraCompileHash UNiagaraParameterCollection::GetCompileHash() const
 	CompileHash.Final();
 
 	TArray<uint8> DataHash;
-	DataHash.AddUninitialized(20);
+	DataHash.AddUninitialized(FSHA1::DigestSize);
 	CompileHash.GetHash(DataHash.GetData());
 
 	return FNiagaraCompileHash(DataHash);

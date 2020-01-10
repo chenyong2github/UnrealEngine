@@ -63,7 +63,7 @@ public:
 	 * default pins are generated. This is used so that the function nodes can be populated in the graph context
 	 * menu without having to load all of the actual script assets.
 	 */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (SkipForCompileHash = "true"))
 	FName FunctionScriptAssetObjectPath;
 
 	/** Some functions can be provided a signature directly rather than a script. */
@@ -92,7 +92,7 @@ public:
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	virtual bool CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMsg) const override;
 	virtual void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions) override;
-	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const override;
+	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const override;
 	//End UNiagaraNode interface
 
@@ -155,10 +155,10 @@ protected:
 	void UpdateNodeErrorMessage();
 
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash="true"))
 	FGuid CachedChangeId;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FString FunctionDisplayName;
 
 	FOnInputsChanged OnInputsChangedDelegate;

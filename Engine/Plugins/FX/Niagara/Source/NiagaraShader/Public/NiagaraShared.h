@@ -158,7 +158,7 @@ public:
 	/**
 	* The base id of the subgraph this shader primarily represents.
 	*/
-	FGuid BaseScriptID;
+	FGuid BaseScriptID_DEPRECATED;
 
 	/** Configuration options */
 	TArray<FString> AdditionalDefines;
@@ -192,7 +192,7 @@ public:
 
 	friend uint32 GetTypeHash(const FNiagaraShaderMapId& Ref)
 	{
-		return Ref.BaseScriptID.A;
+		return Ref.BaseCompileHash.GetTypeHash();
 	}
 
 	SIZE_T GetSizeBytes() const
@@ -673,7 +673,7 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
+	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, uint32 InDetailLevelMask, FString InFriendlyName);
 
@@ -748,7 +748,7 @@ private:
 	TArray< FNiagaraDataInterfaceGPUParamInfo > DIParamInfo;
 
 	/** Guid id for base script*/
-	FGuid BaseScriptId;
+	FGuid BaseScriptId_DEPRECATED;
 
 	/** Configuration options */
 	TArray<FString> AdditionalDefines;

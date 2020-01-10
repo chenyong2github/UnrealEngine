@@ -28,6 +28,15 @@ IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
 #define LOCTEXT_NAMESPACE "NiagaraModule"
 
+int32 FNiagaraCompileHashVisitor::LogCompileIdGeneration = 0;
+static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
+	TEXT("fx.LogCompileIdGeneration"),
+	FNiagaraCompileHashVisitor::LogCompileIdGeneration,
+	TEXT("If > 0 all compile id generation will be logged. If 2 or greater, log detailed info. \n"),
+	ECVF_Default
+);
+
+
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
 int32 INiagaraModule::EngineDetailLevel = 4;
@@ -645,6 +654,75 @@ bool FNiagaraTypeDefinition::IsValidNumericInput(const FNiagaraTypeDefinition& T
 		return true;
 	}
 	return false;
+}
+
+
+bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+#if WITH_EDITORONLY_DATA
+	UStruct* TDStruct = GetStruct();
+	UClass* TDClass = GetClass();
+	UEnum* TDEnum = GetEnum();
+
+	if (TDEnum)
+	{
+		// Do we need to enumerate all the enum values and rebuild if that changes or are we ok with just knowing that there are the same  count of enum entries?
+		// For now, am just going to be ok with the number of entries. The actual string values don't matter so much.
+		FString CppType = TDEnum->CppType;
+		FString PathName = TDEnum->GetPathName();
+		InVisitor->UpdateString(TEXT("\tEnumPath"), PathName);
+		InVisitor->UpdateString(TEXT("\tEnumCppType"), CppType);
+		InVisitor->UpdatePOD(TEXT("\t\tNumEnums"),TDEnum->NumEnums());
+	}
+	else if (TDClass)
+	{
+		// For data interfaces, get the default object and the compile version so that we can properly update when code changes.
+		check(IsInGameThread());
+		UObject* TempObj = TDClass->GetDefaultObject(false);
+		check(TempObj);
+
+		FString ClassName = TDClass->GetPathName();
+		InVisitor->UpdateString(TEXT("\tClassName"), ClassName);
+
+		UNiagaraDataInterface* TempDI = Cast< UNiagaraDataInterface>(TempObj);
+		if (TempDI)
+		{
+			if (!TempDI->AppendCompileHash(InVisitor))
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Unable to generate AppendCompileHash for DI %s"), *TempDI->GetPathName());
+			}
+		}
+	}
+	else if (TDStruct)
+	{
+		FString ClassName = TDStruct->GetPathName();
+		InVisitor->UpdateString(TEXT("\tStructName"), ClassName);
+		// Structs are potentially changed, so we will want to register their actual types and variable names.
+		for (TFieldIterator<UProperty> PropertyIt(TDStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated); PropertyIt; ++PropertyIt)
+		{
+			UProperty* Property = *PropertyIt;
+			if (Property->HasMetaData(TEXT("SkipForCompileHash")))
+			{
+				continue;
+			}
+			/*if (Property->HasAnyFlags(RF_Transient))
+			{
+				continue;
+			}*/
+			InVisitor->UpdateString(TEXT("\t\tPropertyName"), Property->GetName());
+			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), Property->GetClass()->GetName());
+		}
+	}
+	else
+	{
+		FString InvalidStr = TEXT("Invalid");
+		InVisitor->UpdateString(TEXT("\tTDName"), InvalidStr);
+	}
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()

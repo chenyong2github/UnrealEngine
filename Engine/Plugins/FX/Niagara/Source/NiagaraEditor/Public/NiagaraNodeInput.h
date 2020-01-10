@@ -49,14 +49,14 @@ class UNiagaraNodeInput : public UNiagaraNode
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = Input) 
+	UPROPERTY(EditAnywhere, Category = Input, meta = (SkipForCompileHash = "true"))
 	FNiagaraVariable Input;
 
 	UPROPERTY(EditAnywhere, Category = Input)
 	ENiagaraInputNodeUsage Usage;
 
 	/** Controls where this input is relative to others in the calling node. */
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Input, meta = (SkipForCompileHash = "true"))
 	int32 CallSortPriority;
 
 	/** Controls this inputs exposure to callers. */
@@ -115,7 +115,7 @@ private:
 	void ValidateDataInterface();
 
 private:
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	class UNiagaraDataInterface* DataInterface;
 };
 

@@ -120,7 +120,7 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 		Ar << CompilerVersionID;
 	}
 
-	Ar << BaseScriptID;
+	Ar << BaseScriptID_DEPRECATED;
 	Ar << (int32&)FeatureLevel;
 
 	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
@@ -156,7 +156,7 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	FSHA1 HashState;
 
 	HashState.Update((const uint8*)&CompilerVersionID, sizeof(CompilerVersionID));
-	HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
+	//HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
 	HashState.Update(BaseCompileHash.GetData(), FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 		
@@ -184,8 +184,8 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 */
 bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) const
 {
-	if (BaseScriptID != ReferenceSet.BaseScriptID 
-		|| BaseCompileHash != ReferenceSet.BaseCompileHash
+	if (/*BaseScriptID != ReferenceSet.BaseScriptID 
+		|| */BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
 		|| DetailLevelMask != ReferenceSet.DetailLevelMask 
@@ -245,8 +245,8 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 
 void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 {
-	KeyString += BaseScriptID.ToString();
-	KeyString += TEXT("_");
+	//KeyString += BaseScriptID.ToString();
+	//KeyString += TEXT("_");
 
 	KeyString += BaseCompileHash.ToString();
 	KeyString += TEXT("_");
@@ -486,7 +486,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 */
 FNiagaraShaderMap* FNiagaraShaderMap::FindId(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform InPlatform)
 {
-	check(ShaderMapId.BaseScriptID != FGuid());
+	check(ShaderMapId.BaseCompileHash.IsValid());
 	return GIdToNiagaraShaderMap[InPlatform].FindRef(ShaderMapId);
 }
 
