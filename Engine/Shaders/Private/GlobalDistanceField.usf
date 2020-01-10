@@ -113,6 +113,7 @@ uint ClipmapIndex;
 float3 VolumeTexelSize;
 float3 UpdateRegionVolumeMin;
 float UpdateRegionVolumeStep;
+float HeightfieldThickness;
 uint3 CullGridDimension;
 
 RWBuffer<uint> RWCullGridObjectNum;
@@ -369,6 +370,13 @@ void CompositeHeightfieldsIntoGlobalDistanceFieldCS(
 					// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
 					float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
 					float MinDistance = clamp(DistanceToHeightfieldPlane, -AOGlobalMaxSphereQueryRadius, AOGlobalMaxSphereQueryRadius);
+
+					// Limit negative region of a heighfield to a user defined thickness  
+					const float MinInteriorDistance = -HeightfieldThickness;
+					if (MinDistance < MinInteriorDistance)
+					{
+						MinDistance = min(MinInteriorDistance - MinDistance, AOGlobalMaxSphereQueryRadius);
+					}
 
 					float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
 					uint3 WriteCoordinate = (uint3)(frac(GlobalUV) * GlobalVolumeDimension);
