@@ -1150,7 +1150,7 @@ namespace UnrealBuildTool
 						LogFileName = (LogFileName.StartsWith("UBT") ? "UHT" + LogFileName.Substring(3) : LogFileName + "_UHT") + ".txt";
 						LogFileName = FileReference.Combine(Log.OutputFile.Directory, LogFileName).ToString();
 
-						CmdLine += " -abslog =\"" + LogFileName + "\"";
+						CmdLine += " -abslog=\"" + LogFileName + "\"";
 					}
 
 					if (UnrealBuildTool.IsEngineInstalled())
