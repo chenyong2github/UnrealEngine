@@ -1,4 +1,4 @@
-REM Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+REM Copyright Epic Games, Inc. All Rights Reserved.
 @echo off
 
 SETLOCAL
