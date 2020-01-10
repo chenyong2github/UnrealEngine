@@ -147,7 +147,7 @@ protected:
 	virtual bool NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, const FString& BaseName, FNiagaraCompileHashVisitor* InVisitor) const;
 	
 	/** For a simple Plain old data type UProperty, hash the data.*/
-	virtual bool PODPropertyAppendCompileHash(const void* Container, UProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const;
+	virtual bool PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const;
 
 	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin);
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const { return true; }; 
