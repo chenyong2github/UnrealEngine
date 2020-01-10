@@ -960,7 +960,10 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 	Out.Logf(ELogVerbosity::Display, TEXT("\t  Custom Versions:\n%s"), *Linker->Summary.GetCustomVersionContainer().ToString("\t\t"));
 	
 
-	Out.Logf(ELogVerbosity::Display, TEXT("\t             Guid: %s"), *Linker->Summary.Guid.ToString() );
+	if (!IsHideSaveUnstable())
+	{
+		Out.Logf(ELogVerbosity::Display, TEXT("\t             Guid: %s"), *Linker->Summary.Guid.ToString());
+	}
 	Out.Logf(ELogVerbosity::Display, TEXT("\t   PersistentGuid: %s"), *Linker->Summary.PersistentGuid.ToString() );
 	if (Linker->Summary.OwnerPersistentGuid.IsValid())
 	{
@@ -981,7 +984,14 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 		for( int32 i = 0; i < Linker->NameMap.Num(); ++i )
 		{
 			FName name = FName::CreateFromDisplayId(Linker->NameMap[ i ], 0);
-			Out.Logf(ELogVerbosity::Display, TEXT("\t%d: Name '%s' Comparison Index %d Display Index %d [Internal: %s, %d]"), i, *name.ToString(), name.GetComparisonIndex().ToUnstableInt(), name.GetDisplayIndex().ToUnstableInt(), *name.GetPlainNameString(), name.GetNumber() );
+			if (IsHideProcessUnstable())
+			{
+				Out.Logf(ELogVerbosity::Display, TEXT("\t%d: Name '%s' [Internal: %s, %d]"), i, *name.ToString(), *name.GetPlainNameString(), name.GetNumber());
+			}
+			else
+			{
+				Out.Logf(ELogVerbosity::Display, TEXT("\t%d: Name '%s' Comparison Index %d Display Index %d [Internal: %s, %d]"), i, *name.ToString(), name.GetComparisonIndex().ToUnstableInt(), name.GetDisplayIndex().ToUnstableInt(), *name.GetPlainNameString(), name.GetNumber());
+			}
 		}
 	}
 
@@ -1200,12 +1210,12 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t      Pkg Guid: %s"), *Export.PackageGuid.ToString());
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t   ObjectFlags: 0x%08X"), (uint32)Export.ObjectFlags );
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t          Size: %d"), Export.SerialSize );
-				if ( !bHideOffsets )
+				if ( !IsHideOffsets())
 				{
 					Out.Logf(ELogVerbosity::Display, TEXT("\t\t      Offset: %d"), Export.SerialOffset );
 				}
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t       Object: %s"), Export.Object ? TEXT("VALID") : TEXT("NULL"));
-				if ( !bHideOffsets )
+				if ( !IsHideOffsets() )
 				{
 					Out.Logf(ELogVerbosity::Display, TEXT("\t\t    HashNext: %d"), Export.HashNext );
 				}
@@ -1467,21 +1477,31 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 	// Create a file writer to dump the info to
 	FOutputDevice* OutputOverride = GWarn;
 	FString OutputFilename;
+	TUniquePtr<FOutputDeviceFile> OutputBuffer;
 	if (FParse::Value(*Params, TEXT("dumptofile="), OutputFilename))
 	{
-		OutputOverride = new FOutputDeviceFile(*OutputFilename, true);
+		OutputBuffer = MakeUnique<FOutputDeviceFile>(*OutputFilename, true);
+		OutputBuffer->SetSuppressEventTag(true);
+		OutputOverride = OutputBuffer.Get();
 	}
 
-	const bool bHideOffsets = Switches.Contains(TEXT("HideOffsets"));
 
-	FPkgInfoReporter* Reporter = new FPkgInfoReporter_Log(InfoFlags, bHideOffsets);
+	uint32 DisplayFlags = PKGINFODISPLAY_None;
+	DisplayFlags |= Switches.Contains(TEXT("HideUnstable")) ? PKGINFODISPLAY_HideAllUnstable : 0;
+	DisplayFlags |= Switches.Contains(TEXT("HideProcessUnstable")) ? PKGINFODISPLAY_HideProcessUnstable : 0;
+	DisplayFlags |= Switches.Contains(TEXT("HideSaveUnstable")) ? PKGINFODISPLAY_HideSaveUnstable : 0;
+	DisplayFlags |= Switches.Contains(TEXT("HideOffsets")) ? PKGINFODISPLAY_HideOffsets : 0;
+
+	FPkgInfoReporter* Reporter = new FPkgInfoReporter_Log(InfoFlags, (EPackageInfoDisplayFlags)DisplayFlags);
 
 	TArray<FString> FilesInPath;
-
 	FString PathWithPackages;
+	FString RelPathSibling;
 	if (FParse::Value(*Params, TEXT("AllPackagesIn="), PathWithPackages))
 	{
 		FPackageName::FindPackagesInDirectory(FilesInPath, *PathWithPackages);
+		RelPathSibling = FPaths::ConvertRelativePathToFull(PathWithPackages);
+		RelPathSibling = FPaths::Combine(RelPathSibling, TEXT("Placeholder"));
 	}
 	else if( Switches.Contains(TEXT("AllPackages")) )
 	{
@@ -1538,9 +1558,41 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 		}
 	}
 
+	FString OutputPath;
+	if (FParse::Value(*Params, TEXT("dumptopath="), OutputPath))
+	{
+		if (!OutputFilename.IsEmpty())
+		{
+			UE_LOG(LogPackageUtilities, Warning, TEXT("-dumptopath is not supported with -dumptofile, ignoring -dumptopath."));
+			OutputPath.Empty();
+		}
+		else if (RelPathSibling.IsEmpty())
+		{
+			UE_LOG(LogPackageUtilities, Warning, TEXT("-dumptopath is only supported with -AllPackagesIn, ignoring -dumptopath."));
+			OutputPath.Empty();
+		}
+		else
+		{
+			OutputPath = FPaths::ConvertRelativePathToFull(OutputPath);
+		}
+	}
+
 	for( int32 FileIndex = 0; FileIndex < FilesInPath.Num(); FileIndex++ )
 	{
 		FString Filename = FPaths::ConvertRelativePathToFull(FilesInPath[FileIndex]);
+		FString PackageOutputFilename;
+
+		if (!OutputPath.IsEmpty())
+		{
+			PackageOutputFilename = Filename;
+			if (!FPaths::MakePathRelativeTo(PackageOutputFilename, *RelPathSibling))
+			{
+				UE_LOG(LogPackageUtilities, Error, TEXT("Package filename '%s' is not a child path of root content path '%s', unable to create Outputfile, skipping the file."),
+					*Filename, *FPaths::GetPath(RelPathSibling));
+				continue;
+			}
+			PackageOutputFilename = FPaths::Combine(OutputPath, PackageOutputFilename) + TEXT(".txt");
+		}
 
 		{
 			// reset the loaders for the packages we want to load so that we don't find the wrong version of the file
@@ -1609,6 +1661,14 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 				bDumpProperties = false;
 			}
 		}
+
+		if (!PackageOutputFilename.IsEmpty())
+		{
+			OutputBuffer = MakeUnique<FOutputDeviceFile>(*PackageOutputFilename, true);
+			OutputBuffer->SetSuppressEventTag(true);
+			OutputOverride = OutputBuffer.Get();
+		}
+
 		{
 			// Turn off log categories etc as it makes diffing hard
 			TGuardValue<ELogTimes::Type> GuardPrintLogTimes(GPrintLogTimes, ELogTimes::None);
@@ -1653,10 +1713,6 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 		CollectGarbage(RF_NoFlags);
 	}
 
-	if (OutputOverride != GWarn)
-	{
-		delete OutputOverride;		
-	}
 	delete Reporter;
 	Reporter = NULL;
 	return 0;

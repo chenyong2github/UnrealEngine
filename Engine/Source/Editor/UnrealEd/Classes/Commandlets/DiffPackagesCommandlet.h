@@ -32,8 +32,8 @@ enum EObjectDiff
 	OD_Invalid,
 };
 
-UCLASS()
-class UDiffPackagesCommandlet : public UCommandlet
+UCLASS(deprecated)
+class UE_DEPRECATED(4.25, "No longer maintained; use DiffAssetCommandlet instead") UDEPRECATED_DiffPackagesCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 
@@ -76,14 +76,6 @@ class UDiffPackagesCommandlet : public UCommandlet
 	bool ProcessDiff(struct FObjectComparison& Diff);
 
 	EObjectDiff DiffObjects(UObject* ObjA, UObject* ObjB, UObject* ObjAncestor, struct FObjectComparison& PropDiffs);
-
-	/**
-	 * Copies the raw property values for the natively serialized properties of the specified object into the output var.
-	 *
-	 * @param	Object	the object to load values for
-	 * @param	out_NativePropertyData	receives the raw bytes corresponding to Object's natively serialized property values.
-	 */
-	static void LoadNativePropertyData( UObject* Object, TArray<uint8>& out_NativePropertyData );
 
 	/**
 	 * Compares the natively serialized property values for the specified objects by comparing the non-script serialized portion of each object's data as it
