@@ -645,6 +645,7 @@ FPaperRenderSceneProxy_SpriteBase::FPaperRenderSceneProxy_SpriteBase(const UMesh
 void FPaperRenderSceneProxy_SpriteBase::SetSprite_RenderThread(const FSpriteDrawCallRecord& NewDynamicData, int32 SplitIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PaperRender_SetSpriteRT);
+	check(IsInRenderingThread());
 
 	BatchedSections.Reset();
 	Vertices.Reset();
