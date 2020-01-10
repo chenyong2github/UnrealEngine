@@ -8260,7 +8260,31 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		);
 		return true;
 	}
-	if (FParse::Command(&Cmd, TEXT("TWOTHREADSCRASH")))
+
+	if (FParse::Command(&Cmd, TEXT("THREADEDCHECKS")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Queuing several multi-thread checks."));
+		for (int32 Index = 0; Index < 16; ++Index)
+		{
+			Async(
+				EAsyncExecution::ThreadPool,
+				[]()
+				{
+					FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+
+					// We now test if assert behavior is deterministic when called from different threads or
+					// if one thread could end up with a different behavior due to a race condition.
+					// We expect that the result will always be the assert being reported and not end-up
+					// with an Int 3 being handled by the exception handler.
+					const bool CrashingTheWorkerThreadAtYourRequest = false;
+					check(CrashingTheWorkerThreadAtYourRequest);
+				}
+			);
+		};
+
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("TWOTHREADSCRASH")))
 	{
 		class FThreadPoolCrash : public IQueuedWork
 		{
