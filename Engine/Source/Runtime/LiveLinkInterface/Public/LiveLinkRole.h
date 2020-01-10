@@ -36,6 +36,11 @@ struct LIVELINKINTERFACE_API FLiveLinkSubjectRepresentation
 {
 	GENERATED_BODY()
 
+	FLiveLinkSubjectRepresentation() = default;
+	FLiveLinkSubjectRepresentation(const FLiveLinkSubjectName& InSubject, const TSubclassOf<ULiveLinkRole>& InRole)
+		: Subject(InSubject), Role(InRole)
+	{ }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Live Link")
 	FLiveLinkSubjectName Subject;
 

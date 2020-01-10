@@ -44,7 +44,7 @@ void FLiveLinkSubjectNameDetailCustomization::CustomizeHeader(TSharedRef<IProper
 }
 
 
-FLiveLinkSubjectRepresentation FLiveLinkSubjectNameDetailCustomization::GetValue() const
+SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole FLiveLinkSubjectNameDetailCustomization::GetValue() const
 {
 	TArray<const void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
@@ -55,14 +55,14 @@ FLiveLinkSubjectRepresentation FLiveLinkSubjectNameDetailCustomization::GetValue
 		{
 			FLiveLinkSubjectRepresentation Representation;
 			Representation.Subject = *reinterpret_cast<const FLiveLinkSubjectName *>(RawPtr);
-			return Representation;
+			return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole(Representation);
 		}
 	}
 
-	return FLiveLinkSubjectRepresentation();
+	return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole();
 }
 
-void FLiveLinkSubjectNameDetailCustomization::SetValue(FLiveLinkSubjectRepresentation NewValue)
+void FLiveLinkSubjectNameDetailCustomization::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
 {
 	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
 

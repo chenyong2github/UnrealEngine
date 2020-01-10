@@ -403,9 +403,10 @@ FLiveLinkSourcePreset FLiveLinkClient::GetSourcePreset(FGuid InSourceGuid, UObje
 	FLiveLinkSourcePreset SourcePreset;
 	if (FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InSourceGuid))
 	{
-		if (SourceItem->Guid != FLiveLinkSourceCollection::DefaultVirtualSubjectGuid && SourceItem->Setting)
+		if (SourceItem->Guid != FLiveLinkSourceCollection::DefaultVirtualSubjectGuid && SourceItem->Setting && SourceItem->Source)
 		{
 			SourcePreset.Guid = SourceItem->Guid;
+			SourcePreset.SourceType = SourceItem->Source->CanBeDisplayedInUI() ? SourceItem->Source->GetSourceType() : FText::GetEmpty();
 			SourcePreset.Settings = DuplicateObject<ULiveLinkSourceSettings>(SourceItem->Setting, DuplicatedObjectOuter);
 		}
 	}

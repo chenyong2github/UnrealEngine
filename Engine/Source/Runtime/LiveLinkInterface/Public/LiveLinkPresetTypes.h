@@ -24,6 +24,10 @@ struct FLiveLinkSourcePreset
 
 	UPROPERTY()
 	ULiveLinkSourceSettings* Settings = nullptr;
+
+	/** The SourceType when the source was saved to a Preset. */
+	UPROPERTY()
+	FText SourceType;
 };
 
 

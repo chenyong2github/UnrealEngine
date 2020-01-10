@@ -27,14 +27,14 @@ TSharedRef<SWidget>	SLiveLinkSubjectRepresentationGraphPin::GetDefaultValueWidge
 		.OnValueChanged(this, &SLiveLinkSubjectRepresentationGraphPin::SetValue);
 }
 
-FLiveLinkSubjectRepresentation SLiveLinkSubjectRepresentationGraphPin::GetValue() const
+SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole SLiveLinkSubjectRepresentationGraphPin::GetValue() const
 {
-	return SubjectRepresentation;
+	return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole(SubjectRepresentation);
 }
 
-void SLiveLinkSubjectRepresentationGraphPin::SetValue(FLiveLinkSubjectRepresentation NewValue)
+void SLiveLinkSubjectRepresentationGraphPin::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
 {
-	SubjectRepresentation = NewValue;
+	SubjectRepresentation = NewValue.ToSubjectRepresentation();
 
 	FString ValueString;
 	FLiveLinkSubjectRepresentation::StaticStruct()->ExportText(ValueString, &SubjectRepresentation, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);

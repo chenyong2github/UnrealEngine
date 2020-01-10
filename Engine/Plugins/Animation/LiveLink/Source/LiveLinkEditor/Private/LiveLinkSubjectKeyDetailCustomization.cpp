@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "LiveLinkSubjectRepresentationDetailCustomization.h"
+#include "LiveLinkSubjectKeyDetailCustomization.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -12,21 +12,21 @@
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
 
-#define LOCTEXT_NAMESPACE "LiveLinkSubjectRepresentationDetailCustomization"
+#define LOCTEXT_NAMESPACE "LiveLinkSubjectKeyDetailCustomization"
 
 
-TSharedRef<IPropertyTypeCustomization> FLiveLinkSubjectRepresentationDetailCustomization::MakeInstance()
+TSharedRef<IPropertyTypeCustomization> FLiveLinkSubjectKeyDetailCustomization::MakeInstance()
 {
-	return MakeShareable(new FLiveLinkSubjectRepresentationDetailCustomization);
+	return MakeShareable(new FLiveLinkSubjectKeyDetailCustomization);
 }
 
 
-void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FLiveLinkSubjectKeyDetailCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	StructPropertyHandle = InPropertyHandle;
 	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 
-	check(CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct == FLiveLinkSubjectRepresentation::StaticStruct());
+	check(CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct == FLiveLinkSubjectKey::StaticStruct());
 
 	HeaderRow.NameContent()
 	[
@@ -37,15 +37,16 @@ void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeHeader(TSharedR
 	.MaxDesiredWidth(400.f)
 	[
 		SNew(SLiveLinkSubjectRepresentationPicker)
-		.ShowRole(true)
+		.ShowRole(false)
+		.ShowSource(true)
 		.Font(CustomizationUtils.GetRegularFont())
-		.HasMultipleValues(this, &FLiveLinkSubjectRepresentationDetailCustomization::HasMultipleValues)
-		.Value(this, &FLiveLinkSubjectRepresentationDetailCustomization::GetValue)
-		.OnValueChanged(this, &FLiveLinkSubjectRepresentationDetailCustomization::SetValue)
+		.HasMultipleValues(this, &FLiveLinkSubjectKeyDetailCustomization::HasMultipleValues)
+		.Value(this, &FLiveLinkSubjectKeyDetailCustomization::GetValue)
+		.OnValueChanged(this, &FLiveLinkSubjectKeyDetailCustomization::SetValue)
 	].IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }));
 }
 
-void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FLiveLinkSubjectKeyDetailCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 	uint32 NumberOfChild;
@@ -61,7 +62,7 @@ void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeChildren(TShare
 	}
 }
 
-SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole FLiveLinkSubjectRepresentationDetailCustomization::GetValue() const
+SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole FLiveLinkSubjectKeyDetailCustomization::GetValue() const
 {
 	TArray<const void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
@@ -70,33 +71,33 @@ SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole FLiveLinkSubjec
 	{
 		if (RawPtr)
 		{
-			return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole(*reinterpret_cast<const FLiveLinkSubjectRepresentation *>(RawPtr));
+			return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole (*reinterpret_cast<const FLiveLinkSubjectKey*>(RawPtr));
 		}
 	}
 
 	return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole();
 }
 
-void FLiveLinkSubjectRepresentationDetailCustomization::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
+void FLiveLinkSubjectKeyDetailCustomization::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
 {
 	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
 
 	TArray<void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
-	FLiveLinkSubjectRepresentation* PreviousValue = reinterpret_cast<FLiveLinkSubjectRepresentation*>(RawData[0]);
-	FLiveLinkSubjectRepresentation NewSubRep = NewValue.ToSubjectRepresentation();
+	FLiveLinkSubjectKey* PreviousValue = reinterpret_cast<FLiveLinkSubjectKey*>(RawData[0]);
+	FLiveLinkSubjectKey NewSubjectKey = NewValue.ToSubjectKey();
 
 	FString TextValue;
-	StructProperty->Struct->ExportText(TextValue, &NewSubRep, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+	StructProperty->Struct->ExportText(TextValue, &NewSubjectKey, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
 	ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
 }
 
-bool FLiveLinkSubjectRepresentationDetailCustomization::HasMultipleValues() const
+bool FLiveLinkSubjectKeyDetailCustomization::HasMultipleValues() const
 {
 	TArray<const void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
 
-	TOptional<FLiveLinkSubjectRepresentation> CompareAgainst;
+	TOptional<FLiveLinkSubjectKey> CompareAgainst;
 	for (const void* RawPtr : RawData)
 	{
 		if (RawPtr == nullptr)
@@ -108,7 +109,7 @@ bool FLiveLinkSubjectRepresentationDetailCustomization::HasMultipleValues() cons
 		}
 		else
 		{
-			FLiveLinkSubjectRepresentation ThisValue = *reinterpret_cast<const FLiveLinkSubjectRepresentation*>(RawPtr);
+			FLiveLinkSubjectKey ThisValue = *reinterpret_cast<const FLiveLinkSubjectKey*>(RawPtr);
 
 			if (!CompareAgainst.IsSet())
 			{

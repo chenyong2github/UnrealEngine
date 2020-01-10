@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IPropertyTypeCustomization.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
-#include "IPropertyTypeCustomization.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
-class FLiveLinkSubjectRepresentationDetailCustomization : public IPropertyTypeCustomization
+class FLiveLinkSubjectKeyDetailCustomization : public IPropertyTypeCustomization
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it. */
