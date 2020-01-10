@@ -2614,13 +2614,6 @@ FSceneRenderer::~FSceneRenderer()
 	// Manually release references to TRefCountPtrs that are allocated on the mem stack, which doesn't call dtors
 	SortedShadowsForShadowDepthPass.Release();
 
-	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
-
-	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-	{
-		Extension->EndFrame();
-	}
-
 	Views.Empty();
 }
 
@@ -3477,6 +3470,14 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 		{
 			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
+		}
+
+		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
+		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+		{
+			Extension->EndFrame();
 		}
 
 #if STATS
