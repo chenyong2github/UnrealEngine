@@ -8478,12 +8478,14 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 		}
 		break;
 	case EBuildModuleType::EngineRuntime:
+	case EBuildModuleType::EngineUncooked:
 	case EBuildModuleType::EngineDeveloper:
 	case EBuildModuleType::EngineEditor:
 	case EBuildModuleType::EngineThirdParty:
 		bIsCurrentModulePartOfEngine = true;
 		break;
 	case EBuildModuleType::GameRuntime:
+	case EBuildModuleType::GameUncooked:
 	case EBuildModuleType::GameDeveloper:
 	case EBuildModuleType::GameEditor:
 	case EBuildModuleType::GameThirdParty:

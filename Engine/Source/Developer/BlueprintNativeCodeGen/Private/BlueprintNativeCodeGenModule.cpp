@@ -840,25 +840,25 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 
 	auto ObjectIsNotReplacedAtAll = [&]() -> bool
 	{
-		// EDITOR ON DEVELOPMENT OBJECT
+		// EDITOR OR UNCOOKED OBJECT
 		{
-			auto IsDeveloperObject = [](const UObject* Obj) -> bool
+			auto IsUncookedOnlyObject = [](const UObject* Obj) -> bool
 			{
-				auto IsObjectFromDeveloperPackage = [](const UObject* InObj) -> bool
+				auto IsObjectFromUncookedPackage = [](const UObject* InObj) -> bool
 				{
-					return InObj && InObj->GetOutermost()->HasAllPackagesFlags(PKG_Developer);
+					return InObj && InObj->GetOutermost()->HasAnyPackageFlags(PKG_Developer | PKG_UncookedOnly);
 				};
 
 				if (Obj)
 				{
-					if (IsObjectFromDeveloperPackage(Obj))
+					if (IsObjectFromUncookedPackage(Obj))
 					{
 						return true;
 					}
 					const UStruct* StructToTest = Obj->IsA<UStruct>() ? CastChecked<const UStruct>(Obj) : Obj->GetClass();
 					for (; StructToTest; StructToTest = StructToTest->GetSuperStruct())
 					{
-						if (IsObjectFromDeveloperPackage(StructToTest))
+						if (IsObjectFromUncookedPackage(StructToTest))
 						{
 							return true;
 						}
@@ -866,7 +866,7 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 				}
 				return false;
 			};
-			if (Object && (IsEditorOnlyObject(Object) || IsDeveloperObject(Object)))
+			if (Object && (IsEditorOnlyObject(Object) || IsUncookedOnlyObject(Object)))
 			{
 				UE_LOG(LogBlueprintCodeGen, Verbose, TEXT("Object %s depends on Editor or Development stuff. It shouldn't be cooked."), *GetPathNameSafe(Object));
 				return true;

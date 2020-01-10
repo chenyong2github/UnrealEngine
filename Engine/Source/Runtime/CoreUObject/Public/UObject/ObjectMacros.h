@@ -109,7 +109,7 @@ enum EPackageFlags
 	PKG_ForDiffing					= 0x00000020,	///< This package was loaded just for the purposes of diffing
 	PKG_EditorOnly					= 0x00000040,	///< This is editor-only package (for example: editor module script package)
 	PKG_Developer					= 0x00000080,	///< Developer module
-//	PKG_Unused						= 0x00000100,
+	PKG_UncookedOnly				= 0x00000100,	///< Loaded only in uncooked builds (i.e. runtime in editor)
 //	PKG_Unused						= 0x00000200,
 //	PKG_Unused						= 0x00000400,
 //	PKG_Unused						= 0x00000800,
