@@ -4825,7 +4825,6 @@ void* UClass::CreateSparseClassData()
 		SparseClassData = FMemory::Malloc(SparseClassDataStruct->GetStructureSize(), SparseClassDataStruct->GetMinAlignment());
 		SparseClassDataStruct->GetCppStructOps()->Construct(SparseClassData);
 	}
-
 	if (SparseClassData)
 	{
 		// initialize per class data from the archetype if we have one
