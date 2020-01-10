@@ -157,6 +157,11 @@ protected:
 	/** Handle for efficient management of the UpdateServerTimeSeconds timer */
 	FTimerHandle TimerHandle_UpdateServerTimeSeconds;
 
+	/** Cumulative sum of computed server world time deltas for smoothed-averaging */
+	double SumServerWorldTimeSecondsDelta;
+	/** The number of server world time deltas accumulated in SumServerWorldTimeSecondsDelta - used for computing the mean */
+	uint32 NumServerWorldTimeSecondsDeltas;
+
 private:
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
