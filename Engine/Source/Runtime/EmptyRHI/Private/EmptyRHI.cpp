@@ -94,6 +94,19 @@ FEmptyDynamicRHI::FEmptyDynamicRHI()
 //	GPixelFormats[PF_R16G16B16A16_SNORM ].PlatformFormat    =
 
 	GDynamicRHI = this;
+
+	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
+	for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
+	{
+		ResourceIt->InitRHI();
+	}
+	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+	for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
+	{
+		ResourceIt->InitDynamicRHI();
+	}
+
+	GIsRHIInitialized = true;
 }
 
 void FEmptyDynamicRHI::Init()
