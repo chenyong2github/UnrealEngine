@@ -59,9 +59,9 @@ static TUsdStore< UsdGeomXformCache > XFormCache;
 namespace UnrealIdentifiers
 {
 	/**
-	* Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
-	* named LOD0, LOD1, LOD2, etc
-	*/
+	 * Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
+	 * named LOD0, LOD1, LOD2, etc
+	 */
 	static const TfToken LOD("LOD");
 
 	static const TfToken AssetPath("unrealAssetPath");
@@ -75,8 +75,9 @@ namespace UnrealIdentifiers
 	static const TfToken GuidePurpose("guide");
 
 	static const TfToken MaterialRelationship("material:binding");
-}
 
+	const TfToken MaterialAssignments = TfToken("unrealMaterials");
+}
 
 void Log(const char* Format, ...)
 {

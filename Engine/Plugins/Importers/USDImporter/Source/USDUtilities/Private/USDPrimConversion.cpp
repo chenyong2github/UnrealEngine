@@ -2,10 +2,12 @@
 
 #include "USDPrimConversion.h"
 
+#include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDTypesConversion.h"
 
 #include "CineCameraComponent.h"
+#include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
 
 #if USE_USD_SDK
@@ -93,7 +95,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 		if ( GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
 		{
-			return false;
+			return true;
 		}
 
 		bResetXFormStack = false;
@@ -124,4 +126,43 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 	return true;
 }
+
+bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim )
+{
+	if ( !UsdPrim || !MeshComponent )
+	{
+		return false;
+	}
+
+	if ( !ConvertSceneComponent( Stage, MeshComponent, UsdPrim ) )
+	{
+		return false;
+	}
+
+	if ( MeshComponent->GetNumMaterials() > 0 || UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments ) )
+	{
+		if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			pxr::VtArray< std::string > UEMaterials = UsdUtils::GetUsdValue< pxr::VtArray< std::string > >( UEMaterialsAttribute );
+			UEMaterials.clear();
+
+			for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
+			{
+				if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
+				{
+					FString AssignedMaterialPathName = AssignedMaterial->GetPathName();
+
+					UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+				}
+			}
+
+			UEMaterialsAttribute.Set( UEMaterials );
+		}
+	}
+
+	return true;
+}
+
 #endif // #if USE_USD_SDK

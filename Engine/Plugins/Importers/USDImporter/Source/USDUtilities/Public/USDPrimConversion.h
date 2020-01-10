@@ -21,6 +21,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class UCineCameraComponent;
+class UMeshComponent;
 class USceneComponent;
 
 namespace UsdToUnreal
@@ -32,6 +33,7 @@ namespace UsdToUnreal
 namespace UnrealToUsd
 {
 	USDUTILITIES_API bool ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const USceneComponent* SceneComponent, pxr::UsdPrim& UsdPrim );
+	USDUTILITIES_API bool ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim );
 }
 
 #endif // #if USE_USD_SDK

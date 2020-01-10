@@ -4,6 +4,7 @@
 
 #if USE_USD_SDK
 
+#include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDTypesConversion.h"
@@ -22,6 +23,7 @@
 #include "Misc/SecureHash.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "UObject/SoftObjectPath.h"
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usd/prim.h"
@@ -81,6 +83,22 @@ namespace UsdGeomMeshTranslatorImpl
 
 		FStaticMeshConstAttributes StaticMeshAttributes( *MeshDescription );
 
+		TArray< FString > UEMaterialsAttribute;
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			if ( pxr::UsdAttribute MaterialsAttribute = UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ) )
+			{
+				pxr::VtStringArray UEMaterials;
+				MaterialsAttribute.Get( &UEMaterials, pxr::UsdTimeCode::EarliestTime() );
+
+				for ( const std::string& UEMaterial : UEMaterials )
+				{
+					UEMaterialsAttribute.Emplace( ANSI_TO_TCHAR( UEMaterial.c_str() ) );
+				}
+			}
+		}
+
 		for ( const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs() )
 		{
 			const FName& ImportedMaterialSlotName = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ PolygonGroupID ];
@@ -106,11 +124,19 @@ namespace UsdGeomMeshTranslatorImpl
 			}
 
 			UMaterialInterface* Material = nullptr;
-			TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
 
-			if ( MaterialPrim.Get() )
+			if ( UEMaterialsAttribute.Num() > MeshMaterialIndex )
 			{
-				Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+				Material = Cast< UMaterialInterface >( FSoftObjectPath( UEMaterialsAttribute[ MeshMaterialIndex ] ).TryLoad() );
+			}
+			else
+			{
+				TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
+
+				if ( MaterialPrim.Get() )
+				{
+					Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+				}
 			}
 
 			if ( Material == nullptr && bHasPrimDisplayColor )

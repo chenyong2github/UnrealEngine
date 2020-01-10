@@ -15,8 +15,9 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
-#include "pxr/pxr.h"
-#include "pxr/usd/usd/stageCache.h"
+	#include "pxr/pxr.h"
+	#include "pxr/base/tf/token.h"
+	#include "pxr/usd/usd/stageCache.h"
 #include "USDIncludesEnd.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -221,4 +222,10 @@ public:
 #endif // #if USE_USD_SDK
 };
 
-
+namespace UnrealIdentifiers
+{
+#if USE_USD_SDK
+	/* Attribute name when assigning Unreal materials to UsdGeomMeshes */
+	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments;
+#endif // #if USE_USD_SDK
+}
