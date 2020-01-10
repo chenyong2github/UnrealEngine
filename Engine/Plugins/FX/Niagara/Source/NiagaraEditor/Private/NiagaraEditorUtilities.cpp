@@ -51,6 +51,7 @@
 #include "AssetToolsModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "UObject/TextProperty.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 

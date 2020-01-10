@@ -81,6 +81,22 @@ enum EEdGraphPinDirection
 	EGPD_MAX,
 };
 
+inline const TCHAR* const LexToString(const EEdGraphPinDirection State)
+{
+	switch (State)
+	{
+	case EEdGraphPinDirection::EGPD_Input:
+		return TEXT("Input");
+	case EEdGraphPinDirection::EGPD_Output:
+		return TEXT("Output");
+	default:
+		break;
+	}
+
+	checkf(false, TEXT("Missing EEdGraphPinDirection Type: %d"), static_cast<const int32>(State));
+	return TEXT("");
+}
+
 /** Enum used to define what container type a pin represents. */
 UENUM()
 enum class EPinContainerType : uint8
