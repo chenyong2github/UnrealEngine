@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinKey.h"
@@ -51,6 +51,11 @@ TOptional<FKey> SGraphPinKey::GetCurrentKey() const
 
 void SGraphPinKey::OnKeyChanged(TSharedPtr<FKey> InSelectedKey)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	if(SelectedKey != *InSelectedKey.Get())
 	{
 		const FScopedTransaction Transaction( NSLOCTEXT("GraphEditor", "ChangeKeyPinValue", "Change Key Pin Value" ) );

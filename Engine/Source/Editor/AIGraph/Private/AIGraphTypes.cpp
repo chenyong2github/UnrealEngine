@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AIGraphTypes.h"
 #include "UObject/Object.h"
@@ -62,10 +62,10 @@ FString FGraphNodeClassData::ToString() const
 			return ClassDesc.LeftChop(2);
 		}
 
-		const int32 ShortNameIdx = ClassDesc.Find(TEXT("_"));
+		const int32 ShortNameIdx = ClassDesc.Find(TEXT("_"), ESearchCase::CaseSensitive);
 		if (ShortNameIdx != INDEX_NONE)
 		{
-			ClassDesc = ClassDesc.Mid(ShortNameIdx + 1);
+			ClassDesc.MidInline(ShortNameIdx + 1, MAX_int32, false);
 		}
 
 		return ClassDesc;

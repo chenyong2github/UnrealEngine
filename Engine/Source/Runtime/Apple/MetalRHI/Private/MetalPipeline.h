@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,7 +11,7 @@
 
 enum EMetalPipelineHashBits
 {
-	NumBits_RenderTargetFormat = 5, //(x8=40),
+	NumBits_RenderTargetFormat = 6, //(x8=48),
 	NumBits_DepthFormat = 3, //(x1=3),
 	NumBits_StencilFormat = 3, //(x1=3),
 	NumBits_SampleCount = 3, //(x1=3),

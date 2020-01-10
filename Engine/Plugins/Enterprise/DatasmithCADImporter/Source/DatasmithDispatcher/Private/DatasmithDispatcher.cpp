@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithDispatcher.h"
 
@@ -203,11 +203,14 @@ void FDatasmithDispatcher::CloseHandlers()
 void FDatasmithDispatcher::ProcessLocal()
 {
 #ifdef CAD_INTERFACE
+	FString KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
+	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
+
 	while (TOptional<FTask> Task = GetNextTask())
 	{
 		FString FullPath = Task->FileName;
 
-		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters);
+		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, *KernelIOPath);
 		ETaskState ProcessResult = FileParser.ProcessFile();
 
 		ETaskState TaskState = ProcessResult;
@@ -215,13 +218,12 @@ void FDatasmithDispatcher::ProcessLocal()
 
 		if (TaskState == ETaskState::ProcessOk)
 		{
-			FString CurrentPath = FPaths::GetPath(FullPath);
 			const TSet<FString>& ExternalRefSet = FileParser.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
 				for (const FString& ExternalFile : ExternalRefSet)
 				{
-					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
+					AddTask(ExternalFile);
 				}
 			}
 			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());

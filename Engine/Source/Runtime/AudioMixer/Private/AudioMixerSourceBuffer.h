@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSourceManager.h"
+#include "Sound/SoundWave.h"
 
 namespace Audio
 {
@@ -42,11 +43,13 @@ namespace Audio
 		AsynchronousSkipFirstFrame
 	};
 
+	using FMixerSourceBufferPtr = TSharedPtr<class FMixerSourceBuffer>;
+
 	/** Class which handles decoding audio for a particular source buffer. */
-	class FMixerSourceBuffer
+	class FMixerSourceBuffer : public ISoundWaveClient
 	{
-	public:
-		static TSharedPtr<FMixerSourceBuffer> Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
+	public:		
+		static FMixerSourceBufferPtr Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
 
 		~FMixerSourceBuffer();
 
@@ -125,5 +128,9 @@ namespace Audio
 		uint32 bLoopCallback : 1;
 		uint32 bProcedural : 1;
 		uint32 bIsBus : 1;
+	
+		virtual void OnBeginDestroy(class USoundWave* Wave) override;
+		virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const override;
+		virtual void OnFinishDestroy(class USoundWave* Wave) override;
 	};
 }

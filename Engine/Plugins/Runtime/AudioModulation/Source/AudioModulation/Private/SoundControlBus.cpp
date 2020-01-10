@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundControlBus.h"
 
 #include "AudioDevice.h"
@@ -35,7 +35,7 @@ void USoundControlBusBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 
 void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (UProperty* Property = PropertyChangedEvent.Property)
+	if (FProperty* Property = PropertyChangedEvent.Property)
 	{
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, bOverrideAddress) && !bOverrideAddress)
 		{

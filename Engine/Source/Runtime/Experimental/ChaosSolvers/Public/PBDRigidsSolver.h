@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Defines.h"
@@ -7,7 +7,7 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
@@ -39,7 +39,6 @@ namespace Chaos
 {
 	class AdvanceOneTimeStepTask;
 	class FPersistentPhysicsTask;
-	class FPhysicsCommand;
 	class FChaosArchive;
 	class FPBDRigidsSolver;
 
@@ -86,7 +85,7 @@ namespace Chaos
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
-		typedef Chaos::TPBDCollisionConstraint<float, 3> FPBDCollisionConstraints;
+		typedef Chaos::TPBDCollisionConstraints<float, 3> FPBDCollisionConstraints;
 
 		typedef FPBDCollisionConstraints FCollisionConstraints;
 		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
@@ -112,10 +111,10 @@ namespace Chaos
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
 		// TODO: Set up an interface for registering fields and geometry collections
-		//void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		//int UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		//void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
-		//int UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
+		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		bool UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
+		bool UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
 		bool IsSimulating() const;
 
@@ -261,6 +260,7 @@ namespace Chaos
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
 		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
 
+		FParticlesType& GetParticles() { return Particles; }
 		const FParticlesType& GetParticles() const { return Particles; }
 
 		/**/
@@ -275,6 +275,11 @@ namespace Chaos
 
 		/**/
 		void PostTickDebugDraw() const;
+
+		TArray<FFieldSystemPhysicsProxy*>& GetFieldSystemPhysicsProxies()
+		{
+			return FieldSystemPhysicsProxies;
+		}
 
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
@@ -307,7 +312,6 @@ namespace Chaos
 		{
 			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->BufferPhysicsResults();
 		}
-
 
 		//
 		// Solver Data

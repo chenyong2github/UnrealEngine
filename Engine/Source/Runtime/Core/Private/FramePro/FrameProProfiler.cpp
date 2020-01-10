@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FramePro/FrameProProfiler.h"
 
@@ -341,12 +341,12 @@ void FFrameProProfiler::StartFrameProRecordingFromCommand(const TArray< FString 
 		FilenameRoot = Args[0];
 	}
 
-	StartFrameProRecording(FilenameRoot, 25);
+	StartFrameProRecording(FilenameRoot, 50);
 }
 
 void FFrameProProfiler::StartFrameProRecordingScopeOverrideFromCommand(const TArray< FString >& Args)
 {
-	int32 MinScopeTime = 25;
+	int32 MinScopeTime = 50;
 	if (Args.Num() > 0 && Args[0].Len() > 0)
 	{
 		MinScopeTime = FCString::Atoi(*Args[0]);

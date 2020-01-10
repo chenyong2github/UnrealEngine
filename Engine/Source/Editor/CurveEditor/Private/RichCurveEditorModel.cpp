@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RichCurveEditorModel.h"
 #include "RichCurveKeyProxy.h"
@@ -296,6 +296,8 @@ void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys,
 			}
 		}
 		RichCurve->AutoSetTangents();
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 
@@ -485,6 +487,9 @@ void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 		{
 			RichCurve->AutoSetTangents();
 		}
+
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 
@@ -512,6 +517,9 @@ void FRichCurveEditorModel::SetCurveAttributes(const FCurveAttributes& InCurveAt
 		{
 			RichCurve->PostInfinityExtrap = InCurveAttributes.GetPostExtrapolation();
 		}
+
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 

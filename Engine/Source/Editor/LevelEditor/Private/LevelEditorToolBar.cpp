@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelEditorToolBar.h"
 #include "Misc/MessageDialog.h"
@@ -2163,6 +2163,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.OpenBlueprint", MenuContext);
+#undef LOCTEXT_NAMESPACE
 }
 
 void FLevelEditorToolBar::RegisterOpenBlueprintMenu()

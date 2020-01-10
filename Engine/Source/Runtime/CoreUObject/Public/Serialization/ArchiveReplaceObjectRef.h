@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ public:
 	/**
 	* Returns a reference to the replaced references map
 	*/
-	const TMap<UObject*, TArray<UProperty*>>& GetReplacedReferences() const { return ReplacedReferences; }
+	const TMap<UObject*, TArray<FProperty*>>& GetReplacedReferences() const { return ReplacedReferences; }
 
 	/**
 	* Returns the name of this archive.
@@ -50,7 +50,7 @@ protected:
 	TArray<UObject*> PendingSerializationObjects;
 
 	/** Map of referencing objects to referencing properties */
-	TMap<UObject*, TArray<UProperty*>> ReplacedReferences;
+	TMap<UObject*, TArray<FProperty*>> ReplacedReferences;
 
 	/**
 	* Whether references to non-public objects not contained within the SearchObject
@@ -181,3 +181,5 @@ protected:
 	const TMap<T*,T*>& ReplacementMap;
 	
 };
+
+

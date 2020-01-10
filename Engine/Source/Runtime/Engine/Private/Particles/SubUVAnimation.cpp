@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/SubUVAnimation.h"
 #include "Misc/Guid.h"
@@ -146,7 +146,7 @@ void USubUVAnimation::PostLoad()
 
 #if WITH_EDITOR
 
-void USubUVAnimation::PreEditChange(UProperty* PropertyThatChanged)
+void USubUVAnimation::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 

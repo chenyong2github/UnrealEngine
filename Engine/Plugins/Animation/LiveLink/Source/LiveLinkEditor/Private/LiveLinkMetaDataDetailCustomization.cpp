@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkMetaDataDetailCustomization.h"
 
@@ -33,10 +33,10 @@ void FLiveLinkMetaDataDetailCustomization::CustomizeChildren(TSharedRef<IPropert
 		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(FLiveLinkMetaData, SceneTime)
-			&& Cast<UStructProperty>(ChildHandle->GetProperty()))
+			&& CastField<FStructProperty>(ChildHandle->GetProperty()))
 		{
 			SceneTimeHandle = ChildHandle;
-			check(CastChecked<UStructProperty>(SceneTimeHandle->GetProperty())->Struct->GetName() == TEXT("QualifiedFrameTime"));
+			check(CastFieldChecked<FStructProperty>(SceneTimeHandle->GetProperty())->Struct->GetName() == TEXT("QualifiedFrameTime"));
 
 			IDetailGroup& SceneTimeGroup = StructBuilder.AddGroup("SceneTime", LOCTEXT("SceneTimeLabel", "Scene Time"));
 

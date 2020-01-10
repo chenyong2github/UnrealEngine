@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/AnalysisService.h"
 #include "AnalysisServicePrivate.h"
@@ -20,46 +20,60 @@
 namespace Trace
 {
 
+thread_local FAnalysisSessionLock* GThreadCurrentSessionLock;
+thread_local int32 GThreadCurrentReadLockCount;
+thread_local int32 GThreadCurrentWriteLockCount;
+
 void FAnalysisSessionLock::ReadAccessCheck() const
 {
-	checkf(IsReadOnly || FPlatformTLS::GetCurrentThreadId() == OwnerThread, TEXT("Trying to read from session while someone else is writing"));
+	checkf(GThreadCurrentSessionLock == this && (GThreadCurrentReadLockCount > 0 || GThreadCurrentWriteLockCount > 0) , TEXT("Trying to read from session outside of a ReadScope"));
 }
 
 void FAnalysisSessionLock::WriteAccessCheck() const
 {
-	checkf(!IsReadOnly, TEXT("Trying to edit session while in read only mode"));
-	checkf(FPlatformTLS::GetCurrentThreadId() == OwnerThread, TEXT("Trying to edit session from thread without write access"));
+	checkf(GThreadCurrentSessionLock == this && GThreadCurrentWriteLockCount > 0, TEXT("Trying to write to session outside of an EditScope"));
 }
 
 void FAnalysisSessionLock::BeginRead()
 {
-	CriticalSection.Lock();
-	check(OwnerThread == 0);
-	OwnerThread = FPlatformTLS::GetCurrentThreadId();
-	IsReadOnly = true;
+	check(!GThreadCurrentSessionLock || GThreadCurrentSessionLock == this);
+	checkf(GThreadCurrentWriteLockCount == 0, TEXT("Trying to lock for read while holding write access"));
+	if (GThreadCurrentReadLockCount++ == 0)
+	{
+		GThreadCurrentSessionLock = this;
+		RWLock.ReadLock();
+	}
 }
 
 void FAnalysisSessionLock::EndRead()
 {
-	check(FPlatformTLS::GetCurrentThreadId() == OwnerThread);
-	OwnerThread = 0;
-	IsReadOnly = false;
-	CriticalSection.Unlock();
+	check(GThreadCurrentReadLockCount > 0);
+	if (--GThreadCurrentReadLockCount == 0)
+	{
+		RWLock.ReadUnlock();
+		GThreadCurrentSessionLock = nullptr;
+	}
 }
 
 void FAnalysisSessionLock::BeginEdit()
 {
-	CriticalSection.Lock();
-	check(OwnerThread == 0);
-	check(!IsReadOnly);
-	OwnerThread = FPlatformTLS::GetCurrentThreadId();
+	check(!GThreadCurrentSessionLock || GThreadCurrentSessionLock == this);
+	checkf(GThreadCurrentWriteLockCount == 0, TEXT("Trying to lock for edit while holding read access"));
+	if (GThreadCurrentWriteLockCount++ == 0)
+	{
+		GThreadCurrentSessionLock = this;
+		RWLock.WriteLock();
+	}
 }
 
 void FAnalysisSessionLock::EndEdit()
 {
-	check(OwnerThread == FPlatformTLS::GetCurrentThreadId());
-	OwnerThread = 0;
-	CriticalSection.Unlock();
+	check(GThreadCurrentWriteLockCount > 0);
+	if (--GThreadCurrentWriteLockCount == 0)
+	{
+		RWLock.WriteUnlock();
+		GThreadCurrentSessionLock = nullptr;
+	}
 }
 
 FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
@@ -195,11 +209,29 @@ FAnalysisService::~FAnalysisService()
 	}
 }
 
-TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& InDataStream)
+TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionUri)
 {
-	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionName);
-	TUniquePtr<Trace::IInDataStream> DataStream = MoveTemp(InDataStream);
-	AnalyzeInternal(AnalysisSession, DataStream.Release());
+	IInDataStream* DataStream = Trace::DataStream_ReadFile(SessionUri);
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
+	AnalyzeInternal(AnalysisSession, DataStream);
+	return AnalysisSession;
+}
+
+TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
+{
+	TUniquePtr<IInDataStream> DataStream(Trace::DataStream_ReadFile(SessionUri));
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
+	TSharedPtr<FAsyncTask<FAnalysisWorker>> Task = MakeShared<FAsyncTask<FAnalysisWorker>>(*this, MoveTemp(DataStream), AnalysisSession);
+	Tasks.Add(Task);
+	Task->StartBackgroundTask();
 	return AnalysisSession;
 }
 

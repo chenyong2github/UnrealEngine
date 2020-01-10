@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AttenuationSettingsCustomizations.h"
 #include "Widgets/Text/STextBlock.h"
@@ -119,9 +119,14 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsCustomCurveSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 
-	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax)))
+	DbAttenuationAtMaxHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax));
+	LayoutBuilder.AddPropertyToCategory(DbAttenuationAtMaxHandle)
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, FalloffMode)))
+		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
+		.EditCondition(GetIsFalloffModeEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(AttenuationShapeHandle)
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
@@ -269,6 +274,33 @@ TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsAttenuationEnabledA
 	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
 }
 
+TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsFalloffModeEnabledAttribute() const
+{
+	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
+	TWeakPtr<IPropertyHandle> bIsAttenuatedPropertyWeakPtr = bIsAttenuatedHandle;
+	TWeakPtr<IPropertyHandle> DbAttenuationAtMaxHandleWeakPtr = DbAttenuationAtMaxHandle;
+
+	auto Lambda = [bOverrideAttenuationPropertyWeakPtr, bIsAttenuatedPropertyWeakPtr, DbAttenuationAtMaxHandleWeakPtr]()
+	{
+		TSharedPtr<IPropertyHandle> bOverrideAttenuationPropertyPtr = bOverrideAttenuationPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> bIsAttenuatedPropertyPtr = bIsAttenuatedPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> DbAttenuationAtMaxHandlePtr = DbAttenuationAtMaxHandleWeakPtr.Pin();
+
+		float AttenuationValue = -60.f;
+		if (DbAttenuationAtMaxHandlePtr.IsValid())
+		{
+			DbAttenuationAtMaxHandlePtr->GetValue(AttenuationValue);
+		}
+
+		bool Value = GetValue(bOverrideAttenuationPropertyPtr);
+		Value &= GetValue(bIsAttenuatedPropertyPtr);
+		Value &= AttenuationValue > -60.f;
+		return Value;
+	};
+
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+}
+
 void FSoundAttenuationSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	// Property handle here is the base struct. We are going to hide it since we're showing it's properties directly.
@@ -306,10 +338,10 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	// Get handle to layout builder so we can add properties to categories
 	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
 
-	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
-
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuate)))
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+
+	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
 	LayoutBuilder.AddPropertyToCategory(bIsSpatializedHandle)
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
@@ -496,7 +528,7 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 	}
 
-	if (PropertyHandles.Num() != 60)
+	if (PropertyHandles.Num() != 61)
 	{
 		FString PropertyList;
 		for (auto It(PropertyHandles.CreateConstIterator()); It; ++It)

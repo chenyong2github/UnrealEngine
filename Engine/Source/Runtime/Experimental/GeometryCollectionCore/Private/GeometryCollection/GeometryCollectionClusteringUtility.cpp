@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollection.h"
@@ -746,6 +746,11 @@ void FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(
 
 void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, TArray<int32>& LeafBonesOut)
 {
+	if (!ensure(BoneIndex >= 0))
+	{
+		return;
+	}
+
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
 	if (Children[BoneIndex].Num() > 0)

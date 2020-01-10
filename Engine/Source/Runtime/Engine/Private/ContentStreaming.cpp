@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.cpp: Implementation of content streaming classes.
@@ -741,10 +741,10 @@ void IRenderAssetStreamingManager::PauseTextureStreaming(bool bInShouldPause)
 -----------------------------------------------------------------------------*/
 
 FStreamingManagerCollection::FStreamingManagerCollection()
-:	NumIterations(1)
-,	DisableResourceStreamingCount(0)
-,	LoadMapTimeLimit( 5.0f )
-,   TextureStreamingManager( NULL )
+	: NumIterations(1)
+	, DisableResourceStreamingCount(0)
+	, LoadMapTimeLimit(5.0f)
+	, TextureStreamingManager(nullptr)
 {
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	// Disable texture streaming if that was requested (needs to happen before the call to ProcessNewlyLoadedUObjects, as that can load textures)
@@ -770,6 +770,23 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	AnimationStreamingManager = new FAnimationStreamingManager();
 	AddStreamingManager(AnimationStreamingManager);
+}
+
+FStreamingManagerCollection::~FStreamingManagerCollection()
+{
+	RemoveStreamingManager(AnimationStreamingManager);
+	delete AnimationStreamingManager;
+	AnimationStreamingManager = nullptr;
+
+	RemoveStreamingManager(AudioStreamingManager);
+	delete AudioStreamingManager;
+	AudioStreamingManager = nullptr;
+
+	RemoveStreamingManager(TextureStreamingManager);
+	delete TextureStreamingManager;
+	TextureStreamingManager = nullptr;
+
+	UE_CLOG(StreamingManagers.Num() > 0, LogContentStreaming, Display, TEXT("There are %d unreleased StreamingManagers"), StreamingManagers.Num());
 }
 
 /**

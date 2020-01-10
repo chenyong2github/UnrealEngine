@@ -1,22 +1,35 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/BulkData2.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
+#include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/Object.h"
+#include "UObject/Package.h"
+#include "IO/IoDispatcher.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
+
+// If set to 0 then the loose file fallback will be used even if the -ZenLoader command line flag is present.
+#define ENABLE_IO_DISPATCHER 1
+
+// If set to 0 then we will pretend that optional data does not exist, useful for testing.
+#define ALLOW_OPTIONAL_DATA 1
 
 namespace
 {
 	// TODO: Maybe expose this and start using everywhere?
-	static constexpr const TCHAR* InlinedExt = TEXT(".uexp");			// Inlined
+	static constexpr const TCHAR* InlinedExt = TEXT(".uexp");			// Stored in the export data
 	static constexpr const TCHAR* DefaultExt = TEXT(".ubulk");			// Stored in a separate file
 	static constexpr const TCHAR* MemoryMappedExt = TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
 	static constexpr const TCHAR* OptionalExt = TEXT(".uptnl");			// Stored in a separate file that is optional
+
+	const uint16 InvalidBulkDataIndex = ~uint16(0);
 }
 
 // TODO: The code in the FileTokenSystem namespace is a temporary system so that FBulkDataBase can hold
@@ -26,25 +39,99 @@ namespace FileTokenSystem
 {
 	struct Data
 	{
-		FString Filename;
-		int64 BulkDataSize;
 		int64 BulkDataOffsetInFile;
+		FString PackageHeaderFilename;
 	};
 
-	TMap<FBulkDataBase::FileToken, Data> TokenDataMap;
-	uint64 TokenCounter = 0;
+	// Internal to the FileTokenSystem namespace
+	namespace
+	{
+		struct InternalData
+		{
+			FName PackageName;
+			int64 BulkDataOffsetInFile;			
+		};
+
+		struct StringData
+		{
+			FString Filename;
+			uint16 RefCount;
+		};
+
+		/**
+		* Provides a ref counted PackageName->Filename look up table.
+		*/
+		class FStringTable
+		{
+		public:
+			void Add(const FName& PackageName, const FString& Filename)
+			{
+				if (StringData* ExistingEntry = Table.Find(PackageName))
+				{
+					ExistingEntry->RefCount++;
+				}
+				else
+				{
+					StringData& NewEntry = Table.Emplace(PackageName);
+					NewEntry.Filename = Filename;
+					NewEntry.RefCount = 1;
+				}
+			}
+
+			bool Remove(const FName& PackageName)
+			{
+				if (StringData* ExistingEntry = Table.Find(PackageName))
+				{
+					if (--ExistingEntry->RefCount == 0)
+					{
+						Table.Remove(PackageName);
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			void IncRef(const FName& PackageName)
+			{
+				if (StringData* ExistingEntry = Table.Find(PackageName))
+				{
+					ExistingEntry->RefCount++;
+				}
+			}
+
+			const FString& Resolve(const FName& PackageName)
+			{
+				return Table.Find(PackageName)->Filename;
+			}
+
+			int32 Num() const
+			{
+				return Table.Num();
+			}
+
+		private:
+			TMap<FName, StringData> Table;
+		};
+	}
+
+	FStringTable StringTable;
+	TSparseArray<InternalData> TokenData;
+
 	FRWLock TokenLock;
 
-	FBulkDataBase::FileToken RegisterFileToken( const FString& Filename, uint64 BulkDataSize, uint64 BulkDataOffsetInFile )
+	FBulkDataBase::FileToken RegisterFileToken( const FName& PackageName, const FString& Filename, uint64 BulkDataOffsetInFile )
 	{
 		FWriteScopeLock LockForScope(TokenLock);
 
-		Data& Data = TokenDataMap.Add(++TokenCounter);
-		Data.Filename = Filename;
-		Data.BulkDataSize = BulkDataSize;
+		StringTable.Add(PackageName, Filename);
+
+		InternalData Data;
+		Data.PackageName = PackageName;
 		Data.BulkDataOffsetInFile = BulkDataOffsetInFile;
 
-		return TokenCounter;
+		FBulkDataBase::FileToken FileToken  = TokenData.Add(Data);
+		return FileToken;
 	}
 
 	void UnregisterFileToken(FBulkDataBase::FileToken ID)
@@ -52,7 +139,11 @@ namespace FileTokenSystem
 		if (ID != FBulkDataBase::InvalidToken)
 		{
 			FWriteScopeLock LockForScope(TokenLock);
-			TokenDataMap.Remove(ID);
+
+			StringTable.Remove(TokenData[ID].PackageName);
+			TokenData.RemoveAt(ID);
+
+			check(StringTable.Num() <= TokenData.Num());
 		}
 	}
 
@@ -62,12 +153,17 @@ namespace FileTokenSystem
 		{
 			FWriteScopeLock LockForScope(TokenLock);
 
-			Data* Data = TokenDataMap.Find(ID);
-			check(Data);
+			FSparseArrayAllocationInfo AllocInfo = TokenData.AddUninitialized();
+			
+			const InternalData& OriginalData = TokenData[ID];
+			InternalData& NewData = TokenData[AllocInfo.Index];
 
-			TokenDataMap.Add(++TokenCounter, *Data);
+			NewData.PackageName = OriginalData.PackageName;
+			NewData.BulkDataOffsetInFile = OriginalData.BulkDataOffsetInFile;
 
-			return TokenCounter;		
+			StringTable.IncRef(NewData.PackageName);
+
+			return AllocInfo.Index;
 		}
 		else
 		{
@@ -83,10 +179,13 @@ namespace FileTokenSystem
 		}
 
 		FReadScopeLock LockForScope(TokenLock);
-		Data* Data = TokenDataMap.Find(ID);
-		check(Data);
+		const InternalData& DataSrc = TokenData[ID];
 
-		return *Data;
+		Data Output;
+		Output.BulkDataOffsetInFile = DataSrc.BulkDataOffsetInFile;
+		Output.PackageHeaderFilename = StringTable.Resolve(DataSrc.PackageName);
+
+		return Output;
 	}
 
 	FString GetFilename(FBulkDataBase::FileToken ID)
@@ -97,24 +196,7 @@ namespace FileTokenSystem
 		}
 
 		FReadScopeLock LockForScope(TokenLock);
-		Data* Data = TokenDataMap.Find(ID);
-		check(Data);
-
-		return Data->Filename;
-	}
-
-	uint64 GetBulkDataSize(FBulkDataBase::FileToken ID)
-	{
-		if (ID == FBulkDataBase::InvalidToken)
-		{
-			return 0;
-		}
-		
-		FReadScopeLock LockForScope(TokenLock);
-		Data* Data = TokenDataMap.Find(ID);
-		check(Data);
-
-		return Data != nullptr ? Data->BulkDataSize : 0;
+		return StringTable.Resolve(TokenData[ID].PackageName);
 	}
 
 	uint64 GetBulkDataOffset(FBulkDataBase::FileToken ID)
@@ -125,22 +207,277 @@ namespace FileTokenSystem
 		}
 
 		FReadScopeLock LockForScope(TokenLock);
-		Data* Data = TokenDataMap.Find(ID);
-		check(Data);
-
-		return Data != nullptr ? Data->BulkDataOffsetInFile : 0;
+		return TokenData[ID].BulkDataOffsetInFile;
 	}
 }
 
+FIoDispatcher* FBulkDataBase::IoDispatcher = nullptr;
+
+class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
+{
+public:
+	using ChunkIdArray = TArray<FIoChunkId, TInlineAllocator<8>>;
+
+public:
+	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, FBulkDataIORequestCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
+		: UserSuppliedMemory(InUserSuppliedMemory)
+	{
+		RequestArray.Push({ InChunkID, (uint64)InOffsetInBulkData , (uint64)InBytesToRead });
+
+		if (InCompleteCallback != nullptr)
+		{
+			CompleteCallback = *InCompleteCallback;
+		}
+	}
+
+	FBulkDataIoDispatcherRequest(const ChunkIdArray& ChunkIDs, FBulkDataIORequestCallBack* InCompleteCallback)
+		: UserSuppliedMemory(nullptr)
+	{
+		for (const FIoChunkId& ChunkId : ChunkIDs)
+		{
+			RequestArray.Push({ChunkId, 0, (uint64)INDEX_NONE});
+		}
+
+		if (InCompleteCallback != nullptr)
+		{
+			CompleteCallback = *InCompleteCallback;
+		}
+	}
+
+	virtual ~FBulkDataIoDispatcherRequest()
+	{
+		if (Task != nullptr)
+		{
+			Task->EnsureCompletion();
+			delete Task;
+		}
+
+		// Free the data is no caller has taken ownership of it and it was allocated by FBulkDataIoDispatcherRequest
+		if (UserSuppliedMemory == nullptr)
+		{
+			FMemory::Free(DataResult);
+			DataResult = nullptr;
+		}
+	}
+
+	void StartAsyncWork()
+	{
+		check(Task == nullptr);
+
+		bIsCompleted = false;
+		FPlatformMisc::MemoryBarrier();
+
+		if (FPlatformProcess::SupportsMultithreading())
+		{
+			Task = new FAsyncTask<FBulkDataIoDispatcherRequestWorker>(*this);
+			Task->StartBackgroundTask(GBackgroundPriorityThreadPool);
+		}
+		else
+		{
+			// No multi threading support so just process immediately
+			DoWork();
+		}
+	}
+
+	virtual bool PollCompletion() const override
+	{
+		return bIsCompleted;
+	}
+
+	virtual bool WaitCompletion(float TimeLimitSeconds) const override
+	{
+		// Note that currently we do not get events from the FIoDispatcher, so we just
+		// have a basic implementation.
+		// We only have one use case for a time limited wait, every other use case is 
+		// supposed to be fully blocking so ideally we can eliminate the single use case 
+		// and just change this code entirely.
+		if (!bIsCompleted)
+		{
+			if (TimeLimitSeconds > 0.0f)
+			{
+				FPlatformProcess::Sleep(TimeLimitSeconds);
+			}
+			else
+			{
+				while (!bIsCompleted)
+				{
+					FPlatformProcess::Sleep(0.0f);
+				}
+			}
+		}
+
+		return bIsCompleted;
+	}
+
+	virtual uint8* GetReadResults() override
+	{
+		if (bIsCompleted && !bIsCanceled)
+		{
+			uint8* Result = DataResult;
+			DataResult = nullptr;
+
+			return Result;
+		}
+		else
+		{
+			return nullptr;
+		}	
+	}
+
+	virtual int64 GetSize() const override
+	{
+		if (bIsCompleted && !bIsCanceled)
+		{
+			return SizeResult;
+		}
+		else
+		{
+			return INDEX_NONE;
+		}
+	}
+
+	virtual void Cancel() override
+	{
+		if (!bIsCanceled)
+		{
+			bIsCanceled = true;
+			FPlatformMisc::MemoryBarrier();
+			// TODO: Send to IoDispatcher
+		}
+	}
+
+private:
+
+	void DoWork()
+	{
+		FIoReadOptions IoOptions;
+
+		// TODO: FIoReadOptions is ignored at the moment
+		//IoOptions.SetRange(OffsetInBulkData, BytesToRead);
+		//IoOptions.SetTargetVa((uint64)UserSuppliedMemory);
+
+		FIoBatch NewBatch = FBulkDataBase::IoDispatcher->NewBatch();
+		for (Request& Request : RequestArray)
+		{
+			Request.IoRequest = NewBatch.Read(Request.ChunkId, IoOptions);
+		}
+		NewBatch.Issue();
+
+		// Wait until the request is completed
+		while (!AreRequestsCompleted())
+		{
+			FPlatformProcess::Sleep(0.0f);
+		}
+
+		SizeResult = GetTotalBufferSize();
+
+		uint8* DstBuffer = UserSuppliedMemory != nullptr ? UserSuppliedMemory : (uint8*)FMemory::Malloc(SizeResult);
+		DataResult = DstBuffer;
+
+		for (const Request& Request : RequestArray)
+		{
+			TIoStatusOr<FIoBuffer> Result = Request.IoRequest.GetResult();
+			check(Result.IsOk());
+
+			const FIoBuffer& IoBuffer = Result.ValueOrDie();
+			uint64 BytesToRead = Request.BytesToRead == INDEX_NONE ? IoBuffer.DataSize() : Request.BytesToRead;
+		
+			FMemory::Memcpy(DstBuffer, IoBuffer.Data() + Request.OffsetInBulkData, BytesToRead);
+			DstBuffer += BytesToRead;
+		}
+		
+		FBulkDataBase::IoDispatcher->FreeBatch(NewBatch);
+
+		if (CompleteCallback)
+		{
+			CompleteCallback(bIsCanceled, this);
+		}
+
+		FPlatformMisc::MemoryBarrier();
+		bIsCompleted = true;
+	}
+
+	class FBulkDataIoDispatcherRequestWorker : public FNonAbandonableTask
+	{
+		FBulkDataIoDispatcherRequest& IoRequest;
+	public:
+		FBulkDataIoDispatcherRequestWorker(FBulkDataIoDispatcherRequest& InIoRequest)
+			: IoRequest(InIoRequest)
+		{
+		}
+
+		void DoWork()
+		{
+			IoRequest.DoWork();
+		}
+
+		FORCEINLINE TStatId GetStatId() const
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FBulkDataIoDispatcherRequestWorker, STATGROUP_ThreadPoolAsyncTasks);
+		}
+	};
+
+private:
+	struct Request
+	{
+		FIoChunkId ChunkId;
+		uint64 OffsetInBulkData;
+		uint64 BytesToRead;
+
+		FIoRequest IoRequest;
+	};
+
+	bool AreRequestsCompleted() const
+	{
+		for (const Request& Req : RequestArray)
+		{
+			if (!Req.IoRequest.Status().IsCompleted())
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	int64 GetTotalBufferSize()  
+	{
+		uint64 Size = 0;
+		for (Request& Req : RequestArray)
+		{
+			TIoStatusOr<FIoBuffer> Result = Req.IoRequest.GetResult();
+			Size += Result.ValueOrDie().DataSize();
+		}
+
+		return Size;
+	}
+
+	TArray<Request, TInlineAllocator<8>> RequestArray;
+
+	FBulkDataIORequestCallBack CompleteCallback;
+	uint8* UserSuppliedMemory = nullptr;
+
+	uint8* DataResult = nullptr;
+	int64 SizeResult = 0;
+
+	// Task related members
+	FAsyncTask<FBulkDataIoDispatcherRequestWorker>* Task = nullptr;
+	bool bIsCompleted = false;
+	bool bIsCanceled = false;
+};
+
 FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
-	: Token(Other.Token)
+	: ChunkID(Other.ChunkID) // Copies the entire union
 	, DataBuffer(Other.DataBuffer)
 	, BulkDataFlags(Other.BulkDataFlags)
 {
 	check(Other.LockStatus == LOCKSTATUS_Unlocked); // Make sure that the other object wasn't inuse
 
-	Other.Token = InvalidToken; // Prevent the other object from unregistering the token
-	Other.DataBuffer = nullptr; // Prevent the other object from deleting our data
+	if (!Other.IsUsingIODispatcher())
+	{
+		Other.Fallback.Token = InvalidToken; // Prevent the other object from unregistering the token
+	}	
+	Other.DataBuffer = nullptr;	// Prevent the other object from deleting our data
 }
 
 FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
@@ -152,7 +489,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 	RemoveBulkData();
 
-	Token = FileTokenSystem::CopyFileToken(Other.Token);
+	Fallback.Token = FileTokenSystem::CopyFileToken(Other.Fallback.Token);
 
 	// Copy token
 	BulkDataFlags = Other.BulkDataFlags;
@@ -173,7 +510,10 @@ FBulkDataBase::~FBulkDataBase()
 	check(LockStatus == LOCKSTATUS_Unlocked);
 
 	FreeData();
-	FileTokenSystem::UnregisterFileToken(Token);
+	if (!IsUsingIODispatcher())
+	{
+		FileTokenSystem::UnregisterFileToken(Fallback.Token);
+	}	
 }
 
 void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, bool bAttemptFileMapping, int32 ElementSize)
@@ -217,23 +557,56 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		Ar << BulkDataOffsetInFile;
 
-		// fix up the file offset, but only if not stored inline
-		if (Owner != nullptr && Owner->GetLinker() != nullptr && !IsInlined())
+#if ENABLE_IO_DISPATCHER
+		const bool bUseIoDispatcher = FIoDispatcher::IsInitialized();
+#else
+		const bool bUseIoDispatcher = false;
+#endif
+		if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
 		{
-			BulkDataOffsetInFile += Owner->GetLinker()->Summary.BulkDataStartOffset;
+			uint16 DummyValue;
+			Ar << DummyValue;
+		}
+
+		// Assuming that Owner/Package/Linker are all valid, the old BulkData system would
+		// generally fail if any of these were nullptr but had plenty of inconsistent checks
+		// scattered throughout.
+		check(Owner != nullptr);
+		const UPackage* Package = Owner->GetOutermost();
+		check(Package != nullptr);
+
+		if (!IsInlined() && bUseIoDispatcher)
+		{
+			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+
+			const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
+			ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
+
+			BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
+		}
+		else
+		{
+			// Invalidate the Token and then set the BulkDataSize for fast retrieval
+			Fallback.Token = InvalidToken;
+			Fallback.BulkDataSize = BulkDataSize;
+		}
+
+		const FString* Filename = nullptr;
+		FName PackageName;
+		const FLinkerLoad* Linker = nullptr;
+
+		if (bUseIoDispatcher == false)
+		{
+			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
+			check(Linker != nullptr);
+
+			Filename = &Linker->Filename;
+			PackageName = Package->FileName;
 		}
 
 		FArchive* CacheableArchive = Ar.GetCacheableArchive();
-		if (Ar.IsAllowingLazyLoading() && Owner != nullptr && CacheableArchive != nullptr)
+		if (Ar.IsAllowingLazyLoading() && CacheableArchive != nullptr)
 		{
-			UPackage* Package = Owner->GetOutermost();
-			check(Package != nullptr);
-
-			FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-			check(Linker != nullptr);
-
-			FString Filename = ConvertFilenameFromFlags(Linker->Filename);
-
 			if (IsInlined())
 			{
 				// Inline data is already in the archive so serialize it immediately
@@ -244,11 +617,40 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				if (IsDuplicateNonOptional())
 				{
-					FString OptionalFilename = FPaths::ChangeExtension(Filename, OptionalExt);
-					if (IFileManager::Get().FileExists(*Filename))
+					auto DoesOptionalDataExist = [this](const FString* PackageFilename)->bool
 					{
-						SerializeDuplicateData(Ar, Owner, BulkDataFlags, BulkDataSizeOnDisk, BulkDataOffsetInFile);
-						Filename = OptionalFilename;
+#if ALLOW_OPTIONAL_DATA
+						if (!IsUsingIODispatcher())
+						{
+							check(PackageFilename != nullptr);
+							FString OptionalDataFilename = ConvertFilenameFromFlags(*PackageFilename);
+							return IFileManager::Get().FileExists(*OptionalDataFilename);
+						}
+						else
+						{
+							return IoDispatcher->DoesChunkExist(ChunkID);
+						}
+#else
+						return false;
+#endif
+					};
+
+					if (DoesOptionalDataExist(Filename))
+					{
+						SerializeDuplicateData(Ar, BulkDataFlags, BulkDataSizeOnDisk, BulkDataOffsetInFile);
+
+						if (!IsInlined() && bUseIoDispatcher)
+						{
+							// Regenerate the FIoChunkId to find the optional BulkData instead!
+							const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
+							ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, EIoChunkType::OptionalBulkData);
+							BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
+						}
+						else
+						{
+							Fallback.Token = InvalidToken;
+							Fallback.BulkDataSize = BulkDataSize;
+						}
 					}
 					else
 					{
@@ -256,15 +658,23 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 						// out if we read things as 32bit or 64bit)
 						uint32 DummyValue32;
 						int64 DummyValue64;
-						SerializeDuplicateData(Ar, Owner, DummyValue32, DummyValue64, DummyValue64);
+						SerializeDuplicateData(Ar, DummyValue32, DummyValue64, DummyValue64);
+					}
+				}
 
-						check(Filename.EndsWith(DefaultExt));
-					}			
-				}			
+				// Fix up the file offset if we have a linker (if we do not then we will be loading via FIoDispatcher anyway)
+				if (Linker != nullptr)
+				{
+					BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
+				}
 			}
 
-			// TODO: Replace with the proper storage solution
-			Token = FileTokenSystem::RegisterFileToken(Filename, BulkDataSize, BulkDataOffsetInFile);
+			// If we are not using the FIoDispatcher then we need to make sure we can retrieve the filename later
+			if (bUseIoDispatcher == false)
+			{
+				check(Filename != nullptr);
+				Fallback.Token = FileTokenSystem::RegisterFileToken( PackageName, *Filename, BulkDataOffsetInFile);
+			}
 		}
 		else
 		{
@@ -301,6 +711,7 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 const void* FBulkDataBase::LockReadOnly() const
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
+	LockStatus = LOCKSTATUS_ReadOnlyLock;
 	return DataBuffer;
 }
 
@@ -322,15 +733,27 @@ bool FBulkDataBase::IsLocked() const
 	return LockStatus != LOCKSTATUS_Unlocked;
 }
 
-void* FBulkDataBase::Realloc(int64 InElementCount)
+void* FBulkDataBase::Realloc(int64 SizeInBytes)
 {
-	BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME;
-	return nullptr;
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::Realloc"), STAT_UBD_Realloc, STATGROUP_Memory);
+
+	check(LockStatus == LOCKSTATUS_ReadWriteLock);
+	checkf(!CanLoadFromDisk(), TEXT("Cannot re-allocate a FBulkDataBase object that represents a file on disk!"));
+
+	AllocateData(SizeInBytes);
+
+	check(!IsUsingIODispatcher());	// This case should get caught above but if someone tries to change that in the
+									// future then this check is a reminder that we need to handle the IoDispatcher 
+									// vs fallback case.
+
+	Fallback.BulkDataSize = SizeInBytes;
+
+	return DataBuffer;
 }
 
 void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::GetCopy"), STAT_UBD_GetCopy, STATGROUP_Memory);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::GetCopy"), STAT_UBD_GetCopy, STATGROUP_Memory);
 
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	check(DstBuffer);
@@ -344,6 +767,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 
 			if (bDiscardInternalCopy && (CanLoadFromDisk() || IsSingleUse()))
 			{
+				UE_LOG(LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy both copied and discarded it's data, passing in an empty pointer would avoid an extra allocate and memcpy!"));
 				FreeData();
 			}
 		}
@@ -363,10 +787,10 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 			}
 			else
 			{
-				int64 BulkDataSize = GetBulkDataSize();
+				const int64 BulkDataSize = GetBulkDataSize();
 
 				*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
-				FMemory::Memcpy(*DstBuffer, DataBuffer, GetBulkDataSize());
+				FMemory::Memcpy(*DstBuffer, DataBuffer, BulkDataSize);
 			}
 		}
 		else
@@ -403,7 +827,34 @@ void  FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 
 int64 FBulkDataBase::GetBulkDataSize() const
 {
-	return FileTokenSystem::GetBulkDataSize(Token);
+	if (IsUsingIODispatcher())
+	{
+		TIoStatusOr<uint64> Result = IoDispatcher->GetSizeForChunk(ChunkID);
+		return Result.ValueOrDie(); // TODO: Consider logging errors instead of relying on ::ValueOrDie
+	}
+	else
+	{
+		return Fallback.BulkDataSize;
+	}	
+}
+
+bool FBulkDataBase::DoesExist() const
+{
+#if ALLOW_OPTIONAL_DATA
+	if (!IsUsingIODispatcher())
+	{
+		FString Filename = FileTokenSystem::GetFilename(Fallback.Token);
+		Filename = ConvertFilenameFromFlags(Filename);
+
+		return IFileManager::Get().FileExists(*Filename);
+	}
+	else
+	{
+		return IoDispatcher->DoesChunkExist(ChunkID);
+	}
+#else
+	return false;
+#endif
 }
 
 bool FBulkDataBase::IsStoredCompressedOnDisk() const
@@ -451,46 +902,96 @@ bool FBulkDataBase::IsMemoryMapped() const
 	return (BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0;
 }
 
-FBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+bool FBulkDataBase::IsUsingIODispatcher() const
+{
+	return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
+}
+
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	const int64 DataSize = GetBulkDataSize();
 
 	return CreateStreamingRequest(0, DataSize, Priority, CompleteCallback, UserSuppliedMemory);
 }
 
-FBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
-#if 1
-	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Token);
-
-	check(FileData.Filename.IsEmpty() == false);
-
-	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *FileData.Filename);
-	UE_CLOG(FileData.BulkDataSize <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *FileData.Filename);
-
-	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FileData.Filename);
-	check(IORequestHandle); // this generally cannot fail because it is async
-
-	if (IORequestHandle == nullptr)
+	if (IsUsingIODispatcher())
 	{
-		return nullptr;
-	}
+		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(ChunkID, OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);	
+		IoRequest->StartAsyncWork();
 
-	const int64 OffsetInFile = FileData.BulkDataOffsetInFile + OffsetInBulkData;
-
-	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
-	if (ReadRequest != nullptr)
-	{
-		return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+		return IoRequest;
 	}
 	else
 	{
-		delete IORequestHandle;
-		return nullptr;
+		const int64 BulkDataSize = GetBulkDataSize();
+		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+
+		check(FileData.PackageHeaderFilename.IsEmpty() == false);
+		const FString Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+
+		UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
+		UE_CLOG(BulkDataSize <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
+
+		IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
+		check(IORequestHandle); // this generally cannot fail because it is async
+
+		if (IORequestHandle == nullptr)
+		{
+			return nullptr;
+		}
+
+		const int64 OffsetInFile = FileData.BulkDataOffsetInFile + OffsetInBulkData;
+
+		FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
+
+		if (IORequest->MakeReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
+		{
+			return IORequest;
+		}
+		else
+		{
+			delete IORequest;
+			return nullptr;
+		}
 	}
-#else
-	return nullptr;
-#endif
+}
+
+IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
+{
+	check(RangeArray.Num() > 0);
+
+	const FBulkDataBase& Start = *(RangeArray[0]);
+
+	check(!Start.IsInlined());
+
+	if (Start.IsUsingIODispatcher())
+	{
+		FBulkDataIoDispatcherRequest::ChunkIdArray ChunkIds;
+		for (const FBulkDataBase* BulkData : RangeArray)
+		{
+			ChunkIds.Push(BulkData->ChunkID);
+		}
+
+		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(ChunkIds, CompleteCallback);
+		IoRequest->StartAsyncWork();
+
+		return IoRequest;
+	}
+	else
+	{	
+		const FBulkDataBase& End = *RangeArray[RangeArray.Num() - 1];
+
+		check(Start.GetFilename() == End.GetFilename());
+
+		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
+		const int64 ReadSize = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
+
+		check(ReadSize > 0);
+
+		return Start.CreateStreamingRequest(0, ReadSize, Priority, CompleteCallback, nullptr);
+	}
 }
 
 void FBulkDataBase::ForceBulkDataResident()
@@ -519,8 +1020,11 @@ void FBulkDataBase::RemoveBulkData()
 
 	FreeData();
 
-	FileTokenSystem::UnregisterFileToken(Token);
-	Token = InvalidToken;
+	if (!IsUsingIODispatcher())
+	{ 
+		FileTokenSystem::UnregisterFileToken(Fallback.Token);
+		Fallback.Token = InvalidToken;
+	}
 
 	BulkDataFlags = 0;
 
@@ -528,49 +1032,85 @@ void FBulkDataBase::RemoveBulkData()
 
 int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 {
-	return FileTokenSystem::GetBulkDataOffset(Token);
+	if (!IsUsingIODispatcher())
+	{
+		return FileTokenSystem::GetBulkDataOffset(Fallback.Token);
+	}
+	else
+	{
+		BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME;
+		return 0;
+	}
 }
 
 FString FBulkDataBase::GetFilename() const
 {
-	return FileTokenSystem::GetFilename(Token);
+	if (!IsUsingIODispatcher())
+	{
+		FString Filename = FileTokenSystem::GetFilename(Fallback.Token);
+		return ConvertFilenameFromFlags(Filename);
+	}
+	else
+	{
+		UE_LOG(LogBulkDataRuntime, Warning, TEXT("Attempting to get the filename for BulkData that uses the IoDispatcher, this will return an empty string"));
+		return FString("");
+	}
 }
 
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
-	check(CanLoadFromDisk());
-
-	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Token);
-
-	// In the older code path if the bulkdata was not in a separate file we could just serialize from the package instead, but the new system
-	// does not keep a reference to the pack so we cannot do that.
-	// TODO: Maybe add a check for this condition?
-
-	check(!IsInlined());	// TODO: Currently inline data will have the wrong BulkDataOffsetInFile (need to subtract the size of the original
-							// .uasset or .umap file from it but we don't have access to that filepath at this point and doing it during
-							// ::Serialize is too slow!)
-
-	// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
-	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, consider not discarding it in the first place. Filename: '%s'."), *FileData.Filename);
-
-	FArchive* Ar = IFileManager::Get().CreateFileReader(*FileData.Filename, FILEREAD_Silent);
-	checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *FileData.Filename);
-
-	// Seek to the beginning of the bulk data in the file.
-	Ar->Seek(FileData.BulkDataOffsetInFile);
-
-	if (*DstBuffer == nullptr)
+	
+	if (!CanLoadFromDisk())
 	{
-		*DstBuffer = FMemory::Malloc(FileData.BulkDataSize, 0);
+		return; // Early out if there is nothing to load anyway
 	}
 
-	SerializeBulkData(*Ar, *DstBuffer, FileData.BulkDataSize);
+	if (!IsUsingIODispatcher())
+	{
+		const int64 BulkDataSize = GetBulkDataSize();
+		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
 
-	delete Ar;
+		FString Filename; 
+		int64 Offset = FileData.BulkDataOffsetInFile;
+
+		// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
+		if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
+		{
+			Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
+			Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + TEXT(".uexp");
+		}
+		else
+		{
+			Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+		}
+
+		// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
+		// Disabled at the moment
+		//UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
+
+		FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
+		checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
+
+		// Seek to the beginning of the bulk data in the file.
+		Ar->Seek(Offset);
+
+		if (*DstBuffer == nullptr)
+		{
+			*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
+		}
+
+		SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
+
+		delete Ar;
+	}
+	else
+	{
+		BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME;
+	}
 }
 
-void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, UObject* Owner, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
+void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
 {
 	Ar << OutBulkDataFlags;
 
@@ -588,10 +1128,10 @@ void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, UObject* Owner, uint32&
 
 	Ar << OutBulkDataOffsetInFile;
 
-	// fix up the file offset, but only if not stored inline
-	if (Owner != nullptr && Owner->GetLinker() != nullptr)
+	if ((OutBulkDataFlags & BULKDATA_UsesIoDispatcher) != 0)
 	{
-		OutBulkDataOffsetInFile += Owner->GetLinker()->Summary.BulkDataStartOffset;
+		uint16 DummyBulkDataIndex = InvalidBulkDataIndex;
+		Ar << DummyBulkDataIndex;
 	}
 }
 
@@ -634,15 +1174,18 @@ void FBulkDataBase::FreeData()
 	DataBuffer = nullptr;
 }
 
-FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename)
+FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 {
-	if (IsInlined())
+	if (IsOptional())
+	{
+		// Optional data should be tested for first as we in theory can have data that would
+		// be marked as inline, also marked as optional and in this case we should treat it as
+		// optional data first.
+		return FPaths::ChangeExtension(Filename, OptionalExt);
+	}
+	else if (IsInlined())
 	{
 		return FPaths::ChangeExtension(Filename, InlinedExt);
-	}
-	else if (IsOptional())
-	{
-		return FPaths::ChangeExtension(Filename, OptionalExt);
 	}
 	else if (IsMemoryMapped())
 	{

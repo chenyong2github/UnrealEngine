@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraMergeable.h"
 #include "UObject/PropertyPortFlags.h"
@@ -24,7 +24,7 @@ bool UNiagaraMergeable::Equals(const UNiagaraMergeable* Other)
 		return false;
 	}
 
-	for (TFieldIterator<UProperty> PropertyIterator(this->GetClass()); PropertyIterator; ++PropertyIterator)
+	for (TFieldIterator<FProperty> PropertyIterator(this->GetClass()); PropertyIterator; ++PropertyIterator)
 	{
 		if (PropertyIterator->Identical(
 			PropertyIterator->ContainerPtrToValuePtr<void>(this),

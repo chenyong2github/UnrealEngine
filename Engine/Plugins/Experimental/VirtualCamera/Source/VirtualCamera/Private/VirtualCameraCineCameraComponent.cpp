@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualCameraCineCameraComponent.h"
 #include "Engine/StaticMesh.h"
@@ -152,13 +152,13 @@ void UVirtualCameraCineCameraComponent::UpdateCameraView()
 		// Set the actual camera filmback settings
 		if (ViewSizeAdjustmentForMatte >= 1.f)
 		{
-			FilmbackSettings.SensorWidth = DesiredFilmbackSettings.SensorWidth / ViewSizeRatio.X;
-			FilmbackSettings.SensorHeight = DesiredFilmbackSettings.SensorHeight / ViewSizeRatio.Y;
+			Filmback.SensorWidth = DesiredFilmbackSettings.SensorWidth / ViewSizeRatio.X;
+			Filmback.SensorHeight = DesiredFilmbackSettings.SensorHeight / ViewSizeRatio.Y;
 		}
 		else
 		{
-			FilmbackSettings.SensorWidth = DesiredFilmbackSettings.SensorWidth / ViewSizeRatio.X * ViewSizeAdjustmentForMatte;
-			FilmbackSettings.SensorHeight = DesiredFilmbackSettings.SensorHeight / ViewSizeRatio.Y * ViewSizeAdjustmentForMatte;
+			Filmback.SensorWidth = DesiredFilmbackSettings.SensorWidth / ViewSizeRatio.X * ViewSizeAdjustmentForMatte;
+			Filmback.SensorHeight = DesiredFilmbackSettings.SensorHeight / ViewSizeRatio.Y * ViewSizeAdjustmentForMatte;
 		}
 	}
 }

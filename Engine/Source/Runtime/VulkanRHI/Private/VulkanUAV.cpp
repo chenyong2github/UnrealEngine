@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanContext.h"
@@ -75,6 +75,9 @@ void FVulkanShaderResourceView::UpdateView()
 		if (SourceBuffer->IsVolatile() && VolatileLockCounter != SourceBuffer->GetVolatileLockCounter())
 		{
 			VkBuffer SourceVolatileBufferHandle = SourceBuffer->GetHandle();
+
+			//Inherit Size from volatile buffer, as it might change
+			Size = SourceBuffer->GetVolatileLockSize();
 
 			// We might end up with the same BufferView, so do not recreate in that case
 			if (!BufferViews[0] 

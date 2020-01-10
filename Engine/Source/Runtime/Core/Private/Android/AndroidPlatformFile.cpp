@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AndroidFile.cpp: Android platform implementations of File functions
@@ -122,12 +122,12 @@ const FString &GetFileBasePath()
 
 FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath)
 {
-	if (RelPath.StartsWith(TEXT("../")))
+	if (RelPath.StartsWith(TEXT("../"), ESearchCase::CaseSensitive))
 	{
-		while (RelPath.StartsWith(TEXT("../")))
-		{
-			RelPath = RelPath.RightChop(3);
-		}
+		
+		do {
+			RelPath.RightChopInline(3, false);
+		} while (RelPath.StartsWith(TEXT("../"), ESearchCase::CaseSensitive));
 
 		return (bUseInternalBasePath ? GInternalFilePath : GetFileBasePath()) / RelPath;
 	}
@@ -1917,17 +1917,13 @@ private:
 	FString NormalizePath(const TCHAR* Path)
 	{
 		FString Result(Path);
-		Result.ReplaceInline(TEXT("\\"), TEXT("/"));
+		Result.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 		// This replacement addresses a "bug" where some callers
 		// pass in paths that are badly composed with multiple
 		// subdir separators.
-		Result.ReplaceInline(TEXT("//"), TEXT("/"));
-		if (!Result.IsEmpty() && Result[Result.Len() - 1] == TEXT('/'))
-		{
-			Result.LeftChop(1);
-		}
+		Result.ReplaceInline(TEXT("//"), TEXT("/"), ESearchCase::CaseSensitive);
 		// Remove redundant current-dir references.
-		Result.ReplaceInline(TEXT("/./"), TEXT("/"));
+		Result.ReplaceInline(TEXT("/./"), TEXT("/"), ESearchCase::CaseSensitive);
 		return Result;
 	}
 
@@ -1942,7 +1938,7 @@ private:
 #endif
 		if (!AndroidPath.IsEmpty())
 		{
-			if (AndroidPath.StartsWith(TEXT("/")) ||	// (AllowLocal && AndroidPath.StartsWith(TEXT("/"))) ||		// requiring AllowLocal isn't really useful; system will do permission checks anyway
+			if (AndroidPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive) ||	// (AllowLocal && AndroidPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive)) ||		// requiring AllowLocal isn't really useful; system will do permission checks anyway
 				AndroidPath.StartsWith(GFontPathBase) ||
 				AndroidPath.StartsWith(TEXT("/system/etc/")) ||
 				AndroidPath.StartsWith(GInternalFilePath.Left(AndroidPath.Len())) ||
@@ -1954,12 +1950,12 @@ private:
 			}
 			else
 			{
-				while (AndroidPath.StartsWith(TEXT("../")))
+				while (AndroidPath.StartsWith(TEXT("../"), ESearchCase::CaseSensitive))
 				{
-					AndroidPath = AndroidPath.RightChop(3);
+					AndroidPath.RightChopInline(3, false);
 				}
 				AndroidPath.ReplaceInline(FPlatformProcess::BaseDir(), TEXT(""));
-				if (AndroidPath.Equals(TEXT("..")))
+				if (AndroidPath.Equals(TEXT(".."), ESearchCase::CaseSensitive))
 				{
 					AndroidPath = TEXT("");
 				}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShader.h: Shader base classes
@@ -46,8 +46,21 @@ public:
 
 	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform, const FNiagaraShaderScript* , FShaderCompilerEnvironment&);
 
+	static uint32 GetGroupSize(EShaderPlatform Platform)
+	{
+		if (Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4)
+		{
+			return 64;
+		}
+		else
+		{
+			return 32;
+		}
+	}
+
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FNiagaraShaderScript*  Script, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize(Platform));
 	}
 
 	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
@@ -94,6 +107,8 @@ public:
 	FRWShaderParameter InstanceCountsParam;
 	FShaderParameter ReadInstanceCountOffsetParam;
 	FShaderParameter WriteInstanceCountOffsetParam;
+	FShaderResourceParameter FreeIDBufferParam;
+	FRWShaderParameter IDToIndexBufferParam;
 	FShaderUniformBufferParameter EmitterConstantBufferParam;
 	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
 	FShaderUniformBufferParameter ViewUniformBufferParam;

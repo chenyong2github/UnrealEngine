@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalRHI.cpp: Metal device RHI implementation.
@@ -36,6 +36,17 @@ static TAutoConsoleVariable<int32> CVarUseRHIThread(
 													TEXT("Default is 0."),
 													ECVF_Default | ECVF_RenderThreadSafe
 													);
+
+static TAutoConsoleVariable<int32> CVarIntelUseRHIThread(
+													TEXT("r.Metal.IntelRHIThread"),
+													0,
+													TEXT("Controls RHIThread usage for Mac Intel HW:\n")
+													TEXT("\t0: No RHIThread.\n")
+													TEXT("\t1: Use RHIThread.\n")
+													TEXT("Default is 0."),
+													ECVF_Default | ECVF_RenderThreadSafe
+													);
+
 
 static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 {
@@ -255,7 +266,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		bSupportsTiledReflections = false;
 		bSupportsPointLights = (FPlatformMisc::MacOSXVersionCompare(10,14,6) > 0);
 		GRHIVendorId = 0x8086;
-		bSupportsRHIThread = true;
+		// HACK: Meshes jump around in Infiltrator with RHI thread on. Needs further investigation and a real fix.
+		bSupportsRHIThread = false || CVarIntelUseRHIThread.GetValueOnAnyThread() > 0;
 		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,12,2) >= 0);
 		bIsIntelHaswell = (GRHIAdapterName == TEXT("Intel HD Graphics 5000") || GRHIAdapterName == TEXT("Intel Iris Graphics") || GRHIAdapterName == TEXT("Intel Iris Pro Graphics"));
 	}

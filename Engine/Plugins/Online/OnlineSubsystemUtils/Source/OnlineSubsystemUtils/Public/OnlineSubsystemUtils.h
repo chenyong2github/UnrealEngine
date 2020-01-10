@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,7 +22,11 @@ class UAudioComponent;
 ONLINESUBSYSTEMUTILS_API UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels);
 
 /** @return an initialized Synth component specifically for use with VoIP */
+UE_DEPRECATED(4.25, "CreateVoiceSynthComponent(uint32 SampleRate) is deprecated, use CreateVoiceSynthComponent(UWorld* World, uint32 SampleRate).")
 ONLINESUBSYSTEMUTILS_API UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate);
+
+/** @return an initialized Synth component specifically for use with VoIP */
+ONLINESUBSYSTEMUTILS_API UVoipListenerSynthComponent* CreateVoiceSynthComponent(UWorld* World, uint32 SampleRate);
 
 /** Updates InSynthComponent based on InSettings. */
 ONLINESUBSYSTEMUTILS_API void ApplyVoiceSettings(UVoipListenerSynthComponent* InSynthComponent, const FVoiceSettings& InSettings);

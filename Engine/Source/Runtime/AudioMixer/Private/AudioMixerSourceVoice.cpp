@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSource.h"
@@ -221,6 +221,18 @@ namespace Audio
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
 		return SourceManager->NeedsSpeakerMap(SourceId);
+	}
+
+	bool FMixerSourceVoice::IsUsingHRTFSpatializer(bool bDefaultValue) const
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (SourceId != INDEX_NONE)
+		{
+			return SourceManager->IsUsingHRTFSpatializer(SourceId);
+		}
+
+		return bDefaultValue;
 	}
 
 	int64 FMixerSourceVoice::GetNumFramesPlayed() const

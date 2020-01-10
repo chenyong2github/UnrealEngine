@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialExpressionClasses.h"
 #include "UObject/ObjectMacros.h"
@@ -88,7 +88,7 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 		UClass* BaseType = UMaterialExpression::StaticClass();
 		if( BaseType )
 		{
-			TArray<UStructProperty*>	ExpressionInputs;
+			TArray<FStructProperty*>	ExpressionInputs;
 			const UStruct*				ExpressionInputStruct = GetExpressionInputStruct();
 
 			for( TObjectIterator<UClass> It ; It ; ++It )
@@ -126,7 +126,7 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 
 							if (ClassName.StartsWith(ExpressionPrefix, ESearchCase::CaseSensitive))
 							{
-								ClassName = ClassName.Mid(ExpressionPrefix.Len());
+								ClassName.MidInline(ExpressionPrefix.Len(), MAX_int32, false);
 							}
 							MaterialExpression.Name = ClassName;
 							MaterialExpression.MaterialClass = Class;
@@ -140,9 +140,9 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 							AllExpressionClasses.Add(MaterialExpression);
 
 							// Initialize the expression class input map.							
-							for( TFieldIterator<UStructProperty> InputIt(Class) ; InputIt ; ++InputIt )
+							for( TFieldIterator<FStructProperty> InputIt(Class) ; InputIt ; ++InputIt )
 							{
-								UStructProperty* StructProp = *InputIt;
+								FStructProperty* StructProp = *InputIt;
 								if( StructProp->Struct == ExpressionInputStruct )
 								{
 									ExpressionInputs.Add( StructProp );

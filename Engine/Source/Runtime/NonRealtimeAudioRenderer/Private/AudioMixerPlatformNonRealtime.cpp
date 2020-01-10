@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerPlatformNonRealtime.h"
 #include "AudioMixer.h"
@@ -66,6 +66,10 @@ namespace Audio
 		double SecondsRendered = TotalDurationRendered;
 		TotalDurationRendered += NumSecondsToRender;
 
+		CurrentBufferWriteIndex = 0;
+		CurrentBufferReadIndex = 0;
+
+
 		while (SecondsRendered < TotalDurationRendered)
 		{
 			// RenderTimeAnalysis.Start();
@@ -75,6 +79,9 @@ namespace Audio
 			ReadNextBuffer();
 			SecondsRendered += TimePerCallback;
 		}
+
+		CurrentBufferReadIndex = INDEX_NONE;
+		CurrentBufferWriteIndex = INDEX_NONE;
 	}
 
 	void FMixerPlatformNonRealtime::OpenFileToWriteAudioTo(const FString& OutPath)
@@ -119,7 +126,7 @@ namespace Audio
 
 #if WITH_XMA2
 		//Initialize our XMA2 decoder context
-		FXMAAudioInfo::Initialize();
+		XMA2_INFO_CALL(FXMAAudioInfo::Initialize());
 #endif //#if WITH_XMA2
 
 		// Load ogg and vorbis dlls if they haven't been loaded yet
@@ -140,7 +147,7 @@ namespace Audio
 		}
 
 #if WITH_XMA2
-		FXMAAudioInfo::Shutdown();
+		XMA2_INFO_CALL(FXMAAudioInfo::Shutdown());
 #endif
 
 		bIsInitialized = false;
@@ -348,7 +355,7 @@ namespace Audio
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2 )
 		{
-			return new FXMAAudioInfo();
+			return XMA2_INFO_NEW();
 		}
 #endif
 
@@ -371,7 +378,7 @@ namespace Audio
 		static const FName NAME_XMA(TEXT("XMA"));
 		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_XMA) : (InSoundWave->GetCompressedData(NAME_XMA) != nullptr))
 		{
-			return new FXMAAudioInfo();
+			return XMA2_INFO_NEW();
 		}
 #endif // WITH_XMA2
 #endif // PLATFORM_WINDOWS || WITH_XMA2
@@ -392,6 +399,10 @@ namespace Audio
 
 	void FMixerPlatformNonRealtime::OnHardwareUpdate()
 	{
+#if WITH_XMA2
+		XMA2_INFO_CALL(FXMAAudioInfo::Tick());
+#endif //WITH_XMA2
+
 		if (RenderEveryTickCvar)
 		{
 			RenderAudio(TickDelta);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Unix/UnixPlatformProcess.h"
 #include "Unix/UnixPlatformCrashContext.h"
@@ -1826,9 +1826,9 @@ bool FUnixPlatformProcess::IsFirstInstance()
 		{
 			FString LockFileName(TEXT("/tmp/"));
 			FString ExecPath(FPlatformProcess::ExecutableName());
-			ExecPath.ReplaceInline(TEXT("/"), TEXT("-"));
+			ExecPath.ReplaceInline(TEXT("/"), TEXT("-"), ESearchCase::CaseSensitive);
 			// [RCL] 2015-09-20: can run out of filename limits (256 bytes) due to a long path, be conservative and assume 4-char UTF-8 name like e.g. Japanese
-			ExecPath = ExecPath.Right(80);
+			ExecPath.RightInline(80, false);
 
 			LockFileName += ExecPath;
 

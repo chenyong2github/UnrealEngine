@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -292,6 +292,9 @@ private:
 	/** Gets the visibility of the path expander button */
 	EVisibility GetPathExpanderVisibility() const;
 
+	/** Gets the visibility of the source switch button */
+	EVisibility GetSourcesSwitcherVisibility() const;
+
 	/** Gets the icon used on the source switch button */
 	const FSlateBrush* GetSourcesSwitcherIcon() const;
 
@@ -303,6 +306,9 @@ private:
 
 	/** Gets the source search hint text */
 	FText GetSourcesSearchHintText() const;
+
+	/** Called to handle the Content Browser settings changing */
+	void OnContentBrowserSettingsChanged(FName PropertyName);
 
 	/** Handler for clicking the history back button */
 	FReply BackClicked();
@@ -441,6 +447,9 @@ private:
 
 	/** Gets the visibility of the favorites view */
 	EVisibility GetFavoriteFolderVisibility() const;
+
+	/** Get the visibility of the docked collections view */
+	EVisibility GetDockedCollectionsVisibility() const;
 
 	/** Toggles the favorite status of an array of folders*/
 	void ToggleFolderFavorite(const TArray<FString>& FolderPaths);

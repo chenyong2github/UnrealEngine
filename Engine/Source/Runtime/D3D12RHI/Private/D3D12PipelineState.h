@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Implementation of D3D12 Pipelinestate related functions
 
@@ -306,11 +306,16 @@ public:
 	void Create(const GraphicsPipelineCreationArgs& InCreationArgs);
 	void CreateAsync(const GraphicsPipelineCreationArgs& InCreationArgs);
 
+	FORCEINLINE bool IsValid()
+	{
+		return (GetPipelineState() != nullptr);
+	}
+
 	FORCEINLINE ID3D12PipelineState* GetPipelineState()
 	{
-		if (CachedPipelineState)
+		if (bInitialized)
 		{
-			return CachedPipelineState;
+			return PipelineState.GetReference();
 		}
 		else
 		{
@@ -318,24 +323,16 @@ public:
 		}
 	}
 
-	FD3D12PipelineState& operator=(const FD3D12PipelineState& other)
-	{
-		checkSlow(GPUMask == other.GPUMask);
-		checkSlow(VisibilityMask == other.VisibilityMask);
-
-		PipelineState = other.PipelineState;
-		Worker = other.Worker;
-		return *this;
-	}
+	FD3D12PipelineState& operator=(const FD3D12PipelineState& other) = delete;
 
 private:
 	ID3D12PipelineState* InternalGetPipelineState();
 
 protected:
-	ID3D12PipelineState* CachedPipelineState;
 	TRefCountPtr<ID3D12PipelineState> PipelineState;
 	FAsyncTask<FD3D12PipelineStateWorker>* Worker;
 	FRWLock GetPipelineStateMutex;
+	volatile bool bInitialized;
 };
 
 struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState

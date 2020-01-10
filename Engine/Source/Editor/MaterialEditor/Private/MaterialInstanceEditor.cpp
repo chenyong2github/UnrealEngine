@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialInstanceEditor.h"
 #include "Widgets/Text/STextBlock.h"
@@ -1107,11 +1107,11 @@ UMaterialInterface* FMaterialInstanceEditor::GetMaterialInterface() const
 	return MaterialEditorInstance->SourceInstance;
 }
 
-void FMaterialInstanceEditor::NotifyPreChange(UProperty* PropertyThatChanged)
+void FMaterialInstanceEditor::NotifyPreChange(FProperty* PropertyThatChanged)
 {
 }
 
-void FMaterialInstanceEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FMaterialInstanceEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	// If they changed the parent, regenerate the parent list.
 	if(PropertyThatChanged->GetName()==TEXT("Parent"))
@@ -1148,7 +1148,7 @@ void FMaterialInstanceEditor::NotifyPostChange( const FPropertyChangedEvent& Pro
 
 	// Rebuild the property window to account for the possibility that  
 	// the item changed was a static switch or function call parameter
-	UObject* PropertyClass = PropertyThatChanged->GetOuter();
+	UObject* PropertyClass = PropertyThatChanged->GetOwner<UObject>();
 	if(PropertyClass && (PropertyClass->GetName() == TEXT("DEditorStaticSwitchParameterValue") || PropertyClass->GetName() == TEXT("EditorParameterGroup"))//DEditorMaterialLayerParameters"))
 		&& MaterialEditorInstance->Parent && MaterialEditorInstance->SourceInstance )
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D11Viewport.cpp: D3D viewport RHI implementation.
@@ -539,7 +539,6 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		// Can't compare BOOL with bool...
 		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
 		{
-			bFullscreenLost = true;
 			bIsValid = false;
 		}
 	}

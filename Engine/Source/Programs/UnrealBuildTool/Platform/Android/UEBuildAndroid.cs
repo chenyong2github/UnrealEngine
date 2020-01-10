@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -105,6 +105,7 @@ namespace UnrealBuildTool
 			Target.bCompileNvCloth = false;
 
 			Target.bCompileRecast = true;
+			Target.bCompileISPC = true;
 		}
 
 		public override bool CanUseXGE()
@@ -222,6 +223,12 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			{
+				return;
+			}
+
 			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac) || (Target.Platform == UnrealTargetPlatform.Linux))
 			{
 				bool bBuildShaderFormats = Target.bForceBuildShaderFormats;
@@ -341,10 +348,6 @@ namespace UnrealBuildTool
 			}
 
 			Log.TraceInformation("NDK toolchain: {0}, NDK version: {1}, GccVersion: {2}, ClangVersion: {3}", NDKToolchainVersion, NDKVersionInt.ToString(), GccVersion, ToolChain.GetClangVersionString());
-
-
-			CompileEnvironment.Definitions.Add("PLATFORM_USED_NDK_VERSION_INTEGER=" + NDKVersionInt);
-
 
 			CompileEnvironment.Definitions.Add("PLATFORM_DESKTOP=0");
 			CompileEnvironment.Definitions.Add("PLATFORM_CAN_SUPPORT_EDITORONLY_DATA=0");
@@ -649,24 +652,9 @@ namespace UnrealBuildTool
 			AndroidPlatformSDK SDK = new AndroidPlatformSDK();
 			SDK.ManageAndValidateSDK();
 
-			if ((ProjectFileGenerator.bGenerateProjectFiles == true) || (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
-			{
-				bool bRegisterBuildPlatform = true;
-
-				FileReference AndroidTargetPlatformFile = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Developer", "Android", "AndroidTargetPlatform", "AndroidTargetPlatform.Build.cs");
-				if (FileReference.Exists(AndroidTargetPlatformFile) == false)
-				{
-					bRegisterBuildPlatform = false;
-				}
-
-				if (bRegisterBuildPlatform == true)
-				{
-					// Register this build platform
-					Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Android.ToString());
-					UEBuildPlatform.RegisterBuildPlatform(new AndroidPlatform(SDK));
-					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Android, UnrealPlatformGroup.Android);
-				}
-			}
+			// Register this build platform
+			UEBuildPlatform.RegisterBuildPlatform(new AndroidPlatform(SDK));
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Android, UnrealPlatformGroup.Android);
 		}
 	}
 }

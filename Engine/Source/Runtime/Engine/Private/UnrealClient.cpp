@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "UnrealClient.h"
@@ -35,6 +35,8 @@ IMPLEMENT_STRUCT(PostProcessSettings);
 
 bool FViewport::bIsGameRenderingEnabled = true;
 int32 FViewport::PresentAndStopMovieDelay = 0;
+
+static const FName NAME_DummyViewport = FName(TEXT("DummyViewport"));
 
 /**
 * Reads the viewport's displayed pixels into a preallocated color buffer.
@@ -1174,6 +1176,7 @@ FViewport::FViewport(FViewportClient* InViewportClient):
 	bHasRequestedToggleFreeze(false),
 	bIsSlateViewport(false),
 	bIsHDR(false),
+	ViewportType(NAME_None),
 	bTakeHighResScreenShot(false)
 {
 	//initialize the hit proxy kernel
@@ -1564,7 +1567,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
 				{
 					// Make sure the Canvas is not rendered upside down
-					Canvas.SetAllowSwitchVerticalAxis(false);
+					Canvas.SetAllowSwitchVerticalAxis(true);
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
@@ -2168,7 +2171,7 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 	while (CmdString.FindChar(TCHAR(' '), SeperatorPos))
 	{
 		Arguments.Add(CmdString.Mid(LastSeperatorPos, SeperatorPos));
-		CmdString = CmdString.Mid(SeperatorPos + 1);
+		CmdString.MidInline(SeperatorPos + 1, MAX_int32, false);
 	}
 
 	if (CmdString.Len() > 0)
@@ -2297,6 +2300,7 @@ FDummyViewport::FDummyViewport(FViewportClient* InViewportClient)
 	: FViewport(InViewportClient)
 	, DebugCanvas(NULL)
 {
+	ViewportType = NAME_DummyViewport;
 	UWorld* CurWorld = (InViewportClient != NULL ? InViewportClient->GetWorld() : NULL);
 	DebugCanvas = new FCanvas(this, NULL, CurWorld, (CurWorld != NULL ? CurWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel));
 		

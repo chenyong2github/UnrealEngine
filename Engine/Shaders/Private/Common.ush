@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PlatformCommon.usf: Common shader code
@@ -223,6 +223,10 @@ MaterialFloat4 TextureExternalSample(TextureExternal Tex, SamplerState Sampler, 
 	return Tex.Sample(Sampler, UV);
 #endif
 }
+MaterialFloat4 TextureExternalSampleGrad(TextureExternal Tex, SamplerState Sampler, float2 UV, MaterialFloat2 DDX, MaterialFloat2 DDY)
+{
+	return Tex.SampleGrad(Sampler, UV, DDX, DDY);
+}
 MaterialFloat4 TextureExternalSampleLevel(TextureExternal Tex, SamplerState Sampler, float2 UV, MaterialFloat Mip)
 {
 	return Tex.SampleLevel(Sampler, UV, Mip);
@@ -257,6 +261,14 @@ MaterialFloat4 TextureCubeSample_Decal(TextureCube Tex, SamplerState Sampler, fl
 	return TextureCubeSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
 #else
 	return TextureCubeSample(Tex, Sampler, UV);
+#endif
+}
+MaterialFloat4 TextureExternalSample_Decal(TextureExternal Tex, SamplerState Sampler, float2 UV)
+{
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1
+	return TextureExternalSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+#else
+	return TextureExternalSample(Tex, Sampler, UV);
 #endif
 }
 

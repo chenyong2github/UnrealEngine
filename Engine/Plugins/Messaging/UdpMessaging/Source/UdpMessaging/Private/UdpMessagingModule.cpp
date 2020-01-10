@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UdpMessagingPrivate.h"
 
@@ -537,7 +537,12 @@ protected:
 			
 			FString StaticEndpoints;
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_STATIC="), StaticEndpoints, false);
-			StaticEndpoints.ParseIntoArray(Settings->StaticEndpoints, TEXT(","));
+			TArray<FString> CommandLineStaticEndpoints;
+			StaticEndpoints.ParseIntoArray(CommandLineStaticEndpoints, TEXT(","));
+			for (const FString& CmdStaticEndpoint : CommandLineStaticEndpoints)
+			{
+				Settings->StaticEndpoints.AddUnique(CmdStaticEndpoint);
+			}
 		}
 	}
 

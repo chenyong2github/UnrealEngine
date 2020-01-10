@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystem.h"
@@ -278,16 +278,18 @@ ENiagaraSystemViewModelEditMode FNiagaraSystemViewModel::GetEditMode() const
 	return EditMode;
 }
 
-void FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
 {
 	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(AssetData.GetAsset());
 	if (Emitter != nullptr)
 	{
-		AddEmitter(*Emitter);
+		return AddEmitter(*Emitter);
 	}
+
+	return nullptr;
 }
 
-void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 {
 	// Reset view models before modifying the emitter handle list to prevent accessing deleted data.
 	ResetEmitterHandleViewModelsAndTracks();
@@ -335,6 +337,8 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 	SelectionViewModel->UpdateSelectedEntries(SelectedStackEntries, TArray<UNiagaraStackEntry*>(), true);
 
 	bForceAutoCompileOnce = true;
+
+	return NewEmitterHandleViewModel;
 }
 
 void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate)
@@ -552,7 +556,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 	}
 }
 
-void FNiagaraSystemViewModel::OnPreSave()
+void FNiagaraSystemViewModel::NotifyPreSave()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
@@ -561,13 +565,19 @@ void FNiagaraSystemViewModel::OnPreSave()
 	}
 }
 
-void FNiagaraSystemViewModel::OnPreClose()
+void FNiagaraSystemViewModel::NotifyPreClose()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("System %s has pending compile jobs. Waiting for that code to complete before Closing.."), *GetSystem().GetName());
 		GetSystem().WaitForCompilationComplete();
 	}
+	OnPreCloseDelegate.Broadcast();
+}
+
+FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
+{
+	return OnPreCloseDelegate;
 }
 
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
@@ -857,6 +867,16 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		ViewModel->GetEmitterStackViewModel()->OnStructureChanged().RemoveAll(this);
 		ViewModel->Reset();
 	}
+
+	bool bAnyEmitterIsolated = false;
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			bAnyEmitterIsolated = true;
+		}
+	}
+	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
 
 	if (SelectionViewModel != nullptr)
 	{
@@ -1238,7 +1258,7 @@ void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface
 	else
 	{
 		// If the data interface wasn't owned by a script, try to find it in the exposed parameter data interfaces.
-		const FNiagaraVariable* FoundExposedDataInterface = GetSystem().GetExposedParameters().FindVariable(ChangedDataInterface);
+		const FNiagaraVariableBase* FoundExposedDataInterface = GetSystem().GetExposedParameters().FindVariable(ChangedDataInterface);
 		if (FoundExposedDataInterface != nullptr)
 		{
 			GetSystem().GetExposedParameters().OnInterfaceChange();
@@ -1316,13 +1336,20 @@ void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParamet
 {
 	if (bUpdatingEmittersFromSequencerDataChange == false)
 	{
-		TGuardValue<bool> UpdateGuard(bUpdatingSequencerFromEmitterDataChange, true);
-		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		if (EmitterIdsRequiringSequencerTrackUpdate.Num() > 0)
 		{
-			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
-			EmitterTrack->UpdateTrackFromEmitterParameterChange(NiagaraSequence->GetMovieScene()->GetTickResolution());
+			UpdateSequencerTracksForEmitters(EmitterIdsRequiringSequencerTrackUpdate);
 		}
-		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+		else
+		{
+			TGuardValue<bool> UpdateGuard(bUpdatingSequencerFromEmitterDataChange, true);
+			for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+			{
+				UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
+				EmitterTrack->UpdateTrackFromEmitterParameterChange(NiagaraSequence->GetMovieScene()->GetTickResolution());
+			}
+			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+		}
 	}
 	UpdateSimulationFromParameterChange();
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "StatsTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
@@ -29,16 +29,11 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_Spec:
 	{
 		uint32 StatId = EventData.GetValue<uint32>("Id");
-		Trace::ICounter* Counter;
-		Trace::ICounter** FindIt = CountersMap.Find(StatId);
-		if (!FindIt)
+		Trace::IEditableCounter* Counter = CountersMap.FindRef(StatId);
+		if (!Counter)
 		{
 			Counter = CounterProvider.CreateCounter();
 			CountersMap.Add(StatId, Counter);
-		}
-		else
-		{
-			Counter = *FindIt;
 		}
 		const ANSICHAR* Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
 		const TCHAR* Description = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(Name) + 1);
@@ -74,16 +69,11 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 
 			uint64 DecodedIdAndOp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint32 StatId = DecodedIdAndOp >> 3;
-			Trace::ICounter* Counter;
-			Trace::ICounter** FindIt = CountersMap.Find(StatId);
-			if (!FindIt)
+			Trace::IEditableCounter* Counter = CountersMap.FindRef(StatId);
+			if (!Counter)
 			{
 				Counter = CounterProvider.CreateCounter();
 				CountersMap.Add(StatId, Counter);
-			}
-			else
-			{
-				Counter = *FindIt;
 			}
 			uint8 Op = DecodedIdAndOp & 0x7;
 			uint64 CycleDiff = FTraceAnalyzerUtils::Decode7bit(BufferPtr);

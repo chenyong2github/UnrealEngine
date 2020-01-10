@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Movement.cpp: Character movement implementation
@@ -594,7 +594,7 @@ void UCharacterMovementComponent::PostEditChangeProperty(FPropertyChangedEvent& 
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UCharacterMovementComponent, WalkableFloorAngle))
 	{
 		// Compute WalkableFloorZ from the Angle.
@@ -7174,7 +7174,12 @@ void UCharacterMovementComponent::SmoothCorrection(const FVector& OldLocation, c
 
 		// Using server timestamp lets us know how much time actually elapsed, regardless of packet lag variance.
 		double OldServerTimeStamp = ClientData->SmoothingServerTimeStamp;
-		ClientData->SmoothingServerTimeStamp = (bIsSimulatedProxy ? CharacterOwner->GetReplicatedServerLastTransformUpdateTimeStamp() : ServerLastTransformUpdateTimeStamp);
+		if (bIsSimulatedProxy)
+		{
+			// This value is normally only updated on the server, however some code paths might try to read it instead of the replicated value so copy it for proxies as well.
+			ServerLastTransformUpdateTimeStamp = CharacterOwner->GetReplicatedServerLastTransformUpdateTimeStamp();
+		}
+		ClientData->SmoothingServerTimeStamp = ServerLastTransformUpdateTimeStamp;
 
 		// Initial update has no delta.
 		if (ClientData->LastCorrectionTime == 0)
@@ -7355,9 +7360,11 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 			if ( CharacterMovementCVars::NetVisualizeSimulatedCorrections >= 1 )
 			{
 				const FColor DebugColor = FColor::White;
-				const FVector DebugLocation = CharacterOwner->GetMesh()->GetComponentLocation() + FVector( 0.f, 0.f, 300.0f ) - CharacterOwner->GetBaseTranslationOffset();
+				const FVector DebugLocation = CharacterOwner->GetMesh()->GetComponentLocation() + FVector( 0.f, 0.f, 130.0f ) - CharacterOwner->GetBaseTranslationOffset();
 				FString DebugText = FString::Printf( TEXT( "Lerp: %2.2f" ), LerpPercent );
 				DrawDebugString( GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true );
+				FString TimeText = FString::Printf( TEXT("ClientTime: %2.2f ServerTime: %2.2f" ), ClientData->SmoothingClientTimeStamp, ClientData->SmoothingServerTimeStamp);
+				DrawDebugString( GetWorld(), DebugLocation + 25.f, TimeText, nullptr, DebugColor, 0.f, true);
 			}
 #endif
 		}
@@ -9246,7 +9253,8 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 	{
 		if (bBaseRelativePosition)
 		{
-			UE_LOG(LogNetPlayerMovement, Warning, TEXT("ClientAdjustPosition_Implementation could not resolve the new relative movement base actor, ignoring server correction!"));
+			UE_LOG(LogNetPlayerMovement, Warning, TEXT("ClientAdjustPosition_Implementation could not resolve the new relative movement base actor, ignoring server correction! Client currently at world location %s on base %s"),
+				*UpdatedComponent->GetComponentLocation().ToString(), *GetNameSafe(GetMovementBase()));
 			return;
 		}
 		else
@@ -10687,13 +10695,16 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 	if (PostUpdateMode == PostUpdate_Record)
 	{
 		const FAnimMontageInstance* RootMotionMontageInstance = Character->GetRootMotionAnimMontageInstance();
-		if (RootMotionMontageInstance && !RootMotionMontageInstance->IsRootMotionDisabled())
+		if (RootMotionMontageInstance)
 		{
-			RootMotionMontage = RootMotionMontageInstance->Montage;
-			RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
-			RootMotionMovement = Character->ClientRootMotionParams;
+			if (!RootMotionMontageInstance->IsRootMotionDisabled())
+			{
+				RootMotionMontage = RootMotionMontageInstance->Montage;
+				RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
+				RootMotionMovement = Character->ClientRootMotionParams;
+			}
 
-			// Moves with anim root motion should not be combined
+			// Moves where anim root motion is being played should not be combined
 			bForceNoCombine = true;
 		}
 
@@ -10701,6 +10712,7 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 		if( Character->SavedRootMotion.HasActiveRootMotionSources() )
 		{
 			SavedRootMotion = Character->SavedRootMotion;
+			bForceNoCombine = true;
 		}
 
 		// Don't want to combine moves that trigger overlaps, because by moving back and replaying the move we could retrigger overlaps.
@@ -11089,7 +11101,7 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 	}
 
 	// Resimulate Root Motion Sources if we need to - occurs after server RPCs over a correction during root motion sources.
-	if( SavedRootMotion.HasActiveRootMotionSources() )
+	if( SavedRootMotion.HasActiveRootMotionSources() || Character->SavedRootMotion.HasActiveRootMotionSources() )
 	{
 		if( Character->bClientResimulateRootMotionSources )
 		{
@@ -11102,6 +11114,18 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 			SavedRootMotion.UpdateStateFrom(Character->SavedRootMotion);
 			SavedRootMotion.CleanUpInvalidRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
 			SavedRootMotion.PrepareRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
+		}
+		else
+		{
+			// If this is not the first SavedMove we are replaying, clean up any currently applied root motion sources so that if they have
+			// SetVelocity/ClampVelocity finish settings they get applied correctly before CurrentRootMotion gets stomped below
+			if (FNetworkPredictionData_Client_Character* ClientData = Character->GetCharacterMovement()->GetPredictionData_Client_Character())
+			{
+				if (ClientData->SavedMoves[0].Get() != this)
+				{
+					Character->GetCharacterMovement()->CurrentRootMotion.CleanUpInvalidRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
+				}
+			}
 		}
 
 		// Restore root motion to that of this SavedMove to be used during replaying the Move

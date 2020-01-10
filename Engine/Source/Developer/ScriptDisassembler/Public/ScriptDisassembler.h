@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ScriptDisassembler.h: Disassembler for Kismet bytecode.
@@ -75,7 +75,7 @@ private:
 	void DropIndent()
 	{
 		// Blah, this is awful
-		Indents = Indents.Left(Indents.Len() - 2);
+		Indents.LeftInline(Indents.Len() - 2);
 	}
 
 	template <typename T>

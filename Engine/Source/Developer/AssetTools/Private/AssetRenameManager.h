@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,6 +38,9 @@ public:
 	/** Returns list of objects that soft reference the given soft object path. This will load assets into memory to verify */
 	void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) const;
 
+	/** Returns list of objects that soft reference the given soft object paths. This will load assets into memory to verify */
+	void FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) const;
+
 	/** Accessor for post rename event */
 	FAssetPostRenameEvent& OnAssetPostRenameEvent() { return AssetPostRenameEvent; }
 
@@ -51,6 +54,9 @@ public:
 
 	/** Filters packages list depending on if it actually has soft object paths pointing to the specific object being renamed */
 	bool CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TArray<UObject*>& OutReferencingObjects) const;
+
+	/** Filters packages list depending on if it actually has soft object paths pointing to the specific object being renamed */
+	bool CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TMap<FSoftObjectPath, TArray<UObject*>>& OutReferencingObjects) const;
 
 private:
 	/** Callback used by DiscoverintAssetsDialog to call FixrefrencesAndRename */
@@ -75,6 +81,9 @@ private:
 	 * If bCheckStatus is true it will check the source control status
 	 */
 	void LoadReferencingPackages(TArray<FAssetRenameDataWithReferencers>& AssetsToRename, bool bLoadAllPackages, bool bCheckStatus, TArray<UPackage*>& OutReferencingPackagesToSave, TArray<UObject*>& OutSoftReferencingObjects) const;
+
+    /** Gather a list of referencing object for each of the asset in AssetsToRename. Will load all referencing packages */
+	void GatherReferencingObjects(TArray<FAssetRenameDataWithReferencers>& AssetsToRename, TMap<FSoftObjectPath, TArray<UObject*>>& OutSoftReferencingObjects) const;
 
 	/** 
 	 * Prompts to check out the source package and all referencing packages and marks assets whose referencing packages were not checked out to leave a redirector.

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VoiceInterfaceImpl.h"
 #include "Misc/ConfigCacheIni.h"
@@ -731,6 +731,14 @@ void FOnlineVoiceImpl::ProcessLocalVoicePackets()
 
 						// Process this user
 						uint32 Result = VoiceEngine->ReadLocalVoiceData(Index, BufferStart, &SpaceAvail, &SampleCount);
+
+						// Convert to Q15:
+						const float Amplitude = VoiceEngine->GetMicrophoneAmplitude(Index);
+						ensureAlways(Amplitude >= 0.0f && Amplitude <= 1.0f);
+
+						VoiceData.LocalPackets[Index].MicrophoneAmplitude = (int16)(Amplitude * 32767.0f);
+
+
 						if (Result == ONLINE_SUCCESS)
 						{
 							if (LocalTalkers[Index].bHasNetworkedVoice)
@@ -741,7 +749,6 @@ void FOnlineVoiceImpl::ProcessLocalVoicePackets()
 
 								// Update the length based on what it copied
 								VoiceData.LocalPackets[Index].Length += SpaceAvail;
-
 								VoiceData.LocalPackets[Index].SampleCount = SampleCount;
 
 #if VOICE_LOOPBACK
@@ -796,6 +803,19 @@ void FOnlineVoiceImpl::ProcessRemoteVoicePackets()
 				uint64 VoiceSampleCounter = VoicePacket->GetSampleCounter();
 				// Submit this packet to the voice engine
 				uint32 Result = VoiceEngine->SubmitRemoteVoiceData(VoicePacket->Sender, VoicePacket->Buffer.GetData(), &VoiceBufferSize, VoiceSampleCounter);
+				if (Result != ONLINE_SUCCESS)
+				{
+					UE_LOG_ONLINE_VOICEENGINE(Warning,
+						TEXT("SubmitRemoteVoiceData(%s) failed with 0x%08X"),
+						*VoicePacket->Sender->ToDebugString(),
+						Result);
+				}
+
+				// Convert amplitude from Q15:
+				const float Amplitude = ((float)VoicePacket->MicrophoneAmplitude) / 32767.0f;
+				ensureAlways(Amplitude >= 0.0f && Amplitude < 1.0f);
+				Result = VoiceEngine->SetRemoteVoiceAmplitude(FUniqueNetIdWrapper(VoicePacket->Sender), Amplitude);
+
 				if (Result != ONLINE_SUCCESS)
 				{
 					UE_LOG_ONLINE_VOICEENGINE(Warning,
@@ -900,6 +920,18 @@ Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetRemoteTalkerOutput()
 	else
 	{
 		return nullptr;
+	}
+}
+
+float FOnlineVoiceImpl::GetAmplitudeOfRemoteTalker(const FUniqueNetId& PlayerId)
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->GetIncomingAudioAmplitude(FUniqueNetIdWrapper(PlayerId.AsShared()));
+	}
+	else
+	{
+		return 0.0f;
 	}
 }
 

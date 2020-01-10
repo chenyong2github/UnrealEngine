@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SingleLayerWaterComposite - final step of the single layer water
@@ -13,6 +13,7 @@
 #include "LightGridCommon.ush"
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
+// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
@@ -28,7 +29,7 @@ SamplerState ScreenSpaceReflectionsSampler;
 Texture2D SceneNoWaterDepthTexture;
 SamplerState SceneNoWaterDepthSampler;
 
-float2 SceneNoWaterMaxUV;
+float4 SceneNoWaterMinMaxUV;
 
 struct SingleLayerWaterCompositeOutput
 {
@@ -59,7 +60,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #endif
 	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		const float2 SceneNoWaterUV = min(BufferUV, SceneNoWaterMaxUV);
+		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
 		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, SceneNoWaterUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 		float WaterDepth = GBuffer.Depth;

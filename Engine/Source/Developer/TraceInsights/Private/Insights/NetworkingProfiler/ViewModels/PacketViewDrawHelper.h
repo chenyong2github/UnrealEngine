@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -79,12 +79,15 @@ struct FNetworkPacketAggregatedSample
 
 	FNetworkPacket LargestPacket;
 
+	bool bAtLeastOnePacketMatchesFilter;
+
 	FNetworkPacketAggregatedSample()
 		: NumPackets(0)
 		, StartTime(DBL_MAX)
 		, EndTime(-DBL_MAX)
 		, AggregatedStatus(Trace::ENetProfilerDeliveryStatus::Unknown)
 		, LargestPacket()
+		, bAtLeastOnePacketMatchesFilter(true)
 	{}
 
 	FNetworkPacketAggregatedSample(const FNetworkPacketAggregatedSample&) = default;
@@ -92,6 +95,8 @@ struct FNetworkPacketAggregatedSample
 
 	FNetworkPacketAggregatedSample(FNetworkPacketAggregatedSample&&) = default;
 	FNetworkPacketAggregatedSample& operator=(FNetworkPacketAggregatedSample&&) = default;
+
+	void AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
 
 	bool Equals(const FNetworkPacketAggregatedSample& Other) const
 	{
@@ -142,7 +147,7 @@ public:
 	FNetworkPacketSeriesBuilder(const FNetworkPacketSeriesBuilder&) = delete;
 	FNetworkPacketSeriesBuilder& operator=(const FNetworkPacketSeriesBuilder&) = delete;
 
-	void AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
+	FNetworkPacketAggregatedSample* AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
 
 	int32 GetNumAddedPackets() const { return NumAddedPackets; }
 

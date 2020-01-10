@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	CookOnTheFlyServer.cpp: handles polite cook requests via network ;)
@@ -48,6 +48,7 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "FileServerMessages.h"
+#include "LocalizationChunkDataGenerator.h"
 #include "Internationalization/Culture.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
@@ -67,6 +68,7 @@
 #include "PlatformInfo.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "DistanceFieldAtlas.h"
+#include "Cooker/AsyncIODelete.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"
@@ -104,7 +106,7 @@
 #define LOCTEXT_NAMESPACE "Cooker"
 #define REMAPPED_PLUGGINS TEXT("RemappedPlugins")
 
-DEFINE_LOG_CATEGORY_STATIC(LogCook, Log, All);
+DEFINE_LOG_CATEGORY(LogCook);
 
 #define DEBUG_COOKONTHEFLY 0
 #define OUTPUT_TIMING 1
@@ -1446,8 +1448,12 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 {
 }
 
+UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {}
+
 UCookOnTheFlyServer::~UCookOnTheFlyServer()
 {
+	ClearPackageStoreContexts();
+
 	FCoreDelegates::OnFConfigCreated.RemoveAll(this);
 	FCoreDelegates::OnFConfigDeleted.RemoveAll(this);
 
@@ -2963,12 +2969,8 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 						if (CookByTheBookOptions)
 						{
 							FAssetRegistryGenerator* Generator = RegistryGenerators.FindRef(SaveTargetPlatformNames[iResultIndex]);
-							if (Generator)
-							{
-								FAssetPackageData* PackageData = Generator->GetAssetPackageData(Package->GetFName());
-								PackageData->DiskSize = SavePackageResult.TotalFileSize;
-								PackageData->CookedHash = SavePackageResult.CookedHash;
-							}
+							UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SavePackageResult);
+
 						}
 
 					}
@@ -3043,6 +3045,27 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 	}
 }
 
+void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult)
+{
+	if (!Generator)
+		return;
+
+	FAssetPackageData* PackageData = Generator->GetAssetPackageData(PackageName);
+	PackageData->DiskSize = SavePackageResult.TotalFileSize;
+	// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
+	// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
+	if (SavePackageResult.CookedHash.IsValid())
+	{
+		SavePackageResult.CookedHash.Next([PackageData](const FMD5Hash& CookedHash)
+		{
+			// Store the cooked hash in the Asset Registry when it is done computing in another thread.
+			// NOTE: For this to work, we rely on:
+			// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
+			// 2) PackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
+			PackageData->CookedHash = CookedHash;
+		});
+	}
+}
 
 void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
 {
@@ -3705,7 +3728,7 @@ private:
 		int32 ParamIndex = InOutParams.Find(InParamToRemove);
 		if (ParamIndex >= 0)
 		{
-			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::IgnoreCase, ESearchDir::FromStart, ParamIndex + 1);
+			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamIndex + 1);
 			if (NextParamIndex < ParamIndex)
 			{
 				NextParamIndex = InOutParams.Len();
@@ -4031,7 +4054,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							FSavePackageContext* const SavePackageContext = IsUsingPackageStore() ? SavePackageContexts[PlatformIndex] : nullptr;
+							FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
 
 							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
 													GError, nullptr, bSwap, false, SaveFlags, Target, 
@@ -4116,7 +4139,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MaxPrecacheShaderJobs = FPlatformMisc::NumberOfCores() - 1; // number of cores -1 is a good default allows the editor to still be responsive to other shader requests and allows cooker to take advantage of multiple processors while the editor is running
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxPrecacheShaderJobs"), MaxPrecacheShaderJobs, GEditorIni);
 
-	MaxConcurrentShaderJobs = FPlatformMisc::NumberOfCores() * 4; // number of cores -1 is a good default allows the editor to still be responsive to other shader requests and allows cooker to take advantage of multiple processors while the editor is running
+	MaxConcurrentShaderJobs = FPlatformMisc::NumberOfCores() * 4; // TODO: document why number of cores * 4 is a good default
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxConcurrentShaderJobs"), MaxConcurrentShaderJobs, GEditorIni);
 
 	PackagesPerGC = 500;
@@ -4150,7 +4173,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MinFreeMemoryInMB = FMath::Max(MinFreeMemoryInMB, 0);
 	MinFreeMemory = MinFreeMemoryInMB * 1024LL * 1024LL;
 
-	// check the amount of OS memory and use that number minus the reserved memory nubmer
+	// check the amount of OS memory and use that number minus the reserved memory number
 	int32 MinReservedMemoryInMB = 0;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinReservedMemory"), MinReservedMemoryInMB, GEditorIni);
 	MinReservedMemoryInMB = FMath::Max(MinReservedMemoryInMB, 0);
@@ -4207,7 +4230,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	{
 		PluginsToRemap = IPluginManager::Get().GetEnabledPlugins();
 		TArray<FString> AdditionalPluginDirs = Project->GetAdditionalPluginDirectories();
-		// Remove any plugin that is not in the additional directories since they are handled normally
+		// Remove any plugin that is in the additional directories since they are handled normally and don't need remapping
 		for (int32 Index = PluginsToRemap.Num() - 1; Index >= 0; Index--)
 		{
 			bool bRemove = true;
@@ -5072,6 +5095,9 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
 
+	// Convert to a standard filename as required by FPackageNameCache where this path is used.
+	FPaths::MakeStandardFilename(OutUncookedPath);
+
 	return FName(*OutUncookedPath);
 }
 
@@ -5102,6 +5128,56 @@ void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCo
 
 		UncookedPathToCookedPath.Add(UncookedFName, CookedFName);
 	}
+}
+
+void UCookOnTheFlyServer::DeleteSandboxDirectory(const FString& PlatformName)
+{
+	FString SandboxDirectory = GetSandboxDirectory(PlatformName);
+	FPaths::NormalizeDirectoryName(SandboxDirectory);
+	FString AsyncDeleteDirectory = GetAsyncDeleteDirectory(PlatformName, &SandboxDirectory);
+
+	FAsyncIODelete& LocalAsyncIODelete = GetAsyncIODelete(PlatformName, &AsyncDeleteDirectory);
+	LocalAsyncIODelete.DeleteDirectory(SandboxDirectory);
+
+	// Part of Deleting the sandbox includes deleting the old AsyncDelete directory for the sandbox, in case a previous cooker crashed before cleaning it up.
+	// The AsyncDelete directory is associated with a sandbox but is necessarily outside of it since it is used to delete the sandbox.
+	// Note that for the Platform we used to create the AsyncIODelete, this Delete will fail because AsyncIODelete refuses to delete its own temproot; this is okay because it will delete the temproot on exit.
+	LocalAsyncIODelete.DeleteDirectory(AsyncDeleteDirectory);
+}
+
+FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory)
+{
+	FAsyncIODelete* AsyncIODeletePtr = AsyncIODelete.Get();
+	if (!AsyncIODeletePtr)
+	{
+		FString Buffer;
+		if (!AsyncDeleteDirectory)
+		{
+			Buffer = GetAsyncDeleteDirectory(PlatformName);
+			AsyncDeleteDirectory = &Buffer;
+		}
+		AsyncIODelete = MakeUnique<FAsyncIODelete>(*AsyncDeleteDirectory);
+		AsyncIODeletePtr = AsyncIODelete.Get();
+	}
+	// If we have already created the AsyncIODelete, we ignore the input PlatformName and use the existing AsyncIODelete initialized from whatever platform we used before
+	// The PlatformName is used only to construct a directory that we can be sure no other process is using (because a sandbox can only be cooked by one process at a time)
+	return *AsyncIODeletePtr;
+}
+
+FString UCookOnTheFlyServer::GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory) const
+{
+	// The TempRoot we will delete into is a sibling of the the Platform-specific sandbox directory, with name [PlatformDir]AsyncDelete
+	// Note that two UnrealEd-Cmd processes cooking to the same sandbox at the same time will therefore cause an error since FAsyncIODelete doesn't handle multiple processes sharing TempRoots.
+	// That simultaneous-cook behavior is also not supported in other assumptions throughout the cooker.
+	FString Buffer;
+	if (!SandboxDirectory)
+	{
+		// Avoid recalculating SandboxDirectory if caller supplied it, but if they didn't, calculate it here
+		Buffer = GetSandboxDirectory(PlatformName);
+		FPaths::NormalizeDirectoryName(Buffer);
+		SandboxDirectory = &Buffer;
+	}
+	return (*SandboxDirectory) + TEXT("AsyncDelete");
 }
 
 void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPlatform*>& Platforms)
@@ -5156,15 +5232,14 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 			if ( (CurrentIterativeCookedBuild >= CurrentLocalCookedBuild) && 
 				(CurrentIterativeCookedBuild != FDateTime::MinValue()) )
 			{
-				// clean the sandbox 
-				ClearPlatformCookedData(FName(*Target->PlatformName()));
-				FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName());
-				IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
+				// clean the sandbox
+				const FString PlatformName = Target->PlatformName();
+				ClearPlatformCookedData(PlatformName);
 
 				// SaveCurrentIniSettings(Target); // use this if we don't care about ini safty.
 				// copy the ini settings from the shared cooked build. 
-				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *Target->PlatformName(), TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
-				const FString SandboxCookedIniFile = ConvertToFullSandboxPath(*(FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt")), true).Replace(TEXT("[Platform]"), *Target->PlatformName());
+				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *PlatformName, TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
+				const FString SandboxCookedIniFile = ConvertToFullSandboxPath(*(FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt")), true).Replace(TEXT("[Platform]"), *PlatformName);
 
 				IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
 
@@ -5385,41 +5460,25 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 		SCOPE_SECONDS_COUNTER(SandboxCleanTime);
 		SCOPE_TIMER(CleanSandboxTime);
 #endif
-		if (bIterative == false)
+
+		for (const ITargetPlatform* Target : Platforms)
 		{
-			// for now we are going to wipe the cooked directory
-			for (int32 Index = 0; Index < Platforms.Num(); Index++)
+			bool bShouldClearCookedContent = false;
+			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(Target); // needs to be executed for side effects even if non-iterative
+			if (!bIterative)
 			{
-				ITargetPlatform* Target = Platforms[Index];
-				UE_LOG(LogCook, Display, TEXT("Cooked content cleared for platform %s"), *Target->PlatformName());
-
-				FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName()); // GetOutputDirectory(Target->PlatformName());
-				IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
-
-				ClearPlatformCookedData(FName(*Target->PlatformName()));
-
-				IniSettingsOutOfDate(Target);
-				SaveCurrentIniSettings(Target);
+				// for now we always wipe the cooked directory on full cooks
+				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *Target->PlatformName());
+				bShouldClearCookedContent = true;
 			}
-
-		}
-		else
-		{
-			for (const ITargetPlatform* Target : Platforms)
+			else
 			{
-				bool bIniSettingsOutOfDate = IniSettingsOutOfDate(Target);
-				if (bIniSettingsOutOfDate)
+				if (bIsIniSettingsOutOfDate)
 				{
 					if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
 					{
 						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *Target->PlatformName());
-
-						ClearPlatformCookedData(FName(*Target->PlatformName()));
-
-						FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName());
-						IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
-
-						SaveCurrentIniSettings(Target);
+						bShouldClearCookedContent = true;
 					}
 					else
 					{
@@ -5428,6 +5487,15 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 				}
 			}
 
+			if (bShouldClearCookedContent)
+			{
+				ClearPlatformCookedData(Target->PlatformName());
+				SaveCurrentIniSettings(Target);
+			}
+		}
+
+		if (bIterative)
+		{
 			// This is fast in asset registry iterate, so just reconstruct
 			PackageTracker->CookedPackages.Empty();
 			PopulateCookedPackagesFromDisk(Platforms);
@@ -5451,6 +5519,24 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
 
+	// Mark package as dirty for the last ones saved
+	if(PackageNameCache != nullptr)
+	{
+		for (FName AssetFilename : ModifiedAssetFilenames)
+		{
+			const FString AssetPathOnDisk = AssetFilename.ToString();
+			if(FPaths::FileExists(AssetPathOnDisk))
+			{
+				const FString PackageName = FPackageName::FilenameToLongPackageName(AssetPathOnDisk);
+				FSoftObjectPath SoftPackage(PackageName);
+				if(UPackage* Package = Cast<UPackage>(SoftPackage.ResolveObject()))
+				{
+					MarkPackageDirtyForCooker( Package );
+				}
+			}
+		}
+	}
+
 	if (!!(CookFlags & ECookInitializationFlags::GeneratedAssetRegistry))
 	{
 		// Force a rescan of modified package files
@@ -5463,8 +5549,6 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 
 		AssetRegistry->ScanModifiedAssetFiles(ModifiedPackageFileList);
 
-		ModifiedAssetFilenames.Reset();
-
 		// This is cook in the editor on a second pass, so refresh the generators
 		for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
 		{
@@ -5473,6 +5557,8 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 		return;
 	}
 	CookFlags |= ECookInitializationFlags::GeneratedAssetRegistry;
+
+	ModifiedAssetFilenames.Reset();
 
 	double GenerateAssetRegistryTime = 0.0;
 	{
@@ -6631,16 +6717,19 @@ void UCookOnTheFlyServer::ClearAllCookedData()
 	PackageTracker->CookedPackages.Empty(); // set of files which have been cooked when needing to recook a file the entry will need to be removed from here
 }
 
-void UCookOnTheFlyServer::ClearPlatformCookedData(const FName& PlatformName)
+void UCookOnTheFlyServer::ClearPlatformCookedData(const FString& PlatformNameString)
 {
 	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
 	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
 	UPackage::WaitForAsyncFileWrites();
 
+	FName PlatformName(*PlatformNameString);
 	PackageTracker->CookedPackages.RemoveAllFilesForPlatform(PlatformName);
 
 	TArray<FName> PackageNames;
 	PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(PlatformName, PackageNames);
+
+	DeleteSandboxDirectory(PlatformNameString);
 }
 
 void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform( const FName& PlatformName )
@@ -6708,49 +6797,55 @@ void UCookOnTheFlyServer::InitializeSandbox()
 
 void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
 {
-	// TODO: should ideally support all cook modes
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
+	const FString RootPath = FPaths::RootDir();
+	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
-	const FString NameMapFilename = FPaths::RootDir() / TEXT("megafile.unamemap");
-	const FString NameMapSandboxFilename = ConvertToFullSandboxPath(*NameMapFilename, true);
+	const FString ProjectPath = FPaths::ProjectDir();
+	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
 
-	FString NameMapCookedSandboxFilename;
 	SavePackageContexts.Reserve(TargetPlatformNames.Num());
 
 	for (const FName PlatformName : TargetPlatformNames)
 	{
-		NameMapCookedSandboxFilename = NameMapSandboxFilename.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+		const FString PlatformString = PlatformName.ToString();
+
+		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		// just leak all memory for now
-		FPackageStoreNameMapSaver* NameMapSaver = new FPackageStoreNameMapSaver(*NameMapCookedSandboxFilename);
-		FPackageHeaderSaver* PackageHeaderSaver = new FPackageHeaderSaver(*NameMapSaver);
-		FLooseFileWriter* LooseFileWriter		= new FLooseFileWriter();
-		FSavePackageContext* SavePackageContext = new FSavePackageContext(*PackageHeaderSaver, *LooseFileWriter);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
+		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
 {
-	if (!IsUsingPackageStore())
-	{
-		return;
-	}
-
 	SCOPE_TIMER(FinalizePackageStore);
 
-	UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
-	const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
-	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
+	for (FSavePackageContext* PackageContext : SavePackageContexts)
 	{
-		INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
-		NameMapSaver.End();
+		if (PackageContext != nullptr && PackageContext->BulkDataManifest != nullptr)
+		{
+			PackageContext->BulkDataManifest->Save();
+		}
 	}
-	UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
+	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
+
+	ClearPackageStoreContexts();
+}
+
+void UCookOnTheFlyServer::ClearPackageStoreContexts()
+{
+	for (FSavePackageContext* Context : SavePackageContexts)
+	{
+		delete Context;
+	}
+
+	SavePackageContexts.Empty();
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()
@@ -6874,6 +6969,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+
 	// Find all the localized packages and map them back to their source package
 	{
 		UE_LOG(LogCook, Display, TEXT("Discovering localized assets"));
@@ -6916,9 +7013,29 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			TArray<FName>& LocalizedPackageNames = CookByTheBookOptions->SourceToLocalizedPackageVariants.FindOrAdd(SourcePackageName);
 			LocalizedPackageNames.AddUnique(LocalizedPackageName);
 		}
-	}
 
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+		// Get the list of localization targets to chunk, and remove any targets that we've been asked not to stage
+		TArray<FString> LocalizationTargetsToChunk = PackagingSettings->LocalizationTargetsToChunk;
+		{
+			TArray<FString> BlacklistLocalizationTargets;
+			GConfig->GetArray(TEXT("Staging"), TEXT("BlacklistLocalizationTargets"), BlacklistLocalizationTargets, GGameIni);
+			if (BlacklistLocalizationTargets.Num() > 0)
+			{
+				LocalizationTargetsToChunk.RemoveAll([&BlacklistLocalizationTargets](const FString& InLocalizationTarget)
+				{
+					return BlacklistLocalizationTargets.Contains(InLocalizationTarget);
+				});
+			}
+		}
+
+		if (LocalizationTargetsToChunk.Num() > 0 && AllCulturesToCook.Num() > 0)
+		{
+			for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
+			{
+				Pair.Value->RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(MoveTemp(LocalizationTargetsToChunk), MoveTemp(AllCulturesToCook)));
+			}
+		}
+	}
 
 	PackageTracker->NeverCookPackageList.Empty();
 	{
@@ -7046,7 +7163,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	
 	if ( IsCookingDLC() )
 	{
-		// if we are cooking dlc we must be based of a release version cook
+		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
 		for ( const FName& PlatformName : TargetPlatformNames )
@@ -7994,12 +8111,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						if (bSucceededSavePackage)
 						{
 							FAssetRegistryGenerator* Generator = RegistryGenerators.FindRef(FName(*Target->PlatformName()));
-							if (Generator)
-							{
-								FAssetPackageData* PackageData = Generator->GetAssetPackageData(Package->GetFName());
-								PackageData->DiskSize = SaveResult.TotalFileSize;
-								PackageData->CookedHash = SaveResult.CookedHash;
-							}
+							UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SaveResult);
 
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);
 						}

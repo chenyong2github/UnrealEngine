@@ -168,7 +168,7 @@ void APhononProbeVolume::UpdateProbeData(IPLhandle ProbeBox)
 // UI editability rules
 //==================================================================================================================================================
 
-bool APhononProbeVolume::CanEditChange(const UProperty* InProperty) const
+bool APhononProbeVolume::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

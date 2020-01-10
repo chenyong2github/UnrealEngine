@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithSceneGraphBuilder.h"
 
 #ifdef CAD_INTERFACE
@@ -51,6 +51,28 @@ namespace
 		Actor->SetRotation(LocalUETransform.GetRotation());
 	}
 
+	// Method to reduce the size of huge label. The length of the package path, based on label, cannot be bigger than ~256
+	void CleanName(FString& Label)
+	{
+		const int32 MaxLabelSize = 50; // If the label is smaller than this value, the label is not modified. This size of package name is "acceptable"
+		const int32 ReasonableLabelSize = 20; // If the label has to be cut, a label that is not too long is preferred. 
+		const int32 MinLabelSize = 5; // If the label is smaller than this value, the label is too much reduce. Therefore a ReasonableLabelSize is preferred 
+
+		if (Label.Len() < MaxLabelSize)
+		{
+			return;
+		}
+
+		FString NewLabel;
+		NewLabel = FPaths::GetCleanFilename(Label);
+		if ((NewLabel.Len() < MaxLabelSize) && (NewLabel.Len() > MinLabelSize))
+		{
+			Label = NewLabel;
+			return;
+		}
+
+		Label = Label.Right(ReasonableLabelSize);
+	}
 }
 
 FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(TMap<FString, FString>& InCADFileToUE4FileMap, const FString& InCachePath, TSharedRef<IDatasmithScene> InScene, const FDatasmithSceneSource& InSource, const CADLibrary::FImportParameters& InImportParameters)
@@ -231,6 +253,7 @@ void FDatasmithSceneGraphBuilder::GetNodeUUIDAndName(
 
 	//ReferenceInstanceName = ReferenceName + TEXT("(") + (IOriginalName ? *IOriginalName : ReferenceName) + TEXT(")");
 	OutName = IOriginalName ? *IOriginalName : IName ? *IName : ReferenceName;
+	CleanName(OutName);
 
 	uint32 UEUUID = 0;
 	UEUUID = GetTypeHash(InParentUEUUID);
@@ -565,7 +588,7 @@ void FDatasmithSceneGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement
 	{
 		if (int32* ChildNodeIndex = CurrentMockUp->CADIdToInstanceIndex.Find(ChildId))
 		{
-			TSharedPtr< IDatasmithActorElement > ChildActor = BuildInstance(CurrentMockUp->InstanceSet[*ChildNodeIndex], ParentData);
+			TSharedPtr< IDatasmithActorElement > ChildActor = BuildInstance(CurrentMockUp->Instances[*ChildNodeIndex], ParentData);
 			if (ChildActor.IsValid() && DoesActorHaveChildrenOrIsAStaticMesh(ChildActor))
 			{
 				Actor->AddChild(ChildActor);

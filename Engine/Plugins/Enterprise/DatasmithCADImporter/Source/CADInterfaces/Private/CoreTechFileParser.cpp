@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTechFileParser.h"
 
@@ -410,10 +410,10 @@ void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMateri
 		FaceTessellations.ColorName = Color.UEMaterialName;
 		BodyMesh.ColorSet.Add(Color.UEMaterialName);
 	}
-	else if(InFaceMaterial.DefaultMaterialName)
+	else if(InBodyMaterial.DefaultMaterialName)
 	{
-		FaceTessellations.ColorName = InFaceMaterial.DefaultMaterialName;
-		BodyMesh.ColorSet.Add(InFaceMaterial.DefaultMaterialName);
+		FaceTessellations.ColorName = InBodyMaterial.DefaultMaterialName;
+		BodyMesh.ColorSet.Add(InBodyMaterial.DefaultMaterialName);
 	}
 }
 
@@ -490,13 +490,13 @@ void FCoreTechFileParser::ReadMaterials()
 	}
 }
 
-FCoreTechFileParser::FCoreTechFileParser(const FString& InCADFullPath, const FString& InCachePath, const FImportParameters& ImportParams)
+FCoreTechFileParser::FCoreTechFileParser(const FString& InCADFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath)
 	: CachePath(InCachePath)
 	, FullPath(InCADFullPath)
 	, bNeedSaveCTFile(false)
 	, ImportParameters(ImportParams)
 {
-	CTKIO_InitializeKernel(ImportParameters.MetricUnit);
+	CTKIO_InitializeKernel(ImportParameters.MetricUnit, KernelIOPath);
 }
 
 FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
@@ -531,6 +531,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 	MeshArchiveFilePath = FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
 
 	bool bNeedToProceed = true;
+#ifndef IGNORE_CACHE
 	if (IFileManager::Get().FileExists(*SceneGraphArchiveFilePath))
 	{
 		if (!IFileManager::Get().FileExists(*CTFilePath)) // the file is scene graph only because no CT file
@@ -553,7 +554,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 		LoadSceneGraphArchive(SceneGraphArchiveFilePath);
 		return EProcessResult::ProcessOk;
 	}
-
+#endif
 	// Process the file
 	return ReadFileWithKernelIO();
 }
@@ -606,7 +607,6 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		return EProcessResult::ProcessFailed;
 	}
 
-	Repair(MainId, ImportParameters.StitchingTechnique);
 	SetCoreTechTessellationState(ImportParameters);
 
 	MockUpDescription.FullPath = FullPath;
@@ -627,7 +627,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	MockUpDescription.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
 	MockUpDescription.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
 	MockUpDescription.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-	MockUpDescription.InstanceSet.Reserve(NbElements[CT_INSTANCE_INDEX]);
+	MockUpDescription.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
 	MockUpDescription.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
 	MockUpDescription.CADIdToComponentIndex.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
@@ -775,6 +775,44 @@ bool FCoreTechFileParser::ReadUnloadedComponent(CT_OBJECT_ID ComponentId)
 	return true;
 }
 
+
+void GetInstancesAndBodies(CT_OBJECT_ID InComponentId, TArray<CT_OBJECT_ID>& OutInstances, TArray<CT_OBJECT_ID>& OutBodies)
+{
+	CT_LIST_IO Children;
+	CT_COMPONENT_IO::AskChildren(InComponentId, Children);
+
+	int32 NbChildren = Children.Count();
+	OutInstances.Empty(NbChildren);
+	OutBodies.Empty(NbChildren);
+
+	Children.IteratorInitialize();
+	CT_OBJECT_ID ChildId;
+	while ((ChildId = Children.IteratorIter()) != 0)
+	{
+		CT_OBJECT_TYPE Type;
+		CT_OBJECT_IO::AskType(ChildId, Type);
+
+		switch (Type)
+		{
+		case CT_INSTANCE_TYPE:
+		{
+			OutInstances.Add(ChildId);
+			break;
+		}
+
+		case CT_BODY_TYPE:
+		{
+			OutBodies.Add(ChildId);
+			break;
+		}
+
+		// we don't manage CURVE, POINT, and COORDSYSTEM (the other kind of child of the component).
+		default:
+			break;
+		}
+	}
+}
+
 bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 DefaultMaterialHash)
 {
 	int32 Index = MockUpDescription.ComponentSet.Emplace(ComponentId);
@@ -786,16 +824,30 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 		DefaultMaterialHash = MaterialHash;
 	}
 
-	CT_LIST_IO Children;
-	CT_COMPONENT_IO::AskChildren(ComponentId, Children);
 
-	// Parse children
-	Children.IteratorInitialize();
-	CT_OBJECT_ID ChildId;
-	while ((ChildId = Children.IteratorIter()) != 0)
+	TArray<CT_OBJECT_ID> Instances, Bodies;
+	GetInstancesAndBodies(ComponentId, Instances, Bodies);
+
+	if (!Instances.Num() && (Bodies.Num() > 1) && ImportParameters.StitchingTechnique == StitchingSew)
 	{
-		MockUpDescription.ComponentSet[Index].Children.Add(ChildId);
-		ReadNode(ChildId, DefaultMaterialHash);
+		Repair(ComponentId, StitchingSew);
+		GetInstancesAndBodies(ComponentId, Instances, Bodies);
+	}
+
+	for (CT_OBJECT_ID InstanceId : Instances)
+	{
+		if (ReadInstance(InstanceId, DefaultMaterialHash))
+		{
+			MockUpDescription.ComponentSet[Index].Children.Add(InstanceId);
+		}
+	}
+
+	for (CT_OBJECT_ID BodyId : Bodies)
+	{
+		if (ReadBody(BodyId, DefaultMaterialHash))
+		{
+			MockUpDescription.ComponentSet[Index].Children.Add(BodyId);
+		}
 	}
 
 	return true;
@@ -805,11 +857,11 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 {
 	NodeConfiguration.Empty();
 
-	int32 Index = MockUpDescription.InstanceSet.Emplace(InstanceNodeId);
+	int32 Index = MockUpDescription.Instances.Emplace(InstanceNodeId);
 	MockUpDescription.CADIdToInstanceIndex.Add(InstanceNodeId, Index);
-	ReadNodeMetaData(InstanceNodeId, MockUpDescription.InstanceSet[Index].MetaData);
+	ReadNodeMetaData(InstanceNodeId, MockUpDescription.Instances[Index].MetaData);
 
-	if (uint32 MaterialHash = GetObjectMaterial(MockUpDescription.InstanceSet[Index]))
+	if (uint32 MaterialHash = GetObjectMaterial(MockUpDescription.Instances[Index]))
 	{
 		DefaultMaterialHash = MaterialHash;
 	}
@@ -818,7 +870,7 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 	double Matrix[16];
 	if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, Matrix) == IO_OK)
 	{
-		float* MatrixFloats = (float*)MockUpDescription.InstanceSet[Index].TransformMatrix.M;
+		float* MatrixFloats = (float*)MockUpDescription.Instances[Index].TransformMatrix.M;
 		for (int32 index = 0; index < 16; index++)
 		{
 			MatrixFloats[index] = (float) Matrix[index];
@@ -830,27 +882,29 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 	CT_IO_ERROR CTReturn = CT_INSTANCE_IO::AskChild(InstanceNodeId, ReferenceNodeId);
 	if (CTReturn != CT_IO_ERROR::IO_OK)
 		return false;
-	MockUpDescription.InstanceSet[Index].ReferenceNodeId = ReferenceNodeId;
+	MockUpDescription.Instances[Index].ReferenceNodeId = ReferenceNodeId;
 
 	CT_OBJECT_TYPE type;
 	CT_OBJECT_IO::AskType(ReferenceNodeId, type);
 	if (type == CT_UNLOADED_PART_TYPE || type == CT_UNLOADED_COMPONENT_TYPE || type == CT_UNLOADED_ASSEMBLY_TYPE)
 	{
-		MockUpDescription.InstanceSet[Index].bIsExternalRef = true;
+		MockUpDescription.Instances[Index].bIsExternalRef = true;
 
 		CT_STR ComponentFile, FileType;
 		CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType);
-		MockUpDescription.InstanceSet[Index].ExternalRef = FPaths::GetCleanFilename(ComponentFile.toUnicode());
+		FString ExternalRefFullPath = ComponentFile.toUnicode();
+
 		if(!NodeConfiguration.IsEmpty())
 		{
-			MockUpDescription.InstanceSet[Index].ExternalRef += TEXT("|") + NodeConfiguration;
+			ExternalRefFullPath += TEXT("|") + NodeConfiguration;
 		}
 
-		MockUpDescription.ExternalRefSet.Add(MockUpDescription.InstanceSet[Index].ExternalRef);
+		MockUpDescription.Instances[Index].ExternalRef = FPaths::GetCleanFilename(ExternalRefFullPath);
+		MockUpDescription.ExternalRefSet.Add(ExternalRefFullPath);
 	}
 	else
 	{
-		MockUpDescription.InstanceSet[Index].bIsExternalRef = false;
+		MockUpDescription.Instances[Index].bIsExternalRef = false;
 	}
 
 	return ReadNode(ReferenceNodeId, DefaultMaterialHash);
@@ -914,6 +968,19 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& Ou
 
 bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, uint32 DefaultMaterialHash)
 {
+	// Is this body a constructive geometry ?
+	CT_LIST_IO FaceList;
+	CT_BODY_IO::AskFaces(BodyId, FaceList);
+	if (1 == FaceList.Count())
+	{
+		FaceList.IteratorInitialize();
+		FString Value;
+		GetStringMetaDataValue(FaceList.IteratorIter(), TEXT("Constructive Plane"), Value);
+		if (Value == TEXT("true"))
+		{
+			return false;
+		}
+	}
 
 	int32 Index = MockUpDescription.BodySet.Emplace(BodyId);
 	MockUpDescription.CADIdToBodyIndex.Add(BodyId, Index);
@@ -987,6 +1054,27 @@ void FCoreTechFileParser::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int Ith
 	}
 }
 
+void FCoreTechFileParser::GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue)
+{
+	CT_STR FieldName;
+	CT_UINT32 IthAttrib = 0;
+	while (CT_OBJECT_IO::SearchAttribute(NodeId, CT_ATTRIB_STRING_METADATA, IthAttrib++) == IO_OK)
+	{
+		if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK) break;
+		if (!FCString::Strcmp(InMetaDataName, FieldName.toUnicode()))
+		{
+			CT_STR FieldStrValue;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK) break;
+			if (FieldStrValue.IsEmpty())
+			{
+				return;
+			}
+			OutMetaDataValue = FieldStrValue.toUnicode();
+			return;
+		}
+	}
+}
+
 void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData)
 {
 	const FString ConfigName = TEXT("Configuration Name");
@@ -1000,10 +1088,6 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			OutMetaData.Add(TEXT("ExternalDefinition"), FileName.toUnicode());
 		}
 	}
-
-	CT_UINT32 NbAttributes;
-	CT_OBJECT_IO::AskNbAttributes(NodeId, CT_ATTRIB_ALL, NbAttributes);
-	CT_UINT32 ith_attrib = 0;
 
 	CT_SHOW_ATTRIBUTE IsShow = CT_UNKNOWN;
 	if (CT_OBJECT_IO::AskShowAttribute(NodeId, IsShow) == IO_OK)
@@ -1022,7 +1106,8 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 		}
 	}
 
-	while (CT_OBJECT_IO::SearchAttribute(NodeId, CT_ATTRIB_ALL, ith_attrib++) == IO_OK)
+	CT_UINT32 IthAttrib = 0;
+	while (CT_OBJECT_IO::SearchAttribute(NodeId, CT_ATTRIB_ALL, IthAttrib++) == IO_OK)
 	{
 		// Get the current attribute type
 		CT_ATTRIB_TYPE       AttributeType;

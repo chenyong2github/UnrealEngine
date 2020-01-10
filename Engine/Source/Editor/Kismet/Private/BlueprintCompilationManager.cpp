@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintCompilationManager.h"
 
@@ -124,7 +124,7 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 	void FlushReinstancingQueueImpl();
 	bool HasBlueprintsToCompile() const;
 	bool IsGeneratedClassLayoutReady() const;
-	void GetDefaultValue(const UClass* ForClass, const UProperty* Property, FString& OutDefaultValueAsString) const;
+	void GetDefaultValue(const UClass* ForClass, const FProperty* Property, FString& OutDefaultValueAsString) const;
 
 	static void ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass);
 	static void BuildDSOMap(UObject* OldObject, UObject* NewObject, TMap<UObject*, UObject*>& OutOldToNewDSO);
@@ -141,7 +141,8 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 		FFixupBytecodeReferences(UObject* InObject);
 
 	private:
-		virtual FArchive& operator<<( UObject*& Obj ) override;
+		virtual FArchive& operator<<(UObject*& Obj) override;
+		virtual FArchive& operator<<(FField*& Field) override;
 	};
 
 	// Extension data, could be organized in many ways, but this provides an easy way
@@ -371,7 +372,7 @@ enum class ECompilationManagerJobType
 struct FSkeletonFixupData
 {
 	FSimpleMemberReference MemberReference;
-	UProperty* DelegateProperty;
+	FProperty* DelegateProperty;
 };
 
 struct FCompilerData
@@ -914,11 +915,11 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				TArray< FSkeletonFixupData >& ParamsToFix = CompilerData.SkeletonFixupData;
 				for( const FSkeletonFixupData& FixupData : ParamsToFix )
 				{
-					if(UDelegateProperty* DelegateProperty = Cast<UDelegateProperty>(FixupData.DelegateProperty))
+					if(FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(FixupData.DelegateProperty))
 					{
 						DelegateProperty->SignatureFunction = FMemberReference::ResolveSimpleMemberReference<UFunction>(FixupData.MemberReference, BP->SkeletonGeneratedClass);
 					}
-					else if(UMulticastDelegateProperty* MCDelegateProperty = Cast<UMulticastDelegateProperty>(FixupData.DelegateProperty))
+					else if(FMulticastDelegateProperty* MCDelegateProperty = CastField<FMulticastDelegateProperty>(FixupData.DelegateProperty))
 					{
 						MCDelegateProperty->SignatureFunction = FMemberReference::ResolveSimpleMemberReference<UFunction>(FixupData.MemberReference, BP->SkeletonGeneratedClass);
 					}
@@ -1557,12 +1558,21 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl()
 			{
 				if (!ClassHasInstancesAsyncLoading(It->Key))
 				{
+					// Make sure to cleanup all properties that couldn't be destroyed in PurgeClass
+					It->Key->DestroyPropertiesPendingDestruction();
+					It->Value->DestroyPropertiesPendingDestruction();
 					It.RemoveCurrent();
 				}
 			}
 		}
 		else
 		{
+			// Make sure to cleanup all properties that couldn't be destroyed in PurgeClass
+			for (TMap<UClass*, UClass*>::TIterator It(ClassesToReinstance); It; ++It)
+			{
+				It->Key->DestroyPropertiesPendingDestruction();
+				It->Value->DestroyPropertiesPendingDestruction();
+			}
 			ClassesToReinstance.Empty();
 		}
 	}
@@ -1588,7 +1598,7 @@ bool FBlueprintCompilationManagerImpl::IsGeneratedClassLayoutReady() const
 	return bGeneratedClassLayoutReady;
 }
 
-void FBlueprintCompilationManagerImpl::GetDefaultValue(const UClass* ForClass, const UProperty* Property, FString& OutDefaultValueAsString) const
+void FBlueprintCompilationManagerImpl::GetDefaultValue(const UClass* ForClass, const FProperty* Property, FString& OutDefaultValueAsString) const
 {
 	if(!ForClass || !Property)
 	{
@@ -1608,7 +1618,7 @@ void FBlueprintCompilationManagerImpl::GetDefaultValue(const UClass* ForClass, c
 			if(OldCDO && *OldCDO)
 			{
 				const UClass* OldClass = (*OldCDO)->GetClass();
-				const UProperty* OldProperty = OldClass->FindPropertyByName(Property->GetFName());
+				const FProperty* OldProperty = OldClass->FindPropertyByName(Property->GetFName());
 				if(OldProperty)
 				{
 					FBlueprintEditorUtils::PropertyValueToString(OldProperty, (uint8*)*OldCDO, OutDefaultValueAsString);
@@ -1853,6 +1863,9 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 		Class->SetSuperStruct(*NewParent);
 		Class->Bind();
 		Class->StaticLink(true);
+
+		Class->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
+		Class->SetUpRuntimeReplicationData();
 	}
 
 	// make new hierarchy
@@ -1887,6 +1900,9 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 		// relink the new class:
 		NewestReinstancer->ClassToReinstance->Bind();
 		NewestReinstancer->ClassToReinstance->StaticLink(true);
+
+		NewestReinstancer->ClassToReinstance->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
+		NewestReinstancer->ClassToReinstance->SetUpRuntimeReplicationData();
 	}
 
 	// run UpdateBytecodeReferences:
@@ -2236,7 +2252,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	const auto MakeFunction = [Ret, ParentClass, Schema, BP, &MessageLog, &OutSkeletonFixupData]
 		(	FName FunctionNameFName, 
 			UField**& InCurrentFieldStorageLocation, 
-			UField**& InCurrentParamStorageLocation, 
+			FField**& InCurrentParamStorageLocation, 
 			EFunctionFlags InFunctionFlags, 
 			const TArray<UK2Node_FunctionResult*>& ReturnNodes, 
 			const TArray<UEdGraphPin*>& InputPins,
@@ -2292,16 +2308,17 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		}
 		NewFunction->SetSuperStruct( ParentFn );
 		
-		InCurrentParamStorageLocation = &NewFunction->Children;
+		InCurrentParamStorageLocation = &NewFunction->ChildProperties;
 
 		// params:
 		if(ParentFn || SignatureOverride)
 		{
 			UFunction* SignatureFn = ParentFn ? ParentFn : SignatureOverride;
 			NewFunction->FunctionFlags |= (SignatureFn->FunctionFlags & (FUNC_FuncInherit | FUNC_Public | FUNC_Protected | FUNC_Private | FUNC_BlueprintPure));
-			for (TFieldIterator<UProperty> PropIt(SignatureFn); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(SignatureFn); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 			{
-				UProperty* ClonedParam = CastChecked<UProperty>(StaticDuplicateObject(*PropIt, NewFunction, PropIt->GetFName(), RF_AllFlags, nullptr, EDuplicateMode::Normal, EInternalObjectFlags::AllFlags & ~(EInternalObjectFlags::Native) ));
+				FProperty* ClonedParam = CastField<FProperty>(FField::Duplicate(*PropIt, NewFunction, PropIt->GetFName(), RF_AllFlags, EInternalObjectFlags::AllFlags & ~(EInternalObjectFlags::Native)));
+				check(ClonedParam);
 				ClonedParam->PropertyFlags |= CPF_BlueprintVisible|CPF_BlueprintReadOnly;
 				ClonedParam->Next = nullptr;
 				*InCurrentParamStorageLocation = ClonedParam;
@@ -2317,7 +2334,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				if(Pin->Direction == EEdGraphPinDirection::EGPD_Output && !Schema->IsExecPin(*Pin) && Pin->ParentPin == nullptr && Pin->GetFName() != UK2Node_Event::DelegateOutputName)
 				{
 					// Reimplementation of FKismetCompilerContext::CreatePropertiesFromList without dependence on 'terms'
-					UProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, Pin->PinName, Pin->PinType, Ret, CPF_BlueprintVisible|CPF_BlueprintReadOnly, Schema, MessageLog);
+					FProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, Pin->PinName, Pin->PinType, Ret, CPF_BlueprintVisible|CPF_BlueprintReadOnly, Schema, MessageLog);
 					if(Param)
 					{
 						Param->SetFlags(RF_Transient);
@@ -2332,14 +2349,14 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 							Param->PropertyFlags |= CPF_ConstParm;
 						}
 
-						if (UObjectProperty* ObjProp = Cast<UObjectProperty>(Param))
+						if (FObjectProperty* ObjProp = CastField<FObjectProperty>(Param))
 						{
 							UClass* EffectiveClass = nullptr;
 							if (ObjProp->PropertyClass != nullptr)
 							{
 								EffectiveClass = ObjProp->PropertyClass;
 							}
-							else if (UClassProperty* ClassProp = Cast<UClassProperty>(ObjProp))
+							else if (FClassProperty* ClassProp = CastField<FClassProperty>(ObjProp))
 							{
 								EffectiveClass = ClassProp->MetaClass;
 							}
@@ -2349,7 +2366,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 								Param->PropertyFlags |= CPF_ConstParm;
 							}
 						}
-						else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Param))
+						else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Param))
 						{
 							Param->PropertyFlags |= CPF_ReferenceParm;
 
@@ -2359,14 +2376,14 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 						// Delegate properties have a direct reference to a UFunction that we may currently be generating, so we're going
 						// to track them and fix them after all UFunctions have been generated. As you can tell we're tightly coupled
 						// to the implementation of CreatePropertyOnScope
-						else if( UDelegateProperty* DelegateProp = Cast<UDelegateProperty>(Param))
+						else if( FDelegateProperty* DelegateProp = CastField<FDelegateProperty>(Param))
 						{
 							OutSkeletonFixupData.Add( {
 								Pin->PinType.PinSubCategoryMemberReference,
 								DelegateProp
 							} );
 						}
-						else if( UMulticastDelegateProperty* MCDelegateProp = Cast<UMulticastDelegateProperty>(Param))
+						else if( FMulticastDelegateProperty* MCDelegateProp = CastField<FMulticastDelegateProperty>(Param))
 						{
 							OutSkeletonFixupData.Add( {
 								Pin->PinType.PinSubCategoryMemberReference,
@@ -2396,7 +2413,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 							{
 								UsedPinNames.Add(Pin->PinName);
 							
-								UProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, Pin->PinName, Pin->PinType, Ret, CPF_None, Schema, MessageLog);
+								FProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, Pin->PinName, Pin->PinType, Ret, CPF_None, Schema, MessageLog);
 								if(Param)
 								{
 									Param->SetFlags(RF_Transient);
@@ -2439,7 +2456,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				UK2Node_FunctionEntry* EntryNode = EntryNodes[0];
 				FName NewFunctionName = (EntryNode->CustomGeneratedFunctionName != NAME_None) ? EntryNode->CustomGeneratedFunctionName : Graph->GetFName();
 
-				UField** CurrentParamStorageLocation = nullptr;
+				FField** CurrentParamStorageLocation = nullptr;
 				UFunction* NewFunction = MakeFunction(
 					FName(*(NewFunctionName.ToString() + FunctionNamePostfix)), 
 					InCurrentFieldStorageLocation, 
@@ -2462,7 +2479,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 					// locals:
 					for( const FBPVariableDescription& BPVD : EntryNode->LocalVariables )
 					{
-						if(UProperty* LocalVariable = FKismetCompilerContext::CreateUserDefinedLocalVariableForFunction(BPVD, NewFunction, Ret, CurrentParamStorageLocation, Schema, MessageLog) )
+						if(FProperty* LocalVariable = FKismetCompilerContext::CreateUserDefinedLocalVariableForFunction(BPVD, NewFunction, Ret, CurrentParamStorageLocation, Schema, MessageLog) )
 						{
 							LocalVariable->SetFlags(RF_Transient);
 						}
@@ -2471,10 +2488,10 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 					// __WorldContext:
 					if(bIsStaticFunction)
 					{
-						if( FindField<UObjectProperty>(NewFunction, TEXT("__WorldContext")) == nullptr )
+						if( FindField<FObjectProperty>(NewFunction, TEXT("__WorldContext")) == nullptr )
 						{
 							FEdGraphPinType WorldContextPinType(UEdGraphSchema_K2::PC_Object, NAME_None, UObject::StaticClass(), EPinContainerType::None, false, FEdGraphTerminalType());
-							UProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, TEXT("__WorldContext"), WorldContextPinType, Ret, CPF_None, Schema, MessageLog);
+							FProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, TEXT("__WorldContext"), WorldContextPinType, Ret, CPF_None, Schema, MessageLog);
 							if(Param)
 							{
 								Param->SetFlags(RF_Transient);
@@ -2499,7 +2516,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	// Helper function for making UFunctions generated for 'event' nodes, e.g. custom event and timelines
 	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor, bool bIsDeprecated, const FString& DeprecationMessage, FKismetUserDeclaredFunctionMetadata* UserDefinedMetaData = nullptr)
 	{
-		UField** CurrentParamStorageLocation = nullptr;
+		FField** CurrentParamStorageLocation = nullptr;
 
 		UFunction* NewFunction = MakeFunction(
 			InName, 
@@ -2657,7 +2674,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 			{
 				UFunction* Fn = *FunctionIt;
 			
-				UField** CurrentParamStorageLocation = nullptr;
+				FField** CurrentParamStorageLocation = nullptr;
 
 				// Note that MakeFunction will early out if the function was created above:
 				MakeFunction(
@@ -2681,7 +2698,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		//UBER GRAPH PERSISTENT FRAME
 		FEdGraphPinType Type(TEXT("struct"), NAME_None, FPointerToUberGraphFrame::StaticStruct(), EPinContainerType::None, false, FEdGraphTerminalType());
 		CompilerContext.NewClass = Ret;
-		UProperty* Property = CompilerContext.CreateVariable(UBlueprintGeneratedClass::GetUberGraphFrameName(), Type);
+		FProperty* Property = CompilerContext.CreateVariable(UBlueprintGeneratedClass::GetUberGraphFrameName(), Type);
 		CompilerContext.NewClass = OriginalNewClass;
 		Property->SetPropertyFlags(CPF_DuplicateTransient | CPF_Transient);
 	}
@@ -2755,11 +2772,11 @@ FBlueprintCompilationManagerImpl::FFixupBytecodeReferences::FFixupBytecodeRefere
 			: Archive(InArchive)
 		{
 		}
-		virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty) override
+		virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
 		{
 			Archive << Object;
 		}
-		virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override
+		virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
 		{
 			for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 			{
@@ -2837,6 +2854,41 @@ FArchive& FBlueprintCompilationManagerImpl::FFixupBytecodeReferences::operator<<
 					{
 						Obj = Match;
 					}
+				}
+			}
+		}
+	}
+	return *this;
+}
+
+FArchive& FBlueprintCompilationManagerImpl::FFixupBytecodeReferences::operator<<(FField*& Field)
+{
+	if (Field != nullptr)
+	{
+		UClass* OwningClass = Field->GetOwnerClass();
+		if (OwningClass)
+		{
+			UClass* NewClass = OwningClass->GetAuthoritativeClass();
+			ensure(NewClass);
+			if (NewClass && NewClass != OwningClass)
+			{
+				// drill into new class finding equivalent object:
+				TArray<FFieldVariant> OwnerChain;
+				for (FFieldVariant Iter = Field; Iter.IsValid() && Iter.Get<UObject>(); Iter = Iter.GetOwnerVariant())
+				{
+					OwnerChain.Add(Iter);
+				}
+				FString MatchPath = NewClass->GetPathName();
+				for (int32 ChainIndex = OwnerChain.Num() - 1; ChainIndex >= 0; --ChainIndex)
+				{
+					MatchPath += SUBOBJECT_DELIMITER_CHAR;
+					MatchPath += OwnerChain[ChainIndex].GetName();
+				}
+				TFieldPath<FField> Match;
+				Match.Generate(*MatchPath);
+				if (Match.Get())
+				{
+					Field = Match.Get();
 				}
 			}
 		}
@@ -2982,7 +3034,7 @@ bool FBlueprintCompilationManager::IsGeneratedClassLayoutReady()
 	return BPCMImpl->IsGeneratedClassLayoutReady();
 }
 
-bool FBlueprintCompilationManager::GetDefaultValue(const UClass* ForClass, const UProperty* Property, FString& OutDefaultValueAsString)
+bool FBlueprintCompilationManager::GetDefaultValue(const UClass* ForClass, const FProperty* Property, FString& OutDefaultValueAsString)
 {
 	if(!BPCMImpl)
 	{

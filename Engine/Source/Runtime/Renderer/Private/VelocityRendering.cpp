@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VelocityRendering.h"
 #include "SceneUtils.h"
@@ -443,7 +443,14 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 			RenderVelocitiesInner(RHICmdList, VelocityRT, VelocityPass);
 			RHICmdList.EndRenderPass();
 		}
-
+		if(VelocityPass != EVelocityPass::Opaque)
+		{
+			FTexture2DRHIRef DepthTexture = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthTexture();
+			if(DepthTexture)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DepthTexture);
+			}
+		}
 		RHICmdList.CopyToResolveTarget(VelocityRT->GetRenderTargetItem().TargetableTexture, VelocityRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 

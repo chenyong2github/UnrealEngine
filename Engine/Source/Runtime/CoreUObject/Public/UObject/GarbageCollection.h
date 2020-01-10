@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	GarbageCollection.h: Unreal realtime garbage collection helpers
@@ -10,6 +10,7 @@
 #include "Stats/Stats.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/ArchiveUObject.h"
+#include "HAL/ThreadSafeBool.h"
 
 /** Context sensitive keep flags for garbage collection */
 #define GARBAGE_COLLECTION_KEEPFLAGS	(GIsEditor ? RF_Standalone : RF_NoFlags)
@@ -39,6 +40,7 @@ enum EGCReferenceType
 {
 	GCRT_None			= 0,
 	GCRT_Object,
+	GCRT_Class,
 	GCRT_PersistentObject,
 	GCRT_ArrayObject,
 	GCRT_ArrayStruct,
@@ -47,8 +49,12 @@ enum EGCReferenceType
 	GCRT_AddReferencedObjects,
 	GCRT_AddTMapReferencedObjects,
 	GCRT_AddTSetReferencedObjects,
+	GCRT_AddFieldPathReferencedObject,
+	GCRT_ArrayAddFieldPathReferencedObject,
 	GCRT_EndOfPointer,
 	GCRT_EndOfStream,
+	GCRT_NoopPersistentObject,
+	GCRT_NoopClass,
 };
 
 /** 
@@ -68,7 +74,7 @@ struct FGCReferenceInfo
 	,	Offset( InOffset )	
 	{
 		check( InType != GCRT_None );
-		check( (InOffset & ~0xFFFFF) == 0 );
+		check( (InOffset & ~0x7FFFF) == 0 );
 	}
 	/**
 	 * Constructor
@@ -97,9 +103,9 @@ struct FGCReferenceInfo
 			/** Return depth, e.g. 1 for last entry in an array, 2 for last entry in an array of structs of arrays, ... */
 			uint32 ReturnCount	: 8;
 			/** Type of reference */
-			uint32 Type			: 4;
+			uint32 Type			: 5;
 			/** Offset into struct/ object */
-			uint32 Offset		: 20;
+			uint32 Offset		: 19;
 		};
 		/** uint32 value of reference info, used for easy conversion to/ from uint32 for token array */
 		uint32 Value;
@@ -163,54 +169,6 @@ struct FTokenInfo
 	FName Name;
 };
 
-/**
- * Stores info about GC token stream debug map.
- */
-class FGCDebugReferenceTokenMap
-{
-public:
-	/**
-	 * Maps token.
-	 *
-	 * @param DebugName Field name.
-	 * @param Offset Field offset.
-	 * @param TokenIndex Token index.
-	 */
-	void MapToken(const FName& DebugName, int32 Offset, int32 TokenIndex);
-
-	/**
-	 * Prepends this token map with its super class token map.
-	 *
-	 * @param SuperClass Super class to obtain its token map.
-	 */
-	void PrependWithSuperClass(const UClass& SuperClass);
-
-	/**
-	 * Returns pointer to token info object at given index.
-	 *
-	 * @param TokenIndex Index of the token.
-	 *
-	 * @returns FTokenInfo object.
-	 */
-	const FTokenInfo& GetTokenInfo(int32 TokenIndex) const;
-
-	/**
-	 * Empties the map.
-	 */
-	void Empty()
-	{
-		TokenMap.Empty();
-	}
-
-	FORCEINLINE int32 GetTokenMapSize() const
-	{
-		return TokenMap.Num();
-	}
-
-private:
-	/* Token map. */
-	TArray<FTokenInfo> TokenMap;
-};
 #endif // ENABLE_GC_OBJECT_CHECKS
 
 /**
@@ -233,12 +191,18 @@ struct FGCReferenceTokenStream
 	void Shrink()
 	{
 		Tokens.Shrink();
+#if ENABLE_GC_OBJECT_CHECKS
+		TokenDebugInfo.Shrink();
+#endif // ENABLE_GC_OBJECT_CHECKS
 	}
 
 	/** Empties the token stream entirely */
 	void Empty()
 	{
 		Tokens.Empty();
+#if ENABLE_GC_OBJECT_CHECKS
+		TokenDebugInfo.Empty();
+#endif // ENABLE_GC_OBJECT_CHECKS
 	}
 
 	/**
@@ -273,7 +237,7 @@ struct FGCReferenceTokenStream
 	 *
 	 * @return Index of the reference info in the token stream.
 	 */
-	int32 EmitReferenceInfo(FGCReferenceInfo ReferenceInfo);
+	int32 EmitReferenceInfo(FGCReferenceInfo ReferenceInfo, const FName& DebugName);
 
 	/**
 	 * Emit placeholder for aray skip index, updated in UpdateSkipIndexPlaceholder
@@ -297,21 +261,21 @@ struct FGCReferenceTokenStream
 	 *
 	 * @param Count count to emit
 	 */
-	void EmitCount( uint32 Count );
+	int32 EmitCount( uint32 Count );
 
 	/**
 	 * Emit a pointer
 	 *
 	 * @param Ptr pointer to emit
 	 */
-	void EmitPointer( void const* Ptr );
+	int32 EmitPointer( void const* Ptr );
 
 	/**
 	 * Emit stride
 	 *
 	 * @param Stride stride to emit
 	 */
-	void EmitStride( uint32 Stride );
+	int32 EmitStride( uint32 Stride );
 
 	/**
 	 * Increase return count on last token.
@@ -321,9 +285,9 @@ struct FGCReferenceTokenStream
 	uint32 EmitReturn();
 
 	/**
-	 * Helper function to quickly replace or add ARO call.
+	 * Helper function to perform post parent token stream prepend fixup
 	 */
-	void ReplaceOrAddAddReferencedObjectsCall(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&));
+	void Fixup(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&), bool bKeepOuterToken, bool bKeepClassToken);
 
 	/**
 	 * Reads count and advances stream.
@@ -419,6 +383,10 @@ struct FGCReferenceTokenStream
 		return CurrentIndex >= (uint32)Tokens.Num();
 	}
 
+#if ENABLE_GC_OBJECT_CHECKS
+	FTokenInfo GetTokenInfo(int32 TokenIndex) const;
+#endif
+
 private:
 
 	/**
@@ -440,7 +408,14 @@ private:
 	}
 
 	/** Token array */
-	TArray<uint32>	Tokens;
+	TArray<uint32> Tokens;
+#if ENABLE_GC_OBJECT_CHECKS
+	/** 
+	 * Name of the proprty that emitted the associated token or token type (pointer etc).
+	 * We want to keep it in a separate array for performance reasons
+	 */
+	TArray<FName> TokenDebugInfo;
+#endif // ENABLE_GC_OBJECT_CHECKS
 };
 
 /** Prevent GC from running in the current scope */
@@ -451,7 +426,7 @@ public:
 	~FGCScopeGuard();
 };
 
-template <bool bParallel> class FGCReferenceProcessor;
+template <bool bParallel, bool bWithClusters> class FGCReferenceProcessor;
 
 /** Struct to hold the objects to serialize array and the list of weak references. This is allocated by ArrayPool */
 struct FGCArrayStruct
@@ -463,20 +438,20 @@ struct FGCArrayStruct
 /**
 * Specialized FReferenceCollector that uses FGCReferenceProcessor to mark objects as reachable.
 */
-template <bool bParallel>
+template <bool bParallel, bool bWithClusters>
 class FGCCollector : public FReferenceCollector
 {
-	FGCReferenceProcessor<bParallel>& ReferenceProcessor;
+	FGCReferenceProcessor<bParallel, bWithClusters>& ReferenceProcessor;
 	FGCArrayStruct& ObjectArrayStruct;
 	bool bAllowEliminatingReferences;
 
 public:
 
-	FGCCollector(FGCReferenceProcessor<bParallel>& InProcessor, FGCArrayStruct& InObjectArrayStruct);
+	FGCCollector(FGCReferenceProcessor<bParallel, bWithClusters>& InProcessor, FGCArrayStruct& InObjectArrayStruct);
 
-	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override;
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 
-	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override;
+	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 
 	virtual bool IsIgnoringArchetypeRef() const override
 	{
@@ -498,7 +473,7 @@ public:
 	}
 private:
 
-	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty);
+	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty);
 };
 
 /**
@@ -510,6 +485,17 @@ class FGarbageCollectionTracer
 public:
 	virtual ~FGarbageCollectionTracer() {}
 
-	virtual void PerformReachabilityAnalysisOnObjects(FGCArrayStruct* ArrayStruct, bool bForceSingleThreaded) = 0;
+	virtual void PerformReachabilityAnalysisOnObjects(FGCArrayStruct* ArrayStruct, bool bForceSingleThreaded, bool bWithClusters) = 0;
 
 };
+
+/** True if Garbage Collection is running. Use IsGarbageCollecting() functio n instead of using this variable directly */
+extern COREUOBJECT_API FThreadSafeBool GIsGarbageCollecting;
+
+/**
+* Whether we are inside garbage collection
+*/
+FORCEINLINE bool IsGarbageCollecting()
+{
+	return GIsGarbageCollecting;
+}

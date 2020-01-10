@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SControlRigStackView.h"
 #include "Widgets/Layout/SBorder.h"
@@ -264,7 +264,7 @@ void SControlRigStackView::RefreshTreeView(UControlRig* ControlRig)
 						FName UnitPath = *Operator.CachedPropertyPath1.ToString();
 						FString OperatorLabel;
 
-						UStructProperty * StructProperty = Cast<UStructProperty>(GeneratedClass->FindPropertyByName(UnitPath));
+						FStructProperty * StructProperty = CastField<FStructProperty>(GeneratedClass->FindPropertyByName(UnitPath));
 						if (StructProperty)
 						{
 							if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))

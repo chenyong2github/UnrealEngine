@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AssetRegUtilCommandlet.cpp: General-purpose commandlet for anything which
@@ -399,14 +399,14 @@ bool UAssetRegUtilCommandlet::LoadOrderFiles(const FString& OrderFilePath, TSet<
 	OrderFiles.Reserve(Lines.Num());
 	for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); ++EntryIndex)
 	{
-		Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
-		Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
+		Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
+		Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
 		//discard the order number, assuming the list is in-order and has no special bits in use at this stage.
 		int32 QuoteIndex;
 		if (Lines[EntryIndex].FindLastChar('"', QuoteIndex))
 		{
 			FString ReadNum = Lines[EntryIndex].RightChop(QuoteIndex + 1);
-			Lines[EntryIndex] = Lines[EntryIndex].Left(QuoteIndex + 1);
+			Lines[EntryIndex].LeftInline(QuoteIndex + 1, false);
 			//verify our expectations about the order, just in case something changes on the OpenOrder generation side
 			ReadNum.TrimStartInline();
 			if (ReadNum.IsNumeric())

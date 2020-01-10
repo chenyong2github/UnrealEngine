@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -53,17 +53,17 @@ public:
 	/**
 	 * Gets the class of the property being edited
 	 */
-	virtual const UClass* GetPropertyClass() const = 0;
+	virtual const FFieldClass* GetPropertyClass() const = 0;
 
 	/**
 	 * Gets the property being edited
 	 */
-	virtual UProperty* GetProperty() const = 0;
+	virtual FProperty* GetProperty() const = 0;
 
 	/**
 	 * Gets the property we should use to read meta-data
 	 */
-	virtual UProperty* GetMetaDataProperty() const = 0;
+	virtual FProperty* GetMetaDataProperty() const = 0;
 
 	/**
 	 * Determines if the property has any metadata associated with the key
@@ -162,7 +162,7 @@ public:
 	*
 	* @param Base The location to use as the starting point for the calculation; typically the address of an object.
 	*
-	* @return A pointer to a UProperty value or UObject.
+	* @return A pointer to a FProperty value or UObject.
 	*/
 	virtual uint8* GetValueBaseAddress( uint8* Base ) = 0;
 
@@ -273,7 +273,8 @@ public:
 	virtual FPropertyAccess::Result GetValue( const UObject*& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValue( FAssetData& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValueData( void*& OutAddress ) const = 0;
-
+	virtual FPropertyAccess::Result GetValue(FProperty*& OutValue) const = 0;
+	virtual FPropertyAccess::Result GetValue(const FProperty*& OutValue) const = 0;
 	/**
 	 * Sets the typed value of a property.  
 	 * If the property does not support the value type FPropertyAccess::Fail is returned
@@ -304,6 +305,8 @@ public:
 	virtual FPropertyAccess::Result SetValue( const UObject* const& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const FAssetData& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const TCHAR* InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
+	virtual FPropertyAccess::Result SetValue( FProperty* const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) = 0;
+	virtual FPropertyAccess::Result SetValue( const FProperty* const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) = 0;
 
 	/**
 	 * Called to manually notify root objects that this property is about to change
@@ -533,6 +536,12 @@ public:
 	 * @return the value widget for this property
 	 */
 	virtual TSharedRef<SWidget> CreatePropertyValueWidget( bool bDisplayDefaultPropertyButtons = true ) const = 0;
+
+	/**
+	 * Creates the default buttons which appear next to value widgets.  This is useful when creating customizations
+	 * which don't use CreatePropertyValueWidget but you still want array item behaviors and reset to default capabilities.
+	 */
+	virtual TSharedRef<SWidget> CreateDefaultPropertyButtonWidgets() const = 0;
 
 	/**
 	 * Adds a restriction to the possible values for this property.

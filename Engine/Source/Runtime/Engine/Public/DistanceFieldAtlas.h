@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DistanceFieldAtlas.h
@@ -28,6 +28,7 @@ public:
 	FDistanceFieldVolumeTexture(const class FDistanceFieldVolumeData& InVolumeData) :
 		VolumeData(InVolumeData),
 		AtlasAllocationMin(FIntVector(-1, -1, -1)),
+		SizeInAtlas(FIntVector::ZeroValue),
 		bReferencedByAtlas(false),
 		bThrottled(false),
 		StaticMesh(NULL)
@@ -44,6 +45,11 @@ public:
 	FIntVector GetAllocationMin() const
 	{
 		return AtlasAllocationMin;
+	}
+
+	FIntVector GetAllocationSizeInAtlas() const
+	{
+		return SizeInAtlas;
 	}
 
 	FIntVector GetAllocationSize() const;
@@ -68,6 +74,8 @@ public:
 private:
 	const FDistanceFieldVolumeData& VolumeData;
 	FIntVector AtlasAllocationMin;
+	FIntVector SizeInAtlas;
+
 	bool bReferencedByAtlas : 1;
 	/** bThrottled prevents any objects using the texture from being uploaded to the scene buffer until upload of the texture to distance field atlas is complete */
 	bool bThrottled         : 1;
@@ -86,6 +94,7 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
+		VolumeTextureUAVRHI.SafeRelease();
 		VolumeTextureRHI.SafeRelease();
 	}
 
@@ -104,12 +113,13 @@ public:
 	void RemoveAllocation(FDistanceFieldVolumeTexture* Texture);
 
 	/** Reallocates the volume texture if necessary and uploads new allocations. */
-	void UpdateAllocations();
+	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
 	int32 GetGeneration() const { return Generation; }
 
 	EPixelFormat Format;
 	FTexture3DRHIRef VolumeTextureRHI;
+	FUnorderedAccessViewRHIRef VolumeTextureUAVRHI;
 
 private:
 	/** Manages the atlas layout. */
@@ -121,6 +131,9 @@ private:
 	/** Allocations that have already been added, stored in case we need to realloc. */
 	TArray<FDistanceFieldVolumeTexture*> CurrentAllocations;
 
+	/** Allocations that have failed, stored in case they could fit next time a mesh is evicted from atlas. */
+	TArray<FDistanceFieldVolumeTexture*> FailedAllocations;
+		
 	/** Incremented when the atlas is reallocated, so dependencies know to update. */
 	int32 Generation;
 
@@ -128,6 +141,9 @@ private:
 
 	/** Number of pixel used in atlas distance field */
 	uint32 AllocatedPixels;
+	
+	/** Number of pixel that have failed to be allocated in atlas */
+	uint32 FailedAllocatedPixels;
 
 	/** Max position used in distance field */
 	uint32 MaxUsedAtlasX;

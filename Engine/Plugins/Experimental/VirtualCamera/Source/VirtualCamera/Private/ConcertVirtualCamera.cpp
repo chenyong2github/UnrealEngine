@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertVirtualCamera.h"
 
@@ -74,7 +74,7 @@ FConcertVirtualCameraCameraData::FConcertVirtualCameraCameraData(const AActor* I
 	}
 	else
 	{
-		FilmbackSettings = InCineCameraComponent->FilmbackSettings;
+		FilmbackSettings = InCineCameraComponent->Filmback;
 	}
 }
 
@@ -90,7 +90,7 @@ void FConcertVirtualCameraCameraData::ApplyTo(AActor* InOwner, UCineCameraCompon
 	InCineCameraComponent->CurrentFocalLength = CurrentFocalLength;
 	InCineCameraComponent->FocusSettings = FocusSettings.ToCameraFocusSettings();
 	InCineCameraComponent->LensSettings = LensSettings;
-	InCineCameraComponent->FilmbackSettings = FilmbackSettings;
+	InCineCameraComponent->Filmback = FilmbackSettings;
 
 	if (UVirtualCameraCineCameraComponent* VCCineCamCmp = Cast<UVirtualCameraCineCameraComponent>(InCineCameraComponent))
 	{

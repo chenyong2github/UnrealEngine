@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,67 +12,50 @@ class FArchive;
 class FLinkerLoad;
 class FLinkerSave;
 
-class INameMapSaver
+class FPackageStoreBulkDataManifest
 {
 public:
-	virtual ~INameMapSaver() = default;
+	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& ProjectPath);
+	COREUOBJECT_API ~FPackageStoreBulkDataManifest();
 
-	virtual void Begin() = 0;
-	virtual void End() = 0;
-	virtual void BeginPackage() = 0;
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) = 0;
+	COREUOBJECT_API bool Load();
+	COREUOBJECT_API void Save() ;
 
-	virtual void MarkNameAsReferenced(FName Name) = 0;
-	virtual int32 MapName(FName Name) const = 0;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const = 0;
-};
+	void AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize);
+	
+	const FString& GetFilename() const { return Filename; }
 
-class FSinglePackageNameMapSaver : public INameMapSaver
-{
-public:
-	virtual void Begin() override {};
-	virtual void End() override {};
-	virtual void BeginPackage() override {};
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) override;
+	class PackageDesc
+	{
+	public:
+		struct BulkDataDesc
+		{
+			uint64 ChunkId;	// Note this is the Offset before the linker BulkDataStartOffset is
+							// applied, to make it easier to compute at runtime.
+			uint64 Offset;
+			uint64 Size;
+			EIoChunkType Type;
+		};
 
-	virtual void MarkNameAsReferenced(FName Name) override;
-	virtual int32 MapName(FName Name) const override;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const override;
+		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
+		void AddZeroByteData(EIoChunkType InType);
 
-	void MarkNameAsReferenced(FNameEntryId Name);
+		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
+	private:
+		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);
+		TArray<BulkDataDesc> Data;
+	};
+
+	COREUOBJECT_API const PackageDesc* Find(const FString& PackageName) const;
 
 private:
-	TSet<FNameEntryId> ReferencedNames;
-	TMap<FNameEntryId, int32> NameIndices;
-};
+	PackageDesc& GetOrCreateFileAccess(const FString& PackageFilename);
 
-class FPackageStoreNameMapSaver : public INameMapSaver
-{
-public:
-	COREUOBJECT_API FPackageStoreNameMapSaver(const TCHAR* InFilename);
+	FString FixFilename(const FString& InFileName) const;
 
-	COREUOBJECT_API virtual void Begin() override {};
-	COREUOBJECT_API virtual void End() override;
-	virtual void BeginPackage();
-	virtual void EndPackage(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver) override {}
-
-	virtual void MarkNameAsReferenced(FName Name) override;
-	virtual int32 MapName(FName Name) const override;
-	virtual bool NameExistsInCurrentPackage(FNameEntryId ComparisonId) const override;
-
-private:
-	TMap<FNameEntryId, int32> NameIndices;
-	TArray<FNameEntryId> NameMap;
-	mutable TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
-	TSet<FNameEntryId> PackageReferencedNames;
-	const FString Filename;
-};
-
-class FPackageHeaderSaver
-{
-public:
-	FPackageHeaderSaver(INameMapSaver& InNameMapSaver) : NameMapSaver(InNameMapSaver) {}
-	INameMapSaver& NameMapSaver;
+	FString RootPath;
+	FString Filename;
+	TMap<FString, PackageDesc> Data;
 };
 
 class FPackageStoreWriter
@@ -138,11 +121,18 @@ private:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageHeaderSaver& InHeaderSaver, FPackageStoreWriter& InPackageStoreWriter) 
-	: HeaderSaver(InHeaderSaver), PackageStoreWriter(InPackageStoreWriter) 
+	FSavePackageContext(FPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest)
+	: PackageStoreWriter(InPackageStoreWriter) 
+	, BulkDataManifest(InBulkDataManifest)
 	{
 	}
 
-	FPackageHeaderSaver& HeaderSaver;
-	FPackageStoreWriter& PackageStoreWriter;
+	~FSavePackageContext()
+	{
+		delete PackageStoreWriter;
+		delete BulkDataManifest;
+	}
+
+	FPackageStoreWriter* PackageStoreWriter;
+	FPackageStoreBulkDataManifest* BulkDataManifest;
 };

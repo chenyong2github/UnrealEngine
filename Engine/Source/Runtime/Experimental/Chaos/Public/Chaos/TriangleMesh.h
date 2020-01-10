@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -80,13 +80,13 @@ namespace Chaos
 
 		int32 GetNumElements() const { return MElements.Num(); }
 
-		const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap();
-		const TSet<uint32>& GetNeighbors(const int32 Element) { return GetPointToNeighborsMap()[Element]; }
+		const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
+		const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
 
-		const TMap<int32, TArray<int32>>& GetPointToTriangleMap();
-		const TArray<int32>& GetCoincidentTriangles(const int32 Element) { return GetPointToTriangleMap()[Element]; }
+		const TMap<int32, TArray<int32>>& GetPointToTriangleMap() const;
+		const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
 
-		TSet<int32> GetNRing(const int32 Element, const int32 N)
+		TSet<int32> GetNRing(const int32 Element, const int32 N) const
 		{
 			TSet<int32> Neighbors;
 			TSet<uint32> LevelNeighbors, PrevLevelNeighbors;
@@ -123,9 +123,12 @@ namespace Chaos
 			return Neighbors;
 		}
 
-		TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints();
-		TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements();
+		TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints() const;
+		TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements() const;
 
+		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
+			If this is not the case the returned face normals may be inverted
+		*/
 		TArray<TVector<T, 3>> GetFaceNormals(const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
 		void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
 		/** Deprecated. Use TArrayView version. */
@@ -241,8 +244,8 @@ namespace Chaos
 
 		TArray<TVector<int32, 3>> MElements;
 
-		TMap<int32, TArray<int32>> MPointToTriangleMap;
-		TMap<int32, TSet<uint32>> MPointToNeighborsMap;
+		mutable TMap<int32, TArray<int32>> MPointToTriangleMap;
+		mutable TMap<int32, TSet<uint32>> MPointToNeighborsMap;
 
 		TSegmentMesh<T> MSegmentMesh;
 		TArray<TVector<int32, 3>> MFaceToEdges;

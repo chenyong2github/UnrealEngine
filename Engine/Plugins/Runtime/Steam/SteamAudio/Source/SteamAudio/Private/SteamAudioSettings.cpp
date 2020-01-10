@@ -38,6 +38,8 @@ USteamAudioSettings::USteamAudioSettings()
 	, TANMaxSources(32)
 	, RadeonRaysBakingBatchSize(1)
 {
+	OutputSubmix = FString(TEXT("/PhononAudio/PhononSubmixDefault.PhononSubmixDefault"));
+
 	auto MaterialPreset = SteamAudio::MaterialPresets[StaticMeshMaterialPreset];
 	StaticMeshLowFreqAbsorption = MaterialPreset.lowFreqAbsorption;
 	StaticMeshMidFreqAbsorption = MaterialPreset.midFreqAbsorption;
@@ -190,9 +192,9 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 		StaticMeshHighFreqTransmission = MaterialPreset.highFreqTransmission;
 		StaticMeshScattering = MaterialPreset.scattering;
 
-		for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt) 
+		for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt) 
 		{
-			UProperty* Property = *PropIt;
+			FProperty* Property = *PropIt;
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, StaticMeshLowFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, StaticMeshMidFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, StaticMeshHighFreqAbsorption) ||
@@ -216,9 +218,9 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 		BSPHighFreqTransmission = MaterialPreset.highFreqTransmission;
 		BSPScattering = MaterialPreset.scattering;
 
-		for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 		{
-			UProperty* Property = *PropIt;
+			FProperty* Property = *PropIt;
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BSPLowFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BSPMidFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BSPHighFreqAbsorption) ||
@@ -242,9 +244,9 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 		LandscapeHighFreqTransmission = MaterialPreset.highFreqTransmission;
 		LandscapeScattering = MaterialPreset.scattering;
 
-		for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 		{
-			UProperty* Property = *PropIt;
+			FProperty* Property = *PropIt;
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, LandscapeLowFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, LandscapeMidFreqAbsorption) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, LandscapeHighFreqAbsorption) ||
@@ -263,9 +265,9 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 		RealtimeRays = RealtimeSimulationQuality.Rays;
 		RealtimeSecondaryRays = RealtimeSimulationQuality.SecondaryRays;
 
-		for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 		{
-			UProperty* Property = *PropIt;
+			FProperty* Property = *PropIt;
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, RealtimeBounces) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, RealtimeRays) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, RealtimeSecondaryRays))
@@ -280,9 +282,9 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 		BakedRays = BakedSimulationQuality.Rays;
 		BakedSecondaryRays = BakedSimulationQuality.SecondaryRays;
 
-		for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 		{
-			UProperty* Property = *PropIt;
+			FProperty* Property = *PropIt;
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BakedBounces) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BakedRays) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(USteamAudioSettings, BakedSecondaryRays))
@@ -293,7 +295,7 @@ void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Property
 	}
 }
 
-bool USteamAudioSettings::CanEditChange(const UProperty* InProperty) const
+bool USteamAudioSettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

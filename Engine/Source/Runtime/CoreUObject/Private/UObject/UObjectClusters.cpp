@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectClusters.cpp: Unreal UObject Cluster helper functions
@@ -28,6 +28,14 @@ static FAutoConsoleVariableRef CCreateGCClusters(
 	TEXT("If true, the engine will attempt to create clusters of objects for better garbage collection performance."),
 	ECVF_Default
 	);
+
+int32 GAssetClustreringEnabled = 1;
+static FAutoConsoleVariableRef CVarAssetClustreringEnabled(
+	TEXT("gc.AssetClustreringEnabled"),
+	GAssetClustreringEnabled,
+	TEXT("If true, the engine will attempt to create clusters from asset files."),
+	ECVF_Default
+);
 
 int32 GMinGCClusterSize = 5;
 static FAutoConsoleVariableRef CMinGCClusterSize(
@@ -181,8 +189,8 @@ void FUObjectClusterContainer::DissolveClusterAndMarkObjectsAsUnreachable(FUObje
 	{
 		FUObjectItem* ClusterObjectItem = GUObjectArray.IndexToObjectUnsafeForGC(ClusterObjectIndex);
 		ClusterObjectItem->SetOwnerIndex(0);
-		ClusterObjectItem->SetFlags(EInternalObjectFlags::Unreachable);
-	}
+			ClusterObjectItem->SetFlags(EInternalObjectFlags::Unreachable);
+		}
 
 #if !UE_GCCLUSTER_VERBOSE_LOGGING
 	UObject* ClusterRootObject = static_cast<UObject*>(RootObjectItem->Object);
@@ -197,7 +205,7 @@ void FUObjectClusterContainer::DissolveClusterAndMarkObjectsAsUnreachable(FUObje
 		FUObjectItem* ReferencedByClusterRootItem = GUObjectArray.IndexToObjectUnsafeForGC(ReferencedByClusterRootIndex);
 		if (ReferencedByClusterRootItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
 		{
-			ReferencedByClusterRootItem->SetFlags(EInternalObjectFlags::Unreachable);
+				ReferencedByClusterRootItem->SetFlags(EInternalObjectFlags::Unreachable);
 			DissolveClusterAndMarkObjectsAsUnreachable(ReferencedByClusterRootItem);
 		}
 	}
@@ -466,12 +474,12 @@ void FindStaleClusters(const TArray<FString>& Args)
 			if (SearchRefs.GetReferenceChains().Num() > 0)
 			{
 				for (const FReferenceChainSearch::FReferenceChain* ReferenceChain : SearchRefs.GetReferenceChains())
-				{
+					{
 					UObject* ReferencingObj = ReferenceChain->GetRootNode()->Object;
-					bReferenced = true;
-					break;
+						bReferenced = true;
+						break;
+					}
 				}
-			}
 			if (!bReferenced)
 			{
 				NumStaleClusters++;
@@ -713,7 +721,7 @@ public:
 /** Looks through objects loaded with a package and creates clusters from them */
 void CreateClustersFromPackage(FLinkerLoad* PackageLinker, TArray<UObject*>& OutClusterObjects)
 {	
-	if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && !GUObjectArray.IsOpenForDisregardForGC() && GUObjectArray.DisregardForGCEnabled() )
+	if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && GAssetClustreringEnabled && !GUObjectArray.IsOpenForDisregardForGC() && GUObjectArray.DisregardForGCEnabled() )
 	{
 		check(PackageLinker);
 
@@ -784,6 +792,8 @@ bool UObjectBaseUtility::CanBeInCluster() const
 
 void UObjectBaseUtility::CreateCluster()
 {
+	check(GCreateGCClusters);
+
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UObjectBaseUtility::CreateCluster"), STAT_FArchiveRealtimeGC_CreateCluster, STATGROUP_GC);
 
 	FUObjectItem* RootItem = GUObjectArray.IndexToObject(InternalIndex);

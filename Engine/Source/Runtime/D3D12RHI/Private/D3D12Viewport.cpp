@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12Viewport.cpp: D3D viewport RHI implementation.
@@ -215,6 +215,9 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 
 		Parent->GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PRESENT, nullptr, IID_PPV_ARGS(BackBufferResource.GetInitReference()));
 	}
+
+	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
+	SetName(BackBufferResource, *Name);
 
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
@@ -513,6 +516,28 @@ static bool IsCompositionEnabled()
 /** Presents the swap chain checking the return result. */
 bool FD3D12Viewport::PresentChecked(int32 SyncInterval)
 {
+#if PLATFORM_WINDOWS
+	// We can't call Present if !bIsValid, as it waits a window message to be processed, but the main thread may not be pumping the message handler.
+	if (bIsValid && SwapChain1.IsValid())
+	{
+		// Check if the viewport's swap chain has been invalidated by DXGI.
+		BOOL bSwapChainFullscreenState;
+		TRefCountPtr<IDXGIOutput> SwapChainOutput;
+		SwapChain1->GetFullscreenState(&bSwapChainFullscreenState, SwapChainOutput.GetInitReference());
+		// Can't compare BOOL with bool...
+		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
+		{
+			bFullscreenLost = true;
+			bIsValid = false;
+		}
+	}
+
+	if (!bIsValid)
+	{
+		return false;
+	}
+#endif
+
 	HRESULT Result = S_OK;
 	bool bNeedNativePresent = true;
 

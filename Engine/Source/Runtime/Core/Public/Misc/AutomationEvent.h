@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,14 +15,14 @@ enum class EAutomationEventType : uint8
 struct CORE_API FAutomationEvent
 {
 public:
-	FAutomationEvent(EAutomationEventType InType, FString InMessage)
+	FAutomationEvent(EAutomationEventType InType, const FString& InMessage)
 		: Type(InType)
 		, Message(InMessage)
 		, Context()
 	{
 	}
 
-	FAutomationEvent(EAutomationEventType InType, FString InMessage, FString InContext)
+	FAutomationEvent(EAutomationEventType InType, const FString& InMessage, const FString& InContext)
 		: Type(InType)
 		, Message(InMessage)
 		, Context(InContext)

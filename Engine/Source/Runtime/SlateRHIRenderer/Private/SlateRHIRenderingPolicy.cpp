@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateRHIRenderingPolicy.h"
 #include "UniformBuffer.h"
@@ -584,7 +584,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	// and re-gammatization of the resulting blending operation in the 8/10 bit RGBA path.
 	// For Editor running in HDR then the gamma needs to be 2.2 and have a float back buffer format.
 
-	const float EngineGamma = ((BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA)&&(Params.bIsHDR==false)) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
+	const float EngineGamma = (!GIsEditor && (BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA) && (Params.bIsHDR==false)) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
 	const float DisplayGamma = bGammaCorrect ? EngineGamma : 1.0f;
 	const float DisplayContrast = GSlateContrast;
 

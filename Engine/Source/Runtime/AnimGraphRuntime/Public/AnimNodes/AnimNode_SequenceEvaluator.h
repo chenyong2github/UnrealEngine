@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -86,7 +86,7 @@ public:
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
-	virtual float GetAccumulatedTime() {return ExplicitTime;}
+	virtual float GetAccumulatedTime() const {return ExplicitTime;}
 	virtual void SetAccumulatedTime(const float& NewTime) {ExplicitTime = NewTime;}
 	virtual UAnimationAsset* GetAnimAsset() {return Sequence;}
 	// End of FAnimNode_AssetPlayerBase Interface

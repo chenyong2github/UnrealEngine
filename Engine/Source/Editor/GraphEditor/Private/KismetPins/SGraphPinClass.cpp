@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinClass.h"
@@ -130,6 +130,11 @@ FOnClicked SGraphPinClass::GetOnUseButtonDelegate()
 
 void SGraphPinClass::OnPickedNewClass(UClass* ChosenClass)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString NewPath;
 	if (ChosenClass)
 	{

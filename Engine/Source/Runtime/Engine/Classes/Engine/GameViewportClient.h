@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -71,7 +71,8 @@ public:
 	/** Array of the screen data needed for all the different splitscreen configurations */
 	TArray<struct FSplitscreenData> SplitscreenInfo;
 
-	int32 MaxSplitscreenPlayers;
+	UPROPERTY(Config)
+	int32 MaxSplitscreenPlayers = 4;
 
 	/** if true then the title safe border is drawn */
 	uint32 bShowTitleSafeZone:1;

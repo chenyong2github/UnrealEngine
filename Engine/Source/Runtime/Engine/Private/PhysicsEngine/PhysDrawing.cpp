@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
@@ -637,7 +637,7 @@ void FKTaperedCapsuleElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTr
 
 void FKConvexElem::DrawElemWire(FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 
 	PxConvexMesh* Mesh = ConvexMesh;
 
@@ -688,12 +688,37 @@ void FKConvexElem::DrawElemWire(FPrimitiveDrawInterface* PDI, const FTransform& 
 	{
 		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemWire : No ConvexMesh, so unable to draw."));
 	}
+#elif WITH_CHAOS
+	const int32 NumIndices = IndexData.Num();
+	if(NumIndices > 0 && ensure(NumIndices % 3 == 0))
+	{
+		const int32 NumVerts = VertexData.Num();
+		TArray<FVector> TransformedVerts;
+		TransformedVerts.Reserve(NumVerts);
+		FTransform FinalTransform = Transform.GetRelativeTransformReverse(ElemTM);
+
+		for(const FVector& Vert : VertexData)
+		{
+			TransformedVerts.Add(FinalTransform.TransformPosition(Vert));
+		}
+
+		for(int32 Base = 0; Base < NumIndices; Base += 3)
+		{
+			PDI->DrawLine(TransformedVerts[IndexData[Base]], TransformedVerts[IndexData[Base + 1]], Color, SDPG_World);
+			PDI->DrawLine(TransformedVerts[IndexData[Base + 1]], TransformedVerts[IndexData[Base + 2]], Color, SDPG_World);
+			PDI->DrawLine(TransformedVerts[IndexData[Base + 2]], TransformedVerts[IndexData[Base]], Color, SDPG_World);
+		}
+	}
+	else
+	{
+		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::AddCachedSolidConvexGeom : No ConvexMesh, so unable to draw."));
+	}
 #endif // WITH_PHYSX
 }
 
 void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBuffer, TArray<uint32>& IndexBuffer, const FColor VertexColor) const
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// We always want to generate 'non-mirrored geometry', so if all we have is flipped, we have to un-flip it in this function
 	bool bIsMirrored = false;
 	const PxConvexMesh* ConvexMeshToUse = nullptr; 
@@ -766,6 +791,62 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 			}
 
 			StartVertOffset += Data.mNbVerts;
+		}
+	}
+	else
+	{
+		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::AddCachedSolidConvexGeom : No ConvexMesh, so unable to draw."));
+	}
+#elif WITH_CHAOS
+	const int32 NumIndices = IndexData.Num();
+	if(NumIndices > 0 && ensure(NumIndices % 3 == 0))
+	{
+		int32 BeginOffset = VertexBuffer.Num();
+
+		const int32 NumVerts = VertexData.Num();
+		const int32 NumTriangles = NumIndices / 3;
+
+		// Generate Tangents
+		struct LocalTangents
+		{
+			FVector T[3];
+		};
+
+		TArray<LocalTangents> VertTangents;
+		VertTangents.Init({ { FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector } }, VertexData.Num());
+		for(int32 TriIndex = 0; TriIndex < NumTriangles; ++TriIndex)
+		{
+			const int32 Base = TriIndex * 3;
+
+			const int32 I0 = IndexData[Base];
+			const int32 I1 = IndexData[Base + 1];
+			const int32 I2 = IndexData[Base + 2];
+
+			const FVector TangentX = (VertexData[I1] - VertexData[I0]).GetSafeNormal();
+			const FVector TangentZ = FPlane(VertexData[I0], VertexData[I1], VertexData[I2]).GetSafeNormal();
+			const FVector TangentY = FVector::CrossProduct(TangentX, TangentZ).GetSafeNormal();
+
+			for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
+			{
+				const int32 Index = IndexData[Base + TriVertIndex];
+				VertTangents[IndexData[Base + TriVertIndex]].T[0] = TangentX;
+				VertTangents[IndexData[Base + TriVertIndex]].T[1] = TangentX;
+				VertTangents[IndexData[Base + TriVertIndex]].T[2] = TangentX;
+			}
+		}
+
+		for(int32 VertIndex = 0; VertIndex < VertexData.Num(); ++VertIndex)
+		{
+			FDynamicMeshVertex Vert;
+			Vert.Position = VertexData[VertIndex];
+			Vert.Color = VertexColor;
+			Vert.SetTangents(VertTangents[VertIndex].T[0], VertTangents[VertIndex].T[1], VertTangents[VertIndex].T[2]);
+			VertexBuffer.Add(Vert);
+		}
+
+		for(int32 Index : IndexData)
+		{
+			IndexBuffer.Add(BeginOffset + Index);
 		}
 	}
 	else

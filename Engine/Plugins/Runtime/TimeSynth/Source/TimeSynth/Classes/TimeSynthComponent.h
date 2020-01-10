@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -721,7 +721,7 @@ private:
 	Audio::FSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
 	FThreadSafeCounter SpectrumAnalysisCounter;
 
-	// Array of spectrum data, maps to FrequenciesToAnalyze UProperty
+	// Array of spectrum data, maps to FrequenciesToAnalyze FProperty
 	TArray<FTimeSynthSpectralData> SpectralData;
 
 	// Using a state variable filter

@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 
 // Insights
+#include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,10 +35,10 @@ public:
 class FTimingGraphTrack : public FGraphTrack
 {
 public:
-	explicit FTimingGraphTrack(uint64 InTrackId);
+	FTimingGraphTrack();
 	virtual ~FTimingGraphTrack();
 
-	virtual void Update(const FTimingTrackViewport& Viewport) override;
+	virtual void Update(const ITimingTrackUpdateContext& Context) override;
 
 	void AddDefaultFrameSeries();
 

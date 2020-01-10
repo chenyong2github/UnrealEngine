@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionExampleFields.h"
 
+#include "Chaos/Utilities.h"
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemNodes.h"
 #include "Field/FieldSystemCoreAlgo.h"
@@ -55,22 +56,17 @@ namespace GeometryCollectionExample
 		NoiseField->Evaluate(Context, ResultsView);
 
 		float min = FLT_MAX, max = -FLT_MAX;
-
-		for (int32 Index = 0, i = 0; i < Bounds; i++)
-		{
-			for (int32 j = 0; j < Bounds; j++)
-			{
-				min = FMath::Min(min, ResultsView[Index]);
-				max = FMath::Max(max, ResultsView[Index]);
-				//std::cout << ResultsView[Index] << " ";
-				Index++;
-			}
-			//std::cout << std::endl;
-		}
-
+		double avg = 0.0;
+		Chaos::Utilities::GetMinAvgMax(ResultsView, min, avg, max);
 		EXPECT_GE(min, MinDoimain);
 		EXPECT_LE(max, MaxDomain);
 		EXPECT_LT(min, max);
+
+		float variance = Chaos::Utilities::GetVariance(ResultsView, avg);
+		float stdDev = Chaos::Utilities::GetStandardDeviation(variance);
+		EXPECT_GT(variance, 0.0); // If variance is 0, then all values are the same.
+		EXPECT_GT(stdDev, 0.0);
+		EXPECT_LT(stdDev, 0.5);
 
 		delete NoiseField;
 	}
@@ -88,8 +84,6 @@ namespace GeometryCollectionExample
 			SamplesArray[Index] = FVector(Index);
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
-
 
 		FRadialIntMask * RadialMask = new FRadialIntMask(0.0, FVector(), 1.0, 0.0, ESetMaskConditionType::Field_Set_Always);
 		RadialMask->Position = FVector(0.0, 0.0, 0.0);
@@ -126,7 +120,6 @@ namespace GeometryCollectionExample
 		TArray<ContextIndex> IndicesArray;
 		ContextIndex::ContiguousIndices(IndicesArray, 10);
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
@@ -658,8 +651,6 @@ namespace GeometryCollectionExample
 		}
 		delete SumVector;
 		delete UniformVector;
-
-		
 	}
 
 	void Fields_SumVectorRightSide()
@@ -667,7 +658,6 @@ namespace GeometryCollectionExample
 		TArray<ContextIndex> IndicesArray;
 		ContextIndex::ContiguousIndices(IndicesArray, 10);
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
 
 		float AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
@@ -699,7 +689,6 @@ namespace GeometryCollectionExample
 		UniformVector->Magnitude = 10.0;
 
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, UniformVector, nullptr, EFieldOperationType::Field_Multiply);
-
 
 		FFieldContext Context{
 			IndexView,
@@ -734,8 +723,6 @@ namespace GeometryCollectionExample
 		}
 		delete SumVector;
 		delete RadialVector;
-
-		
 	}
 
 	void Fields_SumScalar()
@@ -753,8 +740,6 @@ namespace GeometryCollectionExample
 			SamplesArray[Index + 10] = FVector(Index, 0, 0);
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
-
 		
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -811,8 +796,6 @@ namespace GeometryCollectionExample
 			EXPECT_LT((ResultsView[Index] - ExpectedVal), KINDA_SMALL_NUMBER);
 		}
 		delete SumScalar;
-
-		
 	}
 
 	void Fields_SumScalarRightSide()
@@ -829,7 +812,6 @@ namespace GeometryCollectionExample
 			SamplesArray[Index + 10] = FVector(Index, 0, 0);
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -868,7 +850,6 @@ namespace GeometryCollectionExample
 			}
 
 			float ScalarLeft = 1.f;
-
 			float ExpectedVal = ScalarLeft * ScalarRight;
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
@@ -880,8 +861,6 @@ namespace GeometryCollectionExample
 		}
 		delete SumScalar;
 		delete RadialFalloff2;
-
-		
 	}
 
 	void Fields_SumScalarLeftSide()
@@ -898,8 +877,6 @@ namespace GeometryCollectionExample
 			SamplesArray[Index + 10] = FVector(Index, 0, 0);
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
-
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -950,8 +927,6 @@ namespace GeometryCollectionExample
 		}
 		delete SumScalar;
 		delete RadialFalloff;
-
-		
 	}
 
 	void Fields_Culling()
@@ -969,14 +944,11 @@ namespace GeometryCollectionExample
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
-
-
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
 		RadialFalloff->Radius = 4.;
 		RadialFalloff->Magnitude = 3.0;
 		float RadialFalloffRadius2 = RadialFalloff->Radius * RadialFalloff->Radius;
-
 
 		FRadialFalloff * RadialFalloff2 = new FRadialFalloff();
 		RadialFalloff2->Position = FVector(5.0, 0.0, 0.0);
@@ -1076,7 +1048,6 @@ namespace GeometryCollectionExample
 		return false;
 	}
 
-	template<class T>
 	void Fields_SerializeAPI()
 	{
 		{
@@ -1255,7 +1226,5 @@ namespace GeometryCollectionExample
 		}
 
 	}
-	template void Fields_SerializeAPI<float>();
-
-
+	//template void Fields_SerializeAPI<float>();
 }

@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeDebugger.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "EngineGlobals.h"
+#include "EdGraph/EdGraph.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 #include "BehaviorTree/BTNode.h"
@@ -200,12 +201,17 @@ void FBehaviorTreeDebugger::Tick(float DeltaTime)
 		{
 			UpdateAssetFlags(ShowInstance, RootNode.Get(), ActiveStepIndex);
 		}
+		
+		// Collect current runtime descriptions for every node when displaying the most recent step.
+		// Otherwise we keep the descriptions from the displayed debugger step that were updated by UpdateAssetFlags.
+		int32 LatestStepIndex = TreeInstance->DebuggerSteps.Num() - 1;
+		if (ActiveStepIndex == LatestStepIndex)
+		{
+			TArray<FString> RuntimeDescriptions;
+			TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, DebuggerInstanceIndex);
 
-		// collect current runtime descriptions for every node
-		TArray<FString> RuntimeDescriptions;
-		TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, DebuggerInstanceIndex);
-	
-		UpdateAssetRuntimeDescription(RuntimeDescriptions, RootNode.Get());
+			UpdateAssetRuntimeDescription(RuntimeDescriptions, RootNode.Get());
+		}
 	}
 
 	UpdateDebuggerViewOnTick();

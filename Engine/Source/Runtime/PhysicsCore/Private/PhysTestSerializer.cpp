@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Physics engine integration utilities
 
@@ -269,13 +269,14 @@ void FPhysTestSerializer::CreateChaosData()
 			Particle->GTGeometryParticle()->SetX(Particle->X());
 			Particle->GTGeometryParticle()->SetR(Particle->R());
 
-			if (auto PBDRigid = Particle->AsDynamic())
+			auto PBDRigid = Particle->CastToRigidParticle();
+			if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 			{
 				PBDRigid->P() = Particle->X();
 				PBDRigid->Q() = Particle->R();
 
-				PBDRigid->GTGeometryParticle()->AsDynamic()->SetP(PBDRigid->P());
-				PBDRigid->GTGeometryParticle()->AsDynamic()->SetQ(PBDRigid->R());
+				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetP(PBDRigid->P());
+				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetQ(PBDRigid->R());
 			}
 
 			PxActorToChaosHandle.Add(Act, Particle.Get());
@@ -304,7 +305,7 @@ void FPhysTestSerializer::CreateChaosData()
 				}
 				else
 				{
-					GTParticle->SetGeometry(MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+					GTParticle->SetGeometry(MakeUnique<FImplicitObjectUnion>(MoveTemp(Geoms)));
 					Particle->SetGeometry(GTParticle->Geometry());
 				}
 
@@ -315,7 +316,7 @@ void FPhysTestSerializer::CreateChaosData()
 					auto& ShapeArray = GTParticle->ShapesArray();
 					for (auto& Shape : ShapeArray)
 					{
-						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
+						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
 					}
 				}
 			}

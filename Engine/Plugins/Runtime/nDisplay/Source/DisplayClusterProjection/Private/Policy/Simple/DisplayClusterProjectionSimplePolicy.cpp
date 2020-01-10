@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Policy/Simple/DisplayClusterProjectionSimplePolicy.h"
 
@@ -192,7 +192,7 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	}
 
 	// Get our VR root
-	UDisplayClusterRootComponent* Root = GameMgr->GetRoot();
+	UDisplayClusterRootComponent* Root = GameMgr->GetRootComponent();
 	if (!Root)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeferredShadingRenderer.h"
 
@@ -22,6 +22,7 @@
 #include "BlueNoise.h"
 #include "SceneTextureParameters.h"
 #include "RayTracingDefinitions.h"
+#include "RayTracingDeferredMaterials.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),
@@ -47,7 +48,7 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationMaxRayDistance(
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationMaxBounces(
-	TEXT("r.RayTracing.GlobalIlluminGlobalIllumination.MaxBouncesation"),
+	TEXT("r.RayTracing.GlobalIllumination.MaxBounces"),
 	-1,
 	TEXT("Max bounces (default = -1 (driven by postprocesing volume))"),
 	ECVF_RenderThreadSafe
@@ -127,20 +128,38 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationMaxLightCount
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationEnableFinalGather(
-	TEXT("r.RayTracing.GlobalIllumination.EnableFinalGather"),
-	0,
-	TEXT("Enables final gather algorithm for 1-bounce global illumination (default = 0)"),
-	ECVF_RenderThreadSafe
-);
-
 static float GRayTracingGlobalIlluminationFinalGatherDistance = 10.0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationFinalGatherDistance(
-	TEXT("r.RayTracing.GlobalIllumination.FinalGatherDistance"),
+	TEXT("r.RayTracing.GlobalIllumination.FinalGather.Distance"),
 	GRayTracingGlobalIlluminationFinalGatherDistance,
 	TEXT("Maximum world-space distance for valid, reprojected final gather points (default = 10)")
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSortMaterials(
+	TEXT("r.RayTracing.GlobalIllumination.FinalGather.SortMaterials"),
+	1,
+	TEXT("Sets whether refected materials will be sorted before shading\n")
+	TEXT("0: Disabled\n ")
+	TEXT("1: Enabled, using Trace->Sort->Trace (Default)\n"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSortTileSize(
+	TEXT("r.RayTracing.GlobalIllumination.FinalGather.SortTileSize"),
+	64,
+	TEXT("Size of pixel tiles for sorted global illumination (default = 64)\n"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSortSize(
+	TEXT("r.RayTracing.GlobalIllumination.FinalGather.SortSize"),
+	5,
+	TEXT("Size of horizon for material ID sort\n")
+	TEXT("0: Disabled\n")
+	TEXT("1: 256 Elements\n")
+	TEXT("2: 512 Elements\n")
+	TEXT("3: 1024 Elements\n")
+	TEXT("4: 2048 Elements\n")
+	TEXT("5: 4096 Elements (Default)\n"),
+	ECVF_RenderThreadSafe);
 
 DECLARE_GPU_STAT_NAMED(RayTracingGIBruteForce, TEXT("Ray Tracing GI: Brute Force"));
 DECLARE_GPU_STAT_NAMED(RayTracingGIFinalGather, TEXT("Ray Tracing GI: Final Gather"));
@@ -278,10 +297,22 @@ bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 	{
 		return (CVarRayTracingGlobalIlluminationValue > 0);
 	}
-	else 
+	else
 	{
-		return View.FinalPostProcessSettings.RayTracingGI > 0;
+		return View.FinalPostProcessSettings.RayTracingGIType > ERayTracingGlobalIlluminationType::Disabled;
 	}
+}
+
+bool IsFinalGatherEnabled(const FViewInfo& View)
+{
+
+	int32 CVarRayTracingGlobalIlluminationValue = CVarRayTracingGlobalIllumination.GetValueOnRenderThread();
+	if (CVarRayTracingGlobalIlluminationValue >= 0)
+	{
+		return CVarRayTracingGlobalIlluminationValue == 2;
+	}
+
+	return View.FinalPostProcessSettings.RayTracingGIType == ERayTracingGlobalIlluminationType::FinalGather;
 }
 
 class FGlobalIlluminationRGS : public FGlobalShader
@@ -345,10 +376,11 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCreateGatherPointsRGS, FGlobalShader)
 
-	class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
+		class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
+	class FDeferredMaterialMode : SHADER_PERMUTATION_ENUM_CLASS("DIM_DEFERRED_MATERIAL_MODE", EDeferredMaterialMode);
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim, FDeferredMaterialMode>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -389,12 +421,79 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 
 		SHADER_PARAMETER(FIntPoint, GatherPointsResolution)
+		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
+		SHADER_PARAMETER(int32, SortTileSize)
+
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<GatherPoints>, RWGatherPointsBuffer)
+		// Optional indirection buffer used for sorted materials
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 };
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsRGS", SF_RayGen);
+
+class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS, FGlobalShader)
+
+		class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
+	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
+	class FDeferredMaterialMode : SHADER_PERMUTATION_ENUM_CLASS("DIM_DEFERRED_MATERIAL_MODE", EDeferredMaterialMode);
+
+	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim, FDeferredMaterialMode>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, GatherSamplesPerPixel)
+		SHADER_PARAMETER(uint32, SamplesPerPixel)
+		SHADER_PARAMETER(uint32, SampleIndex)
+		SHADER_PARAMETER(uint32, MaxBounces)
+		SHADER_PARAMETER(uint32, UpscaleFactor)
+		SHADER_PARAMETER(uint32, RenderTileOffsetX)
+		SHADER_PARAMETER(uint32, RenderTileOffsetY)
+		SHADER_PARAMETER(float, MaxRayDistanceForGI)
+		SHADER_PARAMETER(float, NextEventEstimationSamples)
+		SHADER_PARAMETER(float, DiffuseThreshold)
+		SHADER_PARAMETER(float, MaxNormalBias)
+		SHADER_PARAMETER(uint32, EvalSkyLight)
+		SHADER_PARAMETER(uint32, UseRussianRoulette)
+
+		// Scene data
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+
+		// Sampling sequence
+		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
+		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
+		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
+
+		// Light data
+		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
+		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+
+		// Shading data
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
+
+		SHADER_PARAMETER(FIntPoint, GatherPointsResolution)
+		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
+		SHADER_PARAMETER(int32, SortTileSize)
+
+		// Output
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<GatherPoints>, RWGatherPointsBuffer)
+		// Optional indirection buffer used for sorted materials
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsTraceRGS", SF_RayGen);
 
 class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 {
@@ -444,6 +543,8 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationFinalGatherRGS, "/Engine/Pr
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	const bool bSortMaterials = CVarRayTracingGlobalIlluminationFinalGatherSortMaterials.GetValueOnRenderThread() != 0;
+
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	for (int UseAttenuationTerm = 0; UseAttenuationTerm < 2; ++UseAttenuationTerm)
 	{
@@ -455,11 +556,37 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FV
 			TShaderMapRef<FGlobalIlluminationRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
 			OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
 
-			FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain CreateGatherPointsPermutationVector;
-			CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
-			CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
-			TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsRGS> CreateGatherPointsRayGenerationShader(View.ShaderMap, CreateGatherPointsPermutationVector);
-			OutRayGenShaders.Add(CreateGatherPointsRayGenerationShader->GetRayTracingShader());
+			if (bSortMaterials)
+			{
+				// Gather
+				{
+					FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FPermutationDomain CreateGatherPointsPermutationVector;
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
+					TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS> CreateGatherPointsRayGenerationShader(View.ShaderMap, CreateGatherPointsPermutationVector);
+					OutRayGenShaders.Add(CreateGatherPointsRayGenerationShader->GetRayTracingShader());
+				}
+
+				// Shade
+				{
+					FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain CreateGatherPointsPermutationVector;
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
+					CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
+					TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsRGS> CreateGatherPointsRayGenerationShader(View.ShaderMap, CreateGatherPointsPermutationVector);
+					OutRayGenShaders.Add(CreateGatherPointsRayGenerationShader->GetRayTracingShader());
+				}
+			}
+			else
+			{
+				FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain CreateGatherPointsPermutationVector;
+				CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
+				CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
+				CreateGatherPointsPermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
+				TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsRGS> CreateGatherPointsRayGenerationShader(View.ShaderMap, CreateGatherPointsPermutationVector);
+				OutRayGenShaders.Add(CreateGatherPointsRayGenerationShader->GetRayTracingShader());
+			}
 
 			FRayTracingGlobalIlluminationFinalGatherRGS::FPermutationDomain GatherPassPermutationVector;
 			GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
@@ -513,7 +640,7 @@ bool FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	}
 
 	// Ray generation pass
-	if (CVarRayTracingGlobalIlluminationEnableFinalGather.GetValueOnRenderThread() != 0)
+	if (IsFinalGatherEnabled(View))
 	{
 		RenderRayTracingGlobalIlluminationFinalGather(GraphBuilder, SceneTextures, View, *OutRayTracingConfig, UpscaleFactor, OutDenoiserInputs);
 	}
@@ -530,6 +657,49 @@ bool FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 }
 #endif // RHI_RAYTRACING
 
+#if RHI_RAYTRACING
+void CopyGatherPassParameters(
+	const FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters& PassParameters,
+	FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FParameters* NewParameters
+)
+{
+	NewParameters->GatherSamplesPerPixel = PassParameters.GatherSamplesPerPixel;
+	NewParameters->SamplesPerPixel = PassParameters.SamplesPerPixel;
+	NewParameters->SampleIndex = PassParameters.SampleIndex;
+	NewParameters->MaxBounces = PassParameters.MaxBounces;
+	NewParameters->UpscaleFactor = PassParameters.UpscaleFactor;
+	NewParameters->RenderTileOffsetX = PassParameters.RenderTileOffsetX;
+	NewParameters->RenderTileOffsetY = PassParameters.RenderTileOffsetY;
+	NewParameters->MaxRayDistanceForGI = PassParameters.MaxRayDistanceForGI;
+	NewParameters->NextEventEstimationSamples = PassParameters.NextEventEstimationSamples;
+	NewParameters->DiffuseThreshold = PassParameters.DiffuseThreshold;
+	NewParameters->MaxNormalBias = PassParameters.MaxNormalBias;
+	NewParameters->EvalSkyLight = PassParameters.EvalSkyLight;
+	NewParameters->UseRussianRoulette = PassParameters.UseRussianRoulette;
+
+	NewParameters->TLAS = PassParameters.TLAS;
+	NewParameters->ViewUniformBuffer = PassParameters.ViewUniformBuffer;
+
+	NewParameters->HaltonIteration = PassParameters.HaltonIteration;
+	NewParameters->HaltonPrimes = PassParameters.HaltonPrimes;
+	NewParameters->BlueNoise = PassParameters.BlueNoise;
+
+	NewParameters->LightParameters = PassParameters.LightParameters;
+	NewParameters->SkyLight = PassParameters.SkyLight;
+
+	NewParameters->SceneTextures = PassParameters.SceneTextures;
+	NewParameters->SSProfilesTexture = PassParameters.SSProfilesTexture;
+	NewParameters->TransmissionProfilesLinearSampler = PassParameters.TransmissionProfilesLinearSampler;
+
+	NewParameters->GatherPointsResolution = PassParameters.GatherPointsResolution;
+	NewParameters->TileAlignedResolution = PassParameters.TileAlignedResolution;
+	NewParameters->SortTileSize = PassParameters.SortTileSize;
+
+	NewParameters->RWGatherPointsBuffer = PassParameters.RWGatherPointsBuffer;
+	NewParameters->MaterialBuffer = PassParameters.MaterialBuffer;
+}
+#endif // RHI_RAYTRACING
+
 void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoints(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextureParameters& SceneTextures,
@@ -543,7 +713,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGICreateGatherPoints);
 	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing GI: Create Gather Points");
 
-	int32 GatherSamples = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
+	int32 GatherSamples = FMath::Min(GetRayTracingGlobalIlluminationSamplesPerPixel(View), MAXIMUM_GATHER_POINTS_PER_PIXEL);
 	int32 SamplesPerPixel = 1;
 
 	uint32 IterationCount = SamplesPerPixel;
@@ -626,6 +796,12 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->GatherPointsResolution = FIntPoint(GatherPointsResolution.X, GatherPointsResolution.Y);
 	PassParameters->RWGatherPointsBuffer = GraphBuilder.CreateUAV(GatherPointsBuffer, EPixelFormat::PF_R32_UINT);
 
+	// When deferred materials are used, two passes are invoked:
+	// 1) Gather ray-hit data and sort by hit-shader ID
+	// 2) Re-trace "short" ray and shade
+	const bool bSortMaterials = CVarRayTracingGlobalIlluminationFinalGatherSortMaterials.GetValueOnRenderThread() != 0;
+	if (!bSortMaterials)
+	{
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FUseAttenuationTermDim>(true);
 	PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingGlobalIlluminationEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
@@ -643,6 +819,87 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 		SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
 		RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, GatherPointsResolution.X, GatherPointsResolution.Y);
 	});
+	}
+	else
+	{
+		// Determines tile-size for sorted-deferred path
+		const int32 SortTileSize = CVarRayTracingGlobalIlluminationFinalGatherSortTileSize.GetValueOnRenderThread();
+		FIntPoint TileAlignedResolution = FIntPoint(GatherPointsResolution.X, GatherPointsResolution.Y);
+		if (SortTileSize)
+		{
+			TileAlignedResolution = FIntPoint::DivideAndRoundUp(TileAlignedResolution, SortTileSize) * SortTileSize;
+		}
+		PassParameters->TileAlignedResolution = TileAlignedResolution;
+		PassParameters->SortTileSize = SortTileSize;
+
+		FRDGBufferRef DeferredMaterialBuffer = nullptr;
+		const uint32 DeferredMaterialBufferNumElements = TileAlignedResolution.X * TileAlignedResolution.Y;
+
+		// Gather pass
+		{
+			FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FParameters* GatherPassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FParameters>();
+			CopyGatherPassParameters(*PassParameters, GatherPassParameters);
+
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
+			DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("RayTracingGlobalIlluminationMaterialBuffer"));
+			GatherPassParameters->MaterialBuffer = GraphBuilder.CreateUAV(DeferredMaterialBuffer);
+
+			FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FUseAttenuationTermDim>(true);
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingGlobalIlluminationEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
+			TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
+
+			ClearUnusedGraphResources(*RayGenerationShader, GatherPassParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("GlobalIlluminationRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
+				GatherPassParameters,
+				ERDGPassFlags::Compute,
+				[GatherPassParameters, this, &View, RayGenerationShader, TileAlignedResolution](FRHICommandList& RHICmdList)
+			{
+				FRayTracingPipelineState* Pipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, RayGenerationShader->GetRayTracingShader());
+
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, *RayGenerationShader, *GatherPassParameters);
+
+				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, TileAlignedResolution.X, TileAlignedResolution.Y);
+			});
+		}
+
+		// Sort by hit-shader ID
+		const uint32 SortSize = CVarRayTracingGlobalIlluminationFinalGatherSortSize.GetValueOnRenderThread();
+		SortDeferredMaterials(GraphBuilder, View, SortSize, DeferredMaterialBufferNumElements, DeferredMaterialBuffer);
+
+		// Shade pass
+		{
+			PassParameters->MaterialBuffer = GraphBuilder.CreateUAV(DeferredMaterialBuffer);
+
+			FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FUseAttenuationTermDim>(true);
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingGlobalIlluminationEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
+			PermutationVector.Set<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
+			TShaderMapRef<FRayTracingGlobalIlluminationCreateGatherPointsRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
+			ClearUnusedGraphResources(*RayGenerationShader, PassParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("GlobalIlluminationRayTracingShadeMaterials %d", DeferredMaterialBufferNumElements),
+				PassParameters,
+				ERDGPassFlags::Compute,
+				[PassParameters, this, &View, RayGenerationShader, DeferredMaterialBufferNumElements](FRHICommandList& RHICmdList)
+			{
+				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
+
+				// Shading pass for sorted materials uses 1D dispatch over all elements in the material buffer.
+				// This can be reduced to the number of output pixels if sorting pass guarantees that all invalid entries are moved to the end.
+				RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DeferredMaterialBufferNumElements, 1);
+			});
+		}
+	}
+
 }
 #else
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 NiagaraDataInterfaceHairStrands.ush 
@@ -11,13 +11,8 @@ NiagaraDataInterfaceHairStrands.ush
  * -----------------------------------------------------------------
  */
 
-#define WRAP_SIZE 32
 static const float M_PI = 3.14159265;
-static const float SCALE = 1e+6;
-
-static const int MASS_OFFSET = 0;
-static const int TANGENT_OFFSET = 3;
-static const int VELOCITY_OFFSET = 6;
+static const float3 MAX_POS = float3(1e+8,1e+8,1e+8);
 
 struct FDIHairStrandsContext
 {
@@ -44,6 +39,8 @@ struct FDIHairStrandsContext
 	float3				RestPositionOffset;
 	float3				DeformedPositionOffset;
 	bool				ResetSimulation;
+	RWBuffer<uint>		BoundingBoxBuffer;
+	Buffer<uint>		NodeBoundBuffer;
 }; 
 
 #define DIHAIRSTRANDS_DECLARE_CONSTANTS(NAME)\
@@ -70,6 +67,8 @@ float3				DeformedRootOffset_##NAME;\
 float3				RestPositionOffset_##NAME;\
 float3				DeformedPositionOffset_##NAME;\
 bool				ResetSimulation_##NAME;\
+RWBuffer<uint>	    BoundingBoxBuffer_##NAME;\
+Buffer<uint>		NodeBoundBuffer_##NAME;\
 
 #define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
 FDIHairStrandsContext DIContext;\
@@ -96,6 +95,33 @@ DIContext.DeformedRootOffset = DeformedRootOffset_##NAME;\
 DIContext.RestPositionOffset =	RestPositionOffset_##NAME;\
 DIContext.DeformedPositionOffset = DeformedPositionOffset_##NAME;\
 DIContext.ResetSimulation = ResetSimulation_##NAME;\
+DIContext.BoundingBoxBuffer = BoundingBoxBuffer_##NAME;\
+DIContext.NodeBoundBuffer = NodeBoundBuffer_##NAME;\
+
+/* -----------------------------------------------------------------
+ * Vector utilities
+ * -----------------------------------------------------------------
+ */
+
+ float3 Uint3ToFloat3( in uint3 Uint3Vector)
+ {
+	uint3 SignedVector = Uint3Vector;
+	SignedVector.x ^= (((SignedVector.x >> 31)-1) | 0x80000000);
+	SignedVector.y ^= (((SignedVector.y >> 31)-1) | 0x80000000);
+	SignedVector.z ^= (((SignedVector.z >> 31)-1) | 0x80000000);
+
+	return float3(asfloat(SignedVector.x),asfloat(SignedVector.y),asfloat(SignedVector.z));
+ }
+
+ uint3 Float3ToUint3( in float3 Float3Vector)
+ {
+	uint3 UnsignedVector = uint3(asuint(Float3Vector.x),asuint(Float3Vector.y),asuint(Float3Vector.z));
+	UnsignedVector.x ^= (1+~(UnsignedVector.x >> 31) | 0x80000000);
+	UnsignedVector.y ^= (1+~(UnsignedVector.y >> 31) | 0x80000000);
+	UnsignedVector.z ^= (1+~(UnsignedVector.z >> 31) | 0x80000000);
+
+	return UnsignedVector;
+ }
 
 /* -----------------------------------------------------------------
  * Box utilities
@@ -105,13 +131,19 @@ DIContext.ResetSimulation = ResetSimulation_##NAME;\
 // Return the bounding box center
 void DIHairStrands_GetBoxCenter(in FDIHairStrandsContext DIContext, out float3 OutBoxCenter)
 {
-	OutBoxCenter = DIContext.BoxCenter;
+	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
+	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5]));
+
+	OutBoxCenter = 0.5 * (BoxMin+BoxMax);
 }
 
 // Return the bounding box extent
 void DIHairStrands_GetBoxExtent(in FDIHairStrandsContext DIContext, out float3 OutBoxExtent)
 {
-	OutBoxExtent = DIContext.BoxExtent;
+	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
+	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5]));
+
+	OutBoxExtent =  (BoxMax-BoxMin);
 }
 
 /* -----------------------------------------------------------------
@@ -166,6 +198,99 @@ float DIHairStrands_ComputeStrandLength(in FDIHairStrandsContext DIContext, in i
 		}
 	}
 	return StrandLength;
+}
+
+/* -----------------------------------------------------------------
+ * Bounding box generation
+ * -----------------------------------------------------------------
+ */
+
+ #define WRAP_SIZE 32
+
+ /*
+ const uint3 LocalPosition = Float3ToUint3(NodePosition);
+
+if(isfinite(NodePosition))
+{
+	InterlockedMin(DIContext.BoundingBoxBuffer[0],LocalPosition.x);
+	InterlockedMin(DIContext.BoundingBoxBuffer[1],LocalPosition.y);
+	InterlockedMin(DIContext.BoundingBoxBuffer[2],LocalPosition.z);
+
+	InterlockedMax(DIContext.BoundingBoxBuffer[3],LocalPosition.x);
+	InterlockedMax(DIContext.BoundingBoxBuffer[4],LocalPosition.y);
+	InterlockedMax(DIContext.BoundingBoxBuffer[5],LocalPosition.z);
+}
+
+AllMemoryBarrier();
+
+OutBoundMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
+OutBoundMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5])); 
+*/
+
+void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in float3 NodePosition, out bool BuildStatus, out float3 OutBoundMin, out float3 OutBoundMax)
+{
+	BuildStatus = true;
+
+	const uint3 LocalPosition = Float3ToUint3(NodePosition);
+
+	if(isfinite(NodePosition.x) && isfinite(NodePosition.y) && isfinite(NodePosition.z))
+	{
+		InterlockedMin(DIContext.BoundingBoxBuffer[0],LocalPosition.x);
+		InterlockedMin(DIContext.BoundingBoxBuffer[1],LocalPosition.y);
+		InterlockedMin(DIContext.BoundingBoxBuffer[2],LocalPosition.z);
+
+		InterlockedMax(DIContext.BoundingBoxBuffer[3],LocalPosition.x);
+		InterlockedMax(DIContext.BoundingBoxBuffer[4],LocalPosition.y);
+		InterlockedMax(DIContext.BoundingBoxBuffer[5],LocalPosition.z);
+	}
+
+	DeviceMemoryBarrier();
+
+	OutBoundMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
+	OutBoundMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5])); 
+
+	return;
+
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	GroupMemoryBarrier();
+
+	const int LocalIndex = (GGroupThreadId.x % DIContext.StrandSize);
+	if(LocalIndex == 0)
+	{
+		const float FLOAT_MAX = 1e+10;
+
+		float3 BoundingBoxMin = float3(FLOAT_MAX,FLOAT_MAX,FLOAT_MAX);
+		float3 BoundingBoxMax = -BoundingBoxMin;
+
+		[unroll]
+		for( int i = GGroupThreadId.x; i < GGroupThreadId.x+DIContext.StrandSize; ++i)
+		{
+			BoundingBoxMin = min(BoundingBoxMin,SharedNodePosition[i]);
+			BoundingBoxMax = max(BoundingBoxMax,SharedNodePosition[i]);
+		}
+
+		if(isfinite(BoundingBoxMin.x) && isfinite(BoundingBoxMin.y) && isfinite(BoundingBoxMin.z))
+		{
+			const uint3 MinPosition = Float3ToUint3(BoundingBoxMin);
+
+			InterlockedMin(DIContext.BoundingBoxBuffer[0],MinPosition.x);
+			InterlockedMin(DIContext.BoundingBoxBuffer[1],MinPosition.y);
+			InterlockedMin(DIContext.BoundingBoxBuffer[2],MinPosition.z);
+		}
+		if(isfinite(BoundingBoxMax.x) && isfinite(BoundingBoxMax.y) && isfinite(BoundingBoxMax.z))
+		{
+			const uint3 MaxPosition = Float3ToUint3(BoundingBoxMax);
+
+			InterlockedMax(DIContext.BoundingBoxBuffer[3],MaxPosition.x);
+			InterlockedMax(DIContext.BoundingBoxBuffer[4],MaxPosition.y);
+			InterlockedMax(DIContext.BoundingBoxBuffer[5],MaxPosition.z);
+		}
+	}
+
+	AllMemoryBarrier();
+
+	OutBoundMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
+	OutBoundMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5]));
 }
 
 /* -----------------------------------------------------------------
@@ -346,29 +471,6 @@ void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in
 	}
 	GroupMemoryBarrier();
 	OutNodeOrientation = 	SharedNodeOrientation[GGroupThreadId.x];
-
-	/*int StrandIndex = 0, LocalIndex = 0;
-	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
-	const int RootIndex = StrandIndex * DIContext.StrandSize;
-
-	float4 NodeQuaternion = QUATERNION_IDENTITY;
-	float3 TangentNext = float3(0,0,1);
-	float3 TangentPrev = TangentNext;
-
-	float3 PositionNext = float3(0.0,0.0,0.0);
-	DIHairStrands_ComputeNodePosition(DIContext,RootIndex,PositionNext);
-	float3 PositionPrev = PositionNext;
-
-	for (int EdgeIndex = RootIndex, EdgeEnd = min(RootIndex+DIContext.StrandSize-1,NodeIndex+1); EdgeIndex < EdgeEnd; ++EdgeIndex)
-	{
-		PositionPrev = PositionNext;
-		DIHairStrands_ComputeNodePosition(DIContext,EdgeIndex+1,PositionNext);
-
-		TangentPrev = TangentNext;
-		TangentNext = normalize(PositionNext - PositionPrev);
-		NodeQuaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), NodeQuaternion ) );
-	}
-	OutNodeOrientation = NodeQuaternion;*/
 }
 
 /* -----------------------------------------------------------------
@@ -496,23 +598,34 @@ void DIHairStrands_GetPointPosition(in FDIHairStrandsContext DIContext, in int P
  */
 
 // Add external force to the linear velocity and advect node position
-void DIHairStrands_AdvectNodePosition(in FDIHairStrandsContext DIContext, in float NodeMass, in float InverssMass, in float3 ExternalForce, in float DeltaTime, inout float3 OutLinearVelocity, inout float3 OutNodePosition)
+void DIHairStrands_AdvectNodePosition(in FDIHairStrandsContext DIContext, in float NodeMass, in bool IsPositionMobile, in float3 ExternalForce, in float3 ForceGradient, in float DeltaTime, inout float3 OutLinearVelocity, inout float3 OutNodePosition)
 {	
-	OutLinearVelocity += DeltaTime * InverssMass * ExternalForce;
+	if(IsPositionMobile && NodeMass != 0.0)
+	{
+		const float3 ImplicitGradient =  float3(NodeMass,NodeMass,NodeMass) / DeltaTime - ForceGradient;
+		const float3 InverseGradient = float3(1.0/ImplicitGradient.x, 1.0/ImplicitGradient.y, 1.0/ImplicitGradient.z);
 
-	OutNodePosition += OutLinearVelocity * DeltaTime;
+		OutLinearVelocity += InverseGradient * ExternalForce;
+		OutNodePosition += OutLinearVelocity * DeltaTime;
+	}
 }
 
 // Add external torque to the angular velocity and advect node orientation
-void DIHairStrands_AdvectNodeOrientation(in FDIHairStrandsContext DIContext, in float3 NodeInertia, in float3 InverseInertia, in float3 ExternalTorque, in float DeltaTime, inout float3 OutAngularVelocity, inout float4 OutNodeOrientation)
+void DIHairStrands_AdvectNodeOrientation(in FDIHairStrandsContext DIContext, in float3 NodeInertia, in bool IsOrientationMobile, in float3 ExternalTorque, in float3 TorqueGradient, in float DeltaTime, inout float3 OutAngularVelocity, inout float4 OutNodeOrientation)
 {	
-	OutAngularVelocity += DeltaTime * InverseInertia * (ExternalTorque - cross(OutAngularVelocity, NodeInertia * OutAngularVelocity));
+	if(IsOrientationMobile && NodeInertia.x != 0.0 && NodeInertia.y != 0.0 && NodeInertia.z != 0.0)
+	{
+		const float3 ImplicitGradient = NodeInertia / DeltaTime - TorqueGradient;
+		const float3 InverseGradient = float3(1.0/ImplicitGradient.x, 1.0/ImplicitGradient.y, 1.0/ImplicitGradient.z);
 
-	OutNodeOrientation = OutNodeOrientation + 0.5 * DeltaTime * float4(
-        OutAngularVelocity.xyz * OutNodeOrientation.w + cross(OutAngularVelocity.xyz, OutNodeOrientation.xyz),
-        - dot(OutAngularVelocity.xyz, OutNodeOrientation.xyz));
+		OutAngularVelocity += InverseGradient * (ExternalTorque - cross(OutAngularVelocity, NodeInertia * OutAngularVelocity));
 
-	OutNodeOrientation = NormalizeQuat(OutNodeOrientation);
+		OutNodeOrientation = OutNodeOrientation + 0.5 * DeltaTime * float4(
+			OutAngularVelocity.xyz * OutNodeOrientation.w + cross(OutAngularVelocity.xyz, OutNodeOrientation.xyz),
+			- dot(OutAngularVelocity.xyz, OutNodeOrientation.xyz));
+
+		OutNodeOrientation = NormalizeQuat(OutNodeOrientation);
+	}
 }
 
 // Update the node linear velocity based on the node position difference
@@ -537,50 +650,6 @@ void DIHairStrands_UpdateAngularVelocity(in FDIHairStrandsContext DIContext, in 
 		const float QuatAngle = 2.0 * atan2(AxisLength,DeltaQuat.w );
 		OutAngularVelocity = DeltaQuat.xyz * QuatAngle / (AxisLength*DeltaTime);
 	}
-}
-
-/* -----------------------------------------------------------------
- * Compute Air Drag Force
- * -----------------------------------------------------------------
- */
-
-// Air Density = 1 kg/m3 = 1e-3 g/cm3
-// Dynamic Viscosity = 1e-5 Pa.s = 1e-6 g/(cm.s)
-// Compute air drag force
-void DIHairStrands_ComputeAirDragForce(in FDIHairStrandsContext DIContext, in float AirDensity, in float AirViscosity, in float AirDrag, 
-	in float3 AirVelocity, in float NodeThickness, in float3 NodePosition, in float3 NodeVelocity, out float3 OutAirDrag)
-{	
-	const float3 DeltaVelocity = NodeVelocity - AirVelocity;
-	const float DeltaVNorm = length(DeltaVelocity);
-
-	SharedNodePosition[GGroupThreadId.x] = NodePosition;
-	GroupMemoryBarrier();
-	
-	float AlignedTangent = 0.0;
-	float TangentLength = 0.0;
-	if( DeltaVNorm > SMALL_NUMBER)
-	{
-		const int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
-		float3 NodeTangent = (LocalIndex == 0) ? SharedNodePosition[GGroupThreadId.x+1] - SharedNodePosition[GGroupThreadId.x] : 
-												 SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]; 
-		TangentLength = length(NodeTangent);
-		NodeTangent = normalize(NodeTangent);
-
-		AlignedTangent = abs(dot(NodeTangent,DeltaVelocity)/DeltaVNorm);
-	}
-	const float NodeDiameter = NodeThickness * (1.0 - AlignedTangent) + TangentLength * AlignedTangent;
-	const float NodeArea = NodeDiameter * NodeThickness;
-
-	// V = 4 * PI * R * R * R / 3 = PI * D * D * D / 6 = M / rho 
-	//const float NodeDiameter = pow(6.0 * (NodeMass / StrandsDensity ) / PI, 1.0 / 3.0);
-	//const float NodeArea = PI * NodeDiameter * NodeDiameter / 4.0;
-
-	const float LinearDrag = 3.0 * PI * NodeDiameter * AirViscosity * AirDrag;
-	const float QuadraticDrag = 0.5 * AirDensity * NodeArea * AirDrag;
-
-	const float DragCoeff = LinearDrag + QuadraticDrag * DeltaVNorm;
-
-	OutAirDrag = - DragCoeff * DeltaVelocity;
 }
 
 /* -----------------------------------------------------------------

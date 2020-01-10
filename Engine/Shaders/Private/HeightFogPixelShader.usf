@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	HeightFogPixelShader.usf: Scene fogging pixel shader.
@@ -10,9 +10,13 @@
 #include "HeightFogCommon.ush"
 
 float bOnlyOnRenderedOpaque;
+float bUseLinearDepthTexture;
 
 Texture2D OcclusionTexture;
 SamplerState OcclusionSampler;
+
+Texture2D LinearDepthTexture;
+SamplerState LinearDepthSampler;
 
 void ExponentialPixelMain(
 	float2 TexCoord : TEXCOORD0,
@@ -21,14 +25,23 @@ void ExponentialPixelMain(
 	out float4 OutColor : SV_Target0
 	)
 {
+	float SceneDepth;
+	float DeviceZ;
+	if (bUseLinearDepthTexture > 0.0f)
+	{
+		SceneDepth = Texture2DSampleLevel(LinearDepthTexture, LinearDepthSampler, TexCoord, 0).r * bUseLinearDepthTexture; // bUseLinearDepthTexture is also a scale to get depth in correct range
+		DeviceZ = ConvertToDeviceZ(SceneDepth);
+	}
+	else
+	{
 	#if SCENE_TEXTURES_DISABLED
 		float SceneDepth = SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
+		DeviceZ = ConvertToDeviceZ(SceneDepth);
 	#else
-		float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, TexCoord, 0).r;
-
-		// Fetch the depth buffer Z / W value, solve for W
-		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+		DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, TexCoord, 0).r;
+		SceneDepth = ConvertFromDeviceZ(DeviceZ); // Fetch the depth buffer Z / W value, solve for W
 	#endif
+	}
 
 	bool bIsRendered = (DeviceZ != 0.0);
 

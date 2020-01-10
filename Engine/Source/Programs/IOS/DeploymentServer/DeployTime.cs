@@ -1,5 +1,5 @@
 /**
- * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+ * Copyright Epic Games, Inc. All Rights Reserved.
  */
 
 using System;
@@ -240,10 +240,6 @@ namespace DeploymentServer
                         ReportIF.Error("Timed out while trying to connect to a mobile device.  Make sure one is connected.");
                     }
                 }
-				catch (ThreadAbortException)
-				{
-					// we expect this to happen so we don't log it
-				}
 				catch (Exception ex)
                 {
                     ReportIF.Error(String.Format("Error encountered ('{0}') while trying to connect to a mobile device.  Please verify that iTunes is installed", ex.Message));
@@ -366,10 +362,9 @@ namespace DeploymentServer
             });
         }
 
-		public void ListenToDevice(string inDeviceID, TextWriter Writer)
+		public bool ListenToDevice(string inDeviceID, TextWriter Writer)
 		{
 			MobileDeviceInstance	targetDevice = null;
-
             PerformActionOnAllDevices(2 * StandardEnumerationDelayMS, delegate(MobileDeviceInstance Device)
             {
 				if(inDeviceID == Device.DeviceId)
@@ -384,19 +379,26 @@ namespace DeploymentServer
 				targetDevice.StartSyslogService();
 				
 				// This never returns, the process must be killed to stop logging
-				while(true)
+				while(targetDevice.IsConnected)
 				{
 					string	curLog = targetDevice.GetSyslogData();
 					if(curLog.Trim().Length > 0)
 					{
 						Writer.Write(curLog);
 					}
-					System.Threading.Thread.Sleep(50);
+					else
+					{
+						System.Threading.Thread.Sleep(50);
+					}
 				}
+
+				Writer.WriteLine("Device " + inDeviceID + " is no longer connected");
+				return true;
 			}
 			else
 			{
-				ReportIF.Error("Could not find device " + inDeviceID);
+				Writer.WriteLine("Could not find device " + inDeviceID);
+				return false;
 			}
 		}
 

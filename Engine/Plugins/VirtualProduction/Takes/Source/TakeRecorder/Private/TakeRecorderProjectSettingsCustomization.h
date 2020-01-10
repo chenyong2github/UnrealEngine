@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,8 +35,8 @@ class FTakeRecorderProjectSettingsCustomization : public IDetailCustomization
 
 				UClass* Class = AdditionalSettings->GetClass();
 
-				TArray<UProperty*> EditProperties;
-				for (UProperty* Property : TFieldRange<UProperty>(Class))
+				TArray<FProperty*> EditProperties;
+				for (FProperty* Property : TFieldRange<FProperty>(Class))
 				{
 					if (Property && Property->HasAllPropertyFlags(CPF_Edit | CPF_Config))
 					{
@@ -49,7 +49,7 @@ class FTakeRecorderProjectSettingsCustomization : public IDetailCustomization
 					IDetailCategoryBuilder& Category = DetailLayout.EditCategory(*Class->GetDisplayNameText().ToString());
 
 					TArray<UObject*> SettingAsArray = { AdditionalSettings };
-					for (UProperty* Property : EditProperties)
+					for (FProperty* Property : EditProperties)
 					{
 						Category.AddExternalObjectProperty(SettingAsArray, Property->GetFName());
 					}

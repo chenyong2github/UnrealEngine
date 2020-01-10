@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameInstance.h"
 #include "Misc/MessageDialog.h"
@@ -715,7 +715,7 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 ControllerId)
 {
-	if (NewLocalPlayer == NULL)
+	if (NewLocalPlayer == nullptr)
 	{
 		return INDEX_NONE;
 	}
@@ -729,10 +729,14 @@ int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 Controll
 	NewLocalPlayer->PlayerAdded(GetGameViewportClient(), ControllerId);
 
 	// Notify the viewport that we added a player (so it can update splitscreen settings, etc)
-	if ( GetGameViewportClient() != NULL )
+	if ( GetGameViewportClient() != nullptr)
 	{
 		GetGameViewportClient()->NotifyPlayerAdded(InsertIndex, NewLocalPlayer);
 	}
+
+	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::AddLocalPlayer: Added player %s with ControllerId %d at index %d (%d remaining players)"), *NewLocalPlayer->GetName(), NewLocalPlayer->GetControllerId(), InsertIndex, LocalPlayers.Num());
+
+	OnLocalPlayerAddedEvent.Broadcast(NewLocalPlayer);
 
 	return InsertIndex;
 }
@@ -787,6 +791,8 @@ bool UGameInstance::RemoveLocalPlayer(ULocalPlayer* ExistingPlayer)
 
 	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::RemovePlayer: Removed player %s with ControllerId %i at index %i (%i remaining players)"), *ExistingPlayer->GetName(), ExistingPlayer->GetControllerId(), OldIndex, LocalPlayers.Num());
 
+	OnLocalPlayerRemovedEvent.Broadcast(ExistingPlayer);
+
 	return true;
 }
 
@@ -821,10 +827,15 @@ int32 UGameInstance::GetNumLocalPlayers() const
 
 ULocalPlayer* UGameInstance::GetLocalPlayerByIndex(const int32 Index) const
 {
-	return LocalPlayers[Index];
+	if (LocalPlayers.IsValidIndex(Index))
+	{
+		return LocalPlayers[Index];
+	}
+
+	return nullptr;
 }
 
-APlayerController* UGameInstance::GetFirstLocalPlayerController(UWorld* World) const
+APlayerController* UGameInstance::GetFirstLocalPlayerController(const UWorld* World) const
 {
 	if (World == nullptr)
 	{
@@ -1302,7 +1313,7 @@ AGameModeBase* UGameInstance::CreateGameModeForURL(FURL InURL, UWorld* InWorld)
 		if (MapNameNoPath.StartsWith(PLAYWORLD_PACKAGE_PREFIX))
 		{
 			const int32 PrefixLen = UWorld::BuildPIEPackagePrefix(WorldContext->PIEInstance).Len();
-			MapNameNoPath = MapNameNoPath.Mid(PrefixLen);
+			MapNameNoPath.MidInline(PrefixLen, MAX_int32, false);
 		}
 
 		FString const GameClassName = UGameMapsSettings::GetGameModeForMapName(FString(MapNameNoPath));

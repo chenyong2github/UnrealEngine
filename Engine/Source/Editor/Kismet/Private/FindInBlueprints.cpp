@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "FindInBlueprints.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
@@ -130,11 +130,6 @@ FFindInBlueprintsResult::FFindInBlueprintsResult(const FText& InDisplayText )
 {
 }
 
-FFindInBlueprintsResult::FFindInBlueprintsResult( const FText& InDisplayText, TSharedPtr<FFindInBlueprintsResult> InParent) 
-	: Parent(InParent), DisplayText(InDisplayText)
-{
-}
-
 FReply FFindInBlueprintsResult::OnClick()
 {
 	// If there is a parent, handle it using the parent's functionality
@@ -218,9 +213,8 @@ FText FFindInBlueprintsResult::GetDisplayString() const
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsGraphNode
 
-FFindInBlueprintsGraphNode::FFindInBlueprintsGraphNode(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, Glyph("EditorStyle", "")
+FFindInBlueprintsGraphNode::FFindInBlueprintsGraphNode()
+	: Glyph("EditorStyle", "")
 	, Class(nullptr)
 {
 }
@@ -326,9 +320,8 @@ UObject* FFindInBlueprintsGraphNode::GetObject(UBlueprint* InBlueprint) const
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsPin
 
-FFindInBlueprintsPin::FFindInBlueprintsPin(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, FString InSchemaName)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, SchemaName(InSchemaName)
+FFindInBlueprintsPin::FFindInBlueprintsPin(FString InSchemaName)
+	: SchemaName(InSchemaName)
 	, IconColor(FSlateColor::UseForeground())
 {
 }
@@ -405,9 +398,8 @@ void FFindInBlueprintsPin::FinalizeSearchData()
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsProperty
 
-FFindInBlueprintsProperty::FFindInBlueprintsProperty(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, bIsSCSComponent(false)
+FFindInBlueprintsProperty::FFindInBlueprintsProperty()
+	: bIsSCSComponent(false)
 {
 }
 
@@ -512,9 +504,8 @@ void FFindInBlueprintsProperty::FinalizeSearchData()
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsGraph
 
-FFindInBlueprintsGraph::FFindInBlueprintsGraph(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, EGraphType InGraphType)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, GraphType(InGraphType)
+FFindInBlueprintsGraph::FFindInBlueprintsGraph(EGraphType InGraphType)
+	: GraphType(InGraphType)
 {
 }
 
@@ -1027,10 +1018,10 @@ void SFindInBlueprints::FocusForUse(bool bSetFindWithinBlueprint, FString NewSea
 	}
 }
 
-void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, enum ESearchQueryFilter InSearchFilterForImaginaryDataReturn/* = ESearchQueryFilter::AllFilter*/, EFiBVersion InMinimiumVersionRequirement/* = EFiBVersion::FIB_VER_LATEST*/, FOnSearchComplete InOnSearchComplete/* = FOnSearchComplete()*/)
+void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, const FStreamSearchOptions& InSearchOptions/* = FStreamSearchOptions()*/, FOnSearchComplete InOnSearchComplete/* = FOnSearchComplete()*/)
 {
 	SearchTextField->SetText(FText::FromString(InSearchString));
-	LastSearchedFiBVersion = InMinimiumVersionRequirement;
+	LastSearchedFiBVersion = InSearchOptions.MinimiumVersionRequirement;
 
 	if(ItemsFound.Num())
 	{
@@ -1053,6 +1044,8 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 
 		if (bInIsFindWithinBlueprint)
 		{
+			const double StartTime = FPlatformTime::Seconds();
+
 			if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
 			{
 				StreamSearch->Stop();
@@ -1063,7 +1056,7 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 
 			UBlueprint* Blueprint = BlueprintEditorPtr.Pin()->GetBlueprintObj();
 			FString ParentClass;
-			if (UProperty* ParentClassProp = Blueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
+			if (FProperty* ParentClassProp = Blueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
 			{
 				ParentClassProp->ExportTextItem(ParentClass, ParentClassProp->ContainerPtrToValuePtr<uint8>(Blueprint), nullptr, Blueprint, 0);
 			}
@@ -1116,10 +1109,12 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 			}
 
 			TreeView->RequestTreeRefresh();
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Search completed in %0.2f seconds."), FPlatformTime::Seconds() - StartTime);
 		}
 		else
 		{
-			LaunchStreamThread(InSearchString, InSearchFilterForImaginaryDataReturn, InMinimiumVersionRequirement, InOnSearchComplete);
+			LaunchStreamThread(InSearchString, InSearchOptions, InOnSearchComplete);
 		}
 	}
 }
@@ -1147,7 +1142,7 @@ ECheckBoxState SFindInBlueprints::OnGetFindModeChecked() const
 	return bIsInFindWithinBlueprintMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue)
+void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions, FOnSearchComplete InOnSearchComplete)
 {
 	if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
 	{
@@ -1160,24 +1155,7 @@ void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue)
 		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SFindInBlueprints::UpdateSearchResults ) );
 	}
 
-	StreamSearch = MakeShareable(new FStreamSearch(InSearchValue));
-	OnSearchComplete = FOnSearchComplete();
-}
-
-void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue, enum ESearchQueryFilter InSearchFilterForRawDataReturn, EFiBVersion InMinimiumVersionRequirement, FOnSearchComplete InOnSearchComplete)
-{
-	if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
-	{
-		StreamSearch->Stop();
-		StreamSearch->EnsureCompletion();
-	}
-	else
-	{
-		// If the stream search wasn't already running, register the active timer
-		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SFindInBlueprints::UpdateSearchResults ) );
-	}
-
-	StreamSearch = MakeShareable(new FStreamSearch(InSearchValue, InSearchFilterForRawDataReturn, InMinimiumVersionRequirement));
+	StreamSearch = MakeShared<FStreamSearch>(InSearchValue, InSearchOptions);
 	OnSearchComplete = InOnSearchComplete;
 }
 

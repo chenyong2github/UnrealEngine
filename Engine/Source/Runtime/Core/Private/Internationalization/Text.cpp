@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/Text.h"
 #include "Algo/Transform.h"
@@ -1220,7 +1220,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 		}
 	case EFormatArgumentType::Text:
 		{
-			if(Slot.GetUnderlyingArchive().IsLoading())
+			if(Slot.GetArchiveState().IsLoading())
 			{
 				Value.TextValue = FText();
 			}

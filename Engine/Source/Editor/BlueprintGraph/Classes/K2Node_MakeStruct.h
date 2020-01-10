@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -71,9 +71,9 @@ protected:
 
 		bool HasAdvancedPins() const { return bHasAdvancedPins; }
 	protected:
-		virtual void GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const override;
-		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, UProperty* Property) const override;
-		virtual bool CanTreatPropertyAsOptional(UProperty* TestProperty) const override;
+		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override;
+		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, FProperty* Property) const override;
+		virtual bool CanTreatPropertyAsOptional(FProperty* TestProperty) const override;
 
 		/** set by GetRecordDefaults(), mutable as it is a const function */
 		mutable bool bHasAdvancedPins;

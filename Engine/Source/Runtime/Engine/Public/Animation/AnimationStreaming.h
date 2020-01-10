@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 AudioStreaming.h: Definitions of classes used for audio streaming.
@@ -23,7 +23,7 @@ struct FLoadedAnimationChunk
 {
 	TAtomic<FCompressedAnimSequence*> CompressedAnimData;
 
-	struct FBulkDataIORequest* IORequest;
+	class IBulkDataIORequest* IORequest;
 	double RequestStart;
 
 	uint32	Index;
@@ -157,7 +157,7 @@ struct FAnimationStreamingManager : public IAnimationStreamingManager
 	// End IAudioStreamingManager interface
 
 	/** Called when an async callback is made on an async loading audio chunk request. */
-	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest, bool bWasCancelled);
+	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled);
 
 protected:
 

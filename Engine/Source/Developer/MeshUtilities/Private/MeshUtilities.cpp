@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshUtilities.h"
 #include "MeshUtilitiesPrivate.h"
@@ -2772,7 +2772,8 @@ public:
 				// TODO_STATICMESH: The wedge map is only valid for LODIndex 0 if no reduction has been performed.
 				// We can compute an approximate one instead for other LODs.
 				TArray<int32> TempWedgeMap;
-				TArray<int32>& WedgeMap = (LODIndex == 0 && InOutModels[0].ReductionSettings.PercentTriangles >= 1.0f) ? OutRenderData.WedgeMap : TempWedgeMap;
+				TArray<int32>& WedgeMap = InOutModels[LODIndex].ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
+				WedgeMap.Reset();
 				float ComparisonThreshold = GetComparisonThreshold(LODBuildSettings[LODIndex]);
 				MeshUtilities.BuildStaticMeshVertexAndIndexBuffers(Vertices, PerSectionIndices, WedgeMap, RawMesh, LODOverlappingCorners[LODIndex], MaterialToSectionMapping, ComparisonThreshold, LODBuildSettings[LODIndex].BuildScale3D, ImportVersion);
 				check(WedgeMap.Num() == RawMesh.WedgeIndices.Num());
@@ -3587,8 +3588,8 @@ public:
 			bool bSkipNTB = true;
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
-				bCornerHasNormal[CornerIndex] = !WedgeTangentZ[WedgeOffset + CornerIndex].IsZero();
-				bCornerHasTangents[CornerIndex] = !WedgeTangentX[WedgeOffset + CornerIndex].IsZero() && !WedgeTangentY[WedgeOffset + CornerIndex].IsZero();
+				bCornerHasNormal[CornerIndex] = !WedgeTangentZ[WedgeOffset + CornerIndex].IsNearlyZero();
+				bCornerHasTangents[CornerIndex] = !WedgeTangentX[WedgeOffset + CornerIndex].IsNearlyZero() && !WedgeTangentY[WedgeOffset + CornerIndex].IsNearlyZero();
 
 				//If we want to compute mikkt we dont check tangents to skip this corner
 				if (!bCornerHasNormal[CornerIndex] || (!bUseMikktSpace && !bCornerHasTangents[CornerIndex]))
@@ -3813,15 +3814,15 @@ public:
 							}
 						}
 					}
-					if (!WedgeTangentX[WedgeOffset + CornerIndex].IsZero())
+					if (!WedgeTangentX[WedgeOffset + CornerIndex].IsNearlyZero())
 					{
 						CornerTangentX[CornerIndex] = WedgeTangentX[WedgeOffset + CornerIndex];
 					}
-					if (!WedgeTangentY[WedgeOffset + CornerIndex].IsZero())
+					if (!WedgeTangentY[WedgeOffset + CornerIndex].IsNearlyZero())
 					{
 						CornerTangentY[CornerIndex] = WedgeTangentY[WedgeOffset + CornerIndex];
 					}
-					if (!WedgeTangentZ[WedgeOffset + CornerIndex].IsZero())
+					if (!WedgeTangentZ[WedgeOffset + CornerIndex].IsNearlyZero())
 					{
 						CornerNormal[CornerIndex] = WedgeTangentZ[WedgeOffset + CornerIndex];
 					}

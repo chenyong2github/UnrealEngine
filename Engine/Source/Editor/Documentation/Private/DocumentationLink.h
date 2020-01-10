@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -212,17 +212,17 @@ private:
 				Anchor = FString( TEXT("#") ) + Anchor;
 			}
 
-			if ( Anchor.EndsWith( TEXT("/") ) )
+			if ( Anchor.EndsWith( TEXT("/"), ESearchCase::CaseSensitive ) )
 			{
-				Anchor = Anchor.Left( Anchor.Len() - 1 );
+				Anchor.LeftInline( Anchor.Len() - 1 );
 			}
 
-			if ( PathAndQueryString.EndsWith( TEXT("/") ) )
+			if ( PathAndQueryString.EndsWith( TEXT("/"), ESearchCase::CaseSensitive ) )
 			{
-				PathAndQueryString = PathAndQueryString.Left(PathAndQueryString.Len() - 1);
+				PathAndQueryString.LeftInline(PathAndQueryString.Len() - 1, false);
 			}
 
-			if ( !PathAndQueryString.IsEmpty() && !PathAndQueryString.StartsWith( TEXT("/") ) )
+			if ( !PathAndQueryString.IsEmpty() && !PathAndQueryString.StartsWith( TEXT("/"), ESearchCase::CaseSensitive ) )
 			{
 				PathAndQueryString = FString(TEXT("/")) + PathAndQueryString;
 			}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -159,7 +159,9 @@ struct FVisualLoggingParameters
 	EVisualLoggingContext Context;
 	int32 Frame;
 	EVisualLoggingLifetime Lifetime;
-	FString DebugString;
+	
+	FString DebugString; // Debug String set by the invoker of the VisualLog call
+	mutable FString StateString; // String representation of the available state associated with this log call.
 
 	FColor GetDebugColor() const { return DebugColors[(int32)Context]; }
 	static NETWORKPREDICTION_API FColor DebugColors[(int32)EVisualLoggingContext::MAX];

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LightRendering.cpp: Light rendering implementation.
@@ -707,7 +707,7 @@ void FSceneRenderer::GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy
 		{
 			// Trim the leading path before the level name to make it more readable
 			// The level FName was taken directly from the Outermost UObject, otherwise we would do this operation on the game thread
-			FullLevelName = FullLevelName.Mid(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1));
+			FullLevelName.MidInline(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1), false);
 		}
 
 		LightNameWithLevel = FullLevelName + TEXT(".") + LightProxy->GetComponentName().ToString();

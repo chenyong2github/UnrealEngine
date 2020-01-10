@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 D3D12Adapter.cpp:D3D12 Adapter implementation.
@@ -563,6 +563,8 @@ void FD3D12Adapter::Cleanup()
 		Viewport->WaitForFrameEventCompletion();
 	}
 
+	BlockUntilIdle();
+
 #if D3D12_RHI_RAYTRACING
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
@@ -594,13 +596,14 @@ void FD3D12Adapter::Cleanup()
 	FRHIResource::FlushPendingDeletes();
 
 	// Cleanup resources
-	DeferredDeletionQueue.Clear();
+	DeferredDeletionQueue.ReleaseResources(true, true);
 
 	// First clean up everything before deleting as there are shared resource location between devices.
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
 		Devices[GPUIndex]->Cleanup();
 	}	
+
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
 		delete(Devices[GPUIndex]);
@@ -649,7 +652,7 @@ void FD3D12Adapter::EndFrame()
 	{
 		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations();
 	}
-	GetDeferredDeletionQueue().ReleaseResources();
+	GetDeferredDeletionQueue().ReleaseResources(false, false);
 }
 
 #if WITH_MGPU

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectArray.h: Unreal object array
@@ -375,7 +375,7 @@ class FChunkedFixedUObjectArray
 		}
 		check(ChunkIndex < NumChunks && Objects[ChunkIndex]); // should have a valid pointer now
 	}
-
+    
 public:
 
 	/** Constructor : Probably not thread safe **/
@@ -526,6 +526,11 @@ public:
 	{
 		return nullptr;
 	}
+    
+    int64 GetAllocatedSize() const
+    {
+        return MaxChunks * sizeof(FUObjectItem*) + NumChunks * NumElementsPerChunk * sizeof(FUObjectItem);
+    }
 };
 
 /***
@@ -1028,6 +1033,11 @@ public:
 	{
 		return ObjObjects;
 	}
+    
+    int64 GetAllocatedSize() const
+    {
+        return ObjObjects.GetAllocatedSize();
+    }
 };
 
 /** UObject cluster. Groups UObjects into a single unit for GC. */

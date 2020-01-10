@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Editor/UnrealEdEngine.h"
 #include "HAL/PlatformFilemanager.h"
@@ -751,8 +751,8 @@ void UUnrealEdEngine::ConvertMatinees()
 				StartLocation.Y += 50;
 								
 				MatineeActor->MatineeData = InterpData;
-				UProperty* MatineeDataProp = NULL;
-				for( UProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+				FProperty* MatineeDataProp = NULL;
+				for( FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 				{
 					if( Property->GetName() == TEXT("MatineeData") )
 					{

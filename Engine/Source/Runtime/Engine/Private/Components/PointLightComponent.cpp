@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PointLightComponent.cpp: PointLightComponent implementation.
@@ -249,7 +249,7 @@ void UPointLightComponent::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 
-bool UPointLightComponent::CanEditChange(const UProperty* InProperty) const
+bool UPointLightComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -270,7 +270,7 @@ bool UPointLightComponent::CanEditChange(const UProperty* InProperty) const
 /**
  * Called after property has changed via e.g. property window or set command.
  *
- * @param	PropertyThatChanged	UProperty that has been changed, NULL if unknown
+ * @param	PropertyThatChanged	FProperty that has been changed, NULL if unknown
  */
 void UPointLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -289,7 +289,7 @@ void UPointLightComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 #endif // WITH_EDITOR
 
-void UPointLightComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void UPointLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	static FName LightFalloffExponentName(TEXT("LightFalloffExponent"));
 	FName PropertyName = PropertyThatChanged->GetFName();

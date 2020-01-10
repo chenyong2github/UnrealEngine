@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescriptionOperations.h"
 #include "UObject/Package.h"
@@ -1611,15 +1611,22 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 		TArray<FPolygonID> ToDeletePolygons;
 		RemapVertexInstance.Reserve(DuplicateMeshDescription.VertexInstances().Num());
 		TArray<FPolygonID> UniquePolygons;
+
+		TArray<FVector2D> RefUVs;
 		for (FPolygonID RefPolygonID : DuplicateMeshDescription.Polygons().GetElementIDs())
 		{
 			FPolygonGroupID RefPolygonGroupID = DuplicateMeshDescription.GetPolygonPolygonGroup(RefPolygonID);
 			const TArray<FVertexInstanceID>& RefVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(RefPolygonID);
-			TArray<FVector2D> RefUVs;
+
+			RefUVs.Empty(RefVertexInstances.Num() * VertexInstanceUVs.GetNumIndices());
 			for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
 			{
-				RefUVs.Add(VertexInstanceUVs[RefVertexInstanceID]);
+				for (int32 UVChannel = 0; UVChannel < VertexInstanceUVs.GetNumIndices(); ++UVChannel)
+				{
+					RefUVs.Add(VertexInstanceUVs.Get(RefVertexInstanceID, UVChannel));
+				}
 			}
+
 			FPolygonID MatchPolygonID = FPolygonID::Invalid;
 			for (FPolygonID TestPolygonID : UniquePolygons)
 			{
@@ -1628,21 +1635,27 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 				{
 					continue;
 				}
+
 				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(TestPolygonID);
 				if (TestVertexInstances.Num() != RefVertexInstances.Num())
 				{
 					continue;
 				}
+				
 				bool bIdentical = true;
 				int32 UVIndex = 0;
 				for (FVertexInstanceID TestVertexInstanceID : TestVertexInstances)
 				{
-					if (VertexInstanceUVs[TestVertexInstanceID] != RefUVs[UVIndex])
+					// All UV channels must match for polygons to be identical
+					for (int32 UVChannel = 0; bIdentical && UVChannel < VertexInstanceUVs.GetNumIndices(); ++UVIndex, ++UVChannel)
 					{
-						bIdentical = false;
+						bIdentical = VertexInstanceUVs.Get(TestVertexInstanceID, UVChannel) == RefUVs[UVIndex];
+					}
+
+					if (!bIdentical)
+					{
 						break;
 					}
-					UVIndex++;
 				}
 				if (bIdentical)
 				{

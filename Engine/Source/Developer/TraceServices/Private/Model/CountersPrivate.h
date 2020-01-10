@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ template<typename ValueType>
 class TCounterDataIterator
 {
 public:
-	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TArray<double>& FrameStartTimes)
+	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TArray64<double>& FrameStartTimes)
 		: FrameStartTimesIterator(FrameStartTimes.CreateConstIterator())
 		, TimestampsIterator(Outer.Timestamps.GetIterator())
 		, OpTypesIterator(Outer.OpTypes.GetIterator())
@@ -92,7 +92,7 @@ private:
 		}
 	}
 
-	TArray<double>::TConstIterator FrameStartTimesIterator;
+	TArray64<double>::TConstIterator FrameStartTimesIterator;
 	TPagedArray<double>::TIterator TimestampsIterator;
 	TPagedArray<ECounterOpType>::TIterator OpTypesIterator;
 	typename TPagedArray<ValueType>::TIterator OpArgumentsIterator;
@@ -145,7 +145,7 @@ public:
 		return Timestamps.Num();
 	}
 
-	TIterator GetIterator(TArray<double> FrameStartTimes) const
+	TIterator GetIterator(const TArray64<double>& FrameStartTimes) const
 	{
 		return TIterator(*this, FrameStartTimes);
 	}
@@ -160,11 +160,10 @@ private:
 };
 
 class FCounter
-	: public ICounter
+	: public IEditableCounter
 {
 public:
-	FCounter(ILinearAllocator& Allocator, const TArray<double>& FrameStartTimes, uint32 Id);
-	virtual uint32 GetId() const override { return Id; }
+	FCounter(ILinearAllocator& Allocator, const TArray64<double>& FrameStartTimes);
 	virtual const TCHAR* GetName() const override { return Name; }
 	virtual void SetName(const TCHAR* InName) override { Name = InName; }
 	virtual const TCHAR* GetDescription() const override { return Description; }
@@ -174,21 +173,20 @@ public:
 	virtual ECounterDisplayHint GetDisplayHint() const { return DisplayHint; }
 	virtual void SetDisplayHint(ECounterDisplayHint InDisplayHint) override { DisplayHint = InDisplayHint; }
 	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) override { bIsResetEveryFrame = bInIsResetEveryFrame; }
-	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, int64)> Callback) const override;
-	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double)> Callback) const override;
+	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const override;
+	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const override;
 	virtual void AddValue(double Time, int64 Value) override;
 	virtual void AddValue(double Time, double Value) override;
 	virtual void SetValue(double Time, int64 Value) override;
 	virtual void SetValue(double Time, double Value) override;
 
 private:
-	const TArray<double>& FrameStartTimes;
+	const TArray64<double>& FrameStartTimes;
 	TCounterData<int64> IntCounterData;
 	TCounterData<double> DoubleCounterData;
 	const TCHAR* Name = nullptr;
 	const TCHAR* Description = nullptr;
 	uint64 ModCount = 0;
-	uint32 Id;
 	ECounterDisplayHint DisplayHint = CounterDisplayHint_None;
 	bool bIsFloatingPoint = false;
 	bool bIsResetEveryFrame = false;
@@ -203,14 +201,15 @@ public:
 	FCounterProvider(IAnalysisSession& Session, IFrameProvider& FrameProvider);
 	virtual ~FCounterProvider();
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
-	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const override;
+	virtual void EnumerateCounters(TFunctionRef<void(uint32, const ICounter&)> Callback) const override;
 	virtual bool ReadCounter(uint32 CounterId, TFunctionRef<void(const ICounter&)> Callback) const override;
-	virtual ICounter* CreateCounter() override;
+	virtual IEditableCounter* CreateCounter() override;
+	virtual void AddCounter(const ICounter* Counter) override;
 
 private:
 	IAnalysisSession& Session;
 	IFrameProvider& FrameProvider;
-	TArray<FCounter*> Counters;
+	TArray<const ICounter*> Counters;
 };
 
 }

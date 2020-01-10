@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptPluginSettings.h"
 #include "PythonScriptPlugin.h"
@@ -19,7 +19,7 @@ UPythonScriptPluginSettings::UPythonScriptPluginSettings()
 
 #if WITH_EDITOR
 
-bool UPythonScriptPluginSettings::CanEditChange(const UProperty* InProperty) const
+bool UPythonScriptPluginSettings::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEditChange = Super::CanEditChange(InProperty);
 

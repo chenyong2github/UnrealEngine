@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprints/DisplayClusterBlueprintAPIImpl.h"
 
@@ -169,14 +169,27 @@ void UDisplayClusterBlueprintAPIImpl::GetLocalViewports(bool IsRTT, TArray<FStri
 // Game API
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Root
-UDisplayClusterRootComponent* UDisplayClusterBlueprintAPIImpl::GetRoot()
+ADisplayClusterRootActor* UDisplayClusterBlueprintAPIImpl::GetRootActor()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
 	if (Manager)
 	{
-		return Manager->GetRoot();
+		return Manager->GetRootActor();
+	}
+
+	return nullptr;
+}
+
+UDisplayClusterRootComponent* UDisplayClusterBlueprintAPIImpl::GetRootComponent()
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->GetRootComponent();
 	}
 
 	return nullptr;

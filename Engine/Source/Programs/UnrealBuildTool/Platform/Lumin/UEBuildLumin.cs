@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -195,6 +195,12 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			{
+				return;
+			}
+
 			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac) || (Target.Platform == UnrealTargetPlatform.Linux))
 			{
 				bool bBuildShaderFormats = Target.bForceBuildShaderFormats;
@@ -378,24 +384,9 @@ namespace UnrealBuildTool
 			LuminPlatformSDK SDK = new LuminPlatformSDK();
 			SDK.ManageAndValidateSDK();
 
-			if ((ProjectFileGenerator.bGenerateProjectFiles == true) || (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
-			{
-				bool bRegisterBuildPlatform = true;
-
-				FileReference TargetPlatformFile = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Developer", "Lumin", "LuminTargetPlatform", "LuminTargetPlatform.Build.cs");
-				if (FileReference.Exists(TargetPlatformFile) == false)
-				{
-					bRegisterBuildPlatform = false;
-				}
-
-				if (bRegisterBuildPlatform == true)
-				{
-					// Register this build platform
-					Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Lumin.ToString());
-					UEBuildPlatform.RegisterBuildPlatform(new LuminPlatform(SDK));
-					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Lumin, UnrealPlatformGroup.Android);
-				}
-			}
+			// Register this build platform
+			UEBuildPlatform.RegisterBuildPlatform(new LuminPlatform(SDK));
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Lumin, UnrealPlatformGroup.Android);
 		}
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperFlipbookSceneProxy.h"
 #include "PaperFlipbookComponent.h"
@@ -7,12 +7,8 @@
 // FPaperFlipbookSceneProxy
 
 FPaperFlipbookSceneProxy::FPaperFlipbookSceneProxy(const UPaperFlipbookComponent* InComponent)
-	: FPaperRenderSceneProxy(InComponent)
+	: FPaperRenderSceneProxy_SpriteBase(InComponent)
 {
-	//@TODO: PAPER2D: WireframeColor = RenderComp->GetWireframeColor();
-
-	Material = InComponent->GetMaterial(0);
-	MaterialRelevance = InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
 }
 
 SIZE_T FPaperFlipbookSceneProxy::GetTypeHash() const

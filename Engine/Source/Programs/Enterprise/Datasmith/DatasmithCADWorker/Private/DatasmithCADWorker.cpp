@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithCADWorker.h"
 #include "DatasmithCADWorkerImpl.h"
@@ -37,18 +37,13 @@ bool HasParameter(int32 Argc, TCHAR* Argv[], const FString& InParam)
 
 int32 Main(int32 Argc, TCHAR * Argv[])
 {
-	FString ServerPID, ServerPort, CacheDirectory;
+	FString ServerPID, ServerPort, CacheDirectory, KernelIOPath;
 	GetParameter(Argc, Argv, "-ServerPID", ServerPID);
 	GetParameter(Argc, Argv, "-ServerPort", ServerPort);
 	GetParameter(Argc, Argv, "-CacheDir", CacheDirectory);
+	GetParameter(Argc, Argv, "-KernelIOPath", KernelIOPath);
 
-	FString BinaryDir = FPaths::Combine(FPaths::EngineDir(), TEXT("Plugins"), TEXT("Enterprise"), TEXT("DatasmithCADImporter"), TEXT("Binaries"), TEXT("Win64"));
-	FString KernelIOLibDir = FPaths::Combine(BinaryDir, TEXT("kernel_io.dll"));
-	FPlatformProcess::PushDllDirectory(*BinaryDir);
-	void* KernelIODllHandle = FPlatformProcess::GetDllHandle(*KernelIOLibDir);
-	FPlatformProcess::PopDllDirectory(*BinaryDir);
-
-	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), CacheDirectory);
+	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), KernelIOPath, CacheDirectory);
 	Worker.Run();
 
 	return 0;

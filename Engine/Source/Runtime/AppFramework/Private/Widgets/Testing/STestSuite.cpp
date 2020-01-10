@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Testing/STestSuite.h"
 #include "HAL/PlatformProcess.h"
@@ -3487,7 +3487,7 @@ protected:
 		{
 			if(FChar::IsLinebreak(SelectedText[SelectedTextIndex]))
 			{
-				SelectedText = SelectedText.Left(SelectedTextIndex);
+				SelectedText.LeftInline(SelectedTextIndex, false);
 				break;
 			}
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 // FPaperFlipbookSceneProxy
 
-class FPaperFlipbookSceneProxy final : public FPaperRenderSceneProxy
+class FPaperFlipbookSceneProxy final : public FPaperRenderSceneProxy_SpriteBase
 {
 public:
 	SIZE_T GetTypeHash() const override;

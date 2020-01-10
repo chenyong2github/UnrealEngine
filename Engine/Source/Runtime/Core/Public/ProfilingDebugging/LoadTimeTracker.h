@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
 * Declarations for LoadTimer which helps get load times for various parts of the game.
@@ -11,7 +11,7 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0

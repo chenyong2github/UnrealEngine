@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1390,7 +1390,7 @@ public:
 
 	/** Property to update with the gameplay tag count. */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTagBlueprintProperty)
-	UProperty* PropertyToEdit;
+	TFieldPath<FProperty> PropertyToEdit;
 
 	/** Name of property being edited. */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTagBlueprintProperty)
@@ -1435,9 +1435,9 @@ protected:
 
 	void GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount);
 
-	bool IsPropertyTypeValid(const UProperty* Property) const;
+	bool IsPropertyTypeValid(const FProperty* Property) const;
 
-	EGameplayTagEventType::Type GetGameplayTagEventType(const UProperty* Property) const;
+	EGameplayTagEventType::Type GetGameplayTagEventType(const FProperty* Property) const;
 
 protected:
 
@@ -1678,9 +1678,15 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	/** If true, we will skip updating the Owner ASC if we replicate on a connection owned by the ASC */
 	void SetRequireNonOwningNetConnection(bool b) { bRequireNonOwningNetConnection = b; }
 
+	void SetOwner(UAbilitySystemComponent* ASC);
+
+	// Removes all tags that this container is granting
+	void RemoveAllTags();
+
 private:
 
 	bool bRequireNonOwningNetConnection = false;
+	void UpdateOwnerTagMap();
 };
 
 template<>

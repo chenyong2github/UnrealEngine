@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "LevelEditorViewport.h"
@@ -230,25 +230,25 @@ static UDirectionalLightComponent* GetAtmosphericLight(const uint8 DesiredLightI
 
 namespace LevelEditorViewportClientHelper
 {
-	UProperty* GetEditTransformProperty(FWidget::EWidgetMode WidgetMode)
+	FProperty* GetEditTransformProperty(FWidget::EWidgetMode WidgetMode)
 	{
-		UProperty* ValueProperty = nullptr;
+		FProperty* ValueProperty = nullptr;
 		switch (WidgetMode)
 		{
 		case FWidget::WM_Translate:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_Rotate:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
+			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 			break;
 		case FWidget::WM_Scale:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
+			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 			break;
 		case FWidget::WM_TranslateRotateZ:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_2D:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		default:
 			break;
@@ -1837,8 +1837,6 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 {
 	bWasControlledByOtherViewport = false;
 
-	UpdateViewForLockedActor();
-
 	// set all other matching viewports to my location, if the LOD locking is enabled,
 	// unless another viewport already set me this frame (otherwise they fight)
 	if (GEditor->bEnableLODLocking)
@@ -1960,7 +1958,7 @@ void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)
 			{
 				GEditor->BroadcastBeginCameraMovement(*ActorLock);
 				// consider modification from piloting as relative location changes
-				UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
+				FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
 				if (TransformProperty)
 				{
 					// Create edit property event
@@ -1989,7 +1987,7 @@ void FLevelEditorViewportClient::EndCameraMovement()
 		{
 			GEditor->BroadcastEndCameraMovement(*ActorLock);
 			// Create post edit property change event, consider modification from piloting as relative location changes
-			UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
+			FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
 			FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
 
 			// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
@@ -2180,35 +2178,38 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 		{
 			HActor* ActorHitProxy = (HActor*)HitProxy;
 			AActor* ConsideredActor = ActorHitProxy->Actor;
-			while (ConsideredActor->IsChildActor())
+			if (ConsideredActor) // It is possible to be clicking something during level transition if you spam click, and it might not be valid by this point
 			{
-				ConsideredActor = ConsideredActor->GetParentActor();
+				while (ConsideredActor->IsChildActor())
+				{
+					ConsideredActor = ConsideredActor->GetParentActor();
+				}
+
+				// We want to process the click on the component only if:
+				// 1. The actor clicked is already selected
+				// 2. The actor selected is the only actor selected
+				// 3. The actor selected is blueprintable
+				// 4. No components are already selected and the click was a double click
+				// 5. OR, a component is already selected and the click was NOT a double click
+				const bool bActorAlreadySelectedExclusively = GEditor->GetSelectedActors()->IsSelected(ConsideredActor) && (GEditor->GetSelectedActorCount() == 1);
+				const bool bActorIsBlueprintable = FKismetEditorUtilities::CanCreateBlueprintOfClass(ConsideredActor->GetClass());
+				const bool bComponentAlreadySelected = GEditor->GetSelectedComponentCount() > 0;
+				const bool bWasDoubleClick = (Click.GetEvent() == IE_DoubleClick);
+
+				const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);
+
+				if (bSelectComponent)
+				{
+					LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
+				}
+				else
+				{
+					LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
+				}
+
+				// We clicked an actor, allow the pivot to reposition itself.
+				// GUnrealEd->SetPivotMovedIndependently(false);
 			}
-
-			// We want to process the click on the component only if:
-			// 1. The actor clicked is already selected
-			// 2. The actor selected is the only actor selected
-			// 3. The actor selected is blueprintable
-			// 4. No components are already selected and the click was a double click
-			// 5. OR, a component is already selected and the click was NOT a double click
-			const bool bActorAlreadySelectedExclusively = GEditor->GetSelectedActors()->IsSelected(ConsideredActor) && ( GEditor->GetSelectedActorCount() == 1 );
-			const bool bActorIsBlueprintable = FKismetEditorUtilities::CanCreateBlueprintOfClass(ConsideredActor->GetClass());
-			const bool bComponentAlreadySelected = GEditor->GetSelectedComponentCount() > 0;
-			const bool bWasDoubleClick = ( Click.GetEvent() == IE_DoubleClick );
-
-			const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);
-
-			if (bSelectComponent)
-			{
-				LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
-			}
-			else
-			{
-				LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
-			}
-
-			// We clicked an actor, allow the pivot to reposition itself.
-			// GUnrealEd->SetPivotMovedIndependently(false);
 		}
 		else if (HitProxy->IsA(HInstancedStaticMeshInstance::StaticGetType()))
 		{
@@ -2863,7 +2864,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 
 	// Create edit property event
 	FEditPropertyChain PropertyChain;
-	UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
+	FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 	if (TransformProperty)
 	{
 		PropertyChain.AddHead(TransformProperty);
@@ -3055,9 +3056,11 @@ void FLevelEditorViewportClient::TrackingStopped()
 	if( bDidAnythingActuallyChange && MouseDeltaTracker->HasReceivedDelta() )
 	{
 		// Create post edit property change event
-		UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
+		FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 		FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
-		
+
+		TArray<AActor*> MovedActors;
+
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It) 
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -3133,10 +3136,14 @@ void FLevelEditorViewportClient::TrackingStopped()
 				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 				Actor->PostEditMove(true);
+
+				MovedActors.Add(Actor);
 	
 				GEditor->BroadcastEndObjectMovement(*Actor);
 			}
 		}
+
+		GEditor->BroadcastActorsMoved(MovedActors);
 
 		if (!GUnrealEd->IsPivotMovedIndependently())
 		{
@@ -4160,6 +4167,7 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 			SelectedAtmosphericLight->SetWorldTransform(ComponentTransform);
 
 			UserControlledAtmosphericLightMatrix = ComponentTransform;
+			UserControlledAtmosphericLightMatrix.NormalizeRotation();
 		}
 	}
 
@@ -5107,16 +5115,16 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 			}
 			else
 			{
-				// It's possible that it doesn't have a bounding box, so just take its position in that case
-				FBox ComponentBBox = Component->Bounds.GetBox();
-				if (ComponentBBox.GetVolume() != 0)
-				{
-					BoundingBox += ComponentBBox;
-				}
-				else
-				{
-					BoundingBox += Component->GetComponentLocation();
-				}
+			// It's possible that it doesn't have a bounding box, so just take its position in that case
+			FBox ComponentBBox = Component->Bounds.GetBox();
+			if (ComponentBBox.GetVolume() != 0)
+			{
+				BoundingBox += ComponentBBox;
+			}
+			else
+			{
+				BoundingBox += Component->GetComponentLocation();
+			}
 			}
 			++NumValidComponents;
 		}
@@ -5150,7 +5158,7 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 					}
 					else
 					{
-						BoundingBox += PrimitiveComponent->Bounds.GetBox();
+					BoundingBox += PrimitiveComponent->Bounds.GetBox();
 					}
 					++NumSelectedActors;
 				}

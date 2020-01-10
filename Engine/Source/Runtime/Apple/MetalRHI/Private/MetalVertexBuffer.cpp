@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalVertexBuffer.cpp: Metal vertex buffer RHI implementation.
@@ -531,7 +531,7 @@ void FMetalRHIBuffer::Unlock()
 		if (LockSize && CPUBuffer)
 		{
 			// Synchronise the buffer with the GPU
-			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, Buffer.GetLength());
+			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, FMath::Min(CPUBuffer.GetLength(), Buffer.GetLength()));
 			
 			ConditionalSetUniformBufferPreviousOffset();
 			

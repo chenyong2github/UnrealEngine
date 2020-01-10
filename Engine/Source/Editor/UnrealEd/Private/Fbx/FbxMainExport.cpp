@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Main implementation of FFbxExporter : export FBX data from Unreal
@@ -619,8 +619,8 @@ void FFbxExporter::FillFbxCameraAttribute(FbxNode* ParentNode, FbxCamera* Camera
 		UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent);
 		if (CineCameraComponent)
 		{
-			ApertureWidthInInches = FUnitConversion::Convert(CineCameraComponent->FilmbackSettings.SensorWidth, EUnit::Millimeters, EUnit::Inches);
-			ApertureHeightInInches = FUnitConversion::Convert(CineCameraComponent->FilmbackSettings.SensorHeight, EUnit::Millimeters, EUnit::Inches);
+			ApertureWidthInInches = FUnitConversion::Convert(CineCameraComponent->Filmback.SensorWidth, EUnit::Millimeters, EUnit::Inches);
+			ApertureHeightInInches = FUnitConversion::Convert(CineCameraComponent->Filmback.SensorHeight, EUnit::Millimeters, EUnit::Inches);
 			FocalLength = CineCameraComponent->CurrentFocalLength;
 			FocusDistance = CineCameraComponent->FocusSettings.ManualFocusDistance;
 		}

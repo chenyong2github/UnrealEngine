@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Movement/FlyingMovement.h"
@@ -43,7 +43,8 @@ static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("fp.Debug.UseDr
 // ============================================================================================
 
 
-const FName FFlyingMovementSimulation::GroupName(TEXT("FlyingMovement"));
+const FName FFlyingMovementNetSimModelDef::GroupName(TEXT("FlyingMovement"));
+const float FFlyingMovementNetSimModelDef::ROTATOR_TOLERANCE = (1e-3);
 
 bool FFlyingMovementSimulation::ForceMispredict = false;
 static FVector ForceMispredictVelocityMagnitude = FVector(2000.f, 0.f, 0.f);
@@ -265,7 +266,7 @@ void FFlyingMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 void FFlyingMovementSimulation::PreSimSync(const FFlyingMovementSyncState& SyncState)
 {
 	// Does checking equality make any sense here? This is unfortunate
-	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, ROTATOR_TOLERANCE) == false)
+	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FFlyingMovementNetSimModelDef::ROTATOR_TOLERANCE) == false)
 	{
 		FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
 		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);

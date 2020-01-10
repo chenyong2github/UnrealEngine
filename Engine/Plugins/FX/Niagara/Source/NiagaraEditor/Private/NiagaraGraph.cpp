@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGraph.h"
 #include "Modules/ModuleManager.h"
@@ -823,7 +823,7 @@ void UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter, bool bIsStat
 	UNiagaraScriptVariable** FoundScriptVariable = VariableToScriptVariable.Find(Parameter);
 	if (!FoundScriptVariable)
 	{
-		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, Parameter.GetName(), RF_Transactional);
+		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
 		NewScriptVariable->Metadata.bIsStaticSwitch = bIsStaticSwitch;
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
@@ -936,6 +936,15 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	{
 		if (!bFromStaticSwitch || (bFromStaticSwitch && NumReferences <= 1))
 		{
+			// Rename all the bindings that point to the old parameter 
+			for (auto It : VariableToScriptVariable)
+			{
+				UNiagaraScriptVariable* Variable = It.Value;
+				if (Variable && Variable->DefaultBinding.GetName() == Parameter.GetName())
+				{
+					Variable->DefaultBinding.SetName(NewParameter.GetName());
+				}
+			}
 			VariableToScriptVariable.Remove(Parameter);
 		}
 	}
@@ -1131,7 +1140,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		}
 		HashState.Final();
 
-		// We can't store in a FShaHash struct directly because you can't UProperty it. Using a standin of the same size.
+		// We can't store in a FShaHash struct directly because you can't FProperty it. Using a standin of the same size.
 		TArray<uint8> DataHash;
 		DataHash.AddUninitialized(20);
 		HashState.GetHash(DataHash.GetData());
@@ -1403,7 +1412,7 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 	}
 	else 
 	{
-		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, InVar.GetName(), RF_Transactional));
+		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
 	}
@@ -1528,6 +1537,18 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 	}
 
+	// Add reference to all variables that are default bound to
+	for (auto It = VariableToScriptVariable.CreateConstIterator(); It; ++It)
+	{
+		UNiagaraScriptVariable* Variable = It.Value();
+		if (!Variable || (Variable->DefaultMode != ENiagaraDefaultMode::Binding || !Variable->DefaultBinding.IsValid()))
+		{
+			continue;
+		}
+
+		AddBindingParameterReference(FNiagaraVariable(Variable->Variable.GetType(), Variable->DefaultBinding.GetName()));
+	}
+
 	// If there were any previous parameters which didn't have any references added, remove them here.
 	for (const FNiagaraVariable& UnreferencedParameterToRemove : CandidateUnreferencedParametersToRemove)
 	{
@@ -1547,14 +1568,30 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 	};
 
+	// Add script variable for any referenced variable that does not already have a script variable created.
 	for (auto& ParameterToReferences : ParameterToReferencesMap)
 	{
 		UNiagaraScriptVariable* Variable = GetScriptVariable(ParameterToReferences.Key);
-		if (Variable)
+		if (!Variable)
 		{
-			continue;
+			AddMissingScriptVariable(ParameterToReferences.Key);
 		}
-		AddMissingScriptVariable(ParameterToReferences.Key);
+	}
+
+	// Remove any script variables 
+	TArray<FNiagaraVariable> UnreferencedScriptVariables;
+	for (auto It : VariableToScriptVariable)
+	{
+		FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(It.Key);
+		if (ReferenceCollection == nullptr)
+		{
+			UnreferencedScriptVariables.Add(It.Key);
+		}
+	}
+
+	for (auto Variable : UnreferencedScriptVariables)
+	{
+		VariableToScriptVariable.Remove(Variable);
 	}
 	
 	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));

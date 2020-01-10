@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -26,10 +26,7 @@ public:
 	 * Discover all files in the crash report directory
 	 * @param Directory Full path to directory containing the report
 	 */
-	explicit FAndroidErrorReport(const FString& Directory)
-		: FGenericErrorReport(Directory)
-	{
-	}
+	explicit FAndroidErrorReport(const FString& Directory);
 
 	/**
 	 * Load helper modules
@@ -42,13 +39,8 @@ public:
 	static void ShutDown();
 
 	/**
-	 * Do nothing - shouldn't be called on Android
-	 * @return Dummy text
 	 */
-	FText DiagnoseReport() const	
-	{
-		return FText::FromString("No local diagnosis on Android");
-	}
+	FText DiagnoseReport() const;
 
 	/**
 	 * Do nothing - shouldn't be called on Android
@@ -67,4 +59,10 @@ public:
 		FString AppPath = FPaths::Combine(FPrimaryCrashProperties::Get()->BaseDir, FPrimaryCrashProperties::Get()->ExecutableName);
 		return AppPath;
 	}
+protected:
+
+	/**
+	 * Filename of the renamed threads context file. Empty if no such file exists.
+	 */
+	FString ThreadContextsPathName;
 };

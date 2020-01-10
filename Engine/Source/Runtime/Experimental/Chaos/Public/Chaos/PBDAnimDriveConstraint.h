@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ParticleRule.h"
@@ -9,6 +9,8 @@ template<typename T, int d>
 class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 {
   public:
+	// InSpringNeutralPositions starts at index: InParticleIndexOffset
+	// InSpringStiffnessMultiplier starts at index: 0
 	TPBDAnimDriveConstraint(
 		const int InParticleIndexOffset
 		, const TArray<TVector<T, d>>* const InSpringNeutralPositions
@@ -36,7 +38,7 @@ class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 	inline void ApplyAnimDriveConstraint(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 	{
 		
-		if (InParticles.InvM(Index) == 0)
+		if (InParticles.InvM(Index + ParticleIndexOffset) == 0.0f)
 		{
 			return;
 		}
@@ -55,8 +57,8 @@ class TPBDAnimDriveConstraint : public TParticleRule<T, d>
 
 private:
 	const int32 ParticleIndexOffset;
-	const TArray<TVector<T, d>>* SpringNeutralPositions; // Size: Same as full particle array
-	const TArray<T>* SpringStiffnessMultiplier; // Size: Number of Animation drive constraints to solve
+	const TArray<TVector<T, d>>* SpringNeutralPositions; // Size: Same as full particle array // Starts at Index: ParticleIndexOffset
+	const TArray<T>* SpringStiffnessMultiplier; // Size: Number of Animation drive constraints to solve // Starts at Index 0
 
 	T SpringStiffness;
 };

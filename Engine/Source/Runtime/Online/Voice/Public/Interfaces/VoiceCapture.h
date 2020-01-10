@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -163,5 +163,13 @@ public:
 	Audio::FPatchOutputStrongPtr GetMicrophoneAudio(int32 MaxExpectedLatencyInSamples, float Gain)
 	{
 		return MicrophoneOutput.AddNewPatch(MaxExpectedLatencyInSamples, Gain);
+	}
+
+	/**
+	 * @return the current loudness of the microphone. Returns -1.0 if this function is not supported by the current platform.
+	 */
+	virtual float GetCurrentAmplitude() const
+	{
+		return -1.0f;
 	}
 };

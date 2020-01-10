@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	RedirectCollector:  Editor-only global object that handles resolving redirectors and handling string asset cooking rules
@@ -64,7 +64,7 @@ private:
 public:
 
 	/**
-	 * Called from FSoftObjectPath::PostLoadPath, registers this for later querying
+	 * Called from FSoftObjectPath::PostLoadPath, registers the given SoftObjectPath for later querying
 	 * @param InPath The soft object path that was loaded
 	 * @Param InArchive The archive that loaded this path
 	 */

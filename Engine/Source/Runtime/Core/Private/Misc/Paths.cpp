@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Core includes.
 #include "Misc/Paths.h"
@@ -267,7 +267,7 @@ FString FPaths::ProjectConfigDir()
 	return FPaths::ProjectDir() + TEXT("Config/");
 }
 
-FString FPaths::ProjectSavedDir()
+const FString& FPaths::ProjectSavedDir()
 {
 	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 	if (!StaticData.bGameSavedDirInitialized)
@@ -709,26 +709,40 @@ FString FPaths::GetCleanFilename(FString&& InPath)
 	return MoveTemp(InPath);
 }
 
-FString FPaths::GetBaseFilename( const FString& InPath, bool bRemovePath )
+template<typename T>
+FString GetBaseFilenameImpl(T&& InPath, bool bRemovePath)
 {
-	FString Wk = bRemovePath ? GetCleanFilename(InPath) : InPath;
+	FString Wk = bRemovePath ? FPaths::GetCleanFilename(Forward<T>(InPath)) : Forward<T>(InPath);
 
 	// remove the extension
-	int32 ExtPos = Wk.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-	
-	// determine the position of the path/leaf separator
-	int32 LeafPos = INDEX_NONE;
-	if (!bRemovePath)
-	{
-		LeafPos = Wk.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
-	}
+	const int32 ExtPos = Wk.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
-	if (ExtPos != INDEX_NONE && (LeafPos == INDEX_NONE || ExtPos > LeafPos))
+	if (ExtPos != INDEX_NONE)
 	{
-		Wk = Wk.Left(ExtPos);
+		// determine the position of the path/leaf separator
+		int32 LeafPos = INDEX_NONE;
+		if (!bRemovePath)
+		{
+			LeafPos = Wk.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
+		}
+
+		if (LeafPos == INDEX_NONE || ExtPos > LeafPos)
+		{
+			Wk.LeftInline(ExtPos);
+		}
 	}
 
 	return Wk;
+}
+
+FString FPaths::GetBaseFilename(const FString& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(InPath, bRemovePath);
+}
+
+FString FPaths::GetBaseFilename(FString&& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(MoveTemp(InPath), bRemovePath);
 }
 
 FString FPaths::GetPath(const FString& InPath)
@@ -903,11 +917,11 @@ bool FPaths::IsDrive(const FString& InPath)
 				int32 SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 				if (SlashIndex != INDEX_NONE)
 				{
-					CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+					CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				}
 				else
 				{
-					CheckPath = TEXT("");
+					CheckPath.Reset();
 				}
 			}
 		}
@@ -932,7 +946,7 @@ bool FPaths::IsDrive(const FString& InPath)
 					// It's a real folder, so add one to the count
 					CheckCount++;
 				}
-				CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+				CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 			}
 
@@ -999,16 +1013,42 @@ bool FPaths::CollapseRelativeDirectories(FString& InPath)
 	{
 		// An empty path is finished
 		if (InPath.IsEmpty())
+		{
 			break;
+		}
 
 		// Consider empty paths or paths which start with .. or /.. as invalid
 		if (InPath.StartsWith(TEXT(".."), ESearchCase::CaseSensitive) || InPath.StartsWith(ParentDir))
+		{
 			return false;
+		}
 
 		// If there are no "/.."s left then we're done
-		const int32 Index = InPath.Find(ParentDir, ESearchCase::CaseSensitive);
+		int32 Index = InPath.Find(ParentDir, ESearchCase::CaseSensitive);
 		if (Index == -1)
+		{
 			break;
+		}
+
+		// Ignore folders beginning with dots
+		for (;;)
+		{
+			if (InPath.Len() <= Index + ParentDirLength || InPath[Index + ParentDirLength] == TEXT('/'))
+			{
+				break;
+			}
+
+			Index = InPath.Find(ParentDir, ESearchCase::CaseSensitive, ESearchDir::FromStart, Index + ParentDirLength);
+			if (Index == -1)
+			{
+				break;
+			}
+		}
+
+		if (Index == -1)
+		{
+			break;
+		}
 
 		int32 PreviousSeparatorIndex = Index;
 		for (;;)
@@ -1018,17 +1058,23 @@ bool FPaths::CollapseRelativeDirectories(FString& InPath)
 
 			// Stop if we've hit the start of the string
 			if (PreviousSeparatorIndex == 0)
+			{
 				break;
+			}
 
 			// Stop if we've found a directory that isn't "/./"
 			if ((Index - PreviousSeparatorIndex) > 1 && (InPath[PreviousSeparatorIndex + 1] != TEXT('.') || InPath[PreviousSeparatorIndex + 2] != TEXT('/')))
+			{
 				break;
+			}
 		}
 
 		// If we're attempting to remove the drive letter, that's illegal
 		int32 Colon = InPath.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromStart, PreviousSeparatorIndex);
 		if (Colon >= 0 && Colon < Index)
+		{
 			return false;
+		}
 
 		InPath.RemoveAt(PreviousSeparatorIndex, Index - PreviousSeparatorIndex + ParentDirLength, false);
 	}
@@ -1099,9 +1145,8 @@ void FPaths::MakePlatformFilename( FString& InPath )
 bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 {
 	FString Target = FPaths::ConvertRelativePathToFull(InPath);
-	FString Source = FPaths::ConvertRelativePathToFull(InRelativeTo);
-	
-	Source = FPaths::GetPath(Source);
+	FString Source = FPaths::GetPath(FPaths::ConvertRelativePathToFull(InRelativeTo));
+
 	Source.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	Target.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 
@@ -1142,7 +1187,7 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 		}
 	}
 	
-	InPath = Result;
+	InPath = MoveTemp(Result);
 	return true;
 }
 
@@ -1308,7 +1353,7 @@ bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 	// The loop below requires that the path not end with a /
 	if(Standardized.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		Standardized = Standardized.LeftChop(1);
+		Standardized.LeftChopInline(1, false);
 	}
 
 	// Walk each part of the path looking for name errors
@@ -1444,12 +1489,9 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 
 bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 {
-	FString Path = InPath;
-	MakeStandardFilename(Path);
+	FString Path = FPaths::ConvertRelativePathToFull(InPath);
 
-	FString Directory = InDirectory;
-	MakeStandardFilename(Directory);
-
+	FString Directory = FPaths::ConvertRelativePathToFull(InDirectory);
 	if (Directory.EndsWith(TEXT("/")))
 	{
 		Directory.RemoveAt(Directory.Len() - 1);
@@ -1461,7 +1503,7 @@ bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());
 #endif
 
-	return Compare == 0 && (Path[Directory.Len()] == 0 || Path[Directory.Len()] == '/');
+	return Compare == 0 && (Path.Len() == Directory.Len() || Path[Directory.Len()] == '/');
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	XeAudioDevice.cpp: Unreal XAudio2 Audio interface object.
@@ -268,21 +268,8 @@ bool FXAudio2Device::InitializeHardware()
 	// Set that we initialized our hardware audio device ok so we should use real voices.
 	bIsAudioDeviceHardwareInitialized = true;
 
-	// Initialize permanent memory stack for initial & always loaded sound allocations.
-	if( CommonAudioPoolSize )
-	{
-		UE_LOG(LogAudio, Log, TEXT( "Allocating %g MByte for always resident audio data" ), CommonAudioPoolSize / ( 1024.0f * 1024.0f ) );
-		CommonAudioPoolFreeBytes = CommonAudioPoolSize;
-		CommonAudioPool = ( uint8* )FMemory::Malloc( CommonAudioPoolSize );
-	}
-	else
-	{
-		UE_LOG(LogAudio, Log, TEXT( "CommonAudioPoolSize is set to 0 - disabling persistent pool for audio data" ) );
-		CommonAudioPoolFreeBytes = 0;
-	}
-
 #if WITH_XMA2
-	FXMAAudioInfo::Initialize();
+	XMA2_INFO_CALL(FXMAAudioInfo::Initialize());
 #endif
 
 	return true;
@@ -297,7 +284,7 @@ void FXAudio2Device::TeardownHardware()
 	}
 
 #if WITH_XMA2
-	FXMAAudioInfo::Shutdown();
+	XMA2_INFO_CALL(FXMAAudioInfo::Shutdown());
 #endif
 
 #if PLATFORM_WINDOWS
@@ -311,6 +298,10 @@ void FXAudio2Device::TeardownHardware()
 
 void FXAudio2Device::UpdateHardware()
 {
+#if WITH_XMA2
+		XMA2_INFO_CALL(FXMAAudioInfo::Tick());
+#endif //WITH_XMA2
+
 	// If the audio device changed, we need to tear down and restart the audio engine state
 	if (DeviceProperties && DeviceProperties->DidAudioDeviceChange())
 	{
@@ -379,7 +370,8 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 		if (SoundWave->NumChannels <= 2 )
 		{
-			ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+			ICompressedAudioInfo* CompressedInfo = XMA2_INFO_NEW();
+		
 			if (!CompressedInfo)
 			{
 				UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for streaming SoundWave %s: out of memory."), *SoundWave->GetName());
@@ -414,7 +406,7 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 	static const FName NAME_XMA(TEXT("XMA"));
 	if (FPlatformProperties::RequiresCookedData() ? SoundWave->HasCompressedData(NAME_XMA) : (SoundWave->GetCompressedData(NAME_XMA) != nullptr))
 	{
-		ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+		ICompressedAudioInfo* CompressedInfo = XMA2_INFO_NEW();			
 		if (!CompressedInfo)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for SoundWave %s: out of memory."), *SoundWave->GetName());
@@ -706,41 +698,6 @@ bool FXAudio2Device::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 #endif // !UE_BUILD_SHIPPING
 
 	return( false );
-}
-
-/**
- * Allocates memory from permanent pool. This memory will NEVER be freed.
- *
- * @param	Size	Size of allocation.
- *
- * @return pointer to a chunk of memory with size Size
- */
-void* FXAudio2Device::AllocatePermanentMemory( int32 Size, bool& AllocatedInPool )
-{
-	void* Allocation = NULL;
-	
-	// Fall back to using regular allocator if there is not enough space in permanent memory pool.
-	if( Size > CommonAudioPoolFreeBytes )
-	{
-		Allocation = FMemory::Malloc( Size );
-		check( Allocation );
-
-		AllocatedInPool = false;
-	}
-	// Allocate memory from pool.
-	else
-	{
-		uint8* CommonAudioPoolAddress = ( uint8* )CommonAudioPool;
-		Allocation = CommonAudioPoolAddress + ( CommonAudioPoolSize - CommonAudioPoolFreeBytes );
-
-		AllocatedInPool = true;
-	}
-
-	// Decrement available size regardless of whether we allocated from pool or used regular allocator
-	// to allow us to log suggested size at the end of initial loading.
-	CommonAudioPoolFreeBytes -= Size;
-	
-	return( Allocation );
 }
 
 FAudioPlatformSettings FXAudio2Device::GetPlatformSettings() const

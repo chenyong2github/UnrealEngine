@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IDisasterRecoveryClientModule.h"
 #include "DisasterRecoverySessionInfo.h"
@@ -519,8 +519,7 @@ private:
 
 		if (DisasterRecoveryClient)
 		{
-			DisasterRecoveryClient->Shutdown();
-			DisasterRecoveryClient.Reset();
+			StopDisasterRecoveryService();
 		}
 
 		const FString DisasterRecoveryServerName = RecoveryService::GetRecoveryServerName();

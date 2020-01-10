@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1853,6 +1853,13 @@ public:
 	/** Called by internal engine systems after level actors have changed to notify other subsystems */
 	void BroadcastLevelActorDeleted(AActor* InActor) { LevelActorDeletedEvent.Broadcast(InActor); }
 
+	/** Editor-only event triggered when actors outer changes */
+	DECLARE_EVENT_TwoParams(UEngine, FLevelActorOuterChangedEvent, AActor*, UObject*);
+	FLevelActorOuterChangedEvent& OnLevelActorOuterChanged() { return LevelActorOuterChangedEvent; }
+
+	/** Called by internal engine systems after level actors have changed outer */
+	void BroadcastLevelActorOuterChanged(AActor* InActor, UObject* InOldOuter) { LevelActorOuterChangedEvent.Broadcast(InActor, InOldOuter); }
+
 	/** Editor-only event triggered when actors are attached in the world */
 	DECLARE_EVENT_TwoParams( UEngine, FLevelActorAttachedEvent, AActor*, const AActor* );
 	FLevelActorAttachedEvent& OnLevelActorAttached() { return LevelActorAttachedEvent; }
@@ -1873,6 +1880,22 @@ public:
 
 	/** Called by internal engine systems after a level actor's folder has been changed */
 	void BroadcastLevelActorFolderChanged(const AActor* InActor, FName OldPath) { LevelActorFolderChangedEvent.Broadcast(InActor, OldPath); }
+
+	/** Editor-only event triggered when an actor is being moved, rotated or scaled (AActor::PostEditMove) */
+	DECLARE_EVENT_OneParam(UEngine, FOnActorMovingEvent, AActor*);
+	FOnActorMovingEvent& OnActorMoving() { return OnActorMovingEvent; }
+
+	/** Called by internal engine systems when an actor is being moved to notify other subsystems */
+	void BroadcastOnActorMoving(AActor* Actor) { OnActorMovingEvent.Broadcast(Actor); }
+
+	/** Editor-only event triggered after actors are moved, rotated or scaled by an editor system */
+	DECLARE_EVENT_OneParam(UEditorEngine, FOnActorsMovedEvent, TArray<AActor*>&);
+	FOnActorsMovedEvent& OnActorsMoved() { return OnActorsMovedEvent; }
+
+	/**
+	 * Called when actors have been translated, rotated, or scaled by the editor
+	 */
+	void BroadcastActorsMoved(TArray<AActor*>& Actors) const { OnActorsMovedEvent.Broadcast(Actors); }
 
 	/** Editor-only event triggered after an actor is moved, rotated or scaled (AActor::PostEditMove) */
 	DECLARE_EVENT_OneParam( UEngine, FOnActorMovedEvent, AActor* );
@@ -2520,13 +2543,13 @@ public:
 	 * Find a Local Player Controller, which may not exist at all if this is a server.
 	 * @return first found LocalPlayerController. Fine for single player, in split screen, one will be picked. 
 	 */
-	class APlayerController* GetFirstLocalPlayerController(UWorld *InWorld);
+	class APlayerController* GetFirstLocalPlayerController(const UWorld* InWorld);
 
 	/** Gets all local players associated with the engine. 
 	 *	This function should only be used in rare cases where no UWorld* is available to get a player list associated with the world.
 	 *  E.g, - use GetFirstLocalPlayerController(UWorld *InWorld) when possible!
 	 */
-	void GetAllLocalPlayerControllers(TArray<APlayerController*>	& PlayerList);
+	void GetAllLocalPlayerControllers(TArray<APlayerController*>& PlayerList);
 
 	/** Returns the GameViewport widget */
 	virtual TSharedPtr<class SViewport> GetGameViewportWidget() const
@@ -2717,6 +2740,9 @@ private:
 	/** Broadcasts whenever an actor is removed. */
 	FLevelActorDeletedEvent LevelActorDeletedEvent;
 
+	/** Broadcasts whenever an actor's outer changes */
+	FLevelActorOuterChangedEvent LevelActorOuterChangedEvent;
+
 	/** Broadcasts whenever an actor is attached. */
 	FLevelActorAttachedEvent LevelActorAttachedEvent;
 
@@ -2732,8 +2758,14 @@ private:
 	/** Broadcasts whenever a component is being renamed */
 	FLevelComponentRequestRenameEvent LevelComponentRequestRenameEvent;
 
+	/** Broadcasts when an actor is being moved, rotated or scaled */
+	FOnActorMovingEvent	OnActorMovingEvent;
+
 	/** Broadcasts after an actor has been moved, rotated or scaled */
-	FOnActorMovedEvent		OnActorMovedEvent;
+	FOnActorMovedEvent	OnActorMovedEvent;
+
+	/** Broadcast when a group of actors have been moved, rotated, or scaled */
+	FOnActorsMovedEvent OnActorsMovedEvent;
 
 	/** Broadcasts after a component has been moved, rotated or scaled */
 	FOnComponentTransformChangedEvent OnComponentTransformChangedEvent;

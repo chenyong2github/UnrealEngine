@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -290,6 +290,8 @@ struct FSimulationParameters
 	float CacheBeginTime;
 	float ReverseCacheBeginTime;
 	bool bClearCache;
+
+	EObjectStateTypeEnum ObjectType;
 
 	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CLionSourceCodeAccessor.h"
 #include "HAL/PlatformProcess.h"
@@ -120,13 +120,13 @@ bool FCLionSourceCodeAccessor::OpenSolutionAtPath(const FString& InSolutionPath)
 	FString CorrectSolutionPath = InSolutionPath;
 	if (InSolutionPath.EndsWith(TEXT("UE4")))
 	{
-		CorrectSolutionPath = CorrectSolutionPath.Left(CorrectSolutionPath.Len() - 3);
+		CorrectSolutionPath.LeftInline(CorrectSolutionPath.Len() - 3);
 	}
 	// UE4 passes the project folder and name, so strip the name off
-	int32 LastPathIndex = CorrectSolutionPath.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	int32 LastPathIndex = CorrectSolutionPath.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 	if (LastPathIndex > -1)
 	{
-		CorrectSolutionPath = CorrectSolutionPath.Left(LastPathIndex + 1);
+		CorrectSolutionPath.LeftInline(LastPathIndex + 1);
 	}
 	// Make sure the path is wrapped in "" properly
 	CorrectSolutionPath = FString::Printf(TEXT("\"%sCMakeLists.txt\""), *CorrectSolutionPath);

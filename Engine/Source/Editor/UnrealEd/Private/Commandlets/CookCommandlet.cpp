@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	CookCommandlet.cpp: Commandlet for cooking content
@@ -687,7 +687,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 					const FString ValueElement = ValuesList.Left(PlusIdx);
 					ValueElements.Add(ValueElement);
 
-					ValuesList = ValuesList.Right(ValuesList.Len() - (PlusIdx + 1));
+					ValuesList.RightInline(ValuesList.Len() - (PlusIdx + 1), false);
 				}
 				ValueElements.Add(ValuesList);
 			}

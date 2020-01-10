@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -61,7 +61,7 @@ public:
 	bool GetStackItemShowAdvanced(const FString& StackEntryKey, bool bShowAdvancedDefault) const;
 
 	/*
-	* Sets whether or not a stack entry is Expanded.
+	* Sets whether or not a stack entry is showing advanced items.
 	* @param StackEntryKey A unique key for the entry.
 	* @param bIsExpanded Whether or not the entry is expanded.
 	*/
@@ -85,6 +85,12 @@ public:
 	/* Sets whether or not item linked script inputs should be shown in the stack. */
 	void SetShowLinkedInputs(bool bInShowLinkedInputs);
 
+	/* Gets whether or not only modules that have issues should be shown in the stack. */
+	bool GetShowOnlyIssues() const;
+
+	/* Sets whether or not only modules that haves issues should be shown in the stack. */
+	void SetShowOnlyIssues(bool bInShowIssues);
+
 	/* Gets the last scroll position for the associated stack. */
 	double GetLastScrollPosition() const;
 
@@ -103,28 +109,31 @@ public:
 	NIAGARAEDITOR_API const TArray<FString>& GetDismissedStackIssueIds();
 
 private:
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TMap<FString, bool> ModuleInputKeyToRenamePendingMap;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TMap<FString, bool> StackEntryKeyToExpandedMap;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TMap<FString, bool> StackEntryKeyToPreSearchExpandedMap;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TMap<FString, bool> StackItemKeyToShowAdvancedMap;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	bool bShowAllAdvanced;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	bool bShowOutputs;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	bool bShowLinkedInputs;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
+	bool bShowOnlyIssues;
+
+	UPROPERTY(Transient)
 	double LastScrollPosition;
 
 	UPROPERTY()

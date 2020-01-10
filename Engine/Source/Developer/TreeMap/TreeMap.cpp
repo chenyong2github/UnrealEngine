@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/Paths.h"
@@ -613,12 +613,12 @@ FTreeMapNodeDataPtr ITreeMap::ParseOPMLToTreeMapData( const FString& OPMLFilePat
 
 												if( HashTagLength > 1 )
 												{
-													const auto HashTag = ChildNodeData->Name.Mid( HashTagCharIndex + 1, HashTagLength - 1 );
+													const FString HashTag = ChildNodeData->Name.Mid( HashTagCharIndex + 1, HashTagLength - 1 );
 
 													ChildNodeData->HashTags.Add( HashTag );
 
 													// Strip the hash tag ofg of the original string
-													ChildNodeData->Name = ChildNodeData->Name.Mid( 0, HashTagCharIndex );
+													ChildNodeData->Name.MidInline( 0, HashTagCharIndex, false );
 													if( HashTagCharIndex + HashTagLength < ChildNodeData->Name.Len() )
 													{
 														ChildNodeData->Name += ChildNodeData->Name.Mid( HashTagCharIndex + HashTagLength );

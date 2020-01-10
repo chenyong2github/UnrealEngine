@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Simplex.h"
 #include <queue>
@@ -387,7 +387,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	//TEPAEntry<T> BestEntry;
 	//BestEntry.Distance = 0;
 
-	TEPAEntry<T> LastEntry = Entries[0];
+	TEPAEntry<T> LastEntry = Queue.size() > 0 ? Entries[Queue.top().Idx] : Entries[0];
 
 	TArray<FEPAFloodEntry> VisibilityBorder;
 	int32 Iteration = 0;
@@ -407,7 +407,6 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 			continue;
 		}
 
-		LastEntry = Entry;
 
 
 		const TVec3<T> ASupport = SupportA(Entry.PlaneNormal);
@@ -425,12 +424,22 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 
 		LowerBound = Entry.Distance;
 
-		if (FMath::Abs(UpperBound - LowerBound) <= Eps * LowerBound)
+		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
+		if (FMath::Abs(UpperBound - LowerBound) <= FMath::Abs(Eps * LowerBound))
 		{
 			//UE_LOG(LogChaos, Warning, TEXT("Iteration:%d"), Iteration);
 			ComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), Entry, OutPenetration, OutDir, WitnessA, WitnessB);
 			return EPAResult::Ok;
 		}
+
+		if (UpperBound < LowerBound)
+		{
+			//we cannot get any better than what we saw, so just return previous face
+			break;
+		}
+
+		LastEntry = Entry;
+
 
 		const int32 NewVertIdx = VertsABuffer.Add(ASupport);
 		VertsBBuffer.Add(BSupport);

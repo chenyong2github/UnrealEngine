@@ -216,13 +216,7 @@ PX_FORCE_INLINE bool allElementsNearEqualFloatV(const FloatV a, const FloatV b)
 	const float32x2_t c = vsub_f32(a, b);
 	const float32x2_t error = vdup_n_f32(VECMATH_AOS_EPSILON);
 // absolute compare abs(error) > abs(c)
-	// @MIXEDREALITY_CHANGE : BEGIN
-#ifdef PX_HOLOLENS
-	const uint32x2_t greater = vacgt_f32(error, c);
-#else
 	const uint32x2_t greater = vcagt_f32(error, c);
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	const uint32x2_t min = vpmin_u32(greater, greater);
 	return vget_lane_u32(min, 0) != 0x0;
 }
@@ -234,12 +228,7 @@ PX_FORCE_INLINE bool allElementsNearEqualVec3V(const Vec3V a, const Vec3V b)
 	const float32x4_t c = vsubq_f32(a, b);
 	const float32x4_t error = vdupq_n_f32(VECMATH_AOS_EPSILON);
 // absolute compare abs(error) > abs(c)
-#ifdef PX_HOLOLENS
-	const uint32x4_t greater = vacgtq_f32(error, c);
-#else
 	const uint32x4_t greater = vcagtq_f32(error, c);
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return internalUnitNeonSimd::BAllTrue3_R(greater) != 0;
 }
 
@@ -248,12 +237,7 @@ PX_FORCE_INLINE bool allElementsNearEqualVec4V(const Vec4V a, const Vec4V b)
 	const float32x4_t c = vsubq_f32(a, b);
 	const float32x4_t error = vdupq_n_f32(VECMATH_AOS_EPSILON);
 // absolute compare abs(error) > abs(c)
-#ifdef PX_HOLOLENS
-	const uint32x4_t greater = vacgtq_f32(error, c);
-#else
 	const uint32x4_t greater = vcagtq_f32(error, c);
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return internalUnitNeonSimd::BAllTrue4_R(greater) != 0x0;
 }
 }
@@ -992,13 +976,7 @@ PX_FORCE_INLINE PxU32 FOutOfBounds(const FloatV a, const FloatV bounds)
 {
 	ASSERT_ISVALIDFLOATV(a);
 	ASSERT_ISVALIDFLOATV(bounds);
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t greater = vacgt_f32(a, bounds);
-#else
 	const uint32x2_t greater = vcagt_f32(a, bounds);
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return vget_lane_u32(greater, 0);
 }
 
@@ -1006,13 +984,7 @@ PX_FORCE_INLINE PxU32 FInBounds(const FloatV a, const FloatV bounds)
 {
 	ASSERT_ISVALIDFLOATV(a);
 	ASSERT_ISVALIDFLOATV(bounds);
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t geq = vacge_f32(bounds, a);
-#else
 	const uint32x2_t geq = vcage_f32(bounds, a);
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return vget_lane_u32(geq, 0);
 }
 
@@ -1024,13 +996,7 @@ PX_FORCE_INLINE Vec3V V3Splat(const FloatV f)
 {
 	ASSERT_ISVALIDFLOATV(f);
 
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t uHigh = vreinterpret_u32_f32(f);
 	const float32x2_t dHigh = vreinterpret_f32_u32(vand_u32(uHigh, mask));
@@ -1044,13 +1010,7 @@ PX_FORCE_INLINE Vec3V V3Merge(const FloatVArg x, const FloatVArg y, const FloatV
 	ASSERT_ISVALIDFLOATV(y);
 	ASSERT_ISVALIDFLOATV(z);
 
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t dHigh = vand_u32(vreinterpret_u32_f32(z), mask);
 	const uint32x2_t dLow = vext_u32(vreinterpret_u32_f32(x), vreinterpret_u32_f32(y), 1);
@@ -1059,37 +1019,19 @@ PX_FORCE_INLINE Vec3V V3Merge(const FloatVArg x, const FloatVArg y, const FloatV
 
 PX_FORCE_INLINE Vec3V V3UnitX()
 {
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const float32x4_t x = { 0x000000003f800000ULL, 0x0ULL };
-#else
 	const float32x4_t x = { 1.0f, 0.0f, 0.0f, 0.0f };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return x;
 }
 
 PX_FORCE_INLINE Vec3V V3UnitY()
 {
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const float32x4_t y = { 0x3f80000000000000ULL, 0x0ULL };
-#else
 	const float32x4_t y = { 0, 1.0f, 0, 0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return y;
 }
 
 PX_FORCE_INLINE Vec3V V3UnitZ()
 {
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const float32x4_t z = { 0x0ULL, 0x000000003f800000ULL };
-#else
 	const float32x4_t z = { 0, 0, 1.0f, 0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	return z;
 }
 
@@ -1400,13 +1342,7 @@ PX_FORCE_INLINE Vec3V V3Cross(const Vec3V a, const Vec3V b)
 	ASSERT_ISVALIDVEC3V(a);
 	ASSERT_ISVALIDVEC3V(b);
 
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t TF = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t TF = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	const float32x2_t ay_ax = vget_low_f32(a);  // d2
 	const float32x2_t aw_az = vget_high_f32(a); // d3
 	const float32x2_t by_bx = vget_low_f32(b);  // d4
@@ -1724,13 +1660,7 @@ PX_FORCE_INLINE Vec3V V3PermYZZ(const Vec3V a)
 PX_FORCE_INLINE Vec3V V3PermXYX(const Vec3V a)
 {
 	ASSERT_ISVALIDVEC3V(a);
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t xy = vget_low_u32(vreinterpretq_u32_f32(a));
 	const uint32x2_t xw = vand_u32(xy, mask);
@@ -1740,13 +1670,7 @@ PX_FORCE_INLINE Vec3V V3PermXYX(const Vec3V a)
 PX_FORCE_INLINE Vec3V V3PermYZX(const Vec3V a)
 {
 	ASSERT_ISVALIDVEC3V(a);
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t xy = vget_low_u32(vreinterpretq_u32_f32(a));
 	const uint32x2_t zw = vget_high_u32(vreinterpretq_u32_f32(a));
@@ -1787,13 +1711,7 @@ PX_FORCE_INLINE Vec3V V3PermYXX(const Vec3V a)
 {
 	ASSERT_ISVALIDVEC3V(a);
 
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t xy = vget_low_u32(vreinterpretq_u32_f32(a));
 	const uint32x2_t yx = vrev64_u32(xy);
@@ -1819,13 +1737,7 @@ PX_FORCE_INLINE Vec3V V3Perm_0Z_Zero_1X(const Vec3V v0, const Vec3V v1)
 	ASSERT_ISVALIDVEC3V(v0);
 	ASSERT_ISVALIDVEC3V(v1);
 
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t mask = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t mask = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const uint32x2_t zw = vget_high_u32(vreinterpretq_u32_f32(v0));
 	const uint32x2_t xy = vget_low_u32(vreinterpretq_u32_f32(v1));
@@ -2340,13 +2252,7 @@ PX_FORCE_INLINE FloatV V4Dot3(const Vec4V aa, const Vec4V bb)
 
 PX_FORCE_INLINE Vec4V V4Cross(const Vec4V a, const Vec4V b)
 {
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	const uint32x2_t TF = { 0x00000000ffffFFFFULL };
-#else
 	const uint32x2_t TF = { 0xffffFFFF, 0x0 };
-#endif
-	// @MIXEDREALITY_CHANGE : END
 
 	const float32x2_t ay_ax = vget_low_f32(a);  // d2
 	const float32x2_t aw_az = vget_high_f32(a); // d3
@@ -3232,13 +3138,8 @@ PX_FORCE_INLINE Mat44V M44Inverse(const Mat44V& a)
 
 PX_FORCE_INLINE Vec4V V4LoadXYZW(const PxF32& x, const PxF32& y, const PxF32& z, const PxF32& w)
 {
-#if PX_HOLOLENS
-	PX_ALIGN(16,PxF32) r[4] = {x, y, z ,w};
-	return vld1q_f32((const float32_t*)r);
-#else
 	const float32x4_t ret = { x, y, z, w };
 	return ret;
-#endif 
 }
 
 /*
@@ -3587,23 +3488,10 @@ PX_FORCE_INLINE VecU32V V4U32SplatElement(VecU32V a)
 template <int index>
 PX_FORCE_INLINE Vec4V V4SplatElement(Vec4V a)
 {
-	// @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HOLOLENS
-	if (index == 0)
-	{
-		return vdupq_lane_f32(vget_low_f32(a), 0);
-	}
-	else if (index == 1)
-	{
-		return vdupq_lane_f32(vget_low_f32(a), 1);
-	}
-#else
 	if(index < 2)
 	{
 		return vdupq_lane_f32(vget_low_f32(a), index);
 	}
-#endif
-	// @MIXEDREALITY_CHANGE : END
 	else if(index == 2)
 	{
 		return vdupq_lane_f32(vget_high_f32(a), 0);
@@ -3616,13 +3504,8 @@ PX_FORCE_INLINE Vec4V V4SplatElement(Vec4V a)
 
 PX_FORCE_INLINE VecU32V U4LoadXYZW(PxU32 x, PxU32 y, PxU32 z, PxU32 w)
 {
-#if PX_HOLOLENS
-	PX_ALIGN(16,PxU32) r[4] = {x, y, z ,w};
-	return vld1q_u32((const uint32_t*)r);
-#else
 	const uint32x4_t ret = { x, y, z, w };
 	return ret;
-#endif
 }
 
 PX_FORCE_INLINE VecU32V U4Load(const PxU32 i)

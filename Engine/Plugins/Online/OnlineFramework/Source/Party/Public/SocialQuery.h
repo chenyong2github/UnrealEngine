@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "OnlineSubsystem.h"
 #include "SocialToolkit.h"
+#include "Misc/ConfigCacheIni.h"
 
 DECLARE_DELEGATE_TwoParams(FOnQueryCompleted, FName, const TSharedRef<class FSocialQueryBase>&);
 
@@ -104,6 +105,8 @@ public:
 		}
 
 		TickExecuteHandle.Reset();
+
+		// Returning false ensures the ticker removes this delegate
 		return false;
 	}
 
@@ -135,10 +138,14 @@ private:
 		NewQuery->Initialize(Toolkit, SubsystemType, FOnQueryCompleted::CreateRaw(this, &FSocialQueryManager::HandleQueryComplete));
 		Queries.Add(NewQuery);
 
+		float UserInfoQueryAggregationTime = 0.0f;
+		
+		GConfig->GetFloat(TEXT("Social"), TEXT("UserInfoQueryAggregationTime"), UserInfoQueryAggregationTime, GGameIni);
+
 		// If we aren't already registered to execute our queries next tick, do so now
 		if (!TickExecuteHandle.IsValid())
 		{
-			TickExecuteHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries));
+			TickExecuteHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries), UserInfoQueryAggregationTime);
 		}
 
 		return NewQuery;

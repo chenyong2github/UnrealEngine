@@ -1,6 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/ConfigCacheIni.h"
+
+#include "Containers/StringView.h"
 #include "Misc/DateTime.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
@@ -16,6 +18,7 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Misc/ConfigManifest.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/StringBuilder.h"
 
 #if WITH_EDITOR
 	#define INI_CACHE 1
@@ -352,6 +355,21 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 
 void FConfigSection::HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed)
 {
+	if (!HandleArrayOfKeyedStructsCommand(Key, Forward<FString&&>(Value)))
+	{
+		if (bAppendValueIfNotArrayOfStructsKeyUsed)
+		{
+			Add(Key, MoveTemp(Value));
+		}
+		else
+		{
+			AddUnique(Key, MoveTemp(Value));
+		}
+	}
+}
+
+bool FConfigSection::HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value)
+{
 	FString* StructKey = ArrayOfStructKeys.Find(Key);
 	bool bHandledWithKey = false;
 	if (StructKey)
@@ -389,17 +407,7 @@ void FConfigSection::HandleAddCommand(FName Key, FString&& Value, bool bAppendVa
 		}
 	}
 
-	if (!bHandledWithKey)
-	{
-		if (bAppendValueIfNotArrayOfStructsKeyUsed)
-		{
-			Add(Key, MoveTemp(Value));
-		}
-		else
-		{
-			AddUnique(Key, MoveTemp(Value));
-		}
-	}
+	return bHandledWithKey;
 }
 
 // Look through the file's per object config ArrayOfStruct keys and see if this section matches
@@ -841,15 +849,19 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				}
 				else
 				{
-					// Add if not present and replace if present.
-					FConfigValue* ConfigValue = CurrentSection->Find( Start );
-					if( !ConfigValue )
+					// First see if this can be processed as an array of keyed structs command
+					if (!CurrentSection->HandleArrayOfKeyedStructsCommand(Start, MoveTemp(ProcessedValue)))
 					{
-						CurrentSection->Add( Start, MoveTemp(ProcessedValue) );
-					}
-					else
-					{
-						*ConfigValue = FConfigValue(MoveTemp(ProcessedValue));
+						// Add if not present and replace if present.
+						FConfigValue* ConfigValue = CurrentSection->Find(Start);
+						if (!ConfigValue)
+						{
+							CurrentSection->Add(Start, MoveTemp(ProcessedValue));
+						}
+						else
+						{
+							*ConfigValue = FConfigValue(MoveTemp(ProcessedValue));
+						}
 					}
 				}
 
@@ -1128,7 +1140,8 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 	// for example:
 	//		-ini:Engine:[/Script/Engine.Engine]:bSmoothFrameRate=False,[TextureStreaming]:PoolSize=100
 	//			(will update the cache after the final combined engine.ini)
-	if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s%s"), CommandlineOverrideSpecifiers::IniSwitchIdentifier, *FPaths::GetBaseFilename(Filename)), Settings, false))
+	const TCHAR* CommandlineStream = FCommandLine::Get();
+	while(FParse::Value(CommandlineStream, *FString::Printf(TEXT("%s%s"), CommandlineOverrideSpecifiers::IniSwitchIdentifier, *FPaths::GetBaseFilename(Filename)), Settings, false))
 	{
 		// break apart on the commas
 		TArray<FString> SettingPairs;
@@ -1164,6 +1177,11 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 				File->SetString(*CommandlineOption.Section, *CommandlineOption.PropertyKey, *CommandlineOption.PropertyValue);
 			}
 		}
+
+		// Keep searching for more instances of -ini
+		CommandlineStream = FCString::Stristr(CommandlineStream, CommandlineOverrideSpecifiers::IniSwitchIdentifier);
+		check(CommandlineStream);
+		CommandlineStream++;
 	}
 #endif
 }
@@ -1424,26 +1442,39 @@ static void ClearHierarchyCache( const TCHAR* BaseIniName )
 #endif
 }
 
-bool FConfigFile::Write( const FString& Filename, bool bDoRemoteWrite/* = true*/, const FString& InitialText/*=FString()*/ )
+bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite/* = true*/, const FString& PrefixText/*=FString()*/)
+{
+	TMap<FString, FString> SectionTexts;
+	TArray<FString> SectionOrder;
+	if (!PrefixText.IsEmpty())
+	{
+		SectionTexts.Add(FString(), PrefixText);
+	}
+	return Write(Filename, bDoRemoteWrite, SectionTexts, SectionOrder);
+}
+
+bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder)
 {
 	if( !Dirty || NoSave || FParse::Param( FCommandLine::Get(), TEXT("nowrite")) || 
 		(FParse::Param( FCommandLine::Get(), TEXT("Multiprocess"))  && !FParse::Param( FCommandLine::Get(), TEXT("MultiprocessSaveConfig"))) // Is can be useful to save configs with multiprocess if they are given INI overrides
 		) 
 		return true;
 
-	FString Text = InitialText;
-
 	bool bAcquiredIniCombineThreshold = false;	// avoids extra work when writing multiple properties
 	int32 IniCombineThreshold = -1;
+
+	TStringBuilder<128> Text;
+	FStringView BlankLine(LINE_TERMINATOR LINE_TERMINATOR);
+	TArray<FString> SectionOrder;
+	SectionOrder.Reserve(InSectionOrder.Num() + this->Num());
+	SectionOrder.Append(InSectionOrder);
 
 	for( TIterator SectionIterator(*this); SectionIterator; ++SectionIterator )
 	{
 		const FString& SectionName = SectionIterator.Key();
 		const FConfigSection& Section = SectionIterator.Value();
 
-		// Flag to check whether a property was written on this section, 
-		// if none we do not want to make any changes to the destination file on this round.
-		bool bWroteASectionProperty = false;
+		Text.Reset();
 
 		TSet< FName > PropertiesAddedLookup;
 
@@ -1489,15 +1520,14 @@ bool FConfigFile::Write( const FString& Filename, bool bDoRemoteWrite/* = true*/
 				if ((bIsADefaultIniWrite || bDifferentNumberOfElements || !DoesConfigPropertyValueMatch(SourceConfigFile, SectionName, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
 				{
 					// If this is the first property we are writing of this section, then print the section name
-					if( !bWroteASectionProperty )
+					if( Text.Len() == 0 )
 					{
-						Text += FString::Printf( TEXT("[%s]") LINE_TERMINATOR, *SectionName);
-						bWroteASectionProperty = true;
+						Text.Append(FString::Printf( TEXT("[%s]") LINE_TERMINATOR, *SectionName));
 
-						// and if the sectrion has any array of struct uniqueness keys, add them here
+						// and if the section has any array of struct uniqueness keys, add them here
 						for (auto It = Section.ArrayOfStructKeys.CreateConstIterator(); It; ++It)
 						{
-							Text += FString::Printf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value());
+							Text.Append(FString::Printf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value()));
 						}
 					}
 
@@ -1528,7 +1558,7 @@ bool FConfigFile::Write( const FString& Filename, bool bDoRemoteWrite/* = true*/
 					{
 						for (const FConfigValue& ConfigValue : CompletePropertyToWrite)
 						{
-							Text += GenerateExportedPropertyLine(PropertyName.ToString(), ConfigValue.GetSavedValue());
+							Text.Append(GenerateExportedPropertyLine(PropertyName.ToString(), ConfigValue.GetSavedValue()));
 						}
 					}
 
@@ -1537,24 +1567,88 @@ bool FConfigFile::Write( const FString& Filename, bool bDoRemoteWrite/* = true*/
 			}
 		}
 
-		// If we wrote any part of the section, then add some whitespace after the section.
-		if( bWroteASectionProperty )
+		// If we didn't decide to write any properties on this section, then we don't add the section
+		// to the destination file
+		if (Text.Len() > 0)
 		{
-			Text += LINE_TERMINATOR;
-		}
+			InOutSectionTexts.FindOrAdd(SectionName) = FString(Text.ToString(), Text.Len());
 
+			// Add the Section to SectionOrder in case it's not already there
+			SectionOrder.Add(SectionName);
+		}
+		else
+		{
+			InOutSectionTexts.Remove(SectionName);
+		}
+	}
+
+	// Join all of the sections together
+	Text.Reset();
+	TSet<FString> SectionNamesLeftToWrite;
+	SectionNamesLeftToWrite.Reserve(InOutSectionTexts.Num());
+	for (TPair<FString,FString>& kvpair : InOutSectionTexts)
+	{
+		SectionNamesLeftToWrite.Add(kvpair.Key);
+	}
+
+	auto AddSectionToText = [&Text, &InOutSectionTexts, &SectionNamesLeftToWrite, &BlankLine](const FString& SectionName)
+	{
+		FString* SectionText = InOutSectionTexts.Find(SectionName);
+		if (!SectionText)
+		{
+			return;
+		}
+		if (SectionNamesLeftToWrite.Remove(SectionName) == 0)
+		{
+			// We already wrote this section
+			return;
+		}
+		Text.Append(*SectionText);
+		if (!FStringView(Text.ToString()).EndsWith(BlankLine))
+		{
+			Text.Append(LINE_TERMINATOR);
+		}
+	};
+
+	// First add the empty section
+	AddSectionToText(FString());
+
+	// Second add all the sections in SectionOrder; this includes any sections in *this that were not in InSectionOrder, because we added them during the loop
+	for (FString& SectionName : SectionOrder)
+	{
+		AddSectionToText(SectionName);
+	}
+
+	// Third add any remaining sections that were passed in in InOutSectionTexts but were not specified in InSectionOrder and were not in *this
+	if (SectionNamesLeftToWrite.Num() > 0)
+	{
+		TArray<FString> RemainingNames;
+		for (FString& SectionName : SectionNamesLeftToWrite)
+		{
+			RemainingNames.Add(SectionName);
+		}
+		RemainingNames.Sort();
+		for (FString& SectionName : RemainingNames)
+		{
+			AddSectionToText(SectionName);
+		}
 	}
 
 	// Ensure We have at least something to write
-	Text += LINE_TERMINATOR;
+	if (Text.Len() == 0)
+	{
+		Text.Append(LINE_TERMINATOR);
+	}
 
+
+	FString TextAsString(Text.ToString(), Text.Len());
 	if (bDoRemoteWrite)
 	{
 		// Write out the remote version (assuming it was loaded)
-		FRemoteConfig::Get()->Write(*Filename, Text);
+		FRemoteConfig::Get()->Write(*Filename, TextAsString);
 	}
 
-	bool bResult = SaveConfigFileWrapper(*Filename, Text);
+	bool bResult = SaveConfigFileWrapper(*Filename, TextAsString);
 
 #if INI_CACHE
 	// if we wrote the config successfully
@@ -1852,7 +1946,14 @@ void FConfigFile::ProcessSourceAndCheckAgainstBackup()
 	}
 }
 
-void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, const TArray< FConfigValue >& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName )
+void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, const TArray< FConfigValue >& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName)
+{
+	TStringBuilder<128> PropertyText;
+	ProcessPropertyAndWriteForDefaults(IniCombineThreshold, InCompletePropertyToProcess, PropertyText, SectionName, PropertyName);
+	OutText.Append(PropertyText.ToString(), PropertyText.Len());
+}
+
+void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, const TArray< FConfigValue >& InCompletePropertyToProcess, FStringBuilderBase& OutText, const FString& SectionName, const FString& PropertyName )
 {
 	// Only process against a hierarchy if this config file has one.
 	if (SourceIniHierarchy.Num() > 0)
@@ -1894,7 +1995,7 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, c
 			for (const FString& NextElement : ArrayProperties)
 			{
 				FString PropertyNameWithRemoveOp = PropertyName.Replace(TEXT("+"), TEXT("-"));
-				OutText += GenerateExportedPropertyLine(PropertyNameWithRemoveOp, NextElement);
+				OutText.Append(GenerateExportedPropertyLine(PropertyNameWithRemoveOp, NextElement));
 			}
 		}
 	}
@@ -1902,7 +2003,7 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, c
 	// Write the properties out to a file.
 	for ( const FConfigValue& PropertyIt : InCompletePropertyToProcess)
 	{
-		OutText += GenerateExportedPropertyLine(PropertyName, PropertyIt.GetSavedValue());
+		OutText.Append(GenerateExportedPropertyLine(PropertyName, PropertyIt.GetSavedValue()));
 	}
 }
 
@@ -3847,10 +3948,52 @@ FString FConfigCacheIni::GetGameUserSettingsDir()
 
 void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRootName/*=nullptr*/, const TCHAR* OverridePlatform/*=nullptr*/)
 {
-	// since we don't want any modifications to other sections, we manually process the file, not read into sections, etc
+	// Since we don't want any modifications to other sections, we manually process the file, not read into sections, etc
+	// Keep track of existing SectionTexts and orders so that we can preserve the order of the sections in Write to reduce the diff we make to the file on disk
 	FString DiskFile;
 	FString NewFile;
-	bool bIsLastLineEmtpy = false;
+	TStringBuilder<128> SectionText;
+	TMap<FString, FString> SectionTexts;
+	TArray<FString> SectionOrder;
+	FString SectionName;
+
+	auto AddSectionText = [this, &SectionTexts, &SectionOrder, &SectionName, &SectionText]()
+	{
+		if (SectionText.Len() == 0)
+		{
+			// No text in the section, not even a section header, e.g. because this is the prefix section and there was no prefix.
+			// Skip the section - add it to SectionTexts or SectionOrder
+		}
+		else
+		{
+			if (Contains(SectionName))
+			{
+				// Do not add the section to SectionTexts, so that Write will skip writing it at all if it is empty
+				// But do add it to SectionOrder, so that Write will write it to the right location if it is non-empty
+			}
+			else
+			{
+				// Check for duplicate sections in the file-on-disk; handle these by combining them.  This will modify the file, but will guarantee that we don't lose data
+				FString* ExistingSectionText = SectionTexts.Find(SectionName);
+				if (ExistingSectionText)
+				{
+					ExistingSectionText->Append(SectionText.ToString(), SectionText.Len());
+				}
+				else
+				{
+					SectionTexts.Add(SectionName, FString(SectionText.ToString()));
+				}
+			}
+
+			SectionOrder.Add(SectionName);
+		}
+
+		// Clear the name and text for the next section
+		SectionName.Reset();
+		SectionText.Reset();
+	};
+
+	SectionName = FString(); // The lines we read before we encounter a section header should be preserved as prefix lines; we implement this by storing them in an empty SectionName
 	if (LoadConfigFileWrapper(DiskFilename, DiskFile))
 	{
 		// walk each line
@@ -3870,22 +4013,21 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 				// is this line a section? (must be at least [x])
 				if (TheLine.Len() > 3 && TheLine[0] == '[' && TheLine[TheLine.Len() - 1] == ']')
 				{
-					// look to see if this section is one we are going to update; if so, then skip lines until a new section
-					FString SectionName = TheLine.Mid(1, TheLine.Len() - 2);
-					bIsSkippingSection = Contains(SectionName);
+					// Add the old section we just finished reading
+					AddSectionText();
+
+					// Set SectionName to the name of new section we are about to read
+					SectionName = TheLine.Mid(1, TheLine.Len() - 2);
 				}
 
-				// if we aren't skipping, then write out the line
-				if (!bIsSkippingSection)
-				{
-					NewFile += TheLine + LINE_TERMINATOR;
-
-					// track if the last line written was empty
-					bIsLastLineEmtpy = TheLine.Len() == 0;
-				}
+				SectionText.Append(TheLine);
+				SectionText.Append(LINE_TERMINATOR);
 			}
 		}
 	}
+
+	// Add the last section we read
+	AddSectionText();
 
 	// load the hierarchy up to right before this file
 	if (IniRootName != nullptr)
@@ -3913,7 +4055,7 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 
 		ClearHierarchyCache(IniRootName);
 
-		// Get a collection of the source hierachy properties
+		// Get a collection of the source hierarchy properties
 		if (SourceConfigFile)
 		{
 			delete SourceConfigFile;
@@ -3924,13 +4066,7 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 		LoadIniFileHierarchy(SourceIniHierarchy, *SourceConfigFile, true);
 	}
 
-	// take what we got above (which has the sections skipped), and then append the new sections
-	if (Num() > 0 && !bIsLastLineEmtpy)
-	{
-		// add a blank link between old sections and new (if there are any new sections)
-		NewFile += LINE_TERMINATOR;
-	}
-	Write(DiskFilename, true, NewFile);
+	Write(DiskFilename, true, SectionTexts, SectionOrder);
 }
 
 
@@ -3967,7 +4103,12 @@ public:
 	{
 		UpdatePropertyInSection();
 		// Rebuild the file with the updated section.
-		const FString NewFile = IniFileMakeup.BeforeSection + IniFileMakeup.Section + IniFileMakeup.AfterSection;
+
+		FString NewFile = IniFileMakeup.BeforeSection + IniFileMakeup.Section + IniFileMakeup.AfterSection;
+		if (!NewFile.EndsWith(LINE_TERMINATOR LINE_TERMINATOR))
+		{
+			NewFile.AppendChars(LINE_TERMINATOR, TCString<TCHAR>::Strlen(LINE_TERMINATOR));
+		}
 		return SaveConfigFileWrapper(*IniFilename, NewFile);
 	}
 
@@ -3980,9 +4121,9 @@ private:
 	void ClearTrailingWhitespace(FString& InStr)
 	{
 		const FString Endl(LINE_TERMINATOR);
-		while (InStr.EndsWith(LINE_TERMINATOR))
+		while (InStr.EndsWith(LINE_TERMINATOR, ESearchCase::CaseSensitive))
 		{
-			InStr = InStr.LeftChop(Endl.Len());
+			InStr.LeftChopInline(Endl.Len(), false);
 		}
 	}
 	

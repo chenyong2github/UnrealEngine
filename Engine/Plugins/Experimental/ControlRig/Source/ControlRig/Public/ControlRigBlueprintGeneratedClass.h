@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,9 +31,9 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** The properties of all of the control units */
-	TArray<UStructProperty*> ControlUnitProperties;
+	TArray<FStructProperty*> ControlUnitProperties;
 
 	/** The properties of all the rig units */
-	TArray<UStructProperty*> RigUnitProperties;
+	TArray<FStructProperty*> RigUnitProperties;
 #endif
 };

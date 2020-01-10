@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UCContentCommandlets.cpp: Various commmandlets.
@@ -59,6 +59,12 @@ DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
 // for UResavePackagesCommandlet::PerformAdditionalOperations building lighting code
 #include "LightingBuildOptions.h"
+
+// for UResavePackagesCommandlet::PerformAdditionalOperations building navigation data
+#include "EngineUtils.h"
+#include "NavigationData.h"
+#include "AI/NavigationSystemBase.h"
+
 // For preloading FFindInBlueprintSearchManager
 #include "FindInBlueprintManager.h"
 #include "IHierarchicalLODUtilities.h"
@@ -128,7 +134,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		else if (FParse::Value(*CurrentSwitch, TEXT("MAP="), Maps))
 		{
 			// Allow support for -MAP=Value1+Value2+Value3
-			for (int32 PlusIdx = Maps.Find(TEXT("+")); PlusIdx != INDEX_NONE; PlusIdx = Maps.Find(TEXT("+")))
+			for (int32 PlusIdx = Maps.Find(TEXT("+"), ESearchCase::CaseSensitive); PlusIdx != INDEX_NONE; PlusIdx = Maps.Find(TEXT("+"), ESearchCase::CaseSensitive))
 			{
 				const FString NextMap = Maps.Left(PlusIdx);
 				if (NextMap.Len() > 0)
@@ -139,7 +145,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 					bExplicitPackages = true;
 				}
 
-				Maps = Maps.Right(Maps.Len() - (PlusIdx + 1));
+				Maps.RightInline(Maps.Len() - (PlusIdx + 1), false);
 			}
 			FString MapFile;
 			FPackageName::SearchForPackageOnDisk(Maps, NULL, &MapFile);
@@ -154,7 +160,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 				TArray<FString> Lines;
 
 				// Remove all carriage return characters.
-				Text.ReplaceInline(TEXT("\r"), TEXT(""));
+				Text.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
 				// Read all lines
 				Text.ParseIntoArray(Lines, TEXT("\n"), true);
 
@@ -760,7 +766,9 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 							*Filename,Linker->Summary.GetFileVersionUE4(), Linker->Summary.GetFileVersionLicenseeUE4(), GPackageFileUE4Version, VER_LATEST_ENGINE_LICENSEEUE4 );
 					}
 
-					if( SavePackageHelper(Package, Filename) )
+					const static bool bKeepPackageGUIDOnSave = FParse::Param(FCommandLine::Get(), TEXT("KeepPackageGUIDOnSave"));
+					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
+					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
 					{
 						if (Verbosity == VERY_VERBOSE)
 						{
@@ -902,6 +910,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlyLicenseed = Switches.Contains(TEXT("OnlyLicenseed"));
 	/** only process packages containing materials */
 	bOnlyMaterials = Switches.Contains(TEXT("onlymaterials"));
+	/** determine if we are building navigation data for the map packages on the pass. **/
+	bShouldBuildNavigationData = Switches.Contains(TEXT("BuildNavigationData"));
 
 	/** check for filtering packages by collection. **/
 	FString FilterByCollection;
@@ -1144,50 +1154,44 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 
 FText UResavePackagesCommandlet::GetChangelistDescription() const
 {
-	FText ChangelistDescription;
+	FTextBuilder ChangelistDescription;
 
-	if (bShouldBuildTextureStreaming && bShouldBuildLighting && bShouldBuildReflectionCaptures)
+	if (bShouldBuildLighting)
 	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildLightingAndTextureStreamingAndReflectionCaptures", "Rebuild lightmaps & texture streaming & reflection captures.");
-	}
-	else if (bShouldBuildTextureStreaming && bShouldBuildLighting)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildLightingAndTextureStreaming", "Rebuild lightmaps & texture streaming.");
-	}
-	else if (bShouldBuildTextureStreaming && bShouldBuildReflectionCaptures)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildTextureStreamingAndReflectionCaptures", "Rebuild texture streaming & reflection captures.");
-	}
-	else if (bShouldBuildLighting && bShouldBuildReflectionCaptures)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildLightingAndReflectionCaptures", "Rebuild lightmaps & reflection captures.");
-	}
-	else if (bShouldBuildLighting)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildLighting", "Rebuild lightmaps.");
-	}
-	else if (bShouldBuildTextureStreaming)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildTextureStreaming", "Rebuild texture streaming.");
-	}
-	else if (bShouldBuildReflectionCaptures)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildReflectionCaptures", "Rebuild reflection captures.");
-	}
-	else if (RedirectorsToFixup.Num() > 0)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionRedirectors", "Fixing Redirectors");
-	}
-	else if (bShouldBuildHLOD)
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionHLODs", "Rebuilding HLODs");
-	}
-	else
-	{
-		ChangelistDescription = NSLOCTEXT("ContentCmdlets", "ChangelistDescription", "Resave Deprecated Packages");
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildLighting", "Rebuild lightmaps."));
 	}
 
-	return ChangelistDescription;
+	if (bShouldBuildTextureStreaming)
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildTextureStreaming", "Rebuild texture streaming."));
+	}
+
+	if (bShouldBuildReflectionCaptures)
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildReflectionCaptures", "Rebuild reflection captures."));
+	}
+
+	if (RedirectorsToFixup.Num() > 0)
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionRedirectors", "Fixing Redirectors"));
+	}
+
+	if (bShouldBuildHLOD)
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionHLODs", "Rebuilding HLODs"));
+	}
+
+	if (bShouldBuildNavigationData)
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionBuildNavigationData", "Rebuilding Navigation data."));
+	}
+	
+	if (ChangelistDescription.IsEmpty())
+	{
+		ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescription", "Resave Deprecated Packages"));
+	}
+
+	return ChangelistDescription.ToText();
 }
 
 
@@ -1429,7 +1433,11 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 	const bool bShouldBuildTextureStreamingForWorld = bShouldBuildTextureStreaming && !bShouldBuildTextureStreamingForAll;
 	const bool bBuildingNonHLODData = (bShouldBuildLighting || bShouldBuildTextureStreamingForWorld || bShouldBuildReflectionCaptures);
-	if (bBuildingNonHLODData || bShouldBuildHLOD)
+
+	// indicates if world and level packages should be checked out only if dirty after building data
+	const bool bShouldCheckoutDirtyPackageOnly = (bShouldBuildHLOD || bShouldBuildNavigationData) && !bBuildingNonHLODData;
+
+	if (bBuildingNonHLODData || bShouldBuildHLOD || bShouldBuildNavigationData)
 	{
 		bool bShouldProceedWithRebuild = true;
 
@@ -1442,7 +1450,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			IVS.RequiresHitProxies(false);
 			IVS.ShouldSimulatePhysics(false);
 			IVS.EnableTraceCollision(false);
-			IVS.CreateNavigation(false);
+			IVS.CreateNavigation(bShouldBuildNavigationData);
 			IVS.CreateAISystem(false);
 			IVS.AllowAudioPlayback(false);
 			IVS.CreatePhysicsScene(true);
@@ -1487,17 +1495,10 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		FString WorldPackageCheckedOutUser;
 		if (FPackageName::DoesPackageExist(World->GetOutermost()->GetName(), NULL, &WorldPackageName))
 		{
-			// If we are only building HLODs check if level can be checked out, if so add to list of files that will be saved/checked-out after rebuilding the data
-			if(bShouldBuildHLOD && !bBuildingNonHLODData)
+			// If we are checking out only dirty package, simply check if level can be checked out. They will be added to list of fsaved/checked-out files after rebuilding the data
+			if (bShouldCheckoutDirtyPackageOnly)
 			{
-				if (CanCheckoutFile(WorldPackageName, WorldPackageCheckedOutUser) || !bSkipCheckedOutFiles)
-				{
-					CheckedOutPackagesFilenames.Add(WorldPackageName);
-				}
-				else 
-				{
-					bShouldProceedWithRebuild = false;
-				}				
+				bShouldProceedWithRebuild = (CanCheckoutFile(WorldPackageName, WorldPackageCheckedOutUser) || !bSkipCheckedOutFiles);
 			}
 			else
 			{
@@ -1528,8 +1529,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			{
 				bool bShouldBeLoaded = true;
 
-				// If we are not building HLODs or are but also rebuilding lighting we check out the level file, otherwise we don't to try and ensure a minimal HLOD rebuild
-				if (!bShouldBuildHLOD || bBuildingNonHLODData)
+				if (!bShouldCheckoutDirtyPackageOnly)
 				{
 					CheckOutLevelFile(StreamingLevel->GetLoadedLevel());
 				}
@@ -1538,15 +1538,12 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				const FString StreamingLevelWorldAssetPackageName = StreamingLevel->GetWorldAssetPackageName();
 				if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename))
 				{
-					// If we are building HLODs only, we dont check out the files ahead of rebuilding the data
-					if(bShouldBuildHLOD && !bBuildingNonHLODData)
+					if (bShouldCheckoutDirtyPackageOnly)
 					{
 						FString OutUser;
-						if (CanCheckoutFile(StreamingLevelPackageFilename, OutUser) || !bSkipCheckedOutFiles)
-						{
-							CheckedOutPackagesFilenames.Add(StreamingLevelPackageFilename);
-						}
-						else 
+						bShouldBeLoaded = (CanCheckoutFile(StreamingLevelPackageFilename, OutUser) || !bSkipCheckedOutFiles);
+
+						if (!bShouldBeLoaded)
 						{
 							if (OutUser.Len())
 							{
@@ -1556,8 +1553,6 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 							{
 								UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it could not be checked out (not at head revision ?)"), *StreamingLevelPackageFilename);
 							}
-
-							bShouldBeLoaded = false;
 						}
 					}
 					else
@@ -1593,8 +1588,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		{
 			World->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 
-			// If we are (minimally) rebuilding HLOD, set the visible streamed-in levels packages to clean (as FlushLevelStreaming will dirty their packages in this commandlet context)
-			if(bShouldBuildHLOD)
+			// If we are (minimally) rebuilding using only dirty packages, set the visible streamed-in levels packages to clean (as FlushLevelStreaming will dirty their packages in this commandlet context)
+			if (bShouldCheckoutDirtyPackageOnly)
 			{
 				for (const ULevel* Level : World->GetLevels())
 				{
@@ -1696,6 +1691,26 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				}
 			}
 
+			if (bShouldBuildNavigationData)
+			{
+				// Make sure navigation is added and initialized in EditorMode
+				FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+
+				// Invoke navigation data generator
+				UE_LOG(LogContentCommandlet, Display, TEXT("Building navigation data for %s"), *World->GetOutermost()->GetName());
+				FNavigationSystem::Build(*World);
+
+				// Checkout and save each dirty package
+				for (TActorIterator<ANavigationData> It(World); It; ++It)
+				{
+					UPackage* Package = It->GetOutermost();
+					if (Package != nullptr && Package->IsDirty())
+					{
+						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
+					}
+				}
+			}
+
 			if (bShouldBuildLighting)
 			{
 				FLightingBuildOptions LightingOptions;
@@ -1747,17 +1762,15 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					{
 						UPackage* SubLevelPackage = NextStreamingLevel->GetLoadedLevel()->GetOutermost();
 						bool bSaveSubLevelPackage = true;
-						if(bShouldBuildHLOD && !bBuildingNonHLODData)
+						if (bShouldCheckoutDirtyPackageOnly)
 						{
-							// If we are building HLOD, only save packages that were dirtied
 							bSaveSubLevelPackage = SubLevelPackage->IsDirty();
 						}
 
-						if(bSaveSubLevelPackage)
+						if (bSaveSubLevelPackage)
 						{
-							// When building HLODs we dont check out/modify maps unless dirty
 							bool bFileCheckedOut = true;
-							if(bShouldBuildHLOD && !bBuildingNonHLODData)
+							if (bShouldCheckoutDirtyPackageOnly)
 							{
 								bFileCheckedOut = CheckoutFile(StreamingLevelPackageFilename, true);
 							}
@@ -1783,8 +1796,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			}
 			else
 			{
-			UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Failed to complete steps necessary to start a lightmass or texture streaming build of %s"), *World->GetName());
-		}
+				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Failed to complete steps necessary to start a lightmass or texture streaming build of %s"), *World->GetName());
+			}
 		}
 
 		if ((bShouldProceedWithRebuild == false)||(bSavePackage == false))
@@ -1808,9 +1821,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				FilesToSubmit.AddUnique(CheckedOutPackageFilename);
 			}
 
-			if(bShouldBuildHLOD && !bBuildingNonHLODData)
+			if (bShouldCheckoutDirtyPackageOnly)
 			{
-				// Don't save outer package if it isn't dirty when doing a HLOD rebuild only
 				bSavePackage = World->GetOutermost()->IsDirty();
 			}
 		}
@@ -2493,11 +2505,11 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				FString ObjectPathName = It2.Key();
 
 				// skip over the class portion (the It2.Value() has the class pointer already)
-				int32 Space = ObjectPathName.Find(TEXT(" "));
+				int32 Space = ObjectPathName.Find(TEXT(" "), ESearchCase::CaseSensitive);
 				check(Space);
 
 				// get everything after the space
-				ObjectPathName = ObjectPathName.Right(ObjectPathName.Len() - (Space + 1));
+				ObjectPathName.RightInline(ObjectPathName.Len() - (Space + 1), false);
 
 				// load the referenced object
 
@@ -2617,11 +2629,11 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 					FString ObjectPathName = ObjectIt.Key();
 
 					// skip over the class portion (the It2.Value() has the class pointer already)
-					int32 Space = ObjectPathName.Find(TEXT(" "));
+					int32 Space = ObjectPathName.Find(TEXT(" "), ESearchCase::CaseSensitive);
 					check(Space > 0);
 
 					// get everything after the space
-					ObjectPathName = ObjectPathName.Right(ObjectPathName.Len() - (Space + 1));
+					ObjectPathName.RightInline(ObjectPathName.Len() - (Space + 1), false);
 
 					// load the unnecessary object
 					UObject* Object = StaticLoadObject(ObjectIt.Value(), NULL, *ObjectPathName, NULL, LOAD_NoWarn, NULL);

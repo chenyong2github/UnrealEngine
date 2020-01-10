@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // 
 #include "BasicReplicationGraph.h"
 #include "Net/UnrealNetwork.h"
@@ -38,7 +38,7 @@ void UBasicReplicationGraph::InitGlobalActorClassSettings()
 		FClassReplicationInfo ClassInfo;
 
 		// Replication Graph is frame based. Convert NetUpdateFrequency to ReplicationPeriodFrame based on Server MaxTickRate.
-		ClassInfo.ReplicationPeriodFrame = FMath::Max<uint32>( (uint32)FMath::RoundToFloat(NetDriver->NetServerMaxTickRate / ActorCDO->NetUpdateFrequency), 1);
+		ClassInfo.ReplicationPeriodFrame = GetReplicationPeriodFrameForFrequency(ActorCDO->NetUpdateFrequency);
 		
 		if (ActorCDO->bAlwaysRelevant || ActorCDO->bOnlyRelevantToOwner)
 		{
@@ -110,6 +110,7 @@ void UBasicReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicated
 	if (ActorInfo.Actor->bAlwaysRelevant)
 	{
 		AlwaysRelevantNode->NotifyRemoveNetworkActor(ActorInfo);
+		SetActorDestructionInfoToIgnoreDistanceCulling(ActorInfo.GetActor());
 	}
 	else if (ActorInfo.Actor->bOnlyRelevantToOwner)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "ParticleHandle.h"
@@ -192,8 +192,8 @@ namespace Chaos
 		struct FGraphEdge
 		{
 			FGraphEdge()
-				: FirstNode(INDEX_NONE)
-				, SecondNode(INDEX_NONE)
+			    : FirstNode(INDEX_NONE)
+			    , SecondNode(INDEX_NONE)
 			{
 			}
 
@@ -205,7 +205,7 @@ namespace Chaos
 		struct FIslandData
 		{
 			FIslandData()
-				: bIsIslandPersistant(false)
+			    : bIsIslandPersistant(false)
 			{
 			}
 
@@ -220,6 +220,7 @@ namespace Chaos
 		void ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle);
 		void ParticleRemove(TGeometryParticleHandle<FReal, 3>* RemovedParticle);
 		int32 GetNextNodeIndex();
+		const TArray<int32>& GetUpdatedNodes() const { return UpdatedNodes; }
 
 		TArray<FGraphNode> Nodes;
 		TArray<FGraphEdge> Edges;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyTable/TextPropertyTableCellPresenter.h"
 #include "Widgets/SNullWidget.h"
@@ -103,7 +103,7 @@ TSharedRef< class SWidget > FTextPropertyTableCellPresenter::ConstructEditModeDr
 TSharedRef<SWidget> FTextPropertyTableCellPresenter::ConstructEditModeCellWidget()
 {
 	HasReadOnlyEditingWidget = false;
-	const UProperty* const Property = PropertyEditor->GetProperty();
+	const FProperty* const Property = PropertyEditor->GetProperty();
 
 	if( Property )
 	{
@@ -197,7 +197,7 @@ TSharedRef<SWidget> FTextPropertyTableCellPresenter::ConstructEditModeCellWidget
 
 bool FTextPropertyTableCellPresenter::CalculateIfUsingReadOnlyEditingWidget() const
 {
-	const UProperty* const Property = PropertyEditor->GetProperty();
+	const FProperty* const Property = PropertyEditor->GetProperty();
 
 	if( Property )
 	{

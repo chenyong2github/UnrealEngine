@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialRenderItem.h"
 #include "MaterialBakingStructures.h"
@@ -256,6 +256,12 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 				Indices.Add(VertIndex - 3);
 				Indices.Add(VertIndex - 1);
 				Indices.Add(VertIndex - 2);
+
+				// Swap vertices order if mesh is mirrored
+				if (MeshSettings->bMirrored)
+				{
+					Swap(Vertices[Vertices.Num() - 3].Position, Vertices[Vertices.Num() - 1].Position);
+				}
 			}
 			FaceIndex++;
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -335,33 +335,104 @@ typedef TSharedRef<const FOnlinePartyData> FOnlinePartyDataConstRef;
 typedef TSharedPtr<const FOnlinePartyData> FOnlinePartyDataConstPtr;
 
 /**
-* Info needed to join a party
-*/
-class IOnlinePartyPendingJoinRequestInfo
+ * Info about a user requesting to join a party
+ */
+class IOnlinePartyUserPendingJoinRequestInfo
 {
 public:
-	IOnlinePartyPendingJoinRequestInfo() {}
-	virtual ~IOnlinePartyPendingJoinRequestInfo() {}
+	virtual ~IOnlinePartyUserPendingJoinRequestInfo() = default;
 
 	/**
-	 * @return id of the sender of this join request
+	 * Get the id of the user requesting to join
+	 * @return the id of the user requesting to join
 	 */
-	virtual const TSharedRef<const FUniqueNetId>& GetSenderId() const = 0;
+	virtual const TSharedRef<const FUniqueNetId>& GetUserId() const = 0;
 
 	/**
-	 * @return display name of the sender of this join request
+	 * Get the display name of the user requesting to join
+	 * @return the display name of the user requesting to join
 	 */
-	virtual const FString& GetSenderDisplayName() const = 0;
+	virtual const FString& GetDisplayName() const = 0;
 
 	/**
-	 * @return platform of the sender of this join request
+	 * Get the platform of the user requesting to join
+	 * @return the platform of the user requesting to join
 	 */
-	virtual const FString& GetSenderPlatform() const = 0;
+	virtual const FString& GetPlatform() const = 0;
 
 	/**
-	 * @return join data provided by the sender for htis join request
+	 * Get the join data of the user requesting to join
+	 * @return the join data of the user requesting to join
 	 */
-	virtual TSharedRef<const FOnlinePartyData> GetSenderJoinData() const = 0;
+	virtual TSharedRef<const FOnlinePartyData> GetJoinData() const = 0;
+};
+
+typedef TSharedRef<const IOnlinePartyUserPendingJoinRequestInfo> IOnlinePartyUserPendingJoinRequestInfoConstRef;
+typedef TSharedPtr<const IOnlinePartyUserPendingJoinRequestInfo> IOnlinePartyUserPendingJoinRequestInfoConstPtr;
+
+/**
+ * Info about a group of users requesting to join a party
+ */
+class IOnlinePartyPendingJoinRequestInfo
+	: public TSharedFromThis<IOnlinePartyPendingJoinRequestInfo>
+{
+public:
+	IOnlinePartyPendingJoinRequestInfo() = default;
+	virtual ~IOnlinePartyPendingJoinRequestInfo() = default;
+
+	/**
+	 * Get the primary user's id
+	 * @return id of the primary user of this join request
+	 */
+	virtual const TSharedRef<const FUniqueNetId>& GetSenderId() const
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		GetUsers(Users);
+		check(Users.Num() > 0);
+		return Users[0]->GetUserId();
+	}
+
+	/**
+	 * Get the primary user's display name
+	 * @return display name of the primary user of this join request
+	 */
+	virtual const FString& GetSenderDisplayName() const
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		GetUsers(Users);
+		check(Users.Num() > 0);
+		return Users[0]->GetDisplayName();
+	}
+
+	/**
+	 * Get the primary user's platform
+	 * @return platform of the primary user of this join request
+	 */
+	virtual const FString& GetSenderPlatform() const
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		GetUsers(Users);
+		check(Users.Num() > 0);
+		return Users[0]->GetPlatform();
+	}
+
+	/**
+	 * Get the primary user's join data
+	 * @return join data provided by the primary user for this join request
+	 */
+	virtual TSharedRef<const FOnlinePartyData> GetSenderJoinData() const
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		GetUsers(Users);
+		check(Users.Num() > 0);
+		return Users[0]->GetJoinData();
+	}
+
+	/**
+	 * Get the list of users requesting to join
+	 * @return array of users requesting to join
+	 */
+	virtual void GetUsers(TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef>& OutUsers) const = 0;
 };
 
 typedef TSharedRef<const IOnlinePartyPendingJoinRequestInfo> IOnlinePartyPendingJoinRequestInfoConstRef;
@@ -977,6 +1048,7 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteResponseReceived);
 
 /**
  * Notification when a new reservation request is received
+ * Deprecated - Use OnPartyGroupJoinRequestReceived
  * @param LocalUserId - id associated with this notification
  * @param PartyId - id associated with the party
  * @param SenderId - id of member that sent the request
@@ -987,18 +1059,28 @@ DECLARE_MULTICAST_DELEGATE_FiveParams(F_PREFIX(OnPartyJoinRequestReceived), cons
 PARTY_DECLARE_DELEGATETYPE(OnPartyJoinRequestReceived);
 
 /**
-* Notification when a new reservation request is received
-* @param LocalUserId - id associated with this notification
-* @param PartyId - id associated with the party
-* @param SenderId - id of member that sent the request
-* @param Platform - platform of member that sent the request
-* @param PartyData - data provided by the sender for the leader to use to determine joinability
-*/
+ * Notification when a new reservation request is received
+ * @param LocalUserId - id associated with this notification
+ * @param PartyId - id associated with the party
+ * @param JoinRequestInfo - data about users that are joining
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyGroupJoinRequestReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyGroupJoinRequestReceived);
+
+/**
+ * Notification when a new reservation request is received
+ * @param LocalUserId - id associated with this notification
+ * @param PartyId - id associated with the party
+ * @param SenderId - id of member that sent the request
+ * @param Platform - platform of member that sent the request
+ * @param PartyData - data provided by the sender for the leader to use to determine joinability
+ */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIPRequestReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyJIPRequestReceived);
 
 /**
  * Notification when a player wants to know if the party is in a joinable state
+ * Deprecated - Use OnQueryPartyJoinabilityGroupReceived
  * @param LocalUserId - id associated with this notification
  * @param PartyId - id associated with the party
  * @param SenderId - id of member that sent the request
@@ -1007,6 +1089,15 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyJIPRequestReceived);
  */
 DECLARE_MULTICAST_DELEGATE_FiveParams(F_PREFIX(OnQueryPartyJoinabilityReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, const FString& /*Platform*/, const FOnlinePartyData& /*PartyData*/);
 PARTY_DECLARE_DELEGATETYPE(OnQueryPartyJoinabilityReceived);
+
+/**
+ * Notification when a player wants to know if the party is in a joinable state
+ * @param LocalUserId - id associated with this notification
+ * @param PartyId - id associated with the party
+ * @param JoinRequestInfo - data about users that are joining
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnQueryPartyJoinabilityGroupReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
+PARTY_DECLARE_DELEGATETYPE(OnQueryPartyJoinabilityGroupReceived);
 
 /**
  * Request for the game to fill in data to be sent with the join request for the leader to make an informed decision based on the joiner's state
@@ -1723,11 +1814,11 @@ public:
 	 * Subscriber is expected to call ApproveJoinRequest
 	 * @param LocalUserId - id associated with this notification
 	 * @param PartyId - id associated with the party
-	 * @param SenderId - id of member that sent the request
-	 * @param Platform - platform of member that sent the request
-	 * @param PartyData - data provided by the sender for the leader to use to determine joinability
+	 * @param JoinRequestInfo - data about users that are joining
 	 */
-	DEFINE_ONLINE_DELEGATE_FIVE_PARAM(OnPartyJoinRequestReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, const FString& /*Platform*/, const FOnlinePartyData& /*PartyData*/);
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM_DEPRECATION_HELPER(OnPartyJoinRequestReceived, OnPartyGroupJoinRequestReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
+	UE_DEPRECATED(4.25, "Use OnPartyGroupJoinRequestReceived instead of OnPartyJoinRequestReceived")
+	virtual FDelegateHandle AddOnPartyJoinRequestReceivedDelegate_Handle(const FOnPartyJoinRequestReceivedDelegate& Delegate);
 
 	/**
 	* Notification when a new reservation request is received
@@ -1745,11 +1836,11 @@ public:
 	 * Subscriber is expected to call RespondToQueryJoinability
 	 * @param LocalUserId - id associated with this notification
 	 * @param PartyId - id associated with the party
-	 * @param SenderId - id of member that sent the request
-	 * @param Platform - platform of member that sent the request
-	 * @param PartyData - data provided by the sender for the leader to use to determine joinability
+	 * @param JoinRequestInfo - data about users that are joining
 	 */
-	DEFINE_ONLINE_DELEGATE_FIVE_PARAM(OnQueryPartyJoinabilityReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, const FString& /*Platform*/, const FOnlinePartyData& /*PartyData*/);
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM_DEPRECATION_HELPER(OnQueryPartyJoinabilityReceived, OnQueryPartyJoinabilityGroupReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
+	UE_DEPRECATED(4.25, "Use OnQueryPartyJoinabilityGroupReceived instead of OnQueryPartyJoinabilityReceived")
+	virtual FDelegateHandle AddOnQueryPartyJoinabilityReceivedDelegate_Handle(const FOnQueryPartyJoinabilityReceivedDelegate& Delegate);
 
 	/**
 	 * Notification when a player wants to know if the party is in a joinable state
@@ -1791,6 +1882,7 @@ enum class ECreatePartyCompletionResult : int8
 	FailedToCreateMucRoom,
 	NoResponse,
 	LoggedOut,
+	NotPrimaryUser,
 	UnknownInternalFailure = 0,
 	Succeeded = 1
 };

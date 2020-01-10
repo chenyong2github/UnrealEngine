@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneToolsModule.h"
@@ -437,7 +437,7 @@ bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAs
 	FString ShotPackagePath = ShotData.PackagePath.ToString();
 	int32 ShotLastSlashPos = INDEX_NONE;
 	ShotPackagePath.FindLastChar(TCHAR('/'), ShotLastSlashPos);
-	ShotPackagePath = ShotPackagePath.Left(ShotLastSlashPos);
+	ShotPackagePath.LeftInline(ShotLastSlashPos, false);
 
 	FString ShotPrefix;
 	uint32 ShotNumber = INDEX_NONE;
@@ -464,7 +464,7 @@ bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAs
 				FString AssetPackagePath = AssetObject.PackagePath.ToString();
 				int32 AssetLastSlashPos = INDEX_NONE;
 				AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
-				AssetPackagePath = AssetPackagePath.Left(AssetLastSlashPos);
+				AssetPackagePath.LeftInline(AssetLastSlashPos, false);
 
 				if (AssetPackagePath == ShotPackagePath)
 				{
@@ -1296,8 +1296,8 @@ void MovieSceneToolHelpers::CopyCameraProperties(FbxCamera* CameraNode, AActor* 
 		CameraComponent = CineCameraActor->GetCineCameraComponent();
 
 		UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
-		CineCameraComponent->FilmbackSettings.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
-		CineCameraComponent->FilmbackSettings.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
 		CineCameraComponent->FocusSettings.ManualFocusDistance = CameraNode->FocusDistance;
 		if (FocalLength < CineCameraComponent->LensSettings.MinFocalLength)
 		{

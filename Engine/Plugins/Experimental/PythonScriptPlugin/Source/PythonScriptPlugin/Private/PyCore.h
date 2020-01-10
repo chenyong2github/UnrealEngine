@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,9 +17,6 @@
 enum class EPythonLogOutputType : uint8;
 
 struct FSlowTask;
-
-/** Get the object that Python created transient properties should be outered to */
-UObject* GetPythonPropertyContainer();
 
 /** Get the object that Python created types should be outered to */
 UObject* GetPythonTypeContainer();
@@ -45,8 +42,8 @@ extern PyTypeObject PyTypeIteratorType;
 /** Python type for FPyUValueDef */
 extern PyTypeObject PyUValueDefType;
 
-/** Python type for FPyUPropertyDef */
-extern PyTypeObject PyUPropertyDefType;
+/** Python type for FPyFPropertyDef */
+extern PyTypeObject PyFPropertyDefType;
 
 /** Python type for FPyUFunctionDef */
 extern PyTypeObject PyUFunctionDefType;
@@ -276,8 +273,8 @@ struct FPyUValueDef
 	static void ApplyMetaData(FPyUValueDef* InSelf, const TFunctionRef<void(const FString&, const FString&)>& InPredicate);
 };
 
-/** Type used to define UProperty fields from Python */
-struct FPyUPropertyDef
+/** Type used to define FProperty fields from Python */
+struct FPyFPropertyDef
 {
 	/** Common Python Object */
 	PyObject_HEAD
@@ -295,19 +292,19 @@ struct FPyUPropertyDef
 	FString SetterFuncName;
 
 	/** New this instance (called via tp_new for Python, or directly in C++) */
-	static FPyUPropertyDef* New(PyTypeObject* InType);
+	static FPyFPropertyDef* New(PyTypeObject* InType);
 
 	/** Free this instance (called via tp_dealloc for Python) */
-	static void Free(FPyUPropertyDef* InSelf);
+	static void Free(FPyFPropertyDef* InSelf);
 
 	/** Initialize this instance (called via tp_init for Python, or directly in C++) */
-	static int Init(FPyUPropertyDef* InSelf, PyObject* InPropType, PyObject* InMetaData, FString InGetterFuncName, FString InSetterFuncName);
+	static int Init(FPyFPropertyDef* InSelf, PyObject* InPropType, PyObject* InMetaData, FString InGetterFuncName, FString InSetterFuncName);
 
 	/** Deinitialize this instance (called via Init and Free to restore the instance to its New state) */
-	static void Deinit(FPyUPropertyDef* InSelf);
+	static void Deinit(FPyFPropertyDef* InSelf);
 
 	/** Apply the meta-data on this instance to the given property */
-	static void ApplyMetaData(FPyUPropertyDef* InSelf, UProperty* InProp);
+	static void ApplyMetaData(FPyFPropertyDef* InSelf, FProperty* InProp);
 };
 
 /** Flags used to define the attributes of a UFunction field from Python */
@@ -367,7 +364,7 @@ typedef TPyPtr<FPyClassIterator> FPyClassIteratorPtr;
 typedef TPyPtr<FPyStructIterator> FPyStructIteratorPtr;
 typedef TPyPtr<FPyTypeIterator> FPyTypeIteratorPtr;
 typedef TPyPtr<FPyUValueDef> FPyUValueDefPtr;
-typedef TPyPtr<FPyUPropertyDef> FPyUPropertyDefPtr;
+typedef TPyPtr<FPyFPropertyDef> FPyFPropertyDefPtr;
 typedef TPyPtr<FPyUFunctionDef> FPyUFunctionDefPtr;
 
 namespace PyCore

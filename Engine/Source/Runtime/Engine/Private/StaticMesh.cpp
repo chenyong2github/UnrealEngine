@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	StaticMesh.cpp: Static mesh class implementation.
@@ -601,9 +601,9 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
 
-	bool bUsingCookedData = false;
+	bool bUsingCookedEditorData = false;
 #if WITH_EDITORONLY_DATA
-	bUsingCookedData = Owner->GetOutermost()->bIsCookedForEditor;
+	bUsingCookedEditorData = Owner->GetOutermost()->bIsCookedForEditor;
 #endif
 
 	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
@@ -613,6 +613,13 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 
 	Ar << Sections;
 	Ar << MaxDeviation;
+
+#if WITH_EDITORONLY_DATA
+	if ((!Ar.IsCooking() && !Ar.IsFilterEditorOnly()) || (Ar.IsCooking() && Ar.CookingTarget()->HasEditorOnlyData()))
+	{
+		Ar << WedgeMap;
+	}
+#endif // #if WITH_EDITORONLY_DATA
 
 	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
 	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerStaticMesh, bIsBelowMinLOD);
@@ -633,7 +640,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 		}
-		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedData)
+		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedEditorData)
 		{
 			uint32 BulkDataSize = 0;
 #if WITH_EDITOR
@@ -674,24 +681,25 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 #if USE_BULKDATA_STREAMING_TOKEN
 				FByteBulkData TmpBulkData;
 				TmpBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				bIsOptionalLOD = TmpBulkData.IsOptional();
 
-				BulkDataStreamingToken = TmpBulkData.CreateStreamingToken();			
-				BulkDataSize = BulkDataStreamingToken.GetSize();
+				StreamingBulkData = TmpBulkData.CreateStreamingToken();			
 #else
 				StreamingBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
-				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
+				bIsOptionalLOD = StreamingBulkData.IsOptional();
 #endif
+				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
 
+#if WITH_EDITORONLY_DATA
 				// Streaming CPU data in editor build isn't supported yet because tools and utils need access
-				if (bUsingCookedData && BulkDataSize > 0)
+				if (bUsingCookedEditorData && BulkDataSize > 0)
 				{
 					TmpBuff.Empty(BulkDataSize);
 					TmpBuff.AddUninitialized(BulkDataSize);
 					void* Dest = TmpBuff.GetData();
 					TmpBulkData.GetCopy(&Dest);
 				}
+#endif
 			}
 
 			SerializeAvailabilityInfo(Ar);
@@ -704,13 +712,15 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 				ClearAvailabilityInfo();
 			}
 
-			if (Ar.IsLoading() && bUsingCookedData && BulkDataSize > 0)
+#if WITH_EDITORONLY_DATA
+			if (Ar.IsLoading() && bUsingCookedEditorData && BulkDataSize > 0)
 			{
 				ClearAvailabilityInfo();
 				FMemoryReader MemReader(TmpBuff, true);
 				MemReader.SetByteSwapping(Ar.IsByteSwapping());
 				SerializeBuffers(MemReader, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
 			}
+#endif
 		}
 	}
 }
@@ -1325,7 +1335,6 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITORONLY_DATA
 	if (!bCooked)
 	{
-		Ar << WedgeMap;
 		Ar << MaterialIndexToImportIndex;
 	}
 
@@ -1396,7 +1405,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-						check(LOD.DistanceFieldData != nullptr);
+					check(LOD.DistanceFieldData != nullptr);
 
 						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
 
@@ -1410,19 +1419,19 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 							Ar << DownSampledDFVolumeData;
 						}
 						else
-						{
-							Ar << *(LOD.DistanceFieldData);
-						}
+					{
+						Ar << *(LOD.DistanceFieldData);
+					}
 					}
 					else
 #endif
 					{
-						if (LOD.DistanceFieldData == nullptr)
-						{
-							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-						}
+					if (LOD.DistanceFieldData == nullptr)
+					{
+						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+					}
 
-						Ar << *(LOD.DistanceFieldData);
+					Ar << *(LOD.DistanceFieldData);
 					}
 				}
 			}
@@ -2056,8 +2065,8 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("A9B55814188440DA96CF4A9D318BC1C5")
+// and set this new GUID as the version.                                       
+#define STATICMESH_DERIVEDDATA_VER TEXT("D819AE82DB6A4CE0891F68BD81CFC2A8")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2915,7 +2924,7 @@ void UStaticMesh::ReleaseResources()
 }
 
 #if WITH_EDITOR
-void UStaticMesh::PreEditChange(UProperty* PropertyAboutToChange)
+void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreEditChange);
 
@@ -2933,7 +2942,7 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostEditChangeProperty);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup))
@@ -3059,22 +3068,22 @@ void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
 			
 			if (LODIndex != 0)
 			{
-				//Reset the section info map
-				if (bResetSectionInfoMap)
+			//Reset the section info map
+			if (bResetSectionInfoMap)
+			{
+				for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
 				{
-					for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
-					{
 						GetSectionInfoMap().Remove(LODIndex, SectionIndex);
-					}
-				}
-				//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
-				if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
-				{
-					FRawMesh EmptyRawMesh;
-					SourceModel.SaveRawMesh(EmptyRawMesh);
-					SourceModel.SourceImportFilename = FString();
 				}
 			}
+			//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
+			if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
+			{
+				FRawMesh EmptyRawMesh;
+				SourceModel.SaveRawMesh(EmptyRawMesh);
+				SourceModel.SourceImportFilename = FString();
+			}
+		}
 		}
 		LightMapResolution = GroupSettings.GetDefaultLightMapResolution();
 
@@ -3886,8 +3895,8 @@ bool UStaticMesh::IsMeshDescriptionValid(int32 LodIndex) const
 	// If there is a valid MeshDescriptionBulkData, we know this implies a valid mesh description.
 	// If not, then it's a legacy asset which will have a mesh description built from the RawMeshBulkData, if non-empty.
 	return SourceModel.MeshDescription.IsValid() ||
-		SourceModel.MeshDescriptionBulkData.IsValid() ||
-		!SourceModel.RawMeshBulkData->IsEmpty();
+		   SourceModel.MeshDescriptionBulkData.IsValid() ||
+		   !SourceModel.RawMeshBulkData->IsEmpty();
 }
 
 
@@ -3940,26 +3949,26 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 			{
 				if (Num == 0)
 				{
-					TMap<FName, int32> MaterialMap;
-					for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
-					{
-						MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
-					}
+		TMap<FName, int32> MaterialMap;
+		for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
+		{
+			MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+		}
 
 					FRawMesh TempRawMesh;
-					FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-					SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
+		FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
+		SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
 				}
 				else
 				{
 					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
 
 					if (Params.bUseHashAsGuid)
-					{
+		{
 						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
 					}
 				}
-			}
+		}
 		);
 	}
 	else
@@ -3973,7 +3982,7 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
 	if (Params.bMarkPackageDirty)
 	{
-		MarkPackageDirty();
+	MarkPackageDirty();
 	}
 }
 
@@ -4758,10 +4767,10 @@ void UStaticMesh::PostLoad()
 		}
 		else
 		{
-			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-			// is then released, and can be reloaded on demand.
-			CacheDerivedData();
+		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+		// is then released, and can be reloaded on demand.
+		CacheDerivedData();
 		}
 
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
@@ -5202,6 +5211,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	// Set up
 
 	bIsBuiltAtRuntime = true;
+	NeverStream = true;
 
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
@@ -5234,6 +5244,17 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 		BuildFromMeshDescription(*MeshDescriptionPtr, LODResources);
 
+#if WITH_EDITOR
+		for (int32 SectionIndex = 0; SectionIndex < LODResources.Sections.Num(); SectionIndex++)
+		{
+			const FStaticMeshSection& StaticMeshSection = LODResources.Sections[SectionIndex];
+			FMeshSectionInfo SectionInfo;
+			SectionInfo.MaterialIndex = StaticMeshSection.MaterialIndex;
+			SectionInfo.bEnableCollision = StaticMeshSection.bEnableCollision;
+			SectionInfo.bCastShadow = StaticMeshSection.bCastShadow;
+			GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
+		}
+#endif
 		LODIndex++;
 	}
 
@@ -5356,6 +5377,18 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
 	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
+}
+
+bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < MinLOD.Default);
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
 }
 
 bool UStaticMesh::IsReadyForStreaming() const
@@ -5603,6 +5636,18 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	{
 		return ComplexCollisionMesh->GetPhysicsTriMeshData(CollisionData, bInUseAllTriData);
 	}
+#else // #if WITH_EDITORONLY_DATA
+	// the static mesh needs to be tagged for CPUAccess in order to access TriMeshData in runtime mode : 
+	if (!bAllowCPUAccess)
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("UStaticMesh::GetPhysicsTriMeshData: Triangle data from '%s' cannot be accessed at runtime on a mesh that isn't flagged as Allow CPU Access. This asset needs to be flagged as such (in the Advanced section)."), *GetFullName());
+		return false;
+	}
+
+	// without editor data, we can't selectively generate a physics mesh for a given LOD index (we're missing access to GetSectionInfoMap()) so force bInUseAllTriData in order to use LOD index 0
+	bInUseAllTriData = true;
+#endif // #if !WITH_EDITORONLY_DATA
+
 	check(HasValidRenderData());
 
 	// Get the LOD level to use for collision
@@ -5610,10 +5655,13 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	const int32 UseLODIndex = bInUseAllTriData ? 0 : FMath::Clamp(LODForCollision, 0, RenderData->LODResources.Num()-1);
 
 	FStaticMeshLODResources& LOD = RenderData->LODResources[UseLODIndex];
+
 	FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
 
 	TMap<int32, int32> MeshToCollisionVertMap; // map of static mesh verts to collision verts
 
+	// If the mesh enables physical material masks, override the physics setting since UVs are always required 
+	// bool bCopyUVs = GetEnablePhysicalMaterialMask() || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
 	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
 
 	// If copying UVs, allocate array for storing them
@@ -5626,7 +5674,12 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	{
 		const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
 
-		if (bInUseAllTriData || GetSectionInfoMap().Get(UseLODIndex,SectionIndex).bEnableCollision)
+#if WITH_EDITORONLY_DATA
+		// we can only use GetSectionInfoMap() in WITH_EDITORONLY_DATA mode, otherwise, assume bInUseAllTriData :
+		if (bInUseAllTriData || GetSectionInfoMap().Get(UseLODIndex, SectionIndex).bEnableCollision)
+#else // #if WITH_EDITORONLY_DATA
+		check(bInUseAllTriData && bAllowCPUAccess);
+#endif // #if !WITH_EDITORONLY_DATA
 		{
 			const uint32 OnePastLastIndex  = Section.FirstIndex + Section.NumTriangles*3;
 
@@ -5647,9 +5700,6 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	// We only have a valid TriMesh if the CollisionData has vertices AND indices. For meshes with disabled section collision, it
 	// can happen that the indices will be empty, in which case we do not want to consider that as valid trimesh data
 	return CollisionData->Vertices.Num() > 0 && CollisionData->Indices.Num() > 0;
-#else // #if WITH_EDITORONLY_DATA
-	return false;
-#endif // #if WITH_EDITORONLY_DATA
 }
 
 bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const 
@@ -5659,6 +5709,11 @@ bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
 	{
 		return ComplexCollisionMesh->ContainsPhysicsTriMeshData(bInUseAllTriData);
 	}
+#else // #if WITH_EDITORONLY_DATA
+	// without editor data, we can't selectively generate a physics mesh for a given LOD index (we're missing access to GetSectionInfoMap()) so force bInUseAllTriData in order to use LOD index 0
+	bInUseAllTriData = true;
+#endif // #if !WITH_EDITORONLY_DATA
+	
 	if(RenderData == nullptr || RenderData->LODResources.Num() == 0)
 	{
 		return false;
@@ -5675,16 +5730,18 @@ bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
 		for (int32 SectionIndex = 0; SectionIndex < LOD.Sections.Num(); ++SectionIndex)
 		{
 			const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+#if WITH_EDITORONLY_DATA
+			// we can only use GetSectionInfoMap() in WITH_EDITORONLY_DATA mode, otherwise, assume bInUseAllTriData :
 			if ((bInUseAllTriData || GetSectionInfoMap().Get(UseLODIndex, SectionIndex).bEnableCollision) && Section.NumTriangles > 0)
 			{
 				return true;
 			}
+#else // #if WITH_EDITORONLY_DATA
+			return true;
+#endif // #if WITH_EDITORONLY_DATA
 		}
 	}
 	return false; 
-#else // #if WITH_EDITORONLY_DATA
-	return false;
-#endif // #if WITH_EDITORONLY_DATA
 }
 
 void UStaticMesh::GetMeshId(FString& OutMeshId)
@@ -6254,6 +6311,11 @@ UMaterialInterface* UStaticMesh::GetMaterial(int32 MaterialIndex) const
 
 FName UStaticMesh::AddMaterial(UMaterialInterface* Material)
 {
+	if (Material == nullptr)
+	{
+		return NAME_None;
+	}
+
 	// Create a unique slot name for the material
 	FName MaterialName = Material->GetFName();
 	for (const FStaticMaterial& StaticMaterial : StaticMaterials)
@@ -6298,7 +6360,7 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshMaterialChanged", "StaticMesh: Material changed"));
 
 		// flag the property (Materials) we're modifying so that not all of the object is rebuilt.
-		UProperty* ChangedProperty = FindField<UProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
+		FProperty* ChangedProperty = FindField<FProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
 		check(ChangedProperty);
 		PreEditChange(ChangedProperty);
 		UMaterialInterface* CancelOldMaterial = StaticMaterials[MaterialIndex].MaterialInterface;

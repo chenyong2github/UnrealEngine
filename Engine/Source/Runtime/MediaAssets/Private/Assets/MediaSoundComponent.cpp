@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaSoundComponent.h"
 #include "MediaAssetsPrivate.h"
@@ -16,14 +16,6 @@
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 
-
-static int32 SyncAudioAfterDropoutsCVar = 1;
-FAutoConsoleVariableRef CVarSyncAudioAfterDropouts(
-	TEXT("m.SyncAudioAfterDropouts"),
-	SyncAudioAfterDropoutsCVar,
-	TEXT("Skip over delayed contiguous audio samples.\n")
-	TEXT("0: Not Enabled, 1: Enabled"),
-	ECVF_Default);
 
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Sync"), STAT_MediaUtils_MediaSoundComponentSync, STATGROUP_Media);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent SampleTime"), STAT_MediaUtils_MediaSoundComponentSampleTime, STATGROUP_Media);
@@ -50,12 +42,10 @@ UMediaSoundComponent::UMediaSoundComponent(const FObjectInitializer& ObjectIniti
 	, CachedTime(FTimespan::Zero())
 	, RateAdjustment(1.0f)
 	, Resampler(new FMediaAudioResampler)
-	, FrameSyncOffset(0)
 	, LastPlaySampleTime(FTimespan::MinValue())
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(100)
 	, CurrentEnvelopeValue(0.0f)
-	, bSyncAudioAfterDropouts(false)
 	, bSpectralAnalysisEnabled(false)
 	, bEnvelopeFollowingEnabled(false)
 {
@@ -68,12 +58,6 @@ UMediaSoundComponent::UMediaSoundComponent(const FObjectInitializer& ObjectIniti
 
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = true;
-#endif
-
-#if PLATFORM_PS4 || PLATFORM_XBOXONE
-	bSyncAudioAfterDropouts = true;
-#else
-	bSyncAudioAfterDropouts = false;
 #endif
 }
 
@@ -134,7 +118,6 @@ void UMediaSoundComponent::UpdatePlayer()
 
 		FScopeLock Lock(&CriticalSection);
 		SampleQueue.Reset();
-		FrameSyncOffset = 0;
 
 		return;
 	}
@@ -142,29 +125,34 @@ void UMediaSoundComponent::UpdatePlayer()
 	// create a new sample queue if the player changed
 	TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacade = CurrentPlayerPtr->GetPlayerFacade();
 
+	// We have some audio decoders which are running with a limited amount of pre-allocated audio sample packets. 
+	// When the audio packets are not consumed in the UMediaSoundComponent::OnGenerateAudio method below, these packets are not 
+	// returned to the decooder which then cannot produce more audio samples. 
+	//
+	// The UMediaSoundComponent::OnGenerateAudio is only called when our parent USynthComponent it active and
+	// this is conrolled by USynthComponent::Start() and USynthComponent::Stop(). We are tracking a state change here.
 	if (PlayerFacade != CurrentPlayerFacade)
 	{
-		const auto NewSampleQueue = MakeShared<FMediaAudioSampleQueue, ESPMode::ThreadSafe>();
-		PlayerFacade->AddAudioSampleSink(NewSampleQueue);
+		if (IsActive())
 		{
-			FScopeLock Lock(&CriticalSection);
-			SampleQueue = NewSampleQueue;
-			FrameSyncOffset = 0;
+			const auto NewSampleQueue = MakeShared<FMediaAudioSampleQueue, ESPMode::ThreadSafe>();
+			PlayerFacade->AddAudioSampleSink(NewSampleQueue);
+			{
+				FScopeLock Lock(&CriticalSection);
+				SampleQueue = NewSampleQueue;
+			}
+			CurrentPlayerFacade = PlayerFacade;
 		}
-
-		CurrentPlayerFacade = PlayerFacade;
 	}
-
-	//
-	// Some players might require bSyncAudioAfterDropouts to be forced to true or false
-	if (PlayerFacade->GetPlayer())
+	else
 	{
-		bool bNewAudioSyncAfterDropouts = PlayerFacade->GetPlayer()->RequiresAudioSyncAfterDropouts();
-		if (bNewAudioSyncAfterDropouts != bSyncAudioAfterDropouts)
+		// Here, we have a CurrentPlayerFacade set which means are also have a valid FMediaAudioSampleQueue set
+		// We need to check for deactivation as it seems there is not callback scheduled when USynthComponent::Stop() is called.
+		if(!IsActive())
 		{
 			FScopeLock Lock(&CriticalSection);
-			bSyncAudioAfterDropouts = bNewAudioSyncAfterDropouts;
-			FrameSyncOffset = 0;
+			SampleQueue.Reset();
+			CurrentPlayerFacade.Reset();
 		}
 	}
 
@@ -215,6 +203,16 @@ void UMediaSoundComponent::OnRegister()
 #endif
 }
 
+void UMediaSoundComponent::OnUnregister()
+{
+	{
+		FScopeLock Lock(&CriticalSection);
+		SampleQueue.Reset();
+	}
+	CurrentPlayerFacade.Reset();
+	Super::OnUnregister();
+}
+
 
 void UMediaSoundComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
@@ -243,8 +241,12 @@ void UMediaSoundComponent::Deactivate()
 	if (!ShouldActivate())
 	{
 		SetComponentTickEnabled(false);
+		{
+			FScopeLock Lock(&CriticalSection);
+			SampleQueue.Reset();
+		}
+		CurrentPlayerFacade.Reset();
 	}
-
 	Super::Deactivate();
 }
 
@@ -288,7 +290,7 @@ void UMediaSoundComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 {
 	static const FName MediaPlayerName = GET_MEMBER_NAME_CHECKED(UMediaSoundComponent, MediaPlayer);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if (PropertyThatChanged != nullptr)
 	{
@@ -347,7 +349,6 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	{
 		FScopeLock Lock(&CriticalSection);
 		PinnedSampleQueue = SampleQueue;
-		InitialSyncOffset = FrameSyncOffset;
 	}
 
 	if (PinnedSampleQueue.IsValid() && (CachedRate != 0.0f))
@@ -357,70 +358,6 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
 		FTimespan OutTime = FTimespan::Zero();
 
-		if (bSyncAudioAfterDropouts && SyncAudioAfterDropoutsCVar)
-		{
-			int32 SyncOffset = InitialSyncOffset + (NumSamples / NumChannels);
-			while (SyncOffset > 0)
-			{
-				float* DestAudio = OutAudio;
-				int32 FramesRequested = NumSamples / NumChannels;
-
-				if (SyncOffset < FramesRequested)
-				{
-					// Handle final generate before audio resumes playback
-					// Move frames left to sync them with expected playback time
-					int32 FloatsMoved = (FramesRequested - SyncOffset) * NumChannels;
-					FMemory::Memmove(OutAudio, OutAudio + (SyncOffset * NumChannels), FloatsMoved * sizeof(float));
-					DestAudio = OutAudio + FloatsMoved;
-					FramesRequested = SyncOffset;
-				}
-
-				uint32 JumpFrame = MAX_uint32;
-				int32 FramesWritten = (int32)Resampler->Generate(DestAudio, OutTime, (uint32)FramesRequested, Rate, Time, *PinnedSampleQueue, JumpFrame);
-
-				if (JumpFrame != MAX_uint32)
-				{
-					UE_LOG(LogMediaAssets, Verbose, TEXT("Audio ( JUMP ) SyncOffset was: %d, OutTime: %s"), SyncOffset, *OutTime.ToString());
-					int32 JumpFramesRequested = FramesRequested - JumpFrame;
-					int32 JumpFramesWritten = FramesWritten - JumpFrame;
-					SyncOffset = JumpFramesRequested - JumpFramesWritten;
-				}
-				else
-				{
-					SyncOffset -= FramesWritten;
-				}
-
-				if (FramesWritten < FramesRequested)
-				{
-					if (FramesWritten > 0)
-					{
-						UE_LOG(LogMediaAssets, Verbose, TEXT("Audio partial generate, FramesWritten: %d"), FramesWritten);
-					}
-					// Source buffer is empty
-					break;
-				}
-			}
-
-			if (SyncOffset > 0)
-			{
-				UE_LOG(LogMediaAssets, Verbose, TEXT("Audio ( STARVED ) SyncOffset: %d, PlayerTime: %s, OutTime: %s"), SyncOffset, *Time.ToString(), *OutTime.ToString());
-				FMemory::Memzero(OutAudio, NumSamples * sizeof(float));
-			}
-			else if (SyncOffset < 0)
-			{
-				UE_LOG(LogMediaAssets, Verbose, TEXT("Audio ( DESYNCED ) SyncOffset: %d"), SyncOffset);
-			}
-
-			{
-				FScopeLock Lock(&CriticalSection);
-				// Commit only if another thread did not change value
-				if (InitialSyncOffset == FrameSyncOffset)
-				{
-					FrameSyncOffset = SyncOffset;
-				}
-			}
-		}
-		else
 		{
 			const uint32 FramesRequested = uint32(NumSamples / NumChannels);
 			uint32 JumpFrame = MAX_uint32;
@@ -498,12 +435,6 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	else
 	{
 		Resampler->Flush();
-
-		if (bSyncAudioAfterDropouts && SyncAudioAfterDropoutsCVar)
-		{
-			FScopeLock Lock(&CriticalSection);
-			FrameSyncOffset = 0;
-		}
 
 		LastPlaySampleTime = FTimespan::MinValue();
 	}

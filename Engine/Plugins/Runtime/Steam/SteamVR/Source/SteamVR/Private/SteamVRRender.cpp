@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "CoreMinimal.h"
 #include "SteamVRPrivate.h"
@@ -31,8 +31,8 @@ static TAutoConsoleVariable<int32> CUsePostPresentHandoff(TEXT("vr.SteamVR.UsePo
 
 static TAutoConsoleVariable<int> CVarEnableDepthSubmission(
 	TEXT("vr.EnableSteamVRDepthSubmission"),
-	1,
-	TEXT("By default, depth is passed through in SteamVR for devices that support depth. Set this flag to 0 to disable depth submission."),
+	0,
+	TEXT("By default, depth is not passed through in SteamVR for devices that support depth. Set this flag to 1 to enable depth submission, 0 to disable."),
 	ECVF_Default);
 
 void FSteamVRHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePassContext& Context, const FIntPoint& TextureSize)
@@ -207,8 +207,6 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 		Texture.depth.vRange.v[1] = 0.0f;
 
 		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
-		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
-		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
 
 	vr::VRTextureBounds_t LeftBounds;
@@ -228,8 +226,6 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 	if (bSubmitDepth)
 	{
 		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
-		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
-		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
 
 	Error = Plugin->VRCompositor->Submit(vr::Eye_Right, &Texture, &RightBounds, Flags);
@@ -253,7 +249,6 @@ void FSteamVRHMD::D3D11Bridge::UpdateViewport(const FViewport& Viewport, FRHIVie
 
 	const FTexture2DRHIRef& RT = Viewport.GetRenderTargetTexture();
 	check(IsValidRef(RT));
-	check(RT->GetTexture2D() == SwapChain->GetTexture2D());
 }
 
 FSteamVRHMD::D3D12Bridge::D3D12Bridge(FSteamVRHMD* plugin)

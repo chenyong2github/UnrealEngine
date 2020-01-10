@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageEdMode.h"
 #include "SceneView.h"
@@ -232,6 +232,7 @@ FEdModeFoliage::FEdModeFoliage()
 	, FoliageInteractor(nullptr)
 	, UpdateSelectionCounter(0)
 	, bHasDeferredSelectionNotification(false)
+	, bMoving(false)
 {
 	// Load resources and construct brush component
 	UStaticMesh* StaticMesh = nullptr;
@@ -1508,22 +1509,32 @@ static void SpawnFoliageInstance(UWorld* InWorld, const UFoliageType* Settings, 
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageSpawnInstance);
 
-	TMap<ULevel*, TSet<const FFoliageInstance*>> PerLevelPlacedInstances;
+	TMap<ULevel*, TArray<const FFoliageInstance*>> PerLevelPlacedInstances;
 
 	if (UISettings != nullptr && UISettings->GetIsInSpawnInCurrentLevelMode())
 	{
-		TSet<const FFoliageInstance*>& LevelInstances = PerLevelPlacedInstances.FindOrAdd(InWorld->GetCurrentLevel());
-
-		for (const FFoliageInstance& PlacedInstance : PlacedInstances)
+		if (const ILevelPartitionInterface* LevelPartition = InWorld->GetCurrentLevel()->GetLevelPartition())
 		{
-			LevelInstances.Add(&PlacedInstance);
+			for (const FFoliageInstance& PlacedInstance : PlacedInstances)
+			{
+				PerLevelPlacedInstances.FindOrAdd(LevelPartition->GetSubLevel(PlacedInstance.Location)).Add(&PlacedInstance);
+			}
+		}
+		else
+		{
+			TArray<const FFoliageInstance*>& LevelInstances = PerLevelPlacedInstances.FindOrAdd(InWorld->GetCurrentLevel());
+
+			for (const FFoliageInstance& PlacedInstance : PlacedInstances)
+			{
+				LevelInstances.Add(&PlacedInstance);
+			}
 		}
 	}
 	else
 	{
 		for (const FFoliageInstance& PlacedInstance : PlacedInstances)
 		{
-			TSet<const FFoliageInstance*>& LevelInstances = PerLevelPlacedInstances.FindOrAdd(PlacedInstance.BaseComponent->GetComponentLevel());
+			TArray<const FFoliageInstance*>& LevelInstances = PerLevelPlacedInstances.FindOrAdd(PlacedInstance.BaseComponent->GetComponentLevel());
 			LevelInstances.Add(&PlacedInstance);
 		}
 	}
@@ -2010,8 +2021,72 @@ void FEdModeFoliage::ApplySelection(UWorld* InWorld, bool bApply)
 	}
 }
 
-void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& InDrag, const FRotator& InRot, const FVector& InScale, bool bDuplicate)
+void FEdModeFoliage::UpdateInstancePartitioning(UWorld* InWorld)
 {
+	if (!bMoving)
+	{
+		return;
+	}
+
+	const int32 NumLevels = InWorld->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		ULevel* Level = InWorld->GetLevel(LevelIdx);
+
+		const ILevelPartitionInterface* LevelPartition = Level->GetLevelPartition();
+		if (LevelPartition == nullptr)
+		{
+			continue;
+		}
+		
+		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
+		if (IFA)
+		{
+			for (auto& MeshPair : IFA->FoliageInfos)
+			{
+				FFoliageInfo& FoliageInfo = *MeshPair.Value;
+				if (FoliageInfo.Type == EFoliageImplType::Actor)
+				{
+					continue; // Actors are handled through the Partitioning code
+				}
+
+				ULevel* TargetLevel = nullptr;
+				// Loop here because SelectedIndices will change on MoveInstancesToLevel so we need to process the modified remaining SelectedIndices
+				do
+				{
+					TargetLevel = nullptr;
+					TSet<int32> InstancesToMove;
+
+					for (int32 SelectedInstanceIdx : FoliageInfo.SelectedIndices)
+					{
+						FFoliageInstance& Instance = FoliageInfo.Instances[SelectedInstanceIdx];
+						ULevel* NewLevel = LevelPartition->GetSubLevel(Instance.Location);
+						if ((TargetLevel == nullptr || TargetLevel == NewLevel) && NewLevel != Level)
+						{
+							TargetLevel = NewLevel;
+							InstancesToMove.Add(SelectedInstanceIdx);
+						}
+					}
+
+					if (TargetLevel && InstancesToMove.Num())
+					{
+						IFA->MoveInstancesToLevel(TargetLevel, InstancesToMove, &MeshPair.Value.Get(), MeshPair.Key, true);
+					}
+
+				} while (TargetLevel && FoliageInfo.SelectedIndices.Num() > 0);
+			}
+		}
+	}
+}
+
+void FEdModeFoliage::PostTransformSelectedInstances(UWorld* InWorld)
+{
+	if (!bMoving)
+	{
+		return;
+	}
+
+	bMoving = false;
 	const int32 NumLevels = InWorld->GetNumLevels();
 	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
 	{
@@ -2028,6 +2103,32 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 
 				if (SelectedIndices.Num() > 0)
 				{
+					const bool bFinished = true;
+					FoliageInfo.PostMoveInstances(IFA, SelectedIndices, bFinished);
+				}
+			}
+		}
+	}
+}
+
+void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& InDrag, const FRotator& InRot, const FVector& InScale, bool bDuplicate)
+{
+	const int32 NumLevels = InWorld->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		ULevel* Level = InWorld->GetLevel(LevelIdx);
+		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
+		if (IFA)
+		{
+			bool bFoundSelection = false;
+
+			for (auto& MeshPair : IFA->FoliageInfos)
+			{
+				FFoliageInfo& FoliageInfo = *MeshPair.Value;
+				TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
+			
+				if (SelectedIndices.Num() > 0)
+				{
 					// Mark actor once we found selection
 					if (!bFoundSelection)
 					{
@@ -2041,6 +2142,7 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 						OnInstanceCountUpdated(MeshPair.Key);
 					}
 
+					bMoving = true;
 					FoliageInfo.PreMoveInstances(IFA, SelectedIndices);
 
 					for (int32 SelectedInstanceIdx : SelectedIndices)
@@ -2052,7 +2154,8 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 						Instance.DrawScale3D += InScale;
 					}
 
-					FoliageInfo.PostMoveInstances(IFA, SelectedIndices);
+					const bool bFinished = false;
+					FoliageInfo.PostMoveInstances(IFA, SelectedIndices, bFinished);
 				}
 			}
 
@@ -2064,44 +2167,34 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 	}
 }
 
-AInstancedFoliageActor* FEdModeFoliage::GetSelectionLocation(UWorld* InWorld, FVector& OutLocation) const
+bool FEdModeFoliage::GetSelectionLocation(UWorld* InWorld, FVector& OutLocation) const
 {
-	// Prefer current level
-	{
-		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForCurrentLevel(InWorld);
-		if (IFA && IFA->GetSelectionLocation(OutLocation))
-		{
-			return IFA;
-		}
-	}
-
+	FBox OutBox(EForceInit::ForceInit);
+	bool bHasSelection = false;
 	// Go through all sub-levels
 	const int32 NumLevels = InWorld->GetNumLevels();
 	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
 	{
 		ULevel* Level = InWorld->GetLevel(LevelIdx);
-		if (Level != InWorld->GetCurrentLevel())
-		{
-			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
-			if (IFA && IFA->GetSelectionLocation(OutLocation))
-			{
-				return IFA;
-			}
-		}
+		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
+		bHasSelection |= (IFA && IFA->GetSelectionLocation(OutBox));
 	}
 
-	return nullptr;
+	if (bHasSelection)
+	{
+		OutLocation = OutBox.GetCenter();
+	}
+
+	return bHasSelection;
 }
 
 void FEdModeFoliage::UpdateWidgetLocationToInstanceSelection()
 {
 	FVector SelectionLocation = FVector::ZeroVector;
-	AInstancedFoliageActor* IFA = GetSelectionLocation(GetWorld(), SelectionLocation);
-	Owner->PivotLocation = Owner->SnappedLocation = SelectionLocation;
-	//if (IFA)
-	//{
-	//	IFA->MarkComponentsRenderStateDirty();
-	//}
+	if (GetSelectionLocation(GetWorld(), SelectionLocation))
+	{
+		Owner->PivotLocation = Owner->SnappedLocation = SelectionLocation;
+	}
 }
 
 void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
@@ -3958,6 +4051,8 @@ bool FEdModeFoliage::EndTracking(FEditorViewportClient* InViewportClient, FViewp
 {
 	if (!bAdjustBrushRadius && (UISettings.GetSelectToolSelected() || UISettings.GetLassoSelectToolSelected()))
 	{
+		UpdateInstancePartitioning(GetWorld());
+		PostTransformSelectedInstances(GetWorld());
 		GEditor->EndTransaction();
 		return true;
 	}
@@ -4016,7 +4111,7 @@ bool FEdModeFoliage::ShouldDrawWidget() const
 	if (UISettings.GetSelectToolSelected() || (UISettings.GetLassoSelectToolSelected() && !bToolActive))
 	{
 		FVector Location;
-		return GetSelectionLocation(GetWorld(), Location) != nullptr;
+		return GetSelectionLocation(GetWorld(), Location);
 	}
 	return false;
 }

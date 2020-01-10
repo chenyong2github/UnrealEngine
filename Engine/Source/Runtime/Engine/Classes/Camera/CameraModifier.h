@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -112,7 +112,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CameraModifier)
 	virtual AActor* GetViewTarget() const;
 
-
 	/** 
 	 *  Disables this modifier.
 	 *  @param  bImmediate  - true to disable with no blend out, false (default) to allow blend out
@@ -149,7 +148,11 @@ public:
 
 	/** @return Returns the appropriate world context for this object. */
 	UWorld* GetWorld() const;
+
+protected:
+	/** Allows modifying the camera in native code. */
+	virtual void ModifyCamera(float DeltaTime, FVector ViewLocation, FRotator ViewRotation, float FOV, FVector& NewViewLocation, FRotator& NewViewRotation, float& NewFOV);
+
+	/** Allows modifying the post process in native code. */
+	virtual void ModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings);
 };
-
-
-

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/CompilerResultsLog.h"
 #include "Engine/Blueprint.h"
@@ -529,11 +529,12 @@ TArray< TSharedRef<FTokenizedMessage> > FCompilerResultsLog::ParseCompilerLogDum
 	for (int32 i = 0; i < MessageLines.Num(); ++i)
 	{
 		FString Line = MessageLines[i];
-		if (Line.EndsWith(TEXT("\r")))
+		if (Line.EndsWith(TEXT("\r"), ESearchCase::CaseSensitive))
 		{
-			Line = Line.LeftChop(1);
+			Line.LeftChopInline(1, false);
 		}
-		Line = Line.ConvertTabsToSpaces(4).TrimEnd();
+		Line.ConvertTabsToSpacesInline(4);
+		Line.TrimEndInline();
 
 		// handle output line error message if applicable
 		// @todo Handle case where there are parenthesis in path names
@@ -594,7 +595,7 @@ void FCompilerResultsLog::OnGotoError(const TSharedRef<IMessageToken>& Token)
 	FString FullPath, LineNumberString;
 	if (Token->ToText().ToString().Split(TEXT("("), &FullPath, &LineNumberString, ESearchCase::CaseSensitive))
 	{
-		LineNumberString = LineNumberString.LeftChop(1); // remove right parenthesis
+		LineNumberString.LeftChopInline(1, false); // remove right parenthesis
 		int32 LineNumber = FCString::Strtoi(*LineNumberString, NULL, 10);
 
 		FSourceCodeNavigation::OpenSourceFile( FullPath, LineNumber );

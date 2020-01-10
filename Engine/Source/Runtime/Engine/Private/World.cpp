@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	World.cpp: UWorld implementation
@@ -82,6 +82,7 @@
 #include "Engine/DemoNetDriver.h"
 #include "Modules/ModuleManager.h"
 #include "VT/VirtualTexture.h" 
+#include "Interfaces/Interface_PostProcessVolume.h"
 
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -123,7 +124,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Interfaces/Interface_PostProcessVolume.h"
+#include "ObjectTrace.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -1355,6 +1356,12 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	AWorldSettings* WorldSettings = GetWorldSettings();
 	if (IVS.bInitializeScenes)
 	{
+
+	#if WITH_EDITOR
+		bEnableTraceCollision = IVS.bEnableTraceCollision;
+	#endif
+
+
 		if (IVS.bCreatePhysicsScene)
 		{
 			// Create the physics scene
@@ -1389,9 +1396,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		AvoidanceManager = NewObject<UAvoidanceManager>(this, GEngine->AvoidanceManagerClass);
 	}
 
-#if WITH_EDITOR
-	bEnableTraceCollision = IVS.bEnableTraceCollision;
-#endif
 
 	SetupParameterCollectionInstances();
 
@@ -3924,6 +3928,8 @@ bool UWorld::SetGameMode(const FURL& InURL)
 
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
+	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
+
 	check(bIsWorldInitialized);
 	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();
@@ -4109,6 +4115,8 @@ void UWorld::BeginPlay()
 		}
 	}
 
+	OnWorldBeginPlay.Broadcast();
+
 #if WITH_CHAOS
 	if(PhysicsScene)
 	{
@@ -4257,7 +4265,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		{
 			if (Level)
 			{
-				UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
+			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
 				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 			}
 		}
@@ -4518,10 +4526,14 @@ void UWorld::SetPhysicsScene(FPhysScene* InScene)
 	// Assign pointer
 	PhysicsScene = InScene;
 
-	// Set pointer in scene to know which world its coming from
 	if(PhysicsScene != NULL)
 	{
+		// Set pointer in scene to know which world its coming from
 		PhysicsScene->SetOwningWorld(this);
+
+#if WITH_CHAOS
+		FPhysInterface_Chaos::FlushScene(PhysicsScene);
+#endif
 	}
 }
 
@@ -7504,7 +7516,7 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 
 void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneView)
 {
-	OnBeginPostProcessSettings.Broadcast(ViewLocation);
+	OnBeginPostProcessSettings.Broadcast(ViewLocation, SceneView);
 
 	for (IInterface_PostProcessVolume* PPVolume : PostProcessVolumes)
 	{

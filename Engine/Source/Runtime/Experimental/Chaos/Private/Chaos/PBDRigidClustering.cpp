@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidClustering.h"
 
@@ -9,8 +9,8 @@
 #include "Chaos/MassProperties.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidsEvolutionPGS.h"
-#include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/PBDCollisionConstraintPGS.h"
+#include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/PBDCollisionConstraintsPGS.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/UniformGrid.h"
 #include "ChaosStats.h"
@@ -641,7 +641,7 @@ namespace Chaos
 			auto ComputeStrainLambda = [&](const TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
 				const TRigidTransform<T, d> WorldToClusterTM = TRigidTransform<T, d>(Cluster->P(), Cluster->Q());
 				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContactLocation());
-				TBox<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
+				TAABB<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
 				ContactBox.Thicken(ClusterDistanceThreshold);
 				if (Cluster->ChildrenSpatial())
 				{
@@ -654,7 +654,7 @@ namespace Chaos
 							const int32 KeyChild = ProxyData->KeyChild;
 							const TRigidTransform<T, d> ProxyToCluster = ProxyData->RelativeToKeyChild * MParticles.ChildToParent(KeyChild);
 							const TVector<T, d> ContactLocationProxyLocal = ProxyToCluster.InverseTransformPosition(ContactLocationClusterLocal);
-							TBox<T, d> ContactBoxProxy(ContactLocationProxyLocal, ContactLocationProxyLocal);
+							TAABB<T, d> ContactBoxProxy(ContactLocationProxyLocal, ContactLocationProxyLocal);
 							ContactBoxProxy.Thicken(ClusterDistanceThreshold);
 							if (MParticles.ChildrenSpatial(Child))
 							{
@@ -676,12 +676,12 @@ namespace Chaos
 			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
 			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]))
 			{
-				ComputeStrainLambda(ConstrainedParticles[0]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[0]->CastToClustered(), *ChildrenPtr);
 			}
 
 			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]))
 			{
-				ComputeStrainLambda(ConstrainedParticles[1]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[1]->CastToClustered(), *ChildrenPtr);
 			}
 
 			MCollisionImpulseArrayDirty = true;
@@ -702,7 +702,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
 	template<class T, int d>
-	void RewindAndEvolve(TPBDRigidsEvolutionGBF<T, d>& Evolution, TPBDRigidClusteredParticles<T, d>& InParticles, const TSet<int32>& IslandsToRecollide, const TSet<uint32>& AllActivatedChildren, const T Dt, TPBDCollisionConstraint<T, d>& CollisionRule)
+	void RewindAndEvolve(TPBDRigidsEvolutionGBF<T, d>& Evolution, TPBDRigidClusteredParticles<T, d>& InParticles, const TSet<int32>& IslandsToRecollide, const TSet<uint32>& AllActivatedChildren, const T Dt, TPBDCollisionConstraints<T, d>& CollisionRule)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RewindAndEvolve_BGF);
 		// Rewind active particles
@@ -712,7 +712,8 @@ namespace Chaos
 			auto Particles = Evolution.GetIslandParticles(Island); // copy
 			for (int32 ArrayIdx = Particles.Num() - 1; ArrayIdx >= 0; --ArrayIdx)
 			{
-				if (auto PBDRigid = Particles[ArrayIdx]->AsDynamic())
+				auto PBDRigid = Particles[ArrayIdx]->CastToRigidParticle();
+				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 				{
 					if (!PBDRigid->Sleeping() && !PBDRigid->Disabled())
 					{
@@ -734,7 +735,8 @@ namespace Chaos
 			const auto& ParticleIndices = Evolution.GetIslandParticles(Island);
 			for (const auto Particle : ParticleIndices)
 			{
-				if (auto PBDRigid = Particle->AsDynamic())
+				auto PBDRigid = Particle->CastToRigidParticle();
+				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 				{
 					bool bDisabled = PBDRigid->Disabled();
 
@@ -1358,7 +1360,7 @@ namespace Chaos
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(SpatialBVH);
-			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<TImplicitObjectUnion<T, d>>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
+			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
 		}
 
 		TArray<TVector<T, d>> CleanedPoints;
@@ -1392,8 +1394,8 @@ namespace Chaos
 			{
 				ensureMsgf(false, TEXT("Checking usage with no proxy and multiple ojects with levelsets"));
 
-				TImplicitObjectUnion<T, d> UnionObject(MoveTemp(Objects));
-				TBox<T, d> Bounds = UnionObject.BoundingBox();
+				FImplicitObjectUnion UnionObject(MoveTemp(Objects));
+				TAABB<T, d> Bounds = UnionObject.BoundingBox();
 				const TVector<T, d> BoundsExtents = Bounds.Extents();
 				if (BoundsExtents.Min() >= MinLevelsetSize) //make sure the object is not too small
 				{
@@ -1442,14 +1444,14 @@ namespace Chaos
 					QUICK_SCOPE_CYCLE_COUNTER(UnionBVH);
 					// @coverage : { confidence tests}
 					//ensureMsgf(false, TEXT("Checking no proxy, not levelset, and multiple objects"));
-					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<TImplicitObjectUnion<T, d>>(MoveTemp(Objects), GeomToOriginalParticlesHack));
+					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects), GeomToOriginalParticlesHack));
 				}
 			}
 		}
 
 		if (bUseParticleImplicit && MParticles.DynamicGeometry(NewIndex)) //if children are ignore analytic and this is a dynamic geom, mark it too. todo(ocohen): clean this up
 		{
-			MParticles.DynamicGeometry(NewIndex)->IgnoreAnalyticCollisions();
+			MParticles.DynamicGeometry(NewIndex)->SetDoCollide(false);
 		}
 
 		if (Parameters.CollisionParticles)
@@ -1709,7 +1711,7 @@ namespace Chaos
 					continue;
 				}
 				TRigidTransform<T, d> TM1 = TRigidTransform<T, d>(MParticles.X(Child1), MParticles.R(Child1));
-				TBox<T, d> Box1 = MParticles.Geometry(Child1)->BoundingBox();
+				TAABB<T, d> Box1 = MParticles.Geometry(Child1)->BoundingBox();
 
 				TArray<TArray<TPair<uint32, uint32>>> Connections;
 				Connections.Init(TArray<TPair<uint32, uint32>>(), Children.Num() - (i + 1));
@@ -1757,7 +1759,7 @@ namespace Chaos
 	}
 
 	template<class T, int d>
-	TVector<T, d> GetContactLocation(const TRigidBodySingleContactConstraint<T, d>& Contact)
+	TVector<T, d> GetContactLocation(const TRigidBodyPointContactConstraint<T, d>& Contact)
 	{
 		return Contact.GetLocation();
 	}
@@ -1913,10 +1915,11 @@ namespace Chaos
 }
 
 using namespace Chaos;
-template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraint<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraints<float, 3>, float, 3>;
 #if CHAOS_PARTICLEHANDLE_TODO
 template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionPGS<float, 3>, TPBDCollisionConstraintPGS<float, 3>, float, 3>;
 #endif
 template CHAOS_API void Chaos::UpdateClusterMassProperties<float, 3>(TPBDRigidClusteredParticles<float, 3>& Particles, const TArray<uint32>& Children, const uint32 ClusterIndex, const TRigidTransform<float, 3>* ForceMassOrientation,
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<float, 3>>>* MMultiChildProxyData,
 	const TArrayCollectionArray<FMultiChildProxyId>* MMultiChildProxyId);
+

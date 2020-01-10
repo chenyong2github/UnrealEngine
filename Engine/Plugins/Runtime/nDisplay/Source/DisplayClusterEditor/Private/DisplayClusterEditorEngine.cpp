@@ -1,9 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterEditorEngine.h"
 #include "DisplayClusterEditorLog.h"
 
-#include "DisplayClusterRootComponent.h"
+#include "DisplayClusterRootActor.h"
 
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
@@ -48,17 +48,17 @@ void UDisplayClusterEditorEngine::PreExit()
 	Super::PreExit();
 }
 
-UDisplayClusterRootComponent* UDisplayClusterEditorEngine::FindDisplayClusterRootComponent(UWorld* InWorld)
+ADisplayClusterRootActor* UDisplayClusterEditorEngine::FindDisplayClusterRootActor(UWorld* InWorld)
 {
 	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 	{
 		if (Actor && !Actor->IsPendingKill())
 		{
-			UDisplayClusterRootComponent* RootComponent = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
-			if (RootComponent && !RootComponent->IsPendingKill())
+			ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
+			if (RootActor)
 			{
-				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root component - %s"), *RootComponent->GetName());
-				return RootComponent;
+				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
+				return RootActor;
 			}
 		}
 	}
@@ -72,11 +72,11 @@ void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulate
 
 	if (DisplayClusterModule)
 	{
-		// Find nDisplay root
-		UDisplayClusterRootComponent* RootComponent = FindDisplayClusterRootComponent(InWorld);
-		if (!RootComponent)
+		// Find nDisplay root actor
+		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(InWorld);
+		if (!RootActor)
 		{
-			//Also search inside streamed levels:
+			// Also search inside streamed levels
 			const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
 			for (ULevelStreaming* StreamingLevel : StreamingLevels)
 			{
@@ -84,10 +84,10 @@ void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulate
 				{
 					case ULevelStreaming::ECurrentState::LoadedVisible:
 					{
-						// Parse only in loaded sub-levels
+						// Look for the actor in those sub-levels that have been loaded already
 						const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
-						RootComponent = FindDisplayClusterRootComponent(SubWorldAsset.Get());
-						if (RootComponent)
+						RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+						if (RootActor)
 						{
 							break;
 						}
@@ -99,12 +99,12 @@ void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulate
 			}
 		}
 
-		// If we found a root component, start DisplayCluster PIE session
-		if (RootComponent)
+		// If we found a root actor, start DisplayCluster PIE session
+		if (RootActor)
 		{
 			bIsNDisplayPIE = true;
 
-			if (!DisplayClusterModule->StartSession(RootComponent->GetEditorConfigPath(), RootComponent->GetEditorNodeId()))
+			if (!DisplayClusterModule->StartSession(RootActor->GetEditorConfigPath(), RootActor->GetEditorNodeId()))
 			{
 				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't start DisplayCluster session"));
 

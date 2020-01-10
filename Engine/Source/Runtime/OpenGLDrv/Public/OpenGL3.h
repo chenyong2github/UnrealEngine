@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGL3.h: Public OpenGL 3.2 definitions for non-common functionality
@@ -37,7 +37,6 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool IsDebugContent()						{ return bDebugContext; }
 
 	static FORCEINLINE bool SupportsTimestampQueries()				{ return TimestampQueryBits > 0; }
-	static FORCEINLINE bool SupportsDrawIndirect()					{ return true; }
 	static FORCEINLINE bool SupportsSeamlessCubeMap()				{ return bSupportsSeamlessCubemap; }
 	static FORCEINLINE bool SupportsVolumeTextureRendering()		{ return bSupportsVolumeTextureRendering; }
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }

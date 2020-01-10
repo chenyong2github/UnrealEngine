@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ struct CONCERTSYNCCORE_API FTransactionClassFilter
 	TArray<FSoftClassPath> ObjectClasses;
 };
 
-UCLASS(config=Engine)
+UCLASS(config=ConcertSyncCore)
 class CONCERTSYNCCORE_API UConcertSyncConfig : public UObject
 {
 	GENERATED_BODY()
@@ -75,5 +75,5 @@ public:
 	 * Array of transient class properties that we should send transaction updates for even if usually filtered out.
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Transaction Settings", meta=(AllowedClasses="Property"))
-	TArray<FSoftObjectPath> AllowedTransientProperties;
+	TArray<TFieldPath<FProperty>> AllowedTransientProperties;
 };

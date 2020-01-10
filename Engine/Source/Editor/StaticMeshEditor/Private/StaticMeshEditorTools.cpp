@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditorTools.h"
 #include "Framework/Commands/UIAction.h"
@@ -32,22 +32,22 @@
 #include "SPerPlatformPropertiesWidget.h"
 #include "PlatformInfo.h"
 
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
-#include "EngineAnalytics.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "ScopedTransaction.h"
-#include "JsonObjectConverter.h"
-#include "Engine/SkeletalMesh.h"
-#include "IMeshReductionManagerModule.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "Widgets/Input/SFilePathPicker.h"
+#include "ContentStreaming.h"
 #include "EditorDirectories.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Engine/SkeletalMesh.h"
+#include "EngineAnalytics.h"
 #include "Factories/FbxStaticMeshImportData.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "IMeshReductionManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "ContentStreaming.h"
-
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "JsonObjectConverter.h"
+#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "ScopedTransaction.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/Input/SFilePathPicker.h"
+#include "Widgets/Input/STextComboBox.h"
 
 const uint32 MaxHullCount = 64;
 const uint32 MinHullCount = 2;
@@ -93,9 +93,20 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
+
+	/**
+	 * Hotfix 4.24.1 ( Continues the old and maybe invalid assumption that AssetImportData shouldn't be able to be null )
+	 * This will be removed in 4.25
+	 */
+	if( !StaticMeshEditor.GetStaticMesh()->AssetImportData )
+	{
+		StaticMeshEditor.GetStaticMesh()->AssetImportData = NewObject<UAssetImportData>(StaticMeshEditor.GetStaticMesh(), TEXT("AssetImportData"), RF_Transactional);
+	}
+
 	if (!StaticMeshEditor.GetStaticMesh() || !StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
 	{
-		// Hide the ability to change the import settings object
+		ImportSettings->MarkResetToDefaultCustomized();
+
 		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
 		Row.CustomWidget(true)
 			.NameContent()
@@ -1804,7 +1815,7 @@ void FMeshSectionSettingsLayout::OnPasteSectionList(int32 CurrentLODIndex)
 		{
 			// @todo: When SectionInfoMap moves location, this will need to be fixed up.
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
@@ -1908,7 +1919,7 @@ void FMeshSectionSettingsLayout::OnPasteSectionItem(int32 CurrentLODIndex, int32
 		{
 			// @todo: When SectionInfoMap moves location, this will need to be fixed up
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
@@ -2004,7 +2015,7 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 		if (LOD.Sections.IsValidIndex(SectionIndex))
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
@@ -2120,7 +2131,7 @@ void FMeshSectionSettingsLayout::OnSectionCastShadowChanged(ECheckBoxState NewSt
 	FScopedTransaction Transaction(TransactionTest);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	StaticMesh.PreEditChange(Property);
@@ -2174,7 +2185,7 @@ void FMeshSectionSettingsLayout::OnSectionCollisionChanged(ECheckBoxState NewSta
 	FScopedTransaction Transaction(TransactionTest);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	StaticMesh.PreEditChange(Property);
@@ -2257,7 +2268,7 @@ void FMeshSectionSettingsLayout::OnSectionIsolatedChanged(ECheckBoxState NewStat
 	}
 }
 
-void FMeshSectionSettingsLayout::CallPostEditChange(UProperty* PropertyChanged/*=nullptr*/)
+void FMeshSectionSettingsLayout::CallPostEditChange(FProperty* PropertyChanged/*=nullptr*/)
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
 	if( PropertyChanged )
@@ -2416,7 +2427,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 
 void FMeshMaterialsLayout::OnCopyMaterialList()
 {
-	UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
 	check(Property != nullptr);
 
 	auto JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, &GetStaticMesh().StaticMaterials, 0, 0);
@@ -2450,7 +2461,7 @@ void FMeshMaterialsLayout::OnPasteMaterialList()
 
 	if (RootJsonValue.IsValid())
 	{
-		UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
 		check(Property != nullptr);
 
 		GetStaticMesh().PreEditChange(Property);
@@ -2512,7 +2523,7 @@ void FMeshMaterialsLayout::OnPasteMaterialItem(int32 CurrentSlot)
 
 	if (RootJsonObject.IsValid())
 	{
-		UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
 		check(Property != nullptr);
 
 		GetStaticMesh().PreEditChange(Property);
@@ -2759,8 +2770,8 @@ void FMeshMaterialsLayout::OnMaterialNameCommitted(const FText& InValue, ETextCo
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshEditorMaterialSlotNameChanged", "Staticmesh editor: Material slot name change"));
 
-		UProperty* ChangedProperty = NULL;
-		ChangedProperty = FindField<UProperty>(UStaticMesh::StaticClass(), "StaticMaterials");
+		FProperty* ChangedProperty = NULL;
+		ChangedProperty = FindField<FProperty>(UStaticMesh::StaticClass(), "StaticMaterials");
 		check(ChangedProperty);
 		StaticMesh.PreEditChange(ChangedProperty);
 
@@ -3049,7 +3060,7 @@ void FMeshMaterialsLayout::SetUVDensityValue(float InDensity, ETextCommit::Type 
 	}
 }
 
-void FMeshMaterialsLayout::CallPostEditChange(UProperty* PropertyChanged/*=nullptr*/)
+void FMeshMaterialsLayout::CallPostEditChange(FProperty* PropertyChanged/*=nullptr*/)
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
 	if (PropertyChanged)

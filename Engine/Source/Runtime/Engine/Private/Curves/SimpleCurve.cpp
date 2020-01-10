@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Curves/SimpleCurve.h"
 
@@ -11,7 +11,7 @@ DECLARE_CYCLE_STAT(TEXT("SimpleCurve Eval"), STAT_SimpleCurve_Eval, STATGROUP_En
 
 bool FSimpleCurveKey::Serialize(FArchive& Ar)
 {
-	// Serialization is handled manually to avoid the extra size overhead of UProperty tagging.
+	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
 	// Otherwise with many keys in a rich curve the size can become quite large.
 	Ar << Time;
 	Ar << Value;

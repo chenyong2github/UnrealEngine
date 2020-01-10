@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,6 +14,7 @@ public:
 	// Returns the budget number for the Index-th closest character
 	FORCEINLINE int32 GetBudgetForIndex(int32 Index) const
 	{
+		Index = Index / BudgetValuesScale;
 		return (Index < BudgetValues.Num()) ? BudgetValues[Index] : ValueForOutOfBounds;
 	}
 
@@ -63,9 +64,20 @@ public:
 		return bSpecificationDiffers;
 	}
 
+	void SetBudgetScale(float InScale)
+	{
+		if (InScale > 0)
+		{
+			BudgetValuesScale = InScale;
+		}
+	}
+
 private:
 	// This is the budget value for the i-th closest character (e.g., there will be be 10 entries if the budgets ranges sum to cover 10)
 	TArray<int32> BudgetValues;
+
+	// The scalar to apply to the budget values, it does so by compressing the index used when requesting the budget
+	float BudgetValuesScale = 1.0f;
 
 	// This is the budget value for things with an index further away than BudgetByIndex.Num()
 	int32 ValueForOutOfBounds;

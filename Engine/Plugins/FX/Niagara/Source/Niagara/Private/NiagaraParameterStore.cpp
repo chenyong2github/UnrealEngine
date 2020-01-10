@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraParameterStore.h"
 #include "NiagaraCommon.h"
@@ -24,6 +24,55 @@ static FAutoConsoleVariableRef CVarNiagaraDumpParticleParameterStores(
 );
 #endif
 
+struct FNiagaraVariableSearch
+{
+	static FORCEINLINE int32 Compare(const FNiagaraVariableBase& A, const FNiagaraVariableBase& B)
+	{
+#if NIAGARA_VARIABLE_LEXICAL_SORTING
+		int32 ComparisonDiff = A.GetName().Compare(B.GetName());
+#else
+		int32 ComparisonDiff = A.GetName().CompareIndexes(B.GetName());
+#endif
+		if (ComparisonDiff != 0)
+		{
+			return ComparisonDiff;
+		}
+		else
+		{
+#if NIAGARA_VARIABLE_LEXICAL_SORTING
+			return ComparisonDiff = A.GetType().GetFName().Compare(B.GetType().GetFName());
+#else
+			return ComparisonDiff = A.GetType().GetFName().CompareIndexes(B.GetType().GetFName());
+#endif
+		}
+	}
+
+	static bool Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariableBase& Ref, int32 Start, int32 Num, int32& CheckIndex)
+	{
+		while (Num)
+		{
+			const int32 LeftoverSize = Num % 2;
+			Num = Num / 2;
+
+			CheckIndex = Start + Num;
+			const int32 StartIfLess = CheckIndex + LeftoverSize;
+
+			const int32 ComparisonDiff = Compare(Variables[CheckIndex], Ref);
+			if (ComparisonDiff < 0)
+			{
+				Start = CheckIndex + 1;
+				Num += LeftoverSize - 1;
+			}
+			else if (ComparisonDiff == 0)
+			{
+				return true;
+			}
+		}
+		CheckIndex = Start;
+		return false;
+	}
+};
+
 //////////////////////////////////////////////////////////////////////////
 
 int32 GNiagaraAllowQuickSortedParameterOffetsCopy = 1;
@@ -40,17 +89,6 @@ namespace
 	{
 		if (GNiagaraAllowQuickSortedParameterOffetsCopy)
 		{
-		#if DO_GUARD_SLOW
-			// Safeguard while we don't have yet the FNiagaraVariable type without data.
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Dest)
-			{
-				checkSlow(!ParamWithOffset.IsDataAllocated());
-			}
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Src)
-			{
-				checkSlow(!ParamWithOffset.IsDataAllocated());
-			}
-		#endif
 			Dest.SetNumUninitialized(Src.Num());
 			FMemory::Memcpy(Dest.GetData(), Src.GetData(), Dest.GetTypeSize() * Dest.Num());
 		}
@@ -62,31 +100,6 @@ namespace
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-bool FNiagaraVariableSearch::Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex)
-{
-	while (Num)
-	{
-		const int32 LeftoverSize = Num % 2;
-		Num = Num / 2;
-
-		CheckIndex = Start + Num;
-		const int32 StartIfLess = CheckIndex + LeftoverSize;
-
-		const int32 ComparisonDiff = Compare(Variables[CheckIndex], Ref);
-		if (ComparisonDiff < 0)
-		{
-			Start = CheckIndex + 1;
-			Num += LeftoverSize - 1;
-		}
-		else if (ComparisonDiff == 0)
-		{
-			return true;
-		}
-	}
-	CheckIndex = Start;
-	return false;
-}
 
 FNiagaraParameterStore::FNiagaraParameterStore()
 	: Owner(nullptr)
@@ -344,10 +357,9 @@ bool FNiagaraParameterStore::VerifyBinding(const FNiagaraParameterStore* DestSto
 
 void FNiagaraParameterStore::CheckForNaNs()const
 {
-	for (const FNiagaraVariableWithOffset& ParamWithOffset : SortedParameterOffsets)
+	for (const FNiagaraVariableWithOffset& Var : SortedParameterOffsets)
 	{
-		const FNiagaraVariable& Var = ParamWithOffset;
-		const int32 Offset = ParamWithOffset.Offset;
+		const int32 Offset = Var.Offset;
 
 		bool bContainsNans = false;
 		if (Var.GetType() == FNiagaraTypeDefinition::GetFloatDef())
@@ -876,7 +888,7 @@ void FNiagaraParameterStore::OnLayoutChange()
 #endif
 }
 
-const FNiagaraVariable* FNiagaraParameterStore::FindVariable(UNiagaraDataInterface* Interface)const
+const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(UNiagaraDataInterface* Interface)const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreFindVar);
 	int32 Idx = DataInterfaces.IndexOfByKey(Interface);
@@ -921,11 +933,6 @@ void FNiagaraParameterStore::PostLoad()
 			SortedParameterOffsets.Add(FNiagaraVariableWithOffset(ParamOffsetPair.Key, ParamOffsetPair.Value));
 		}
 		ParameterOffsets.Empty();
-	}
-	// Safeguard while we don't have yet the FNiagaraVariable type without data
-	for (FNiagaraVariableWithOffset& ParamWithOffset : SortedParameterOffsets)
-	{
-		ParamWithOffset.ClearData();
 	}
 #endif
 

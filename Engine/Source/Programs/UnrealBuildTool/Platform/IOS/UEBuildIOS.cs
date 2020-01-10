@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -25,15 +25,15 @@ namespace UnrealBuildTool
 		public bool bStripSymbols = false;
 
 		/// <summary>
+		///
+		/// </summary>
+		public bool bShipForBitcode = false;
+
+		/// <summary>
 		/// If true, then a stub IPA will be generated when compiling is done (minimal files needed for a valid IPA).
 		/// </summary>
 		[CommandLine("-CreateStub", Value = "true")]
 		public bool bCreateStubIPA = false;
-
-		/// <summary>
-		/// Whether to build the iOS project as a framework.
-		/// </summary>
-		public bool bBuildAsFramework = false;
 
 		/// <summary>
 		/// Whether to generate a native Xcode project as a wrapper for the framework.
@@ -113,9 +113,9 @@ namespace UnrealBuildTool
 			get { return Inner.bStripSymbols; }
 		}
 			
-		public bool bBuildAsFramework
+		public bool bShipForBitcode
 		{
-			get { return Inner.bBuildAsFramework; }
+			get { return Inner.ProjectSettings.bShipForBitcode; }
 		}
 
 		public bool bGenerateFrameworkWrapperProject
@@ -708,6 +708,7 @@ namespace UnrealBuildTool
 	{
 		IOSPlatformSDK SDK;
 		List<IOSProjectSettings> CachedProjectSettings = new List<IOSProjectSettings>();
+		List<IOSProjectSettings> CachedProjectSettingsByBundle = new List<IOSProjectSettings>();
 		Dictionary<string, IOSProvisioningData> ProvisionCache = new Dictionary<string, IOSProvisioningData>();
 
 		// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
@@ -771,7 +772,8 @@ namespace UnrealBuildTool
 				Target.IOSPlatform.bGeneratedSYM = true;
 			}
 
-			Target.IOSPlatform.bBuildAsFramework = Target.IOSPlatform.ProjectSettings.bBuildAsFramework;
+			// Set bShouldCompileAsDLL when building as a framework
+			Target.bShouldCompileAsDLL = Target.IOSPlatform.ProjectSettings.bBuildAsFramework;
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -787,12 +789,8 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("HAS_METAL=0");
 			}
 
-
-			bool bBuildAsFramework = IOSToolChain.GetBuildAsFramework(Target.ProjectFile);
-
-			if (bBuildAsFramework)
+			if (Target.bShouldCompileAsDLL)
 			{
-				Target.bShouldCompileAsDLL = true;
 				int PreviousDefinition = Target.GlobalDefinitions.FindIndex(s => s.Contains("BUILD_EMBEDDED_APP"));
 				if (PreviousDefinition >= 0)
 				{
@@ -854,11 +852,30 @@ namespace UnrealBuildTool
 
 		public IOSProjectSettings ReadProjectSettings(FileReference ProjectFile, string Bundle = "")
 		{
-			IOSProjectSettings ProjectSettings = CachedProjectSettings.FirstOrDefault(x => x.ProjectFile == ProjectFile);
+			IOSProjectSettings ProjectSettings = null;
+
+			// Use separate lists to prevent an overridden Bundle id polluting the standard project file. 
+			bool bCacheByBundle = !string.IsNullOrEmpty(Bundle);
+			if (bCacheByBundle)
+			{
+				ProjectSettings = CachedProjectSettingsByBundle.FirstOrDefault(x => x.ProjectFile == ProjectFile && x.BundleIdentifier == Bundle);
+			}
+			else
+			{
+				ProjectSettings = CachedProjectSettings.FirstOrDefault(x => x.ProjectFile == ProjectFile);
+			}
+
 			if(ProjectSettings == null)
 			{
 				ProjectSettings = CreateProjectSettings(ProjectFile, Bundle);
-				CachedProjectSettings.Add(ProjectSettings);
+				if (bCacheByBundle)
+				{
+					CachedProjectSettingsByBundle.Add(ProjectSettings);
+				}
+				else
+				{
+					CachedProjectSettings.Add(ProjectSettings);
+				}
 			}
 			return ProjectSettings;
 		}
@@ -1252,7 +1269,6 @@ namespace UnrealBuildTool
 			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for IOS
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.IOS.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new IOSPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.IOS, UnrealPlatformGroup.Apple);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.IOS, UnrealPlatformGroup.IOS);

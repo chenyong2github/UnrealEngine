@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/LoadTimeTrace.h"
 
@@ -9,6 +9,7 @@
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/CommandLine.h"
@@ -26,29 +27,17 @@ UE_TRACE_EVENT_BEGIN(LoadTime, ResumeAsyncLoading)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(LoadTime, NewLinker)
-	UE_TRACE_EVENT_FIELD(const FLinkerLoad*, Linker)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(LoadTime, DestroyLinker)
-	UE_TRACE_EVENT_FIELD(const FLinkerLoad*, Linker)
-UE_TRACE_EVENT_END()
-
 UE_TRACE_EVENT_BEGIN(LoadTime, PackageSummary)
-	UE_TRACE_EVENT_FIELD(const FLinkerLoad*, Linker)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint32, TotalHeaderSize)
-	UE_TRACE_EVENT_FIELD(uint32, NameCount)
 	UE_TRACE_EVENT_FIELD(uint32, ImportCount)
 	UE_TRACE_EVENT_FIELD(uint32, ExportCount)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginCreateExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(const FLinkerLoad*, Linker)
-	UE_TRACE_EVENT_FIELD(uint64, SerialOffset)
-	UE_TRACE_EVENT_FIELD(uint64, SerialSize)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-	UE_TRACE_EVENT_FIELD(bool, IsAsset)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndCreateExport)
@@ -58,14 +47,25 @@ UE_TRACE_EVENT_BEGIN(LoadTime, EndCreateExport)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(LoadTime, BeginObjectScope)
+UE_TRACE_EVENT_BEGIN(LoadTime, BeginSerializeExport)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(const UObject*, Object)
+	UE_TRACE_EVENT_FIELD(uint64, SerialSize)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(LoadTime, EndSerializeExport)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(LoadTime, BeginPostLoadExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const UObject*, Object)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(LoadTime, EndObjectScope)
+UE_TRACE_EVENT_BEGIN(LoadTime, EndPostLoadExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
@@ -82,38 +82,31 @@ UE_TRACE_EVENT_BEGIN(LoadTime, EndRequest)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, NewAsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(LoadTime, BeginLoadAsyncPackage)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(LoadTime, EndLoadAsyncPackage)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, DestroyAsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageRequestAssociation)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
 	UE_TRACE_EVENT_FIELD(uint64, RequestId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageImportDependency)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, ImportedAsyncPackage)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageLinkerAssociation)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
-	UE_TRACE_EVENT_FIELD(const FLinkerLoad*, Linker)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(LoadTime, BeginAsyncPackageScope)
-	UE_TRACE_EVENT_FIELD(const FAsyncPackage*, AsyncPackage)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-	UE_TRACE_EVENT_FIELD(uint8, EventType)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(LoadTime, EndAsyncPackageScope)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
+	UE_TRACE_EVENT_FIELD(const void*, ImportedAsyncPackage)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, Always)
@@ -126,22 +119,21 @@ void FLoadTimeProfilerTracePrivate::Init()
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, StartAsyncLoading);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, SuspendAsyncLoading);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ResumeAsyncLoading);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewLinker);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyLinker);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, PackageSummary);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginCreateExport);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndCreateExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginObjectScope);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndObjectScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginSerializeExport);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndSerializeExport);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginPostLoadExport);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndPostLoadExport);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginRequest);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndRequest);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewAsyncPackage);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginLoadAsyncPackage);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndLoadAsyncPackage);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyAsyncPackage);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageRequestAssociation);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageImportDependency);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageLinkerAssociation);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginAsyncPackageScope);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndAsyncPackageScope);
 	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ClassInfo);
 	if (FParse::Param(FCommandLine::Get(), TEXT("loadtimetrace")))
 	{
@@ -170,18 +162,6 @@ void FLoadTimeProfilerTracePrivate::OutputResumeAsyncLoading()
 }
 PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
-void FLoadTimeProfilerTracePrivate::OutputNewLinker(const FLinkerLoad* Linker)
-{
-	UE_TRACE_LOG(LoadTime, NewLinker)
-		<< NewLinker.Linker(Linker);
-}
-
-void FLoadTimeProfilerTracePrivate::OutputDestroyLinker(const FLinkerLoad* Linker)
-{
-	UE_TRACE_LOG(LoadTime, DestroyLinker)
-		<< DestroyLinker.Linker(Linker);
-}
-
 void FLoadTimeProfilerTracePrivate::OutputBeginRequest(uint64 RequestId)
 {
 	UE_TRACE_LOG(LoadTime, BeginRequest)
@@ -197,49 +177,65 @@ void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
 		<< EndRequest.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const FAsyncPackage* AsyncPackage, const TCHAR* PackageName)
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, const FName& PackageName)
 {
-	uint16 NameSize = (FCString::Strlen(PackageName) + 1) * sizeof(TCHAR);
+	TCHAR Buffer[FName::StringBufferSize];
+	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(LoadTime, NewAsyncPackage, NameSize)
 		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
-		<< NewAsyncPackage.Attachment(PackageName, NameSize);
+		<< NewAsyncPackage.Attachment(Buffer, NameSize);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const FAsyncPackage* AsyncPackage)
+void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const void* AsyncPackage)
+{
+	UE_TRACE_LOG(LoadTime, BeginLoadAsyncPackage)
+		<< BeginLoadAsyncPackage.Cycle(FPlatformTime::Cycles64())
+		<< BeginLoadAsyncPackage.AsyncPackage(AsyncPackage);
+}
+
+void FLoadTimeProfilerTracePrivate::OutputEndLoadAsyncPackage(const void* AsyncPackage)
+{
+	UE_TRACE_LOG(LoadTime, EndLoadAsyncPackage)
+		<< EndLoadAsyncPackage.Cycle(FPlatformTime::Cycles64())
+		<< EndLoadAsyncPackage.AsyncPackage(AsyncPackage);
+}
+
+void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const void* AsyncPackage)
 {
 	UE_TRACE_LOG(LoadTime, DestroyAsyncPackage)
 		<< DestroyAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const FLinkerLoad* Linker, uint32 TotalHeaderSize, uint32 NameCount, uint32 ImportCount, uint32 ExportCount)
+void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const void* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
 {
 	UE_TRACE_LOG(LoadTime, PackageSummary)
-		<< PackageSummary.Linker(Linker)
+		<< PackageSummary.AsyncPackage(AsyncPackage)
 		<< PackageSummary.TotalHeaderSize(TotalHeaderSize)
-		<< PackageSummary.NameCount(NameCount)
 		<< PackageSummary.ImportCount(ImportCount)
 		<< PackageSummary.ExportCount(ExportCount);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const FAsyncPackage* AsyncPackage, uint64 RequestId)
+void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId)
 {
 	UE_TRACE_LOG(LoadTime, AsyncPackageRequestAssociation)
 		<< AsyncPackageRequestAssociation.AsyncPackage(AsyncPackage)
 		<< AsyncPackageRequestAssociation.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const FAsyncPackage* Package, const FAsyncPackage* ImportedPackage)
+void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const void* Package, const void* ImportedPackage)
 {
 	UE_TRACE_LOG(LoadTime, AsyncPackageImportDependency)
 		<< AsyncPackageImportDependency.AsyncPackage(Package)
 		<< AsyncPackageImportDependency.ImportedAsyncPackage(ImportedPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputAsyncPackageLinkerAssociation(const FAsyncPackage* AsyncPackage, const FLinkerLoad* Linker)
+void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const FName& Name)
 {
-	UE_TRACE_LOG(LoadTime, AsyncPackageLinkerAssociation)
-		<< AsyncPackageLinkerAssociation.AsyncPackage(AsyncPackage)
-		<< AsyncPackageLinkerAssociation.Linker(Linker);
+	TCHAR Buffer[FName::StringBufferSize];
+	uint16 NameSize = (Name.ToString(Buffer) + 1) * sizeof(TCHAR);
+	UE_TRACE_LOG(LoadTime, ClassInfo, NameSize)
+		<< ClassInfo.Class(Class)
+		<< ClassInfo.Attachment(Buffer, NameSize);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const TCHAR* Name)
@@ -250,32 +246,13 @@ void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const T
 		<< ClassInfo.Attachment(Name, NameSize);
 }
 
-FLoadTimeProfilerTracePrivate::FAsyncPackageScope::FAsyncPackageScope(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType)
-{
-	UE_TRACE_LOG(LoadTime, BeginAsyncPackageScope)
-		<< BeginAsyncPackageScope.AsyncPackage(AsyncPackage)
-		<< BeginAsyncPackageScope.Cycle(FPlatformTime::Cycles64())
-		<< BeginAsyncPackageScope.ThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginAsyncPackageScope.EventType(EventType);
-}
-
-FLoadTimeProfilerTracePrivate::FAsyncPackageScope::~FAsyncPackageScope()
-{
-	UE_TRACE_LOG(LoadTime, EndAsyncPackageScope)
-		<< EndAsyncPackageScope.Cycle(FPlatformTime::Cycles64())
-		<< EndAsyncPackageScope.ThreadId(FPlatformTLS::GetCurrentThreadId());
-}
-
-FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const FLinkerLoad* Linker, uint64 SerialOffset, uint64 SerialSize, bool IsAsset, const UObject* const* InObject)
+FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const void* AsyncPackage, const UObject* const* InObject)
 	: Object(InObject)
 {
 	UE_TRACE_LOG(LoadTime, BeginCreateExport)
 		<< BeginCreateExport.Cycle(FPlatformTime::Cycles64())
-		<< BeginCreateExport.Linker(Linker)
-		<< BeginCreateExport.SerialOffset(SerialOffset)
-		<< BeginCreateExport.SerialSize(SerialSize)
-		<< BeginCreateExport.ThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginCreateExport.IsAsset(IsAsset);
+		<< BeginCreateExport.AsyncPackage(AsyncPackage)
+		<< BeginCreateExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
 FLoadTimeProfilerTracePrivate::FCreateExportScope::~FCreateExportScope()
@@ -287,20 +264,35 @@ FLoadTimeProfilerTracePrivate::FCreateExportScope::~FCreateExportScope()
 		<< EndCreateExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
-FLoadTimeProfilerTracePrivate::FObjectScope::FObjectScope(const UObject* Object, ELoadTimeProfilerObjectEventType EventType)
+FLoadTimeProfilerTracePrivate::FSerializeExportScope::FSerializeExportScope(const UObject* Object, uint64 SerialSize)
 {
-	UE_TRACE_LOG(LoadTime, BeginObjectScope)
-		<< BeginObjectScope.Cycle(FPlatformTime::Cycles64())
-		<< BeginObjectScope.Object(Object)
-		<< BeginObjectScope.ThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginObjectScope.EventType(EventType);
+	UE_TRACE_LOG(LoadTime, BeginSerializeExport)
+		<< BeginSerializeExport.Cycle(FPlatformTime::Cycles64())
+		<< BeginSerializeExport.Object(Object)
+		<< BeginSerializeExport.SerialSize(SerialSize)
+		<< BeginSerializeExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
-FLoadTimeProfilerTracePrivate::FObjectScope::~FObjectScope()
+FLoadTimeProfilerTracePrivate::FSerializeExportScope::~FSerializeExportScope()
 {
-	UE_TRACE_LOG(LoadTime, EndObjectScope)
-		<< EndObjectScope.Cycle(FPlatformTime::Cycles64())
-		<< EndObjectScope.ThreadId(FPlatformTLS::GetCurrentThreadId());
+	UE_TRACE_LOG(LoadTime, EndSerializeExport)
+		<< EndSerializeExport.Cycle(FPlatformTime::Cycles64())
+		<< EndSerializeExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+}
+
+FLoadTimeProfilerTracePrivate::FPostLoadExportScope::FPostLoadExportScope(const UObject* Object)
+{
+	UE_TRACE_LOG(LoadTime, BeginPostLoadExport)
+		<< BeginPostLoadExport.Cycle(FPlatformTime::Cycles64())
+		<< BeginPostLoadExport.Object(Object)
+		<< BeginPostLoadExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+}
+
+FLoadTimeProfilerTracePrivate::FPostLoadExportScope::~FPostLoadExportScope()
+{
+	UE_TRACE_LOG(LoadTime, EndPostLoadExport)
+		<< EndPostLoadExport.Cycle(FPlatformTime::Cycles64())
+		<< EndPostLoadExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
 #endif

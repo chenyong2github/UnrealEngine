@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneLiveLinkEnumHandler.h"
 
@@ -13,16 +13,16 @@
 
 void FMovieSceneLiveLinkEnumHandler::CreateChannels(const UScriptStruct& InStruct, int32 InElementCount)
 {
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
+	FProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
 	check(InElementCount > 0);
 
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(FoundProperty))
 	{
-		check(ArrayProperty->Inner->IsA<UEnumProperty>());
+		check(ArrayProperty->Inner->IsA<FEnumProperty>());
 	}
 	else
 	{
-		check(FoundProperty->IsA<UEnumProperty>());
+		check(FoundProperty->IsA<FEnumProperty>());
 	}
 
 	PropertyStorage->ByteChannel.SetNum(InElementCount);
@@ -68,16 +68,16 @@ void FMovieSceneLiveLinkEnumHandler::InitializeFromExistingChannels(const UScrip
 	ElementCount = PropertyStorage->ByteChannel.Num();
 	check(ElementCount > 0);
 
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
+	FProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
 	if (FoundProperty)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(FoundProperty))
 		{
-			check(ArrayProperty->Inner->IsA<UEnumProperty>());
+			check(ArrayProperty->Inner->IsA<FEnumProperty>());
 		}
 		else
 		{
-			check(FoundProperty->IsA<UEnumProperty>());
+			check(FoundProperty->IsA<FEnumProperty>());
 		}
 	}
 }

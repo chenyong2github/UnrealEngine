@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimecodeSynchronizer.h"
 #include "TimecodeSynchronizerModule.h"
@@ -219,7 +219,7 @@ void UTimecodeSynchronizer::BeginDestroy()
 }
 
 #if WITH_EDITOR
-bool UTimecodeSynchronizer::CanEditChange(const UProperty* InProperty) const
+bool UTimecodeSynchronizer::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -71,8 +71,13 @@ CORE_API class FDerivedDataCacheInterface* GetDerivedDataCache();
 /** Return the DDC interface, fatal error if it is not available. **/
 CORE_API class FDerivedDataCacheInterface& GetDerivedDataCacheRef();
 
-/** Return the Target Platform Manager interface, if it is available, otherwise return NULL **/
-CORE_API class ITargetPlatformManagerModule* GetTargetPlatformManager();
+/**
+ * Return the Target Platform Manager interface, if it is available, otherwise return nullptr.
+ *
+ * @param bFailOnInitErrors If true (default) and errors occur during init of the TPM, an error will be logged and the process may terminate, otherwise will return whether there was an error or not.
+ * @return The Target Platform Manager interface, if it is available, otherwise return nullptr.
+*/
+CORE_API class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFailOnInitErrors = true);
 
 /** Return the Target Platform Manager interface, fatal error if it is not available. **/
 CORE_API class ITargetPlatformManagerModule& GetTargetPlatformManagerRef();

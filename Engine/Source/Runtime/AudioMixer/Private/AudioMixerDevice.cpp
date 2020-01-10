@@ -1,19 +1,21 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerDevice.h"
+
 #include "AudioMixerSource.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioPluginUtilities.h"
 #include "AudioMixerEffectsManager.h"
+#include "DSP/Noise.h"
+#include "DSP/SinOsc.h"
 #include "Sound/AudioSettings.h"
+#include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
-#include "DSP/Noise.h"
-#include "DSP/SinOsc.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
@@ -23,7 +25,8 @@
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
-#endif
+#endif // WITH_EDITOR
+
 
 static int32 DisableSubmixEffectEQCvar = 0;
 FAutoConsoleVariableRef CVarDisableSubmixEQ(
@@ -38,8 +41,6 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 namespace Audio
 {
-	TArray<USoundSubmix*> FMixerDevice::MasterSubmixes;
-
 	FMixerDevice::FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform)
 		: AudioMixerPlatform(InAudioMixerPlatform)
 		, AudioClockDelta(0.0)
@@ -49,6 +50,7 @@ namespace Audio
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
 		, bDebugOutputEnabled(false)
+		, bSubmixRegistrationDisabled(false)
 	{
 		// This audio device is the audio mixer
 		bAudioMixerModuleLoaded = true;
@@ -286,7 +288,6 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(this);
 
-		// Make sure all submixes are registered but not initialized
 		for (TObjectIterator<USoundSubmix> It; It; ++It)
 		{
 			UnregisterSoundSubmix(*It);
@@ -374,19 +375,8 @@ namespace Audio
 			if (SoundSubmix)
 			{
 				// Retrieve the submix instance and the envelope data
-				Audio::FMixerSubmixWeakPtr SubmixPtr;
-
-				// First see list of submixes
-				Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(SoundSubmix);
-				if (FoundSubmix)
-				{
-					SubmixPtr = *FoundSubmix;
-				}
-				// Fallback to master submix
-				else
-				{
-					SubmixPtr = GetMasterSubmix();
-				}
+				Audio::FMixerSubmixWeakPtr SubmixPtr = GetSubmixInstance(SoundSubmix);
+				check(SubmixPtr.IsValid());
 
 				// On the audio thread, do the broadcast.
 				FAudioThread::RunCommandOnGameThread([this, SubmixPtr]()
@@ -411,17 +401,8 @@ namespace Audio
 			{
 				if (*It && It->bMuteWhenBackgrounded)
 				{
-					FMixerSubmix* SubmixInstance = GetMasterSubmixInstance(*It);
-					if (!SubmixInstance)
-					{
-						FMixerSubmixPtr* NonMasterSubmix = Submixes.Find(*It);
-						if (NonMasterSubmix)
-						{
-							SubmixInstance = (*NonMasterSubmix).Get();
-						}
-					}
-
-					if (SubmixInstance)
+					FMixerSubmixPtr SubmixInstance = GetSubmixInstance(*It).Pin();
+					if (SubmixInstance.IsValid())
 					{
 						SubmixInstance->SetBackgroundMuted(IsMuted);
 					}
@@ -570,8 +551,168 @@ namespace Audio
 		SourceManager.UpdatePendingReleaseData(true);
 	}
 
+	void FMixerDevice::LoadMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InObjectPath)
+	{
+		check(IsInGameThread());
+
+		const int32 MasterSubmixCount = static_cast<int32>(EMasterSubmixType::Type::Count);
+		if(MasterSubmixes.Num() < MasterSubmixCount)
+		{
+			MasterSubmixes.AddZeroed(MasterSubmixCount - MasterSubmixes.Num());
+		}
+
+		if (MasterSubmixInstances.Num() < MasterSubmixCount)
+		{
+			MasterSubmixInstances.AddZeroed(MasterSubmixCount - MasterSubmixInstances.Num());
+		}
+
+		const int32 TypeIndex = static_cast<int32>(InType);
+		if (USoundSubmix* OldSubmix = MasterSubmixes[TypeIndex])
+		{
+			// Don't bother swapping if new path is invalid...
+			if (!InObjectPath.IsValid())
+			{
+				return;
+			}
+
+			// or is same object already initialized.
+			if (InObjectPath.GetAssetPathString() == OldSubmix->GetPathName())
+			{
+				return;
+			}
+
+			OldSubmix->RemoveFromRoot();
+			FMixerSubmixPtr OldSubmixPtr = MasterSubmixInstances[TypeIndex];
+			if (OldSubmixPtr.IsValid())
+			{
+				FMixerSubmixPtr ParentSubmixPtr = MasterSubmixInstances[TypeIndex]->GetParentSubmix().Pin();
+				if (ParentSubmixPtr.IsValid())
+				{
+					ParentSubmixPtr->RemoveChildSubmix(MasterSubmixInstances[TypeIndex]);
+				}
+			}
+		}
+
+		// 1. Try loading from Developer Audio Settings
+		USoundSubmix* NewSubmix = Cast<USoundSubmix>(InObjectPath.TryLoad());
+
+		// 2. If Unset or not found, fallback to engine asset
+		if (!NewSubmix)
+		{
+			static const FString EngineSubmixDir = TEXT("/Engine/EngineSounds/Submixes");
+
+			InObjectPath = FString::Printf(TEXT("%s/%s.%s"), *EngineSubmixDir, *InDefaultName, *InDefaultName);
+			NewSubmix = Cast<USoundSubmix>(InObjectPath.TryLoad());
+			UE_LOG(LogAudioMixer, Display, TEXT("Submix unset or invalid in 'AudioSettings': Using engine asset '%s'"),
+				*InDefaultName,
+				*InObjectPath.GetAssetPathString());
+		}
+
+		// 3. If engine version not found, dynamically spawn and post error
+		if (!NewSubmix)
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("Failed to load submix from engine asset path '%s'. Creating '%s' as a stub."),
+				*InObjectPath.GetAssetPathString(),
+				*InDefaultName);
+
+			NewSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *InDefaultName);
+			// Make the master reverb mute when backgrounded
+			NewSubmix->bMuteWhenBackgrounded = bInDefaultMuteWhenBackgrounded;
+		}
+
+		check(NewSubmix);
+		NewSubmix->AddToRoot();
+		MasterSubmixes[TypeIndex] = NewSubmix;
+
+		FMixerSubmixPtr NewMixerSubmix = MakeShared<FMixerSubmix, ESPMode::ThreadSafe>(this);
+		MasterSubmixInstances[TypeIndex] = NewMixerSubmix;
+
+		NewMixerSubmix->Init(NewSubmix, false /* bAllowReInit */);
+	}
+
+	void FMixerDevice::LoadPluginSoundSubmixes()
+	{
+		check(IsInGameThread());
+
+		if (IsReverbPluginEnabled() && ReverbPluginInterface)
+		{
+			USoundSubmix* ReverbPluginSubmix = ReverbPluginInterface->GetSubmix();
+			check(ReverbPluginSubmix);
+			ReverbPluginSubmix->AddToRoot();
+
+			LoadSoundSubmix(*ReverbPluginSubmix);
+
+			// Plugin must provide valid effect to enable reverb
+			FSoundEffectSubmixPtr ReverbPluginEffectSubmix = ReverbPluginInterface->GetEffectSubmix();
+			if (ReverbPluginEffectSubmix.IsValid())
+			{
+				if (USoundEffectPreset* Preset = ReverbPluginEffectSubmix->GetPreset())
+				{
+					FMixerSubmixPtr ReverbPluginMixerSubmixPtr = GetSubmixInstance(ReverbPluginSubmix).Pin();
+					check(ReverbPluginMixerSubmixPtr.IsValid());
+
+					const uint32 ReverbPluginId = Preset->GetUniqueID();
+					FMixerSubmixWeakPtr ReverbPluginMixerSubmixWeakPtr = ReverbPluginMixerSubmixPtr;
+					AudioRenderThreadCommand([ReverbPluginMixerSubmixWeakPtr, ReverbPluginEffectSubmix, ReverbPluginId]()
+					{
+						FMixerSubmixPtr PluginSubmixPtr = ReverbPluginMixerSubmixWeakPtr.Pin();
+						if (PluginSubmixPtr.IsValid())
+						{
+							PluginSubmixPtr->AddSoundEffectSubmix(ReverbPluginId, ReverbPluginEffectSubmix);
+						}
+					});
+				}
+			}
+			else
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Reverb plugin failed to provide valid effect submix.  Plugin audio processing disabled."));
+			}
+		}
+	}
+
 	void FMixerDevice::InitSoundSubmixes()
 	{
+		if (IsInGameThread())
+		{
+			bSubmixRegistrationDisabled = true;
+
+			UAudioSettings* AudioSettings = GetMutableDefault<UAudioSettings>();
+			check(AudioSettings);
+
+			if (MasterSubmixes.Num() > 0)
+			{
+				UE_LOG(LogAudioMixer, Display, TEXT("Re-initializing Sound Submixes..."));
+			}
+			else
+			{
+				UE_LOG(LogAudioMixer, Display, TEXT("Initializing Sound Submixes..."));
+			}
+
+			// 1. Load or reload all sound submixes/instances
+			LoadMasterSoundSubmix(EMasterSubmixType::Master, TEXT("MasterSubmixDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->MasterSubmix);
+			LoadMasterSoundSubmix(EMasterSubmixType::Reverb, TEXT("MasterReverbSubmixDefault"), true /* DefaultMuteWhenBackgrounded */, AudioSettings->ReverbSubmix);
+
+			if (!DisableSubmixEffectEQCvar)
+			{
+				LoadMasterSoundSubmix(EMasterSubmixType::EQ, TEXT("MasterEQSubmixDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->EQSubmix);
+			}
+
+			LoadMasterSoundSubmix(EMasterSubmixType::Ambisonics, TEXT("MasterAmbisonicSubmixDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->AmbisonicSubmix);
+			LoadPluginSoundSubmixes();
+
+			for (TObjectIterator<USoundSubmix> It; It; ++It)
+			{
+				USoundSubmix* SubmixToLoad = *It;
+				check(SubmixToLoad);
+
+				if (!IsMasterSubmixType(SubmixToLoad))
+				{
+					LoadSoundSubmix(*SubmixToLoad);
+				}
+			}
+			bSubmixRegistrationDisabled = false;
+		}
+
 		if (!IsInAudioThread())
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.InitSoundSubmixes"), STAT_InitSoundSubmixes, STATGROUP_AudioThreadCommands);
@@ -584,257 +725,45 @@ namespace Audio
 			return;
 		}
 
-		// Create the master, master reverb, and master eq sound submixes
-		if (!FMixerDevice::MasterSubmixes.Num())
+		for (int32 i = 0; i < static_cast<int32>(EMasterSubmixType::Count); ++i)
 		{
-			// Master
-			USoundSubmix* MasterSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Submix"));
-			MasterSubmix->AddToRoot();
-			FMixerDevice::MasterSubmixes.Add(MasterSubmix);
-
-			// Master Reverb Plugin
-			USoundSubmix* ReverbPluginSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Plugin Submix"));
-			// Make the master reverb mute when backgrounded
-			ReverbPluginSubmix->bMuteWhenBackgrounded = true;
-
-			ReverbPluginSubmix->AddToRoot();
-			FMixerDevice::MasterSubmixes.Add(ReverbPluginSubmix);
-
-			// Master Reverb
-			USoundSubmix* ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Submix"));
-			// Make the master reverb mute when backgrounded
-			ReverbSubmix->bMuteWhenBackgrounded = true;
-
-			ReverbSubmix->AddToRoot();
-			FMixerDevice::MasterSubmixes.Add(ReverbSubmix);
-
-			// Master EQ
-			if (DisableSubmixEffectEQCvar)
+			if (DisableSubmixEffectEQCvar && i == static_cast<int32>(EMasterSubmixType::EQ))
 			{
-				FMixerDevice::MasterSubmixes.Add(nullptr);
-			}
-			else
-			{
-				USoundSubmix* EQSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master EQ Submix"));
-				EQSubmix->AddToRoot();
-				FMixerDevice::MasterSubmixes.Add(EQSubmix);
+				continue;
 			}
 
-			// Master ambisonics
-			USoundSubmix* AmbisonicsSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Ambisonics Submix"));
-			AmbisonicsSubmix->AddToRoot();
-			AmbisonicsSubmix->ChannelFormat = ESubmixChannelFormat::Ambisonics;
-			if (AmbisonicsMixer.IsValid())
+			USoundSubmix* SoundSubmix = MasterSubmixes[i];
+			check(SoundSubmix);
+			FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
+
+			if (SoundSubmix != MasterSubmixes[static_cast<int32>(EMasterSubmixType::Master)])
 			{
-				AmbisonicsSubmix->AmbisonicsPluginSettings = AmbisonicsMixer->GetDefaultSettings();
+				RebuildSubmixLinks(*SoundSubmix, MasterSubmixInstance);
 			}
-			FMixerDevice::MasterSubmixes.Add(AmbisonicsSubmix);
-		}
+		};
 
-		// Register and setup the master submixes so that the rest of the submixes can hook into these core master submixes
-
-		if (MasterSubmixInstances.Num() == 0)
-		{
-			for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
-			{
-				if (FMixerDevice::MasterSubmixes[i])
-				{
-					FMixerSubmixPtr MixerSubmix = FMixerSubmixPtr(new FMixerSubmix(this));
-					MixerSubmix->Init(FMixerDevice::MasterSubmixes[i]);
-
-					MasterSubmixInstances.Add(MixerSubmix);
-				}
-				else
-				{
-					MasterSubmixInstances.Add(nullptr);
-				}
-			}
-
-			FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[EMasterSubmixType::Master];
-			
-			FSoundEffectSubmixInitData InitData;
-			InitData.SampleRate = GetSampleRate();
-	
-			bool bIsMasterReverbBypassed = false;
-
-			// Setup the master reverb plugin
-			if (ReverbPluginInterface.IsValid() && MasterSubmixInstances[EMasterSubmixType::ReverbPlugin].IsValid())
-			{
-				FSoundEffectSubmix* ReverbPluginEffectSubmix = ReverbPluginInterface->GetEffectSubmix(FMixerDevice::MasterSubmixes[EMasterSubmixType::ReverbPlugin]);
-
-				ReverbPluginEffectSubmix->Init(InitData);
-				ReverbPluginEffectSubmix->SetEnabled(true);
-
-				const uint32 ReverbPluginId = FMixerDevice::MasterSubmixes[EMasterSubmixType::ReverbPlugin]->GetUniqueID();
-
-				FMixerSubmixPtr MasterReverbPluginSubmix = MasterSubmixInstances[EMasterSubmixType::ReverbPlugin];
-				MasterReverbPluginSubmix->AddSoundEffectSubmix(ReverbPluginId, ReverbPluginEffectSubmix);
-				MasterReverbPluginSubmix->SetParentSubmix(MasterSubmixInstance);
-				MasterSubmixInstance->AddChildSubmix(MasterReverbPluginSubmix);
-
-				bIsMasterReverbBypassed = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
-			}
-					
-			if (MasterSubmixInstances[EMasterSubmixType::Reverb].IsValid() && !bIsMasterReverbBypassed)
-			{
-				// Setup the master reverb only if we don't have a reverb plugin
-				USoundEffectSubmixPreset* ReverbPreset = nullptr;
-				USoundSubmix* MasterReverbSoundSubmix = FMixerDevice::MasterSubmixes[EMasterSubmixType::Reverb];
-
-				if (GetDefault<UAudioSettings>()->bEnableLegacyReverb)
-				{
-					ReverbPreset = NewObject<USubmixEffectReverbPreset>(MasterReverbSoundSubmix, TEXT("Master Reverb Effect Preset"));
-				}
-				else
-				{
-					ReverbPreset = NewObject<USubmixEffectReverbFastPreset>(MasterReverbSoundSubmix, TEXT("Master Reverb Effect Fast Preset"));
-				}
-				
-				ReverbPreset->AddToRoot();
-
-				FSoundEffectSubmix* ReverbEffectSubmix = static_cast<FSoundEffectSubmix*>(ReverbPreset->CreateNewEffect());
-
-				ReverbEffectSubmix->Init(InitData);
-				ReverbEffectSubmix->SetPreset(ReverbPreset);
-				ReverbEffectSubmix->SetEnabled(true);
-
-				const uint32 ReverbPresetId = ReverbPreset->GetUniqueID();
-
-				FMixerSubmixPtr MasterReverbSubmix = MasterSubmixInstances[EMasterSubmixType::Reverb];
-				MasterReverbSubmix->AddSoundEffectSubmix(ReverbPresetId, ReverbEffectSubmix);
-				MasterReverbSubmix->SetParentSubmix(MasterSubmixInstance);
-				MasterSubmixInstance->AddChildSubmix(MasterReverbSubmix);
-			}
-
-			// Setup the master EQ
-			if (FMixerDevice::MasterSubmixes[EMasterSubmixType::EQ])
-			{
-				USoundSubmix* MasterEQSoundSubmix = FMixerDevice::MasterSubmixes[EMasterSubmixType::EQ];
-				USubmixEffectSubmixEQPreset* EQPreset = NewObject<USubmixEffectSubmixEQPreset>(MasterEQSoundSubmix, TEXT("Master EQ Effect preset"));
-				EQPreset->AddToRoot();
-
-				FSoundEffectSubmix* EQEffectSubmix = static_cast<FSoundEffectSubmix*>(EQPreset->CreateNewEffect());
-				EQEffectSubmix->Init(InitData);
-				EQEffectSubmix->SetPreset(EQPreset);
-				EQEffectSubmix->SetEnabled(true);
-
-				const uint32 EQPresetId = EQPreset->GetUniqueID();
-
-				FMixerSubmixPtr MasterEQSubmix = MasterSubmixInstances[EMasterSubmixType::EQ];
-				MasterEQSubmix->AddSoundEffectSubmix(EQPresetId, EQEffectSubmix);
-				MasterEQSubmix->SetParentSubmix(MasterSubmixInstance);
-				MasterSubmixInstance->AddChildSubmix(MasterEQSubmix);
-
-				// Add the ambisonics master submix
-				FMixerSubmixPtr MasterAmbisonicsSubmix = MasterSubmixInstances[EMasterSubmixType::Ambisonics];
-				MasterAmbisonicsSubmix->SetParentSubmix(MasterEQSubmix);
-				MasterEQSubmix->AddChildSubmix(MasterAmbisonicsSubmix);
-			}
-		}
-
-		// Now register all the non-core submixes.
-
-#if WITH_EDITOR
-		Submixes.Reset();
-#endif
-
-		// Make sure all submixes are registered but not initialized
-		for (TObjectIterator<USoundSubmix> It; It; ++It)
-		{
-			RegisterSoundSubmix(*It, false);
-		}
-
-		// Now setup the graph for all the submixes
-		for (auto& Entry : Submixes)
+		for (TPair<USoundSubmix*, FMixerSubmixPtr>& Entry : Submixes)
 		{
 			USoundSubmix* SoundSubmix = Entry.Key;
+			check(SoundSubmix);
 			FMixerSubmixPtr& SubmixInstance = Entry.Value;
-
-			// Setup up the submix instance's parent and add the submix instance as a child
-			FMixerSubmixWeakPtr ParentSubmixInstance;
-			if (SoundSubmix->ParentSubmix)
-			{
-				ParentSubmixInstance = GetSubmixInstance(SoundSubmix->ParentSubmix);
-			}
-			else
-			{
-				ParentSubmixInstance = GetMasterSubmix();
-			}
-			FMixerSubmixPtr ParentSubmixInstancePtr = ParentSubmixInstance.Pin();
-			if (ParentSubmixInstancePtr.IsValid())
-			{
-				ParentSubmixInstancePtr->AddChildSubmix(SubmixInstance);
-				SubmixInstance->ParentSubmix = ParentSubmixInstance;
-			}
-
-			// Now add all the child submixes to this submix instance
-			for (USoundSubmix* ChildSubmix : SoundSubmix->ChildSubmixes)
-			{
-				// ChildSubmix lists can contain null entries.
-				if (ChildSubmix)
-				{
-					FChildSubmixInfo ChildSubmixInfo;
-					ChildSubmixInfo.SubmixPtr = GetSubmixInstance(ChildSubmix);
-					ChildSubmixInfo.bNeedsAmbisonicsEncoding = true;
-
-					FMixerSubmixPtr ChildSubmixInstancePtr = ChildSubmixInfo.SubmixPtr.Pin();
-
-					if (SubmixInstance.IsValid() && ChildSubmixInstancePtr.IsValid())
-					{
-						SubmixInstance->ChildSubmixes.Add(ChildSubmixInstancePtr->GetId(), ChildSubmixInfo);
-					}
-
-				}
-			}
-
-			// Perform any other initialization on the submix instance
-			SubmixInstance->Init(SoundSubmix);
+			RebuildSubmixLinks(*SoundSubmix, SubmixInstance);
 		}
-
-		TArray<EAudioMixerChannel::Type> StereoChannelTypes;
-		StereoChannelTypes.Add(EAudioMixerChannel::FrontLeft);
-		StereoChannelTypes.Add(EAudioMixerChannel::FrontRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Stereo, StereoChannelTypes);
-
-		TArray<EAudioMixerChannel::Type> QuadChannelTypes;
-		QuadChannelTypes.Add(EAudioMixerChannel::FrontLeft);
-		QuadChannelTypes.Add(EAudioMixerChannel::FrontRight);
-		QuadChannelTypes.Add(EAudioMixerChannel::SideLeft);
-		QuadChannelTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Quad, QuadChannelTypes);
-
-		TArray<EAudioMixerChannel::Type> FiveDotOneTypes;
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontLeft);
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontRight);
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontCenter);
-		FiveDotOneTypes.Add(EAudioMixerChannel::LowFrequency);
-		FiveDotOneTypes.Add(EAudioMixerChannel::SideLeft);
-		FiveDotOneTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::FiveDotOne, FiveDotOneTypes);
-
-		TArray<EAudioMixerChannel::Type> SevenDotOneTypes;
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontRight);
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontCenter);
-		SevenDotOneTypes.Add(EAudioMixerChannel::LowFrequency);
-		SevenDotOneTypes.Add(EAudioMixerChannel::BackLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::BackRight);
-		SevenDotOneTypes.Add(EAudioMixerChannel::SideLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::SevenDotOne, SevenDotOneTypes);
-
-		TArray<EAudioMixerChannel::Type> FirstOrderAmbisonicsTypes;
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontRight);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontCenter);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::LowFrequency);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::BackLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::BackRight);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::SideLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Ambisonics, FirstOrderAmbisonicsTypes);
 	}
-	
+
+	void FMixerDevice::RebuildSubmixLinks(USoundSubmix& SoundSubmix, FMixerSubmixPtr& SubmixInstance)
+	{
+		// Setup up the submix instance's parent and add the submix instance as a child
+		FMixerSubmixPtr ParentSubmixInstance = SoundSubmix.ParentSubmix
+			? GetSubmixInstance(SoundSubmix.ParentSubmix).Pin()
+			: GetMasterSubmix().Pin();
+
+		check(ParentSubmixInstance.IsValid());
+
+		SubmixInstance->SetParentSubmix(ParentSubmixInstance);
+		ParentSubmixInstance->AddChildSubmix(SubmixInstance);
+	}
+
  	FAudioPlatformSettings FMixerDevice::GetPlatformSettings() const
  	{
 		FAudioPlatformSettings Settings = AudioMixerPlatform->GetPlatformSettings();
@@ -855,11 +784,6 @@ namespace Audio
 		return MasterSubmixInstances[EMasterSubmixType::Master];
 	}
 
-	FMixerSubmixWeakPtr FMixerDevice::GetMasterReverbPluginSubmix()
-	{
-		return MasterSubmixInstances[EMasterSubmixType::ReverbPlugin];
-	}
-
 	FMixerSubmixWeakPtr FMixerDevice::GetMasterReverbSubmix()
 	{
 		return MasterSubmixInstances[EMasterSubmixType::Reverb];
@@ -875,7 +799,7 @@ namespace Audio
 		return MasterSubmixInstances[EMasterSubmixType::Ambisonics];
 	}
 
-	void FMixerDevice::AddMasterSubmixEffect(uint32 SubmixEffectId, FSoundEffectSubmix* SoundEffectSubmix)
+	void FMixerDevice::AddMasterSubmixEffect(uint32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffectSubmix)
 	{
 		AudioRenderThreadCommand([this, SubmixEffectId, SoundEffectSubmix]()
 		{
@@ -926,13 +850,13 @@ namespace Audio
 #if WITH_EDITOR
 		check(IsInAudioThread());
 
-		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
-		if (MixerSubmix)
+		FMixerSubmixPtr MixerSubmix = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmix.IsValid())
 		{
-			float NewVolume = InSoundSubmix->OutputVolume;
+			const float NewVolume = InSoundSubmix->OutputVolume;
 			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
 			{
-				(*MixerSubmix)->SetOutputVolume(NewVolume);
+				MixerSubmix->SetOutputVolume(NewVolume);
 			});
 		}
 #endif // WITH_EDITOR
@@ -953,12 +877,12 @@ namespace Audio
 			return;
 		}
 
-		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
-		if (MixerSubmix)
+		FMixerSubmixPtr MixerSubmix = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmix.IsValid())
 		{
 			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
 			{
-				(*MixerSubmix)->SetDynamicOutputVolume(NewVolume);
+				MixerSubmix->SetDynamicOutputVolume(NewVolume);
 			});
 		}
 	}
@@ -1016,7 +940,7 @@ namespace Audio
 	{
 		for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
 		{
-			if (InSubmix == FMixerDevice::MasterSubmixes[i])
+			if (InSubmix == MasterSubmixes[i])
 			{
 				return true;
 			}
@@ -1024,14 +948,14 @@ namespace Audio
 		return false;
 	}
 
-	FMixerSubmix* FMixerDevice::GetMasterSubmixInstance(USoundSubmix* InSubmix)
+	FMixerSubmixPtr FMixerDevice::GetMasterSubmixInstance(USoundSubmix* InSubmix)
 	{
 		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
 		for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
 		{
-			if (InSubmix == FMixerDevice::MasterSubmixes[i])
+			if (InSubmix == MasterSubmixes[i])
 			{
-				return MasterSubmixInstances[i].Get();
+				return MasterSubmixInstances[i];
 			}
 		}
 		return nullptr;
@@ -1039,90 +963,97 @@ namespace Audio
 
 	void FMixerDevice::RegisterSoundSubmix(USoundSubmix* InSoundSubmix, bool bInit)
 	{
-		if (InSoundSubmix)
+		if (!InSoundSubmix || bSubmixRegistrationDisabled || IsMasterSubmixType(InSoundSubmix))
 		{
-			if (!IsInAudioThread())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSoundSubmix"), STAT_AudioRegisterSoundSubmix, STATGROUP_AudioThreadCommands);
-
-				FMixerDevice* MixerDevice = this;
-				FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix]()
-				{
-					CSV_SCOPED_TIMING_STAT(Audio, RegisterSubmix);
-					MixerDevice->RegisterSoundSubmix(InSoundSubmix);
-				}, GET_STATID(STAT_AudioRegisterSoundSubmix));
-				return;
-			}
-
-			if (!IsMasterSubmixType(InSoundSubmix))
-			{
-				FMixerSubmixPtr MixerSubmix; 
-
-				// If the sound submix wasn't already registered get it into the system.
-				if (!Submixes.Contains(InSoundSubmix))
-				{
-					MixerSubmix = FMixerSubmixPtr(new FMixerSubmix(this));
-					Submixes.Add(InSoundSubmix, MixerSubmix);
-				}
-				else
-				{
-					FMixerSubmixPtr* ExistingMixerSubmix = Submixes.Find(InSoundSubmix);
-					check(ExistingMixerSubmix);
-					MixerSubmix = *ExistingMixerSubmix;
-				}
-
-				check(MixerSubmix.IsValid());
-
-				if (bInit)
-				{
-					// Setup the parent-child relationship
-					FMixerSubmixWeakPtr ParentSubmixInstance;
-					if (InSoundSubmix->ParentSubmix)
-					{
-						ParentSubmixInstance = GetSubmixInstance(InSoundSubmix->ParentSubmix);
-					}
-					else
-					{
-						ParentSubmixInstance = GetMasterSubmix();
-					}
-
-					FMixerSubmixPtr ParentSubmixInstancePtr = ParentSubmixInstance.Pin();
-					if (ParentSubmixInstancePtr.IsValid())
-					{
-						ParentSubmixInstancePtr->AddChildSubmix(MixerSubmix);
-						MixerSubmix->SetParentSubmix(ParentSubmixInstance);
-						MixerSubmix->Init(InSoundSubmix);
-					}
-				}
-			}
+			return;
 		}
+
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSoundSubmix"), STAT_AudioRegisterSoundSubmix, STATGROUP_AudioThreadCommands);
+
+			FMixerDevice* MixerDevice = this;
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, RegisterSubmix);
+				MixerDevice->RegisterSoundSubmix(InSoundSubmix);
+			}, GET_STATID(STAT_AudioRegisterSoundSubmix));
+			return;
+		}
+
+		LoadSoundSubmix(*InSoundSubmix);
+		FMixerSubmixPtr SubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (bInit)
+		{
+			SubmixPtr->Init(InSoundSubmix, true /* BAllowReInit */);
+		}
+
+		RebuildSubmixLinks(*InSoundSubmix, SubmixPtr);
+	}
+
+	void FMixerDevice::LoadSoundSubmix(USoundSubmix& InSoundSubmix)
+	{
+		// Ensure submix not already registered by first checking master submixes and then additional mixes.
+		FMixerSubmixPtr MixerSubmix = GetSubmixInstance(&InSoundSubmix).Pin();
+
+		// If submix not already found, register it.
+		if (!MixerSubmix.IsValid())
+		{
+			MixerSubmix = MakeShared<FMixerSubmix, ESPMode::ThreadSafe>(this);
+			Submixes.Add(&InSoundSubmix, MixerSubmix);
+		}
+
+		MixerSubmix->Init(&InSoundSubmix, false /* bAllowReInit */);
 	}
 
 	void FMixerDevice::UnregisterSoundSubmix(USoundSubmix* InSoundSubmix)
 	{
-		if (InSoundSubmix)
+		if (!InSoundSubmix || bSubmixRegistrationDisabled || IsMasterSubmixType(InSoundSubmix))
 		{
-			if (!IsInAudioThread())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSoundSubmix"), STAT_AudioUnregisterSoundSubmix, STATGROUP_AudioThreadCommands);
+			return;
+		}
 
-				FMixerDevice* MixerDevice = this;
-				FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix]()
-				{
-					CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmix);
-					MixerDevice->UnregisterSoundSubmix(InSoundSubmix);
-				}, GET_STATID(STAT_AudioUnregisterSoundSubmix));
-				return;
-			}
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSoundSubmix"), STAT_AudioUnregisterSoundSubmix, STATGROUP_AudioThreadCommands);
 
-			if (!IsMasterSubmixType(InSoundSubmix))
+			FAudioThread::RunCommandOnAudioThread([this, InSoundSubmix]()
 			{
-				if (InSoundSubmix)
-				{
-					Submixes.Remove(InSoundSubmix);
-				}
+				CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmix);
+				UnregisterSoundSubmix(InSoundSubmix);
+			}, GET_STATID(STAT_AudioUnregisterSoundSubmix));
+			return;
+		}
+
+		UnloadSoundSubmix(*InSoundSubmix);
+	}
+
+	void FMixerDevice::UnloadSoundSubmix(USoundSubmix& InSoundSubmix)
+	{
+		check(IsInAudioThread());
+
+		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
+		FMixerSubmixPtr ParentSubmixInstance = InSoundSubmix.ParentSubmix
+			? GetSubmixInstance(InSoundSubmix.ParentSubmix).Pin()
+			: MasterSubmix.Pin();
+
+		if (ParentSubmixInstance.IsValid())
+		{
+			ParentSubmixInstance->RemoveChildSubmix(GetSubmixInstance(&InSoundSubmix));
+		}
+
+		for (USoundSubmix* ChildSubmix : InSoundSubmix.ChildSubmixes)
+		{
+			FMixerSubmixPtr ChildSubmixPtr = GetSubmixInstance(ChildSubmix).Pin();
+			if (ChildSubmixPtr.IsValid())
+			{
+				ChildSubmixPtr->SetParentSubmix(ParentSubmixInstance.IsValid()
+					? ParentSubmixInstance
+					: MasterSubmix);
 			}
 		}
+
+		Submixes.Remove(&InSoundSubmix);
 	}
 
 	void FMixerDevice::InitSoundEffectPresets()
@@ -1133,23 +1064,17 @@ namespace Audio
 #endif
 	}
 
-	FMixerSubmixWeakPtr FMixerDevice::GetSubmixInstance(USoundSubmix* SoundSubmix)
+	FMixerSubmixWeakPtr FMixerDevice::GetSubmixInstance(USoundSubmix* InSoundSubmix)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		check(SoundSubmix);
-		FMixerSubmixPtr* MixerSubmix = Submixes.Find(SoundSubmix);
-
-		// If the submix hasn't been registered yet, then register it now
-		if (!MixerSubmix)
+		FMixerSubmixPtr MixerSubmix = GetMasterSubmixInstance(InSoundSubmix);
+		if (MixerSubmix.IsValid())
 		{
-			RegisterSoundSubmix(SoundSubmix, true);
-			MixerSubmix = Submixes.Find(SoundSubmix);
+			return MixerSubmix;
 		}
 
-		// At this point, this should exist
-		check(MixerSubmix);
-		return *MixerSubmix;
+		return Submixes.FindRef(InSoundSubmix);
 	}
 
 	FMixerSourceVoice* FMixerDevice::GetMixerSourceVoice()
@@ -1187,7 +1112,7 @@ namespace Audio
 		if (InWaveInstance->bCenterChannelOnly)
 		{
 			int32 NumOutputChannels = GetNumChannelsForSubmixFormat(InSubmixType);
-			const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelType(InSubmixType);
+			const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelFormat(InSubmixType);
 
 			// If we are only spatializing to stereo output
 			if (NumOutputChannels == 2)
@@ -1298,7 +1223,7 @@ namespace Audio
 		float OmniPanFactor = 1.0f / NumSpatialChannels;
 
 		float DefaultEffectivePan = !OmniAmount ? 0.0f : FMath::Lerp(0.0f, OmniPanFactor, OmniAmount);
-		const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelType(InSubmixType);
+		const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelFormat(InSubmixType);
 
 		for (EAudioMixerChannel::Type Channel : ChannelArray)
 		{
@@ -1354,10 +1279,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->OnStartRecordingOutput(ExpectedRecordingDuration);
+			FoundSubmix->OnStartRecordingOutput(ExpectedRecordingDuration);
 		}
 		else
 		{
@@ -1372,15 +1297,14 @@ namespace Audio
 	Audio::AlignedFloatBuffer& FMixerDevice::StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
 	{
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			return (*FoundSubmix)->OnStopRecordingOutput(OutNumChannels, OutSampleRate);
+			return FoundSubmix->OnStopRecordingOutput(OutNumChannels, OutSampleRate);
 		}
 		else
 		{
-			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
-			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
+			FMixerSubmixPtr MasterSubmixPtr = GetMasterSubmix().Pin();
 			check(MasterSubmixPtr.IsValid());
 
 			return MasterSubmixPtr->OnStopRecordingOutput(OutNumChannels, OutSampleRate);
@@ -1402,10 +1326,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, pause that submix. Otherwise, just pause the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->PauseRecordingOutput();
+			FoundSubmix->PauseRecordingOutput();
 		}
 		else
 		{
@@ -1432,10 +1356,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, resume that submix. Otherwise, just resume the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->ResumeRecordingOutput();
+			FoundSubmix->ResumeRecordingOutput();
 		}
 		else
 		{
@@ -1462,10 +1386,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->StartEnvelopeFollowing(InSubmix->EnvelopeFollowerAttackTime, InSubmix->EnvelopeFollowerReleaseTime);
+			FoundSubmix->StartEnvelopeFollowing(InSubmix->EnvelopeFollowerAttackTime, InSubmix->EnvelopeFollowerReleaseTime);
 		}
 		else
 		{
@@ -1494,10 +1418,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->StopEnvelopeFollowing();
+			FoundSubmix->StopEnvelopeFollowing();
 		}
 		else
 		{
@@ -1526,10 +1450,10 @@ namespace Audio
 		}
 
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->AddEnvelopeFollowerDelegate(OnSubmixEnvelopeBP);
+			FoundSubmix->AddEnvelopeFollowerDelegate(OnSubmixEnvelopeBP);
 		}
 		else
 		{
@@ -1556,10 +1480,10 @@ namespace Audio
 			return;
 		}
 
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->StartSpectrumAnalysis(InSettings);
+			FoundSubmix->StartSpectrumAnalysis(InSettings);
 		}
 		else
 		{
@@ -1585,10 +1509,10 @@ namespace Audio
 			return;
 		}
 
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->StopSpectrumAnalysis();
+			FoundSubmix->StopSpectrumAnalysis();
 		}
 		else
 		{
@@ -1602,10 +1526,10 @@ namespace Audio
 
 	void FMixerDevice::GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes)
 	{
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->GetMagnitudeForFrequencies(InFrequencies, OutMagnitudes);
+			FoundSubmix->GetMagnitudeForFrequencies(InFrequencies, OutMagnitudes);
 		}
 		else
 		{
@@ -1619,10 +1543,10 @@ namespace Audio
 
 	void FMixerDevice::GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases)
 	{
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			(*FoundSubmix)->GetPhaseForFrequencies(InFrequencies, OutPhases);
+			FoundSubmix->GetPhaseForFrequencies(InFrequencies, OutPhases);
 		}
 		else
 		{
@@ -1658,10 +1582,10 @@ namespace Audio
 			return;
 		}
 
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			return (*FoundSubmix)->RegisterBufferListener(InSubmixBufferListener);
+			return FoundSubmix->RegisterBufferListener(InSubmixBufferListener);
 		}
 		else
 		{
@@ -1699,15 +1623,14 @@ namespace Audio
 			return;
 		}
 
-		Audio::FMixerSubmixPtr* FoundSubmix = Submixes.Find(InSubmix);
-		if (FoundSubmix)
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
 		{
-			return (*FoundSubmix)->UnregisterBufferListener(InSubmixBufferListener);
+			return FoundSubmix->UnregisterBufferListener(InSubmixBufferListener);
 		}
 		else
 		{
-			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
-			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
+			FMixerSubmixPtr MasterSubmixPtr = GetMasterSubmix().Pin();
 			check(MasterSubmixPtr.IsValid());
 
 			return MasterSubmixPtr->UnregisterBufferListener(InSubmixBufferListener);

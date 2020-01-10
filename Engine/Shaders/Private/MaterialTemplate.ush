@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * MaterialTemplate.usf: Filled in by FHLSLMaterialTranslator::GetMaterialShaderCode for each material being compiled.
@@ -2502,7 +2502,7 @@ float ApplyPixelDepthOffsetToMaterialParameters(inout FMaterialPixelParameters M
 	MaterialParameters.SvPosition.w = MaterialParameters.ScreenPosition.w;
 	MaterialParameters.AbsoluteWorldPosition += MaterialParameters.CameraVector * PixelDepthOffset;
 
-	OutDepth = DeviceDepth;
+	OutDepth = INVARIANT(DeviceDepth);
 
 	return PixelDepthOffset;
 }

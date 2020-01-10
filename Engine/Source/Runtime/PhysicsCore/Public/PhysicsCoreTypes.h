@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@ enum class EChaosSolverTickMode : uint8
 UENUM()
 enum class EChaosThreadingMode : uint8
 {
-	DedicatedThread,
+	DedicatedThread UMETA(Hidden),
 	TaskGraph,
 	SingleThread,
 	Num UMETA(Hidden),

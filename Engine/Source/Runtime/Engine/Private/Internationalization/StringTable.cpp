@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/StringTable.h"
 #include "Internationalization/StringTableCore.h"
@@ -273,7 +273,7 @@ private:
 			int32 DotIndex = INDEX_NONE;
 			if (StringTablePackageName.FindChar(TEXT('.'), DotIndex))
 			{
-				StringTablePackageName = StringTablePackageName.Left(DotIndex);
+				StringTablePackageName.LeftInline(DotIndex, false);
 			}
 		}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,7 +31,8 @@ class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
 
 public:
 	UNiagaraRendererProperties()
-	: bIsEnabled(true)
+		: bIsEnabled(true)
+		, bMotionBlurEnabled(true)
 	{
 	}
 
@@ -65,6 +66,8 @@ public:
 	
 	UPROPERTY()
 	bool bIsEnabled;
+
+	/** Is motion blur enabled on this renderer or not, the material must also have motion blur enabled. */
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	bool bMotionBlurEnabled;
 };
-
-

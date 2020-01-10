@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/Kismet2NameValidators.h"
 #include "UObject/Object.h"
@@ -183,7 +183,7 @@ EValidatorResult FKismetNameValidator::IsValid(const FName& Name, bool /* bOrigi
 			}
 			else
 			{
-				if(FindField<const UProperty>(Scope, *Name.ToString()) != NULL)
+				if(FindField<const FProperty>(Scope, *Name.ToString()) != NULL)
 				{
 					ValidatorResult = EValidatorResult::LocallyInUse;
 				}

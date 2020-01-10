@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 
@@ -21,7 +21,8 @@ function build()
 }
 
 build RelWithDebInfo
-mv -v ../RelWithDebInfo/libvivoxclientapi.a ../Release/libvivoxclientapi.a
+rm -rf ../Release
+mv -v ../RelWithDebInfo ../Release
 build Debug
 cd "${SCRIPT_DIR}"
 rm -rf "${BUILD_DIR}"

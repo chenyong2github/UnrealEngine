@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
@@ -206,7 +206,7 @@ public:
 			{
 				bCanPaint = false;
 			}
-			else if (EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap &&
+			else if ((EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap || EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility) &&
 				EdMode->UISettings->PaintingRestriction != ELandscapeLayerPaintingRestriction::None)
 			{
 				if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist &&
@@ -229,6 +229,11 @@ public:
 						}
 					}
 				}
+			}
+			
+			if (bCanPaint && EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility && !Component->IsLandscapeHoleMaterialValid())
+			{
+				bCanPaint = false;
 			}
 
 			MaterialInstance->SetScalarParameterValue("CanPaint", bCanPaint ? 1.0f : 0.0f);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,7 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Logging/TokenizedMessage.h"
+#include "Animation/AnimTrace.h"
 
 #include "AnimInstanceProxy.generated.h"
 
@@ -436,7 +437,7 @@ public:
 	void RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight);
 
 	float GetRecordedStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex) const;
-	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight);
+	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime);
 
 	bool IsSlotNodeRelevantForNotifies(const FName& SlotNodeName) const;
 	/** Reset any dynamics running simulation-style updates (e.g. on teleport, time skip etc.) */
@@ -457,12 +458,21 @@ public:
 	/** Get the transform of the actor we are running on */
 	const FTransform& GetActorTransform() { return ActorTransform; }
 
+#if ANIM_TRACE_ENABLED
+	// Trace montage debug data for the specified slot
+	void TraceMontageEvaluationData(const FAnimationUpdateContext& InContext, const FName& InSlotName);
+#endif
+
+	/** Get the debug data for this instance's anim bp */
+	FAnimBlueprintDebugData* GetAnimBlueprintDebugData() const;
+
 	/** Only restricted classes can access the protected interface */
 	friend class UAnimInstance;
 	friend class UAnimSingleNodeInstance;
 	friend class USkeletalMeshComponent;
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimationBaseContext;
+	friend struct FAnimTrace;
 
 protected:
 	/** Called when our anim instance is being initialized */
@@ -672,7 +682,7 @@ protected:
 
 	/** Gets an unchecked (can return nullptr) node given a property of the anim instance */
 	template<class NodeType>
-	NodeType* GetNodeFromProperty(UProperty* Property)
+	NodeType* GetNodeFromProperty(FProperty* Property)
 	{
 		return (NodeType*)Property->ContainerPtrToValuePtr<NodeType>(AnimInstanceObject);
 	}
@@ -787,9 +797,6 @@ protected:
 	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);
 
 private:
-	/** Get the debug data for this instance's anim bp */
-	FAnimBlueprintDebugData* GetAnimBlueprintDebugData() const;
-
 	/** The component to world transform of the component we are running on */
 	FTransform ComponentTransform;
 

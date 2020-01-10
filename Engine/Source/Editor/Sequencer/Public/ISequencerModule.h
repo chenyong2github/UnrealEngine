@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -267,7 +267,7 @@ public:
 	/**
 	 * Check whether the specified property type can be animated by sequeuncer
 	 */
-	virtual bool CanAnimateProperty(UProperty* Property) = 0;
+	virtual bool CanAnimateProperty(FProperty* Property) = 0;
 
 	/**
 	* Get the extensibility manager for menus.

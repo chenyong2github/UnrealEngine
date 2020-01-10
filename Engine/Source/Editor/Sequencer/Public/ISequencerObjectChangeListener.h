@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,7 +19,7 @@ class ISequencerObjectChangeListener
 {
 public:
 	/**
-	 * A delegate for when a property of a specific UProperty class is changed.  
+	 * A delegate for when a property of a specific FProperty class is changed.  
 	 */
 	virtual FOnAnimatablePropertyChanged& GetOnAnimatablePropertyChanged( FAnimatedPropertyKey PropertyKey ) = 0;
 

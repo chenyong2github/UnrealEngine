@@ -1,5 +1,5 @@
 // Copyright (C) Microsoft. All rights reserved.
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,120 @@ using System.Diagnostics;
 
 namespace CSVStats
 {
+	public class CommandLine
+	{
+		protected string commandLine = "";
+
+		protected Dictionary<string, string> CommandLineArgs;
+
+		public string GetCommandLine()
+		{
+			return commandLine;
+		}
+
+		public CommandLine(string[] args)
+		{
+			commandLine = "";
+			foreach (string arg in args)
+			{
+				if (arg.Contains(' ') || arg.Contains('\t'))
+				{
+					commandLine += "\"" + arg + "\" ";
+				}
+				else
+				{
+					commandLine += arg + " ";
+				}
+			}
+			CommandLineArgs = new Dictionary<string, string>();
+			for (int i = 0; i < args.Length; i++)
+			{
+				string arg = args[i];
+				if (arg[0] == '-')
+				{
+					string val = "1";
+
+					// If there's a value, read it
+					if (i < args.Length - 1 && args[i + 1][0] != '-')
+					{
+						bool first = true;
+						for (int j = i + 1; j < args.Length; j++)
+						{
+							string str = args[j];
+							if (str.Length > 0 && str[0] == '-')
+								break;
+							if (first)
+							{
+								val = str;
+								first = false;
+							}
+							else
+							{
+								val += ";" + str;
+							}
+						}
+						i++;
+					}
+
+					string argKey = arg.Substring(1).ToLower();
+					if (CommandLineArgs.ContainsKey(argKey))
+					{
+						Console.Out.WriteLine("Duplicate commandline argument found for " + arg + ". Overriding value from " + CommandLineArgs[argKey] + " to " + val);
+						CommandLineArgs.Remove(argKey);
+					}
+					CommandLineArgs.Add(arg.Substring(1).ToLower(), val);
+				}
+			}
+		}
+
+		public int GetIntArg(string key, int defaultValue)
+		{
+			string val = GetArg(key, false);
+			if (val != "") return Convert.ToInt32(val);
+			return defaultValue;
+		}
+
+		public float GetFloatArg(string key, float defaultValue)
+		{
+			string val = GetArg(key, false);
+			if (val != "") return (float)Convert.ToDouble(val, System.Globalization.CultureInfo.InvariantCulture);
+			return defaultValue;
+		}
+
+		public bool GetBoolArg(string key)
+		{
+			return CommandLineArgs.ContainsKey(key.ToLower());
+		}
+
+		public string GetArg(string key, string defaultValue)
+		{
+			string lowerKey = key.ToLower();
+
+			if (CommandLineArgs.ContainsKey(lowerKey))
+			{
+				return CommandLineArgs[lowerKey];
+			}
+			return defaultValue;
+		}
+
+		public string GetArg(string key, bool mandatory = false)
+		{
+			string lowerKey = key.ToLower();
+
+			if (CommandLineArgs.ContainsKey(lowerKey))
+			{
+				return CommandLineArgs[lowerKey];
+			}
+			else if (mandatory)
+			{
+				Console.WriteLine("Missing parameter " + key);
+			}
+
+			return "";
+		}
+
+	}
+
 	public class CommandLineTool
 	{
 		protected enum HostPlatform
@@ -20,9 +134,7 @@ namespace CSVStats
 			Linux
 		}
 
-		protected string commandLine = "";
-
-		protected Dictionary<string, string> CommandLineArgs;
+		protected CommandLine commandLine;
 
 		private readonly static bool bIsMac = File.Exists("/System/Library/CoreServices/SystemVersion.plist");
 
@@ -59,55 +171,33 @@ namespace CSVStats
         }
         protected int GetIntArg(string key, int defaultValue)
         {
-            string val = GetArg(key, false);
-            if (val != "") return Convert.ToInt32(val);
-            return defaultValue;
-        }
+			return commandLine.GetIntArg(key, defaultValue);
+		}
 
-        protected float GetFloatArg(string key, float defaultValue)
+		protected float GetFloatArg(string key, float defaultValue)
         {
-            string val = GetArg(key, false);
-            if (val != "") return (float)Convert.ToDouble(val,System.Globalization.CultureInfo.InvariantCulture);
-            return defaultValue;
-        }
+			return commandLine.GetFloatArg(key, defaultValue);
+		}
 
-        protected bool GetBoolArg(string key)
+		protected bool GetBoolArg(string key)
         {
-            return CommandLineArgs.ContainsKey(key.ToLower());
+			return commandLine.GetBoolArg(key);
         }
 
 		protected string GetArg(string key, string defaultValue)
 		{
-			string lowerKey = key.ToLower();
-
-			if (CommandLineArgs.ContainsKey(lowerKey))
-			{
-				return CommandLineArgs[lowerKey];
-			}
-			return defaultValue;
+			return commandLine.GetArg(key, defaultValue);
 		}
 
 		protected string GetArg(string key, bool mandatory = false)
         {
-            string lowerKey = key.ToLower();
-
-            if (CommandLineArgs.ContainsKey(lowerKey))
-            {
-                return CommandLineArgs[lowerKey];
-            }
-            else if (mandatory)
-            {
-                WriteLine("Missing parameter {0}", key);
-            }
-
-            return "";
+			return commandLine.GetArg(key, mandatory);
         }
 
 		protected void WriteLine(String message, params object[] args)
         {
             String formatted = String.Format(message, args);
             Console.WriteLine(formatted);
-            //            Trace.WriteLine(formatted);
         }
 
 
@@ -148,61 +238,9 @@ namespace CSVStats
             return lines.ToArray();
         }
 
-        protected void ReadCommandLine(string[] args)
-        {
-            commandLine = "";
-            foreach (string arg in args)
-            {
-                if (arg.Contains(' ') || arg.Contains('\t'))
-                {
-                    commandLine += "\"" + arg + "\" ";
-                }
-                else
-                {
-                    commandLine += arg + " ";
-                }
-            }
-            CommandLineArgs = new Dictionary<string, string>();
-            for (int i = 0; i < args.Length; i++)
-            {
-                string arg = args[i];
-                if (arg[0] == '-')
-                {
-                    string val = "1";
-
-                    // If there's a value, read it
-                    if (i < args.Length - 1 && args[i + 1][0] != '-')
-                    {
-                        bool first = true;
-                        for (int j = i + 1; j < args.Length; j++)
-                        {
-                            string str = args[j];
-                            if (str.Length > 0 && str[0] == '-')
-                                break;
-                            if (first)
-                            {
-                                val = str;
-                                first = false;
-                            }
-                            else
-                            {
-                                val += ";" + str;
-                            }
-                        }
-                        i++;
-                    }
-
-                    string argKey = arg.Substring(1).ToLower();
-                    if (CommandLineArgs.ContainsKey(argKey))
-                    {
-                        Console.Out.WriteLine("Duplicate commandline argument found for " + arg + ". Overriding value from " + CommandLineArgs[argKey] + " to " + val);
-                        CommandLineArgs.Remove(argKey);
-                    }
-                    CommandLineArgs.Add(arg.Substring(1).ToLower(), val);
-                }
-            }
-        }
-
-		
+		protected void ReadCommandLine(string[] args)
+		{
+			commandLine = new CommandLine(args);
+		}
 	}
 }

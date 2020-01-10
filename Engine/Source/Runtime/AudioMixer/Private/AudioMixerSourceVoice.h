@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -82,6 +82,11 @@ namespace Audio
 
 		// Whether or not the device changed and needs another speaker map sent
 		bool NeedsSpeakerMap() const;
+
+		// Whether or not the voice is currently using HRTF spatialization.
+		//
+		// @param bDefaultValue - This value will be returned if voice does not have a valid source id.
+		bool IsUsingHRTFSpatializer(bool bDefaultValue) const;
 
 		// Retrieves the total number of samples played.
 		int64 GetNumFramesPlayed() const;

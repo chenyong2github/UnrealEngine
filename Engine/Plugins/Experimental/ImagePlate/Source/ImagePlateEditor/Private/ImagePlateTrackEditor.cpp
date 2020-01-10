@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImagePlateTrackEditor.h"
 #include "ImagePlateFileSequence.h"
@@ -220,7 +220,7 @@ UMovieSceneTrack* FImagePlateTrackEditor::AddTrack(UMovieScene* FocusedMovieScen
 
 void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedParams& PropertyChangedParams)
 {
-	const UProperty* ChangedProperty = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
+	const FProperty* ChangedProperty = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 	if (!ChangedProperty)
 	{
 		return;
@@ -233,9 +233,9 @@ void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedPar
 	for (int32 PropertyIndex = PropertyChangedParams.PropertyPath.GetNumProperties() - 1; PropertyIndex >= 0; --PropertyIndex)
 	{
 		const FPropertyInfo& Info = PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex);
-		const UArrayProperty* ParentArrayProperty = PropertyIndex > 0 ? Cast<UArrayProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex-1).Property.Get()) : nullptr;
+		const FArrayProperty* ParentArrayProperty = PropertyIndex > 0 ? CastField<FArrayProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex-1).Property.Get()) : nullptr;
 
-		UProperty* Property = Info.Property.Get();
+		FProperty* Property = Info.Property.Get();
 		if (Property && Info.ArrayIndex != INDEX_NONE)
 		{
 			DisplayText = FText::Format(LOCTEXT("VideoTrackNameFormat", "{0} ({1}[{2}])"),
@@ -287,8 +287,8 @@ void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 	{
 		check(ImagePlateComponent);
 
-		UStructProperty* ImagePlateProperty = ImagePlateComponent->GetImagePlateProperty();
-		UProperty* RenderTargetProperty = FindField<UProperty>(FImagePlateParameters::StaticStruct(), GET_MEMBER_NAME_CHECKED(FImagePlateParameters, RenderTexture));
+		FStructProperty* ImagePlateProperty = ImagePlateComponent->GetImagePlateProperty();
+		FProperty* RenderTargetProperty = FindField<FProperty>(FImagePlateParameters::StaticStruct(), GET_MEMBER_NAME_CHECKED(FImagePlateParameters, RenderTexture));
 
 		check(ImagePlateProperty);
 		check(RenderTargetProperty);

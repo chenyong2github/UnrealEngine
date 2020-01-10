@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	InputSettings.cpp: Project configurable input settings
@@ -125,7 +125,7 @@ void UInputSettings::PopulateAxisConfigs()
 }
 
 #if WITH_EDITOR
-void UInputSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
+void UInputSettings::PostReloadConfig( FProperty* PropertyThatWasLoaded )
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 	PopulateAxisConfigs();

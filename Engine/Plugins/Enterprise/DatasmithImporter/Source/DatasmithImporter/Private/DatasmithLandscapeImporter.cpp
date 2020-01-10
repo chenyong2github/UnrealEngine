@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithLandscapeImporter.h"
 
@@ -117,7 +117,7 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 	Landscape->RegisterAllComponents();
 
 	// Need to explicitly call PostEditChange on the LandscapeMaterial property or the landscape proxy won't update its material
-	FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< UProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
+	FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
 	Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
 	Landscape->PostEditChange();
 

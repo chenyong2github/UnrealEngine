@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DesktopPlatformWindows.h"
 #include "DesktopPlatformPrivate.h"
@@ -257,7 +257,7 @@ bool FDesktopPlatformWindows::FileDialogShared(bool bSave, const void* ParentWin
 								int32 WildCardIndex = INDEX_NONE;
 								if (CleanExtension.FindChar(TEXT('*'), WildCardIndex))
 								{
-									CleanExtension = CleanExtension.RightChop(WildCardIndex + 1);
+									CleanExtension.RightChopInline(WildCardIndex + 1, false);
 								}
 							}
 

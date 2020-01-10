@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -186,6 +186,7 @@ public:
 	virtual FString GetRegion() const override;
 	virtual FString GetScript() const override;
 	virtual FString GetVariant() const override;
+	virtual bool IsRightToLeft() const override;
 	virtual const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() override;
 	virtual const FDecimalNumberFormattingRules& GetPercentFormattingRules() override;
 	virtual const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) override;

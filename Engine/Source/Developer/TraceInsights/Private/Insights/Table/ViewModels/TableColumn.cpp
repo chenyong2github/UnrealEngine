@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TableColumn.h"
 
@@ -15,7 +15,7 @@ namespace Insights
 
 TSharedRef<ITableCellValueGetter> FTableColumn::GetDefaultValueGetter()
 {
-	return MakeShareable(new FTableCellValueGetter());
+	return MakeShared<FTableCellValueGetter>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ const TOptional<FTableCellValue> FTableColumn::GetValue(const FBaseTreeNode& InN
 
 TSharedRef<ITableCellValueFormatter> FTableColumn::GetDefaultValueFormatter()
 {
-	return MakeShareable(new FTableCellValueFormatter());
+	return MakeShared<FTableCellValueFormatter>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

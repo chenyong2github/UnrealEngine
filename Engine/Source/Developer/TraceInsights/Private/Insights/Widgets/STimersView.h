@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -56,7 +56,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~STimersView();
 
-	SLATE_BEGIN_ARGS(STimersView){}
+	SLATE_BEGIN_ARGS(STimersView) {}
 	SLATE_END_ARGS()
 
 	/**

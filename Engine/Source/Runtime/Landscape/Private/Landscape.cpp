@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Landscape.cpp: Terrain rendering
@@ -593,6 +593,17 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
 	return nullptr;
 }
 
+bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
+{
+	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
+	if (!HoleMaterial)
+	{
+		return false;
+	}
+
+	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+}
+
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
 {
 	for (const FWeightmapLayerAllocationInfo& Allocation : WeightmapLayerAllocations)
@@ -1048,6 +1059,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bCastStaticShadow = true;
 	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
+	bFillCollisionUnderLandscapeForNavmesh = false;
 	CollisionThickness = 16;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bGenerateOverlapEvents = false;
@@ -2433,6 +2445,14 @@ void ALandscapeProxy::PostLoad()
 		}
 	}
 
+	for (ULandscapeComponent* Comp : LandscapeComponents)
+	{
+		if (Comp)
+		{
+			Comp->UpdateRejectNavmeshUnderneath();
+		}
+	}
+
 	// track feature level change to flush grass cache
 	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
 	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
@@ -3737,12 +3757,16 @@ void ALandscapeProxy::UpdateBakedTextures()
 #endif
 
 template<class ContainerType>
-void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
+void InvalidateGeneratedComponentDataImpl(const ContainerType& Components, bool bInvalidateLightingCache)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
 	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
 	{
 		ULandscapeComponent* Component = *Iter;
+		if (bInvalidateLightingCache)
+		{
+			Component->InvalidateLightingCache();
+		}
 		Component->BakedTextureMaterialGuid.Invalidate();
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
@@ -3753,19 +3777,19 @@ void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 	}
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData()
+void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+	InvalidateGeneratedComponentDataImpl(LandscapeComponents, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
 #undef LOCTEXT_NAMESPACE

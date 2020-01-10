@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Sound/SoundSubmix.h"
 
 #include "AudioDevice.h"
@@ -239,7 +239,7 @@ void USoundSubmix::PostLoad()
 }
 
 #if WITH_EDITOR
-void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
+void USoundSubmix::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	static FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
 
@@ -317,7 +317,7 @@ void USoundSubmix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 				if (!bIsChildSubmix)
 				{
 					ParentSubmix->Modify();
-					ParentSubmix->ChildSubmixes.Add(this);
+					ParentSubmix->ChildSubmixes.AddUnique(this);
 				}
 			}
 
@@ -334,13 +334,10 @@ void USoundSubmix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		}
 	}
 
-	if (bReinitSubmix)
+	if (GEngine && bReinitSubmix)
 	{
-		// Use the main/default audio device for storing and retrieving sound class properties
-		FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
 		// Force the properties to be initialized for this SoundSubmix on all active audio devices
-		if (AudioDeviceManager)
+		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
 		{
 			AudioDeviceManager->RegisterSoundSubmix(this);
 		}
@@ -362,7 +359,7 @@ void USoundSubmix::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	Super::PostDuplicate(DuplicateMode);
 }
 
-bool USoundSubmix::RecurseCheckChild(USoundSubmix* ChildSoundSubmix)
+bool USoundSubmix::RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const
 {
 	for (int32 Index = 0; Index < ChildSubmixes.Num(); Index++)
 	{
@@ -395,6 +392,7 @@ void USoundSubmix::SetParentSubmix(USoundSubmix* InParentSubmix)
 
 		Modify();
 		ParentSubmix = InParentSubmix;
+		ParentSubmix->ChildSubmixes.AddUnique(this);
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
@@ -92,7 +92,7 @@ namespace Chaos
 		{
 			for (int32 i = 0; i < NumElements; ++i)
 			{
-				V[i] = static_cast<T>(Other.V[i]);
+				V[i] = static_cast<T>(Other[i]);
 			}
 		}
 
@@ -622,6 +622,14 @@ namespace Chaos
 		{
 			return TVector<float, 2>(X / Other, Y / Other);
 		}
+		TVector<float, 2> operator*(const float Other) const
+		{
+			return TVector<float, 2>(X * Other, Y * Other);
+		}
+		TVector<float, 2> operator*(const TVector<float, 2>& Other) const
+		{
+			return TVector<float, 2>(X * Other[0], Y * Other[1]);
+		}
 	};
 #endif // !COMPILE_WITHOUT_UNREAL_SUPPORT
 
@@ -804,6 +812,11 @@ namespace Chaos
 			: X((int32)InVector.X)
 			, Y((int32)InVector.Y)
 		{}
+		FORCEINLINE TVector(std::istream& Stream)
+		{
+			Stream.read(reinterpret_cast<char*>(&X), sizeof(int32));
+			Stream.read(reinterpret_cast<char*>(&Y), sizeof(int32));
+		}
 		FORCEINLINE ~TVector()
 		{}
 

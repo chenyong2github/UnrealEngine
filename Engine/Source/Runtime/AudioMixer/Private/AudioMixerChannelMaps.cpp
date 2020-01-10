@@ -1,11 +1,72 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Audio.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
 #include "Misc/ConfigCacheIni.h"
 
 namespace Audio
 {
+	/** Channel type matrix for submix speaker channel mappings. */
+	const TArray<TArray<EAudioMixerChannel::Type>> SubmixOutputChannelMatrix
+	{
+		// ESubmixChannelFormat::Device
+		// Placeholder: Should never be used as Device signifies dynamically set
+		{
+		},
+
+		// ESubmixChannelFormat::Stereo
+		{
+			EAudioMixerChannel::FrontLeft,
+			EAudioMixerChannel::FrontRight
+		},
+
+		// ESubmixChannelFormat::Quad
+		{
+			EAudioMixerChannel::FrontLeft,
+			EAudioMixerChannel::FrontRight,
+			EAudioMixerChannel::SideLeft,
+			EAudioMixerChannel::SideRight
+		},
+
+		// ESubmixChannelFormat::FiveDotOne
+		{
+			EAudioMixerChannel::FrontLeft,
+			EAudioMixerChannel::FrontRight,
+			EAudioMixerChannel::FrontCenter,
+			EAudioMixerChannel::LowFrequency,
+			EAudioMixerChannel::SideLeft,
+			EAudioMixerChannel::SideRight
+		},
+
+		// ESubmixChannelFormat::SevenDotOne
+		{
+			EAudioMixerChannel::FrontLeft,
+			EAudioMixerChannel::FrontRight,
+			EAudioMixerChannel::FrontCenter,
+			EAudioMixerChannel::LowFrequency,
+			EAudioMixerChannel::BackLeft,
+			EAudioMixerChannel::BackRight,
+			EAudioMixerChannel::SideLeft,
+			EAudioMixerChannel::SideRight
+		},
+
+		// ESubmixChannelFormat::Ambisonics
+		// Ambisonics output is encoded to max encoded channel (i.e. 7.1).
+		// To support ambisonic encoded output, will need to convert to
+		// Ambisonics_W/X/Y/Z alias values.
+		{
+			EAudioMixerChannel::FrontLeft,
+			EAudioMixerChannel::FrontRight,
+			EAudioMixerChannel::FrontCenter,
+			EAudioMixerChannel::LowFrequency,
+			EAudioMixerChannel::BackLeft,
+			EAudioMixerChannel::BackRight,
+			EAudioMixerChannel::SideLeft,
+			EAudioMixerChannel::SideRight
+		}, 
+	};
+
 	// Tables based on Ac-3 down-mixing
 	// Rows: output speaker configuration
 	// Cols: input source channels
@@ -542,10 +603,10 @@ namespace Audio
 
 		// ambisonics is special cased and uses a plugin.
 		TArray<FChannelPositionInfo> FirstOrderAmbisonicsPositions;
-		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::FrontLeft]);
-		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::FrontRight]);
-		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::SideLeft]);
-		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::SideRight]);
+		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::Ambisonics_W]);
+		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::Ambisonics_X]);
+		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::Ambisonics_Y]);
+		FirstOrderAmbisonicsPositions.Add(DefaultChannelAzimuthPosition[EAudioMixerChannel::Ambisonics_Z]);
 		FirstOrderAmbisonicsPositions.Sort(FCompareByAzimuth());
 		ChannelAzimuthPositions.Add(ESubmixChannelFormat::Ambisonics, FirstOrderAmbisonicsPositions);
 		OutputChannels[int32(ESubmixChannelFormat::Ambisonics)] = FirstOrderAmbisonicsPositions.Num();
@@ -574,14 +635,16 @@ namespace Audio
 		return ESubmixChannelFormat::Device;
 	}
 
-	const TArray<EAudioMixerChannel::Type>& FMixerDevice::GetChannelArrayForSubmixChannelType(const ESubmixChannelFormat InSubmixChannelType) const
+	const TArray<EAudioMixerChannel::Type>& FMixerDevice::GetChannelArrayForSubmixChannelFormat(const ESubmixChannelFormat InSubmixChannelFormat) const
 	{
-		if (InSubmixChannelType == ESubmixChannelFormat::Device)
+		if (InSubmixChannelFormat == ESubmixChannelFormat::Device)
 		{
 			return PlatformInfo.OutputChannelArray;
 		}
-		const TArray<EAudioMixerChannel::Type>* ChannelArray = ChannelArrays.Find(InSubmixChannelType);
-		return *ChannelArray;
-	}
 
+		static_assert(static_cast<int32>(ESubmixChannelFormat::Count) == 6, "ESubmixChannelFormat count must match SubmixOutputChannelMatrix size");
+
+		const int32 ChannelFormatIndex = static_cast<int32>(InSubmixChannelFormat);
+		return SubmixOutputChannelMatrix[ChannelFormatIndex];
+	}
 }

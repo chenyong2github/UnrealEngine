@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -170,6 +170,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void SetIsUsingTransformGizmo(const bool bInIsUsingTransformGizmo);
 
+	/** Set value of cvar "VI.ShowTransformGizmo" */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static void SetShowTransformGizmoCVar(const bool bInShowTransformGizmoCVar);
+
 	/** Get flight speed for scouting in VR */
 	UFUNCTION(BlueprintPure, Category = "Virtual Production")
 	static float GetFlightSpeed();
@@ -193,6 +197,10 @@ public:
 	/** Set whether grip nav inertia is enabled when scouting in VR */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void SetIsUsingInertiaDamping(const bool bInIsUsingInertiaDamping);
+
+	/** Set value of cvar "VI.HighSpeedInertiaDamping" */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static void SetInertiaDampingCVar(const float InInertiaDamping);
 
 	/** Whether the helper system on the controllers is enabled */
 	UFUNCTION(BlueprintPure, Category = "Virtual Production")

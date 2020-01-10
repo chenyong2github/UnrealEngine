@@ -1,20 +1,24 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Particles.h"
 #include "ChaosArchive.h"
 #include "Chaos/ParticleHandleFwd.h"
 
-extern int32 CHAOS_API CollisionParticlesBVHDepth;
 
 namespace Chaos
 {
+	extern int32 CHAOS_API CollisionParticlesBVHDepth;
+
+    template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+    class TBoundingVolumeHierarchy;
+
 
     template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
     class TBoundingVolumeHierarchy;
 
     template<class T, int d>
-    class TBox;
+    class TAABB;
 
 	template<class T, int d>
 	class TBVHParticles final /*Note: removing this final has implications for serialization. See TImplicitObject*/ : public TParticles<T, d>
@@ -38,7 +42,7 @@ namespace Chaos
 		}
 
 		CHAOS_API void UpdateAccelerationStructures();
-		const TArray<int32> FindAllIntersections(const TBox<T, d>& Object) const;
+		const TArray<int32> FindAllIntersections(const TAABB<T, d>& Object) const;
 
 		static TBVHParticles<T,d>* SerializationFactory(FChaosArchive& Ar, TBVHParticles<T,d>* BVHParticles)
 		{

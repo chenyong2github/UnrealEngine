@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/Parse.h"
+#include "Trace/Trace.h"
 
 #if COUNTERSTRACE_ENABLED
 

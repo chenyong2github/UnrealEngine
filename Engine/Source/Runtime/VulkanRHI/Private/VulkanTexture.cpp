@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanTexture.cpp: Vulkan texture RHI implementation.
@@ -1869,7 +1869,7 @@ FVulkanTexture2D::FVulkanTexture2D(const FVulkanTexture2D* SrcTexture)
 
 FVulkanTexture2D::~FVulkanTexture2D()
 {
-	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0)
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}
@@ -1921,7 +1921,7 @@ FVulkanTextureCube::FVulkanTextureCube(const FVulkanTextureCube* SrcTexture)
 
 FVulkanTextureCube::~FVulkanTextureCube()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}
@@ -1936,7 +1936,7 @@ FVulkanTexture3D::FVulkanTexture3D(FVulkanDevice& Device, EPixelFormat Format, u
 
 FVulkanTexture3D::~FVulkanTexture3D()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable)) != 0)
+	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
 		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 	}

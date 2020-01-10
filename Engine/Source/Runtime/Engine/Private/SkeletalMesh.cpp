@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkeletalMesh.cpp: Unreal skeletal mesh and animation implementation.
@@ -470,41 +470,45 @@ void USkeletalMesh::ValidateBoundsExtension()
 /* Return true if the reduction settings are setup to reduce a LOD*/
 bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
-	FSkeletalMeshOptimizationSettings ReductionSettings = GetReductionSettings(LODIndex);
-	IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface();
-	uint32 LODVertexNumber = MAX_uint32;
-	uint32 LODTriNumber = MAX_uint32;
-	const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
-	bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
-	if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+	bool bReductionActive = false;
+	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface())
 	{
-		if (!bLODHasBeenSimplified)
+		FSkeletalMeshOptimizationSettings ReductionSettings = GetReductionSettings(LODIndex);
+		uint32 LODVertexNumber = MAX_uint32;
+		uint32 LODTriNumber = MAX_uint32;
+		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
+		bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
+		if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
 		{
-			LODVertexNumber = 0;
-			LODTriNumber = 0;
-			const FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LODIndex];
-			//We can take the vertices and triangles count from the source model
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
+			if (!bLODHasBeenSimplified)
 			{
-				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-
-				if (!Section.bDisabled)
+				LODVertexNumber = 0;
+				LODTriNumber = 0;
+				const FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LODIndex];
+				//We can take the vertices and triangles count from the source model
+				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
 				{
-					//Make sure the count fit in a uint32
-					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-					LODTriNumber += Section.NumTriangles;
+					const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+					if (!Section.bDisabled)
+					{
+						//Make sure the count fit in a uint32
+						LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+						LODTriNumber += Section.NumTriangles;
+					}
 				}
 			}
+			else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
+				&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
+			{
+				//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
+				USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
+				GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
+			}
 		}
-		else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
-			&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
-		{
-			//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
-			USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
-			GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
-		}
+		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
 	}
-	return ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
+	return bReductionActive;
 }
 
 /* Get a copy of the reduction settings for a specified LOD index. */
@@ -524,6 +528,9 @@ void USkeletalMesh::AddClothingAsset(UClothingAssetBase* InNewAsset)
 	{
 		// Ok this should be a correctly created asset, we can add it
 		MeshClothingAssets.AddUnique(InNewAsset);
+
+		// Consolidate the shared cloth configs
+		InNewAsset->PostUpdateAllAssets();
 
 #if WITH_EDITOR
 		OnClothingChange.Broadcast();
@@ -984,6 +991,18 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 #endif
 }
 
+bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < CalcNumOptionalMips());
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
+}
+
 bool USkeletalMesh::IsReadyForStreaming() const
 {
 	return SkeletalMeshRenderData && SkeletalMeshRenderData->bReadyForStreaming;
@@ -1263,7 +1282,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	bool bFullPrecisionUVsReallyChanged = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	
 	bool bHasToReregisterComponent = false;
 	// Don't invalidate render data when dragging sliders, too slow
@@ -1281,8 +1300,8 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 
 	if( GIsEditor &&
-		Cast<UObjectProperty>(PropertyThatChanged) &&
-		Cast<UObjectProperty>(PropertyThatChanged)->PropertyClass == UMorphTarget::StaticClass() )
+		CastField<FObjectProperty>(PropertyThatChanged) &&
+		CastField<FObjectProperty>(PropertyThatChanged)->PropertyClass == UMorphTarget::StaticClass() )
 	{
 		// A morph target has changed, reinitialize morph target maps
 		InitMorphTargets();
@@ -1296,7 +1315,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		BuildPhysicsData();
 	}
 
-	if(UProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
+	if(FProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
 	{
 		if(MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PositiveBoundsExtension) ||
 			MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, NegativeBoundsExtension))
@@ -2037,6 +2056,12 @@ void USkeletalMesh::PostLoad()
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
+	// Consolidate the shared cloth configs once all cloth assets are loaded
+	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
+	{
+		MeshClothingAsset->PostUpdateAllAssets();
+	}
+
 #if WITH_EDITOR
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
@@ -2274,7 +2299,7 @@ void USkeletalMesh::PostLoad()
 		for(UClothingAssetBase* ClothingAsset : MeshClothingAssets)
 		{
 			if(ClothingAsset) 
-				ClothingAsset->InvalidateCachedData();
+			ClothingAsset->InvalidateCachedData();
 		}
 	}
 
@@ -4093,9 +4118,15 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		,	bForceWireframe(Component->bForceWireframe)
 		,	bCanHighlightSelectedSections(Component->bCanHighlightSelectedSections)
 		,	bRenderStatic(Component->bRenderStatic)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		,	bDrawDebugSkeleton(Component->ShouldDrawDebugSkeleton())
+#endif
 		,	FeatureLevel(GetScene().GetFeatureLevel())
 		,	bMaterialsNeedMorphUsage_GameThread(false)
 		,	MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		,	DebugDrawColor(Component->GetDebugDrawColor())
+#endif
 #if WITH_EDITORONLY_DATA
 		,	StreamingDistanceMultiplier(FMath::Max(0.0f, Component->StreamingDistanceMultiplier))
 #endif
@@ -4593,7 +4624,7 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 				RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
 			}
 
-			if (ViewFamily.EngineShowFlags.Bones)
+			if (ViewFamily.EngineShowFlags.Bones || bDrawDebugSkeleton)
 			{
 				DebugDrawSkeleton(ViewIndex, Collector, ViewFamily.EngineShowFlags);
 			}
@@ -4786,6 +4817,13 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				ensure(LODSections.Num() > 0);
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
 				check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
+				
+				//#dxr_todo: verify why this condition is not fulfilled sometimes
+				verify(LODSection.SectionElements.Num() == MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num());
+				if(LODSection.SectionElements.Num() != MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num())
+				{
+					return;
+				}
 
 			#if WITH_EDITORONLY_DATA
 				int32 SectionIndexPreview = MeshObject->SectionIndexPreview;
@@ -5002,6 +5040,7 @@ void FSkeletalMeshSceneProxy::DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElemen
 
 void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FMatrix ProxyLocalToWorld, WorldToLocal;
 	if (!GetWorldMatrices(ProxyLocalToWorld, WorldToLocal))
 	{
@@ -5025,7 +5064,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 		const int32 ParentIndex = SkeletalMeshForDebug->RefSkeleton.GetParentIndex(Index);
 		FVector Start, End;
 		
-		FLinearColor LineColor = MakeRandomColorForSkeleton(GetPrimitiveComponentId().PrimIDValue);
+		FLinearColor LineColor = DebugDrawColor.Get(MakeRandomColorForSkeleton(GetPrimitiveComponentId().PrimIDValue));
 		const FTransform Transform = ComponentSpaceTransforms[Index] * LocalToWorldTransform;
 
 		if (ParentIndex >= 0)
@@ -5039,7 +5078,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 			End = Transform.GetLocation();
 		}
 
-		if(EngineShowFlags.Bones)
+		if(EngineShowFlags.Bones || bDrawDebugSkeleton)
 		{
 			if(CVarDebugDrawSimpleBones.GetValueOnRenderThread() != 0)
 			{
@@ -5056,6 +5095,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 			}
 		}
 	}
+#endif
 }
 
 /**

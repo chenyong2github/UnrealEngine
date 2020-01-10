@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -11,13 +11,13 @@
 class AActor;
 struct FAssetData;
 
-UCLASS(MinimalAPI, config=Editor, collapsecategories, hidecategories=Object)
+UCLASS(MinimalAPI, config = Editor, collapsecategories, hidecategories = Object)
 class UNREALED_VTABLE UActorFactoryBoxVolume : public UActorFactoryVolume
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UActorFactory Interface
-	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
-	UNREALED_API virtual void PostSpawnActor( UObject* Asset, AActor* NewActor ) override;
+	UNREALED_API virtual bool CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg) override;
+	UNREALED_API virtual void PostSpawnActor(UObject* Asset, AActor* NewActor) override;
 	//~ End UActorFactory Interface
 };

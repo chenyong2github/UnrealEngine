@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Settings/EditorSettings.h"
 #include "HAL/FileManager.h"
@@ -19,7 +19,7 @@ UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 
 void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	const FName Name = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	if (Name == FName(TEXT("bLoadTheMostRecentlyLoadedProjectAtStartup")))

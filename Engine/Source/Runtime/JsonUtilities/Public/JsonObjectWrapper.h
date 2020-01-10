@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,6 +31,9 @@ public:
 	{
 		return JsonObject.IsValid();
 	}
+
+	bool JsonObjectToString(FString& Str) const;
+	bool JsonObjectFromString(const FString& Str);
 };
 
 template<>

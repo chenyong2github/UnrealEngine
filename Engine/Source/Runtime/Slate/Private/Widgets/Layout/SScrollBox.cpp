@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Rendering/DrawElements.h"
@@ -131,6 +131,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 	NavigationScrollPadding = InArgs._NavigationScrollPadding;
 	NavigationDestination = InArgs._NavigationDestination;
+	ScrollWhenFocusChanges = InArgs._ScrollWhenFocusChanges;
 	bTouchPanningCapture = false;
 	bVolatilityAlwaysInvalidatesPrepass = true;
 
@@ -996,6 +997,17 @@ FNavigationReply SScrollBox::OnNavigation(const FGeometry& MyGeometry, const FNa
 	}
 
 	return SCompoundWidget::OnNavigation(MyGeometry, InNavigationEvent);
+}
+
+void SScrollBox::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent)
+{
+	if (ScrollWhenFocusChanges != EScrollWhenFocusChanges::NoScroll)
+	{
+		if (NewWidgetPath.IsValid() && NewWidgetPath.ContainsWidget(SharedThis(this)))
+		{
+			ScrollDescendantIntoView(NewWidgetPath.GetLastWidget(), ScrollWhenFocusChanges == EScrollWhenFocusChanges::AnimatedScroll ? true : false, NavigationDestination, NavigationScrollPadding);
+		}
+	}
 }
 
 TSharedPtr<SWidget> SScrollBox::GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget)

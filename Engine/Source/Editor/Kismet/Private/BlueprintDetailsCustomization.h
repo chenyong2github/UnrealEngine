@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,6 +16,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "SMyBlueprint.h"
 #include "SGraphPin.h"
+#include "UObject/WeakFieldPtr.h"
 
 class Error;
 class FBlueprintGlobalOptionsDetails;
@@ -75,7 +76,7 @@ protected:
 
 	UBlueprint* GetBlueprintObj() const { return Blueprint.Get(); }
 
-	void AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, UProperty* VariableProperty);
+	void AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, FProperty* VariableProperty);
 	FReply HandleAddOrViewEventForVariable(const FName EventName, FName PropertyName, TWeakObjectPtr<UClass> PropertyClass);
 	int32 HandleAddOrViewIndexForButton(const FName EventName, FName PropertyName) const;
 
@@ -113,16 +114,16 @@ private:
 	FEdGraphSchemaAction_K2Var* MyBlueprintSelectionAsVar() const {return MyBlueprint.Pin()->SelectionAsVar();}
 	FEdGraphSchemaAction_K2LocalVar* MyBlueprintSelectionAsLocalVar() const {return MyBlueprint.Pin()->SelectionAsLocalVar();}
 	UK2Node_Variable* EdGraphSelectionAsVar() const;
-	UProperty* CustomizedObjectAsProperty() const;
-	UProperty* SelectionAsProperty() const;
+	FProperty* CustomizedObjectAsProperty() const;
+	FProperty* SelectionAsProperty() const;
 	FName GetVariableName() const;
 
 	/** Commonly queried attributes about the schema action */
-	bool IsAUserVariable(UProperty* VariableProperty) const;
-	bool IsASCSVariable(UProperty* VariableProperty) const;
-	bool IsABlueprintVariable(UProperty* VariableProperty) const;
-	bool IsALocalVariable(UProperty* VariableProperty) const;
-	UStruct* GetLocalVariableScope(UProperty* VariableProperty) const;
+	bool IsAUserVariable(FProperty* VariableProperty) const;
+	bool IsASCSVariable(FProperty* VariableProperty) const;
+	bool IsABlueprintVariable(FProperty* VariableProperty) const;
+	bool IsALocalVariable(FProperty* VariableProperty) const;
+	UStruct* GetLocalVariableScope(FProperty* VariableProperty) const;
 
 	// Callbacks for uproperty details customization
 	bool GetVariableNameChangeEnabled() const;
@@ -283,7 +284,7 @@ private:
 	TWeakPtr< SListView< TSharedPtr< FString > > > PropertyFlagWidget;
 
 	/** Cached property for the variable we are affecting */
-	TWeakObjectPtr<UProperty> CachedVariableProperty;
+	TWeakFieldPtr<FProperty> CachedVariableProperty;
 
 	/** Cached name for the variable we are affecting */
 	FName CachedVariableName;
@@ -394,7 +395,7 @@ private:
 
 	void SetEntryNode();
 
-	UMulticastDelegateProperty* GetDelegateProperty() const;
+	FMulticastDelegateProperty* GetDelegateProperty() const;
 
 	void CollectAvailibleSignatures();
 	void OnFunctionSelected(TSharedPtr<FString> FunctionItemData, ESelectInfo::Type SelectInfo);

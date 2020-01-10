@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Application/SlateUser.h"
 #include "Framework/Application/SlateApplication.h"
@@ -128,6 +128,11 @@ bool FSlateUser::ShouldShowFocus(TSharedPtr<const SWidget> Widget) const
 bool FSlateUser::HasFocusedDescendants(TSharedRef<const SWidget> Widget) const
 {
 	return WeakFocusPath.IsValid() && WeakFocusPath.GetLastWidget().Pin() != Widget && WeakFocusPath.ContainsWidget(Widget);
+}
+
+bool FSlateUser::IsWidgetInFocusPath(TSharedPtr<const SWidget> Widget) const
+{
+	return Widget && WeakFocusPath.IsValid() && WeakFocusPath.ContainsWidget(Widget.ToSharedRef());
 }
 
 bool FSlateUser::SetFocus(const TSharedRef<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging)
@@ -326,6 +331,20 @@ TSharedPtr<SWidget> FSlateUser::GetPointerCaptor(uint32 PointerIndex) const
 	return WeakCaptorPath ? WeakCaptorPath->GetLastWidget().Pin() : nullptr;
 }
 
+void FSlateUser::SetCursorVisibility(bool bDrawCursor)
+{
+	bCanDrawCursor = bDrawCursor;
+	
+	if (bCanDrawCursor)
+	{
+		RequestCursorQuery();
+	}
+	else
+	{
+		ProcessCursorReply(FCursorReply::Cursor(EMouseCursor::None));
+	}
+}
+
 void FSlateUser::SetCursorPosition(int32 PosX, int32 PosY)
 {
 	SetPointerPosition(FSlateApplication::CursorPointerIndex, PosX, PosY);
@@ -513,6 +532,11 @@ void FSlateUser::CloseTooltip()
 	}
 }
 
+bool FSlateUser::IsTouchPointerActive(int32 TouchPointerIndex) const
+{
+	return TouchPointerIndex < (int32)ETouchIndex::CursorPointerIndex && PointerPositionsByIndex.Contains(TouchPointerIndex);
+}
+
 void FSlateUser::DrawWindowlessDragDropContent(const TSharedRef<SWindow>& WindowToDraw, FSlateWindowElementList& WindowElementList, int32& MaxLayerId)
 {
 	if (DragDropContent && DragDropContent->IsWindowlessOperation())
@@ -547,7 +571,7 @@ void FSlateUser::DrawWindowlessDragDropContent(const TSharedRef<SWindow>& Window
 void FSlateUser::DrawCursor(const TSharedRef<SWindow>& WindowToDraw, FSlateWindowElementList& WindowElementList, int32& MaxLayerId)
 {
 	TSharedPtr<SWindow> CursorWindow = CursorWindowPtr.Pin();
-	if (CursorWindow && WindowToDraw == CursorWindow)
+	if (bCanDrawCursor && CursorWindow && WindowToDraw == CursorWindow)
 	{
 		if (TSharedPtr<SWidget> CursorWidget = CursorWidgetPtr.Pin())
 		{
@@ -649,7 +673,7 @@ void FSlateUser::QueryCursor()
 	bQueryCursorRequested = false;
 
 	// The slate loading widget thread is not allowed to execute this code (it's unsafe to read the hittest grid in another thread)
-	if (Cursor && IsInGameThread())
+	if (bCanDrawCursor && Cursor && IsInGameThread())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateQueryCursor);
 
@@ -667,14 +691,15 @@ void FSlateUser::QueryCursor()
 			const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 			const FVector2D CurrentCursorPosition = GetCursorPosition();
 			const FVector2D LastCursorPosition = GetPreviousCursorPosition();
-
+			
+			const TSet<FKey> EmptySet;
 			const FPointerEvent CursorEvent(
 				SlateApp.GetUserIndexForMouse(),
 				FSlateApplication::CursorPointerIndex,
 				CurrentCursorPosition,
 				LastCursorPosition,
 				CurrentCursorPosition - LastCursorPosition,
-				bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : TSet<FKey>(),
+				bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : EmptySet,
 				bHasHardwareCursor ? SlateApp.GetModifierKeys() : FModifierKeysState());
 
 			FWidgetPath WidgetsToQueryForCursor;
@@ -696,7 +721,7 @@ void FSlateUser::QueryCursor()
 			}
 			else
 			{
-				WidgetsToQueryForCursor = SlateApp.LocateWindowUnderMouse(CurrentCursorPosition, SlateApp.GetInteractiveTopLevelWindows());
+				WidgetsToQueryForCursor = SlateApp.LocateWindowUnderMouse(CurrentCursorPosition, SlateApp.GetInteractiveTopLevelWindows(), false, UserIndex);
 			}
 
 			if (WidgetsToQueryForCursor.IsValid())
@@ -803,20 +828,27 @@ void FSlateUser::ProcessCursorReply(const FCursorReply& CursorReply)
 {
 	if (Cursor && CursorReply.IsEventHandled())
 	{
-		CursorWidgetPtr = CursorReply.GetCursorWidget();
-		if (CursorReply.GetCursorWidget().IsValid())
+		if (bCanDrawCursor)
 		{
-			CursorReply.GetCursorWidget()->SetVisibility(EVisibility::HitTestInvisible);
-			CursorWindowPtr = CursorReply.GetCursorWindow();
-			if (!FSlateApplication::Get().IsFakingTouchEvents())
+			CursorWidgetPtr = CursorReply.GetCursorWidget();
+			if (CursorReply.GetCursorWidget().IsValid())
 			{
-				Cursor->SetType(EMouseCursor::Custom);
+				CursorReply.GetCursorWidget()->SetVisibility(EVisibility::HitTestInvisible);
+				CursorWindowPtr = CursorReply.GetCursorWindow();
+				if (!FSlateApplication::Get().IsFakingTouchEvents())
+				{
+					Cursor->SetType(EMouseCursor::Custom);
+				}
+			}
+			else
+			{
+				CursorWindowPtr.Reset();
+				Cursor->SetType(CursorReply.GetCursorType());
 			}
 		}
 		else
 		{
-			CursorWindowPtr.Reset();
-			Cursor->SetType(CursorReply.GetCursorType());
+			Cursor->SetType(EMouseCursor::None);
 		}
 	}
 	else
@@ -875,6 +907,14 @@ TSharedRef<SWindow> FSlateUser::GetOrCreateTooltipWindow()
 	return NewTooltipWindow;
 }
 
+void FSlateUser::NotifyTouchStarted(const FPointerEvent& TouchEvent)
+{
+	UE_CLOG(PointerPositionsByIndex.Contains(TouchEvent.GetUserIndex()), LogSlate, Error, TEXT("SlateUser [%d] notified of a touch starting for pointer [%d] without finding out it ever ended."));
+	
+	GestureDetector.OnTouchStarted(TouchEvent.GetPointerIndex(), TouchEvent.GetScreenSpacePosition());
+	PointerPositionsByIndex.FindOrAdd(TouchEvent.GetPointerIndex()) = TouchEvent.GetScreenSpacePosition();
+}
+
 void FSlateUser::NotifyPointerMoveBegin(const FPointerEvent& PointerEvent)
 {
 	if (PointerEvent.IsTouchEvent())
@@ -923,7 +963,7 @@ void FSlateUser::NotifyPointerMoveComplete(const FPointerEvent& PointerEvent, co
 				CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
 			}
 
-			FSlateApplication::Get().ProcessCursorReply(CursorReply);
+			ProcessCursorReply(CursorReply);
 		}
 		
 	}
@@ -998,7 +1038,7 @@ void FSlateUser::NotifyPointerReleased(const FPointerEvent& PointerEvent, const 
 				WidgetsUnderCursor.Widgets[WidgetIndex].Widget->OnMouseLeave(PointerEvent);
 			}
 		}
-#if !UE_BUILD_SHIPPING
+#if WITH_SLATE_DEBUGGING
 		const bool bIsFingerCapturedPostRelease = PointerEvent.IsTouchEvent() && HasCapture(PointerEvent.GetPointerIndex());
 		ensureMsgf(!bIsFingerCapturedPostRelease, TEXT("Touch pointer was captured while in the process of being released. Since touch pointers cease to exist when the touch ends, this makes no sense."));
 #endif
@@ -1024,9 +1064,10 @@ void FSlateUser::NotifyPointerReleased(const FPointerEvent& PointerEvent, const 
 		// fingers no longer in contact with the screen.
 		ReleaseCapture(PointerIdx);
 
-		// When touch pointers are released, they also effectively cease to exist
+		// When touch pointers are released, they also effectively cease to exist until a touch begins again
 		PointerPositionsByIndex.Remove(PointerIdx);
 		PreviousPointerPositionsByIndex.Remove(PointerIdx);
+		WidgetsUnderPointerLastEventByIndex.Remove(PointerIdx);
 	}
 }
 
@@ -1072,7 +1113,7 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 	if (bCheckForTooltipChanges)
 	{
 		// We're gonna check each widget under the cursor (including disabled widgets) until we find one with a tooltip to show
-		FWidgetPath WidgetsUnderCursor = SlateApp.LocateWindowUnderMouse(GetCursorPosition(), SlateApp.GetInteractiveTopLevelWindows(), /*bIgnoreEnabledStatus =*/true);
+		FWidgetPath WidgetsUnderCursor = SlateApp.LocateWindowUnderMouse(GetCursorPosition(), SlateApp.GetInteractiveTopLevelWindows(), /*bIgnoreEnabledStatus =*/true, UserIndex);
 		if (WidgetsUnderCursor.IsValid() && WidgetsUnderCursor.GetWindow() != TooltipWindowPtr.Pin())
 		{
 			WidgetsToQueryForTooltip = WidgetsUnderCursor;

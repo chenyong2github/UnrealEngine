@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,7 @@
 #include "Misc/NetworkGuid.h"
 #include "UObject/CoreNetTypes.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/Field.h"
 
 class FOutBunch;
 class INetDeltaBaseState;
@@ -26,14 +27,14 @@ class FOutBunch;
 class COREUOBJECT_API FFieldNetCache
 {
 public:
-	UField*			Field;
+	FFieldVariant			Field;
 	int32			FieldNetIndex;
 	uint32			FieldChecksum;
 	mutable bool	bIncompatible;
 
 	FFieldNetCache()
 	{}
-	FFieldNetCache( UField* InField, int32 InFieldNetIndex, uint32 InFieldChecksum )
+	FFieldNetCache(FFieldVariant InField, int32 InFieldNetIndex, uint32 InFieldChecksum )
 		: Field(InField), FieldNetIndex(InFieldNetIndex), FieldChecksum(InFieldChecksum), bIncompatible(false)
 	{}
 };
@@ -53,13 +54,13 @@ public:
 		return FieldsBase + Fields.Num();
 	}
 
-	const FFieldNetCache* GetFromField( const UObject* Field ) const
+	const FFieldNetCache* GetFromField( FFieldVariant Field ) const
 	{
 		FFieldNetCache* Result = NULL;
 
 		for ( const FClassNetCache* C= this; C; C = C->Super )
 		{
-			if ( ( Result = C->FieldMap.FindRef( Field ) ) != NULL )
+			if ( ( Result = C->FieldMap.FindRef( Field.GetRawPointer() ) ) != NULL )
 			{
 				break;
 			}
@@ -106,7 +107,7 @@ private:
 	TWeakObjectPtr< const UClass >		Class;
 	uint32								ClassChecksum;
 	TArray< FFieldNetCache >			Fields;
-	TMap< UObject*, FFieldNetCache* >	FieldMap;
+	TMap< void*, FFieldNetCache* >	FieldMap;
 	TMap< uint32, FFieldNetCache* >		FieldChecksumMap;
 };
 
@@ -121,9 +122,9 @@ public:
 	const FClassNetCache*	GetClassNetCache( UClass* Class );
 	void					ClearClassNetCache();
 
-	void				SortProperties( TArray< UProperty* >& Properties ) const;
+	void				SortProperties( TArray< FProperty* >& Properties ) const;
 	uint32				SortedStructFieldsChecksum( const UStruct* Struct, uint32 Checksum ) const;
-	uint32				GetPropertyChecksum( const UProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
+	uint32				GetPropertyChecksum( const FProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
 	uint32				GetFunctionChecksum( const UFunction* Function, uint32 Checksum ) const;
 	uint32				GetFieldChecksum( const UField* Field, uint32 Checksum ) const;
 

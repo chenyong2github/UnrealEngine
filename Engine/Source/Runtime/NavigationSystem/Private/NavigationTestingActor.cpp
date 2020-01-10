@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavigationTestingActor.h"
 #include "NavigationSystem.h"
@@ -90,7 +90,7 @@ void ANavigationTestingActor::BeginDestroy()
 }
 
 #if WITH_EDITOR
-void ANavigationTestingActor::PreEditChange(UProperty* PropertyThatWillChange)
+void ANavigationTestingActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	static const FName NAME_OtherActor = GET_MEMBER_NAME_CHECKED(ANavigationTestingActor, OtherActor);
 

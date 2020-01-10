@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,7 @@ class FNiagaraEmitterViewModel;
 class FNiagaraScriptViewModel;
 class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
+class UNiagaraClipboardContent;
 
 UENUM()
 enum class EStackIssueSeverity : uint8
@@ -109,6 +110,7 @@ public:
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
+		static const FName ShaderStage;
 		static const FName Render;
 	};
 
@@ -241,6 +243,8 @@ public:
 	// expanded state with the tree which is done to prevent items being expanded on tick.
 	void SetIsExpanded(bool bInExpanded);
 
+	void SetIsExpanded_Recursive(bool bInExpanded);
+
 	virtual bool GetIsEnabled() const;
 
 	bool GetOwnerIsEnabled() const;
@@ -260,6 +264,21 @@ public:
 	void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
 
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
+
+	template<typename T>
+	void GetUnfilteredChildrenOfType(TArray<T*>& OutUnfilteredChldrenOfType) const
+	{
+		TArray<UNiagaraStackEntry*> UnfilteredChildren;
+		GetUnfilteredChildren(UnfilteredChildren);
+		for (UNiagaraStackEntry* UnfilteredChild : UnfilteredChildren)
+		{
+			T* UnfilteredChildOfType = Cast<T>(UnfilteredChild);
+			if (UnfilteredChildOfType != nullptr)
+			{
+				OutUnfilteredChldrenOfType.Add(UnfilteredChildOfType);
+			}
+		}
+	}
 
 	FOnStructureChanged& OnStructureChanged();
 
@@ -326,6 +345,37 @@ public:
 	const TArray<FStackIssue>& GetIssues() const;
 
 	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
+
+	virtual bool SupportsCut() const { return false; }
+
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const { return false; }
+
+	virtual FText GetCutTransactionText() const { return FText(); }
+
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const { }
+	virtual void RemoveForCut() { }
+
+	virtual bool SupportsCopy() const { return false; }
+
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const { return false; }
+
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const { }
+
+	virtual bool SupportsPaste() const { return false; }
+
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const { return false; }
+
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const { return FText(); }
+
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) { }
+
+	virtual bool SupportsDelete() const { return false; }
+
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
+
+	virtual FText GetDeleteTransactionText() const { return FText(); }
+
+	virtual void Delete() { }
 
 protected:
 	virtual void BeginDestroy() override;

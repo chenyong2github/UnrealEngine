@@ -53,7 +53,7 @@
   <Choose>
     <When Condition="'$(OS)' != 'Windows_NT'">
 	  <PropertyGroup>
-		<DefineConstants>__MonoCS__</DefineConstants>
+		<DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
 	  </PropertyGroup>
 	</When>
   </Choose>

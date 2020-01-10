@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_EDITOR
 
@@ -12,28 +12,35 @@ FRenderDocPluginNotification::FRenderDocPluginNotification()
 {
 }
 
-void FRenderDocPluginNotification::ShowNotification(const FText& Message)
+void FRenderDocPluginNotification::ShowNotification(const FText& Message, bool bForceNewNotification)
 {
 	LastEnableTime = FPlatformTime::Seconds();
 
-	// Starting a new request! Notify the UI.
-	if (RenderDocNotificationPtr.IsValid())
+	// Just update the previous new notification if there's one : 
+	if (RenderDocNotificationPtr.IsValid() && !bForceNewNotification)
 	{
-		RenderDocNotificationPtr.Pin()->ExpireAndFadeout();
+		RenderDocNotificationPtr.Pin()->SetText(Message);
 	}
-
-	FNotificationInfo Info (Message);
-	Info.bFireAndForget = false;
-
-	// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
-	Info.FadeOutDuration = 1.0f;
-	Info.ExpireDuration = 0.0f;
-
-	RenderDocNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-
-	if (RenderDocNotificationPtr.IsValid())
+	else
 	{
-		RenderDocNotificationPtr.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
+		// cancel the previous notification, if any, before starting out a new one : 
+		if (RenderDocNotificationPtr.IsValid())
+		{
+			RenderDocNotificationPtr.Pin()->ExpireAndFadeout();
+		}
+
+		FNotificationInfo Info(Message);
+		Info.bFireAndForget = false;
+
+		// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
+		Info.FadeOutDuration = 1.0f;
+		Info.ExpireDuration = 0.0f;
+
+		RenderDocNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+		if (RenderDocNotificationPtr.IsValid())
+		{
+			RenderDocNotificationPtr.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
+		}
 	}
 }
 

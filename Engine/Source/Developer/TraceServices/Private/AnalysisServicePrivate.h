@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -26,9 +26,7 @@ public:
 	void EndEdit();
 
 private:
-	FCriticalSection CriticalSection;
-	uint32 OwnerThread = 0;
-	bool IsReadOnly = false;
+	FRWLock RWLock;
 };
 
 class FAnalysisSession
@@ -83,7 +81,8 @@ class FAnalysisService
 public:
 	FAnalysisService(FModuleService& ModuleService);
 	virtual ~FAnalysisService();
-	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
+	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionUri) override;
+	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionUri) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
 	virtual FAnalysisStartedEvent& OnAnalysisStarted() override { return AnalysisStartedEvent; }
 	virtual FAnalysisFinishedEvent& OnAnalysisFinished() override { return AnalysisFinishedEvent; }

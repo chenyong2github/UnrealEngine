@@ -1,8 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 
 namespace Trace

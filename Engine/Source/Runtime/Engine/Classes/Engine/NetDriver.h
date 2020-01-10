@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //
 // Base class of a network driver attached to an active or pending level.
@@ -476,6 +476,13 @@ struct ENGINE_API FPacketSimulationSettings
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
 	int32	PktIncomingLoss = 0;
 
+	/**
+	 * Causes sent packets to have a variable latency that fluctuates from [PktLagMin] to [PktLagMin+PktJitter]
+	 * Note that this will cause packet loss on the receiving end.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktJitter = 0;
+
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
 	 */
@@ -562,6 +569,9 @@ public:
 	FString			PathName;
 	FName			StreamingLevelName;
 	EChannelCloseReason Reason;
+
+	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
+	bool bIgnoreDistanceCulling = false;
 
 	void CountBytes(FArchive& Ar)
 	{
@@ -780,12 +790,10 @@ public:
 	UClass* ReplicationDriverClass;
 
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RoleProperty;
+	FProperty* RoleProperty;
 	
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RemoteRoleProperty;
+	FProperty* RemoteRoleProperty;
 
 	/** Used to specify the net driver to filter actors with (NAME_None || NAME_GameNetDriver is the default net driver) */
 	UPROPERTY(Config)
@@ -1087,7 +1095,7 @@ public:
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void PostInitProperties() override;
-	ENGINE_API virtual void PostReloadConfig(UProperty* PropertyToLoad) override;
+	ENGINE_API virtual void PostReloadConfig(FProperty* PropertyToLoad) override;
 	ENGINE_API virtual void FinishDestroy() override;
 	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -1574,6 +1582,8 @@ public:
 	 */
 	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
 
+	bool DidHitchLastFrame() const;
+
 protected:
 
 	bool bMaySendProperties;
@@ -1619,4 +1629,5 @@ private:
 	bool bForcedPacketSettings;
 #endif 
 
+	bool bDidHitchLastFrame = false;
 };

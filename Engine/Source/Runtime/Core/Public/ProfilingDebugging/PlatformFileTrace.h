@@ -1,9 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED && PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
 #define PLATFORMFILETRACE_ENABLED 1

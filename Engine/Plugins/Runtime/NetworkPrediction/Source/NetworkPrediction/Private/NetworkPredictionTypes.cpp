@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionTypes.h"
 #include "Engine/NetConnection.h"
@@ -67,7 +67,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 		if (NetSimVLogCVars::UseVLogger)
 		{
 			static float CrumbRadius = 3.f;
-			UE_VLOG_LOCATION(Owner, LogNetworkSim, Log, Transform.GetLocation(), CrumbRadius, DrawColor, TEXT("%s"), *Params.DebugString);
+			UE_VLOG_LOCATION(Owner, LogNetworkSim, Log, Transform.GetLocation(), CrumbRadius, DrawColor, TEXT("%d"), Params.Frame);
 		}
 	}
 	else
@@ -107,6 +107,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 				LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
 				ActorExtent *= Transform.GetScale3D();
 				DrawDebugBox(World, Transform.GetLocation(), ActorExtent, Transform.GetRotation(), DrawColor, false, LifetimeSeconds, 0, Thickness);
+				DrawDebugString(World, Transform.GetLocation(), Params.DebugString, nullptr, DrawColor, PersistentLines ? NetSimVLogCVars::DrawDebugDefaultLifeTime : 0.f, false);
 			}
 
 			if (NetSimVLogCVars::UseVLogger)
@@ -119,6 +120,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 	if (NetSimVLogCVars::UseVLogger)
 	{
 		UE_VLOG(Owner, LogNetworkSim, Log, TEXT("%s"), *Params.DebugString);
+		UE_VLOG(Owner, LogNetworkSim, Log, TEXT("%s"), *Params.StateString);
 	}
 }
 

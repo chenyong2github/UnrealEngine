@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkeletalMeshImport.cpp: Skeletal mesh import code.
@@ -998,8 +998,6 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		for (int32 SectionIndex = 0; SectionIndex < NewSkelMeshLodModel.Sections.Num(); SectionIndex++)
 		{
 			int32 NewMeshSectionMaterialIndex = NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex;
-			//Get the new skelmesh section slot import name
-			FName NewMeshSectionSlotName = SkeletalMesh->Materials[NewMeshSectionMaterialIndex].ImportedMaterialSlotName;
 
 			if (RemapMaterial.IsValidIndex(NewMeshSectionMaterialIndex))
 			{
@@ -1034,36 +1032,34 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 			{
 				break;
 			}
-
-			FName CurrentSectionImportedMaterialName = SkeletalMesh->Materials[NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex].ImportedMaterialSlotName;
+			int32 CurrentSectionMaterialIndex = NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex;
+			FName CurrentSectionImportedMaterialName = SkeletalMesh->Materials[CurrentSectionMaterialIndex].ImportedMaterialSlotName;
 			for (int32 ExistSectionIndex = 0; ExistSectionIndex < MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].Num(); ++ExistSectionIndex)
 			{
-				int32 OriginalSectionIndex = NewSkelMeshLodModel.Sections[ExistSectionIndex].OriginalDataSectionIndex;
-				if (!MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(ExistSectionIndex) || !MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(OriginalSectionIndex))
+				if (!MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(ExistSectionIndex) || !MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(ExistSectionIndex))
 				{
 					continue;
 				}
-				//Get the Last imported skelmesh section slot import name
-				FName OriginalImportMeshSectionSlotName = MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex][ExistSectionIndex];
-				if (OriginalImportMeshSectionSlotName != CurrentSectionImportedMaterialName)
+				//The last import slot name is use to match the New import slot name
+				//If the user has change the slot in the editor the ExistMeshSectionSlotName will be different.
+				//This is why we use the ExistMeshSectionSlotName to restore the data and use the LastImportedMeshSectionSlotName to rematch the section
+				FName LastImportedMeshSectionSlotName = MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex][ExistSectionIndex];
+				if (LastImportedMeshSectionSlotName != CurrentSectionImportedMaterialName)
 				{
+					//This material do not match
 					continue;
 				}
+				//Restore the material slot
+				FName ExistMeshSectionSlotName = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][ExistSectionIndex].ImportedMaterialSlotName;
 
-				//Get the current skelmesh section slot import name
-				FName ExistMeshSectionSlotName = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][OriginalSectionIndex].ImportedMaterialSlotName;
+				//Override the new section material index to use the one that the user set
+				for (int32 RemapMaterialIndex = 0; RemapMaterialIndex < SkeletalMesh->Materials.Num(); ++RemapMaterialIndex)
 				{
-					//The last import slot name match the New import slot name, but the Exist slot name is different then the last import slot name.
-					//This mean the user has change the section assign slot and the fbx file did not change it
-					//Override the new section material index to use the one that the user set
-					for (int32 RemapMaterialIndex = 0; RemapMaterialIndex < SkeletalMesh->Materials.Num(); ++RemapMaterialIndex)
+					const FSkeletalMaterial &NewSectionMaterial = SkeletalMesh->Materials[RemapMaterialIndex];
+					if (NewSectionMaterial.ImportedMaterialSlotName == ExistMeshSectionSlotName)
 					{
-						const FSkeletalMaterial &NewSectionMaterial = SkeletalMesh->Materials[RemapMaterialIndex];
-						if (NewSectionMaterial.ImportedMaterialSlotName == ExistMeshSectionSlotName)
-						{
-							NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex = RemapMaterialIndex;
-							break;
-						}
+						NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex = RemapMaterialIndex;
+						break;
 					}
 				}
 				break;

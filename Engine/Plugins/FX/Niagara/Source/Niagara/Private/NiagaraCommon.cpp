@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
@@ -18,50 +18,57 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters")
 
 //////////////////////////////////////////////////////////////////////////
 
-FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UScriptStruct* Struct)
+FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
 {
 	FString Ret;
-	if (Struct == FNiagaraTypeDefinition::GetFloatStruct())
+	if (const UEnum* Enum = Cast<const UEnum>(StructOrEnum))
 	{
-		Ret += FString::Printf(TEXT("%g "), *(float*)ValueData);
+		Ret = Enum->GetNameStringByValue(*(int32*)ValueData);
 	}
-	else if (Struct == FNiagaraTypeDefinition::GetIntStruct())
+	else if (const UScriptStruct* Struct = Cast<const UScriptStruct>(StructOrEnum))
 	{
-		Ret += FString::Printf(TEXT("%d "), *(int32*)ValueData);
-	}
-	else if (Struct == FNiagaraTypeDefinition::GetBoolStruct())
-	{
-		int32 Val = *(int32*)ValueData;
-		Ret += Val == 0xFFFFFFFF ? (TEXT("True")) : ( Val == 0x0 ? TEXT("False") : TEXT("Invalid"));		
-	}
-	else
-	{
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		if (Struct == FNiagaraTypeDefinition::GetFloatStruct())
 		{
-			const UProperty* Property = *PropertyIt;
-			const uint8* PropPtr = ValueData + PropertyIt->GetOffset_ForInternal();
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			Ret += FString::Printf(TEXT("%g "), *(float*)ValueData);
+		}
+		else if (Struct == FNiagaraTypeDefinition::GetIntStruct())
+		{
+			Ret += FString::Printf(TEXT("%d "), *(int32*)ValueData);
+		}
+		else if (Struct == FNiagaraTypeDefinition::GetBoolStruct())
+		{
+			int32 Val = *(int32*)ValueData;
+			Ret += Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
+		}
+		else
+		{
+			for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
-			}
-			else if (Property->IsA(UIntProperty::StaticClass()))
-			{
-				Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);
-			}
-			else if (Property->IsA(UBoolProperty::StaticClass()))
-			{
-				int32 Val = *(int32*)ValueData;
-				FString BoolStr = Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
-				Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *BoolStr);
-			}
-			else if (const UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
-			{
-				Ret += FString::Printf(TEXT("%s: (%s) "), *Property->GetNameCPP(), *FNiagaraTypeHelper::ToString(PropPtr, StructProp->Struct));
-			}
-			else
-			{
-				check(false);
-				Ret += TEXT("Unknown Type");
+				const FProperty* Property = *PropertyIt;
+				const uint8* PropPtr = ValueData + PropertyIt->GetOffset_ForInternal();
+				if (Property->IsA(FFloatProperty::StaticClass()))
+				{
+					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
+				}
+				else if (Property->IsA(FIntProperty::StaticClass()))
+				{
+					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);
+				}
+				else if (Property->IsA(FBoolProperty::StaticClass()))
+				{
+					int32 Val = *(int32*)ValueData;
+					FString BoolStr = Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
+					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *BoolStr);
+				}
+				else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
+				{
+					Ret += FString::Printf(TEXT("%s: (%s) "), *Property->GetNameCPP(), *FNiagaraTypeHelper::ToString(PropPtr, StructProp->Struct));
+				}
+				else
+				{
+					check(false);
+					Ret += TEXT("Unknown Type");
+				}
 			}
 		}
 	}
@@ -71,19 +78,37 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UScriptStruct
 
 FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 {
+	CommitUpdate();
+}
+
+void FNiagaraSystemUpdateContext::CommitUpdate()
+{
 	for (UNiagaraSystem* Sys : SystemSimsToDestroy)
 	{
-		FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
+		if(Sys)
+		{
+			FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
+		}		
 	}
+	SystemSimsToDestroy.Empty();
 
 	for (UNiagaraComponent* Comp : ComponentsToReInit)
 	{
-		Comp->ReinitializeSystem();
+		if (Comp)
+		{
+			Comp->ReinitializeSystem();
+		}
 	}
+	ComponentsToReInit.Empty();
+
 	for (UNiagaraComponent* Comp : ComponentsToReset)
 	{
-		Comp->ResetSystem();
+		if (Comp)
+		{
+			Comp->ResetSystem();
+		}
 	}
+	ComponentsToReset.Empty();
 }
 
 void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
@@ -171,6 +196,11 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 
 void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReInit)
 {
+	if (bDestroyOnAdd)
+	{
+		Comp->DeactivateImmediate();
+	}
+
 	if (bReInit)
 	{
 		ComponentsToReInit.AddUnique(Comp);
@@ -403,3 +433,30 @@ FNiagaraUserParameterBinding::FNiagaraUserParameterBinding()
 	{
 
 	}
+
+//////////////////////////////////////////////////////////////////////////
+
+bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		UScriptStruct* Struct = FVMExternalFunctionBindingInfo::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+#if WITH_EDITORONLY_DATA
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (NiagaraVersion < FNiagaraCustomVersion::MemorySaving)
+	{
+		for (auto it = Specifiers_DEPRECATED.CreateConstIterator(); it; ++it)
+		{
+			FunctionSpecifiers.Emplace(it->Key, it->Value);
+		}
+	}
+#endif
+
+	return true;
+}

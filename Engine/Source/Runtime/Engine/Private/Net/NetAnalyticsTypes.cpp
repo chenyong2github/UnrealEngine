@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/NetAnalyticsTypes.h"
 #include "Algo/BinarySearch.h"
@@ -168,10 +168,13 @@ void FNetConnectionSaturationAnalytics::TrackFrame(const bool bIsSaturated)
 	{
 		++NumberOfSaturatedFrames;
 		++CurrentRunOfSaturatedFrames;
+        if (CurrentRunOfSaturatedFrames > LongestRunOfSaturatedFrames)
+        {
+            LongestRunOfSaturatedFrames = CurrentRunOfSaturatedFrames;
+        }
 	}
 	else
 	{
-		LongestRunOfSaturatedFrames = FMath::Max<uint32>(CurrentRunOfSaturatedFrames, LongestRunOfSaturatedFrames);
 		CurrentRunOfSaturatedFrames = 0;
 	}
 }
@@ -184,10 +187,13 @@ void FNetConnectionSaturationAnalytics::TrackReplication(const bool bIsSaturated
 	{
 		++NumberOfSaturatedReplications;
 		++CurrentRunOfSaturatedReplications;
+        if (CurrentRunOfSaturatedReplications > LongestRunOfSaturatedReplications)
+        {
+            LongestRunOfSaturatedReplications = CurrentRunOfSaturatedReplications;
+        }
 	}
 	else
 	{
-		LongestRunOfSaturatedReplications = FMath::Max<uint32>(CurrentRunOfSaturatedReplications, LongestRunOfSaturatedReplications);
 		CurrentRunOfSaturatedReplications = 0;
 	}
 }

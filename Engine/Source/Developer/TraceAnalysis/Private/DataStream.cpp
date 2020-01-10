@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataStream.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -59,17 +59,6 @@ void FFileStream::OpenFileInternal()
 	{
 		End = Inner->Size();
 	}
-}
-
-FStreamReader::FStreamReader(IInDataStream& InDataStream)
-	: DataStream(InDataStream)
-{
-	Buffer = new uint8[BufferSize];
-}
-
-FStreamReader::~FStreamReader()
-{
-	delete[] Buffer;
 }
 
 IInDataStream* DataStream_ReadFile(const TCHAR* FilePath)

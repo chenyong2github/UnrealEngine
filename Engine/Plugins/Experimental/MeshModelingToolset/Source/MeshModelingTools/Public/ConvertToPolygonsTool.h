@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -63,7 +63,7 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 protected:
 	UPROPERTY()

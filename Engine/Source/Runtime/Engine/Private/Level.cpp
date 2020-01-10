@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Level.cpp: Level-related functions
@@ -49,6 +49,7 @@ Level.cpp: Level-related functions
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Algo/AnyOf.h"
 #endif
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -58,6 +59,7 @@ Level.cpp: Level-related functions
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/Copy.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ObjectTrace.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -68,6 +70,75 @@ static FAutoConsoleVariableRef CVarActorClusteringEnabled(
 	TEXT("Whether to allow levels to create actor clusters for GC."),
 	ECVF_Default
 );
+
+#if WITH_EDITOR
+FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
+{
+	InterfacePtr = InLevel->GetLevelPartition();
+	Level = InLevel;
+	if (InterfacePtr)
+	{
+		InterfacePtr->BeginOperation(this);
+		Level = CreateTransientLevel(InLevel->GetWorld());
+	}
+}
+
+FLevelPartitionOperationScope::~FLevelPartitionOperationScope()
+{
+	if (InterfacePtr)
+	{
+		InterfacePtr->EndOperation();
+		DestroyTransientLevel(Level);
+	}
+	Level = nullptr;
+}
+
+TArray<AActor*> FLevelPartitionOperationScope::GetActors() const
+{
+	if (InterfacePtr)
+	{
+		return Level->Actors;
+	}
+
+	return {};
+}
+
+ULevel* FLevelPartitionOperationScope::GetLevel() const
+{
+	check(Level);
+	return Level;
+}
+
+ULevel* FLevelPartitionOperationScope::CreateTransientLevel(UWorld* InWorld)
+{
+	ULevel* Level = NewObject<ULevel>(GetTransientPackage(), TEXT("TempLevelPartitionOperationScopeLevel"));
+	check(Level);
+	Level->Initialize(FURL(nullptr));
+	Level->AddToRoot();
+	Level->OwningWorld = InWorld;
+	Level->Model = NewObject<UModel>(Level);
+	Level->Model->Initialize(nullptr, true);
+	Level->bIsVisible = true;
+
+	Level->SetFlags(RF_Transactional);
+	Level->Model->SetFlags(RF_Transactional);
+
+	return Level;
+}
+
+void FLevelPartitionOperationScope::DestroyTransientLevel(ULevel* Level)
+{
+	check(Level->GetOutermost() == GetTransientPackage());
+	// Make sure Level doesn't contain any Actors before destroying. That would mean the operation failed.
+	check(!Algo::AnyOf(Level->Actors, [](AActor* Actor) { return Actor != nullptr; }));
+	// Delete the temporary level
+	Level->ClearLevelComponents();
+	Level->GetWorld()->RemoveLevel(Level);
+	Level->OwningWorld = nullptr;
+	Level->RemoveFromRoot();
+	Level = nullptr;
+}
+#endif
 
 /*-----------------------------------------------------------------------------
 ULevel implementation.
@@ -626,7 +697,7 @@ void ULevel::CreateCluster()
 	// Also, we don't want the level to reference the actors that are clusters because that would
 	// make things work even slower (references to clustered objects are expensive). That's why
 	// we keep a separate array for referencing unclustered actors (ActorsForGC).
-	if (FPlatformProperties::RequiresCookedData() && GActorClusteringEnabled && !bActorClusterCreated)
+	if (FPlatformProperties::RequiresCookedData() && GCreateGCClusters && GActorClusteringEnabled && !bActorClusterCreated)
 	{
 		TArray<AActor*> ClusterActors;
 
@@ -817,6 +888,8 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 		}
 	}
 
+	const double CalcAttachDepthTime = FPlatformTime::Seconds() - StartTime;
+
 	auto DepthSorter = [&DepthMap](AActor* A, AActor* B)
 	{
 		const int32 DepthA = A ? DepthMap.FindRef(A) : MAX_int32;
@@ -824,12 +897,14 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 		return DepthA < DepthB;
 	};
 
+	const double StableSortStartTime = FPlatformTime::Seconds();
 	StableSortInternal(Actors.GetData(), Actors.Num(), DepthSorter);
+	const double StableSortTime = FPlatformTime::Seconds() - StableSortStartTime;
 
-	const float ElapsedTime = (float)(FPlatformTime::Seconds() - StartTime);
-	if (ElapsedTime > 1.0f)
+	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+	if (ElapsedTime > 1.0 && !FApp::IsUnattended())
 	{
-		UE_LOG(LogLevel, Warning, TEXT("SortActorsHierarchy(%s) took %f seconds"), Level ? *GetNameSafe(Level->GetOutermost()) : TEXT("??"), ElapsedTime);
+		UE_LOG(LogLevel, Warning, TEXT("SortActorsHierarchy(%s) took %f seconds (CalcAttachDepth: %f StableSort: %f)"), Level ? *GetNameSafe(Level->GetOutermost()) : TEXT("??"), ElapsedTime, CalcAttachDepthTime, StableSortTime);
 	}
 
 	// Since all the null entries got sorted to the end, lop them off right now
@@ -1380,7 +1455,7 @@ void ULevel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
 
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULevel, MapBuildData))
@@ -1738,6 +1813,8 @@ void ULevel::ReleaseRenderingResources()
 
 void ULevel::RouteActorInitialize()
 {
+	TRACE_OBJECT_EVENT(this, RouteActorInitialize);
+
 	// Send PreInitializeComponents and collect volumes.
 	for( int32 Index = 0; Index < Actors.Num(); ++Index )
 	{
@@ -1981,6 +2058,32 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 	}
 }
 
+bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
+{
+	static FName NAME_LevelPartition = GET_MEMBER_NAME_CHECKED(ULevel, LevelPartition);
+	if (PropertyThatWillChange->GetFName() == NAME_LevelPartition)
+	{
+		// Can't set a partition on the persistent level
+		if (IsPersistentLevel())
+		{
+			return false;
+		}
+
+		// Can't set a partition on partition sublevels
+		if (IsPartitionSubLevel())
+		{
+			return false;
+		}
+
+		// Can't set a partition if using world composition
+		if (WorldSettings && WorldSettings->bEnableWorldComposition)
+		{
+			return false;
+		}
+	}
+	return Super::CanEditChange(PropertyThatWillChange);
+}
+
 void ULevel::FixupForPIE(int32 PIEInstanceID)
 {
 	FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
@@ -2222,4 +2325,39 @@ bool ULevel::HasVisibilityChangeRequestPending() const
 	return (OwningWorld && ( this == OwningWorld->GetCurrentLevelPendingVisibility() || this == OwningWorld->GetCurrentLevelPendingInvisibility() ) );
 }
 
+#if WITH_EDITORONLY_DATA
 
+bool ULevel::IsPartitionedLevel() const
+{
+	return LevelPartition != nullptr;
+}
+
+bool ULevel::IsPartitionSubLevel() const
+{
+	return OwnerLevelPartition.IsValid() && LevelPartition == nullptr;
+}
+
+void ULevel::SetLevelPartition(ILevelPartitionInterface* InLevelPartition)
+{
+	UObject* PartitionObject = Cast<UObject>(InLevelPartition);
+	LevelPartition = PartitionObject;
+	OwnerLevelPartition = PartitionObject;
+}
+
+ILevelPartitionInterface* ULevel::GetLevelPartition()
+{
+	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
+}
+
+const ILevelPartitionInterface* ULevel::GetLevelPartition() const
+{
+	return Cast<ILevelPartitionInterface>(OwnerLevelPartition.Get());
+}
+
+void ULevel::SetPartitionSubLevel(ULevel* SubLevel)
+{
+	check(LevelPartition);
+	SubLevel->OwnerLevelPartition = Cast<UObject>(&*LevelPartition);
+}
+
+#endif // #if WITH_EDITORONLY_DATA

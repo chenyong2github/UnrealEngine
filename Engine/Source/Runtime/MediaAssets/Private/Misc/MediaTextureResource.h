@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,7 @@ class FMediaPlayerFacade;
 class IMediaPlayer;
 class IMediaTextureSample;
 class UMediaTexture;
+struct FGenerateMipsStruct;
 
 enum class EMediaTextureSinkFormat;
 enum class EMediaTextureSinkMode;
@@ -221,4 +222,7 @@ private:
 
 	/** cached media sample to postpone releasing it until the next sample rendering as it can get overwritten due to asynchronous rendering */
 	TRefCountPtr<FTextureSampleKeeper> CurrentSample;
+
+	/** cached params etc. for use with mip generator */
+	TSharedPtr<FGenerateMipsStruct> CachedMipsGenParams;
 };

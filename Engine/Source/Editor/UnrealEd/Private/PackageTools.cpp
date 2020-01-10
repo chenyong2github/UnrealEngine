@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "PackageTools.h"
@@ -43,10 +43,11 @@
 #include "Logging/MessageLog.h"
 #include "UObject/UObjectIterator.h"
 #include "ComponentReregisterContext.h"
-#include "Engine/Selection.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Engine/Selection.h"
 
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
@@ -861,7 +862,8 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 				if(OldObject && NewObject)
 				{
-					UClass* OldObjectAsClass = Cast<UClass>(OldObject);
+					// Only the blueprint generated class are supported by the FBlueprintCompilationManager so we only reparent those
+					UClass* OldObjectAsClass = Cast<UBlueprintGeneratedClass>(OldObject);
 					if(OldObjectAsClass)
 					{
 						UClass* NewObjectAsClass = Cast<UClass>(NewObject);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Class.h: UClass definition.
@@ -25,12 +25,15 @@
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/Script.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/FieldPath.h"
 
 struct FCustomPropertyListNode;
 struct FFrame;
 struct FNetDeltaSerializeInfo;
 struct FObjectInstancingGraph;
 struct FPropertyTag;
+class FField;
+class UPropertyWrapper;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogClass, Log, All);
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptSerialization, Log, All);
@@ -44,9 +47,9 @@ COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptSerialization, Log, All);
 //
 struct FRepRecord
 {
-	UProperty* Property;
+	FProperty* Property;
 	int32 Index;
-	FRepRecord(UProperty* InProperty,int32 InIndex)
+	FRepRecord(FProperty* InProperty,int32 InIndex)
 	: Property(InProperty), Index(InIndex)
 	{}
 };
@@ -62,6 +65,8 @@ class COREUOBJECT_API UField : public UObject
 {
 	DECLARE_CASTED_CLASS_INTRINSIC(UField, UObject, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UField)
 
+	typedef UField BaseFieldClass;
+
 	/** Next Field in the linked list */
 	UField*			Next;
 
@@ -75,7 +80,7 @@ class COREUOBJECT_API UField : public UObject
 	virtual bool NeedsLoadForServer() const override;
 
 	// UField interface.
-	virtual void AddCppProperty( UProperty* Property );
+	virtual void AddCppProperty(FProperty* Property);
 	virtual void Bind();
 
 	/** Goes up the outer chain to look for a UClass */
@@ -91,7 +96,7 @@ class COREUOBJECT_API UField : public UObject
 	 */
 	FString GetAuthoredName() const;
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Finds the localized display name or native display name as a fallback.
 	 *
@@ -223,7 +228,21 @@ class COREUOBJECT_API UField : public UObject
 	/** Clear any metadata associated with the key */
 	void RemoveMetaData(const TCHAR* Key);
 	void RemoveMetaData(const FName& Key);
-#endif
+#endif // WITH_EDITORONLY_DATA
+
+	bool HasAnyCastFlags(const uint64 InCastFlags) const;
+	bool HasAllCastFlags(const uint64 InCastFlags) const;
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Gets the FField object associated with this Field
+	 */
+	virtual FField* GetAssociatedFField();
+	/**
+	 * Sets the FField object associated with this Field
+	 */
+	virtual void SetAssociatedFField(FField* InField);
+#endif // WITH_EDITORONLY_DATA
 };
 
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
@@ -277,6 +296,9 @@ public:
 	/** Pointer to start of linked list of child fields */
 	UField* Children;
 	
+	/** Pointer to start of linked list of child fields */
+	FField* ChildProperties;
+
 	/** Total size of all UProperties, the allocated structure may be larger due to alignment */
 	int32 PropertiesSize;
 	/** Alignment of structure in memory, structure will be at least this large */
@@ -286,26 +308,42 @@ public:
 	TArray<uint8> Script;
 
 	/** In memory only: Linked list of properties from most-derived to base */
-	UProperty* PropertyLink;
+	FProperty* PropertyLink;
 	/** In memory only: Linked list of object reference properties from most-derived to base */
-	UProperty* RefLink;
+	FProperty* RefLink;
 	/** In memory only: Linked list of properties requiring destruction. Note this does not include things that will be destroyed byt he native destructor */
-	UProperty* DestructorLink;
+	FProperty* DestructorLink;
 	/** In memory only: Linked list of properties requiring post constructor initialization */
-	UProperty* PostConstructLink;
+	FProperty* PostConstructLink;
 
 	/** Array of object references embedded in script code. Mirrored for easy access by realtime garbage collection code */
 	TArray<UObject*> ScriptObjectReferences;
+
+	/** Array of object references from struct properties. Mirrored here for fast access by the garbage collector */
+	TArray<UObject*> PropertyObjectReferences;
+
+	/** Contains a list of script properties that couldn't be resolved at load time */
+	TArray<TPair<TFieldPath<FField>, int32>> UnresolvedScriptProperties;
+
+#if WITH_EDITORONLY_DATA
+	/** List of wrapper UObjects for FProperties */
+	TArray<UPropertyWrapper*> PropertyWrappers;
+#endif
+
+	/** Cached schema for optimized unversioned property serialization, owned by this. */
+	mutable const struct FUnversionedStructSchema* UnversionedSchema = nullptr;
 
 public:
 	// Constructors.
 	UStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags );
 	explicit UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize = 0, SIZE_T Alignment = 0);
 	explicit UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperStruct, SIZE_T ParamsSize = 0, SIZE_T Alignment = 0 );
+	virtual ~UStruct();
 
 	// UObject interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	virtual void PostLoad() override;
 	virtual void FinishDestroy() override;
 	virtual void RegisterDependencies() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -313,16 +351,16 @@ public:
 	virtual void TagSubobjects(EObjectFlags NewFlags) override;
 
 	// UField interface.
-	virtual void AddCppProperty(UProperty* Property) override;
+	virtual void AddCppProperty(FProperty* Property) override;
 
 	/** Searches property link chain for a property with the specified name */
-	UProperty* FindPropertyByName(FName InName) const;
+	FProperty* FindPropertyByName(FName InName) const;
 
 	/**
 	 * Creates new copies of components
 	 * 
-	 * @param	Data						pointer to the address of the subobject referenced by this UProperty
-	 * @param	DefaultData					pointer to the address of the default value of the subbject referenced by this UProperty
+	 * @param	Data						pointer to the address of the subobject referenced by this FProperty
+	 * @param	DefaultData					pointer to the address of the default value of the subbject referenced by this FProperty
 	 * @param	DefaultStruct				the struct corresponding to the buffer pointed to by DefaultData
 	 * @param	Owner						the object that contains the component currently located at Data
 	 * @param	InstanceGraph				contains the mappings of instanced objects and components to their templates
@@ -384,9 +422,8 @@ public:
 	 */
 	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const;
 
-public:
 	/** Look up a property by an alternate name if it was not found in the first search, this is overridden for user structs */
-	virtual UProperty* CustomFindProperty(const FName InName) const { return nullptr; };
+	virtual FProperty* CustomFindProperty(const FName InName) const { return nullptr; };
 
 	/** Serialize an expression to an archive. Returns expression token */
 	virtual EExprToken SerializeExpr(int32& iCode, FArchive& Ar);
@@ -457,7 +494,10 @@ public:
 	/** Returns a human readable string for a given field, overridden for user defined structs */
 	virtual FString GetAuthoredNameForField(const UField* Field) const;
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+	/** Returns a human readable string for a given field, overridden for user defined structs */
+	virtual FString GetAuthoredNameForField(const FField* Field) const;
+
+#if WITH_EDITORONLY_DATA
 	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
 	bool GetBoolMetaDataHierarchical(const FName& Key) const;
 
@@ -471,7 +511,7 @@ public:
 	 * @return pointer to the UStruct that has associated metadata, nullptr if Key is not associated with any UStruct in the hierarchy
 	 */
 	const UStruct* HasMetaDataHierarchical(const FName& Key) const;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 #if HACK_HEADER_GENERATOR
 	// Required by UHT makefiles for internal data serialization.
@@ -489,6 +529,16 @@ protected:
 	/** Returns if we have access to property guids */
 	virtual bool ArePropertyGuidsAvailable() const { return false; }
 
+	/** Serializes properties of this struct */
+	void SerializeProperties(FArchive& Ar);
+
+#if WITH_EDITORONLY_DATA
+	void ConvertUFieldsToFFields();
+#endif // WITH_EDITORONLY_DATA
+
+	/** Serializes list of properties to a te, using property tags to handle mismatches */
+	void LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
+
 private:
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	// For UObjectBaseUtility
@@ -499,6 +549,8 @@ private:
 	friend class FStructBaseChain;
 	friend class FBlueprintCompileReinstancer;
 #endif
+
+	void SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
 };
 
 enum EStructFlags
@@ -973,7 +1025,7 @@ public:
 		virtual bool HasIdentical() = 0;
 		/** 
 		 * Compare this structure 
-		 * @return true if the copy was handled, otherwise it will fall back to UStructProperty::Identical
+		 * @return true if the copy was handled, otherwise it will fall back to FStructProperty::Identical
 		 */
 		virtual bool Identical(const void* A, const void* B, uint32 PortFlags, bool& bOutResult) = 0;
 
@@ -981,7 +1033,7 @@ public:
 		virtual bool HasExportTextItem() = 0;
 		/** 
 		 * export this structure 
-		 * @return true if the copy was exported, otherwise it will fall back to UStructProperty::ExportTextItem
+		 * @return true if the copy was exported, otherwise it will fall back to FStructProperty::ExportTextItem
 		 */
 		virtual bool ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) = 0;
 
@@ -989,7 +1041,7 @@ public:
 		virtual bool HasImportTextItem() = 0;
 		/** 
 		 * import this structure 
-		 * @return true if the copy was imported, otherwise it will fall back to UStructProperty::ImportText
+		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
 		 */
 		virtual bool ImportTextItem(const TCHAR*& Buffer, void* Data, int32 PortFlags, class UObject* OwnerObject, FOutputDevice* ErrorText) = 0;
 
@@ -997,7 +1049,7 @@ public:
 		virtual bool HasAddStructReferencedObjects() = 0;
 		/** 
 		 * return a pointer to a function that can add referenced objects
-		 * @return true if the copy was imported, otherwise it will fall back to UStructProperty::ImportText
+		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
 		 */
 		typedef void (*TPointerToAddStructReferencedObjects)(const void* A, class FReferenceCollector& Collector);
 		virtual TPointerToAddStructReferencedObjects AddStructReferencedObjects() = 0;
@@ -1627,7 +1679,7 @@ public:
 	uint16 RPCResponseId;
 
 	/** pointer to first local struct property in this UFunction that contains defaults */
-	UProperty* FirstPropertyToInit;
+	FProperty* FirstPropertyToInit;
 
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
 	/** The event graph this function calls in to (persistent) */
@@ -1693,7 +1745,7 @@ public:
 	UFunction* GetSuperFunction() const;
 
 	/** Returns the return value property if there is one, or null */
-	UProperty* GetReturnProperty() const;
+	FProperty* GetReturnProperty() const;
 
 	/** Returns the owning UClass* without branching */
 	FORCEINLINE UClass* GetOuterUClassUnchecked() const
@@ -2052,7 +2104,7 @@ public:
 	FText GetToolTipText(int32 NameIndex) const { return GetToolTipTextByIndex(NameIndex); }
 #endif
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Wrapper method for easily determining whether this enum has metadata associated with it.
 	 * 
@@ -2092,7 +2144,7 @@ public:
 	 *
 	 */
 	void RemoveMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
-#endif
+#endif // WITH_EDITORONLY_DATA
 	
 	/**
 	 * @param EnumPath         Full enum path.
@@ -2460,6 +2512,14 @@ public:
 	/** This is the blueprint that caused the generation of this class, or null if it is a native compiled-in class */
 	UObject* ClassGeneratedBy;
 
+#if WITH_EDITORONLY_DATA
+	/** Linked list of properties to be destroyed when this class is destroyed that couldn't be destroyed in PurgeClass **/
+	FField* PropertiesPendingDestruction;
+
+	/** Destroys properties that couldn't be destroyed in PurgeClass */
+	void DestroyPropertiesPendingDestruction();
+#endif
+
 #if WITH_EDITOR
 	/**
 	 * Conditionally recompiles the class after loading, in case any dependencies were also newly loaded
@@ -2475,8 +2535,11 @@ public:
 	/** List of replication records */
 	TArray<FRepRecord> ClassReps;
 
-	/** List of network relevant fields (properties and functions) */
+	/** List of network relevant fields (functions) */
 	TArray<UField*> NetFields;
+
+	/** List of network relevant fields (properties) */
+	TArray<FProperty*> NetProperties;
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR 
 	// Editor only properties
@@ -2542,6 +2605,8 @@ public:
 private:
 	void* CreateSparseClassData();
 
+	void CleanupSparseClassData();
+
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */
 	TOptional<FCppClassTypeInfo> CppTypeInfo;
@@ -2563,22 +2628,10 @@ public:
 	 */
 	TArray<FImplementedInterface> Interfaces;
 
-	/**
-	 * Prepends reference token stream with super class's stream.
-	 *
-	 * @param SuperClass Super class to prepend stream with.
-	 */
-	void PrependStreamWithSuperClass(UClass& SuperClass);
-
 	/** Reference token stream used by realtime garbage collector, finalized in AssembleReferenceTokenStream */
 	FGCReferenceTokenStream ReferenceTokenStream;
 	/** CS for the token stream. Token stream can assemble code can sometimes be called from two threads throuh a web of async loading calls. */
 	FCriticalSection ReferenceTokenStreamCritical;
-
-#if ENABLE_GC_OBJECT_CHECKS
-	/** TokenIndex map to look-up token stream index origin. */
-	FGCDebugReferenceTokenMap DebugTokenMap;
-#endif
 
 	/** This class's native functions. */
 	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;
@@ -3017,7 +3070,7 @@ public:
 	 * @param InProperty	The property to check if it is contained in this or a parent class.
 	 * @return				True if the property exists on this or a parent class.
 	 */
-	virtual bool HasProperty(UProperty* InProperty) const;
+	virtual bool HasProperty(FProperty* InProperty) const;
 
 	/** Finds the object that is used as the parent object when serializing properties, overridden for blueprints */
 	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const { return nullptr; }
@@ -3047,6 +3100,7 @@ public:
 	 * Also happens after blueprint compiliation.
 	 */
 	void SetUpRuntimeReplicationData();
+	void SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData);
 
 	/**
 	 * Helper function for determining if the given class is compatible with structured archive serialization
@@ -3129,7 +3183,7 @@ public:
 	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
 
 	/** Find a struct property, called from generated code */
-	UStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const;
+	FStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const;
 
 	/** Misc objects owned by the class. */
 	TArray<UObject*> MiscConvertedSubobjects;
@@ -3152,6 +3206,9 @@ public:
 	UObject* AnimClassImplementation;
 
 	DynamicClassInitializerType DynamicClassInitializer;
+
+	/** Prefix for the temporary package where the dynamic classes are stored when being generated */
+	static const FString& GetTempPackagePrefix();
 };
 
 /**
@@ -3476,7 +3533,7 @@ inline T* GetMutableDefault(UClass *Class)
 
 struct FStructUtils
 {
-	static bool ArePropertiesTheSame(const UProperty* A, const UProperty* B, bool bCheckPropertiesNames);
+	static bool ArePropertiesTheSame(const FProperty* A, const FProperty* B, bool bCheckPropertiesNames);
 
 	/** Do structures have exactly the same memory layout */
 	COREUOBJECT_API static bool TheSameLayout(const UStruct* StructA, const UStruct* StructB, bool bCheckPropertiesNames = false);

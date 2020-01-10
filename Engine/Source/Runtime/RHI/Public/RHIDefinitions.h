@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	RHIDefinitions.h: Render Hardware Interface definitions
@@ -1155,6 +1155,14 @@ inline bool IsHlslccShaderPlatform(const EShaderPlatform Platform)
 	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform);
 }
 
+inline bool IsDeprecatedShaderPlatform(const EShaderPlatform ShaderPlatform)
+{
+	return ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_DEPRECATED || ShaderPlatform == SP_OPENGL_ES2_IOS_DEPRECATED ||
+		ShaderPlatform == SP_PCD3D_ES2 || ShaderPlatform == SP_METAL_MACES2 || ShaderPlatform == SP_OPENGL_PCES2 ||
+		ShaderPlatform == SP_OPENGL_ES2_ANDROID || ShaderPlatform == SP_OPENGL_ES2_WEBGL ||
+		ShaderPlatform == SP_VULKAN_SM4_DEPRECATED;
+}
+
 inline ERHIFeatureLevel::Type GetMaxSupportedFeatureLevel(EShaderPlatform InShaderPlatform)
 {
 	switch (InShaderPlatform)
@@ -1266,8 +1274,8 @@ inline bool RHINeedsToSwitchVerticalAxis(EShaderPlatform Platform)
 
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const EShaderPlatform Platform)
 {
-	// Metal mobile devices, Vulkan and Android ES2/3.1 need to handle MSAA and resolve textures internally (unless RHICreateTexture2D was changed to take an optional resolve target)
-	return !IsMetalMobilePlatform(Platform) && !IsVulkanPlatform(Platform) && !IsAndroidOpenGLESPlatform(Platform);
+	// Metal mobile devices and Android ES2/3.1 need to handle MSAA and resolve textures internally (unless RHICreateTexture2D was changed to take an optional resolve target)
+	return !IsMetalMobilePlatform(Platform) && !IsAndroidOpenGLESPlatform(Platform);
 }
 
 inline bool RHISupportsComputeShaders(const EShaderPlatform Platform)

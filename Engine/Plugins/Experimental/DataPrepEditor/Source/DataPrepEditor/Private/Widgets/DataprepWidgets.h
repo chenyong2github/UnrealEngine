@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -246,7 +246,7 @@ private:
 	UDataprepParameterizableObject* DetailedObjectAsParameterizable;
 
 	/** Array properties tracked for changes */
-	TSet< UProperty* > TrackedProperties;
+	TSet< FProperty* > TrackedProperties;
 	
 	/** Delegate handle to track property changes on array properties */
 	FDelegateHandle OnPropertyChangedHandle;

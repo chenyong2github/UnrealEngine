@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSource.h"
 #include "AudioMixerSourceBuffer.h"
@@ -90,7 +90,7 @@ namespace Audio
 		// Unfortunately, we need to know if this is a vorbis source since channel maps are different for 5.1 vorbis files
 		bIsVorbis = WaveInstance->WaveData->bDecompressedFromOgg;
 
-		bIsStoppingVoicesEnabled = ((FAudioDevice*)MixerDevice)->IsStoppingVoicesEnabled();
+		bIsStoppingVoicesEnabled = AudioDevice->IsStoppingVoicesEnabled();
 
 		bIsStopping = false;
 		bIsEffectTailsDone = true;
@@ -211,59 +211,18 @@ namespace Audio
 				// We'll only be using non-default submix sends (e.g. reverb).
 				if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
 				{
-					// If this sound is an ambisonics file, we preempt the normal base submix routing and only send to master ambisonics submix
-					if (WaveInstance->bIsAmbisonics)
-					{
-						FMixerSourceSubmixSend SubmixSend;
-						SubmixSend.Submix = MixerDevice->GetMasterAmbisonicsSubmix();
-						SubmixSend.SendLevel = 1.0f;
-						SubmixSend.bIsMainSend = true;
-						InitParams.SubmixSends.Add(SubmixSend);
-					}
-					else
-					{
-						// If we've overridden which submix we're sending the sound, then add that as the first send
-						if (WaveInstance->SoundSubmix != nullptr)
-						{
-							FMixerSourceSubmixSend SubmixSend;
-							SubmixSend.Submix = MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix);
-							SubmixSend.SendLevel = 1.0f;
-							SubmixSend.bIsMainSend = true;
-							InitParams.SubmixSends.Add(SubmixSend);
-						}
-						else
-						{
-							// Send the voice to the EQ submix if it's enabled
-							const bool bIsEQDisabled = GetDefault<UAudioSettings>()->bDisableMasterEQ;
-							bool bUseMaster = true;
-							if (!bIsEQDisabled && IsEQFilterApplied())
-							{
-								if (MixerDevice->GetMasterEQSubmix().IsValid())
-								{
-									// Default the submix to use to use the master submix if none are set
-									FMixerSourceSubmixSend SubmixSend;
-									SubmixSend.Submix = MixerDevice->GetMasterEQSubmix();
-									SubmixSend.SendLevel = 1.0f;
-									SubmixSend.bIsMainSend = true;
-									InitParams.SubmixSends.Add(SubmixSend);
-									bUseMaster = false;
-								}
-							}
+					FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
+						? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
+						: MixerDevice->GetMasterSubmix();
 
-							if (bUseMaster)
-							{
-								// Default the submix to use to use the master submix if none are set
-								FMixerSourceSubmixSend SubmixSend;
-								SubmixSend.Submix = MixerDevice->GetMasterSubmix();
-								SubmixSend.SendLevel = 1.0f;
-								SubmixSend.bIsMainSend = true;
-								InitParams.SubmixSends.Add(SubmixSend);
-							}
-						}
-					}
+					FMixerSourceSubmixSend SubmixSend;
+					SubmixSend.Submix = SubmixPtr;
+					SubmixSend.SendLevel = 1.0f;
+					SubmixSend.bIsMainSend = true;
+					InitParams.SubmixSends.Add(SubmixSend);
 				}
 
-				// Now add any addition submix sends for this source
+				// Add submix sends for this source
 				for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
 				{
 					if (SendInfo.SoundSubmix != nullptr)
@@ -481,6 +440,14 @@ namespace Audio
 		if (!MixerSourceBuffer.IsValid())
 		{
 			FreeResources();
+
+			// Guarantee that this wave instance does not try to replay by disabling looping.
+			WaveInstance->LoopingMode = LOOP_Never;
+
+			if (ensure(WaveInstance->ActiveSound))
+			{
+				WaveInstance->ActiveSound->bShouldRemainActiveIfDropped = false;
+			}
 		}
 		
 		return MixerSourceBuffer.IsValid();
@@ -574,6 +541,11 @@ namespace Audio
 		// we'll just not actually play the source here. Instead we'll call play when the sound finishes loading.
 		if (MixerSourceVoice && InitializationState == EMixerSourceInitializationState::Initialized)
 		{
+			if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
+			{
+				WaveInstance->WaveData->bPlayingProcedural = true;
+			}
+
 			MixerSourceVoice->Play();
 		}
 
@@ -595,6 +567,14 @@ namespace Audio
 
 		if (!MixerSourceVoice)
 		{
+			StopNow();
+			return;
+		}
+
+		// Always stop procedural sounds immediately.
+		if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
+		{
+			WaveInstance->WaveData->bPlayingProcedural = false;
 			StopNow();
 			return;
 		}
@@ -877,7 +857,6 @@ namespace Audio
 
 			// 3. Apply editor gain stage(s)
 			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
-			MixerSourceVoice->SetVolume(CurrentVolume);
 		}
 		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
@@ -936,22 +915,18 @@ namespace Audio
 			}
 
 			// Send the source audio to the reverb plugin if enabled
-			bool bPluginBypassedMasterReverb = false;
-			if (UseReverbPlugin())
+			if (UseReverbPlugin() && AudioDevice->ReverbPluginInterface)
 			{
-				if (MixerDevice->GetMasterReverbPluginSubmix().IsValid())
+				check(MixerDevice);
+				FMixerSubmixPtr ReverbPluginSubmixPtr = MixerDevice->GetSubmixInstance(AudioDevice->ReverbPluginInterface->GetSubmix()).Pin();
+				if (ReverbPluginSubmixPtr.IsValid())
 				{
-					MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbPluginSubmix(), ReverbSendLevel);
+					MixerSourceVoice->SetSubmixSendInfo(ReverbPluginSubmixPtr, ReverbSendLevel);
 				}
-
-				bPluginBypassedMasterReverb = AudioDevice->IsReverbPluginBypassingMasterReverb();
 			}
 
 			// Send the source audio to the master reverb
-			if (!bPluginBypassedMasterReverb && MixerDevice->GetMasterReverbSubmix().IsValid())
-			{
-				MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
-			}
+			MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
 		}
 
 		// Update submix send levels
@@ -1076,7 +1051,7 @@ namespace Audio
 
 	bool FMixerSource::ComputeMonoChannelMap(const ESubmixChannelFormat SubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
-		if (UseObjectBasedSpatialization())
+		if (IsUsingObjectBasedSpatialization())
 		{
 			if (WaveInstance->SpatializationMethod != ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF && !bEditorWarnedChangedSpatialization)
 			{
@@ -1117,7 +1092,8 @@ namespace Audio
 				UpdateStereoEmitterPositions();
 			}
 
-			if (!UseObjectBasedSpatialization())
+			// Check whether voice is currently using 
+			if (!IsUsingObjectBasedSpatialization())
 			{
 				float AzimuthOffset = 0.0f;
 
@@ -1186,6 +1162,22 @@ namespace Audio
 		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin &&
 				AudioDevice->IsSpatializationPluginEnabled() &&
 				WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
+	}
+
+	bool FMixerSource::IsUsingObjectBasedSpatialization() const
+	{
+		bool bIsUsingObjectBaseSpatialization = UseObjectBasedSpatialization();
+
+		if (MixerSourceVoice)
+		{
+			// If it is currently playing, check whether it actively uses HRTF spatializer.
+			// HRTF spatialization cannot be altered on currently playing source. So this handles
+			// the case where the source was initialized without HRTF spatialization before HRTF
+			// spatialization is enabled. 
+			bool bDefaultIfNoSourceId = true;
+			bIsUsingObjectBaseSpatialization &= MixerSourceVoice->IsUsingHRTFSpatializer(bDefaultIfNoSourceId);
+		}
+		return bIsUsingObjectBaseSpatialization;
 	}
 
 	bool FMixerSource::UseSpatializationPlugin() const

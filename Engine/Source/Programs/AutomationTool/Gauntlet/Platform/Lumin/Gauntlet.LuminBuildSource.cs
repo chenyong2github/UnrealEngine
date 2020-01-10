@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -48,58 +48,61 @@ namespace Gauntlet
 
 			DirectoryInfo Di = new DirectoryInfo(BuildPath);
 
-			// find all install batchfiles
-			FileInfo[] InstallFiles = Di.GetFiles("Install_*");
-
-			foreach (FileInfo Fi in InstallFiles)
+			if (Di.Exists)
 			{
-				Log.Verbose("Pulling install data from {0}", Fi.FullName);
+				// find all install batchfiles
+				FileInfo[] InstallFiles = Di.GetFiles("Install_*");
 
-				string AbsPath = Fi.Directory.FullName;
-
-				// read contents and replace linefeeds (regex doesn't stop on them :((
-				string BatContents = File.ReadAllText(Fi.FullName).Replace(Environment.NewLine, "\n");
-
-				// Replace .bat with .mpk and strip up to and including the first _, that is then our MPK name
-				string SourceMpkPath = Regex.Replace(Fi.Name, ".bat", ".mpk", RegexOptions.IgnoreCase);
-				SourceMpkPath = SourceMpkPath.Substring(SourceMpkPath.IndexOf("_") + 1);
-				SourceMpkPath = Path.Combine(AbsPath, SourceMpkPath);
-
-				Match Info = Regex.Match(BatContents, @"install\s+(-u+)\s""%~dp0\\(.+)""");
-				string LuminPackageName = Info.Groups[2].ToString();
-	
-				if (string.IsNullOrEmpty(SourceMpkPath))
+				foreach (FileInfo Fi in InstallFiles)
 				{
-					Log.Warning("No MPK found for build at {0}", Fi.FullName);
-					continue;
+					Log.Verbose("Pulling install data from {0}", Fi.FullName);
+
+					string AbsPath = Fi.Directory.FullName;
+
+					// read contents and replace linefeeds (regex doesn't stop on them :((
+					string BatContents = File.ReadAllText(Fi.FullName).Replace(Environment.NewLine, "\n");
+
+					// Replace .bat with .mpk and strip up to and including the first _, that is then our MPK name
+					string SourceMpkPath = Regex.Replace(Fi.Name, ".bat", ".mpk", RegexOptions.IgnoreCase);
+					SourceMpkPath = SourceMpkPath.Substring(SourceMpkPath.IndexOf("_") + 1);
+					SourceMpkPath = Path.Combine(AbsPath, SourceMpkPath);
+
+					Match Info = Regex.Match(BatContents, @"install\s+(-u+)\s""%~dp0\\(.+)""");
+					string LuminPackageName = Info.Groups[2].ToString();
+
+					if (string.IsNullOrEmpty(SourceMpkPath))
+					{
+						Log.Warning("No MPK found for build at {0}", Fi.FullName);
+						continue;
+					}
+
+					if (string.IsNullOrEmpty(LuminPackageName))
+					{
+						Log.Warning("No product name found for build at {0}", Fi.FullName);
+						continue;
+					}
+
+					UnrealTargetConfiguration UnrealConfig = UnrealHelpers.GetConfigurationFromExecutableName(InProjectName, Fi.Name);
+
+					// Lumin builds are always packaged, and we can always replace the command line
+					BuildFlags Flags = BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine;
+
+					if (AbsPath.Contains("Bulk"))
+					{
+						Flags |= BuildFlags.Bulk;
+					}
+					else
+					{
+						Flags |= BuildFlags.NotBulk;
+					}
+
+					LuminBuild NewBuild = new LuminBuild(UnrealConfig, LuminPackageName, SourceMpkPath, Flags);
+
+					DiscoveredBuilds.Add(NewBuild);
+
+					Log.Verbose("Found {0} {1} build at {2}", UnrealConfig, ((Flags & BuildFlags.Bulk) == BuildFlags.Bulk) ? "(bulk)" : "(not bulk)", AbsPath);
+
 				}
-
-				if (string.IsNullOrEmpty(LuminPackageName))
-				{
-					Log.Warning("No product name found for build at {0}", Fi.FullName);
-					continue;
-				}
-
-				UnrealTargetConfiguration UnrealConfig = UnrealHelpers.GetConfigurationFromExecutableName(InProjectName, Fi.Name);
-
-				// Lumin builds are always packaged, and we can always replace the command line
-				BuildFlags Flags = BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine;
-				
-				if (AbsPath.Contains("Bulk"))
-				{
-					Flags |= BuildFlags.Bulk;
-				}
-				else
-				{
-					Flags |= BuildFlags.NotBulk;
-				}
-
-				LuminBuild NewBuild = new LuminBuild(UnrealConfig, LuminPackageName, SourceMpkPath, Flags);
-
-				DiscoveredBuilds.Add(NewBuild);
-
-				Log.Verbose("Found {0} {1} build at {2}", UnrealConfig, ((Flags & BuildFlags.Bulk) == BuildFlags.Bulk) ? "(bulk)" : "(not bulk)", AbsPath);
-
 			}
 
 			return DiscoveredBuilds;
@@ -125,28 +128,29 @@ namespace Gauntlet
 		{		
 			List<IBuild> Builds = new List<IBuild>();
 
-			// First try creating a build just from this path
-			IEnumerable<LuminBuild> FoundBuilds = LuminBuild.CreateFromPath(InProjectName, InPath);
-
-			// If we found one we were pointed at a specific case so we're done
-			if (FoundBuilds.Any())
+			if (Directory.Exists(InPath))
 			{
-				Builds.AddRange(FoundBuilds);
-			}
-			else
-			{
-				// Ok, find all directories that match our platform and add those
-				DirectoryInfo TopDir = new DirectoryInfo(InPath);
+				// First try creating a build just from this path
+				IEnumerable<LuminBuild> FoundBuilds = LuminBuild.CreateFromPath(InProjectName, InPath);
 
-				// find all directories that begin with Lumin
-				IEnumerable<string> LuminDirs = Directory.EnumerateDirectories(InPath, "Lumin*", SearchOption.AllDirectories);
-
-				foreach (string DirPath in LuminDirs)
+				// If we found one we were pointed at a specific case so we're done
+				if (FoundBuilds.Any())
 				{
-					
-
-					FoundBuilds = LuminBuild.CreateFromPath(InProjectName, DirPath);
 					Builds.AddRange(FoundBuilds);
+				}
+				else
+				{
+					// Ok, find all directories that match our platform and add those
+					DirectoryInfo TopDir = new DirectoryInfo(InPath);
+
+					// find all directories that begin with Lumin
+					IEnumerable<string> LuminDirs = Directory.EnumerateDirectories(InPath, "Lumin*", SearchOption.AllDirectories);
+
+					foreach (string DirPath in LuminDirs)
+					{
+						FoundBuilds = LuminBuild.CreateFromPath(InProjectName, DirPath);
+						Builds.AddRange(FoundBuilds);
+					}
 				}
 			}
 

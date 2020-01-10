@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmppStrophe/XmppPrivateChatStrophe.h"
 #include "XmppStrophe/XmppConnectionStrophe.h"
@@ -72,7 +72,7 @@ bool FXmppPrivateChatStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza
 	ChatMessage.Body = MoveTemp(BodyText.GetValue());
 
 	// Parse Timezone
-	TOptional<const FStropheStanza> StanzaDelay = IncomingStanza.GetChild(Strophe::SN_DELAY);
+	TOptional<const FStropheStanza> StanzaDelay = IncomingStanza.GetChildStropheStanza(Strophe::SN_DELAY);
 	if (StanzaDelay.IsSet())
 	{
 		if (StanzaDelay->HasAttribute(Strophe::SA_STAMP))

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Movement/FlyingMovement.h"
 #include "GameFramework/Actor.h"
@@ -62,9 +62,8 @@ INetworkedSimulationModel* UFlyingMovementComponent::InstantiateNetworkedSimulat
 	InitFlyingMovementSimulation(new FFlyingMovementSimulation(), InitialSyncState, InitialAuxState);
 
 	// The Model
-	auto NewModel = new FFlyingMovementSystem<0>(MovementSimulation, this, InitialSyncState, InitialAuxState);
+	auto* NewModel = new TNetworkedSimulationModel<FFlyingMovementNetSimModelDef>(this->MovementSimulation, this, InitialSyncState, InitialAuxState);
 	InitFlyingMovementNetSimModel(NewModel);
-	
 	return NewModel;
 }
 
@@ -128,7 +127,7 @@ void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FFlyi
 void UFlyingMovementComponent::FinalizeFrame(const FFlyingMovementSyncState& SyncState, const FFlyingMovementAuxState& AuxState)
 {
 	// Does checking equality make any sense here? This is unfortunate
-	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, ROTATOR_TOLERANCE) == false)
+	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FFlyingMovementNetSimModelDef::ROTATOR_TOLERANCE) == false)
 	{
 		FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
 		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);

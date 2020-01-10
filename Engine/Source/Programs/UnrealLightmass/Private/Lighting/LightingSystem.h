@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -2384,6 +2384,7 @@ private:
 		const FStaticLightingMapping* Mapping,
 		const FFullStaticLightingVertex& Vertex,
 		int32 ElementIndex,
+		float TexelRadius,
 		float SampleRadius,
 		bool bIntersectingSurface,
 		FStaticLightingMappingContext& MappingContext,

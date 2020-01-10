@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemModule.h"
 #include "Misc/CommandLine.h"
@@ -119,13 +119,13 @@ static inline void ReadOnlineSubsystemConfigPairs(const TCHAR* Section, const TC
 
 		if (TrimmedConfigEntry.Left(1) == TEXT("("))
 		{
-			TrimmedConfigEntry = TrimmedConfigEntry.RightChop(1);
+			TrimmedConfigEntry.RightChopInline(1, false);
 		}
 		if (TrimmedConfigEntry.Right(1) == TEXT(")"))
 		{
-			TrimmedConfigEntry = TrimmedConfigEntry.LeftChop(1);
+			TrimmedConfigEntry.LeftChopInline(1, false);
 		}
-		if (TrimmedConfigEntry.Split(TEXT("="), &KeyString, &ValueString))
+		if (TrimmedConfigEntry.Split(TEXT("="), &KeyString, &ValueString, ESearchCase::CaseSensitive))
 		{
 			KeyString.TrimStartAndEndInline();
 			ValueString.TrimStartAndEndInline();

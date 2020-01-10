@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	EditorComponents.h: Scene components used by the editor modes.
@@ -28,6 +28,10 @@ public:
 	 * @param Ar	FArchive to serialize with
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FGridWidget";
+	}
 
 private:
 	// ALU based

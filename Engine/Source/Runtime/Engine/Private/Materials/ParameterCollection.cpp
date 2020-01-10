@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParameterCollection.h"
 #include "UObject/UObjectHash.h"
@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarDeferUpdateRenderStates(
 	ECVF_RenderThreadSafe
 );
 
-TMap<FGuid, FMaterialParameterCollectionInstanceResource*> GDefaultMaterialParameterCollectionInstances;
+TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*> GDefaultMaterialParameterCollectionInstances;
 
 UMaterialParameterCollection::UMaterialParameterCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -63,11 +63,12 @@ void UMaterialParameterCollection::BeginDestroy()
 {
 	if (DefaultResource)
 	{
+		FMaterialParameterCollectionInstanceResource* Resource = DefaultResource;
 		FGuid Id = StateId;
 		ENQUEUE_RENDER_COMMAND(RemoveDefaultResourceCommand)(
-			[Id](FRHICommandListImmediate& RHICmdList)
+			[Resource, Id](FRHICommandListImmediate& RHICmdList)
 			{	
-				GDefaultMaterialParameterCollectionInstances.Remove(Id);			
+				GDefaultMaterialParameterCollectionInstances.RemoveSingle(Id, Resource);
 			}
 		);
 	}
@@ -159,7 +160,7 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 int32 PreviousNumScalarParameters = 0;
 int32 PreviousNumVectorParameters = 0;
 
-void UMaterialParameterCollection::PreEditChange(UProperty* PropertyThatWillChange)
+void UMaterialParameterCollection::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

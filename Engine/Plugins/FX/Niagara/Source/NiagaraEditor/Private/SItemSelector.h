@@ -1,10 +1,16 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Views/STreeView.h"
+
+enum class EItemSelectorClickActivateMode
+{
+	SingleClick,
+	DoubleClick
+};
 
 /** A generic widget for selecting an item from an array of items including optional filtering and categorization. */
 template<typename CategoryType, typename ItemType>
@@ -23,11 +29,15 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
 		: _AllowMultiselect(false)
+		, _ClickActivateMode(EItemSelectorClickActivateMode::DoubleClick)
 	{}
 
 	SLATE_ARGUMENT(TArray<ItemType>, Items)
 		/** Whether or not this item selector should allow multiple items to be selected. */
 		SLATE_ARGUMENT(bool, AllowMultiselect)
+
+		/** Whether or not a single click activates an item. */
+		SLATE_ARGUMENT(EItemSelectorClickActivateMode, ClickActivateMode)
 
 		/** An optional delegate to get an array of categories for the specified item. Each category in the returned array represents one level of nested categories. 
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this delegate is bound. */
@@ -388,6 +398,7 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		Items = InArgs._Items;
+		ClickActivateMode = InArgs._ClickActivateMode;
 		OnGetCategoriesForItem = InArgs._OnGetCategoriesForItem;
 		OnCompareCategoriesForEquality = InArgs._OnCompareCategoriesForEquality;
 		OnCompareCategoriesForSorting = InArgs._OnCompareCategoriesForSorting;
@@ -421,6 +432,7 @@ public:
 				.SelectionMode(InArgs._AllowMultiselect ? ESelectionMode::Multi : ESelectionMode::SingleToggle)
 				.OnGenerateRow(this, &SItemSelector::OnGenerateRow)
 				.OnGetChildren(this, &SItemSelector::OnGetChildren)
+				.OnMouseButtonClick(this, &SItemSelector::OnMouseClick)
 				.OnMouseButtonDoubleClick(this, &SItemSelector::OnMouseDoubleClick)
 				.TreeItemsSource(ViewModel->GetRootItems())
 			]
@@ -510,9 +522,18 @@ private:
 		Item->GetChildren(OutChildren);
 	}
 
+	void OnMouseClick(TSharedRef<FItemSelectorItemViewModel> ItemClicked)
+	{
+		if (ClickActivateMode == EItemSelectorClickActivateMode::SingleClick && OnItemActivated.IsBound() && ItemClicked->GetType() == EItemSelectorItemViewModelType::Item)
+		{
+			TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(ItemClicked);
+			OnItemActivated.Execute(ItemContainer->GetItem());
+		}
+	}
+
 	void OnMouseDoubleClick(TSharedRef<FItemSelectorItemViewModel> ItemDoubleClicked)
 	{
-		if (OnItemActivated.IsBound() && ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Item)
+		if (ClickActivateMode == EItemSelectorClickActivateMode::DoubleClick && OnItemActivated.IsBound() && ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Item)
 		{
 			TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(ItemDoubleClicked);
 			OnItemActivated.Execute(ItemContainer->GetItem());
@@ -534,6 +555,8 @@ private:
 
 private:
 	TArray<ItemType> Items;
+
+	EItemSelectorClickActivateMode ClickActivateMode;
 
 	FOnGetCategoriesForItem OnGetCategoriesForItem;
 	FOnCompareCategoriesForEquality OnCompareCategoriesForEquality;

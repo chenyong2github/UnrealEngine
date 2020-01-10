@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
 #include "Misc/Paths.h"
@@ -917,13 +917,13 @@ void ParseQuoteComma(const FString& InLine, TArray<FString>& OutParts)
 		{
 			break;
 		}
-		Line = Line.RightChop(QuoteLoc + 1);
+		Line.RightChopInline(QuoteLoc + 1, false);
 		if (!Line.FindChar(TCHAR('\"'), QuoteLoc))
 		{
 			break;
 		}
 		OutParts.Add(Line.Left(QuoteLoc));
-		Line = Line.RightChop(QuoteLoc + 1);
+		Line.RightChopInline(QuoteLoc + 1, false);
 	}
 }
 
@@ -1106,7 +1106,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 
 				if (!Count)
 				{
-					UE_LOG(LogShaderPipelineCacheTools, Log, TEXT("Stable PSO not found, rejecting %s"), *Shader.ToString());
+					UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("Stable PSO not found, rejecting %s"), *Shader.ToString());
 					bValid = false;
 					break;
 				}

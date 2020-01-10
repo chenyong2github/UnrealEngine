@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,6 +27,7 @@
 class UPrimitiveComponent;
 
 class AdvanceOneTimeStepTask;
+class FPhysicsReplication;
 class FPhysInterface_Chaos;
 class FChaosSolversModule;
 struct FForceFieldProxy;
@@ -126,6 +127,7 @@ public:
 	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
 
 #if XGE_FIXED
 	template<typename PayloadType>
@@ -138,6 +140,9 @@ public:
 #endif // XGE_FIXED
 
 	void Shutdown();
+
+	FPhysicsReplication* GetPhysicsReplication();
+	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);
 
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
@@ -174,6 +179,9 @@ public:
 private:
 	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
 
+	/** Replication manager that updates physics bodies towards replicated physics state */
+	FPhysicsReplication* PhysicsReplication;
+
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */
 	void OnUpdateWorldPause();
@@ -188,6 +196,7 @@ private:
 	 * sync as the editor will ignore packages being dirtied in PIE
 	 */
 	void OnWorldEndPlay();
+
 
 	// List of objects that we modified during a PIE run for physics simulation caching.
 	TArray<UObject*> PieModifiedObjects;
@@ -264,7 +273,6 @@ void FPhysScene_Chaos::RegisterEventHandler(const Chaos::EEventType& EventID, Ha
 
 class UWorld;
 class AWorldSettings;
-class FPhysicsReplication;
 class FPhysicsReplicationFactory;
 class FContactModifyCallbackFactory;
 
@@ -385,6 +393,11 @@ public:
 #endif // XGE_FIXED
 
 private:
+
+
+#if WITH_EDITOR
+	bool IsOwningWorldEditor() const;
+#endif
 
 	void SyncBodies(Chaos::FPhysicsSolver* Solver);
 

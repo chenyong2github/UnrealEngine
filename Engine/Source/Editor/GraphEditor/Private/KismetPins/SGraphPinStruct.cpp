@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinStruct.h"
@@ -108,6 +108,11 @@ FOnClicked SGraphPinStruct::GetOnUseButtonDelegate()
 
 void SGraphPinStruct::OnPickedNewStruct(const UScriptStruct* ChosenStruct)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString NewPath;
 	if (ChosenStruct)
 	{

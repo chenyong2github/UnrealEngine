@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "UObject/Package.h"
@@ -108,10 +108,10 @@ FText UEnvQueryTypes::GetShortTypeName(const UObject* Ob)
 	}
 
 	FString TypeDesc = ObClass->GetName();
-	const int32 ShortNameIdx = TypeDesc.Find(TEXT("_"));
+	const int32 ShortNameIdx = TypeDesc.Find(TEXT("_"), ESearchCase::CaseSensitive);
 	if (ShortNameIdx != INDEX_NONE)
 	{
-		TypeDesc = TypeDesc.Mid(ShortNameIdx + 1);
+		TypeDesc.MidInline(ShortNameIdx + 1, MAX_int32, false);
 	}
 
 	return FText::FromString(TypeDesc);

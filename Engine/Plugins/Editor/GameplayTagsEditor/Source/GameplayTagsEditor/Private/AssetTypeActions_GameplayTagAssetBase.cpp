@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_GameplayTagAssetBase.h"
 #include "ToolMenus.h"
@@ -29,7 +29,7 @@ void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& 
 		UObject* CurObj = InObjects[ObjIdx];
 		if (CurObj)
 		{
-			UStructProperty* StructProp = FindField<UStructProperty>(CurObj->GetClass(), OwnedGameplayTagPropertyName);
+			FStructProperty* StructProp = FindField<FStructProperty>(CurObj->GetClass(), OwnedGameplayTagPropertyName);
 			if(StructProp != NULL)
 			{
 				ContainerObjectOwners.Add(CurObj);

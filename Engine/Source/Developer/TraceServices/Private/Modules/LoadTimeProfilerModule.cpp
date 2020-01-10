@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LoadTimeProfilerModule.h"
 #include "Analyzers/PlatformFileTraceAnalysis.h"
@@ -14,6 +14,19 @@ static const FName LoadTimeProfilerModuleName("TraceModule_LoadTimeProfiler");
 static const FName LoadTimeProfilerProviderName("LoadTimeProfiler");
 static const FName FileActivityProviderName("FileActivity");
 
+void BookmarksToCsv(const IBookmarkProvider& BookmarkProvider, const TCHAR* Filename, double CaptureStartTime, double CaptureEndTime)
+{
+	TSharedPtr<FArchive> BookmarksOutputFile = MakeShareable(IFileManager::Get().CreateFileWriter(Filename));
+	const char* Header = "Name, Timestamp\n";
+	BookmarksOutputFile->Serialize((void*)Header, strlen(Header));
+	BookmarkProvider.EnumerateBookmarks(CaptureStartTime, CaptureEndTime, [&BookmarksOutputFile](const FBookmark& Bookmark)
+	{
+		FString Line = FString::Printf(TEXT("%s,%.4f\n"), Bookmark.Text, Bookmark.Time);
+		auto AnsiLine = StringCast<ANSICHAR>(*Line);
+		BookmarksOutputFile->Serialize((void*)AnsiLine.Get(), AnsiLine.Length());
+	});
+}
+
 void FLoadTimeProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 {
 	OutModuleInfo.Name = LoadTimeProfilerModuleName;
@@ -22,7 +35,7 @@ void FLoadTimeProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FLoadTimeProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FLoadTimeProfilerProvider* LoadTimeProfilerProvider = new FLoadTimeProfilerProvider(Session);
+	FLoadTimeProfilerProvider* LoadTimeProfilerProvider = new FLoadTimeProfilerProvider(Session, EditCounterProvider(Session));
 	Session.AddProvider(LoadTimeProfilerProviderName, LoadTimeProfilerProvider);
 	Session.AddAnalyzer(new FAsyncLoadingTraceAnalyzer(Session, *LoadTimeProfilerProvider));
 	FFileActivityProvider* FileActivityProvider = new FFileActivityProvider(Session);
@@ -45,6 +58,8 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 	FParse::Value(CmdLine, TEXT("-BeginCaptureBookmark="), BeginCaptureBookmarkName);
 	FString EndCaptureBookmarkName;
 	FParse::Value(CmdLine, TEXT("-EndCaptureBookmark="), EndCaptureBookmarkName);
+	
+
 	BookmarkProvider.EnumerateBookmarks(0.0, DBL_MAX, [BeginCaptureBookmarkName, EndCaptureBookmarkName, &CaptureStartTime, &CaptureEndTime](const FBookmark& Bookmark)
 	{
 		if (CaptureStartTime == -DBL_MAX && !BeginCaptureBookmarkName.IsEmpty() && BeginCaptureBookmarkName == Bookmark.Text)
@@ -64,6 +79,7 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 	{
 		CaptureEndTime = Session.GetDurationSeconds();
 	}
+
 	const ILoadTimeProfilerProvider* LoadTimeProfiler = Trace::ReadLoadTimeProfilerProvider(Session);
 	FString ReportDirectory = FString(OutputDirectory) / TEXT("LoadTimeProfiler");
 	if (LoadTimeProfiler)
@@ -85,6 +101,7 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 		FString SummaryLine = FString::Printf(TEXT("Capture start: %f\r\nCapture end: %f\r\nCapture duration: %f"), CaptureStartTime, CaptureEndTime, CaptureEndTime - CaptureStartTime);
 		CaptureSummaryOutputFile->Serialize(TCHAR_TO_ANSI(*SummaryLine), SummaryLine.Len());
 	}
+	BookmarksToCsv(BookmarkProvider, *(FString(ReportDirectory) / TEXT("Bookmarks.csv")), CaptureStartTime, CaptureEndTime);
 }
 
 const ILoadTimeProfilerProvider* ReadLoadTimeProfilerProvider(const IAnalysisSession& Session)

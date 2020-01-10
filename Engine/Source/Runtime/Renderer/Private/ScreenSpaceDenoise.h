@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -246,6 +246,7 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Entry point to denoise SSGI. */
+	virtual bool SupportsScreenSpaceDiffuseIndirectDenoiser(EShaderPlatform Platform) const = 0;
 	virtual FDiffuseIndirectOutputs DenoiseScreenSpaceDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,

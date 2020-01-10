@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Texture.h"
 #include "Misc/App.h"
@@ -135,7 +135,7 @@ bool UTexture::IsPostLoadThreadSafe() const
 }
 
 #if WITH_EDITOR
-bool UTexture::CanEditChange(const UProperty* InProperty) const
+bool UTexture::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -167,7 +167,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	bool RequiresNotifyMaterials = false;
 	bool DeferCompressionWasEnabled = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if( PropertyThatChanged )
 	{
 		static const FName CompressionSettingsName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionSettings);

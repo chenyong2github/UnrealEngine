@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -96,6 +96,9 @@ struct PROJECTS_API FPluginDescriptor
 
 	/** For auto-generated plugins that should not be listed in the plugin browser for users to disable freely. */
 	bool bIsHidden;
+
+	/** When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored */
+	bool bExplicitlyLoaded;
 
 	/** If true, this plugin from a platform extension extending another plugin */
 	bool bIsPluginExtension;

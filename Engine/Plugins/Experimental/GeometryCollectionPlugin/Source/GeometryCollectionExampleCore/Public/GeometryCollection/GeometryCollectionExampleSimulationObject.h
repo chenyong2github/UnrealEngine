@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "ChaosSolversModule.h"
@@ -67,7 +67,7 @@ namespace GeometryCollectionExample {
 			: Parameters(InParameters)
 			, RestCollection(InRestCollection)
 			, DynamicCollection(InDynamicCollection)
-			, PhysicalMaterial(InPhysicalMaterial)
+			, PhysicalMaterial(MoveTemp(InPhysicalMaterial))
 			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 		}

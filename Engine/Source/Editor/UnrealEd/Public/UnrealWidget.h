@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -192,6 +192,10 @@ public:
 	 * @param Ar	FArchive to serialize with
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FWidget";
+	}
 
 	/**
 	 * Gets the axis to draw based on the current widget mode

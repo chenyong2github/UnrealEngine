@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetView.h"
 #include "HAL/FileManager.h"
@@ -48,6 +48,7 @@
 #include "DesktopPlatformModule.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilterUtils.h"
+#include "Misc/BlacklistNames.h"
 #include "AssetRegistryState.h"
 #include "Materials/Material.h"
 
@@ -115,24 +116,48 @@ namespace AssetViewUtils
 		return false;
 	}
 
+	/** Expands blacklist of class names to include subclasses */
+	void ExpandClassesBlacklist(const FBlacklistNames& InBlacklist, FBlacklistNames& ExpandedBlacklist)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		if (InBlacklist.GetBlacklist().Num() > 0)
+		{
+			TArray<FName> BlacklistKeys;
+			InBlacklist.GetBlacklist().GetKeys(BlacklistKeys);
+			const TSet<FName> EmptySet;
+			TSet<FName> BlacklistSubClassNames;
+			AssetRegistryModule.Get().GetDerivedClassNames(BlacklistKeys, EmptySet, BlacklistSubClassNames);
+			for (const FName ClassName : BlacklistSubClassNames)
+			{
+				ExpandedBlacklist.AddBlacklistItem(NAME_None, ClassName);
+			}
+		}
+
+		if (InBlacklist.GetWhitelist().Num() > 0)
+		{
+			TArray<FName> WhitelistKeys;
+			InBlacklist.GetWhitelist().GetKeys(WhitelistKeys);
+			const TSet<FName> EmptySet;
+			TSet<FName> WhitelistSubClassNames;
+			AssetRegistryModule.Get().GetDerivedClassNames(WhitelistKeys, EmptySet, WhitelistSubClassNames);
+			for (const FName ClassName : WhitelistSubClassNames)
+			{
+				ExpandedBlacklist.AddWhitelistItem(NAME_None, ClassName);
+			}
+		}
+	}
+
 	class FInitialAssetFilter
 	{
 	public:
-		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins) :
+		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins, const FBlacklistPaths* InFolderBlacklist, const FBlacklistNames* InClassBlacklist) :
 			bDisplayL10N(InDisplayL10N),
 			bDisplayEngine(InDisplayEngine),
-			bDisplayPlugins(InDisplayPlugins)
-		{
-			Init(InDisplayL10N, InDisplayEngine, InDisplayPlugins);
-		}
-
-		void Init(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins)
+			bDisplayPlugins(InDisplayPlugins),
+			FolderBlacklist(InFolderBlacklist),
+			AssetClassBlacklist(nullptr)
 		{
 			ObjectRedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
-
-			bDisplayL10N = InDisplayL10N;
-			bDisplayEngine = InDisplayEngine;
-			bDisplayPlugins = InDisplayPlugins;
 
 			Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 			PluginNamesUpperWide.Reset(Plugins.Num());
@@ -144,11 +169,22 @@ namespace AssetViewUtils
 				TextFilterUtils::TryConvertWideToAnsi(PluginNameUpperWide, PluginNamesUpperAnsi.AddDefaulted_GetRef());
 				PluginLoadedFromEngine.Add(PluginRef->GetLoadedFrom() == EPluginLoadedFrom::Engine);
 			}
+
+			if (InClassBlacklist && InClassBlacklist->HasFiltering())
+			{
+				ExpandClassesBlacklist(*InClassBlacklist, ExpandedClassesBlacklist);
+				AssetClassBlacklist = &ExpandedClassesBlacklist;
+			}
 		}
 
 		FORCEINLINE bool PassesFilter(const FAssetData& Item) const
 		{
 			if (!PassesRedirectorMainAssetFilter(Item))
+			{
+				return false;
+			}
+
+			if (AssetClassBlacklist && !AssetClassBlacklist->PassesFilter(Item.AssetClass))
 			{
 				return false;
 			}
@@ -172,12 +208,25 @@ namespace AssetViewUtils
 			TextFilterUtils::FNameBufferWithNumber ObjectPathBuffer(PackagePath);
 			if (ObjectPathBuffer.IsWide())
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr()))
+				{
+					return false;
+				}
 			}
 			else
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr()))
+				{
+					return false;
+				}
 			}
+			
+			if (FolderBlacklist && !FolderBlacklist->PassesStartsWithFilter(PackagePath))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		template <typename CharType>
@@ -242,6 +291,8 @@ namespace AssetViewUtils
 			return true;
 		}
 
+		
+
 	private:
 		FName ObjectRedirectorClassName;
 		bool bDisplayL10N;
@@ -251,6 +302,9 @@ namespace AssetViewUtils
 		TArray<FString> PluginNamesUpperWide;
 		TArray<bool> PluginLoadedFromEngine;
 		TArray<TSharedRef<IPlugin>> Plugins;
+		const FBlacklistPaths* FolderBlacklist;
+		const FBlacklistNames* AssetClassBlacklist;
+		FBlacklistNames ExpandedClassesBlacklist;
 
 		FORCEINLINE int32 FindPluginNameUpper(const WIDECHAR* PluginNameUpper, int32 Length) const
 		{
@@ -283,44 +337,6 @@ namespace AssetViewUtils
 			return INDEX_NONE;
 		}
 	};
-
-	static FARFilter CreateSupportedFilter()
-	{
-		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList;
-		AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActionsList);
-
-		bool bAnyUnsupported = false;
-		FARFilter SupportedFilter;
-
-		for (const TWeakPtr<IAssetTypeActions>& WeakTypeActions : AssetTypeActionsList)
-		{
-			if (const TSharedPtr<IAssetTypeActions> TypeActions = WeakTypeActions.Pin())
-			{
-				if (!TypeActions->IsSupported())
-				{
-					bAnyUnsupported = true;
-				}
-				else
-				{
-					SupportedFilter.bRecursiveClasses = true;
-					const UClass* SupportedClass = TypeActions->GetSupportedClass();
-					if (SupportedClass != nullptr)
-					{
-						const FName ClassName = SupportedClass->GetFName();
-						SupportedFilter.ClassNames.AddUnique(ClassName);
-					}
-				}
-			}
-		}
-
-		if (!bAnyUnsupported)
-		{
-			return FARFilter();
-		}
-
-		return SupportedFilter;
-	}
 } // namespace AssetViewUtils
 
 SAssetView::~SAssetView()
@@ -458,6 +474,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bCanShowDevelopersFolder = InArgs._CanShowDevelopersFolder;
 
 	bCanShowFavorites = InArgs._CanShowFavorites;
+	bCanDockCollections = InArgs._CanDockCollections;
 	bPreloadAssetsForContextMenu = InArgs._PreloadAssetsForContextMenu;
 
 	SelectionMode = InArgs._SelectionMode;
@@ -531,7 +548,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	NumVisibleColumns = 0;
 
-	SupportedFilter = AssetViewUtils::CreateSupportedFilter();
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
+	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -761,6 +780,12 @@ void SAssetView::SetBackendFilter(const FARFilter& InBackendFilter)
 	RequestSlowFullListRefresh();
 }
 
+void SAssetView::AppendBackendFilter(FARFilter& FilterToAppendTo) const
+{
+	FilterToAppendTo.Append(BackendFilter);
+
+}
+
 void SAssetView::OnCreateNewFolder(const FString& FolderName, const FString& FolderPath)
 {
 	// we should only be creating one deferred folder per tick
@@ -783,7 +808,7 @@ void SAssetView::OnCreateNewFolder(const FString& FolderName, const FString& Fol
 
 void SAssetView::DeferredCreateNewFolder()
 {
-	if(DeferredFolderToCreate.IsValid())
+	if (DeferredFolderToCreate.IsValid())
 	{
 		TSharedPtr<FAssetViewFolder> NewItem = MakeShareable(new FAssetViewFolder(DeferredFolderToCreate->FolderPath / DeferredFolderToCreate->FolderName));
 		NewItem->bNewFolder = true;
@@ -1248,7 +1273,7 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 		AssetThumbnailPool->Tick(InDeltaTime);
 	}
 
-	if ( bPendingUpdateThumbnails )
+	if (bPendingUpdateThumbnails)
 	{
 		UpdateThumbnails();
 		bPendingUpdateThumbnails = false;
@@ -1482,19 +1507,19 @@ void SAssetView::CalculateThumbnailHintColorAndOpacity()
 	ThumbnailHintColorAndOpacity = FLinearColor( 1.0, 1.0, 1.0, Opacity );
 }
 
-void SAssetView::ProcessQueriedItems( const double TickStartTime )
+void SAssetView::ProcessQueriedItems(const double TickStartTime)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	bool ListNeedsRefresh = false;
 	int32 AssetIndex = 0;
-	for ( AssetIndex = QueriedAssetItems.Num() - 1; AssetIndex >= 0 ; AssetIndex--)
+	for (AssetIndex = QueriedAssetItems.Num() - 1; AssetIndex >= 0; AssetIndex--)
 	{
-		if ( !OnShouldFilterAsset.Execute( QueriedAssetItems[AssetIndex] ) )
+		if (!OnShouldFilterAsset.Execute(QueriedAssetItems[AssetIndex]))
 		{
-			AssetItems.Add( QueriedAssetItems[AssetIndex] );
+			AssetItems.Add(QueriedAssetItems[AssetIndex]);
 
-			if ( !IsFrontendFilterActive() || PassesCurrentFrontendFilter(QueriedAssetItems[AssetIndex]))
+			if (!IsFrontendFilterActive() || PassesCurrentFrontendFilter(QueriedAssetItems[AssetIndex]))
 			{
 				const FAssetData& AssetData = QueriedAssetItems[AssetIndex];
 				FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
@@ -1504,7 +1529,7 @@ void SAssetView::ProcessQueriedItems( const double TickStartTime )
 		}
 
 		// Check to see if we have run out of time in this tick
-		if ( !bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
+		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
 		{
 			break;
 		}
@@ -1513,14 +1538,14 @@ void SAssetView::ProcessQueriedItems( const double TickStartTime )
 	// Trim the results array
 	if (AssetIndex > 0)
 	{
-		QueriedAssetItems.RemoveAt( AssetIndex, QueriedAssetItems.Num() - AssetIndex );
+		QueriedAssetItems.RemoveAt(AssetIndex, QueriedAssetItems.Num() - AssetIndex);
 	}
 	else
 	{
 		QueriedAssetItems.Reset();
 	}
 
-	if ( ListNeedsRefresh )
+	if (ListNeedsRefresh)
 	{
 		RefreshList();
 	}
@@ -1965,11 +1990,20 @@ void SAssetView::RefreshSourceItems()
 
 	TArray<FAssetData>& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
 
-	const bool bShowAll = SourcesData.IsEmpty() && SupportedFilter.IsEmpty() && BackendFilter.IsEmpty();
+	const FBlacklistPaths* FolderBlacklistToUse = (FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) ? FolderBlacklist.Get() : nullptr;
+	const FBlacklistNames* AssetClassBlacklistToUse = (AssetClassBlacklist.IsValid() && AssetClassBlacklist->HasFiltering()) ? AssetClassBlacklist.Get() : nullptr;
+	const bool bShowAll = SourcesData.IsEmpty() && BackendFilter.IsEmpty() && !FolderBlacklistToUse && !AssetClassBlacklistToUse;
+
+	bool bOriginalRegistryTemporaryCachingMode = AssetRegistryModule.Get().GetTemporaryCachingMode();
+	if (AssetClassBlacklistToUse && !bOriginalRegistryTemporaryCachingMode)
+	{
+		// Optimization to reduce number of times class tree is generated
+		AssetRegistryModule.Get().SetTemporaryCachingMode(true);
+	}
 
 	bool bShowClasses = false;
 	TArray<FName> ClassPathsToShow;
-	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent());
+	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent(), FolderBlacklistToUse, AssetClassBlacklistToUse);
 
 	if ( bShowAll )
 	{
@@ -2032,11 +2066,8 @@ void SAssetView::RefreshSourceItems()
 		const bool bIsDynamicCollection = SourcesData.IsDynamicCollection();
 		FARFilter Filter = SourcesData.MakeFilter(bRecurse, bUsingFolders);
 
-		Filter.Append(SupportedFilter);
-
-		// Add the backend filters from the filter list
-		Filter.Append(BackendFilter);
-
+		AppendBackendFilter(Filter);
+		
 		bWereItemsRecursivelyFiltered = bRecurse;
 
 		// Move any class paths into their own array
@@ -2125,6 +2156,8 @@ void SAssetView::RefreshSourceItems()
 			Items.Add(FAssetData(CurrentClass));
 		}
 	}
+
+	AssetRegistryModule.Get().SetTemporaryCachingMode(bOriginalRegistryTemporaryCachingMode);
 }
 
 bool SAssetView::IsFilteringRecursively() const
@@ -2181,19 +2214,19 @@ bool SAssetView::ShouldFilterRecursively() const
 
 void SAssetView::RefreshFilteredItems()
 {
-	//Build up a map of the existing AssetItems so we can preserve them while filtering
+	// Build up a map of the existing AssetItems so we can preserve them while filtering
 	TMap< FName, TSharedPtr< FAssetViewAsset > > ItemToObjectPath;
-	for (int Index = 0; Index < FilteredAssetItems.Num(); Index++)
+	for (const TSharedPtr<FAssetViewItem>& AssetItem : FilteredAssetItems)
 	{
-		if (FilteredAssetItems[Index].IsValid() && FilteredAssetItems[Index]->GetType() != EAssetItemType::Folder)
+		if (AssetItem.IsValid() && AssetItem->GetType() != EAssetItemType::Folder)
 		{
-			TSharedPtr<FAssetViewAsset> Item = StaticCastSharedPtr<FAssetViewAsset>(FilteredAssetItems[Index]);
+			TSharedPtr<FAssetViewAsset> Item = StaticCastSharedPtr<FAssetViewAsset>(AssetItem);
 
 			// Clear custom column data
 			Item->CustomColumnData.Reset();
 			Item->CustomColumnDisplayText.Reset();
 
-			ItemToObjectPath.Add( Item->Data.ObjectPath, Item );
+			ItemToObjectPath.Add(Item->Data.ObjectPath, Item);
 		}
 	}
 
@@ -2215,22 +2248,21 @@ void SAssetView::RefreshFilteredItems()
 		const bool bRecurse = ShouldFilterRecursively();
 		const bool bUsingFolders = IsShowingFolders();
 		FARFilter CombinedFilter = SourcesData.MakeFilter(bRecurse, bUsingFolders);
-		CombinedFilter.Append(SupportedFilter);
-		CombinedFilter.Append(BackendFilter);
+		AppendBackendFilter(CombinedFilter);
 
 		// Let the frontend filters know the currently used filter in case it is necessary to conditionally filter based on path or class filters
 		for (int32 FilterIdx = 0; FilterIdx < FrontendFilters->Num(); ++FilterIdx)
 		{
 			// There are only FFrontendFilters in this collection
 			const TSharedPtr<FFrontendFilter>& Filter = StaticCastSharedPtr<FFrontendFilter>(FrontendFilters->GetFilterAtIndex(FilterIdx));
-			if ( Filter.IsValid() )
+			if (Filter.IsValid())
 			{
 				Filter->SetCurrentFilter(CombinedFilter);
 			}
 		}
 	}
 
-		// Check the frontend filter for every asset and keep track of how many assets were found of each type
+	// Check the frontend filter for every asset and keep track of how many assets were found of each type
 	for (const FAssetData& AssetData : AssetItems)
 	{
 		if (bIsFrontendFilterActive == false ||
@@ -2249,7 +2281,7 @@ void SAssetView::RefreshFilteredItems()
 			if (bGatherAssetTypeCount)
 			{
 				int32* TypeCount = AssetTypeCount.Find(AssetData.AssetClass);
-				if ( TypeCount )
+				if (TypeCount)
 				{
 					(*TypeCount)++;
 				}
@@ -2332,6 +2364,11 @@ void SAssetView::RefreshFolders()
 					continue;
 				}
 
+				if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(SubPath))
+				{
+					continue;
+				}
+
 				if(!Folders.Contains(SubPath))
 				{
 					FoldersToAdd.Add(SubPath);
@@ -2357,7 +2394,7 @@ void SAssetView::RefreshFolders()
 	}
 
 	// Add folders for any child collections of the currently selected collections
-	if(SourcesData.HasCollections())
+	if (SourcesData.HasCollections())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 		
@@ -2367,7 +2404,7 @@ void SAssetView::RefreshFolders()
 			ChildCollections.Reset();
 			CollectionManagerModule.Get().GetChildCollections(Collection.Name, Collection.Type, ChildCollections);
 
-			for(const FCollectionNameType& ChildCollection : ChildCollections)
+			for (const FCollectionNameType& ChildCollection : ChildCollections)
 			{
 				// Use "Collections" as the root of the path to avoid this being confused with other asset view folders - see ContentBrowserUtils::IsCollectionPath
 				FoldersToAdd.Add(FString::Printf(TEXT("/Collections/%s/%s"), ECollectionShareType::ToString(ChildCollection.Type), *ChildCollection.Name.ToString()));
@@ -2375,9 +2412,9 @@ void SAssetView::RefreshFolders()
 		}
 	}
 
-	if(FoldersToAdd.Num() > 0)
+	if (FoldersToAdd.Num() > 0)
 	{
-		for(const FString& FolderPath : FoldersToAdd)
+		for (const FString& FolderPath : FoldersToAdd)
 		{
 			FilteredAssetItems.Add(MakeShareable(new FAssetViewFolder(FolderPath)));
 			Folders.Add(FolderPath);
@@ -2534,7 +2571,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 								else
 								{
 									// If the tag name corresponds to a property name, use the property tooltip
-									UProperty* Property = FindField<UProperty>(TypeClass, TagName);
+									FProperty* Property = FindField<FProperty>(TypeClass, TagName);
 									TooltipText = (Property != nullptr) ? Property->GetToolTipText() : FText::FromString(FName::NameToDisplayString(TagName.ToString(), false));
 								}
 
@@ -2728,7 +2765,8 @@ void SAssetView::OnAssetRegistryPathAdded(const FString& Path)
 		const bool bDisplayL10N = IsShowingLocalizedContent();
 		if ((bDisplayEmpty || EmptyFolderVisibilityManager->ShouldShowPath(Path)) &&  
 			(bDisplayDev || !ContentBrowserUtils::IsDevelopersFolder(Path)) && 
-			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path))
+			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path)) &&
+			(!FolderBlacklist.IsValid() || FolderBlacklist->PassesStartsWithFilter(Path))
 			)
 		{
 			for (const FName& SourcePathName : SourcesData.PackagePaths)
@@ -2762,13 +2800,13 @@ void SAssetView::OnAssetRegistryPathAdded(const FString& Path)
 void SAssetView::OnAssetRegistryPathRemoved(const FString& Path)
 {
 	FString* Folder = Folders.Find(Path);
-	if(Folder != NULL)
+	if (Folder != nullptr)
 	{
 		Folders.Remove(Path);
 
 		for (int32 AssetIdx = 0; AssetIdx < FilteredAssetItems.Num(); ++AssetIdx)
 		{
-			if(FilteredAssetItems[AssetIdx]->GetType() == EAssetItemType::Folder)
+			if (FilteredAssetItems[AssetIdx]->GetType() == EAssetItemType::Folder)
 			{
 				if ( StaticCastSharedPtr<FAssetViewFolder>(FilteredAssetItems[AssetIdx])->FolderPath == Path )
 				{
@@ -2958,27 +2996,66 @@ bool SAssetView::PassesCurrentFrontendFilter(const FAssetData& Item) const
 	return true;
 }
 
+void SAssetView::RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const
+{
+	if (InOutAssetDataList.Num() == 0)
+	{
+		return;
+	}
+
+	const bool bClassFiltering = AssetClassBlacklist.IsValid() && AssetClassBlacklist->HasFiltering();
+	if ((FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) || bClassFiltering)
+	{
+		if ((FolderBlacklist.IsValid() && FolderBlacklist->IsBlacklistAll()) || (bClassFiltering && AssetClassBlacklist->IsBlacklistAll()))
+		{
+			InOutAssetDataList.Reset();
+			return;
+		}
+
+		// Expand filter to include subclasses so an exact FName comparison can occur
+		FBlacklistNames ExpandedClassesBlacklist;
+		if (bClassFiltering)
+		{
+			AssetViewUtils::ExpandClassesBlacklist(*AssetClassBlacklist.Get(), ExpandedClassesBlacklist);
+		}
+
+		InOutAssetDataList.RemoveAll([this, &ExpandedClassesBlacklist](const FAssetData& AssetData)
+		{
+			if (!ExpandedClassesBlacklist.PassesFilter(AssetData.AssetClass))
+			{
+				return true;
+			}
+			else if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(AssetData.PackagePath))
+			{
+				return true;
+			}
+			return false;
+		});
+	}
+}
+
 void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const
 {
 	const bool bRecurse = ShouldFilterRecursively();
 	const bool bUsingFolders = IsShowingFolders();
 	const bool bIsDynamicCollection = SourcesData.IsDynamicCollection();
 	FARFilter Filter = SourcesData.MakeFilter(bRecurse, bUsingFolders);
-	
-	if ( SourcesData.HasCollections() && Filter.ObjectPaths.Num() == 0 && !bIsDynamicCollection )
+
+	if (SourcesData.HasCollections() && Filter.ObjectPaths.Num() == 0 && !bIsDynamicCollection)
 	{
 		// This is an empty collection, no asset will pass the check
 		InOutAssetDataList.Reset();
 	}
 	else
 	{
-		Filter.Append(SupportedFilter);
-		Filter.Append(BackendFilter);
+		AppendBackendFilter(Filter);
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		AssetRegistryModule.Get().RunAssetsThroughFilter(InOutAssetDataList, Filter);
 
-		if ( SourcesData.HasCollections() && !bIsDynamicCollection )
+		RunAssetsThroughBlacklists(InOutAssetDataList);
+
+		if (SourcesData.HasCollections() && !bIsDynamicCollection)
 		{
 			// Include objects from child collections if we're recursing
 			const ECollectionRecursionFlags::Flags CollectionRecursionMode = (Filter.bRecursivePaths) ? ECollectionRecursionFlags::SelfAndChildren : ECollectionRecursionFlags::Self;
@@ -2990,11 +3067,11 @@ void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDat
 				CollectionManagerModule.Get().GetObjectsInCollection(Collection.Name, Collection.Type, CollectionObjectPaths, CollectionRecursionMode);
 			}
 
-			for ( int32 AssetDataIdx = InOutAssetDataList.Num() - 1; AssetDataIdx >= 0; --AssetDataIdx )
+			for (int32 AssetDataIdx = InOutAssetDataList.Num() - 1; AssetDataIdx >= 0; --AssetDataIdx)
 			{
 				const FAssetData& AssetData = InOutAssetDataList[AssetDataIdx];
 
-				if ( !CollectionObjectPaths.Contains( AssetData.ObjectPath ) )
+				if (!CollectionObjectPaths.Contains(AssetData.ObjectPath))
 				{
 					InOutAssetDataList.RemoveAtSwap(AssetDataIdx);
 				}
@@ -3143,6 +3220,19 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 				FExecuteAction::CreateSP(this, &SAssetView::ToggleShowFavorites),
 				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowFavoritesAllowed),
 				FIsActionChecked::CreateSP(this, &SAssetView::IsShowingFavorites)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DockCollectionsOptions", "Dock Collections"),
+			LOCTEXT("DockCollectionsOptionToolTip", "Dock the collections view under the path view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleDockCollections),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleDockCollectionsAllowed),
+				FIsActionChecked::CreateSP(this, &SAssetView::HasDockedCollections)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -3508,6 +3598,23 @@ bool SAssetView::IsToggleShowFavoritesAllowed() const
 bool SAssetView::IsShowingFavorites() const
 {
 	return IsToggleShowFavoritesAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
+}
+
+void SAssetView::ToggleDockCollections()
+{
+	const bool bDockCollections = GetDefault<UContentBrowserSettings>()->GetDockCollections();
+	GetMutableDefault<UContentBrowserSettings>()->SetDockCollections(!bDockCollections);
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
+bool SAssetView::IsToggleDockCollectionsAllowed() const
+{
+	return bCanDockCollections;
+}
+
+bool SAssetView::HasDockedCollections() const
+{
+	return IsToggleDockCollectionsAllowed() && GetDefault<UContentBrowserSettings>()->GetDockCollections();
 }
 
 void SAssetView::ToggleShowCppContent()

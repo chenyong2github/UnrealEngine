@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -161,10 +161,6 @@ public:
 	virtual void Update(TArrayView<const FTransform> Viewpoints);
 
 	// Overridable function used to register an object as managed by the significance manager
-	UE_DEPRECATED(4.21, "Override RegisterObject that uses ManagedObject significance functions")
-	virtual void RegisterObject(UObject* Object, FName Tag, FSignificanceFunction SignificanceFunction, EPostSignificanceType InPostSignificanceType = EPostSignificanceType::None, FPostSignificanceFunction InPostSignificanceFunction = nullptr);
-
-	// Overridable function used to register an object as managed by the significance manager
 	virtual void RegisterObject(UObject* Object, FName Tag, FManagedObjectSignificanceFunction SignificanceFunction, EPostSignificanceType InPostSignificanceType = EPostSignificanceType::None, FManagedObjectPostSignificanceFunction InPostSignificanceFunction = nullptr);
 
 	// Overridable function used to unregister an object as managed by the significance manager
@@ -181,6 +177,9 @@ public:
 
 	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
 	USignificanceManager::FManagedObjectInfo* GetManagedObject(UObject* Object) const;
+
+	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
+	const USignificanceManager::FManagedObjectInfo* GetManagedObject(const UObject* Object) const;
 
 	// Returns the significance value for a given object, returns 0 if object is not managed
 	float GetSignificance(const UObject* Object) const;

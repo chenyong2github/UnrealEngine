@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Audio.cpp: Unreal base audio.
@@ -447,7 +447,11 @@ void FSoundSource::UpdateStereoEmitterPositions()
 	if (!DisableStereoSpreadCvar && WaveInstance->StereoSpread > 0.0f)
 	{
 		// We need to compute the stereo left/right channel positions using the audio component position and the spread
-		FVector ListenerPosition = AudioDevice->Listeners[0].Transform.GetLocation();
+		FVector ListenerPosition;
+
+		const bool bAllowAttenuationOverride = false;
+		const int32 ListenerIndex = WaveInstance->ActiveSound ? WaveInstance->ActiveSound->GetClosestListenerIndex() : 0;
+		AudioDevice->GetListenerPosition(ListenerIndex, ListenerPosition, bAllowAttenuationOverride);
 		FVector ListenerToSourceDir = (WaveInstance->Location - ListenerPosition).GetSafeNormal();
 
 		float HalfSpread = 0.5f * WaveInstance->StereoSpread;
@@ -577,9 +581,11 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 	}
 	Params.EmitterWorldPosition = WaveInstance->Location;
 
+	int32 ListenerIndex = 0;
 	if (WaveInstance->ActiveSound != nullptr)
 	{
 		Params.EmitterWorldRotation = WaveInstance->ActiveSound->Transform.GetRotation();
+		ListenerIndex = WaveInstance->ActiveSound->GetClosestListenerIndex();
 	}
 	else
 	{
@@ -587,7 +593,8 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 	}
 
 	// Pass the actual listener orientation and position
-	const FTransform& ListenerTransform = AudioDevice->GetListeners()[0].Transform;
+	FTransform ListenerTransform;
+	AudioDevice->GetListenerTransform(ListenerIndex, ListenerTransform);
 	Params.ListenerOrientation = ListenerTransform.GetRotation();
 	Params.ListenerPosition = ListenerTransform.GetLocation();
 
@@ -806,7 +813,6 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, bUseSpatialization(false)
 	, bEnableLowPassFilter(false)
 	, bIsOccluded(false)
-	, bEQFilterApplied(false)
 	, bIsUISound(false)
 	, bIsMusic(false)
 	, bReverb(true)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -44,7 +44,7 @@ enum class ESubmixChannelFormat : uint8
 	// Sets the submix to mix audio to 7.1 (FL, FR, FC, LF, BL, BR, SL, SR)
 	SevenDotOne UMETA(DisplayName = "7.1"),
 
-	// Sets the submix to render audio as an ambisonics bed.
+	// Sets the submix to render audio to first-order ambisonics.
 	Ambisonics UMETA(DisplayName = "Ambisonics"),
 
 	Count UMETA(Hidden)
@@ -94,7 +94,7 @@ class ENGINE_API USoundSubmix : public UObject
 #endif
 
 	// Experimental! Specifies the channel format for the submix. Sources will be mixed at the specified format. Useful for specific effects that need to operate on a specific format.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	ESubmixChannelFormat ChannelFormat;
 
 	/** Mute this submix when the application is muted or in the background. Used to prevent submix effect tails from continuing when tabbing out of application or if application is muted. */
@@ -168,7 +168,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
@@ -177,14 +177,13 @@ protected:
 	TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 
 public:
-
 	// Sound Submix Editor functionality
 #if WITH_EDITOR
 
 	/**
 	* @return true if the child sound class exists in the tree
 	*/
-	bool RecurseCheckChild(USoundSubmix* ChildSoundSubmix);
+	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
 	/**
 	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner

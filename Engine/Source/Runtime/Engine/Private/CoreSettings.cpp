@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/CoreSettings.h"
 #include "HAL/IConsoleManager.h"
@@ -178,7 +178,8 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	MaxObjectsInGame = 2 * 1024 * 1024;	
 	CreateGCClusters = true;	
 	MinGCClusterSize = 5;
-	ActorClusteringEnabled = true;
+	AssetClusteringEnabled = true;
+	ActorClusteringEnabled = true;	
 	BlueprintClusteringEnabled = false;
 	UseDisregardForGCOnDedicatedServers = false;
 }

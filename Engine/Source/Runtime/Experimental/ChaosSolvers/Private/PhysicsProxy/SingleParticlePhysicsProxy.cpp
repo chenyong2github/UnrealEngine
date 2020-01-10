@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
@@ -57,10 +57,22 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 		{
 			RigidHandle->SetHasBounds(true);
 			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
+			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
 		}
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
 	}
 }
 
@@ -116,18 +128,32 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		RigidHandle->SetSharedGeometry(Data->Geometry);
 		RigidHandle->SetV(Data->MV);
 		RigidHandle->SetW(Data->MW);
-
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 		
 		if (Data->Geometry && Data->Geometry->HasBoundingBox())
 		{
 			RigidHandle->SetHasBounds(true);
 			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
+			Chaos::TAABB<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
 			WorldSpaceBox.ThickenSymmetrically(Data->MV);
 			RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
+
 	}
 }
 
@@ -187,6 +213,9 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		// This should be moved to initialization.
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
+#if CHAOS_CHECKED
+		RigidHandle->SetDebugName(Data->DebugName);
+#endif
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
 		{
@@ -211,18 +240,22 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			RigidHandle->SetW(Data->MW);
 		}
 
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
 		RigidHandle->SetM(Data->MM);
 		RigidHandle->SetInvM(Data->MInvM);
 		RigidHandle->SetI(Data->MI);
 		RigidHandle->SetInvI(Data->MInvI);
+		RigidHandle->SetLinearEtherDrag(Data->MLinearEtherDrag);
+		RigidHandle->SetAngularEtherDrag(Data->MAngularEtherDrag);
 
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::F))
 		{
-			RigidHandle->SetExternalForce(Data->MExternalForce);
+			RigidHandle->SetF(Data->MF);
 		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalTorque))
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Torque))
 		{
-			RigidHandle->SetExternalTorque(Data->MExternalTorque);
+			RigidHandle->SetTorque(Data->MTorque);
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
@@ -233,13 +266,13 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			GetSolver()->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle, Data->MGravityEnabled);
 		}
 
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X | Chaos::EParticleFlags::R | Chaos::EParticleFlags::V))
+		if (Data->DirtyFlags.IsDirty((int32)Chaos::EParticleFlags::X | (int32)Chaos::EParticleFlags::R | (int32)Chaos::EParticleFlags::V | (int32)Chaos::EParticleFlags::Geometry))
 		{
 			if (Data->Geometry && Data->Geometry->HasBoundingBox())
 			{
 				RigidHandle->SetHasBounds(true);
 				RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-				Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
+				Chaos::TAABB<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
 				WorldSpaceBox.ThickenSymmetrically(Data->MV);
 				RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 			}
@@ -248,14 +281,23 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 				//todo: compute bounds based on sample points
 			}
 		}
+
+		if(Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for(const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
 	}
 }
 
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
-	Particle->SetExternalForce(Chaos::TVector<float, 3>(0),false);
-	Particle->SetExternalTorque(Chaos::TVector<float, 3>(0),false);
+	Particle->SetF(Chaos::TVector<float, 3>(0));
+	Particle->SetTorque(Chaos::TVector<float, 3>(0));
 	Particle->ClearDirtyFlags();
 }
 
@@ -284,6 +326,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->SetR(Buffer->R, false);
 		Particle->SetV(Buffer->MV, false);
 		Particle->SetW(Buffer->MW, false);
+		Particle->UpdateShapeBounds();
 	}
 }
 

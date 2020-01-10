@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1127,14 +1127,7 @@ namespace UnrealGameSync
 
 		private void TabMenu_OpenProject_Click(object sender, EventArgs e)
 		{
-			if (TabMenu_TabIdx == -1)
-			{
-				OpenNewProject();
-			}
-			else
-			{
-				EditSelectedProject(TabMenu_TabIdx);
-			}
+			EditSelectedProject(TabMenu_TabIdx);
 		}
 
 		private void TabMenu_TabNames_Stream_Click(object sender, EventArgs e)

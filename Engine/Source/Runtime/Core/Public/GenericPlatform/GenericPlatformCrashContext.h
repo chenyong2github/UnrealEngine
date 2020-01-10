@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -165,7 +165,6 @@ struct FSessionContext
 	TCHAR 					GameStateName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CrashConfigFilePath[CR_MAX_DIRECTORY_CHARS];
 	FPlatformMemoryStats	MemoryStats;
-	TOptional<bool>			bIsVanilla;
 };
 
 /** Additional user settings to be communicated to crash reporting client. */
@@ -174,6 +173,7 @@ struct FUserSettingsContext
 	bool					bNoDialog = false;
 	bool					bSendUnattendedBugReports = false;
 	bool					bSendUsageData = false;
+	bool					bImplicitSend = false;
 	TCHAR					LogFilePath[CR_MAX_DIRECTORY_CHARS];
 };
 
@@ -340,9 +340,6 @@ public:
 	/** Get the Game Name of the crash */
 	static FString GetCrashGameName();
 
-	/** Gets the "vanilla" status string. */
-	static const TCHAR* EngineModeExString();
-
 	/** Helper to get the crash report client config filepath saved by this instance and copied to each crash report folder. */
 	static const TCHAR* GetCrashConfigFilePath();
 
@@ -397,7 +394,7 @@ public:
 	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
 
 	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack);
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
 
 	/** Adds a portable callstack for a thread */
 	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);

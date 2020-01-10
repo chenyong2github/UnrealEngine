@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -73,6 +73,8 @@ namespace UnrealBuildTool
 
 	class IOSToolChain : AppleToolChain
 	{
+		private static List<FileItem> BundleDependencies = new List<FileItem>();
+
 		public readonly ReadOnlyTargetRules Target;
 		protected IOSProjectSettings ProjectSettings;
 
@@ -131,19 +133,7 @@ namespace UnrealBuildTool
 
 		public override void ModifyBuildProducts(ReadOnlyTargetRules Target, UEBuildBinary Binary, List<string> Libraries, List<UEBuildBundleResource> BundleResources, Dictionary<FileReference, BuildProductType> BuildProducts)
 		{
-			bool bBuildAsFramework = IOSToolChain.GetBuildAsFramework(Target.ProjectFile);
-			if (bBuildAsFramework)
-			{
-				int Index = Binary.OutputFilePath.GetFileNameWithoutExtension().IndexOf("-");
-				string OutputFile = Binary.OutputFilePath.GetFileNameWithoutExtension().Substring(0, Index > 0 ? Index : Binary.OutputFilePath.GetFileNameWithoutExtension().Length);
-
-				DirectoryReference OutputDir = Binary.OutputDir;
-				if (OutputDir.ToString().Contains(".framework"))
-					OutputDir = OutputDir.ParentDirectory.ParentDirectory;
-				FileReference StubFile = FileReference.Combine(OutputDir, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".stub");
-				BuildProducts.Add(StubFile, BuildProductType.Package);
-			}
-			else if (Target.IOSPlatform.bCreateStubIPA && Binary.Type != UEBuildBinaryType.StaticLibrary)
+			if (Target.IOSPlatform.bCreateStubIPA && Binary.Type != UEBuildBinaryType.StaticLibrary)
 			{
 				FileReference StubFile = FileReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".stub");
 				BuildProducts.Add(StubFile, BuildProductType.Package);
@@ -1502,6 +1492,12 @@ namespace UnrealBuildTool
 					}
 				}
 
+				FileReference StagedExecutablePath = GetStagedExecutablePath(Executable.Location, Target.Name);
+				foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
+				{
+					OutputFiles.Add(CopyBundleResource(Resource, Executable, StagedExecutablePath.Directory, Actions));
+				}
+
 				IOSPostBuildSyncTarget PostBuildSyncTarget = new IOSPostBuildSyncTarget(Target, Executable.Location, BinaryLinkEnvironment.IntermediateDirectory, UPLScripts, SdkVersion, FrameworkNameToSourceDir);
 				FileReference PostBuildSyncFile = FileReference.Combine(BinaryLinkEnvironment.IntermediateDirectory, "PostBuildSync.dat");
 				BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSyncTarget);
@@ -1708,21 +1704,6 @@ namespace UnrealBuildTool
 			return ProjectDirectory;
 		}
 
-        /// <summary>
-        /// Gets whether to build the project as a framework. Since it uses GetActualProjectDirectory internally, it ensures that the correct value is retrieved whether we're building a code-based project or blueprint-only project.
-        /// </summary>
-        /// <returns><c>true</c>, if the project should be built as a framework, <c>false</c> otherwise.</returns>
-        /// <param name="ProjectFile">A reference to the project file of the project being built.</param>
-        public static bool GetBuildAsFramework(FileReference ProjectFile)
-		{
-
-			DirectoryReference ProjectDirectory = GetActualProjectDirectory(ProjectFile);
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectory, UnrealTargetPlatform.IOS);
-			bool bBuildAsFramework;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bBuildAsFramework);
-			return bBuildAsFramework;
-		}
-
 		private static void GenerateFrameworkWrapperIfNonexistent(IOSPostBuildSyncTarget Target)
 		{
 			DirectoryReference ProjectDirectory = GetActualProjectDirectory(Target.ProjectFile);
@@ -1762,11 +1743,11 @@ namespace UnrealBuildTool
 
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
-			bool bBuildAsFramework = false;
+			bool bPerformFullAppCreation = true;
 			string PathToDsymZip = Target.OutputPath.FullName + ".dSYM.zip";
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{
-				if (GetBuildAsFramework(Target.ProjectFile))
+				if (Target.bBuildAsFramework)
 				{
 					// make sure the framework has a plist
 					FileReference PlistSrcLocation = FileReference.Combine(Target.ProjectDirectory, "Build", "IOS", "Embedded.plist");
@@ -1786,10 +1767,12 @@ namespace UnrealBuildTool
 
 					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
 
-					bBuildAsFramework = true;
 					PathToDsymZip = Path.Combine(Target.OutputPath.Directory.ParentDirectory.FullName, Target.OutputPath.GetFileName() + ".dSYM.zip");
 
 					GenerateFrameworkWrapperIfNonexistent(Target);
+
+					// do not perform any of the .app creation below
+					bPerformFullAppCreation = false;
 				}
 			}
 
@@ -1800,20 +1783,26 @@ namespace UnrealBuildTool
 				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
 			}
 
+			// only make the app if needed
+			if (!bPerformFullAppCreation)
+			{
+				return;
+			}
+
 			// copy the executable
 			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
-			if (Target.bCreateStubIPA || bBuildAsFramework)
+			if (Target.bCreateStubIPA || Target.bBuildAsFramework)
 			{
 				string FrameworkDerivedDataDir = Path.GetFullPath(Target.ProjectDirectory + "/Intermediate/" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS") + "/DerivedData");
 				DirectoryReference FrameworkPayloadDirectory = DirectoryReference.Combine(Target.OutputPath.Directory.ParentDirectory.ParentDirectory, "Payload");
 
 				// generate the dummy project so signing works
 				DirectoryReference XcodeWorkspaceDir = null;
-                if (!bBuildAsFramework)
+                if (!Target.bBuildAsFramework)
                 {
 					if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 					{
@@ -1930,7 +1919,7 @@ namespace UnrealBuildTool
 					string SchemeName;
 					if (AppName == "UE4Game" || AppName == "UE4Client")
 					{
-						if (bBuildAsFramework)
+						if (Target.bBuildAsFramework)
 						{
 							SchemeName = "UE4Game";
 						}
@@ -1947,7 +1936,7 @@ namespace UnrealBuildTool
 					Console.WriteLine("Provisioning: {0}, {1}, {2}, {3}", MobileProvisionFile, MobileProvisionFile.GetFileName(), MobileProvisionUUID, BundleID);
 
 					string CmdLine;
-					if (bBuildAsFramework)
+					if (Target.bBuildAsFramework)
 					{
 						DirectoryReference FrameworkProjectDirectory = GetActualProjectDirectory(Target.ProjectFile);
 						DirectoryReference WrapperDirectory = DirectoryReference.Combine(FrameworkProjectDirectory, "Wrapper");
@@ -1989,7 +1978,7 @@ namespace UnrealBuildTool
 					Writer.WriteLine("/usr/bin/xcrun {0}", CmdLine);
 				}
 
-				if (!bBuildAsFramework)
+				if (!Target.bBuildAsFramework)
 				{
 				    if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				    {
@@ -2009,7 +1998,7 @@ namespace UnrealBuildTool
 				// ensure the plist, entitlements, and provision files are properly copied
 				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
 				DeployHandler.ForDistribution = Target.bForDistribution;
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
 				Log.TraceInformation("Executing {0}", SignProjectScript);
 
@@ -2057,7 +2046,7 @@ namespace UnrealBuildTool
 					Utils.RunLocalProcess(CleanProcess);
 				}
 
-				if (bBuildAsFramework)
+				if (Target.bBuildAsFramework)
 				{
 					CleanIntermediateDirectory(FrameworkDerivedDataDir);
 				}
@@ -2074,7 +2063,7 @@ namespace UnrealBuildTool
 				}
 
 				// Package the stub
-				if (bBuildAsFramework)
+				if (Target.bBuildAsFramework)
 				{
 					PackageStub(FrameworkPayloadDirectory.ParentDirectory.ToString(), AppName, Target.OutputPath.GetFileNameWithoutExtension());
 				}
@@ -2088,7 +2077,7 @@ namespace UnrealBuildTool
 				// ensure the plist, entitlements, and provision files are properly copied
 				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
 				DeployHandler.ForDistribution = Target.bForDistribution;
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
 				// write the entitlements file (building on Mac)
 				WriteEntitlements(Target);
@@ -2135,5 +2124,40 @@ namespace UnrealBuildTool
 		{
 			StripSymbolsWithXcode(SourceFile, TargetFile, Settings.Value.ToolchainDir);
 		}
+
+		FileItem CopyBundleResource(UEBuildBundleResource Resource, FileItem Executable, DirectoryReference BundleDirectory, List<Action> Actions)
+		{
+			Action CopyAction = new Action(ActionType.CreateAppBundle);
+			CopyAction.WorkingDirectory = GetMacDevSrcRoot(); // Path.GetFullPath(".");
+			CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
+			CopyAction.CommandDescription = "";
+
+			string BundlePath = BundleDirectory.FullName;
+			string SourcePath = Path.Combine(Path.GetFullPath("."), Resource.ResourcePath);
+			string TargetPath = Path.Combine(BundlePath, Path.GetFileName(Resource.ResourcePath));
+
+			FileItem TargetItem = FileItem.GetItemByPath(TargetPath);
+
+			CopyAction.CommandArguments = string.Format("-c 'cp -f -R \"{0}\" \"{1}\"; touch -c \"{2}\"'", SourcePath, Path.GetDirectoryName(TargetPath).Replace('\\', '/') + "/", TargetPath.Replace('\\', '/'));
+			CopyAction.PrerequisiteItems.Add(Executable);
+			CopyAction.ProducedItems.Add(TargetItem);
+			CopyAction.bShouldOutputStatusDescription = Resource.bShouldLog;
+			CopyAction.StatusDescription = string.Format("Copying {0} to app bundle", Path.GetFileName(Resource.ResourcePath));
+			CopyAction.bCanExecuteRemotely = false;
+			Actions.Add(CopyAction);
+
+			return TargetItem;
+		}
+
+		public override void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
+		{
+			base.SetupBundleDependencies(Binaries, GameName);
+
+			foreach (UEBuildBinary Binary in Binaries)
+			{
+				BundleDependencies.Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
+			}
+		}
+
 	};
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/ToolMenuBase.h"
 
@@ -30,16 +30,6 @@ const FCustomizedToolMenuEntry* FCustomizedToolMenu::FindEntry(const FName InEnt
 FCustomizedToolMenuEntry* FCustomizedToolMenu::AddEntry(const FName InEntryName)
 {
 	return &Entries.FindOrAdd(InEntryName);
-}
-
-void FCustomizedToolMenu::AddWhitelistEntry(const FName InEntryName)
-{
-	WhitelistEntries.AddUnique(InEntryName);
-}
-
-bool FCustomizedToolMenu::IsEntryWhitelisted(const FName InEntryName) const
-{
-	return WhitelistEntries.Contains(InEntryName);
 }
 
 ECustomizedToolMenuVisibility FCustomizedToolMenu::GetEntryVisiblity(const FName InEntryName) const
@@ -204,10 +194,7 @@ FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 			}
 		}
 
-		for (const FName WhitelistEntry : Current->WhitelistEntries)
-		{
-			Result.AddWhitelistEntry(WhitelistEntry);
-		}
+		Result.BlacklistFilter.Append(Current->BlacklistFilter);
 	}
 
 	return Result;

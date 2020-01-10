@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -170,6 +170,11 @@ namespace UnrealBuildTool
 		public bool bRequiresBuildPlatform;
 
 		/// <summary>
+		/// When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored
+		/// </summary>
+		public bool bExplicitlyLoaded;
+
+		/// <summary>
 		/// Set of pre-build steps to execute, keyed by host platform name.
 		/// </summary>
 		public CustomBuildSteps PreBuildSteps;
@@ -288,6 +293,7 @@ namespace UnrealBuildTool
 			}
 
 			RawObject.TryGetBoolField("RequiresBuildPlatform", out bRequiresBuildPlatform);
+			RawObject.TryGetBoolField("ExplicitlyLoaded", out bExplicitlyLoaded);
 
 			CustomBuildSteps.TryRead(RawObject, "PreBuildSteps", out PreBuildSteps);
 			CustomBuildSteps.TryRead(RawObject, "PostBuildSteps", out PostBuildSteps);
@@ -381,6 +387,11 @@ namespace UnrealBuildTool
 			if(bRequiresBuildPlatform)
 			{
 				Writer.WriteValue("RequiresBuildPlatform", bRequiresBuildPlatform);
+			}
+
+			if (bExplicitlyLoaded)
+			{
+				Writer.WriteValue("ExplicitlyLoaded", bExplicitlyLoaded);
 			}
 
 			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)

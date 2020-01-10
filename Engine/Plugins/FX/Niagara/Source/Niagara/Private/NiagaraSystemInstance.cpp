@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemInstance.h"
 #include "NiagaraConstants.h"
@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarWaitForAsyncStallWarnThresholdMS(
 );
 
 /** Safety time to allow for the LastRenderTime coming back from the RT. This is overkill but that's ok.*/
-static float GLastRenderTimeSafetyBias = 0.1f;
+float GLastRenderTimeSafetyBias = 0.1f;
 static FAutoConsoleVariableRef CVarLastRenderTimeSafetyBias(
 	TEXT("fx.LastRenderTimeSafetyBias"),
 	GLastRenderTimeSafetyBias,
@@ -82,6 +82,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
 	, bAlreadyBound(false)
+	, bLODDistanceIsValid(false)
 	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
@@ -91,6 +92,8 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	ID = IDCounter.IncrementExchange();
 
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+
+	LODDistance = 0.0f;
 
 	if (Component)
 	{
@@ -489,8 +492,8 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		// Make sure we remove the instance
 		if (SystemInstanceAllocation->SystemInstanceIndex != INDEX_NONE)
 		{
-			SystemInstanceAllocation->UnbindParameters();
 			SystemSim->RemoveInstance(SystemInstanceAllocation.Get());
+			SystemInstanceAllocation->UnbindParameters();
 		}
 
 		// Queue deferred deletion from the WorldManager
@@ -698,6 +701,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	TickCount = 0;
 	bHasTickingEmitters = true;
 	CachedDeltaSeconds = 0.0f;
+	bLODDistanceIsValid = false;
 	// Note: We do not need to update our bounds here as they are still valid
 
 	UNiagaraSystem* System = GetSystem();
@@ -723,7 +727,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset!"));
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
 		return;
 	}
 
@@ -857,7 +861,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset!"));
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
 		return;
 	}
 
@@ -914,6 +918,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	OwnerEngineRealtimeParam.Init(InstanceParameters, SYS_PARAM_ENGINE_REAL_TIME);
 
 	OwnerLODDistanceParam.Init(InstanceParameters, SYS_PARAM_ENGINE_LOD_DISTANCE);
+	OwnerLODDistanceFractionParam.Init(InstanceParameters, SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION);
 	SystemNumEmittersParam.Init(InstanceParameters, SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS);
 	SystemNumEmittersAliveParam.Init(InstanceParameters, SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE);
 
@@ -984,6 +989,9 @@ void FNiagaraSystemInstance::Cleanup()
 
 	// Clear out the emitters.
 	Emitters.Empty(0);
+
+	// clean up any event datasets that we're holding onto for our child emitters
+	ClearEventDataSets();
 }
 
 //Unsure on usage of this atm. Possibly useful in future.
@@ -1078,6 +1086,56 @@ bool FNiagaraSystemInstance::RequiresDistanceFieldData() const
 			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
 			{
 				if (DataInterface && DataInterface->RequiresDistanceFieldData())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FNiagaraSystemInstance::RequiresDepthBuffer() const
+{
+	if (!bHasGPUEmitters)
+	{
+		return false;
+	}
+
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+		if (GPUContext)
+		{
+			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
+			{
+				if (DataInterface && DataInterface->RequiresDepthBuffer())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FNiagaraSystemInstance::RequiresEarlyViewData() const
+{
+	if (!bHasGPUEmitters)
+	{
+		return false;
+	}
+
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+		if (GPUContext)
+		{
+			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
+			{
+				if (DataInterface && DataInterface->RequiresEarlyViewData())
 				{
 					return true;
 				}
@@ -1273,6 +1331,12 @@ float FNiagaraSystemInstance::GetLODDistance()
 	}
 #endif
 
+	//In most cases this will have been set externally by the scalability manager.
+	if (bLODDistanceIsValid)
+	{
+		return LODDistance;
+	}
+	
 	constexpr float DefaultLODDistance = 0.0f;
 
 	FNiagaraWorldManager* WorldManager = GetWorldManager();
@@ -1280,8 +1344,11 @@ float FNiagaraSystemInstance::GetLODDistance()
 	{
 		return DefaultLODDistance;
 	}
-
+	
+	UWorld* World = Component->GetWorld();
+	check(World);
 	const FVector EffectLocation = Component->GetComponentLocation();
+	LODDistance = DefaultLODDistance;
 
 	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads
 	if (WorldManager->CachedPlayerViewLocationsValid())
@@ -1289,24 +1356,25 @@ float FNiagaraSystemInstance::GetLODDistance()
 		TArrayView<const FVector> PlayerViewLocations = WorldManager->GetCachedPlayerViewLocations();
 		if (PlayerViewLocations.Num() == 0)
 		{
-			return DefaultLODDistance;
+			LODDistance = DefaultLODDistance;
 		}
-
-		// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
-		float LODDistanceSqr = FMath::Square(WORLD_MAX);
-		for (const FVector& ViewLocation : PlayerViewLocations)
+		else
 		{
-			const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
-			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
+			// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
+			float LODDistanceSqr = FMath::Square(WORLD_MAX);
+			for (const FVector& ViewLocation : PlayerViewLocations)
+			{
+				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
+			}
+			LODDistance = FMath::Sqrt(LODDistanceSqr);
 		}
-		return FMath::Sqrt(LODDistanceSqr);
 	}
-
-	// If we are not inside the WorldManager tick (solo tick) we must look over the player view locations manually
-	ensureMsgf(IsInGameThread(), TEXT("FNiagaraSystemInstance::GetLODDistance called in potentially thread unsafe way"));
-
-	if ( UWorld* World = Component->GetWorld() )
+	else
 	{
+		// If we are not inside the WorldManager tick (solo tick) we must look over the player view locations manually
+		ensureMsgf(IsInGameThread(), TEXT("FNiagaraSystemInstance::GetLODDistance called in potentially thread unsafe way"));
+
 		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
 		if (World->GetPlayerControllerIterator())
 		{
@@ -1334,10 +1402,10 @@ float FNiagaraSystemInstance::GetLODDistance()
 				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
 				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 			}
-			return FMath::Sqrt(LODDistanceSqr);
+			LODDistance = FMath::Sqrt(LODDistanceSqr);
 		}
 	}
-	return DefaultLODDistance;
+	return LODDistance;
 }
 
 ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
@@ -1404,6 +1472,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	{
 		return;
 	}
+	check(Component->GetAsset());
+	UNiagaraSystem* System = Component->GetAsset();
 
 	GatheredInstanceParameters.DeltaSeconds = DeltaSeconds;
 
@@ -1414,12 +1484,14 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	if (World != NULL)
 	{
 		GatheredInstanceParameters.LODDistance = GetLODDistance();
+		GatheredInstanceParameters.MaxLODDistance = MaxLODDistance;
 		GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
 		GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;
 	}
 	else
 	{
 		GatheredInstanceParameters.LODDistance = 0;
+		GatheredInstanceParameters.MaxLODDistance = 1;
 		GatheredInstanceParameters.TimeSeconds = Age;
 		GatheredInstanceParameters.RealTimeSeconds = Age;
 	}
@@ -1446,7 +1518,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	}
 
 	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
-	GatheredInstanceParameters.SafeTimeSinceRendererd = FMath::Max(0.0f, GatheredInstanceParameters.TimeSeconds - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
+	GatheredInstanceParameters.SafeTimeSinceRendererd = Component->GetSafeTimeSinceRendered(GatheredInstanceParameters.TimeSeconds);
 
 	GatheredInstanceParameters.RequestedExecutionState = RequestedExecutionState;
 
@@ -1488,6 +1560,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	OwnerInverseDeltaSecondsParam.SetValue(1.0f / GatheredInstanceParameters.DeltaSeconds);
 
 	OwnerLODDistanceParam.SetValue(GatheredInstanceParameters.LODDistance);
+	float SystemDistanceFraction = FMath::Clamp(GatheredInstanceParameters.LODDistance / GatheredInstanceParameters.MaxLODDistance, 0.0f, 1.0f);
+	OwnerLODDistanceFractionParam.SetValue(SystemDistanceFraction);
 	OwnerEngineTimeParam.SetValue(GatheredInstanceParameters.TimeSeconds);
 	OwnerEngineRealtimeParam.SetValue(GatheredInstanceParameters.RealTimeSeconds);
 
@@ -1545,6 +1619,40 @@ void FNiagaraSystemInstance::ResetFastPathBindings()
 	FastPathFloatUserParameterInputBindings.Empty();
 	FastPathIntUpdateRangedInputBindings.Empty();
 	FastPathFloatUpdateRangedInputBindings.Empty();
+}
+
+void
+FNiagaraSystemInstance::ClearEventDataSets()
+{
+	for (auto& EventDataSetIt : EmitterEventDataSetMap)
+	{
+		delete EventDataSetIt.Value;
+	}
+
+	EmitterEventDataSetMap.Empty();
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::CreateEventDataSet(FName EmitterName, FName EventName)
+{
+	// TODO: find a better way of multiple events trying to write to the same data set; 
+	// for example, if two analytical collision primitives want to send collision events, they need to push to the same data set
+	FNiagaraDataSet*& OutSet = EmitterEventDataSetMap.FindOrAdd(EmitterEventKey(EmitterName, EventName));
+
+	if (!OutSet)
+	{
+		OutSet = new FNiagaraDataSet();
+	}
+
+	return OutSet;
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::GetEventDataSet(FName EmitterName, FName EventName) const
+{
+	FNiagaraDataSet* const* OutDataSet = EmitterEventDataSetMap.Find(EmitterEventKey(EmitterName, EventName));
+
+	return OutDataSet ? *OutDataSet : nullptr;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1623,11 +1731,9 @@ void FNiagaraSystemInstance::InitEmitters()
 
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
 		{
-			FNiagaraEmitterInstance& Inst = Simulation.Get();
-			if (Inst.GetCachedEmitter() != nullptr)
+			if (const UNiagaraEmitter* Emitter = Simulation->GetCachedEmitter())
 			{
-				bHasGPUEmitters |= Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-				Inst.PostInitSimulation();
+				bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 			}
 		}
 
@@ -1732,7 +1838,10 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	Age += DeltaSeconds;
 	TickCount += 1;
 	
-	BeginAsyncWork();
+	if ( !IsComplete() )
+	{
+		BeginAsyncWork();
+	}
 }
 
 void FNiagaraSystemInstance::Tick_Concurrent()

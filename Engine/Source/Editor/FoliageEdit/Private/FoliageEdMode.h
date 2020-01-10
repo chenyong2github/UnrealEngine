@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -590,11 +590,17 @@ private:
 	/**  Propagate the selected foliage instances to the actual render foliage */
 	void ApplySelection(UWorld* InWorld, bool bApply);
 
+	/**  Update Instances so that they are in the right partitioning level */
+	void UpdateInstancePartitioning(UWorld* InWorld);
+
+	/** Called when transform transaction is done */
+	void PostTransformSelectedInstances(UWorld* InWorld);
+
 	/**  Applies relative transformation to selected instances */
 	void TransformSelectedInstances(UWorld* InWorld, const FVector& InDrag, const FRotator& InRot, const FVector& InScale, bool bDuplicate);
 
-	/**  Return selected actor and instance location */
-	AInstancedFoliageActor* GetSelectionLocation(UWorld* InWorld, FVector& OutLocation) const;
+	/**  Return true if OutLocation is valid */
+	bool GetSelectionLocation(UWorld* InWorld, FVector& OutLocation) const;
 	
 	/**  Updates ed mode widget location to currently selected instance */
 	void UpdateWidgetLocationToInstanceSelection();
@@ -679,5 +685,8 @@ private:
 	int32 UpdateSelectionCounter;
 	bool bHasDeferredSelectionNotification;
 	friend class FEdModeFoliageSelectionUpdate;
+
+	/** When transforming instances */
+	bool bMoving;
 };
 

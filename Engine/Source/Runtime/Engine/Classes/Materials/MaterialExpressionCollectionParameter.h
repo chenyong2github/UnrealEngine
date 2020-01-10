@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * MaterialExpressionCollectionParameter.h - a node that references a single parameter in a MaterialParameterCollection

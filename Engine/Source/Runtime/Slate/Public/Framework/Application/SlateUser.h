@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -45,12 +45,19 @@ public:
 	FORCEINLINE bool IsVirtualUser() const { return !Cursor.IsValid(); }
 
 	TSharedPtr<SWidget> GetFocusedWidget() const;
-	TOptional<EFocusCause> HasFocus(TSharedPtr<const SWidget> Widget) const;
 	bool ShouldShowFocus(TSharedPtr<const SWidget> Widget) const;
-	bool HasFocusedDescendants(TSharedRef<const SWidget> Widget) const;
 	bool SetFocus(const TSharedRef<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly);
 	void ClearFocus(EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly);
 
+	/** Returns the cause for which the provided widget was focused, or nothing if the given widget is not the current focus target. */
+	TOptional<EFocusCause> HasFocus(TSharedPtr<const SWidget> Widget) const;
+
+	/** Returns true if the given widget is in the focus path, but is not the focused widget itself. */
+	bool HasFocusedDescendants(TSharedRef<const SWidget> Widget) const;
+
+	/** Returns true if the given widget is anywhere in the focus path, including the focused widget itself. */
+	bool IsWidgetInFocusPath(TSharedPtr<const SWidget> Widget) const;
+	
 	bool HasAnyCapture() const;
 	bool HasCursorCapture() const;
 	bool HasCapture(uint32 PointerIndex) const;
@@ -76,6 +83,8 @@ public:
 	TArray<TSharedRef<SWidget>> GetCaptorWidgets() const;
 	TSharedPtr<SWidget> GetCursorCaptor() const;
 	TSharedPtr<SWidget> GetPointerCaptor(uint32 PointerIndex) const;
+
+	void SetCursorVisibility(bool bDrawCursor);
 
 	void SetCursorPosition(int32 PosX, int32 PosY);
 	void SetCursorPosition(const FVector2D& NewCursorPos);
@@ -115,7 +124,7 @@ SLATE_SCOPE:
 	
 	FORCEINLINE bool HasValidFocusPath() const { return WeakFocusPath.IsValid(); }
 	FORCEINLINE const FWeakWidgetPath& GetWeakFocusPath() const { return WeakFocusPath; }
-
+	
 	FORCEINLINE TSharedRef<FWidgetPath> GetFocusPath() const
 	{
 		if (!StrongFocusPath.IsValid())
@@ -145,6 +154,9 @@ SLATE_SCOPE:
 	void FinishFrame();
 	void NotifyWindowDestroyed(TSharedRef<SWindow> DestroyedWindow);
 
+	bool IsTouchPointerActive(int32 TouchPointerIndex) const;
+
+	void NotifyTouchStarted(const FPointerEvent& TouchEvent);
 	void NotifyPointerMoveBegin(const FPointerEvent& PointerEvent);
 	void NotifyPointerMoveComplete(const FPointerEvent& PointerEvent, const FWidgetPath& WidgetsUnderPointer);
 	void NotifyPointerReleased(const FPointerEvent& PointerEvent, const FWidgetPath& WidgetsUnderCursor, TSharedPtr<FDragDropOperation> DroppedContent, bool bWasHandled);
@@ -185,6 +197,9 @@ private:
 
 	/** The cursor this user is in control of. Guaranteed to be valid for all real users, absence implies this is a virtual user. */
 	TSharedPtr<ICursor> Cursor;
+
+	/** Whether this user is currently drawing the cursor onscreen each frame */
+	bool bCanDrawCursor = true;
 
 	/** The OS or actions taken by the user may require we refresh the current state of the cursor. */
 	bool bQueryCursorRequested = false;

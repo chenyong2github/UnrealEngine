@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //This file needs to be here so the "ant" build step doesnt fail when looking for a /src folder.
 
 package com.epicgames.ue4;
@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.BreakIterator;
 import java.util.zip.Inflater;
 import java.util.Stack;
 import java.util.Timer;
@@ -205,6 +206,7 @@ import android.graphics.Color;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.FileProvider;
 //$${gameActivityImportAdditions}$$
 
@@ -1592,6 +1594,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			bHasNEON = true;
 		}
 
+        String abilist = getProp("ro.product.cpu.abilist");
+        if (abilist.contains("arm64-v8a"))
+        {
+            bIsARM64 = true;
+        }
+
 		// check each processor featureset
 		for (int id=0; id < processorCount; id++)
 		{
@@ -2287,22 +2295,29 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Log.debug(e.getMessage());
 		}
 
+		boolean bIsShipping = nativeIsShippingBuild();
 		if (ANDROID_BUILD_VERSION >= 23 && targetSdkVersion >= 23) //23 is the API level (Marshmallow) where runtime permission handling is available
 		{
-			Log.debug("Target SDK is " + targetSdkVersion + ".  This may cause issues if permissions are denied by the user." );				
+			Log.debug("Target SDK is " + targetSdkVersion + ".  This may cause issues if permissions are denied by the user." );	
+			if (!bIsShipping)
+			{
+				// For non-shipping builds we may need this permission because we write to the sdcard for logs
+				if (!PermissionHelper.checkPermission("android.permission.WRITE_EXTERNAL_STORAGE"))
+				{
+					Log.debug("android.permission.WRITE_EXTERNAL_STORAGE was not granted; this may cause issues with file access." );
+					// we do not do this currently since we must wait until it is granted before accessing files
+					// SplashActivity takes care of properly gating this in the cases it is needed
+					//PermissionHelper.acquirePermissions(new String[] {"android.permission.WRITE_EXTERNAL_STORAGE"}, this);
+				}
+			}
 		}
 
 		Logger.RegisterCallback(this);
 		
 		// Suppress java logs in Shipping builds
-		if (nativeIsShippingBuild())
+		if (bIsShipping)
 		{
 			Logger.SuppressLogs();
-		}
-		else
-		{
-			//For non-shipping builds we need to request this permission bc we write to the sdcard for logs
-			PermissionHelper.acquirePermissions(new String[] {"android.permission.WRITE_EXTERNAL_STORAGE"}, this);
 		}
 
 		// update memory stats every 10 seconds
@@ -5115,6 +5130,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
+	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
+	{
+		return NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
+	}
+
 	public void AndroidThunkJava_SetDesiredViewSize(int width, int height)
 	{
 		if (width == DesiredHolderWidth && height == DesiredHolderHeight)
@@ -5565,13 +5585,23 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				{ 
 					//insert
 					text.insert(selStart, newString);
-				} 
+				}
 				else if(selStart > 0) 
-				{ 
-					//delete last character
-					selStart--;
-					text.replace(selStart, selStart + 1, "");
-				} 
+				{
+					// selection start and end are the same, but in the middle of the string
+					// this means we want a single "delete character to left of selection" (backspace)
+
+					// using BreakIterator to ensure we capture proper emoji / Unicode grapheme boundaries
+					BreakIterator finder = BreakIterator.getCharacterInstance();
+					finder.setText(owner.getText().toString());
+
+					selStart = finder.preceding(selStart);
+					if (selStart == BreakIterator.DONE)
+					{
+						selStart = 0;
+					}
+					text.replace(selStart, selEnd, "");
+				}
 
 				if(newString.length() == 0)
 				{

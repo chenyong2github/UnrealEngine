@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSpriteSceneProxy.h"
 #include "Materials/Material.h"
@@ -12,25 +12,10 @@
 // FPaperSpriteSceneProxy
 
 FPaperSpriteSceneProxy::FPaperSpriteSceneProxy(UPaperSpriteComponent* InComponent)
-	: FPaperRenderSceneProxy(InComponent)
+	: FPaperRenderSceneProxy_SpriteBase(InComponent)
 	, BodySetup(InComponent->GetBodySetup())
 {
 	SetWireframeColor(InComponent->GetWireframeColor());
-
-	Material = InComponent->GetMaterial(0);
-	if (Material == nullptr)
-	{
-		Material = UMaterial::GetDefaultMaterial(MD_Surface);
-	}
-
-	AlternateMaterial = InComponent->GetMaterial(1);
-	if (AlternateMaterial == nullptr)
-	{
-		AlternateMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-	}
-
-	MaterialSplitIndex = INDEX_NONE;
-	MaterialRelevance = InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
 }
 
 SIZE_T FPaperSpriteSceneProxy::GetTypeHash() const
@@ -94,48 +79,4 @@ void FPaperSpriteSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 	}
 
 	FPaperRenderSceneProxy::GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector);
-}
-
-void FPaperSpriteSceneProxy::SetSprite_RenderThread(const FSpriteDrawCallRecord& NewDynamicData, int32 SplitIndex)
-{
-	SCOPE_CYCLE_COUNTER(STAT_PaperRender_SetSpriteRT);
-
-	BatchedSprites.Empty();
-	AlternateBatchedSprites.Empty();
-
-	if (SplitIndex != INDEX_NONE)
-	{
-		FSpriteDrawCallRecord& Record = *new (BatchedSprites) FSpriteDrawCallRecord;
-		FSpriteDrawCallRecord& AltRecord = *new (AlternateBatchedSprites) FSpriteDrawCallRecord;
-		
-		Record.Color = NewDynamicData.Color;
-		Record.Destination = NewDynamicData.Destination;
-		Record.BaseTexture = NewDynamicData.BaseTexture;
-		Record.AdditionalTextures = NewDynamicData.AdditionalTextures;
-		Record.RenderVerts.Append(NewDynamicData.RenderVerts.GetData(), SplitIndex);
-
-		AltRecord.Color = NewDynamicData.Color;
-		AltRecord.Destination = NewDynamicData.Destination;
-		AltRecord.BaseTexture = NewDynamicData.BaseTexture;
-		AltRecord.AdditionalTextures = NewDynamicData.AdditionalTextures;
-		AltRecord.RenderVerts.Append(NewDynamicData.RenderVerts.GetData() + SplitIndex, NewDynamicData.RenderVerts.Num() - SplitIndex);
-	}
-	else
-	{
-		FSpriteDrawCallRecord& Record = *new (BatchedSprites) FSpriteDrawCallRecord;
-		Record = NewDynamicData;
-	}
-}
-
-void FPaperSpriteSceneProxy::GetDynamicMeshElementsForView(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const
-{
-	if (Material != nullptr)
-	{
-		GetBatchMesh(View, Material, BatchedSprites, ViewIndex, Collector);
-	}
-
-	if ((AlternateMaterial != nullptr) && (AlternateBatchedSprites.Num() > 0))
-	{
-		GetBatchMesh(View, AlternateMaterial, AlternateBatchedSprites, ViewIndex, Collector);
-	}
 }

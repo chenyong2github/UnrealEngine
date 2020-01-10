@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Party/PartyMember.h"
 #include "Party/SocialParty.h"
@@ -70,7 +70,12 @@ void UPartyMember::InitializePartyMember(const FOnlinePartyMemberConstRef& InOss
 	{
 		OssPartyMember = InOssMember;
 		OssPartyMember->OnMemberConnectionStatusChanged().AddUObject(this, &ThisClass::HandleMemberConnectionStatusChanged);
-		USocialToolkit* OwnerToolkit = GetParty().GetSocialManager().GetFirstLocalUserToolkit();
+		USocialToolkit* OwnerToolkit = GetParty().GetSocialManager().GetSocialToolkit(OssPartyMember->GetUserId());
+		// If we are not a local user then we simply get the first local user's toolkit
+		if (OwnerToolkit == nullptr)
+		{
+			OwnerToolkit = GetParty().GetSocialManager().GetFirstLocalUserToolkit();
+		}
 		check(OwnerToolkit);
 
 		OwnerToolkit->QueueUserDependentAction(InOssMember->GetUserId(),

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 AsyncTextureStreaming.cpp: Definitions of classes used for texture streaming async task.
@@ -869,7 +869,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 		Stats.UsedStreamingPool += FMath::Min<int64>(RequiredSize, BudgetedSize);
 
 		// Remove from the non streaming budget what is actually taken by streaming.
-		Stats.NonStreamingMips -= ResidentSize;
+		Stats.NonStreamingMips -= ResidentSize * StreamingRenderAsset.IsTexture();
 
 		// All persistent mip bias bigger than the expected is considered overbudget.
 		const int32 OverBudgetBias = FMath::Max<int32>(0, StreamingRenderAsset.BudgetMipBias - Settings.GlobalMipBias);
@@ -981,7 +981,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateCSVOnlyStats_Async()
 		Stats.RequiredPool += RequiredSize;
 
 		// Remove from the non streaming budget what is actually taken by streaming.
-		Stats.NonStreamingMips -= ResidentSize;
+		Stats.NonStreamingMips -= ResidentSize * StreamingRenderAsset.IsTexture();
 
 		const int64 UsedSize = FMath::Min3<int64>(RequiredSize, BudgetedSize, ResidentSize);
 

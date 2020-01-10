@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -76,13 +76,6 @@ struct FFlyingMovementSyncState
 		P.Ar << Rotation;
 	}
 
-	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
-	bool ShouldReconcile(const FFlyingMovementSyncState& AuthorityState)
-	{
-		const float ErrorTolerance = 1.f;
-		return !AuthorityState.Location.Equals(Location, ErrorTolerance);
-	}
-
 	void Log(FStandardLoggingParameters& Params) const
 	{
 		if (Params.Context == EStandardLoggingContext::HeaderOnly)
@@ -96,12 +89,6 @@ struct FFlyingMovementSyncState
 			Params.Ar->Logf(TEXT("Vel: %s"), *Velocity.ToString());
 			Params.Ar->Logf(TEXT("Rot: %s"), *Rotation.ToString());
 		}
-	}
-
-	static void Interpolate(const FFlyingMovementSyncState& From, const FFlyingMovementSyncState& To, const float PCT, FFlyingMovementSyncState& OutDest)
-	{
-		OutDest.Location = From.Location + ((To.Location - From.Location) * PCT);
-		OutDest.Rotation = From.Rotation + ((To.Rotation - From.Rotation) * PCT);
 	}
 };
 
@@ -140,8 +127,6 @@ struct FFlyingMovementAuxState
 	
 using FlyingMovementBufferTypes = TNetworkSimBufferTypes<FFlyingMovementInputCmd, FFlyingMovementSyncState, FFlyingMovementAuxState>;
 
-static FName SimulationGroupName("FlyingMovement");
-
 class FFlyingMovementSimulation : public FBaseMovementSimulation
 {
 public:
@@ -165,23 +150,57 @@ protected:
 	float SlideAlongSurface(const FVector& Delta, float Time, const FQuat Rotation, const FVector& Normal, FHitResult& Hit, bool bHandleImpact);
 };
 
-// Actual definition of our network simulation.
-template<int32 InFixedStepMS=0>
-using FFlyingMovementSystem = TNetworkedSimulationModel<FFlyingMovementSimulation, FlyingMovementBufferTypes, TNetworkSimTickSettings<InFixedStepMS>>;
+class FFlyingMovementNetSimModelDef : public FNetSimModelDefBase
+{
+public:
 
-// general tolerance value for rotation checks
-static const float ROTATOR_TOLERANCE = (1e-3);
+	using Simulation = FFlyingMovementSimulation;
+	using BufferTypes = FlyingMovementBufferTypes;
 
-// Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
-// Also needed for forward declaring. Can't just be a typedef/using =
-class IFlyingMovementSystemDriver : public TNetworkedSimulationModelDriver<FlyingMovementBufferTypes> { };
+	/** Tick group the simulation maps to */
+	static const FName GroupName;
+
+	// general tolerance value for rotation checks
+	static const float ROTATOR_TOLERANCE;
+
+	/** Predicted error testing */
+	static bool ShouldReconcile(const FFlyingMovementSyncState& AuthoritySync, const FFlyingMovementAuxState& AuthorityAux, const FFlyingMovementSyncState& PredictedSync, const FFlyingMovementAuxState& PredictedAux)
+	{
+		const float ErrorTolerance = 1.f;
+		return !AuthoritySync.Location.Equals(PredictedSync.Location, ErrorTolerance);
+	}
+
+	static void Interpolate(const TInterpolatorParameters<FFlyingMovementSyncState, FFlyingMovementAuxState>& Params)
+	{
+		const FVector DeltaLocation = (Params.To.Sync.Location - Params.From.Sync.Location);
+		const float TeleportThresholdSq = 500.f * 500.f; // FIXME: this is not a good way to do this
+		if (DeltaLocation.SizeSquared() > TeleportThresholdSq)
+		{
+			Params.Out.Sync = Params.To.Sync;
+		}
+		else
+		{
+			Params.Out.Sync.Location = Params.From.Sync.Location + (DeltaLocation * Params.InterpolationPCT);
+			Params.Out.Sync.Rotation = Params.From.Sync.Rotation + ((Params.To.Sync.Rotation - Params.From.Sync.Rotation) * Params.InterpolationPCT);
+		}
+	
+		Params.Out.Aux = Params.To.Aux;
+	}
+};
+
+/** Additional specialized types of the Flying Movement NetSimModel */
+class FFlyingMovementNetSimModelDef_Fixed30Hz : public FFlyingMovementNetSimModelDef
+{
+public:
+	using TickSettings = TNetworkSimTickSettings<33>;
+};
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running FlyingMovement 
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTION_API UFlyingMovementComponent : public UBaseMovementComponent, public IFlyingMovementSystemDriver
+class NETWORKPREDICTION_API UFlyingMovementComponent : public UBaseMovementComponent, public TNetworkedSimulationModelDriver<FlyingMovementBufferTypes>
 {
 	GENERATED_BODY()
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AndroidPlatformCrashContext.cpp: implementations of Android platform crash context.
@@ -18,6 +18,8 @@
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/ThreadManager.h"
+#include "HAL/RunnableThread.h"
 
 static int64 GetAndroidLibraryBaseAddress();
 
@@ -73,13 +75,13 @@ void FAndroidCrashContext::GetCrashDirectoryName(char(&DirectoryNameOUT)[CrashRe
 	FCStringAnsi::Strncpy(DirectoryNameOUT, GAndroidCrashInfo.TargetDirectory, CrashReportMaxPathSize);
 }
 
-static ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0)
+const ANSICHAR* FAndroidCrashContext::ItoANSI(uint64 Val, uint64 Base, uint32 Len)
 {
 	static ANSICHAR InternalBuffer[64] = { 0 };
 
 	uint64 i = 62;
 	int32 pad = Len;
-
+	Base = FMath::Clamp<uint64>(Base, 2, 16);
 	if (Val)
 	{
 		for (; Val && i; --i, Val /= Base, --pad)
@@ -137,29 +139,119 @@ static void CrashReportFileCopy(const char* DestPath, const char* SourcePath)
 
 void FAndroidCrashContext::StoreCrashInfo() const
 {
-	char CrashDirectoryName[CrashReportMaxPathSize] = { 0 };
 	char FilePath[CrashReportMaxPathSize] = { 0 };
-	if (GetType() == ECrashContextType::Ensure)
-	{
-		// create a new report folder.
-		GenerateReportDirectoryName(CrashDirectoryName);
-	}
-	else
-	{
-		GetCrashDirectoryName(CrashDirectoryName);
-	}
-
-	FCStringAnsi::Strcpy(FilePath, CrashDirectoryName);
+	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
 	FCStringAnsi::Strcat(FilePath, "/");
 	FCStringAnsi::Strcat(FilePath, FGenericCrashContext::CrashContextRuntimeXMLNameA);
 	SerializeAsXML(*FString(FilePath)); // CreateFileWriter will also create destination directory.
 
 	// copy log:
-	FCStringAnsi::Strcpy(FilePath, CrashDirectoryName);
+	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
 	FCStringAnsi::Strcat(FilePath, "/");
 	FCStringAnsi::Strcat(FilePath, FCStringAnsi::Strlen(GAndroidCrashInfo.AppName) ? GAndroidCrashInfo.AppName : "UE4");
 	FCStringAnsi::Strcat(FilePath, ".log");
 	CrashReportFileCopy(FilePath, GAndroidCrashInfo.AppLogPath);
+}
+
+
+//Create a separate file containing thread context info (callstacks etc) in xml form
+// This is added to the crash report xml at during pre-processing time.
+void FAndroidCrashContext::DumpAllThreadCallstacks() const
+{
+	char FilePath[FAndroidCrashContext::CrashReportMaxPathSize] = { 0 };
+	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
+	FCStringAnsi::Strcat(FilePath, FAndroidCrashContext::CrashReportMaxPathSize, "/AllThreads.txt");
+	TArray<FCrashStackFrame> CrashStackFrames;
+	CrashStackFrames.Empty(32);
+	uint32 CallstacksRecorded = 0;
+	int DestHandle = open(FilePath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+	if (DestHandle >= 0)
+	{
+		int32 CurrentThreadID = FPlatformTLS::GetCurrentThreadId();
+		auto Write = [](int FileHandle, const ANSICHAR* Buffer)
+		{
+			write(FileHandle, Buffer, FCStringAnsi::Strlen(Buffer));
+		};
+		auto Writeln = [](int FileHandle, const ANSICHAR* Buffer)
+		{
+			write(FileHandle, Buffer, FCStringAnsi::Strlen(Buffer));
+			write(FileHandle, "\n", 1);
+		};
+
+		auto WriteThreadEntry = [Writeln, Write, this, DestHandle, &CrashStackFrames, &CallstacksRecorded, CurrentThreadID](uint32 ThreadID, const char* ThreadName)
+		{
+			// Capture the stack trace
+			static const int StackTraceMaxDepth = 100;
+			uint64 StackTrace[StackTraceMaxDepth];
+			FMemory::Memzero(StackTrace);
+			uint32 Depth = 0;
+			if (CurrentThreadID == ThreadID)
+			{
+				Depth = FPlatformStackWalk::CaptureStackBackTrace(StackTrace, StackTraceMaxDepth);
+			}
+			else
+			{
+				Depth = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadID, StackTrace, StackTraceMaxDepth);
+			}
+
+			if (Depth)
+			{
+				ANSICHAR Line[256];
+				Writeln(DestHandle, "<Thread>");
+				Write(DestHandle, "<CallStack>");
+				// Write stack
+				GetPortableCallStack(StackTrace, Depth, CrashStackFrames);
+				for (const FCrashStackFrame& CrashStackFrame : CrashStackFrames)
+				{
+					FCStringAnsi::Strncpy(Line, TCHAR_TO_UTF8(*CrashStackFrame.ModuleName), UE_ARRAY_COUNT(Line));
+					FCStringAnsi::Strcat(Line, " 0x");
+					FCStringAnsi::Strcat(Line, ItoANSI(CrashStackFrame.BaseAddress, (uint64)16, 16));
+					FCStringAnsi::Strcat(Line, " + ");
+					FCStringAnsi::Strcat(Line, ItoANSI(CrashStackFrame.Offset, (uint64)16, 16));
+					Writeln(DestHandle, Line);
+				}
+				Writeln(DestHandle, "</CallStack>");
+				Writeln(DestHandle, "<IsCrashed>false</IsCrashed>");
+				Writeln(DestHandle, "<Registers/>");
+				// write Thread Id
+				FCStringAnsi::Strncpy(Line, ItoANSI((uint64)ThreadID, (uint64)10), UE_ARRAY_COUNT(Line));
+				Write(DestHandle, "<ThreadID>");
+				Write(DestHandle, Line);
+				Writeln(DestHandle, "</ThreadID>");
+
+				// write Thread Name
+				Write(DestHandle, "<ThreadName>");
+				FCStringAnsi::Strncpy(Line, ThreadName, UE_ARRAY_COUNT(Line));
+				Write(DestHandle, Line);
+				Writeln(DestHandle, "</ThreadName>");
+
+				Writeln(DestHandle, "</Thread>");
+				CallstacksRecorded++;
+			}
+		};
+
+		Writeln(DestHandle, "<Threads>");
+
+		if( GIsGameThreadIdInitialized )
+		{
+			// On android the Game thread is that which calls android_main entry point. 
+			// Explicitly call it here as the thread manager is not aware of it.
+			WriteThreadEntry(GGameThreadId, "GameThread");
+		}
+		// For each thread append it's info to the file.
+		FThreadManager::Get().ForEachThread([WriteThreadEntry, this, DestHandle, &CrashStackFrames, &CallstacksRecorded](uint32 ThreadID, FRunnableThread* Runnable)
+		{
+			WriteThreadEntry(ThreadID, TCHAR_TO_UTF8(*Runnable->GetThreadName()));
+		});
+
+		Writeln(DestHandle, "</Threads>");
+		close(DestHandle);
+
+		if (CallstacksRecorded == 0)
+		{
+			unlink(FilePath); // remove the file if nothing was written.
+		}
+	}
 }
 
 void FAndroidCrashContext::Initialize()
@@ -173,6 +265,15 @@ FAndroidCrashContext::FAndroidCrashContext(ECrashContextType InType, const TCHAR
 , Info(NULL)
 , Context(NULL)
 {
+	if (GetType() == ECrashContextType::Ensure)
+	{
+		// create a new report folder.
+		GenerateReportDirectoryName(ReportDirectory);
+	}
+	else
+	{
+		GetCrashDirectoryName(ReportDirectory);
+	}
 }
 
 void FAndroidCrashContext::CaptureCrashInfo()
@@ -243,17 +344,8 @@ void FAndroidCrashContext::AddPlatformSpecificProperties() const
 	}
 }
 
-void FAndroidCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack)
+void FAndroidCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const
 {
-	// Get all the modules in the current process
-	uint32 NumModules = (uint32)FPlatformStackWalk::GetProcessModuleCount();
-
-	TArray<FStackWalkModuleInfo> Modules;
-	Modules.AddUninitialized(NumModules);
-
-	NumModules = FPlatformStackWalk::GetProcessModuleSignatures(Modules.GetData(), NumModules);
-	Modules.SetNum(NumModules);
-
 	// Update the callstack with offsets from each module
 	OutCallStack.Reset(NumStackFrames);
 	for (int32 Idx = 0; Idx < NumStackFrames; Idx++)

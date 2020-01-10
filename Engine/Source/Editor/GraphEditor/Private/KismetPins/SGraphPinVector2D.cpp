@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinVector2D.h"
@@ -157,6 +157,11 @@ FString MakeVector2DString(const FString& X, const FString& Y)
 
 void SGraphPinVector2D::OnChangedValueTextBox_X(float NewValue, ETextCommit::Type CommitInfo)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FString ValueStr = FString::Printf( TEXT("%f"), NewValue );
 	const FString Vector2DString = MakeVector2DString(ValueStr, GetValue(TextBox_Y));
 
@@ -172,6 +177,11 @@ void SGraphPinVector2D::OnChangedValueTextBox_X(float NewValue, ETextCommit::Typ
 
 void SGraphPinVector2D::OnChangedValueTextBox_Y(float NewValue, ETextCommit::Type CommitInfo)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FString ValueStr = FString::Printf( TEXT("%f"), NewValue );
 	const FString Vector2DString =MakeVector2DString(GetValue(TextBox_X), ValueStr);
 

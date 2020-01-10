@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Widgets/SWidget.h"
 #include "IConfigEditorModule.h"
+#include "UObject/WeakFieldPtr.h"
 
 class FSpawnTabArgs;
 class SConfigEditor;
@@ -26,7 +27,7 @@ public:
 
 public:
 	//~ Begin IConfigEditorModule Interface
-	virtual void CreateHierarchyEditor(UProperty* EditProperty) override;
+	virtual void CreateHierarchyEditor(FProperty* EditProperty) override;
 	virtual void AddExternalPropertyValueWidgetAndConfigPairing(const FString& ConfigFile, const TSharedPtr<SWidget> ValueWidget) override;
 	virtual TSharedRef<SWidget> GetValueWidgetForConfigProperty(const FString& ConfigFile) override;
 	//~ End IConfigEditorModule Interface	
@@ -51,6 +52,6 @@ private:
 	TSharedPtr<SConfigEditor> PropertyConfigEditor;
 
 	// Reference to the property the hierarchy is to view.
-	TWeakObjectPtr<UProperty> CachedPropertyToView;
+	TWeakFieldPtr<FProperty> CachedPropertyToView;
 };
 

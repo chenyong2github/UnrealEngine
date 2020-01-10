@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -409,6 +409,21 @@ struct FPreviewPlatformInfo
 		return bPreviewFeatureLevelActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
 	}
 
+};
+
+/** Struct used in filtering allowed references between assets. Passes context about the referencers to game-level filters */
+struct FAssetReferenceFilterContext
+{
+	TArray<FAssetData> ReferencingAssets;
+};
+
+/** Used in filtering allowed references between assets. Implement a subclass of this and return it in OnMakeAssetReferenceFilter */
+class IAssetReferenceFilter
+{
+public:
+	virtual ~IAssetReferenceFilter() { }
+	/** Filter function to pass/fail an asset. Called in some situations that are performance-sensitive so is expected to be fast. */
+	virtual bool PassesFilter(const FAssetData& AssetData, FText* OutOptionalFailureReason = nullptr) const = 0;
 };
 
 /**
@@ -2105,7 +2120,7 @@ public:
 	 * @param	CommonBaseClass		The class of object to color.
 	 * @param	PropertyChain		The chain of properties from member to lowest property.
 	 */
-	virtual void SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, class UProperty* Property, class UClass* CommonBaseClass, class FEditPropertyChain* PropertyChain);
+	virtual void SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, class FProperty* Property, class UClass* CommonBaseClass, class FEditPropertyChain* PropertyChain);
 
 	/**
 	 * Accessor for current property-based coloration settings.
@@ -2115,7 +2130,7 @@ public:
 	 * @param	OutCommonBaseClass	[out] The class of object to color.
 	 * @param	OutPropertyChain	[out] The chain of properties from member to lowest property.
 	 */
-	virtual void GetPropertyColorationTarget(FString& OutPropertyValue, UProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain);
+	virtual void GetPropertyColorationTarget(FString& OutPropertyValue, FProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain);
 
 	/**
 	 * Selects actors that match the property coloration settings.
@@ -2518,6 +2533,18 @@ public:
 	*/
 	void GetReferencedAssetsForEditorSelection(TArray<UObject*>& Objects, const bool bIgnoreOtherAssetsIfBPReferenced = false);
 
+	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IAssetReferenceFilter>, FOnMakeAssetReferenceFilter, const FAssetReferenceFilterContext& /*Context*/);
+	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
+	TSharedPtr<IAssetReferenceFilter> MakeAssetReferenceFilter(const FAssetReferenceFilterContext& Context) { return OnMakeAssetReferenceFilterDelegate.IsBound() ? OnMakeAssetReferenceFilterDelegate.Execute(Context) : nullptr; }
+
+protected:
+
+	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
+	FOnMakeAssetReferenceFilter OnMakeAssetReferenceFilterDelegate;
+
+public:
+
 	/** Returns the WorldContext for the editor world. For now, there will always be exactly 1 of these in the editor. 
 	 *
 	 * @param	bEnsureIsGWorld		Temporarily allow callers to validate that this maps to GWorld to help track down any conversion bugs
@@ -2586,7 +2613,7 @@ public:
 	 *
 	 * @return	the friendly name for the property.  localized first, then metadata, then the property's name.
 	 */
-	static FString GetFriendlyName( const UProperty* Property, UStruct* OwnerStruct = NULL );
+	static FString GetFriendlyName( const FProperty* Property, UStruct* OwnerStruct = NULL );
 
 	/**
 	 * Register a client tool to receive undo events 

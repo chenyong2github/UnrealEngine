@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyMeshSpaceAdditive
@@ -36,6 +37,8 @@ void FAnimNode_ApplyMeshSpaceAdditive::Update_AnyThread(const FAnimationUpdateCo
 			Additive.Update(Context.FractionalWeight(ActualAlpha));
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
 }
 
 void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsPlatformMisc.h"
 #include "Misc/DateTime.h"
@@ -1926,6 +1926,11 @@ FString FWindowsPlatformMisc::GetDefaultLocale()
 uint32 FWindowsPlatformMisc::GetLastError()
 {
 	return (uint32)::GetLastError();
+}
+
+void FWindowsPlatformMisc::SetLastError(uint32 ErrorCode)
+{
+	::SetLastError((DWORD)ErrorCode);
 }
 
 bool FWindowsPlatformMisc::CoInitialize()

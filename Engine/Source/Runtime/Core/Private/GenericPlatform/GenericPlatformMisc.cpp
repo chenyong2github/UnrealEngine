@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Misc/AssertionMacros.h"
@@ -459,11 +459,6 @@ void FGenericPlatformMisc::MemoryBarrier()
 {
 }
 
-void FGenericPlatformMisc::HandleIOFailure( const TCHAR* Filename )
-{
-	UE_LOG(LogGenericPlatformMisc, Fatal,TEXT("I/O failure operating on '%s'"), Filename ? Filename : TEXT("Unknown file"));
-}
-
 void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 {
 	/** This is the last place to gather memory stats before exception. */
@@ -757,7 +752,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 		int32 chopPos = TempPath.Find(TEXT("/Engine"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		if (chopPos != INDEX_NONE)
 		{
-			TempPath = TempPath.Left(chopPos + 1);
+			TempPath.LeftInline(chopPos + 1, false);
 		}
 		else
 		{
@@ -766,7 +761,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 			// if the path ends in a separator, remove it
 			if (TempPath.Right(1) == TEXT("/"))
 			{
-				TempPath = TempPath.LeftChop(1);
+				TempPath.LeftChopInline(1, false);
 			}
 
 			// keep going until we've removed Binaries
@@ -777,7 +772,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 #endif
 			if (pos != INDEX_NONE)
 			{
-				TempPath = TempPath.Left(pos + 1);
+				TempPath.LeftInline(pos + 1, false);
 			}
 			else
 			{
@@ -790,7 +785,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 				{
 					while (TempPath.Len() && TempPath.Right(1) != TEXT("/"))
 					{
-						TempPath = TempPath.LeftChop(1);
+						TempPath.LeftChopInline(1, false);
 					}
 				}
 			}

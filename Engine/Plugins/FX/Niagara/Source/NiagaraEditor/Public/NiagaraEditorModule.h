@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -25,6 +25,8 @@ class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
+struct FNiagaraScriptHighlight;
+class FNiagaraClipboard;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -106,6 +108,14 @@ public:
 
 	NIAGARAEDITOR_API const FNiagaraEditorCommands& GetCommands() const;
 
+	void InvalidateCachedScriptAssetData();
+
+	const TArray<FNiagaraScriptHighlight>& GetCachedScriptAssetHighlights() const;
+
+	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
+
+	FNiagaraClipboard& GetClipboard() const;
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
@@ -115,6 +125,10 @@ private:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FNiagaraEditorModule";
+	}
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
 
@@ -162,5 +176,9 @@ private:
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 
+	mutable TOptional<TArray<FNiagaraScriptHighlight>> CachedScriptAssetHighlights;
+
 	bool bThumbnailRenderersRegistered;
+
+	TSharedRef<FNiagaraClipboard> Clipboard;
 };

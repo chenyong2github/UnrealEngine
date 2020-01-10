@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/RigVMControllerActions.h"
@@ -1289,7 +1289,7 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 	}
 	else if (Pin->IsArray())
 	{
-		UArrayProperty * ArrayProperty = Cast<UArrayProperty>(FindPropertyForPin(Pin->GetPinPath()));
+		FArrayProperty * ArrayProperty = CastField<FArrayProperty>(FindPropertyForPin(Pin->GetPinPath()));
 		if (ArrayProperty)
 		{
 			TArray<FString> ElementDefaultValues = SplitDefaultValue(InDefaultValue);
@@ -1838,7 +1838,7 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 		}
 	}
 
-	for (TFieldIterator<UProperty> It(InStruct); It; ++It)
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
 		FName PropertyName = It->GetFName();
 
@@ -1856,7 +1856,7 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 
 		FString* DefaultValuePtr = MemberValues.Find(Pin->GetFName());
 
-		UStructProperty* StructProperty = Cast<UStructProperty>(*It);
+		FStructProperty* StructProperty = CastField<FStructProperty>(*It);
 		if (StructProperty)
 		{
 			if (ShouldStructBeUnfolded(StructProperty->Struct))
@@ -1874,7 +1874,7 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 			}
 		}
 
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(*It);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*It);
 		if (ArrayProperty)
 		{
 			ensure(Pin->IsArray());
@@ -1905,7 +1905,7 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 	}
 }
 
-void URigVMController::AddPinsForArray(UArrayProperty* InArrayProperty, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const TArray<FString>& InDefaultValues)
+void URigVMController::AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const TArray<FString>& InDefaultValues)
 {
 	check(InParentPin);
 	if (!ShouldPinBeUnfolded(InParentPin))
@@ -1922,7 +1922,7 @@ void URigVMController::AddPinsForArray(UArrayProperty* InArrayProperty, URigVMNo
 
 		InParentPin->SubPins.Add(Pin);
 
-		UStructProperty* StructProperty = Cast<UStructProperty>(InArrayProperty->Inner);
+		FStructProperty* StructProperty = CastField<FStructProperty>(InArrayProperty->Inner);
 		if (StructProperty)
 		{
 			if (ShouldPinBeUnfolded(Pin))
@@ -1935,7 +1935,7 @@ void URigVMController::AddPinsForArray(UArrayProperty* InArrayProperty, URigVMNo
 			}
 		}
 
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InArrayProperty->Inner);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InArrayProperty->Inner);
 		if (ArrayProperty)
 		{
 			if (ShouldPinBeUnfolded(Pin))
@@ -1960,7 +1960,7 @@ void URigVMController::AddPinsForArray(UArrayProperty* InArrayProperty, URigVMNo
 	}
 }
 
-void URigVMController::ConfigurePinFromProperty(UProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection)
+void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection)
 {
 	if (InPinDirection == ERigVMPinDirection::Invalid)
 	{
@@ -1993,7 +1993,7 @@ void URigVMController::ConfigurePinFromProperty(UProperty* InProperty, URigVMPin
 	InOutPin->CPPType = InProperty->GetCPPType(&ExtendedCppType);
 	InOutPin->CPPType += ExtendedCppType;
 
-	UStructProperty* StructProperty = Cast<UStructProperty>(InProperty);
+	FStructProperty* StructProperty = CastField<FStructProperty>(InProperty);
 	if (StructProperty)
 	{
 		InOutPin->ScriptStruct = StructProperty->Struct;
@@ -2042,7 +2042,7 @@ bool URigVMController::ShouldPinBeUnfolded(URigVMPin* InPin)
 	return false;
 }
 
-UProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
+FProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
 {
 	if(!IsValidGraph())
 	{
@@ -2070,18 +2070,18 @@ UProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
 		int32 PartIndex = 1; // cut off the first one since it's the node
 
 		UStruct* Struct = StructNode->ScriptStruct;
-		UProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
+		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 
 		while (PartIndex < Parts.Num() && Property != nullptr)
 		{
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 			{
 				Property = ArrayProperty->Inner;
 				PartIndex++;
 				continue;
 			}
 
-			if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+			if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
 				Struct = StructProperty->Struct;
 				Property = Struct->FindPropertyByName(*Parts[PartIndex++]);

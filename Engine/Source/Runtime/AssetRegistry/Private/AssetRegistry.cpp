@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry.h"
 #include "Misc/CommandLine.h"
@@ -133,8 +133,8 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				const FString& RootPath = *RootPathIt;
 				const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
 
-				// This could be due to a plugin that specifies it contains content, yet has no content yet. PluginManager
-				// Mounts these folders anyway which results in then being returned from QueryRootContentPaths
+				// A missing directory here could be due to a plugin that specifies it contains content, yet has no content yet. PluginManager
+				// Mounts these folders anyway which results in them being returned from QueryRootContentPaths
 				if (IFileManager::Get().DirectoryExists(*ContentFolder))
 				{
 					FDelegateHandle NewHandle;
@@ -337,11 +337,11 @@ void UAssetRegistryImpl::InitializeSerializationOptionsFromIni(FAssetRegistrySer
 		TrimmedFilterlistItem.TrimStartAndEndInline();
 		if (TrimmedFilterlistItem.Left(1) == TEXT("("))
 		{
-			TrimmedFilterlistItem = TrimmedFilterlistItem.RightChop(1);
+			TrimmedFilterlistItem.RightChopInline(1, false);
 		}
 		if (TrimmedFilterlistItem.Right(1) == TEXT(")"))
 		{
-			TrimmedFilterlistItem = TrimmedFilterlistItem.LeftChop(1);
+			TrimmedFilterlistItem.LeftChopInline(1, false);
 		}
 
 		TArray<FString> Tokens;
@@ -2133,27 +2133,29 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 			FName PackageName;
 
 			// Find object and package name from linker
-			for (FPackageIndex LinkerIndex = SearchableNameList.Key; !LinkerIndex.IsNull();)
+			FPackageIndex LinkerIndex = SearchableNameList.Key;
+			if (LinkerIndex.IsExport())
 			{
-				if (LinkerIndex.IsExport())
+				// Package name has to be this package, take a guess at object name
+				PackageName = Result.PackageName;
+				ObjectName = FName(*FPackageName::GetLongPackageAssetName(Result.PackageName.ToString()));
+			}
+			else if (LinkerIndex.IsImport())
+			{
+				FObjectResource* Resource = &Result.ImpExp(LinkerIndex);
+				FPackageIndex OuterLinkerIndex = Resource->OuterIndex;
+				check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
+				if (!OuterLinkerIndex.IsNull())
 				{
-					// Package name has to be this package, take a guess at object name
-					PackageName = Result.PackageName;
-					ObjectName = FName(*FPackageName::GetLongPackageAssetName(Result.PackageName.ToString()));
-
-					break;
+					ObjectName = Resource->ObjectName;
+					while (!OuterLinkerIndex.IsNull())
+					{
+						Resource = &Result.ImpExp(OuterLinkerIndex);
+						OuterLinkerIndex = Resource->OuterIndex;
+						check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
+					}
 				}
-
-				FObjectResource& Resource = Result.ImpExp(LinkerIndex);
-				LinkerIndex = Resource.OuterIndex;
-				if (ObjectName.IsNone() && !LinkerIndex.IsNull())
-				{
-					ObjectName = Resource.ObjectName;
-				}
-				else if (LinkerIndex.IsNull())
-				{
-					PackageName = Resource.ObjectName;
-				}
+				PackageName = Resource->ObjectName;
 			}
 
 			for (FName NameReference : SearchableNameList.Value)
@@ -2220,7 +2222,8 @@ void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double
 	// Add the found assets
 	while (CookedPackageNamesWithoutAssetDataResults.Num() > 0)
 	{
-		// If this data is cooked and it we couldn't find any asset in its export table then try load the entire package 
+		// If this data is cooked and it we couldn't find any asset in its export table then try to load the entire package 
+		// Loading the entire package will make all of its assets searchable through the in-memory scanning performed by GetAsseets
 		const FString& BackgroundResult = CookedPackageNamesWithoutAssetDataResults.Pop();
 		LoadPackage(nullptr, *BackgroundResult, 0);
 
@@ -2702,10 +2705,10 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 {
 	// Sanitize
 	FString AssetPath = InAssetPath;
-	if (AssetPath.EndsWith(TEXT("/")))
+	if (AssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// We don't want a trailing slash here as it could interfere with RemoveAssetPath
-		AssetPath = AssetPath.LeftChop(1);
+		AssetPath.LeftChopInline(1, false);
 	}
 
 	// Remove all cached assets found at this location
@@ -2769,6 +2772,11 @@ void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 		bTempCachingEnabled = false;
 		ClearTemporaryCaches();
 	}
+}
+
+bool UAssetRegistryImpl::GetTemporaryCachingMode() const
+{
+	return bTempCachingEnabled;
 }
 
 void UAssetRegistryImpl::ClearTemporaryCaches() const

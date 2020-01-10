@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -45,7 +45,7 @@ private:
 	bool SaveHighlightInBackground(const FString& Filename, double MaxDurationSecs);
 	bool SaveHighlightInBackgroundImpl(const FString& Filename, double MaxDurationSecs);
 	bool InitialiseMp4Writer(const FString& Filename, bool bHasAudio);
-	bool GetSavingStart(const TArray<FGameplayMediaEncoderSample>& Samples, FTimespan MaxDuration, int& OutStartIndex, FTimespan& OutStartTime) const;
+	bool GetSavingStart(const TArray<AVEncoder::FAVPacket>& Samples, FTimespan MaxDuration, int& OutStartIndex, FTimespan& OutStartTime) const;
 
 	// takes into account if we've been paused and shifts current time back to compensate paused state
 	// so all timestamps are continuous even over paused pieces
@@ -54,7 +54,7 @@ private:
 	//
 	// IGameplayMediaEncoderListener implementation
 	//
-	void OnMediaSample(const FGameplayMediaEncoderSample& Sample) override;
+	void OnMediaSample(const AVEncoder::FAVPacket& Sample) override;
 
 private:
 	TAtomic<EState> State{ EState::Stopped };
@@ -77,6 +77,9 @@ private:
 	TUniquePtr<FThread> BackgroundSaving;
 	FDoneCallback DoneCallback;
 	FThreadSafeBool bSaving = false;
+
+	DWORD AudioStreamIndex = 0;
+	DWORD VideoStreamIndex = 0;
 
 #pragma region testing
 public:

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -25,7 +25,7 @@ class UMaterialExpressionComment : public UMaterialExpression
 	FString Text;
 
 	/** Color to style comment with */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment, meta=(OnlyUpdateOnInteractionEnd))
 	FLinearColor CommentColor;
 
 	/** Size of the text in the comment box */

@@ -1,14 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UWeakObjectProperty.
+	FWeakObjectProperty.
 -----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FWeakObjectProperty)
 
-FString UWeakObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FWeakObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	if (PropertyFlags & CPF_AutoWeak)
 	{
@@ -17,12 +18,12 @@ FString UWeakObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uin
 	return FString::Printf( TEXT("TWeakObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName() );
 }
 
-FString UWeakObjectProperty::GetCPPTypeForwardDeclaration() const
+FString FWeakObjectProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
 }
 
-FString UWeakObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
+FString FWeakObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	if (PropertyFlags & CPF_AutoWeak)
 	{
@@ -33,7 +34,7 @@ FString UWeakObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 	return TEXT("WEAKOBJECT");
 }
 
-void UWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
+void FWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
@@ -45,18 +46,12 @@ void UWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* V
 	}
 }
 
-UObject* UWeakObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
+UObject* FWeakObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
 	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
-void UWeakObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
+void FWeakObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UWeakObjectProperty, UObjectPropertyBase,
-	{
-	}
-);
-

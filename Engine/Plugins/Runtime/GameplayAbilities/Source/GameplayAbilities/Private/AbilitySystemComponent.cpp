@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbilitySystemComponent.h"
 #include "UObject/UObjectHash.h"
@@ -129,9 +129,9 @@ void UAbilitySystemComponent::GetAllAttributes(OUT TArray<FGameplayAttribute>& A
 {
 	for (UAttributeSet* Set : SpawnedAttributes)
 	{
-		for ( TFieldIterator<UProperty> It(Set->GetClass()); It; ++It)
+		for ( TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
 		{
-			if (UFloatProperty* FloatProperty = Cast<UFloatProperty>(*It))
+			if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(*It))
 			{
 				Attributes.Push( FGameplayAttribute(FloatProperty) );
 			}
@@ -245,7 +245,7 @@ float UAbilitySystemComponent::GetNumericAttributeBase(const FGameplayAttribute 
 
 void UAbilitySystemComponent::SetNumericAttribute_Internal(const FGameplayAttribute &Attribute, float& NewFloatValue)
 {
-	// Set the attribute directly: update the UProperty on the attribute set.
+	// Set the attribute directly: update the FProperty on the attribute set.
 	const UAttributeSet* AttributeSet = GetAttributeSubobjectChecked(Attribute.GetAttributeSetClass());
 	Attribute.SetNumericValueChecked(NewFloatValue, const_cast<UAttributeSet*>(AttributeSet));
 	bIsNetDirty = true;
@@ -560,15 +560,15 @@ FOnGameplayAttributeValueChange& UAbilitySystemComponent::GetGameplayAttributeVa
 	return ActiveGameplayEffects.GetGameplayAttributeValueChangeDelegate(Attribute);
 }
 
-UProperty* UAbilitySystemComponent::GetOutgoingDurationProperty()
+FProperty* UAbilitySystemComponent::GetOutgoingDurationProperty()
 {
-	static UProperty* DurationProperty = FindFieldChecked<UProperty>(UAbilitySystemComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemComponent, OutgoingDuration));
+	static FProperty* DurationProperty = FindFieldChecked<FProperty>(UAbilitySystemComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemComponent, OutgoingDuration));
 	return DurationProperty;
 }
 
-UProperty* UAbilitySystemComponent::GetIncomingDurationProperty()
+FProperty* UAbilitySystemComponent::GetIncomingDurationProperty()
 {
-	static UProperty* DurationProperty = FindFieldChecked<UProperty>(UAbilitySystemComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemComponent, IncomingDuration));
+	static FProperty* DurationProperty = FindFieldChecked<FProperty>(UAbilitySystemComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemComponent, IncomingDuration));
 	return DurationProperty;
 }
 
@@ -2458,7 +2458,7 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 		}
 		for (UAttributeSet* Set : SpawnedAttributes)
 		{
-			for (TFieldIterator<UProperty> It(Set->GetClass()); It; ++It)
+			for (TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
 			{
 				FGameplayAttribute	Attribute(*It);
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================
 	HoloLensPlatform.h: Setup for the windows platform
@@ -90,9 +90,6 @@ typedef FHoloLensTypes FPlatformTypes;
 #define STDCALL			__stdcall				/* Standard calling convention */
 #define FORCEINLINE		__forceinline			/* Force code to be inline */
 #define FORCENOINLINE	__declspec(noinline)	/* Force code to NOT be inline */
-
-// Hints compiler that expression is true; generally restricted to comparisons against constants
-#define ASSUME(expr)	__assume(expr)
 
 #define DECLARE_UINT64(x)	x
 

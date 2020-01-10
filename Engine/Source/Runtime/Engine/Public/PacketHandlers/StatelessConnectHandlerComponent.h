@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -280,6 +280,9 @@ private:
 
 	/** The local (client) time at which the challenge was last updated */
 	double LastChallengeTimestamp;
+
+	/** The local (client) time at which the last restart handshake request was received */
+	double LastRestartPacketTimestamp;
 
 	/** The SecretId value of the last challenge response sent */
 	uint8 LastSecretId;

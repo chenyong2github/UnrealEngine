@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/StreamableManager.h"
 #include "UObject/WeakObjectPtr.h"
@@ -744,6 +744,7 @@ FStreamableManager::~FStreamableManager()
 void FStreamableManager::OnPreGarbageCollect()
 {
 	TSet<FSoftObjectPath> RedirectsToRemove;
+	TArray<FStreamable*> StreamablesToDelete;
 
 	// Remove any streamables with no active handles, as GC may have freed them
 	for (TStreamableMap::TIterator It(StreamableItems); It; ++It)
@@ -764,9 +765,14 @@ void FStreamableManager::OnPreGarbageCollect()
 		if (Existing->ActiveHandles.Num() == 0)
 		{
 			RedirectsToRemove.Add(It.Key());
-			delete Existing;
+			StreamablesToDelete.Add(Existing);
 			It.RemoveCurrent();
 		}
+	}
+
+	for (FStreamable* StreamableToDelete : StreamablesToDelete)
+	{
+		delete StreamableToDelete;
 	}
 
 	if (RedirectsToRemove.Num() > 0)
@@ -927,10 +933,10 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 		{
 			// We always queue a new request in case the existing one gets cancelled
 			FString Package = TargetName.ToString();
-			int32 FirstDot = Package.Find(TEXT("."));
+			int32 FirstDot = Package.Find(TEXT("."), ESearchCase::CaseSensitive);
 			if (FirstDot != INDEX_NONE)
 			{
-				Package = Package.Left(FirstDot);
+				Package.LeftInline(FirstDot,false);
 			}
 
 			Existing->bAsyncLoadRequestOutstanding = true;

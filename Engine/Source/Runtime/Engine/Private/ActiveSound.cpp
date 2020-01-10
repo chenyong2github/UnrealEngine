@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "ActiveSound.h"
 
 #include "DrawDebugHelpers.h"
@@ -6,23 +6,21 @@
 #include "Misc/App.h"
 #include "AudioThread.h"
 #include "AudioDevice.h"
+#include "IAudioExtensionPlugin.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundNodeAttenuation.h"
+#include "Sound/SoundSubmix.h"
 #include "SubtitleManager.h"
+
 
 static int32 AudioOcclusionDisabledCvar = 0;
 FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	TEXT("au.DisableOcclusion"),
 	AudioOcclusionDisabledCvar,
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
-	ECVF_Default);
-
-static int32 AudioDisableConcurrencyStopSilentForLoopsCvar = 0;
-FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
-	TEXT("au.DisableConcurrencyStopSilentForLoops"),
-	AudioDisableConcurrencyStopSilentForLoopsCvar,
-	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
 	ECVF_Default);
 
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
@@ -37,7 +35,6 @@ FActiveSound::FActiveSound()
 	, OwnerID(0)
 	, AudioDevice(nullptr)
 	, SoundClassOverride(nullptr)
-	, SoundSubmixOverride(nullptr)
 	, bHasCheckedOcclusion(false)
 	, bAllowSpatialization(true)
 	, bHasAttenuationSettings(false)
@@ -52,7 +49,6 @@ FActiveSound::FActiveSound()
 	, bHasExternalSubtitles(false)
 	, bLocationDefined(false)
 	, bIgnoreForFlushing(false)
-	, bEQFilterApplied(false)
 	, bAlwaysPlay(false)
 	, bIsUISound(false)
 	, bIsMusic(false)
@@ -101,7 +97,7 @@ FActiveSound::FActiveSound()
 	, EnvelopeFollowerReleaseTime(100)
 #if ENABLE_AUDIO_DEBUG
 	, DebugColor(FColor::Black)
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // ENABLE_AUDIO_DEBUG
 {
 	if (!ActiveSoundTraceDelegate.IsBound())
 	{
@@ -328,15 +324,7 @@ USoundClass* FActiveSound::GetSoundClass() const
 
 USoundSubmix* FActiveSound::GetSoundSubmix() const
 {
-	if (SoundSubmixOverride)
-	{
-		return SoundSubmixOverride;
-	}
-	else if (Sound)
-	{
-		return Sound->GetSoundSubmix();
-	}
-	return nullptr;
+	return Sound ? Sound->GetSoundSubmix() : nullptr;
 }
 
 void FActiveSound::SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo)
@@ -437,6 +425,16 @@ void FActiveSound::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoun
 	}
 }
 
+int32 FActiveSound::FindClosestListener(const TArray<struct FListener>& InListeners) const
+{
+	return AudioDevice ? AudioDevice->FindClosestListenerIndex(Transform, InListeners) : INDEX_NONE;
+}
+
+int32 FActiveSound::FindClosestListener() const
+{
+	return AudioDevice ? AudioDevice->FindClosestListenerIndex(Transform) : INDEX_NONE;
+}
+
 void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const
 {
 	OutConcurrencyHandles.Reset();
@@ -455,20 +453,6 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 			}
 		}
 	}
-
-	if (IsLooping() && AudioDisableConcurrencyStopSilentForLoopsCvar)
-	{
-		for (int32 i = OutConcurrencyHandles.Num() - 1; i >= 0; --i)
-		{
-			if (OutConcurrencyHandles[i].Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest)
-			{
-				UE_LOG(LogAudio, Warning,
-					TEXT("Concurrency not observed for '%s': StopQuietest concurrency disabled for looping sounds"),
-					Sound ? *Sound->GetName() : TEXT("N/A"));
-				OutConcurrencyHandles.RemoveAtSwap(i, 1, false);
-			}
-		}
-	}
 }
 
 bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
@@ -478,12 +462,12 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 	GetConcurrencyHandles(Handles);
 	for (FConcurrencyHandle& Handle : Handles)
 	{
-		// StopQuietest can spam if a looping ActiveSound isn't active longer than a virtualization update period, which
+		// Resolution rules that don't support eviction (effectively requiring a sound to start before culling)
+		// can spam if a looping ActiveSound isn't active longer than a virtualization update period, which
 		// can happen when a concurrency group is maxed and constantly evicting.  If the voice steal fade time is particularly
 		// long, this can flood the active sound count. Therefore, only use the voice steal fade time if the sound has been
 		// active for a sufficient period of time.
-		const bool bStopQuietest = Handle.Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest;
-		if (bStopQuietest && IsLooping() && FMath::IsNearlyZero(PlaybackTimeNonVirtualized, 0.1f))
+		if (!Handle.Settings.IsEvictionSupported() && IsLooping() && FMath::IsNearlyZero(PlaybackTimeNonVirtualized, 0.1f))
 		{
 			OutFadeDuration = 0.0f;
 			return false;
@@ -520,14 +504,12 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		return;
 	}
 
-	// splitscreen support:
-	// we always pass the 'primary' listener (viewport 0) to the sound nodes and the underlying audio system
-	// then move the AudioComponent's CurrentLocation so that its position relative to that Listener is the same as its real position is relative to the closest Listener
-
 	{
 		SCOPE_CYCLE_COUNTER( STAT_AudioFindNearestLocation );
 		ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Transform);
 	}
+
+	FocusData.PriorityHighest = 1.0f;
 
 	FSoundParseParameters ParseParams;
 	ParseParams.Transform = Transform;
@@ -589,30 +571,18 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		}
 		else
 		{
-			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;		
+			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;
 			if (ParseParams.SoundClass)
 			{
 				ParseParams.ManualReverbSendLevel = ParseParams.SoundClass->Properties.Default2DReverbSendAmount;
-		}
-		else
-		{
-			ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
-		}
+			}
+			else
+			{
+				ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
+			}
 		}
 
 		ParseParams.ModulationPluginSettings = FindModulationSettings();
-
-		// if the closest listener is not the primary one, transform the sound transform so it's panned relative to primary listener position
-		if (ClosestListenerIndex != 0)
-		{
-			FTransform FirstListenerTransform;
-			FTransform ClosestListenerTransform;
-			AudioDevice->GetListenerTransform(0, FirstListenerTransform);
-			AudioDevice->GetListenerTransform(ClosestListenerIndex, ClosestListenerTransform);
-
-			ParseParams.Transform = ParseParams.Transform * ClosestListenerTransform.Inverse() * FirstListenerTransform;
-		}
-
 		Sound->Parse(AudioDevice, 0, *this, ParseParams, ThisSoundsWaveInstances);
 
 		// Track this active sound's min pitch value. This is used to scale it's possible duration value.
@@ -655,7 +625,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			}
 
 			// Remove concurrency volume scalars as this can cause ping-ponging to occur with virtualization and loops
-			// utilizing concurrency with StopQuietest.
+			// utilizing concurrency with rules that don't support eviction (removal from concurrency system prior to playback).
 			const float VolumeScale = GetTotalConcurrencyVolumeScale();
 			if (VolumeScale > SMALL_NUMBER)
 			{
@@ -1534,9 +1504,19 @@ void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerDa
 	FocusDataToUpdate->VolumeScale = ListenerData.AttenuationSettings->GetFocusAttenuation(FocusSettings, FocusDataToUpdate->FocusFactor);
 }
 
+void FActiveSound::ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings)
+{
+	UpdateAttenuation(0.0f, OutParseParams, InListener.ListenerIndex, &InAttenuationSettings);
+}
+
 void FActiveSound::ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings)
 {
 	UpdateAttenuation(0.0f, OutParseParams, ListenerIndex, &InAttenuationSettings);
+}
+
+void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode)
+{
+	UpdateAttenuation(DeltaTime, ParseParams, Listener.ListenerIndex, SettingsAttenuationNode);
 }
 
 void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, int32 ListenerIndex, const FSoundAttenuationSettings* SettingsAttenuationNode)
@@ -1546,6 +1526,7 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 
 	// Reset Focus data and recompute if necessary
 	FAttenuationFocusData FocusDataToApply;
+	FocusDataToApply.PriorityHighest = FocusData.PriorityHighest;
 
 	if (Settings->bEnableReverbSend)
 	{
@@ -1594,6 +1575,10 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		// Update azimuth angles prior to updating focus as it uses this in calculating
 		// in and out of focus values.
 		UpdateFocusData(DeltaTime, ListenerData, &FocusDataToApply);
+
+		// Update FocusData's highest priority copy prior to applying cached scalar immediately following
+		// to avoid applying scalar twice
+		FocusDataToApply.PriorityHighest = FMath::Max(FocusDataToApply.PriorityHighest, ParseParams.Priority);
 
 		ParseParams.Volume *= FocusDataToApply.VolumeScale;
 		ParseParams.Priority *= FocusDataToApply.PriorityScale;
@@ -1743,5 +1728,10 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	if (!SettingsAttenuationNode)
 	{
 		FocusData = FocusDataToApply;
+	}
+	// Make sure to always update highest priority
+	else
+	{
+		FocusData.PriorityHighest = FocusDataToApply.PriorityHighest;
 	}
 }

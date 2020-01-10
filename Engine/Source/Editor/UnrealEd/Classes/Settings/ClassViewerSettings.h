@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ClassViewerSettings.h: Declares the UClassViewerSettings class.
@@ -35,6 +35,9 @@ class UNREALED_API UClassViewerSettings
 
 public:
 
+	UPROPERTY(config)
+	TArray<FString> AllowedClasses;
+
 	/** Whether to display internal use classes. */
 	UPROPERTY(config)
 	bool DisplayInternalClasses;
@@ -52,13 +55,12 @@ public:
 	 * @return The delegate.
 	 */
 	DECLARE_EVENT_OneParam(UClassViewerSettings, FSettingChangedEvent, FName /*PropertyName*/);
-	static FSettingChangedEvent& OnSettingChanged( ) { return SettingChangedEvent; }
+	static FSettingChangedEvent& OnSettingChanged() { return SettingChangedEvent; }
 
 protected:
 
 	// UObject overrides
-
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 
 	// Holds an event delegate that is executed when a setting has changed.

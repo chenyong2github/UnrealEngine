@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -558,6 +558,11 @@ public:
 		bool HasAllocation() const
 		{
 			return !!Data;
+		}
+
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
 		}
 
 		void AcceptFileMapping(IMappedFileHandle* InMappedHandle, IMappedFileRegion* InMappedRegion, void *MallocPtr)

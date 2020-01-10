@@ -1,8 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "BenchmarkTool.h"
 #include "Memory/MemoryArena.h"
+
+#include "Templates/RefCounting.h"
+#include "Templates/SharedPointer.h"
 
 #include "RequiredProgramMainCPPInclude.h"
 #include <locale.h>
@@ -482,10 +485,135 @@ UE_BENCHMARK(BM_StdAtomicRelaxed)->Iterations(100000000);
 UE_BENCHMARK(BM_StdAtomicStore)->Iterations(100000000);
 UE_BENCHMARK(BM_StdAtomicStoreRelaxed)->Iterations(100000000);
 
+//////////////////////////////////////////////////////////////////////////
+//
+// Basic tests to measure uncontended RWLock/Critical section performance
+//
+
+void BM_ReadWriteLock_ReadLock(BenchmarkState& State)
+{
+	FRWLock Lock;
+
+	for (auto _ : State)
+	{
+		Lock.ReadLock();
+		Lock.ReadUnlock();
+	}
+}
+
+void BM_ReadWriteLock_WriteLock(BenchmarkState& State)
+{
+	FRWLock Lock;
+
+	for (auto _ : State)
+	{
+		Lock.WriteLock();
+		Lock.WriteUnlock();
+	}
+}
+
+void BM_CriticalSection(BenchmarkState& State)
+{
+	FCriticalSection Lock;
+
+	for (auto _ : State)
+	{
+		Lock.Lock();
+		Lock.Unlock();
+	}
+}
+
+UE_BENCHMARK(BM_ReadWriteLock_ReadLock)->Iterations(10000000);
+UE_BENCHMARK(BM_ReadWriteLock_ReadLock)->Iterations(100000000);
+UE_BENCHMARK(BM_ReadWriteLock_WriteLock)->Iterations(10000000);
+UE_BENCHMARK(BM_ReadWriteLock_WriteLock)->Iterations(100000000);
+UE_BENCHMARK(BM_CriticalSection)->Iterations(10000000);
+UE_BENCHMARK(BM_CriticalSection)->Iterations(100000000);
+
+//////////////////////////////////////////////////////////////////////////
+
+struct DummyShared
+{
+	int _ = 0;
+};
+
+void BM_TSharedPtr(BenchmarkState& State)
+{
+	for (auto _ : State)
+	{
+		TSharedPtr<DummyShared, ESPMode::ThreadSafe> Shared = MakeShared<DummyShared, ESPMode::ThreadSafe>();
+		DoNotOptimize(Shared);
+	}
+}
+
+void BM_TSharedPtrAssign(BenchmarkState& State)
+{
+	TSharedPtr<DummyShared, ESPMode::ThreadSafe> Shared = MakeShared<DummyShared, ESPMode::ThreadSafe>();
+
+	for (auto _ : State)
+	{
+		auto Shared2 = Shared;
+		DoNotOptimize(Shared2);
+	}
+}
+
+void BM_TSharedPtr_NoTS(BenchmarkState& State)
+{
+	for (auto _ : State)
+	{
+		auto Shared = MakeShared<DummyShared, ESPMode::NotThreadSafe>();
+		DoNotOptimize(Shared);
+	}
+}
+
+void BM_TSharedPtrAssign_NoTS(BenchmarkState& State)
+{
+	auto Shared = MakeShared<DummyShared, ESPMode::NotThreadSafe>();
+
+	for (auto _ : State)
+	{
+		auto Shared2 = Shared;
+		DoNotOptimize(Shared2);
+	}
+}
+
+struct DummyRefCount : public FRefCountBase
+{
+	int _ = 0;
+};
+
+void BM_TRefCountPtr(BenchmarkState& State)
+{
+	for (auto _ : State)
+	{
+		TRefCountPtr<DummyRefCount> RefCount = new DummyRefCount();
+		DoNotOptimize(RefCount);
+	}
+}
+
+void BM_TRefCountAssign(BenchmarkState& State)
+{
+	TRefCountPtr<DummyRefCount> RefCount = new DummyRefCount();
+
+	for (auto _ : State)
+	{
+		TRefCountPtr<DummyRefCount> Ref2 = RefCount;
+		DoNotOptimize(Ref2);
+	}
+}
+
+UE_BENCHMARK(BM_TSharedPtr)->Iterations(100000000);
+UE_BENCHMARK(BM_TRefCountPtr)->Iterations(100000000);
+UE_BENCHMARK(BM_TSharedPtr_NoTS)->Iterations(100000000);
+UE_BENCHMARK(BM_TSharedPtrAssign)->Iterations(100000000);
+UE_BENCHMARK(BM_TRefCountAssign)->Iterations(100000000);
+UE_BENCHMARK(BM_TSharedPtrAssign_NoTS)->Iterations(100000000);
+
+//////////////////////////////////////////////////////////////////////////
+
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
 	GEngineLoop.PreInit(ArgC, ArgV);
-
 	BenchmarkRegistry::Get().RunBenchmarks();
 
 	return 0;

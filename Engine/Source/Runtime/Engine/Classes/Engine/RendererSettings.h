@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -467,6 +467,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
 	uint32 bTemporalUpsampling : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
+		ConsoleVariable = "r.SSGI.Enable", DisplayName = "Screen Space Global Illumination (Beta)",
+		ToolTip = "Whether enable screen space global illumination."))
+	uint32 bSSGI : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",
 		ToolTip = "Which anti-aliasing mode is used by default"))
@@ -756,8 +761,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bSupportReversedIndexBuffers : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
-		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system. Disabling it reduces some overhead in place to support the experimental feature",
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system.",
 		ConfigRestartRequired = true))
 		uint32 bSupportMaterialLayers : 1;
 
@@ -774,9 +779,9 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	//~ End UObject Interface

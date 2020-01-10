@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -44,8 +44,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 }
 
 template<typename T, int d>
@@ -120,6 +119,9 @@ struct ENGINE_API FCookBodySetupInfo
 
 	/** Whether to support UV from hit results */
 	bool bSupportUVFromHitResults;
+
+	/** Whether to support face remap, needed for physical material masks */
+	bool bSupportFaceRemap;
 
 	/** Error generating cook info for trimesh*/
 	bool bTriMeshError;
@@ -263,11 +265,14 @@ public:
 
 #if WITH_CHAOS
 	//FBodySetupTriMeshes* TriMeshWrapper;
-	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>> ChaosTriMeshes;
+	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */
 	FBodySetupUVInfo UVInfo;
+
+	/** Additional face remap table, if available. Used for determining face index mapping from collision mesh to static mesh, for use with physical material masks */
+	TArray<int32> FaceRemap;
 
 	/** Default properties of the body instance, copied into objects on instantiation, was URB_BodyInstance */
 	UPROPERTY(EditAnywhere, Category=Collision, meta=(FullyExpand = "true"))
@@ -441,7 +446,7 @@ public:
 	/*
 	* Copy all UPROPERTY settings except the collision geometry.
 	* This function is use when we restore the original data after a re-import of a static mesh.
-	* All UProperty should be copy here except the collision geometry (i.e. AggGeom)
+	* All FProperty should be copy here except the collision geometry (i.e. AggGeom)
 	*/
 	ENGINE_API virtual void CopyBodySetupProperty(const UBodySetup* Other);
 #endif // WITH_EDITOR

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,6 +34,11 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
 		Collector.AddReferencedObject(RepDataType);
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return "TPartyDataReplicator";
 	}
 
 	bool IsValid() const { return RepDataType && RepDataPtr && RepDataCopy; }

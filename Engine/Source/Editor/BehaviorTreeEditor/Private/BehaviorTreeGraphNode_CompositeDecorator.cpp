@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_CompositeDecorator.h"
 #include "BehaviorTree/BTNode.h"
@@ -296,7 +296,7 @@ void UpdateLogicOpStack(TArray<FLogicDesc>& OpStack, FString& Description, FStri
 		if (OpStack[LastIdx].NumLeft <= 0)
 		{
 			OpStack.RemoveAt(LastIdx);
-			Indent = Indent.LeftChop(2);
+			Indent.LeftChopInline(2, false);
 
 			UpdateLogicOpStack(OpStack, Description, Indent);
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Field/FieldSystemComponent.h"
 
@@ -54,6 +54,14 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 #endif
 
 		bHasPhysicsState = true;
+
+		if(FieldSystem)
+		{
+			for(FFieldSystemCommand& Cmd : FieldSystem->Commands)
+			{
+				DispatchCommand(Cmd);
+			}
+		}
 	}
 }
 

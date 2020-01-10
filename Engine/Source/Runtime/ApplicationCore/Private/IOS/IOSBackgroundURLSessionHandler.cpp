@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 #include "Misc/ConfigCacheIni.h"
@@ -138,6 +138,8 @@ const FString FBackgroundURLSessionHandler::GetTemporaryFilePathFromURL(const FS
 
 void FBackgroundURLSessionHandler::CallBackgroundURLSessionCompleteHandler()
 {
+	NSLog(@"OnIOSBackgroundDownload_SessionDidFinishAllEvents Delegates ALL Finshed. Attempting to callback into iOS to inform session work is finished.");
+	
 	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
 	
 	if ((nullptr != AppDelegate) && (nil != AppDelegate.BackgroundSessionEventCompleteDelegate))
@@ -151,12 +153,19 @@ void FBackgroundURLSessionHandler::CallBackgroundURLSessionCompleteHandler()
 		
 	   //Need to issue our stored completion callback on main thread as its a UI callback
 		[[NSOperationQueue mainQueue] addOperationWithBlock:^{
+	
 			//call the copied completion handler
-			completionHandler();
+			 NSLog(@"OnIOSBackgroundDownload_SessionDidFinishAllEvents Calling iOS Completion handler.");
+			 completionHandler();
 			
 			//Release local copy so we don't leak the completion handler
 			[completionHandler release];
 		}];
+	}
+	else
+	{
+		NSLog(@"Error: OnIOSBackgroundDownload_SessionDidFinishAllEvents Can not call iOS Completion Handler as it has not been set correctly! AppDelegate:");
+		ensureAlwaysMsgf(false, TEXT("Error! CallBackgroundURLSessionCompleteHandler can not call into our iOS completionHandler from handleEventsForBackgroundURLSession. Likely stored incorrectly!"));
 	}
 }
 
@@ -168,6 +177,7 @@ void FBackgroundURLSessionHandler::AddDelayedBackgroundURLSessionComplete()
 void FBackgroundURLSessionHandler::OnDelayedBackgroundURLSessionCompleteHandlerCalled()
 {
 	int NewDecrementedCount = FPlatformAtomics::InterlockedDecrement(&DelayedBackgroundURLSessionCompleteCount);
+	NSLog(@"OnIOSBackgroundDownload_SessionDidFinishAllEvents Delegate Finshed. Still pending: %d", NewDecrementedCount);
 	
 	if (NewDecrementedCount == 0)
 	{
@@ -224,6 +234,8 @@ void FBackgroundURLSessionHandler::OnDelayedBackgroundURLSessionCompleteHandlerC
 	
 	if (bHasURLSessionDelegateBeenSetup)
 	{
+		NSLog(@"Calling into OnIOSBackgroundDownload_SessionDidFinishAllEvents Waiting for Delegates to complete.");
+		
 		//We call this here and then the completion handler ourselves below this. That way we delay the complete until all systems responding to this delegate have received the broadcast.
 		FBackgroundURLSessionHandler::AddDelayedBackgroundURLSessionComplete();
 		

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithActorImporter.h"
 
@@ -380,7 +380,7 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 	{
 		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = InCustomActorElement->GetProperty( i );
 
-		UProperty* Property = FindField< UProperty >( Actor->GetClass(), KeyValueProperty->GetName() );
+		FProperty* Property = FindField< FProperty >( Actor->GetClass(), KeyValueProperty->GetName() );
 
 		if ( Property )
 		{

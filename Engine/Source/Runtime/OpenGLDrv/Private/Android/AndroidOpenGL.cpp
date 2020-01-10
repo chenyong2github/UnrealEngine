@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Android/AndroidPlatform.h"
@@ -141,6 +141,7 @@ struct FPlatformOpenGLDevice
 
 	void SetCurrentSharedContext();
 	void SetCurrentRenderingContext();
+	void SetupCurrentContext();
 	void SetCurrentNULLContext();
 
 	FPlatformOpenGLDevice();
@@ -178,9 +179,9 @@ void FPlatformOpenGLDevice::Init()
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("FPlatformOpenGLDevice:Init"));
 	bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
 	AndroidEGL::GetInstance()->InitSurface(false, bCreateSurface);
-	PlatformRenderingContextSetup(this);
 
 	LoadEXT();
+	PlatformRenderingContextSetup(this);
 
 	InitDefaultGLContextState();
 	InitDebugContext();
@@ -237,6 +238,7 @@ bool PlatformBlitToViewport( FPlatformOpenGLDevice* Device, const FOpenGLViewpor
 void PlatformRenderingContextSetup(FPlatformOpenGLDevice* Device)
 {
 	Device->SetCurrentRenderingContext();
+	Device->SetupCurrentContext();
 }
 
 void PlatformFlushIfNeeded()
@@ -250,6 +252,7 @@ void PlatformRebindResources(FPlatformOpenGLDevice* Device)
 void PlatformSharedContextSetup(FPlatformOpenGLDevice* Device)
 {
 	Device->SetCurrentSharedContext();
+	Device->SetupCurrentContext();
 }
 
 void PlatformNULLContextSetup()
@@ -377,6 +380,8 @@ bool PlatformContextIsCurrent( uint64 QueryContext )
 
 void FPlatformOpenGLDevice::LoadEXT()
 {
+	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)((void*)eglGetProcAddress("glGenVertexArrays"));
+	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)((void*)eglGetProcAddress("glBindVertexArray"));
 	eglGetSystemTimeNV_p = (PFNEGLGETSYSTEMTIMENVPROC)((void*)eglGetProcAddress("eglGetSystemTimeNV"));
 	eglCreateSyncKHR_p = (PFNEGLCREATESYNCKHRPROC)((void*)eglGetProcAddress("eglCreateSyncKHR"));
 	eglDestroySyncKHR_p = (PFNEGLDESTROYSYNCKHRPROC)((void*)eglGetProcAddress("eglDestroySyncKHR"));
@@ -490,6 +495,32 @@ void PlatformDestroyOpenGLDevice(FPlatformOpenGLDevice* Device)
 void FPlatformOpenGLDevice::SetCurrentRenderingContext()
 {
 	AndroidEGL::GetInstance()->AcquireCurrentRenderingContext();
+}
+
+void FPlatformOpenGLDevice::SetupCurrentContext()
+{
+	GLuint* DefaultVao = nullptr;
+	EOpenGLCurrentContext ContextType = (EOpenGLCurrentContext)AndroidEGL::GetInstance()->GetCurrentContextType();
+
+	if (ContextType == CONTEXT_Rendering)
+	{
+		DefaultVao = &AndroidEGL::GetInstance()->GetRenderingContext()->DefaultVertexArrayObject;
+	}
+	else if (ContextType == CONTEXT_Shared)
+	{
+		DefaultVao = &AndroidEGL::GetInstance()->GetSharedContext()->DefaultVertexArrayObject;
+	}
+	else
+	{
+		//Invalid or Other return
+		return;
+	}
+	
+	if (*DefaultVao == 0)
+	{
+		glGenVertexArrays(1, DefaultVao);
+		glBindVertexArray(*DefaultVao);
+	}
 }
 
 void PlatformLabelObjects()

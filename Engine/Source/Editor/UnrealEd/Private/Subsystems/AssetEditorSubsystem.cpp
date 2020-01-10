@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetEditorMessages.h"
@@ -264,7 +264,12 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 
 bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {
-	check(Asset);
+	if (!Asset)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because asset is null"));
+		return false;
+	}
+
 	// @todo toolkit minor: When "Edit Here" happens in a different level editor from the one that an asset is already
 	//    being edited within, we should decide whether to disallow "Edit Here" in that case, or to close the old asset
 	//    editor and summon it in the new level editor, or to just foreground the old level editor (current behavior)
@@ -372,8 +377,32 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 }
 
 
-bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& Assets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
+bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& InAssets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
 {
+	TArray<UObject*> Assets;
+	Assets.Reserve(InAssets.Num());
+	int32 NumNullAssets = 0;
+	for (UObject* Asset : InAssets)
+	{
+		if (Asset)
+		{
+			Assets.AddUnique(Asset);
+		}
+		else
+		{
+			++NumNullAssets;
+		}
+	}
+
+	if (NumNullAssets > 1)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editors failed because of null assets"));
+	}
+	else if (NumNullAssets > 0)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because of null asset"));
+	}
+
 	if (Assets.Num() == 1)
 	{
 		return OpenEditorForAsset(Assets[0], ToolkitMode, OpenedFromLevelEditor);

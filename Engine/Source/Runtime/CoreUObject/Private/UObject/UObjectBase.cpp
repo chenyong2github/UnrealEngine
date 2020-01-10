@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectBase.cpp: Unreal UObject base class
@@ -378,7 +378,8 @@ void UObjectBase::EmitBaseReferences(UClass *RootClass)
 {
 	static const FName ClassPropertyName(TEXT("Class"));
 	static const FName OuterPropertyName(TEXT("Outer"));
-	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, ClassPrivate), ClassPropertyName);
+
+	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, ClassPrivate), ClassPropertyName, GCRT_Class);
 	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, OuterPrivate), OuterPropertyName, GCRT_PersistentObject);
 }
 
@@ -704,10 +705,10 @@ FString RemoveClassPrefix(const TCHAR* ClassName)
 {
 	const TCHAR* DeprecatedPrefix = TEXT("DEPRECATED_");
 	FString NameWithoutPrefix(ClassName);
-	NameWithoutPrefix = NameWithoutPrefix.Mid(1);
+	NameWithoutPrefix.MidInline(1, MAX_int32, false);
 	if (NameWithoutPrefix.StartsWith(DeprecatedPrefix))
 	{
-		NameWithoutPrefix = NameWithoutPrefix.Mid(FCString::Strlen(DeprecatedPrefix));
+		NameWithoutPrefix.MidInline(FCString::Strlen(DeprecatedPrefix), MAX_int32, false);
 	}
 	return NameWithoutPrefix;
 }
@@ -1087,7 +1088,6 @@ void UObjectBaseInit()
 		bool bIsCookOnTheFly = FParse::Value(FCommandLine::Get(), TEXT("-filehostip="), Value);
 		if (bIsCookOnTheFly)
 		{
-			extern int32 GCreateGCClusters;
 			GCreateGCClusters = false;
 		}
 		else

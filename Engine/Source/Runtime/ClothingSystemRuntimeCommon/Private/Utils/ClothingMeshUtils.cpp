@@ -1,8 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utils/ClothingMeshUtils.h"
 
-#include "ClothPhysicalMeshDataBase.h"
+#include "ClothPhysicalMeshData.h"
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"
@@ -19,27 +19,45 @@ DECLARE_CYCLE_STAT(TEXT("Skin Physics Mesh"), STAT_ClothSkinPhysMesh, STATGROUP_
 
 namespace ClothingMeshUtils
 {
+	// Explicit template instantiations of SkinPhysicsMesh
+	template
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<true, false>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
+		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
+	template
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<false, true>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
+		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
+
+	template<bool bInPlaceOutput, bool bRemoveScaleAndInvertPostTransform>
 	void SkinPhysicsMesh(
 		const TArray<int32>& BoneMap,
-		const UClothPhysicalMeshDataBase& InMesh,
-		const FTransform& RootBoneTransform,
+		const FClothPhysicalMeshData& InMesh,
+		const FTransform& PostTransform,
 		const FMatrix* InBoneMatrices,
 		const int32 InNumBoneMatrices,
 		TArray<FVector>& OutPositions,
-		TArray<FVector>& OutNormals)
+		TArray<FVector>& OutNormals,
+		uint32 ArrayOffset)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
 
-		// Ignore any user scale. It's already accounted for in our skinning matrices
-		FTransform RootBoneTransformInternal = RootBoneTransform;
-		RootBoneTransformInternal.SetScale3D(FVector(1.0f));
-
 		const uint32 NumVerts = InMesh.Vertices.Num();
 
-		OutPositions.Reset(NumVerts);
-		OutNormals.Reset(NumVerts);
-		OutPositions.AddZeroed(NumVerts);
-		OutNormals.AddZeroed(NumVerts);
+		if(!bInPlaceOutput)
+		{
+			ensure(ArrayOffset == 0);
+			OutPositions.Reset(NumVerts);
+			OutNormals.Reset(NumVerts);
+			OutPositions.AddZeroed(NumVerts);
+			OutNormals.AddZeroed(NumVerts);
+		}
+		else
+		{
+			check((uint32) OutPositions.Num() >= NumVerts + ArrayOffset);
+			check((uint32) OutNormals.Num() >= NumVerts + ArrayOffset);
+			// PS4 performance note: It is faster to zero the memory first instead of changing this function to work with uninitialized memory
+			FMemory::Memzero((uint8*)OutPositions.GetData() + ArrayOffset * sizeof(FVector), NumVerts * sizeof(FVector));
+			FMemory::Memzero((uint8*)OutNormals.GetData() + ArrayOffset * sizeof(FVector), NumVerts * sizeof(FVector));
+		}
 
 		const int32 MaxInfluences = InMesh.MaxBoneWeights;
 		const FMatrix* RESTRICT BoneMatrices = InBoneMatrices;
@@ -56,8 +74,8 @@ namespace ClothingMeshUtils
 			// everything to compose the final skinned data
 			const FVector& RefParticle = InMesh.Vertices[VertIndex];
 			const FVector& RefNormal = InMesh.Normals[VertIndex];
-			FVector& OutPosition = OutPositions[VertIndex];
-			FVector& OutNormal = OutNormals[VertIndex];
+			FVector& OutPosition = OutPositions[bInPlaceOutput ? VertIndex + ArrayOffset : VertIndex];
+			FVector& OutNormal = OutNormals[bInPlaceOutput ? VertIndex + ArrayOffset : VertIndex];
 			switch (InMesh.BoneData[VertIndex].NumInfluences)
 			{
 			default: break;
@@ -127,8 +145,21 @@ namespace ClothingMeshUtils
 			}
 			}
 
-			OutPosition = RootBoneTransformInternal.InverseTransformPosition(OutPosition);
-			OutNormal = RootBoneTransformInternal.InverseTransformVector(OutNormal);
+			if (bRemoveScaleAndInvertPostTransform)
+			{
+				// Ignore any user scale. It's already accounted for in our skinning matrices
+				// This is the use case for NVcloth
+				FTransform PostTransformInternal = PostTransform;
+				PostTransformInternal.SetScale3D(FVector(1.0f));
+
+				OutPosition = PostTransformInternal.InverseTransformPosition(OutPosition);
+				OutNormal = PostTransformInternal.InverseTransformVector(OutNormal);
+			}
+			else
+			{
+				OutPosition = PostTransform.TransformPosition(OutPosition);
+				OutNormal = PostTransform.TransformVector(OutNormal);
+			}
 
 			if (OutNormal.SizeSquared() > SMALL_NUMBER)
 			{
@@ -279,19 +310,13 @@ namespace ClothingMeshUtils
 		}
 	}
 
+	// TODO: Vertex normals are not used at present, a future improved algorithm might however
 	FVector4 GetPointBaryAndDist(const FVector& A, const FVector& B, const FVector& C, const FVector& NA, const FVector& NB, const FVector& NC, const FVector& Point)
 	{
 		FPlane TrianglePlane(A, B, C);
 		const FVector PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
 		const FVector BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C);
-		const FVector NormalAtPoint = TrianglePlane;
-		FVector TriPointToVert = Point - PointOnTriPlane;
-		TriPointToVert = TriPointToVert.ProjectOnTo(NormalAtPoint);
-		float Dist = TriPointToVert.Size();
-
-		float Sign = TrianglePlane.PlaneDot(Point) < 0.0f ? -1.0f : 1.0f;
-
-		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point));
+		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
 	}
 
 	void GenerateEmbeddedPositions(const ClothMeshDesc& SourceMesh, TArrayView<const FVector> Positions, TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices)

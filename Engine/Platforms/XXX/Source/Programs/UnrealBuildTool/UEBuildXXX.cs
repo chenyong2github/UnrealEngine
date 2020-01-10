@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using Tools.DotNETCommon;
@@ -204,6 +204,12 @@ class XXXPlatform : UEBuildPlatform
 			// these must be mirrored down below
 			Rules.AppendStringToPublicDefinition("DDPI_EXTRA_SHADERPLATFORMS", "SP_XXX=32, ");
 			Rules.AppendStringToPublicDefinition("DDPI_SHADER_PLATFORM_NAME_MAP", "{ TEXT(\"XXX\"), SP_XXX },");
+		}
+
+		// don't do any target platform stuff if SDK is not available
+		if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+		{
+			return;
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -435,13 +441,8 @@ class XXXPlatformFactory : UEBuildPlatformFactory
  		XXXPlatformSDK SDK = new XXXPlatformSDK();
  		SDK.ManageAndValidateSDK();
 
-		// Make sure the SDK is installed
-		if (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid)
-		{
-			// Register this build platform for XXX
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.XXX.ToString());
-			UEBuildPlatform.RegisterBuildPlatform(new XXXPlatform(SDK));
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.XXX, UnrealPlatformGroup.Fake);
-		}
+		// Register this build platform for XXX
+		UEBuildPlatform.RegisterBuildPlatform(new XXXPlatform(SDK));
+		UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.XXX, UnrealPlatformGroup.Fake);
 	}
 }

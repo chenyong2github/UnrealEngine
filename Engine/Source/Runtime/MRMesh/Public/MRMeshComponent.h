@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -106,7 +106,7 @@ public:
 	virtual void SetCollisionResponseToAllChannels(ECollisionResponse NewResponse) override;
 	virtual void SetCollisionResponseToChannels(const FCollisionResponseContainer& NewResponses) override;
 	virtual void SetCollisionEnabled(ECollisionEnabled::Type NewType) override;
-	virtual void SetCollisionProfileName(FName InCollisionProfileName) override;
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 
 	virtual void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride) override;
 

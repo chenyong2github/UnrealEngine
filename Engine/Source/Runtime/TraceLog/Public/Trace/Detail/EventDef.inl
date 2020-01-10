@@ -1,31 +1,30 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #if UE_TRACE_ENABLED
 
 #include "EventDef.h"
-#include "Writer.inl"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
 {
-	Ptr = Writer_BeginLog(EventUid, Size);
+	Instance = Writer_BeginLog(EventUid, Size, bMaybeHasAux);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux, uint16 ExtraBytes)
 {
-	Ptr = Writer_BeginLog(EventUid, Size + ExtraBytes);
+	Instance = Writer_BeginLog(EventUid, Size + ExtraBytes, bMaybeHasAux);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline FEventDef::FLogScope::~FLogScope()
 {
-	Writer_EndLog(Ptr);
+	Writer_EndLog(Instance);
 }
 
 
@@ -34,7 +33,7 @@ inline FEventDef::FLogScope::~FLogScope()
 template <typename ActionType>
 inline const FEventDef::FLogScope& operator << (const FEventDef::FLogScope& Lhs, const ActionType& Rhs)
 {
-	Rhs.Write(Lhs.Ptr);
+	Rhs.Write(Lhs.Instance.Ptr);
 	return Lhs;
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -579,13 +579,6 @@ struct CORE_API FGenericPlatformMisc
 	FORCENOINLINE static void MemoryBarrier();
 
 	/**
-	 * Handles IO failure by ending gameplay.
-	 *
-	 * @param Filename	If not nullptr, name of the file the I/O error occured with
-	 */
-	void static HandleIOFailure( const TCHAR* Filename );
-
-	/**
 	 * Set a handler to be called when there is a memory warning from the OS 
 	 *
 	 * @param Handler	The handler to call
@@ -606,6 +599,8 @@ struct CORE_API FGenericPlatformMisc
 	{
 		return 0;
 	}
+
+	static void SetLastError(uint32 ErrorCode) {}
 
 	static void RaiseException( uint32 ExceptionCode );
 

@@ -1,13 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Box.h"
+#include "Chaos/AABB.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/Transform.h"
 #include "ChaosLog.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "Templates/Models.h"
+#include "Chaos/BoundingVolume.h"
 
 namespace Chaos
 {
@@ -30,7 +31,7 @@ template <typename T, typename TQueryFastData, EAABBQueryType Query>
 struct TAABBTreeIntersectionHelper
 {
 	static bool Intersects(const TVector<T, 3>& Start, TQueryFastData& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
+		const TAABB<T, 3>& Bounds, const TAABB<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
 		check(false);
 		return true;
@@ -41,9 +42,9 @@ template<>
 struct TAABBTreeIntersectionHelper<FReal, FQueryFastData, EAABBQueryType::Raycast>
 {
 	FORCEINLINE_DEBUGGABLE static bool Intersects(const FVec3& Start, FQueryFastData& QueryFastData, FReal& TOI, FVec3& OutPosition,
-		const TBox<FReal, 3>& Bounds, const TBox<FReal, 3>& QueryBounds, const TVector<FReal, 3>& QueryHalfExtents)
+		const TAABB<FReal, 3>& Bounds, const TAABB<FReal, 3>& QueryBounds, const TVector<FReal, 3>& QueryHalfExtents)
 	{
-		return TBox<FReal, 3>::RaycastFast(Bounds.Min(), Bounds.Max(), Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
+		return Bounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
@@ -51,9 +52,10 @@ template <typename T>
 struct TAABBTreeIntersectionHelper<T, FQueryFastData, EAABBQueryType::Sweep>
 {
 	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastData& QueryFastData,
-		T& TOI, TVector<T, 3>& OutPosition, const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
+		T& TOI, TVector<T, 3>& OutPosition, const TAABB<T, 3>& Bounds, const TAABB<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
-		return TBox<T, 3>::RaycastFast(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents, Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
+		TAABB<T, 3> SweepBounds(Bounds.Min() - QueryHalfExtents, Bounds.Max() + QueryHalfExtents);
+		return SweepBounds.RaycastFast(Start, QueryFastData.Dir, QueryFastData.InvDir, QueryFastData.bParallel, QueryFastData.CurrentLength, QueryFastData.InvCurrentLength, TOI, OutPosition);
 	}
 };
 
@@ -61,7 +63,7 @@ template <typename T>
 struct TAABBTreeIntersectionHelper<T, FQueryFastDataVoid, EAABBQueryType::Overlap>
 {
 	FORCEINLINE_DEBUGGABLE static bool Intersects(const TVector<T, 3>& Start, FQueryFastDataVoid& QueryFastData, T& TOI, TVector<T, 3>& OutPosition,
-		const TBox<T, 3>& Bounds, const TBox<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
+		const TAABB<T, 3>& Bounds, const TAABB<T, 3>& QueryBounds, const TVector<T, 3>& QueryHalfExtents)
 	{
 		return QueryBounds.Intersects(Bounds);
 	}
@@ -90,7 +92,7 @@ struct TAABBTreeLeafArray
 	}
 
 	template <typename TSQVisitor>
-	bool OverlapFast(const TBox<T, 3>& QueryBounds, TSQVisitor& Visitor) const
+	bool OverlapFast(const TAABB<T, 3>& QueryBounds, TSQVisitor& Visitor) const
 	{
 		for (const auto& Elem : Elems)
 		{
@@ -115,7 +117,7 @@ struct TAABBTreeLeafArray
 		for (const auto& Elem : Elems)
 		{
 			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, TQueryFastData, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, QueryFastData, TOI, TmpPosition, InstanceBounds, TBox<T,3>(), QueryHalfExtents))
+			if (TAABBTreeIntersectionHelper<T, TQueryFastData, bSweep ? EAABBQueryType::Sweep : EAABBQueryType::Raycast>::Intersects(Start, QueryFastData, TOI, TmpPosition, InstanceBounds, TAABB<T,3>(), QueryHalfExtents))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = (bSweep && Visitor.VisitSweep(VisitData, QueryFastData)) || (!bSweep &&  Visitor.VisitRaycast(VisitData, QueryFastData));
@@ -161,10 +163,10 @@ struct TAABBTreeNode
 {
 	TAABBTreeNode()
 	{
-		ChildrenBounds[0] = TBox<T, 3>();
-		ChildrenBounds[1] = TBox<T, 3>();
+		ChildrenBounds[0] = TAABB<T, 3>();
+		ChildrenBounds[1] = TAABB<T, 3>();
 	}
-	TBox<T, 3> ChildrenBounds[2];
+	TAABB<T, 3> ChildrenBounds[2];
 	int32 ChildrenNodes[2];
 	bool bLeaf;
 
@@ -172,7 +174,7 @@ struct TAABBTreeNode
 	{
 		for (auto& Bounds : ChildrenBounds)
 		{
-			Ar << Bounds;
+			TBox<T, 3>::SerializeAsAABB(Ar, Bounds);
 		}
 
 		for (auto& Node : ChildrenNodes)
@@ -217,7 +219,7 @@ inline FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo)
 	return Ar;
 }
 
-template <typename TPayloadType, typename TLeafType, typename T>
+template <typename TPayloadType, typename TLeafType, typename T, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3>
 {
 public:
@@ -242,7 +244,6 @@ public:
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
-
 		// force is to stop time slicing and complete the rest of the build now
 		if (ForceBuildCompletion)
 		{
@@ -292,9 +293,9 @@ public:
 		GenerateTree(Particles);
 	}
 
-	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, 3>& Box) const override { return FindAllIntersectionsImp(Box); }
+	virtual TArray<TPayloadType> FindAllIntersections(const TAABB<T, 3>& Box) const override { return FindAllIntersectionsImp(Box); }
 
-	bool GetAsBoundsArray(TArray<TBox<T, 3>>& AllBounds, int32 NodeIdx, int32 ParentNode, TBox<T, 3>& Bounds)
+	bool GetAsBoundsArray(TArray<TAABB<T, 3>>& AllBounds, int32 NodeIdx, int32 ParentNode, TAABB<T, 3>& Bounds)
 	{
 		if (Nodes[NodeIdx].bLeaf)
 		{
@@ -313,7 +314,7 @@ public:
 
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>> Copy() const override
 	{
-		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>>(new TAABBTree<TPayloadType, TLeafType, T>(*this));
+		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>>(new TAABBTree<TPayloadType, TLeafType, T, bMutable>(*this));
 	}
 
 	virtual void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -326,13 +327,13 @@ public:
 	void Raycast(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, SQVisitor& Visitor) const
 	{
 		FQueryFastData QueryFastData(Dir, Length);
-		QueryImp<EAABBQueryType::Raycast>(Start, QueryFastData, TVector<T,3>(), TBox<T,3>(), Visitor);
+		QueryImp<EAABBQueryType::Raycast>(Start, QueryFastData, TVector<T,3>(), TAABB<T,3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
 	bool RaycastFast(const TVector<T, 3>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, TVector<T, 3>(), TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, TVector<T, 3>(), TAABB<T, 3>(), Visitor);
 	}
 
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -345,29 +346,29 @@ public:
 	void Sweep(const TVector<T, 3>& Start, const TVector<T, 3>& Dir, const T Length, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
 		FQueryFastData QueryFastData(Dir, Length);
-		QueryImp<EAABBQueryType::Sweep>(Start, QueryFastData, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		QueryImp<EAABBQueryType::Sweep>(Start, QueryFastData, QueryHalfExtents, TAABB<T, 3>(), Visitor);
 	}
 
 	template <typename SQVisitor>
 	bool SweepFast(const TVector<T, 3>& Start, FQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		return QueryImp<EAABBQueryType::Sweep>(Start,CurData, QueryHalfExtents, TBox<T, 3>(), Visitor);
+		return QueryImp<EAABBQueryType::Sweep>(Start,CurData, QueryHalfExtents, TAABB<T, 3>(), Visitor);
 	}
 
-	void Overlap(const TBox<T, 3>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	void Overlap(const TAABB<T, 3>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
 		Overlap(QueryBounds, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
-	void Overlap(const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
+	void Overlap(const TAABB<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		OverlapFast(QueryBounds, Visitor);
 	}
 
 	template <typename SQVisitor>
-	bool OverlapFast(const TBox<T, 3>& QueryBounds, SQVisitor& Visitor) const
+	bool OverlapFast(const TAABB<T, 3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		//dummy variables to reuse templated path
 		FQueryFastDataVoid VoidData;
@@ -376,87 +377,117 @@ public:
 
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
-		if (FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload))
+		if (ensure(bMutable))
 		{
-			if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
+			if (FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload))
 			{
-				ensure(PayloadInfo->DirtyPayloadIdx == INDEX_NONE);
-				ensure(PayloadInfo->LeafIdx == INDEX_NONE);
-				if(PayloadInfo->GlobalPayloadIdx + 1 < GlobalPayloads.Num())
+				if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
 				{
-					auto LastGlobalPayload = GlobalPayloads.Last().Payload;
-					PayloadToInfo.FindChecked(LastGlobalPayload).GlobalPayloadIdx = PayloadInfo->GlobalPayloadIdx;
+					ensure(PayloadInfo->DirtyPayloadIdx == INDEX_NONE);
+					ensure(PayloadInfo->LeafIdx == INDEX_NONE);
+					if (PayloadInfo->GlobalPayloadIdx + 1 < GlobalPayloads.Num())
+					{
+						auto LastGlobalPayload = GlobalPayloads.Last().Payload;
+						PayloadToInfo.FindChecked(LastGlobalPayload).GlobalPayloadIdx = PayloadInfo->GlobalPayloadIdx;
+					}
+					GlobalPayloads.RemoveAtSwap(PayloadInfo->GlobalPayloadIdx);
 				}
-				GlobalPayloads.RemoveAtSwap(PayloadInfo->GlobalPayloadIdx);
-			}
-			else if(PayloadInfo->DirtyPayloadIdx != INDEX_NONE)
-			{
-				if(PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+				else if (PayloadInfo->DirtyPayloadIdx != INDEX_NONE)
 				{
-					auto LastDirtyPayload = DirtyElements.Last().Payload;
-					PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+					if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+					{
+						auto LastDirtyPayload = DirtyElements.Last().Payload;
+						PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+					}
+					DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
 				}
-				DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
-			}
-			else if(ensure(PayloadInfo->LeafIdx != INDEX_NONE))
-			{
-				Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
-			}
+				else if (ensure(PayloadInfo->LeafIdx != INDEX_NONE))
+				{
+					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
+				}
 
-			PayloadToInfo.Remove(Payload);
+				PayloadToInfo.Remove(Payload);
+			}
 		}
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const TBox<T, 3>& NewBounds, bool bHasBounds) override
+	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds) override
 	{
-		FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
-		if (PayloadInfo)
+		if (ensure(bMutable))
 		{
-			if (PayloadInfo->LeafIdx != INDEX_NONE)
+			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
+			if (PayloadInfo)
 			{
-				Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
-				PayloadInfo->LeafIdx = INDEX_NONE;
+				if (PayloadInfo->LeafIdx != INDEX_NONE)
+				{
+					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
+					PayloadInfo->LeafIdx = INDEX_NONE;
+				}
 			}
-		}
-		else
-		{
-			PayloadInfo = &PayloadToInfo.Add(Payload);
-		}
+			else
+			{
+				PayloadInfo = &PayloadToInfo.Add(Payload);
+			}
 
-		bool bTooBig = false;
-		if (bHasBounds)
-		{
-			if (NewBounds.Extents().Max() > MaxPayloadBounds)
+			bool bTooBig = false;
+			if (bHasBounds)
 			{
-				bTooBig = true;
-				bHasBounds = false;
+				if (NewBounds.Extents().Max() > MaxPayloadBounds)
+				{
+					bTooBig = true;
+					bHasBounds = false;
+				}
 			}
-		}
-		
-		if (bHasBounds)
-		{
-			if (PayloadInfo->DirtyPayloadIdx == INDEX_NONE)
+
+			if (bHasBounds)
 			{
-				PayloadInfo->DirtyPayloadIdx = DirtyElements.Add(FElement{ Payload, NewBounds });
+				if (PayloadInfo->DirtyPayloadIdx == INDEX_NONE)
+				{
+					PayloadInfo->DirtyPayloadIdx = DirtyElements.Add(FElement{ Payload, NewBounds });
+				}
+				else
+				{
+					DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
+				}
+
+				// Handle something that previously did not have bounds that may be in global elements.
+				if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
+				{
+					if (PayloadInfo->GlobalPayloadIdx + 1 < GlobalPayloads.Num())
+					{
+						auto LastGlobalPayload = GlobalPayloads.Last().Payload;
+						PayloadToInfo.FindChecked(LastGlobalPayload).GlobalPayloadIdx = PayloadInfo->GlobalPayloadIdx;
+					}
+					GlobalPayloads.RemoveAtSwap(PayloadInfo->GlobalPayloadIdx);
+
+					PayloadInfo->GlobalPayloadIdx = INDEX_NONE;
+				}
 			}
 			else
 			{
-				DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
+				TAABB<T, 3> GlobalBounds = bTooBig ? NewBounds : TAABB<T, 3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
+				if (PayloadInfo->GlobalPayloadIdx == INDEX_NONE)
+				{
+					PayloadInfo->GlobalPayloadIdx = GlobalPayloads.Add(FElement{ Payload, GlobalBounds });
+				}
+				else
+				{
+					GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Bounds = GlobalBounds;
+				}
+
+				// Handle something that previously had bounds that may be in dirty elements.
+				if (PayloadInfo->DirtyPayloadIdx != INDEX_NONE)
+				{
+					if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+					{
+						auto LastDirtyPayload = DirtyElements.Last().Payload;
+						PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+					}
+					DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
+
+					PayloadInfo->DirtyPayloadIdx = INDEX_NONE;
+				}
 			}
-			PayloadInfo->GlobalPayloadIdx = INDEX_NONE;
-		}
-		else
-		{
-			TBox<T, 3> GlobalBounds = bTooBig ? NewBounds : TBox<T, 3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
-			if (PayloadInfo->GlobalPayloadIdx == INDEX_NONE)
-			{
-				PayloadInfo->GlobalPayloadIdx = GlobalPayloads.Add(FElement{ Payload, GlobalBounds });
-			}
-			else
-			{
-				GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Bounds = GlobalBounds;
-			}
-			PayloadInfo->DirtyPayloadIdx = INDEX_NONE;
 		}
 	}
 
@@ -467,23 +498,42 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
-		Ar << FullBounds;
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
+		TBox<FReal, 3>::SerializeAsAABB(Ar, FullBounds);
 		Ar << Nodes;
 		Ar << Leaves;
 		Ar << DirtyElements;
 		Ar << GlobalPayloads;
 
-		TArray<TPayloadType> Payloads;
-		if (!Ar.IsLoading())
+		bool bSerializePayloadToInfo = !bMutable;
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::ImmutableAABBTree)
 		{
-			PayloadToInfo.GenerateKeyArray(Payloads);
+			Ar << bSerializePayloadToInfo;
 		}
-		Ar << Payloads;
-
-		for (auto Payload : Payloads)
+		else
 		{
-			auto& Info = PayloadToInfo.FindOrAdd(Payload);
-			Ar << Info;
+			bSerializePayloadToInfo = true;
+		}
+
+		if (bSerializePayloadToInfo)
+		{
+			TArray<TPayloadType> Payloads;
+			if (!Ar.IsLoading())
+			{
+				PayloadToInfo.GenerateKeyArray(Payloads);
+			}
+			Ar << Payloads;
+
+			for (auto Payload : Payloads)
+			{
+				auto& Info = PayloadToInfo.FindOrAdd(Payload);
+				Ar << Info;
+			}
+			if (!bMutable)	//if immutable empty this even if we had to serialize it in for backwards compat
+			{
+				PayloadToInfo.Empty();
+			}
 		}
 
 		Ar << MaxChildrenInLeaf;
@@ -497,7 +547,7 @@ private:
 	using FNode = TAABBTreeNode<T>;
 
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
-	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TBox<T,3>& QueryBounds, SQVisitor& Visitor) const
+	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TAABB<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
@@ -525,26 +575,29 @@ private:
 			}
 		}
 
-		for (const auto& Elem : DirtyElements)
+		if (bMutable)
 		{
-			const auto& InstanceBounds = Elem.Bounds;
-			if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+			for (const auto& Elem : DirtyElements)
 			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				
-				bool bContinue;
-				if (Query == EAABBQueryType::Overlap)
+				const auto& InstanceBounds = Elem.Bounds;
+				if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 				{
-					bContinue = Visitor.VisitOverlap(VisitData);
-				}
-				else
-				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
-				}
-				
-				if (!bContinue)
-				{
-					return false;
+					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+
+					bool bContinue;
+					if (Query == EAABBQueryType::Overlap)
+					{
+						bContinue = Visitor.VisitOverlap(VisitData);
+					}
+					else
+					{
+						bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
+					}
+
+					if (!bContinue)
+					{
+						return false;
+					}
 				}
 			}
 		}
@@ -594,7 +647,7 @@ private:
 			else
 			{
 				int32 Idx = 0;
-				for (const TBox<T, 3>& AABB : Node.ChildrenBounds)
+				for (const TAABB<T, 3>& AABB : Node.ChildrenBounds)
 				{
 					if(TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents))
 					{
@@ -624,7 +677,7 @@ private:
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
 
-		FullBounds = TBox<T, 3>::EmptyBox();
+		FullBounds = TAABB<T, 3>::EmptyAABB();
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeTimeSliceSetup);
@@ -635,7 +688,7 @@ private:
 			{
 				bool bHasBoundingBox = HasBoundingBox(Particle);
 				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
-				TBox<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
+				TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
 
 				if (bHasBoundingBox)
 				{
@@ -651,12 +704,15 @@ private:
 				}
 				else
 				{
-					ElemBounds = TBox<T, 3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
+					ElemBounds = TAABB<T, 3>(TVector<T, 3>(TNumericLimits<T>::Lowest()), TVector<T, 3>(TNumericLimits<T>::Max()));
 				}
 
 				if (!bHasBoundingBox)
 				{
-					PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE });
+					if (bMutable)
+					{
+						PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE });
+					}
 					GlobalPayloads.Add(FElement{ Payload, ElemBounds });
 				}
 
@@ -679,7 +735,7 @@ private:
 
 	}
 
-	void SplitNode(TBox<T, 3>& SplitBounds, TBox<T, 3>& RealBounds, TArray<FElement>& Children, T& SplitBoundsSize2, int NewNodeIdx, int NodeLevel, int BoxIdx)
+	void SplitNode(TAABB<T, 3>& SplitBounds, TAABB<T, 3>& RealBounds, TArray<FElement>& Children, T& SplitBoundsSize2, int NewNodeIdx, int NodeLevel, int BoxIdx)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_AABBTreeChildrenPhase);
 
@@ -699,12 +755,12 @@ private:
 
 	}
 
-	void SplitNode(const TBox<T, 3>& Bounds, const TArray<FElement>& Elems, int32 NodeLevel, int32 NewNodeIdx, bool Initial=false)
+	void SplitNode(const TAABB<T, 3>& Bounds, const TArray<FElement>& Elems, int32 NodeLevel, int32 NewNodeIdx, bool Initial=false)
 	{
 		// create the actual node space but might no be filled in (YET) due to time slicing exit
 		if (NewNodeIdx >= Nodes.Num())
 		{
-		 	Nodes.AddDefaulted();	//todo: remove TBox
+		 	Nodes.AddDefaulted();	//todo: remove TAABB
 		}
 
 		bool WeAreTimeslicing = (MaxNumToProcess > 0);
@@ -729,9 +785,12 @@ private:
 		auto& NodesRef = Nodes;
 		auto MakeLeaf = [NewNodeIdx, &PayloadToInfoRef, &Elems, &LeavesRef, &NodesRef]()
 		{
-			for (const FElement& Elem : Elems)
+			if (bMutable)
 			{
-				PayloadToInfoRef.Add(Elem.Payload, FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeavesRef.Num() });
+				for (const FElement& Elem : Elems)
+				{
+					PayloadToInfoRef.Add(Elem.Payload, FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeavesRef.Num() });
+				}
 			}
 
 			NodesRef[NewNodeIdx].bLeaf = true;
@@ -750,13 +809,13 @@ private:
 		bool ChildrenInBothHalves = false;
 
 		FSplitInfo SplitInfos[2];
-		SplitInfos[0].SplitBounds = TBox<T, 3>(Bounds.Min(), Bounds.Min());
-		SplitInfos[1].SplitBounds = TBox<T, 3>(Bounds.Max(), Bounds.Max());
+		SplitInfos[0].SplitBounds = TAABB<T, 3>(Bounds.Min(), Bounds.Min());
+		SplitInfos[1].SplitBounds = TAABB<T, 3>(Bounds.Max(), Bounds.Max());
 
 		const TVector<T, 3> Center = Bounds.Center();
 		for (FSplitInfo& SplitInfo : SplitInfos)
 		{
-			SplitInfo.RealBounds = TBox<T, 3>::EmptyBox();
+			SplitInfo.RealBounds = TAABB<T, 3>::EmptyAABB();
 
 			for (int32 Axis = 0; Axis < 3; ++Axis)
 			{
@@ -785,7 +844,7 @@ private:
 				int32 BoxIdx = 0;
 				for (const FSplitInfo& SplitInfo : SplitInfos)
 				{
-					TBox<T, 3> NewBox = SplitInfo.SplitBounds;
+					TAABB<T, 3> NewBox = SplitInfo.SplitBounds;
 					NewBox.GrowToInclude(Elem.Bounds);
 					const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
 					if (Delta2 < MinDelta2)
@@ -857,7 +916,7 @@ private:
 		return; // keep working
 	}
 
-	TArray<TPayloadType> FindAllIntersectionsImp(const TBox<T, 3>& Intersection) const
+	TArray<TPayloadType> FindAllIntersectionsImp(const TAABB<T, 3>& Intersection) const
 	{
 		struct FSimpleVisitor
 		{
@@ -888,7 +947,7 @@ private:
 	}
 
 
-	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T>& Other)
+	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T, bMutable>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, FullBounds(Other.FullBounds)
 		, Nodes(Other.Nodes)
@@ -907,13 +966,13 @@ private:
 
 	struct FSplitInfo
 	{
-		TBox<T, 3> SplitBounds;	//Even split of parent bounds
-		TBox<T, 3> RealBounds;	//Actual bounds as children are added
+		TAABB<T, 3> SplitBounds;	//Even split of parent bounds
+		TAABB<T, 3> RealBounds;	//Actual bounds as children are added
 		TArray<FElement> Children;
 		T SplitBoundsSize2;
 	};
 
-	TBox<T, 3> FullBounds;
+	TAABB<T, 3> FullBounds;
 	TArray<FNode> Nodes;
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;
@@ -935,14 +994,14 @@ private:
 		eTimeSlicePhase TimeslicePhase;
 
 		// used for phase 1 & 2
-		TBox<T, 3> Bounds;
+		TAABB<T, 3> Bounds;
 		TArray<FElement> Elems;
 
 		int32 NodeLevel;
 		int32 NewNodeIdx;
 	
 		// phase 2 data only
-		TBox<T, 3> RealBounds;
+		TAABB<T, 3> RealBounds;
 		int8 BoxIdx;
 		T SplitBoundsSize2;
 	};
@@ -951,8 +1010,8 @@ private:
 	TQueue<FWorkSnapshot> TimeSliceWorkToComplete;
 };
 
-template<typename TPayloadType, typename TLeafType, class T>
-FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, T>& AABBTree)
+template<typename TPayloadType, typename TLeafType, class T, bool bMutable>
+FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, T, bMutable>& AABBTree)
 {
 	AABBTree.Serialize(Ar);
 	return Ar;

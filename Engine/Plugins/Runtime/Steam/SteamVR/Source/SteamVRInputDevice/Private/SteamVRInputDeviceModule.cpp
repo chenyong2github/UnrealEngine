@@ -38,6 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
+#include "IVREditorModule.h"
 #endif
 
 class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
@@ -51,6 +52,12 @@ class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 			TSharedPtr<class FSteamVRInputDevice> Device(new FSteamVRInputDevice(InMessageHandler));
 #if WITH_EDITOR
 			FEditorDelegates::OnActionAxisMappingsChanged.AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnActionMappingsChanged);
+
+			if (IVREditorModule::IsAvailable())
+			{
+				IVREditorModule::Get().OnVREditingModeEnter().AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnVREditingModeEnter);
+				IVREditorModule::Get().OnVREditingModeExit().AddSP(Device.ToSharedRef(), &FSteamVRInputDevice::OnVREditingModeExit);
+			}
 #endif
 			return Device;
 		}
@@ -64,6 +71,34 @@ class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 void FSteamVRInputDeviceModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+
+#if WITH_EDITOR
+	EVRInitError SteamVRInitErrorOverlay = VRInitError_Driver_NotLoaded;
+	IVRSystem* SteamVRSystemOverlay = vr::VR_Init(&SteamVRInitErrorOverlay, vr::VRApplication_Overlay);
+
+	if (SteamVRInitErrorOverlay == VRInitError_None)
+	{
+		if (VRSettings() != nullptr)
+		{
+			EVRSettingsError BindingFlagError = VRSettingsError_None;
+			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
+			UE_LOG(LogTemp, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
+			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
+			UE_LOG(LogTemp, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
+		}
+		VR_Shutdown();
+	}
+#endif
+
+	// Unload engine integrated controller modules if Valve's Input Plugin is present
+	FModuleManager& ModuleManager = FModuleManager::Get();
+	IModuleInterface* ValveInputOverride = ModuleManager.GetModule(FName("SteamVR_Input"));
+
+	if (ValveInputOverride != nullptr)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SteamVR Input] Found Valve Input Plugin. Integrated version of SteamVR Input will not be loaded."));
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+	}
 }
 
 void FSteamVRInputDeviceModule::ShutdownModule()

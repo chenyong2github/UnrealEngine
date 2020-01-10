@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
@@ -908,7 +908,7 @@ void UPrimitiveComponent::SetCollisionEnabled(ECollisionEnabled::Type NewType)
 }
 
 // @todo : implement skeletalmeshcomponent version
-void UPrimitiveComponent::SetCollisionProfileName(FName InCollisionProfileName)
+void UPrimitiveComponent::SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PrimComp_SetCollisionProfileName);
 
@@ -930,7 +930,7 @@ void UPrimitiveComponent::SetCollisionProfileName(FName InCollisionProfileName)
 		{
 			EnsurePhysicsStateCreated();
 		}
-		OnComponentCollisionSettingsChanged();
+		OnComponentCollisionSettingsChanged(bUpdateOverlaps);
 	}
 }
 
@@ -942,10 +942,10 @@ FName UPrimitiveComponent::GetCollisionProfileName() const
 void UPrimitiveComponent::OnActorEnableCollisionChanged()
 {
 	BodyInstance.UpdatePhysicsFilterData();
-	OnComponentCollisionSettingsChanged(true);
+	OnComponentCollisionSettingsChanged(false);
 }
 
-void UPrimitiveComponent::OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps)
+void UPrimitiveComponent::OnComponentCollisionSettingsChanged(bool bUpdateOverlaps)
 {
 	if (IsRegistered() && !IsTemplate())			// not for CDOs
 	{
@@ -955,7 +955,7 @@ void UPrimitiveComponent::OnComponentCollisionSettingsChanged(bool bDeferUpdateO
 			ClearSkipUpdateOverlaps();
 		}
 
-		if (!bDeferUpdateOverlaps)
+		if (bUpdateOverlaps)
 		{
 			UpdateOverlaps();
 		}

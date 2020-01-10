@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -45,6 +45,20 @@ enum class EDescendantScrollDestination : uint8
 	* slack.
 	*/
 	Center,
+};
+
+/** Set behavior when user focus changes inside this scroll box */
+UENUM(BlueprintType)
+enum class EScrollWhenFocusChanges : uint8
+{
+	/** Don't automatically scroll, navigation or child widget will handle this */
+	NoScroll,
+
+	/** Instantly scroll using NavigationDestination rule */
+	InstantScroll,
+
+	/** Use animation to scroll using NavigationDestination rule */
+	AnimatedScroll,
 };
 
 /** SScrollBox can scroll through an arbitrary number of widgets. */
@@ -96,6 +110,7 @@ public:
 		, _WheelScrollMultiplier(1.f)
 		, _NavigationDestination(EDescendantScrollDestination::IntoView)
 		, _NavigationScrollPadding(0.0f)
+		, _ScrollWhenFocusChanges(EScrollWhenFocusChanges::NoScroll)
 		, _OnUserScrolled()
 		, _ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible)
 		{
@@ -139,6 +154,8 @@ public:
 		 * scrollbox.  Use this if you want to ensure there's a preview of the next item the user could scroll to.
 		 */
 		SLATE_ARGUMENT(float, NavigationScrollPadding);
+
+		SLATE_ARGUMENT(EScrollWhenFocusChanges, ScrollWhenFocusChanges);
 
 		/** Called when the button is clicked */
 		SLATE_EVENT(FOnUserScrolled, OnUserScrolled)
@@ -237,6 +254,7 @@ public:
 	virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
 	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent) override;
 	// End of SWidget interface
 
 protected:
@@ -342,10 +360,11 @@ protected:
 	 */
 	float NavigationScrollPadding;
 
-	/**
-	 * 
-	 */
+	/** Sets where to scroll a widget to when using explicit navigation or if ScrollWhenFocusChanges is enabled */
 	EDescendantScrollDestination NavigationDestination;
+
+	/** Scroll behavior when user focus is given to a child widget */
+	EScrollWhenFocusChanges ScrollWhenFocusChanges;
 
 	/**	The current position of the software cursor */
 	FVector2D SoftwareCursorPosition;

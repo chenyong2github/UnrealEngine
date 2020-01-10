@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -132,6 +132,12 @@ struct TAllocatorTraits : TAllocatorTraitsBase<AllocatorType>
 {
 };
 
+template <typename FromAllocatorType, typename ToAllocatorType>
+struct TCanMoveBetweenAllocators
+{
+	enum { Value = false };
+};
+
 /** This is the allocation policy interface; it exists purely to document the policy's interface, and should not be used. */
 class FContainerAllocatorInterface
 {
@@ -141,6 +147,8 @@ public:
 
 	/** Determines whether the user of the allocator may use the ForAnyElementType inner class. */
 	enum { NeedsElementType = true };
+
+	/** Determines whether the user of the allocator should do range checks */
 	enum { RequireRangeCheck = true };
 
 	/**
@@ -152,10 +160,21 @@ public:
 	{
 		/**
 		 * Moves the state of another allocator into this one.
+		 *
 		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
 		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
 		 */
 		void MoveToEmpty(ForElementType& Other);
+
+		/**
+		 * Moves the state of another allocator into this one.  The allocator can be different, and the type must be specified.
+		 * This function should only be called if TAllocatorTraits<AllocatorType>::SupportsMoveFromOtherAllocator is true.
+		 *
+		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
+		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
+		 */
+		template <typename OtherAllocatorType>
+		void MoveToEmptyFromOtherAllocator(typename OtherAllocatorType::template ForElementType<ElementType>& Other);
 
 		/** Accesses the container's current data. */
 		ElementType* GetAllocation() const;
@@ -217,6 +236,9 @@ public:
 
 		/** Returns true if the allocator has made any heap allocations */
 		bool HasAllocation() const;
+
+		/** Returns number of pre-allocated elements the container can use before allocating more space */
+		SizeType GetInitialCapacity() const;
 	};
 
 	/**
@@ -313,6 +335,11 @@ public:
 			return !!Data;
 		}
 
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
+		}
+
 	private:
 		ForAnyElementType(const ForAnyElementType&);
 		ForAnyElementType& operator=(const ForAnyElementType&);
@@ -367,6 +394,9 @@ public:
 
 	class ForAnyElementType
 	{
+		template <int>
+		friend class TSizedHeapAllocator;
+
 	public:
 		/** Default constructor. */
 		ForAnyElementType()
@@ -374,21 +404,35 @@ public:
 		{}
 
 		/**
-		 * Moves the state of another allocator into this one.
+		 * Moves the state of another allocator into this one.  The allocator can be different.
+		 *
 		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
 		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
 		 */
-		FORCEINLINE void MoveToEmpty(ForAnyElementType& Other)
+		template <typename OtherAllocator>
+		FORCEINLINE void MoveToEmptyFromOtherAllocator(typename OtherAllocator::ForAnyElementType& Other)
 		{
-			checkSlow(this != &Other);
+			checkSlow((void*)this != (void*)&Other);
 
 			if (Data)
 			{
 				FMemory::Free(Data);
 			}
 
-			Data       = Other.Data;
+			Data = Other.Data;
 			Other.Data = nullptr;
+		}
+
+		/**
+		 * Moves the state of another allocator into this one.
+		 * Moves the state of another allocator into this one.  The allocator can be different.
+		 *
+		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
+		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
+		 */
+		FORCEINLINE void MoveToEmpty(ForAnyElementType& Other)
+		{
+			this->MoveToEmptyFromOtherAllocator<TSizedHeapAllocator>(Other);
 		}
 
 		/** Destructor. */
@@ -436,6 +480,11 @@ public:
 		{
 			return !!Data;
 		}
+		
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
+		}
 
 	private:
 		ForAnyElementType(const ForAnyElementType&);
@@ -469,6 +518,13 @@ struct TAllocatorTraits<TSizedHeapAllocator<IndexSize>> : TAllocatorTraitsBase<T
 };
 
 using FHeapAllocator = TSizedHeapAllocator<32>;
+
+template <uint8 FromIndexSize, uint8 ToIndexSize>
+struct TCanMoveBetweenAllocators<TSizedHeapAllocator<FromIndexSize>, TSizedHeapAllocator<ToIndexSize>>
+{
+	// Allow conversions between different int width versions of the allocator
+	enum { Value = true };
+};
 
 /**
  * The inline allocation policy allocates up to a specified number of elements in the same allocation as the container.
@@ -586,6 +642,11 @@ public:
 		bool HasAllocation() const
 		{
 			return SecondaryData.HasAllocation();
+		}
+
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
 		}
 
 	private:
@@ -730,6 +791,11 @@ public:
 			return Data != GetInlineElements();
 		}
 
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
+		}
+
 	private:
 		ForElementType(const ForElementType&) = delete;
 		ForElementType& operator=(const ForElementType&) = delete;
@@ -832,7 +898,11 @@ public:
 		{
 			return false;
 		}
-
+		
+		SizeType GetInitialCapacity() const
+		{
+			return NumInlineElements;
+		}
 
 	private:
 		ForElementType(const ForElementType&);
@@ -1038,3 +1108,5 @@ template <> struct TAllocatorTraits<FDefaultAllocator>            : TAllocatorTr
 template <> struct TAllocatorTraits<FDefaultSetAllocator>         : TAllocatorTraits<typename FDefaultSetAllocator        ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultBitArrayAllocator>    : TAllocatorTraits<typename FDefaultBitArrayAllocator   ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultSparseArrayAllocator> : TAllocatorTraits<typename FDefaultSparseArrayAllocator::Typedef> {};
+
+template <uint8 FromIndexSize, uint8 ToIndexSize> struct TCanMoveBetweenAllocators<TSizedDefaultAllocator<FromIndexSize>, TSizedDefaultAllocator<ToIndexSize>> : TCanMoveBetweenAllocators<typename TSizedDefaultAllocator<FromIndexSize>::Typedef, typename TSizedDefaultAllocator<ToIndexSize>::Typedef> {};

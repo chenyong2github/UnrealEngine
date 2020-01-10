@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/AutomationCommon.h"
 #include "Misc/Paths.h"
@@ -73,7 +73,7 @@ namespace AutomationCommon
 		if ( HardwareDetailsString.Len() > 0 )
 		{
 			//Get rid of the leading "_"
-			HardwareDetailsString = HardwareDetailsString.RightChop(1);
+			HardwareDetailsString.RightChopInline(1, false);
 		}
 
 		return HardwareDetailsString;

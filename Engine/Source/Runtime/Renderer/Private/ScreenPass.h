@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -226,11 +226,13 @@ struct FScreenPassPipelineState
 		FShader* InVertexShader,
 		FShader* InPixelShader,
 		FRHIBlendState* InBlendState = FDefaultBlendState::GetRHI(),
-		FRHIDepthStencilState* InDepthStencilState = FDefaultDepthStencilState::GetRHI())
+		FRHIDepthStencilState* InDepthStencilState = FDefaultDepthStencilState::GetRHI(),
+		FRHIVertexDeclaration* InVertexDeclaration = GFilterVertexDeclaration.VertexDeclarationRHI)
 		: VertexShader(InVertexShader)
 		, PixelShader(InPixelShader)
 		, BlendState(InBlendState)
 		, DepthStencilState(InDepthStencilState)
+		, VertexDeclaration(InVertexDeclaration)
 	{}
 
 	void Validate() const
@@ -239,12 +241,14 @@ struct FScreenPassPipelineState
 		check(PixelShader);
 		check(BlendState);
 		check(DepthStencilState);
+		check(VertexDeclaration);
 	}
 
 	FShader* VertexShader = nullptr;
 	FShader* PixelShader = nullptr;
 	FRHIBlendState* BlendState = nullptr;
 	FRHIDepthStencilState* DepthStencilState = nullptr;
+	FRHIVertexDeclaration* VertexDeclaration = nullptr;
 };
 
 // Helper function which sets the pipeline state object on the command list prior to invoking a screen pass.

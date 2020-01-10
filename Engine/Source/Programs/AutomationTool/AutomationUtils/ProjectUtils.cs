@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -162,6 +162,9 @@ namespace AutomationTool
 			return false;
 		}
 
+		/// <summary>
+		/// NOTE: This function must mirror the functionality of TargetPlatformBase::RequiresTempTarget
+		/// </summary>
 		private static bool RequiresTempTarget(FileReference RawProjectPath, bool bProjectHasCode, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, bool bRequiresAssetNativization, bool bRequiresCookedData, out string OutReason)
 		{
 			// check to see if we already have a Target.cs file
@@ -201,35 +204,231 @@ namespace AutomationTool
 			// Read the project descriptor, and find all the plugins available to this project
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
 
+			// Enumerate all the available plugins
+			Dictionary<string, PluginInfo> AllPlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, new string[0]).ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
+
 			// find if there are any plugins enabled or disabled which differ from the default
-			List<PluginInfo> Plugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, Project.AdditionalPluginDirectories);
-			foreach (PluginInfo Plugin in Plugins)
+			string Reason;
+			if (RequiresTempTargetForCodePlugin(Project, Platform, Configuration, TargetType, AllPlugins, out Reason))
 			{
-				bool bPluginEnabledForTarget = UnrealBuildTool.Plugins.IsPluginCompiledForTarget(Plugin, Project, Platform, Configuration, TargetType, bRequiresCookedData);
+				OutReason = Reason;
+				return true;
+			}
 
-				bool bPluginEnabledForBaseTarget = false;
-				if(!Plugin.Descriptor.bInstalled)
+			OutReason = null;
+			return false;
+		}
+
+		/// <summary>
+		/// NOTE: This function must mirror FPluginManager::RequiresTempTargetForCodePlugin
+		/// </summary>
+		static bool RequiresTempTargetForCodePlugin(ProjectDescriptor ProjectDescriptor, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, Dictionary<string, PluginInfo> AllPlugins, out string OutReason)
+		{
+			PluginReferenceDescriptor MissingPlugin;
+
+			HashSet<string> ProjectCodePlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			if (!GetCodePluginsForTarget(ProjectDescriptor, Platform, Configuration, TargetType, ProjectCodePlugins, AllPlugins, out MissingPlugin))
+			{
+				OutReason = String.Format("{0} plugin is referenced by target but not found", MissingPlugin.Name);
+				return true;
+			}
+
+			HashSet<string> DefaultCodePlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			if (!GetCodePluginsForTarget(null, Platform, Configuration, TargetType, DefaultCodePlugins, AllPlugins, out MissingPlugin))
+			{
+				OutReason = String.Format("{0} plugin is referenced by the default target but not found", MissingPlugin.Name);
+				return true;
+			}
+
+			foreach (string ProjectCodePlugin in ProjectCodePlugins)
+			{
+				if (!DefaultCodePlugins.Contains(ProjectCodePlugin))
 				{
-					bPluginEnabledForBaseTarget |= UnrealBuildTool.Plugins.IsPluginCompiledForTarget(Plugin, null, Platform, Configuration, TargetType, bRequiresCookedData);
+					OutReason = String.Format("{0} plugin is enabled", ProjectCodePlugin);
+					return true;
 				}
+			}
 
-				if (bPluginEnabledForTarget != bPluginEnabledForBaseTarget)
+			foreach (string DefaultCodePlugin in DefaultCodePlugins)
+			{
+				if (!ProjectCodePlugins.Contains(DefaultCodePlugin))
 				{
-					if(bPluginEnabledForTarget)
-					{
-						OutReason = String.Format("{0} plugin is enabled", Plugin.Name);
-						return true;
-					}
-					else
-					{
-						OutReason = String.Format("{0} plugin is disabled", Plugin.Name);
-						return true;
-					}
+					OutReason = String.Format("{0} plugin is disabled", DefaultCodePlugin);
+					return true;
 				}
 			}
 
 			OutReason = null;
 			return false;
+		}
+
+		/// <summary>
+		/// NOTE: This function must mirror FPluginManager::GetCodePluginsForTarget
+		/// </summary>
+		static bool GetCodePluginsForTarget(ProjectDescriptor ProjectDescriptor, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, HashSet<string> CodePluginNames, Dictionary<string, PluginInfo> AllPlugins, out PluginReferenceDescriptor OutMissingPlugin)
+		{
+			bool bLoadPluginsForTargetPlatforms = (TargetType == TargetType.Editor);
+
+			// Map of all enabled plugins
+			Dictionary<string, PluginInfo> EnabledPlugins = new Dictionary<string, PluginInfo>(StringComparer.OrdinalIgnoreCase);
+					   			 
+			// Keep a set of all the plugin names that have been configured. We read configuration data from different places, but only configure a plugin from the first place that it's referenced.
+			HashSet<string> ConfiguredPluginNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+			bool bAllowEnginePluginsEnabledByDefault = true;
+
+			// Find all the plugin references in the project file
+			if (ProjectDescriptor != null)
+			{
+				bAllowEnginePluginsEnabledByDefault = !ProjectDescriptor.DisableEnginePluginsByDefault;
+				if (ProjectDescriptor.Plugins != null)
+				{
+					// Copy the plugin references, since we may modify the project if any plugins are missing
+					foreach (PluginReferenceDescriptor PluginReference in ProjectDescriptor.Plugins)
+					{
+						if (!ConfiguredPluginNames.Contains(PluginReference.Name))
+						{
+							PluginReferenceDescriptor MissingPlugin;
+							if (!ConfigureEnabledPluginForTarget(PluginReference, ProjectDescriptor, null, Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, out MissingPlugin))
+							{
+								OutMissingPlugin = MissingPlugin;
+								return false;
+							}
+							ConfiguredPluginNames.Add(PluginReference.Name);
+						}
+					}
+				}
+			}
+
+			// Add the plugins which are enabled by default
+			foreach (KeyValuePair<string, PluginInfo> PluginPair in AllPlugins)
+			{
+				if (PluginPair.Value.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ConfiguredPluginNames.Contains(PluginPair.Key))
+				{
+					PluginReferenceDescriptor MissingPlugin;
+					if (!ConfigureEnabledPluginForTarget(new PluginReferenceDescriptor(PluginPair.Key, null, true), ProjectDescriptor, null, Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, out MissingPlugin))
+					{
+						OutMissingPlugin = MissingPlugin;
+						return false;
+					}
+					ConfiguredPluginNames.Add(PluginPair.Key);
+				}
+			}
+
+			// Figure out which plugins have code 
+			bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping));
+			bool bRequiresCookedData = (TargetType != TargetType.Editor);
+			foreach (KeyValuePair<string, PluginInfo> Pair in EnabledPlugins)
+			{
+				ModuleDescriptor[] Modules = Pair.Value.Descriptor.Modules;
+				if (Modules != null)
+				{
+					foreach (ModuleDescriptor Module in Pair.Value.Descriptor.Modules)
+					{
+						if (Module.IsCompiledInConfiguration(Platform, Configuration, null, TargetType, bBuildDeveloperTools, bRequiresCookedData))
+						{
+							CodePluginNames.Add(Pair.Key);
+							break;
+						}
+					}
+				}
+			}
+
+			OutMissingPlugin = null;
+			return true;
+		}
+
+		/// <summary>
+		/// NOTE: This function should mirror FPluginManager::ConfigureEnabledPluginForTarget
+		/// </summary>
+		static bool ConfigureEnabledPluginForTarget(PluginReferenceDescriptor FirstReference, ProjectDescriptor ProjectDescriptor, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, bool bLoadPluginsForTargetPlatforms, Dictionary<string, PluginInfo> AllPlugins, Dictionary<string, PluginInfo> EnabledPlugins, out PluginReferenceDescriptor OutMissingPlugin)
+		{
+			if (!EnabledPlugins.ContainsKey(FirstReference.Name))
+			{
+				// Set of plugin names we've added to the queue for processing
+				HashSet<string> NewPluginNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				NewPluginNames.Add(FirstReference.Name);
+
+				// Queue of plugin references to consider
+				List<PluginReferenceDescriptor> NewPluginReferences = new List<PluginReferenceDescriptor>();
+				NewPluginReferences.Add(FirstReference);
+
+				// Loop through the queue of plugin references that need to be enabled, queuing more items as we go
+				for (int Idx = 0; Idx < NewPluginReferences.Count; Idx++)
+				{
+					PluginReferenceDescriptor Reference = NewPluginReferences[Idx];
+
+					// Check if the plugin is required for this platform
+					if(!Reference.IsEnabledForPlatform(Platform) || !Reference.IsEnabledForTargetConfiguration(Configuration) || !Reference.IsEnabledForTarget(TargetType))
+					{
+						Log.TraceLog("Ignoring plugin '{0}' for platform/configuration", Reference.Name);
+						continue;
+					}
+
+					// Check if the plugin is required for this platform
+					if(!bLoadPluginsForTargetPlatforms && !Reference.IsSupportedTargetPlatform(Platform))
+					{
+						Log.TraceLog("Ignoring plugin '{0}' due to unsupported platform", Reference.Name);
+						continue;
+					}
+
+					// Find the plugin being enabled
+					PluginInfo Plugin;
+					if (!AllPlugins.TryGetValue(Reference.Name, out Plugin))
+					{
+						// Ignore any optional plugins
+						if (Reference.bOptional)
+						{
+							Log.TraceLog("Ignored optional reference to '%s' plugin; plugin was not found.", Reference.Name);
+							continue;
+						}
+
+						// Add it to the missing list
+						OutMissingPlugin = Reference;
+						return false;
+					}
+
+					// Check the plugin supports this platform
+					if(!bLoadPluginsForTargetPlatforms && !Plugin.Descriptor.SupportsTargetPlatform(Platform))
+					{
+						Log.TraceLog("Ignoring plugin '{0}' due to unsupported platform in plugin descriptor", Reference.Name);
+						continue;
+					}
+
+					// Check that this plugin supports the current program
+					if (TargetType == TargetType.Program && !Plugin.Descriptor.SupportedPrograms.Contains(TargetName))
+					{
+						Log.TraceLog("Ignoring plugin '{0}' due to absence from the supported programs list", Reference.Name);
+						continue;
+					}
+
+					// Skip loading Enterprise plugins when project is not an Enterprise project
+					if (Plugin.Type == PluginType.Enterprise && ProjectDescriptor != null && !ProjectDescriptor.IsEnterpriseProject)
+					{
+						Log.TraceLog("Ignoring plugin '{0}' due to not being an enterprise project", Reference.Name);
+						continue;
+					}
+
+					// Add references to all its dependencies
+					if (Plugin.Descriptor.Plugins != null)
+					{
+						foreach (PluginReferenceDescriptor NextReference in Plugin.Descriptor.Plugins)
+						{
+							if (!EnabledPlugins.ContainsKey(NextReference.Name) && !NewPluginNames.Contains(NextReference.Name))
+							{
+								NewPluginNames.Add(NextReference.Name);
+								NewPluginReferences.Add(NextReference);
+							}
+						}
+					}
+
+					// Add the plugin
+					EnabledPlugins.Add(Plugin.Name, Plugin);
+				}
+			}
+
+			OutMissingPlugin = null;
+			return true;
 		}
 
 		private static void GenerateTempTarget(FileReference RawProjectPath)

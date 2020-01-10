@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_BlendListByEnum.h"
 #include "Textures/SlateIcon.h"
@@ -168,7 +168,7 @@ void UAnimGraphNode_BlendListByEnum::RemovePinFromBlendList(UEdGraphPin* Pin)
 		VisibleEnumEntries.RemoveAt(ExposedEnumIndex);
 
 		// Remove the pose from the node
-		UProperty* AssociatedProperty;
+		FProperty* AssociatedProperty;
 		int32 ArrayIndex;
 		GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

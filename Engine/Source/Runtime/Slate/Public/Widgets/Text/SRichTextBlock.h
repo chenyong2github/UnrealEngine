@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -215,6 +215,10 @@ public:
 	 * Causes the text to reflow it's layout
 	 */
 	void Refresh();
+
+	/** set the multiplier affected at the font in the text */
+	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
+
 
 protected:
 	//~ SWidget interface

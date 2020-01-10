@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VariantObjectBinding.h"
 
@@ -240,7 +240,7 @@ void UVariantObjectBinding::ExecuteTargetFunction(FName FunctionName)
 	}
 	else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
 	{
-		if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(Func->PropertyLink))
+		if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
 		{
 			if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
 			{
@@ -304,7 +304,7 @@ void UVariantObjectBinding::ExecuteAllTargetFunctions()
 		}
 		else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
 		{
-			if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(Func->PropertyLink))
+			if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
 			{
 				if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
 				{

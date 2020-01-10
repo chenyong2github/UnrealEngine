@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,9 +12,10 @@
 #include "Misc/Guid.h"
 #include "Async/AsyncWork.h"
 #include "Sound/SoundBase.h"
-#include "Sound/SoundClass.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/BulkDataBuffer.h"
 #include "Sound/SoundGroups.h"
+#include "Sound/SoundWaveLoadingBehavior.h"
 #include "AudioMixerTypes.h"
 #include "AudioCompressionSettings.h"
 #include "PerPlatformProperties.h"
@@ -282,12 +283,21 @@ enum class ESoundWaveFFTSize : uint8
 	VeryLarge_2048,
 };
 
+struct ISoundWaveClient
+{
+	ISoundWaveClient() {}
+	virtual ~ISoundWaveClient() {}
+	
+	virtual void OnBeginDestroy(class USoundWave* Wave) = 0;
+	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
+	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
+};
 
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType)
 class ENGINE_API USoundWave : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
-
+public:
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
 	UPROPERTY(EditAnywhere, Category="Format|Quality", meta=(DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
 	int32 CompressionQuality;
@@ -318,12 +328,15 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming:1;
 
-	/** If stream caching is enabled, this can be used to specify how and when compressed audio data is loaded for this asset. */
+	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
 	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural:1;
+	
+	/** Set to true if the source is procedural and currently playing */
+	uint8 bPlayingProcedural : 1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
 	uint8 bIsBus:1;
@@ -351,7 +364,9 @@ class ENGINE_API USoundWave : public USoundBase
 	uint8 bVirtualizeWhenSilent_DEPRECATED:1;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Whether or not this source is ambisonics file format. */
+	/** Whether or not this source is ambisonics file format. If set, sound always uses the 
+	  * 'Master Ambisonics Submix' as set in the 'Audio' category of Project Settings'
+	  * and ignores submix if provided locally or in the referenced SoundClass. */
 	UPROPERTY(EditAnywhere, Category = Format)
 	uint8 bIsAmbisonics : 1;
 
@@ -386,6 +401,8 @@ private:
 	volatile ESoundWaveResourceState ResourceState;
 
 public:
+
+	using FSoundWaveClientPtr = ISoundWaveClient*;
 
 #if WITH_EDITORONLY_DATA
 	/** Specify a sound to use for the baked analysis. Will default to this USoundWave if not sete. */
@@ -485,7 +502,9 @@ private:
 	FThreadSafeCounter PrecacheState;
 
 	/** the number of sounds currently playing this sound wave. */
-	FThreadSafeCounter NumSourcesPlaying;
+	mutable FCriticalSection SourcesPlayingCs;
+
+	TArray<FSoundWaveClientPtr> SourcesPlaying;
 
 	// This is the sample rate retrieved from platform settings.
 	float CachedSampleRateOverride;
@@ -612,7 +631,7 @@ public:
 	const uint8* ResourceData;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
-	TArray<uint8> ZerothChunkData;
+	FBulkDataBuffer<uint8> ZerothChunkData;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	FByteBulkData RawData;
@@ -679,6 +698,12 @@ public:
 	// Called when the procedural sound wave is done generating on the render thread. Only used in the audio mixer and when bProcedural is true..
 	virtual void OnEndGenerate() {};
 
+	void AddPlayingSource(const FSoundWaveClientPtr& Source);
+	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
+
+	/** the number of sounds currently playing this sound wave. */
+	FThreadSafeCounter NumSourcesPlaying;
+
 	void AddPlayingSource()
 	{
 		NumSourcesPlaying.Increment();
@@ -691,8 +716,12 @@ public:
 	}
 
 	bool IsGeneratingAudio() const
-	{
-		return NumSourcesPlaying.GetValue() > 0;
+	{		
+		bool bIsGeneratingAudio = false;
+		FScopeLock Lock(&SourcesPlayingCs);
+		bIsGeneratingAudio = SourcesPlaying.Num() > 0;
+		
+		return bIsGeneratingAudio;
 	}
 
 	/**
@@ -703,7 +732,7 @@ public:
 	{
 		SampleRate = InSampleRate;
 #if !WITH_EDITOR
-		// Ensure that we invalidate our cached sample rate if the UProperty sample rate is changed.
+		// Ensure that we invalidate our cached sample rate if the FProperty sample rate is changed.
 		bCachedSampleRateFromPlatformSettings = false;
 		bSampleRateManuallyReset = true;
 #endif //WITH_EDITOR

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/ElementBatcher.h"
 #include "Fonts/SlateFontInfo.h"
@@ -8,6 +8,10 @@
 #include "Widgets/SWindow.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Debugging/SlateDebugging.h"
+#include "Widgets/SWidgetUtils.h"
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Create Batches"), STAT_SlateRTCreateBatches, STATGROUP_Slate);
 
@@ -85,116 +89,19 @@ bool FSlateBatchData::IsStencilClippingRequired() const
 	return bIsStencilBufferRequired;
 }
 
-void FSlateBatchData::FillVertexAndIndexBuffer(uint8* VertexBuffer, uint8* IndexBuffer, bool bAbsoluteIndices)
-{
-	/*int32 IndexOffset = 0;
-	int32 VertexOffset = 0;
-	int32 BaseVertexIndex = 0;
-
-	const bool bValidBuffers = (nullptr != VertexBuffer) && (nullptr != IndexBuffer);
-
-	for (const FSlateRenderBatch& Batch : RenderBatches)
-	{
-		// Ignore foreign batches that are inserted into our render set.
-		if (RenderDataHandle != Batch.CachedRenderHandle)
-		{
-			continue;
-		}
-
-		if (Batch.VertexArrayIndex != INDEX_NONE && Batch.IndexArrayIndex != INDEX_NONE)
-		{
-			FSlateVertexArray& Vertices = BatchVertexArrays[Batch.VertexArrayIndex];
-			FSlateIndexArray& Indices = BatchIndexArrays[Batch.IndexArrayIndex];
-
-			if (Vertices.Num() && Indices.Num())
-			{
-				if (bValidBuffers)
-				{
-					uint32 RequiredVertexSize = Vertices.Num() * Vertices.GetTypeSize();
-					uint32 RequiredIndexSize = Indices.Num() * Indices.GetTypeSize();
-
-					FMemory::Memcpy(VertexBuffer + VertexOffset, Vertices.GetData(), RequiredVertexSize);
-					if (BaseVertexIndex == 0 || !bAbsoluteIndices)
-					{
-						FMemory::Memcpy(IndexBuffer + IndexOffset, Indices.GetData(), RequiredIndexSize);
-					}
-					else
-					{
-						SlateIndex* TargetIndexBuffer = (SlateIndex*)(IndexBuffer + IndexOffset);
-						for (int32 i = 0; i < Indices.Num(); ++i)
-						{
-							TargetIndexBuffer[i] = Indices[i] + BaseVertexIndex;
-						}
-					}
-
-					BaseVertexIndex += Vertices.Num();
-					IndexOffset += (Indices.Num() * sizeof(SlateIndex));
-					VertexOffset += (Vertices.Num() * sizeof(FSlateVertex));
-				}
-
-				Vertices.Reset();
-				Indices.Reset();
-
-				if (Vertices.GetSlack() > MAX_VERT_ARRAY_RECYCLE)
-				{
-					ResetVertexArray(Vertices);
-				}
-
-				if (Indices.GetSlack() > MAX_INDEX_ARRAY_RECYCLE)
-				{
-					ResetIndexArray(Indices);
-				}
-			}
-		}
-	}*/
-}
-
-/*
-void FSlateBatchData::CreateRenderBatches(FElementBatchMap& LayerToElementBatches)
-{
-	checkSlow(IsInRenderingThread());
-
-	uint32 VertexOffset = 0;
-	uint32 IndexOffset = 0;
-
-	{
-		SCOPED_NAMED_EVENT_TEXT("SlateRT::CreateRenderBatches", FColor::Magenta);
-		Merge(LayerToElementBatches, VertexOffset, IndexOffset);
-	}
-
-	// 
-	if (RenderDataHandle.IsValid())
-	{
-		RenderDataHandle->SetRenderBatches(&RenderBatches);
-	}
-}
-*/
-
 FSlateRenderBatch& FSlateBatchData::AddRenderBatch(int32 InLayer, const FShaderParams& InShaderParams, const FSlateShaderResource* InResource, ESlateDrawPrimitive InPrimitiveType, ESlateShader InShaderType, ESlateDrawEffect InDrawEffects, ESlateBatchDrawFlag InDrawFlags, int8 SceneIndex)
 {
-
-/*
-	NumBatchedVertices += InNumVertices;
-	NumBatchedIndices += InNumIndices;
-
-	if (InElementBatch.ClippingState.IsSet())
-	{
-		bIsStencilBufferRequired |= InElementBatch.ClippingState->GetClippingMethod() == EClippingMethod::Stencil;
-	}
-
-	const int32 Index = RenderBatches.Add(FSlateRenderBatch(InLayer, InElementBatch, RenderDataHandle, InNumVertices, InNumIndices, InVertexOffset, InIndexOffset));
-	RenderBatches[Index].DynamicOffset = FVector2D::ZeroVector;*/
-
 	return RenderBatches.Emplace_GetRef(InLayer, InShaderParams, InResource, InPrimitiveType, InShaderType, InDrawEffects, InDrawFlags, SceneIndex, &UncachedSourceBatchVertices, &UncachedSourceBatchIndices, UncachedSourceBatchVertices.Num(), UncachedSourceBatchIndices.Num());
 }
 
-
-
-void FSlateBatchData::AddCachedBatches(const TArray<FSlateRenderBatch>& InCachedBatches)
+void FSlateBatchData::AddCachedBatches(const TSparseArray<FSlateRenderBatch>& InCachedBatches)
 {
 	RenderBatches.Reserve(RenderBatches.Num() + InCachedBatches.Num());
 
-	RenderBatches.Append(InCachedBatches);
+	for (const FSlateRenderBatch& CachedBatch : InCachedBatches)
+	{
+		RenderBatches.Add(CachedBatch);
+	}
 }
 
 void FSlateBatchData::FillBuffersFromNewBatch(FSlateRenderBatch& Batch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices)
@@ -241,26 +148,6 @@ void FSlateBatchData::CombineBatches(FSlateRenderBatch& FirstBatch, FSlateRender
 	SecondBatch.bIsMerged = true;
 }
 
-
-/*
-static void AddNewBatch(FSlateRenderBatch& NewBatch, TArray<FSlateRenderBatch>& FinalRenderBatches, TArray<FSlateVertex>& Vertices, TArray<SlateIndex>& Indices)
-{
-	if (NewBatch.GetNumVertices() > 0 && NewBatch.GetNumIndices())
-	{
-		const int32 NewVertOffset = Vertices.Num();
-	
-		NewBatch.CopySourceVertices(Vertices);
-		NewBatch.VertexOffset = NewVertOffset;
-
-		// Starting a new batch does not require updating absolute index position
-		const int32 NewIndexOffset = Indices.Num();
-		NewBatch.CopySourceIndices(Indices);
-		NewBatch.IndexOffset = NewIndexOffset;
-
-		FinalRenderBatches.Add(NewBatch);
-	}
-}
-*/
 
 void FSlateBatchData::MergeRenderBatches()
 {
@@ -369,7 +256,7 @@ void FSlateBatchData::MergeRenderBatches()
 
 FSlateElementBatcher::FSlateElementBatcher( TSharedRef<FSlateRenderingPolicy> InRenderingPolicy )
 	: BatchData( nullptr )
-	, CachedElementList( nullptr )
+	, CurrentCachedElementList( nullptr )
 	, PrecachedClippingStates(nullptr)
 	, RenderingPolicy( &InRenderingPolicy.Get() )
 	, NumPostProcessPasses(0)
@@ -549,35 +436,51 @@ void FSlateElementBatcher::AddElementsInternal(const FSlateDrawElementArray& Dra
 
 void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElementData, const FVector2D& ViewportSize)
 {
-#define ALLOW_CACHED_RENDER_BATCHES 1
+	CSV_SCOPED_TIMING_STAT(Slate, AddCachedElements);
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/CacheListsWithNewData", CSV_CATEGORY_INDEX(Slate), CachedElementData.ListsWithNewData.Num(), ECsvCustomStatOp::Set);
+	int32 RecachedDrawElements = 0;
+	int32 RecachedEmptyDrawLists = 0;
+#endif
+
 	SCOPED_NAMED_EVENT_TEXT("Slate::AddCachedBatches", FColor::Magenta);
-	for ( FSlateCachedElementList& LocalCachedElementList : CachedElementData.CachedElementLists)
+
+	for (FSlateCachedElementList* List : CachedElementData.ListsWithNewData)
 	{
-		STAT(ElementStat_CachedElements += LocalCachedElementList.DrawElements.Num());
-		LocalCachedElementList.bNewData = false;
-#if ALLOW_CACHED_RENDER_BATCHES
-		if (LocalCachedElementList.CachedBatches.Num())
+		if (List->DrawElements.Num() > 0)
 		{
-			BatchData->AddCachedBatches(LocalCachedElementList.CachedBatches);
+			STAT(ElementStat_CachedElements += List->DrawElements.Num());
+
+#if SLATE_CSV_TRACKER
+			RecachedDrawElements += List->DrawElements.Num();
+#endif
+
+			CurrentCachedElementList = List;
+			{
+				SCOPE_CYCLE_SWIDGET(List->OwningWidget);
+				AddElementsInternal(List->DrawElements, ViewportSize);
+			}
+			CurrentCachedElementList = nullptr;
 		}
+#if SLATE_CSV_TRACKER
 		else
 		{
-			CachedElementList = &LocalCachedElementList;
-			{
-				SCOPED_NAMED_EVENT_TEXT("Slate::RecacheElements", FColor::Magenta);
-				AddElementsInternal(LocalCachedElementList.DrawElements, ViewportSize);
-			}
-
-			// Now apply the cached batches to the batch data
-			BatchData->AddCachedBatches(LocalCachedElementList.CachedBatches);
+			RecachedEmptyDrawLists++;
 		}
-
-		CachedElementList = nullptr;
-#else
-		AddElementsInternal(LocalCachedElementList.DrawElements, ViewportSize);
 #endif
 	}
+	CachedElementData.ListsWithNewData.Empty();
+
+	// Add the existing and new cached batches.
+	BatchData->AddCachedBatches(CachedElementData.GetCachedBatches());
+
 	CachedElementData.CleanupUnusedClipStates();
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/RecachedElements", CSV_CATEGORY_INDEX(Slate), RecachedDrawElements, ECsvCustomStatOp::Accumulate);
+	FCsvProfiler::RecordCustomStat("Paint/RecachedEmptyDrawLists", CSV_CATEGORY_INDEX(Slate), RecachedEmptyDrawLists, ECsvCustomStatOp::Accumulate);
+#endif
 }
 
 template<ESlateVertexRounding Rounding>
@@ -2623,8 +2526,8 @@ FSlateRenderBatch& FSlateElementBatcher::CreateRenderBatch(
 	ESlateBatchDrawFlag DrawFlags,
 	const FSlateDrawElement& DrawElement)
 {
-	FSlateRenderBatch& NewBatch = CachedElementList
-		? CachedElementList->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex())
+	FSlateRenderBatch& NewBatch = CurrentCachedElementList
+		? CurrentCachedElementList->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex())
 		: BatchData->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex());
 
 	NewBatch.ClippingState = ResolveClippingState(DrawElement);
@@ -2639,7 +2542,7 @@ const FSlateClippingState* FSlateElementBatcher::ResolveClippingState(const FSla
 	if (ClipHandle.GetCachedClipState())
 	{
 		// We should be working with cached elements if we have a cached clip state
-		check(CachedElementList);
+		check(CurrentCachedElementList);
 		return ClipHandle.GetCachedClipState();
 	}
 	else if (PrecachedClippingStates->IsValidIndex(ClipHandle.GetPrecachedClipIndex()))
@@ -2650,53 +2553,6 @@ const FSlateClippingState* FSlateElementBatcher::ResolveClippingState(const FSla
 
 	return nullptr;
 }
-
-/*
-FSlateElementBatch& FSlateElementBatcher::FindBatchForElement(
-	uint32 Layer, 
-	const FShaderParams& ShaderParams, 
-	const FSlateShaderResource* InTexture, 
-	ESlateDrawPrimitive PrimitiveType,
-	ESlateShader ShaderType, 
-	ESlateDrawEffect DrawEffects, 
-	ESlateBatchDrawFlag DrawFlags,
-	const FSlateDrawElement& DrawElement)
-{
-	SCOPE_CYCLE_COUNTER( STAT_SlateFindBatchForElement );
-	FElementBatchMap& LayerToElementBatches = CurrentDrawLayer->GetElementBatchMap();
-
-	// See if the layer already exists.
-	TUniqueObj<FElementBatchArray>* ElementBatches = LayerToElementBatches.Find( Layer );
-	if( !ElementBatches )
-	{
-		// The layer doesn't exist so make it now
-		ElementBatches = &LayerToElementBatches.Add( Layer );
-	}
-
-	checkSlow( ElementBatches );
-
-	// Create a temp batch so we can use it as our key to find if the same batch already exists
-	FSlateElementBatch TempBatch( InTexture, ShaderParams, ShaderType, PrimitiveType, DrawEffects, DrawFlags, DrawElement, 0, 0, nullptr );
-
-	FSlateElementBatch* ElementBatch = (*ElementBatches)->FindByKey( TempBatch );
-	if( !ElementBatch )
-	{
-		// No batch with the specified parameter exists.  Create it from the temp batch.
-		int32 Index = (*ElementBatches)->Add( TempBatch );
-		ElementBatch = &(**ElementBatches)[Index];
-
-		BatchData->AssignVertexArrayToBatch(*ElementBatch);
-		BatchData->AssignIndexArrayToBatch(*ElementBatch);
-		ElementBatch->SaveClippingState(*PrecachedClippingStates);
-
-	}
-	check( ElementBatch );
-
-	// Increment the number of elements in the batch.
-	++ElementBatch->NumElementsInBatch;
-	return *ElementBatch;
-}
-*/
 
 void FSlateElementBatcher::ResetBatches()
 {

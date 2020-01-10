@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //===============================s==============================================
 // Scene - script exposed scene enums
@@ -82,6 +82,15 @@ enum class ETranslucencyType : uint8
 {
 	Raster		UMETA(DisplayName = "Raster"),
 	RayTracing	UMETA(DisplayName = "Ray Tracing"),
+};
+
+
+UENUM()
+enum class ERayTracingGlobalIlluminationType : uint8
+{
+	Disabled    UMETA(DisplayName = "Disabled"),
+	BruteForce  UMETA(DisplayName = "Brute Force"),
+	FinalGather UMETA(DisplayName = "Final Gather")
 };
 
 UENUM()
@@ -572,7 +581,12 @@ struct FWeightedBlendable
 USTRUCT(BlueprintType)
 struct FWeightedBlendables
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+
+public:
+
+	FWeightedBlendables() { }
+	FWeightedBlendables(const TArray<FWeightedBlendable>& InArray) : Array(InArray) { }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PostProcessSettings", meta=( Keywords="PostProcess" ))
 	TArray<FWeightedBlendable> Array;
@@ -1566,9 +1580,14 @@ struct FPostProcessSettings
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Global Illumination", meta=(ClampMin = "0", UIMax = "4.0", editcondition = "bOverride_IndirectLightingIntensity", DisplayName = "Indirect Lighting Intensity"))
 	float IndirectLightingIntensity;
 
-	/** Enables ray tracing global illumination. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Enabled"))
-	uint32 RayTracingGI : 1;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint32 RayTracingGI_DEPRECATED : 1;
+#endif
+
+	/** Sets the ray tracing global illumination type. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Type"))
+	ERayTracingGlobalIlluminationType RayTracingGIType;
 
 	/** Sets the ray tracing global illumination maximum bounces. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingGIMaxBounces", DisplayName = "Max. Bounces"))
@@ -1843,6 +1862,10 @@ struct FPostProcessSettings
 			BloomConvolutionPreFilterMin = BloomConvolutionPreFilter_DEPRECATED.X;
 			BloomConvolutionPreFilterMax = BloomConvolutionPreFilter_DEPRECATED.Y;
 			BloomConvolutionPreFilterMult = BloomConvolutionPreFilter_DEPRECATED.Z;
+		}
+		if (RayTracingGI_DEPRECATED)
+		{
+			RayTracingGIType = (ERayTracingGlobalIlluminationType)(RayTracingGI_DEPRECATED == 1);
 		}
 	}
 #endif

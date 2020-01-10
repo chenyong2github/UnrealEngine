@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DataChannel.cpp: Unreal datachannel implementation.
@@ -184,10 +184,10 @@ void UChannel::ConditionalCleanUp( const bool bForDestroy, EChannelCloseReason C
 
 			// If we were not added to a pool, mark pending kill and allow the channel to GC
 			if (!bPooled)
-			{
-				MarkPendingKill();
-			}
+		{
+			MarkPendingKill();
 		}
+	}
 	}
 }
 
@@ -949,10 +949,10 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		}
 		
 		if (bOpenBunch)
-		{
-			Bunch->bOpen = 1;
-			OpenTemporary = !Bunch->bReliable;
-		}
+	{
+		Bunch->bOpen = 1;
+		OpenTemporary = !Bunch->bReliable;
+	}
 	}
 
 	// If channel was opened temporarily, we are never allowed to send reliable packets on it.
@@ -1360,7 +1360,7 @@ void UControlChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, 
 
 	// If we are opened as a server connection, do the endian checking
 	// The client assumes that the data will always have the correct byte order
-	// Mark this channel as needing endianess determination
+		// Mark this channel as needing endianess determination
 	bNeedsEndianInspection = !EnumHasAnyFlags(CreateFlags, EChannelCreateFlags::OpenedLocally);
 }
 
@@ -1773,21 +1773,21 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 			if ((Reason == EChannelCloseReason::Dormancy) && !Connection->InternalAck) // Replay connections always keep dormant channels open and handle this logic elsewhere
 			{
 				if (Connection->Driver)
+			{
+				if (!Connection->Driver->IsServer())
 				{
-					if (!Connection->Driver->IsServer())
-					{
-						Actor->NetDormancy = DORM_DormantAll;
-					}
-
-					check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
-					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
+					Actor->NetDormancy = DORM_DormantAll;
 				}
 
-				// Validation checking
-				bKeepReplicators = (GNetDormancyValidate > 0);		// We need to keep the replicators around so we can use
+				check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
+				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 			}
 
-			// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
+			// Validation checking
+				bKeepReplicators = (GNetDormancyValidate > 0);		// We need to keep the replicators around so we can use
+		}
+
+		// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
 			Connection->RemoveActorChannel( Actor );
 		}
 
@@ -2188,7 +2188,7 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 		{
 			if (Driver.NetDriver != nullptr)
-			{
+	{
 				Driver.NetDriver->NotifyActorChannelOpen(this, InActor);
 			}
 		}
@@ -2237,26 +2237,26 @@ int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructI
 		if (UObject* ObjOuter = DestructInfo->ObjOuter.Get())
 		{
 
-			// Send a close notify, and wait for ack.
-			FOutBunch CloseBunch( this, 1 );
-			check(!CloseBunch.IsError());
-			check(CloseBunch.bClose);
-			CloseBunch.bReliable = 1;
+		// Send a close notify, and wait for ack.
+		FOutBunch CloseBunch( this, 1 );
+		check(!CloseBunch.IsError());
+		check(CloseBunch.bClose);
+		CloseBunch.bReliable = 1;
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			CloseBunch.bDormant = 0;
+		CloseBunch.bDormant = 0;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			CloseBunch.CloseReason = DestructInfo->Reason;
 
-			// Serialize DestructInfo
-			NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor
+		// Serialize DestructInfo
+		NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor
 			Connection->PackageMap->WriteObject( CloseBunch, ObjOuter, DestructInfo->NetGUID, DestructInfo->PathName );
 
-			UE_LOG(LogNetTraffic, Log, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
-			UE_LOG(LogNetDormancy, Verbose, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
+		UE_LOG(LogNetTraffic, Log, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
+		UE_LOG(LogNetDormancy, Verbose, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
 
-			SendBunch( &CloseBunch, 0 );
-			NumBits = CloseBunch.GetNumBits();
-		}
+		SendBunch( &CloseBunch, 0 );
+		NumBits = CloseBunch.GetNumBits();
+	}
 	}
 
 	return NumBits;
@@ -2275,25 +2275,24 @@ bool UActorChannel::CanStopTicking() const
 
 bool UActorChannel::ProcessQueuedBunches()
 {
-
 	const uint32 QueueBunchStartCycles = FPlatformTime::Cycles();
 
 	// Try to resolve any guids that are holding up the network stream on this channel
-	for ( auto It = PendingGuidResolves.CreateIterator(); It; ++It )
+	// TODO: This could take a non-trivial amount of time since both GetObjectFromNetGUID
+	// and IsGUIDBroken may do Map Lookups and GetObjectFromNetGUID will attempt
+	// to resolve weak objects.
+	for (auto It = PendingGuidResolves.CreateIterator(); It; ++It)
 	{
-		if ( Connection->Driver->GuidCache->GetObjectFromNetGUID( *It, true ) != NULL )
+		if (Connection->Driver->GuidCache->GetObjectFromNetGUID(*It, true))
 		{
 			// This guid is now resolved, we can remove it from the pending guid list
 			It.RemoveCurrent();
-			continue;
 		}
-
-		if ( Connection->Driver->GuidCache->IsGUIDBroken( *It, true ) )
+		else if (Connection->Driver->GuidCache->IsGUIDBroken(*It, true))
 		{
 			// This guid is broken, remove it, and warn
-			UE_LOG( LogNet, Warning, TEXT( "UActorChannel::ProcessQueuedBunches: Guid is broken. NetGUID: %s, ChIndex: %i, Actor: %s" ), *It->ToString(), ChIndex, Actor != NULL ? *Actor->GetPathName() : TEXT( "NULL" ) );
+			UE_LOG(LogNet, Warning, TEXT("UActorChannel::ProcessQueuedBunches: Guid is broken. NetGUID: %s, ChIndex: %i, Actor: %s"), *It->ToString(), ChIndex, *GetPathNameSafe(Actor));
 			It.RemoveCurrent();
-			continue;
 		}
 	}
 
@@ -2301,6 +2300,9 @@ bool UActorChannel::ProcessQueuedBunches()
 	{
 		return true;
 	}
+
+	// Always update this when there are bunches remaining, because we may not hitch on the frame that triggers a warning.
+	bSuppressQueuedBunchWarningsDueToHitches |= Connection->Driver->DidHitchLastFrame();
 
 	// Instant replays are played back in a duplicated level collection, so if this is instant replay
 	// playback, the driver's DuplicateLevelID will be something other than INDEX_NONE.
@@ -2310,68 +2312,73 @@ bool UActorChannel::ProcessQueuedBunches()
 
 	const bool bHasTimeToProcess = BunchTimeLimit == 0 || Connection->Driver->ProcessQueuedBunchesCurrentFrameMilliseconds < BunchTimeLimit;
 
-	// We can process all of the queued up bunches if ALL of these are true:
-	//	1. We no longer have any pending guids to load
-	//	2. We aren't still processing bunches on another channel that this actor was previously on
-	//	3. We haven't spent too much time yet this frame processing queued bunches
-	//	4. The driver isn't requesting queuing for this GUID
-	if ( PendingGuidResolves.Num() == 0 && ( ChIndex == -1 || !Connection->KeepProcessingActorChannelBunchesMap.Contains( ActorNetGUID ) ) &&
-		 bHasTimeToProcess && !Connection->Driver->ShouldQueueBunchesForActorGUID( ActorNetGUID ) )
+	// If we don't have any time, then don't bother doing anything (including warning) as that may make things worse.
+	if (bHasTimeToProcess)
 	{
-		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ProcessQueuedBunches time"), STAT_ProcessQueuedBunchesTime, STATGROUP_Net);
-		for ( int32 i = 0; i < QueuedBunches.Num(); i++ )
+		// We can process all of the queued up bunches if ALL of these are true:
+		//	1. We no longer have any pending guids to load
+		//	2. We aren't still processing bunches on another channel that this actor was previously on
+		//	3. We haven't spent too much time yet this frame processing queued bunches
+		//	4. The driver isn't requesting queuing for this GUID
+		if (PendingGuidResolves.Num() == 0
+			&& (ChIndex == -1 || !Connection->KeepProcessingActorChannelBunchesMap.Contains(ActorNetGUID))
+			&& !Connection->Driver->ShouldQueueBunchesForActorGUID(ActorNetGUID))
 		{
-			ProcessBunch( *QueuedBunches[i] );
-			delete QueuedBunches[i];
-		}
-
-		UE_LOG( LogNet, VeryVerbose, TEXT( "UActorChannel::ProcessQueuedBunches: Flushing queued bunches. ChIndex: %i, Actor: %s, Queued: %i" ), ChIndex, Actor != NULL ? *Actor->GetPathName() : TEXT( "NULL" ), QueuedBunches.Num() );
-
-		QueuedBunches.Empty();
-
-		// Call any onreps that were delayed because we were queuing bunches
-		for (auto& ReplicatorPair : ReplicationMap)
-		{
-			ReplicatorPair.Value->CallRepNotifies(true);
-		}
-	}
-
-	// Warn when we have queued bunches for a very long time
-	if ( QueuedBunches.Num() > 0 )
-	{
-		const double QUEUED_BUNCH_TIMEOUT_IN_SECONDS = 30;
-
-		if ( FPlatformTime::Seconds() - QueuedBunchStartTime > QUEUED_BUNCH_TIMEOUT_IN_SECONDS )
-		{
-			UE_CLOG(FPlatformProperties::RequiresCookedData(), LogNet, Warning, TEXT( "UActorChannel::ProcessQueuedBunches: Queued bunches for longer than normal. ChIndex: %i, Actor: %s, Queued: %i, PendingGuidResolves: %i" ), ChIndex, Actor != NULL ? *Actor->GetPathName() : TEXT( "NULL" ), QueuedBunches.Num(), PendingGuidResolves.Num() );
-			for (const FNetworkGUID& Guid : PendingGuidResolves)
+			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ProcessQueuedBunches time"), STAT_ProcessQueuedBunchesTime, STATGROUP_Net);
+			for ( int32 i = 0; i < QueuedBunches.Num(); i++ )
 			{
-				const bool bIsPending = Connection->Driver->GuidCache->IsGUIDPending(Guid);
-				const FString GuidPath = Connection->Driver->GuidCache->FullNetGUIDPath(Guid);
-				UE_CLOG(FPlatformProperties::RequiresCookedData(), LogNet, Log, TEXT( "  PendingGuidResolve %s. Pending in cache: %d, path: %s" ), *Guid.ToString(), bIsPending ? 1 : 0, *GuidPath );
+				ProcessBunch( *QueuedBunches[i] );
+				delete QueuedBunches[i];
 			}
-			QueuedBunchStartTime = FPlatformTime::Seconds();
-		}
-	}
-	else
-	{
-		// Processed all bunches
-		UPackageMapClient * PackageMapClient = Cast< UPackageMapClient >(Connection->PackageMap);
 
-		if (PackageMapClient)
+			UE_LOG(LogNet, VeryVerbose, TEXT("UActorChannel::ProcessQueuedBunches: Flushing queued bunches. ChIndex: %i, Actor: %s, Queued: %i"), ChIndex, Actor != NULL ? *Actor->GetPathName() : TEXT("NULL"), QueuedBunches.Num());
+
+			QueuedBunches.Empty();
+
+			// Call any onreps that were delayed because we were queuing bunches
+			for (auto& ReplicatorPair : ReplicationMap)
+			{
+				ReplicatorPair.Value->CallRepNotifies(true);
+			}
+
+			if (UPackageMapClient * PackageMapClient = Cast< UPackageMapClient >(Connection->PackageMap))
+			{
+				PackageMapClient->SetHasQueuedBunches(ActorNetGUID, false);
+			}
+
+			QueuedBunchObjectReferences.Empty();
+		}
+		else
 		{
-			PackageMapClient->SetHasQueuedBunches(ActorNetGUID, false);
+			const double QUEUED_BUNCH_TIMEOUT_IN_SECONDS = 30;
+			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > QUEUED_BUNCH_TIMEOUT_IN_SECONDS)
+			{
+				if (!bSuppressQueuedBunchWarningsDueToHitches && FPlatformProperties::RequiresCookedData())
+				{
+					UE_LOG(LogNet, Warning, TEXT("UActorChannel::ProcessQueuedBunches: Queued bunches for longer than normal. ChIndex: %i, Actor: %s, Queued: %i, PendingGuidResolves: %i"), ChIndex, *GetPathNameSafe(Actor), QueuedBunches.Num(), PendingGuidResolves.Num());
+
+					if (UE_LOG_ACTIVE(LogNet, Log))
+					{
+						for (const FNetworkGUID& Guid : PendingGuidResolves)
+						{
+							const bool bIsPending = Connection->Driver->GuidCache->IsGUIDPending(Guid);
+							const FString GuidPath = Connection->Driver->GuidCache->FullNetGUIDPath(Guid);
+							UE_LOG(LogNet, Log, TEXT("  PendingGuidResolve %s. Pending in cache: %d, path: %s"), *Guid.ToString(), !!bIsPending, *GuidPath);
+						}
+					}
+				}
+
+				QueuedBunchStartTime = FPlatformTime::Seconds();
+			}
 		}
 
-		QueuedBunchObjectReferences.Empty();
+		// Update the driver with our time spent
+		const uint32 QueueBunchEndCycles = FPlatformTime::Cycles();
+		const uint32 QueueBunchDeltaCycles = QueueBunchEndCycles - QueueBunchStartCycles;
+		const float QueueBunchDeltaMilliseconds = FPlatformTime::ToMilliseconds(QueueBunchDeltaCycles);
+
+		Connection->Driver->ProcessQueuedBunchesCurrentFrameMilliseconds += QueueBunchDeltaMilliseconds;
 	}
-
-	// Update the driver with our time spent
-	const uint32 QueueBunchEndCycles = FPlatformTime::Cycles();
-	const uint32 QueueBunchDeltaCycles = QueueBunchEndCycles - QueueBunchStartCycles;
-	const float QueueBunchDeltaMilliseconds = FPlatformTime::ToMilliseconds(QueueBunchDeltaCycles);
-
-	Connection->Driver->ProcessQueuedBunchesCurrentFrameMilliseconds += QueueBunchDeltaMilliseconds;
 
 	// Return true if we are done processing queued bunches
 	return QueuedBunches.Num() == 0;
@@ -2436,8 +2443,8 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 					{
 						PendingGuidResolves.Add(NetGUID);
 
-						// Start ticking this channel so that we try to resolve the pending GUID
-						Connection->StartTickingChannel(this);
+					// Start ticking this channel so that we try to resolve the pending GUID
+					Connection->StartTickingChannel(this);
 
 						// We know we're going to be queuing bunches and will need to track this object,
 						// so don't bother throwing it in the array, and just track it immediately.
@@ -2489,6 +2496,7 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 			{
 				// Remember when we first started queuing
 				QueuedBunchStartTime = FPlatformTime::Seconds();
+				bSuppressQueuedBunchWarningsDueToHitches = false;
 			}
 
 			QueuedBunches.Add(new FInBunch(Bunch));
@@ -2907,7 +2915,7 @@ int64 UActorChannel::ReplicateActor()
 		}
 		else
 		{
-			RepFlags.bNetInitial = true;
+		RepFlags.bNetInitial = true;
 		}
 
 		Bunch.bClose = Actor->bNetTemporary;
@@ -2947,7 +2955,7 @@ int64 UActorChannel::ReplicateActor()
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
 
-	FMemMark MemMark(FMemStack::Get()); // The calls to ReplicateProperties will allocate memory on FMemStack::Get(), and use it in ::PostSendBunch. we free it below
+	FMemMark	MemMark(FMemStack::Get());	// The calls to ReplicateProperties will allocate memory on FMemStack::Get(), and use it in ::PostSendBunch. we free it below
 
 	// ----------------------------------------------------------
 	// Replicate Actor and Component properties and RPCs
@@ -2988,12 +2996,12 @@ int64 UActorChannel::ReplicateActor()
 			if (!LocalReplicator->GetWeakObjectPtr().IsValid())
 			{
 				if (LocalReplicator->ObjectNetGUID.IsValid())
-				{
-					// Write a deletion content header:
+			{
+				// Write a deletion content header:
 					WriteContentBlockForSubObjectDelete(Bunch, LocalReplicator->ObjectNetGUID);
 
-					WroteSomethingImportant = true;
-					Bunch.bReliable = true;
+				WroteSomethingImportant = true;
+				Bunch.bReliable = true;
 				}
 				else
 				{
@@ -3050,15 +3058,15 @@ int64 UActorChannel::ReplicateActor()
 
 					if (UE_LOG_ACTIVE(LogNetTraffic, Verbose))
 					{
-						FString VerboseString;
-						for (auto KeyIt = PendingObjKeys.CreateIterator(); KeyIt; ++KeyIt)
-						{
-							VerboseString += FString::Printf(TEXT(" %d"), *KeyIt);
-						}
-
-						UE_LOG(LogNetTraffic, Verbose, TEXT("ActorChannel[%d]: Sending ObjKeys: %s"), ChIndex, *VerboseString);
+					FString VerboseString;
+					for (auto KeyIt = PendingObjKeys.CreateIterator(); KeyIt; ++KeyIt)
+					{
+						VerboseString += FString::Printf(TEXT(" %d"), *KeyIt);
 					}
+
+					UE_LOG(LogNetTraffic, Verbose, TEXT("ActorChannel[%d]: Sending ObjKeys: %s"), ChIndex, *VerboseString);
 				}
+			}
 			}
 
 			if (Actor->bNetTemporary)
@@ -3118,7 +3126,7 @@ void UActorChannel::Serialize(FArchive& Ar)
 
 			// ObjectReplicators are going to be counted by UNetDriver::Serialize AllOwnedReplicators.
 		);
-		
+	
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueudBunches",	
 			QueuedBunches.CountBytes(Ar);
 			for (const FInBunch* Bunch : QueuedBunches)
@@ -3138,7 +3146,7 @@ void UActorChannel::Serialize(FArchive& Ar)
 			for (const FOutBunch* Bunch : QueuedExportBunches)
 			{
 				if (Bunch)
-				{
+	{
 					Bunch->CountMemory(Ar);
 				}
 			}
@@ -3149,9 +3157,9 @@ void UActorChannel::Serialize(FArchive& Ar)
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SubobjectNakMap",
 			SubobjectNakMap.CountBytes(Ar);
 			for (const auto& NakMapPair : SubobjectNakMap)
-			{
+		{
 				NakMapPair.Value.ObjKeys.CountBytes(Ar);
-			}
+		}
 		);
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingObjKeys", PendingObjKeys.CountBytes(Ar));
@@ -3529,8 +3537,8 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		// Add this sub-object to the ImportedNetGuids list so we can possibly map this object if needed
 		if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Describe()))
 		{
-			Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
-		}
+		Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
+	}
 	}
 
 	return SubObj;
@@ -3691,7 +3699,7 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 
 	if ( Bunch.IsError() )
 	{
-		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading numbits. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field->GetName() : TEXT( "NULL" ) );
+		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading numbits. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
 		return false;
 	}
 
@@ -3699,7 +3707,7 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 
 	if ( Bunch.IsError() )
 	{
-		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading payload. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field->GetName() : TEXT( "NULL" ) );
+		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading payload. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
 		return false;
 	}
 
@@ -3747,18 +3755,18 @@ FNetFieldExportGroup* UActorChannel::GetOrCreateNetFieldExportGroupForClassNetCa
 
 			for ( int32 i = 0; i < Fields.Num(); i++ )
 			{
-				UField* Field = Fields[i].Field;
-				UProperty* Property = Cast< UProperty >( Field );
+				FFieldVariant Field = Fields[i].Field;
+				FProperty* Property = CastField< FProperty >( Field.ToField() );
 
 				const bool bIsCustomDeltaProperty	= Property && IsCustomDeltaProperty( Property );
-				const bool bIsFunction				= Cast< UFunction >( Field ) != nullptr;
+				const bool bIsFunction				= Cast< UFunction >( Field.ToUObject() ) != nullptr;
 
 				if ( !bIsCustomDeltaProperty && !bIsFunction )
 				{
 					continue;	// We only care about net fields that aren't in a rep layout
 				}
 
-				NetFieldExportGroup->NetFieldExports.Emplace( CurrentHandle++, Fields[i].FieldChecksum, Field ? Field->GetFName() : NAME_None );
+				NetFieldExportGroup->NetFieldExports.Emplace( CurrentHandle++, Fields[i].FieldChecksum, Field.GetFName() );
 			}
 		}
 
@@ -3890,6 +3898,7 @@ void UActorChannel::AddedToChannelPool()
 	bSkipRoleSwap = false;
 	bClearRecentActorRefs = true;
 	QueuedBunchStartTime = 0;
+	bSuppressQueuedBunchWarningsDueToHitches = false;
 	CreateSubObjects.Empty();
 #if !UE_BUILD_SHIPPING
 	bBlockChannelFailure = false;

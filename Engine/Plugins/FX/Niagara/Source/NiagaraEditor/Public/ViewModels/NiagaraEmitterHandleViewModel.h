@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,6 +14,22 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterInstance;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
+enum class ENiagaraSystemViewModelEditMode;
+
+struct FRendererPreviewData
+{
+	UNiagaraStackEntry* RenderingEntry;
+	UObject* RenderingObject;
+
+
+	FRendererPreviewData(UNiagaraStackEntry* InRenderingEntry, UObject* InRenderingObject)
+		: RenderingEntry(InRenderingEntry)
+		, RenderingObject(InRenderingObject)
+	{
+
+	};
+};
 
 /** The view model for the FNiagaraEmitterEditorWidget. */
 class FNiagaraEmitterHandleViewModel : public TSharedFromThis<FNiagaraEmitterHandleViewModel>, public FGCObject
@@ -81,6 +97,9 @@ public:
 	/** Gets whether or not the emitter for this handle has been isolated in the UI. */
 	NIAGARAEDITOR_API bool GetIsIsolated() const;
 
+	/** Sets whether or not this emitter is isolated. May affect other emitters in the system. */
+	NIAGARAEDITOR_API void SetIsIsolated(bool InIsIsolated);
+
 	/** Gets the check state for the is enabled check box. */
 	NIAGARAEDITOR_API ECheckBoxState GetIsEnabledCheckState() const;
 
@@ -96,6 +115,9 @@ public:
 	/** Gets the stack view model which represents the emitter pointed to by this handle. */
 	NIAGARAEDITOR_API UNiagaraStackViewModel* GetEmitterStackViewModel();
 
+	/** Gets the current edit mode of the emitter's owning system. */
+	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetOwningSystemEditMode() const;
+
 	/** Gets whether or not this emitter handle has a rename pending. */
 	NIAGARAEDITOR_API bool GetIsRenamePending() const;
 
@@ -110,8 +132,9 @@ public:
 
 	void Cleanup();
 
-private:
-	TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
+	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData);
+
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 
 private:
 	/** The system view model which owns this emitter handle view model. */

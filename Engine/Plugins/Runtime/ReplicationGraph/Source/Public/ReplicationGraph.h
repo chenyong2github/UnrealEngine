@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================
@@ -910,6 +910,20 @@ public:
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
+
+	void SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor);
+
+	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
+	{
+		check(NetDriver);
+		check(NetUpdateFrequency != 0.0f);
+
+		// Replication Graph is frame based. Convert NetUpdateFrequency to ReplicationPeriodFrame based on Server MaxTickRate.
+		uint32 FramesBetweenUpdates = (uint32)FMath::RoundToInt(NetDriver->NetServerMaxTickRate / NetUpdateFrequency);
+		FramesBetweenUpdates = FMath::Clamp<uint32>(FramesBetweenUpdates, 1, MAX_uint16);
+
+		return (uint16)FramesBetweenUpdates;
+	}
 
 protected:
 

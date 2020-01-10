@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeEditLayers.cpp: Landscape editing layers mode
@@ -92,6 +92,11 @@ TAutoConsoleVariable<int32> CVarLandscapeShowDirty(
 	TEXT("landscape.ShowDirty"),
 	0,
 	TEXT("This will highlight the data that as changed during the layer blend phase."));
+
+TAutoConsoleVariable<int32> CVarLandscapeTrackDirty(
+	TEXT("landscape.TrackDirty"),
+	0,
+	TEXT("This will track the accumulation of data changes during the layer blend phase."));
 
 struct FLandscapeDirty
 {
@@ -1837,8 +1842,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 
 		for (FWeightmapLayerAllocationInfo& Allocation : ComponentLayerAllocations)
 		{
-			Allocation.WeightmapTextureChannel = 255;
-			Allocation.WeightmapTextureIndex = 255;
+			Allocation.Free();
 		}
 	}
 }
@@ -3087,37 +3091,67 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 		return;
 	}
 
-	TMap<UTexture*, bool> ProcessedTexture;
 	TArray<ULandscapeComponent*> ChangedComponents;
-
+	TMap<UTexture2D*, TArray<ULandscapeComponent*>> HeightmapsToResolve;
 	for (ULandscapeComponent* Component : InLandscapeComponents)
 	{
-		UTexture2D* ComponentHeightmap = Component->GetHeightmap(false);
-		bool* bValue = ProcessedTexture.Find(ComponentHeightmap);
-		bool bChanged = false;
-		if (bValue == nullptr)
+		HeightmapsToResolve.FindOrAdd(Component->GetHeightmap(false)).Add(Component);
+	}
+	
+	// Dirty Delegate
+	const bool HeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 1) != 0;
+	auto DirtyDelegate = [&](UTexture2D* Heightmap, FColor* OldData, FColor* NewData)
+	{
+		if (!HeightmapDiff && !CVarLandscapeTrackDirty.GetValueOnAnyThread())
 		{
-			FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Component->GetLandscapeProxy()->HeightmapsCPUReadBack.Find(ComponentHeightmap);
-
-			if (CPUReadback == nullptr)
-			{
-				continue;
-			}
-						
-			bChanged = ResolveLayersTexture(*CPUReadback, ComponentHeightmap, true, Component);
-			ProcessedTexture.Add(ComponentHeightmap, bChanged);
-			bValue = &bChanged;
+			return;
 		}
-		
-		if (*bValue)
+
+		if (TArray<ULandscapeComponent*>* Components = HeightmapsToResolve.Find(Heightmap))
 		{
-			Component->MarkPackageDirty();
-			ChangedComponents.Add(Component);
+			for (ULandscapeComponent* Component : *Components)
+			{
+				if (CVarLandscapeTrackDirty.GetValueOnAnyThread())
+				{
+					UpdateHeightDirtyData(Component, Heightmap, OldData, NewData);
+				}
+
+				if (HeightmapDiff)
+				{
+					FString LevelName = FPackageName::GetShortName(Component->GetOutermost());
+					FString FilePattern = FString::Format(TEXT("LandscapeLayers/{0}-{1}-HM"), { LevelName, Component->GetName() });
+
+					const int32 SizeU = Heightmap->Source.GetSizeX();
+					const int32 SizeV = Heightmap->Source.GetSizeY();
+					const int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
+					const int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
+					const int32 ComponentWidth = (SubsectionSizeQuads + 1) * NumSubsections;
+					FIntRect SubRegion(HeightmapOffsetX, HeightmapOffsetY, HeightmapOffsetX + ComponentWidth, HeightmapOffsetY + ComponentWidth);
+					
+					FFileHelper::CreateBitmap(*(FilePattern + "-Pre.bmp"), Heightmap->Source.GetSizeX(), Heightmap->Source.GetSizeY(), OldData, &SubRegion, &IFileManager::Get(), nullptr, true);
+					FFileHelper::CreateBitmap(*(FilePattern + "-Post.bmp"), Heightmap->Source.GetSizeX(), Heightmap->Source.GetSizeY(), NewData, &SubRegion, &IFileManager::Get(), nullptr, true);
+				}
+			}
+		}
+	};
+
+	for (const auto& HeightmapToResolve : HeightmapsToResolve)
+	{
+		UTexture2D* Heightmap = HeightmapToResolve.Key;
+		ALandscapeProxy* LandscapeProxy = Heightmap->GetTypedOuter<ALandscapeProxy>();
+		check(LandscapeProxy);
+		if (FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = LandscapeProxy->HeightmapsCPUReadBack.Find(Heightmap))
+		{
+			if (ResolveLayersTexture(*CPUReadback, Heightmap, DirtyDelegate))
+			{
+				ChangedComponents.Append(HeightmapToResolve.Value);
+				Heightmap->MarkPackageDirty();
+			}
 		}
 	}
-
-	InvalidateGeneratedComponentData(ChangedComponents);
-
+		
+	const bool bInvalidateLightingCache = true;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);
 }
 
 void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
@@ -3127,12 +3161,7 @@ void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
 		return;
 	}
 
-	UpdateDirtyData(InLandscapeComponent, nullptr, nullptr, 0);
-}
-
-void ALandscape::UpdateDirtyData(ULandscapeComponent* InLandscapeComponent, const FColor* InOldData, const FColor* InNewData, int32 InSize)
-{
-	if (!CVarLandscapeShowDirty.GetValueOnAnyThread())
+	if (!CVarLandscapeTrackDirty.GetValueOnAnyThread())
 	{
 		return;
 	}
@@ -3142,36 +3171,83 @@ void ALandscape::UpdateDirtyData(ULandscapeComponent* InLandscapeComponent, cons
 	const int32 X2 = X1 + ComponentSizeQuads;
 	const int32 Y1 = InLandscapeComponent->GetSectionBase().Y;
 	const int32 Y2 = Y1 + ComponentSizeQuads;
-	const int32 ComponentWidth = (SubsectionSizeQuads + 1)*NumSubsections;
+	const int32 ComponentWidth = (SubsectionSizeQuads + 1) * NumSubsections;
 	const int32 DirtyDataSize = ComponentWidth * ComponentWidth;
-	uint8* DirtyData = new uint8[DirtyDataSize];
-	
-	if (InOldData && InNewData)
-	{
-		check(InSize == DirtyDataSize);
-		LandscapeEdit.GetDirtyData(X1, Y1, X2, Y2, DirtyData, 0);
-
-		for (int32 i = 0; i < DirtyDataSize; ++i)
-		{
-			if (*InOldData != *InNewData)
-			{
-				DirtyData[i] = 255;
-			}
-			InOldData++;
-			InNewData++;
-		}
-	}
-	else
-	{
-		FMemory::Memzero(DirtyData, DirtyDataSize);
-	}
-
-	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData, 0);
-
-	delete[] DirtyData;
+	TUniquePtr<uint8[]> DirtyData = MakeUnique<uint8[]>(DirtyDataSize);
+	FMemory::Memzero(DirtyData.Get(), DirtyDataSize);
+	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
 }
 
-bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, bool bHeightmap, ULandscapeComponent* InComponent)
+void ALandscape::UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData, uint8 Channel)
+{
+	check(InOldData && InNewData);
+
+	FLandscapeEditDataInterface LandscapeEdit(GetLandscapeInfo());
+	const int32 X1 = InLandscapeComponent->GetSectionBase().X;
+	const int32 X2 = X1 + ComponentSizeQuads;
+	const int32 Y1 = InLandscapeComponent->GetSectionBase().Y;
+	const int32 Y2 = Y1 + ComponentSizeQuads;
+	const int32 ComponentWidth = (SubsectionSizeQuads + 1) * NumSubsections;
+	const int32 DirtyDataSize = ComponentWidth * ComponentWidth;
+	TUniquePtr<uint8[]> DirtyData = MakeUnique<uint8[]>(DirtyDataSize);
+	const int32 SizeU = Heightmap->Source.GetSizeX();
+	const int32 SizeV = Heightmap->Source.GetSizeY();
+	check(DirtyDataSize == SizeU * SizeV);
+
+	const uint8 DirtyWeight = 1<<1;
+	LandscapeEdit.GetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
+
+	for (int32 Index = 0; Index < DirtyDataSize; ++Index)
+	{
+		uint8* OldChannelValue = (uint8*)&InOldData[Index] + ChannelOffsets[Channel];
+		uint8* NewChannelValue = (uint8*)&InNewData[Index] + ChannelOffsets[Channel];
+		if (*OldChannelValue != *NewChannelValue)
+		{
+			DirtyData[Index] |= DirtyWeight;
+		}
+	}
+
+	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
+}
+
+void ALandscape::UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData)
+{
+	check(InOldData && InNewData);
+
+	FLandscapeEditDataInterface LandscapeEdit(GetLandscapeInfo());
+	const int32 X1 = InLandscapeComponent->GetSectionBase().X;
+	const int32 X2 = X1 + ComponentSizeQuads;
+	const int32 Y1 = InLandscapeComponent->GetSectionBase().Y;
+	const int32 Y2 = Y1 + ComponentSizeQuads;
+	const int32 ComponentWidth = (SubsectionSizeQuads + 1)*NumSubsections;
+	const int32 DirtyDataSize = ComponentWidth * ComponentWidth;
+	TUniquePtr<uint8[]> DirtyData = MakeUnique<uint8[]>(DirtyDataSize);
+	const int32 SizeU = Heightmap->Source.GetSizeX();
+	const int32 SizeV = Heightmap->Source.GetSizeY();
+	const int32 HeightmapOffsetX = InLandscapeComponent->HeightmapScaleBias.Z * (float)SizeU;
+	const int32 HeightmapOffsetY = InLandscapeComponent->HeightmapScaleBias.W * (float)SizeV;
+	const uint8 DirtyHeight = 1<<0;
+	LandscapeEdit.GetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
+	
+	for (int32 X = 0; X < ComponentWidth; ++X)
+	{
+		for (int32 Y = 0; Y < ComponentWidth; ++Y)
+		{
+			int32 TexX = HeightmapOffsetX + X;
+			int32 TexY = HeightmapOffsetY + Y;
+			int32 TexIndex = TexX + TexY * SizeU;
+			check(TexIndex < SizeU * SizeV);
+			if (InOldData[TexIndex] != InNewData[TexIndex])
+			{
+				DirtyData[X + Y * ComponentWidth] |= DirtyHeight;
+			}
+		}
+	}
+
+	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData.Get(), 0);
+}
+
+bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, FDirtyDelegate DirtyDelegate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("ResolveLayersTexture");
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveTexture);
@@ -3181,6 +3257,10 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	ENQUEUE_RENDER_COMMAND(FLandscapeLayersReadSurfaceCommand)(
 		[InCPUReadBackTexture, &OutMipsData](FRHICommandListImmediate& RHICmdList) mutable
 	{
+ 		// D3D12RHI requires heavyweight BlockUntilGPUIdle() call to ensure commands have finished.
+ 		// Note that this needs improving but for now is enshrined in the RHIUnitTest::VerifyBufferContents unit test
+		RHICmdList.BlockUntilGPUIdle();
+
 		OutMipsData.AddDefaulted(InCPUReadBackTexture->TextureRHI->GetNumMips());
 
 		int32 MipSizeU = InCPUReadBackTexture->GetSizeX();
@@ -3207,9 +3287,7 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	FlushRenderingCommands();
 
 	bool bChanged = false;
-	const bool HeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 1) != 0;
-	const bool WeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 2) != 0;
-    const bool bUpdateHash = !bIntermediateRender;
+	const bool bUpdateHash = !bIntermediateRender;
 	for (int8 MipIndex = 0; MipIndex < OutMipsData.Num(); ++MipIndex)
 	{
 		if (OutMipsData[MipIndex].Num() > 0)
@@ -3222,15 +3300,7 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 
 			if (MipIndex == 0 && bChanged)
 			{
-				UpdateDirtyData(InComponent, (FColor*)TextureData, OutMipsData[MipIndex].GetData(), InOutputTexture->Source.GetSizeX()*InOutputTexture->Source.GetSizeY());
-
-				if ((HeightmapDiff && bHeightmap) || (WeightmapDiff && !bHeightmap))
-				{
-					FString LevelName = FPackageName::GetShortName(InComponent->GetOutermost());
-					FString FilePattern = FString::Format(TEXT("LandscapeLayers/{0}-{1}-{2}"), { LevelName, InComponent->GetName(), bHeightmap ? TEXT("HM") : TEXT("WM") });
-					FFileHelper::CreateBitmap(*(FilePattern), InOutputTexture->Source.GetSizeX(), InOutputTexture->Source.GetSizeY(), (FColor*)TextureData, nullptr, &IFileManager::Get(), nullptr, true);
-					FFileHelper::CreateBitmap(*(FilePattern), InOutputTexture->Source.GetSizeX(), InOutputTexture->Source.GetSizeY(), OutMipsData[MipIndex].GetData(), nullptr, &IFileManager::Get(), nullptr, true);
-				}
+				DirtyDelegate(InOutputTexture, (FColor*)TextureData, OutMipsData[MipIndex].GetData());
 			}
 
 			FMemory::Memcpy(TextureData, OutMipsData[MipIndex].GetData(), OutMipsData[MipIndex].Num() * sizeof(FColor));
@@ -3277,7 +3347,7 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 
 				for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : ComponentLayerData->WeightmapData.LayerAllocations)
 				{
-					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.WeightmapTextureIndex != 255 && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
+					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.IsAllocated() && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
 					{
 						FLandscapeLayerWeightmapExtractMaterialLayersComponentData Data;
 
@@ -3452,8 +3522,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 
 		for (FWeightmapLayerAllocationInfo& BaseWeightmapAllocation : BaseLayerAllocations)
 		{
-			BaseWeightmapAllocation.WeightmapTextureChannel = 255;
-			BaseWeightmapAllocation.WeightmapTextureIndex = 255;
+			BaseWeightmapAllocation.Free();
 		}
 
 		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
@@ -4373,44 +4442,72 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 		return;
 	}
 
-	TMap<UTexture2D*,bool> ProcessedWeightmaps;
-	TArray<ULandscapeComponent*> ChangedComponents;
+	TMap<UTexture2D*, TArray<TPair<ULandscapeComponent*,const FWeightmapLayerAllocationInfo*>>> WeightmapsToResolve;
+	TSet<ULandscapeComponent*> ChangedComponents;
 
 	for (ULandscapeComponent* Component : InLandscapeComponents)
 	{
 		TArray<UTexture2D*>& ComponentWeightmaps = Component->GetWeightmapTextures(false);
-		bool bChanged = false;
+		TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations(false);
 
-		for (UTexture2D* ComponentLayerWeightmap : ComponentWeightmaps)
+		for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
 		{
-			bool* bValue = ProcessedWeightmaps.Find(ComponentLayerWeightmap);
-			if (bValue == nullptr)
-			{
-				FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Component->GetLandscapeProxy()->WeightmapsCPUReadBack.Find(ComponentLayerWeightmap);
-
-				if (CPUReadback == nullptr)
-				{
-					continue;
-				}
-								
-				bool bWeightmapChanged = ResolveLayersTexture(*CPUReadback, ComponentLayerWeightmap, false, Component);
-				ProcessedWeightmaps.Add(ComponentLayerWeightmap, bWeightmapChanged);
-				bChanged |= bWeightmapChanged;
-			}
-			else
-			{
-				bChanged |= *bValue;
-			}
-		}
-
-		if (bChanged)
-		{
-			Component->MarkPackageDirty();
-			ChangedComponents.Add(Component);
+			check(AllocInfo.IsAllocated() && AllocInfo.WeightmapTextureIndex < ComponentWeightmaps.Num());
+			UTexture2D* Weightmap = ComponentWeightmaps[AllocInfo.WeightmapTextureIndex];
+			WeightmapsToResolve.FindOrAdd(Weightmap).Add(TPair<ULandscapeComponent*,const FWeightmapLayerAllocationInfo*>(Component, &AllocInfo));
 		}
 	}
 
-	InvalidateGeneratedComponentData(ChangedComponents);
+	const bool WeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 2) != 0;
+	auto DirtyDelegate = [&](UTexture2D* Weightmap, FColor* OldData, FColor* NewData)
+	{
+		if (!WeightmapDiff && !CVarLandscapeTrackDirty.GetValueOnAnyThread())
+		{
+			return;
+		}
+
+		if (TArray<TPair<ULandscapeComponent*,const FWeightmapLayerAllocationInfo*>>* Components = WeightmapsToResolve.Find(Weightmap))
+		{
+			for (const auto& Pair : *Components)
+			{
+				if (CVarLandscapeTrackDirty.GetValueOnAnyThread())
+				{
+					UpdateWeightDirtyData(Pair.Key, Weightmap, OldData, NewData, Pair.Value->WeightmapTextureChannel);
+				}
+				
+				if (WeightmapDiff)
+				{
+					size_t ChannelOffset = ChannelOffsets[Pair.Value->WeightmapTextureChannel];
+					FString LevelName = FPackageName::GetShortName(Pair.Key->GetOutermost());
+					FString FilePattern = FString::Format(TEXT("LandscapeLayers/{0}-{1}-{2}-WM"), { LevelName, Pair.Key->GetName(), Pair.Value->GetLayerName().ToString() });
+					FFileHelper::CreateBitmap(*(FilePattern + "-Pre.bmp"), Weightmap->Source.GetSizeX(), Weightmap->Source.GetSizeY(), OldData, nullptr, &IFileManager::Get(), nullptr, true, (FFileHelper::EChannelMask)ChannelOffset);
+					FFileHelper::CreateBitmap(*(FilePattern + "-Post.bmp"), Weightmap->Source.GetSizeX(), Weightmap->Source.GetSizeY(), NewData, nullptr, &IFileManager::Get(), nullptr, true, (FFileHelper::EChannelMask)ChannelOffset);
+				}
+			}
+		}
+	};
+
+	for (const auto& WeightmapToResolve : WeightmapsToResolve)
+	{
+		UTexture2D* Weightmap = WeightmapToResolve.Key;
+		ALandscapeProxy* LandscapeProxy = Weightmap->GetTypedOuter<ALandscapeProxy>();
+		check(LandscapeProxy);
+		if (FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = LandscapeProxy->WeightmapsCPUReadBack.Find(Weightmap))
+		{
+			if (ResolveLayersTexture(*CPUReadback, Weightmap, DirtyDelegate))
+			{
+				for (const auto& Pair : WeightmapToResolve.Value)
+				{
+					ChangedComponents.Add(Pair.Key);
+				}
+				Weightmap->MarkPackageDirty();
+			}
+		}
+	}
+		
+	// Weightmaps shouldn't invalidate lighting
+	const bool bInvalidateLightingCache = false;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);	
 }
 
 bool ALandscape::HasLayersContent() const
@@ -5868,7 +5965,7 @@ uint32 ULandscapeComponent::ComputeLayerHash() const
 
 	for (const FWeightmapLayerAllocationInfo& AllocationInfo : AllocationInfos)
 	{
-		if (AllocationInfo.WeightmapTextureChannel != 255 && AllocationInfo.WeightmapTextureIndex != 255)
+		if (AllocationInfo.IsAllocated())
 		{
             // Compute hash of actual data of the texture that is owned by the component (per Texture Channel)
 			UTexture2D* Weightmap = Weightmaps[AllocationInfo.WeightmapTextureIndex];

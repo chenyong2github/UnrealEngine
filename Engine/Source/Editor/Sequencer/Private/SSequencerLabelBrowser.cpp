@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSequencerLabelBrowser.h"
 #include "SlateOptMacros.h"
@@ -51,12 +51,12 @@ void SSequencerLabelBrowser::SetSelectedLabel(const FString& Label)
 	Label.ParseIntoArray(SplitLabelStrings, TEXT(" "));
 
 	TArray<FString> SelectedLabels;
-	for (FString LabelString : SplitLabelStrings)
+	for (FString& LabelString : SplitLabelStrings)
 	{
 		if (LabelString.StartsWith(TEXT("label:")))
 		{
-			 LabelString = LabelString.RightChop( 6 );
-			 SelectedLabels.Add(LabelString);
+			 LabelString.RightChopInline( 6, false );
+			 SelectedLabels.Add(MoveTemp(LabelString));
 		}
 	}
 

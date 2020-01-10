@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionExtrasFlyingPawn.h"
 #include "Components/InputComponent.h"
@@ -529,7 +529,7 @@ float ANetworkPredictionExtrasFlyingPawn_MockAbility::GetMaxStamina() const
 {
 	if (const UMockFlyingAbilityComponent* FlyingAbilityComponent = GetMockFlyingAbilityComponent())
 	{
-		if (const FMockAbilityAuxstate* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
+		if (const FMockAbilityAuxState* AuxState = FlyingAbilityComponent->AbilityAuxState.GetStateRead())
 		{
 			return AuxState->MaxStamina;
 		}

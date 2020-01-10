@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -323,6 +323,9 @@ protected:
 	uint8 bIsCPUSkinned : 1;
 	uint8 bCanHighlightSelectedSections : 1;
 	uint8 bRenderStatic:1;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	uint8 bDrawDebugSkeleton:1;
+#endif
 
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
 
@@ -378,6 +381,11 @@ protected:
 	
 	/** The primitive's pre-skinned local space bounds. */
 	FBoxSphereBounds PreSkinnedLocalBounds;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** The color we draw this component in if drawing debug bones */
+	TOptional<FLinearColor> DebugDrawColor;
+#endif
 
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */

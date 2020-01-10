@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertySetter.h"
 #include "PropertyHelpers.h"
@@ -22,13 +22,13 @@
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
-typedef TFunction<void(void*, const pxr::UsdAttribute&, UProperty*, int32)> FStructSetterFunction;
+typedef TFunction<void(void*, const pxr::UsdAttribute&, FProperty*, int32)> FStructSetterFunction;
 
 FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	: ImportContext(InImportContext)
 {
 	RegisterStructSetter(NAME_LinearColor,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FLinearColor& Color = *(FLinearColor*)Value;
 			FUsdVector4Data Data;
@@ -40,7 +40,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Color,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FColor& Color = *(FColor*)Value;
 			FUsdVector4Data Data;
@@ -53,7 +53,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector2D,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector2D& Vec = *(FVector2D*)Value;
 			FUsdVector2Data Data;
@@ -65,7 +65,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector& Vec = *(FVector*)Value;
 			FUsdVectorData Data;
@@ -77,7 +77,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector4,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector4& Vec = *(FVector4*)Value;
 			FUsdVector4Data Data;
@@ -89,7 +89,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Rotator,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, UProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FRotator& Rot = *(FRotator*)Value;
 			FUsdVectorData Data;
@@ -123,7 +123,7 @@ void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const pxr:
 
 				ApplyPropertiesToActor(SpawnedActor, Child, PropertyPath);
 
-				/*TArray<UProperty*> PropertyChain;
+				/*TArray<FProperty*> PropertyChain;
 				PropertyHelpers::FPropertyAddress PropertyAddress = PropertyHelpers::FindProperty(*SpawnedActor, PropertyPath, PropertyChain);
 				if (PropertyAddress.Property != nullptr && PropertyAddress.Address != nullptr)
 				{
@@ -160,14 +160,14 @@ void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Pr
 		{
 			const FString PropertyPath = CombinePropertyPaths(StartingPropertyPath, UsdToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( Attribute ).c_str() ));
 
-			TArray<UProperty*> PropertyChain;
+			TArray<FProperty*> PropertyChain;
 			PropertyHelpers::FPropertyAddress PropertyAddress = PropertyHelpers::FindProperty(SpawnedActor, SpawnedActor->GetClass(), PropertyPath, PropertyChain, true);
 
 			if (PropertyAddress.Property != nullptr && PropertyAddress.Address != nullptr)
 			{
 				SetFromUSDValue(PropertyAddress, Prim, Attribute, INDEX_NONE);
 
-				if (PropertyAddress.Property->IsA<UMapProperty>())
+				if (PropertyAddress.Property->IsA<FMapProperty>())
 				{
 					// Special case for maps.  SetFromUSDValue can set props we're iterating on.  Ignore these 
 					// to avoid duplicate setting
@@ -199,9 +199,9 @@ void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Pr
 
 void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& PropertyAddress, const pxr::UsdPrim& Prim, const pxr::UsdAttribute& Attribute, int32 ArrayIndex)
 {
-	UProperty* Property = PropertyAddress.Property;
+	FProperty* Property = PropertyAddress.Property;
 	void* PropertyValue = Property->ContainerPtrToValuePtr<void>(PropertyAddress.Address);
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 	{
 		int ArraySize = FUsdAttribute::GetArraySize( Attribute );
 		if (ArraySize == INDEX_NONE)
@@ -233,7 +233,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			}
 		}
 	}
-	else if (UMapProperty* MapProperty = Cast<UMapProperty>(Property))
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 	{
 		// Find Key Attribute and Value attributes.  Note, we dont use the attribute passed in
 		pxr::UsdAttribute Key;
@@ -254,17 +254,17 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			KeyAddress.Address = Helper.GetKeyPtr(NewIndex);
 			SetFromUSDValue(KeyAddress, Prim, Key, INDEX_NONE);
 
-			UProperty* ValueProperty = MapProperty->ValueProp;
+			FProperty* ValueProperty = MapProperty->ValueProp;
 
 			// Handle struct propertery with multiple values. This means the values represent inner properties on the struct.
-			if (UStructProperty* StructProp = Cast<UStructProperty>(ValueProperty))
+			if (FStructProperty* StructProp = CastField<FStructProperty>(ValueProperty))
 			{
 				uint8* StructAddress = Helper.GetValuePtr(NewIndex);
 
 				for (const pxr::UsdAttribute& ValueRef : Values)
 				{
 					FString PropertyPath = UsdToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( ValueRef ) );
-					TArray<UProperty*> ValuePropertyChain;
+					TArray<FProperty*> ValuePropertyChain;
 					PropertyHelpers::FPropertyAddress ValueAddress = PropertyHelpers::FindProperty((void*)StructAddress, StructProp->Struct, PropertyPath, ValuePropertyChain, true);
 
 					if (PropertyAddress.Property != nullptr && PropertyAddress.Address != nullptr)
@@ -325,7 +325,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			);
 		}
 	}
-	else if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+	else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
 		// Look for special struct types.  Custom struct types with no setter are assumed to have fully qualified path to the inner properties of the struct
 		FStructSetterFunction Func = StructToSetterMap.FindRef(StructProperty->Struct->GetFName());
@@ -344,7 +344,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			);
 		}
 	}
-	else if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		// see if we were passed a string for the enum
 		const UEnum* Enum = EnumProperty->GetEnum();
@@ -368,7 +368,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			}
 		}
 	}
-	else if (UNumericProperty* NumericProperty = Cast<UNumericProperty>(Property))
+	else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
 	{
 		if (NumericProperty->IsFloatingPoint())
 		{
@@ -398,7 +398,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			}
 		}
 	}
-	else if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+	else if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
 		bool Value = false;
 		if (VerifyResult( FUsdAttribute::AsBool(Value, Attribute, ArrayIndex), Attribute, Property ))
@@ -406,7 +406,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			BoolProperty->SetPropertyValue(PropertyValue, Value);
 		}
 	}
-	else if (UStrProperty* StringProperty = Cast<UStrProperty>(Property))
+	else if (FStrProperty* StringProperty = CastField<FStrProperty>(Property))
 	{
 		const char* Value = nullptr;
 		if (VerifyResult( FUsdAttribute::AsString(Value, Attribute, ArrayIndex), Attribute, Property ))
@@ -414,7 +414,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			StringProperty->SetPropertyValue(PropertyValue, UsdToUnreal::ConvertString(Value));
 		}
 	}
-	else if (UNameProperty* NameProperty = Cast<UNameProperty>(Property))
+	else if (FNameProperty* NameProperty = CastField<FNameProperty>(Property))
 	{
 		const char* Value = nullptr;
 		if (VerifyResult( FUsdAttribute::AsString(Value, Attribute, ArrayIndex), Attribute, Property ))
@@ -422,7 +422,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			NameProperty->SetPropertyValue(PropertyValue, UsdToUnreal::ConvertName(Value));
 		}
 	}
-	else if (UTextProperty* TextProperty = Cast<UTextProperty>(Property))
+	else if (FTextProperty* TextProperty = CastField<FTextProperty>(Property))
 	{
 		const char* Value = nullptr;
 		if (VerifyResult( FUsdAttribute::AsString(Value, Attribute, ArrayIndex), Attribute, Property ))
@@ -430,7 +430,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			TextProperty->SetPropertyValue(PropertyValue, FText::FromString(UsdToUnreal::ConvertString(Value)));
 		}
 	}
-	else if (UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(Property))
+	else if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
 		const char* Value = nullptr;
 		if (VerifyResult( FUsdAttribute::AsString(Value, Attribute, ArrayIndex), Attribute, Property ))
@@ -484,7 +484,7 @@ bool FUSDPropertySetter::FindMapKeyAndValues(const pxr::UsdPrim& Prim, pxr::UsdA
 	return bFoundKey && OutValues.Num() > 0;
 }
 
-bool FUSDPropertySetter::VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, UProperty* Property)
+bool FUSDPropertySetter::VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, FProperty* Property)
 {
 	if (!bResult)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Camera modifier that provides support for code-based oscillating camera shakes.
@@ -36,7 +36,7 @@ struct FActiveCameraShakeInfo
 	UCameraShake* ShakeInstance;
 
 	UPROPERTY()
-	UCameraShakeSourceComponent* ShakeSource;
+	TWeakObjectPtr<const UCameraShakeSourceComponent> ShakeSource;
 };
 
 struct FAddCameraShakeParams
@@ -44,12 +44,12 @@ struct FAddCameraShakeParams
 	float Scale;
 	ECameraAnimPlaySpace::Type PlaySpace;
 	FRotator UserPlaySpaceRot;
-	UCameraShakeSourceComponent* SourceComponent;
+	const UCameraShakeSourceComponent* SourceComponent;
 
 	FAddCameraShakeParams() 
 		: Scale(1.f), PlaySpace(ECameraAnimPlaySpace::CameraLocal), UserPlaySpaceRot(FRotator::ZeroRotator), SourceComponent(nullptr)
 	{}
-	FAddCameraShakeParams(float InScale, ECameraAnimPlaySpace::Type InPlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator InUserPlaySpaceRot = FRotator::ZeroRotator, UCameraShakeSourceComponent* InSourceComponent = nullptr)
+	FAddCameraShakeParams(float InScale, ECameraAnimPlaySpace::Type InPlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator InUserPlaySpaceRot = FRotator::ZeroRotator, const UCameraShakeSourceComponent* InSourceComponent = nullptr)
 		: Scale(InScale), PlaySpace(InPlaySpace), UserPlaySpaceRot(InUserPlaySpaceRot), SourceComponent(InSourceComponent)
 	{}
 };
@@ -86,6 +86,12 @@ public:
 	{
 		return AddCameraShake(NewShake, FAddCameraShakeParams(Scale, PlaySpace, UserPlaySpaceRot));
 	}
+
+	/**
+	 * Returns a list of currently active camera shakes.
+	 * @param ActiveCameraShakes - The array to fill up with shake information.
+	 */
+	virtual void GetActiveCameraShakes(TArray<FActiveCameraShakeInfo>& ActiveCameraShakes) const;
 	
 	/**
 	 * Stops and removes the camera shake of the given class from the camera.
@@ -100,7 +106,7 @@ public:
 	 */
 	virtual void RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShake> ShakeClass, bool bImmediately = true);
 
-	virtual void RemoveAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	virtual void RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 
 	 * Stops and removes all camera shakes from the camera. 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -483,7 +483,7 @@ public:
 	static FVector ConvertRotationToFVect(FbxQuaternion Quaternion, bool bInvertRot);
 	static FQuat ConvertRotToQuat(FbxQuaternion Quaternion);
 	static float ConvertDist(FbxDouble Distance);
-	static bool ConvertPropertyValue(FbxProperty& FbxProperty, UProperty& UnrealProperty, union UPropertyValue& OutUnrealPropertyValue);
+	static bool ConvertPropertyValue(FbxProperty& FbxProperty, FProperty& UnrealProperty, union UPropertyValue& OutUnrealPropertyValue);
 	static FTransform ConvertTransform(FbxAMatrix Matrix);
 	static FMatrix ConvertMatrix(FbxAMatrix Matrix);
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueNotify_Actor.h"
 #include "TimerManager.h"
@@ -60,7 +60,7 @@ void AGameplayCueNotify_Actor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 #if WITH_EDITOR
 void AGameplayCueNotify_Actor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(GetClass());
 
 	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(AGameplayCueNotify_Actor, GameplayCueTag))

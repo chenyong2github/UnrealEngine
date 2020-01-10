@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -208,12 +208,23 @@ struct CORE_API FMemory
 	* This uses the purgatory malloc proxy to check if things are writing to stale pointers.
 	*/
 	static void EnablePoisonTests();
-
 	/**
 	* Set global allocator instead of creating it lazily on first allocation.
 	* Must only be called once and only if lazy init is disabled via a macro.
 	*/
 	static void ExplicitInit(FMalloc& Allocator);
+
+	/**
+	* Functions to handle special memory given to the title from the platform
+	* This memory is allocated like a stack, it's never really freed
+	*/
+	static void RegisterPersistentAuxiliary(void* InMemory, SIZE_T InSize);
+	static void* MallocPersistentAuxiliary(SIZE_T InSize, SIZE_T InAlignment = 0);
+	static void FreePersistentAuxiliary(void* InPtr);
+	static bool IsPersistentAuxiliaryActive();
+	static void DisablePersistentAuxiliary();
+	static void EnablePersistentAuxiliary();
+	static SIZE_T GetUsedPersistentAuxiliary();
 private:
 	static void GCreateMalloc();
 	// These versions are called either at startup or in the event of a crash

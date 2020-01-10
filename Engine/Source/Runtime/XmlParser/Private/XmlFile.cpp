@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmlFile.h"
 #include "Misc/FileHelper.h"
@@ -162,7 +162,7 @@ void FXmlFile::PreProcessInput(TArray<FString>& Input)
 
 		if(NumWhiteSpace > 0)
 		{
-			Input[i] = Input[i].Mid(NumWhiteSpace);
+			Input[i].MidInline(NumWhiteSpace, MAX_int32, false);
 		}
 	}
 

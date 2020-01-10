@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNode.h"
 #include "NiagaraGraph.h"
@@ -7,7 +7,11 @@
 #include "GraphEditAction.h"
 #include "SNiagaraGraphNode.h"
 #include "Misc/SecureHash.h"
+#include "ToolMenuSection.h"
+#include "ToolMenu.h"
+#include "GraphEditorActions.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
+
 
 #define LOCTEXT_NAMESPACE "NiagaraNode"
 
@@ -242,6 +246,36 @@ void UNiagaraNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut
 				TypeDef.GetNameText());
 			HoverTextOut = Text.ToString();
 		}
+	}
+}
+
+void UNiagaraNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+{
+	{
+		FToolMenuSection& Section = Menu->AddSection("Alignment");
+		Section.AddSubMenu(
+			"Alignment",
+			LOCTEXT("AlignmentHeader", "Alignment"),
+			FText(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			{
+				FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+			}
+
+			{
+				FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+			}
+		}));
 	}
 }
 

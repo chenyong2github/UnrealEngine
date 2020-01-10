@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Widgets/TakeRecorderWidgetConstants.h"
@@ -735,7 +735,7 @@ class FRecorderSourceObjectCustomization : public IDetailCustomization
 			UClass* BaseClass = DetailBuilder.GetBaseClass();
 			while (BaseClass)
 			{
-				for (UProperty* Property : TFieldRange<UProperty>(BaseClass, EFieldIteratorFlags::ExcludeSuper))
+				for (FProperty* Property : TFieldRange<FProperty>(BaseClass, EFieldIteratorFlags::ExcludeSuper))
 				{
 					CategoryBuilder.AddProperty(Property->GetFName(), BaseClass);
 				}

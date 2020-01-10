@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LevelTick.cpp: Level timer tick function
@@ -98,6 +98,7 @@ DEFINE_STAT(STAT_TeleportToTime);
 DEFINE_STAT(STAT_MoveComponentTime);
 DEFINE_STAT(STAT_MoveComponentSceneComponentTime);
 DEFINE_STAT(STAT_UpdateOverlaps);
+DEFINE_STAT(STAT_PerformOverlapQuery);
 DEFINE_STAT(STAT_UpdatePhysicsVolume);
 DEFINE_STAT(STAT_EndScopedMovementUpdate);
 

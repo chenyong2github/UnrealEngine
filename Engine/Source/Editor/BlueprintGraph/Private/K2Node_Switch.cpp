@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "K2Node_Switch.h"
@@ -248,7 +248,7 @@ void UK2Node_Switch::RemovePinFromSwitchNode(UEdGraphPin* TargetPin)
 	// If removing the default pin, we'll need to reconstruct the node, so send a property changed event to handle that
 	if(bHasDefaultPin && TargetPin == GetDefaultPin())
 	{
-		UProperty* HasDefaultPinProperty = FindField<UProperty>(GetClass(), "bHasDefaultPin");
+		FProperty* HasDefaultPinProperty = FindField<FProperty>(GetClass(), "bHasDefaultPin");
 		if(HasDefaultPinProperty)
 		{
 			PreEditChange(HasDefaultPinProperty);

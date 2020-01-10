@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	StaticMesh.h: Static mesh class definition.
@@ -45,7 +45,6 @@ class UBodySetup;
 #define STATICMESH_ENABLE_DEBUG_RENDERING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
 
 struct FStaticMaterial;
-struct FStaticMeshBuffersSize;
 
 /**
  * The LOD settings to use for a group of static meshes.
@@ -382,11 +381,7 @@ struct FStaticMeshLODResources
 	/** Sum of all vertex and index buffer sizes. Calculated in SerializeBuffers */
 	uint32 BuffersSize;
 
-#if USE_BULKDATA_STREAMING_TOKEN
-	FBulkDataStreamingToken BulkDataStreamingToken;
-#else
-	FByteBulkData StreamingBulkData;
-#endif
+	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
 
 #if STATS
 	uint32 StaticMeshIndexMemory;
@@ -396,6 +391,9 @@ struct FStaticMeshLODResources
 	FByteBulkData BulkData;
 
 	FString DerivedDataKey;
+
+	/** Map of wedge index to vertex index. Each LOD need one*/
+	TArray<int32> WedgeMap;
 #endif
 	
 	/** Default constructor. */
@@ -435,9 +433,9 @@ private:
 	 */
 	struct FStaticMeshBuffersSize
 	{
-		uint32 SerializedBuffersSize;
-		uint32 DepthOnlyIBSize;
-		uint32 ReversedIBsSize;
+		uint32 SerializedBuffersSize = 0;
+		uint32 DepthOnlyIBSize       = 0;
+		uint32 ReversedIBsSize       = 0;
 
 		void Clear()
 		{
@@ -585,9 +583,6 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** The derived data key associated with this render data. */
 	FString DerivedDataKey;
-
-	/** Map of wedge index to vertex index. */
-	TArray<int32> WedgeMap;
 
 	/** Map of material index -> original material index at import time. */
 	TArray<int32> MaterialIndexToImportIndex;
@@ -802,6 +797,8 @@ public:
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
 	virtual void CreateRenderThreadResources() override;
+		
+	virtual void DestroyRenderThreadResources() override;
 
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;

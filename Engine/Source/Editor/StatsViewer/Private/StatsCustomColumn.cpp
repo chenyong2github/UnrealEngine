@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StatsCustomColumn.h"
 #include "UObject/UnrealType.h"
@@ -120,16 +120,16 @@ FText FStatsCustomColumn::GetTotalText( TSharedRef< IPropertyTableColumn > Colum
 	return FText::GetEmpty();
 }
 
-bool FStatsCustomColumn::SupportsProperty( UProperty* Property )
+bool FStatsCustomColumn::SupportsProperty( FProperty* Property )
 {
-	if( Property->IsA( UFloatProperty::StaticClass() ) || Property->IsA( UIntProperty::StaticClass() ) )
+	if( Property->IsA( FFloatProperty::StaticClass() ) || Property->IsA( FIntProperty::StaticClass() ) )
 	{
 		return true;
 	}
 
-	if( Property->IsA( UStructProperty::StaticClass() ) )
+	if( Property->IsA( FStructProperty::StaticClass() ) )
 	{
-		return ( Cast<const UStructProperty>(Property)->Struct->GetFName() == NAME_Vector2D );
+		return ( CastField<const FStructProperty>(Property)->Struct->GetFName() == NAME_Vector2D );
 	}
 
 	return false;
@@ -152,7 +152,7 @@ FText FStatsCustomColumn::GetPropertyAsText( const TSharedPtr< IPropertyHandle >
 	}
 
 
-	if( PropertyHandle->GetProperty()->IsA( UIntProperty::StaticClass() ) )
+	if( PropertyHandle->GetProperty()->IsA( FIntProperty::StaticClass() ) )
 	{
 		int32 IntValue = INT_MAX;
 		PropertyHandle->GetValue( IntValue );
@@ -165,7 +165,7 @@ FText FStatsCustomColumn::GetPropertyAsText( const TSharedPtr< IPropertyHandle >
 			Text = FText::AsNumber( IntValue, RFOPointer);
 		}
 	}
-	else if( PropertyHandle->GetProperty()->IsA( UFloatProperty::StaticClass() ) )
+	else if( PropertyHandle->GetProperty()->IsA( FFloatProperty::StaticClass() ) )
 	{
 		float FloatValue = FLT_MAX;
 		PropertyHandle->GetValue( FloatValue );
@@ -178,9 +178,9 @@ FText FStatsCustomColumn::GetPropertyAsText( const TSharedPtr< IPropertyHandle >
 			Text = FText::AsNumber( FloatValue, RFOPointer);
 		}
 	}
-	else if( PropertyHandle->GetProperty()->IsA( UStructProperty::StaticClass() ) )
+	else if( PropertyHandle->GetProperty()->IsA( FStructProperty::StaticClass() ) )
 	{
-		if( Cast<const UStructProperty>(PropertyHandle->GetProperty())->Struct->GetFName() == NAME_Vector2D )
+		if( CastField<const FStructProperty>(PropertyHandle->GetProperty())->Struct->GetFName() == NAME_Vector2D )
 		{
 			FVector2D VectorValue(0.0f, 0.0f);
 			PropertyHandle->GetValue( VectorValue );

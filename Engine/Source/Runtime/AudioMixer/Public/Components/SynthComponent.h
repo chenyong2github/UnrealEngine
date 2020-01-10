@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "AudioMixerTypes.h"
@@ -215,6 +215,9 @@ public:
 	// Adds and removes audio buffer listener
 	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
+
+
+	virtual void BeginDestroy() override;
 
 protected:
 

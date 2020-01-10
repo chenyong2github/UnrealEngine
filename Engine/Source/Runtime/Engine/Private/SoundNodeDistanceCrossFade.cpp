@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Sound/SoundNodeDistanceCrossFade.h"
@@ -184,7 +184,16 @@ void USoundNodeDistanceCrossFade::SetChildNodes(TArray<USoundNode*>& InChildNode
 
 float USoundNodeDistanceCrossFade::GetCurrentDistance(FAudioDevice* AudioDevice, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams) const
 {
-	return ActiveSound.bLocationDefined ? FVector::Dist( ParseParams.Transform.GetTranslation(), AudioDevice->GetListeners()[0].Transform.GetTranslation() ) : 0.f;
+	if (!ActiveSound.bLocationDefined)
+	{
+		return 0.f;
+	}
+
+	check(AudioDevice);
+	FVector ListenerPosition;
+	const bool bAllowOverride = true;
+	AudioDevice->GetListenerPosition(ActiveSound.GetClosestListenerIndex(), ListenerPosition, bAllowOverride);
+	return FVector::Dist(ParseParams.Transform.GetTranslation(), ListenerPosition);
 }
 
 bool USoundNodeDistanceCrossFade::AllowCrossfading(FActiveSound& ActiveSound) const

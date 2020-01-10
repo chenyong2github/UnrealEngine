@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectBaseUtility.h: Unreal UObject functions that only depend on UObjectBase
@@ -490,8 +490,8 @@ public:
 		const UClass* ThisClass = GetClass();
 
 		// Stop the compiler doing some unnecessary branching for nullptr checks
-		ASSUME(SomeBaseClass);
-		ASSUME(ThisClass);
+		UE_ASSUME(SomeBaseClass);
+		UE_ASSUME(ThisClass);
 
 		return IsChildOfWorkaround(ThisClass, SomeBaseClass);
 	}

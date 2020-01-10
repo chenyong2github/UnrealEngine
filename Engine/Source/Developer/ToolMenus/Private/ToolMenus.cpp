@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ToolMenus.h"
 #include "IToolMenusModule.h"
@@ -597,15 +597,15 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 		}
 	}
 
-	// Hide items based on whitelist
-	if (CustomizedMenu.WhitelistEntries.Num() > 0)
+	// Hide items based on blacklist
+	if (CustomizedMenu.BlacklistFilter.HasFiltering())
 	{
 		for (int32 SectionIndex = 0; SectionIndex < NewSections.Num(); ++SectionIndex)
 		{
 			FToolMenuSection& Section = NewSections[SectionIndex];
 			for (int32 i = 0; i < Section.Blocks.Num(); ++i)
 			{
-				if (!CustomizedMenu.IsEntryWhitelisted(Section.Blocks[i].Name))
+				if (!CustomizedMenu.BlacklistFilter.PassesFilter(Section.Blocks[i].Name))
 				{
 					Section.Blocks.RemoveAt(i);
 					--i;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -138,7 +138,7 @@ public:
 	TArray<FArchiveBody> BodySet;
 	TArray<FArchiveComponent> ComponentSet;
 	TArray<FArchiveUnloadedComponent> UnloadedComponentSet;
-	TArray<FArchiveInstance> InstanceSet;
+	TArray<FArchiveInstance> Instances;
 
 	TMap<CadId, int32> CADIdToBodyIndex;
 	TMap<CadId, int32> CADIdToComponentIndex;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "NiagaraDataInterface.h"
@@ -34,8 +34,7 @@ public:
 
 	FVector2D CellSize;
 	bool SetGridFromVoxelSize;
-
-	FVector WorldBBoxMin;
+	
 	FVector2D WorldBBoxSize;
 
 	TArray<Grid2DBuffer*> Buffers;
@@ -146,6 +145,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	virtual void GetTextureSize(const UNiagaraComponent *Component, int &SizeX, int &SizeY);
 
+	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
 
 protected:

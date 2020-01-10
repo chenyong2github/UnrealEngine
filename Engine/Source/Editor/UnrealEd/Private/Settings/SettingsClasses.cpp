@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -1084,7 +1084,7 @@ void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& P
 	}
 }
 
-bool UProjectPackagingSettings::CanEditChange( const UProperty* InProperty ) const
+bool UProjectPackagingSettings::CanEditChange( const FProperty* InProperty ) const
 {
 	if (InProperty->GetFName() == FName(TEXT("NativizeBlueprintAssets")))
 	{

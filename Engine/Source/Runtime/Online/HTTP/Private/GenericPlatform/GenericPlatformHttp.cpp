@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "GenericPlatform/HttpRequestImpl.h"
@@ -203,7 +203,7 @@ FString FGenericPlatformHttp::GetUrlDomain(const FString& Url)
 	const int32 Idx = Domain.GetCharArray().IndexOfByPredicate([](TCHAR Character) { return Character == TEXT('/') || Character == TEXT('?') || Character == TEXT(':'); });
 	if (Idx != INDEX_NONE)
 	{
-		Domain = Domain.Left(Idx);
+		Domain.LeftInline(Idx, false);
 	}
 	return Domain;
 }

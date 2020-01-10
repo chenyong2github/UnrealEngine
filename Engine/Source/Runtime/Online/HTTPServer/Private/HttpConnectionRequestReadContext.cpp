@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HttpConnectionRequestReadContext.h"
 #include "HttpServerConstants.h"
@@ -261,7 +261,7 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	if (RequestHttpPath.FindChar(TCHAR('?'), QueryParamsIndex))
 	{
 		FString QueryParamsStr = RequestHttpPath.Mid(QueryParamsIndex+1);
-		RequestHttpPath = RequestHttpPath.Mid(0, QueryParamsIndex);
+		RequestHttpPath.MidInline(0, QueryParamsIndex, false);
 
 		// Split query params
 		TArray<FString> QueryParamPairs;

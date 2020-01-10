@@ -1,16 +1,18 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/UnrealNetwork.h"
 
 FPreReplayScrub FNetworkReplayDelegates::OnPreScrub;
 FOnWriteGameSpecificDemoHeader FNetworkReplayDelegates::OnWriteGameSpecificDemoHeader;
 FOnProcessGameSpecificDemoHeader FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader;
+FOnWriteGameSpecificFrameData FNetworkReplayDelegates::OnWriteGameSpecificFrameData;
+FOnProcessGameSpecificFrameData FNetworkReplayDelegates::OnProcessGameSpecificFrameData;
 
 // ----------------------------------------------------------------
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	ELifetimeCondition InCondition,
 	ELifetimeRepNotifyCondition InRepNotifyCondition)
@@ -56,7 +58,7 @@ void RegisterReplicatedLifetimeProperty(
 }
 
 void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params)
 {
@@ -87,7 +89,7 @@ void SetReplicatedPropertyToDisabled(const NetworkingPrivate::FRepPropertyDescri
 	}
 }
 
-void SetReplicatedPropertyToDisabled(const UProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps)
+void SetReplicatedPropertyToDisabled(const FProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps)
 {
 	SetReplicatedPropertyToDisabled(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps);
 }
@@ -99,7 +101,7 @@ void DisableReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDesc
 
 void DisableReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, TArray< FLifetimeProperty >& OutLifetimeProps)
 {
-	const UProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
+	const FProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
 	if (!ReplicatedProperty)
 	{
 		return;
@@ -132,7 +134,7 @@ void ResetReplicatedLifetimeProperty(
 
 void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, ELifetimeCondition LifetimeCondition, TArray< FLifetimeProperty >& OutLifetimeProps)
 {
-	const UProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
+	const FProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
 	if (!ReplicatedProperty)
 	{
 		return;
@@ -167,9 +169,9 @@ void DisableAllReplicatedPropertiesOfClass(const UClass* ThisClass, const UClass
 		return;
 	}
 
-	for (TFieldIterator<UProperty> It(ClassToDisable, SuperClassBehavior); It; ++It)
+	for (TFieldIterator<FProperty> It(ClassToDisable, SuperClassBehavior); It; ++It)
 	{
-		const UProperty* Prop = *It;
+		const FProperty* Prop = *It;
 		if (Prop && Prop->PropertyFlags & CPF_Net)
 		{
 			SetReplicatedPropertyToDisabled(Prop, OutLifetimeProps);
@@ -178,7 +180,7 @@ void DisableAllReplicatedPropertiesOfClass(const UClass* ThisClass, const UClass
 }
 
 
-void DeprecatedChangeCondition(const  UProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps, ELifetimeCondition InCondition)
+void DeprecatedChangeCondition(const  FProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps, ELifetimeCondition InCondition)
 {
 	bool bFound = false;
 	for (int32 i = 0; i < OutLifetimeProps.Num(); i++)

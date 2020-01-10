@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Core includes.
 #include "Misc/EmbeddedCommunication.h"
@@ -229,6 +229,16 @@ void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
 	if (GWarn && UE_LOG_ACTIVE(LogBridge, Warning))
 	{
 		GWarn->Log("LogBridge", ELogVerbosity::Warning, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogDisplay(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog && UE_LOG_ACTIVE(LogBridge, Display))
+	{
+		GLog->Log("LogBridge", ELogVerbosity::Display, String);
 	}
 #endif
 }

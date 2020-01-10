@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Slate/DebugCanvas.h"
 #include "RenderingThread.h"
@@ -256,8 +256,8 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 		RenderTarget->SetRenderTargetTexture(*RT);
 
 		bool bNeedToFlipVertical = RenderThreadCanvas->GetAllowSwitchVerticalAxis();
-		// Do not flip when rendering to the back buffer
-		RenderThreadCanvas->SetAllowSwitchVerticalAxis(false);
+		// Flip when rendering to the back buffer
+		RenderThreadCanvas->SetAllowSwitchVerticalAxis(true);
 		if (RenderThreadCanvas->IsScaledToRenderTarget() && IsValidRef(*RT)) 
 		{
 			RenderThreadCanvas->SetRenderTargetRect( FIntRect(0, 0, (*RT)->GetSizeX(), (*RT)->GetSizeY()) );

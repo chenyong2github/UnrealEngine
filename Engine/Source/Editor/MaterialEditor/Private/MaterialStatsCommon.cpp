@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "MaterialStatsCommon.h"
 #include "EngineGlobals.h"
@@ -176,7 +176,7 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			FString FormatName = ShaderPlatformToShaderFormatName(PlatformID).ToString();
 			if (FormatName.StartsWith(TEXT("SF_")))
 			{
-				FormatName = FormatName.Mid(3);
+				FormatName.MidInline(3, MAX_int32, false);
 			}
 			return FormatName;
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -382,6 +382,11 @@ protected:
 		{
 			Collector.AddReferencedObject(Settings);
 		}
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return "FLevelSequenceEditorModule";
 	}
 
 private:

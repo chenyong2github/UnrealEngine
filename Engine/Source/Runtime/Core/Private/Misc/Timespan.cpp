@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Timespan.h"
 #include "Templates/TypeHash.h"
@@ -158,7 +158,7 @@ bool FTimespan::Parse(const FString& TimespanString, FTimespan& OutTimespan)
 
 		if (FractionalLen > 9)
 		{
-			Tokens[4] = Tokens[4].Left(9);
+			Tokens[4].LeftInline(9, false);
 		}
 		else if (FractionalLen < 9)
 		{

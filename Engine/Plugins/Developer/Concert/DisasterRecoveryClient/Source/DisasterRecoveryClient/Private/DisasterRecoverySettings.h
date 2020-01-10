@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ public:
 	 * The root directory where recovery sessions should be stored. If not set or
 	 * invalid, the recovery sessions are stored in the project saved directory.
 	 */
-	UPROPERTY(config, EditAnywhere, Category="Client Settings")
+	UPROPERTY(config) // TODO: Expose it once properly tested.
 	FDirectoryPath RecoverySessionDir;
 
 	/**

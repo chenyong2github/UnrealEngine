@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -166,22 +166,6 @@ public:
 	 */
 	virtual bool Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive, const FString& OriginalUrl, const IMediaOptions* Options) = 0;
 
-	/**
-	* Specifies how audio starving should be handled
-	* 
-	* This affects the starving behavior of the used UMediaSoundComponent component.
-	* When true, it will skip audio to keep the time as if no starving occurred.
-	* If false, it will simply wait and continue without skipping when it gets more audio.
-	*/
-	virtual bool RequiresAudioSyncAfterDropouts() const
-	{
-#if PLATFORM_PS4 || PLATFORM_XBOXONE
-		return true;
-#else
-		return false;
-#endif
-	}
-
 public:
 
 	//~ The following methods are optional
@@ -319,6 +303,16 @@ public:
 	virtual void ProcessVideoSamples()
 	{
 		// Override in child class if needed.
+	}
+
+	enum class FeatureFlag {
+		AllowShutdownOnClose = 0,	//!< Allow player to be shutdown right after 'close' event is received from it
+	};
+	
+	virtual bool GetPlayerFeatureFlag(FeatureFlag /*flag*/) const
+	{
+		// Override in child class if needed.
+		return false;
 	}
 
 public:

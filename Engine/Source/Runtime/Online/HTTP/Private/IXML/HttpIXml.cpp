@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HttpIXML.h"
 #include "HttpManager.h"
@@ -360,6 +360,11 @@ FHttpRequestProgressDelegate& FHttpRequestIXML::OnRequestProgress()
 FHttpRequestHeaderReceivedDelegate& FHttpRequestIXML::OnHeaderReceived()
 {
 	return RequestHeaderReceivedDelegate;
+}
+
+FHttpRequestWillRetryDelegate& FHttpRequestIXML::OnRequestWillRetry()
+{
+	return OnRequestWillRetryDelegate;
 }
 
 //-----------------------------------------------------------------------------

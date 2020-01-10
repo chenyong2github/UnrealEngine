@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 
 
 class AActor;
+class ADisplayClusterRootActor;
 class USceneComponent;
 class UDisplayClusterCameraComponent;
 class UDisplayClusterRootComponent;
@@ -41,8 +42,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterGameManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual UDisplayClusterRootComponent*           GetRoot() const override;
-	virtual void                                    SetRoot(UDisplayClusterRootComponent* InRoot) override;
+	virtual ADisplayClusterRootActor*               GetRootActor() const override;
+	virtual UDisplayClusterRootComponent*           GetRootComponent() const override;
 
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const override;
 	virtual UDisplayClusterScreenComponent*         GetScreenById(const FString& id) const override;
@@ -67,12 +68,12 @@ public:
 	virtual bool IsDisplayClusterActive() const override
 	{ return CurrentOperationMode != EDisplayClusterOperationMode::Disabled; }
 
-protected:
-	bool SpawnRootComponent(AActor* Actor);
+private:
+	ADisplayClusterRootActor* FindDisplayClusterRootActor(UWorld* InWorld);
 
 private:
 	// Active DisplayCluster root
-	UDisplayClusterRootComponent* CurrentRoot = nullptr;
+	ADisplayClusterRootActor* DisplayClusterRootActor = nullptr;
 
 	EDisplayClusterOperationMode CurrentOperationMode;
 	FString ConfigPath;

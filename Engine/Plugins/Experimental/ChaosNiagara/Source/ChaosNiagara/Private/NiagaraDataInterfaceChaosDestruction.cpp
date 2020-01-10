@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceChaosDestruction.h"
 #include "NiagaraTypes.h"
@@ -7,9 +7,9 @@
 #include "ShaderParameterUtils.h"
 #include "PhysicsSolver.h"
 #include "Niagara/Private/NiagaraStats.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEmitterInstanceBatcher.h"
@@ -175,9 +175,12 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	{
 		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
 		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
-		EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
-		EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
-		EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+		if (EventManager)
+		{
+			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
+			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
+			EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+		}
 	}
 #endif
 
@@ -193,9 +196,12 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	{
 		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
 		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
-		EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
-		EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
-		EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+		if (EventManager)
+		{
+			EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+			EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+			EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+		}
 	}
 #endif
 }
@@ -3852,17 +3858,6 @@ void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
 	Buffer.Unlock();
 }
 
-static void SetBuffer(FRHICommandList& CmdList,
-	const FShaderResourceParameter& Param,
-	FRHIComputeShader* Shader,
-	FDynamicReadBuffer& Buffer)
-{
-	// Skip unbound parameters, since we won't be reading any of them
-	if (!Param.IsBound()) return;
-
-	CmdList.SetShaderResourceViewParameter(Shader, Param.GetBaseIndex(), Buffer.SRV);
-}
-
 template <typename T>
 static void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
@@ -3922,7 +3917,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 
 	Buffer.Unlock();
 
-	CmdList.SetShaderResourceViewParameter(Shader, Param.GetBaseIndex(), Buffer.SRV);
+	SetSRVParameter(CmdList, Shader, Param, Buffer.SRV);
 }
 
 void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()

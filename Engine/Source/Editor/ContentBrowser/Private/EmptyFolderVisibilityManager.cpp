@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EmptyFolderVisibilityManager.h"
 #include "AssetRegistryModule.h"
@@ -61,7 +61,7 @@ void FEmptyFolderVisibilityManager::SetAlwaysShowPath(const FString& InPath)
 	bool bWasAlreadyShown = false;
 	if (PathToAdd[PathToAdd.Len() - 1] == TEXT('/'))
 	{
-		PathToAdd = PathToAdd.Mid(0, PathToAdd.Len() - 1);
+		PathToAdd.MidInline(0, PathToAdd.Len() - 1, false);
 	}
 	PathsToAlwaysShow.Add(PathToAdd, &bWasAlreadyShown);
 

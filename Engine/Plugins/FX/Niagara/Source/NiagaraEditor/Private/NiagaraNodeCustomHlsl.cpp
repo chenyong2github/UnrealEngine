@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraCustomVersion.h"
@@ -19,6 +19,24 @@ UNiagaraNodeCustomHlsl::UNiagaraNodeCustomHlsl(const FObjectInitializer& ObjectI
 
 	Signature.Name = TEXT("Custom Hlsl");
 	FunctionDisplayName = Signature.Name.ToString();
+}
+
+const FString& UNiagaraNodeCustomHlsl::GetCustomHlsl() const
+{
+	return CustomHlsl;
+}
+
+void UNiagaraNodeCustomHlsl::SetCustomHlsl(const FString& InCustomHlsl)
+{
+	Modify();
+	CustomHlsl = InCustomHlsl;
+	RefreshFromExternalChanges();
+	if (GetOuter()->IsA<UNiagaraGraph>())
+	{
+		// This is needed to guard against a crash when setting this value before the node has actually been
+		// added to a graph.
+		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	}
 }
 
 TSharedPtr<SGraphNode> UNiagaraNodeCustomHlsl::CreateVisualWidget()
@@ -43,10 +61,7 @@ void UNiagaraNodeCustomHlsl::OnCustomHlslTextCommitted(const FText& InText, ETex
 	if (!NewValue.Equals(CustomHlsl, ESearchCase::CaseSensitive))
 	{
 		FScopedTransaction Transaction(LOCTEXT("CustomHlslCommit", "Edited Custom Hlsl"));
-		Modify();
-		CustomHlsl = NewValue;
-		RefreshFromExternalChanges();			
-		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+		SetCustomHlsl(NewValue);
 	}
 }
 
@@ -201,7 +216,7 @@ bool UNiagaraNodeCustomHlsl::VerifyEditablePinName(const FText& InName, FText& O
 
 	if (NewName != SanitizedNewName || NewName.Len() == 0)
 	{
-		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName", "Pin \"{0}\" cannot be renamed to \"{1}\". Certain words are restricted, as are spaces and special characters. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromString(SanitizedNewName));
+		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName_Restricted", "Pin \"{0}\" cannot be renamed to \"{1}\". Certain words are restricted, as are spaces and special characters. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromString(SanitizedNewName));
 		return false;
 	}
 	TSet<FName> Names;
@@ -212,7 +227,7 @@ bool UNiagaraNodeCustomHlsl::VerifyEditablePinName(const FText& InName, FText& O
 	}
 	if (Names.Contains(*NewName))
 	{
-		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName", "Pin \"{0}\" cannot be renamed to \"{1}\" as it conflicts with another name in use. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromName(FNiagaraUtilities::GetUniqueName(*SanitizedNewName, Names)));
+		OutErrorMessage = FText::Format(LOCTEXT("InvalidPinName_Conflicts", "Pin \"{0}\" cannot be renamed to \"{1}\" as it conflicts with another name in use. Suggestion: \"{2}\""), InGraphPinObj->GetDisplayName(), InName, FText::FromName(FNiagaraUtilities::GetUniqueName(*SanitizedNewName, Names)));
 		return false;
 	}
 	OutErrorMessage = FText::GetEmpty();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UMGEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -171,6 +171,11 @@ public:
 		{
 			Collector.AddReferencedObject(Settings);
 		}
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return "FUMGEditorModule";
 	}
 
 	virtual FWidgetBlueprintCompiler* GetRegisteredCompiler() override

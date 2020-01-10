@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -72,7 +72,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool bAnimateWheelScrolling = false;
 
-	/**  */
+	/** Sets where to scroll a widget to when using explicit navigation or if ScrollWhenFocusChanges is enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
 	EDescendantScrollDestination NavigationDestination;
 
@@ -82,6 +82,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
 	float NavigationScrollPadding;
+
+	/** Scroll behavior when user focus is given to a child widget */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll", meta=(DisplayName="Scroll When Focus Changes"))
+	EScrollWhenFocusChanges ScrollWhenFocusChanges;
 	
 	/** Option to disable right-click-drag scrolling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
@@ -159,7 +163,7 @@ public:
 
 	/** Scrolls the ScrollBox to the widget during the next layout pass. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView );
+	void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;

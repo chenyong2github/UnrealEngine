@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/AsyncPackageLoader.h"
 #include "Serialization/AsyncLoadingThread.h"
@@ -6,6 +6,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/LinkerLoad.h"
 #include "Misc/CoreDelegates.h"
+#include "IO/IoDispatcher.h"
 
 volatile int32 GIsLoaderCreated;
 TUniquePtr<IAsyncPackageLoader> GPackageLoader;
@@ -22,7 +23,7 @@ struct FEDLBootObjectState
 
 struct FEDLBootWaitingPackage
 {
-	FGCObject* Package;
+	void* Package;
 	FPackageIndex Import;
 };
 
@@ -37,7 +38,7 @@ struct FEDLBootNotificationManager
 	FCriticalSection EDLBootNotificationManagerLock;
 
 	// return true if you are waiting for this compiled in object
-	bool AddWaitingPackage(FGCObject* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
+	bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
 	{
 		if (PackageName == GLongCoreUObjectPackageName)
 		{
@@ -390,55 +391,6 @@ static FEDLBootNotificationManager& GetGEDLBootNotificationManager()
 	return Singleton;
 }
 
-bool IsEventDrivenLoaderEnabledInCookedBuilds()
-{
-	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
-	{
-		bool bEventDrivenLoaderEnabled;
-		FEventDrivenLoaderEnabledInCookedBuildsInit()
-			: bEventDrivenLoaderEnabled(false)
-		{
-			SetEventDrivenLoaderEnabled();
-		}
-
-		void SetEventDrivenLoaderEnabled()
-		{
-			check(GConfig || IsEngineExitRequested());
-			if (GConfig)
-			{
-				GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.EventDrivenLoaderEnabled"), bEventDrivenLoaderEnabled, GEngineIni);
-#if !UE_BUILD_SHIPPING
-				if (FParse::Param(FCommandLine::Get(), TEXT("NOEDL")))
-				{
-					bEventDrivenLoaderEnabled = false;
-				}
-#endif
-			}
-		}
-	} EventDrivenLoaderEnabledInCookedBuilds;
-
-#if WITH_EDITOR	
-	// when building from the UE4 Editor, s.EventDrivenLoaderEnabled can be changed from Project Settings, so we need to test it at every call
-	if (GIsEditor)
-	{
-		EventDrivenLoaderEnabledInCookedBuilds.SetEventDrivenLoaderEnabled();
-	}
-#endif
-	return EventDrivenLoaderEnabledInCookedBuilds.bEventDrivenLoaderEnabled;
-}
-
-bool IsEventDrivenLoaderEnabled()
-{
-	static struct FEventDrivenLoaderEnabledInit
-	{
-		FEventDrivenLoaderEnabledInit()
-		{
-			GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabledInCookedBuilds() && FPlatformProperties::RequiresCookedData();
-		}
-	} EventDrivenLoaderEnabledInit;
-	return GEventDrivenLoaderEnabled;
-}
-
 bool IsFullyLoadedObj(UObject* Obj)
 {
 	if (!Obj)
@@ -518,9 +470,9 @@ IAsyncPackageLoader& GetAsyncPackageLoader()
 
 void InitAsyncThread()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
+	if (FIoDispatcher::IsInitialized())
 	{
-		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(GetGEDLBootNotificationManager());
+		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(FIoDispatcher::Get(), GetGEDLBootNotificationManager());
 	}
 	else
 	{

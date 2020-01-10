@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -328,8 +328,9 @@ public:
 			{
 				if (IsItemSelectable())
 				{
+					const ItemType* MyItemPtr = GetItemForThis(OwnerTable);
 					// New selections are handled on mouse down, deselection is handled on mouse up
-					if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
+					if (MyItemPtr)
 					{
 						const ItemType& MyItem = *MyItemPtr;
 						if (!OwnerTable->Private_IsItemSelected(MyItem))
@@ -342,12 +343,19 @@ public:
 							bChangedSelectionOnMouseDown = true;
 						}
 					}
+
+					Reply = FReply::Handled()
+						.DetectDrag(SharedThis(this), EKeys::LeftMouseButton)
+						.CaptureMouse(SharedThis(this));
+
+					// Set focus back to the owning widget if the item is invalid somehow or its not selectable or can be navigated to
+					if (!MyItemPtr || !OwnerTable->Private_IsItemSelectableOrNavigable(*MyItemPtr))
+					{
+						Reply.SetUserFocus(OwnerTable->AsWidget(), EFocusCause::Mouse);
+					}
 				}
 
-				Reply = FReply::Handled()
-					.DetectDrag(SharedThis(this), EKeys::LeftMouseButton)
-					.SetUserFocus(OwnerTable->AsWidget(), EFocusCause::Mouse)
-					.CaptureMouse(SharedThis(this));
+		
 			}
 		}
 		

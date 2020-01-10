@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "NiagaraDataInterface.h"
@@ -9,7 +9,6 @@ class FNiagaraSystemInstance;
 // Global HLSL variable base names, used by HLSL.
 static const FString NumVoxelsName(TEXT("NumVoxels_"));
 static const FString VoxelSizeName(TEXT("VoxelSize_"));
-static const FString WorldBBoxMinName(TEXT("WorldBBoxMin_"));
 static const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
 
 static const FString NumCellsName(TEXT("NumCells_"));
@@ -22,8 +21,10 @@ static const FName VoxelSizeFunctionName("GetVoxelSize");
 static const FName NumCellsFunctionName("GetNumCells");
 static const FName CellSizeFunctionName("GetCellSize");
 
-static const FName WorldToUnitFunctionName("WorldToUnit");
-static const FName UnitToWorldFunctionName("UnitToWorld");
+static const FName WorldBBoxSizeFunctionName("GetWorldBBoxSize");
+
+static const FName SimulationToUnitFunctionName("SimulationToUnit");
+static const FName UnitToSimulationFunctionName("UnitToSimulation");
 static const FName UnitToIndexFunctionName("UnitToIndex");
 static const FName IndexToUnitFunctionName("IndexToUnit");
 static const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
@@ -79,7 +80,7 @@ public:
 		PushToRenderThread();
 	}	
 	
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override
 	{
 		Super::PreEditChange(PropertyAboutToChange);
 
@@ -134,10 +135,7 @@ public:
 	float VoxelSize;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromVoxelSize;	
-
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	FVector WorldBBoxMin;
+	bool SetGridFromVoxelSize;		
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector WorldBBoxSize;
@@ -147,7 +145,8 @@ public:
 	//~ UNiagaraDataInterface interface
 	// VM functionality
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;	
+
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
@@ -186,10 +185,7 @@ public:
 	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromMaxAxis;
-
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	FVector WorldBBoxMin;
+	bool SetGridFromMaxAxis;	
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector2D WorldBBoxSize;

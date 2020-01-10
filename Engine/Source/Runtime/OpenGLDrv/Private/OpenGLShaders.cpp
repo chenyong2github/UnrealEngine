@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLShaders.cpp: OpenGL shader RHI implementation.
@@ -2899,9 +2899,9 @@ static void VerifyUniformLayout(const TCHAR* UniformName, const UniformData& GLS
 	*/
 	FString RequestedUniformName(UniformName);
 	RequestedUniformName = RequestedUniformName.Replace(*BlockName, TEXT(""));
-	if(RequestedUniformName.StartsWith(TEXT(".")))
+	if(RequestedUniformName.StartsWith(TEXT("."), ESearchCase::CaseSensitive))
 	{
-		RequestedUniformName = RequestedUniformName.RightChop(1);
+		RequestedUniformName.RightChopInline(1, false);
 	}
 #else
 	FString RequestedUniformName = UniformName;

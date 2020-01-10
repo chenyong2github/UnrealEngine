@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SEnvQueryProfiler.h"
@@ -201,7 +201,7 @@ static UObject* FindQueryObjectByName(FName StatName)
 	int32 SepIdx = INDEX_NONE;
 	if (AssetPathName.FindLastChar(TEXT('_'), SepIdx))
 	{
-		AssetPathName = AssetPathName.Left(SepIdx);
+		AssetPathName.LeftInline(SepIdx);
 	}
 
 	UObject* QueryOb = FindObject<UObject>(ANY_PACKAGE, *AssetPathName);

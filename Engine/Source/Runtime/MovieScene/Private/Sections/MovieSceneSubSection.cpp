@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneSubSection.h"
 #include "Tracks/MovieSceneSubTrack.h"
@@ -198,7 +198,7 @@ AActor* UMovieSceneSubSection::GetActorToRecord()
 }
 
 #if WITH_EDITOR
-void UMovieSceneSubSection::PreEditChange(UProperty* PropertyAboutToChange)
+void UMovieSceneSubSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UMovieSceneSubSection, SubSequence))
 	{

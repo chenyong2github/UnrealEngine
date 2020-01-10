@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Curves/CurveOwnerInterface.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceCurveBase.h"
 
 /** A curve owner for curves in a niagara System. */
 class NIAGARAEDITOR_API FNiagaraCurveOwner : public FCurveOwnerInterface

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,6 @@
 
 class FCompilerResultsLog;
 class FKismetCompilerContext;
-class UAnimGraphNode_Base;
 class UBlueprint;
 class UEdGraph;
 class UEdGraphSchema_K2;
@@ -29,14 +28,6 @@ public:
 
 	static void UpdateBlueprintSkeletonStubClassAfterFailedCompile(UBlueprint* Blueprint, UClass* StubClass);
 
-
-	/** 
-	 * Invalidates the export of a property, and any of its inners
-	 *
-	 * @param PropertyToInvalidate	The property to invalidate the export for
-	 */
-	static void InvalidatePropertyExport(UProperty* PropertyToInvalidate);
-
 	/**
 	 * Tests to see if a pin is schema compatible with a property.
 	 *
@@ -48,29 +39,29 @@ public:
 	 *
 	 * @return	true if the pin type/direction is compatible with the property.
 	 */
-	static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, UProperty* Property, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass);
+	static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, FProperty* Property, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass);
 
 	/** Finds a property by name, starting in the specified scope; Validates property type and returns NULL along with emitting an error if there is a mismatch. */
-	static UProperty* FindPropertyInScope(UStruct* Scope, UEdGraphPin* Pin, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass, bool& bIsSparseProperty, bool bSuppressMissingMemberErrors = false);
+	static FProperty* FindPropertyInScope(UStruct* Scope, UEdGraphPin* Pin, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema, UClass* SelfClass, bool& bIsSparseProperty, bool bSuppressMissingMemberErrors = false);
 
 	// Finds a property by name, starting in the specified scope, returning NULL if it's not found
-	static UProperty* FindNamedPropertyInScope(UStruct* Scope, FName PropertyName, bool& bIsSparseProperty);
+	static FProperty* FindNamedPropertyInScope(UStruct* Scope, FName PropertyName, bool& bIsSparseProperty);
 
 	/** return function, that overrides BlueprintImplementableEvent with given name in given class (super-classes are not considered) */
 	static const UFunction* FindOverriddenImplementableEvent(const FName& EventName, const UClass* Class);
 
-	/** Helper function for creating property for primitive types. Used only to create inner peroperties for UArrayProperty, USetProperty, and UMapProperty: */
-	static UProperty* CreatePrimitiveProperty( UObject* PropertyScope, const FName& ValidatedPropertyName, const FName& PinCategory, const FName& PinSubCategory, UObject* PinSubCategoryObject, UClass* SelfClass, bool bIsWeakPointer, const class UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
+	/** Helper function for creating property for primitive types. Used only to create inner peroperties for FArrayProperty, FSetProperty, and FMapProperty: */
+	static FProperty* CreatePrimitiveProperty( FFieldVariant PropertyScope, const FName& ValidatedPropertyName, const FName& PinCategory, const FName& PinSubCategory, UObject* PinSubCategoryObject, UClass* SelfClass, bool bIsWeakPointer, const class UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
 
 	/** Creates a property named PropertyName of type PropertyType in the Scope or returns NULL if the type is unknown, but does *not* link that property in */
-	static UProperty* CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const class UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
+	static FProperty* CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const class UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
 
 	/**
 	 * Checks that the property name isn't taken in the given scope (used by CreatePropertyOnScope())
 	 *
 	 * @return	Ptr to an existing object with that name in the given scope or nullptr if none exists
 	 */
-	static UObject* CheckPropertyNameOnScope(UStruct* Scope, const FName& PropertyName);
+	static FFieldVariant CheckPropertyNameOnScope(UStruct* Scope, const FName& PropertyName);
 
 	// Find groups of nodes, that can be executed separately.
 	static TArray<TSet<UEdGraphNode*>> FindUnsortedSeparateExecutionGroups(const TArray<UEdGraphNode*>& Nodes);
@@ -81,7 +72,7 @@ private:
 public:
 	static void CompileDefaultProperties(UClass* Class);
 
-	static void LinkAddedProperty(UStruct* Structure, UProperty* NewProperty);
+	static void LinkAddedProperty(UStruct* Structure, FProperty* NewProperty);
 
 	static void RemoveObjectRedirectorIfPresent(UObject* Package, const FString& ClassName, UObject* ObjectBeingMovedIn);
 
@@ -213,12 +204,10 @@ public:
 	// The resulting name is stable across multiple calls if given the same pointer.
 	FString MakeValidName(const UEdGraphNode* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
 	FString MakeValidName(const UEdGraphPin* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
-	FString MakeValidName(const UAnimGraphNode_Base* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
 
 private:
 	KISMETCOMPILER_API static FString MakeBaseName(const UEdGraphNode* Net);
 	KISMETCOMPILER_API static FString MakeBaseName(const UEdGraphPin* Net);
-	KISMETCOMPILER_API static FString MakeBaseName(const UAnimGraphNode_Base* Net);
 
 	template< typename NetType >
 	FString MakeValidNameImpl(NetType Net, const FString& Context)

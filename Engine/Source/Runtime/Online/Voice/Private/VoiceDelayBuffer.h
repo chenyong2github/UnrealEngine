@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -61,6 +61,14 @@ public:
 		InternalBuffer[WriteIndex++] = InSample;
 	}
 
+	void PushFrame(const SampleType* InFrame, int32 NumChannels)
+	{
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
+		{
+			PushSample(InFrame[ChannelIndex]);
+		}
+	}
+
 	/** pop sample off of the buffer. Increments delay between read and write by one sample. */
 	SampleType PopSample()
 	{
@@ -94,8 +102,8 @@ public:
 		{
 			const int32 SamplesUntilEndOfBuffer = InternalBuffer.Num() - ReadIndex;
 			//Copy the rest of the buffer to the end, then the remainder in the beginning.
-			FMemory::Memcpy(OutBuffer, InternalBuffer.GetData() + ReadIndex, SamplesUntilEndOfBuffer);
-			FMemory::Memcpy(OutBuffer + SamplesUntilEndOfBuffer, InternalBuffer.GetData(), SamplesToCopy - SamplesUntilEndOfBuffer);
+			FMemory::Memcpy(OutBuffer, InternalBuffer.GetData() + ReadIndex, SamplesUntilEndOfBuffer * sizeof(SampleType));
+			FMemory::Memcpy(OutBuffer + SamplesUntilEndOfBuffer, InternalBuffer.GetData(), (SamplesToCopy - SamplesUntilEndOfBuffer) * sizeof(SampleType));
 		}
 		ReadIndex = ReadIndex + SamplesToCopy;
 		return SamplesToCopy;

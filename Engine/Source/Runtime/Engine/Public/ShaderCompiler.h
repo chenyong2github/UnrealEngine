@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderCompiler.h: Platform independent shader compilation definitions.
@@ -398,12 +398,13 @@ public:
 		uint32 Cooked = 0;
 		uint32 CompiledDouble = 0;
 		uint32 CookedDouble = 0;
+		float CompileTime = 0.f;
 
 	};
 	using ShaderCompilerStats = TMap<FString, FShaderStats>;
 
 
-	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
+	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
 	ENGINE_API void WriteStats();

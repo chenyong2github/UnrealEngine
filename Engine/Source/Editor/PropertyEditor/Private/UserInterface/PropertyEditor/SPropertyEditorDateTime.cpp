@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorDateTime.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -20,7 +20,7 @@ void SPropertyEditorDateTime::Construct( const FArguments& InArgs, const TShared
 		.IsReadOnly(InPropertyEditor->IsEditConst())
 	];
 
-	if( InPropertyEditor->PropertyIsA( UObjectPropertyBase::StaticClass() ) )
+	if( InPropertyEditor->PropertyIsA( FObjectPropertyBase::StaticClass() ) )
 	{
 		// Object properties should display their entire text in a tooltip
 		PrimaryWidget->SetToolTipText( TAttribute<FText>( InPropertyEditor, &FPropertyEditor::GetValueAsText ) );
@@ -31,11 +31,11 @@ void SPropertyEditorDateTime::Construct( const FArguments& InArgs, const TShared
 bool SPropertyEditorDateTime::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 
-	if (Property->IsA(UStructProperty::StaticClass()))
+	if (Property->IsA(FStructProperty::StaticClass()))
 	{
-		const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+		const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 		extern UScriptStruct* Z_Construct_UScriptStruct_FDateTime();	// It'd be really nice if StaticStruct() worked on types declared in Object.h
 		if (Z_Construct_UScriptStruct_FDateTime() == StructProp->Struct)
 		{

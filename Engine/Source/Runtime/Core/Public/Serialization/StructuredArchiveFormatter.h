@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,22 +6,21 @@
 #include "CoreFwd.h"
 
 // Define a structure to encapsulate a field name, which compiles to an empty object if WITH_TEXT_ARCHIVE_SUPPORT = 0
+struct FArchiveFieldName
+{
 #if WITH_TEXT_ARCHIVE_SUPPORT
-	struct FArchiveFieldName
-	{
-		const TCHAR* Name;
-
-		explicit FArchiveFieldName(const TCHAR* InName) : Name(InName){ }
-	};
-
-	#define SA_FIELD_NAME(x) FArchiveFieldName(x)
-#else
-	struct FArchiveFieldName
-	{
-	};
-
-	#define SA_FIELD_NAME(x) FArchiveFieldName()
+	const TCHAR* Name;
 #endif
+
+	explicit FArchiveFieldName(const TCHAR* InName) 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+		: Name(InName)
+#endif
+	{
+	}
+};
+
+#define SA_FIELD_NAME(x) FArchiveFieldName(x)
 
 /**
  * Specifies the type of a value in a slot. Used by FContextFreeArchiveFormatter for introspection.

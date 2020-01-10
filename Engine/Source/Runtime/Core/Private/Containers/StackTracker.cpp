@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Containers/StackTracker.h"
 #include "HAL/PlatformStackWalk.h"
@@ -54,10 +54,10 @@ void FStackTracker::CaptureStackTrace(int32 EntriesToIgnore, void* UserData, int
 						AddressInformation[0] = 0;
 						FPlatformStackWalk::ProgramCounterToHumanReadableString( 1, BackTrace[Index], AddressInformation, UE_ARRAY_COUNT(AddressInformation)-1 );
 						FString Symbol(AddressInformation);
-						int32 Spot = Symbol.Find(TEXT(" - "));
+						int32 Spot = Symbol.Find(TEXT(" - "), ESearchCase::CaseSensitive);
 						if (Spot != INDEX_NONE)
 						{
-							Symbol = Symbol.RightChop(Spot + 3);
+							Symbol.RightChopInline(Spot + 3, false);
 						}
 						Existing = StringAliasMap.Find(Symbol);
 						if (Existing)

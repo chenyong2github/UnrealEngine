@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithOpenNurbsTranslator.h"
 #include "DatasmithOpenNurbsTranslatorModule.h"
@@ -2839,17 +2839,10 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 	LocalSession->ClearData();
 
-	bool bBRepHasLoopNonManifold = false;
-	Result = LocalSession->AddBRep(*Brep, bBRepHasLoopNonManifold);
+	Result = LocalSession->AddBRep(*Brep);
 
 	FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
-
-	if(bBRepHasLoopNonManifold)
-	{
-		LocalSession->CleanBRep();
-	}
-
 	Result = LocalSession->SaveBrep(FilePath);
 	if (Result)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	IOSPlatformMisc.mm: iOS implementations of misc functions
@@ -488,7 +488,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 			{
 				DeviceType = IOS_IPad6;
 			}
-			else if (Minor == 7 || Minor == 8)
+			else if (Minor == 11 || Minor == 12)
 			{
 				DeviceType = IOS_IPad7;
 			}

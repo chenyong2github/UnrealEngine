@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,6 +34,26 @@ public:
 		ToolTip = "If checked, RenderDoc will always capture the initial state of all rendering resources even if they are not likely to be used during the frame. Please note that doing this will significantly increase capture size.",
 		ConfigRestartRequired = false))
 	uint32 bSaveAllInitials : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = "Frame Capture Settings", meta = (
+		ConsoleVariable = "renderdoc.CaptureDelayInSeconds", DisplayName = "Capture delay in seconds",
+		ToolTip = "If checked, the capture delay's unit will be in seconds instead of frames.",
+		ConfigRestartRequired = false))
+		uint32 bCaptureDelayInSeconds : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = "Frame Capture Settings", meta = (
+		ConsoleVariable = "renderdoc.CaptureDelay", DisplayName = "Capture delay",
+		ToolTip = "If > 0, RenderDoc will trigger the capture only after this amount of frames/seconds has passed.",
+		ClampMin = 0,
+		ConfigRestartRequired = false))
+	int32 CaptureDelay;
+
+	UPROPERTY(config, EditAnywhere, Category = "Frame Capture Settings", meta = (
+		ConsoleVariable = "renderdoc.CaptureFrameCount", DisplayName = "Capture frame count",
+		ToolTip = "If > 1, the RenderDoc capture will encompass more than a single frame. Note: this implies that all activity in all viewports and editor windows will be captured (i.e. same as CaptureAllActivity)",
+		ClampMin = 1,
+		ConfigRestartRequired = false))
+		int32 CaptureFrameCount;
 
 	UPROPERTY(config, EditAnywhere, Category = "Advanced Settings", meta = (
 		ConsoleVariable = "renderdoc.ShowHelpOnStartup", DisplayName = "Show help on startup",

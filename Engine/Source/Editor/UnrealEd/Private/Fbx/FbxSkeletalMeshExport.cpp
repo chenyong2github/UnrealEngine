@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Implementation of Skeletal Mesh export related functionality from FbxExporter
@@ -608,7 +608,7 @@ void ExportObjectMetadataToBones(const UObject* ObjectToExport, const TArray<Fbx
 					NodeName = TagAsString.Left(CharPos);
 
 					// The remaining part is the actual metadata tag
-					TagAsString = TagAsString.RightChop(CharPos + 1); // exclude the period
+					TagAsString.RightChopInline(CharPos + 1, false); // exclude the period
 				}
 
 				// Try to attach the metadata to its associated node by name

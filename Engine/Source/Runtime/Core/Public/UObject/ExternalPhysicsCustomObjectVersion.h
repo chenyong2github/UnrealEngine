@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -68,6 +68,39 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Added material indices to trimesh collision data
 		AddTrimeshMaterialIndices,
+
+		// Add center of mass and volume cached calculations to TConvex
+		AddConvexCenterOfMassAndVolume,
+
+		// Add mass transform data to kinematic particle
+		KinematicCentersOfMass,
+
+		// Added ability to remove shapes from collision resolution (will not construct constraints when one or more shapes removed)
+		AddShapeCollisionDisable,
+
+		//Heightfield cell bounds are implicit
+		HeightfieldImplicitBounds,
+
+		// Add damping to rigid particles
+		AddDampingToRigids,
+
+		//Replace TBox with TAABB in many places
+		TBoxReplacedWithTAABB,
+
+		// Serialize bSimulate on PerShapeData
+		SerializePerShapeDataSimulateFlag,
+
+		// Serialize whether or not an AABBTree is immutable
+		ImmutableAABBTree,
+
+		// Trimeshes can now use small indices
+		TrimeshCanUseSmallIndices,
+
+		// Union objects can avoid allocating a full hierarchy
+		UnionObjectsCanAvoidHierarchy,
+
+		// Capsules no longer have a union inside them or stored aabbs
+		CapsulesNoUnionOrAABBs,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

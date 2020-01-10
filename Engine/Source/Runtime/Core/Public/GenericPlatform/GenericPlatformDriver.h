@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -387,13 +387,13 @@ struct FBlackListEntry
 
 				FString DriverDateComparisonOp = DriverDateString.Left(OpLength);
 				FString TrimmedDriverDateString = DriverDateString.RightChop(OpLength);
-				TrimmedDriverDateString.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				TrimmedDriverDateString.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 				
 				FDateTime TestDate(FCString::Atoi(*TempYear), FCString::Atoi(*TempMonth), FCString::Atoi(*TempDay));
 
-				Info.DriverDate.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				Info.DriverDate.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
 				FDateTime InfoDate(FCString::Atoi(*TempYear), FCString::Atoi(*TempMonth), FCString::Atoi(*TempDay));
 

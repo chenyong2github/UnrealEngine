@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "AudioMixerEffectsManager.h"
@@ -38,6 +38,7 @@ static FAutoConsoleVariableRef CVarDisableQuadReverbCVarFast(
 class UReverbEffect;
 
 FSubmixEffectReverbFast::FSubmixEffectReverbFast()
+	: bBypass(false)
 {
 }
 
@@ -109,6 +110,7 @@ void FSubmixEffectReverbFast::OnPresetChanged()
 	ReverbEffect.RoomRolloffFactor = 0.0f; // not used
 	ReverbEffect.Volume = Settings.WetLevel;
 
+	bBypass = Settings.bBypass;
 
 	SetEffectParameters(ReverbEffect);
 }
@@ -118,9 +120,14 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
 	check(InData.NumChannels == 2);
- 	if (OutData.NumChannels < 2 || DisableSubmixReverbCVarFast == 1) 
+ 	if (OutData.NumChannels < 2 || DisableSubmixReverbCVarFast == 1)
 	{
 		// Not supported
+		return;
+	}
+
+	if (bBypass)
+	{
 		return;
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectHash.cpp: Unreal object name hashes
@@ -1267,3 +1267,86 @@ void LogHashOuterStatistics(FOutputDevice& Ar, const bool bShowHashBucketCollisi
 	Ar.Logf(TEXT(""));
 }
 
+void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividualStats)
+{
+	Ar.Logf(TEXT("UObject Hash Tables and Maps memory overhead"));
+	Ar.Logf(TEXT("-------------------------------------------------"));
+
+	FUObjectHashTables& HashTables = FUObjectHashTables::Get();
+	FHashTableLock HashLock(HashTables);
+
+	int64 TotalSize = 0;
+	
+	{
+		int64 Size = HashTables.Hash.GetAllocatedSize();
+		for (const TPair<int32, FHashBucket>& Pair : HashTables.Hash)
+		{
+			Size += Pair.Value.GetItemsSize();
+		}
+		if (bShowIndividualStats)
+		{
+			Ar.Logf(TEXT("Memory used by UObject Hash: %lld bytes."), Size);
+		}
+		TotalSize += Size;
+	}
+
+	{
+		int64 Size = HashTables.HashOuter.GetAllocatedSize();
+		if (bShowIndividualStats)
+		{
+			Ar.Logf(TEXT("Memory used by UObject Outer Hash: %lld bytes."), Size);
+		}
+		TotalSize += Size;
+	}
+
+	{
+		int64 Size = HashTables.ObjectOuterMap.GetAllocatedSize();
+		for (const TPair<UObjectBase*, FHashBucket>& Pair : HashTables.ObjectOuterMap)
+		{
+			Size += Pair.Value.GetItemsSize();
+		}
+		if (bShowIndividualStats)
+		{
+			Ar.Logf(TEXT("Memory used by UObject Outer Map: %lld bytes."), Size);
+		}
+		TotalSize += Size;
+	}
+
+	{
+		int64 Size = HashTables.ClassToObjectListMap.GetAllocatedSize();
+		for (const TPair<UClass*, FHashBucket>& Pair : HashTables.ClassToObjectListMap)
+		{
+			Size += Pair.Value.GetItemsSize();
+		}
+		if (bShowIndividualStats)
+		{
+			Ar.Logf(TEXT("Memory used by UClass To UObject List Map: %lld bytes."), Size);
+		}
+		TotalSize += Size;
+	}
+
+	{
+		int64 Size = HashTables.ClassToChildListMap.GetAllocatedSize();
+		for (const TPair<UClass*, TSet<UClass*> >& Pair : HashTables.ClassToChildListMap)
+		{
+			Size += Pair.Value.GetAllocatedSize();
+		}
+		if (bShowIndividualStats)
+		{
+			Ar.Logf(TEXT("Memory used by UClass To Child UClass List Map: %lld bytes."), Size);
+		}
+		TotalSize += Size;
+	}
+
+    {
+        int64 Size = GUObjectArray.GetAllocatedSize();
+        if (bShowIndividualStats)
+        {
+            Ar.Logf(TEXT("Memory used by UObjectArray: %lld bytes."), Size);
+        }
+        TotalSize += Size;
+    }
+    
+	Ar.Logf(TEXT("Total memory allocated by Object hash tables and maps: %lld bytes (%.2f MB)."), TotalSize, (double)TotalSize / 1024.0 / 1024.0);
+	Ar.Logf(TEXT(""));
+}

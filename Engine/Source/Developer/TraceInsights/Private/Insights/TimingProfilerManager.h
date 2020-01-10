@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -102,11 +102,6 @@ public:
 	const bool IsFramesTrackVisible() const { return bIsFramesTrackVisible; }
 	void SetFramesTrackVisible(const bool bIsVisible) { bIsFramesTrackVisible = bIsVisible; }
 	void ShowHideFramesTrack(const bool bIsVisible);
-
-	/** @return true, if Graph Track is visible */
-	const bool IsGraphTrackVisible() const { return bIsGraphTrackVisible; }
-	void SetGraphTrackVisible(const bool bIsVisible) { bIsGraphTrackVisible = bIsVisible; }
-	void ShowHideGraphTrack(const bool bIsVisible);
 
 	/** @return true, if Timing View is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }

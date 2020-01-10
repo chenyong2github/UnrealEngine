@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // ..
 
 #include "CoreMinimal.h"
@@ -2758,7 +2758,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 				
 				// Build source file name path
 				UE_LOG(LogShaders, Verbose, TEXT("[%d/%d] %s Main_%0.8x_%0.8x.o"), ++Index, Shaders.Num(), *Format.GetPlainNameString(), Len, CRC);
-				FString SourceFileNameParam = FString::Printf(TEXT("%s/Main_%0.8x_%0.8x.o"), *FPaths::ConvertRelativePathToFull(WorkingDir), Len, CRC);
+				FString SourceFileNameParam = FString::Printf(TEXT("\"%s/Main_%0.8x_%0.8x.o\""), *FPaths::ConvertRelativePathToFull(WorkingDir), Len, CRC);
 				
 				// Remote builds copy file and swizzle Source File Name param
 				if(bBuildingRemotely)
@@ -2835,19 +2835,8 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 					FGuid Guid = FGuid::NewGuid();
 					RemoteLibPath = OriginalRemoteLibPath + FString::Printf(TEXT(".%x%x%x%x"), Guid.A, Guid.B, Guid.C, Guid.D);
 				}
-
-				uint64 XcodeBuildVers = 0;
-				uint16 XcodeVers = GetXcodeVersion(XcodeBuildVers);
-				uint16 XcodeMajorVers = ((XcodeVers >> 8) & 0xff);
-
-				if (XcodeMajorVers >= 11)
-				{
-					Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
-				}
-				else
-				{
-					Params = FString::Printf(TEXT("-o=\"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
-				}
+			
+				Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
 				ReturnCode = 0;
 				Results = TEXT("");
 				Errors = TEXT("");

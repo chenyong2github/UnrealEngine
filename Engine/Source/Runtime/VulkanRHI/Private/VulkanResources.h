@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanResources.h: Vulkan resource RHI definitions.
@@ -1094,6 +1094,11 @@ public:
 	{
 		check(IsVolatile());
 		return VolatileLockInfo.LockCounter;
+	}
+	inline uint32 GetVolatileLockSize() const
+	{
+		check(IsVolatile());
+		return VolatileLockInfo.Size;
 	}
 
 	inline int32 GetNumBuffers() const

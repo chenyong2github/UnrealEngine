@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackErrorItem.h"
 #include "NiagaraEditorWidgetsStyle.h"
@@ -17,7 +17,7 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 {
 	ErrorItem = InErrorItem;
 	StackViewModel = InStackViewModel;
-	TSharedPtr<SHorizontalBox> ErrorInternalBox = SNew(SHorizontalBox);
+
 	const FSlateBrush* IconBrush;
 	switch (ErrorItem->GetStackIssue().GetSeverity())
 	{
@@ -34,34 +34,28 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 		IconBrush = FEditorStyle::GetBrush("NoBrush");
 		break;
 	}
-	ErrorInternalBox->AddSlot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-			.Text_UObject(ErrorItem, &UNiagaraStackErrorItem::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStackErrorItem::GetTextColorForSearch)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-		];
+
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.AutoWidth()
 		[
 			SNew(SImage)
 			.Image(IconBrush)
 		]
 		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.AutoWidth()
 		[
-			ErrorInternalBox.ToSharedRef()
+			SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text_UObject(ErrorItem, &UNiagaraStackErrorItem::GetDisplayName)
+			.ColorAndOpacity(this, &SNiagaraStackErrorItem::GetTextColorForSearch, FSlateColor::UseForeground())
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		]
 	];
 }
@@ -70,43 +64,31 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 {
 	ErrorItem = InErrorItem;
 	StackViewModel = InStackViewModel;
-	TSharedPtr<SHorizontalBox> ErrorInternalBox = SNew(SHorizontalBox);
-	ErrorInternalBox->AddSlot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-				.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
-				.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch)
-				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-		];
-	ErrorInternalBox->AddSlot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		.Padding(10, 0)
-		[
-			SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-					.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetFixButtonText)
-					.OnClicked_UObject(ErrorItem, &UNiagaraStackErrorItemFix::OnTryFixError)
-				]
-		];
+
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				ErrorInternalBox.ToSharedRef()
-			]
+		+ SHorizontalBox::Slot()
+		.Padding(0, 4, 0, 0)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
+			.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch, FSlateColor::UseForeground())
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.AutoWrapText(true)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(5, 0, 0, 0)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetFixButtonText)
+			.OnClicked_UObject(ErrorItem, &UNiagaraStackErrorItemFix::OnTryFixError)
+		]
 	];
 }
 

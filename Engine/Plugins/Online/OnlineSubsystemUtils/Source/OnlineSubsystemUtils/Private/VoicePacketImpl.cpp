@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VoicePacketImpl.h"
 #include "OnlineSubsystem.h"
@@ -10,6 +10,7 @@ FVoicePacketImpl::FVoicePacketImpl(const FVoicePacketImpl& Other) :
 	Sender = Other.Sender;
 	Length = Other.Length;
 	SampleCount = Other.SampleCount;
+	MicrophoneAmplitude = Other.MicrophoneAmplitude;
 
 	// Copy the contents of the voice packet
 	Buffer.Empty(Other.Length);
@@ -44,6 +45,8 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 		FString SenderStr;
 		Ar << SenderStr;
 
+		Ar << MicrophoneAmplitude;
+
 		// Don't need to distinguish OSS interfaces here with world because we just want the create function below
 		IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get();
 		IOnlineIdentityPtr IdentityInt = OnlineSub->GetIdentityInterface();
@@ -54,6 +57,8 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 		
 		Ar << Length;
 		Ar << SampleCount;
+		
+
 		// Verify the packet is a valid size
 		if (Length <= UVOIPStatics::GetMaxVoiceDataSize())
 		{
@@ -82,9 +87,11 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 		FString SenderStr = Sender->ToString();
 		Ar << SenderStr;
 		
+		Ar << MicrophoneAmplitude;
+
 		Ar << Length;
 		Ar << SampleCount;
-
+		
 		// Always safe to save the data as the voice code prevents overwrites
 		Ar.Serialize(Buffer.GetData(), Length);
 
@@ -98,4 +105,5 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 void FVoicePacketImpl::ResetData()
 {
 	Length = 0;
+	MicrophoneAmplitude = 0;
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Interaction.cpp: See .UC for for info
@@ -253,9 +253,9 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 
 			// build a help string
 			// append each property (and it's type) to the help string
-			for (TFieldIterator<UProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 			{
-				UProperty* Prop = *PropIt;
+				FProperty* Prop = *PropIt;
 				Desc += FString::Printf(TEXT("%s[%s] "), *Prop->GetName(), *Prop->GetCPPType());
 			}
 			AutoCompleteList[NewIdx].Desc = Desc + AutoCompleteList[NewIdx].Desc;
@@ -741,7 +741,7 @@ void UConsole::AppendInputText(const FString& Text)
 	while (TextMod.Len() > 0)
 	{
 		int32 Character = **TextMod.Left(1);
-		TextMod = TextMod.Mid(1);
+		TextMod.MidInline(1, MAX_int32, false);
 
 		if (Character >= 0x20 && Character < 0x100)
 		{
@@ -935,8 +935,8 @@ bool UConsole::InputKey_InputLine(int32 ControllerId, FKey Key, EInputEvent Even
 			if (!bGamepad)
 			{
 				return	Key != EKeys::LeftMouseButton
-					&& Key != EKeys::MiddleMouseButton
-					&& Key != EKeys::RightMouseButton;
+					&&	Key != EKeys::MiddleMouseButton
+					&&	Key != EKeys::RightMouseButton;
 			}
 			return false;
 		}
@@ -1345,14 +1345,14 @@ void UConsole::PostRender_Console(UCanvas* Canvas)
 	{
 		Canvas->ApplySafeZoneTransform();
 
-		if (ConsoleState == NAME_Typing)
-		{
-			PostRender_Console_Typing(Canvas);
-		}
-		else if (ConsoleState == NAME_Open)
-		{
-			PostRender_Console_Open(Canvas);
-		}
+	if (ConsoleState == NAME_Typing)
+	{
+		PostRender_Console_Typing(Canvas);
+	}
+	else if (ConsoleState == NAME_Open)
+	{
+		PostRender_Console_Open(Canvas);
+	}
 
 		Canvas->PopSafeZoneTransform();
 	}

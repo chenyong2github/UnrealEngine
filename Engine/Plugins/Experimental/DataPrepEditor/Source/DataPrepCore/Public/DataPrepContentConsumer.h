@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -108,6 +108,8 @@ public:
 	 */
 	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason );
 
+	const FString& GetLevelName() { return LevelName; }
+
 	/**
 	 * Sets the path of the package the consumer should move assets to if applicable.
 	 * Generally, this package path is substituted to the temporary path the assets are in
@@ -117,9 +119,13 @@ public:
 	 */
 	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason );
 
-	const FString& GetLevelName() { return LevelName; }
-
 	const FString& GetTargetContentFolder() { return TargetContentFolder; }
+
+	/**
+	 * Returns a well-formed path to use when calling CreatePackage to create the target package.
+	 * @remark 
+	 */
+	FString GetTargetPackagePath() const;
 
 	/**
 	 * Allow an observer to be notified when one of the properties of the consumer changes

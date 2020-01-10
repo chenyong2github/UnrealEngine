@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,6 +43,7 @@ class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject, public FEditorU
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnSearchCompleted);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataObjectChanged, UObject* /** Changed Object */);
 public:
 	struct FSearchResult
 	{
@@ -89,14 +90,19 @@ public:
 
 	FOnStructureChanged& OnStructureChanged();
 	FOnSearchCompleted& OnSearchCompleted();
+	FOnDataObjectChanged& OnDataObjectChanged();
 
 	bool GetShowAllAdvanced() const;
 	void SetShowAllAdvanced(bool bInShowAllAdvanced);
 
 	bool GetShowOutputs() const;
 	void SetShowOutputs(bool bInShowOutputs);
+
 	bool GetShowLinkedInputs() const;
 	void SetShowLinkedInputs(bool bInShowLinkedInputs);
+
+	bool GetShowOnlyIssues() const;
+	void SetShowOnlyIssues(bool bInShowOnlyIssues);
 
 	double GetLastScrollPosition() const;
 	void SetLastScrollPosition(double InLastScrollPosition);
@@ -116,6 +122,9 @@ public:
 	int GetCurrentFocusedMatchIndex() const { return CurrentFocusedSearchMatchIndex; }
 	UNiagaraStackEntry* GetCurrentFocusedEntry();
 	void AddSearchScrollOffset(int NumberOfSteps);
+
+	void OnCycleThroughIssues();
+	UNiagaraStackEntry* GetCurrentFocusedIssue() const;
 
 	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
@@ -178,6 +187,7 @@ private:
 	bool bExternalRootEntry;
 
 	FOnStructureChanged StructureChangedDelegate;
+	FOnDataObjectChanged DataObjectChangedDelegate;
 
 	// ~Search stuff
 	FText CurrentSearchText;
@@ -190,6 +200,7 @@ private:
 	bool bRestartSearch;
 	bool bRefreshPending;
 	bool bHasIssues;
+	int32 CurrentIssueCycleIndex;
 
 	bool bUsesTopLevelViewModels;
 	TArray<TSharedRef<FTopLevelViewModel>> TopLevelViewModels;

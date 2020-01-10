@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -71,7 +71,7 @@ public:
 		float MaxSpriteSize(SpriteSizeAccessor.IsValid() ? 0.0f : kDefaultSize);
 		float MaxRibbonWidth(RibbonWidthAccessor.IsValid() ? 0.0f : kDefaultSize);
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		bOutContainsNaN = false;
 #endif
 
@@ -83,6 +83,7 @@ public:
 			FVector Position;
 			PositionAccessor.Get(InstIdx, Position);
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 			// Some graphs have a tendency to divide by zero. This ContainsNaN has been added prophylactically
 			// to keep us safe during GDC. It should be removed as soon as we feel safe that scripts are appropriately warned.
 			if (Position.ContainsNaN())
@@ -90,6 +91,7 @@ public:
 				bOutContainsNaN = true;
 				continue;
 			}
+#endif
 
 			Ret += Position;
 

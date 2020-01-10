@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShared.cpp: Shared material implementation.
@@ -52,6 +52,29 @@ FAutoConsoleVariableRef CVarDeferUniformExpressionCaching(
 	TEXT("Whether to defer caching of uniform expressions until a rendering command needs them up to date.  Deferring updates is more efficient because multiple SetVectorParameterValue calls in a frame will only result in one update."),
 	ECVF_RenderThreadSafe
 	);
+
+struct FAllowCachingStaticParameterValues
+{
+	FAllowCachingStaticParameterValues(FMaterial& InMaterial)
+#if WITH_EDITOR
+		: Material(InMaterial)
+#endif // WITH_EDITOR
+	{
+#if WITH_EDITOR
+		Material.BeginAllowCachingStaticParameterValues();
+#endif // WITH_EDITOR
+	};
+
+#if WITH_EDITOR
+	~FAllowCachingStaticParameterValues()
+	{
+		Material.EndAllowCachingStaticParameterValues();
+	}
+
+private:
+	FMaterial& Material;
+#endif // WITH_EDITOR
+};
 
 static FAutoConsoleCommand GFlushMaterialUniforms(
 	TEXT("r.FlushMaterialUniforms"),
@@ -1761,6 +1784,7 @@ void FMaterial::SetupMaterialEnvironment(
  */
 bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
 {
+	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
 	FMaterialShaderMapId NoStaticParametersId;
 	GetShaderMapId(Platform, NoStaticParametersId);
 	FStaticParameterSet StaticParameterSet;
@@ -1809,8 +1833,9 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, const FSta
 		// See FMaterialShaderMap::ProcessCompilationResults().
 		if  (GetMaterialShaderMapUsage() != EMaterialShaderMapUsage::DebugViewMode)
 		{
-			// Attempt to load from the derived data cache if we are uncooked
-			if ((!ShaderMap || !ShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
+			// Attempt to load from the derived data cache if we are uncooked and don't have any shadermap.
+			// If we have an incomplete shadermap, continue with it to prevent creation of duplicate shadermaps for the same ShaderMapId
+			if (!ShaderMap && !FPlatformProperties::RequiresCookedData()) 
 			{
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
 				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, LoadedShaderMap);
@@ -2447,6 +2472,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	OutUniformExpressionCache.ParameterCollections = UniformExpressionSet.ParameterCollections;
 
 	OutUniformExpressionCache.bUpToDate = true;
+	++UniformExpressionCacheSerialNumber;
 }
 
 void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
@@ -2499,6 +2525,7 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 		HasVirtualTextureCallbacks = false;
 	}
 
+	++UniformExpressionCacheSerialNumber;
 	for (int32 i = 0; i < ERHIFeatureLevel::Num; ++i)
 	{
 		UniformExpressionCache[i].bUpToDate = false;
@@ -2524,7 +2551,7 @@ void FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel
 
 		// Don't cache uniform expressions if an entirely different FMaterialRenderProxy is going to be used for rendering
 		if (!FallbackMaterialRenderProxy)
-{
+		{
 			FMaterialRenderContext MaterialRenderContext(this, Material, nullptr);
 			MaterialRenderContext.bShowSelection = GIsEditor;
 			EvaluateUniformExpressions(UniformExpressionCache[InFeatureLevel], MaterialRenderContext);
@@ -2598,6 +2625,7 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 
 	check(IsInRenderingThread());
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Material_UpdateDeferredCachedUniformExpressions);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateDeferredCachedUniformExpressions);
 
 	for (TSet<FMaterialRenderProxy*>::TConstIterator It(DeferredUniformExpressionCacheRequests); It; ++It)

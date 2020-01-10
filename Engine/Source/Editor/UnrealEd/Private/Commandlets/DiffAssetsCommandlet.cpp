@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Commandlet to allow diff in P4V, and expose that functionality to the editor
@@ -180,14 +180,14 @@ bool UDiffAssetsCommandlet::ExportFilesToTextAndDiff(const FString& InFilename1,
 		}
 	}
 
-	FString ReplacedDiffCmd = DiffCommand.Replace(TEXT("{1}"), *TextFilename1).Replace(TEXT("{2}"), *TextFilename2);
+	FString ReplacedDiffCmd = DiffCommand.Replace(TEXT("{1}"), *TextFilename1, ESearchCase::CaseSensitive).Replace(TEXT("{2}"), *TextFilename2, ESearchCase::CaseSensitive);
 
-	int32 ArgsAt = DiffCommand.Find(TEXT("{1}")) - 1;
+	int32 ArgsAt = DiffCommand.Find(TEXT("{1}"), ESearchCase::CaseSensitive) - 1;
 	FString Args;
 	if (ArgsAt > 0)
 	{
 		Args = *ReplacedDiffCmd + ArgsAt + 1;
-		ReplacedDiffCmd = ReplacedDiffCmd.Left(ArgsAt);
+		ReplacedDiffCmd.LeftInline(ArgsAt, false);
 	}
 
 	if (!FPlatformProcess::CreateProc(*ReplacedDiffCmd, *Args, true, false, false, NULL, 0, NULL, NULL).IsValid())

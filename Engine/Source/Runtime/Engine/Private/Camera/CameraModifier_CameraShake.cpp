@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraShake.h"
@@ -40,9 +40,10 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 				// Compute the scale of this shake for this frame according to the location
 				// of its source.
 				float CurShakeAlpha = Alpha;
-				if (ShakeInfo.ShakeSource != nullptr)
+				if (ShakeInfo.ShakeSource.IsValid())
 				{
-					const float AttenuationFactor = ShakeInfo.ShakeSource->GetAttenuationFactor(InOutPOV.Location);
+					const UCameraShakeSourceComponent* SourceComponent = ShakeInfo.ShakeSource.Get();
+					const float AttenuationFactor = SourceComponent->GetAttenuationFactor(InOutPOV.Location);
 					CurShakeAlpha *= AttenuationFactor;
 				}
 
@@ -54,7 +55,7 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 		for (int32 i = ActiveShakes.Num() - 1; i >= 0; i--)
 		{
 			FActiveCameraShakeInfo ShakeInfo = ActiveShakes[i]; // Copy struct, we're going to maybe delete it.
-			if (ShakeInfo.ShakeInstance == nullptr || ShakeInfo.ShakeInstance->IsFinished())
+			if (ShakeInfo.ShakeInstance == nullptr || ShakeInfo.ShakeInstance->IsFinished() || ShakeInfo.ShakeSource.IsStale())
 			{
 				ActiveShakes.RemoveAt(i, 1);
 
@@ -81,10 +82,10 @@ UCameraShake* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraSha
 	if (ShakeClass != nullptr)
 	{
 		float Scale = Params.Scale;
-		UCameraShakeSourceComponent* SourceComponent = Params.SourceComponent;
+		const UCameraShakeSourceComponent* SourceComponent = Params.SourceComponent;
 
 		// Adjust for splitscreen
-		if (GEngine->IsSplitScreen(CameraOwner->GetWorld()))
+		if (CameraOwner != nullptr && GEngine->IsSplitScreen(CameraOwner->GetWorld()))
 		{
 			Scale *= SplitScreenShakeScale;
 		}
@@ -180,6 +181,11 @@ UCameraShake* UCameraModifier_CameraShake::ReclaimShakeFromExpiredPool(TSubclass
 	return nullptr;
 }
 
+void UCameraModifier_CameraShake::GetActiveCameraShakes(TArray<FActiveCameraShakeInfo>& ActiveCameraShakes) const
+{
+	ActiveCameraShakes.Append(ActiveShakes);
+}
+
 void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShake* ShakeInst, bool bImmediately)
 {
 	for (int32 i = 0; i < ActiveShakes.Num(); ++i)
@@ -216,12 +222,12 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCame
 	}
 }
 
-void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	for (int32 i = ActiveShakes.Num() - 1; i >= 0; --i)
 	{
 		FActiveCameraShakeInfo ShakeInfo = ActiveShakes[i];  // Copy struct because we might delete it.
-		if (ShakeInfo.ShakeSource == SourceComponent && ShakeInfo.ShakeInstance != nullptr)
+		if (ShakeInfo.ShakeSource.Get() == SourceComponent && ShakeInfo.ShakeInstance != nullptr)
 		{
 			ShakeInfo.ShakeInstance->StopShake(bImmediately);
 			if (bImmediately)

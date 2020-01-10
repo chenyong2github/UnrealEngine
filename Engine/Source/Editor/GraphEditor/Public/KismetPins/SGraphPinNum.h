@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -55,6 +55,11 @@ protected:
 
 	void SetNumericValue(NumericType InValue, ETextCommit::Type CommitType)
 	{
+		if(GraphPinObj->IsPendingKill())
+		{
+			return;
+		}
+
 		const FString TypeValueString = LexToString(InValue);
 		if (GraphPinObj->GetDefaultAsString() != TypeValueString)
 		{

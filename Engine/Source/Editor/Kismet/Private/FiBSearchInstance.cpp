@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "FiBSearchInstance.h"
 
 /** All operators when evaluating FiB searched expressions must return this token, it helps to manage
@@ -257,6 +257,8 @@ void FFiBSearchInstance::BuildFunctionTargetsByName(FImaginaryFiBDataSharedPtr I
 
 bool FFiBSearchInstance::OnFilterFunction(const FTextFilterString& A, ESearchQueryFilter InSearchQueryFilter)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, OnFilterFunction);
+
 	if (CurrentSearchable.IsValid())
 	{
 		TSharedPtr< FFiBSearchInstance > SubSearchInstance(new FFiBSearchInstance);
@@ -299,6 +301,8 @@ bool FFiBSearchInstance::OnFilterFunction(const FTextFilterString& A, ESearchQue
 
 bool FFiBSearchInstance::OnFilterDefaultFunction(const FTextFilterString& InFunctionName, const FTextFilterString& InFunctionParams)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, OnFilterDefaultFunction);
+
 	if (CurrentSearchable.IsValid())
 	{
 		TSharedPtr< FFiBSearchInstance > SubSearchInstance(new FFiBSearchInstance);
@@ -336,6 +340,8 @@ bool FFiBSearchInstance::OnFilterDefaultFunction(const FTextFilterString& InFunc
 
 bool FFindInBlueprintExpressionEvaluator::EvaluateCompiledExpression(const ExpressionParser::CompileResultType& InCompiledResult, const ITextFilterExpressionContext& InContext, FText* OutErrorText) const
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, EvaluateCompiledExpression);
+
 	using namespace TextFilterExpressionParser;
 	using TextFilterExpressionParser::FTextToken;
 

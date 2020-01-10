@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 UnrealEngine.cpp: Implements the UEngine class and helpers.
@@ -228,6 +228,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "ObjectTrace.h"
+#include "Animation/AnimTrace.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -263,6 +265,14 @@ void FEngineModule::StartupModule()
 
 #if WITH_EDITOR
 	USkinnedMeshComponent::BindWorldDelegates();
+#endif
+
+#if OBJECT_TRACE_ENABLED
+	FObjectTrace::Init();
+#endif
+
+#if ANIM_TRACE_ENABLED
+	FAnimTrace::Init();
 #endif
 }
 
@@ -646,7 +656,8 @@ bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY, int3
 					StringTripLen = 1;
 				}
 
-				YString = YString.Left(YString.Len() - StringTripLen).TrimStartAndEnd();
+				YString.LeftInline(YString.Len() - StringTripLen, false);
+				YString.TrimStartAndEndInline();
 			}
 
 			if (YString.IsNumeric())
@@ -1707,6 +1718,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
+
+#if !UE_BUILD_SHIPPING
+	UE_CLOG(FPlatformMemory::IsExtraDevelopmentMemoryAvailable(), LogInit, Warning, TEXT("Running with %dMB of extra development memory!"),FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull);
+#endif
 }
 
 void UEngine::Start()
@@ -1947,6 +1962,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 															// Figure out whether we want to use real or fixed time step.
 	const bool bUseFixedTimeStep = FApp::IsBenchmarking() || FApp::UseFixedTimeStep();
+	static bool bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 	// Updates logical last time to match logical current time from last tick
 	FApp::UpdateLastTime();
@@ -1969,11 +1985,11 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 		// Did we just switch from a fixed time step to real-time?  If so, then we'll update our
 		// cached 'last time' so our current interval isn't huge (or negative!)
-		if( bTimeWasManipulated )
+		if (bUseFixedTimeStep != bPreviousUseFixedTimeStep)
 		{
-			if ( bUseFixedFrameRate )
+			if (bUseFixedFrameRate)
 			{
-				LastRealTime = CurrentRealTime - (1.0/FixedFrameRate);
+				LastRealTime = CurrentRealTime - (1.0 / FixedFrameRate);
 			}
 			else
 			{
@@ -2125,6 +2141,8 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			}
 		}
 	}
+
+	bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 #if !UE_BUILD_SHIPPING
 	{
@@ -3325,11 +3343,11 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 	}
 }
 
-APlayerController* UEngine::GetFirstLocalPlayerController(UWorld *InWorld)
+APlayerController* UEngine::GetFirstLocalPlayerController(const UWorld* InWorld)
 {
-	const FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
+	const FWorldContext& Context = GetWorldContextFromWorldChecked(InWorld);
 
-	return ( Context.OwningGameInstance != NULL ) ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : NULL;
+	return (Context.OwningGameInstance ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : nullptr);
 }
 
 void UEngine::GetAllLocalPlayerControllers(TArray<APlayerController*> & PlayerList)
@@ -4908,9 +4926,9 @@ bool UEngine::HandleDumpLevelScriptActorsCommand( UWorld* InWorld, const TCHAR* 
 			if( LSActor )
 			{
 				UE_LOG(LogEngine, Log, TEXT("--- %s (%s) ---"), *LSActor->GetName(), *LSActor->GetOutermost()->GetName())
-					for( TFieldIterator<UProperty> PropertyIt(LSActor->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
+					for( TFieldIterator<FProperty> PropertyIt(LSActor->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
 					{
-						UObjectPropertyBase* MyProperty = Cast<UObjectPropertyBase>(*PropertyIt);
+						FObjectPropertyBase* MyProperty = CastField<FObjectPropertyBase>(*PropertyIt);
 						if( MyProperty )
 						{
 							UObject* PointedObject = NULL;
@@ -6506,7 +6524,7 @@ bool UEngine::HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorl
 		const TCHAR* LocalCmd = *CmdCopy;
 		FString Token = FParse::Token( LocalCmd, true );
 		Tokens.Add( Token );
-		CmdCopy = CmdCopy.Right( CmdCopy.Len() - Token.Len() - 1 );
+		CmdCopy.RightInline( CmdCopy.Len() - Token.Len() - 1, false);
 	}
 
 	// array of source meshes that will be merged
@@ -6664,10 +6682,10 @@ static int32 FindAmountSavedWithCutoff(UClass* AnalyzedClass, int32 PercentageAl
 		bool bIsOnChoppingBlock;
 	};
 
-	TMap<UProperty*, FPerPropInfo> PropertyDiffCount;
+	TMap<FProperty*, FPerPropInfo> PropertyDiffCount;
 
 	// work on each property of the class
-	for (TFieldIterator<UProperty> It(AnalyzedClass); It; ++It)
+	for (TFieldIterator<FProperty> It(AnalyzedClass); It; ++It)
 	{
 		PropertyDiffCount.Add(*It, FPerPropInfo(It->GetSize()));
 	}
@@ -7700,7 +7718,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				}
 #endif
 				UClass* LastOwnerClass = NULL;
-				for ( TFieldIterator<UProperty> It(Obj->GetClass()); It; ++It )
+				for ( TFieldIterator<FProperty> It(Obj->GetClass()); It; ++It )
 				{
 					UClass* Owner = It->GetOwnerClass();
 
@@ -7768,7 +7786,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 					}
 					else
 					{
-						UArrayProperty* ArrayProp = Cast<UArrayProperty>(*It);
+						FArrayProperty* ArrayProp = CastField<FArrayProperty>(*It);
 						if ( ArrayProp != NULL )
 						{
 							FScriptArrayHelper_InContainer ArrayHelper(ArrayProp, Obj);
@@ -7826,6 +7844,12 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		const bool bShowHashBucketCollisionInfo = FParse::Param(Cmd, TEXT("SHOWBUCKETCOLLISIONS"));
 		LogHashOuterStatistics(Ar, bShowHashBucketCollisionInfo);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("OVERHEAD")))
+	{
+		const bool bShowIndividualStats = FParse::Param(Cmd, TEXT("DETAILED"));
+		LogHashMemoryOverheadStatistics(Ar, bShowIndividualStats);
 		return true;
 	}
 #endif
@@ -9489,7 +9513,7 @@ struct FCompareFSoundInfoByWaveInstNum
 };
 
 /** draws a property of the given object on the screen similarly to stats */
-static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDisplayProperty& PropData, UProperty* Prop, int32 X, int32& Y)
+static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDisplayProperty& PropData, FProperty* Prop, int32 X, int32& Y)
 {
 #if !UE_BUILD_SHIPPING
 	checkSlow(PropData.bSpecialProperty || Prop != NULL);
@@ -9593,11 +9617,11 @@ static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDispla
 	do
 	{
 		FString Str = ValueText;
-		CommaIdx = ValueText.Find( TEXT(",") );
+		CommaIdx = ValueText.Find( TEXT(","), ESearchCase::CaseSensitive);
 		if( CommaIdx >= 0 )
 		{
 			Str = ValueText.Left(CommaIdx);
-			ValueText = ValueText.Mid( CommaIdx+1 );
+			ValueText.MidInline( CommaIdx+1, MAX_int32, false );
 		}
 
 		int32 XL, YL;
@@ -10296,7 +10320,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			UClass* Cls = Cast<UClass>(DebugProperties[i].Obj);
 			if (Cls != NULL)
 			{
-				UProperty* Prop = FindField<UProperty>(Cls, DebugProperties[i].PropertyName);
+				FProperty* Prop = FindField<FProperty>(Cls, DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					// getall
@@ -10317,7 +10341,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			}
 			else
 			{
-				UProperty* Prop = FindField<UProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
+				FProperty* Prop = FindField<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					DrawProperty(CanvasObject, DebugProperties[i].Obj, DebugProperties[i], Prop, X, Y);
@@ -11564,7 +11588,7 @@ void UEngine::SpawnServerActors(UWorld *World)
 				if( Value )
 				{
 					*Value++ = 0;
-					for( TFieldIterator<UProperty> It(Actor->GetClass()); It; ++It )
+					for( TFieldIterator<FProperty> It(Actor->GetClass()); It; ++It )
 					{
 						if(	FCString::Stricmp(*It->GetName(),Str)==0
 							&&	(It->PropertyFlags & CPF_Config) )
@@ -14003,7 +14027,7 @@ public:
 	virtual void MarkScriptSerializationEnd(const UObject* Object) override   { CloseTaggedDataScope(); }
 
 #if WITH_EDITOR
-	virtual bool ShouldSkipProperty(const class UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
 		static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
 		return bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName);
@@ -14099,10 +14123,10 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 
 	// If the new object is an Actor, save the root component reference, to be restored later
 	USceneComponent* SavedRootComponent = nullptr;
-	UObjectProperty* RootComponentProperty = nullptr;
+	FObjectProperty* RootComponentProperty = nullptr;
 	if (NewActor != nullptr && Params.bPreserveRootComponent)
 	{
-		RootComponentProperty = FindField<UObjectProperty>(NewActor->GetClass(), "RootComponent");
+		RootComponentProperty = FindField<FObjectProperty>(NewActor->GetClass(), "RootComponent");
 		if (RootComponentProperty != nullptr)
 		{
 			SavedRootComponent = Cast<USceneComponent>(RootComponentProperty->GetObjectPropertyValue_InContainer(NewActor));

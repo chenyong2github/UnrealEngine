@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -79,6 +79,7 @@ public:
 	FTargetPlatformManagerModule()
 		: bRestrictFormatsToRuntimeOnly(false)
 		, bForceCacheUpdate(true)
+		, bHasInitErrors(false)
 		, bIgnoreFirstDelegateCall(true)
 	{
 #if AUTOSDKS_ENABLED		
@@ -111,15 +112,9 @@ public:
 			}
 		}
 #endif
-
-		SetupSDKStatus();
-		//GetTargetPlatforms(); redudant with next call
-		GetActiveTargetPlatforms();
-		GetAudioFormats();
-		GetTextureFormats();
-		GetShaderFormats();
-
-		bForceCacheUpdate = false;
+		// Calling a virtual function from a constructor, but with no expectation that a derived implementation of this
+		// method would be called.  This is solely to avoid duplicating code in this implementation, not for polymorphism.
+		FTargetPlatformManagerModule::Invalidate();
 
 		FModuleManager::Get().OnModulesChanged().AddRaw(this, &FTargetPlatformManagerModule::ModulesChangesCallback);
 	}
@@ -134,6 +129,15 @@ public:
 
 	// ITargetPlatformManagerModule interface
 
+	virtual bool HasInitErrors(FString* OutErrorMessages) const
+	{
+		if (OutErrorMessages)
+		{
+			*OutErrorMessages = InitErrorMessages;
+		}
+		return bHasInitErrors;
+	}
+
 	virtual void Invalidate() override
 	{
 		bForceCacheUpdate = true;
@@ -141,9 +145,14 @@ public:
 		SetupSDKStatus();
 		//GetTargetPlatforms(); redudant with next call
 		GetActiveTargetPlatforms();
-		GetAudioFormats();
-		GetTextureFormats();
-		GetShaderFormats();
+
+		// If we've had an error due to an invalid target platform, don't do additional work
+		if (!bHasInitErrors)
+		{
+			GetAudioFormats();
+			GetTextureFormats();
+			GetShaderFormats();
+		}
 
 		bForceCacheUpdate = false;
 	}
@@ -234,6 +243,8 @@ public:
 		if (!bInitialized || bForceCacheUpdate)
 		{
 			bInitialized = true;
+			bHasInitErrors = false; // If we had errors before, reset the flag and see later in this function if there are errors.
+			InitErrorMessages.Empty();
 
 			Results.Empty(Results.Num());
 
@@ -276,9 +287,11 @@ public:
 					if (Results.Num() == 0)
 					{
 						// An invalid platform was specified...
-						// Inform the user and exit.
+						// Inform the user.
+						bHasInitErrors = true;
+						InitErrorMessages.Appendf(TEXT("Invalid target platform specified (%s). Available = { %s } "), *PlatformStr, *AvailablePlatforms);
 						UE_LOG(LogTargetPlatformManager, Error, TEXT("Invalid target platform specified (%s). Available = { %s } "), *PlatformStr, *AvailablePlatforms);
-						UE_LOG(LogTargetPlatformManager, Fatal, TEXT("Invalid target platform specified (%s). Available = { %s } "), *PlatformStr, *AvailablePlatforms);
+						return Results;
 					}
 				}
 			}
@@ -1109,6 +1122,8 @@ private:
 		SDKStatusMessage += Message;
 	}
 
+	FString InitErrorMessages;
+
 	// If true we should build formats that are actually required for use by the runtime. 
 	// This happens for an ordinary editor run and more specifically whenever there is no
 	// TargetPlatform= on the command line.
@@ -1117,6 +1132,9 @@ private:
 	// Flag to force reinitialization of all cached data. This is needed to have up-to-date caches
 	// in case of a module reload of a TargetPlatform-Module.
 	bool bForceCacheUpdate;
+
+	// Flag to indicate that there were errors during initialization
+	bool bHasInitErrors;
 
 	// Flag to avoid redunant reloads
 	bool bIgnoreFirstDelegateCall;

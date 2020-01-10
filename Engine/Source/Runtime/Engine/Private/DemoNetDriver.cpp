@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UDemoNetDriver.cpp: Simulated network driver for recording and playing back game sessions.
@@ -82,6 +82,7 @@ static FAutoConsoleVariableRef CVarDemoSaveRollbackActorState( TEXT( "demo.SaveR
 static TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes(TEXT("demo.WithLevelStreamingFixes"), 0, TEXT("If 1, provides fixes for level streaming (but breaks backwards compatibility)."));
 static TAutoConsoleVariable<int32> CVarWithDemoTimeBurnIn(TEXT("demo.WithTimeBurnIn"), 0, TEXT("If true, adds an on screen message with the current DemoTime and Changelist."));
 static TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints(TEXT("demo.WithDeltaCheckpoints"), 0, TEXT("If true, record checkpoints as a delta from the previous checkpoint."));
+static TAutoConsoleVariable<int32> CVarWithGameSpecificFrameData(TEXT("demo.WithGameSpecificFrameData"), 0, TEXT("If true, allow game specific data to be recorded with each demo frame."));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarDemoForceFailure( TEXT( "demo.ForceFailure" ), 0, TEXT( "" ) );
@@ -830,6 +831,8 @@ void UDemoNetDriver::ResetDemoState()
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
+	PlaybackFrames.Empty();
+
 	ClearLevelStreamingState();
 }
 
@@ -958,6 +961,8 @@ bool UDemoNetDriver::ReadPlaybackDemoHeader(FString& Error)
 		return false;
 	}
 
+	bHasGameSpecificFrameData = EnumHasAnyFlags(PlaybackDemoHeader.HeaderFlags, EReplayHeaderFlags::GameSpecificFrameData);
+
 	// Set network version on connection
 	ServerConnection->EngineNetworkProtocolVersion = PlaybackDemoHeader.EngineNetworkProtocolVersion;
 	ServerConnection->GameNetworkProtocolVersion = PlaybackDemoHeader.GameNetworkProtocolVersion;
@@ -1070,6 +1075,7 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 	// During playback the CVars won't be used. Instead, we'll rely on the DemoPacketHeader value.
 	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread();
 	bHasDeltaCheckpoints = !!CVarWithDeltaCheckpoints.GetValueOnAnyThread() && ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta);
+	bHasGameSpecificFrameData = !!CVarWithGameSpecificFrameData.GetValueOnAnyThread();
 
 	// Recording, local machine is server, demo stream acts "as if" it's a client.
 	UDemoNetConnection* Connection = NewObject<UDemoNetConnection>();
@@ -1297,6 +1303,11 @@ bool UDemoNetDriver::WriteNetworkDemoHeader(FString& Error)
 	if (HasDeltaCheckpoints())
 	{
 		DemoHeader.HeaderFlags |= EReplayHeaderFlags::DeltaCheckpoints;
+	}
+
+	if (HasGameSpecificFrameData())
+	{
+		DemoHeader.HeaderFlags |= EReplayHeaderFlags::GameSpecificFrameData;
 	}
 
 	DemoHeader.Guid = FGuid::NewGuid();
@@ -2166,7 +2177,7 @@ void UDemoNetDriver::TickCheckpoint()
 						TGuardValue<uint32> NumLevelsAddedThisFrameGuard(NumLevelsAddedThisFrame, AllLevelStatuses.Num());
 
 						// Write out all of the queued up packets generated while saving the checkpoint
-						WriteDemoFrameFromQueuedDemoPackets( *CheckpointArchive, ClientConnection->QueuedCheckpointPackets, static_cast<float>(LastCheckpointTime) );
+						WriteDemoFrameFromQueuedDemoPackets( *CheckpointArchive, ClientConnection->QueuedCheckpointPackets, static_cast<float>(LastCheckpointTime), EWriteDemoFrameFlags::SkipGameSpecific );
 
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_Finalize;
 					}
@@ -2832,15 +2843,15 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 		ReplicatePrioritizedActors(PrioritizedActors.GetData(), PrioritizedActors.Num(), Params);
 	}
 
-	LastReplayFrameFidelity = (float)Params.NumActorsReplicated / (float)NumPrioritizedActors;
-
 	CSV_CUSTOM_STAT(Basic, DemoNumReplicatedActors, Params.NumActorsReplicated, ECsvCustomStatOp::Set);
 
 	FlushNetChecked(*ClientConnection);
 
-	WriteDemoFrameFromQueuedDemoPackets(*FileAr, ClientConnection->QueuedDemoPackets, DemoCurrentTime);
-	
-	AdjustConsiderTime((float)Params.NumActorsReplicated / (float)NumPrioritizedActors);
+	WriteDemoFrameFromQueuedDemoPackets(*FileAr, ClientConnection->QueuedDemoPackets, DemoCurrentTime, EWriteDemoFrameFlags::None);
+
+	float ReplicatedPercent = NumPrioritizedActors != 0 ? (float)Params.NumActorsReplicated / (float)NumPrioritizedActors : 1.0f;
+	AdjustConsiderTime(ReplicatedPercent);
+	LastReplayFrameFidelity = ReplicatedPercent;
 }
 
 bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const class FRepActorsParams& Params)
@@ -3216,6 +3227,27 @@ bool UDemoNetDriver::ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlay
 		Ar.Seek(Ar.Tell() + SkipExternalOffset);
 	}
 
+	FArchivePos SkipGameSpecificOffset = 0;
+	if (HasGameSpecificFrameData())
+	{
+		Ar << SkipGameSpecificOffset;
+
+		if ((SkipGameSpecificOffset > 0) && !bForLevelFastForward)
+		{
+			FDemoFrameDataMap Data;
+			Ar << Data;
+
+			if (Data.Num() > 0)
+			{
+				PlaybackFrames.Emplace(TimeSeconds, MoveTemp(Data));
+			}
+		}
+		else
+		{
+			Ar.Seek(Ar.Tell() + SkipGameSpecificOffset);
+		}
+	}
+
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Demo_ReadPackets"), Demo_ReadPackets, STATGROUP_Net);
 
@@ -3492,6 +3524,8 @@ void UDemoNetDriver::ProcessAllPlaybackPackets()
 {
 	ProcessPlaybackPackets(PlaybackPackets);
 	PlaybackPackets.Empty();
+	// this call is used for checkpoint loading, so not dealing with per frame data
+	PlaybackFrames.Empty();
 }
 
 void UDemoNetDriver::ProcessPlaybackPackets(TArrayView<FPlaybackPacket> Packets)
@@ -3529,7 +3563,7 @@ bool UDemoNetDriver::ProcessPacket(const uint8* Data, int32 Count)
 	return true;
 }
 
-void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime)
+void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags)
 {
 	Ar << CurrentLevelIndex;
 	
@@ -3579,6 +3613,19 @@ void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQ
 
 		// Save external data
 		SaveExternalData( Ar );
+	}
+
+	if (HasGameSpecificFrameData())
+	{
+		FScopedStoreArchiveOffset ScopedOffset(Ar);
+
+		if (!EnumHasAnyFlags(Flags, EWriteDemoFrameFlags::SkipGameSpecific))
+		{
+			FDemoFrameDataMap Data;
+			FNetworkReplayDelegates::OnWriteGameSpecificFrameData.Broadcast(GetWorld(), FrameTime, Data);
+
+			Ar << Data;
+		}
 	}
 
 	for (FQueuedDemoPacket& DemoPacket : QueuedPackets)
@@ -3936,6 +3983,20 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 
 			PlaybackPackets.RemoveAt(0, PlaybackPacketIndex);
 			PlaybackPacketIndex = 0;
+		}
+
+		// Process playback frames
+		for (auto It = PlaybackFrames.CreateIterator(); It; ++It)
+		{
+			if (It.Key() <= DemoCurrentTime)
+			{
+				if (!bIsFastForwarding)
+				{
+					FNetworkReplayDelegates::OnProcessGameSpecificFrameData.Broadcast(World, It.Key(), It.Value());
+				}
+	
+				It.RemoveCurrent();
+			}
 		}
 	}
 
@@ -5145,6 +5206,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
+	PlaybackFrames.Empty();
 
 	// Destroy startup actors that need to rollback via being destroyed and re-created
 	for (FActorIterator It(GetWorld()); It; ++It)
@@ -5447,6 +5509,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			}
 
 			PlaybackPackets.Empty();
+			PlaybackFrames.Empty();
 
 			if (DemoConnection)
 			{
@@ -6622,6 +6685,14 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 			for (const FPlaybackPacket& Packet : PlaybackPackets)
 			{
 				Packet.CountBytes(Ar);
+			}
+		);
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackFrames",
+			PlaybackFrames.CountBytes(Ar);
+			for (auto& Frame : PlaybackFrames)
+			{
+				Frame.Value.CountBytes(Ar);
 			}
 		);
 

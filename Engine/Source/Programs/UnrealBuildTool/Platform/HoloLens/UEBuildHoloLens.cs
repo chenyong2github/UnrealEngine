@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -784,14 +784,9 @@ namespace UnrealBuildTool
 			HoloLensPlatformSDK SDK = new HoloLensPlatformSDK();
 			SDK.ManageAndValidateSDK();
 
-			// Register this build platform for HoloLens
-			if (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid)
-			{
-				Log.TraceVerbose("		Registering for {0}", UnrealTargetPlatform.HoloLens.ToString());
-				UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, SDK));
-				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
-				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
-			}
+			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, SDK));
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
 		}
 	}
 }

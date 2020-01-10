@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnSkeletalComponent.cpp: Actor component implementation.
@@ -365,6 +365,10 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bExternalEvaluationRateLimited = false;
 	bExternalTickRateControlled = false;
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bDrawDebugSkeleton = false;
+#endif
+
 	CurrentSkinWeightProfileName = NAME_None;
 }
 
@@ -694,7 +698,7 @@ void USkinnedMeshComponent::ForceMotionVector()
 
 #if WITH_EDITOR
 
-bool USkinnedMeshComponent::CanEditChange(const UProperty* InProperty) const
+bool USkinnedMeshComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

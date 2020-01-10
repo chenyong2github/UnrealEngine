@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LogMessage.h"
 
@@ -40,7 +40,7 @@ FLogMessageRecord::FLogMessageRecord(const Trace::FLogMessage& TraceLogMessage)
 	FString CategoryStr(TraceLogMessage.Category->Name);
 	if (CategoryStr.StartsWith(TEXT("Log")))
 	{
-		CategoryStr = CategoryStr.RightChop(3);
+		CategoryStr.RightChopInline(3, false);
 	}
 	Category = FText::FromString(CategoryStr);
 
@@ -163,7 +163,7 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 		{
 			FScopeLock Lock(&CriticalSection);
 			FLogMessageRecord Entry(Message);
-			Map.Add(Index, Entry);
+			Map.Add(Index, MoveTemp(Entry));
 		});
 	}
 
@@ -190,7 +190,7 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 		LogProvider.ReadMessage(Index, [&EntryPtr](const Trace::FLogMessage& Message)
 		{
-			EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+			EntryPtr = MakeShared<FLogMessageRecord>(Message);
 		});
 	}
 

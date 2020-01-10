@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanCommandBuffer.cpp: Vulkan device RHI implementation.
@@ -428,7 +428,6 @@ void FVulkanCommandBufferManager::FlushResetQueryPools()
 		}
 		PoolResetCommandBuffer->End();
 		Queue->Submit(PoolResetCommandBuffer);
-		check(PoolResetCommandBuffer->State == FVulkanCmdBuffer::EState::Submitted);
 		PoolResets.Empty();
 	}
 }

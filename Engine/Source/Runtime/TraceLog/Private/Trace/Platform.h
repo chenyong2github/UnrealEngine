@@ -1,8 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "Trace/Detail/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 

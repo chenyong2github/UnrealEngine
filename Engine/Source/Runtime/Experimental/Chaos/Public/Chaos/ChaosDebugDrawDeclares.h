@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Core.h"
@@ -14,12 +14,8 @@ namespace Chaos
 {
 	class FConstraintHandle;
 
-	class FPBD6DJointConstraintHandle;
-
-	class FPBD6DJointConstraints;
-
 	template<typename T, int d>
-	class TPBDCollisionConstraint;
+	class TPBDCollisionConstraints;
 
 	template<typename T, int d>
 	class TPBDCollisionConstraintHandle;

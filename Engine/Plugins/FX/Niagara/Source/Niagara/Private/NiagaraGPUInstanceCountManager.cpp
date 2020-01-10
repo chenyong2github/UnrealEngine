@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraStats.h"
@@ -105,7 +105,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			AllocatedInstanceCounts = RecommendedInstanceCounts;
 			TResourceArray<uint32> InitData;
 			InitData.AddZeroed(AllocatedInstanceCounts);
-			CountBuffer.Initialize(sizeof(uint32), AllocatedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_KeepCPUAccessible, TEXT("NiagaraGPUInstanceCounts"), &InitData);
+			CountBuffer.Initialize(sizeof(uint32), AllocatedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("NiagaraGPUInstanceCounts"), &InitData);
 		}
 		// If we need to increase the buffer size to RecommendedInstanceCounts because the buffer is too small.
 		else if (RequiredInstanceCounts > AllocatedInstanceCounts)
@@ -114,7 +114,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			TResourceArray<uint32> InitData;
 			InitData.AddZeroed(RecommendedInstanceCounts);
 			FRWBuffer NextCountBuffer;
-			NextCountBuffer.Initialize(sizeof(uint32), RecommendedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_KeepCPUAccessible, TEXT("NiagaraGPUInstanceCounts"), &InitData);
+			NextCountBuffer.Initialize(sizeof(uint32), RecommendedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("NiagaraGPUInstanceCounts"), &InitData);
 
 			// Because the shader works with SINT, we need to temporarily create view for the shader to work. Those will be (deferred) deleted at end of the scope.
 			FUnorderedAccessViewRHIRef NextCountBufferUAVAsInt = RHICreateUnorderedAccessView(NextCountBuffer.Buffer, EPixelFormat::PF_R32_SINT);

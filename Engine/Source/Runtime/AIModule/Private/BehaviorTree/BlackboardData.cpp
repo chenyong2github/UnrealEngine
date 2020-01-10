@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/BlackboardData.h"
 #include "GameFramework/Actor.h"
@@ -8,6 +8,9 @@
 #include "UObject/UObjectIterator.h"
 
 UBlackboardData::FKeyUpdate UBlackboardData::OnUpdateKeys;
+#if WITH_EDITOR
+UBlackboardData::FBlackboardDataChanged UBlackboardData::OnBlackboardDataChanged;
+#endif
 
 static void UpdatePersistentKeys(UBlackboardData& Asset)
 {
@@ -171,6 +174,8 @@ void UBlackboardData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			PropagateKeyChangesToDerivedBlackboardAssets();
 		}
 	}
+
+	UBlackboardData::OnBlackboardDataChanged.Broadcast(this);
 }
 #endif // WITH_EDITOR
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneLiveLinkSubSectionProperties.h"
 
@@ -66,7 +66,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxy(int32 InChanne
 		UScriptStruct* ScriptStruct = SubjectRole.GetDefaultObject()->GetFrameDataStruct();
 
 		FLiveLinkStructPropertyBindings PropertyBinding(Data.PropertyName, Data.PropertyName.ToString());
-		if(UProperty* PropertyPtr = PropertyBinding.GetProperty(*ScriptStruct))
+		if(FProperty* PropertyPtr = PropertyBinding.GetProperty(*ScriptStruct))
 		{
 			if (PropertyPtr->ArrayDim > 1)
 			{
@@ -89,15 +89,15 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxy(int32 InChanne
 
 void UMovieSceneLiveLinkSubSectionProperties::CreatePropertyList(UScriptStruct* InScriptStruct, bool bCheckInterpFlag, const FString& InOwner)
 {
-	for (TFieldIterator<UProperty> It(InScriptStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::ExcludeInterfaces); It; ++It)
+	for (TFieldIterator<FProperty> It(InScriptStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::ExcludeInterfaces); It; ++It)
 	{
 		if (bCheckInterpFlag)
 		{
-			const bool bIsInterpField = It->HasAllPropertyFlags(CPF_Interp);
-			if (!bIsInterpField)
-			{
-				continue;
-			}
+		const bool bIsInterpField = It->HasAllPropertyFlags(CPF_Interp);
+		if (!bIsInterpField)
+		{
+			continue;
+		}
 		}
 
 		if (*It)
@@ -110,18 +110,18 @@ void UMovieSceneLiveLinkSubSectionProperties::CreatePropertyList(UScriptStruct* 
 
 			FullPath += *It->GetFName().ToString();
 
-			if (!IsPropertyTypeSupported(*It))
-			{
+		if (!IsPropertyTypeSupported(*It))
+		{
 				//Property is not directly support, dig deeper if it's a struct
-				if (const UStructProperty* StructProperty = Cast<UStructProperty>(*It))
+				if (const FStructProperty* StructProperty = CastField<FStructProperty>(*It))
 				{
 					const bool bDeeperCheckInterpFlag = false;
 					CreatePropertyList(StructProperty->Struct, bDeeperCheckInterpFlag, FullPath);
 				}
-				continue;
-			}
+			continue;
+		}
 
-			FLiveLinkPropertyData& NewProperty = SubSectionData.Properties.AddDefaulted_GetRef();
+		FLiveLinkPropertyData& NewProperty = SubSectionData.Properties.AddDefaulted_GetRef();
 			NewProperty.PropertyName = *FullPath;
 		}
 	}
@@ -139,7 +139,7 @@ void UMovieSceneLiveLinkSubSectionProperties::CreatePropertiesChannel(UScriptStr
 	{
 		//Query the property for its dimension to support c-style arrays
 		FLiveLinkStructPropertyBindings PropertyBinding(Data.PropertyName, Data.PropertyName.ToString());
-		UProperty* PropertyPtr = PropertyBinding.GetProperty(*Container);
+		FProperty* PropertyPtr = PropertyBinding.GetProperty(*Container);
 
 		//If it was added to the sub section data, property must be valid
 		check(PropertyPtr);
@@ -166,7 +166,7 @@ void UMovieSceneLiveLinkSubSectionProperties::FinalizeSection(bool bInReduceKeys
 	}
 }
 
-bool UMovieSceneLiveLinkSubSectionProperties::IsPropertyTypeSupported(const UProperty* InProperty) const
+bool UMovieSceneLiveLinkSubSectionProperties::IsPropertyTypeSupported(const FProperty* InProperty) const
 {
 	if (InProperty == nullptr)
 	{
@@ -175,16 +175,16 @@ bool UMovieSceneLiveLinkSubSectionProperties::IsPropertyTypeSupported(const UPro
 
 	//Arrays are not supported because we can't know the number of elements to create for it. If arrays are desired, a sub section will have to manage it 
 	//See Animation subsection with transforms
-	if (Cast<UFloatProperty>(InProperty)
-		|| Cast<UIntProperty>(InProperty)
-		|| Cast<UStrProperty>(InProperty)
-		|| Cast<UByteProperty>(InProperty)
-		|| Cast<UBoolProperty>(InProperty)
-		|| Cast<UEnumProperty>(InProperty))
+	if (CastField<FFloatProperty>(InProperty)
+		|| CastField<FIntProperty>(InProperty)
+		|| CastField<FStrProperty>(InProperty)
+		|| CastField<FByteProperty>(InProperty)
+		|| CastField<FBoolProperty>(InProperty)
+		|| CastField<FEnumProperty>(InProperty))
 	{
 		return true;
 	}
-	else if (const UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
 		if (StructProperty->Struct->GetFName() == NAME_Transform
 			|| StructProperty->Struct->GetFName() == NAME_Vector
@@ -197,13 +197,13 @@ bool UMovieSceneLiveLinkSubSectionProperties::IsPropertyTypeSupported(const UPro
 	return false;
 }
 
-int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UProperty* InPropertyPtr, FLiveLinkPropertyData& OutPropertyData, int32 InPropertyIndex, int32 GlobalIndex, TArray<bool>& OutChannelMask, FMovieSceneChannelProxyData& OutChannelData, const FText& InPropertyName)
+int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(FProperty* InPropertyPtr, FLiveLinkPropertyData& OutPropertyData, int32 InPropertyIndex, int32 GlobalIndex, TArray<bool>& OutChannelMask, FMovieSceneChannelProxyData& OutChannelData, const FText& InPropertyName)
 {
 	int32 CreatedChannelCount = 0;
 
 	check(InPropertyPtr);
 
-	if (Cast<UFloatProperty>(InPropertyPtr))
+	if (CastField<FFloatProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.FloatChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<float>(), OutChannelMask, OutChannelData);
@@ -212,7 +212,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (Cast<UIntProperty>(InPropertyPtr))
+	else if (CastField<FIntProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.IntegerChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<int32>(), OutChannelMask, OutChannelData);
@@ -221,7 +221,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (Cast<UBoolProperty>(InPropertyPtr))
+	else if (CastField<FBoolProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.BoolChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<bool>(), OutChannelMask, OutChannelData);
@@ -230,7 +230,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (Cast<UStrProperty>(InPropertyPtr))
+	else if (CastField<FStrProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.StringChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<FString>(), OutChannelMask, OutChannelData);
@@ -239,7 +239,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (Cast<UByteProperty>(InPropertyPtr))
+	else if (CastField<FByteProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.ByteChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<uint8>(), OutChannelMask, OutChannelData);
@@ -248,7 +248,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (Cast<UEnumProperty>(InPropertyPtr))
+	else if (CastField<FEnumProperty>(InPropertyPtr))
 	{
 #if WITH_EDITOR
 		MovieSceneLiveLinkSectionUtils::CreateChannelEditor(InPropertyName, OutPropertyData.ByteChannel[InPropertyIndex], GlobalIndex, TMovieSceneExternalValue<uint8>(), OutChannelMask, OutChannelData);
@@ -257,7 +257,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxyInternal(UPrope
 #endif //#WITH_EDITOR
 		CreatedChannelCount = 1;
 	}
-	else if (UStructProperty* StructProperty = Cast<UStructProperty>(InPropertyPtr))
+	else if (FStructProperty* StructProperty = CastField<FStructProperty>(InPropertyPtr))
 	{
 		if (StructProperty->Struct->GetFName() == NAME_Transform)
 		{

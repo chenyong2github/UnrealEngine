@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PluginDescriptor.h"
 #include "Misc/FileHelper.h"
@@ -34,6 +34,7 @@ FPluginDescriptor::FPluginDescriptor()
 	, bInstalled(false)
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
+	, bExplicitlyLoaded(false)
 	, bIsPluginExtension(false)
 {
 }
@@ -105,9 +106,9 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
         
 	// Due to a difference in command line parsing between Windows and Mac, we shipped a few Mac samples containing
 	// a category name with escaped quotes. Remove them here to make sure we can list them in the right category.
-	if (Category.Len() >= 2 && Category.StartsWith(TEXT("\"")) && Category.EndsWith(TEXT("\"")))
+	if (Category.Len() >= 2 && Category.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && Category.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 	{
-		Category = Category.Mid(1, Category.Len() - 2);
+		Category.MidInline(1, Category.Len() - 2, false);
 	}
 
 	Object.TryGetStringField(TEXT("CreatedBy"), CreatedBy);
@@ -142,6 +143,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	Object.TryGetBoolField(TEXT("Installed"), bInstalled);
 	Object.TryGetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
 	Object.TryGetBoolField(TEXT("Hidden"), bIsHidden);
+	Object.TryGetBoolField(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 
 	bool bCanBeUsedWithUnrealHeaderTool;
 	if(Object.TryGetBoolField("CanBeUsedWithUnrealHeaderTool", bCanBeUsedWithUnrealHeaderTool) && bCanBeUsedWithUnrealHeaderTool)
@@ -237,6 +239,11 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	if (bIsHidden)
 	{
 		Writer.WriteValue(TEXT("Hidden"), bIsHidden);
+	}
+
+	if (bExplicitlyLoaded)
+	{
+		Writer.WriteValue(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 	}
 
 	if(!PreBuildSteps.IsEmpty())

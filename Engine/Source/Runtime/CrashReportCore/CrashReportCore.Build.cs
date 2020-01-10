@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -32,17 +32,10 @@ public class CrashReportCore : ModuleRules
         {
 			PublicDependencyModuleNames.Add("CrashDebugHelper");
 			PublicDefinitions.Add("WITH_CRASHREPORTER=1");
-
-			// add source control if we are targeting a program
-			if (Target.Type == TargetType.Program)
-			{
-				PublicDependencyModuleNames.Add("SourceControl");
-			}
-       	}
-        else
+		}
+		else
         {
 			PublicDefinitions.Add("WITH_CRASHREPORTER=0");
-            PublicDependencyModuleNames.Add("SourceControl");
-        }
+		}
     }
 }

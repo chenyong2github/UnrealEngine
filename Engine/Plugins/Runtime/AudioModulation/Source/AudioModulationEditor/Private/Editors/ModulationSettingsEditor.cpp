@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Editors/ModulationSettingsEditor.h"
 
 #include "AudioModulationEditor.h"
@@ -424,7 +424,7 @@ EOrientation FModulationSettingsEditor::GetSnapLabelOrientation() const
 		: EOrientation::Orient_Vertical;
 }
 
-void FModulationSettingsEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FModulationSettingsEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{

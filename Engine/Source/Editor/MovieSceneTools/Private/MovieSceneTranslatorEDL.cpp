@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTranslatorEDL.h"
 #include "MovieScene.h"
@@ -190,9 +190,9 @@ void ParseFromEDL(const FString& InputString, FFrameRate TickResolution, FFrameR
 				ReelName = InputChars[4];
 
 				//@todo can't assume avi's written out
-				ReelName = ReelName.LeftChop(4); // strip .avi
+				ReelName.LeftChopInline(4, false); // strip .avi
 
-				FString ElementName = ReelName;
+				FString ElementName = MoveTemp(ReelName);
 				FString ElementPath = ElementName;
 
 				// If everything checks out add to OutShotData

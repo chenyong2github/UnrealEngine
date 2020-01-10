@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagContainerGraphPin.h"
 #include "Widgets/Input/SComboButton.h"
@@ -46,29 +46,29 @@ void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 
 	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
-	if (TagString.StartsWith(TEXT("(")) && TagString.EndsWith(TEXT(")")))
+	if (TagString.StartsWith(TEXT("("), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 	{
-		TagString = TagString.LeftChop(1);
-		TagString = TagString.RightChop(1);
+		TagString.LeftChopInline(1, false);
+		TagString.RightChopInline(1, false);
 
-		TagString.Split("=", NULL, &TagString);
+		TagString.Split(TEXT("="), nullptr, &TagString, ESearchCase::CaseSensitive);
 
-		TagString = TagString.LeftChop(1);
-		TagString = TagString.RightChop(1);
+		TagString.LeftChopInline(1, false);
+		TagString.RightChopInline(1, false);
 
 		FString ReadTag;
 		FString Remainder;
 
-		while (TagString.Split(TEXT(","), &ReadTag, &Remainder))
+		while (TagString.Split(TEXT(","), &ReadTag, &Remainder, ESearchCase::CaseSensitive))
 		{
-			ReadTag.Split("=", NULL, &ReadTag);
-			if (ReadTag.EndsWith(TEXT(")")))
+			ReadTag.Split(TEXT("="), NULL, &ReadTag, ESearchCase::CaseSensitive);
+			if (ReadTag.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 			{
-				ReadTag = ReadTag.LeftChop(1);
-				if (ReadTag.StartsWith(TEXT("\"")) && ReadTag.EndsWith(TEXT("\"")))
+				ReadTag.LeftChopInline(1, false);
+				if (ReadTag.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && ReadTag.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 				{
-					ReadTag = ReadTag.LeftChop(1);
-					ReadTag = ReadTag.RightChop(1);
+					ReadTag.LeftChopInline(1, false);
+					ReadTag.RightChopInline(1, false);
 				}
 			}
 			TagString = Remainder;
@@ -81,14 +81,14 @@ void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 		}
 		if (!Remainder.IsEmpty())
 		{
-			Remainder.Split("=", NULL, &Remainder);
-			if (Remainder.EndsWith(TEXT(")")))
+			Remainder.Split(TEXT("="), nullptr, &Remainder, ESearchCase::CaseSensitive);
+			if (Remainder.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 			{
-				Remainder = Remainder.LeftChop(1);
-				if (Remainder.StartsWith(TEXT("\"")) && Remainder.EndsWith(TEXT("\"")))
+				Remainder.LeftChopInline(1, false);
+				if (Remainder.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && Remainder.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 				{
-					Remainder = Remainder.LeftChop(1);
-					Remainder = Remainder.RightChop(1);
+					Remainder.LeftChopInline(1, false);
+					Remainder.RightChopInline(1, false);
 				}
 			}
 			FGameplayTag GameplayTag = FGameplayTag::RequestGameplayTag(FName(*Remainder));

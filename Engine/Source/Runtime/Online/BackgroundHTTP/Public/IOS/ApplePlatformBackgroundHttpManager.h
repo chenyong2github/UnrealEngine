@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -61,11 +61,16 @@ protected:
 protected:
 	//This dictionary is used to hold tasks that already existed on our Background Session when our BackgroundHttpManager was initialized. See PopulateUnAssociatedTasks and CheckForExistingUnAssociatedTask
 	NSMutableDictionary<NSString*, NSURLSessionDownloadTask*>* UnAssociatedTasks;
-
+	FRWLock UnAssociatedTasksLock;
+	
 	//Map to hold the associated BackgroundHttpRequest for any given URL. Multiple URLs will end up pointing to the same request in this list as it stores
     TMap<const FString, FBackgroundHttpURLMappedRequestPtr> URLToRequestMap;
 	FRWLock URLToRequestMapLock;
 
+	//Used to track if we came into certain code branches through a pathway that has initialized the manager yet or not.
+	//Some of our platform callbacks can end up hitting VERY early or in background versions of our app without the engine being fully spun-up.
+	static volatile bool bWasAppleBGHTTPInitialized;
+	
 private:
 	//Checks for tasks that already exist on the BackgroundSession. Should only be called during Initialize. These tasks should really only exist 
 	//due to previous application sessions starting background downloads that finished after the app closed. (IE: If the user started a patch and then our app was terminated by the OS while 
@@ -79,7 +84,7 @@ private:
     //These are used internally to pause/resume things at the task level
 	void PauseAllActiveTasks();
 	void ResumeTasksForBackgrounding(FIOSBackgroundHttpPostSessionWorkCallback Callback = FIOSBackgroundHttpPostSessionWorkCallback());
-	bool ResumeDownloadTaskForBackgroundingIfAppropriate(NSURLSessionDownloadTask* DownloadTask, EBackgroundHTTPPriority LowestPriorityToQueue);
+	bool ResumeDownloadTaskForBackgroundingIfAppropriate(NSURLSessionDownloadTask* DownloadTask, const FAppleBackgroundHttpRequestPtr Request, EBackgroundHTTPPriority LowestPriorityToQueue);
 
     void PauseAllUnassociatedTasks();
     void UnpauseAllUnassociatedTasks();

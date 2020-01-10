@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AutomationTestSettings.h: Declares the UAutomationTestSettings class.
@@ -48,18 +48,18 @@ struct FExternalToolDefinition
 };
 
 /**
- * Holds UProperty names and values to customize factory settings
+ * Holds FProperty names and values to customize factory settings
  */
 USTRUCT()
 struct FImportFactorySettingValues
 {
 	GENERATED_USTRUCT_BODY()
 
-	/* The name of the UProperty to change */
+	/* The name of the FProperty to change */
 	UPROPERTY(config, EditAnywhere, Category = Automation, meta = (ToolTip = "Name of the property to change.  Nested settings can be modified using \"Outer.Property\""))
 	FString SettingName;
 
-	/* The value to apply to the UProperty */
+	/* The value to apply to the FProperty */
 	UPROPERTY(config, EditAnywhere, Category = Automation, meta = (ToolTip = "Value to import for the specified property."))
 	FString Value;
 };

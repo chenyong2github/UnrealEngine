@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,10 +7,12 @@
 
 #define EXPERIMENTAL_STATSTRACE_ENABLED 0
 
-#if UE_TRACE_ENABLED && STATS && EXPERIMENTAL_STATSTRACE_ENABLED
+#if !defined(STATSTRACE_ENABLED)
+#if UE_TRACE_ENABLED && STATS && EXPERIMENTAL_STATSTRACE_ENABLED && !UE_BUILD_SHIPPING
 #define STATSTRACE_ENABLED 1
 #else
 #define STATSTRACE_ENABLED 0
+#endif
 #endif
 
 #if STATSTRACE_ENABLED

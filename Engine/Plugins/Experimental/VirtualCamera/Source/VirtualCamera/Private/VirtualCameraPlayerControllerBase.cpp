@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualCameraPlayerControllerBase.h"
 
@@ -325,6 +325,7 @@ bool AVirtualCameraPlayerControllerBase::GetCurrentTrackerLocationAndRotation(FV
 		case ETrackerInputSource::Custom:
 			GetCustomTrackerLocationAndRotation(OutTrackerLocation, OutTrackerRotation);
 			bTransformSet = true;
+			break;
 
 		default:
 			UE_LOG(LogVirtualCamera, Warning, TEXT("Selected tracker source is not yet supported"))
@@ -499,7 +500,7 @@ void AVirtualCameraPlayerControllerBase::PilotTargetedCamera(AVirtualCameraPawnB
 		TargetCameraComponent->CurrentFocalLength = CameraToFollow->CurrentFocalLength;
 		TargetCameraComponent->FocusSettings = CameraToFollow->FocusSettings;
 		TargetCameraComponent->LensSettings = CameraToFollow->LensSettings;
-		TargetCameraComponent->FilmbackSettings = CameraToFollow->FilmbackSettings;
+		TargetCameraComponent->Filmback = CameraToFollow->Filmback;
 	}
 	TargetCameraComponent->SetRelativeLocationAndRotation(CameraToFollow->GetRelativeLocation(), CameraToFollow->GetRelativeRotation());
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagContainer.h"
 #include "HAL/IConsoleManager.h"
@@ -821,7 +821,7 @@ bool FGameplayTagContainer::AddLeafTag(const FGameplayTag& TagToAdd)
 
 DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTag"), STAT_FGameplayTagContainer_RemoveTag, STATGROUP_GameplayTags);
 
-bool FGameplayTagContainer::RemoveTag(FGameplayTag TagToRemove, bool bDeferParentTags)
+bool FGameplayTagContainer::RemoveTag(const FGameplayTag& TagToRemove, bool bDeferParentTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTag);
 
@@ -841,7 +841,7 @@ bool FGameplayTagContainer::RemoveTag(FGameplayTag TagToRemove, bool bDeferParen
 
 DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTags"), STAT_FGameplayTagContainer_RemoveTags, STATGROUP_GameplayTags);
 
-void FGameplayTagContainer::RemoveTags(FGameplayTagContainer TagsToRemove)
+void FGameplayTagContainer::RemoveTags(const FGameplayTagContainer& TagsToRemove)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTags);
 
@@ -918,7 +918,7 @@ FString FGameplayTagContainer::ToString() const
 	return ExportString;
 }
 
-void FGameplayTagContainer::FromExportString(FString ExportString)
+void FGameplayTagContainer::FromExportString(const FString& ExportString)
 {
 	Reset();
 
@@ -1090,7 +1090,7 @@ const FGameplayTagContainer& FGameplayTag::GetSingleTagContainer() const
 	return FGameplayTagContainer::EmptyContainer;
 }
 
-FGameplayTag FGameplayTag::RequestGameplayTag(FName TagName, bool ErrorIfNotFound)
+FGameplayTag FGameplayTag::RequestGameplayTag(const FName& TagName, bool ErrorIfNotFound)
 {
 	return UGameplayTagsManager::Get().RequestGameplayTag(TagName, ErrorIfNotFound);
 }
@@ -1147,7 +1147,7 @@ int32 FGameplayTag::MatchesTagDepth(const FGameplayTag& TagToCheck) const
 	return UGameplayTagsManager::Get().GameplayTagsMatchDepth(*this, TagToCheck);
 }
 
-FGameplayTag::FGameplayTag(FName Name)
+FGameplayTag::FGameplayTag(const FName& Name)
 	: TagName(Name)
 {
 	// This constructor is used to bypass the table check and is only usable by GameplayTagManager
@@ -1326,7 +1326,7 @@ void FGameplayTag::PostSerialize(const FArchive& Ar)
 bool FGameplayTag::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	FString ImportedTag = TEXT("");
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedTag, true);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedTag, true);
 	if (!NewBuffer)
 	{
 		// Failed to read buffer. Maybe normal ImportText will work.
@@ -1675,7 +1675,7 @@ void FGameplayTagQuery::BuildFromEditableQuery(UEditableGameplayTagQuery& Editab
 FString UEditableGameplayTagQuery::GetTagQueryExportText(FGameplayTagQuery const& TagQuery)
 {
 	TagQueryExportText_Helper = TagQuery;
-	UProperty* const TQProperty = FindField<UProperty>(GetClass(), TEXT("TagQueryExportText_Helper"));
+	FProperty* const TQProperty = FindField<FProperty>(GetClass(), TEXT("TagQueryExportText_Helper"));
 
 	FString OutString;
 	TQProperty->ExportTextItem(OutString, (void*)&TagQueryExportText_Helper, (void*)&TagQueryExportText_Helper, this, 0);

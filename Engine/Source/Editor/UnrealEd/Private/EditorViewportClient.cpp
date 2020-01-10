@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorViewportClient.h"
 #include "PreviewScene.h"
@@ -331,6 +331,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bSetListenerPosition(false)
 	, LandscapeLODOverride(-1)
 	, bDrawVertices(false)
+	, bShouldApplyViewModifiers(true)
 	, bOwnsModeTools(false)
 	, ModeTools(InModeTools)
 	, Widget(new FWidget)
@@ -742,9 +743,23 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	FViewportCameraTransform& ViewTransform = GetViewTransform();
 	const ELevelViewportType EffectiveViewportType = GetViewportType();
 
-	ViewInitOptions.ViewOrigin = ViewTransform.GetLocation();
-	FRotator ViewRotation = ViewTransform.GetRotation();
+	// Apply view modifiers.
+	FMinimalViewInfo ModifiedViewInfo;
+	{
+		ModifiedViewInfo.Location = ViewTransform.GetLocation();
+		ModifiedViewInfo.Rotation = ViewTransform.GetRotation();
+		ModifiedViewInfo.FOV = ViewFOV;
 
+		if (bShouldApplyViewModifiers)
+		{
+			ViewModifiers.Broadcast(ModifiedViewInfo);
+		}
+	}
+	const FVector ModifiedViewLocation = ModifiedViewInfo.Location;
+	FRotator ModifiedViewRotation = ModifiedViewInfo.Rotation;
+	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
+
+	ViewInitOptions.ViewOrigin = ModifiedViewLocation;
 
 	// Apply head tracking!  Note that this won't affect what the editor *thinks* the view location and rotation is, it will
 	// only affect the rendering of the scene.
@@ -754,12 +769,10 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		FVector CurrentHmdPosition;
 		GEngine->XRSystem->GetCurrentPose(IXRTrackingSystem::HMDDeviceId, CurrentHmdOrientation, CurrentHmdPosition );
 
-		const FQuat VisualRotation = ViewRotation.Quaternion() * CurrentHmdOrientation;
-		ViewRotation = VisualRotation.Rotator();
-		ViewRotation.Normalize();
+		const FQuat VisualRotation = ModifiedViewRotation.Quaternion() * CurrentHmdOrientation;
+		ModifiedViewRotation = VisualRotation.Rotator();
+		ModifiedViewRotation.Normalize();
 	}
-
-
 
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
 	FIntPoint ViewportOffset(0, 0);
@@ -809,7 +822,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	if (bUseControllingActorViewInfo)
 	{
 		// @todo vreditor: Not stereo friendly yet
-		ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(ViewRotation) * FMatrix(
+		ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(ModifiedViewRotation) * FMatrix(
 			FPlane(0, 0, 1, 0),
 			FPlane(1, 0, 0, 0),
 			FPlane(0, 1, 0, 0),
@@ -834,11 +847,11 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		        const FIntRect StereoViewRect = FIntRect( X, Y, X + SizeX, Y + SizeY );
 		        ViewInitOptions.SetViewRectangle( StereoViewRect );
 
-				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
+				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ModifiedViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
 			}
 
 			// Calc view rotation matrix
-			ViewInitOptions.ViewRotationMatrix = CalcViewRotationMatrix(ViewRotation);
+			ViewInitOptions.ViewRotationMatrix = CalcViewRotationMatrix(ModifiedViewRotation);
 
 		    // Rotate view 90 degrees
 			ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
@@ -858,7 +871,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			    const float MinZ = GetNearClipPlane();
 			    const float MaxZ = MinZ;
 			    // Avoid zero ViewFOV's which cause divide by zero's in projection matrix
-			    const float MatrixFOV = FMath::Max(0.001f, ViewFOV) * (float)PI / 360.0f;
+			    const float MatrixFOV = FMath::Max(0.001f, ModifiedViewFOV) * (float)PI / 360.0f;
 
 			    if (bConstrainAspectRatio)
 			    {
@@ -1045,7 +1058,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	ViewInitOptions.OverrideLODViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.bUseFauxOrthoViewPos = true;
 
-	ViewInitOptions.FOV = ViewFOV;
+	ViewInitOptions.FOV = ModifiedViewFOV;
 	if (bUseControllingActorViewInfo)
 	{
 		ViewInitOptions.bUseFieldOfViewForLOD = ControllingActorViewInfo.bUseFieldOfViewForLOD;
@@ -1057,8 +1070,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
-	View->ViewLocation = ViewTransform.GetLocation();
-	View->ViewRotation = ViewRotation;
+	View->ViewLocation = ModifiedViewLocation;
+	View->ViewRotation = ModifiedViewRotation;
 
 	View->SubduedSelectionOutlineColor = GEngine->GetSubduedSelectionOutlineColor();
 
@@ -1609,7 +1622,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 
 		// Do we want to remap the various WASD keys for flight input?
 		const bool bRemapWASDKeys =
-			(bUnmodifiedPress) &&
+			(bUnmodifiedPress || (GetDefault<ULevelEditorViewportSettings>()->FlightCameraControlExperimentalNavigation && IsShiftPressed())) &&
 			(GetDefault<ULevelEditorViewportSettings>()->FlightCameraControlType == WASD_Always ||
 			( bUsingFlightInput &&
 			( GetDefault<ULevelEditorViewportSettings>()->FlightCameraControlType == WASD_RMBOnly && (Viewport->KeyState(EKeys::RightMouseButton ) ||Viewport->KeyState(EKeys::MiddleMouseButton) || Viewport->KeyState(EKeys::LeftMouseButton) || bIsUsingTrackpad ) ) ) ) &&
@@ -1756,7 +1769,8 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		// We'll combine the regular camera speed scale (controlled by viewport toolbar setting) with
 		// the flight camera speed scale (controlled by mouse wheel) and the CameraSpeedScalar (set in the transform viewport toolbar).
 		const float CameraSpeed = GetCameraSpeed();
-		const float FinalCameraSpeedScale = FlightCameraSpeedScale * CameraSpeed * GetCameraSpeedScalar();
+		const float CameraBoost = IsShiftPressed() ? 2.0f : 1.0f;
+		const float FinalCameraSpeedScale = FlightCameraSpeedScale * CameraSpeed * GetCameraSpeedScalar() * CameraBoost;
 
 		// Only allow FOV recoil if flight camera mode is currently inactive.
 		const bool bAllowRecoilIfNoImpulse = (!bUsingFlightInput) && (!IsMatineeRecordingWindow());
@@ -3329,44 +3343,58 @@ void FEditorViewportClient::OnChangeCameraSpeed( const struct FInputEventState& 
 
 	FKey Key = InputState.GetKey();
 
-	// Adjust and clamp the camera speed scale
-	if( Key == EKeys::MouseScrollUp )
+	if (GetDefault<ULevelEditorViewportSettings>()->FlightCameraControlExperimentalNavigation)
 	{
-		if( FlightCameraSpeedScale >= 2.0f )
+		if( Key == EKeys::MouseScrollUp )
 		{
-			FlightCameraSpeedScale += 0.5f;
-		}
-		else if( FlightCameraSpeedScale >= 1.0f )
-		{
-			FlightCameraSpeedScale += 0.2f;
+			GetMutableDefault<ULevelEditorViewportSettings>()->CameraSpeed = FMath::Clamp<int32>(GetDefault<ULevelEditorViewportSettings>()->CameraSpeed + 1, 1, MaxCameraSpeeds);
 		}
 		else
 		{
-			FlightCameraSpeedScale += 0.1f;
+			GetMutableDefault<ULevelEditorViewportSettings>()->CameraSpeed = FMath::Clamp<int32>(GetDefault<ULevelEditorViewportSettings>()->CameraSpeed - 1, 1, MaxCameraSpeeds);
 		}
 	}
 	else
 	{
-		if( FlightCameraSpeedScale > 2.49f )
+		// Adjust and clamp the camera speed scale
+		if( Key == EKeys::MouseScrollUp )
 		{
-			FlightCameraSpeedScale -= 0.5f;
-		}
-		else if( FlightCameraSpeedScale >= 1.19f )
-		{
-			FlightCameraSpeedScale -= 0.2f;
+			if( FlightCameraSpeedScale >= 2.0f )
+			{
+				FlightCameraSpeedScale += 0.5f;
+			}
+			else if( FlightCameraSpeedScale >= 1.0f )
+			{
+				FlightCameraSpeedScale += 0.2f;
+			}
+			else
+			{
+				FlightCameraSpeedScale += 0.1f;
+			}
 		}
 		else
 		{
-			FlightCameraSpeedScale -= 0.1f;
+			if( FlightCameraSpeedScale > 2.49f )
+			{
+				FlightCameraSpeedScale -= 0.5f;
+			}
+			else if( FlightCameraSpeedScale >= 1.19f )
+			{
+				FlightCameraSpeedScale -= 0.2f;
+			}
+			else
+			{
+				FlightCameraSpeedScale -= 0.1f;
+			}
 		}
-	}
 
-	FlightCameraSpeedScale = FMath::Clamp( FlightCameraSpeedScale, MinCameraSpeedScale, MaxCameraSpeedScale );
+		FlightCameraSpeedScale = FMath::Clamp( FlightCameraSpeedScale, MinCameraSpeedScale, MaxCameraSpeedScale );
 
-	if( FMath::IsNearlyEqual( FlightCameraSpeedScale, 1.0f, 0.01f ) )
-	{
-		// Snap to 1.0 if we're really close to that
-		FlightCameraSpeedScale = 1.0f;
+		if( FMath::IsNearlyEqual( FlightCameraSpeedScale, 1.0f, 0.01f ) )
+		{
+			// Snap to 1.0 if we're really close to that
+			FlightCameraSpeedScale = 1.0f;
+		}
 	}
 }
 
@@ -4547,7 +4575,7 @@ bool FEditorViewportClient::IsFlightCameraInputModeActive() const
 				bIsTracking &&
 				Widget->GetCurrentAxis() == EAxisList::None &&
 				( bLeftMouseButtonDown || bMiddleMouseButtonDown || bRightMouseButtonDown || bIsUsingTrackpad ) &&
-				!IsCtrlPressed() && !IsShiftPressed() && !IsAltPressed();
+				!IsCtrlPressed() && (GetDefault<ULevelEditorViewportSettings>()->FlightCameraControlExperimentalNavigation || !IsShiftPressed()) && !IsAltPressed();
 
 			return bIsMouseLooking;
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,6 +22,8 @@ class IClassTypeActions;
 class UFactory;
 class UAssetImportTask;
 class UAdvancedCopyCustomization;
+class FBlacklistNames;
+class FBlacklistPaths;
 
 USTRUCT(BlueprintType)
 struct FAssetRenameData
@@ -220,6 +222,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual UObject* DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) = 0;
 
+	/** Opens an asset picker dialog and creates an asset with the specified name and path. 
+	 * Uses OriginalObject as the duplication source.
+	 * Uses DialogTitle as the dialog's title.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
+	virtual UObject* DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle) = 0;
+
 	/** Creates an asset with the specified name and path. Uses OriginalObject as the duplication source. */
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Asset Tools")
 	virtual UObject* DuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) = 0;
@@ -235,6 +244,9 @@ public:
 	/** Returns list of objects that soft reference the given soft object path. This will load assets into memory to verify */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) = 0;
+
+	/** Returns list of objects that soft reference the given soft object paths. This will load assets into memory to verify */
+	virtual void FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) = 0;
 
 	/**
 	 * Function that renames all FSoftObjectPath object with the old asset path to the new one.
@@ -364,6 +376,9 @@ public:
 	/** Fix up references to the specified redirectors */
 	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const = 0;
 
+	/** Returns whether redirectors are being fixed up. */
+	virtual bool IsFixupReferencersInProgress() const = 0;
+
 	/** Expands any folders found in the files list, and returns a flattened list of destination paths and files.  Mirrors directory structure. */
 	virtual void ExpandDirectories(const TArray<FString>& Files, const FString& DestinationPath, TArray<TPair<FString, FString>>& FilesAndDestinations) const = 0;
 
@@ -404,6 +419,12 @@ public:
 
 	/** Find all supported asset factories. */
 	virtual TArray<UFactory*> GetNewAssetFactories() const = 0;
+
+	/** Get asset class blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() = 0;
+
+	/** Get folder blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() = 0;
 };
 
 UCLASS(transient)

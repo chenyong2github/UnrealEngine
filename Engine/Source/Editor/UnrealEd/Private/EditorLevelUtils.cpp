@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 EditorLevelUtils.cpp: Editor-specific level management routines
@@ -139,18 +139,26 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				const bool bIsMove = true;
 				GEditor->CopySelectedActorsToClipboard(OwningWorld, bShoudCut, bIsMove, bWarnAboutReferences);
 
-				// Set the new level and force it visible while we do the paste
-				OwningWorld->SetCurrentLevel(DestLevel);
 				const bool bLevelVisible = DestLevel->bIsVisible;
 				if (!bLevelVisible)
 				{
 					UEditorLevelUtils::SetLevelVisibility(DestLevel, true, false);
 				}
 
-				const bool bDuplicate = false;
-				const bool bOffsetLocations = false;
-				const bool bWarnIfHidden = false;
-				GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
+				// Scope this so that Actors that have been pasted will have their final levels set before doing the actor mapping
+				{
+					// Set the new level and force it visible while we do the paste
+					FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
+					OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+										
+					const bool bDuplicate = false;
+					const bool bOffsetLocations = false;
+					const bool bWarnIfHidden = false;
+					GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
+
+					// Restore the original current level
+					OwningWorld->SetCurrentLevel(OldCurrentLevel);
+				}
 
 				// Build a remapping of old to new names so we can do a fixup
 				for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
@@ -221,9 +229,6 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				{
 					UEditorLevelUtils::SetLevelVisibility(DestLevel, false, false);
 				}
-
-				// Restore the original current level
-				OwningWorld->SetCurrentLevel(OldCurrentLevel);
 			}
 
 			// The moved (pasted) actors will now be selected
@@ -314,7 +319,10 @@ ULevel* UEditorLevelUtils::AddLevelsToWorld(UWorld* InWorld, TArray<FString> Pac
 	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
-	GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	}
 
 	return NewLevel;
 }
@@ -362,7 +370,10 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
-	GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdateVolumeActorVisibility(nullptr);
+	}
 
 	return NewStreamingLevel;
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -135,6 +135,9 @@ extern RENDERCORE_API class FTexture* GBlackVolumeTexture;
 
 /** A global black volume texture, with alpha=1. */
 extern RENDERCORE_API class FTexture* GBlackAlpha1VolumeTexture;
+
+/** A global black texture<uint> */
+extern RENDERCORE_API class FTexture* GBlackUintTexture;
 
 /** A global black volume texture<uint>  */
 extern RENDERCORE_API class FTexture* GBlackUintVolumeTexture;

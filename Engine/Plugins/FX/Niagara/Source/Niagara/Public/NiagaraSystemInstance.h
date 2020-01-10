@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -80,6 +80,8 @@ public:
 	
 	FNiagaraWorldManager* GetWorldManager()const;
 	bool RequiresDistanceFieldData() const;
+	bool RequiresDepthBuffer() const;
+	bool RequiresEarlyViewData() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);
@@ -104,7 +106,7 @@ public:
 	/** Perform per-tick updates on data interfaces that need it. This can cause systems to complete so cannot be parallelized. */
 	void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
 
-	ENiagaraExecutionState GetRequestedExecutionState() { return RequestedExecutionState; }
+	ENiagaraExecutionState GetRequestedExecutionState()const { return RequestedExecutionState; }
 	void SetRequestedExecutionState(ENiagaraExecutionState InState);
 
 	ENiagaraExecutionState GetActualExecutionState() { return ActualExecutionState; }
@@ -112,7 +114,8 @@ public:
 
 	float GetSystemTimeSinceRendered() const { return SystemTimeSinceRenderedParam.GetValue(); }
 
-	float GetOwnerLODDistance() const { return OwnerLODDistanceParam.GetValue(); }
+	float GetOwnerLODDistance() const { return GatheredInstanceParameters.LODDistance; }
+	float GetOwnerMaxLODDistance() const { return GatheredInstanceParameters.MaxLODDistance; }
 
 	int32 GetNumParticles(int32 EmitterIndex) const { return ParameterNumParticleBindings[EmitterIndex].GetValue(); }
 	float GetSpawnCountScale(int32 EmitterIndex) const { return ParameterSpawnCountScaleBindings[EmitterIndex].GetValue(); }
@@ -250,9 +253,13 @@ public:
 
 	void ResetFastPathBindings();
 
+	FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
+	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
+	void ClearEventDataSets();
+
 	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 
-private:
+	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 	void DestroyDataInterfaceInstanceData();
 
@@ -289,6 +296,10 @@ private:
 
 	/** The tick count of the System instance. */
 	int32 TickCount;
+
+	/** LODDistance driven by our component. */
+	float LODDistance;
+	float MaxLODDistance;
 
 	TMap<FNiagaraDataSetID, FNiagaraDataSet> ExternalEvents;
 
@@ -345,6 +356,7 @@ private:
 	FNiagaraParameterDirectBinding<int32> SystemTickCountParam;
 
 	FNiagaraParameterDirectBinding<float> OwnerLODDistanceParam;
+	FNiagaraParameterDirectBinding<float> OwnerLODDistanceFractionParam;
 	FNiagaraParameterDirectBinding<int32> SystemNumEmittersParam;
 	FNiagaraParameterDirectBinding<int32> SystemNumEmittersAliveParam;
 
@@ -355,6 +367,11 @@ private:
 	TArray<FNiagaraParameterDirectBinding<float>> ParameterSpawnCountScaleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterNumParticleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterTotalSpawnedParticlesBindings;
+
+	// registered events for each of the emitters
+	typedef TPair<FName, FName> EmitterEventKey;
+	typedef TMap<EmitterEventKey, FNiagaraDataSet*> EventDataSetMap;
+	EventDataSetMap EmitterEventDataSetMap;
 
 	/** Indicates whether this instance must update itself rather than being batched up as most instances are. */
 	uint32 bSolo : 1;
@@ -382,6 +399,8 @@ private:
 	uint32 bDataInterfacesInitialized : 1;
 
 	uint32 bAlreadyBound : 1;
+
+	uint32 bLODDistanceIsValid : 1;
 
 	/** True if we have async work in flight. */
 	volatile bool bAsyncWorkInProgress;
@@ -417,6 +436,7 @@ public:
 		FVector OldPos;
 
 		float LODDistance;
+		float MaxLODDistance;
 		float TimeSeconds;
 		float RealTimeSeconds;
 
@@ -449,3 +469,10 @@ public:
 	TArray<TNiagaraFastPathUserParameterInputBinding<int32>> FastPathIntUserParameterInputBindings;
 	TArray<TNiagaraFastPathUserParameterInputBinding<float>> FastPathFloatUserParameterInputBindings;
 };
+
+FORCEINLINE void FNiagaraSystemInstance::SetLODDistance(float InLODDistance, float InMaxLODDistance)
+{
+	bLODDistanceIsValid = true;
+	LODDistance = InLODDistance; 
+	MaxLODDistance = InMaxLODDistance;
+}

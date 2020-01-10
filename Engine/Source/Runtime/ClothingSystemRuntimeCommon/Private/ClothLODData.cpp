@@ -1,17 +1,19 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothLODData.h"
+#include "ClothPhysicalMeshData.h"
 
+UClothLODDataCommon::UClothLODDataCommon(const FObjectInitializer& Init)
+	: Super(Init)
+	, PhysicalMeshData_DEPRECATED(nullptr)
+{
+}
 
-UClothLODDataBase::UClothLODDataBase(const FObjectInitializer& Init)
-	: PhysicalMeshData(nullptr)
-{}
-
-UClothLODDataBase::~UClothLODDataBase()
+UClothLODDataCommon::~UClothLODDataCommon()
 {}
 
 #if WITH_EDITORONLY_DATA
-void UClothLODDataBase::GetParameterMasksForTarget(
+void UClothLODDataCommon::GetParameterMasksForTarget(
 	const uint8 InTarget, 
 	TArray<FPointWeightMap*>& OutMasks)
 {
@@ -25,7 +27,7 @@ void UClothLODDataBase::GetParameterMasksForTarget(
 }
 #endif // WITH_EDITORONLY_DATA
 
-void UClothLODDataBase::Serialize(FArchive& Ar)
+void UClothLODDataCommon::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
@@ -45,21 +47,27 @@ void UClothLODDataBase::Serialize(FArchive& Ar)
 	   << TransitionDownSkinData;
 }
 
-#if WITH_EDITOR
-void UClothLODDataBase::PushWeightsToMesh()
+void UClothLODDataCommon::PostLoad()
 {
-	if (PhysicalMeshData)
+	Super::PostLoad();
+
+	if (PhysicalMeshData_DEPRECATED)
 	{
-		PhysicalMeshData->ClearParticleParameters();
-		for (const FPointWeightMap &Weights : ParameterMasks)
+		ClothPhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
+		PhysicalMeshData_DEPRECATED = nullptr;
+	}
+}
+
+#if WITH_EDITOR
+void UClothLODDataCommon::PushWeightsToMesh()
+{
+	ClothPhysicalMeshData.ClearWeightMaps();
+	for (const FPointWeightMap& Weights : ParameterMasks)
+	{
+		if (Weights.bEnabled)
 		{
-			if (Weights.bEnabled)
-			{
-				if (TArray<float>* TargetArray = PhysicalMeshData->GetFloatArray(Weights.CurrentTarget))
-				{
-					*TargetArray = Weights.GetValueArray();
-				}
-			}
+			FPointWeightMap& TargetWeightMap = ClothPhysicalMeshData.FindOrAddWeightMap(Weights.CurrentTarget);
+			TargetWeightMap.Values = Weights.Values;
 		}
 	}
 }

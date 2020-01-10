@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneManagement.h: Scene manager definitions.
@@ -2723,7 +2723,30 @@ extern ENGINE_API void DrawDashedLine(class FPrimitiveDrawInterface* PDI, const 
  */
 extern ENGINE_API void DrawWireDiamond(class FPrimitiveDrawInterface* PDI, const FMatrix& DiamondMatrix, float Size, const FLinearColor& InColor, uint8 DepthPriority, float Thickness = 0.0f);
 
+/**
+ * Draws a coordinate system (Red for X axis, Green for Y axis, Blue for Z axis).
+ *
+ * @param	PDI				Draw interface.
+ * @param	AxisLoc			Location of the coordinate system.
+ * @param	AxisRot			Location of the coordinate system.
+ * @param	Scale			Scale for the axis lines.
+ * @param	DepthPriority	Depth priority coordinate system.
+ * @param	Thickness		How thick to draw the axis lines
+ */
 extern ENGINE_API void DrawCoordinateSystem(FPrimitiveDrawInterface* PDI, FVector const& AxisLoc, FRotator const& AxisRot, float Scale, uint8 DepthPriority, float Thickness = 0.0f);
+
+/**
+ * Draws a coordinate system with a fixed color.
+ *
+ * @param	PDI				Draw interface.
+ * @param	AxisLoc			Location of the coordinate system.
+ * @param	AxisRot			Location of the coordinate system.
+ * @param	Scale			Scale for the axis lines.
+ * @param	InColor			Color of the axis lines.
+ * @param	DepthPriority	Depth priority coordinate system.
+ * @param	Thickness		How thick to draw the axis lines
+ */
+extern ENGINE_API void DrawCoordinateSystem(FPrimitiveDrawInterface* PDI, FVector const& AxisLoc, FRotator const& AxisRot, float Scale, const FLinearColor& InColor, uint8 DepthPriority, float Thickness = 0.0f);
 
 /**
  * Draws a wireframe of the bounds of a frustum as defined by a transform from clip-space into world-space.

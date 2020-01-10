@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AndroidEGL.h: Private EGL definitions for Android-specific functionality
@@ -88,11 +88,11 @@ public:
 	GLuint GetResolveFrameBuffer();
 	bool IsCurrentContextValid();
 	EGLContext  GetCurrentContext(  );
-	void GenerateAndBindDefaultVAO(FPlatformOpenGLContext& InContext);
 	void SetCurrentSharedContext();
 	void SetCurrentRenderingContext();
 	uint32_t GetCurrentContextType();
 	FPlatformOpenGLContext* GetRenderingContext();
+	FPlatformOpenGLContext* GetSharedContext();
 	bool GetSupportsNoErrorContext();
 
 	// recreate the EGL surface for the current hardware window.

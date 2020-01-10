@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeEdit.h: Classes for the editor to access to Landscape data
@@ -60,6 +60,7 @@ struct FLandscapeTextureDataInfo
 	{
 		void* MipData;
 		TArray<FUpdateTextureRegion2D> MipUpdateRegions;
+		bool bFull;
 	};
 
 	FLandscapeTextureDataInfo(UTexture2D* InTexture, bool bShouldDirtyPackage);
@@ -72,10 +73,27 @@ struct FLandscapeTextureDataInfo
 
 	void AddMipUpdateRegion(int32 MipNum, int32 InX1, int32 InY1, int32 InX2, int32 InY2)
 	{
-		check( MipNum < MipInfo.Num() );
-		new(MipInfo[MipNum].MipUpdateRegions) FUpdateTextureRegion2D(InX1, InY1, InX1, InY1, 1+InX2-InX1, 1+InY2-InY1);
-	}
+		if (MipInfo[MipNum].bFull)
+		{
+			return;
+		}
 
+		check(MipNum < MipInfo.Num());
+		uint32 Width = 1 + InX2 - InX1;
+		uint32 Height = 1 + InY2 - InY1;
+		// Catch situation where we are updating the whole texture to avoid adding redundant regions once the whole region as been included.
+		if (Width == GetMipSizeX(MipNum) && Width == GetMipSizeY(MipNum))
+		{
+			MipInfo[MipNum].bFull = true;
+			MipInfo[MipNum].MipUpdateRegions.Reset();
+			// Push a full region for UpdateTextureData() to process later
+			new(MipInfo[MipNum].MipUpdateRegions) FUpdateTextureRegion2D(0, 0, 0, 0, Width, Height);
+			return;
+		}
+
+		new(MipInfo[MipNum].MipUpdateRegions) FUpdateTextureRegion2D(InX1, InY1, InX1, InY1, Width, Height);
+	}
+		
 	void* GetMipData(int32 MipNum)
 	{
 		check( MipNum < MipInfo.Num() );
@@ -217,7 +235,7 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 
 	template<typename TStoreData>
 	void GetEditToolTextureData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData, TFunctionRef<UTexture2D*(ULandscapeComponent*)> GetComponentTexture);
-	void SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture);
+	void SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture, TextureGroup InTextureGroup = TEXTUREGROUP_Terrain_Weightmap);
 
 	// Without data interpolation, Select Data 
 	template<typename TStoreData>
@@ -397,7 +415,6 @@ struct FHeightmapAccessor
 
 			for (ULandscapeComponent* Component : Components)
 			{
-				Component->InvalidateLightingCache();
 				Component->RequestHeightmapUpdate();
 			}
 						
@@ -408,7 +425,8 @@ struct FHeightmapAccessor
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+				const bool bInvalidateLightingCache = true;
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components, bInvalidateLightingCache);
 				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{

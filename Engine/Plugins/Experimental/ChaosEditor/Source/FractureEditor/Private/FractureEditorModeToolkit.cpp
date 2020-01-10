@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FractureEditorModeToolkit.h"
 
@@ -1605,6 +1605,14 @@ bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, con
 
 void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const
 {
+#if WITH_EDITOR
+	// If we're running PIE or SIE when this happens we should ignore the rebuild as the implicits will be in use.
+	if(GEditor->bIsSimulatingInEditor || GEditor->GetPIEWorldContext() != nullptr)
+	{
+		return;
+	}
+#endif
+
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection();
 	const FGeometryCollection* OutGeometryCollectionConst = GeometryCollectionPtr.Get();
 
@@ -1774,11 +1782,15 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
 			{
 				const UGeometryCollection* RestCollection = Actor->GetGeometryCollectionComponent()->GetRestCollection();
-				const FGeometryCollection* GeometryCollection = RestCollection->GetGeometryCollection().Get();
 
-				if (GeometryCollection != nullptr)
+				if(RestCollection)
 				{
-					GeometryCollectionArray.Add(GeometryCollection);
+					const FGeometryCollection* GeometryCollection = RestCollection->GetGeometryCollection().Get();
+
+					if(GeometryCollection != nullptr)
+					{
+						GeometryCollectionArray.Add(GeometryCollection);
+					}
 				}
 			}
 		}
@@ -1802,28 +1814,31 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 
 			Buffer += FString::Printf(TEXT("Sum of the selected Geometry Collections\n\n"));
 
-			const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-
-			TArray<int32> LevelTransforms;
-			for (int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
+			if(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
 			{
-				const int32 NodeLevel = Levels[Element];
-				while (LevelTransforms.Num() <= NodeLevel)
+				const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+				TArray<int32> LevelTransforms;
+				for(int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
 				{
-					LevelTransforms.SetNum(NodeLevel + 1);
-					LevelTransforms[NodeLevel] = 0;
+					const int32 NodeLevel = Levels[Element];
+					while(LevelTransforms.Num() <= NodeLevel)
+					{
+						LevelTransforms.SetNum(NodeLevel + 1);
+						LevelTransforms[NodeLevel] = 0;
+					}
+					++LevelTransforms[NodeLevel];
 				}
-				++LevelTransforms[NodeLevel];
-			}
 
-			for (int32 Level = 0; Level < LevelTransforms.Num(); ++Level)
-			{
-				LevelTransformsAll[Level] += LevelTransforms[Level];
-			}
+				for(int32 Level = 0; Level < LevelTransforms.Num(); ++Level)
+				{
+					LevelTransformsAll[Level] += LevelTransforms[Level];
+				}
 
-			if (LevelTransforms.Num() > LevelMax)
-			{
-				LevelMax = LevelTransforms.Num();
+				if(LevelTransforms.Num() > LevelMax)
+				{
+					LevelMax = LevelTransforms.Num();
+				}
 			}
 		}
 

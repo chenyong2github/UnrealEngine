@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
 #include "BackChannel/Private/BackChannelCommon.h"
@@ -194,7 +194,7 @@ TSharedPtr<FBackChannelOSCMessage> FBackChannelOSCMessage::CreateFromBuffer(cons
 	FString TagString = ANSI_TO_TCHAR((ANSICHAR*)pParsedData);
 
 	// remove the leading ,
-	NewMessage->TagString = TagString.RightChop(TagString.Find(TEXT(","))+1);
+	NewMessage->TagString = TagString.RightChop(TagString.Find(TEXT(","), ESearchCase::CaseSensitive)+1);
 
 	pParsedData += RoundedArgumentSize(TagString.Len() + 1);
 

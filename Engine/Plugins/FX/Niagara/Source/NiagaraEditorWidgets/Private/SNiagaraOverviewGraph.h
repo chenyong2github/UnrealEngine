@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,8 +19,6 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel);
 
-	~SNiagaraOverviewGraph();
-
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
@@ -28,18 +26,27 @@ private:
 
 	void GraphSelectionChanged(const TSet<UObject*>& SelectedNodes);
 
+	void PreClose();
+
 	/** Called to create context menu when right-clicking on graph */
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 
 	void OnCreateComment();
+	void OnClearIsolated();
 
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
 	void CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph);
 
 	void ZoomToFit();
-
 	void ZoomToFitAll();
+
+	void OnAlignTop();
+	void OnAlignMiddle();
+	void OnAlignBottom();
+
+	void OnDistributeNodesH();
+	void OnDistributeNodesV();
 
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;

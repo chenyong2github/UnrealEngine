@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VPScoutingSubsystem.h"
 #include "VPUtilitiesEditorModule.h"
@@ -100,36 +100,14 @@ void UVPScoutingSubsystemGestureManagerBase::OnVREditingModeExit_Implementation(
 /* UVPScoutingSubsystem
  *****************************************************************************/
 UVPScoutingSubsystem::UVPScoutingSubsystem()
-	: UEditorSubsystem()
+	: UEditorSubsystem(),
+	GripNavSpeedCoeff(4.0f)
 {
 }
 
 void UVPScoutingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UE_LOG(LogVPUtilitiesEditor, Log, TEXT("VP Scouting subsystem initialized."));
-
-	// Setup VR editor settings from user preferences
-	UVPUtilitiesEditorSettings* VPUtilitiesEditorSettings = GetMutableDefault<UVPUtilitiesEditorSettings>();
-	
-	// Turn on/off transform VR gizmo
-	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.ShowTransformGizmo"));
-	CVar->Set(VPUtilitiesEditorSettings->bUseTransformGizmo);
-
-	//Initialize drag scale from saved config file
-	GripNavSpeedCoeff = 4.0f;
-	CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.DragScale"));
-	CVar->Set(VPUtilitiesEditorSettings->GripNavSpeed * GripNavSpeedCoeff);
-
-	//Turn on/off grip nav inertia
-	CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.HighSpeedInertiaDamping"));
-	if (VPUtilitiesEditorSettings->bUseGripInertiaDamping)
-	{
-		CVar->Set(VPUtilitiesEditorSettings->InertiaDamping);
-	}
-	else
-	{
-		CVar->Set(0);
-	}
 
 	// Load the ScoutingHelper implemented in BP. See BaseVirtualProductionUtilitites.ini
 	VPSubsystemHelpers = nullptr;
@@ -318,10 +296,15 @@ void UVPScoutingSubsystem::SetIsUsingTransformGizmo(const bool bInIsUsingTransfo
 	if (bInIsUsingTransformGizmo != VPUtilitiesEditorSettings->bUseTransformGizmo)
 	{
 		VPUtilitiesEditorSettings->bUseTransformGizmo = bInIsUsingTransformGizmo;
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.ShowTransformGizmo"));
-		CVar->Set(bInIsUsingTransformGizmo);
+		SetShowTransformGizmoCVar(bInIsUsingTransformGizmo);
 		VPUtilitiesEditorSettings->SaveConfig();
 	}
+}
+
+void UVPScoutingSubsystem::SetShowTransformGizmoCVar(const bool bInShowTransformGizmoCVar)
+{
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.ShowTransformGizmo"));
+	CVar->Set(bInShowTransformGizmoCVar);
 }
 
 float UVPScoutingSubsystem::GetFlightSpeed()
@@ -358,16 +341,22 @@ void UVPScoutingSubsystem::SetIsUsingInertiaDamping(const bool bInIsUsingInertia
 	//Save this value in editor settings and set the console variable which is used for inertia damping
 	UVPUtilitiesEditorSettings* VPUtilitiesEditorSettings = GetMutableDefault<UVPUtilitiesEditorSettings>();
 	VPUtilitiesEditorSettings->bUseGripInertiaDamping = bInIsUsingInertiaDamping;
-	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.HighSpeedInertiaDamping"));
+	
 	if (bInIsUsingInertiaDamping)
 	{
-		CVar->Set(VPUtilitiesEditorSettings->InertiaDamping);
+		SetInertiaDampingCVar(VPUtilitiesEditorSettings->InertiaDamping);
 	}
 	else
 	{
-		CVar->Set(0);
+		SetInertiaDampingCVar(0);
 	}
 	VPUtilitiesEditorSettings->SaveConfig();
+}
+
+void UVPScoutingSubsystem::SetInertiaDampingCVar(const float InInertiaDamping)
+{
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.HighSpeedInertiaDamping"));
+	CVar->Set(InInertiaDamping);
 }
 
 bool UVPScoutingSubsystem::IsHelperSystemEnabled()

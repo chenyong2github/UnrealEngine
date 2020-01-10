@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 TranslucentRendering.cpp: Translucent rendering implementation.
@@ -504,7 +504,7 @@ void FDeferredShadingSceneRenderer::ConditionalResolveSceneColorForTranslucentMa
 			bNeedsResolve |= View.TranslucentPrimCount.UseSceneColorCopy((ETranslucencyPass::Type)TranslucencyPass);
 		}
 
-		if (bNeedsResolve)
+		if (bNeedsResolve && !View.IsUnderwater())
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -857,7 +857,34 @@ void UpsampleTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, bo
 	SceneContext.FinishRenderingSceneColor(RHICmdList);
 }
 
-void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, ETranslucencyPass::Type TranslucencyPass, IPooledRenderTarget* SceneColorCopy)
+void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, bool bDrawUnderwaterViews)
+{
+	// For now there is only one resolve for all translucency passes. This can be changed by enabling the resolve in RenderTranslucencyInner()
+	TRefCountPtr<IPooledRenderTarget> SceneColorCopy = GSystemTextures.BlackDummy;
+	if (!bDrawUnderwaterViews)
+	{
+		ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);
+	}
+
+	// Disable UAV cache flushing so we have optimal VT feedback performance.
+	RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+
+	if (ViewFamily.AllowTranslucencyAfterDOF())
+	{
+		RenderTranslucencyInner(RHICmdList, ETranslucencyPass::TPT_StandardTranslucency, SceneColorCopy, bDrawUnderwaterViews);
+		// Translucency after DOF is rendered now, but stored in the separate translucency RT for later use.
+		RenderTranslucencyInner(RHICmdList, ETranslucencyPass::TPT_TranslucencyAfterDOF, SceneColorCopy, bDrawUnderwaterViews);
+	}
+	else // Otherwise render translucent primitives in a single bucket.
+	{
+		RenderTranslucencyInner(RHICmdList, ETranslucencyPass::TPT_AllTranslucency, SceneColorCopy, bDrawUnderwaterViews);
+	}
+
+	RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
+	RHICmdList.FlushComputeShaderCache();
+}
+
+void FDeferredShadingSceneRenderer::RenderTranslucencyInner(FRHICommandListImmediate& RHICmdList, ETranslucencyPass::Type TranslucencyPass, IPooledRenderTarget* SceneColorCopy, bool bDrawUnderwaterViews)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -879,12 +906,12 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 	}
 	FScopedCommandListWaitForTasks Flusher(bUseParallel && (CVarRHICmdFlushRenderThreadTasksTranslucentPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0), RHICmdList);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
 		FViewInfo& View = Views[ViewIndex];
-		if (!View.ShouldRenderView())
+		if (!View.ShouldRenderView() || (Views[ViewIndex].IsUnderwater() != bDrawUnderwaterViews))
 		{
 			continue;
 		}
@@ -906,7 +933,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 		FMeshPassProcessorRenderState DrawRenderState(View, BasePassUniformBuffer);
 
 		// If downsampling we need to render in the separate buffer. Otherwise we also need to render offscreen to apply TPT_TranslucencyAfterDOF
-		if (RenderInSeparateTranslucency(SceneContext, TranslucencyPass, View.TranslucentPrimCount.DisableOffscreenRendering(TranslucencyPass)))
+		if (!bDrawUnderwaterViews && RenderInSeparateTranslucency(SceneContext, TranslucencyPass, View.TranslucentPrimCount.DisableOffscreenRendering(TranslucencyPass)))
 		{
 			checkSlow(RHICmdList.IsOutsideRenderPass());
 
@@ -937,7 +964,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 				BeginTimingSeparateTranslucencyPass(RHICmdList, View);
 			}
 
-			SceneContext.BeginRenderingSeparateTranslucency(RHICmdList, View, *this, ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin);
+			SceneContext.BeginRenderingSeparateTranslucency(RHICmdList, View, *this, NumProcessedViews == 0 || View.Family->bMultiGPUForkAndJoin);
 
 			// Draw only translucent prims that are in the SeparateTranslucency pass
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
@@ -968,7 +995,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 		}
 		else
 		{
-			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin);
+			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, NumProcessedViews == 0 || View.Family->bMultiGPUForkAndJoin);
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 
 			if (bUseParallel && !ViewFamily.UseDebugViewPS())
@@ -991,6 +1018,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 			STAT(View.ViewState->TranslucencyTimer.End(RHICmdList));
 		}
 #endif
+		// Keep track of number of views not skipped
+		NumProcessedViews++;
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());

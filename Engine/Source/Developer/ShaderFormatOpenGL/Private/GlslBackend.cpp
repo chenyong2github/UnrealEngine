@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // .
 
 // This code is largely based on that in ir_print_glsl_visitor.cpp from
@@ -2294,8 +2294,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 		check(scope_depth > 0);
 		ir_dereference_image* image = ir->memory_ref->as_dereference_image();
 
-		ir->lhs->accept(this);
 		bUseImageAtomic = image != NULL;
+
+		ir->lhs->accept(this);
+
 		if (!image || (image->image->type && image->image->type->shader_storage_buffer))
 		{
 			ralloc_asprintf_append(buffer, " = %s(",

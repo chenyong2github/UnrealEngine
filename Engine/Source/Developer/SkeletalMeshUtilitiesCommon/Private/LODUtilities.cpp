@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LODUtilities.h"
 #include "Misc/MessageDialog.h"
@@ -2023,6 +2023,25 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				{
 					LODModelReplaceByReduction.Enqueue(ReplacedLODModel);
 				});
+			}
+
+			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
+			FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
+			if (SkeletalMeshResource)
+			{
+				FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
+				const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
+				for (int32 DependentLODIndex : DependentLODs)
+				{
+					if (DependentLODIndex < NumLODModels)
+					{
+						FSkeletalMeshLODModel* LODModel = LODModels[DependentLODIndex];
+						if (LODModel)
+						{
+							LODModel->RawSkeletalMeshBulkData.GetBulkData().ForceBulkDataResident();
+						}
+					}
+				}
 			}
 
 			//Reduce all dependent LOD in same time

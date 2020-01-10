@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Here are a number of profiling helper functions so we do not have to duplicate a lot of the glue
@@ -55,14 +55,6 @@ struct CORE_API FHistogram
 
 	/** Prints histogram contents to the log. */
 	void DumpToLog(const FString& HistogramName);
-
-	/** Populates array commonly used in analytics events, adding two pairs per bin (count and sum). */
-	UE_DEPRECATED(4.21, "This function is deprecated. DumpToJsonString instead")
-	void DumpToAnalytics(const FString& ParamNamePrefix, TArray<TPair<FString, double>>& OutParamArray);
-
-	/** Returns a string in a format that can be consumed by an analytics event in the format expected by the analytics backends. Bucket:Count:Sum;Bucket:Count:Sum;...  */
-	UE_DEPRECATED(4.21, "This function is deprecated. DumpToJsonString instead")
-	FString DumpToAnalyticsString() const;
 
 	/** 
 	 * Returns a string in a Json format: [{"Bin":"BinName","Count":Count,"Sum":Sum},...]. 

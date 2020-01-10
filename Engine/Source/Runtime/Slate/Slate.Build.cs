@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -67,5 +67,10 @@ public class Slate : ModuleRules
 				RuntimeDependencies.Add("$(ProjectDir)/Content/SlateDebug/...", StagedFileType.DebugNonUFS);
 			}
 		}
+
+		if (Target.bBuildDeveloperTools)
+        {
+            DynamicallyLoadedModuleNames.Add("Settings");
+        }
 	}
 }

@@ -1,10 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothMeshAdapter.h"
 
 #include "ClothingAssetBase.h"
 #include "ClothingAsset.h"
-#include "ClothPhysicalMeshDataNv.h" // for MaskTarget_PhysMesh
 
 #include "MeshPaintTypes.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -143,105 +142,6 @@ FMatrix FClothMeshPaintAdapter::GetComponentToWorldMatrix() const
 	return SkeletalMeshComponent->GetComponentToWorld().ToMatrixWithScale();
 }
 
-float FClothMeshPaintAdapter::GetMaxDistanceValue(int32 VertexIndex) const
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			const TArray<float>* MaxDistances = 
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::MaxDistance);
-			return MaxDistances ? (*MaxDistances)[VertexIndex - Info.VertexStart] : 0.0f;
-		}
-	}
-
-	return 0.0f;
-}
-
-void FClothMeshPaintAdapter::SetMaxDistanceValue(int32 VertexIndex, float Value)
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			if (TArray<float>* MaxDistances =
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::MaxDistance))
-			{
-				(*MaxDistances)[VertexIndex - Info.VertexStart] = Value;
-			}
-			break;
-		}
-	}
-}
-
-float FClothMeshPaintAdapter::GetBackstopDistanceValue(int32 VertexIndex) const
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			const TArray<float>* BackstopDistances = 
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::BackstopDistance);
-			return BackstopDistances ? (*BackstopDistances)[VertexIndex - Info.VertexStart] : 0.0f;
-		}
-	}
-
-	return 0.0f;
-}
-
-void FClothMeshPaintAdapter::SetBackstopDistanceValue(int32 VertexIndex, float Value)
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			if (TArray<float>* BackstopDistances =
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::BackstopDistance))
-			{
-				(*BackstopDistances)[VertexIndex - Info.VertexStart] = Value;
-			}
-			break;
-		}
-	}
-}
-
-float FClothMeshPaintAdapter::GetBackstopRadiusValue(int32 VertexIndex) const
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			const TArray<float>* BackstopRadii = 
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::BackstopRadius);
-			return BackstopRadii ? (*BackstopRadii)[VertexIndex - Info.VertexStart] : 0.0f;
-		}
-	}
-
-	return 0.0f;
-}
-
-void FClothMeshPaintAdapter::SetBackstopRadiusValue(int32 VertexIndex, float Value)
-{
-	for (const FClothAssetInfo& Info : AssetInfoMap)
-	{
-		if (VertexIndex >= Info.VertexStart && VertexIndex < Info.VertexEnd)
-		{
-			if (TArray<float>* BackstopRadii =
-				Info.Asset->ClothLodData[PaintingClothLODIndex]->PhysicalMeshData->GetFloatArray(
-				(uint32)MaskTarget_PhysMesh::BackstopRadius))
-			{
-				(*BackstopRadii)[VertexIndex - Info.VertexStart] = Value;
-			}
-			break;
-		}
-	}
-}
-
 TArray<FVector> FClothMeshPaintAdapter::SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const
 {
 	// Get list of intersecting triangles with given sphere data
@@ -282,7 +182,7 @@ void FClothMeshPaintAdapter::SetSelectedClothingAsset(const FGuid& InAssetGuid, 
 			{
 				if(ConcreteAsset->IsValidLod(InAssetLod))
 				{
-					UClothLODDataBase* LodData = ConcreteAsset->ClothLodData[InAssetLod];
+					UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[InAssetLod];
 
 					if(LodData->ParameterMasks.IsValidIndex(InMaskIndex))
 					{
@@ -333,12 +233,11 @@ bool FClothMeshPaintAdapter::InitializeVertexData()
 			if(DebugComponent->SkinnedSelectedClothingPositions.Num() > 0)
 			{
 				UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(SelectedAsset);
-				const UClothLODDataBase* LODData = ConcreteAsset->ClothLodData[PaintingClothLODIndex];
-				check(LODData->PhysicalMeshData);
-				const UClothPhysicalMeshDataBase* MeshData = LODData->PhysicalMeshData;
+				const UClothLODDataCommon* LODData = ConcreteAsset->ClothLodData[PaintingClothLODIndex];
+				const FClothPhysicalMeshData& MeshData = LODData->ClothPhysicalMeshData;
 
 				MeshVertices.Append(DebugComponent->SkinnedSelectedClothingPositions);
-				MeshIndices.Append(MeshData->Indices);
+				MeshIndices.Append(MeshData.Indices);
 
 				for(int32 Index = IndexOffset; Index < MeshIndices.Num(); ++Index)
 				{
@@ -349,8 +248,8 @@ bool FClothMeshPaintAdapter::InitializeVertexData()
 				Info.IndexStart = IndexOffset;
 				Info.VertexStart = VertexOffset;
 
-				IndexOffset += MeshData->Indices.Num();
-				VertexOffset += MeshData->Vertices.Num();
+				IndexOffset += MeshData.Indices.Num();
+				VertexOffset += MeshData.Vertices.Num();
 
 				Info.IndexEnd = IndexOffset;
 				Info.VertexEnd = VertexOffset;

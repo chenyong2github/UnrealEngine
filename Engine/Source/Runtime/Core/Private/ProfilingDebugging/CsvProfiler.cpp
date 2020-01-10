@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
 *
@@ -66,7 +66,7 @@ const char * GIgnoreWaitStatName =  "[IGNORE]";
 
 TAutoConsoleVariable<int32> CVarCsvBlockOnCaptureEnd(
 	TEXT("csv.BlockOnCaptureEnd"), 
-	0,
+	1,
 	TEXT("When 1, blocks the game thread until the CSV file has been written completely when the capture is ended.\r\n")
 	TEXT("When 0, the game thread is not blocked whilst the file is written."),
 	ECVF_Default
@@ -206,7 +206,7 @@ public:
 				{
 					FString Val = ValueStr.Mid(0, CommaIndex);
 					CVarValues.Add(FCString::Atof(*Val));
-					ValueStr = ValueStr.Mid(CommaIndex + 1);
+					ValueStr.MidInline(CommaIndex + 1, MAX_int32, false);
 					continue;
 				}
 			}
@@ -223,7 +223,7 @@ public:
 				{
 					FString Val = ValueStr.Mid(0, SemiColonIndex);
 					CVarValues.Add(FCString::Atof(*Val));
-					ValueStr = ValueStr.Mid(SemiColonIndex);
+					ValueStr.MidInline(SemiColonIndex, MAX_int32, false);
 					continue;
 				}
 			}
@@ -1235,6 +1235,12 @@ public:
 		SerializeInternal((void*)StringBuffer, sizeof(ANSICHAR) * StrLen);
 	}
 
+	void WriteMetadataEntry(const FString& Key, const FString& Value)
+	{
+		WriteString(*FString::Printf(TEXT("[%s]"), *Key));
+		WriteString(Value);
+	}
+
 private:
 	void WriteStringInternal(const FString& Str)
 	{
@@ -2104,14 +2110,24 @@ void FCsvStreamWriter::Finalize(const TMap<FString, FString>& Metadata)
 	Stream.NewLine();
 
 	// Insert some metadata to indicate the file has a summary header row
-	Stream.WriteString(TEXT("[HasHeaderRowAtEnd]"));
-	Stream.WriteString(TEXT("1"));
+	Stream.WriteMetadataEntry((TEXT("HasHeaderRowAtEnd")), TEXT("1"));
 
-	// Add metadata at the end of the file
+	// Add metadata at the end of the file, making sure commandline is last (this is required for parsing)
+	const TPair<FString, FString>* CommandlineEntry = NULL;
 	for (const auto& Pair : Metadata)
 	{
-		Stream.WriteString(*FString::Printf(TEXT("[%s]"), *Pair.Key));
-		Stream.WriteString(*Pair.Value);
+		if (Pair.Key == "Commandline")
+		{
+			CommandlineEntry = &Pair;
+		}
+		else
+		{
+			Stream.WriteMetadataEntry(Pair.Key, Pair.Value);
+		}
+	}
+	if (CommandlineEntry)
+	{
+		Stream.WriteMetadataEntry(CommandlineEntry->Key, CommandlineEntry->Value);
 	}
 }
 
@@ -2458,6 +2474,22 @@ FCsvProfiler::FCsvProfiler()
 	FCoreDelegates::OnBeginFrameRT.AddStatic(CsvProfilerBeginFrameRT);
 	FCoreDelegates::OnEndFrameRT.AddStatic(CsvProfilerEndFrameRT);
 #endif
+
+	// add constant metadata
+	FString PlatformStr = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+	FString BuildConfigurationStr = LexToString(FApp::GetBuildConfiguration());
+	FString CommandlineStr = FString("\"") + FCommandLine::Get() + FString("\"");
+	// Strip newlines
+	CommandlineStr.ReplaceInline(TEXT("\n"), TEXT(""));
+	CommandlineStr.ReplaceInline(TEXT("\r"), TEXT(""));
+	FString BuildVersionString = FApp::GetBuildVersion();
+	FString EngineVersionString = FEngineVersion::Current().ToString();
+
+	MetadataMap.FindOrAdd(TEXT("Platform")) = PlatformStr;
+	MetadataMap.FindOrAdd(TEXT("Config")) = BuildConfigurationStr;
+	MetadataMap.FindOrAdd(TEXT("BuildVersion")) = BuildVersionString;
+	MetadataMap.FindOrAdd(TEXT("EngineVersion")) = EngineVersionString;
+	MetadataMap.FindOrAdd(TEXT("Commandline")) = CommandlineStr;
 }
 
 FCsvProfiler::~FCsvProfiler()
@@ -2586,6 +2618,11 @@ void FCsvProfiler::BeginFrame()
 					}
 					SetMetadata(TEXT("TargetFramerate"), *FString::FromInt(TargetFPS));
 
+#if !UE_BUILD_SHIPPING
+					uint64 ExtraDevelopmentMemoryMB = FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull;
+					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
+#endif
+
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
 					// Initialize tls before setting the capturing flag to true.
@@ -2639,6 +2676,11 @@ void FCsvProfiler::EndFrame()
 
 		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 		float PhysicalMBFree = float(MemoryStats.AvailablePhysical) / (1024.0f * 1024.0f);
+
+#if !UE_BUILD_SHIPPING
+		// Subtract any extra development memory from physical free. This can result in negative values in cases where we would have crashed OOM
+		PhysicalMBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
+#endif
 		float PhysicalMBUsed = float(MemoryStats.UsedPhysical) / (1024.0f * 1024.0f);
 		float VirtualMBUsed  = float(MemoryStats.UsedVirtual) / (1024.0f * 1024.0f);
 		CSV_CUSTOM_STAT_GLOBAL(MemoryFreeMB, PhysicalMBFree, ECsvCustomStatOp::Set);
@@ -2693,7 +2735,7 @@ void FCsvProfiler::EndFrame()
 					FinalizeCsvFile();
 					bCaptureComplete = true;
 				}
-				else if (CVarCsvBlockOnCaptureEnd.GetValueOnGameThread() == 0)
+				else if (CVarCsvBlockOnCaptureEnd.GetValueOnGameThread() == 1)
 				{
 					// Suspend the hang and hitch heartbeats, as this is a long running task.
 					FSlowHeartBeatScope SuspendHeartBeat;
@@ -2812,6 +2854,14 @@ TSharedFuture<FString> FCsvProfiler::EndCapture(FGraphEventRef EventToSignal)
 		}
 	});
 
+	// Copy the metadata array for the next FinalizeCsvFile
+	TMap<FString, FString> CopyMetadataMap;
+	{
+		FScopeLock Lock(&MetadataCS);
+		CopyMetadataMap = MetadataMap;
+	}
+	MetadataQueue.Enqueue(MoveTemp(CopyMetadataMap));
+
 	TSharedFuture<FString> Future = Completion->GetFuture().Share();
 	CommandQueue.Enqueue(FCsvCaptureCommand(ECsvCommandType::Stop, GCsvProfilerFrameNumber, Completion, Future));
 
@@ -2830,35 +2880,14 @@ void FCsvProfiler::FinalizeCsvFile()
 	// Do a final process of the stat data
 	ProcessStatData();
 
-	// Copy the metadata array into a local one
-	TMap<FString, FString> LocalMetadata;
-	{
-		FScopeLock Lock(&MetadataCS);
-		LocalMetadata = MetadataMap;
-	}
-
-	// Add metadata
-	FString PlatformStr = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-	FString BuildConfigurationStr = LexToString(FApp::GetBuildConfiguration());
-	FString CommandlineStr = FString("\"") + FCommandLine::Get() + FString("\"");
-	// Strip newlines
-	CommandlineStr.ReplaceInline(TEXT("\n"), TEXT(""));
-	CommandlineStr.ReplaceInline(TEXT("\r"), TEXT(""));
-	FString BuildVersionString = FApp::GetBuildVersion();
-	FString EngineVersionString = FEngineVersion::Current().ToString();
-
-	LocalMetadata.FindOrAdd(TEXT("Platform")) = PlatformStr;
-	LocalMetadata.FindOrAdd(TEXT("Config")) = BuildConfigurationStr;
-	LocalMetadata.FindOrAdd(TEXT("DeviceProfile")) = DeviceProfileName;
-	LocalMetadata.FindOrAdd(TEXT("BuildVersion")) = BuildVersionString;
-	LocalMetadata.FindOrAdd(TEXT("EngineVersion")) = EngineVersionString;
-
-	// Commandline has to be last for parsing, since it might include commas
-	LocalMetadata.FindOrAdd(TEXT("Commandline")) = CommandlineStr;
-
 	uint64 MemoryBytesAtEndOfCapture = CsvWriter->GetAllocatedSize();
+	
+	// Get the queued metadata for the next csv finalize
+	TMap<FString, FString> CurrentMetadata;
+	MetadataQueue.Dequeue(CurrentMetadata);
 
-	CsvWriter->Finalize(LocalMetadata);
+
+	CsvWriter->Finalize(CurrentMetadata);
 
 	delete CsvWriter;
 	CsvWriter = nullptr;
@@ -2880,8 +2909,7 @@ void FCsvProfiler::FinalizeCsvFile()
 
 void FCsvProfiler::SetDeviceProfileName(FString InDeviceProfileName)
 {
-	LLM_SCOPE(ELLMTag::CsvProfiler);
-	DeviceProfileName = InDeviceProfileName;
+	CSV_METADATA(TEXT("DeviceProfile"), *InDeviceProfileName);
 }
 
 /** Push/pop events */

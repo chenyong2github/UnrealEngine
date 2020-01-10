@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/MessageDialog.h"
@@ -638,14 +638,14 @@ void  UMatineeTrackFloatPropHelper::PostCreateTrack( UInterpTrack *Track, bool b
 
 		// Set track title to property name (cut off component name if there is one).
 		FString PropString = TrackAddPropName.ToString();
-		int32 PeriodPos = PropString.Find(TEXT("."));
+		int32 PeriodPos = PropString.Find(TEXT("."), ESearchCase::CaseSensitive);
 		if(PeriodPos != INDEX_NONE)
 		{
-			PropString = PropString.Mid(PeriodPos+1);
+			PropString.MidInline(PeriodPos+1, MAX_int32, false);
 		}
 
 		PropTrack->PropertyName = TrackAddPropName;
-		PropTrack->TrackTitle = *PropString;
+		PropTrack->TrackTitle = MoveTemp(PropString);
 
 		TrackAddPropName = NAME_None;
 	}
@@ -777,14 +777,14 @@ void UMatineeTrackBoolPropHelper::PostCreateTrack( UInterpTrack* Track, bool bDu
 
 		// Set track title to property name (cut off component name if there is one).
 		FString PropString = TrackAddPropName.ToString();
-		int32 PeriodPos = PropString.Find(TEXT("."));
+		int32 PeriodPos = PropString.Find(TEXT("."), ESearchCase::CaseSensitive);
 		if(PeriodPos != INDEX_NONE)
 		{
-			PropString = PropString.Mid(PeriodPos+1);
+			PropString.MidInline(PeriodPos+1, MAX_int32, false);
 		}
 
 		PropTrack->PropertyName = TrackAddPropName;
-		PropTrack->TrackTitle = *PropString;
+		PropTrack->TrackTitle = MoveTemp(PropString);
 
 		TrackAddPropName = NAME_None;
 	}
@@ -1003,14 +1003,14 @@ void  UMatineeTrackVectorPropHelper::PostCreateTrack( UInterpTrack *Track, bool 
 
 		// Set track title to property name (cut off component name if there is one).
 		FString PropString = TrackAddPropName.ToString();
-		int32 PeriodPos = PropString.Find(TEXT("."));
+		int32 PeriodPos = PropString.Find(TEXT("."), ESearchCase::CaseSensitive);
 		if(PeriodPos != INDEX_NONE)
 		{
-			PropString = PropString.Mid(PeriodPos+1);
+			PropString.MidInline(PeriodPos+1, MAX_int32, false);
 		}
 
 		PropTrack->PropertyName = TrackAddPropName;
-		PropTrack->TrackTitle = *PropString;
+		PropTrack->TrackTitle = MoveTemp(PropString);
 
 		TrackAddPropName = NAME_None;
 	}
@@ -1066,14 +1066,14 @@ void  UMatineeTrackColorPropHelper::PostCreateTrack( UInterpTrack *Track, bool b
 
 		// Set track title to property name (cut off component name if there is one).
 		FString PropString = TrackAddPropName.ToString();
-		int32 PeriodPos = PropString.Find(TEXT("."));
+		int32 PeriodPos = PropString.Find(TEXT("."), ESearchCase::CaseSensitive);
 		if(PeriodPos != INDEX_NONE)
 		{
-			PropString = PropString.Mid(PeriodPos+1);
+			PropString.MidInline(PeriodPos+1, MAX_int32, false);
 		}
 
 		PropTrack->PropertyName = TrackAddPropName;
-		PropTrack->TrackTitle = *PropString;
+		PropTrack->TrackTitle = MoveTemp(PropString);
 
 		TrackAddPropName = NAME_None;
 	}
@@ -1131,14 +1131,14 @@ void  UMatineeTrackLinearColorPropHelper::PostCreateTrack( UInterpTrack *Track, 
 
 		// Set track title to property name (cut off component name if there is one).
 		FString PropString = TrackAddPropName.ToString();
-		int32 PeriodPos = PropString.Find(TEXT("."));
+		int32 PeriodPos = PropString.Find(TEXT("."), ESearchCase::CaseSensitive);
 		if(PeriodPos != INDEX_NONE)
 		{
-			PropString = PropString.Mid(PeriodPos+1);
+			PropString.MidInline(PeriodPos+1, MAX_int32, false);
 		}
 
 		PropTrack->PropertyName = TrackAddPropName;
-		PropTrack->TrackTitle = *PropString;
+		PropTrack->TrackTitle = MoveTemp(PropString);
 
 		TrackAddPropName = NAME_None;
 	}

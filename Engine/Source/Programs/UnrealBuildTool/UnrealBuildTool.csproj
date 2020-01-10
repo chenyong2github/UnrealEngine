@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
@@ -303,11 +303,21 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="'$(OS)' != 'Windows_NT'">
+    <When Condition="Exists('Executors\NotForLicensees\FASTBuild.cs')">
+      <ItemGroup>
+          <Compile Include="Executors\NotForLicensees\FASTBuild.cs" />
+      </ItemGroup>
       <PropertyGroup>
-        <DefineConstants>__MonoCS__</DefineConstants>
+        <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
       </PropertyGroup>
     </When>
+  </Choose>
+  <Choose>
+    <When Condition="'$(OS)' != 'Windows_NT'">
+	  <PropertyGroup>
+		<DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
+	  </PropertyGroup>
+	</When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">
@@ -332,16 +342,6 @@
     <When Condition="Exists('Platform\IOS\NoRedist\IOSToolChainInternal.cs')">
       <ItemGroup>
         <Compile Include="Platform\IOS\NoRedist\IOSToolChainInternal.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\HTML5\UEBuildHTML5.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\HTML5\HTML5ProjectGenerator.cs" />
-        <Compile Include="Platform\HTML5\HTML5ToolChain.cs" />
-        <Compile Include="Platform\HTML5\UEBuildHTML5.cs" />
-        <Compile Include="Platform\HTML5\HTML5SDKInfo.cs" />
       </ItemGroup>
     </When>
   </Choose>

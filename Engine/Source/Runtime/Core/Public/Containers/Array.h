@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,6 +16,7 @@
 #include "Algo/HeapSort.h"
 #include "Algo/IsHeap.h"
 #include "Algo/Impl/BinaryHeap.h"
+#include "Templates/AndOrNot.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Less.h"
 #include "Templates/ChooseClass.h"
@@ -252,7 +253,7 @@ namespace UE4Array_Private
 		enum
 		{
 			Value =
-				TAreTypesEqual<FromAllocatorType, ToAllocatorType>::Value && // Allocators must be equal
+				TOr<TAreTypesEqual<FromAllocatorType, ToAllocatorType>, TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>>::Value && // Allocators must be equal or move-compatible
 				TContainerTraits<FromArrayType>::MoveWillEmptyContainer &&   // A move must be allowed to leave the source array empty
 				(
 					TAreTypesEqual         <ToElementType, FromElementType>::Value || // The element type of the container must be the same, or...
@@ -292,7 +293,7 @@ public:
 	 */
 	FORCEINLINE TArray()
 		: ArrayNum(0)
-		, ArrayMax(0)
+		, ArrayMax(AllocatorInstance.GetInitialCapacity())
 	{}
 
 	/**
@@ -402,6 +403,27 @@ public:
 	}
 
 private:
+#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+	template <
+		typename FromArrayType,
+		typename ToArrayType,
+		typename TEnableIf<TCanMoveBetweenAllocators<typename FromArrayType::Allocator, typename ToArrayType::Allocator>::Value>::Type* = nullptr
+	>
+	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
+	{
+		ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<typename FromArrayType::Allocator>(FromArray.AllocatorInstance);
+	}
+
+	template <
+		typename FromArrayType,
+		typename ToArrayType,
+		typename TEnableIf<!TCanMoveBetweenAllocators<typename FromArrayType::Allocator, typename ToArrayType::Allocator>::Value>::Type* = nullptr
+	>
+	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
+	{
+		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+	}
+#endif
 
 	/**
 	 * Moves or copies array. Depends on the array type traits.
@@ -414,12 +436,30 @@ private:
 	template <typename FromArrayType, typename ToArrayType>
 	static FORCEINLINE typename TEnableIf<UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value>::Type MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
 	{
-		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+		using FromAllocatorType = typename FromArrayType::Allocator;
+		using ToAllocatorType   = typename ToArrayType::Allocator;
+
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
+		{
+			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
+		}
+		else
+		{
+			ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+		}
+#else
+		MoveAllocatorToEmpty(FromArray, ToArray);
+#endif
 
 		ToArray  .ArrayNum = FromArray.ArrayNum;
 		ToArray  .ArrayMax = FromArray.ArrayMax;
+
+		// Ensure the destination container could hold the source range (when the allocator size types shrink)
+		checkf(ToArray.ArrayNum == FromArray.ArrayNum && ToArray.ArrayMax == FromArray.ArrayMax, TEXT("Data lost when moving to a container with a more constrained size type"));
+
 		FromArray.ArrayNum = 0;
-		FromArray.ArrayMax = 0;
+		FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
 	}
 
 	/**
@@ -1199,28 +1239,6 @@ public:
 	}
 
 	/**
-	 * Adds an uninitialized element into the array.
-	 *
-	 * Caution, AddUninitialized() will create elements without calling
-	 * the constructor and this is not appropriate for element types that
-	 * require a constructor to function properly.
-	 *
-	 * @returns Number of elements in array before addition.
-	 */
-	FORCEINLINE SizeType AddUninitialized()
-	{
-		CheckInvariants();
-
-		const SizeType OldNum = ArrayNum;
-		const SizeType NewNum = ArrayNum += 1;
-		if (NewNum > ArrayMax)
-		{
-			ResizeGrow(OldNum);
-		}
-		return OldNum;
-	}
-
-	/**
 	 * Adds a given number of uninitialized elements into the array.
 	 *
 	 * Caution, AddUninitialized() will create elements without calling
@@ -1230,25 +1248,15 @@ public:
 	 * @param Count Number of elements to add.
 	 * @returns Number of elements in array before addition.
 	 */
-	FORCEINLINE SizeType AddUninitialized(SizeType Count)
+	FORCEINLINE SizeType AddUninitialized(SizeType Count = 1)
 	{
 		CheckInvariants();
 		checkSlow(Count >= 0);
 
 		const SizeType OldNum = ArrayNum;
-		const SizeType NewNum = ArrayNum + Count;
-		if (OldNum == 0)
+		if ((ArrayNum += Count) > ArrayMax)
 		{
-			Reserve(Count);
-			ArrayNum = NewNum;
-		}
-		else
-		{
-			ArrayNum = NewNum;
-			if (NewNum > ArrayMax)
-			{
-				ResizeGrow(OldNum);
-			}
+			ResizeGrow(OldNum);
 		}
 		return OldNum;
 	}
@@ -1886,7 +1894,7 @@ public:
 	template <typename... ArgsType>
 	FORCEINLINE SizeType Emplace(ArgsType&&... Args)
 	{
-		const SizeType Index = AddUninitialized();
+		const SizeType Index = AddUninitialized(1);
 		new(GetData() + Index) ElementType(Forward<ArgsType>(Args)...);
 		return Index;
 	}
@@ -1900,7 +1908,7 @@ public:
 	template <typename... ArgsType>
 	FORCEINLINE ElementType& Emplace_GetRef(ArgsType&&... Args)
 	{
-		const SizeType Index = AddUninitialized();
+		const SizeType Index = AddUninitialized(1);
 		ElementType* Ptr = GetData() + Index;
 		new(Ptr) ElementType(Forward<ArgsType>(Args)...);
 		return *Ptr;
@@ -2023,7 +2031,7 @@ public:
 	 */
 	ElementType& AddZeroed_GetRef()
 	{
-		const SizeType Index = AddUninitialized();
+		const SizeType Index = AddUninitialized(1);
 		ElementType* Ptr = GetData() + Index;
 		FMemory::Memzero(Ptr, sizeof(ElementType));
 		return *Ptr;
@@ -2053,7 +2061,7 @@ public:
 	 */
 	ElementType& AddDefaulted_GetRef()
 	{
-		const SizeType Index = AddUninitialized();
+		const SizeType Index = AddUninitialized(1);
 		ElementType* Ptr = GetData() + Index;
 		DefaultConstructItems<ElementType>(Ptr, 1);
 		return *Ptr;
@@ -2560,7 +2568,7 @@ private:
 		}
 		else
 		{
-			ArrayMax = 0;
+			ArrayMax = AllocatorInstance.GetInitialCapacity();
 		}
 	}
 
@@ -2895,7 +2903,7 @@ template <typename InElementType, typename Allocator> struct TIsTArray<const vol
 template <typename T,typename Allocator> void* operator new( size_t Size, TArray<T,Allocator>& Array )
 {
 	check(Size == sizeof(T));
-	const auto Index = Array.AddUninitialized();
+	const auto Index = Array.AddUninitialized(1);
 	return &Array[Index];
 }
 template <typename T,typename Allocator> void* operator new( size_t Size, TArray<T,Allocator>& Array, typename TArray<T, Allocator>::SizeType Index )

@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Framework/Parallel.h"
 #include "Chaos/ParallelFor.h"
 #include "Chaos/Particles.h"
 #include "ChaosStats.h"
@@ -12,12 +13,6 @@ DECLARE_CYCLE_STAT(TEXT("HandleViewParallelForImp"), STAT_HandleViewParallelForI
 
 namespace Chaos
 {
-#if UE_BUILD_SHIPPING
-	const bool bDisableParticleParallelFor = false;
-#else
-	CHAOS_API extern bool bDisableParticleParallelFor;
-#endif
-
 template <typename TSOA>
 class TConstParticleView;
 

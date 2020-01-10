@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InsightsManager.h"
 
@@ -322,13 +322,9 @@ void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
 {
 	ResetSession();
 
-	Trace::FSessionInfo SessionInfo;
-	SessionService->GetSessionInfo(SessionHandle, SessionInfo);
-
-	TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
-	if (DataStream)
+	Session = SessionService->StartAnalysis(SessionHandle);
+	if (Session)
 	{
-		Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
 		CurrentSessionHandle = SessionHandle;
 		bIsNetworkingProfilerAvailable = false;
 		SpawnAndActivateTabs();
@@ -342,10 +338,9 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 {
 	ResetSession();
 
-	TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionFromFile(*TraceFilepath));
-	if (DataStream)
+	Session = AnalysisService->StartAnalysis(*TraceFilepath);
+	if (Session)
 	{
-		Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 		CurrentSessionHandle = 0;
 		bIsNetworkingProfilerAvailable = false;
 		SpawnAndActivateTabs();

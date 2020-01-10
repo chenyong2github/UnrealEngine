@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
@@ -63,7 +63,7 @@ static void ConvertTireTypes()
 			int32 SlashPos = INDEX_NONE;
 			if (TirePath.FindLastChar('/', SlashPos))
 			{
-				TirePath = TirePath.Left(SlashPos);
+				TirePath.LeftInline(SlashPos);
 
 				FString TireTypeName = TireType->GetName();
 				FString TireConfigName = FString::Printf(TEXT("%s_TireConfig"), *TireTypeName);

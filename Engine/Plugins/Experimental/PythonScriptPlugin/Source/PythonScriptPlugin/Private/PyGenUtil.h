@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/PropertyAccessUtil.h"
+#include "UObject/WeakFieldPtr.h"
 
 #if WITH_PYTHON
 
@@ -125,7 +126,7 @@ namespace PyGenUtil
 		FUTF8Buffer ParamName;
 
 		/** The Unreal property for this parameter */
-		const UProperty* ParamProp;
+		const FProperty* ParamProp;
 
 		/** The default Unreal ExportText value of this parameter; parameters with this set are considered optional */
 		TOptional<FString> ParamDefaultValue;
@@ -460,10 +461,10 @@ namespace PyGenUtil
 		FGeneratedWrappedProperty& operator=(const FGeneratedWrappedProperty&) = default;
 
 		/** Set the property, optionally also calculating some data about it */
-		void SetProperty(const UProperty* InProp, const uint32 InSetPropFlags = SPF_All);
+		void SetProperty(const FProperty* InProp, const uint32 InSetPropFlags = SPF_All);
 
 		/** The Unreal property to access */
-		const UProperty* Prop;
+		const FProperty* Prop;
 
 		/** Set if this property is deprecated and using it should emit a deprecation warning */
 		TOptional<FString> DeprecationMessage;
@@ -620,7 +621,7 @@ namespace PyGenUtil
 	/** Stores the data needed to generate a Python doc string for editor exposed properties */
 	struct FGeneratedWrappedPropertyDoc
 	{
-		explicit FGeneratedWrappedPropertyDoc(const UProperty* InProp);
+		explicit FGeneratedWrappedPropertyDoc(const FProperty* InProp);
 
 		FGeneratedWrappedPropertyDoc(FGeneratedWrappedPropertyDoc&&) = default;
 		FGeneratedWrappedPropertyDoc(const FGeneratedWrappedPropertyDoc&) = default;
@@ -656,11 +657,13 @@ namespace PyGenUtil
 		FGeneratedWrappedFieldTracker& operator=(const FGeneratedWrappedFieldTracker&) = default;
 
 		/** Register a Python field name, and detect if a name conflict has occurred */
-		void RegisterPythonFieldName(const FString& InPythonFieldName, const UField* InUnrealField);
+		void RegisterPythonFieldName(const FString& InPythonFieldName, const FFieldVariant& InUnrealField);
 
 		/** Map from the Python wrapped field name to the Unreal field it was generated from (for conflict detection) */
 		typedef TMap<FString, TWeakObjectPtr<const UField>, FDefaultSetAllocator, FCaseSensitiveStringMapFuncs<TWeakObjectPtr<const UField>>> FCaseSensitiveStringToFieldMap;
+		typedef TMap<FString, TWeakFieldPtr<const FField>, FDefaultSetAllocator, FCaseSensitiveStringMapFuncs<TWeakFieldPtr<const FField>>> FCaseSensitiveStringToFFieldMap;
 		FCaseSensitiveStringToFieldMap PythonWrappedFieldNameToUnrealField;
+		FCaseSensitiveStringToFFieldMap PythonWrappedFieldNameToFField;
 	};
 
 	/** Stores the minimal data needed by a runtime generated Python type */
@@ -861,12 +864,12 @@ namespace PyGenUtil
 		{
 		}
 
-		explicit FPythonizeTooltipContext(const UProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
+		explicit FPythonizeTooltipContext(const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 		explicit FPythonizeTooltipContext(const UFunction* InFunc, const TSet<FName>& InParamsToIgnore = TSet<FName>());
 
 		/** Optional property that should be used when converting property tooltips */
-		const UProperty* Prop;
+		const FProperty* Prop;
 
 		/** Optional function that should be used when converting function tooltips */
 		const UFunction* Func;
@@ -888,7 +891,7 @@ namespace PyGenUtil
 	PyObject* GetPostInitFunc(PyTypeObject* InPyType);
 
 	/** Add a struct init parameter to the given array of method parameters */
-	void AddStructInitParam(const UProperty* InUnrealProp, const TCHAR* InPythonAttrName, TArray<FGeneratedWrappedMethodParameter>& OutInitParams);
+	void AddStructInitParam(const FProperty* InUnrealProp, const TCHAR* InPythonAttrName, TArray<FGeneratedWrappedMethodParameter>& OutInitParams);
 
 	/** Given a function, extract all of its parameter information (input and output) */
 	void ExtractFunctionParams(const UFunction* InFunc, TArray<FGeneratedWrappedMethodParameter>& OutInputParams, TArray<FGeneratedWrappedMethodParameter>& OutOutputParams);
@@ -930,7 +933,7 @@ namespace PyGenUtil
 	bool IsDeprecatedClass(const UClass* InClass, FString* OutDeprecationMessage = nullptr);
 
 	/** Is the given property marked as deprecated? */
-	bool IsDeprecatedProperty(const UProperty* InProp, FString* OutDeprecationMessage = nullptr);
+	bool IsDeprecatedProperty(const FProperty* InProp, FString* OutDeprecationMessage = nullptr);
 
 	/** Is the given function marked as deprecated? */
 	bool IsDeprecatedFunction(const UFunction* InFunc, FString* OutDeprecationMessage = nullptr);
@@ -948,10 +951,10 @@ namespace PyGenUtil
 	bool ShouldExportEnumEntry(const UEnum* InEnum, int32 InEnumEntryIndex);
 
 	/** Should the given property be exported to Python? */
-	bool ShouldExportProperty(const UProperty* InProp);
+	bool ShouldExportProperty(const FProperty* InProp);
 
 	/** Should the given property be exported to Python as editor-only data? */
-	bool ShouldExportEditorOnlyProperty(const UProperty* InProp);
+	bool ShouldExportEditorOnlyProperty(const FProperty* InProp);
 
 	/** Should the given function be exported to Python? */
 	bool ShouldExportFunction(const UFunction* InFunc);
@@ -963,7 +966,7 @@ namespace PyGenUtil
 	FString PythonizePropertyName(const FString& InName, const EPythonizeNameCase InNameCase);
 
 	/** Given a property tooltip, convert it to a doc string */
-	FString PythonizePropertyTooltip(const FString& InTooltip, const UProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
+	FString PythonizePropertyTooltip(const FString& InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Given a function tooltip, convert it to a doc string */
 	FString PythonizeFunctionTooltip(const FString& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
@@ -972,10 +975,10 @@ namespace PyGenUtil
 	FString PythonizeTooltip(const FString& InTooltip, const FPythonizeTooltipContext& InContext = FPythonizeTooltipContext());
 
 	/** Given a property and its value, convert it into something that could be used in a Python script */
-	FString PythonizeValue(const UProperty* InProp, const void* InPropValue, const uint32 InFlags = EPythonizeValueFlags::None);
+	FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const uint32 InFlags = EPythonizeValueFlags::None);
 
 	/** Given a property and its default value, convert it into something that could be used in a Python script */
-	FString PythonizeDefaultValue(const UProperty* InProp, const FString& InDefaultValue, const uint32 InFlags = EPythonizeValueFlags::None);
+	FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags = EPythonizeValueFlags::None);
 
 	/** Get the native module the given field belongs to */
 	FString GetFieldModule(const UField* InField);
@@ -1029,25 +1032,26 @@ namespace PyGenUtil
 	TArray<FString> GetDeprecatedScriptConstantPythonNames(const UFunction* InFunc);
 
 	/** Get the Python name of the given property */
-	FString GetPropertyPythonName(const UProperty* InProp);
+	FString GetPropertyPythonName(const FProperty* InProp);
 
 	/** Get the deprecated Python names of the given property */
-	TArray<FString> GetDeprecatedPropertyPythonNames(const UProperty* InProp);
+	TArray<FString> GetDeprecatedPropertyPythonNames(const FProperty* InProp);
 
 	/** Get the Python name of the given property */
-	FString GetPropertyTypePythonName(const UProperty* InProp, const bool InIncludeUnrealNamespace = false, const bool InIsForDocString = true);
+	FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeUnrealNamespace = false, const bool InIsForDocString = true);
 
 	/** Get the Python type of the given property */
-	FString GetPropertyPythonType(const UProperty* InProp);
+	FString GetPropertyPythonType(const FProperty* InProp);
 
 	/** Append the Python type of the given property to the given string */
-	void AppendPropertyPythonType(const UProperty* InProp, FString& OutStr);
+	void AppendPropertyPythonType(const FProperty* InProp, FString& OutStr);
 
 	/** Append the given Python property read /write state to the given string */
-	void AppendPropertyPythonReadWriteState(const UProperty* InProp, FString& OutStr, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
+	void AppendPropertyPythonReadWriteState(const FProperty* InProp, FString& OutStr, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Get the tooltip for the given field */
 	FString GetFieldTooltip(const UField* InField);
+	FString GetFieldTooltip(const FField* InField);
 
 	/** Get the tooltip for the given enum entry */
 	FString GetEnumEntryTooltip(const UEnum* InEnum, const int64 InEntryIndex);

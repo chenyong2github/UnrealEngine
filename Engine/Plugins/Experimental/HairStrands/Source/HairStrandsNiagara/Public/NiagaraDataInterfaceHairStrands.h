@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,6 +38,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIHairStrandsBuffer"); }
 
+	/** Clear the bounding box buffer */
+	void ClearBuffer(FRHICommandList& RHICmdList);
+
 	/** Strand curves point offset buffer */
 	FRWBuffer CurvesOffsetsBuffer;
 
@@ -65,6 +68,12 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/**Root barycentric coordinates */
 	FRWBuffer RootBarycentricCoordinatesBuffer;
 
+	/** Bounding Box Buffer*/
+	FRWBuffer BoundingBoxBuffer;
+
+	/** Node Bound Buffer*/
+	FRWBuffer NodeBoundBuffer;
+
 	/** The strand asset datas from which to sample */
 	const FHairStrandsDatas* SourceDatas;
 
@@ -82,7 +91,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 struct FNDIHairStrandsData
 {
 	/** Cached World transform. */
-	FMatrix WorldTransform;
+	FTransform WorldTransform;
 
 	/** Number of strands*/
 	int32 NumStrands;
@@ -235,6 +244,9 @@ public:
 	/** Get the bounding box extent */
 	void GetBoxExtent(FVectorVMContext& Context);
 
+	/** Build the groom bounding box */
+	void BuildBoundingBox(FVectorVMContext& Context);
+
 	/** Setup the distance spring material */
 	void SetupDistanceSpringMaterial(FVectorVMContext& Context);
 
@@ -316,6 +328,12 @@ public:
 	/** Name of the curves offsets buffer */
 	static const FString CurvesOffsetsBufferName;
 
+	/** Name of bounding box buffer */
+	static const FString BoundingBoxBufferName;
+
+	/** Name of node bound buffer */
+	static const FString NodeBoundBufferName;
+
 	/** Name of the nodes positions buffer */
 	static const FString RestPositionBufferName;
 
@@ -382,7 +400,7 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector& BoxCenter, const FVector& BoxExtent, const FMatrix& WorldTransform);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector& BoxCenter, const FVector& BoxExtent, const FTransform& WorldTransform);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

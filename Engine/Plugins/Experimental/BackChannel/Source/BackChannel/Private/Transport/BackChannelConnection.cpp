@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Private/Transport/BackChannelConnection.h"
 #include "BackChannel/Private/BackChannelCommon.h"
@@ -9,8 +9,10 @@
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("BCBytesSent"), STAT_BackChannelBytesSent, STATGROUP_Game);
-DECLARE_DWORD_COUNTER_STAT(TEXT("BCBytesRecv"), STAT_BackChannelBytesRecv, STATGROUP_Game);
+DECLARE_STATS_GROUP(TEXT("BackChannel"), STATGROUP_BackChannel, STATCAT_Advanced);
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("BC_BytesSent"), STAT_BackChannelBytesSent, STATGROUP_BackChannel);
+DECLARE_DWORD_COUNTER_STAT(TEXT("BC_BytesRecv"), STAT_BackChannelBytesRecv, STATGROUP_BackChannel);
 
 int32 FBackChannelConnection::SendBufferSize = 2 * 1024 * 1024;
 int32 FBackChannelConnection::ReceiveBufferSize = 2 * 1024 * 1024;
@@ -118,17 +120,8 @@ bool FBackChannelConnection::Connect(const TCHAR* InEndPoint)
 	{
 		NewSocket->SetNonBlocking();
 
-		int32 NewSize = 0;
-		NewSocket->SetSendBufferSize(SendBufferSize, NewSize);
-		if (NewSize != SendBufferSize)
-		{
-			UE_LOG(LogBackChannel, Log, TEXT("SetSendBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-		}
-		NewSocket->SetReceiveBufferSize(ReceiveBufferSize, NewSize);
-		if (NewSize != ReceiveBufferSize)
-		{
-			UE_LOG(LogBackChannel, Log, TEXT("SetReceiveBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-		}
+		// set buffer sizes
+		SetSocketBufferSizes(NewSocket, SendBufferSize, ReceiveBufferSize);
 
 		bool Success = false;
 
@@ -168,6 +161,64 @@ bool FBackChannelConnection::Connect(const TCHAR* InEndPoint)
 	return Socket != nullptr;
 }
 
+void FBackChannelConnection::SetSocketBufferSizes(FSocket* NewSocket, int32 DesiredSendSize, int32 DesiredReceiveSize)
+{
+	int32 AllocatedSendSize = 0;
+	int32 AllocatedReceiveSize = 0;
+
+	int32 RequestedSendSize = DesiredSendSize;
+	int32 RequestedReceiveSize = DesiredReceiveSize;
+	bool bWasSet = false;
+		
+	// Send Buffer
+	while (AllocatedSendSize != RequestedSendSize && !bWasSet)
+	{
+		bWasSet = NewSocket->SetSendBufferSize(RequestedSendSize, AllocatedSendSize);
+
+		// If we didn't get what we want assume failure could mean
+		// no change (unsupported size), an OS default, or an OS max so
+		// try again if its less than 50% of what we asked for
+		if (!bWasSet && AllocatedSendSize < RequestedSendSize/2)
+		{
+			RequestedSendSize = RequestedSendSize / 2;
+		}
+	}
+	
+	if (AllocatedSendSize != DesiredSendSize)
+	{
+		UE_LOG(LogBackChannel, Warning, TEXT("Wanted send buffer of %d for %s but OS only allowed %d"), DesiredSendSize, *NewSocket->GetDescription(), AllocatedSendSize);
+	}
+	else
+	{
+		UE_LOG(LogBackChannel, Log, TEXT("Set send buffer to %d bytes for %s"), AllocatedSendSize, *NewSocket->GetDescription());
+	}
+	
+	bWasSet = false;
+
+	// Set Receive buffer
+	while (AllocatedReceiveSize != RequestedReceiveSize && !bWasSet)
+	{
+		bWasSet = NewSocket->SetReceiveBufferSize(RequestedReceiveSize, AllocatedReceiveSize);
+		
+		// If we didn't get what we want assume failure could mean
+		// no change (unsupported size), an OS default, or an OS max so
+		// try again if its less than 50% of what we asked for
+		if (!bWasSet && AllocatedReceiveSize < (RequestedReceiveSize/2))
+		{
+			RequestedReceiveSize = RequestedReceiveSize / 2;
+		}
+	}
+	
+	if (AllocatedReceiveSize != DesiredReceiveSize)
+	{
+		UE_LOG(LogBackChannel, Warning, TEXT("Wanted receive buffer of %d for %s but OS only allowed %d"), DesiredReceiveSize, *NewSocket->GetDescription(), AllocatedReceiveSize);
+	}
+	else
+	{
+		UE_LOG(LogBackChannel, Log, TEXT("Set receive buffer to %d bytes for %s"), AllocatedSendSize, *NewSocket->GetDescription());
+	}
+}
+
 bool FBackChannelConnection::Listen(const int16 Port)
 {
 	FScopeLock Lock(&SocketMutex);
@@ -190,20 +241,6 @@ bool FBackChannelConnection::Listen(const int16 Port)
 			Error = !NewSocket->SetNonBlocking();
 		}
 
-		if (!Error)
-		{
-			int32 NewSize = 0;
-			NewSocket->SetSendBufferSize(SendBufferSize, NewSize);
-			if (NewSize != SendBufferSize)
-			{
-				UE_LOG(LogBackChannel, Log, TEXT("SetSendBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-			}
-			NewSocket->SetReceiveBufferSize(ReceiveBufferSize, NewSize);
-			if (NewSize != ReceiveBufferSize)
-			{
-				UE_LOG(LogBackChannel, Log, TEXT("SetReceiveBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-			}
-		}
 
 		if (!Error)
 		{
@@ -302,17 +339,8 @@ bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(
 					{
 						ConnectionSocket->SetNonBlocking();
 
-						int32 NewSize = 0;
-						ConnectionSocket->SetSendBufferSize(SendBufferSize, NewSize);
-						if (NewSize != SendBufferSize)
-						{
-							UE_LOG(LogBackChannel, Log, TEXT("SetSendBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-						}
-						ConnectionSocket->SetReceiveBufferSize(ReceiveBufferSize, NewSize);
-						if (NewSize != ReceiveBufferSize)
-						{
-							UE_LOG(LogBackChannel, Log, TEXT("SetReceiveBufferSize requested (%d) size but got (%d) size"), SendBufferSize, NewSize);
-						}
+						// set buffer sizes
+						SetSocketBufferSizes(ConnectionSocket, SendBufferSize, ReceiveBufferSize);
 					}
 
 					TSharedRef<FBackChannelConnection> BCConnection = MakeShareable(new FBackChannelConnection);

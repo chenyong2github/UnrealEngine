@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlOperations.h"
 #include "PerforceSourceControlPrivate.h"
@@ -691,6 +691,12 @@ static void ParseBranchModificationResults(const FP4RecordSet& InRecords, const 
 				}
 			}
 
+			// filter deletes if file re-added
+			if (HeadAction == TEXT("delete") && BranchModification.ChangeList > HeadChange)
+			{
+				continue;
+			}
+
 			if (BranchModification.ModTime <= HeadModTime)
 			{
 				BranchModification.ModTime = HeadModTime;
@@ -870,8 +876,21 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 
 			if (BranchModification.BranchName.Len())
 			{
-				// If the branch modification change is more recent record it
-				if (BranchModification.ModTime > State.HeadModTime)
+				bool Skip = false;
+
+				// don't record if we deleted on a status branch, though have since re-added
+				if (BranchModification.Action == TEXT("delete") && BranchModification.ChangeList < State.HeadChangeList)
+				{
+					Skip = true;
+				}
+
+				// If the branch modification change is less recent skip it
+				if (BranchModification.ModTime <= State.HeadModTime)
+				{
+					Skip = true;
+				}
+				
+				if (!Skip)
 				{
 					State.HeadBranch = BranchModification.BranchName;
 					State.HeadAction = BranchModification.Action;
@@ -998,7 +1017,7 @@ static void ParseOpenedResults(const FP4RecordSet& InRecords, const FString& Cli
 			{
 				// Null clients use the pattern in PathRoot: //Workspace/FileName
 				// Here we chop off the '//Workspace/' to return the workspace filename
-				FullPath = FullPath.RightChop(PathRoot.Len() + 1);
+				FullPath.RightChopInline(PathRoot.Len() + 1, false);
 			}
 			else
 			{

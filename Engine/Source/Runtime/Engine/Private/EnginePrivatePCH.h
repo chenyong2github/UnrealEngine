@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -445,7 +445,6 @@
 #include "BatchedElements.h"
 #include "GameFramework/Volume.h"
 #include "EngineGlobals.h"
-#include "Sound/SoundClass.h"
 #include "Audio.h"
 #include "Sound/SoundAttenuation.h"
 #include "IAudioExtensionPlugin.h"

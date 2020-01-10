@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialChatManager.h"
 #include "User/SocialUser.h"
@@ -558,7 +558,6 @@ void USocialChatManager::RefreshGroupsRequestCompleted(FGroupsResult Result)
 
 void USocialChatManager::OnGroupUpdated(const FUniqueNetId& GroupId)
 {
-	printf("");
 }
 
 bool USocialChatManager::IsUniqueIdOfOwner(const FUniqueNetId& LocalUserId) const
@@ -595,7 +594,7 @@ USocialGroupChannel& USocialChatManager::FindOrCreateGroupChannel(IOnlineGroupsP
 	USocialGroupChannel* NewGroupChannel = NewObject<USocialGroupChannel>(this, NewGroupClass);
 	check(NewGroupChannel);
 
-	GroupChannels.Add(FUniqueNetIdRepl(GroupId), NewGroupChannel);
+	GroupChannels.Add(GroupId.AsShared(), NewGroupChannel);
 
 	NewGroupChannel->Initialize(InGroupInterface, GetOwningToolkit().GetLocalUser(), GroupId);
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================================
@@ -31,9 +31,19 @@ struct FGenericPlatformMath
 	 * @param F		Floating point value to convert
 	 * @return		Truncated integer value.
 	 */
-	static CONSTEXPR FORCEINLINE float TruncToFloat(float F)
+	static FORCEINLINE float TruncToFloat(float F)
 	{
-		return (float)TruncToInt(F);
+		return truncf(F);
+	}
+
+	/**
+	 * Converts a double to an integer value with truncation towards zero.
+	 * @param F		Floating point value to convert
+	 * @return		Truncated integer value.
+	 */
+	static FORCEINLINE double TruncToDouble(double F)
+	{
+		return trunc(F);
 	}
 
 	/**

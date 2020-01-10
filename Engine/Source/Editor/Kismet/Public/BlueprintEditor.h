@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -316,7 +316,7 @@ public:
 	bool InDebuggingMode() const;
 
 	/** Get the currently selected set of nodes */
-	TSet<UObject*> GetSelectedNodes() const;
+	FGraphPanelSelectionSet GetSelectedNodes() const;
 
 	/** Returns the currently selected node if there is a single node selected (if there are multiple nodes selected or none selected, it will return nullptr) */
 	UEdGraphNode* GetSingleSelectedNode() const;
@@ -573,6 +573,12 @@ public:
 
 	/** Can generate native code for current blueprint */
 	bool CanGenerateNativeCode() const;
+
+	/** Dumps the current blueprint search index to a JSON file for debugging purposes */
+	void OnGenerateSearchIndexForDebugging();
+
+	/** Dumps the currently-cached index data for the blueprint to a file for debugging */
+	void OnDumpCachedIndexDataForBlueprint();
 
 	/**
 	 * Check to see if we can customize the SCS editor for the passed-in scene component
@@ -1032,8 +1038,8 @@ protected:
 	void FindInBlueprints_OnClicked();
 
 	//~ Begin FNotifyHook Interface
-	virtual void NotifyPreChange( UProperty* PropertyAboutToChange ) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	//~ End FNotifyHook Interface
 
 	/** Callback when properties have finished being handled */

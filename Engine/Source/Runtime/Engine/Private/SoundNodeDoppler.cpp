@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Sound/SoundNodeDoppler.h"
@@ -23,19 +23,30 @@ void USoundNodeDoppler::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT Nod
 
 	FSoundParseParameters UpdatedParams = ParseParams;
 
+	check(AudioDevice);
+	const TArray<FListener>& Listeners = AudioDevice->GetListeners();
+
+	int32 ListenerIndex = ActiveSound.GetClosestListenerIndex();
+	if (ListenerIndex >= Listeners.Num())
+	{
+		ListenerIndex = 0;
+	}
+
+	const FListener& Listener = Listeners[ListenerIndex];
+
 	// Default the parse to using the setting for smoothing
 	if (*RequiresInitialization)
 	{
 		*RequiresInitialization = 0;
 
 		// First time, do no smoothing, but initialize the current pitch scale value to the first value returned from this function
-		CurrentPitchScale = GetDopplerPitchMultiplier(CurrentPitchScale, false, AudioDevice->GetListeners()[0], ParseParams.Transform.GetTranslation(), ParseParams.Velocity, AudioDevice->GetDeviceDeltaTime());
+		CurrentPitchScale = GetDopplerPitchMultiplier(CurrentPitchScale, false, Listener, ParseParams.Transform.GetTranslation(), ParseParams.Velocity, AudioDevice->GetDeviceDeltaTime());
 		UpdatedParams.Pitch *= CurrentPitchScale;
 	}
 	else
 	{
 		// Subsequent calls to this will do smoothing from the first initial value
-		UpdatedParams.Pitch *= GetDopplerPitchMultiplier(CurrentPitchScale, bUseSmoothing, AudioDevice->GetListeners()[0], ParseParams.Transform.GetTranslation(), ParseParams.Velocity, AudioDevice->GetDeviceDeltaTime());
+		UpdatedParams.Pitch *= GetDopplerPitchMultiplier(CurrentPitchScale, bUseSmoothing, Listener, ParseParams.Transform.GetTranslation(), ParseParams.Velocity, AudioDevice->GetDeviceDeltaTime());
 	}
 
 	Super::ParseNodes(AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances);

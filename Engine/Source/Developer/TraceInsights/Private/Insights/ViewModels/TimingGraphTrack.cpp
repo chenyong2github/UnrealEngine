@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimingGraphTrack.h"
 
@@ -11,6 +11,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
@@ -54,8 +55,8 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 // FTimingGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
-	: FGraphTrack(InTrackId)
+FTimingGraphTrack::FTimingGraphTrack()
+	: FGraphTrack(FName(TEXT("Random")))
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;
@@ -72,7 +73,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	const float BaselineY = GetHeight() - 1.0f;
 	const double ScaleY = GetHeight() / 0.1; // 100ms
 
-	TSharedPtr<FTimingGraphSeries> GameFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> GameFramesSeries = MakeShared<FTimingGraphSeries>();
 	GameFramesSeries->SetName(TEXT("Game Frames"));
 	GameFramesSeries->SetDescription(TEXT("Duration of Game frames"));
 	GameFramesSeries->SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -82,7 +83,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	GameFramesSeries->SetScaleY(ScaleY);
 	AllSeries.Add(GameFramesSeries);
 
-	TSharedPtr<FTimingGraphSeries> RenderingFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> RenderingFramesSeries = MakeShared<FTimingGraphSeries>();
 	RenderingFramesSeries->SetName(TEXT("Rendering Frames"));
 	RenderingFramesSeries->SetDescription(TEXT("Duration of Rendering frames"));
 	RenderingFramesSeries->SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -109,7 +110,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 C
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color)
 {
-	TSharedPtr<FTimingGraphSeries> Series = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
 
 	const TCHAR* CounterName = nullptr;
 	bool bIsFloatingPoint = false;
@@ -146,8 +147,6 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	Series->SetScaleY(1.0);
 
 	Series->EnableAutoZoom();
-	Series->SetTargetAutoZoomRange(0.0, 1.0);
-	Series->SetAutoZoomRange(0.0, 1.0);
 
 	AllSeries.Add(Series);
 	return Series;
@@ -172,11 +171,11 @@ FTimingGraphTrack::~FTimingGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
+void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 {
-	FGraphTrack::Update(Viewport);
+	FGraphTrack::Update(Context);
 
-	const bool bIsEntireGraphTrackDirty = IsDirty();
+	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
 	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
 
 	if (!bNeedsUpdate)
@@ -198,11 +197,13 @@ void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 
 		NumAddedEvents = 0;
 
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+
 		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
 		{
 			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
 			{
-				// Clear the flag before updating, becasue the update itself may furter need to set the series as dirty.
+				// Clear the flag before updating, becasue the update itself may further need to set the series as dirty.
 				Series->ClearDirtyFlag();
 
 				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
@@ -274,7 +275,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 				if (Counter.IsFloatingPoint())
 				{
-					Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, double Value)
+					Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder, &MinValue, &MaxValue](double Time, double Value)
 					{
 						if (Value < MinValue)
 						{
@@ -288,7 +289,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				}
 				else
 				{
-					Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
+					Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
 					{
 						const double Value = static_cast<double>(IntValue);
 						if (Value < MinValue)
@@ -304,55 +305,12 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 				const float TopY = 4.0f;
 				const float BottomY = GetHeight() - 4.0f;
-
-				const double LowValue = Series.GetValueForY(BottomY);
-				const double HighValue = Series.GetValueForY(TopY);
-
-				// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
-				if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
-				{
-					MinValue = FMath::Min(MinValue, LowValue);
-					MaxValue = FMath::Max(MaxValue, HighValue);
-				}
-
-				if (MinValue < MaxValue)
-				{
-					constexpr bool bIsAutoZoomAnimated = true;
-					if (bIsAutoZoomAnimated)
-					{
-						// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
-						constexpr double InterpolationSpeed = 0.5;
-						const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
-						const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
-
-						// Check if we reach the target min-max interval.
-						const double ErrorTolerance = 0.5 / Series.GetScaleY(); // delta value for dy ~= 0.5 pixels
-						if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
-							!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
-						{
-							MinValue = NewMinValue;
-							MaxValue = NewMaxValue;
-
-							// Request a new update so we can further interpolate the min-max interval.
-							Series.SetDirtyFlag();
-						}
-					}
-
-					double BaselineY;
-					double ScaleY;
-					Series.ComputeBaselineAndScale(MinValue, MaxValue, TopY, BottomY, BaselineY, ScaleY);
-					Series.SetBaselineY(BaselineY);
-					Series.SetScaleY(ScaleY);
-				}
-				else
-				{
-					// If MinValue == MaxValue, we keep the previous baseline and scale.
-				}
+				Series.UpdateAutoZoom(TopY, BottomY, MinValue, MaxValue);
 			}
 
 			if (Counter.IsFloatingPoint())
 			{
-				Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, double Value)
+				Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder](double Time, double Value)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, Value);
@@ -360,7 +318,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 			}
 			else
 			{
-				Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, int64 IntValue)
+				Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder](double Time, int64 IntValue)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, static_cast<double>(IntValue));

@@ -5,6 +5,10 @@
 		{
 			"Language": "en",
 			"Text": "Collab Viewer"
+		},
+		{
+			"Language": "ko",
+			"Text": "콜라보 뷰어"
 		}
 	],
 	"Description":
@@ -12,6 +16,10 @@
 		{
 			"Language": "en",
 			"Text": "This project template provides navigation and interaction for various platforms (Desktop, VR). Use as a starting point for collaborative Industrial or Architectural projects."
+		},
+		{
+			"Language": "ko",
+			"Text": "이 프로젝트 템플릿은 데스크탑, VR등 다양한 플랫폼을 위한 네비게이션과 인터렉션을 제공합니다. 산업용 협업 또는 건축 프로젝트를 위한 시작 프로젝트로 사용하세요."
 		}
 	],
 	"AssetTypes": [],

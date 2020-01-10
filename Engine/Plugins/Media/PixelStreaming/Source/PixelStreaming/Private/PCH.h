@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,10 +6,6 @@
 #include "Codecs/WmfIncludes.h"
 #include "Utils.h"
 #include "WebRtcLogging.h"
-
-THIRD_PARTY_INCLUDES_START
-#include "NvEncoder/nvEncodeAPI.h"
-THIRD_PARTY_INCLUDES_END
 
 // Engine
 

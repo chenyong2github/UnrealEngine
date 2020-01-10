@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnrealTypeTraits.h: Unreal type traits definitions.
@@ -16,6 +16,7 @@
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsEnum.h"
 #include "Templates/RemoveCV.h"
+#include "Traits/IsVoidType.h"
 
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
@@ -54,7 +55,9 @@ struct TIsDerivedFrom
 	public:
 	// Test the derived type pointer. If it inherits from BaseType, the Test( BaseType* ) 
 	// will be chosen. If it does not, Test( ... ) will be chosen.
-	static const bool IsDerived = sizeof(Test( DerivedTypePtr() )) == sizeof(Yes);
+	static const bool Value = sizeof(Test( DerivedTypePtr() )) == sizeof(Yes);
+
+	static const bool IsDerived = Value;
 };
 
 /**
@@ -132,15 +135,6 @@ template<typename T> struct TIsLValueReferenceType<T&> { enum { Value = true  };
  */
 template<typename T> struct TIsRValueReferenceType      { enum { Value = false }; };
 template<typename T> struct TIsRValueReferenceType<T&&> { enum { Value = true  }; };
-
-/**
- * TIsVoidType
- */
-template<typename T> struct TIsVoidType { enum { Value = false }; };
-template<> struct TIsVoidType<void> { enum { Value = true }; };
-template<> struct TIsVoidType<void const> { enum { Value = true }; };
-template<> struct TIsVoidType<void volatile> { enum { Value = true }; };
-template<> struct TIsVoidType<void const volatile> { enum { Value = true }; };
 
 /**
  * TIsFundamentalType

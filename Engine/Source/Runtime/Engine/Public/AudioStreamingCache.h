@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 AudioStreaming.h: Definitions of classes used for audio streaming.
@@ -161,7 +161,7 @@ private:
 #endif
 
 		// Handle to our async read request operation.
-		TUniquePtr<FBulkDataIORequest> ReadRequest;
+		TUniquePtr<IBulkDataIORequest> ReadRequest;
 
 #if DEBUG_STREAM_CACHE
 		FCacheElementDebugInfo DebugInfo;

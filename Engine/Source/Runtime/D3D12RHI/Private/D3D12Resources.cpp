@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 D3D12Resources.cpp: D3D RHI utility implementation.
@@ -69,21 +69,13 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D1
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
-bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
+bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool bIsShutDown)
 {
 	FD3D12Adapter* Adapter = GetParentAdapter();
 
-		struct FDequeueFenceObject
-		{
-			bool operator() (FencedObjectType FenceObject) const
-			{
-				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
-			}
-		};
-
 	if (GD3D12AsyncDeferredDeletion)
 	{
-		if (DeleteImmediately)
+		if (bDeleteImmediately)
 		{
 			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
 			// Call back all threads
@@ -114,15 +106,57 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 
 	FencedObjectType FenceObject;
 
-	while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
+	if (bIsShutDown)
 	{
-		if (FenceObject.Type == EObjectType::RHI)
+		// FORT-236194 - Output what we are releasing on exit to catch a crash on Release()
+		UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: %u items to release"), DeferredReleaseQueue.GetSize());
+
+		while (DeferredReleaseQueue.Dequeue(FenceObject))
 		{
-			FenceObject.RHIObject->Release();
+			if (FenceObject.Type == EObjectType::RHI)
+			{
+				D3D12_RESOURCE_DESC Desc = FenceObject.RHIObject->GetDesc();
+				FString Name = FenceObject.RHIObject->GetName().ToString();
+				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: \"%s\", %llu x %u x %u, Mips: %u, Format: 0x%X, Flags: 0x%X"), *Name, Desc.Width, Desc.Height, Desc.DepthOrArraySize, Desc.MipLevels, Desc.Format, Desc.Flags);
+
+				uint32 RefCount = FenceObject.RHIObject->Release();
+				if (RefCount)
+				{
+					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+				}
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: 0x%llX"), FenceObject.D3DObject);
+
+				uint32 RefCount = FenceObject.D3DObject->Release();
+				if (RefCount)
+				{
+					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+				}
+			}
 		}
-		else
+	}
+	else
+	{
+		struct FDequeueFenceObject
 		{
-			FenceObject.D3DObject->Release();
+			bool operator() (FencedObjectType FenceObject) const
+			{
+				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
+			}
+		};
+
+		while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
+		{
+			if (FenceObject.Type == EObjectType::RHI)
+			{
+				FenceObject.RHIObject->Release();
+			}
+			else
+			{
+				FenceObject.D3DObject->Release();
+			}
 		}
 	}
 

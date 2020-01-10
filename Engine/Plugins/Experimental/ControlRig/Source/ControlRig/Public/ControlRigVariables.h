@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -89,12 +89,12 @@ namespace FControlRigIOTypes
 class FControlRigIOHelper
 {
 public:
-	static FString GetFriendlyTypeName(const UProperty* Property)
+	static FString GetFriendlyTypeName(const FProperty* Property)
 	{
 		check(Property);
 
-		if (Property->IsA(UStructProperty::StaticClass()) || Property->IsA(UClassProperty::StaticClass()) ||
-			Property->IsA(UObjectProperty::StaticClass()))
+		if (Property->IsA(FStructProperty::StaticClass()) || Property->IsA(FClassProperty::StaticClass()) ||
+			Property->IsA(FObjectProperty::StaticClass()))
 		{
 			// I'm sure I'll have to add more types to remove prefix
 			FString PropertyText = Property->GetCPPType();
@@ -105,17 +105,17 @@ public:
 			}
 		}
 
-		if (Property->IsA(UIntProperty::StaticClass()))
+		if (Property->IsA(FIntProperty::StaticClass()))
 		{
 			return FControlRigIOTypes::CR_Int.ToString();
 		}
 
-		if (Property->IsA(UByteProperty::StaticClass()))
+		if (Property->IsA(FByteProperty::StaticClass()))
 		{
 			return FControlRigIOTypes::CR_Byte.ToString();
 		}
 
-		if (Property->IsA(UNameProperty::StaticClass()))
+		if (Property->IsA(FNameProperty::StaticClass()))
 		{
 			return FControlRigIOTypes::CR_Name.ToString();
 		}
@@ -284,7 +284,7 @@ public:
 		FCachedPropertyPath CachedProperty;
 		if (ControRig->GetInOutPropertyPath(true, InPropertyPath, CachedProperty))
 		{
-			UProperty* Prop = CachedProperty.GetUProperty();
+			FProperty* Prop = CachedProperty.GetFProperty();
 			FName PropType = FName(*GetFriendlyTypeName(Prop));
 			if (PropType == InValueType)
 			{
@@ -294,31 +294,31 @@ public:
 
 			if (CanConvert(PropType, InValueType))
 			{
-				if (Prop->IsA(UBoolProperty::StaticClass()))
+				if (Prop->IsA(FBoolProperty::StaticClass()))
 				{
 					SetValueInternal(Prop, CachedProperty.GetCachedAddress(), ConvertValue<T, bool>(Value));
 					return true;
 				}
 
-				if (Prop->IsA(UByteProperty::StaticClass()))
+				if (Prop->IsA(FByteProperty::StaticClass()))
 				{
 					SetValueInternal(Prop, CachedProperty.GetCachedAddress(), ConvertValue<T, uint8>(Value));
 					return true;
 				}
 
-				if (Prop->IsA(UIntProperty::StaticClass()))
+				if (Prop->IsA(FIntProperty::StaticClass()))
 				{
 					SetValueInternal(Prop, CachedProperty.GetCachedAddress(), ConvertValue<T, int32>(Value));
 					return true;
 				}
 
-				if (Prop->IsA(UInt64Property::StaticClass()))
+				if (Prop->IsA(FInt64Property::StaticClass()))
 				{
 					SetValueInternal(Prop, CachedProperty.GetCachedAddress(), ConvertValue<T, int64>(Value));
 					return true;
 				}
 
-				if (Prop->IsA(UFloatProperty::StaticClass()))
+				if (Prop->IsA(FFloatProperty::StaticClass()))
 				{
 					SetValueInternal(Prop, CachedProperty.GetCachedAddress(), ConvertValue<T, float>(Value));
 					return true;
@@ -334,7 +334,7 @@ public:
 		FCachedPropertyPath CachedProperty;
 		if (ControRig->GetInOutPropertyPath(true, InPropertyPath, CachedProperty))
 		{
-			UProperty* Prop = CachedProperty.GetUProperty();
+			FProperty* Prop = CachedProperty.GetFProperty();
 			FName PropType = FName(*GetFriendlyTypeName(Prop));
 			if (PropType == InValueType)
 			{
@@ -344,7 +344,7 @@ public:
 
 			if (CanConvert(PropType, InValueType))
 			{
-				if (Prop->IsA(UBoolProperty::StaticClass()))
+				if (Prop->IsA(FBoolProperty::StaticClass()))
 				{
 					bool bValue;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), bValue);
@@ -352,7 +352,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UByteProperty::StaticClass()))
+				if (Prop->IsA(FByteProperty::StaticClass()))
 				{
 					uint8 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -360,7 +360,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UIntProperty::StaticClass()))
+				if (Prop->IsA(FIntProperty::StaticClass()))
 				{
 					int32 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -368,7 +368,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UInt64Property::StaticClass()))
+				if (Prop->IsA(FInt64Property::StaticClass()))
 				{
 					int64 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -376,7 +376,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UFloatProperty::StaticClass()))
+				if (Prop->IsA(FFloatProperty::StaticClass()))
 				{
 					float Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -395,7 +395,7 @@ public:
 		FCachedPropertyPath CachedProperty;
 		if (ControRig->GetInOutPropertyPath(false, InPropertyPath, CachedProperty))
 		{
-			UProperty* Prop = CachedProperty.GetUProperty();
+			FProperty* Prop = CachedProperty.GetFProperty();
 			FName PropType = FName(*GetFriendlyTypeName(Prop));
 			if (PropType == InValueType)
 			{
@@ -405,7 +405,7 @@ public:
 
 			if (CanConvert(PropType, InValueType))
 			{
-				if (Prop->IsA(UBoolProperty::StaticClass()))
+				if (Prop->IsA(FBoolProperty::StaticClass()))
 				{
 					bool bValue;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), bValue);
@@ -413,7 +413,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UByteProperty::StaticClass()))
+				if (Prop->IsA(FByteProperty::StaticClass()))
 				{
 					uint8 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -421,7 +421,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UIntProperty::StaticClass()))
+				if (Prop->IsA(FIntProperty::StaticClass()))
 				{
 					int32 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -429,7 +429,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UInt64Property::StaticClass()))
+				if (Prop->IsA(FInt64Property::StaticClass()))
 				{
 					int64 Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -437,7 +437,7 @@ public:
 					return true;
 				}
 
-				if (Prop->IsA(UFloatProperty::StaticClass()))
+				if (Prop->IsA(FFloatProperty::StaticClass()))
 				{
 					float Value;
 					GetValueInternal(Prop, CachedProperty.GetCachedAddress(), Value);
@@ -452,7 +452,7 @@ public:
 private:
 
 	template<typename T>
-	static void SetValueInternal(UProperty* Property, void* PropertyAddress, const T& Value)
+	static void SetValueInternal(FProperty* Property, void* PropertyAddress, const T& Value)
 	{
 		if (ensure(PropertyAddress && Property && Property->GetSize() == sizeof(T)))
 		{
@@ -461,7 +461,7 @@ private:
 	}
 
 	template<typename T>
-	static void GetValueInternal(UProperty* Property, void* PropertyAddress, T& OutValue)
+	static void GetValueInternal(FProperty* Property, void* PropertyAddress, T& OutValue)
 	{
 		if (ensure(PropertyAddress && Property && Property->GetSize() == sizeof(T)))
 		{

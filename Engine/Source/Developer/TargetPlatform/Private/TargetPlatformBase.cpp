@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common/TargetPlatformBase.h"
 #include "HAL/IConsoleManager.h"
@@ -54,7 +54,8 @@ static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescri
 		return false;
 	}
 
-	bool bEnabledForProject = Plugin.IsEnabledByDefault();
+	const bool bAllowEnginePluginsEnabledByDefault = (Project == nullptr || !Project->bDisableEnginePluginsByDefault);
+	bool bEnabledForProject = Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault);
 	if (Project != nullptr)
 	{
 		for(const FPluginReferenceDescriptor& PluginReference : Project->Plugins)
@@ -84,6 +85,73 @@ static bool IsPluginCompiledForTarget(const IPlugin& Plugin, const FProjectDescr
 		}
 	}
 	return bCompiledForTarget;
+}
+
+static bool ConfigureEnabledPlugins(const FPluginReferenceDescriptor& FirstReference, const FProjectDescriptor* ProjectDescriptor, const FString& TargetName, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, const TMap<FString, IPlugin*>& Plugins, TSet<FString>& EnabledPluginNames)
+{
+	if (!EnabledPluginNames.Contains(FirstReference.Name))
+	{
+		// Set of plugin names we've added to the queue for processing
+		TSet<FString> NewPluginNames;
+		NewPluginNames.Add(FirstReference.Name);
+
+		// Queue of plugin references to consider
+		TArray<const FPluginReferenceDescriptor*> NewPluginReferences;
+		NewPluginReferences.Add(&FirstReference);
+
+		// Loop through the queue of plugin references that need to be enabled, queuing more items as we go
+		TArray<TSharedRef<IPlugin>> NewPlugins;
+		for (int32 Idx = 0; Idx < NewPluginReferences.Num(); Idx++)
+		{
+			const FPluginReferenceDescriptor& Reference = *NewPluginReferences[Idx];
+
+			// Check if the plugin is required for this platform
+			if(!Reference.IsEnabledForPlatform(Platform) || !Reference.IsEnabledForTargetConfiguration(Configuration) || !Reference.IsEnabledForTarget(TargetType))
+			{
+				continue;
+			}
+
+			// Find the plugin being enabled
+			const IPlugin* const* PluginPtr = Plugins.Find(Reference.Name);
+			if (PluginPtr == nullptr)
+			{
+				continue;
+			}
+
+			// Check the plugin supports this platform
+			const FPluginDescriptor& PluginDescriptor = (*PluginPtr)->GetDescriptor();
+			if(!PluginDescriptor.SupportsTargetPlatform(Platform))
+			{
+				continue;
+			}
+
+			// Check that this plugin supports the current program
+			if (TargetType == EBuildTargetType::Program && !PluginDescriptor.SupportedPrograms.Contains(TargetName))
+			{
+				continue;
+			}
+
+			// Skip loading Enterprise plugins when project is not an Enterprise project
+			if ((*PluginPtr)->GetType() == EPluginType::Enterprise && !ProjectDescriptor->bIsEnterpriseProject)
+			{
+				continue;
+			}
+
+			// Add references to all its dependencies
+			for (const FPluginReferenceDescriptor& NextReference : PluginDescriptor.Plugins)
+			{
+				if (!EnabledPluginNames.Contains(NextReference.Name) && !NewPluginNames.Contains(NextReference.Name))
+				{
+					NewPluginNames.Add(NextReference.Name);
+					NewPluginReferences.Add(&NextReference);
+				}
+			}
+
+			// Add the plugin
+			EnabledPluginNames.Add((*PluginPtr)->GetName());
+		}
+	}
+	return true;
 }
 
 bool FTargetPlatformBase::RequiresTempTarget(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FText& OutReason) const
@@ -118,33 +186,14 @@ bool FTargetPlatformBase::RequiresTempTarget(bool bProjectHasCode, EBuildConfigu
 		return true;
 	}
 
-	// find if there are any plugins enabled or disabled which differ from the default
-	for(const TSharedRef<IPlugin>& Plugin: IPluginManager::Get().GetDiscoveredPlugins())
+	// check if there's a non-default plugin change
+	FText Reason;
+	if (IPluginManager::Get().RequiresTempTargetForCodePlugin(Project, PlatformInfo->UBTTargetId.ToString(), Configuration, PlatformInfo->PlatformType, Reason))
 	{
-		const FString Platform = PlatformInfo->UBTTargetId.ToString();
-
-		bool bCompiledForTarget = IsPluginCompiledForTarget(*Plugin, Project, Platform, Configuration, PlatformInfo->PlatformType, RequiresCookedData());
-
-		bool bCompiledForBaseTarget = false;
-		if (!Plugin->GetDescriptor().bInstalled)
-		{
-			bCompiledForBaseTarget |= IsPluginCompiledForTarget(*Plugin, nullptr, Platform, Configuration, PlatformInfo->PlatformType, RequiresCookedData());
-		}
-
-		if (bCompiledForTarget != bCompiledForBaseTarget)
-		{
-			if (bCompiledForTarget)
-			{
-				OutReason = FText::Format(LOCTEXT("TempTarget_PluginEnabled", "{0} plugin is enabled"), FText::FromString(Plugin->GetName()));
-				return true;
-			}
-			else
-			{
-				OutReason = FText::Format(LOCTEXT("TempTarget_PluginDisabled", "{0} plugin is disabled"), FText::FromString(Plugin->GetName()));
-				return true;
-			}
-		}
+		OutReason = Reason;
+		return true;
 	}
+
 	return false;
 }
 

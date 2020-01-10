@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,16 +7,19 @@
 #include "Containers/Ticker.h"
 #include "Trace/Recorder.h"
 #include "Trace/Store.h"
-#include "ModuleServicePrivate.h"
 
 namespace Trace
 {
+
+class FModuleService;
+class FAnalysisService;
 
 class FSessionService
 	: public ISessionService
 {
 public:
-	FSessionService(FModuleService& ModuleService);
+	FSessionService(FModuleService& ModuleService, FAnalysisService& AnalysisService);
+	FSessionService(FModuleService& ModuleService, FAnalysisService& AnalysisService, const TCHAR* OverrideSessionsDirectory);
 	virtual ~FSessionService();
 	virtual bool StartRecorderServer() override;
 	virtual bool IsRecorderServerRunning() const override;
@@ -25,11 +28,10 @@ public:
 	virtual void GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions) const override;
 	virtual void GetLiveSessions(TArray<Trace::FSessionHandle>& OutSessions) const override;
 	virtual bool GetSessionInfo(Trace::FSessionHandle SessionHandle, Trace::FSessionInfo& OutSessionInfo) const override;
-	virtual Trace::IInDataStream* OpenSessionStream(Trace::FSessionHandle SessionHandle) override;
-	virtual Trace::IInDataStream* OpenSessionFromFile(const TCHAR* FilePath) override;
 	virtual void SetModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName, bool bState) override;
 	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const override;
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) override;
+	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(FSessionHandle SessionHandle) override;
 
 private:
 	struct FSessionInfoInternal
@@ -54,6 +56,7 @@ private:
 	void UpdateSessionContext(FStoreSessionHandle StoreHandle, FSessionInfoInternal& Info);
 
 	FModuleService& ModuleService;
+	FAnalysisService& AnalysisService;
 	void* RecorderEvent = nullptr;
 	FString LocalSessionDirectory;
 	TSharedPtr<IStore> TraceStore;

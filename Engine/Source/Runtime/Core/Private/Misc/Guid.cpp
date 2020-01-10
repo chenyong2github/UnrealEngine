@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Guid.h"
 #include "Misc/Parse.h"
@@ -320,9 +320,10 @@ FArchive& operator<<(FArchive& Ar, FGuid& G)
 
 void operator<<(FStructuredArchive::FSlot Slot, FGuid& G)
 {
-	if (Slot.GetUnderlyingArchive().IsTextFormat())
+	const FArchiveState& State = Slot.GetArchiveState();
+	if (State.IsTextFormat())
 	{
-		if (Slot.GetUnderlyingArchive().IsLoading())
+		if (State.IsLoading())
 		{
 			FString AsString;
 			Slot << AsString;

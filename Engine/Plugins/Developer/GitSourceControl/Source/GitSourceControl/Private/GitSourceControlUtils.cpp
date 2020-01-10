@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GitSourceControlUtils.h"
 #include "GitSourceControlCommand.h"
@@ -427,7 +427,7 @@ bool FindRootDirectory(const FString& InPath, FString& OutRepositoryRoot)
 		int32 Len = Str.Len();
 		while(Len && Str[Len - 1] == Char)
 		{
-			Str = Str.LeftChop(1);
+			Str.LeftChopInline(1);
 			Len = Str.Len();
 		}
 	};
@@ -445,7 +445,7 @@ bool FindRootDirectory(const FString& InPath, FString& OutRepositoryRoot)
 			int32 LastSlashIndex;
 			if(OutRepositoryRoot.FindLastChar('/', LastSlashIndex))
 			{
-				OutRepositoryRoot = OutRepositoryRoot.Left(LastSlashIndex);
+				OutRepositoryRoot.LeftInline(LastSlashIndex);
 			}
 			else
 			{

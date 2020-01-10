@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleSystemRender.cpp: Particle system rendering functions.
@@ -6910,6 +6910,9 @@ FParticleSystemSceneProxy::FParticleSystemSceneProxy(const UParticleSystemCompon
 	, VisualizeLODIndex(Component->GetCurrentLODIndex())
 	, LastFramePreRendered(-1)
 	, FirstFreeMeshBatch(0)
+#if WITH_PARTICLE_PERF_STATS
+	, PerfAsset(Component->Template)
+#endif
 {
 	SetWireframeColor(FLinearColor(3.0f, 0.0f, 0.0f));
 	SetLevelColor(FLinearColor(1.0f, 1.0f, 0.0f));
@@ -6967,6 +6970,7 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 
 	SCOPE_CYCLE_COUNTER(STAT_FParticleSystemSceneProxy_GetMeshElements);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_RT);
+	PARTICLE_PERF_STAT_CYCLES(PerfAsset, GetDynamicMeshElements);
 
 	if ((GIsEditor == true) || (GbEnableGameThreadLODCalculation == false))
 	{
@@ -7000,8 +7004,6 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 				}
 				FScopeCycleCounter AdditionalScope(Data->StatID);
 
-				FParticleVertexFactoryBase *VertexFactory = EmitterVertexFactoryArray[Data->EmitterIndex];
-
 				//hold on to the emitter index in case we need to access any of its properties
 				DynamicData->EmitterIndex = Index;
 
@@ -7009,6 +7011,17 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 				{
 					if (VisibilityMap & (1 << ViewIndex))
 					{
+						if ((ViewIndex >= EmitterVertexFactoryArray.Num()) || (Data->EmitterIndex >= EmitterVertexFactoryArray[ViewIndex].Num()))
+						{
+							AddEmitterVertexFactory(Data, ViewIndex);
+						}
+						FParticleVertexFactoryBase* VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+						if (VertexFactory == nullptr)
+						{
+							AddEmitterVertexFactory(Data, ViewIndex);
+							VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+						}
+
 						const FSceneView* View = Views[ViewIndex];
 						Data->GetDynamicMeshElementsEmitter(this, View, ViewFamily, ViewIndex, Collector, VertexFactory);
 						NumDraws++;
@@ -7088,8 +7101,10 @@ void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 	ENQUEUE_RENDER_COMMAND(ParticleUpdateDataCommand)(
 		[Proxy, NewDynamicData](FRHICommandListImmediate& RHICmdList)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ParticleUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)
+				PARTICLE_PERF_STAT_CYCLES(Proxy->PerfAsset, RenderUpdate);
 			if (NewDynamicData)
 			{
 				for (int32 Index = 0; Index < NewDynamicData->DynamicEmitterDataArray.Num(); Index++)

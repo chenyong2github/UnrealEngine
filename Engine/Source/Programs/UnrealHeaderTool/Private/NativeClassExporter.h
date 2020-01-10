@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,7 +7,7 @@
 
 class FUnrealSourceFile;
 class UPackage;
-class UProperty;
+class FProperty;
 class UFunction;
 class UStruct;
 class UField;
@@ -65,51 +65,63 @@ enum class EExportCallbackType
 
 struct FPropertyNamePointerPair
 {
-	FPropertyNamePointerPair(FString InName, UProperty* InProp)
+	FPropertyNamePointerPair(FString InName, FProperty* InProp)
 		: Name(MoveTemp(InName))
 		, Prop(InProp)
 	{
 	}
 
 	FString Name;
-	UProperty* Prop;
+	FProperty* Prop;
 };
+
+FString CreateUTF8LiteralString(const FString& Str);
 
 struct FNativeClassHeaderGenerator
 {
 private:
 	FString API;
+	FString APIStringPrivate;
 
 	/**
 	 * Gets API string for this header.
 	 */
-	FString GetAPIString()
+	const FString& GetAPIString() const
 	{
-		return FString::Printf(TEXT("%s_API "), *API);
+		return APIStringPrivate;
 	}
 
 	const UPackage* Package;
 
-	/** Set of already exported cross-module references, to prevent duplicates */
-	TSet<FString>* UniqueCrossModuleReferences;
+	/** A collection of structures used to gather various kinds of references conveniently grouped together to make passing easier */
+	struct FReferenceGatherers
+	{
+		FReferenceGatherers(TSet<FString>* InUniqueCrossModuleReferences, TSet<FString>& InPackageHeaderPaths, TArray<FString>& InTempHeaderPaths)
+			: UniqueCrossModuleReferences(InUniqueCrossModuleReferences)
+			, PackageHeaderPaths(InPackageHeaderPaths)
+			, TempHeaderPaths(InTempHeaderPaths)
+		{
+		}
+
+		/** Set of already exported cross-module references, to prevent duplicates */
+		TSet<FString>* UniqueCrossModuleReferences;
+		/** Array of all header filenames from the current package. */
+		TSet<FString>& PackageHeaderPaths;
+		/** Array of temp filenames that for files to overwrite headers */
+		TArray<FString>& TempHeaderPaths;
+		/** Forward declarations that we need. */
+		TSet<FString> ForwardDeclarations;
+
+	};
 
 	/** the existing disk version of the header for this package's names */
 	FString OriginalNamesHeader;
-
-	/** Array of temp filenames that for files to overwrite headers */
-	TArray<FString> TempHeaderPaths;
-
-	/** Array of all header filenames from the current package. */
-	TArray<FString> PackageHeaderPaths;
 
 	/** If false, exported headers will not be saved to disk */
 	bool bAllowSaveExportedHeaders;
 
 	/** If true, any change in the generated headers will result in UHT failure. */
 	bool bFailIfGeneratedCodeChanges;
-
-	/** Forward declarations that we need. */
-	TSet<FString> ForwardDeclarations;
 
 	/**
 	 * Exports the struct's C++ properties to the HeaderText output device and adds special
@@ -122,28 +134,46 @@ private:
 	static void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent);
 
 	/** Return the name of the singleton function that returns the UObject for Item */
-	FString GetPackageSingletonName(const UPackage* Item);
+	static const FString& GetPackageSingletonName(const UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
 
 	/** Return the name of the singleton function that returns the UObject for Item */
-	FString GetSingletonName(UField* Item, bool bRequiresValidObject=true);
+	static const FString& GetSingletonName(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject=true);
 
 	/** Return the address of the singleton function - handles nullptr */
-	FString GetSingletonNameFuncAddr(UField* Item, bool bRequiresValidObject=true);
+	static FString GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject=true);
 
 	/**
 	 * Returns the name (overridden if marked up) with TEXT("") or "" wrappers for use in a string literal.
 	 */
-	static FString GetOverriddenNameForLiteral(const UField* Item);
+	template <typename T>
+	static FString GetOverriddenNameForLiteral(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return TEXT("TEXT(\"") + OverriddenName + TEXT("\")");
+		}
+		return TEXT("\"") + Item->GetName() + TEXT("\"");
+	}
 
 	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
 	 */
-	static FString GetUTF8OverriddenNameForLiteral(const UField* Item);
+	template <typename T>
+	static FString GetUTF8OverriddenNameForLiteral(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return CreateUTF8LiteralString(OverriddenName);
+		}
+		return CreateUTF8LiteralString(Item->GetName());
+	}
 
 	/**
 	 * Export functions used to find and call C++ or script implementation of a script function in the interface 
 	 */
-	void ExportInterfaceCallFunctions(FOutputDevice& OutCpp, FUHTStringBuilder& Out, const TArray<UFunction*>& CallbackFunctions, const TCHAR* ClassName);
+	void ExportInterfaceCallFunctions(FOutputDevice& OutCpp, FUHTStringBuilder& Out, FReferenceGatherers& OutReferenceGatherers, const TArray<UFunction*>& CallbackFunctions, const TCHAR* ClassName) const;
 
 	/**
 	 * Export UInterface boilerplate.
@@ -165,16 +195,17 @@ private:
 		FOutputDevice&           OutGeneratedHeaderText,
 		FOutputDevice&           OutputGetter,
 		FOutputDevice&           OutDeclarations,
+		FReferenceGatherers&     OutReferenceGatherers, 
 		FClass*                  Class,
 		const FUnrealSourceFile& SourceFile
-	);
+	) const;
 
 	/**
 	 * After all of the dependency checking, but before actually exporting the class, set up the generated code
 	 *
 	 * @param	SourceFile			Source file to export.
 	 */
-	bool WriteHeader(const TCHAR* Path, const FString& InBodyText, const TSet<FString>& InFwdDecl);
+	bool WriteHeader(const TCHAR* Path, const FString& InBodyText, FReferenceGatherers& InOutReferenceGatherers) const;
 
 	/**
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
@@ -188,7 +219,7 @@ private:
 	 * @param	Out		the output device for the mirror struct
 	 * @param	Enums	the enum to export
 	 */
-	void ExportEnum(FOutputDevice& Out, UEnum* Enum);
+	void ExportEnum(FOutputDevice& Out, UEnum* Enum) const;
 
 	/**
 	 * Exports the inl text for enums declared in non-UClass headers.
@@ -196,7 +227,7 @@ private:
 	 * @param	OutputGetter	The function to call to get the output.
 	 * @param	Enum			the enum to export
 	 */
-	void ExportGeneratedEnumInitCode(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UEnum* Enum);
+	void ExportGeneratedEnumInitCode(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UEnum* Enum) const;
 
 	/**
 	 * Exports the macro declarations for GENERATED_BODY() for each Foo in the struct specified
@@ -204,7 +235,7 @@ private:
 	 * @param	Out				output device
 	 * @param	Struct			The struct to export
 	 */
-	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UScriptStruct* Struct);
+	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UScriptStruct* Struct) const;
 
 	/**
 	 * Exports a local mirror of the specified struct; used to get offsets
@@ -230,7 +261,7 @@ private:
 	 * @param	SourceFile			Source file of the delegate.
 	 * @param	DelegateFunctions	the functions that have parameters which need to be exported
 	 */
-	void ExportDelegateDeclaration(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UFunction* Function);
+	void ExportDelegateDeclaration(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function) const;
 
 	/**
 	 * Exports C++ type definitions for delegates
@@ -239,7 +270,7 @@ private:
 	 * @param	SourceFile			Source file of the delegate.
 	 * @param	DelegateFunctions	the functions that have parameters which need to be exported
 	 */
-	void ExportDelegateDefinition(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UFunction* Function);
+	void ExportDelegateDefinition(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function) const;
 
 	/**
 	 * Exports the parameter struct declarations for the given function.
@@ -256,7 +287,7 @@ private:
 	* 
 	* @param	PackageName	Name of the package being saved
 	*/
-	void ExportUpdatedHeaders( FString PackageName  );
+	static void ExportUpdatedHeaders(const FString& PackageName, const TArray<FString>& TempHeaderPaths);
 
 	/**
 	 * Exports the generated cpp file for all functions/events/delegates in package.
@@ -272,7 +303,7 @@ private:
 	 *
 	 * @return	the intrinsic null value for the property (0 for ints, TEXT("") for strings, etc.)
 	 */
-	static FString GetNullParameterValue( UProperty* Prop, bool bInitializer = false );
+	static FString GetNullParameterValue( FProperty* Prop, bool bInitializer = false );
 
 	/**
 	 * Exports a native function prototype
@@ -302,7 +333,7 @@ private:
 	* @param	ValidatePosition		Position in source file of _Validate function for function described by FunctionData.
 	* @param	SourceFile				Currently analyzed source file.
 	*/
-	void CheckRPCFunctions(const FFuncInfo& FunctionData, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile);
+	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, const FFuncInfo& FunctionData, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const;
 
 	/**
 	 * Exports the native stubs for the list of functions specified
@@ -311,7 +342,7 @@ private:
 	 * @param Class			class
 	 * @param ClassData		class data
 	 */
-	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData);
+	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData) const;
 
 	/**
 	 * Export the actual internals to a standard thunk function
@@ -322,7 +353,7 @@ private:
 	 * @param Parameters list of parameters in the function
 	 * @param Return return parameter for the function
 	 */
-	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, UFunction* Function, const FFuncInfo& FunctionData, const TArray<UProperty*>& Parameters, UProperty* Return);
+	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, FReferenceGatherers& OutReferenceGatherers, UFunction* Function, const FFuncInfo& FunctionData, const TArray<FProperty*>& Parameters, FProperty* Return) const;
 
 	/** Exports the native function registration code for the given class. */
 	static void ExportNatives(FOutputDevice& Out, FClass* Class);
@@ -335,7 +366,7 @@ private:
 	 * @param	Class			Class to export
 	 * @param	OutFriendText	(Output parameter) Friend text
 	 */
-	void ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, const FUnrealSourceFile& SourceFile, FClass* Class, FUHTStringBuilder& OutFriendText);
+	void ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FClass* Class, FUHTStringBuilder& OutFriendText) const;
 
 	/**
 	 * Export given function.
@@ -344,7 +375,7 @@ private:
 	 * @param	Function		Given function.
 	 * @param	bIsNoExport		Is in NoExport class.
 	 */
-	void ExportFunction(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UFunction* Function, bool bIsNoExport);
+	void ExportFunction(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function, bool bIsNoExport) const;
 
 	/**
 	 * Exports a generated singleton function to setup the package for compiled-in classes.
@@ -366,7 +397,7 @@ private:
 	 *
 	 * @return      A pair of strings which represents the pointer and a count of the emitted properties.
 	 */
-	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, const TArray<UProperty*>& Properties, const TCHAR* DeclSpaces, const TCHAR* Spaces);
+	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, const TArray<FProperty*>& Properties, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
 
 	/**
 	 * Function to output the C++ code necessary to set up a property
@@ -378,7 +409,7 @@ private:
 	 * @param	DeclSpaces		String of spaces to use as an indent for the declaration
 	 * @param	Spaces			String of spaces to use as an indent
 	**/
-	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, UProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces);
+	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
 
 	/**
 	 * Function to output the C++ code necessary to set up a property, including an array property and its inner, array dimensions, etc.
@@ -392,7 +423,7 @@ private:
 	 * @param	Spaces			String of spaces to use as an indent
 	 * @param	SourceStruct	Structure that the property offset is relative to
 	**/
-	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, UProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = NULL);
+	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = nullptr) const;
 
 	/**
 	 * Exports the proxy definitions for the list of enums specified
@@ -417,7 +448,7 @@ private:
 	 * @param	Prop			the property that is being exported
 	 * @param	PropertyText	the string containing the text exported from ExportCppDeclaration
 	 */
-	static void ApplyAlternatePropertyExportText(UProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
+	static void ApplyAlternatePropertyExportText(FProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
 
 	/**
 	* Create a temp header file name from the header name
@@ -427,7 +458,7 @@ private:
 	*
 	* @return	The generated string
 	*/
-	static FString GenerateTempHeaderName( FString CurrentFilename, bool bReverseOperation = false );
+	static FString GenerateTempHeaderName( const FString& CurrentFilename, bool bReverseOperation = false );
 
 	/**
 	 * Saves a generated header if it has changed. 
@@ -436,12 +467,12 @@ private:
 	 * @param NewHeaderContents	Contents of the generated header.
 	 * @return True if the header contents has changed, false otherwise.
 	 */
-	bool SaveHeaderIfChanged(const TCHAR* HeaderPath, const TCHAR* NewHeaderContents);
+	bool SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const TCHAR* HeaderPath, const TCHAR* NewHeaderContents) const;
 
 	/**
 	 * Deletes all .generated.h files which do not correspond to any of the classes.
 	 */
-	void DeleteUnusedGeneratedHeaders();
+	static void DeleteUnusedGeneratedHeaders(const TSet<FString>& PackageHeaderPathSet);
 
 	/**
 	 * Exports macros that manages UObject constructors.
@@ -460,9 +491,33 @@ public:
 	 * Properties in source files generated from blueprint assets have a symbol name that differs from the source asset.
 	 * This function returns the original name of the field (rather than the native, symbol name).
 	 */
-	static FString GetOverriddenName(const UField* Item);
-	static FName GetOverriddenFName(const UField* Item);
-	static FString GetOverriddenPathName(const UField* Item);
+	template <typename T>
+	static FString GetOverriddenName(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return OverriddenName.ReplaceCharWithEscapedChar();
+		}
+		return Item->GetName();
+	}
+
+	template <typename T>
+	static FName GetOverriddenFName(const T* Item)
+	{
+		FString OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return FName(*OverriddenName);
+		}
+		return Item->GetFName();
+	}
+
+	template <typename T>
+	static FString GetOverriddenPathName(const T* Item)
+	{
+		return FString::Printf(TEXT("%s.%s"), *FClass::GetTypePackageName(Item), *GetOverriddenName(Item));
+	}
 
 	// Constructor
 	FNativeClassHeaderGenerator(
@@ -478,7 +533,7 @@ public:
 	 * @param Function Function to get return type of.
 	 * @return FString with function return type.
 	 */
-	FString GetFunctionReturnString(UFunction* Function);
+	static FString GetFunctionReturnString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
 
 	/**
 	* Gets string with function parameters (with names).
@@ -486,7 +541,7 @@ public:
 	* @param Function Function to get parameters of.
 	* @return FString with function parameters.
 	*/
-	FString GetFunctionParameterString(UFunction* Function);
+	static FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
 
 	/**
 	 * Checks if function is missing "virtual" specifier.

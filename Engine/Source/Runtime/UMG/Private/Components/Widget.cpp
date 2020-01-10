@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/Widget.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/UObjectToken.h"
 #include "CoreGlobals.h"
 #include "Widgets/SNullWidget.h"
 #include "Types/NavigationMetaData.h"
@@ -485,11 +486,12 @@ bool UWidget::HasUserFocus(APlayerController* PlayerController) const
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
-
-			TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex);
-			return FocusCause.IsSet();
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet())
+			{
+				TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex.GetValue());
+				return FocusCause.IsSet();
+			}
 		}
 	}
 
@@ -533,10 +535,11 @@ bool UWidget::HasUserFocusedDescendants(APlayerController* PlayerController) con
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
-
-			return SafeWidget->HasUserFocusedDescendants(UserIndex);
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet())
+			{
+				return SafeWidget->HasUserFocusedDescendants(UserIndex.GetValue());
+			}
 		}
 	}
 
@@ -564,18 +567,29 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if ( !SafeWidget->SupportsKeyboardFocus() )
 		{
-			FMessageLog("PIE").Warning(LOCTEXT("ThisWidgetDoesntSupportFocus", "This widget does not support focus.  If this is a UserWidget, you should set bIsFocusable to true."));
+			TSharedRef<FTokenizedMessage> Message = FMessageLog("PIE").Warning()->AddToken(FUObjectToken::Create(this));
+#if WITH_EDITORONLY_DATA
+			if(UObject* GeneratedBy = WidgetGeneratedBy.Get())
+			{
+				Message->AddToken(FTextToken::Create(FText::FromString(TEXT(" in "))))->AddToken(FUObjectToken::Create(GeneratedBy));
+			}
+#endif
+			if (IsA(UUserWidget::StaticClass()))
+			{
+				Message->AddToken(FTextToken::Create(LOCTEXT("UserWidgetDoesntSupportFocus", " does not support focus, you should set bIsFocusable to true.")));
+			}
+			else
+			{
+				Message->AddToken(FTextToken::Create(LOCTEXT("NonUserWidgetDoesntSupportFocus", " does not support focus.")));
+			}
+			
 		}
 #endif
 
-		FLocalPlayerContext Context(PlayerController);
-
-		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
+		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
-
-			if ( !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet() && !FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget) )
 			{
 				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
 			}
@@ -1449,7 +1463,7 @@ FString UWidget::GetDefaultFontName()
 
 //bool UWidget::BindProperty(const FName& DestinationProperty, UObject* SourceObject, const FName& SourceProperty)
 //{
-//	UDelegateProperty* DelegateProperty = FindField<UDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
+//	FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
 //
 //	if ( DelegateProperty )
 //	{
@@ -1460,7 +1474,7 @@ FString UWidget::GetDefaultFontName()
 //	return false;
 //}
 
-TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(UProperty* Property)
+TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(FProperty* Property)
 {
 	if ( BinderClasses.Num() == 0 )
 	{
@@ -1484,7 +1498,7 @@ TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(UProperty* 
 	return nullptr;
 }
 
-static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UObject* Container, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
+static UPropertyBinding* GenerateBinder(FDelegateProperty* DelegateProperty, UObject* Container, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
 {
 	FScriptDelegate* ScriptDelegate = DelegateProperty->GetPropertyValuePtr_InContainer(Container);
 	if ( ScriptDelegate )
@@ -1493,7 +1507,7 @@ static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UOb
 		UFunction* SignatureFunction = DelegateProperty->SignatureFunction;
 		if ( SignatureFunction->NumParms == 1 )
 		{
-			if ( UProperty* ReturnProperty = SignatureFunction->GetReturnProperty() )
+			if ( FProperty* ReturnProperty = SignatureFunction->GetReturnProperty() )
 			{
 				TSubclassOf<UPropertyBinding> BinderClass = UWidget::FindBinderClassForDestination(ReturnProperty);
 				if ( BinderClass != nullptr )
@@ -1512,7 +1526,7 @@ static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UOb
 	return nullptr;
 }
 
-bool UWidget::AddBinding(UDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
+bool UWidget::AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
 {
 	if ( UPropertyBinding* Binder = GenerateBinder(DelegateProperty, this, SourceObject, BindingPath) )
 	{

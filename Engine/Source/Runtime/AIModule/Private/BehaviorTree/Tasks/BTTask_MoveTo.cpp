@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/Tasks/BTTask_MoveTo.h"
 #include "GameFramework/Actor.h"
@@ -345,7 +345,7 @@ void UBTTask_MoveTo::OnGameplayTaskDeactivated(UGameplayTask& Task)
 			uint8* RawMemory = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this));
 			FBTMoveToTaskMemory* MyMemory = CastInstanceNodeMemory<FBTMoveToTaskMemory>(RawMemory);
 
-			if (MyMemory->bObserverCanFinishTask && (MoveTask == MyMemory->Task))
+			if (MyMemory && MyMemory->bObserverCanFinishTask && (MoveTask == MyMemory->Task))
 			{
 				const bool bSuccess = MoveTask->WasMoveSuccessful();
 				FinishLatentTask(*BehaviorComp, bSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);

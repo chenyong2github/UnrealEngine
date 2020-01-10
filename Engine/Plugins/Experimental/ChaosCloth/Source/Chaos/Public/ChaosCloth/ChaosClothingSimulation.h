@@ -1,8 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothingSimulationInterface.h"
-
+#include "ClothingSimulation.h"
 #include "ClothingAsset.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/PBDEvolution.h"
@@ -13,35 +12,32 @@
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Check whether this should inherit from FClothingSimulationContextBase
-	{
-	public:
-		ClothingSimulationContext() {}
-		~ClothingSimulationContext() {}
+	typedef FClothingSimulationContextCommon ClothingSimulationContext;
 
-		float DeltaTime;
-		TArray<FMatrix> RefToLocals;
-		TArray<FTransform> BoneTransforms;
-		FTransform ComponentToWorld;
-	};
-
-	class ClothingSimulation : public IClothingSimulation
+	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
 	{
 	public:
 		ClothingSimulation();
-		virtual ~ClothingSimulation();
+		virtual ~ClothingSimulation() override;
 
 		// Set the animation drive stiffness for all actors
 		void SetAnimDriveSpringStiffness(float InStiffness);
-		void SetGravityOverride(const TVector<float, 3>& InGravityOverride);
+		void SetGravityOverride(const FVector& InGravityOverride);
 		void DisableGravityOverride();
+
+		// Function to be called if any of the assets' configuration parameters have changed
+		void RefreshClothConfig();
+		// Function to be called if any of the assets' physics assets changes (colliders)
+		// This seems to only happen when UPhysicsAsset::RefreshPhysicsAssetChange is called with
+		// bFullClothRefresh set to false during changes created using the viewport manipulators.
+		void RefreshPhysicsAsset();
 
 #if WITH_EDITOR
 		// FGCObject interface
-		void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		// End of FGCObject interface
 
 		CHAOSCLOTH_API void DebugDrawPhysMeshWired(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
@@ -58,31 +54,44 @@ namespace Chaos
 
 	protected:
 		// IClothingSimulation interface
-		void Initialize() override;
-		void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
-		void PostActorCreationInitialize() override;
-		IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
-		void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
-		void Shutdown() override;
-		bool ShouldSimulate() const override { return true; }
-		void Simulate(IClothingSimulationContext* InContext) override;
-		void DestroyActors() override;
-		void DestroyContext(IClothingSimulationContext* InContext) override { delete InContext; }
-		void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
+		virtual void Initialize() override;
+		virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
+		virtual void PostActorCreationInitialize() override;
+		virtual IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
+		virtual void Shutdown() override;
+		virtual bool ShouldSimulate() const override { return true; }
+		virtual void Simulate(IClothingSimulationContext* InContext) override;
+		virtual void DestroyActors() override;
+		virtual void DestroyContext(IClothingSimulationContext* InContext) override { delete InContext; }
+		virtual void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
 
-		FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override
+		virtual FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override
 		{ return FBoxSphereBounds(Evolution->Particles().X().GetData(), Evolution->Particles().Size()); }
 
-		void AddExternalCollisions(const FClothCollisionData& InData) override;
-		void ClearExternalCollisions() override;
-		void GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal = true) const override;
+		virtual void AddExternalCollisions(const FClothCollisionData& InData) override;
+		virtual void ClearExternalCollisions() override;
+		virtual void GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal = true) const override;
 		// End of IClothingSimulation interface
 
 	private:
+		void UpdateSimulationFromSharedSimConfig();
+		void BuildMesh(const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex);
+
+		// Reset particle positions to animation positions, masses and velocities are cleared
+		void ResetParticles(int32 InSimDataIndex);
+
+		void SetParticleMasses(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex);
+
+		void AddConstraints(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex);
+
+		void AddSelfCollisions(int32 InSimDataIndex);
+
+		// Extract all collisions (from the physics asset and from the legacy apex collisions)
+		void ExtractCollisions(const UClothingAssetCommon* Asset);
 		// Extract the collisions from the physics asset referenced by the specified clothing asset
-		void ExtractPhysicsAssetCollisions(UClothingAssetCommon* Asset);
-		// Extract the collisions from the specified clothing asset 
-		void ExtractLegacyAssetCollisions(UClothingAssetCommon* Asset, const USkeletalMeshComponent* InOwnerComponent);
+		void ExtractPhysicsAssetCollisions(const UClothingAssetCommon* Asset);
+		// Extract the legacy apex collisions from the specified clothing asset 
+		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset);
 		// Add collisions from a ClothCollisionData structure
 		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
 		// Update the collision transforms using the specified context
@@ -104,7 +113,6 @@ namespace Chaos
 		TArray<float> AnimDriveSpringStiffness; // One for every Asset
 
 		// Collision Data
-		FClothCollisionData ExtractedCollisions;  // Collisions extracted from the referenced physics asset
 		FClothCollisionData ExternalCollisions;  // External collisions
 		TArray<Chaos::TRigidTransform<float, 3>> OldCollisionTransforms;  // Used for the kinematic collision transform update
 		TArray<Chaos::TRigidTransform<float, 3>> CollisionTransforms;  // Used for the kinematic collision transform update
@@ -129,8 +137,8 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
-		float MaxDeltaTime;
-		float ClampDeltaTime;
+
+		FVector Gravity;
 
 #if WITH_EDITOR
 		// Visualization material

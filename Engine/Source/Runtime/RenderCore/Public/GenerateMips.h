@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "GlobalShader.h"
@@ -19,12 +19,14 @@ class RENDERCORE_API FGenerateMips
 public:
 	//Public function for executing the generate mips compute shader 
 	//Default sampler is always bilinear clamp
-	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture,
-		const FGenerateMipsParams& InParams = FGenerateMipsParams());
+	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams = FGenerateMipsParams(), TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache = nullptr, bool bAllowRenderBasedGeneration = false);
 
 	static void Execute(class FRDGBuilder* GraphBuilder, class FRDGTexture* InGraphTexture, FRHISamplerState* InSampler);
+
 private:
-	static void Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture* InTexture);
-	static FGenerateMipsStruct* SetupTexture(FRHITexture* InTexture,
-		const FGenerateMipsParams& InParams = FGenerateMipsParams());
+	static void Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture* InTexture, TSharedPtr<FGenerateMipsStruct> GenMipsStruct);
+	static TSharedPtr<FGenerateMipsStruct> SetupTexture(FRHITexture* InTexture, const FGenerateMipsParams& InParams = FGenerateMipsParams());
+
+	static void RenderMips(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams, TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache);
+	static void SetupRendering(FGenerateMipsStruct *GenMipsStruct, FRHITexture* InTexture, const FGenerateMipsParams& InParams);
 };

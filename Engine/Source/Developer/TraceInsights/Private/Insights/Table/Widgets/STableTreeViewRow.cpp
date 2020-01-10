@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STableTreeViewRow.h"
 
@@ -36,7 +36,7 @@ void STableTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	TablePtr = InArgs._TablePtr;
 	TableTreeNodePtr = InArgs._TableTreeNodePtr;
 
-	RowToolTip = MakeShareable(new STableTreeRowToolTip(TableTreeNodePtr));
+	RowToolTip = MakeShared<STableTreeRowToolTip>(TableTreeNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &STableTreeViewRow::HandleShouldBeEnabled));
 
@@ -148,7 +148,7 @@ const FSlateBrush* STableTreeViewRow::GetOutlineBrush(const FName ColumnId) cons
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.L");
 	}
-	else if(Result == HAlign_Right)
+	else if (Result == HAlign_Right)
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.R");
 	}

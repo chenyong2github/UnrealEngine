@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MergeMeshesTool.h"
 #include "InteractiveToolManager.h"
@@ -172,7 +172,7 @@ bool UMergeMeshesTool::CanAccept() const
 	return Preview->HaveValidResult();
 }
 
-void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

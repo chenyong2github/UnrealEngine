@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifdef CAD_INTERFACE // #ueent_wip if WITH_CORETECH
 
@@ -29,11 +29,6 @@ namespace CADLibrary
 		CT_LIST_IO ObjectList;
 		ObjectList.PushBack(MainObjectId);
 		return CTKIO_SaveFile(ObjectList, *FilePath, L"Ct");
-	}
-
-	CheckedCTError CTSession::CleanBRep()
-	{
-		return CTKIO_CleanBody(MainObjectId);
 	}
 
 	CheckedCTError CTSession::TopoFixes(double SewingToleranceFactor)

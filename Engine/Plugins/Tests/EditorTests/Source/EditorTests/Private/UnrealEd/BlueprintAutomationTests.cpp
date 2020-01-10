@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -121,12 +121,12 @@ public:
 	}
 
 	/** 
-	 * Filter used to test to see if a UProperty is candidate for comparison.
+	 * Filter used to test to see if a FProperty is candidate for comparison.
 	 * @param Property	The property to test
 	 *
-	 * @return True if UProperty should be compared, false otherwise
+	 * @return True if FProperty should be compared, false otherwise
 	 */
-	static bool ShouldCompareProperty (const UProperty* Property)
+	static bool ShouldCompareProperty (const FProperty* Property)
 	{
 		// Ignore components & transient properties
 		const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
@@ -144,9 +144,9 @@ public:
 	 */
 	static void GetObjProperties (UObject* Obj, FPropertiesMap& ObjProperties)
 	{
-		for (TFieldIterator<UProperty> PropIt(Obj->GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(Obj->GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 		{
-			UProperty* Prop = *PropIt;
+			FProperty* Prop = *PropIt;
 
 			if ( ShouldCompareProperty(Prop) )
 			{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Exporter.h"
@@ -1447,6 +1447,7 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 	const FStaticLightingMapping* Mapping,
 	const FFullStaticLightingVertex& Vertex,
 	int32 ElementIndex,
+	float TexelRadius,
 	float SampleRadius,
 	bool bIntersectingSurface,
 	FStaticLightingMappingContext& MappingContext,
@@ -1692,7 +1693,7 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 					Vertex,
 					ElementIndex,
 					GatherInfo,
-					SampleRadius,
+					BounceNumber == 1 ? TexelRadius : SampleRadius,
 					OverrideRadius,
 					IrradianceCachingSettings,
 					GeneralSettings,

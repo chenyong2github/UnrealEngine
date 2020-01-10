@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrontendFilters.h"
 #include "Framework/Commands/UIAction.h"
@@ -105,7 +105,7 @@ public:
 
 				for (const auto& KeyValuePair : InAssetData.TagsAndValues)
 				{
-					if (UProperty* Field = FindField<UProperty>(AssetClass, KeyValuePair.Key))
+					if (FProperty* Field = FindField<FProperty>(AssetClass, KeyValuePair.Key))
 					{
 						if (Field->HasMetaData(NAME_DisplayName))
 						{

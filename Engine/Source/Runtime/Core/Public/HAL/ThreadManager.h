@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -59,6 +59,12 @@ public:
 
 	void GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& StackTraces);
 #endif
+
+	/**
+	 * Enumerate each thread.
+	 *
+	 */
+	void ForEachThread(TFunction<void(uint32, class FRunnableThread*)> Func);
 
 	/**
 	 * Access to the singleton object.

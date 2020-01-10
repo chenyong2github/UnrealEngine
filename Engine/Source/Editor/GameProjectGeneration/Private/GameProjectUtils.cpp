@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "GameProjectUtils.h"
@@ -70,7 +70,6 @@
 #include "IAudioExtensionPlugin.h"
 #include "AudioPluginUtilities.h"
 #include "Sound/AudioSettings.h"
-#include "Sound/SoundCueTemplate.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectSource.h"
 #include "Components/SynthComponent.h"
@@ -225,6 +224,12 @@ namespace
 				TEXT("EditorStartupMap"),
 				DefaultMap,
 				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/EngineSettings.GameMapsSettings"),
+				TEXT("GameDefaultMap"),
+				DefaultMap,
+				true /* ShouldReplaceExistingValue */);
 		}
 	}
 } // namespace <>
@@ -271,11 +276,11 @@ FText FNewClassInfo::GetClassDescription(const bool bFullDescription/* = true*/)
 					if(ClassDescription.FindChar('.', FullStopIndex))
 					{
 						// Only show the first sentence so as not to clutter up the UI with a detailed description of implementation details
-						ClassDescription = ClassDescription.Left(FullStopIndex + 1);
+						ClassDescription.LeftInline(FullStopIndex + 1, false);
 					}
 
 					// Strip out any new-lines in the description
-					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "));
+					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
 				}
 
 				return FText::FromString(ClassDescription);
@@ -370,11 +375,11 @@ FString FNewClassInfo::GetCleanClassName(const FString& ClassName) const
 			// if our class ends with either Widget or WidgetStyle, we need to strip those out to avoid silly looking duplicates
 			if(CleanClassName.EndsWith(TEXT("Style")))
 			{
-				CleanClassName = CleanClassName.LeftChop(5); // 5 for "Style"
+				CleanClassName.LeftChopInline(5, false); // 5 for "Style"
 			}
 			if(CleanClassName.EndsWith(TEXT("Widget")))
 			{
-				CleanClassName = CleanClassName.LeftChop(6); // 6 for "Widget"
+				CleanClassName.LeftChopInline(6, false); // 6 for "Widget"
 			}
 		}
 		break;
@@ -524,10 +529,6 @@ FString FNewClassInfo::GetHeaderTemplateFilename() const
 				{
 					return TEXT("SynthComponentClass.h.template");
 				}
-				else if (BaseClass == USoundCueTemplate::StaticClass())
-				{
-					return TEXT("SoundCueTemplateClass.h.template");
-				}
 			}
 			// Some other non-actor, non-component UObject class
 			return TEXT( "UObjectClass.h.template" );
@@ -585,10 +586,6 @@ FString FNewClassInfo::GetSourceTemplateFilename() const
 				else if (BaseClass == USynthComponent::StaticClass())
 				{
 					return TEXT("SynthComponentClass.cpp.template");
-				}
-				else if (BaseClass == USoundCueTemplate::StaticClass())
-				{
-					return TEXT("SoundCueTemplateClass.cpp.template");
 				}
 			}
 			// Some other non-actor, non-component UObject class
@@ -2754,7 +2751,8 @@ GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForU
 			break;
 		}
 
-		NewDirectoryName = NewDirectoryName.Left(LastSpace).TrimEnd();
+		NewDirectoryName.LeftInline(LastSpace, false);
+		NewDirectoryName.TrimEndInline();
 	}
 
 	// Append the new version number

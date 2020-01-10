@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -246,6 +246,11 @@ public:
 	 * @see LoadModuleWithCallback
 	 */
 	void AbandonModuleWithCallback( const FName InModuleName );
+
+	/**
+	 * Add any extra search paths that may be required
+	 */
+	void AddExtraBinarySearchPaths();
 
 	/**
 	  * Gets a module by name, checking to ensure it exists.

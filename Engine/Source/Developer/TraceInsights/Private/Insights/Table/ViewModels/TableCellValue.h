@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,7 +33,7 @@ public:
 	FTableCellValue(float Value) : DataType(ETableCellDataType::Float), Float(Value) {}
 	FTableCellValue(double Value) : DataType(ETableCellDataType::Double), Double(Value) {}
 	FTableCellValue(const TCHAR* Value) : DataType(ETableCellDataType::CString), CString(Value) {}
-	FTableCellValue(const FText& Value) : DataType(ETableCellDataType::Text), TextPtr(MakeShareable(new FText(Value))) {}
+	FTableCellValue(const FText& Value) : DataType(ETableCellDataType::Text), TextPtr(MakeShared<FText>(Value)) {}
 
 	ETableCellDataType DataType;
 

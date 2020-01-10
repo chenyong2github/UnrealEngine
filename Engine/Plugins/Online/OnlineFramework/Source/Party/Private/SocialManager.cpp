@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialManager.h"
 #include "SocialToolkit.h"
@@ -265,6 +265,18 @@ USocialToolkit* USocialManager::GetSocialToolkit(int32 LocalPlayerNum) const
 	for (USocialToolkit* Toolkit : SocialToolkits)
 	{
 		if (Toolkit->GetLocalUserNum() == LocalPlayerNum)
+		{
+			return Toolkit;
+		}
+	}
+	return nullptr;
+}
+
+USocialToolkit* USocialManager::GetSocialToolkit(FUniqueNetIdRepl LocalUserId) const
+{
+	for (USocialToolkit* Toolkit : SocialToolkits)
+	{
+		if (Toolkit->GetOwningLocalPlayer().GetPreferredUniqueNetId() == LocalUserId)
 		{
 			return Toolkit;
 		}
@@ -647,7 +659,7 @@ UGameInstance& USocialManager::GetGameInstance() const
 	return *GetTypedOuter<UGameInstance>();
 }
 
-USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPlayer)
+USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPlayer, int32 LocalPlayerIndex)
 {
 	for (USocialToolkit* ExistingToolkit : SocialToolkits)
 	{
@@ -656,7 +668,7 @@ USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPla
 	check(ToolkitClass);
 
 	USocialToolkit* NewToolkit = NewObject<USocialToolkit>(this, ToolkitClass);
-	SocialToolkits.Add(NewToolkit);
+	SocialToolkits.Insert(NewToolkit, LocalPlayerIndex);
 	NewToolkit->InitializeToolkit(OwningLocalPlayer);
 	OnToolkitCreatedInternal(*NewToolkit);
 	NewToolkit->OnToolkitReset().AddUObject(this, &USocialManager::HandleToolkitReset, NewToolkit->GetLocalUserNum());
@@ -853,9 +865,12 @@ void USocialManager::HandleGameViewportInitialized()
 	GameViewport->OnPlayerRemoved().AddUObject(this, &USocialManager::HandleLocalPlayerRemoved);
 
 	// Immediately spin up toolkits for local players that already exist
-	for (ULocalPlayer* ExistingLocalPlayer : GameInstance.GetLocalPlayers())
+	const TArray<ULocalPlayer*>& LocalPlayers = GameInstance.GetLocalPlayers();
+	for (int32 LocalPlayerIndex = 0; LocalPlayerIndex < LocalPlayers.Num(); ++LocalPlayerIndex)
 	{
-		CreateSocialToolkit(*ExistingLocalPlayer);
+		ULocalPlayer* ExistingLocalPlayer = LocalPlayers[LocalPlayerIndex];
+
+		CreateSocialToolkit(*ExistingLocalPlayer, LocalPlayerIndex);
 	}
 }
 
@@ -883,15 +898,19 @@ void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 	ULocalPlayer* NewLocalPlayer = GetGameInstance().GetLocalPlayerByIndex(LocalUserNum);
 	check(NewLocalPlayer);
 
-	CreateSocialToolkit(*NewLocalPlayer);
+	CreateSocialToolkit(*NewLocalPlayer, LocalUserNum);
 }
 
 void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 {
-	if (USocialToolkit* Toolkit = GetSocialToolkit(LocalUserNum))
+	//GetSocialToolkit accepts a ControllerId, not a player index, so we'll access it directly 
+	if (SocialToolkits.IsValidIndex(LocalUserNum))
 	{
-		SocialToolkits.Remove(Toolkit);
-		Toolkit->MarkPendingKill();
+		if (USocialToolkit* Toolkit = SocialToolkits[LocalUserNum])
+		{
+			SocialToolkits.Remove(Toolkit);
+			Toolkit->MarkPendingKill();
+		}
 	}
 }
 
@@ -987,7 +1006,7 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 
 void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
 {
-	UE_LOG(LogParty, Log, TEXT("Attempt to join party of type [%d] completed with result [%s] and reason code [%d]"), PartyTypeId.GetValue(), ToString(Result), NotApprovedReasonCode);
+	UE_LOG(LogParty, Log, TEXT("Attempt to join party of type [%d] completed with result [%s] and reason code [%d] by user is [%s] "), PartyTypeId.GetValue(), ToString(Result), NotApprovedReasonCode, *LocalUserId.ToDebugString());
 
 	FJoinPartyResult JoinResult(Result, NotApprovedReasonCode);
 	FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId);

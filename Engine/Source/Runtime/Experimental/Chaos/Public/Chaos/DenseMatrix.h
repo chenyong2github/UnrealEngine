@@ -1,13 +1,71 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Chaos/Core.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
+	/**
+	 * A block-diagonal matrix specifically for use with Mass/Inertia (or more usually inverse mass and inertia)
+	 * and TDenseMatrix math used by the constraint solvers.
+	 */
+	class FMassMatrix
+	{
+	public:
+		FReal M() const
+		{
+			return Mass;
+		}
+		
+		const FReal& I(int32 RowIndex, int32 ColIndex) const
+		{
+			checkSlow(RowIndex < 3);
+			checkSlow(ColIndex < 3);
+			return Inertia.M[RowIndex][ColIndex];
+		}
+
+		static FMassMatrix Make(const FReal InM, const FMatrix33& InI)
+		{
+			return FMassMatrix(InM, InI);
+		}
+
+		static FMassMatrix Make(const FReal InM, FMatrix33&& InI)
+		{
+			return FMassMatrix(InM, MoveTemp(InI));
+		}
+
+		static FMassMatrix Make(const FReal InM, const FRotation3& Q, const FMatrix33& InI)
+		{
+			return FMassMatrix(InM, Q, InI);
+		}
+
+	private:
+		FMassMatrix(const FReal InM, const FMatrix33& InI)
+			: Mass(InM)
+			, Inertia(InI)
+		{
+		}
+
+		FMassMatrix(const FReal InM, FMatrix33&& InI)
+			: Mass(InM)
+			, Inertia(MoveTemp(InI))
+		{
+		}
+
+		FMassMatrix(const FReal InM, const FRotation3& Q, const FMatrix33& InI)
+			: Mass(InM)
+			, Inertia(Utilities::ComputeWorldSpaceInertia(Q, InI))
+		{
+		}
+
+		FReal Mass;
+		FMatrix33 Inertia;
+	};
+
 	/**
 	 * A matrix with run-time variable dimensions, up to an element limit defined at compile-time.
 	 *
@@ -52,7 +110,7 @@ namespace Chaos
 		/**
 		 * The number of rows in the matrix.
 		 */
-		int32 NumRows() const
+		FORCEINLINE int32 NumRows() const
 		{
 			return NRows;
 		}
@@ -60,7 +118,7 @@ namespace Chaos
 		/**
 		 * The number of columns in the matrix.
 		 */
-		int32 NumColumns() const
+		FORCEINLINE int32 NumColumns() const
 		{
 			return NCols;
 		}
@@ -68,48 +126,76 @@ namespace Chaos
 		/**
 		 * The number of elements in the matrix.
 		 */
-		int32 NumElements() const
+		FORCEINLINE int32 NumElements() const
 		{
 			return NRows * NCols;
 		}
 
 		/**
 		 * Set the dimensions of the matrix, but do not initialize any values.
+		 * This will invalidate any existing data.
 		 */
-		void SetDimensions(const int32 InNumRows, const int32 InNumColumns)
+		FORCEINLINE void SetDimensions(const int32 InNumRows, const int32 InNumColumns)
 		{
 			check(InNumRows * InNumColumns <= MaxElements);
 			NRows = InNumRows;
 			NCols = InNumColumns;
 		}
 
-		FORCEINLINE int32 ElementIndex(const int32 RowIndex, const int32 ColumnIndex) const
+		/**
+		 * Add uninitialized rows to the matrix. This will not invalidate data in any previously added rows,
+		 * so it can be used to build NxM matrices where M is known, but N is calculated later.
+		 * /return the index of the first new row.
+		 */
+		FORCEINLINE int32 AddRows(const int32 InNumRows)
 		{
-			checkSlow(RowIndex < NumRows());
-			checkSlow(ColumnIndex < NumColumns());
-			return RowIndex * NCols + ColumnIndex;
+			check((NumRows() + InNumRows) * NumColumns() <= MaxElements);
+			const int32 NewRowIndex = NRows;
+			NRows = NRows + InNumRows;
+			return NewRowIndex;
 		}
 
 		/**
 		 * Return a writable reference to the element at the specified row and column.
 		 */
-		FReal& At(const int32 RowIndex, const int32 ColumnIndex)
+		FORCEINLINE FReal& At(const int32 RowIndex, const int32 ColumnIndex)
 		{
+			checkSlow(RowIndex < NumRows());
+			checkSlow(ColumnIndex < NumColumns());
 			return M[ElementIndex(RowIndex, ColumnIndex)];
 		}
 
 		/**
 		 * Return a read-only reference to the element at the specified row and column.
 		 */
-		const FReal& At(const int32 RowIndex, const int32 ColumnIndex) const
+		FORCEINLINE const FReal& At(const int32 RowIndex, const int32 ColumnIndex) const
 		{
+			checkSlow(RowIndex < NumRows());
+			checkSlow(ColumnIndex < NumColumns());
 			return M[ElementIndex(RowIndex, ColumnIndex)];
+		}
+
+		/**
+		 * Set the dimensions and initial values of the matrix.
+		 */
+		void Init(const int32 InNRows, const int32 InNCols, FReal V)
+		{
+			SetDimensions(InNRows, InNCols);
+			Set(V);
+		}
+
+		/**
+		 * Set the element
+		 */
+		FORCEINLINE void SetAt(const int32 RowIndex, const int32 ColumnIndex, const FReal V)
+		{
+			At(RowIndex, ColumnIndex) = V;
 		}
 
 		/**
 		 * Set all elements to 'V'.
 		 */
-		void SetAll(FReal V)
+		void Set(FReal V)
 		{
 			for (int32 II = 0; II < NumElements(); ++II)
 			{
@@ -123,13 +209,131 @@ namespace Chaos
 		 */
 		void SetDiagonal(FReal V)
 		{
-			int32 Num = FMath::Min(NRows, NCols);
-			for (int32 II = 0; II < Num; ++II)
+			check(NumRows() == NumColumns());
+			for (int32 II = 0; II < NRows; ++II)
 			{
-				M[ElementIndex(II, II)] = V;
+				At(II, II) = V;
 			}
 		}
 
+		/**
+		 * Set the "Num" diagonal elements starting from ("Start", "Start") to "V". Does not set off-diagonal elements.
+		 */
+		void SetDiagonalAt(int32 Start, int32 Num, FReal V)
+		{
+			check(Start + Num <= NumRows());
+			check(Start + Num <= NumColumns());
+			for (int32 II = 0; II < Num; ++II)
+			{
+				int32 JJ = Start + II;
+				At(JJ, JJ) = V;
+			}
+		}
+
+		/**
+		 * Starting from element ("RowIndex", "ColumnIndex"), set the next "NumV" elements in the row to the values in "V".
+		 */
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FReal* V, const int32 NumV)
+		{
+			check(RowIndex + NumV < NumRows());
+			check(ColumnIndex < NumColumns());
+			FReal* Row = &At(RowIndex, ColumnIndex);
+			for (int32 II = 0; II < NumV; ++II)
+			{
+				*Row++ = *V++;
+			}
+		}
+
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FVec3& V)
+		{
+			SetRowAt(RowIndex, ColumnIndex, V[0], V[1], V[2]);
+		}
+
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FReal V0, const FReal V1, const FReal V2)
+		{
+			check(RowIndex + 1 <= NumRows());
+			check(ColumnIndex + 3 <= NumColumns());
+			FReal* Row = &At(RowIndex, ColumnIndex);
+			*Row++ = V0;
+			*Row++ = V1;
+			*Row++ = V2;
+		}
+
+		/**
+		 * Starting from element ("RowIndex", "ColumnIndex"), set the next "NumV" elements in the column to the values in "V".
+		 */
+		void SetColumnAt(const int32 RowIndex, const int32 ColumnIndex, const FReal* V, const int32 NumV)
+		{
+			check(RowIndex + NumV <= NumRows());
+			check(ColumnIndex + 1 <= NumColumns());
+			for (int32 II = 0; II < NumV; ++II)
+			{
+				At(RowIndex + II, ColumnIndex) = V[II];
+			}
+		}
+
+		void SetColumnAt(const int32 RowIndex, const int32 ColumnIndex, const FVec3& V)
+		{
+			check(RowIndex + 3 <= NumRows());
+			check(ColumnIndex + 1 <= NumColumns());
+			At(RowIndex + 0, ColumnIndex) = V[0];
+			At(RowIndex + 1, ColumnIndex) = V[1];
+			At(RowIndex + 2, ColumnIndex) = V[2];
+		}
+
+		/**
+		 * Set the block starting at ("RowOffset", "ColumnOffset") from the specified matrix "V"
+		 */
+		template<int32 T_EA>
+		void SetBlockAt(const int32 RowOffset, const int32 ColumnOffset, const TDenseMatrix<T_EA>& V)
+		{
+			check(RowOffset + V.NumRows() <= NumRows());
+			check(ColumnOffset + V.NumColumns() <= NumColumns());
+			for (int32 II = 0; II < V.NumRows(); ++II)
+			{
+				for (int32 JJ = 0; JJ < V.NumColumns(); ++JJ)
+				{
+					At(II + RowOffset, JJ + ColumnOffset) = V.At(II, JJ);
+				}
+			}
+		}
+
+		/**
+		 * Set the 3x3 block starting at ("RowOffset", "ColumnOffset") from the specified 3x3 matrix "V" (note: assumes the input UE matrix is column-major order)
+		 */
+		void SetBlockAt(const int32 RowOffset, const int32 ColumnOffset, const FMatrix33& V)
+		{
+			check(RowOffset + 3 <= NumRows());
+			check(ColumnOffset + 3 <= NumColumns());
+			for (int32 II = 0; II < 3; ++II)
+			{
+				for (int32 JJ = 0; JJ < 3; ++JJ)
+				{
+					At(II + RowOffset, JJ + ColumnOffset) = V.M[JJ][II];
+				}
+			}
+		}
+
+		/**
+		 * Set the specified 3x3 block to a diagonal matrix with the specified diagonal and off-diagonal values.
+		 */
+		void SetBlockAtDiagonal33(const int32 RowOffset, const int32 ColumnOffset, const FReal VDiag, const FReal VOffDiag)
+		{
+			check(RowOffset + 3 <= NumRows());
+			check(ColumnOffset + 3 <= NumColumns());
+			FReal* Row0 = &At(RowOffset + 0, ColumnOffset);
+			*Row0++ = VDiag;
+			*Row0++ = VOffDiag;
+			*Row0++ = VOffDiag;
+			FReal* Row1 = &At(RowOffset + 1, ColumnOffset);
+			*Row1++ = VOffDiag;
+			*Row1++ = VDiag;
+			*Row1++ = VOffDiag;
+			FReal* Row2 = &At(RowOffset + 2, ColumnOffset);
+			*Row2++ = VOffDiag;
+			*Row2++ = VOffDiag;
+			*Row2++ = VDiag;
+		}
 
 		//
 		// Factory methods
@@ -143,6 +347,13 @@ namespace Chaos
 			return TDenseMatrix<MaxElements>(InNumRows, InNumCols);
 		}
 
+		/**
+		 * Create a matrix with the specified dimensions, and initialize all elements with "V".
+		 */
+		static TDenseMatrix<MaxElements> Make(const int32 InNumRows, const int32 InNumCols, const FReal V)
+		{
+			return TDenseMatrix<MaxElements>(InNumRows, InNumCols, V);
+		}
 
 		/**
 		 * Create a matrix with the specified elements supplied as an array in row-major order 
@@ -213,6 +424,23 @@ namespace Chaos
 		//
 
 		/**
+		 * Return the transpose of 'A'.
+		 */
+		template<int32 T_EA>
+		static TDenseMatrix<MaxElements> Transpose(const TDenseMatrix<T_EA>& A)
+		{
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumColumns(), A.NumRows());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
+				{
+					Result.At(IRow, ICol) = A.At(ICol, IRow);
+				}
+			}
+			return Result;
+		}
+
+		/**
 		 * Copy a matrix and set each element to its negative.
 		 */
 		template<int32 T_EA>
@@ -245,6 +473,28 @@ namespace Chaos
 				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
 				{
 					Result.At(IRow, ICol) = A.At(IRow, ICol) + B.At(IRow, ICol);
+				}
+			}
+			return Result;
+		}
+
+		/**
+		 * Return C = A + B, where A and B are symetric.
+		 */
+		template<int32 T_EA, int32 T_EB>
+		static TDenseMatrix<MaxElements> Add_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B)
+		{
+			// @todo(ccaulfield): optimize
+			check(A.NumColumns() == B.NumColumns());
+			check(A.NumRows() == B.NumRows());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), A.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = A.At(IRow, ICol) + B.At(IRow, ICol);
+					Result.At(IRow, ICol) = V;
+					Result.At(ICol, IRow) = V;
 				}
 			}
 			return Result;
@@ -371,9 +621,180 @@ namespace Chaos
 		}
 
 		/**
-		 * Return C = A x V, where A is an MxN matrix, and V a real number.
+		 * Return C = A x B, where the results is known to be symmetric.
+		 * /see MultiplyAtB.
 		 */
 		template<int32 T_EA, int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyAB_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B)
+		{
+			// @todo(ccaulfield): optimize
+			check(A.NumColumns() == B.NumRows());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), B.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 II = 0; II < A.NumColumns(); ++II)
+					{
+						V += A.At(IRow, II) * B.At(II, ICol);
+					}
+					Result.At(IRow, ICol) = V;
+					Result.At(ICol, IRow) = V;
+				}
+			}
+			return Result;
+		}
+
+		/**
+		 * Return C = A + B x C, where the A and (B x C) are known to be symmetric.
+		 * /see MultiplyAtB, Add_Symmetric.
+		 */
+		template<int32 T_EA, int32 T_EB, int32 T_EC>
+		static TDenseMatrix<MaxElements> MultiplyBCAddA_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B, const TDenseMatrix<T_EC>& C)
+		{
+			// @todo(ccaulfield): optimize
+			check(B.NumColumns() == C.NumRows());
+			check(A.NumRows() == B.NumRows());
+			check(A.NumRows() == C.NumColumns());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), A.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 II = 0; II < B.NumColumns(); ++II)
+					{
+						V += B.At(IRow, II) * C.At(II, ICol);
+					}
+					FReal VA = A.At(IRow, ICol);
+					Result.At(IRow, ICol) = VA + V;
+					Result.At(ICol, IRow) = VA + V;
+				}
+			}
+			return Result;
+		}
+
+		/**
+		 * Return C = A x B, where A is an Nx6 matrix, and B is a 6x6 mass matrix (Mass in upper left 3x3 diagonals, Inertia in lower right 3x3).
+		 * C = |A0 A1| * |M 0| = |A0.M A1.I|
+		 *               |0 I|
+		 */
+		template<int32 T_EA>
+		static TDenseMatrix<MaxElements> MultiplyAB(const TDenseMatrix<T_EA>& A, const FMassMatrix& B)
+		{
+			check(A.NumColumns() == 6);
+
+			TDenseMatrix<T_MAXELEMENTS> Result = TDenseMatrix<T_MAXELEMENTS>::Make(A.NumRows(), 6);
+
+			// Calculate columns 0-2
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = 0; ICol < 3; ++ICol)
+				{
+					Result.At(IRow, ICol) = A.At(IRow, ICol) * B.M();
+				}
+			}
+
+			// Calculate columns 3-5
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = 3; ICol < 6; ++ICol)
+				{
+					FReal V = 0;
+					for (int32 KK = 3; KK < 6; ++KK)
+					{
+						V += A.At(IRow, KK) * B.I(KK - 3, ICol - 3);
+					}
+					Result.At(IRow, ICol) = V;
+				}
+			}
+
+			return Result;
+		}
+
+
+		/**
+		 * Return C = A x B, where B is an 6xN matrix, and A is a 6x6 mass matrix (Mass in upper left 3x3 diagonals, Inertia in lower right 3x3).
+		 * C = |M 0| * |B0| = |M.B0|
+		 *     |0 I|   |B1|   |I.B1|
+		 */
+		template<int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyAB(const FMassMatrix& A, const TDenseMatrix<T_EB>& B)
+		{
+			check(B.NumRows() == 6);
+
+			TDenseMatrix<T_MAXELEMENTS> Result = TDenseMatrix<T_MAXELEMENTS>::Make(6, B.NumColumns());
+
+			// Calculate rows 0-2
+			for (int32 IRow = 0; IRow < 3; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumColumns(); ++ICol)
+				{
+					Result.At(IRow, ICol) = A.M() * B.At(IRow, ICol);
+				}
+			}
+
+			// Calculate rows 3-5
+			for (int32 IRow = 3; IRow < 6; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 KK = 3; KK < 6; ++KK)
+					{
+						V += A.I(IRow - 3, KK - 3) * B.At(KK, ICol);
+					}
+					Result.At(IRow, ICol) = V;
+				}
+			}
+
+			return Result;
+		}
+
+		/**
+		 * Return C = A x Transpose(B), where B is an Nx6 matrix, and A is a 6x6 mass matrix (Mass in upper left 3x3 diagonals, Inertia in lower right 3x3).
+		 * C = |M 0| * |B0 B1|(T) = |M.B0(T)|
+		 *     |0 I|                |I.B1(T)|
+		 */
+		template<int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyABt(const FMassMatrix& A, const TDenseMatrix<T_EB>& B)
+		{
+			check(B.NumColumns() == 6);
+
+			TDenseMatrix<T_MAXELEMENTS> Result = TDenseMatrix<T_MAXELEMENTS>::Make(6, B.NumRows());
+
+			// Calculate rows 0-2
+			for (int32 IRow = 0; IRow < 3; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumRows(); ++ICol)
+				{
+					Result.At(IRow, ICol) = A.M() * B.At(ICol, IRow);
+				}
+			}
+
+			// Calculate rows 3-5
+			for (int32 IRow = 3; IRow < 6; ++IRow)
+			{
+				for (int32 ICol = 0; ICol < B.NumRows(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 KK = 3; KK < 6; ++KK)
+					{
+						V += A.I(IRow - 3, KK - 3) * B.At(ICol, KK);
+					}
+					Result.At(IRow, ICol) = V;
+				}
+			}
+
+			return Result;
+		}
+
+
+		/**
+		 * Return C = A x V, where A is an MxN matrix, and V a real number.
+		 */
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Multiply(const TDenseMatrix<T_EA>& A, const FReal V)
 		{
 			// @todo(ccaulfield): optimize
@@ -382,7 +803,7 @@ namespace Chaos
 			{
 				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
 				{
-					Result.At(IRow, ICol) = Result.At(IRow, ICol) / V;
+					Result.At(IRow, ICol) = A.At(IRow, ICol) * V;
 				}
 			}
 			return Result;
@@ -391,7 +812,7 @@ namespace Chaos
 		/**
 		 * Return C = A x V, where A is an MxN matrix, and V a real number.
 		 */
-		template<int32 T_EA, int32 T_EB>
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Multiply(const FReal V, const TDenseMatrix<T_EA>& A)
 		{
 			return Multiply(A, V);
@@ -400,7 +821,7 @@ namespace Chaos
 		/**
 		 * Return C = A / V, where A is an MxN matrix, and V a real number.
 		 */
-		template<int32 T_EA, int32 T_EB>
+		template<int32 T_EA>
 		static TDenseMatrix<MaxElements> Divide(const TDenseMatrix<T_EA>& A, const FReal V)
 		{
 			// @todo(ccaulfield): optimize
@@ -409,7 +830,7 @@ namespace Chaos
 			{
 				for (int32 ICol = 0; ICol < Result.NumColumns(); ++ICol)
 				{
-					Result.At(IRow, ICol) = Result.At(IRow, ICol) / V;
+					Result.At(IRow, ICol) = A.At(IRow, ICol) / V;
 				}
 			}
 			return Result;
@@ -425,6 +846,16 @@ namespace Chaos
 		}
 
 	private:
+		TDenseMatrix(const int32 InNRows, const int32 InNCols, const FReal V)
+			: NRows(InNRows)
+			, NCols(InNCols)
+		{
+			for (int32 I = 0; I < NumElements(); ++I)
+			{
+				M[I] = V;
+			}
+		}
+
 		TDenseMatrix(const int32 InNRows, const int32 InNCols, const FReal* V, const int32 N)
 			: NRows(InNRows)
 			, NCols(InNCols)
@@ -434,6 +865,11 @@ namespace Chaos
 			{
 				M[I] = V[I];
 			}
+		}
+
+		FORCEINLINE int32 ElementIndex(const int32 RowIndex, const int32 ColumnIndex) const
+		{
+			return RowIndex * NCols + ColumnIndex;
 		}
 
 		FReal M[MaxElements];
@@ -515,7 +951,15 @@ namespace Chaos
 			const int32 N = G.NumRows();
 			X.SetDimensions(N, 1);
 
-			// Solve LY = B (G is lower-triangular)
+			// By definition: 
+			//		A.X = G.Gt.X = B
+			// Rearrange and define Y: 
+			//		Gt.X = G^-1.B = Y
+			// Which gives:
+			//		GY = B
+			//		GtX = Y
+
+			// Solve GY = B (G is lower-triangular) for Y
 			for (int32 I = 0; I < N; ++I)
 			{
 				FReal Sum = B.At(I, 0);
@@ -526,7 +970,7 @@ namespace Chaos
 				X.At(I, 0) = Sum / G.At(I, I);
 			}
 
-			// Solve LtX = Y (Lt is upper-triangular)
+			// Solve GtX = Y (Gt is upper-triangular) for X
 			for (int32 I = N - 1; I >= 0; --I)
 			{
 				FReal Sum = X.At(I, 0);
@@ -541,13 +985,13 @@ namespace Chaos
 		/**
 		 * Solve AX = B, for positive-definite NxN matrix A, and Nx1 column vectors B and X.
 		 *
-		 * For positive definite A, A = GGt, where G is the Cholesky factor and lower trangular.
+		 * For positive definite A, A = GGt, where G is the Cholesky factor and lower triangular.
 		 * We can solve GGtX = B by first solving GY = B, and then GtX = Y.
 		 *
 		 * E.g., this can be used to solve constraint equations of the form
 		 *		J.I.Jt.X = B
 		 * where J is a Jacobian (Jt its transpose), I is an Inverse mas matrix, and B the residual.
-		 * In this case, I is positive definite, and therefore so is JIJt.
+		 * In this case, I is symmetric positive definite, and therefore so is JIJt.
 		 *
 		 */
 		template<int32 T_EA, int32 T_EB, int32 T_EX>
@@ -567,5 +1011,6 @@ namespace Chaos
 			return true;
 		}
 	};
+
 
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavigationData.h"
 #include "EngineGlobals.h"
@@ -521,6 +521,8 @@ void ANavigationData::RebuildAll()
 	
 	if (NavDataGenerator.IsValid())
 	{
+		// mark outermost package as dirty. Internal filters will dirty only for valid scenarios (i.e. commandlet or editor mode only)
+		MarkPackageDirty();
 		NavDataGenerator->RebuildAll();
 	}
 }

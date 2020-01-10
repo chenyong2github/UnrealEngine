@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeRender.cpp: New terrain rendering
@@ -821,7 +821,7 @@ void FLandscapeRenderSystem::BeginRenderView(const FSceneView* View)
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 		{
 			SectionTessellationFalloffC = CachedSectionTessellationFalloffC[View];
-			SectionTessellationFalloffC = CachedSectionTessellationFalloffK[View];
+			SectionTessellationFalloffK = CachedSectionTessellationFalloffK[View];
 		}
 	}
 
@@ -917,6 +917,7 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::RecreateBuffers());
 
+		if (Size != FIntPoint::ZeroValue)
 		{
 			if (!SectionLODBuffer.IsValid())
 			{
@@ -930,9 +931,7 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 				FMemory::Memcpy(Data, SectionLODValues.GetData(), SectionLODValues.GetResourceDataSize());
 				RHIUnlockVertexBuffer(SectionLODBuffer);
 			}
-		}
 
-		{
 			if (!SectionLODBiasBuffer.IsValid())
 			{
 				FRHIResourceCreateInfo CreateInfo(&SectionLODBiases);
@@ -945,9 +944,7 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 				FMemory::Memcpy(Data, SectionLODBiases.GetData(), SectionLODBiases.GetResourceDataSize());
 				RHIUnlockVertexBuffer(SectionLODBiasBuffer);
 			}
-		}
 
-		{
 			if (!SectionTessellationFalloffCBuffer.IsValid())
 			{
 				FRHIResourceCreateInfo CreateInfo(&SectionTessellationFalloffC);
@@ -964,9 +961,7 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 					RHIUnlockVertexBuffer(SectionTessellationFalloffCBuffer);
 				}
 			}
-		}
 
-		{
 			if (!SectionTessellationFalloffKBuffer.IsValid())
 			{
 				FRHIResourceCreateInfo CreateInfo(&SectionTessellationFalloffK);
@@ -983,23 +978,23 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 					RHIUnlockVertexBuffer(SectionTessellationFalloffKBuffer);
 				}
 			}
-		}
 
-		FLandscapeSectionLODUniformParameters Parameters;
-		Parameters.Min = Min;
-		Parameters.Size = Size;
-		Parameters.SectionLOD = SectionLODSRV;
-		Parameters.SectionLODBias = SectionLODBiasSRV;
-		Parameters.SectionTessellationFalloffC = SectionTessellationFalloffCSRV;
-		Parameters.SectionTessellationFalloffK = SectionTessellationFalloffKSRV;
+			FLandscapeSectionLODUniformParameters Parameters;
+			Parameters.Min = Min;
+			Parameters.Size = Size;
+			Parameters.SectionLOD = SectionLODSRV;
+			Parameters.SectionLODBias = SectionLODBiasSRV;
+			Parameters.SectionTessellationFalloffC = SectionTessellationFalloffCSRV;
+			Parameters.SectionTessellationFalloffK = SectionTessellationFalloffKSRV;
 
-		if (UniformBuffer.IsValid())
-		{
-			UniformBuffer.UpdateUniformBufferImmediate(Parameters);
-		}
-		else
-		{
-			UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
+			if (UniformBuffer.IsValid())
+			{
+				UniformBuffer.UpdateUniformBufferImmediate(Parameters);
+			}
+			else
+			{
+				UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
+			}
 		}
 
 		CachedView = InView;
@@ -1366,7 +1361,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	for (int32 Idx = 0; Idx < InComponent->WeightmapLayerAllocations.Num(); Idx++)
 	{
 		FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
-		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
+		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer && Allocation.IsAllocated())
 		{
 			VisibilityWeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 			VisibilityWeightmapChannel = Allocation.WeightmapTextureChannel;
@@ -1606,6 +1601,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+	Result.bUseCustomViewData = true;
 
 	auto FeatureLevel = View->GetFeatureLevel();
 
@@ -3210,6 +3206,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	const bool bInCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
 	const bool bDrawSimpleCollision = ViewFamily.EngineShowFlags.CollisionPawn       && CollisionResponse.GetResponse(ECC_Pawn) != ECR_Ignore;
 	const bool bDrawComplexCollision = ViewFamily.EngineShowFlags.CollisionVisibility && CollisionResponse.GetResponse(ECC_Visibility) != ECR_Ignore;
+	const int32 CollisionLODLevel = bDrawSimpleCollision ? FMath::Max(CollisionMipLevel, SimpleCollisionMipLevel) : bDrawComplexCollision ? CollisionMipLevel : -1;
 #endif
 
 	int32 NumPasses = 0;
@@ -3221,27 +3218,31 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
-			const FSceneView* View = Views[ViewIndex];
 			FLandscapeElementParamArray& ParameterArray = Collector.AllocateOneFrameResource<FLandscapeElementParamArray>();
+			ParameterArray.ElementParams.AddDefaulted(1);
 
-			float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
+			const FSceneView* View = Views[ViewIndex];
+
 			int32 ForcedLODLevel = (View->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : -1;
-
-			float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 #if WITH_EDITOR
 			ForcedLODLevel = View->Family->LandscapeLODOverride >= 0 ? View->Family->LandscapeLODOverride : ForcedLODLevel;
 #endif
-			int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 
-			ParameterArray.ElementParams.AddDefaulted(1);
+#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			ForcedLODLevel = CollisionLODLevel >= 0 ? CollisionLODLevel : ForcedLODLevel;
+#endif
+
+			ForcedLODLevel = FMath::Min(ForcedLODLevel, (int32)LODSettings.LastLODIndex);
+
+			const float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
+			const float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
+			const int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
-
 			GetStaticMeshElement(LODToRender, false, ForcedLODLevel >= 0, Mesh, ParameterArray.ElementParams);
 
 #if WITH_EDITOR
 			FMeshBatch& MeshTools = Collector.AllocateMesh();
-
 			// No Tessellation on tool material
 			GetStaticMeshElement(LODToRender, true, ForcedLODLevel >= 0, MeshTools, ParameterArray.ElementParams);
 #endif
@@ -4666,13 +4667,13 @@ public:
 				static const FName LocalVertexFactory = FName(TEXT("FLocalVertexFactory"));
 				if (!IsMobilePlatform(Platform) && VertexFactoryType->GetFName() == LocalVertexFactory)
 				{
-					if (Algo::Find(GetAllowedShaderTypes(), ShaderType->GetFName()))
+					if (Algo::Find(GetAllowedShaderTypesInThumbnailRender(), ShaderType->GetFName()))
 					{
 						return FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 					}
 					else
 					{
-						if (Algo::Find(GetExcludedShaderTypes(), ShaderType->GetFName()))
+						if (Algo::Find(GetExcludedShaderTypesInThumbnailRender(), ShaderType->GetFName()))
 						{
 							UE_LOG(LogLandscape, VeryVerbose, TEXT("Excluding shader %s from landscape thumbnail material"), ShaderType->GetName());
 							return false;
@@ -4717,7 +4718,7 @@ public:
 		return false;
 	}
 
-	static const TArray<FName>& GetAllowedShaderTypes()
+	static const TArray<FName>& GetAllowedShaderTypesInThumbnailRender()
 	{
 		// reduce the number of shaders compiled for the thumbnail materials by only compiling with shader types known to be used by the preview scene
 		static const TArray<FName> AllowedShaderTypes =
@@ -4814,7 +4815,7 @@ public:
 		return AllowedShaderTypes;
 	}
 
-	static const TArray<FName>& GetExcludedShaderTypes()
+	static const TArray<FName>& GetExcludedShaderTypesInThumbnailRender()
 	{
 		// shader types known *not* to be used by the preview scene
 		static const TArray<FName> ExcludedShaderTypes =
@@ -4969,6 +4970,13 @@ public:
 
 			FName(TEXT("TBasePassDSFPrecomputedVolumetricLightmapLightingPolicy")),
 			FName(TEXT("TBasePassHSFPrecomputedVolumetricLightmapLightingPolicy")),
+
+#if RHI_RAYTRACING
+				// No ray tracing on thumbnails
+				FName(TEXT("TMaterialCHSFPrecomputedVolumetricLightmapLightingPolicy")),
+				FName(TEXT("TMaterialCHSFNoLightMapPolicy")),
+				FName(TEXT("FRayTracingDynamicGeometryConverterCS")),
+#endif // RHI_RAYTRACING
 		};
 		return ExcludedShaderTypes;
 	}
@@ -5166,12 +5174,31 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 
 #if WITH_EDITOR
-	if (GIsEditor && EditToolRenderData.DataTexture)
+	if (GIsEditor)
 	{
-		FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
-		StreamingDatamap.Bounds = BoundingSphere;
-		StreamingDatamap.TexelFactor = TexelFactor;
-		StreamingDatamap.RenderAsset = EditToolRenderData.DataTexture;
+		if (EditToolRenderData.DataTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.DataTexture;
+		}
+
+		if (EditToolRenderData.LayerContributionTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.LayerContributionTexture;
+		}
+
+		if (EditToolRenderData.DirtyTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.DirtyTexture;
+		}
 	}
 #endif
 }

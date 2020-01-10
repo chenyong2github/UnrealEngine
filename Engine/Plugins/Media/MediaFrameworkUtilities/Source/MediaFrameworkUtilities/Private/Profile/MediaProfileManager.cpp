@@ -1,10 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Profile/MediaProfileManager.h"
 #include "MediaFrameworkUtilitiesModule.h"
 
+#include "Engine/Engine.h"
 #include "Modules/ModuleManager.h"
 #include "MediaAssets/ProxyMediaOutput.h"
 #include "MediaAssets/ProxyMediaSource.h"
+#include "Misc/App.h"
 #include "Profile/MediaProfile.h"
 #include "Profile/MediaProfileSettings.h"
 
@@ -19,20 +21,66 @@ IMediaProfileManager& IMediaProfileManager::Get()
 FMediaProfileManager::FMediaProfileManager()
 	: CurrentMediaProfile(nullptr)
 {
+	if (UObjectInitialized())
+	{
+		if (FApp::CanEverRender() && GEngine && GEngine->IsInitialized())
+		{
+			MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
+			MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+		}
+
+#if WITH_EDITOR
+		GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.AddRaw(this, &FMediaProfileManager::OnMediaProxiesChanged);
+#endif
+	}
+}
+
+
+FMediaProfileManager::~FMediaProfileManager()
+{
+#if WITH_EDITOR
+	if (UObjectInitialized())
+	{
+		GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.RemoveAll(this);
+	}
+#endif
+}
+
+
+void FMediaProfileManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(CurrentMediaProfile);
+	Collector.AddReferencedObjects(MediaSourceProxies);
+	Collector.AddReferencedObjects(MediaOutputProxies);
 }
 
 
 UMediaProfile* FMediaProfileManager::GetCurrentMediaProfile() const
 {
-	return CurrentMediaProfile.Get();
+	return CurrentMediaProfile;
+}
+
+
+TArray<UProxyMediaSource*> FMediaProfileManager::GetAllMediaSourceProxy() const
+{
+	return MediaSourceProxies;
+}
+
+
+TArray<UProxyMediaOutput*> FMediaProfileManager::GetAllMediaOutputProxy() const
+{
+	return MediaOutputProxies;
 }
 
 
 void FMediaProfileManager::SetCurrentMediaProfile(UMediaProfile* InMediaProfile)
 {
+	MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
+	MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+
 	bool bRemoveDelegate = false;
 	bool bAddDelegate = false;
-	UMediaProfile* Previous = CurrentMediaProfile.Get();
+	UMediaProfile* Previous = CurrentMediaProfile;
 	if (InMediaProfile != Previous)
 	{
 		if (Previous)
@@ -47,23 +95,9 @@ void FMediaProfileManager::SetCurrentMediaProfile(UMediaProfile* InMediaProfile)
 			bAddDelegate = true;
 		}
 
-		CurrentMediaProfile.Reset(InMediaProfile);
+		CurrentMediaProfile = InMediaProfile;
 		MediaProfileChangedDelegate.Broadcast(Previous, InMediaProfile);
 	}
-
-#if WITH_EDITOR
-	if (UObjectInitialized())
-	{
-		if (bAddDelegate && !bRemoveDelegate)
-		{
-			GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.AddRaw(this, &FMediaProfileManager::OnMediaProxiesChanged);
-		}
-		else if (bRemoveDelegate && !bAddDelegate)
-		{
-			GetMutableDefault<UMediaProfileSettings>()->OnMediaProxiesChanged.RemoveAll(this);
-		}
-	}
-#endif
 }
 
 
@@ -72,14 +106,17 @@ FMediaProfileManager::FOnMediaProfileChanged& FMediaProfileManager::OnMediaProfi
 	return MediaProfileChangedDelegate;
 }
 
+
 #if WITH_EDITOR
 void FMediaProfileManager::OnMediaProxiesChanged()
 {
-	UMediaProfile* CurrentMediaProfilePtr = CurrentMediaProfile.Get();
-	if (CurrentMediaProfilePtr)
+	MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
+	MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+
+	if (CurrentMediaProfile)
 	{
-		CurrentMediaProfilePtr->Reset();
-		CurrentMediaProfilePtr->Apply();
+		CurrentMediaProfile->Reset();
+		CurrentMediaProfile->Apply();
 	}
 }
 #endif

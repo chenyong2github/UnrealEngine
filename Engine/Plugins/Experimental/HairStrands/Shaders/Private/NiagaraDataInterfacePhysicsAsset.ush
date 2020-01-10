@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 NiagaraDataInterfacePhysicsAsset.ush 
@@ -21,24 +21,36 @@ struct FDIPhysicsAssetContext
 	uint4 ElementOffsets;
 	Buffer<float4>		CurrentTransformBuffer;
 	Buffer<float4>		InverseTransformBuffer;
+	Buffer<float4>		RestTransformBuffer;
+	Buffer<float4>		RestInverseBuffer;
 	Buffer<float4>		PreviousTransformBuffer;
 	Buffer<float4>		ElementExtentBuffer;
+	float3				BoxOrigin;
+	float3				BoxExtent;
 }; 
 
 #define DIPHYSICSASSET_DECLARE_CONSTANTS(NAME)\
 uint4 ElementOffsets_##NAME;\
 Buffer<float4>		CurrentTransformBuffer_##NAME;\
 Buffer<float4>		InverseTransformBuffer_##NAME;\
+Buffer<float4>		RestTransformBuffer_##NAME;\
+Buffer<float4>		RestInverseBuffer_##NAME;\
 Buffer<float4>		PreviousTransformBuffer_##NAME;\
 Buffer<float4>		ElementExtentBuffer_##NAME;\
+float3 BoxOrigin_##NAME;\
+float3 BoxExtent_##NAME;\
 
 #define DIPHYSICSASSET_MAKE_CONTEXT(NAME)\
 FDIPhysicsAssetContext DIContext; \
 DIContext.ElementOffsets = ElementOffsets_##NAME;\
 DIContext.CurrentTransformBuffer = CurrentTransformBuffer_##NAME;\
 DIContext.InverseTransformBuffer = InverseTransformBuffer_##NAME;\
+DIContext.RestTransformBuffer = RestTransformBuffer_##NAME;\
+DIContext.RestInverseBuffer = RestInverseBuffer_##NAME;\
 DIContext.PreviousTransformBuffer = PreviousTransformBuffer_##NAME;\
 DIContext.ElementExtentBuffer = ElementExtentBuffer_##NAME;\
+DIContext.BoxOrigin = BoxOrigin_##NAME;\
+DIContext.BoxExtent = BoxExtent_##NAME;\
 
 /* -----------------------------------------------------------------
  * Element accessors
@@ -94,6 +106,18 @@ float3x4 DIPhysicsAsset_GetPreviousTransform(in FDIPhysicsAssetContext DIContext
 {
 	const int BufferOffset = 3 * ElementIndex;
     return float3x4(DIContext.PreviousTransformBuffer[BufferOffset], DIContext.PreviousTransformBuffer[BufferOffset+1], DIContext.PreviousTransformBuffer[BufferOffset+2]);
+}
+
+float3x4 DIPhysicsAsset_GetRestTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
+{
+	const int BufferOffset = 3 * ElementIndex;
+    return float3x4(DIContext.RestTransformBuffer[BufferOffset], DIContext.RestTransformBuffer[BufferOffset+1], DIContext.RestTransformBuffer[BufferOffset+2]);
+}
+
+float3x4 DIPhysicsAsset_GetRestInverse(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
+{
+	const int BufferOffset = 3 * ElementIndex;
+    return float3x4(DIContext.RestInverseBuffer[BufferOffset], DIContext.RestInverseBuffer[BufferOffset+1], DIContext.RestInverseBuffer[BufferOffset+2]);
 }
 
 /* -----------------------------------------------------------------
@@ -181,24 +205,20 @@ float DIPhysicsAsset_GetBoxProjection(in float3 LocalPosition, in float3 BoxExte
 	return BoxDistance;
 }
 
+
 /* -----------------------------------------------------------------
- * Get the closest point to the physics asset 
+ * Get the closest element to the node position
  * -----------------------------------------------------------------
  */
 
 // Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
-void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, out float3 OutClosestPosition, 
-										  out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
+int DIPhysicsAsset_GetClosestElement(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, out float3 OutClosestPosition, 
+										  out float3 OutClosestNormal, out float OutMinDistance )
 {	
 	float MinDistance = MAX_DISTANCE;
 	int ElementIndex = -1;
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
-
-	OutClosestNormal = float3(0,0,0);
-	OutClosestPosition = float3(0,0,0);
-	OutClosestVelocity = float3(0,0,0);
-	OutClosestDistance = 0.0;
 
 	const int SpheresBegin = DIContext.ElementOffsets[SPHERE_INDEX];
 	const int SpheresEnd = DIContext.ElementOffsets[SPHERE_INDEX+1];
@@ -229,6 +249,31 @@ void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in floa
 		DIPhysicsAsset_GetBoxProjection(LocalPosition, DIContext.ElementExtentBuffer[BoxIndex].xyz, BoxIndex,
 				CollisionPosition, CollisionNormal, ElementIndex, MinDistance);
 	}
+	OutClosestPosition = CollisionPosition;
+	OutClosestNormal = CollisionNormal;
+	OutMinDistance = MinDistance;
+	return ElementIndex;
+}
+
+/* -----------------------------------------------------------------
+ * Get the closest point to the physics asset 
+ * -----------------------------------------------------------------
+ */
+
+// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
+void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, out float3 OutClosestPosition, 
+										  out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	float MinDistance = 0.0;
+
+	const int ElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance);
+
+	OutClosestNormal = float3(0,0,0);
+	OutClosestPosition = float3(0,0,0);
+	OutClosestVelocity = float3(0,0,0);
+	OutClosestDistance = 0.0;
 
 	if (ElementIndex != -1)
 	{
@@ -240,3 +285,63 @@ void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in floa
 		OutClosestDistance = MinDistance;
 	}
 }
+
+/* -----------------------------------------------------------------
+ * Get the closest point to the physics asset 
+ * -----------------------------------------------------------------
+ */
+
+void DIPhysicsAsset_GetTexturePoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, out int OutElementIndex, out float3 OutTexturePosition)
+{
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	float MinDistance = 0.0;
+
+	OutTexturePosition = float3(0,0,0);
+
+	OutElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance);
+
+	const float AxisExtent = max( max(DIContext.BoxExtent.x, DIContext.BoxExtent.y), DIContext.BoxExtent.z );
+	const float3 BoxExtent = float3(AxisExtent,AxisExtent,AxisExtent);
+
+	const float3 BoxMinimum = DIContext.BoxOrigin - BoxExtent;
+	const float3 BoxSize = 2.0 * BoxExtent;
+
+	if (OutElementIndex != -1)
+	{
+		const float3 LocalPosition = mul(DIPhysicsAsset_GetInverseTransform(DIContext,OutElementIndex), float4(NodePosition,1.0)).xyz;
+		const float3 RestPosition = mul(DIPhysicsAsset_GetRestTransform(DIContext,OutElementIndex), float4(LocalPosition,1.0)).xyz;
+
+		OutTexturePosition = clamp( (RestPosition - BoxMinimum)/BoxSize, float3(0,0,0), float3(1,1,1) );
+	}
+}
+
+void DIPhysicsAsset_GetProjectionPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, in int ElementIndex,
+			in float TextureValue, in float3 TextureGradient, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
+{
+	OutClosestNormal = float3(0,0,0);
+	OutClosestPosition = float3(0,0,0);
+	OutClosestVelocity = float3(0,0,0);
+	OutClosestDistance = 0.0;
+
+	if (ElementIndex != -1)
+	{
+		const float AxisExtent = max( max(DIContext.BoxExtent.x, DIContext.BoxExtent.y), DIContext.BoxExtent.z );
+
+		const float3 LocalPosition = mul(DIPhysicsAsset_GetInverseTransform(DIContext,ElementIndex), float4(NodePosition,1.0)).xyz;
+		const float3 RestPosition = mul(DIPhysicsAsset_GetRestTransform(DIContext,ElementIndex), float4(LocalPosition,1.0)).xyz;
+
+		const float3 RestProjection = RestPosition - TextureValue * 2.0 * AxisExtent * TextureGradient;
+
+		const float3 CollisionPosition = mul(DIPhysicsAsset_GetRestInverse(DIContext,ElementIndex), float4(RestProjection,1.0)).xyz;
+		const float3 CollisionNormal = mul(DIPhysicsAsset_GetRestInverse(DIContext,ElementIndex), float4(TextureGradient,0.0)).xyz;
+
+		const float3 PreviousPosition = mul(DIPhysicsAsset_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+
+		OutClosestPosition = mul(DIPhysicsAsset_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		OutClosestNormal = mul(DIPhysicsAsset_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionNormal,0.0)).xyz;
+		OutClosestVelocity = ( OutClosestPosition - PreviousPosition ) / DeltaTime;
+		OutClosestDistance = TextureValue * 2.0 * AxisExtent;
+	}
+}
+

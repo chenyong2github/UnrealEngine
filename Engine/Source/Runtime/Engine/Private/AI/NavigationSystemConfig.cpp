@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AI/NavigationSystemConfig.h"
 #include "AI/NavigationSystemBase.h"
@@ -24,8 +24,8 @@ UNavigationSystemBase* UNavigationSystemConfig::CreateAndConfigureNavigationSyst
 {
 	UNavigationSystemBase* NavSys = nullptr;
 
-	NavigationSystemClass.TryLoad();
 	TSubclassOf<UNavigationSystemBase> NavSysClass = NavigationSystemClass.ResolveClass();
+	ensure(NavSysClass != nullptr || NavigationSystemClass.IsValid() == false);
 	
 	if (NavSysClass)
 	{

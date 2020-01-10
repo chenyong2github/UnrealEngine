@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -37,8 +37,10 @@ namespace Gauntlet
 		public string DeviceData;
 
 		// legacy - remove!
+		[JsonConverter(typeof(UnrealTargetPlatformConvertor))]
 		public UnrealTargetPlatform Type;
 
+		[JsonConverter(typeof(UnrealTargetPlatformConvertor))]
 		public UnrealTargetPlatform? Platform;
 
 		public EPerfSpec PerfSpec;

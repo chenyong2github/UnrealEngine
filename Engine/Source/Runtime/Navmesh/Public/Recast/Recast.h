@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // Modified version of Recast/Detour's source file
 
 //
@@ -236,7 +236,7 @@ struct rcConfig
 	/// The maximum allowed length for contour edges along the border of the mesh. [Limit: >=0] [Units: vx] 
 	int maxEdgeLen;
 	
-	/// The maximum distance a simplfied contour's border edges should deviate 
+	/// The maximum distance a simplified contour's border edges should deviate 
 	/// the original raw contour. [Limit: >=0] [Units: wu]
 	float maxSimplificationError;
 	
@@ -613,6 +613,12 @@ enum rcFilterLowAreaFlags
 	RC_LOW_FILTER_POST_PROCESS = 0x02,	///< additional filtering at the end
 };
 
+// UE4
+enum rcRasterizationFlags
+{
+	RC_PROJECT_TO_BOTTOM = 1 << 0,		///< Will create spans from the triangle surface to the bottom of the heightfield
+};
+
 /// Applied to the region id field of contour vertices in order to extract the region id.
 /// The region id field of a vertex may have several flags applied to it.  So the
 /// fields value can't be used directly.
@@ -934,24 +940,26 @@ NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const floa
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
+///  @param[in]     int				Flags to change the rasterization behavior		//UE4
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const int* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr = 1);
+						  rcHeightfield& solid, const int flagMergeThr = 1, const int rasterizationFlags = 0 /*UE4*/);
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast
-///  @param[in,out]	ctx			The build context to use during the operation.
-///  @param[in]		verts		The vertices. [(x, y, z) * @p nv]
-///  @param[in]		nv			The number of vertices.
-///  @param[in]		tris		The triangle indices. [(vertA, vertB, vertC) * @p nt]
-///  @param[in]		areas		The area id's of the triangles. [Limit: <= #RC_WALKABLE_AREA] [Size: @p nt]
-///  @param[in]		nt			The number of triangles.
-///  @param[in,out]	solid		An initialized heightfield.
+///  @param[in,out]	ctx				The build context to use during the operation.
+///  @param[in]		verts			The vertices. [(x, y, z) * @p nv]
+///  @param[in]		nv				The number of vertices.
+///  @param[in]		tris			The triangle indices. [(vertA, vertB, vertC) * @p nt]
+///  @param[in]		areas			The area id's of the triangles. [Limit: <= #RC_WALKABLE_AREA] [Size: @p nt]
+///  @param[in]		nt				The number of triangles.
+///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
-///  							[Limit: >= 0] [Units: vx]
+///  								[Limit: >= 0] [Units: vx]
+///  @param[in]     int				Flags to change the rasterization behavior		//UE4
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const unsigned short* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr = 1);
+						  rcHeightfield& solid, const int flagMergeThr = 1, const int rasterizationFlags = 0 /*UE4*/);
 
 /// Rasterizes triangles into the specified heightfield.
 ///  @ingroup recast
@@ -965,7 +973,7 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1);
 
-/// Marks non-walkable spans as walkable if their maximum is within @p walkableClimp of a walkable neihbor. 
+/// Marks non-walkable spans as walkable if their maximum is within @p walkableClimp of a walkable neighbor. 
 ///  @ingroup recast
 ///  @param[in,out]	ctx				The build context to use during the operation.
 ///  @param[in]		walkableClimb	Maximum ledge height that is considered to still be traversable. 
@@ -984,7 +992,7 @@ NAVMESH_API void rcFilterLowHangingWalkableObstacles(rcContext* ctx, const int w
 NAVMESH_API void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight,
 						const int walkableClimb, rcHeightfield& solid);
 
-/// Marks walkable spans as not walkable if the clearence above the span is less than the specified height. 
+/// Marks walkable spans as not walkable if the clearance above the span is less than the specified height. 
 ///  @ingroup recast
 ///  @param[in,out]	ctx				The build context to use during the operation.
 ///  @param[in]		walkableHeight	Minimum floor to 'ceiling' height that will still allow the floor area to 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Application/MenuStack.h"
 #include "Layout/LayoutUtils.h"
@@ -267,7 +267,8 @@ TSharedRef<IMenu> FMenuStack::PushInternal(const TSharedPtr<IMenu>& InParentMenu
 
 	// Post-push stage
 	//   Updates the stack and content map member variables
-	PostPush(InParentMenu, OutMenu, ShouldThrottle);
+	const bool bInInsertAfterDismiss = ActiveMethod.GetPopupMethod() == EPopupMethod::CreateNewWindow;
+	PostPush(InParentMenu, OutMenu, ShouldThrottle, bInInsertAfterDismiss);
 
 	PendingNewMenu.Reset();
 
@@ -474,7 +475,7 @@ TSharedRef<FMenuBase> FMenuStack::PushPopup(TSharedPtr<IMenu> InParentMenu, cons
 	return Menu;
 }
 
-void FMenuStack::PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> InMenu, EShouldThrottle ShouldThrottle )
+void FMenuStack::PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> InMenu, EShouldThrottle ShouldThrottle, bool bInInsertAfterDismiss)
 {
 	// Determine at which index we insert this new menu in the stack
 	int32 InsertIndex = 0;
@@ -486,21 +487,37 @@ void FMenuStack::PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> 
 		InsertIndex = ParentIndex + 1;
 	}
 
-	// Insert before dismissing others to stop the stack accidentally emptying briefly mid-push and reseting some state
-	Stack.Insert(InMenu, InsertIndex);
-	CachedContentMap.Add(InMenu->GetContent(), InMenu);
+	// Do original behavior of insert before dismiss
+	// Note: This will often crash because DismissFrom() may trigger FMenuStack::OnWindowActivated() then DismissAll() that empties Stack
+	int32 RemovingAtIndex = InsertIndex;
+	if (!bInInsertAfterDismiss)
+	{
+		Stack.Insert(InMenu, InsertIndex);
+		CachedContentMap.Add(InMenu->GetContent(), InMenu);
+		RemovingAtIndex = InsertIndex + 1;
+	}
 
 	// Dismiss menus after the insert point
-	if (Stack.Num() > InsertIndex + 1)
+	if (Stack.Num() > RemovingAtIndex)
 	{
-		DismissFrom(Stack[InsertIndex + 1]);
+		// Note: DismissFrom() may trigger FMenuStack::OnWindowActivated() then DismissAll() that empties Stack
+		DismissFrom(Stack[RemovingAtIndex]);
 
 		// tidy the stack data now (it will happen via callbacks from the dismissed menus but that might be delayed)
-		for (int32 StackIndex = Stack.Num() - 1; StackIndex > InsertIndex; --StackIndex)
+		for (int32 StackIndex = Stack.Num() - 1; StackIndex >= RemovingAtIndex; --StackIndex)
 		{
 			CachedContentMap.Remove(Stack[StackIndex]->GetContent());
 			Stack.RemoveAt(StackIndex);
 		}
+	}
+
+	// Note: DismissFrom() above may trigger FMenuStack::OnWindowActivated() then DismissAll() that empties Stack
+	// Insert menu after the dismiss when possible to avoid menu being deleted
+	if (bInInsertAfterDismiss)
+	{
+		check(InsertIndex == Stack.Num());
+		Stack.Add(InMenu);
+		CachedContentMap.Add(InMenu->GetContent(), InMenu);
 	}
 
 	// When a new menu is pushed, if we are not already in responsive mode for Slate UI, enter it now

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -36,7 +36,8 @@ public class AudioMixerXAudio2 : ModuleRules
 		PrecompileForTargets = PrecompileTargetsType.None;
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
-			"DX11Audio"
+			"DX11Audio",
+			"XAudio2_9"
         );
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne)

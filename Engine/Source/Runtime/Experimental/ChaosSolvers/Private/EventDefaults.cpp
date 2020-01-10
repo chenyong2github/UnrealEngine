@@ -1,12 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventDefaults.h"
 #include "EventsData.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidClustering.h"
-#include "Chaos/PBDCollisionConstraint.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
@@ -68,7 +68,7 @@ namespace Chaos
 				{
 					if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
 					{
-						const TRigidBodySingleContactConstraint<float, 3>& Constraint = ContactHandle->GetContact<TRigidBodySingleContactConstraint<float, 3>>();
+						const TRigidBodyPointContactConstraint<float, 3>& Constraint = ContactHandle->GetPointContact();
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
@@ -79,10 +79,10 @@ namespace Chaos
 							{
 								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
 
 								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->AsKinematic();
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
 
 								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 								{
@@ -107,7 +107,7 @@ namespace Chaos
 				{
 					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetContact<TRigidBodySingleContactConstraint<float, 3>>();
+						Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
 						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
@@ -122,14 +122,16 @@ namespace Chaos
 
 						// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 						// do we still need these now we have pointers to particles returned?
-						if(TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->AsDynamic())
+						TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+						if(PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity1 = PBDRigid0->V();
 							Data.AngularVelocity1 = PBDRigid0->W();
 							Data.Mass1 = PBDRigid0->M();
 						}
 
-						if(TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->AsDynamic())
+						TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+						if(PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity2 = PBDRigid1->V();
 							Data.AngularVelocity2 = PBDRigid1->W();
@@ -290,7 +292,7 @@ namespace Chaos
 
 			for (auto& ActiveParticle : Evolution->GetParticles().GetActiveParticlesView())
 			{
-				TPBDRigidParticle<float, 3>* GTParticle = ActiveParticle.Handle()->GTGeometryParticle()->AsDynamic();
+				TPBDRigidParticle<float, 3>* GTParticle = ActiveParticle.Handle()->GTGeometryParticle()->CastToRigidParticle();
 				// Since Clustered GCs can be unioned the particleIndex representing the union 
 				// is not associated with a PhysicsProxy
 				if (GTParticle && GTParticle->Proxy != nullptr)
@@ -363,24 +365,25 @@ namespace Chaos
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			TGeometryParticleHandle<float, 3>* ParticleHandle = nullptr;
-			while(SolverSleepingData.Dequeue(ParticleHandle))
+			for(const TSleepData<float, 3>& SleepData : SolverSleepingData)
 			{
-				if(ParticleHandle)
+				if(SleepData.Particle)
 				{
-					TGeometryParticle<float, 3>* Particle = ParticleHandle->GTGeometryParticle();
+					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
 					if(Particle->Proxy != nullptr)
 					{
 						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
 						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 						SleepingDataArrayItem.Particle = Particle;
-						SleepingDataArrayItem.Sleeping = Particle->ObjectState() == EObjectStateType::Sleeping;
+						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 
 						IPhysicsProxyBase* PhysicsProxy = Particle->Proxy;
 						AllSleepIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
 					}
 				}
 			}
+
+			SolverSleepingData.Empty();
 
 		});
 	}

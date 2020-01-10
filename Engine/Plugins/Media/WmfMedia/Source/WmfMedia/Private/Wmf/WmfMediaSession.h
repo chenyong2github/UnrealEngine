@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -258,6 +258,9 @@ private:
 
 	/** Current status flags. */
 	EMediaStatus Status;
+
+	/** Flag to signal shutdown in progress */
+	bool bShuttingDown;
 
 	/** The thinned play rates that the current media session supports. */
 	TRangeSet<float> ThinnedRates;

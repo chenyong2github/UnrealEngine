@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinEnum.h"
@@ -107,6 +107,11 @@ TSharedRef<SWidget>	SGraphPinEnum::GetDefaultValueWidget()
 
 FText SGraphPinEnum::OnGetFriendlyName(int32 EnumIndex)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return FText();
+	}
+
 	UEnum* EnumPtr = Cast<UEnum>(GraphPinObj->PinType.PinSubCategoryObject.Get());
 
 	check(EnumPtr);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanMemory.h: Vulkan Memory RHI definitions.
@@ -1290,6 +1290,9 @@ namespace VulkanRHI
 			// Offset into the locked area
 			uint32 CurrentOffset;
 
+			// Size of Allocation
+			uint32 Size;
+
 			// Simple counter used for the SRVs to know a new one is required
 			uint32 LockCounter;
 
@@ -1297,6 +1300,7 @@ namespace VulkanRHI
 				: Data(nullptr)
 				, BufferSuballocation(nullptr)
 				, CurrentOffset(0)
+				, Size(0)
 				, LockCounter(0)
 			{
 			}

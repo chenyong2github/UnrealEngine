@@ -1,16 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Game/DisplayClusterGameManager.h"
 
-#include "Config/IPDisplayClusterConfigManager.h"
-
-#include "Misc/DisplayClusterHelpers.h"
-
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 
+#include "DisplayClusterRootActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "DisplayClusterCameraComponent.h"
@@ -23,6 +21,7 @@
 #include "DisplayClusterStrings.h"
 
 #include "GameFramework/Actor.h"
+#include "Engine/LevelStreaming.h"
 
 
 FDisplayClusterGameManager::FDisplayClusterGameManager()
@@ -75,27 +74,39 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 	check(InWorld);
 	CurrentWorld = InWorld;
 
-	// Look for existing VR root components
-	for (AActor* Actor : InWorld->PersistentLevel->Actors)
+	// Find nDisplay root actor
+	DisplayClusterRootActor = FindDisplayClusterRootActor(InWorld);
+	if (!DisplayClusterRootActor)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		// Also search inside streamed levels
+		const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
+		for (const ULevelStreaming* StreamingLevel : StreamingLevels)
 		{
-			CurrentRoot = Actor->FindComponentByClass<UDisplayClusterRootComponent>();
-			if (CurrentRoot)
+			switch (StreamingLevel->GetCurrentState())
 			{
-				UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root component - %s"), *CurrentRoot->GetName());
+			case ULevelStreaming::ECurrentState::LoadedVisible:
+			{
+				// Look for the actor in those sub-levels that have been loaded already
+				const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
+				DisplayClusterRootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+				if (DisplayClusterRootActor)
+				{
+					break;
+				}
+			}
+
+			default:
 				break;
 			}
 		}
 	}
 
-	APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
-	if (!CurrentRoot && PlayerController)
+	// In cluster mode we spawn root actor if no actors found
+	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		APawn* CurPawn = PlayerController->GetPawn();
-		if (CurPawn)
+		if (!DisplayClusterRootActor)
 		{
-			SpawnRootComponent(CurPawn);
+			DisplayClusterRootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
 		}
 	}
 
@@ -107,161 +118,159 @@ void FDisplayClusterGameManager::EndScene()
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 	FScopeLock lock(&InternalsSyncScope);
 
-	CurrentRoot = nullptr;
+	DisplayClusterRootActor = nullptr;
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterGameManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-UDisplayClusterRootComponent* FDisplayClusterGameManager::GetRoot() const
+ADisplayClusterRootActor* FDisplayClusterGameManager::GetRootActor() const
 {
 	FScopeLock lock(&InternalsSyncScope);
-	return CurrentRoot;
+	return DisplayClusterRootActor;
 }
 
-void FDisplayClusterGameManager::SetRoot(UDisplayClusterRootComponent* InRoot)
+UDisplayClusterRootComponent* FDisplayClusterGameManager::GetRootComponent() const
 {
 	FScopeLock lock(&InternalsSyncScope);
-	CurrentRoot = InRoot;
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent();
 }
 
 TArray<UDisplayClusterScreenComponent*> FDisplayClusterGameManager::GetAllScreens() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return TArray<UDisplayClusterScreenComponent*>();
 	}
 
-	return CurrentRoot->GetAllScreens();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllScreens();
 }
 
 UDisplayClusterScreenComponent* FDisplayClusterGameManager::GetScreenById(const FString& ScreenId) const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return nullptr;
 	}
 
-	return CurrentRoot->GetScreenById(ScreenId);
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreenById(ScreenId);
 }
 
 int32 FDisplayClusterGameManager::GetScreensAmount() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return 0;
 	}
 
-	return CurrentRoot->GetScreensAmount();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreensAmount();
 }
 
 UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetCameraById(const FString& CameraId) const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return nullptr;
 	}
 
-	return CurrentRoot->GetCameraById(CameraId);
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCameraById(CameraId);
 }
 
 TArray<UDisplayClusterCameraComponent*> FDisplayClusterGameManager::GetAllCameras() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return TArray<UDisplayClusterCameraComponent*>();
 	}
 
-	return CurrentRoot->GetAllCameras();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllCameras();
 }
 
 int32 FDisplayClusterGameManager::GetCamerasAmount() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return 0;
 	}
 
-	return CurrentRoot->GetCamerasAmount();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCamerasAmount();
 }
 
 UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetDefaultCamera() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return nullptr;
 	}
 
-	return CurrentRoot->GetDefaultCamera();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetDefaultCamera();
 }
 
 void FDisplayClusterGameManager::SetDefaultCamera(const FString& id)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
-	if(!CurrentRoot)
+	if(!DisplayClusterRootActor)
 	{
 		return;
 	}
 
-	CurrentRoot->SetDefaultCamera(id);
+	DisplayClusterRootActor->GetDisplayClusterRootComponent()->SetDefaultCamera(id);
 }
 
 UDisplayClusterSceneComponent* FDisplayClusterGameManager::GetNodeById(const FString& NodeId) const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return nullptr;
 	}
 
-	return CurrentRoot->GetNodeById(NodeId);
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetNodeById(NodeId);
 }
 
 TArray<UDisplayClusterSceneComponent*> FDisplayClusterGameManager::GetAllNodes() const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	if (!CurrentRoot)
+	if (!DisplayClusterRootActor)
 	{
 		return TArray<UDisplayClusterSceneComponent*>();
 	}
 
-	return CurrentRoot->GetAllNodes();
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllNodes();
 }
 
-bool FDisplayClusterGameManager::SpawnRootComponent(AActor* Actor)
+ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActor(UWorld* InWorld)
 {
-	check(Actor);
-
-	FScopeLock lock(&InternalsSyncScope);
-
-	// Create new root component
-	UDisplayClusterRootComponent* NewRoot = NewObject<UDisplayClusterRootComponent>(Actor, FName(TEXT("nDisplay_Root")));
-	if (!NewRoot)
+	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 	{
-		return false;
+		if (Actor && !Actor->IsPendingKill())
+		{
+			ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
+			if (RootActor)
+			{
+				UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
+				return RootActor;
+			}
+		}
 	}
 
-	// Set up
-	NewRoot->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-	NewRoot->RegisterComponent();
-
-	return true;
+	return nullptr;
 }

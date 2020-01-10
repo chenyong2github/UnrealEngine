@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,6 +22,9 @@ public:
 	virtual TSharedPtr<Trace::ISessionService> GetSessionService() = 0;
 	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() = 0;
 	virtual TSharedPtr<Trace::IModuleService> GetModuleService() = 0;
+	virtual TSharedPtr<Trace::ISessionService> CreateSessionService(const TCHAR* SessionDirectory) = 0;
+	virtual TSharedPtr<Trace::IAnalysisService> CreateAnalysisService() = 0;
+	virtual TSharedPtr<Trace::IModuleService> CreateModuleService() = 0;
 
 	virtual ~ITraceServicesModule() = default;
 };

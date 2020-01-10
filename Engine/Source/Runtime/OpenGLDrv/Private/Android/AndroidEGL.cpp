@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidPlatform.h"
 
@@ -746,8 +746,6 @@ void AndroidEGL::InitSurface(bool bUseSmallSurface, bool bCreateWndSurface)
 	PImplData->SharedContext.eglSurface = PImplData->auxSurface;
 	PImplData->RenderingContext.eglSurface = PImplData->eglSurface;
 	PImplData->SingleThreadedContext.eglSurface = PImplData->eglSurface;
-	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)((void*)eglGetProcAddress("glGenVertexArrays"));
-	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)((void*)eglGetProcAddress("glBindVertexArray"));
 }
 
 void AndroidEGL::ReInit()
@@ -1521,12 +1519,6 @@ bool AndroidEGL::InitContexts()
 	return Result;
 }
 
-void AndroidEGL::GenerateAndBindDefaultVAO(FPlatformOpenGLContext& InContext)
-{
-	glGenVertexArrays(1, &InContext.DefaultVertexArrayObject);
-	glBindVertexArray(InContext.DefaultVertexArrayObject);
-}
-
 void AndroidEGL::SetCurrentSharedContext()
 {
 	check(IsInGameThread());
@@ -1534,19 +1526,11 @@ void AndroidEGL::SetCurrentSharedContext()
 
 	if(GUseThreadedRendering)
 	{
-		EGLBoolean Result = SetCurrentContext(PImplData->SharedContext.eglContext, PImplData->SharedContext.eglSurface);
-		if (Result == EGL_TRUE)
-		{
-			GenerateAndBindDefaultVAO(PImplData->SharedContext);
-		}
+		SetCurrentContext(PImplData->SharedContext.eglContext, PImplData->SharedContext.eglSurface);
 	}
 	else
 	{
-		EGLBoolean Result = SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
-		if (Result == EGL_TRUE)
-		{
-			GenerateAndBindDefaultVAO(PImplData->SingleThreadedContext);
-		}
+		SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
 	}
 }
 
@@ -1560,19 +1544,11 @@ void AndroidEGL::SetCurrentRenderingContext()
 	PImplData->CurrentContextType = CONTEXT_Rendering;
 	if (GUseThreadedRendering)
 	{
-		EGLBoolean Result = SetCurrentContext(PImplData->RenderingContext.eglContext, PImplData->RenderingContext.eglSurface);
-		if (Result == EGL_TRUE)
-		{
-			GenerateAndBindDefaultVAO(PImplData->RenderingContext);
-		};
+		SetCurrentContext(PImplData->RenderingContext.eglContext, PImplData->RenderingContext.eglSurface);
 	}
 	else
 	{
-		EGLBoolean Result = SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
-		if (Result == EGL_TRUE)
-		{
-			GenerateAndBindDefaultVAO(PImplData->SingleThreadedContext);
-		}
+		SetCurrentContext(PImplData->SingleThreadedContext.eglContext, PImplData->SingleThreadedContext.eglSurface);
 	}
 }
 
@@ -1632,9 +1608,21 @@ uint32_t AndroidEGL::GetCurrentContextType()
 
 FPlatformOpenGLContext* AndroidEGL::GetRenderingContext()
 {
-	if(GUseThreadedRendering)
+	if (GUseThreadedRendering)
 	{
 		return &PImplData->RenderingContext;
+	}
+	else
+	{
+		return &PImplData->SingleThreadedContext;
+	}
+}
+
+FPlatformOpenGLContext* AndroidEGL::GetSharedContext()
+{
+	if (GUseThreadedRendering)
+	{
+		return &PImplData->SharedContext;
 	}
 	else
 	{

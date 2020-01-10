@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System;
@@ -10,10 +10,5 @@ public class TraceLog : ModuleRules
 	{
 		bRequiresImplementModule = false;
 		PublicIncludePathModuleNames.Add("Core");
-
-        if (Target.Platform == UnrealTargetPlatform.PS4)
-        {
-            PublicSystemLibraries.Add("SceNet_stub_weak");
-        }
     }
 }

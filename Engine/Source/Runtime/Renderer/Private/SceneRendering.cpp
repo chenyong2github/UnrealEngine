@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRendering.cpp: Scene rendering.
@@ -2735,7 +2735,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 					int32 Y = 130;
 					FCanvas Canvas(&TempRenderTarget, NULL, View.Family->CurrentRealTime, View.Family->CurrentWorldTime, View.Family->DeltaWorldTime, FeatureLevel);
 					// Make sure draws to the canvas are not rendered upside down.
-					Canvas.SetAllowSwitchVerticalAxis(false);
+					Canvas.SetAllowSwitchVerticalAxis(true);
 					if (bViewParentOrFrozen)
 					{
 						const FText StateText =
@@ -3464,6 +3464,8 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			// Render the scene.
 			SceneRenderer->Render(RHICmdList);
 		}
+
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
 
 		// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShared.h: Shared material definitions.
@@ -1179,6 +1179,7 @@ private:
 	/** The material's user friendly name, typically the object name. */
 	FString FriendlyName;
 	FString MaterialPath;
+	float CompileTime;
 #endif
 
 	/** The static parameter set that this shader map was compiled with */
@@ -1745,6 +1746,11 @@ public:
 	static void RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
+	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() {};
+	ENGINE_API virtual void EndAllowCachingStaticParameterValues() {};
+#endif // WITH_EDITOR
+
 protected:
 	
 	// shared code needed for GetUniformScalarParameterExpressions, GetUniformVectorParameterExpressions, GetUniformCubeTextureExpressions..
@@ -2037,12 +2043,16 @@ public:
 		return DeferredUniformExpressionCacheRequests.Num() > 0;
 	}
 
+	int32 GetExpressionCacheSerialNumber() const { return UniformExpressionCacheSerialNumber; }
 private:
 	IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
+
+	/** Incremented each time UniformExpressionCache is modified */
+	mutable int32 UniformExpressionCacheSerialNumber = 0;
 
 	/** For tracking down a bug accessing a deleted proxy. */
 	mutable int8 MarkedForGarbageCollection : 1;
@@ -2194,6 +2204,10 @@ public:
 	// FMaterial interface.
 	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const override;
 	ENGINE_API virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override;
+#if WITH_EDITOR
+	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() override;
+	ENGINE_API virtual void EndAllowCachingStaticParameterValues() override;
+#endif // WITH_EDITOR
 	ENGINE_API virtual EMaterialDomain GetMaterialDomain() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTools.h"
 #include "Factories/Factory.h"
@@ -131,6 +131,8 @@
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
+
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
@@ -153,14 +155,18 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
+	, AssetClassBlacklist(MakeShared<FBlacklistNames>())
+	, FolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
 
 	for (const FString& Type : SupportedTypesArray)
 	{
-		SupportedAssetTypes.Add(*Type);
+		AssetClassBlacklist->AddWhitelistItem("AssetToolsConfigFile", *Type);
 	}
+
+	AssetClassBlacklist->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassBlacklistChanged);
 
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
@@ -261,22 +267,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	if (SupportedAssetTypes.Num() > 0)
-	{
-		const UClass* SupportedClass = NewActions->GetSupportedClass();
-		if (SupportedClass != nullptr)
-		{
-			const FName ClassName = SupportedClass->GetFName();
-			if (!SupportedAssetTypes.Contains(ClassName))
-			{
-				NewActions->SetSupported(false);
-			}
-		}
-		else
-		{
-			NewActions->SetSupported(false);
-		}
-	}
+	const UClass* SupportedClass = NewActions->GetSupportedClass();
+	NewActions->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
 
 	AssetTypeActionsList.Add(NewActions);
 }
@@ -557,8 +549,13 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const 
 
 UObject* UAssetToolsImpl::DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject)
 {
+	return DuplicateAssetWithDialogAndTitle(AssetName, PackagePath, OriginalObject, LOCTEXT("DuplicateAssetDialogTitle", "Duplicate Asset As"));
+}
+
+UObject* UAssetToolsImpl::DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle)
+{
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
-	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("DuplicateAssetDialogTitle", "Duplicate Asset As");
+	SaveAssetDialogConfig.DialogTitleOverride = DialogTitle;
 	SaveAssetDialogConfig.DefaultPath = PackagePath;
 	SaveAssetDialogConfig.DefaultAssetName = AssetName;
 	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
@@ -1004,6 +1001,11 @@ void UAssetToolsImpl::RenameAssetsWithDialog(const TArray<FAssetRenameData>& Ass
 void UAssetToolsImpl::FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects)
 {
 	AssetRenameManager->FindSoftReferencesToObject(TargetObject, ReferencingObjects);
+}
+
+void UAssetToolsImpl::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects)
+{
+	AssetRenameManager->FindSoftReferencesToObjects(TargetObjects, ReferencingObjects);
 }
 
 void UAssetToolsImpl::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap)
@@ -2277,7 +2279,7 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 				if (PackageName.Left(1) == TEXT("/"))
 				{
 					// Trim the leading slash so the file manager doesn't get confused
-					PackageName = PackageName.Mid(1);
+					PackageName.MidInline(1, false);
 				}
 
 				FPaths::NormalizeFilename(PackageName);
@@ -2919,6 +2921,11 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 	AssetFixUpRedirectors->FixupReferencers(Objects);
 }
 
+bool UAssetToolsImpl::IsFixupReferencersInProgress() const
+{
+	return AssetFixUpRedirectors->IsFixupReferencersInProgress();
+}
+
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
 #if WITH_EDITOR
@@ -3131,6 +3138,25 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 	}
 
 	return MoveTemp(Factories);
+}
+
+TSharedRef<FBlacklistNames>& UAssetToolsImpl::GetAssetClassBlacklist()
+{
+	return AssetClassBlacklist;
+}
+
+void UAssetToolsImpl::AssetClassBlacklistChanged()
+{
+	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
+	{
+		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
+		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+	}
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
+{
+	return FolderBlacklist;
 }
 
 #undef LOCTEXT_NAMESPACE

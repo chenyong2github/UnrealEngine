@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyPathHelpers.h"
 #include "UObject/UnrealType.h"
@@ -22,11 +22,12 @@ namespace PropertyPathHelpersInternal
 		}
 
 		// Obtain the property info from the given structure definition
-		if ( UField* Field = Segment.Resolve(InStruct) )
+		FFieldVariant Field = Segment.Resolve(InStruct);
+		if (Field.IsValid())
 		{
 			const bool bFinalSegment = SegmentIndex == (InPropertyPath.GetNumSegments() - 1);
 
-			if ( UProperty* Property = Cast<UProperty>(Field) )
+			if ( FProperty* Property = Field.Get<FProperty>() )
 			{
 				if (bFinalSegment)
 				{
@@ -35,7 +36,7 @@ namespace PropertyPathHelpersInternal
 				else
 				{
 					// Check first to see if this is a simple object (eg. not an array of objects)
-					if ( UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property) )
+					if ( FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property) )
 					{
 						// Object boundary that can change, so we cant use the cached address safely
 						InPropertyPath.SetCanSafelyUsedCachedAddress(false);
@@ -48,7 +49,7 @@ namespace PropertyPathHelpersInternal
 						}
 					}
 					// Check to see if this is a simple weak object property (eg. not an array of weak objects).
-					if ( UWeakObjectProperty* WeakObjectProperty = Cast<UWeakObjectProperty>(Property) )
+					if ( FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property) )
 					{
 						// Object boundary that can change, so we cant use the cached address safely
 						InPropertyPath.SetCanSafelyUsedCachedAddress(false);
@@ -63,7 +64,7 @@ namespace PropertyPathHelpersInternal
 						}
 					}
 					// Check to see if this is a simple soft object property (eg. not an array of soft objects).
-					else if ( USoftObjectProperty* SoftObjectProperty = Cast<USoftObjectProperty>(Property) )
+					else if ( FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property) )
 					{
 						// Object boundary that can change, so we cant use the cached address safely
 						InPropertyPath.SetCanSafelyUsedCachedAddress(false);
@@ -78,18 +79,18 @@ namespace PropertyPathHelpersInternal
 						}
 					}
 					// Check to see if this is a simple structure (eg. not an array of structures)
-					else if ( UStructProperty* StructProp = Cast<UStructProperty>(Property) )
+					else if ( FStructProperty* StructProp = CastField<FStructProperty>(Property) )
 					{
 						// Recursively call back into this function with the structure property and container value
 						return IteratePropertyPathRecursive<void>(StructProp->Struct, StructProp->ContainerPtrToValuePtr<void>(InContainer, ArrayIndex), SegmentIndex + 1, InPropertyPath, InResolver);
 					}
-					else if ( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property) )
+					else if ( FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property) )
 					{
 						// Dynamic array boundary that can change, so we cant use the cached address safely
 						InPropertyPath.SetCanSafelyUsedCachedAddress(false);
 
 						// It is an array, now check to see if this is an array of structures
-						if ( UStructProperty* ArrayOfStructsProp = Cast<UStructProperty>(ArrayProp->Inner) )
+						if ( FStructProperty* ArrayOfStructsProp = CastField<FStructProperty>(ArrayProp->Inner) )
 						{
 							FScriptArrayHelper_InContainer ArrayHelper(ArrayProp, InContainer);
 							if ( ArrayHelper.IsValidIndex(ArrayIndex) )
@@ -99,41 +100,41 @@ namespace PropertyPathHelpersInternal
 							}
 						}
 						// if it's not an array of structs, maybe it's an array of classes
-						//else if ( UObjectProperty* ObjectProperty = Cast<UObjectProperty>(ArrayProp->Inner) )
+						//else if ( FObjectProperty* ObjectProperty = CastField<FObjectProperty>(ArrayProp->Inner) )
 						{
 							//TODO Add support for arrays of objects.
 						}
 					}
-					else if( USetProperty* SetProperty = Cast<USetProperty>(Property) )
+					else if( FSetProperty* SetProperty = CastField<FSetProperty>(Property) )
 					{
 						// TODO: we dont support set properties yet
 					}
-					else if( UMapProperty* MapProperty = Cast<UMapProperty>(Property) )
+					else if( FMapProperty* MapProperty = CastField<FMapProperty>(Property) )
 					{
 						// TODO: we dont support map properties yet
 					}
 				}
 			}
-			else
-			{
+				else
+				{
 				// If it's the final segment, use the resolver to get the value.
 				if (bFinalSegment)
 				{
 					return InResolver.Resolve(static_cast<ContainerType*>(InContainer), InPropertyPath);
 				}
-				else
-				{
+			else
+			{
 					// If it's not the final segment, but still a function, we're going to treat it as an Object* getter.
 					// in the hopes that it leads to another object that we can resolve the next segment on.  These
 					// getter functions must be very simple.
 
 					UObject* CurrentObject = nullptr;
-					UProperty* GetterProperty = nullptr;
+					FProperty* GetterProperty = nullptr;
 					FInternalGetterResolver<UObject*> GetterResolver(CurrentObject, GetterProperty);
 
 					FCachedPropertyPath TempPath(Segment);
 					if (GetterResolver.Resolve(InContainer, TempPath))
-					{
+				{
 						if (CurrentObject)
 						{
 							InPropertyPath.SetCanSafelyUsedCachedAddress(false);
@@ -169,7 +170,7 @@ namespace PropertyPathHelpersInternal
 			if ( InFunction->NumParms == 1 )
 			{
 				// Verify there's a return property.
-				if ( UProperty* ReturnProperty = InFunction->GetReturnProperty() )
+				if ( FProperty* ReturnProperty = InFunction->GetReturnProperty() )
 				{
 					if ( !InContainer->IsUnreachable() )
 					{
@@ -190,14 +191,14 @@ namespace PropertyPathHelpersInternal
 	};
 
 	template<typename ContainerType>
-	static bool GetPropertyValueAsString(ContainerType* InContainer, const FCachedPropertyPath& InPropertyPath, UProperty*& OutProperty, FString& OutValue)
+	static bool GetPropertyValueAsString(ContainerType* InContainer, const FCachedPropertyPath& InPropertyPath, FProperty*& OutProperty, FString& OutValue)
 	{
 		const FPropertyPathSegment& LastSegment = InPropertyPath.GetLastSegment();
 		int32 ArrayIndex = LastSegment.GetArrayIndex();
-		UField* Field = LastSegment.GetField();
+		FFieldVariant Field = LastSegment.GetField();
 
 		// We're on the final property in the path, it may be an array property, so check that first.
-		if ( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Field) )
+		if ( FArrayProperty* ArrayProp = Field.Get<FArrayProperty>() )
 		{
 			// if it's an array property, we need to see if we parsed an index as part of the segment
 			// as a user may have baked the index directly into the property path.
@@ -223,11 +224,11 @@ namespace PropertyPathHelpersInternal
 				}
 			}
 		}
-		else if(UFunction* Function = Cast<UFunction>(Field))
+		else if(UFunction* Function = Field.Get<UFunction>())
 		{
 			return FCallGetterFunctionAsStringHelper<ContainerType>::CallGetterFunction(InContainer, Function, OutValue);
 		}
-		else if(UProperty* Property = Cast<UProperty>(Field))
+		else if(FProperty* Property = Field.Get<FProperty>())
 		{
 			ArrayIndex = ArrayIndex == INDEX_NONE ? 0 : ArrayIndex;
 			if( ArrayIndex < Property->ArrayDim )
@@ -265,7 +266,7 @@ namespace PropertyPathHelpersInternal
 			if ( InFunction->NumParms == 1 && InFunction->GetReturnProperty() == nullptr )
 			{
 				// Verify there's a single param
-				if ( UProperty* ParamProperty = PropertyPathHelpersInternal::GetFirstParamProperty(InFunction) )
+				if ( FProperty* ParamProperty = PropertyPathHelpersInternal::GetFirstParamProperty(InFunction) )
 				{
 					if ( !InContainer->IsUnreachable() )
 					{
@@ -290,10 +291,10 @@ namespace PropertyPathHelpersInternal
 	{
 		const FPropertyPathSegment& LastSegment = InPropertyPath.GetLastSegment();
 		int32 ArrayIndex = LastSegment.GetArrayIndex();
-		UField* Field = LastSegment.GetField();
+		FFieldVariant Field = LastSegment.GetField();
 
 		// We're on the final property in the path, it may be an array property, so check that first.
-		if ( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Field) )
+		if ( FArrayProperty* ArrayProp = Field.Get<FArrayProperty>() )
 		{
 			// if it's an array property, we need to see if we parsed an index as part of the segment
 			// as a user may have baked the index directly into the property path.
@@ -317,11 +318,11 @@ namespace PropertyPathHelpersInternal
 				}
 			}
 		}
-		else if(UFunction* Function = Cast<UFunction>(Field))
+		else if(UFunction* Function = Field.Get<UFunction>())
 		{
 			return FCallSetterFunctionFromStringHelper<ContainerType>::CallSetterFunction(InContainer, Function, InValue);
 		}
-		else if(UProperty* Property = Cast<UProperty>(Field))
+		else if(FProperty* Property = Field.Get<FProperty>())
 		{
 			ArrayIndex = ArrayIndex == INDEX_NONE ? 0 : ArrayIndex;
 			if(ArrayIndex < Property->ArrayDim)
@@ -342,10 +343,9 @@ namespace PropertyPathHelpersInternal
 	{
 		const FPropertyPathSegment& LastSegment = InPropertyPath.GetLastSegment();
 		int32 ArrayIndex = LastSegment.GetArrayIndex();
-		UField* Field = LastSegment.GetField();
 
 		// We only support array properties right now
-		if ( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Field) )
+		if ( FArrayProperty* ArrayProp = LastSegment.GetField().Get<FArrayProperty>() )
 		{
 			FScriptArrayHelper_InContainer ArrayHelper(ArrayProp, InContainer);
 			return InOperation(ArrayHelper, ArrayIndex);
@@ -359,10 +359,10 @@ namespace PropertyPathHelpersInternal
 	{
 		const FPropertyPathSegment& LastSegment = InPropertyPath.GetLastSegment();
 		int32 ArrayIndex = LastSegment.GetArrayIndex();
-		UField* Field = LastSegment.GetField();
+		FFieldVariant Field = LastSegment.GetField();
 
 		// We're on the final property in the path, it may be an array property, so check that first.
-		if ( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Field) )
+		if ( FArrayProperty* ArrayProp = Field.Get<FArrayProperty>() )
 		{
 			// if it's an array property, we need to see if we parsed an index as part of the segment
 			// as a user may have baked the index directly into the property path.
@@ -389,12 +389,12 @@ namespace PropertyPathHelpersInternal
 				}
 			}
 		}
-		else if(UFunction* Function = Cast<UFunction>(Field))
+		else if(UFunction* Function = Field.Get<UFunction>())
 		{
 			InPropertyPath.ResolveLeaf(Function);
 			return true;
 		}
-		else if(UProperty* Property = Cast<UProperty>(Field))
+		else if(FProperty* Property = Field.Get<FProperty>())
 		{
 			ArrayIndex = ArrayIndex == INDEX_NONE ? 0 : ArrayIndex;
 			if ( ArrayIndex < Property->ArrayDim )
@@ -422,8 +422,8 @@ namespace PropertyPathHelpersInternal
 		else if(InDestPropertyPath.GetCachedAddress() != nullptr && InSrcPropertyPath.GetCachedAddress() != nullptr)
 		{
 			const FPropertyPathSegment& DestLastSegment = InDestPropertyPath.GetLastSegment();
-			UProperty* DestProperty = CastChecked<UProperty>(DestLastSegment.GetField());
-			UArrayProperty* DestArrayProp = Cast<UArrayProperty>(DestProperty);
+			FProperty* DestProperty = CastFieldChecked<FProperty>(DestLastSegment.GetField().ToField());
+			FArrayProperty* DestArrayProp = CastField<FArrayProperty>(DestProperty);
 			if ( DestArrayProp && DestLastSegment.GetArrayIndex() != INDEX_NONE )
 			{
 				DestArrayProp->Inner->CopySingleValue(InDestPropertyPath.GetCachedAddress(), InSrcPropertyPath.GetCachedAddress());
@@ -432,9 +432,9 @@ namespace PropertyPathHelpersInternal
 			{
 				DestProperty->CopyCompleteValue(InDestPropertyPath.GetCachedAddress(), InSrcPropertyPath.GetCachedAddress());
 			}
-			else if(UBoolProperty* DestBoolProperty = Cast<UBoolProperty>(DestProperty))
+			else if(FBoolProperty* DestBoolProperty = CastField<FBoolProperty>(DestProperty))
 			{
-				UBoolProperty* SrcBoolProperty = Cast<UBoolProperty>(InSrcPropertyPath.GetLastSegment().GetField());
+				FBoolProperty* SrcBoolProperty = InSrcPropertyPath.GetLastSegment().GetField().Get<FBoolProperty>();
 				const bool bValue = SrcBoolProperty->GetPropertyValue(InSrcPropertyPath.GetCachedAddress());
 				DestBoolProperty->SetPropertyValue(InDestPropertyPath.GetCachedAddress(), bValue);
 			}
@@ -454,17 +454,17 @@ namespace PropertyPathHelpersInternal
 		const FPropertyPathSegment& DestLastSegment = InDestPropertyPath.GetLastSegment();
 		const FPropertyPathSegment& SrcLastSegment = InSrcPropertyPath.GetLastSegment();
 
-		UProperty* DestProperty = Cast<UProperty>(DestLastSegment.GetField());
-		UProperty* SrcProperty = Cast<UProperty>(SrcLastSegment.GetField());
+		FProperty* DestProperty = DestLastSegment.GetField().Get<FProperty>();
+		FProperty* SrcProperty = SrcLastSegment.GetField().Get<FProperty>();
 
 		if(SrcProperty && DestProperty)
 		{
-			UArrayProperty* DestArrayProperty = Cast<UArrayProperty>(DestProperty);
-			UArrayProperty* SrcArrayProperty = Cast<UArrayProperty>(SrcProperty);
+			FArrayProperty* DestArrayProperty = CastField<FArrayProperty>(DestProperty);
+			FArrayProperty* SrcArrayProperty = CastField<FArrayProperty>(SrcProperty);
 
 			// If we have a valid index and an array property then we should use the inner property
-			UClass* DestClass = (DestArrayProperty != nullptr && DestLastSegment.GetArrayIndex() != INDEX_NONE) ? DestArrayProperty->Inner->GetClass() : DestProperty->GetClass();
-			UClass* SrcClass = (SrcArrayProperty != nullptr && SrcLastSegment.GetArrayIndex() != INDEX_NONE) ? SrcArrayProperty->Inner->GetClass() : SrcProperty->GetClass();
+			FFieldClass* DestClass = (DestArrayProperty != nullptr && DestLastSegment.GetArrayIndex() != INDEX_NONE) ? DestArrayProperty->Inner->GetClass() : DestProperty->GetClass();
+			FFieldClass* SrcClass = (SrcArrayProperty != nullptr && SrcLastSegment.GetArrayIndex() != INDEX_NONE) ? SrcArrayProperty->Inner->GetClass() : SrcProperty->GetClass();
 
 			return DestClass == SrcClass && SrcProperty->ArrayDim == DestProperty->ArrayDim;
 		}
@@ -476,9 +476,9 @@ namespace PropertyPathHelpersInternal
 	{
 		if (InContainer)
 		{
-			FCachedPropertyPath InternalPropertyPath(InPropertyPath);
-			return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InternalPropertyPath, InResolver);
-		}
+		FCachedPropertyPath InternalPropertyPath(InPropertyPath);
+		return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InternalPropertyPath, InResolver);
+	}
 
 		return false;
 	}
@@ -487,8 +487,8 @@ namespace PropertyPathHelpersInternal
 	{
 		if (InContainer)
 		{
-			return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InPropertyPath, InResolver);
-		}
+		return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InPropertyPath, InResolver);
+	}
 
 		return false;
 	}
@@ -504,9 +504,9 @@ namespace PropertyPathHelpersInternal
 		return IteratePropertyPathRecursive<void>(InStruct, InContainer, 0, InPropertyPath, InResolver);
 	}
 
-	UProperty* GetFirstParamProperty(UFunction* InFunction)
+	FProperty* GetFirstParamProperty(UFunction* InFunction)
 	{
-		for( TFieldIterator<UProperty> It(InFunction); It && (It->PropertyFlags & CPF_Parm); ++It )
+		for( TFieldIterator<FProperty> It(InFunction); It && (It->PropertyFlags & CPF_Parm); ++It )
 		{
 			if( (It->PropertyFlags & CPF_ReturnParm) == 0 )
 			{
@@ -521,7 +521,7 @@ FPropertyPathSegment::FPropertyPathSegment()
 	: Name(NAME_None)
 	, ArrayIndex(INDEX_NONE)
 	, Struct(nullptr)
-	, Field(nullptr)
+	, Field()
 {
 
 }
@@ -529,7 +529,7 @@ FPropertyPathSegment::FPropertyPathSegment()
 FPropertyPathSegment::FPropertyPathSegment(int32 InCount, const TCHAR* InString)
 	: ArrayIndex(INDEX_NONE)
 	, Struct(nullptr)
-	, Field(nullptr)
+	, Field()
 {
 	const TCHAR* PropertyName = nullptr;
 	int32 PropertyNameLength = 0;
@@ -547,22 +547,26 @@ FPropertyPathSegment FPropertyPathSegment::MakeUnresolvedCopy(const FPropertyPat
 	return Segment;
 }
 
-UField* FPropertyPathSegment::Resolve(UStruct* InStruct) const
+FFieldVariant FPropertyPathSegment::Resolve(UStruct* InStruct) const
 {
 	if ( InStruct )
 	{
 		// only perform the find field work if the structure where this property would resolve to
-		// has changed.  If it hasn't changed, the just return the UProperty we found last time.
+		// has changed.  If it hasn't changed, the just return the FProperty we found last time.
 		if ( InStruct != Struct )
 		{
 			Struct = InStruct;
 			Field = FindField<UField>(InStruct, Name);
+			if (!Field.IsValid())
+			{
+				Field = FindField<FProperty>(InStruct, Name);
+			}
 		}
 
 		return Field;
 	}
 
-	return nullptr;
+	return FFieldVariant();
 }
 
 FName FPropertyPathSegment::GetName() const
@@ -575,7 +579,7 @@ int32 FPropertyPathSegment::GetArrayIndex() const
 	return ArrayIndex;
 }
 
-UField* FPropertyPathSegment::GetField() const
+FFieldVariant FPropertyPathSegment::GetField() const
 {
 	return Field;
 }
@@ -739,12 +743,12 @@ FPropertyChangedEvent FCachedPropertyPath::ToPropertyChangedEvent(EPropertyChang
 	check(IsResolved());
 
 	// Note: path must not be a to a UFunction
-	FPropertyChangedEvent PropertyChangedEvent(CastChecked<UProperty>(GetLastSegment().GetField()), InChangeType);
+	FPropertyChangedEvent PropertyChangedEvent(CastFieldChecked<FProperty>(GetLastSegment().GetField().ToField()), InChangeType);
 
 	// Set a containing 'struct' if we need to
 	if(Segments.Num() > 1)
 	{
-		PropertyChangedEvent.SetActiveMemberProperty(CastChecked<UProperty>(Segments[Segments.Num() - 2].GetField()));
+		PropertyChangedEvent.SetActiveMemberProperty(CastFieldChecked<FProperty>(Segments[Segments.Num() - 2].GetField().ToField()));
 	}
 
 	return PropertyChangedEvent;
@@ -758,13 +762,13 @@ void FCachedPropertyPath::ToEditPropertyChain(FEditPropertyChain& OutPropertyCha
 	for (const FPropertyPathSegment& Segment : Segments)
 	{
 		// Note: path must not be a to a UFunction
-		OutPropertyChain.AddTail(CastChecked<UProperty>(Segment.GetField()));
+		OutPropertyChain.AddTail(CastFieldChecked<FProperty>(Segment.GetField().ToField()));
 	}
 
-	OutPropertyChain.SetActivePropertyNode(CastChecked<UProperty>(GetLastSegment().GetField()));
+	OutPropertyChain.SetActivePropertyNode(CastFieldChecked<FProperty>(GetLastSegment().GetField().ToField()));
 	if (Segments.Num() > 1)
 	{
-		OutPropertyChain.SetActiveMemberPropertyNode(CastChecked<UProperty>(Segments[0].GetField()));
+		OutPropertyChain.SetActiveMemberPropertyNode(CastFieldChecked<FProperty>(Segments[0].GetField().ToField()));
 	}
 }
 
@@ -826,7 +830,7 @@ void FCachedPropertyPath::RemoveFromEnd(int32 InNumSegments)
 		for (const FPropertyPathSegment& Segment : Segments)
 		{
 			Segment.Struct = nullptr;
-			Segment.Field = nullptr;
+			Segment.Field = FFieldVariant();
 		}
 		CachedAddress = nullptr;
 		CachedFunction = nullptr;
@@ -847,7 +851,7 @@ void FCachedPropertyPath::RemoveFromStart(int32 InNumSegments)
 		for (const FPropertyPathSegment& Segment : Segments)
 		{
 			Segment.Struct = nullptr;
-			Segment.Field = nullptr;
+			Segment.Field = FFieldVariant();
 		}
 		CachedAddress = nullptr;
 		CachedFunction = nullptr;
@@ -858,9 +862,9 @@ void FCachedPropertyPath::RemoveFromStart(int32 InNumSegments)
 	}
 }
 
-UProperty* FCachedPropertyPath::GetUProperty() const
+FProperty* FCachedPropertyPath::GetFProperty() const
 {
-	return Cast<UProperty>(GetLastSegment().GetField());
+	return CastField<FProperty>(GetLastSegment().GetField().ToField());
 }
 
 namespace PropertyPathHelpers
@@ -883,21 +887,21 @@ namespace PropertyPathHelpers
 				FString ArrayIndexString(InCount - Offset - 2, &InString[Offset + 1]);
 				OutArrayIndex = FCString::Atoi(*ArrayIndexString);
 				break;
-			}
+		}
 			Offset++;
 		}
 	}
 
 	bool GetPropertyValueAsString(UObject* InContainer, const FString& InPropertyPath, FString& OutValue)
 	{
-		UProperty* Property;
+		FProperty* Property;
 		return GetPropertyValueAsString(InContainer, InPropertyPath, OutValue, Property);
 	}
 
 	/** Helper for string-based getters */
 	struct FInternalStringGetterResolver : public PropertyPathHelpersInternal::TPropertyPathResolver<FInternalStringGetterResolver>
 	{
-		FInternalStringGetterResolver(FString& InOutValue, UProperty*& InOutProperty)
+		FInternalStringGetterResolver(FString& InOutValue, FProperty*& InOutProperty)
 			: Value(InOutValue)
 			, Property(InOutProperty)
 		{
@@ -910,10 +914,10 @@ namespace PropertyPathHelpers
 		}
 
 		FString& Value;
-		UProperty*& Property;
+		FProperty*& Property;
 	};
 
-	bool GetPropertyValueAsString(UObject* InContainer, const FString& InPropertyPath, FString& OutValue, UProperty*& OutProperty)
+	bool GetPropertyValueAsString(UObject* InContainer, const FString& InPropertyPath, FString& OutValue, FProperty*& OutProperty)
 	{
 		check(InContainer);
 
@@ -923,11 +927,11 @@ namespace PropertyPathHelpers
 
 	bool GetPropertyValueAsString(void* InContainer, UStruct* InStruct, const FString& InPropertyPath, FString& OutValue)
 	{
-		UProperty* Property;
+		FProperty* Property;
 		return GetPropertyValueAsString(InContainer, InStruct, InPropertyPath, OutValue, Property);
 	}
 
-	bool GetPropertyValueAsString(void* InContainer, UStruct* InStruct, const FString& InPropertyPath, FString& OutValue, UProperty*& OutProperty)
+	bool GetPropertyValueAsString(void* InContainer, UStruct* InStruct, const FString& InPropertyPath, FString& OutValue, FProperty*& OutProperty)
 	{
 		check(InContainer);
 		check(InStruct);
@@ -940,7 +944,7 @@ namespace PropertyPathHelpers
 	{
 		check(InContainer);
 
-		UProperty* Property;
+		FProperty* Property;
 		FInternalStringGetterResolver Resolver(OutValue, Property);
 		return ResolvePropertyPath(InContainer, InPropertyPath, Resolver);
 	}
@@ -950,7 +954,7 @@ namespace PropertyPathHelpers
 		check(InContainer);
 		check(InStruct);
 
-		UProperty* Property;
+		FProperty* Property;
 		FInternalStringGetterResolver Resolver(OutValue, Property);
 		return ResolvePropertyPath(InContainer, InStruct, InPropertyPath, Resolver);
 	}

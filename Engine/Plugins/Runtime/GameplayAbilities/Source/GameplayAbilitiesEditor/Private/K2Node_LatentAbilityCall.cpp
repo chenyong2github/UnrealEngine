@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_LatentAbilityCall.h"
 #include "Abilities/GameplayAbility.h"
@@ -62,7 +62,7 @@ void UK2Node_LatentAbilityCall::GetMenuActions(FBlueprintActionDatabaseRegistrar
 			if (FunctionPtr.IsValid())
 			{
 				UFunction* Func = FunctionPtr.Get();
-				UObjectProperty* ReturnProp = CastChecked<UObjectProperty>(Func->GetReturnProperty());
+				FObjectProperty* ReturnProp = CastFieldChecked<FObjectProperty>(Func->GetReturnProperty());
 						
 				AsyncTaskNode->ProxyFactoryFunctionName = Func->GetFName();
 				AsyncTaskNode->ProxyFactoryClass        = Func->GetOuterUClass();
@@ -90,9 +90,9 @@ void UK2Node_LatentAbilityCall::ValidateNodeDuringCompilation(class FCompilerRes
 	Super::ValidateNodeDuringCompilation(MessageLog);
 
 	UFunction* DelegateSignatureFunction = NULL;
-	for (TFieldIterator<UProperty> PropertyIt(ProxyClass); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(ProxyClass); PropertyIt; ++PropertyIt)
 	{
-		if (UMulticastDelegateProperty* Property = Cast<UMulticastDelegateProperty>(*PropertyIt))
+		if (FMulticastDelegateProperty* Property = CastField<FMulticastDelegateProperty>(*PropertyIt))
 		{
 			if (Property->GetBoolMetaData(FK2Node_LatentAbilityCallHelper_RequiresConnection))
 			{

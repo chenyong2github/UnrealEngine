@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConvertToPolygonsTool.h"
 #include "InteractiveToolManager.h"
@@ -99,7 +99,7 @@ void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	bPolygonsValid = false;
 	GetToolManager()->PostInvalidation();

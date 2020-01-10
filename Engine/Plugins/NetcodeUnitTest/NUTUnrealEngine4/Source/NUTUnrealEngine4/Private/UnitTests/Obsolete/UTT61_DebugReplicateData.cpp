@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnitTests/Obsolete/UTT61_DebugReplicateData.h"
 #include "UObject/Package.h"

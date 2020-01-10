@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -334,8 +334,9 @@ private:
 	 * @param InParentMenu         The parent menu for this menu
 	 * @param InMenu               A newly created menu
 	 * @param ShouldThrottle       Should pushing this menu enable throttling of the engine for a more responsive UI
+	 * @param bInInsertAfterDismiss	Avoid unwanted delete due to dismissing another menu causing all menus in stack to be dismissed
 	 */
-	void PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> InMenu, EShouldThrottle ShouldThrottle);
+	void PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> InMenu, EShouldThrottle ShouldThrottle, bool bInInsertAfterDismiss=false);
 
 	/** The popup method currently used by the whole stack. It can only use one at a time */
 	FPopupMethodReply ActiveMethod;

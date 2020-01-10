@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -203,11 +203,11 @@ public:
 	DECLARE_FUNCTION(execPutSecureArray)
 	{
 
-		P_GET_PROPERTY(UStrProperty, Key);
+		P_GET_PROPERTY(FStrProperty, Key);
 
-		Stack.StepCompiledIn<UArrayProperty>(nullptr);
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
 		void* ArrayAddress = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 
 		if (!ArrayProperty)
 		{
@@ -223,7 +223,7 @@ public:
 
 	}
 
-	static bool GenericPutSecureArray(const FString& Key, const UArrayProperty* ArrayProperty, void* TargetArray);
+	static bool GenericPutSecureArray(const FString& Key, const FArrayProperty* ArrayProperty, void* TargetArray);
 
 	/**
 	  Retrieves a USaveGame object associated with the specified key.
@@ -246,11 +246,11 @@ public:
 	DECLARE_FUNCTION(execGetSecureArray)
 	{
 
-		P_GET_PROPERTY(UStrProperty, Key);
+		P_GET_PROPERTY(FStrProperty, Key);
 
-		Stack.StepCompiledIn<UArrayProperty>(nullptr);
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
 		void* ArrayAddress = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 
 		if (!ArrayProperty)
 		{
@@ -266,7 +266,7 @@ public:
 
 	}
 
-	static bool GenericGetSecureArray(const FString& Key, UArrayProperty* ArrayProperty, void* TargetArray);
+	static bool GenericGetSecureArray(const FString& Key, FArrayProperty* ArrayProperty, void* TargetArray);
 
 	/**
 	  Template function to store the data under the specified key. An existing key would be overwritten.

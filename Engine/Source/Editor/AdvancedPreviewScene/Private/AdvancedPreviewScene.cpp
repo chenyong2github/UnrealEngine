@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AdvancedPreviewScene.h"
 #include "UnrealClient.h"
@@ -308,7 +308,7 @@ void FAdvancedPreviewScene::SetFloorVisibility(const bool bVisible, const bool b
 	{
 		FName PropertyName("bShowFloor");
 
-		UProperty* FloorProperty = FindField<UProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
+		FProperty* FloorProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
 		DefaultSettings->Profiles[CurrentProfileIndex].bShowFloor = bVisible;
 
 		FPropertyChangedEvent PropertyEvent(FloorProperty);
@@ -326,7 +326,7 @@ void FAdvancedPreviewScene::SetEnvironmentVisibility(const bool bVisible, const 
 	// If not direct set visibility in profile and refresh the scene
 	if (!bDirect)
 	{
-		UProperty* EnvironmentProperty = FindField<UProperty>(FPreviewSceneProfile::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bShowEnvironment));
+		FProperty* EnvironmentProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bShowEnvironment));
 		DefaultSettings->Profiles[CurrentProfileIndex].bShowEnvironment = bVisible;
 
 		FPropertyChangedEvent PropertyEvent(EnvironmentProperty);
@@ -408,7 +408,7 @@ void FAdvancedPreviewScene::HandleTogglePostProcessing()
 	bPostProcessing = Profile.bPostProcessingEnabled;
 	
 	FName PropertyName("bPostProcessingEnabled");
-	UProperty* PostProcessingProperty = FindField<UProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
+	FProperty* PostProcessingProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
 	FPropertyChangedEvent PropertyEvent(PostProcessingProperty);
 	DefaultSettings->PostEditChangeProperty(PropertyEvent);	
 }

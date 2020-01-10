@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FunctionCaller.h"
 
@@ -94,5 +94,5 @@ bool FFunctionCaller::IsValidFunction(UFunction* Function)
 	}
 
 	// Parameter must be an object or interface property
-	return Function->PropertyLink->IsA<UObjectProperty>() || Function->PropertyLink->IsA<UInterfaceProperty>();
+	return Function->PropertyLink->IsA<FObjectProperty>() || Function->PropertyLink->IsA<FInterfaceProperty>();
 }

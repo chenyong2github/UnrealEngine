@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Details/DetailWidgetExtensionHandler.h"
 #include "Details/SPropertyBinding.h"
@@ -26,12 +26,12 @@ bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* InObjectC
 			return false;
 		}
 
-		UProperty* Property = InPropertyHandle.GetProperty();
+		FProperty* Property = InPropertyHandle.GetProperty();
 		FString DelegateName = Property->GetName() + "Delegate";
 
-		if ( UClass* ContainerClass = Cast<UClass>(Property->GetOuter()) )
+		if ( UClass* ContainerClass = Property->GetOwner<UClass>() )
 		{
-			UDelegateProperty* DelegateProperty = FindField<UDelegateProperty>(ContainerClass, FName(*DelegateName));
+			FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(ContainerClass, FName(*DelegateName));
 			if ( DelegateProperty )
 			{
 				return true;
@@ -44,10 +44,10 @@ bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* InObjectC
 
 TSharedRef<SWidget> FDetailWidgetExtensionHandler::GenerateExtensionWidget(const IDetailLayoutBuilder& InDetailBuilder, const UClass* InObjectClass, TSharedPtr<IPropertyHandle> InPropertyHandle)
 {
-	UProperty* Property = InPropertyHandle->GetProperty();
+	FProperty* Property = InPropertyHandle->GetProperty();
 	FString DelegateName = Property->GetName() + "Delegate";
 	
-	UDelegateProperty* DelegateProperty = FindFieldChecked<UDelegateProperty>(CastChecked<UClass>(Property->GetOuter()), FName(*DelegateName));
+	FDelegateProperty* DelegateProperty = FindFieldChecked<FDelegateProperty>(Property->GetOwnerChecked<UClass>(), FName(*DelegateName));
 
 	const bool bIsEditable = Property->HasAnyPropertyFlags(CPF_Edit | CPF_EditConst);
 	const bool bDoSignaturesMatch = DelegateProperty->SignatureFunction->GetReturnProperty()->SameType(Property);

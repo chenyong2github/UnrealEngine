@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraPreviewGrid.h"
 #include "UObject/ConstructorHelpers.h"
@@ -140,6 +140,9 @@ void ANiagaraPreviewGrid::ActivatePreviews(bool bReset)
 		GeneratePreviews();
 	}
 
+	FString XLabel;
+	FString YLabel;
+
 	for (int32 X = 0; X < NumX; ++X)
 	{
 		float XLocation = X / NumX - 1;
@@ -156,6 +159,9 @@ void ANiagaraPreviewGrid::ActivatePreviews(bool bReset)
 			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
+				PreviewAxisX->ApplyToPreview(Component, X, true, XLabel);
+				PreviewAxisY->ApplyToPreview(Component, Y, false, YLabel);
+				
 				Component->Activate(true);
 			}
 		}
@@ -181,6 +187,56 @@ void ANiagaraPreviewGrid::DeactivatePreviews()
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
 				Component->Deactivate();
+			}
+		}
+	}
+}
+
+void ANiagaraPreviewGrid::SetPaused(bool bPaused)
+{
+	for (int32 X = 0; X < NumX; ++X)
+	{
+		float XLocation = X / NumX - 1;
+
+		for (int32 Y = 0; Y < NumY; ++Y)
+		{
+			float YLocation = Y / NumY - 1;
+
+			int32 PreviewIdx = PreviewIndex(X, Y);
+			UChildActorComponent* PreviewComp = PreviewComponents[PreviewIdx];
+			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
+
+			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			for (UNiagaraComponent* Component : NiagaraComponents)
+			{
+				Component->SetPaused(bPaused);
+			}
+		}
+	}
+
+	SetActorTickEnabled(!bPaused);
+}
+
+void ANiagaraPreviewGrid::GetPreviews(TArray<UNiagaraComponent*>& OutPreviews)
+{
+	for (int32 X = 0; X < NumX; ++X)
+	{
+		float XLocation = X / NumX - 1;
+
+		for (int32 Y = 0; Y < NumY; ++Y)
+		{
+			float YLocation = Y / NumY - 1;
+
+			int32 PreviewIdx = PreviewIndex(X, Y);
+			UChildActorComponent* PreviewComp = PreviewComponents[PreviewIdx];
+			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
+
+			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			for (UNiagaraComponent* Component : NiagaraComponents)
+			{
+				OutPreviews.Add(Component);
 			}
 		}
 	}
@@ -250,6 +306,13 @@ void ANiagaraPreviewGrid::GeneratePreviews()
 					PreviewActor->PrimaryActorTick.bCanEverTick = true;
 					PreviewActor->PrimaryActorTick.bStartWithTickEnabled = true;
 					PreviewActor->SetSystem(System);
+
+					TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+					PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+					for (UNiagaraComponent* Component : NiagaraComponents)
+					{
+						Component->Activate(true);
+					}
 				}
 			}
 		}

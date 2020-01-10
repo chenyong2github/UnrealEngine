@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShader.h"
 #include "NiagaraShared.h"
@@ -913,14 +913,14 @@ void FNiagaraShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			GNiagaraShaderCompilationManager.AddJobs(NewJobs);
+			FNiagaraShaderCompilationManager::Get().AddJobs(NewJobs);
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
 			{
 				TArray<int32> CurrentShaderMapId;
 				CurrentShaderMapId.Add(CompilingId);
-				GNiagaraShaderCompilationManager.FinishCompilation(*FriendlyName, CurrentShaderMapId);
+				FNiagaraShaderCompilationManager::Get().FinishCompilation(*FriendlyName, CurrentShaderMapId);
 			}
 		}
 	}
@@ -1184,7 +1184,7 @@ void FNiagaraShaderMap::FlushShadersByShaderType(FShaderType* ShaderType)
 
 
 
-void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
+void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
 	// Backwards compatibility therefore will not work based on the version of Ar
@@ -1205,7 +1205,7 @@ void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
 
 	if (Ar.IsSaving() || Ar.IsLoading())
 	{
-		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, false);
+		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, bLoadedByCookedMaterial);
 	}
 }
 
@@ -1314,6 +1314,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
+
+	FreeIDBufferParam.Bind(ParameterMap, TEXT("FreeIDList"));
+	IDToIndexBufferParam.Bind(ParameterMap, TEXT("IDToIndexTable"));
 	
 	SimStartParam.Bind(ParameterMap, TEXT("SimStart"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
@@ -1386,6 +1389,9 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << InstanceCountsParam;
 	Ar << ReadInstanceCountOffsetParam;
 	Ar << WriteInstanceCountOffsetParam;
+
+	Ar << FreeIDBufferParam;
+	Ar << IDToIndexBufferParam;
 
 	Ar << SimStartParam;
 	Ar << EmitterTickCounterParam;

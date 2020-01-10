@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -50,6 +50,7 @@ class MEDIAUTILS_API FMediaPlayerFacade
 	: public IMediaClockSink
 	, public IMediaTickable
 	, protected IMediaEventSink
+	, public TSharedFromThis<FMediaPlayerFacade, ESPMode::ThreadSafe>
 {
 public:
 

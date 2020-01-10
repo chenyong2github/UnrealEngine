@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocketSubsystemAndroid.h"
 #include "SocketSubsystemModule.h"
@@ -115,7 +115,7 @@ TSharedRef<FInternetAddr> FSocketSubsystemAndroid::GetLocalHostAddr(FOutputDevic
 	//
 	// Also NOTE: Network can flip out behind applications back when connectivity changes. eg. Move out of wifi range.
 	// This seems to recover OK between matches as subsystems are reinited each session Host/Join.
-	if (Addr->GetProtocolType() == FNetworkProtocolTypes::IPv4 && Addr->GetRawIp()[0] == 127)
+	if (Addr->GetProtocolType() == FNetworkProtocolTypes::IPv4 && Addr->GetRawIp()[0] != 127)
 	{
 		return Addr;
 	}

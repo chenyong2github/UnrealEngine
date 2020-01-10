@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "GameFramework/Pawn.h"
@@ -131,7 +131,9 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	
+	UFUNCTION(BlueprintPure, Category="Ability")
 	UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent();
+
 	const UMockFlyingAbilityComponent* GetMockFlyingAbilityComponent() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Automation")

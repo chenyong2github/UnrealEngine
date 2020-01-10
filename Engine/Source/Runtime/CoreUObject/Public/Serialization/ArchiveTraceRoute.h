@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,7 +35,7 @@ class FArchiveTraceRoute : public FArchiveUObject
 public:
 
 	UE_DEPRECATED(4.23, "This function is out of date and misses many GC references, replace with FReferenceChainSearch")
-	static COREUOBJECT_API TMap<UObject*,UProperty*> FindShortestRootPath( UObject* Object, bool bIncludeTransients, EObjectFlags KeepFlags );
+	static COREUOBJECT_API TMap<UObject*,FProperty*> FindShortestRootPath( UObject* Object, bool bIncludeTransients, EObjectFlags KeepFlags );
 
 	/**
 	 * Retuns path to root created by e.g. FindShortestRootPath via a string.
@@ -44,7 +44,7 @@ public:
 	 * @param Route			route to print to log.
 	 * @param String of root path
 	 */
-	static COREUOBJECT_API FString PrintRootPath( const TMap<UObject*,UProperty*>& Route, const UObject* TargetObject );
+	static COREUOBJECT_API FString PrintRootPath( const TMap<UObject*,FProperty*>& Route, const UObject* TargetObject );
 
 	/**
 	 * Returns the name of the Archive.  Useful for getting the name of the package a struct or object

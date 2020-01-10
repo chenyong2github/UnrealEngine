@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraStats.h"
@@ -87,26 +87,26 @@ void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FN
 	{
 		NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT); // New structs should be aligned to the head..
 
-		for (TFieldIterator<UProperty> PropertyIt(InSrcStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(InSrcStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			const UStruct* Struct = nullptr;
 
 			// First determine what struct type we're dealing with...
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetFloatStruct();
 			}
-			else if (Property->IsA(UIntProperty::StaticClass()))
+			else if (Property->IsA(FIntProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetIntStruct();
 			}
-			else if (Property->IsA(UBoolProperty::StaticClass()))
+			else if (Property->IsA(FBoolProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetBoolStruct();
 			}
 			//Should be able to support double easily enough
-			else if (UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+			else if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 			{
 				Struct = StructProp->Struct;
 			}
@@ -295,8 +295,8 @@ void FNiagaraScriptExecutionParameterStore::CopyParameterDataToPaddedBuffer(uint
 	const uint8* SrcData = GetParameterDataArray().GetData();
 	for (int32 i = 0; i < PaddingInfo.Num(); i++)
 	{
-		check((PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
-		check((PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
+		check(uint32(PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
+		check(uint32(PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
 		FMemory::Memcpy(InTargetBuffer + PaddingInfo[i].DestOffset, SrcData + PaddingInfo[i].SrcOffset, PaddingInfo[i].SrcSize);
 	}
 }

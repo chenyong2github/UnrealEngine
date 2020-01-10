@@ -1,22 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Trace/Config.h"
 
-////////////////////////////////////////////////////////////////////////////////
 #if UE_TRACE_ENABLED
-#	define UE_TRACE_IMPL(...)
-#	define UE_TRACE_API			TRACELOG_API
-#else
-#	define UE_TRACE_IMPL(...)	{ return __VA_ARGS__; }
-#	define UE_TRACE_API			inline
-#endif
 
-
-
-#if UE_TRACE_ENABLED
+#include "CoreTypes.h"
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEventDef LoggerName##EventName##Event;
@@ -37,7 +27,8 @@
 			{ \
 				const uint32 Always = Trace::FEventDef::Flag_Always; \
 				const uint32 Important = Trace::FEventDef::Flag_Important; \
-				const uint32 Flags = (0, ##__VA_ARGS__); \
+				uint32 Flags = decltype(EventProps_Private)::MaybeHasAux ? Trace::FEventDef::Flag_MaybeHasAux : 0; \
+				Flags |= (0, ##__VA_ARGS__); \
 				F##LoggerName##EventName##Fields Fields; \
 				const auto* Descs = (Trace::FFieldDesc*)(&Fields); \
 				uint32 DescCount = uint32(sizeof(Fields) / sizeof(*Descs)); \
@@ -47,15 +38,17 @@
 				return true; \
 			}(); \
 		} \
-		Trace::TField<0, 
+		Trace::TField<0 /*Index*/, 0 /*Offset*/,
 
 #define TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName) \
 		FieldType> const FieldName = Trace::FLiteralName(#FieldName); \
-		Trace::TField<decltype(FieldName)::Offset + decltype(FieldName)::Size,
+		Trace::TField< \
+			decltype(FieldName)::Index + 1, \
+			decltype(FieldName)::Offset + decltype(FieldName)::Size,
 
 #define TRACE_PRIVATE_EVENT_END() \
-		Trace::EndOfFields> const EventSize_Private = {}; \
-		Trace::TField<decltype(EventSize_Private)::Value, Trace::Attachment> const Attachment = {}; \
+		Trace::EventProps> const EventProps_Private = {}; \
+		Trace::TField<0, decltype(EventProps_Private)::Size, Trace::Attachment> const Attachment = {}; \
 		explicit operator bool () const { return true; } \
 	};
 
@@ -66,12 +59,17 @@
 	)
 
 #define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \
-	decltype(F##LoggerName##EventName##Fields::EventSize_Private)::Value
+	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
 	if (TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-			Trace::FEventDef::FLogScope(LoggerName##EventName##Event.Uid, TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), ##__VA_ARGS__)
+			if (auto LogScope = Trace::FEventDef::FLogScope( \
+				LoggerName##EventName##Event.Uid, \
+				TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
+				bool(decltype(F##LoggerName##EventName##Fields::EventProps_Private)::MaybeHasAux), \
+				##__VA_ARGS__)) \
+					LogScope
 
 #else
 

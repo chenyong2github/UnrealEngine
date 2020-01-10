@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "K2Node_VariableGet.h"
@@ -102,7 +102,7 @@ void UK2Node_VariableGet::CreateNonPurePins(TArray<UEdGraphPin*>* InOldPinsPtr)
 	if (!bIsPureGet)
 	{
 		FEdGraphPinType PinType;
-		UProperty* VariableProperty = GetPropertyForVariable();
+		FProperty* VariableProperty = GetPropertyForVariable();
 
 		// We need the pin's type, to both see if it's an array and if it is of the correct types to remain an impure node
 		if (VariableProperty)
@@ -179,7 +179,7 @@ void UK2Node_VariableGet::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*
 	}
 }
 
-FText UK2Node_VariableGet::GetPropertyTooltip(UProperty const* VariableProperty)
+FText UK2Node_VariableGet::GetPropertyTooltip(FProperty const* VariableProperty)
 {
 	FName VarName = NAME_None;
 	if (VariableProperty != nullptr)
@@ -248,7 +248,7 @@ FText UK2Node_VariableGet::GetTooltipText() const
 {
 	if (CachedTooltip.IsOutOfDate(this))
 	{
-		if (UProperty* Property = GetPropertyForVariable())
+		if (FProperty* Property = GetPropertyForVariable())
 		{
 			CachedTooltip.SetCachedText(GetPropertyTooltip(Property), this);
 		}
@@ -282,7 +282,7 @@ FText UK2Node_VariableGet::GetNodeTitle(ENodeTitleType::Type TitleType) const
 				FString VariableName = GetVarNameString();
 				FString BlueprintPath = FBlueprintEditorUtils::FindBlueprintForGraph(Graph)->GetPathName();
 				FString SetupStyle = bIsPureGet? TEXT("pure") : TEXT("validated");
-				FString VariableResolves = (VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()) != nullptr)? TEXT("resolves") : TEXT("does not resolve");
+				FString VariableResolves = (VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode()) != nullptr)? TEXT("resolves") : TEXT("does not resolve");
 				checkf(Pin, TEXT("Get node for variable '%s' in Blueprint '%s' which is setup as %s and has %d pins. Variable %s"), *VariableName, *BlueprintPath, *SetupStyle, Pins.Num(), *VariableResolves);
 			}
 		}
@@ -409,14 +409,14 @@ void UK2Node_VariableGet::ValidateNodeDuringCompilation(FCompilerResultsLog& Mes
 	// Some expansions, such as timelines, will create gets for non-blueprint visible properties, and we don't want to validate against that
 	if (!IsIntermediateNode())
 	{
-		if (UProperty* Property = GetPropertyForVariable())
+		if (FProperty* Property = GetPropertyForVariable())
 		{
 			const FBlueprintEditorUtils::EPropertyReadableState PropertyReadableState = FBlueprintEditorUtils::IsPropertyReadableInBlueprint(GetBlueprint(), Property);
 
 			if (PropertyReadableState != FBlueprintEditorUtils::EPropertyReadableState::Readable)
 			{
 				FFormatNamedArguments Args;
-				if (UObject* Class = Property->GetOuter())
+				if (UObject* Class = Property->GetOwner<UObject>())
 				{
 					Args.Add(TEXT("VariableName"), FText::AsCultureInvariant(FString::Printf(TEXT("%s.%s"), *Class->GetName(), *Property->GetName())));
 				}
@@ -448,7 +448,7 @@ void UK2Node_VariableGet::ExpandNode(class FKismetCompilerContext& CompilerConte
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
 
-	UProperty* VariableProperty = GetPropertyForVariable();
+	FProperty* VariableProperty = GetPropertyForVariable();
 
 	UK2Node_VariableGet* VariableGetNode = this;
 

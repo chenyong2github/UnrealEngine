@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,10 +13,14 @@
 #include "LocalVertexFactory.h"
 #include "Paper2DModule.h"
 #include "DynamicMeshBuilder.h"
+#include "PaperSpriteVertexBuffer.h"
 
 class FMeshElementCollector;
 class UBodySetup;
 class UPrimitiveComponent;
+class FSpriteTextureOverrideRenderProxy;
+class UMeshComponent;
+class FMaterialRenderProxy;
 
 #if WITH_EDITOR
 typedef TMap<const UTexture*, const UTexture*> FPaperRenderSceneProxyTextureOverrideMap;
@@ -66,7 +70,7 @@ struct PAPER2D_API FSpriteRenderSection
 	}
 
 	template <typename SourceArrayType>
-	void AddTriangles(const FSpriteDrawCallRecord& Record, SourceArrayType& Vertices)
+	void AddVerticesFromDrawCallRecord(const FSpriteDrawCallRecord& Record, int32 StartIndexWithinRecord, int32 NumVertsToCopy, SourceArrayType& Vertices)
 	{
 		if (NumVertices == 0)
 		{
@@ -81,13 +85,14 @@ struct PAPER2D_API FSpriteRenderSection
 			// Note: Not checking AdditionalTextures for now, since checking BaseTexture should catch most bugs
 		}
 
-		const int32 NumNewVerts = Record.RenderVerts.Num();
-		NumVertices += NumNewVerts;
-		Vertices.Reserve(Vertices.Num() + NumNewVerts);
+		NumVertices += NumVertsToCopy;
+		Vertices.Reserve(Vertices.Num() + NumVertsToCopy);
 
 		const FColor VertColor(Record.Color);
-		for (const FVector4& SourceVert : Record.RenderVerts)
+		for (int32 VertexIndex = StartIndexWithinRecord; VertexIndex < StartIndexWithinRecord + NumVertsToCopy; ++VertexIndex)
 		{
+			const FVector4& SourceVert = Record.RenderVerts[VertexIndex];
+			
 			const FVector Pos((PaperAxisX * SourceVert.X) + (PaperAxisY * SourceVert.Y) + Record.Destination);
 			const FVector2D UV(SourceVert.Z, SourceVert.W);
 
@@ -131,9 +136,9 @@ public:
 	virtual uint32 GetMemoryFootprint() const override;
 	virtual bool CanBeOccluded() const override;
 	virtual bool IsUsingDistanceCullFade() const override;
+	virtual void CreateRenderThreadResources() override;
 	// End of FPrimitiveSceneProxy interface.
 
-	void SetDrawCall_RenderThread(const FSpriteDrawCallRecord& NewDynamicData);
 	void SetBodySetup_RenderThread(UBodySetup* NewSetup);
 
 #if WITH_EDITOR
@@ -143,27 +148,36 @@ public:
 protected:
 	virtual void GetDynamicMeshElementsForView(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
-	void GetBatchMesh(const FSceneView* View, UMaterialInterface* BatchMaterial, const TArray<FSpriteDrawCallRecord>& Batch, int32 ViewIndex, FMeshElementCollector& Collector) const;
+	bool GetMeshElement(int32 SectionIndex, uint8 DepthPriorityGroup, bool bIsSelected, FMeshBatch& OutMeshBatch) const;
+
 	void GetNewBatchMeshes(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
+	void GetNewBatchMeshesPrebuilt(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
 	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
 	virtual void DebugDrawCollision(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector, bool bDrawSolid) const;
 	virtual void DebugDrawBodySetup(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector, UBodySetup* BodySetup, const FMatrix& GeomTransform, const FLinearColor& CollisionColor, bool bDrawSolid) const;
+
+	// Call this if you modify BatchedSections or Vertices after the proxy has already been created
+	void RecreateCachedRenderData();
+
+	FSpriteTextureOverrideRenderProxy* GetCachedMaterialProxyForSection(int32 SectionIndex, FMaterialRenderProxy* ParentMaterialProxy) const;
+
 protected:
 	TArray<FSpriteRenderSection> BatchedSections;
 	TArray<FDynamicMeshVertex> Vertices;
+	mutable TArray<FSpriteTextureOverrideRenderProxy*> MaterialTextureOverrideProxies;
 
-	// Old style
-	TArray<FSpriteDrawCallRecord> BatchedSprites;
-	class UMaterialInterface* Material;
+	FPaperSpriteVertexBuffer VertexBuffer;
+	FPaperSpriteVertexFactory VertexFactory;
 
 	//
 	AActor* Owner;
 	UBodySetup* MyBodySetup;
 
-	bool bDrawTwoSided;
-	bool bCastShadow;
+	uint8 bDrawTwoSided:1;
+	uint8 bCastShadow:1;
+	uint8 bSpritesUseVertexBufferPath:1;
 
 	// The view relevance for the associated material
 	FMaterialRelevance MaterialRelevance;
@@ -173,4 +187,19 @@ protected:
 
 	// The texture override list
 	UE_EXPAND_IF_WITH_EDITOR(FPaperRenderSceneProxyTextureOverrideMap TextureOverrideList);
+};
+
+//////////////////////////////////////////////////////////////////////////
+// FPaperRenderSceneProxy_SpriteBase - common base class for sprites and flipbooks (which build from sprites)
+
+class FPaperRenderSceneProxy_SpriteBase : public FPaperRenderSceneProxy
+{
+public:
+	FPaperRenderSceneProxy_SpriteBase(const UMeshComponent* InComponent);
+
+	void SetSprite_RenderThread(const FSpriteDrawCallRecord& NewDynamicData, int32 SplitIndex);
+
+public:
+	UMaterialInterface* Material;
+	UMaterialInterface* AlternateMaterial;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -49,11 +49,13 @@ namespace Chaos
 	template <typename T, int>
 	class TPBDSpringConstraints;
 
-	template <typename T, int>
-	class TConvex;
+	class FConvex;
 
 	template <typename T>
 	class TCapsule;
+
+	template <typename T, int>
+	class TAABB;
 
 	template <typename T, int>
 	class TBox;
@@ -147,8 +149,8 @@ struct ENGINE_API FPhysicsGeometryCollection_Chaos
 	const Chaos::TBox<float, 3>& GetBoxGeometry() const;
 	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
 	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
-	const Chaos::TConvex<float, 3>& GetConvexGeometry() const;
-	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
+	const Chaos::FConvex& GetConvexGeometry() const;
+	const Chaos::FTriangleMeshImplicitObject& GetTriMeshGeometry() const;
 
 private:
 	friend class FPhysInterface_Chaos;
@@ -224,6 +226,7 @@ public:
     static bool HasAsyncSceneData(const FPhysicsActorHandle& InHandle) { return false; }
 	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
 	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
+	static void FlushScene(FPhysScene* InScene);
 	static bool CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static float GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
@@ -378,7 +381,7 @@ public:
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
 	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
-    static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
+    static void* GetUserData(const FPhysicsShapeHandle& InShape);
 
 	// Trace functions for testing specific geometry (not against a world)
 	static bool LineTrace_Geom(FHitResult& OutHit, const FBodyInstance* InInstance, const FVector& InStart, const FVector& InEnd, bool bTraceComplex, bool bExtractPhysMaterial = false);
@@ -394,7 +397,7 @@ public:
 	static void SetQueryFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
     static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape, bool bIsSimShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsSimShape; }
     static void SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsQueryShape; }
-    static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData) {}
+    static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData);
     static void SetGeometry(const FPhysicsShapeHandle& InShape, physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape, const FTransform& NewLocalTransform);
     static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials);

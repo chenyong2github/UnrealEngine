@@ -1,9 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "PixelStreamingPrivate.h"
-#include "Codecs/PixelStreamingBaseVideoEncoder.h"
 #include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
 
@@ -73,7 +72,7 @@ private:
 
 	// a single instance of the actual hardware encoder is used for multiple streams/players to provide multicasting functionality
 	// for multi-session unicast implementation each instance of `FVideoEncoder` will have own instance of hardware encoder.
-	TUniquePtr<FPixelStreamingBaseVideoEncoder> HWEncoder;
+	FHWEncoderDetails HWEncoderDetails;
 
 	TUniquePtr<FThread> WebRtcSignallingThread;
 	DWORD WebRtcSignallingThreadId = 0;

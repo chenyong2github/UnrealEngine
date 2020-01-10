@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioDevice.h"
 
 #include "ActiveSound.h"
@@ -32,6 +32,7 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "Sound/SoundSubmix.h"
 #include "UnrealEngine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -167,6 +168,37 @@ namespace
 #endif // !UE_BUILD_SHIPPING
 } // namespace <>
 
+FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
+{
+	// This function is deprecated as we assume the listener transform is from listener 0.  
+	FAttenuationListenerData ListenerData(InListenerTransform, InSoundTransform, InAttenuationSettings);
+
+	const FVector SoundTranslation = InSoundTransform.GetTranslation();
+	FVector ListenerToSound = SoundTranslation - InListenerTransform.GetTranslation();
+	ListenerToSound.ToDirectionAndLength(ListenerData.ListenerToSoundDir, ListenerData.ListenerToSoundDistance);
+
+	// Store the actual distance for surround-panning sources with spread (AudioMixer)
+	ListenerData.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistance;
+
+	// Calculating override listener-to-sound distance and transform must
+	// be applied after distance used for panning value is calculated.
+	FVector ListenerPosition;
+	const bool bAllowAttenuationOverride = true;
+
+	if (AudioDevice.GetListenerPosition(0, ListenerPosition, bAllowAttenuationOverride))
+	{
+		ListenerData.ListenerToSoundDistance = (SoundTranslation - ListenerPosition).Size();
+		ListenerData.ListenerTransform.SetTranslation(ListenerPosition);
+	}
+
+	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
+	if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
+	{
+		ListenerData.AttenuationDistance = FMath::Max(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
+	}
+
+	return MoveTemp(ListenerData);
+}
 
 FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& AudioDevice, int32 ListenerIndex, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
 {
@@ -210,9 +242,6 @@ FAudioDevice::FAudioDevice()
 	: NumStoppingSources(32)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
-	, CommonAudioPoolSize(0)
-	, CommonAudioPool(nullptr)
-	, CommonAudioPoolFreeBytes(0)
 	, DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
@@ -253,7 +282,6 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
-	, bReverbPluginBypassesMasterReverb(false)
 	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
@@ -321,8 +349,6 @@ bool FAudioDevice::Init(int32 InMaxSources)
 
 	// Mixed sample rate is set by the platform
 	SampleRate = PlatformSettings.SampleRate;
-
-	verify(GConfig->GetInt(TEXT("Audio"), TEXT("CommonAudioPoolSize"), CommonAudioPoolSize, GEngineIni));
 
 	// If this is true, skip the initial startup precache so we can do it later in the flow
 	GConfig->GetBool(TEXT("Audio"), TEXT("DeferStartupPrecache"), bDeferStartupPrecache, GEngineIni);
@@ -415,7 +441,6 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
 		bReverbInterfaceEnabled = true;
-		bReverbPluginBypassesMasterReverb = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
 	}
@@ -1731,7 +1756,12 @@ bool FAudioDevice::HandleResetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutpu
 
 bool FAudioDevice::HandleGetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+	if (!GEngine)
+	{
+		return false;
+	}
+
+	if (const FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
 		FName SoundName;
 		if (!FParse::Value(Cmd, TEXT("Name="), SoundName))
@@ -1754,9 +1784,31 @@ bool FAudioDevice::HandleGetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputD
 			}
 		}
 
-		const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
-		FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
-		Ar.Logf(TEXT("%s"), *Msg);
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.GetDynamicSoundVolume"), STAT_AudioGetDynamicSoundVolume, STATGROUP_AudioThreadCommands);
+
+			const ESoundType InSoundType = SoundType;
+			const FName InSoundName = SoundName;
+			FAudioThread::RunCommandOnAudioThread([InSoundType, InSoundName]()
+			{
+				if (!GEngine)
+				{
+					return;
+				}
+				if (const FAudioDeviceManager* InDeviceManager = GEngine->GetAudioDeviceManager())
+				{
+					const float Volume = InDeviceManager->GetDynamicSoundVolume(InSoundType, InSoundName);
+					UE_LOG(LogAudio, Display, TEXT("'%s' Dynamic Volume: %.4f"), *InSoundName.GetPlainNameString(), Volume);
+				}
+			}, GET_STATID(STAT_AudioGetDynamicSoundVolume));
+		}
+		else
+		{
+			const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
+			FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
+			Ar.Logf(TEXT("%s"), *Msg);
+		}
 	}
 	return true;
 }
@@ -2208,12 +2260,12 @@ void FAudioDevice::RecursiveApplyAdjuster(const FSoundClassAdjuster& InAdjuster,
 	}
 }
 
-void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
+void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
 {
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
-		ConcurrencyManager.UpdateQuietSoundsToStop();
+		ConcurrencyManager.UpdateSoundsToCull();
 	}
 
 	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
@@ -2968,13 +3020,23 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			PluginManager->OnListenerUpdated(this, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
 
+		const int32 StartingListenerCount = Listeners.Num();
+
 		TArray<FListener>& AudioThreadListeners = Listeners;
 		if (InViewportIndex >= AudioThreadListeners.Num())
 		{
-			const int32 NumListeners = InViewportIndex - AudioThreadListeners.Num() + 1;
-			for (int32 i = 0; i < NumListeners; ++i)
+			const int32 NumListenersToAdd = InViewportIndex - AudioThreadListeners.Num() + 1;
+			for (int32 i = 0; i < NumListenersToAdd; ++i)
 			{
 				AudioThreadListeners.Add(FListener(this));
+
+				// While we're going through the process of moving from raw listener access to access by index, 
+				// we're going to store our current index inside the listener to help in deprecation and backwards compat.
+				const int32 CurrentIndex = i + StartingListenerCount;
+				if (ensure(AudioThreadListeners.IsValidIndex(CurrentIndex)))
+				{
+					AudioThreadListeners[CurrentIndex].ListenerIndex = CurrentIndex;
+				}
 			}
 		}
 
@@ -3637,7 +3699,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 
 	if (GetType != ESortedActiveWaveGetType::QueryOnly)
 	{
-		StopQuietSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
+		CullSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
 
 	// Must be completed after StopQuietSoundsDueToMaxConcurrency as it avoids an issue
@@ -3953,6 +4015,7 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 					WaveInstance->StopWithoutNotification();
 					Source->WaveInstance = nullptr;
 					FreeSources.Add(Source);
+					WaveInstanceSourceMap.Remove(WaveInstance);
 				}
 			}
 			else if (Source)
@@ -4269,20 +4332,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 	// send any needed information back to the game thread
 	SendUpdateResultsToGameThread(FirstActiveIndex);
-
-#if !UE_BUILD_SHIPPING
-	// Print statistics for first non initial load allocation.
-	static bool bFirstTime = true;
-	if (bFirstTime && CommonAudioPoolSize != 0)
-	{
-		bFirstTime = false;
-		if (CommonAudioPoolFreeBytes != 0)
-		{
-			UE_LOG(LogAudio, Log, TEXT("Audio pool size mismatch by %d bytes. Please update CommonAudioPoolSize ini setting to %d to avoid waste!"),
-				CommonAudioPoolFreeBytes, CommonAudioPoolSize - CommonAudioPoolFreeBytes);
-		}
-	}
-#endif
 }
 
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
@@ -4453,7 +4502,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 #endif // !UE_BUILD_SHIPPING
 
 	const USoundWave* SoundWave = Cast<USoundWave>(Sound);
-	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
+	if (SoundWave && SoundWave->bProcedural && SoundWave->bPlayingProcedural)
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
@@ -4904,6 +4953,27 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, const float MaxDis
 	return false;
 }
 
+bool FAudioDevice::LocationIsAudible(const FVector& Location, const FTransform& ListenerTransform, const float MaxDistance) const
+{
+	// This function is deprecated as it assumes listener 0.  
+	// To check if a location is audible by any listener, use FAudioDevice::LocationIsAudible that takes a location and max distance.
+	// To check if a location is audible by a specific listener, use FAudioDevice::LocationIsAudible that additionally takes a listener index. 
+	if (MaxDistance >= WORLD_MAX)
+	{
+		return true;
+	}
+
+	FVector ListenerTranslation;
+	const bool bAllowOverride = true;
+	if (!GetListenerPosition(0, ListenerTranslation, bAllowOverride))
+	{
+		return false;
+	}
+
+	const float MaxDistanceSquared = MaxDistance * MaxDistance;
+	return (ListenerTranslation - Location).SizeSquared() < MaxDistanceSquared;
+}
+
 bool FAudioDevice::LocationIsAudible(const FVector& Location, int32 ListenerIndex, float MaxDistance) const
 {
 	if (MaxDistance >= WORLD_MAX)
@@ -4930,7 +5000,8 @@ float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 	check(bInAudioThread || bInGameThread);
 
 	float DistSquared;
-	if (FindClosestListenerIndex(Location, DistSquared, true) == INDEX_NONE)
+	const bool bAllowAttenuationOverrides = true;
+	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
 	{
 		return WORLD_MAX;
 	}
@@ -4938,15 +5009,32 @@ float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 	return FMath::Sqrt(DistSquared);
 }
 
-float FAudioDevice::GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex) const
+float FAudioDevice::GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const
 {
+	// This function is deprecated as it does not take into account listener attenuation override position
+	FVector ListenerTranslation = ListenerTransform.GetTranslation();
+	return (ListenerTranslation - Location).SizeSquared();
+}
+
+bool FAudioDevice::GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex, float& OutSqDistance) const
+{
+	OutSqDistance = TNumericLimits<float>::Max();
+	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
+
+	if (ListenerIndex >= ListenerCount)
+	{
+		return false;
+	}
+
 	FVector ListenerTranslation;
 	const bool bAllowOverride = true;
 	if (!GetListenerPosition(ListenerIndex, ListenerTranslation, bAllowOverride))
 	{
-		return WORLD_MAX;
+		return false;
 	}
-	return (ListenerTranslation - Location).SizeSquared();
+
+	OutSqDistance = (ListenerTranslation - Location).SizeSquared();
+	return true;
 }
 
 bool FAudioDevice::GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const
@@ -5115,40 +5203,62 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 
 	return false;
 }
+int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners)
+{
+	check(IsInAudioThread());
+	int32 ClosestListenerIndex = 0;
+	const bool bAllowAttenuationOverride = true;
+	if (InListeners.Num() > 0)
+	{
+		float ClosestDistSq = FVector::DistSquared(SoundTransform.GetTranslation(), InListeners[0].GetPosition(bAllowAttenuationOverride));
+
+		for (int32 i = 1; i < InListeners.Num(); i++)
+		{
+			const float DistSq = FVector::DistSquared(SoundTransform.GetTranslation(), InListeners[i].GetPosition(bAllowAttenuationOverride));
+			if (DistSq < ClosestDistSq)
+			{
+				ClosestListenerIndex = i;
+				ClosestDistSq = DistSq;
+			}
+		}
+	}
+
+	return ClosestListenerIndex;
+}
 
 int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) const
 {
 	float UnusedDistSq;
-	const bool bAllowOverrides = false;
+	const bool bAllowOverrides = true;
 	return FindClosestListenerIndex(SoundTransform.GetTranslation(), UnusedDistSq, bAllowOverrides);
 }
 
 int32 FAudioDevice::FindClosestListenerIndex(const FVector& Position, float& OutDistanceSq, bool bAllowAttenuationOverrides) const
 {
-	int32 ClosestListenerIndex = INDEX_NONE;
-	OutDistanceSq = WORLD_MAX;
-
+	int32 ClosestListenerIndex = 0;
+	OutDistanceSq = 0.f;
 	FVector ListenerPosition;
-	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
 
-	if (GetListenerPosition(0, ListenerPosition, bAllowAttenuationOverrides))
+	if (!GetListenerPosition(0, ListenerPosition, bAllowAttenuationOverrides))
 	{
-		OutDistanceSq = FVector::DistSquared(Position, ListenerPosition);
-		ClosestListenerIndex = 0;
+		return INDEX_NONE;
+	}
 
-		for (int32 i = 1; i < ListenerCount; ++i)
+	OutDistanceSq = FVector::DistSquared(Position, ListenerPosition);
+
+	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
+	for (int32 i = 1; i < ListenerCount; ++i)
+	{
+		if (!GetListenerPosition(i, ListenerPosition, bAllowAttenuationOverrides))
 		{
-			if (!GetListenerPosition(i, ListenerPosition, bAllowAttenuationOverrides))
-			{
-				continue;
-			}
+			continue;
+		}
 
-			const float DistSq = FVector::DistSquared(Position, ListenerPosition);
-			if (DistSq < OutDistanceSq)
-			{
-				OutDistanceSq = DistSq;
-				ClosestListenerIndex = i;
-			}
+		const float DistSq = FVector::DistSquared(Position, ListenerPosition);
+		if (DistSq < OutDistanceSq)
+		{
+			OutDistanceSq = DistSq;
+			ClosestListenerIndex = i;
 		}
 	}
 
@@ -5999,7 +6109,7 @@ void FAudioDevice::StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioC
 
 	if (!GIsEditor && bStoppedSounds)
 	{
-		UE_LOG(LogAudio, Warning, TEXT("All Sounds using SoundWave '%s' have been stopped"), *SoundWave->GetName());
+		UE_LOG(LogAudio, Verbose, TEXT("All Sounds using SoundWave '%s' have been stopped"), *SoundWave->GetName());
 	}
 }
 
@@ -6074,6 +6184,37 @@ float FAudioDevice::GetGameDeltaTime() const
 
 	// Clamp the delta time to a reasonable max delta time.
 	return FMath::Min(DeltaTime, 0.5f);
+}
+
+bool FAudioDevice::IsUsingListenerAttenuationOverride(int32 ListenerIndex) const
+{
+	const bool bInAudioThread = IsInAudioThread();
+	const int32 ListenerCount = bInAudioThread ? Listeners.Num() : ListenerProxies.Num();
+	if (ListenerIndex >= ListenerCount)
+	{
+		return false;
+	}
+
+	if (bInAudioThread)
+	{
+		return Listeners[ListenerIndex].bUseAttenuationOverride;
+	}
+
+	return ListenerProxies[ListenerIndex].bUseAttenuationOverride;
+}
+
+const FVector& FAudioDevice::GetListenerAttenuationOverride(int32 ListenerIndex) const
+{
+	const bool bInAudioThread = IsInAudioThread();
+	const int32 ListenerCount = bInAudioThread ? Listeners.Num() : ListenerProxies.Num();
+	check(ListenerIndex < ListenerCount);
+
+	if (bInAudioThread)
+	{
+		return Listeners[ListenerIndex].AttenuationOverride;
+	}
+
+	return ListenerProxies[ListenerIndex].AttenuationOverride;
 }
 
 void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)

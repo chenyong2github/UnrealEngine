@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/WorldSettings.h"
 #include "Algo/Partition.h"
@@ -245,6 +245,7 @@ void AWorldSettings::NotifyBeginPlay()
 			const bool bFromLevelLoad = true;
 			It->DispatchBeginPlay(bFromLevelLoad);
 		}
+
 		World->bBegunPlay = true;
 	}
 }
@@ -453,7 +454,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		{
 			TSubclassOf<UNavigationSystemConfig> NavSystemConfigClass = UNavigationSystemConfig::GetDefaultConfigClass();
 			if (*NavSystemConfigClass)
-			{
+		{
 				NavigationSystemConfig = NewObject<UNavigationSystemConfig>(this, NavSystemConfigClass);
 			}
 			bEnableNavigationSystem = false;
@@ -519,14 +520,14 @@ void AWorldSettings::CheckForErrors()
 	}
 }
 
-bool AWorldSettings::CanEditChange(const UProperty* InProperty) const
+bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
 		FString PropertyName = InProperty->GetName();
 
-		if (InProperty->GetOuter()
-			&& InProperty->GetOuter()->GetName() == TEXT("LightmassWorldInfoSettings"))
+		if (InProperty->GetOwner<UObject>() &&
+			  InProperty->GetOwner<UObject>()->GetName() == TEXT("LightmassWorldInfoSettings"))
 		{
 			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassWorldInfoSettings, bGenerateAmbientOcclusionMaterialMask)
 				|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassWorldInfoSettings, DirectIlluminationOcclusionFraction)
@@ -563,7 +564,7 @@ bool AWorldSettings::CanEditChange(const UProperty* InProperty) const
 
 void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 {
 		InternalPostPropertyChanged(PropertyThatChanged->GetFName());
@@ -660,7 +661,7 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultBookmarkClass))
 		{
 			UpdateBookmarkClass();
-		}
+	}
 
 	if (GetWorld() != nullptr && GetWorld()->PersistentLevel && GetWorld()->PersistentLevel->GetWorldSettings() == this)
 	{

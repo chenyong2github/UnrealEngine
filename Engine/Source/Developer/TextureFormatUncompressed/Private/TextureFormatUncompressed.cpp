@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
@@ -212,7 +213,8 @@ class FTextureFormatUncompressed : public ITextureFormat
 		{
 			// load the error image data we will just repeat into the texture
 			TArray<uint8> ErrorData;
-			FFileHelper::LoadFileToArray(ErrorData, TEXT("../../../Engine/Content/MobileResources/PowerOfTwoError64x64.raw"));
+			FFileHelper::LoadFileToArray(ErrorData, *(FPaths::EngineDir() / TEXT("Content/MobileResources/PowerOfTwoError64x64.raw")));
+			check(ErrorData.Num() == 16384);
 
 			// set output
 			OutCompressedImage.SizeX = InImage.SizeX;

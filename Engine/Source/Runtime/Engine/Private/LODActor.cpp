@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LODActorBase.cpp: Static mesh actor base class implementation.
@@ -282,24 +282,24 @@ void ALODActor::PostLoad()
 #if !WITH_EDITOR
 	// Invalid runtime LOD actor with null static mesh is invalid, look for a possible way to patch this up
 	if (GetStaticMeshComponent() && GetStaticMeshComponent()->GetStaticMesh() == nullptr && GetStaticMeshComponent()->GetLODParentPrimitive())
-	{
- 		if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
 		{
-			// Make the parent HLOD
-			ParentLODActor->SubActors.Remove(this);
-			ParentLODActor->SubActors.Append(SubActors);
-			for (AActor* Actor : SubActors)
+ 			if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
 			{
-				if (Actor)
-				{
-					Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
+			// Make the parent HLOD
+					ParentLODActor->SubActors.Remove(this);
+			ParentLODActor->SubActors.Append(SubActors);
+					for (AActor* Actor : SubActors)
+					{
+						if (Actor)
+						{
+							Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
+						}
+					}
+  
+					SubActors.Empty();
+					bHasPatchedUpParent = true;
 				}
 			}
-  
-			SubActors.Empty();
-			bHasPatchedUpParent = true;
-		}
-	}
 #endif // !WITH_EDITOR
 
 	ParseOverrideDistancesCVar();
@@ -365,15 +365,18 @@ void ALODActor::ParseOverrideDistancesCVar()
 {
 	// Parse HLOD override distance cvar into array
 	const FString DistanceOverrideValues = CVarHLODDistanceOverride.GetValueOnAnyThread();
-	TArray<FString> Distances;
-	DistanceOverrideValues.ParseIntoArray(/*out*/ Distances, TEXT(","), /*bCullEmpty=*/ false);
-	HLODDistances.Empty(Distances.Num());
+	const TCHAR* Delimiters[] = { TEXT(","), TEXT(" ") };
 
+	TArray<FString> Distances;
+	DistanceOverrideValues.ParseIntoArray(/*out*/ Distances, Delimiters, UE_ARRAY_COUNT(Delimiters), /*bCullEmpty=*/ false);
+	Distances.RemoveAll([](const FString& String) { return String.IsEmpty(); });
+
+	HLODDistances.Empty(Distances.Num());
 	for (const FString& DistanceString : Distances)
 	{
 		const float DistanceForThisLevel = FCString::Atof(*DistanceString);
 		HLODDistances.Add(DistanceForThisLevel);
-	}	
+	}
 }
 
 float ALODActor::GetLODDrawDistanceWithOverride() const
@@ -653,7 +656,7 @@ void ALODActor::ForceUnbuilt()
 #endif
 }
 
-void ALODActor::PreEditChange(UProperty* PropertyThatWillChange)
+void ALODActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -663,7 +666,7 @@ void ALODActor::PreEditChange(UProperty* PropertyThatWillChange)
 
 void ALODActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	FName PropertyName = PropertyThatChanged != NULL ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ALODActor, bOverrideTransitionScreenSize) || PropertyName == GET_MEMBER_NAME_CHECKED(ALODActor, TransitionScreenSize))
@@ -899,7 +902,7 @@ const bool ALODActor::HasValidSubActors() const
 	UHLODProxy::ExtractStaticMeshComponentsFromLODActor(this, Components);
 
 	UStaticMeshComponent** ValidComponent = Components.FindByPredicate([&](const UStaticMeshComponent* Component)
-	{
+				{
 #if WITH_EDITOR
 		return !Component->bHiddenInGame && Component->GetStaticMesh() != nullptr && Component->ShouldGenerateAutoLOD(LODLevel - 1);
 #else
@@ -1202,7 +1205,7 @@ UStaticMeshComponent* ALODActor::GetOrCreateLODComponentForActor(const AActor* I
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding) const 
+FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox BoundBox = Super::GetComponentsBoundingBox(bNonColliding);
 
@@ -1237,7 +1240,7 @@ FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding) const
 			{
 				if (Actor)
 				{
-					BoundBox += Actor->GetComponentsBoundingBox(bNonColliding);
+					BoundBox += Actor->GetComponentsBoundingBox(bNonColliding, bIncludeFromChildActors);
 				}
 			}
 		}
@@ -1332,10 +1335,12 @@ void ALODActor::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);	
 
+	// Always rebuild key on save here.
+	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook
 	if(!GIsCookerLoadingPackage)
 	{
-		// Always rebuild key on save here. We dont do this while cooking as keys rely on platform derived data which is context-dependent during cook
-		Key = UHLODProxy::GenerateKeyForActor(this);
+		const bool bMustUndoLevelTransform = false; // In the save process, the level transform is already removed
+		Key = UHLODProxy::GenerateKeyForActor(this, bMustUndoLevelTransform);
 	}
 
 	// check & warn if we need building

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "GameFramework/MovementComponent.h"
@@ -84,10 +84,17 @@ void UPhysicsSettings::PostInitProperties()
 	{
 		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
+
+	// Temporarily override dedicated thread to taskgraph. The enum selection for dedicated
+	// thread is hidden until that threading mode is made to work with the world physics system overall
+	if(ChaosSettings.DefaultThreadingModel == EChaosThreadingMode::DedicatedThread)
+	{
+		ChaosSettings.DefaultThreadingModel = EChaosThreadingMode::TaskGraph;
+	}
 }
 
 #if WITH_EDITOR
-bool UPhysicsSettings::CanEditChange(const UProperty* Property) const
+bool UPhysicsSettings::CanEditChange(const FProperty* Property) const
 {
 	bool bIsEditable = Super::CanEditChange(Property);
 	if(bIsEditable && Property != NULL)

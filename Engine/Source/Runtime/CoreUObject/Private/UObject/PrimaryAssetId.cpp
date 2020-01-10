@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/PrimaryAssetId.h"
 #include "UObject/PropertyPortFlags.h"
@@ -27,7 +27,7 @@ bool FPrimaryAssetType::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 {
 	// This handles both quoted and unquoted
 	FString ImportedString = TEXT("");
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedString, 1);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedString, 1);
 
 	if (!NewBuffer)
 	{
@@ -82,7 +82,7 @@ bool FPrimaryAssetId::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObj
 {
 	// This handles both quoted and unquoted
 	FString ImportedString = TEXT("");
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedString, 1);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedString, 1);
 
 	if (!NewBuffer)
 	{

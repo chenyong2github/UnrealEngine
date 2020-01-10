@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -225,9 +225,12 @@ public:
 #if WITH_EDITOR
 	virtual FText GetFilmbackText() const override;
 #endif
+	UPROPERTY()
+	FCameraFilmbackSettings FilmbackSettings_DEPRECATED;
+
 	/** Controls the filmback of the camera. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
-	FCameraFilmbackSettings FilmbackSettings;
+	FCameraFilmbackSettings Filmback;
 
 	/** Controls the camera's lens. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
@@ -386,7 +389,7 @@ private:
 	float GetDesiredFocusDistance(const FVector& InLocation) const;
 	float GetWorldToMetersScale() const;
 	void SetLensPresetByNameInternal(const FString& InPresetName);
-	void SetFilmbackPresetByNameInternal(const FString& InPresetName);
+	void SetFilmbackPresetByNameInternal(const FString& InPresetName, FCameraFilmbackSettings& InOutFilmbackSettings);
 
 #if WITH_EDITORONLY_DATA
 	void CreateDebugFocusPlane();

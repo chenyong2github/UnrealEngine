@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryModeModule.h"
 #include "Modules/ModuleManager.h"
@@ -29,5 +29,3 @@ void FGeometryModeModule::ShutdownModule()
 }
 
 IMPLEMENT_MODULE(FGeometryModeModule, GeometryMode);
-
-#undef LOCTEXT_NAMESPACE

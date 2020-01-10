@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -76,6 +76,16 @@ public:
 	ENGINE_API virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction)
 		PURE_VIRTUAL(UMaterialFunctionInterface::IsDependent,return false;);
 
+	/**
+	 * Iterates all functions that this function is dependent on, directly or indrectly.
+	 *
+	 * @param Predicate a visitor predicate returning true to continue iteration, false to break
+	 *
+	 * @return true if all dependent functions were visited, false if the Predicate did break iteration
+	 */
+	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
+		PURE_VIRTUAL(UMaterialFunctionInterface::IterateDependentFunctions,return false;);
+
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDependentFunctions,);
@@ -133,9 +143,10 @@ public:
 	{
 		if (const UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
+			const UClass* TargetClass = UMaterialExpressionMaterialFunctionCall::StaticClass();
 			for (UMaterialExpression* Expression : *ParameterFunction->GetFunctionExpressions())
 			{
-				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = Cast<const UMaterialExpressionMaterialFunctionCall>(Expression))
+				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = (Expression && Expression->IsA(TargetClass)) ? (const UMaterialExpressionMaterialFunctionCall*)Expression : nullptr)
 				{
 					if (FunctionExpression->MaterialFunction)
 					{
@@ -160,15 +171,14 @@ public:
 
 		if (UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
-			TArray<UMaterialFunctionInterface*> Functions;
-			ParameterFunction->GetDependentFunctions(Functions);
-			Functions.AddUnique(ParameterFunction);
+			const UClass* TargetClass = ExpressionType::StaticClass();
 
-			for (UMaterialFunctionInterface* Function : Functions)
+			auto GetExpressionParameterByNamePredicate = 
+				[&ParameterInfo, &Parameter, &OwningFunction, TargetClass](UMaterialFunctionInterface* Function) -> bool
 			{
 				for (UMaterialExpression* FunctionExpression : *Function->GetFunctionExpressions())
 				{
-					if (ExpressionType* ExpressionParameter = Cast<ExpressionType>(FunctionExpression))
+					if (ExpressionType* ExpressionParameter = (FunctionExpression && FunctionExpression->IsA(TargetClass)) ? (ExpressionType *)FunctionExpression : nullptr)
 					{
 						if (ExpressionParameter->ParameterName == ParameterInfo.Name)
 						{
@@ -179,11 +189,19 @@ public:
 								(*OwningFunction) = Function;
 							}
 
-							return true;
+							return false; // found, stop iterating
 						}
 					}
 				}
+
+				return true; // not found, continue iterating
+			};
+			
+			if (!ParameterFunction->IterateDependentFunctions(GetExpressionParameterByNamePredicate))
+			{
+				return true;
 			}
+			return !GetExpressionParameterByNamePredicate(ParameterFunction);
 		}
 
 		return false;

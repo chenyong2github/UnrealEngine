@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQuery/EnvQuery.h"
 #include "UObject/UnrealType.h"
@@ -44,9 +44,9 @@ namespace FEQSParamsExporter
 
 	void AddNamedValuesFromObject(UObject& QueryOwner, const UEnvQueryNode& QueryNode, TArray<FAIDynamicParam>& NamedValues, TArray<FName>& RequiredParams)
 	{
-		for (UProperty* TestProperty = QueryNode.GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
+		for (FProperty* TestProperty = QueryNode.GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
-			UStructProperty* TestStruct = Cast<UStructProperty>(TestProperty);
+			FStructProperty* TestStruct = CastField<FStructProperty>(TestProperty);
 			if (TestStruct == NULL)
 			{
 				continue;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
@@ -573,6 +573,7 @@ void FMeshDescription::CreatePolygon_Internal(const FPolygonID PolygonID, const 
 		// End backward compatibility
 	}
 
+	check(PolygonGroupID != FPolygonGroupID::Invalid);
 	Polygon.PolygonGroupID = PolygonGroupID;
 	PolygonGroupArray[PolygonGroupID].Polygons.Add(PolygonID);
 

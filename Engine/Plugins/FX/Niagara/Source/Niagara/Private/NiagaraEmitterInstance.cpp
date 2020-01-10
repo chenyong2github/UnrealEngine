@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEmitterInstance.h"
 #include "Engine/Engine.h"
@@ -239,9 +239,20 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	CachedEmitter = EmitterHandle.GetInstance();
 	CachedIDName = EmitterHandle.GetIdName();
 
-	if (CachedEmitter == nullptr || !IsAllowedToExecute())
+	MaxAllocationCount = 0;
+	ReallocationCount = 0;
+	MinOverallocation = -1;
+
+	if (CachedEmitter == nullptr)
 	{
 		//@todo(message manager) Error bubbling here
+		ExecutionState = ENiagaraExecutionState::Disabled;
+		return;
+	}
+
+	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
+	if (!IsAllowedToExecute())
+	{
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
 	}
@@ -255,9 +266,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 
 	CachedEmitterCompiledData = EmitterCompiledData[EmitterIdx];
-	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
-	ReallocationCount = 0;
-	MinOverallocation = -1;
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	CheckForErrors();
@@ -322,7 +330,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		int32 UpdateEventGeneratorIndex = 0;
 		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->UpdateScriptProps.EventGenerators)
 		{
-			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+			FNiagaraDataSet *Set = ParentSystemInstance->CreateEventDataSet(EmitterHandle.GetIdName(), GeneratorProps.ID);
 			Set->Init(&GeneratorProps.DataSetCompiledData);
 
 			UpdateScriptEventDataSets.Add(Set);
@@ -336,7 +344,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		int32 SpawnEventGeneratorIndex = 0;
 		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->SpawnScriptProps.EventGenerators)
 		{
-			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+			FNiagaraDataSet *Set = ParentSystemInstance->CreateEventDataSet(EmitterHandle.GetIdName(), GeneratorProps.ID);
 
 			Set->Init(&GeneratorProps.DataSetCompiledData);
 
@@ -746,28 +754,6 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 	}
 }
 
-void FNiagaraEmitterInstance::PostInitSimulation()
-{
-	if (!IsDisabled())
-	{
-		check(ParentSystemInstance);
-
-		//Go through all our receivers and grab their generator sets so that the source emitters can do any init work they need to do.
-		for (const FNiagaraEventReceiverProperties& Receiver : CachedEmitter->SpawnScriptProps.EventReceivers)
-		{
-			//FNiagaraDataSet* ReceiverSet = ParentSystemInstance->GetDataSet(FNiagaraDataSetID(Receiver.SourceEventGenerator, ENiagaraDataSetType::Event), Receiver.SourceEmitter);
-			const FNiagaraDataSet* ReceiverSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Receiver.SourceEmitter, Receiver.SourceEventGenerator);
-
-		}
-
-		for (const FNiagaraEventReceiverProperties& Receiver : CachedEmitter->UpdateScriptProps.EventReceivers)
-		{
-			//FNiagaraDataSet* ReceiverSet = ParentSystemInstance->GetDataSet(FNiagaraDataSetID(Receiver.SourceEventGenerator, ENiagaraDataSetType::Event), Receiver.SourceEmitter);
-			const FNiagaraDataSet* ReceiverSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Receiver.SourceEmitter, Receiver.SourceEventGenerator);
-		}
-	}
-}
-
 FNiagaraDataSet* FNiagaraEmitterInstance::GetDataSet(FNiagaraDataSetID SetID)
 {
 	FNiagaraDataSet** SetPtr = DataSetMap.Find(SetID);
@@ -854,7 +840,7 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 		Ret += BoundsCalculator->CalculateBounds(NumInstances, bContainsNaN);
 	}
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	if (bContainsNaN && ParentSystemInstance != nullptr && CachedEmitter != nullptr && ParentSystemInstance->GetSystem() != nullptr)
 	{
 		const FString OnScreenMessage = FString::Printf(TEXT("Niagara Particle position data contains NaNs. Likely a divide by zero somewhere in your modules. Emitter \"%s\" in System \"%s\".  Use fx.Niagara.DumpNansOnce to get full log."), *CachedEmitter->GetName(), *ParentSystemInstance->GetSystem()->GetName());
@@ -1047,24 +1033,28 @@ void FNiagaraEmitterInstance::PreTick()
 
 	//Gather events we're going to be reading from / handling this frame.
 	//We must do this in pre-tick so we can gather (and mark in use) all sets from other emitters.
-	EventHandlingInfo.Reset();
-	EventHandlingInfo.SetNum(CachedEmitter->GetEventHandlers().Num());
-	EventSpawnTotal = 0;
-	for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
+	const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
+	if (NumEventHandlers > 0)
 	{
-		const FNiagaraEventScriptProperties &EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
-		FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
-		Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
-		Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
-		Info.SpawnCounts.Reset();
-		Info.TotalSpawnCount = 0;
-		Info.EventData = nullptr;
-		if (FNiagaraDataSet* EventSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Info.SourceEmitterName, EventHandlerProps.SourceEventName))
+		EventHandlingInfo.Reset();
+		EventHandlingInfo.SetNum(NumEventHandlers);
+		EventSpawnTotal = 0;
+		for (int32 i = 0; i < NumEventHandlers; i++)
 		{
-			Info.SetEventData(&EventSet->GetCurrentDataChecked());
-			uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
-			Info.TotalSpawnCount += EventSpawnNum;
-			EventSpawnTotal += EventSpawnNum;
+			const FNiagaraEventScriptProperties &EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+			FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
+			Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
+			Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
+			Info.SpawnCounts.Reset();
+			Info.TotalSpawnCount = 0;
+			Info.EventData = nullptr;
+			if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
+			{
+				Info.SetEventData(&EventSet->GetCurrentDataChecked());
+				uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
+				Info.TotalSpawnCount += EventSpawnNum;
+				EventSpawnTotal += EventSpawnNum;
+			}
 		}
 	}
 
@@ -1197,7 +1187,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		int32 Estimations = CachedEmitter->AddRuntimeAllocation((uint64)this, MaxAllocationCount);
 		if (GbNiagaraShowAllocationWarnings && Estimations >= 5 && ReallocationCount == 3)
 		{
-			FString SystemName = this->GetParentSystemInstance()->GetSystem()->GetName();
+			FString SystemName = System->GetName();
 			FString FullName = SystemName + "::" + this->GetEmitterHandle().GetName().ToString();
 			UE_LOG(LogNiagara, Warning, TEXT("The emitter %s required many memory reallocation due to changing particle counts. Consider setting the emitter's AllocationMode property to 'manual' to improve runtime performance."), *FullName);
 		}

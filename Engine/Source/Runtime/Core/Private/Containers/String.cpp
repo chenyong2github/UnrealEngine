@@ -1,16 +1,18 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Containers/UnrealString.h"
+
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/VarArgs.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/UnrealTemplate.h"
-#include "Containers/UnrealString.h"
-#include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
+#include "Misc/StringView.h"
+#include "Misc/VarArgs.h"
+#include "Templates/UnrealTemplate.h"
 
 /* FString implementation
  *****************************************************************************/
@@ -114,6 +116,44 @@ namespace UE4String_Private
 		}
 		return false;
 	}
+}
+
+FString::FString(const FStringView& Other)
+{
+	if (const FStringView::SizeType OtherLen = Other.Len())
+	{
+		Reserve(OtherLen);
+		Append(Other.GetData(), OtherLen);
+		AppendChar(TEXT('\0'));
+	}
+}
+
+FString& FString::operator=(const FStringView& Other)
+{
+	const TCHAR* const OtherData = Other.GetData();
+	const FStringView::SizeType OtherLen = Other.Len();
+	if (OtherLen == 0)
+	{
+		Data.Empty();
+	}
+	else if (OtherData < Data.GetData() + Data.Num() && Data.GetData() < OtherData + OtherLen)
+	{
+		*this = FString(Other);
+	}
+	else
+	{
+		Data.Empty(OtherLen + 1);
+		Data.AddUninitialized(OtherLen + 1);
+		TCHAR* DataPtr = Data.GetData();
+		CopyAssignItems(DataPtr, OtherData, OtherLen);
+		DataPtr[OtherLen] = TEXT('\0');
+	}
+	return *this;
+}
+
+FString::operator FStringView() const
+{
+	return FStringView(Data.GetData(), Len());
 }
 
 void FString::TrimToNullTerminator()
@@ -444,44 +484,6 @@ void FString::ReplaceCharInlineIgnoreCase(const TCHAR SearchChar, const TCHAR Re
 	ReplaceCharInlineCaseSensitive(SearchChar, ReplacementChar);
 }
 
-FString FString::Trim()
-{
-	int32 Pos = 0;
-	while(Pos < Len())
-	{
-		if( FChar::IsWhitespace( (*this)[Pos] ) )
-		{
-			Pos++;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	*this = Right( Len()-Pos );
-
-	return *this;
-}
-
-FString FString::TrimTrailing( void )
-{
-	int32 Pos = Len() - 1;
-	while( Pos >= 0 )
-	{
-		if( !FChar::IsWhitespace( ( *this )[Pos] ) )
-		{
-			break;
-		}
-
-		Pos--;
-	}
-
-	*this = Left( Pos + 1 );
-
-	return( *this );
-}
-
 void FString::TrimStartAndEndInline()
 {
 	TrimEndInline();
@@ -497,9 +499,8 @@ FString FString::TrimStartAndEnd() const &
 
 FString FString::TrimStartAndEnd() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimStartAndEndInline();
-	return Result;
+	TrimStartAndEndInline();
+	return MoveTemp(*this);
 }
 
 void FString::TrimStartInline()
@@ -521,9 +522,8 @@ FString FString::TrimStart() const &
 
 FString FString::TrimStart() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimStartInline();
-	return Result;
+	TrimStartInline();
+	return MoveTemp(*this);
 }
 
 void FString::TrimEndInline()
@@ -545,12 +545,11 @@ FString FString::TrimEnd() const &
 
 FString FString::TrimEnd() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimEndInline();
-	return Result;
+	TrimEndInline();
+	return MoveTemp(*this);
 }
 
-FString FString::TrimQuotes( bool* bQuotesRemoved ) const
+void FString::TrimQuotesInline(bool* bQuotesRemoved)
 {
 	bool bQuotesWereRemoved=false;
 	int32 Start = 0, Count = Len();
@@ -574,7 +573,20 @@ FString FString::TrimQuotes( bool* bQuotesRemoved ) const
 	{
 		*bQuotesRemoved = bQuotesWereRemoved;
 	}
-	return Mid(Start, Count);
+	MidInline(Start, Count, false);
+}
+
+FString FString::TrimQuotes(bool* bQuotesRemoved) const &
+{
+	FString Result(*this);
+	Result.TrimQuotesInline(bQuotesRemoved);
+	return Result;
+}
+
+FString FString::TrimQuotes(bool* bQuotesRemoved) &&
+{
+	TrimQuotesInline(bQuotesRemoved);
+	return MoveTemp(*this);
 }
 
 int32 FString::CullArray( TArray<FString>* InArray )
@@ -1248,36 +1260,32 @@ FString FString::ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars/*=nullpt
  * Replaces all instances of '\t' with TabWidth number of spaces
  * @param InSpacesPerTab - Number of spaces that a tab represents
  */
-FString FString::ConvertTabsToSpaces (const int32 InSpacesPerTab)
+void FString::ConvertTabsToSpacesInline(const int32 InSpacesPerTab)
 {
 	//must call this with at least 1 space so the modulus operation works
 	check(InSpacesPerTab > 0);
 
-	FString FinalString = *this;
 	int32 TabIndex;
-	while ((TabIndex = FinalString.Find(TEXT("\t"))) != INDEX_NONE )
+	while ((TabIndex = Find(TEXT("\t"), ESearchCase::CaseSensitive)) != INDEX_NONE )
 	{
-		FString LeftSide = FinalString.Left(TabIndex);
-		FString RightSide = FinalString.Mid(TabIndex+1);
+		FString RightSide = Mid(TabIndex+1);
+		LeftInline(TabIndex, false);
 
-		FinalString = LeftSide;
 		//for a tab size of 4, 
-		int32 LineBegin = LeftSide.Find(TEXT("\n"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, TabIndex);
+		int32 LineBegin = Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromEnd, TabIndex);
 		if (LineBegin == INDEX_NONE)
 		{
 			LineBegin = 0;
 		}
-		int32 CharactersOnLine = (LeftSide.Len()-LineBegin);
+		const int32 CharactersOnLine = (Len()-LineBegin);
 
 		int32 NumSpacesForTab = InSpacesPerTab - (CharactersOnLine % InSpacesPerTab);
 		for (int32 i = 0; i < NumSpacesForTab; ++i)
 		{
-			FinalString.AppendChar(' ');
+			AppendChar(' ');
 		}
-		FinalString += RightSide;
+		Append(RightSide);
 	}
-
-	return FinalString;
 }
 
 // This starting size catches 99.97% of printf calls - there are about 700k printf calls per level

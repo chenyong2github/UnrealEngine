@@ -1,5 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "CoreTechTypes.h"
+
+#include "Misc/Paths.h"
 
 #ifdef CAD_INTERFACE
 
@@ -12,10 +14,10 @@ namespace CADLibrary
 	// Note: CTKIO_* functions are not functionally useful.
 	// This wrapping allows a correct profiling of the CT API.
 
-	CT_IO_ERROR CTKIO_InitializeKernel(double Unit)
+	CT_IO_ERROR CTKIO_InitializeKernel(double Unit, const TCHAR* KernelIOPath)
 	{
 		CT_STR appName = CoreTechLicenseKey;
-		return CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit);
+		return CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, KernelIOPath);
 	}
 
 	CT_IO_ERROR CTKIO_ShutdownKernel()
@@ -57,20 +59,6 @@ namespace CADLibrary
 	{
 		return CT_KERNEL_IO::LoadFile(FileName, MainObject, LoadFlags, Lod, StringOption);
 	}
-
-	CT_IO_ERROR CTKIO_CleanBody(CT_OBJECT_ID MainObjectId)
-	{
-		CT_STR format = "Ct";          
-		CT_STR system = "Evolution";
-
-		CT_IO_ERROR result = CT_CONVERT_IO::SetConvertConfiguration(system, format);
-		if (result == IO_OK)
-		{
-			result = CT_CONVERT_IO::Convert(MainObjectId);
-		}
-		return result;
-	}
-
 
 	CT_IO_ERROR CTKIO_SaveFile(CT_LIST_IO& objects_list_to_save, const TCHAR* file_name, const TCHAR* format, const CT_OBJECT_ID coordsystem)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Vector.h"
@@ -100,6 +100,16 @@ namespace Chaos
 
 			OutAxis = DefaultAxis;
 			return false;
+		}
+
+		/**
+		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
+		 * /see ToSwingTwist
+		 */
+		void ToSwingTwistX(FQuat& OutSwing, FQuat& OutTwist) const
+		{
+			OutTwist = (X != 0.0f)? FQuat(X, 0, 0, W).GetNormalized() : FQuat::Identity;
+			OutSwing = *this * OutTwist.Inverse();
 		}
 
 		/**

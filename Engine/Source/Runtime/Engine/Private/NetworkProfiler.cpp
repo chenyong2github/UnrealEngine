@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	NetworkProfiler.cpp: server network profiling support.
@@ -522,7 +522,7 @@ void FNetworkProfiler::TrackReplicateActor( const AActor* Actor, FReplicationFla
  * @param	Property	Property being replicated
  * @param	NumBits		Number of bits used to replicate this property
  */
-void FNetworkProfiler::TrackReplicateProperty( const UProperty* Property, uint16 NumBits, UNetConnection* Connection )
+void FNetworkProfiler::TrackReplicateProperty( const FProperty* Property, uint16 NumBits, UNetConnection* Connection )
 {
 	if(bIsTrackingEnabled && !!!IgnorePropertyCount)
 	{
@@ -539,7 +539,7 @@ void FNetworkProfiler::TrackReplicateProperty( const UProperty* Property, uint16
 	}
 }
 
-void FNetworkProfiler::TrackWritePropertyHeader( const UProperty* Property, uint16 NumBits, UNetConnection* Connection )
+void FNetworkProfiler::TrackWritePropertyHeader( const FProperty* Property, uint16 NumBits, UNetConnection* Connection )
 {
 	if( bIsTrackingEnabled )
 	{

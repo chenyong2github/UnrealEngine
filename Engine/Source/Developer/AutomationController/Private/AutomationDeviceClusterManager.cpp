@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutomationDeviceClusterManager.h"
 #include "IAutomationControllerManager.h"
@@ -104,7 +104,7 @@ FString FAutomationDeviceClusterManager::GetGroupNameForDevice(const FDeviceStat
 	if( OutGroupName.Len() > 0 )
 	{
 		//Get rid of the trailing '-'
-		OutGroupName = OutGroupName.LeftChop(1);
+		OutGroupName.LeftChopInline(1, false);
 	}
 
 	return OutGroupName;

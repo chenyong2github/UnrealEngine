@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SystemTextures.cpp: System textures implementation.
@@ -622,6 +622,8 @@ void FSystemTextures::ReleaseDynamicRHI()
 	DefaultNormal8Bit.SafeRelease();
 	VolumetricBlackDummy.SafeRelease();
 	MidGreyDummy.SafeRelease();
+	StencilDummy.SafeRelease();
+	StencilDummySRV.SafeRelease();
 
 	GRenderTargetPool.FreeUnusedResources();
 

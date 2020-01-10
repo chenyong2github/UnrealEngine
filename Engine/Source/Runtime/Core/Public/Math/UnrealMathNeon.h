@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1651,7 +1651,7 @@ FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, con
 * @param Ptr	Unaligned memory pointer to the 4 int32s
 * @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
 */
-#define VectorIntLoad1( Ptr )	vld1q_dup_s32((int32*)Ptr)
+#define VectorIntLoad1( Ptr )	vld1q_dup_s32((int32*)(Ptr))
 
 // To be continued...
 

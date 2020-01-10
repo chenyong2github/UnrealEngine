@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavigationSystem.h"
 #include "NavigationDataHandler.h"
@@ -82,14 +82,17 @@ DEFINE_STAT(STAT_Navigation_RegisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_UnregisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_AddingActorsToNavOctree);
 DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTiles);
+DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTileLayer);
 DEFINE_STAT(STAT_Navigation_RecastTick);
 DEFINE_STAT(STAT_Navigation_RecastPathfinding);
 DEFINE_STAT(STAT_Navigation_RecastTestPath);
+DEFINE_STAT(STAT_RecastNavMeshGenerator_StoringCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastBuildCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastCreateHeightField);
 DEFINE_STAT(STAT_Navigation_RecastRasterizeTriangles);
 DEFINE_STAT(STAT_Navigation_RecastVoxelFilter);
 DEFINE_STAT(STAT_Navigation_RecastFilter);
+DEFINE_STAT(STAT_Navigation_FilterLedgeSpans);
 DEFINE_STAT(STAT_Navigation_RecastBuildCompactHeightField);
 DEFINE_STAT(STAT_Navigation_RecastErodeWalkable);
 DEFINE_STAT(STAT_Navigation_RecastBuildLayers);
@@ -101,6 +104,7 @@ DEFINE_STAT(STAT_Navigation_RecastCreateNavMeshData);
 DEFINE_STAT(STAT_Navigation_RecastMarkAreas);
 DEFINE_STAT(STAT_Navigation_RecastBuildContours);
 DEFINE_STAT(STAT_Navigation_RecastBuildNavigation);
+DEFINE_STAT(STAT_Navigation_GenerateNavigationDataLayer);
 DEFINE_STAT(STAT_Navigation_RecastBuildRegions);
 DEFINE_STAT(STAT_Navigation_UpdateNavOctree);
 DEFINE_STAT(STAT_Navigation_CollisionTreeMemory);
@@ -2266,8 +2270,8 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 #endif
 
 	// setup properties
-	UStructProperty* StructProp1 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
-	UStructProperty* StructProp2 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
+	FStructProperty* StructProp1 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
+	FStructProperty* StructProp2 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
 	check(StructProp1);
 	check(StructProp2);
 
@@ -2279,7 +2283,7 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 		for (int32 FlagIndex = 0; FlagIndex < MaxFlags; FlagIndex++)
 		{
 			FString PropName = FString::Printf(TEXT("bNavFlag%d"), FlagIndex);
-			UProperty* Prop = FindField<UProperty>(Structs[StructIndex], *PropName);
+			FProperty* Prop = FindField<FProperty>(Structs[StructIndex], *PropName);
 			check(Prop);
 
 			if (UseDesc[FlagIndex].Len())
@@ -2975,6 +2979,17 @@ void UNavigationSystemV1::GatherNavigationBounds()
 
 void UNavigationSystemV1::Build()
 {
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build started..."));
+#if PHYSICS_INTERFACE_PHYSX
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using PHYSICS_INTERFACE_PHYSX."));
+#endif
+#if WITH_PHYSX
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using WITH_PHYSX."));
+#endif
+#if WITH_CHAOS
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using WITH_CHAOS."));
+#endif
+
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -3029,7 +3044,8 @@ void UNavigationSystemV1::Build()
 	DefaultDirtyAreasController.bDirtyAreasReportedWhileAccumulationLocked = false;
 #endif // !UE_BUILD_SHIPPING
 
-	UE_LOG(LogNavigation, Display, TEXT("UNavigationSystemV1::Build total execution time: %.5f"), float(FPlatformTime::Seconds() - BuildStartTime));
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build total execution time: %.2fs"), float(FPlatformTime::Seconds() - BuildStartTime));
+	UE_LOG(LogNavigation, Display, TEXT("UNavigationSystemV1::Build total execution time: %.5fs"), float(FPlatformTime::Seconds() - BuildStartTime));
 }
 
 void UNavigationSystemV1::CancelBuild()
@@ -3270,6 +3286,8 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 				
 		if (NavData && (!bIsLoadTime || NavData->NeedsRebuildOnLoad()) && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
 		{
+			UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building NavData:  %s."), *NavData->GetConfig().GetDescription());
+
 			NavData->RebuildAll();
 		}
 	}
@@ -4224,8 +4242,7 @@ INavigationDataInterface* UNavigationSystemV1::GetNavDataForActor(const AActor& 
 		NavData = NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
 	}
 
-	//  Only RecastNavMesh supported
-	return (INavigationDataInterface*)(Cast<ARecastNavMesh>(NavData));
+	return NavData;
 }
 
 int UNavigationSystemV1::GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds, ULevel* InLevel) const

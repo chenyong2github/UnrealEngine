@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Scene.cpp: Scene manager implementation.
@@ -1623,6 +1623,7 @@ void FScene::AddLight(ULightComponent* Light)
 		ENQUEUE_RENDER_COMMAND(FAddLightCommand)(
 			[Scene, LightSceneInfo](FRHICommandListImmediate& RHICmdList)
 			{
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Scene_AddLight);
 				FScopeCycleCounter Context(LightSceneInfo->Proxy->GetStatId());
 				Scene->AddLightSceneInfo_RenderThread(LightSceneInfo);
 			});

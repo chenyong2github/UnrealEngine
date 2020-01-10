@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AudioEffect.cpp: Unreal base audio.
@@ -250,7 +250,7 @@ FAudioEffectsManager::FAudioEffectsManager( FAudioDevice* InDevice )
 	, CurrentEQMix(nullptr)
 	, bReverbActive(false)
 	, bEQActive(false)
-	, bReverbChanged(true) // Setting to true to catch the first default reverb setting
+	, bReverbChanged(true) // Initially true to update from default reverb setting
 	, bEQChanged(false)
 	, bUseLegacyReverb(false)
 {

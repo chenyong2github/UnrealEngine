@@ -110,23 +110,6 @@ FSteamVRInputDevice::FSteamVRInputDevice(const TSharedRef<FGenericApplicationMes
 
 #if WITH_EDITOR
 	GenerateActionManifest();
-
-	if (VRSettings() != nullptr)
-	{
-		EVRInitError SteamVRInitError = VRInitError_Driver_NotLoaded;
-		IVRSystem* SteamVRSystem = vr::VR_Init(&SteamVRInitError, vr::VRApplication_Overlay);
-
-		if (SteamVRInitError == VRInitError_None)
-		{
-			EVRSettingsError BindingFlagError = VRSettingsError_None;
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
-			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
-			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-
-			VR_Shutdown();
-		}
-	}
 #endif
 
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
@@ -140,7 +123,6 @@ FSteamVRInputDevice::~FSteamVRInputDevice()
 void FSteamVRInputDevice::InitSteamVRSystem()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("Attempting to load Steam VR System..."));
-
 	if (!VRSystem())
 	{
 		// Initialize OpenVR
@@ -1186,13 +1168,13 @@ void FSteamVRInputDevice::InitControllerKeys()
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Y_Touch, LOCTEXT("Cosmos_Left_Y_Touch", "Cosmos (L) Y Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Menu_Click, LOCTEXT("Cosmos_Left_Menu_Click", "Cosmos (L) Menu"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Grip_Click, LOCTEXT("Cosmos_Left_Grip_Click", "Cosmos (L) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Grip_Axis, LOCTEXT("Cosmos_Left_Grip_Axis", "Cosmos (L) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Grip_Axis, LOCTEXT("Cosmos_Left_Grip_Axis", "Cosmos (L) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Trigger_Click, LOCTEXT("Cosmos_Left_Trigger_Click", "Cosmos (L) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Trigger_Axis, LOCTEXT("Cosmos_Left_Trigger_Axis", "Cosmos (L) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Trigger_Axis, LOCTEXT("Cosmos_Left_Trigger_Axis", "Cosmos (L) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Trigger_Touch, LOCTEXT("Cosmos_Left_Trigger_Touch", "Cosmos (L) Trigger Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Vector, LOCTEXT("Cosmos_Left_Thumbstick_Vector", "Cosmos (L) Thumbstick Vector"), FKeyDetails::GamepadKey | FKeyDetails::VectorAxis, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_X, LOCTEXT("Cosmos_Left_Thumbstick_X", "Cosmos (L) Thumbstick X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Y, LOCTEXT("Cosmos_Left_Thumbstick_Y", "Cosmos (L) Thumbstick Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Vector, LOCTEXT("Cosmos_Left_Thumbstick_Vector", "Cosmos (L) Thumbstick Vector"), FKeyDetails::GamepadKey | FKeyDetails::VectorAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_X, LOCTEXT("Cosmos_Left_Thumbstick_X", "Cosmos (L) Thumbstick X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Y, LOCTEXT("Cosmos_Left_Thumbstick_Y", "Cosmos (L) Thumbstick Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Click, LOCTEXT("Cosmos_Left_Thumbstick_Click", "Cosmos (L) Thumbstick"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Bumper_Click, LOCTEXT("Cosmos_Left_Bumper_Click", "Cosmos (L) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Left_Thumbstick_Touch, LOCTEXT("Cosmos_Left_Thumbstick_Touch", "Cosmos (L) Thumbstick Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
@@ -1202,13 +1184,13 @@ void FSteamVRInputDevice::InitControllerKeys()
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_B_Touch, LOCTEXT("Cosmos_Right_B_Touch", "Cosmos (R) B Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_System_Click, LOCTEXT("Cosmos_Right_System_Click", "Cosmos (R) System"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Grip_Click, LOCTEXT("Cosmos_Right_Grip_Click", "Cosmos (R) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Grip_Axis, LOCTEXT("Cosmos_Right_Grip_Axis", "Cosmos (R) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Grip_Axis, LOCTEXT("Cosmos_Right_Grip_Axis", "Cosmos (R) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Trigger_Click, LOCTEXT("Cosmos_Right_Trigger_Click", "Cosmos (R) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Trigger_Axis, LOCTEXT("Cosmos_Right_Trigger_Axis", "Cosmos (R) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Trigger_Axis, LOCTEXT("Cosmos_Right_Trigger_Axis", "Cosmos (R) Trigger Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Trigger_Touch, LOCTEXT("Cosmos_Right_Trigger_Touch", "Cosmos (R) Trigger Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Vector, LOCTEXT("Cosmos_Right_Thumbstick_Vector", "Cosmos (R) Thumbstick Vector"), FKeyDetails::GamepadKey | FKeyDetails::VectorAxis, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_X, LOCTEXT("Cosmos_Right_Thumbstick_X", "Cosmos (R) Thumbstick X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
-	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Y, LOCTEXT("Cosmos_Right_Thumbstick_Y", "Cosmos (R) Thumbstick Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Vector, LOCTEXT("Cosmos_Right_Thumbstick_Vector", "Cosmos (R) Thumbstick Vector"), FKeyDetails::GamepadKey | FKeyDetails::VectorAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_X, LOCTEXT("Cosmos_Right_Thumbstick_X", "Cosmos (R) Thumbstick X"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
+	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Y, LOCTEXT("Cosmos_Right_Thumbstick_Y", "Cosmos (R) Thumbstick Y"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Click, LOCTEXT("Cosmos_Right_Thumbstick_Click", "Cosmos (R) Thumbstick"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Thumbstick_Touch, LOCTEXT("Cosmos_Right_Thumbstick_Touch", "Cosmos (R) Thumbstick Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
 	EKeys::AddKey(FKeyDetails(CosmosKeys::Cosmos_Right_Bumper_Click, LOCTEXT("Cosmos_Right_Bumper_Click", "Cosmos (R) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Cosmos"));
@@ -1238,6 +1220,86 @@ void FSteamVRInputDevice::RegenerateControllerBindings()
 
 void FSteamVRInputDevice::OnActionMappingsChanged()
 {
+	this->GenerateActionManifest(true, true, true, true);
+}
+
+void FSteamVRInputDevice::OnVREditingModeEnter()
+{
+	// Set Input Settings
+	auto InputSettings = GetMutableDefault<UInputSettings>();
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerL", EKeys::MotionController_Left_Trigger), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerR", EKeys::MotionController_Right_Trigger), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
+	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
+
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
+
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
+	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+
+	InputSettings->ForceRebuildKeymaps();
+
+	this->GenerateActionManifest(true, true, true, true);
+}
+
+void FSteamVRInputDevice::OnVREditingModeExit()
+{
+	// Set Input Settings
+	auto InputSettings = GetMutableDefault<UInputSettings>();
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
+	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
+
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
+
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
+	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+
+	InputSettings->ForceRebuildKeymaps();
+
 	this->GenerateActionManifest(true, true, true, true);
 }
 
@@ -1673,8 +1735,15 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				else
 				{
 					// Set cap sense input state
-					InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("CapSense"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
-						CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+					if (CurrentInputKeyName.Contains(TEXT("ValveIndex")) && InputState.bIsTrackpad)
+					{
+						InputState.bIsCapSense = true;					
+					}
+					else
+					{
+						InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("CapSense"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
+							CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+					}
 				}
 
 				// Check for DPad Keys
@@ -1733,14 +1802,20 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 					InputState.bIsGripGrab = false;
 				}
 
+				// Handle Vive controllers not having a thumbstick
+				if (InputState.bIsThumbstick && Controller.Description.Contains(TEXT("Vive")))
+				{
+					InputState.bIsTrackpad = true;
+					InputState.bIsThumbstick = false;
+				}
+
 				// Set Cache Mode
 				CacheMode = InputState.bIsTrigger || InputState.bIsGrip ? FName(TEXT("trigger")) : FName(TEXT("button"));
 				CacheMode = InputState.bIsPress ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsTrackpad ? FName(TEXT("trackpad")) : CacheMode;
-				CacheMode = InputState.bIsJoystick ? FName(TEXT("joystick")) : CacheMode;
-				CacheMode = (InputState.bIsTrackpad || InputState.bIsJoystick) && !InputState.bIsAxis ? FName(TEXT("button")) : CacheMode;
+				CacheMode = InputState.bIsThumbstick ? FName(TEXT("joystick")) : CacheMode;
+				//CacheMode = (InputState.bIsTrackpad || InputState.bIsThumbstick) && !InputState.bIsAxis ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsGrip ? FName(TEXT("button")) : CacheMode;
-				//CacheMode = InputState.bIsThumbstick ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsPinchGrab || InputState.bIsGripGrab ? FName(TEXT("grab")) : CacheMode;
 
 				// Set Cache Path
@@ -1760,9 +1835,17 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				{
 					CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_TRACKPAD_LEFT)) : FString(TEXT(ACTION_PATH_TRACKPAD_RIGHT));
 				}
-				else if (InputState.bIsJoystick)
+				else if (InputState.bIsThumbstick)
 				{
-					CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_JOYSTICK_LEFT)) : FString(TEXT(ACTION_PATH_JOYSTICK_RIGHT));
+					// Thumbstick vs Joystick (to conform with new UE naming scheme)
+					if (CurrentInputKeyName.Contains(TEXT("ValveIndex")))
+					{
+						CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_THUMBSTICK_LEFT)) : FString(TEXT(ACTION_PATH_THUMBSTICK_RIGHT));
+					}
+					else
+					{
+						CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_JOYSTICK_LEFT)) : FString(TEXT(ACTION_PATH_JOYSTICK_RIGHT));
+					}
 				}
 				else if (InputState.bIsGrip)
 				{
@@ -2009,7 +2092,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 						FString CurrentInputKeyName = SteamVRAxisKeyMapping.InputAxisKeyMapping.Key.ToString();
 						InputState.bIsTrigger = CurrentInputKeyName.Contains(TEXT("Trigger"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 						InputState.bIsBumper = CurrentInputKeyName.Contains(TEXT("Bumper"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-						InputState.bIsThumbstick = InputState.bIsJoystick = CurrentInputKeyName.Contains(TEXT("Thumbstick"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+						InputState.bIsThumbstick = CurrentInputKeyName.Contains(TEXT("Thumbstick"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 						InputState.bIsTrackpad = CurrentInputKeyName.Contains(TEXT("Trackpad"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 						InputState.bIsGrip = CurrentInputKeyName.Contains(TEXT("Grip"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 						InputState.bIsLeft = CurrentInputKeyName.Contains(TEXT("_Left_"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
@@ -2018,24 +2101,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 						InputState.bIsFaceButton2 = CurrentInputKeyName.Contains(TEXT("FaceButton2"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
 							CurrentInputKeyName.Contains(TEXT("_B_"));
 	
-						// Thumbstick vs Joystick (to conform with new UE naming scheme
-						if (CurrentInputKeyName.Contains(TEXT("ValveIndex")))
-						{
-							if (InputState.bIsThumbstick)
-							{
-								InputState.bIsThumbstick = true;
-								InputState.bIsJoystick = false;
-							}
-						}
-						else
-						{
-							if (InputState.bIsThumbstick)
-							{
-								InputState.bIsThumbstick = false;
-								InputState.bIsJoystick = true;
-							}
-						}
-
 						// Handle Oculus Touch
 						InputState.bIsXButton = InputState.bIsYButton = false;
 						if (CurrentInputKeyName.Contains(TEXT("OculusTouch")))
@@ -2082,11 +2147,17 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 							InputState.bIsPinchGrab = false;
 							InputState.bIsGripGrab = false;
 						}
+
+						// Handle Vive controllers not having a thumbstick
+						if (InputState.bIsThumbstick && Controller.Description.Contains(TEXT("Vive")))
+						{
+							InputState.bIsTrackpad = true;
+							InputState.bIsThumbstick = false;
+						}
 	
 						// Set Cache Mode
 						CacheMode = InputState.bIsTrigger || InputState.bIsGrip ? FName(TEXT("trigger")) : FName(TEXT("button"));
 						CacheMode = InputState.bIsTrackpad ? FName(TEXT("trackpad")) : CacheMode;
-						CacheMode = InputState.bIsJoystick ? FName(TEXT("joystick")) : CacheMode;
 						CacheMode = InputState.bIsGrip ? FName(TEXT("force_sensor")) : CacheMode;
 						CacheMode = InputState.bIsThumbstick ? FName(TEXT("joystick")) : CacheMode;
 						CacheMode = InputState.bIsPinchGrab || InputState.bIsGripGrab ? FName(TEXT("grab")) : CacheMode;
@@ -2109,15 +2180,19 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 						}
 						else if (InputState.bIsThumbstick)
 						{
-							CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_THUMBSTICK_LEFT)) : FString(TEXT(ACTION_PATH_THUMBSTICK_RIGHT));
+							// Thumbstick vs Joystick (to conform with new UE naming scheme)
+							if (CurrentInputKeyName.Contains(TEXT("ValveIndex")))
+							{
+								CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_THUMBSTICK_LEFT)) : FString(TEXT(ACTION_PATH_THUMBSTICK_RIGHT));
+							}
+							else
+							{
+								CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_JOYSTICK_LEFT)) : FString(TEXT(ACTION_PATH_JOYSTICK_RIGHT));
+							}
 						}
 						else if (InputState.bIsTrackpad)
 						{
 							CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_TRACKPAD_LEFT)) : FString(TEXT(ACTION_PATH_TRACKPAD_RIGHT));
-						}
-						else if (InputState.bIsJoystick)
-						{
-							CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_JOYSTICK_LEFT)) : FString(TEXT(ACTION_PATH_JOYSTICK_RIGHT));
 						}
 						else if (InputState.bIsGrip)
 						{
@@ -2656,7 +2731,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 						YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format(LOCTEXT("BindingFileAlreadyExists", "Your binding file ({0}) was last edited by {1} do you want to overwrite the changes? You will lose any changes you made outside of the editor!"), FText::FromString(BindingFile), FText::FromString(LastEdited)));
 					}
 
-					if (YesNoToAll == EAppReturnType::No || YesNoToAll == EAppReturnType::NoAll)
+					if (YesNoToAll != EAppReturnType::Yes && YesNoToAll != EAppReturnType::YesAll)
 					{
 						// Prevent this binding from being regenerated
 						bIsGenerated = true;
@@ -2684,6 +2759,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 				if (DefaultControllerType.Name == FName(*ControllerType))
 				{
 					DefaultControllerType.bIsGenerated = bIsGenerated;
+					break;
 				}
 			}
 		}
@@ -2748,9 +2824,11 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 		RegisterApplication(ManifestPath);
 	}
 
-	// Update action events
+	TMultiMap<FName, FName> KeyToActionsMap;
 	ActionEvents.Empty();
 	bool bAlreadyExists = false;
+
+	// Fill-in unique Action Events that will be processed per tick
 	for (FSteamVRInputAction& InputAction : Actions)
 	{
 		// Check if we've already got a similar action event as we won't need the flat action list for processing controller events
@@ -2764,10 +2842,51 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 			}
 		}
 
+		// Add unique action handles to action events
 		if (!bAlreadyExists && InputAction.Handle != k_ulInvalidActionHandle)
 		{
 			ActionEvents.Add(FSteamVRInputAction(InputAction));
 		}
+
+		// Add key and action mapping
+		if (InputAction.KeyX != NAME_None)
+		{
+			KeyToActionsMap.AddUnique(InputAction.KeyX, InputAction.Name);
+		}
+	}
+
+	
+	// Find keys that trigger multiple actions
+	TArray<FName> ActionKeys;
+	KeyToActionsMap.GetKeys(ActionKeys);
+	for (auto Key : ActionKeys)
+	{
+		TArray<FName> MappedActions;
+		KeyToActionsMap.MultiFind(Key, MappedActions);
+		if (MappedActions.Num() > 1)
+		{
+			// Remove key-value pairing for keys that trigger multiple actions in map
+			KeyToActionsMap.Remove(Key);
+		}
+	}
+
+	// Finalize keys that will be used to trigger actions per tick
+	KeyToActionsMap.Shrink();
+	for (FSteamVRInputAction& ActionEvent : ActionEvents)
+	{
+		// Skip actions with no key mapping (poses, haptics, etc)
+		if (ActionEvent.KeyX != NAME_None)
+		{
+			// Check if this action is in the KeyToActionsMap map
+			const FName* PriorityKey = KeyToActionsMap.FindKey(ActionEvent.Name);
+			if (PriorityKey != nullptr)
+			{
+				// Set the key in the KeyToActionsMap as the default key that will be used to trigger actions
+				ActionEvent.KeyX = *PriorityKey;
+			}
+		}
+
+		//UE_LOG(LogSteamVRInputDevice, Warning, TEXT("Action [%s] mapped to key [%s]"), *ActionEvent.Name.ToString(), *ActionEvent.KeyX.ToString());
 	}
 }
 
@@ -3533,21 +3652,29 @@ void FSteamVRInputDevice::ProcessActionEvents(FSteamVRInputActionSet SteamVRInpu
 				// Update the active origin
 				Action.ActiveOrigin = AnalogData.activeOrigin;
 
-				if (Action.KeyX != NAME_None)
+				if (Action.KeyX != NAME_None && (AnalogData.deltaX > KINDA_SMALL_NUMBER || Action.Name.IsEqual(FName(CONTROLLER_BINDING_PATH))))
 				{
 					// Test what we're receiving from SteamVR
-					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyX %s X-Value [%f]"), *Action.Path, *FoundKeyX.GetFName().ToString(), AnalogData.x);
+					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyX %s X-Value [%f]"), *Action.Path, *Action.KeyX.ToString(), AnalogData.x);
 
 					Action.Value.X = AnalogData.x; // ActionCount;
 					MessageHandler->OnControllerAnalog(Action.KeyX, 0, Action.Value.X);
 				}
 
-				if (Action.KeyY != NAME_None)
+				if (Action.KeyY != NAME_None && (AnalogData.deltaY > KINDA_SMALL_NUMBER))
 				{
 					// Test what we're receiving from SteamVR
-					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyY %s Y-Value {%f}"), *Action.Path, *FoundKeyY.GetFName().ToString(), AnalogData.y);
-
-					Action.Value.Y = AnalogData.y;
+					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyY %s Y-Value {%f}"), *Action.Path, *Action.KeyY.ToString(), AnalogData.y);
+					
+					FString KeyString = Action.KeyY.ToString();
+					if (KeyString.Contains(TEXT("MotionController")) && KeyString.Contains(TEXT("_Y")))
+					{
+						Action.Value.Y = -AnalogData.y;
+					}
+					else
+					{
+						Action.Value.Y = AnalogData.y;
+					}
 					MessageHandler->OnControllerAnalog(Action.KeyY, 0, Action.Value.Y);
 				}
 			}

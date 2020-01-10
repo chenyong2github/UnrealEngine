@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Docking/TabManager.h"
 #include "Dom/JsonValue.h"
@@ -18,6 +18,7 @@
 #include "Framework/Docking/SDockingTabStack.h"
 #include "Framework/Docking/SDockingTabWell.h"
 #include "Framework/Docking/LayoutExtender.h"
+#include "Misc/BlacklistNames.h"
 #include "HAL/PlatformApplicationMisc.h"
 #if PLATFORM_MAC
 #include "../MultiBox/Mac/MacMenu.h"
@@ -1021,7 +1022,10 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		const TSharedRef<FTabSpawnerEntry>& SpawnerEntry = SpawnerIterator.Value();
 		if ( SpawnerEntry->bAutoGenerateMenuEntry )
 		{
-			AllSpawners->AddUnique(SpawnerEntry);
+			if (SpawnerEntry->TabType == NAME_None || TabBlacklist->PassesFilter(SpawnerEntry->TabType))
+			{
+				AllSpawners->AddUnique(SpawnerEntry);
+			}
 		}
 	}
 
@@ -1031,7 +1035,10 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		const TSharedRef<FTabSpawnerEntry>& SpawnerEntry = SpawnerIterator.Value();
 		if ( SpawnerEntry->bAutoGenerateMenuEntry )
 		{
-			AllSpawners->AddUnique(SpawnerEntry);
+			if (SpawnerEntry->TabType == NAME_None || TabBlacklist->PassesFilter(SpawnerEntry->TabType))
+			{
+				AllSpawners->AddUnique(SpawnerEntry);
+			}
 		}
 	}
 
@@ -1329,6 +1336,7 @@ FTabManager::FTabManager( const TSharedPtr<SDockTab>& InOwnerTab, const TSharedR
 , LastDocumentUID( 0 )
 , bIsSavingVisualState( false )
 , bCanDoDragOperation( true )
+, TabBlacklist( MakeShareable(new FBlacklistNames()) )
 {
 	LocalWorkspaceMenuRoot = FWorkspaceItem::NewGroup(LOCTEXT("LocalWorkspaceRoot", "Local Workspace Root"));
 }
@@ -1616,6 +1624,11 @@ bool FTabManager::HasTabSpawner(FName TabId) const
 	}
 
 	return Spawner != nullptr;
+}
+
+TSharedRef<FBlacklistNames>& FTabManager::GetTabBlacklist()
+{
+	return TabBlacklist;
 }
 
 bool FTabManager::IsValidTabForSpawning( const FTab& SomeTab ) const

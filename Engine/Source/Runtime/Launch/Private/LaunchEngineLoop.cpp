@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LaunchEngineLoop.h"
 
@@ -59,6 +59,7 @@
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
+#include "IO/IoDispatcher.h"
 #endif
 
 #if WITH_COREUOBJECT
@@ -569,7 +570,7 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			int32 FirstCharToRemove = INDEX_NONE;
 			if (LocalGameName.FindChar(TCHAR('-'), FirstCharToRemove))
 			{
-				LocalGameName = LocalGameName.Left(FirstCharToRemove);
+				LocalGameName.LeftInline(FirstCharToRemove, false);
 			}
 			FApp::SetProjectName(*LocalGameName);
 
@@ -647,7 +648,7 @@ void LaunchFixGameNameCase()
 	// correct the case of the game name, if possible (unless we're running a program and the game name is already set)
 	if (FPaths::IsProjectFilePathSet())
 	{
-		const FString GameName(FPaths::GetBaseFilename(IFileManager::Get().GetFilenameOnDisk(*FPaths::GetProjectFilePath())));
+		const FString GameName(FPaths::GetBaseFilename(FPaths::GetProjectFilePath()));
 
 		const bool bGameNameMatchesProjectCaseSensitive = (FCString::Strcmp(*GameName, FApp::GetProjectName()) == 0);
 		if (!bGameNameMatchesProjectCaseSensitive && (FApp::IsProjectNameEmpty() || GIsGameAgnosticExe || (GameName.Len() > 0 && GIsGameAgnosticExe)))
@@ -870,6 +871,119 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 	return true;
 }
 
+#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
+/**
+ * Process command line aliases
+ *
+ */
+void LaunchCheckForCommandLineAliases(bool& bChanged)
+{
+	bChanged = false;
+	if (FPaths::IsProjectFilePathSet())
+	{
+		FConfigFile Config;
+		if (FConfigCacheIni::LoadExternalIniFile(Config, TEXT("CommandLineAliases"), nullptr, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config")), false))
+		{
+			if (FConfigSection* Section = Config.Find(TEXT("CommandLineAliases")))
+			{
+				TArray<FString> Tokens;
+				{
+					const TCHAR* Stream = FCommandLine::Get();
+					FString NextToken;
+					while (FParse::Token(Stream, NextToken, false))
+					{
+						Tokens.Add(NextToken);
+					}
+				}
+
+				for (FConfigSection::TIterator It(*Section); It; ++It)
+				{
+					FString Key = FString(TEXT("-")) + It.Key().ToString();
+					for (FString& Token : Tokens)
+					{
+						if (Token == Key)
+						{
+							Token = It.Value().GetValue();
+							bChanged = true;
+						}
+					}
+				}
+
+				if (bChanged)
+				{
+					FString NewCommandLine = FString::Join(Tokens, TEXT(" "));
+					FCommandLine::Set(*NewCommandLine);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Look for command line file
+ *
+ */
+void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
+{
+	bChanged = false;
+
+	FString CmdLineFile;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-CmdLineFile="), CmdLineFile))
+	{
+		if (CmdLineFile.EndsWith(TEXT(".txt")))
+		{
+			auto TryProcessFile = [&bChanged](const FString& InFilePath)
+			{
+				FString FileCmds;
+				if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
+				{
+					FileCmds = FString(TEXT(" ")) + FileCmds.TrimStartAndEnd();
+					if (FileCmds.Len() > 1)
+					{
+						UE_LOG(LogInit, Log, TEXT("Appending commandline from file: %s, %s"), *InFilePath, *FileCmds);
+						FCommandLine::Append(*FileCmds);
+						bChanged = true;
+					}
+
+					return true;
+				}
+
+				return false;
+			};
+
+			bool bFoundFile = TryProcessFile(CmdLineFile);
+			if (!bFoundFile && FPaths::IsProjectFilePathSet())
+			{
+				const FString ProjectDir = FPaths::ProjectDir();
+				bFoundFile = TryProcessFile(ProjectDir + CmdLineFile);
+				if (!bFoundFile)
+				{
+					const FString ProjectPluginsDir = ProjectDir + TEXT("Plugins/");
+					TArray<FString> DirectoryNames;
+					IFileManager::Get().IterateDirectory(*ProjectPluginsDir, [&](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+					{
+						if (bIsDirectory && TryProcessFile(FString(FilenameOrDirectory) + TEXT("/") + CmdLineFile))
+						{
+							bFoundFile = true;
+							return false;
+						}
+						return true;
+					});
+				}
+			}
+
+			if (!bFoundFile)
+			{
+				UE_LOG(LogInit, Warning, TEXT("Failed to load commandline file '%s'."), *CmdLineFile);
+			}
+		}
+		else
+		{
+			UE_LOG(LogInit, Warning, TEXT("Can only load commandline files ending with .txt, can't load: %s"), *CmdLineFile);
+		}
+	}
+}
+#endif
 
 bool LaunchHasIncompleteGameName()
 {
@@ -1123,6 +1237,10 @@ static void UpdateCoreCsvStats_EndFrame()
 	}
 	FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 	float PhysicalMBFree = float(MemoryStats.AvailablePhysical / 1024) / 1024.0f;
+#if !UE_BUILD_SHIPPING
+	// Subtract any extra development memory from physical free. This can result in negative values in cases where we would have crashed OOM
+	PhysicalMBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
+#endif
 	CSV_CUSTOM_STAT_GLOBAL(MemoryFreeMB, PhysicalMBFree, ECsvCustomStatOp::Set);
 }
 #endif // WITH_ENGINE && CSV_PROFILER
@@ -1177,6 +1295,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
+	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
+#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
+	FApp::SetDebugGame(true);
+#endif
+
 	// Trace out information about this session
 	{
 		uint8 Payload[1024];
@@ -1229,11 +1352,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	FMemory::SetupTLSCachesOnCurrentThread();
 
-	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
-#if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
-	FApp::SetDebugGame(true);
-#endif
-
 	// disable/enable LLM based on commandline
 	{
 		SCOPED_BOOT_TIMING("LLM Init");
@@ -1274,7 +1392,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::WriteTo(*Parameter);
 		}
 
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
 		else
 		{
 			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
@@ -1420,6 +1538,27 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 	}
 
+	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
+#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
+	{
+		SCOPED_BOOT_TIMING("Command Line Adjustments");
+
+		bool bChanged = false;
+		LaunchCheckForCommandLineAliases(bChanged);
+		if (bChanged)
+		{
+			CmdLine = FCommandLine::Get();
+		}
+
+		bChanged = false;
+		LaunchCheckForCmdLineFile(CmdLine, bChanged);
+		if (bChanged)
+		{
+			CmdLine = FCommandLine::Get();
+		}
+	}
+#endif
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
@@ -1430,6 +1569,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			return 1;
 		}
 	}
+
+	// 
+#if PLATFORM_DESKTOP && !IS_MONOLITHIC
+	FModuleManager::Get().AddExtraBinarySearchPaths();
+#endif
 
 	// Initialize file manager
 	{
@@ -1588,7 +1732,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{
 					Token += TEXT("Commandlet");
@@ -1647,7 +1791,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 		if (Token.StartsWith(TEXT("run=")))
 		{
-			Token = Token.RightChop(4);
+			Token.RightChopInline(4, false);
 			if (!Token.EndsWith(TEXT("Commandlet")))
 			{
 				Token += TEXT("Commandlet");
@@ -1730,6 +1874,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 #if !IS_PROGRAM
+	// Fix the project file path case before we attempt to fix the game name
+	if (FPaths::IsProjectFilePathSet())
+	{
+		FPaths::SetProjectFilePath(IFileManager::Get().GetFilenameOnDisk(*FPaths::GetProjectFilePath()));
+	}
+
 	if (FApp::HasProjectName())
 	{
 		// Tell the module manager what the game binaries folder is
@@ -2062,7 +2212,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		{
 			if (Token.StartsWith(TEXT("run=")))
 			{
-				Token = Token.RightChop(4);
+				Token.RightChopInline(4, false);
 				bDefinitelyCommandlet = true;
 				if (!Token.EndsWith(TEXT("Commandlet")))
 				{
@@ -2118,6 +2268,23 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 		InitializeStdOutDevice();
 	}
+
+	bool bIsCook = bHasCommandletToken && (Token == TEXT("cookcommandlet"));
+#if WITH_EDITOR
+	{
+		if (bIsCook)
+		{
+			// Target platform manager can only be initialized successfully after 
+			ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager(false);
+			FString InitErrors;
+			if (TargetPlatformManager && TargetPlatformManager->HasInitErrors(&InitErrors))
+			{
+				RequestEngineExit(InitErrors);
+				return 1;
+			}
+		}
+	}
+#endif
 
 	{
 		SCOPED_BOOT_TIMING("IPlatformFeaturesModule::Get()");
@@ -2304,8 +2471,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 
-	FString Commandline = FCommandLine::Get();
-	bool bEnableShaderCompile = !FParse::Param(*Commandline, TEXT("NoShaderCompile"));
+	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
 	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
@@ -2343,8 +2509,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
 		if (bEnableShaderCompile &&
 			!IsRunningDedicatedServer() &&
-			Commandline.Contains(TEXT("cookcommandlet")) == false &&
-			Commandline.Contains(TEXT("run=cook")) == false)
+			!bIsCook)
 			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
@@ -3923,6 +4088,8 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
 
+	IStreamingManager::Shutdown();
+
 	// Tear down the RHI.
 	RHIExitAndStopRHIThread();
 
@@ -3934,7 +4101,6 @@ void FEngineLoop::Exit()
 #endif
 
 	FTaskGraphInterface::Shutdown();
-	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
 
@@ -3967,13 +4133,16 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 						APlayerController* PlayerController = Iterator->Get();
 						if (PlayerController)
 						{
-							ULocalPlayer* LocalPlayer = Cast< ULocalPlayer >(PlayerController->Player);
-							if (LocalPlayer)
+							if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player))
 							{
-								FReply& TheReply = LocalPlayer->GetSlateOperations();
-								SlateApp.ProcessExternalReply(PathToWidget, TheReply, LocalPlayer->GetControllerId());
+								TOptional<int32> UserIndex = SlateApp.GetUserIndexForController(LocalPlayer->GetControllerId());
+								if (UserIndex.IsSet())
+								{
+									FReply& TheReply = LocalPlayer->GetSlateOperations();
+									SlateApp.ProcessExternalReply(PathToWidget, TheReply, UserIndex.GetValue());
 
-								TheReply = FReply::Unhandled();
+									TheReply = FReply::Unhandled();
+								}
 							}
 						}
 					}
@@ -4929,37 +5098,6 @@ bool FEngineLoop::AppInit( )
 
 	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
 #if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
-	FString CmdLineFile;
-
-	if (FParse::Value(FCommandLine::Get(), TEXT("-CmdLineFile="), CmdLineFile))
-	{
-		if (CmdLineFile.EndsWith(TEXT(".txt")))
-		{
-			FString FileCmds;
-
-			if (FFileHelper::LoadFileToString(FileCmds, *CmdLineFile))
-			{
-				FileCmds = FString(TEXT(" ")) + FileCmds.TrimStartAndEnd();
-
-				if (FileCmds.Len() > 1)
-				{
-					UE_LOG(LogInit, Log, TEXT("Appending commandline from file:%s"), *FileCmds);
-
-					FCommandLine::Append(*FileCmds);
-				}
-			}
-			else
-			{
-				UE_LOG(LogInit, Warning, TEXT("Failed to load commandline file '%s'."), *CmdLineFile);
-			}
-		}
-		else
-		{
-			UE_LOG(LogInit, Warning, TEXT("Can only load commandline files ending with .txt, can't load: %s"), *CmdLineFile);
-		}
-	}
-
-
 	// Retrieve additional command line arguments from environment variable.
 	FString Env = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-CmdLineArgs")).TrimStart();
 	if (Env.Len())
@@ -5089,7 +5227,7 @@ bool FEngineLoop::AppInit( )
 		// Find the editor target
 		FString EditorTargetFileName;
 		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
-	{
+		{
 			if (Target.Type == EBuildTargetType::Editor)
 			{
 				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
@@ -5345,6 +5483,22 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(18);
 
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
+
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
@@ -5422,6 +5576,10 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
+
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

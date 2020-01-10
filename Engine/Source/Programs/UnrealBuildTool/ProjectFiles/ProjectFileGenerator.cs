@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -310,6 +310,13 @@ namespace UnrealBuildTool
 		string[] PlatformNames = null;
 
 		/// <summary>
+		/// Names of configurations to include in the generated project files.
+		/// See UnrealTargetConfiguration for valid entries
+		/// </summary>
+		[XmlConfigFile(Name = "Configurations")]
+		string[] ConfigurationNames = null;
+
+		/// <summary>
 		/// Relative path to the directory where the master project file will be saved to
 		/// </summary>
 		public static DirectoryReference MasterProjectPath = UnrealBuildTool.RootDirectory; // We'll save the master project to our "root" folder
@@ -437,7 +444,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		void DiscoverCSharpProgramProjects(MasterProjectFolder ProgramsFolder)
 		{
-			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms).ToArray();
+			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms:true).ToArray();
 
 			List<FileReference> FoundProjects = new List<FileReference>();
 
@@ -1407,7 +1414,7 @@ namespace UnrealBuildTool
 			List<FileReference> AllTargetFiles = new List<FileReference>();
 
 			// Make a list of all platform name strings that we're *not* including in the project files
-			List<string> UnsupportedPlatformNameStrings = Utils.MakeListOfUnsupportedPlatforms( SupportedPlatforms );
+			List<string> UnsupportedPlatformNameStrings = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms:true);
 
 			// Locate all targets (*.Target.cs files)
 			List<FileReference> FoundTargetFiles = RulesCompiler.FindAllRulesSourceFiles( RulesCompiler.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: DiscoverExtraPlugins(AllGameProjects), AdditionalSearchPaths:null, bIncludeTempTargets: bIncludeTempTargets );
@@ -1882,8 +1889,31 @@ namespace UnrealBuildTool
 				}
 			}
 
+			List<UnrealTargetConfiguration> AllowedTargetConfigurations = new List<UnrealTargetConfiguration>();
+
+			if (ConfigurationNames == null)
+			{
+				AllowedTargetConfigurations = Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().ToList();
+			}
+			else
+			{
+				foreach (string ConfigName in ConfigurationNames)
+				{
+					try
+					{
+						UnrealTargetConfiguration AllowedConfiguration = (UnrealTargetConfiguration)Enum.Parse(typeof(UnrealTargetConfiguration), ConfigName);
+						AllowedTargetConfigurations.Add(AllowedConfiguration);
+					}
+					catch (Exception)
+					{
+						Log.TraceWarning("Invalid entry found in Configurations: {0}. Must be a member of UnrealTargetConfiguration", ConfigName);
+						continue;
+					}
+				}
+			}
+
 			// Add all configurations
-			foreach( UnrealTargetConfiguration CurConfiguration in Enum.GetValues( typeof(UnrealTargetConfiguration) ) )
+			foreach( UnrealTargetConfiguration CurConfiguration in AllowedTargetConfigurations)
 			{
 				if( CurConfiguration != UnrealTargetConfiguration.Unknown )
 				{

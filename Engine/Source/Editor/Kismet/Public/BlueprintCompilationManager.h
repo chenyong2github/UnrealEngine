@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -79,7 +79,7 @@ struct KISMET_API FBlueprintCompilationManager
 	 * being compiled this function can look at the old version of the CDO and read the default
 	 * value from there
 	 */
-	static bool GetDefaultValue(const UClass* ForClass, const UProperty* Property, FString& OutDefaultValueAsString);
+	static bool GetDefaultValue(const UClass* ForClass, const FProperty* Property, FString& OutDefaultValueAsString);
 
 	/**
 	 * Safely reparents all child classes of every Key in OldClassToNewClass to the class in 

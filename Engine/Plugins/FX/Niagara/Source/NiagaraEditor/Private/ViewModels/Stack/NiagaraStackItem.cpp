@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackItemFooter.h"
@@ -8,6 +8,8 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraStackEditorData.h"
+
+#include "EditorStyleSet.h"
 
 void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey)
 {
@@ -25,6 +27,11 @@ UNiagaraStackItem::FOnModifiedGroupItems& UNiagaraStackItem::OnModifiedGroupItem
 	return ModifiedGroupItemsDelegate;
 }
 
+UNiagaraStackItem::FOnRequestPaste& UNiagaraStackItem::OnRequestPaste()
+{
+	return RequestPasteDelegate;
+}
+
 void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 {
 	if (ItemFooter != nullptr)
@@ -34,13 +41,15 @@ void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 	SetIsEnabledInternal(bInIsEnabled);
 }
 
-void UNiagaraStackItem::Delete()
+const TArray<FNiagaraScriptHighlight>& UNiagaraStackItem::GetHighlights() const
 {
-	if (GetDisplayedObject() != nullptr)
-	{
-		GetSystemViewModel()->GetSelectionViewModel()->RemoveEntryFromSelectionByDisplayedObject(GetDisplayedObject());
-	}
-	DeleteInternal();
+	static TArray<FNiagaraScriptHighlight> Empty;
+	return Empty;
+}
+
+const FSlateBrush* UNiagaraStackItem::GetIconBrush() const
+{
+	return FEditorStyle::GetBrush("NoBrush");
 }
 
 void UNiagaraStackItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

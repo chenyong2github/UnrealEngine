@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -58,6 +58,8 @@ public:
 	virtual const FRunInfo& GetRunInfo() const override;
 
 	virtual ERunAttributes GetRunAttributes() const override;
+
+	void ApplyFontSizeMultiplierOnTextStyle(float FontSizeMultiplier);
 
 protected:
 

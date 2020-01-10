@@ -1,19 +1,23 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/EnumProperty.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/PropertyTag.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/IsSigned.h"
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
 #include "Misc/NetworkVersion.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 namespace UE4EnumProperty_Private
 {
 	template <typename OldIntType>
-	void ConvertIntToEnumProperty(FStructuredArchive::FSlot Slot, UEnumProperty* EnumProp, UNumericProperty* UnderlyingProp, UEnum* Enum, void* Obj)
+	void ConvertIntToEnumProperty(FStructuredArchive::FSlot Slot, FEnumProperty* EnumProp, FNumericProperty* UnderlyingProp, UEnum* Enum, void* Obj)
 	{
 		OldIntType OldValue;
 		Slot << OldValue;
@@ -38,41 +42,76 @@ namespace UE4EnumProperty_Private
 
 		UnderlyingProp->SetIntPropertyValue(Obj, NewValue);
 	}
+}
 
-	struct FEnumPropertyFriend
+IMPLEMENT_FIELD(FEnumProperty)
+
+FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+	: FProperty(InOwner, InName, InObjectFlags)	
+	, UnderlyingProp(nullptr)
+	, Enum(nullptr)
+{
+
+}
+
+FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, UEnum* InEnum)
+	: FProperty(InOwner, InName, InObjectFlags, 0, CPF_HasGetValueTypeHash)
+	, Enum(InEnum)
+{
+	// This is expected to be set post-construction by AddCppProperty
+	UnderlyingProp = nullptr;
+}
+
+FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum)
+	: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags | CPF_HasGetValueTypeHash)
+	, Enum(InEnum)
+{
+	// This is expected to be set post-construction by AddCppProperty
+	UnderlyingProp = nullptr;
+}
+
+#if WITH_EDITORONLY_DATA
+FEnumProperty::FEnumProperty(UField* InField)
+	: FProperty(InField)
+{
+	UEnumProperty* SourceProperty = CastChecked<UEnumProperty>(InField);
+	Enum = SourceProperty->Enum;
+
+	UnderlyingProp = CastField<FNumericProperty>(SourceProperty->UnderlyingProp->GetAssociatedFField());
+	if (!UnderlyingProp)
 	{
-		static const int32 EnumOffset = STRUCT_OFFSET(UEnumProperty, Enum);
-		static const int32 UnderlyingPropOffset = STRUCT_OFFSET(UEnumProperty, UnderlyingProp);
-	};
+		UnderlyingProp = CastField<FNumericProperty>(CreateFromUField(SourceProperty->UnderlyingProp));
+		SourceProperty->UnderlyingProp->SetAssociatedFField(UnderlyingProp);
+	}
 }
+#endif // WITH_EDITORONLY_DATA
 
-UEnumProperty::UEnumProperty(const FObjectInitializer& ObjectInitializer, UEnum* InEnum)
-	: UProperty(ObjectInitializer)
-	, Enum(InEnum)
+FEnumProperty::~FEnumProperty()
 {
-	// This is expected to be set post-construction by AddCppProperty
+	delete UnderlyingProp;
 	UnderlyingProp = nullptr;
 }
 
-UEnumProperty::UEnumProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum)
-	: UProperty(ObjectInitializer, EC_CppProperty, InOffset, InFlags | CPF_HasGetValueTypeHash)
-	, Enum(InEnum)
+void FEnumProperty::PostDuplicate(const FField& InField)
 {
-	// This is expected to be set post-construction by AddCppProperty
-	UnderlyingProp = nullptr;
+	const FEnumProperty& Source = static_cast<const FEnumProperty&>(InField);
+	Enum = Source.Enum;
+	UnderlyingProp = CastFieldChecked<FNumericProperty>(FField::Duplicate(Source.UnderlyingProp, this));
+	Super::PostDuplicate(InField);
 }
 
-void UEnumProperty::AddCppProperty(UProperty* Inner)
+void FEnumProperty::AddCppProperty(FProperty* Inner)
 {
 	check(!UnderlyingProp);
-	UnderlyingProp = CastChecked<UNumericProperty>(Inner);
-	if (UnderlyingProp && UnderlyingProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
+	UnderlyingProp = CastFieldChecked<FNumericProperty>(Inner);
+	check(UnderlyingProp->GetOwner<FEnumProperty>() == this);
+	if (UnderlyingProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 	{
 		PropertyFlags |= CPF_HasGetValueTypeHash;
 	}
 }
 
-void UEnumProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
+void FEnumProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
@@ -140,7 +179,7 @@ void UEnumProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 	}
 }
 
-bool UEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
+bool FEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
 {
 	if (Ar.EngineNetVer() < HISTORY_FIX_ENUM_SERIALIZATION)
 	{
@@ -153,7 +192,7 @@ bool UEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data,
 	return 1;
 }
 
-void UEnumProperty::Serialize( FArchive& Ar )
+void FEnumProperty::Serialize( FArchive& Ar )
 {
 	Super::Serialize(Ar);
 	Ar << Enum;
@@ -161,22 +200,16 @@ void UEnumProperty::Serialize( FArchive& Ar )
 	{
 		Ar.Preload(Enum);
 	}
-	Ar << UnderlyingProp;
-	if (UnderlyingProp != nullptr)
-	{
-		Ar.Preload(UnderlyingProp);
-	}
+	SerializeSingleField(Ar, UnderlyingProp, this);
 }
 
-void UEnumProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void FEnumProperty::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UEnumProperty* This = CastChecked<UEnumProperty>(InThis);
-	Collector.AddReferencedObject(This->Enum, This);
-	Collector.AddReferencedObject(This->UnderlyingProp, This);
-	Super::AddReferencedObjects(InThis, Collector);
+	Collector.AddReferencedObject(Enum);
+	Super::AddReferencedObjects(Collector);
 }
 
-FString UEnumProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const
+FString FEnumProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const
 {
 	check(Enum);
 	check(UnderlyingProp);
@@ -202,12 +235,12 @@ FString UEnumProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFla
 	return EnumName;
 }
 
-void UEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	check(Enum);
 	check(UnderlyingProp);
 
-	UNumericProperty* LocalUnderlyingProp = UnderlyingProp;
+	FNumericProperty* LocalUnderlyingProp = UnderlyingProp;
 
 	if (PortFlags & PPF_ExportCpp)
 	{
@@ -266,7 +299,7 @@ void UEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 	}
 }
 
-const TCHAR* UEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
 {
 	check(Enum);
 	check(UnderlyingProp);
@@ -274,7 +307,7 @@ const TCHAR* UEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Dat
 	if (!(PortFlags & PPF_ConsoleVariable))
 	{
 		FString Temp;
-		if (const TCHAR* Buffer = UPropertyHelpers::ReadToken(InBuffer, Temp, true))
+		if (const TCHAR* Buffer = FPropertyHelpers::ReadToken(InBuffer, Temp, true))
 		{
 			int32 EnumIndex = Enum->GetIndexByName(*Temp, EGetByNameFlags::CheckAuthoredName);
 			if (EnumIndex == INDEX_NONE && (Temp.IsNumeric() && !Algo::Find(Temp, TEXT('.'))))
@@ -309,13 +342,13 @@ const TCHAR* UEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Dat
 	return Result;
 }
 
-FString UEnumProperty::GetCPPMacroType(FString& ExtendedTypeText) const
+FString FEnumProperty::GetCPPMacroType(FString& ExtendedTypeText) const
 {
 	ExtendedTypeText = Enum->GetName();
 	return TEXT("ENUM");
 }
 
-FString UEnumProperty::GetCPPTypeForwardDeclaration() const
+FString FEnumProperty::GetCPPTypeForwardDeclaration() const
 {
 	check(Enum);
 	check(Enum->GetCppForm() == UEnum::ECppForm::EnumClass);
@@ -323,18 +356,17 @@ FString UEnumProperty::GetCPPTypeForwardDeclaration() const
 	return FString::Printf(TEXT("enum class %s : %s;"), *Enum->GetName(), *UnderlyingProp->GetCPPType());
 }
 
-void UEnumProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+void FEnumProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);
-	OutDeps.Add(UnderlyingProp);
+	//OutDeps.Add(UnderlyingProp);
 	OutDeps.Add(Enum);
 }
 
-void UEnumProperty::LinkInternal(FArchive& Ar)
+void FEnumProperty::LinkInternal(FArchive& Ar)
 {
 	check(UnderlyingProp);
 
-	Ar.Preload(UnderlyingProp);
 	UnderlyingProp->Link(Ar);
 
 	this->ElementSize = UnderlyingProp->ElementSize;
@@ -343,22 +375,22 @@ void UEnumProperty::LinkInternal(FArchive& Ar)
 	PropertyFlags |= (UnderlyingProp->PropertyFlags & CPF_HasGetValueTypeHash);
 }
 
-bool UEnumProperty::Identical(const void* A, const void* B, uint32 PortFlags) const
+bool FEnumProperty::Identical(const void* A, const void* B, uint32 PortFlags) const
 {
 	return UnderlyingProp->Identical(A, B, PortFlags);
 }
 
-int32 UEnumProperty::GetMinAlignment() const
+int32 FEnumProperty::GetMinAlignment() const
 {
 	return UnderlyingProp->GetMinAlignment();
 }
 
-bool UEnumProperty::SameType(const UProperty* Other) const
+bool FEnumProperty::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && static_cast<const UEnumProperty*>(Other)->Enum == Enum;
+	return Super::SameType(Other) && static_cast<const FEnumProperty*>(Other)->Enum == Enum;
 }
 
-EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot , uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FEnumProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot , uint8* Data, UStruct* DefaultsStruct)
 {
 	if ((Enum == nullptr) || (UnderlyingProp == nullptr))
 	{
@@ -367,11 +399,11 @@ EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 
 	if (Tag.Type == NAME_ByteProperty)
 	{
-		uint8 PreviousValue;
+		uint8 PreviousValue = 0;
 		if (Tag.EnumName == NAME_None)
 		{
 			// If we're a nested property the EnumName tag got lost. Handle this case for backward compatibility reasons
-			UProperty* const PropertyOwner = Cast<UProperty>(GetOuterUField());
+			FProperty* const PropertyOwner = GetOwner<FProperty>();
 
 			if (PropertyOwner)
 			{
@@ -380,7 +412,7 @@ EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 				InnerPropertyTag.EnumName = Enum->GetFName();
 				InnerPropertyTag.ArrayIndex = 0;
 
-				PreviousValue = (uint8)UNumericProperty::ReadEnumAsInt64(Slot, DefaultsStruct, InnerPropertyTag);
+				PreviousValue = (uint8)FNumericProperty::ReadEnumAsInt64(Slot, DefaultsStruct, InnerPropertyTag);
 			}
 			else
 			{
@@ -390,8 +422,7 @@ EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 		}
 		else
 		{
-			// attempt to find the old enum and get the byte value from the serialized enum name
-			PreviousValue = (uint8)UNumericProperty::ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
+			PreviousValue = (uint8)FNumericProperty::ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
 		}
 
 		// now copy the value into the object's address space
@@ -433,16 +464,10 @@ EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 	return EConvertFromTypeResult::Converted;
 }
 
-uint32 UEnumProperty::GetValueTypeHashInternal(const void* Src) const
+uint32 FEnumProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	check(UnderlyingProp);
 	return UnderlyingProp->GetValueTypeHash(Src);
 }
 
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UEnumProperty, UProperty,
-	{
-		Class->EmitObjectReference(UE4EnumProperty_Private::FEnumPropertyFriend::EnumOffset, TEXT("Enum"));
-		Class->EmitObjectReference(UE4EnumProperty_Private::FEnumPropertyFriend::UnderlyingPropOffset, TEXT("UnderlyingProp"));
-	}
-);
+#include "UObject/DefineUPropertyMacros.h"

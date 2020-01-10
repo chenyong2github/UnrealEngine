@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectoryPathStructCustomization.h"
 #include "Misc/PackageName.h"
@@ -154,7 +154,7 @@ FReply FDirectoryPathStructCustomization::OnPickDirectory(TSharedRef<IPropertyHa
 
 					if (bRelativeToGameContentDir)
 					{
-						Directory = Directory.RightChop(AbsoluteGameContentDir.Len());
+						Directory.RightChopInline(AbsoluteGameContentDir.Len(), false);
 					}
 					else if (bUseRelativePath)
 					{

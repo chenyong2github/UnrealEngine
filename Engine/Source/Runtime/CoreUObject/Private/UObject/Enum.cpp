@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
@@ -111,7 +111,7 @@ FString UEnum::GetBaseEnumNameOnDuplication() const
 	check(DoubleColonPos != INDEX_NONE);
 
 	// Get actual base name.
-	BaseEnumName = BaseEnumName.LeftChop(BaseEnumName.Len() - DoubleColonPos);
+	BaseEnumName.LeftChopInline(BaseEnumName.Len() - DoubleColonPos, false);
 
 	return BaseEnumName;
 }
@@ -308,7 +308,7 @@ FString UEnum::GenerateEnumPrefix() const
 			}
 
 			// Trim the prefix to the length of the common prefix.
-			Prefix = Prefix.Left(PrefixIdx);
+			Prefix.LeftInline(PrefixIdx, false);
 		}
 
 		// Find the index of the rightmost underscore in the prefix.
@@ -317,7 +317,7 @@ FString UEnum::GenerateEnumPrefix() const
 		// If an underscore was found, trim the prefix so only the part before the rightmost underscore is included.
 		if (UnderscoreIdx > 0)
 		{
-			Prefix = Prefix.Left(UnderscoreIdx);
+			Prefix.LeftInline(UnderscoreIdx, false);
 		}
 		else
 		{
@@ -668,7 +668,7 @@ FString UEnum::GetMetaData( const TCHAR* Key, int32 NameIndex/*=INDEX_NONE*/, bo
 		if (!GConfig->GetString(TEXT("EnumRemap"), *KeyString, ResultString, GEngineIni))
 		{
 			// if this fails, then use what's after the ini:
-			ResultString = ResultString.Mid(4);
+			ResultString.MidInline(4, MAX_int32, false);
 		}
 	}
 

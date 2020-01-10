@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,7 +7,7 @@
 #include "DisplayClusterEditorEngine.generated.h"
 
 class IPDisplayCluster;
-class UDisplayClusterRootComponent;
+class ADisplayClusterRootActor;
 
 
 /**
@@ -26,7 +26,7 @@ public:
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 
 private:
-	UDisplayClusterRootComponent* FindDisplayClusterRootComponent(UWorld* InWorld);
+	ADisplayClusterRootActor* FindDisplayClusterRootActor(UWorld* InWorld);
 
 private:
 	IPDisplayCluster* DisplayClusterModule = nullptr;

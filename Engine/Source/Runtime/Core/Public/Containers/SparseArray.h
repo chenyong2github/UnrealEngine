@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1281,6 +1281,6 @@ struct TIsZeroConstructType<FScriptSparseArray>
  */
 inline void* operator new(size_t Size,const FSparseArrayAllocationInfo& Allocation)
 {
-	ASSUME(Allocation.Pointer);
+	UE_ASSUME(Allocation.Pointer);
 	return Allocation.Pointer;
 }

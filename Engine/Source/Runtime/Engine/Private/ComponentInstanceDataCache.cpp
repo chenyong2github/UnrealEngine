@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComponentInstanceDataCache.h"
 #include "Serialization/ObjectWriter.h"
@@ -53,18 +53,18 @@ public:
 		DuplicatedObjectAnnotation.RemoveAllAnnotations();
 	}
 
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		// Immutable structs expect to serialize all properties so don't skip regardless of other conditions
-		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InProperty->GetOuter());
+		UScriptStruct* ScriptStruct = InProperty->GetOwner<UScriptStruct>();
 		const bool bPropertyInImmutableStruct = ScriptStruct && ((ScriptStruct->StructFlags & STRUCT_Immutable) != 0);
-		
+
 		return (!bPropertyInImmutableStruct
-		        && (   InProperty->HasAnyPropertyFlags(CPF_Transient)
-		            || !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)
-		            || PropertiesToSkip.Contains(InProperty)
-		           )
-		       );
+			&& (InProperty->HasAnyPropertyFlags(CPF_Transient)
+				|| !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)
+				|| PropertiesToSkip.Contains(InProperty)
+				)
+			);
 	}
 
 
@@ -150,7 +150,7 @@ public:
 private:
 	const UActorComponent* Component;
 	FActorComponentInstanceData& ActorInstanceData;
-	TSet<const UProperty*> PropertiesToSkip;
+	TSet<const FProperty*> PropertiesToSkip;
 	FUObjectAnnotationSparse<FDuplicatedObject,false> DuplicatedObjectAnnotation;
 };
 
@@ -170,7 +170,7 @@ public:
 		Class->SerializeTaggedProperties(*this, (uint8*)InComponent, Class, (uint8*)InComponent->GetArchetype());
 	}
 
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		return PropertiesToSkip.Contains(InProperty);
 	}
@@ -201,7 +201,7 @@ public:
 	}
 
 	FActorComponentInstanceData& ActorInstanceData;
-	TSet<const UProperty*> PropertiesToSkip;
+	TSet<const FProperty*> PropertiesToSkip;
 };
 
 
@@ -561,10 +561,10 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 							// components within a child actor are handled by applying the instance data to the child actor component
 							if (ChildComponent->GetOwner() == Actor)
 							{
-								Components.Add(ChildComponent);
-							}
+							Components.Add(ChildComponent);
 						}
 					}
+				}
 				}
 
 				// next loop start with the nodes we just added
@@ -588,14 +588,14 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 					// * If there is an unattached scene component 
 					// * If there is a scene component attached to another Actor's hierarchy
 					// * If the scene is not registered (likely because bAutoRegister is false or component is marked pending kill), then we may not have successfully attached to our parent and properly been handled
-					USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
+				USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
 					if (   (ParentComponent == nullptr)
 					    || (ParentComponent->GetOwner() != Actor) 					
 					    || (!SceneComponent->IsRegistered() && !ParentComponent->GetAttachChildren().Contains(SceneComponent)))
-					{
-						AddComponentHierarchy(SceneComponent);
-					}
+				{
+					AddComponentHierarchy(SceneComponent);
 				}
+			}
 			}
 			else if (Component)
 			{
@@ -696,7 +696,7 @@ void FComponentInstanceDataCache::CopySerializableProperties(TArray<TStructOnSco
 {
 	auto CopyProperties = [](TStructOnScope<FActorComponentInstanceData>& DestData, const TStructOnScope<FActorComponentInstanceData>& SrcData)
 	{
-		for (TFieldIterator<const UProperty> PropertyIt(SrcData.GetStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated, EFieldIteratorFlags::ExcludeInterfaces); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<const FProperty> PropertyIt(SrcData.GetStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated, EFieldIteratorFlags::ExcludeInterfaces); PropertyIt; ++PropertyIt)
 		{
 			const void* SrcValuePtr = PropertyIt->ContainerPtrToValuePtr<void>(SrcData.Get());
 			void* DestValuePtr = PropertyIt->ContainerPtrToValuePtr<void>(DestData.Get());

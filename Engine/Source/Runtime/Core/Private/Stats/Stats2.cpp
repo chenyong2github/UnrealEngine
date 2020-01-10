@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stats/Stats2.h"
 #include "Misc/AssertionMacros.h"
@@ -764,29 +764,29 @@ FName FStatNameAndInfo::GetShortNameFrom(FName InLongName)
 
 	if (Input.StartsWith(TEXT("//"), ESearchCase::CaseSensitive))
 	{
-		Input = Input.RightChop(2);
+		Input.RightChopInline(2, false);
 		const int32 IndexEnd = Input.Find(TEXT("//"), ESearchCase::CaseSensitive);
 		if (IndexEnd == INDEX_NONE)
 		{
 			checkStats(0);
 			return InLongName;
 		}
-		Input = Input.RightChop(IndexEnd + 2);
+		Input.RightChopInline(IndexEnd + 2, false);
 	}
 	const int32 DescIndexEnd = Input.Find(TEXT("///"), ESearchCase::CaseSensitive);
 	if (DescIndexEnd != INDEX_NONE)
 	{
-		Input = Input.Left(DescIndexEnd);
+		Input.LeftInline(DescIndexEnd, false);
 	}
 	const int32 CategoryIndexEnd = Input.Find( TEXT( "####" ), ESearchCase::CaseSensitive );
 	if( DescIndexEnd == INDEX_NONE && CategoryIndexEnd != INDEX_NONE )
 	{
-		Input = Input.Left(CategoryIndexEnd);
+		Input.LeftInline(CategoryIndexEnd, false);
 	}
 	const int32 SortByNameIndexEnd = Input.Find( TEXT( "/#/#" ), ESearchCase::CaseSensitive );
 	if( DescIndexEnd == INDEX_NONE && CategoryIndexEnd == INDEX_NONE && SortByNameIndexEnd != INDEX_NONE )
 	{
-		Input = Input.Left(SortByNameIndexEnd);
+		Input.LeftInline(SortByNameIndexEnd, false);
 	}
 	return FName(*Input);
 }
@@ -797,10 +797,10 @@ FName FStatNameAndInfo::GetGroupNameFrom(FName InLongName)
 
 	if (Input.StartsWith(TEXT("//"), ESearchCase::CaseSensitive))
 	{
-		Input = Input.RightChop(2);
+		Input.RightChopInline(2, false);
 		if (Input.StartsWith(TEXT("Groups//")))
 		{
-			Input = Input.RightChop(8);
+			Input.RightChopInline(8, false);
 		}
 		const int32 IndexEnd = Input.Find(TEXT("//"), ESearchCase::CaseSensitive);
 		if (IndexEnd != INDEX_NONE)
@@ -819,7 +819,7 @@ FString FStatNameAndInfo::GetDescriptionFrom(FName InLongName)
 	const int32 IndexStart = Input.Find(TEXT("///"), ESearchCase::CaseSensitive);
 	if (IndexStart != INDEX_NONE)
 	{
-		Input = Input.RightChop(IndexStart + 3);
+		Input.RightChopInline(IndexStart + 3, false);
 		const int32 IndexEnd = Input.Find(TEXT("///"), ESearchCase::CaseSensitive);
 		if (IndexEnd != INDEX_NONE)
 		{
@@ -836,7 +836,7 @@ FName FStatNameAndInfo::GetGroupCategoryFrom(FName InLongName)
 	const int32 IndexStart = Input.Find(TEXT("####"), ESearchCase::CaseSensitive);
 	if (IndexStart != INDEX_NONE)
 	{
-		Input = Input.RightChop(IndexStart + 4);
+		Input.RightChopInline(IndexStart + 4, false);
 		const int32 IndexEnd = Input.Find(TEXT("####"), ESearchCase::CaseSensitive);
 		if (IndexEnd != INDEX_NONE)
 		{
@@ -854,7 +854,7 @@ bool FStatNameAndInfo::GetSortByNameFrom(FName InLongName)
 	const int32 IndexStart = Input.Find(TEXT("/#/#"), ESearchCase::CaseSensitive);
 	if (IndexStart != INDEX_NONE)
 	{
-		Input = Input.RightChop(IndexStart + 4);
+		Input.RightChopInline(IndexStart + 4, false);
 		const int32 IndexEnd = Input.Find(TEXT("/#/#"), ESearchCase::CaseSensitive);
 		if (IndexEnd != INDEX_NONE)
 		{
@@ -1321,7 +1321,7 @@ void FThreadStats::CheckForCollectingStartupStats()
 		{
 			break;
 		}
-		CmdLine = CmdLine.Mid(Index + StatCmds.Len());
+		CmdLine.MidInline(Index + StatCmds.Len(), MAX_int32, false);
 	}
 
 	if (FParse::Param( FCommandLine::Get(), TEXT( "LoadTimeStats" ) ))

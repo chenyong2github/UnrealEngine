@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -164,8 +164,6 @@ struct FTextureBuildSettings
 	uint32 bVirtualTextureEnableCompressZlib : 1;
 	/** Is crunch compression enabled */
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
-	/** True if the target platform requires the FOptTexturePlatformData strucutre */
-	uint32 bOptData : 1;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -216,7 +214,6 @@ struct FTextureBuildSettings
 		, VirtualTextureBorderSize(0)
 		, bVirtualTextureEnableCompressZlib(false)
 		, bVirtualTextureEnableCompressCrunch(false)
-		, bOptData(false)
 	{
 	}
 

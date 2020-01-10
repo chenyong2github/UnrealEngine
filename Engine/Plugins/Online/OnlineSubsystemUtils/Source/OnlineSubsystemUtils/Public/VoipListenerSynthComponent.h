@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -100,16 +100,29 @@ public:
 	*/
 	uint64 GetSampleCounter();
 
+
+	virtual void BeginDestroy() override;
+
 private:
+	/**
+	 * This call will check how much audio we have buffered and drop the oldest audio if necessary.
+	 */
+	void ForceResync();
+
+
 	/** This patch input can optionally be set  */
 	Audio::FPatchInput ExternalSend;
 
-	// This is allocated on OpenPacketStream()
+	/** This is allocated on OpenPacketStream() */
 	TUniquePtr<FVoicePacketBuffer> PacketBuffer;
+	FCriticalSection PacketBufferCriticalSection;
 
 	float MySampleRate;
 
 	int32 PreDelaySampleCounter;
+
+	/** The amount of audio we keep buffered to reduce underruns. */
+	float JitterDelayInSeconds;
 
 #if DEBUG_BUFFERING
 	FDebugFMTone FMToneGenerator;

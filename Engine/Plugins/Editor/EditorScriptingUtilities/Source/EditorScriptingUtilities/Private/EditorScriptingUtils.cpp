@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorScriptingUtils.h"
 #include "Algo/Count.h"
@@ -188,7 +188,7 @@ namespace EditorScriptingUtils
 		if (TextPath.FindChar(SUBOBJECT_DELIMITER_CHAR, SubObjectDelimiterIdx))
 		{
 			SubObjectPath = TextPath.Mid(SubObjectDelimiterIdx + 1);
-			TextPath = TextPath.Left(SubObjectDelimiterIdx);
+			TextPath.LeftInline(SubObjectDelimiterIdx);
 		}
 
 		// Convert \ to /
@@ -297,13 +297,13 @@ namespace EditorScriptingUtils
 			int32 ObjectDelimiterIdx;
 			if (TextPath.FindChar(TEXT('.'), ObjectDelimiterIdx))
 			{
-				TextPath = TextPath.Left(ObjectDelimiterIdx);
+				TextPath.LeftInline(ObjectDelimiterIdx);
 			}
 
 			// Remove :
 			if (TextPath.FindChar(TEXT(':'), ObjectDelimiterIdx))
 			{
-				TextPath = TextPath.Left(ObjectDelimiterIdx);
+				TextPath.LeftInline(ObjectDelimiterIdx);
 			}
 		}
 

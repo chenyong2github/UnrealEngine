@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -48,7 +48,7 @@ struct FBlueprintActionContext
 	 * properties, level actors, content-browser assets, etc.). Bound actions
 	 * have to be tied to one of these objects in order to pass the filter.
 	 */
-	TArray<UObject*> SelectedObjects;
+	TArray<FFieldVariant> SelectedObjects;
 };
 
 /*******************************************************************************
@@ -108,7 +108,7 @@ struct BLUEPRINTGRAPH_API FBlueprintActionInfo
 	 * 
 	 * @return The member field associated with the wrapped action (null if there isn't one).
 	 */
-	UField const* GetAssociatedMemberField();
+	FFieldVariant GetAssociatedMemberField();
 
 	/**
 	 * Certain actions are associated with specific properties (like delegate  
@@ -118,7 +118,7 @@ struct BLUEPRINTGRAPH_API FBlueprintActionInfo
 	 * 
 	 * @return The property associated with the wrapped action (null if there isn't one).
 	 */
-	UProperty const* GetAssociatedProperty();
+	FProperty const* GetAssociatedProperty();
 
 	/**
 	 * Certain actions are associated with specific functions (like function    
@@ -141,8 +141,8 @@ private:
 	
 	/** */
 	TWeakObjectPtr<const UClass>	CachedOwnerClass;
-	UField const*					CachedActionField;
-	UProperty const*				CachedActionProperty;
+	FFieldVariant					CachedActionField;
+	FProperty const*				CachedActionProperty;
 	UFunction const*				CachedActionFunction;
 
 	/** */

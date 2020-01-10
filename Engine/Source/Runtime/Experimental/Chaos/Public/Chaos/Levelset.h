@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayND.h"
@@ -35,7 +35,7 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override;
 	T SignedDistance(const TVector<T, d>& x) const;
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MOriginalLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MOriginalLocalBoundingBox; }
 
 	// Returns a const ref to the underlying phi grid
 	const TArrayND<T, d>& GetPhiArray() const { return MPhi; }
@@ -65,15 +65,15 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 		Ar << MGrid;
 		Ar << MPhi;
 		Ar << MNormals;
-		Ar << MLocalBoundingBox;
-		Ar << MOriginalLocalBoundingBox;
+		TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
+		TBox<FReal, 3>::SerializeAsAABB(Ar, MOriginalLocalBoundingBox);
 		Ar << MBandWidth;
 	}
 
-	//virtual void Serialize(FChaosArchive& Ar) override
-	//{
-	//	SerializeImp(Ar);
-	//}
+	virtual void Serialize(FChaosArchive& Ar) override
+	{
+		SerializeImp(Ar);
+	}
 
 	virtual void Serialize(FArchive& Ar) override
 	{
@@ -120,8 +120,8 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 	TUniformGrid<T, d> MGrid;
 	TArrayND<T, d> MPhi;
 	TArrayND<TVector<T, d>, d> MNormals;
-	TBox<T, d> MLocalBoundingBox;
-	TBox<T, d> MOriginalLocalBoundingBox;
+	TAABB<T, d> MLocalBoundingBox;
+	TAABB<T, d> MOriginalLocalBoundingBox;
 	int32 MBandWidth;
 private:
 	TLevelSet() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet) {}	//needed for serialization

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
@@ -88,6 +88,12 @@ DECLARE_LLM_MEMORY_STAT(TEXT("UI"), STAT_UILLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Physics"), STAT_PhysicsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysX"), STAT_PhysXLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Chaos"), STAT_ChaosLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosGeometry"), STAT_ChaosGeometryLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosAcceleration"), STAT_ChaosAccelerationLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosParticles"), STAT_ChaosParticlesLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosLandscape"), STAT_ChaosLandscapeLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosTrimesh"), STAT_ChaosTrimeshLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("ChaosConvex"), STAT_ChaosConvexLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("EnginePreInit"), STAT_EnginePreInitLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("EngineInit"), STAT_EngineInitLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Rendering Thread"), STAT_RenderingThreadLLM, STATGROUP_LLMFULL);
@@ -1316,6 +1322,10 @@ void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType 
 	}
 
 	// look up the pointer in the tracking map
+	if (!GetAllocationMap().HasKey(Ptr))
+	{
+		return;
+	}
 	LLMMap::Values Values = GetAllocationMap().Remove(Ptr);
 	uint64 Size = Values.Value1;
 	FLLMTracker::FLowLevelAllocInfo AllocInfo = Values.Value2;
@@ -2082,14 +2092,14 @@ FString FLLMCsvWriter::GetTagName(int64 Tag, FLLMCustomTag* CustomTags, const in
 		FString Name = TagToFName(Tag).ToString();
 
 		// if it has a trible slash assume it is a Stat string and extract the descriptive name
-		int32 StartIndex = Name.Find(TEXT("///"));
+		int32 StartIndex = Name.Find(TEXT("///"), ESearchCase::CaseSensitive);
 		if (StartIndex != -1)
 		{
 			StartIndex += 3;
-			int32 EndIndex = Name.Find(TEXT("///"), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartIndex);
+			int32 EndIndex = Name.Find(TEXT("///"), ESearchCase::CaseSensitive, ESearchDir::FromStart, StartIndex);
 			if (EndIndex != -1)
 			{
-				Name = Name.Mid(StartIndex, EndIndex - StartIndex);
+				Name.MidInline(StartIndex, EndIndex - StartIndex, false);
 			}
 		}
 

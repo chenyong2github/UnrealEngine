@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Vector.h"
 #include "Chaos/Box.h"
@@ -25,7 +25,7 @@ struct CHAOS_API FQueryFastData
 	FReal CurrentLength;
 	FReal InvCurrentLength;
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#pragma warning (push)
 	#pragma warning(disable:4723)
 #endif
@@ -42,7 +42,7 @@ struct CHAOS_API FQueryFastData
 		}
 	}
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#pragma warning(pop)
 #endif
 
@@ -64,7 +64,7 @@ struct CHAOS_API FQueryFastDataVoid : public FQueryFastData
 };
 
 template <typename T, int d>
-class TBox;
+class TAABB;
 
 template <typename T, int d>
 class TGeometryParticle;
@@ -94,14 +94,14 @@ template <typename TPayloadType>
 struct CHAOS_API TSpatialVisitorData
 {
 	TPayloadType Payload;
-	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const TBox<float, 3>& InBounds = TBox<float, 3>::ZeroBox())
+	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const TAABB<float, 3>& InBounds = TAABB<float, 3>::ZeroAABB())
 		: Payload(InPayload)
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		, bHasBounds(bInHasBounds)
 		, Bounds(InBounds)
 	{ }
 	bool bHasBounds;
-	TBox<float, 3> Bounds;
+	TAABB<float, 3> Bounds;
 #else
 	{ }
 #endif
@@ -152,7 +152,7 @@ public:
 	
 	virtual ~ISpacialDebugDrawInterface() = default;
 
-	virtual void Box(const TBox<T, 3>& InBox, const TVector<T, 3>& InLinearColor, float InThickness) = 0;
+	virtual void Box(const TAABB<T, 3>& InBox, const TVector<T, 3>& InLinearColor, float InThickness) = 0;
 	virtual void Line(const TVector<T, 3>& InBegin, const TVector<T, 3>& InEnd, const TVector<T, 3>& InLinearColor, float InThickness)  = 0;
 
 };
@@ -174,12 +174,12 @@ template <typename TPayloadType, typename T>
 struct TPayloadBoundsElement
 {
 	TPayloadType Payload;
-	TBox<T, 3> Bounds;
+	TAABB<T, 3> Bounds;
 
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Payload;
-		Ar << Bounds;
+		TBox<T,3>::SerializeAsAABB(Ar, Bounds);
 	}
 
 	template <typename TPayloadType2>
@@ -187,7 +187,7 @@ struct TPayloadBoundsElement
 
 	bool HasBoundingBox() const { return true; }
 
-	const TBox<T, 3>& BoundingBox() const { return Bounds; }
+	const TAABB<T, 3>& BoundingBox() const { return Bounds; }
 };
 
 template <typename TPayloadType, typename T>
@@ -210,18 +210,18 @@ public:
 
 	virtual bool IsAsyncTimeSlicingComplete() { return AsyncTimeSlicingComplete; }
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion = false) {}
-	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
+	virtual TArray<TPayloadType> FindAllIntersections(const TAABB<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
 
 	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false);}
-	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Overlap(const TAABB<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
 		check(false);	//not implemented
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds)
+	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds)
 	{
 		check(false);
 	}
@@ -231,7 +231,7 @@ public:
 		RemoveElement(Payload);
 	}
 
-	virtual void UpdateElementIn(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx Idx)
+	virtual void UpdateElementIn(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx Idx)
 	{
 		UpdateElement(Payload, NewBounds, bHasBounds);
 	}

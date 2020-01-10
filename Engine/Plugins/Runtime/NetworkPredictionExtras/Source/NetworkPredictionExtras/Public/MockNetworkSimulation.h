@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -47,6 +47,11 @@ class IMockDriver;
 //		Everything is crammed into MockNetworkSimulation.h/.cpp. It may make sense to break the simulation and component code into
 //		separate files for more complex simulations.
 //
+// -------------------------------------------------------------------------------------------------------------------------------
+
+
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Simulation State
 // -------------------------------------------------------------------------------------------------------------------------------
 
 // State the client generates
@@ -107,7 +112,6 @@ struct FMockSyncState
 
 // Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
 // (It can change and even be predicted but doing so will trigger more bookeeping, etc. Changes will happen "next tick")
-// NOTE: Currently incomplete!
 struct FMockAuxState
 {
 	float Multiplier=1;
@@ -129,9 +133,36 @@ struct FMockAuxState
 	}
 };
 
-using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Simulation Cues
+// -------------------------------------------------------------------------------------------------------------------------------
 
-static FName MockSimulationGroupName("Mock");
+// A minimal Cue, emitted every 10 "totals" with a random integer as a payload
+struct FMockCue
+{
+	FMockCue() = default;
+	FMockCue(int32 InRand)
+		: RandomData(InRand) { }
+
+	NETSIMCUE_BODY();
+	int32 RandomData = 0;
+};
+
+// Set of all cues the Mock simulation emits. Not strictly necessary and not that helpful when there is only one cue (but using since this is the example real simulations will want to use)
+struct FMockCueSet
+{
+	template<typename TDispatchTable>
+	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
+	{
+		DispatchTable.template RegisterType<FMockCue>();
+	}
+};
+
+// -------------------------------------------------------------------------------------------------------------------------------
+//	The Simulation
+// -------------------------------------------------------------------------------------------------------------------------------
+
+using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
 
 class FMockNetworkSimulation
 {
@@ -139,24 +170,41 @@ public:
 
 	/** Main update function */
 	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output);
+};
+
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Networked Simulation Model Def
+// -------------------------------------------------------------------------------------------------------------------------------
+
+class FMockNetworkModelDef : public FNetSimModelDefBase
+{
+public:
+
+	using Simulation = FMockNetworkSimulation;
+	using BufferTypes = TMockNetworkSimulationBufferTypes;
 
 	/** Tick group the simulation maps to */
 	static const FName GroupName;
+
+	/** Predicted error testing */
+	static bool ShouldReconcile(const FMockSyncState& AuthoritySync, const FMockAuxState& AuthorityAux, const FMockSyncState& PredictedSync, const FMockAuxState& PredictedAux)
+	{
+		return FMath::Abs<float>(AuthoritySync.Total - PredictedSync.Total) > SMALL_NUMBER;
+	}
+
+	static void Interpolate(const TInterpolatorParameters<FMockSyncState, FMockAuxState>& Params)
+	{
+		Params.Out.Sync.Total = Params.From.Sync.Total + ((Params.To.Sync.Total - Params.From.Sync.Total) * Params.InterpolationPCT);
+		Params.Out.Aux = Params.To.Aux;
+	}
 };
 
-// Actual definition of our network simulation.
-using FMockNetworkModel = TNetworkedSimulationModel<FMockNetworkSimulation, TMockNetworkSimulationBufferTypes>;
-
-// Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
-// Also needed for forward declaring. Can't just be a typedef/using =
-class IMockSystemDriver : public TNetworkedSimulationModelDriver<TMockNetworkSimulationBufferTypes> { };
-
 // -------------------------------------------------------------------------------------------------------------------------------
-// ActorComponent for running a MockNetworkSimulation
+// ActorComponent for running a MockNetworkSimulation (implements Driver for the mock simulation)
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent, public IMockSystemDriver
+class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent, public TNetworkedSimulationModelDriver<TMockNetworkSimulationBufferTypes>
 {
 	GENERATED_BODY()
 
@@ -175,7 +223,9 @@ public:
 	void VisualLog(const FMockInputCmd* Input, const FMockSyncState* Sync, const FMockAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
 	
 	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
-	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;	
+	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;
+
+	void HandleCue(const FMockCue& MockCue, const FNetSimCueSystemParamemters& SystemParameters);
 
 	// Mock representation of "syncing' to the sync state in the network sim.
 	float MockValue = 1000.f;

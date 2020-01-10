@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StatsModule.h"
 #include "Analyzers/StatsTraceAnalysis.h"
@@ -24,7 +24,7 @@ void FStatsModule::OnAnalysisBegin(IAnalysisSession& Session)
 
 void FStatsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
-	OutLoggers.Add(TEXT("Stats"));
+	//OutLoggers.Add(TEXT("Stats"));
 }
 
 }

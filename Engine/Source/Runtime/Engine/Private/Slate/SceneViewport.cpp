@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Slate/SceneViewport.h"
@@ -23,6 +23,8 @@
 #include "StereoRenderTargetManager.h"
 
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
+
+const FName NAME_SceneViewport = FName(TEXT("SceneViewport"));
 
 FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SViewport> InViewportWidget )
 	: FViewport( InViewportClient )
@@ -53,6 +55,7 @@ FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SV
 	, NumTouches(0)
 {
 	bIsSlateViewport = true;
+	ViewportType = NAME_SceneViewport;
 	RenderThreadSlateTexture = new FSlateRenderTargetRHI(nullptr, 0, 0);
 
 	if (InViewportClient)
@@ -210,11 +213,14 @@ void FSceneViewport::ProcessInput( float DeltaTime )
 
 void FSceneViewport::UpdateCachedCursorPos( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent )
 {
-	FVector2D LocalPixelMousePos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-	LocalPixelMousePos.X *= CachedGeometry.Scale;
-	LocalPixelMousePos.Y *= CachedGeometry.Scale;
+	if (InMouseEvent.GetUserIndex() == FSlateApplication::CursorUserIndex)
+	{
+		FVector2D LocalPixelMousePos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+		LocalPixelMousePos.X *= CachedGeometry.Scale;
+		LocalPixelMousePos.Y *= CachedGeometry.Scale;
 
-	CachedCursorPos = LocalPixelMousePos.IntPoint();
+		CachedCursorPos = LocalPixelMousePos.IntPoint();
+	}
 }
 
 void FSceneViewport::UpdateCachedGeometry( const FGeometry& InGeometry )
@@ -285,8 +291,8 @@ void FSceneViewport::ProcessAccumulatedPointerInput()
 	if (NumMouseSamplesX > 0 || NumMouseSamplesY > 0)
 	{
 		const float DeltaTime = FApp::GetDeltaTime();
-		ViewportClient->InputAxis( this, MouseDeltaUserIndex, EKeys::MouseX, MouseDelta.X, DeltaTime, NumMouseSamplesX );
-		ViewportClient->InputAxis( this, MouseDeltaUserIndex, EKeys::MouseY, MouseDelta.Y, DeltaTime, NumMouseSamplesY );
+		ViewportClient->InputAxis( this, 0, EKeys::MouseX, MouseDelta.X, DeltaTime, NumMouseSamplesX );
+		ViewportClient->InputAxis( this, 0, EKeys::MouseY, MouseDelta.Y, DeltaTime, NumMouseSamplesY );
 	}
 
 	if ( bCursorHiddenDueToCapture )
@@ -321,7 +327,6 @@ void FSceneViewport::ProcessAccumulatedPointerInput()
 	MouseDelta = FIntPoint::ZeroValue;
 	NumMouseSamplesX = 0;
 	NumMouseSamplesY = 0;
-	MouseDeltaUserIndex = INDEX_NONE;
 }
 
 FVector2D FSceneViewport::VirtualDesktopPixelToViewport(FIntPoint VirtualDesktopPointPx) const
@@ -657,8 +662,6 @@ FReply FSceneViewport::OnMouseMove( const FGeometry& InGeometry, const FPointerE
 
 			MouseDelta.Y -= CursorDelta.Y;
 			++NumMouseSamplesY;
-
-			MouseDeltaUserIndex = InMouseEvent.GetUserIndex();
 		}
 
 		if ( bCursorHiddenDueToCapture )

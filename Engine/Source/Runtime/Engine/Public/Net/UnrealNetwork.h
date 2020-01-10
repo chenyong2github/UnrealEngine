@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnrealNetwork.h: Unreal networking.
@@ -37,12 +37,13 @@ inline int32 MakeRelative( int32 Value, int32 Reference, int32 Max )
 }
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreActorDestroyReplayScrub, AActor*);
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreReplayScrub, UWorld*);
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWriteGameSpecificDemoHeader, TArray<FString>& /*GameSpecificData*/);
-
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProcessGameSpecificDemoHeader, const TArray<FString>& /*GameSpecificData*/, FString& /*Error*/);
+
+typedef TMap<FString, TArray<uint8>> FDemoFrameDataMap;
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWriteGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, FDemoFrameDataMap& /*Data*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnProcessGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, const FDemoFrameDataMap& /*Data*/);
 
 struct ENGINE_API FNetworkReplayDelegates
 {
@@ -52,6 +53,10 @@ struct ENGINE_API FNetworkReplayDelegates
 	/** Game specific demo headers */
 	static FOnWriteGameSpecificDemoHeader OnWriteGameSpecificDemoHeader;
 	static FOnProcessGameSpecificDemoHeader OnProcessGameSpecificDemoHeader;
+
+	/** Game specific per frame data */
+	static FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
+	static FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
 };
 
 /**
@@ -74,7 +79,7 @@ namespace NetworkingPrivate
 {
 	struct ENGINE_API FRepPropertyDescriptor
 	{
-		FRepPropertyDescriptor(const UProperty* Property)
+		FRepPropertyDescriptor(const FProperty* Property)
 			: PropertyName(VerifyPropertyAndGetName(Property))
 			, RepIndex(Property->RepIndex)
 			, ArrayDim(Property->ArrayDim)
@@ -94,7 +99,7 @@ namespace NetworkingPrivate
 
 	private:
 
-		static const TCHAR* VerifyPropertyAndGetName(const UProperty* Property)
+		static const TCHAR* VerifyPropertyAndGetName(const FProperty* Property)
 		{
 			check(Property);
 			return *(Property->GetName());
@@ -148,11 +153,11 @@ static bool ValidateReplicatedClassInheritance(const UClass* CallingClass, const
 }
 
 /** wrapper to find replicated properties that also makes sure they're valid */
-static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass* PropClass, const FName& PropName)
+static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass* PropClass, const FName& PropName)
 {
 	ValidateReplicatedClassInheritance(CallingClass, PropClass, *PropName.ToString());
 
-	UProperty* TheProperty = FindFieldChecked<UProperty>(PropClass, PropName);
+	FProperty* TheProperty = FindFieldChecked<FProperty>(PropClass, PropName);
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!(TheProperty->PropertyFlags & CPF_Net))
 	{
@@ -172,7 +177,7 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 
 #define DOREPLIFETIME_WITH_PARAMS(c,v,params) \
 { \
-	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	FProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
 	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, params); \
 }
 
@@ -181,8 +186,8 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 /** This macro is used by nativized code (DynamicClasses), so the Property may be recreated. */
 #define DOREPLIFETIME_DIFFNAMES(c,v, n) \
 { \
-	static TWeakObjectPtr<UProperty> __swp##v{};							\
-	const UProperty* sp##v = __swp##v.Get();								\
+	static TWeakFieldPtr<FProperty> __swp##v{};							\
+	const FProperty* sp##v = __swp##v.Get();								\
 	if (nullptr == sp##v)													\
 	{																		\
 		sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(), n);	\
@@ -222,7 +227,7 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 
 #define DOREPLIFETIME_ACTIVE_OVERRIDE(c,v,active)	\
 {													\
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	static FProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
 	for ( int32 i = 0; i < sp##v->ArrayDim; i++ )											\
 	{																						\
 		ChangedPropertyTracker.SetCustomIsActiveOverride( sp##v->RepIndex + i, active );	\
@@ -230,25 +235,25 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 }
 
 UE_DEPRECATED(4.24, "Please use the RESET_REPLIFETIME_CONDITION macro")
-ENGINE_API void DeprecatedChangeCondition(UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
+ENGINE_API void DeprecatedChangeCondition(FProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
 
 
 //~ This is already using a deprecated method, don't bother updating it.
 #define DOREPLIFETIME_CHANGE_CONDITION(c,v,cond) \
 { \
-	UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
+	FProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
 	DeprecatedChangeCondition(sp##v, OutLifetimeProps, cond);														\
 }
 
 UE_DEPRECATED(4.24, "Use RegisterReplicatedLifetimeProperty that takes FDoRepLifetimeParams.")
 ENGINE_API void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	ELifetimeCondition InCondition,
 	ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
 
 ENGINE_API void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params);
 

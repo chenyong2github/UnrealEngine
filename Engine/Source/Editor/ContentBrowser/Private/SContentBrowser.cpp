@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SContentBrowser.h"
@@ -129,9 +129,18 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	SourcesSearch->Initialize();
 	SourcesSearch->SetHintText(MakeAttributeSP(this, &SContentBrowser::GetSourcesSearchHintText));
 
+	CollectionViewPtr = SNew(SCollectionView)
+		.OnCollectionSelected(this, &SContentBrowser::CollectionSelected)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserCollections")))
+		.AllowCollapsing(false)
+		.AllowCollectionDrag(true)
+		.AllowQuickAssetManagement(true)
+		.ExternalSearch(SourcesSearch);
+
 	static const FName DefaultForegroundName("DefaultForeground");
 
 	BindCommands();
+	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SContentBrowser::OnContentBrowserSettingsChanged);
 
 	ChildSlot
 	[
@@ -510,6 +519,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.Padding(2, 0, 0, 0)
 						[
 							SNew(SButton)
+							.Visibility(this, &SContentBrowser::GetSourcesSwitcherVisibility)
 							.VAlign(EVerticalAlignment::VAlign_Center)
 							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 							.ToolTipText(this, &SContentBrowser::GetSourcesSwitcherToolTipText)
@@ -536,8 +546,9 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 							.Orientation(EOrientation::Orient_Vertical)
 							.MinimumSlotHeight(70.0f)
 							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
-							+ SSplitter::Slot()
-							.Value(.2f)
+							
+							+SSplitter::Slot()
+							.Value(0.2f)
 							[
 								SNew(SBox)
 								.Visibility(this, &SContentBrowser::GetFavoriteFolderVisibility)
@@ -586,7 +597,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 									]
 								]
 							]
-							+ SSplitter::Slot()
+							
+							+SSplitter::Slot()
 							.Value(0.8f)
 							[
 								SNew(SBox)
@@ -604,6 +616,16 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 									.ExternalSearch(SourcesSearch)
 								]
 							]
+
+							+SSplitter::Slot()
+							.Value(0.4f)
+							[
+								SNew(SBox)
+								.Visibility(this, &SContentBrowser::GetDockedCollectionsVisibility)
+								[
+									CollectionViewPtr.ToSharedRef()
+								]
+							]
 						]
 
 						// Collections View
@@ -612,13 +634,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 							SNew(SBox)
 							.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 							[
-								SAssignNew(CollectionViewPtr, SCollectionView)
-								.OnCollectionSelected(this, &SContentBrowser::CollectionSelected)
-								.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserCollections")))
-								.AllowCollapsing(false)
-								.AllowCollectionDrag(true)
-								.AllowQuickAssetManagement(true)
-								.ExternalSearch(SourcesSearch)
+								CollectionViewPtr.ToSharedRef()
 							]
 						]
 					]
@@ -784,6 +800,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.CanShowRealTimeThumbnails( Config != nullptr ? Config->bCanShowRealTimeThumbnails : true)
 						.CanShowDevelopersFolder( Config != nullptr ? Config->bCanShowDevelopersFolder : true)
 						.CanShowFavorites(true)
+						.CanDockCollections(true)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserAssets")))
 						.OnSearchOptionsChanged(this, &SContentBrowser::HandleAssetViewSearchOptionsChanged)
 					]
@@ -861,7 +878,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	IAddContentDialogModule& AddContentDialogModule = FModuleManager::LoadModuleChecked<IAddContentDialogModule>("AddContentDialog");
 
 	// Update the breadcrumb trail path
-	UpdatePath();
+	OnContentBrowserSettingsChanged(NAME_None);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -924,6 +941,11 @@ void SContentBrowser::BindCommands()
 EVisibility SContentBrowser::GetFavoriteFolderVisibility() const
 {
 	return GetDefault<UContentBrowserSettings>()->GetDisplayFavorites() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SContentBrowser::GetDockedCollectionsVisibility() const
+{
+	return GetDefault<UContentBrowserSettings>()->GetDockCollections() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SContentBrowser::ToggleFolderFavorite(const TArray<FString>& FolderPaths)
@@ -1729,7 +1751,7 @@ FReply SContentBrowser::OnSaveSearchButtonClicked()
 	{
 		SourcesViewExpandClicked();
 	}
-	if (ActiveSourcesWidgetIndex != ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView)
+	if (!GetDefault<UContentBrowserSettings>()->GetDockCollections() && ActiveSourcesWidgetIndex != ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView)
 	{
 		ActiveSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
 		SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
@@ -2336,6 +2358,11 @@ EVisibility SContentBrowser::GetPathExpanderVisibility() const
 	return bSourcesViewExpanded ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
+EVisibility SContentBrowser::GetSourcesSwitcherVisibility() const
+{
+	return GetDefault<UContentBrowserSettings>()->GetDockCollections() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 const FSlateBrush* SContentBrowser::GetSourcesSwitcherIcon() const
 {
 	switch (ActiveSourcesWidgetIndex)
@@ -2388,6 +2415,19 @@ FText SContentBrowser::GetSourcesSearchHintText() const
 	}
 	check(false);
 	return FText();
+}
+
+void SContentBrowser::OnContentBrowserSettingsChanged(FName PropertyName)
+{
+	const FName NAME_DockCollections = "DockCollections";//GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, DockCollections); // Doesn't work as DockCollections is private :(
+	if (PropertyName.IsNone() || PropertyName == NAME_DockCollections)
+	{
+		// Ensure the omni-search is enabled correctly
+		CollectionViewPtr->SetAllowExternalSearch(!GetDefault<UContentBrowserSettings>()->GetDockCollections());
+
+		// Ensure the path is set to the correct view mode
+		UpdatePath();
+	}
 }
 
 FReply SContentBrowser::BackClicked()
@@ -2693,7 +2733,7 @@ void SContentBrowser::UpdatePath()
 	}
 	else if ( SourcesData.HasCollections() )
 	{
-		NewSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
+		NewSourcesWidgetIndex = GetDefault<UContentBrowserSettings>()->GetDockCollections() ? ContentBrowserSourcesWidgetSwitcherIndex::PathView : ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
 
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 		TArray<FCollectionNameType> CollectionPathItems;

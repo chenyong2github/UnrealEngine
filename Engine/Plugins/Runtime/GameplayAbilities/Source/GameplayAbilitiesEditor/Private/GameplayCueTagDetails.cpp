@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueTagDetails.h"
 #include "Widgets/Input/SButton.h"
@@ -115,7 +115,7 @@ TSharedRef<ITableRow> FGameplayCueTagDetails::GenerateListRow(TSharedRef<FSoftOb
 	int32 idx;
 	if (ShortName.FindLastChar(TEXT('.'), idx))
 	{
-		ShortName = ShortName.Right(ShortName.Len() - (idx+1));
+		ShortName.RightInline(ShortName.Len() - (idx+1), false);
 		ShortName.RemoveFromEnd(TEXT("_c"));
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Net;
+using Newtonsoft.Json;
 
 namespace Gauntlet
 {
@@ -370,5 +371,34 @@ namespace Gauntlet
 		}
 
 	}
+
+	/// <summary>
+	///  Converts between json and UnrealTargetPlatform
+	/// </summary>
+	public class UnrealTargetPlatformConvertor : JsonConverter
+	{
+		public override bool CanConvert(Type ObjectType)
+		{
+			return ObjectType == typeof(string) || ObjectType == typeof(UnrealTargetPlatform);
+		}
+
+		public override object ReadJson(JsonReader Reader, Type ObjectType, object ExistingValue, JsonSerializer Serializer)
+		{
+			UnrealTargetPlatform Platform;
+			if (!UnrealTargetPlatform.TryParse((string)Reader.Value, out Platform))
+			{
+				return null;
+			}
+			return Platform;
+		}
+
+		public override void WriteJson(JsonWriter Writer, object Value, JsonSerializer Serializer)
+		{
+			UnrealTargetPlatform? Platform = (UnrealTargetPlatform)Value;
+			Writer.WriteValue(Platform);
+		}
+
+	}
+
 
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -438,7 +438,7 @@ struct TStructOpsTypeTraits<FTickFunction> : public TStructOpsTypeTraitsBase2<FT
 * Tick function that calls AActor::TickActor
 **/
 USTRUCT()
-struct FActorTickFunction : public FTickFunction
+struct ENGINE_VTABLE FActorTickFunction : public FTickFunction
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -970,7 +970,7 @@ enum EViewModeIndex
 
 	VMI_Max UMETA(Hidden),
 
-	VMI_Unknown = 255 UMETA(Hidden),
+	VMI_Unknown = 255 UMETA(DisplayName = "Unknown"),
 };
 
 

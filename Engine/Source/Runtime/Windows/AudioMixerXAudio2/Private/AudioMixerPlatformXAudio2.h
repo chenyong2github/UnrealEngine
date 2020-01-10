@@ -1,11 +1,19 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "AudioMixer.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_WINDOWS
+#include <xaudio2redist.h>
+#else
 #include <xaudio2.h>
+#endif
 #include "Windows/HideWindowsPlatformTypes.h"
+
+#if PLATFORM_WINDOWS
+#pragma comment(lib,"xaudio2_9redist.lib")
+#endif
 
 // Any platform defines
 namespace Audio
@@ -84,15 +92,12 @@ namespace Audio
 
 	private:
 
-		FString GetErrorString(HRESULT Result);
 		bool AllowDeviceSwap();
 
 		// Used to teardown and reinitialize XAudio2.
 		// This must be done to repopulate the playback device list in XAudio 2.7.
 		bool ResetXAudio2System();
 
-		typedef TArray<long> TChannelTypeMap;
-		
 		// Handle to XAudio2DLL
 		HMODULE XAudio2Dll;
 
@@ -100,7 +105,6 @@ namespace Audio
 		// And that we need to restart the audio device.
 		FThreadSafeBool bDeviceChanged;
 
-		TChannelTypeMap ChannelTypeMap;
 		IXAudio2* XAudio2System;
 		IXAudio2MasteringVoice* OutputAudioStreamMasteringVoice;
 		IXAudio2SourceVoice* OutputAudioStreamSourceVoice;
@@ -115,7 +119,6 @@ namespace Audio
 		// we check whether a new audio device was connected every second or so.
 		float TimeSinceNullDeviceWasLastChecked;
 
-		uint32 bIsComInitialized : 1;
 		uint32 bIsInitialized : 1;
 		uint32 bIsDeviceOpen : 1;
 

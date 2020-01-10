@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/PlatformTime.h"
@@ -91,9 +91,9 @@ void FGenericCrashContext::Initialize()
 	NCached::Session.ProcessId = FPlatformProcess::GetCurrentProcessId();
 
 	FCString::Strcpy(NCached::Session.GameName, *FString::Printf( TEXT("UE4-%s"), FApp::GetProjectName() ));
-	FCString::Strcpy(NCached::Session.GameSessionID, TEXT(""));
-	FCString::Strcpy(NCached::Session.GameStateName, TEXT(""));
-	FCString::Strcpy(NCached::Session.UserActivityHint, TEXT(""));
+	FCString::Strcpy(NCached::Session.GameSessionID, TEXT("")); // Updated by callback
+	FCString::Strcpy(NCached::Session.GameStateName, TEXT("")); // Updated by callback
+	FCString::Strcpy(NCached::Session.UserActivityHint, TEXT("")); // Updated by callback
 	FCString::Strcpy(NCached::Session.BuildConfigurationName, LexToString(FApp::GetBuildConfiguration()));
 	FCString::Strcpy(NCached::Session.ExecutableName, FPlatformProcess::ExecutableName());
 	FCString::Strcpy(NCached::Session.BaseDir, FPlatformProcess::BaseDir());
@@ -121,7 +121,7 @@ void FGenericCrashContext::Initialize()
 		NCached::Session.bIsUE4Release = FApp::IsEngineInstalled();
 		FCString::Strcpy(NCached::Session.CommandLine, (FCommandLine::IsInitialized() ? FCommandLine::GetOriginalForLogging() : TEXT("")));
 		FCString::Strcpy(NCached::Session.EngineMode, FGenericPlatformMisc::GetEngineMode());
-		FCString::Strcpy(NCached::Session.EngineModeEx, EngineModeExString());
+		FCString::Strcpy(NCached::Session.EngineModeEx, FGenericCrashContext::EngineModeExUnknown); // Updated from callback
 
 		// Use -epicapp value from the commandline to start. This will also be set by the game
 		FParse::Value(FCommandLine::Get(), TEXT("EPICAPP="), NCached::Session.DeploymentName, CR_MAX_GENERIC_FIELD_CHARS, true);
@@ -216,9 +216,15 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	});
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	FCoreDelegates::OnPostEngineInit.AddLambda([] 
+	{
+		// IsEditor global have been properly initialized here.
+		FCString::Strcpy(NCached::Session.EngineMode, FGenericPlatformMisc::GetEngineMode());
+	});
+
 	FCoreDelegates::IsVanillaProductChanged.AddLambda([](bool bIsVanilla)
 	{
-		NCached::Session.bIsVanilla = bIsVanilla;
+		FCString::Strcpy(NCached::Session.EngineModeEx, bIsVanilla ? FGenericCrashContext::EngineModeExVanilla : FGenericCrashContext::EngineModeExDirty);
 	});
 
 	FCoreDelegates::ConfigReadyForUse.AddStatic(FGenericCrashContext::InitializeFromConfig);
@@ -850,12 +856,6 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 	}
 }
 
-const TCHAR* FGenericCrashContext::EngineModeExString()
-{
-	return !NCached::Session.bIsVanilla.IsSet() ? FGenericCrashContext::EngineModeExUnknown :
-		(NCached::Session.bIsVanilla.GetValue() ? FGenericCrashContext::EngineModeExVanilla : FGenericCrashContext::EngineModeExDirty);
-}
-
 const TCHAR* FGenericCrashContext::GetCrashConfigFilePath()
 {
 	if (FCString::Strlen(NCached::Session.CrashConfigFilePath) == 0)
@@ -1039,7 +1039,7 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 	GetPortableCallStack(StackFrames, NumStackFrames, CallStack);
 }
 
-void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack)
+void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const
 {
 	// Get all the modules in the current process
 	uint32 NumModules = (uint32)FPlatformStackWalk::GetProcessModuleCount();

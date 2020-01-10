@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SessionManager.h"
 #include "HAL/PlatformProcess.h"
@@ -22,14 +22,14 @@ FSessionManager::FSessionManager(const TSharedRef<IMessageBus, ESPMode::ThreadSa
 	if (FParse::Value(FCommandLine::Get(), TEXT("SessionFilter="), Filter))
 	{
 		// Allow support for -SessionFilter=Filter1+Filter2+Filter3
-		int32 PlusIdx = Filter.Find(TEXT("+"));
+		int32 PlusIdx = Filter.Find(TEXT("+"), ESearchCase::CaseSensitive);
 
 		while (PlusIdx != INDEX_NONE)
 		{
 			FString Owner = Filter.Left(PlusIdx);
 			FilteredOwners.Add(Owner);
-			Filter = Filter.Right(Filter.Len() - (PlusIdx + 1));
-			PlusIdx = Filter.Find(TEXT("+"));
+			Filter.RightInline(Filter.Len() - (PlusIdx + 1), false);
+			PlusIdx = Filter.Find(TEXT("+"), ESearchCase::CaseSensitive);
 		}
 
 		FilteredOwners.Add(Filter);

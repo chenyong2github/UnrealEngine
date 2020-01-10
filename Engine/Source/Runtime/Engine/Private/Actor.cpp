@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
 #include "EngineDefines.h"
@@ -40,6 +40,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "ObjectTrace.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -267,11 +268,11 @@ void AActor::ResetOwnedComponents()
 			if (Component && Component->CreationMethod == EComponentCreationMethod::Native)
 			{
 				// Find the property or properties that previously referenced the natively-constructed component.
-				TArray<UObjectProperty*> Properties;
+				TArray<FObjectProperty*> Properties;
 				NativeConstructedComponentToPropertyMap.MultiFind(Component->GetFName(), Properties);
 
 				// Determine if the property or properties are no longer valid references (either it got serialized out that way or something failed during load)
-				for (UObjectProperty* ObjProp : Properties)
+				for (FObjectProperty* ObjProp : Properties)
 				{
 					check(ObjProp != nullptr);
 					UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue_InContainer(this));
@@ -620,9 +621,9 @@ void AActor::Serialize(FArchive& Ar)
 		{
 			NativeConstructedComponentToPropertyMap.Reset();
 			NativeConstructedComponentToPropertyMap.Reserve(OwnedComponents.Num());
-			for(TFieldIterator<UObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for(TFieldIterator<FObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UObjectProperty* ObjProp = *PropertyIt;
+				FObjectProperty* ObjProp = *PropertyIt;
 
 				// Ignore transient properties since they won't be serialized
 				if(!ObjProp->HasAnyPropertyFlags(CPF_Transient))
@@ -940,6 +941,9 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 		}
 	}
 
+#if WITH_EDITOR
+	UObject* OldOuter = GetOuter();
+#endif
 	const bool bSuccess = Super::Rename( InName, NewOuter, Flags );
 
 	if (!bRenameTest && bChangingOuters)
@@ -956,6 +960,13 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 			}
 			RegisterAllActorTickFunctions(true, true); // register all tick functions
 		}
+
+#if WITH_EDITOR
+		if (GEngine && OldOuter != GetOuter())
+		{
+			GEngine->BroadcastLevelActorOuterChanged(this, OldOuter);
+		}
+#endif
 	}
 	return bSuccess;
 }
@@ -1118,12 +1129,12 @@ void AActor::PostActorCreated()
 	// nothing at the moment
 }
 
-void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding) const
+void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	bool bIgnoreRegistration = false;
 
 #if WITH_EDITOR
-	if(IsTemplate())
+	if (IsTemplate())
 	{
 		// Editor code calls this function on default objects when placing them in the viewport, so no components will be registered in those cases.
 		UWorld* MyWorld = GetWorld();
@@ -1143,29 +1154,21 @@ void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& Out
 	}
 #endif
 
-	float Radius = 0.f;
-	float HalfHeight = 0.f;
+	OutCollisionRadius = 0.f;
+	OutCollisionHalfHeight = 0.f;
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding cylinder
+		if ((bIgnoreRegistration || InPrimComp->IsRegistered()) && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if ((bIgnoreRegistration || PrimComp->IsRegistered()) && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				float TestRadius, TestHalfHeight;
-				PrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
-				Radius = FMath::Max(Radius, TestRadius);
-				HalfHeight = FMath::Max(HalfHeight, TestHalfHeight);
-			}
+			float TestRadius, TestHalfHeight;
+			InPrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
+			OutCollisionRadius = FMath::Max(OutCollisionRadius, TestRadius);
+			OutCollisionHalfHeight = FMath::Max(OutCollisionHalfHeight, TestHalfHeight);
 		}
-	}
-
-	OutCollisionRadius = Radius;
-	OutCollisionHalfHeight = HalfHeight;
+	});
 }
-
 
 void AActor::GetSimpleCollisionCylinder(float& CollisionRadius, float& CollisionHalfHeight) const
 {
@@ -1204,12 +1207,12 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	// Any properties that reference a blueprint constructed component needs to avoid creating a reference to the component from the transaction
 	// buffer, so we temporarily switch the property to non-transactional while the modify occurs
-	TArray<UObjectProperty*> TemporarilyNonTransactionalProperties;
+	TArray<FObjectProperty*> TemporarilyNonTransactionalProperties;
 	if (GUndo)
 	{
-		for (TFieldIterator<UObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UObjectProperty* ObjProp = *PropertyIt;
+			FObjectProperty* ObjProp = *PropertyIt;
 			if (!ObjProp->HasAllPropertyFlags(CPF_NonTransactional))
 			{
 				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(this)));
@@ -1224,7 +1227,7 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	bool bSavedToTransactionBuffer = UObject::Modify( bAlwaysMarkDirty );
 
-	for (UObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
+	for (FObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
 	{
 		ObjProp->ClearPropertyFlags(CPF_NonTransactional);
 	}
@@ -1239,48 +1242,37 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 }
 #endif
 
-FBox AActor::GetComponentsBoundingBox(bool bNonColliding) const
+FBox AActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if (PrimComp->IsRegistered() && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				Box += PrimComp->Bounds.GetBox();
-			}
+			Box += InPrimComp->Bounds.GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
 
-FBox AActor::CalculateComponentsBoundingBoxInLocalSpace( bool bNonColliding ) const
+FBox AActor::CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
-
 	const FTransform& ActorToWorld = GetTransform();
 	const FTransform WorldToActor = ActorToWorld.Inverse();
 
-	for( const UActorComponent* ActorComponent : GetComponents() )
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>( ActorComponent );
-		if( PrimComp )
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if( PrimComp->IsRegistered() && ( bNonColliding || PrimComp->IsCollisionEnabled() ) )
-			{
-				const FTransform ComponentToActor = PrimComp->GetComponentTransform() * WorldToActor;
-				FBoxSphereBounds ActorSpaceComponentBounds = PrimComp->CalcBounds( ComponentToActor );
-
-				Box += ActorSpaceComponentBounds.GetBox();
-			}
+			const FTransform ComponentToActor = InPrimComp->GetComponentTransform() * WorldToActor;
+			Box += InPrimComp->CalcBounds(ComponentToActor).GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
@@ -2170,6 +2162,8 @@ void AActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (ActorHasBegunPlay == EActorBeginPlayState::HasBegunPlay)
 	{
+		TRACE_OBJECT_EVENT(this, EndPlay);
+
 		ActorHasBegunPlay = EActorBeginPlayState::HasNotBegunPlay;
 
 		// Dispatch the blueprint events
@@ -3447,6 +3441,8 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 
 void AActor::BeginPlay()
 {
+	TRACE_OBJECT_EVENT(this, BeginPlay);
+
 	ensureMsgf(ActorHasBegunPlay == EActorBeginPlayState::BeginningPlay, TEXT("BeginPlay was called on actor %s which was in state %d"), *GetPathName(), (int32)ActorHasBegunPlay);
 	SetLifeSpan( InitialLifeSpan );
 	RegisterAllActorTickFunctions(true, false); // Components are done below.
@@ -3937,9 +3933,9 @@ bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 	return false;
 }
 
-void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent) const
+void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
 {
-	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents);
+	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents, bIncludeFromChildActors);
 
 	// To keep consistency with the other GetBounds functions, transform our result into an origin / extent formatting
 	Bounds.GetCenterAndExtents(Origin, BoxExtent);

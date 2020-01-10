@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -25,6 +25,9 @@ struct FTexelToVertex
 
 	/** World space radius of the texel. */
 	float TexelRadius;
+
+	/** Final gathering sample radius, derived from texel radius by adjustment */
+	float SampleRadius;
 
 	/** Whether this texel was determined to be intersecting another surface. */
 	uint32 bIntersectingSurface : 1;

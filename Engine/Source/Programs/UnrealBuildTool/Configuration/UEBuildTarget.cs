@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -229,6 +229,10 @@ namespace UnrealBuildTool
 		/// Android
 		/// </summary>
 		public static UnrealTargetPlatform Android = FindOrAddByName("Android");
+
+		/// <summary>
+		/// </summary>
+		public static UnrealTargetPlatform HTML5 = FindOrAddByName("HTML5");
 
 		/// <summary>
 		/// Linux
@@ -600,6 +604,12 @@ namespace UnrealBuildTool
 		/// <returns>The build target object for the specified build rules source file</returns>
 		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bUsePrecompiled)
 		{
+			// make sure we are allowed to build this platform
+			if (!UEBuildPlatform.IsPlatformAvailable(Descriptor.Platform))
+			{
+				throw new BuildException("Platform {0} is not a valid platform to build. Check that the SDK is installed properly.", Descriptor.Platform);
+			}
+
 			RulesAssembly RulesAssembly;
 			using(Timeline.ScopeEvent("RulesCompiler.CreateTargetRulesAssembly()"))
 			{
@@ -3000,22 +3010,28 @@ namespace UnrealBuildTool
 				}
 			}
 
+			bool bAllowEnginePluginsEnabledByDefault = true;
+
 			// Find a map of plugins which are explicitly referenced in the project file
-			if(ProjectDescriptor != null && ProjectDescriptor.Plugins != null)
+			if (ProjectDescriptor != null)
 			{
-				string ProjectReferenceChain = ProjectFile.GetFileName();
-				foreach(PluginReferenceDescriptor PluginReference in ProjectDescriptor.Plugins)
+				bAllowEnginePluginsEnabledByDefault = !ProjectDescriptor.DisableEnginePluginsByDefault;
+				if (ProjectDescriptor.Plugins != null)
 				{
-					if(!Rules.EnablePlugins.Contains(PluginReference.Name, StringComparer.InvariantCultureIgnoreCase) && !Rules.DisablePlugins.Contains(PluginReference.Name, StringComparer.InvariantCultureIgnoreCase))
+					string ProjectReferenceChain = ProjectFile.GetFileName();
+					foreach (PluginReferenceDescriptor PluginReference in ProjectDescriptor.Plugins)
 					{
-						// Make sure we don't have multiple references to the same plugin
-						if(!ReferencedNames.Add(PluginReference.Name))
+						if (!Rules.EnablePlugins.Contains(PluginReference.Name, StringComparer.InvariantCultureIgnoreCase) && !Rules.DisablePlugins.Contains(PluginReference.Name, StringComparer.InvariantCultureIgnoreCase))
 						{
-							Log.TraceWarning("Plugin '{0}' is listed multiple times in project file '{1}'.", PluginReference.Name, ProjectFile);
-						}
-						else
-						{
-							AddPlugin(PluginReference, ProjectReferenceChain, ExcludeFolders, NameToInstance, NameToInfo);
+							// Make sure we don't have multiple references to the same plugin
+							if (!ReferencedNames.Add(PluginReference.Name))
+							{
+								Log.TraceWarning("Plugin '{0}' is listed multiple times in project file '{1}'.", PluginReference.Name, ProjectFile);
+							}
+							else
+							{
+								AddPlugin(PluginReference, ProjectReferenceChain, ExcludeFolders, NameToInstance, NameToInfo);
+							}
 						}
 					}
 				}
@@ -3026,7 +3042,7 @@ namespace UnrealBuildTool
 			{
 				foreach(PluginInfo Plugin in NameToInfo.Values)
 				{
-					if(Plugin.EnabledByDefault && !ReferencedNames.Contains(Plugin.Name))
+					if(Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ReferencedNames.Contains(Plugin.Name))
 					{
 						ReferencedNames.Add(Plugin.Name);
 
@@ -3340,6 +3356,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalCompileEnvironment.bUseRTTI = Rules.bForceEnableRTTI;
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
+			GlobalCompileEnvironment.bCompileISPC = Rules.bCompileISPC;
 			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments;

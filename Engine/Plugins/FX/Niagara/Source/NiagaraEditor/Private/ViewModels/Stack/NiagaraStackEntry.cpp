@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
@@ -18,6 +18,7 @@ const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Settings = TEXT("Set
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn = TEXT("Spawn");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Update = TEXT("Update");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Event = TEXT("Event");
+const FName UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage = TEXT("Shader Stage");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Render = TEXT("Render");
 
 UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()
@@ -224,10 +225,27 @@ bool UNiagaraStackEntry::GetIsExpanded() const
 
 void UNiagaraStackEntry::SetIsExpanded(bool bInExpanded)
 {
-	if (StackEditorData)
+	if (StackEditorData && GetCanExpand())
 	{
 		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
 	}
+	bIsExpandedCache.Reset();
+}
+
+void UNiagaraStackEntry::SetIsExpanded_Recursive(bool bInExpanded)
+{
+	if (StackEditorData && GetCanExpand())
+	{
+		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
+	}
+
+	TArray<UNiagaraStackEntry*> UnfilteredChildren;
+	GetUnfilteredChildren(UnfilteredChildren);
+	for (UNiagaraStackEntry* Child : UnfilteredChildren)
+	{
+		Child->SetIsExpanded_Recursive(bInExpanded);
+	}
+
 	bIsExpandedCache.Reset();
 }
 

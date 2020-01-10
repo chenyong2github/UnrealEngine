@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClassMaps.h"
 #include "UnrealHeaderTool.h"
@@ -7,15 +7,15 @@
 TMap<FString, TSharedRef<FUnrealSourceFile> > GUnrealSourceFilesMap;
 TMap<UField*, TSharedRef<FUnrealTypeDefinitionInfo> > GTypeDefinitionInfoMap;
 TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
-TMap<UClass*, FString> GClassStrippedHeaderTextMap;
-TMap<UClass*, FString> GClassHeaderNameWithNoPathMap;
+FCriticalSection GPackageSingletonsCriticalSection;
 TSet<FUnrealSourceFile*> GPublicSourceFileSet;
-TMap<UProperty*, FString> GArrayDimensions;
+TMap<FProperty*, FString> GArrayDimensions;
 TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
-TMap<UField*, uint32> GGeneratedCodeHashes;
+TMap<void*, uint32> GGeneratedCodeHashes;
+FRWLock GGeneratedCodeHashesLock;
 TMap<UEnum*,  EUnderlyingEnumType> GEnumUnderlyingTypes;
 TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
-TSet<UProperty*> GUnsizedProperties;
+TSet<FProperty*> GUnsizedProperties;
 TSet<UField*> GEditorOnlyDataTypes;
 TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
 TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;

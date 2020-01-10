@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -271,11 +271,11 @@ public:
 	static const UClass* GetMostUpToDateClass(const UClass* FromClass);
 	
 	/** Looks at the most up to data class and returns whether the given property exists in it as well */
-	static bool PropertyStillExists(UProperty* Property);
+	static bool PropertyStillExists(FProperty* Property);
 
 	/** Returns the skeleton version of the property, skeleton classes are often more up to date than the authoritative GeneratedClass */
-	static UProperty* GetMostUpToDateProperty(UProperty* Property);
-	static const UProperty* GetMostUpToDateProperty(const UProperty* Property);
+	static FProperty* GetMostUpToDateProperty(FProperty* Property);
+	static const FProperty* GetMostUpToDateProperty(const FProperty* Property);
 
 	static UFunction* GetMostUpToDateFunction(UFunction* Function);
 	static const UFunction* GetMostUpToDateFunction(const UFunction* Function);
@@ -980,7 +980,7 @@ public:
 	static void ReplaceVariableReferences(UBlueprint* Blueprint, const FName OldName, const FName NewName);
 
 	/** Replaces all variable references in the specified blueprint */
-	static void ReplaceVariableReferences(UBlueprint* Blueprint, const UProperty* OldVariable, const UProperty* NewVariable);
+	static void ReplaceVariableReferences(UBlueprint* Blueprint, const FProperty* OldVariable, const FProperty* NewVariable);
 
 	/** Check blueprint variable metadata keys/values for validity and make adjustments if needed */
 	static void FixupVariableDescription(UBlueprint* Blueprint, FBPVariableDescription& VarDesc);
@@ -1147,7 +1147,7 @@ public:
 	static void SetBlueprintVariableRepNotifyFunc(UBlueprint* Blueprint, const FName& VarName, const FName& RepNotifyFunc);
 
 	/** Returns TRUE if the variable was created by the Blueprint */
-	static bool IsVariableCreatedByBlueprint(UBlueprint* InBlueprint, UProperty* InVariableProperty);
+	static bool IsVariableCreatedByBlueprint(UBlueprint* InBlueprint, FProperty* InVariableProperty);
 
 	/**
 	 * Find the index of a variable first declared in this blueprint. Returns INDEX_NONE if not found.
@@ -1212,23 +1212,23 @@ public:
 	static bool IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope = nullptr);
 
 	/** Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject = nullptr);
+	static bool PropertyValueFromString(const FProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject = nullptr);
 
 	/** Copies the value from the passed in string into a property. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject = nullptr);
+	static bool PropertyValueFromString_Direct(const FProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject = nullptr);
+	static bool PropertyValueToString(const FProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject = nullptr);
+	static bool PropertyValueToString_Direct(const FProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
 	static void PostEditChangeBlueprintActors(UBlueprint* Blueprint, bool bComponentEditChange = false);
 
 	/** Checks if the property can be modified in given blueprint */
 	UE_DEPRECATED(4.17, "Use IsPropertyWritableInBlueprint instead.")
-	static bool IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const UProperty* Property);
+	static bool IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const FProperty* Property);
 
 	/** Enumeration of whether a property is writable or if not, why. */
 	enum class EPropertyWritableState : uint8
@@ -1240,7 +1240,7 @@ public:
 	};
 
 	/** Returns an enumeration indicating if the property can be written to by the given Blueprint */
-	static EPropertyWritableState IsPropertyWritableInBlueprint(const UBlueprint* Blueprint, const UProperty* Property);
+	static EPropertyWritableState IsPropertyWritableInBlueprint(const UBlueprint* Blueprint, const FProperty* Property);
 
 	/** Enumeration of whether a property is readable or if not, why. */
 	enum class EPropertyReadableState : uint8
@@ -1251,13 +1251,13 @@ public:
 	};
 
 	/** Returns an enumeration indicating if the property can be read by the given Blueprint */
-	static EPropertyReadableState IsPropertyReadableInBlueprint(const UBlueprint* Blueprint, const UProperty* Property);
+	static EPropertyReadableState IsPropertyReadableInBlueprint(const UBlueprint* Blueprint, const FProperty* Property);
 
 	/** Ensures that the CDO root component reference is valid for Actor-based Blueprints */
 	static void UpdateRootComponentReference(UBlueprint* Blueprint);
 
 	/** Determines if this property is associated with a component that would be displayed in the SCS editor */
-	static bool IsSCSComponentProperty(UObjectProperty* MemberProperty);
+	static bool IsSCSComponentProperty(FObjectProperty* MemberProperty);
 
 	/** Attempts to match up the FComponentKey with a ComponentTemplate from the Blueprint's UCS */
 	static UActorComponent* FindUCSComponentTemplate(const FComponentKey& ComponentKey);
@@ -1573,9 +1573,9 @@ public:
 	static bool HasGetTypeHash(const FEdGraphPinType& PinType);
 
 	/**
-	 * Returns true if this type of UProperty can be hashed. Matches native constructors of UNumericProperty, etc.
+	 * Returns true if this type of FProperty can be hashed. Matches native constructors of FNumericProperty, etc.
 	 */
-	static bool PropertyHasGetTypeHash(const UProperty* PropertyType);
+	static bool PropertyHasGetTypeHash(const FProperty* PropertyType);
 
 	/**
 	 * Returns true if the StructType is native and has a GetTypeHash or is non-native and all of its member types are handled by UScriptStruct::GetStructTypeHash

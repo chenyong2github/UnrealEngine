@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -351,7 +351,7 @@ namespace UnrealBuildTool
 		/// <returns>True if it's available, false otherwise</returns>
 		public static bool IsPlatformAvailable(UnrealTargetPlatform Platform)
 		{
-			return BuildPlatformDictionary.ContainsKey(Platform);
+			return BuildPlatformDictionary.ContainsKey(Platform) && BuildPlatformDictionary[Platform].HasRequiredSDKsInstalled() == SDKStatus.Valid;
 		}
 
 		/// <summary>
@@ -360,6 +360,8 @@ namespace UnrealBuildTool
 		/// <param name="InBuildPlatform"> The UEBuildPlatform instance to use for the InPlatform</param>
 		public static void RegisterBuildPlatform(UEBuildPlatform InBuildPlatform)
 		{
+			Log.TraceVerbose("        Registering build platform: {0} - buildable: {1}", InBuildPlatform.Platform, InBuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid);
+
 			if (BuildPlatformDictionary.ContainsKey(InBuildPlatform.Platform) == true)
 			{
 				Log.TraceWarning("RegisterBuildPlatform Warning: Registering build platform {0} for {1} when it is already set to {2}",

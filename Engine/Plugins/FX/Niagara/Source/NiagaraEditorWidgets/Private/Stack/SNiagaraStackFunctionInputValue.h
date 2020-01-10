@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -51,7 +51,7 @@ private:
 
 	FText GetDynamicValueText() const;
 
-	FText GetExpressionValueText() const;
+	FText GetDynamicValueToolTip() const;
 
 	void OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo);
 

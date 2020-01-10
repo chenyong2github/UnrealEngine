@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetProfilerModule.h"
 #include "Analyzers/NetTraceAnalyzer.h"
@@ -28,7 +28,7 @@ void FNetProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 
 void FNetProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
-	OutLoggers.Add(TEXT("NetProfiler"));
+	//OutLoggers.Add(TEXT("NetProfiler"));
 }
 
 }

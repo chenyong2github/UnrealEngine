@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneHitProxyRendering.cpp: Scene hit proxy rendering.
@@ -527,6 +527,8 @@ static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FScen
 
 void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
 {
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR

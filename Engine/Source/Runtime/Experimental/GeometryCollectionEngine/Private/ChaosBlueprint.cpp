@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosBlueprint.h"
 #include "PhysicsSolver.h"
@@ -72,7 +72,7 @@ void UChaosDestructionListener::UpdateEvents()
 				{
 					if (const FGeometryCollectionPhysicsProxy* GeometryCollectionPhysicsObject = GeometryCollectionComponent->GetPhysicsProxy())
 					{
-						RegisterChaosEvents(GeometryCollectionComponent->GetPhysicsScene());
+						RegisterChaosEvents(GeometryCollectionComponent->GetWorld()->GetPhysicsScene());
 					}
 				}
 			}
@@ -310,7 +310,7 @@ void UChaosDestructionListener::AddGeometryCollectionActor(AGeometryCollectionAc
 		{
 			if (const FGeometryCollectionPhysicsProxy* GeometryCollectionPhysicsObject = GeometryCollectionComponent->GetPhysicsProxy())
 			{
-				RegisterChaosEvents(GeometryCollectionComponent->GetPhysicsScene());
+				RegisterChaosEvents(GeometryCollectionComponent->GetWorld()->GetPhysicsScene());
 			}
 		}
 	}

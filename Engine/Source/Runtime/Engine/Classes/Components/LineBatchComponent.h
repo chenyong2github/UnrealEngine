@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -117,7 +117,7 @@ public:
  *	This can be useful for debug drawing, but is not very performant for runtime use.
  */
 UCLASS(MinimalAPI)
-class ULineBatchComponent : public UPrimitiveComponent
+class ENGINE_VTABLE ULineBatchComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 

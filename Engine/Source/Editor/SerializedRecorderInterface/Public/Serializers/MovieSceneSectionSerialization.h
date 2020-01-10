@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -93,7 +93,7 @@ public:
 		Size = Handle->Size();
 		Pos = Handle->Tell();
 		BufferBase = 0;
-		BufferCount = 0;
+		BufferArray.Reset();
 	}
 
 	/** FArchiveFileReaderGeneric interface*/
@@ -114,7 +114,7 @@ public:
 	void BeginArchiving()
 	{
 		Pos = Handle->Tell();
-		BufferCount = 0;
+		BufferArray.Reset();
 	}
 
 	/** FArchiveFileWriterGeneric interface*/

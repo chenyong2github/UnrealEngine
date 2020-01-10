@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MacPlatformMisc.mm: Mac implementations of misc functions
@@ -1389,6 +1389,40 @@ FString FMacPlatformMisc::GetCPUVendor()
 	VendorResult.Buffer[12] = 0;
 
 	return ANSI_TO_TCHAR(VendorResult.Buffer);
+}
+
+FString FMacPlatformMisc::GetCPUBrand()
+{
+	static FString Result = FGenericPlatformMisc::GetCPUBrand();
+	static bool bHaveResult = false;
+
+	if (!bHaveResult)
+	{
+		// @see for more information http://msdn.microsoft.com/en-us/library/vstudio/hskdteyh(v=vs.100).aspx
+		ANSICHAR BrandString[0x40] = { 0 };
+		int32 CPUInfo[4] = { -1 };
+		const SIZE_T CPUInfoSize = sizeof(CPUInfo);
+
+		asm( "cpuid" : "=a" (CPUInfo[0]), "=b" (CPUInfo[1]), "=c" (CPUInfo[2]), "=d" (CPUInfo[3]) : "a" (0x80000000));
+		const uint32 MaxExtIDs = CPUInfo[0];
+
+		if (MaxExtIDs >= 0x80000004)
+		{
+			const uint32 FirstBrandString = 0x80000002;
+			const uint32 NumBrandStrings = 3;
+			for (uint32 Index = 0; Index < NumBrandStrings; ++Index)
+			{
+				asm( "cpuid" : "=a" (CPUInfo[0]), "=b" (CPUInfo[1]), "=c" (CPUInfo[2]), "=d" (CPUInfo[3]) : "a" (FirstBrandString + Index));
+				FPlatformMemory::Memcpy(BrandString + CPUInfoSize * Index, CPUInfo, CPUInfoSize);
+			}
+		}
+
+		Result = BrandString;
+
+		bHaveResult = true;
+	}
+
+	return FString(Result);
 }
 
 uint32 FMacPlatformMisc::GetCPUInfo()

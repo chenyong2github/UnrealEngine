@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Trace.h"
-#include "Trace/Detail/EventDef.h"
+#include "Trace/Trace.h" // should be Config.h :(
 
 #if UE_TRACE_ENABLED
+
+#include "Trace/Detail/EventDef.h"
 
 namespace Trace
 {

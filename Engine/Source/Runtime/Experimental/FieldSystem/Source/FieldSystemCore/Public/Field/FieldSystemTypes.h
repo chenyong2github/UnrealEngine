@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "UObject/ObjectMacros.h"
 
@@ -83,6 +83,7 @@ enum EFieldFalloffType
 UENUM(BlueprintType)
 enum EFieldPhysicsType
 {
+	Field_None						UMETA(Hidden),
 	Field_DynamicState				UMETA(DisplayName = "DynamicState"),
 	Field_LinearForce				UMETA(DisplayName = "LinearForce"),
 	Field_ExternalClusterStrain		UMETA(DisplayName = "ExternalClusterStrain"),
@@ -107,7 +108,7 @@ enum EFieldPhysicsType
 inline 
 FName FIELDSYSTEMCORE_API GetFieldPhysicsName(EFieldPhysicsType Type)
 {
-	switch (Type)
+	switch(Type)
 	{
 	case Field_DynamicState:
 		return "DynamicState";
@@ -144,6 +145,86 @@ FName FIELDSYSTEMCORE_API GetFieldPhysicsName(EFieldPhysicsType Type)
 	}
 	return "None";
 }
+
+inline
+EFieldPhysicsType FIELDSYSTEMCORE_API GetFieldPhysicsType(const FName& Name)
+{
+	if(Name == "DynamicState")
+	{
+		return Field_DynamicState;
+	}
+	else if(Name == "LinearForce")
+	{
+		return Field_LinearForce;
+	}
+	else if(Name == "ExternalClusterStrain")
+	{
+		return Field_ExternalClusterStrain;
+	}
+	else if(Name == "Kill")
+	{
+		return Field_Kill;
+	}
+	else if(Name == "LinearVelocity")
+	{
+		return Field_LinearVelocity;
+	}
+	else if (Name == "AngularVelocity")
+	{
+		return Field_AngularVelociy;
+	}
+	else if(Name == "AngularTorque")
+	{
+		return Field_AngularTorque;
+	}
+	else if(Name == "InternalClusterStrain")
+	{
+		return Field_InternalClusterStrain;
+	}
+	else if(Name == "DisableThreshold")
+	{
+		return Field_DisableThreshold;
+	}
+	else if(Name == "SleepingThreshold")
+	{
+		return Field_SleepingThreshold;
+	}
+	else if(Name == "PositionStatic")
+	{
+		return Field_PositionStatic;
+	}
+	else if(Name == "PositionAnimated")
+	{
+		return Field_PositionAnimated;
+	}
+	else if(Name == "PositionTarget")
+	{
+		return Field_PositionTarget;
+	}
+	else if(Name == "DynamicConstraint")
+	{
+		return Field_DynamicConstraint;
+	}
+	else if(Name == "CollisionGroup")
+	{
+		return Field_CollisionGroup;
+	}
+	else if(Name == "ActivateDisabled")
+	{
+		return Field_ActivateDisabled;
+	}
+	else if(Name == "None")
+	{
+		return Field_None;
+	}
+	else
+	{
+		check(false);
+	}
+
+	return Field_None;
+}
+
 
 /**
 *

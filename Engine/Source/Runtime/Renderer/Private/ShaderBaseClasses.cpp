@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderBaseClasses.cpp: Shader base classes
@@ -287,7 +287,7 @@ void FMaterialShader::SetParametersInner(
 				// In a cooked project these numbers are persistent so we can track back to the original
 				// parameter collection that was being referenced and no longer exists
 				FString InstancesString;
-				TMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
+				TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
 				while (Iter)
 				{
 					FMaterialParameterCollectionInstanceResource* Instance = Iter.Value();
@@ -424,7 +424,6 @@ void FMaterialShader::GetShaderBindings(
 
 	const FUniformExpressionCache& UniformExpressionCache = MaterialRenderProxy.UniformExpressionCache[FeatureLevel];
 
-	// Trying to get context for UE-75466.
 	checkf(UniformExpressionCache.bUpToDate, TEXT("UniformExpressionCache should be up to date, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
 	checkf(UniformExpressionCache.UniformBuffer, TEXT("NULL UniformBuffer, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
 
@@ -466,7 +465,7 @@ void FMaterialShader::GetShaderBindings(
 				// In a cooked project these numbers are persistent so we can track back to the original
 				// parameter collection that was being referenced and no longer exists
 				FString InstancesString;
-				TMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
+				TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
 				while (Iter)
 				{
 					FMaterialParameterCollectionInstanceResource* Instance = Iter.Value();

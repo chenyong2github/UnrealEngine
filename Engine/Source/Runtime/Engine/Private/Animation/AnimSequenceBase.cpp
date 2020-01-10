@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSequenceBase.h"
 #include "AnimationUtils.h"
@@ -437,20 +437,18 @@ void UAnimSequenceBase::RefreshCacheData()
 		// Handle busted track indices
 		if (!AnimNotifyTracks.IsValidIndex(Notify.TrackIndex))
 		{
-			// This really shouldn't happen, but try to handle it
-			ensureMsgf(0, TEXT("AnimNotifyTrack: Anim (%s) has notify (%s) with track index (%i) that does not exist"), *GetFullName(), *Notify.NotifyName.ToString(), Notify.TrackIndex);
+			// This really shouldn't happen (unless we are a cooked asset), but try to handle it
+			ensureMsgf(GetOutermost()->bIsCookedForEditor, TEXT("AnimNotifyTrack: Anim (%s) has notify (%s) with track index (%i) that does not exist"), *GetFullName(), *Notify.NotifyName.ToString(), Notify.TrackIndex);
 
 			// Don't create lots of extra tracks if we are way off supporting this track
 			if (Notify.TrackIndex < 0 || Notify.TrackIndex > 20)
 			{
 				Notify.TrackIndex = 0;
 			}
-			else
+
+			while (!AnimNotifyTracks.IsValidIndex(Notify.TrackIndex))
 			{
-				while (!AnimNotifyTracks.IsValidIndex(Notify.TrackIndex))
-				{
-					AddNewTrack(AnimNotifyTracks);
-				}
+				AddNewTrack(AnimNotifyTracks);
 			}
 		}
 
@@ -623,7 +621,7 @@ void UAnimSequenceBase::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 	OutTags.Add(FAssetRegistryTag(USkeleton::CurveNameTag, CurveNameList, FAssetRegistryTag::TT_Hidden));
 }
 
-uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProperty*& ArrayProperty)
+uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty)
 {
 	// initialize to NULL
 	ArrayProperty = NULL;
@@ -635,19 +633,19 @@ uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProper
 	return NULL;
 }
 
-uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, UArrayProperty*& ArrayProperty, int32 ArrayIndex)
+uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex)
 {
 	// find Notifies property start point
-	UProperty* Property = FindField<UProperty>(GetClass(), PropName);
+	FProperty* Property = FindField<FProperty>(GetClass(), PropName);
 
 	// found it and if it is array
-	if (Property && Property->IsA(UArrayProperty::StaticClass()))
+	if (Property && Property->IsA(FArrayProperty::StaticClass()))
 	{
 		// find Property Value from UObject we got
 		uint8* PropertyValue = Property->ContainerPtrToValuePtr<uint8>(this);
 
 		// it is array, so now get ArrayHelper and find the raw ptr of the data
-		ArrayProperty = CastChecked<UArrayProperty>(Property);
+		ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
 		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyValue);
 
 		if (ArrayProperty->Inner && ArrayIndex < ArrayHelper.Num())

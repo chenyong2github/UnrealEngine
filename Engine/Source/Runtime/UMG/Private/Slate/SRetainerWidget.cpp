@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Slate/SRetainerWidget.h"
 #include "Misc/App.h"
@@ -477,6 +477,9 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 			MutableThis->RequestRender();
 		}
 		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid);
+
+		// Copy the current user index into the new grid since nested hittest grids should inherit their parents user id
+		NewArgs.GetHittestGrid().SetUserIndex(Args.RootGrid.GetUserIndex());
 
 		FSlateInvalidationContext Context(OutDrawElements, InWidgetStyle);
 		Context.bParentEnabled = bParentEnabled;

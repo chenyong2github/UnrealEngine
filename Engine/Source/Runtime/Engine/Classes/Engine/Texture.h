@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -415,6 +415,10 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
+/**
+ * Optional extra fields for texture platform data required by some platforms.
+ * Data in this struct is only serialized if the struct's value is non-default.
+ */
 struct FOptTexturePlatformData
 {
 	/** Arbitrary extra data that the runtime may need. */
@@ -426,6 +430,17 @@ struct FOptTexturePlatformData
 		: ExtData(0)
 		, NumMipsInTail(0)
 	{}
+
+	inline bool operator == (FOptTexturePlatformData const& RHS) const 
+	{
+		return ExtData == RHS.ExtData
+			&& NumMipsInTail == RHS.NumMipsInTail;
+	}
+
+	inline bool operator != (FOptTexturePlatformData const& RHS) const
+	{
+		return !(*this == RHS);
+	}
 
 	friend inline FArchive& operator << (FArchive& Ar, FOptTexturePlatformData& Data)
 	{
@@ -447,8 +462,8 @@ struct FTexturePlatformData
 	int32 SizeX;
 	/** Height of the texture. */
 	int32 SizeY;
-	/** Number of texture slices. Bit CubeMapBitIndex contains if a texture is a Cubemap or not. */
-	uint32 NumSlicesCubemapMask;
+	/** Packed bits [b31: CubeMap], [b30: HasOptData], [b29-0: NumSlices]. See bit masks below. */
+	uint32 PackedData;
 	/** Format in which mip data is stored. */
 	EPixelFormat PixelFormat;
 	/** Additional data required by some platforms.*/
@@ -475,10 +490,12 @@ struct FTexturePlatformData
 	/** Destructor. */
 	ENGINE_API ~FTexturePlatformData();
 
-	static constexpr uint32 CubeMapBitIndex = 31;
-	static constexpr uint32 CubeMapBitMask = (1u << CubeMapBitIndex);
-	static constexpr uint32 CubeMapRemainingBitMask = CubeMapBitMask - 1u;
+private:
+	static constexpr uint32 BitMask_CubeMap    = 1u << 31u;
+	static constexpr uint32 BitMask_HasOptData = 1u << 30u;
+	static constexpr uint32 BitMask_NumSlices  = BitMask_HasOptData - 1u;
 
+public:
 	/** Return whether TryLoadMips() would stall because async loaded mips are not yet available. */
 	bool IsReadyForAsyncPostLoad() const;
 
@@ -503,25 +520,39 @@ struct FTexturePlatformData
 	 * @param bStreamable Store some mips inline, only used during cooking
 	 */
 	void SerializeCooked(FArchive& Ar, class UTexture* Owner, bool bStreamable);
+	
+	inline bool GetHasOptData() const
+	{
+		return (PackedData & BitMask_HasOptData) == BitMask_HasOptData;
+	}
+
+	inline void SetOptData(FOptTexturePlatformData Data)
+	{
+		// Set the opt data flag to true if the specified data is non-default.
+		bool bHasOptData = Data != FOptTexturePlatformData();
+		PackedData = (bHasOptData ? BitMask_HasOptData : 0) | (PackedData & (~BitMask_HasOptData));
+
+		OptData = Data;
+	}
 
 	inline bool IsCubemap() const
 	{
-		return (NumSlicesCubemapMask & CubeMapBitMask) == CubeMapBitMask;
-	}
-
-	inline int32 GetNumSlices() const
-	{
-		return (int32)(NumSlicesCubemapMask & CubeMapRemainingBitMask);
-	}
-
-	inline void SetNumSlices(int32 NumSlices)
-	{
-		NumSlicesCubemapMask = ((uint32)NumSlices & CubeMapRemainingBitMask) | (NumSlicesCubemapMask & CubeMapBitMask);
+		return (PackedData & BitMask_CubeMap) == BitMask_CubeMap; 
 	}
 
 	inline void SetIsCubemap(bool bCubemap)
 	{
-		NumSlicesCubemapMask = (bCubemap ? CubeMapBitMask : 0) | (NumSlicesCubemapMask & CubeMapRemainingBitMask);
+		PackedData = (bCubemap ? BitMask_CubeMap : 0) | (PackedData & (~BitMask_CubeMap));
+	}
+	
+	inline int32 GetNumSlices() const 
+	{
+		return (int32)(PackedData & BitMask_NumSlices);
+	}
+
+	inline void SetNumSlices(int32 NumSlices)
+	{
+		PackedData = (NumSlices & BitMask_NumSlices) | (PackedData & (~BitMask_NumSlices));
 	}
 
 	inline int32 GetNumMipsInTail() const
@@ -979,7 +1010,7 @@ public:
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	ENGINE_API virtual bool CanEditChange(const UProperty* InProperty) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	ENGINE_API virtual void PostInitProperties() override;
@@ -1075,6 +1106,11 @@ public:
 #else
 		LightingGuid = FGuid(0, 0, 0, 0);
 #endif // WITH_EDITORONLY_DATA
+	}
+
+	void SetLightingGuid(const FGuid& Guid)
+	{
+		LightingGuid = Guid;
 	}
 
 	/**

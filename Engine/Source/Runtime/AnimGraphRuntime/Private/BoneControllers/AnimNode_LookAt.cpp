@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_LookAt.h"
 #include "SceneManagement.h"
@@ -7,6 +7,7 @@
 #include "AnimationCoreLibrary.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Animation/AnimTrace.h"
 
 static const FVector DefaultLookAtAxis(0.f, 1.f, 0.f);
 static const FVector DefaultLookUpAxis(1.f, 0.f, 0.f);
@@ -142,6 +143,11 @@ void FAnimNode_LookAt::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 #if !UE_BUILD_SHIPPING
 	CachedLookAtTransform = ComponentBoneTransform;
 #endif
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Bone"), BoneToModify.BoneName);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Look At Target"), LookAtTarget.HasValidSetup() ? LookAtTarget.GetTargetSetup() : NAME_None);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Look At Location"), LookAtLocation);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Target Location"), CachedCurrentTargetLocation);
 }
 
 void FAnimNode_LookAt::EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context)

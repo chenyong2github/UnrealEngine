@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenSpaceRayTracing.h"
 #include "RenderGraph.h"
@@ -61,11 +61,6 @@ static TAutoConsoleVariable<int32> CVarSSGIHalfResolution(
 static TAutoConsoleVariable<int32> CVarSSGIQuality(
 	TEXT("r.SSGI.Quality"), 4,
 	TEXT("Quality setting to control number of ray shot with SSGI, between 1 and 4 (defaults to 4).\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<float> CVarSSGIMinimumLuminance(
-	TEXT("r.SSGI.MinimumLuminance"), 0.5f,
-	TEXT("Experimental"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 
@@ -950,7 +945,6 @@ void RenderScreenSpaceDiffuseIndirect(
 			}
 
 			PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-			PassParameters->MinimumLuminance = CVarSSGIMinimumLuminance.GetValueOnRenderThread();
 
 			PassParameters->PrevScreenPositionScaleBias = FVector4(
 				ViewportExtent.X * 0.5f / BufferSize.X,

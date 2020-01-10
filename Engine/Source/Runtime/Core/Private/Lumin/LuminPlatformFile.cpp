@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // Copyright 2016 Magic Leap, Inc. All Rights Reserved.
 
 #include "Lumin/LuminPlatformFile.h"
@@ -25,12 +25,12 @@ FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath
 {
 	FString Result = MoveTemp(RelPath);
 
-	if (Result.StartsWith(TEXT("../")))
+	if (Result.StartsWith(TEXT("../"), ESearchCase::CaseSensitive))
 	{
-		while (Result.StartsWith(TEXT("../")))
+		do 
 		{
-			Result = Result.RightChop(3);
-		}
+			Result.RightChopInline(3, false);
+		} while (Result.StartsWith(TEXT("../"), ESearchCase::CaseSensitive));
 	}
 
 	// Remove the base app path if present, we will prepend it the correct base path as needed.
@@ -41,8 +41,8 @@ FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath
 	// Then add it to the app writable directory path.
 	FString lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
 	FString rhs = MoveTemp(Result);
-	lhs.RemoveFromEnd(TEXT("/"));
-	rhs.RemoveFromStart(TEXT("/"));
+	lhs.RemoveFromEnd(TEXT("/"), ESearchCase::CaseSensitive);
+	rhs.RemoveFromStart(TEXT("/"), ESearchCase::CaseSensitive);
 	Result = lhs / rhs;
 
 	// always use lower case ... always

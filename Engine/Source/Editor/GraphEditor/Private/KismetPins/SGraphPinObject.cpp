@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetPins/SGraphPinObject.h"
 #include "Modules/ModuleManager.h"
@@ -252,6 +252,11 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 
 void SGraphPinObject::OnAssetSelectedFromPicker(const struct FAssetData& AssetData)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FAssetData& CurrentAssetData = GetAssetData(true);
 	if(CurrentAssetData != AssetData)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOSRuntimeSettings.h"
 #include "HAL/FileManager.h"
@@ -19,6 +19,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	BundleIdentifier = TEXT("com.YourCompany.GameNameNoSpaces");
 	VersionInfo = TEXT("1.0.0");
     FrameRateLock = EPowerUsageFrameRateLock::PUFRL_30;
+	bEnableDynamicMaxFPS = false;
 	bSupportsIPad = true;
 	bSupportsIPhone = true;
 	MinimumiOSVersion = EIOSVersion::IOS_11;
@@ -50,7 +51,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bDisableHTTPS = false;
 }
 
-void UIOSRuntimeSettings::PostReloadConfig(class UProperty* PropertyThatWasLoaded)
+void UIOSRuntimeSettings::PostReloadConfig(class FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 

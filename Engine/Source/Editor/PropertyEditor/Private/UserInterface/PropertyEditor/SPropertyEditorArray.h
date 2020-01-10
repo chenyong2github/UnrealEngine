@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -63,7 +63,7 @@ public:
 
 	static bool Supports( const TSharedRef<FPropertyEditor>& InPropertyEditor )
 	{
-		const UProperty* NodeProperty = InPropertyEditor->GetProperty();
+		const FProperty* NodeProperty = InPropertyEditor->GetProperty();
 
 		return PropertyEditorHelpers::IsStaticArray( *InPropertyEditor->GetPropertyNode() ) 
 			|| PropertyEditorHelpers::IsDynamicArray( *InPropertyEditor->GetPropertyNode() );
@@ -95,10 +95,10 @@ private:
 
 	FReply OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation)
 	{
-		UObjectProperty* ObjectProperty = nullptr;
-		if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(PropertyEditor->GetProperty()))
+		FObjectProperty* ObjectProperty = nullptr;
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyEditor->GetProperty()))
 		{
-			ObjectProperty = Cast<UObjectProperty>(ArrayProperty->Inner);
+			ObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
 		}
 
 		// Only try to add entries if we are dropping on an asset array
@@ -125,10 +125,10 @@ private:
 
 	bool IsValidAssetDropOp(TSharedPtr<FDragDropOperation> InOperation)
 	{
-		UObjectProperty* ObjectProperty = nullptr;
-		if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(PropertyEditor->GetProperty()))
+		FObjectProperty* ObjectProperty = nullptr;
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyEditor->GetProperty()))
 		{
-			ObjectProperty = Cast<UObjectProperty>(ArrayProperty->Inner);
+			ObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
 		}
 
 		// Only try to add entries if we are dropping on an asset array
@@ -141,11 +141,11 @@ private:
 
 	bool WillAddValidElements(TSharedPtr<FDragDropOperation> InOperation)
 	{
-		UObjectProperty* ObjectProperty = nullptr;
+		FObjectProperty* ObjectProperty = nullptr;
 
-		if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(PropertyEditor->GetProperty()))
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyEditor->GetProperty()))
 		{
-			ObjectProperty = Cast<UObjectProperty>(ArrayProperty->Inner);
+			ObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
 		}
 
 		// Only try to add entries if we are dropping on an asset array

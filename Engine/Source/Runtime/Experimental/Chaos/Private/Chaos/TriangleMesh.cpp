@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/TriangleMesh.h"
 
 #include "Chaos/Box.h"
@@ -108,7 +108,7 @@ void TTriangleMesh<T>::GetVertexSet(TSet<int32>& VertexSet) const
 }
 
 template<class T>
-const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap()
+const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap() const
 {
 	if (MPointToNeighborsMap.Num())
 	{
@@ -136,7 +136,7 @@ const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap()
 }
 
 template<class T>
-const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap()
+const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap() const
 {
 	if (MPointToTriangleMap.Num())
 	{
@@ -154,7 +154,7 @@ const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap()
 }
 
 template<class T>
-TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints()
+TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
 {
 	TArray<TVector<int32, 2>> BendingConstraints;
 	auto BendingElements = GetUniqueAdjacentElements();
@@ -166,7 +166,7 @@ TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints()
 }
 
 template<class T>
-TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements()
+TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 {
 	TArray<TVector<int32, 4>> BendingConstraints;
 	TSet<TArray<int32>> BendingElements;
@@ -237,6 +237,8 @@ TArray<TVector<T, 3>> TTriangleMesh<T>::GetFaceNormals(const TArrayView<const TV
 	return Normals;
 }
 
+// Note:	This function assumes Counter Clockwise triangle windings in a Left Handed coordinate system
+//			If this is not the case the returned face normals may need to be inverted
 template<class T>
 void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
 {
@@ -247,7 +249,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 		{
 			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
 			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p10, p20);
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
 			const T Size2 = Cross.SizeSquared();
 			if (Size2 < SMALL_NUMBER)
 			{
@@ -268,7 +270,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 		{
 			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
 			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p10, p20);
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
 			Normals.Add(Cross.GetSafeNormal());
 		}
 	}
@@ -880,7 +882,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 
 	// Move the points to the origin to avoid floating point aliasing far away
 	// from the origin.
-	TBox<T, 3> Bbox(Points[0], Points[0]);
+	TAABB<T, 3> Bbox(Points[0], Points[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		Bbox.GrowToInclude(Points[i]);
@@ -890,7 +892,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	TArray<TVector<T, 3>> LocalPoints;
 	LocalPoints.AddUninitialized(NumPoints);
 	LocalPoints[0] = Points[Offset] - Center;
-	TBox<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
+	TAABB<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		LocalPoints[i] = Points[Offset + i] - Center;

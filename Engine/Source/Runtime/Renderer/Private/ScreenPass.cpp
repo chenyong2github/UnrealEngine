@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenPass.h"
 #include "EngineGlobals.h"
@@ -104,7 +104,7 @@ void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPi
 	GraphicsPSOInit.BlendState = ScreenPassDraw.BlendState;
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = ScreenPassDraw.DepthStencilState;
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = ScreenPassDraw.VertexDeclaration;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShaderRHI;
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShaderRHI;
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;

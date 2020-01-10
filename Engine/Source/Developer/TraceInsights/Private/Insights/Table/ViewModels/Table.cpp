@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Table.h"
 #include "TraceServices/Containers/Tables.h"
@@ -107,7 +107,7 @@ void FTable::Reset()
 
 int32 FTable::GetColumnPositionIndex(const FName& ColumnId) const
 {
-	return Columns.IndexOfByPredicate([&ColumnId](const TSharedPtr<FTableColumn>& ColumnPtr) -> bool { return ColumnPtr->GetId() == ColumnId; });
+	return Columns.IndexOfByPredicate([&ColumnId](const TSharedRef<FTableColumn>& ColumnRef) -> bool { return ColumnRef->GetId() == ColumnId; });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,23 +162,23 @@ void FTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::SetColumns(const TArray<TSharedPtr<Insights::FTableColumn>>& InColumns)
+void FTable::SetColumns(const TArray<TSharedRef<Insights::FTableColumn>>& InColumns)
 {
 	Columns.Reset(InColumns.Num());
 	ColumnIdToPtrMapping.Reset();
-	for (TSharedPtr<Insights::FTableColumn> ColumnPtr : InColumns)
+	for (TSharedRef<Insights::FTableColumn> ColumnRef : InColumns)
 	{
-		AddColumn(ColumnPtr);
+		AddColumn(ColumnRef);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::AddColumn(TSharedPtr<FTableColumn> ColumnPtr)
+void FTable::AddColumn(TSharedRef<FTableColumn> ColumnRef)
 {
-	ColumnPtr->SetParentTable(SharedThis(this));
-	Columns.Add(ColumnPtr);
-	ColumnIdToPtrMapping.Add(ColumnPtr->GetId(), ColumnPtr);
+	ColumnRef->SetParentTable(SharedThis(this));
+	Columns.Add(ColumnRef);
+	ColumnIdToPtrMapping.Add(ColumnRef->GetId(), ColumnRef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,9 +187,9 @@ void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 {
 	const FName HierarchyColumnId(TEXT("_Hierarchy"));
 
-	TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn(HierarchyColumnId));
-	FTableColumn& Column = *ColumnPtr;
-	
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(HierarchyColumnId);
+	FTableColumn& Column = *ColumnRef;
+
 	Column.SetIndex(ColumnIndex);
 
 	const FString ColumnNameStr = ColumnName ? FString::Printf(TEXT("Hierarchy (%s)"), ColumnName) : TEXT("Hierarchy");
@@ -206,16 +206,16 @@ void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 
 	Column.SetDataType(ETableCellDataType::CString);
 
-	TSharedPtr<ITableCellValueGetter> GetterPtr = MakeShareable(new FDisplayNameValueGetter());
-	Column.SetValueGetter(GetterPtr.ToSharedRef());
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FDisplayNameValueGetter>();
+	Column.SetValueGetter(Getter);
 
-	TSharedPtr<ITableCellValueFormatter> FormatterPtr = MakeShareable(new FTextValueFormatter());
-	Column.SetValueFormatter(FormatterPtr.ToSharedRef());
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	Column.SetValueFormatter(Formatter);
 
-	TSharedPtr<ITableCellValueSorter> SorterPtr = MakeShareable(new FSorterByName(ColumnPtr.ToSharedRef()));
-	Column.SetValueSorter(SorterPtr);
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByName>(ColumnRef);
+	Column.SetValueSorter(Sorter);
 
-	AddColumn(ColumnPtr);
+	AddColumn(ColumnRef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,8 +255,8 @@ void FTable::CreateColumnsFromTableLayout()
 		Trace::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
 		const TCHAR* ColumnName = TableLayout.GetColumnName(ColumnIndex);
 
-		TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn(FName(ColumnName)));
-		FTableColumn& Column = *ColumnPtr;
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FName(ColumnName));
+		FTableColumn& Column = *ColumnRef;
 
 		const FString ColumnNameStr(ColumnName);
 		const FText ColumnNameText = FText::FromString(ColumnNameStr);
@@ -283,8 +283,8 @@ void FTable::CreateColumnsFromTableLayout()
 			InitialColumnWidth = 40.0f;
 			//TODO: if (Hint == AsOnOff)
 			//else // if (Hint == AsTrueFalse)
-			FormatterPtr = MakeShareable(new FBoolValueFormatterAsTrueFalse());
-			SorterPtr = MakeShareable(new FSorterByBoolValue(ColumnPtr.ToSharedRef()));
+			FormatterPtr = MakeShared<FBoolValueFormatterAsTrueFalse>();
+			SorterPtr = MakeShared<FSorterByBoolValue>(ColumnRef);
 			break;
 
 		case Trace::TableColumnType_Int:
@@ -294,11 +294,11 @@ void FTable::CreateColumnsFromTableLayout()
 			InitialColumnWidth = 60.0f;
 			//TODO: if (Hint == AsMemory)
 			//{
-			//	FormatterPtr = MakeShareable(new FInt64ValueFormatterAsMemory());
+			//	FormatterPtr = MakeShared<FInt64ValueFormatterAsMemory>();
 			//}
 			//else // AsNumber
-			FormatterPtr = MakeShareable(new FInt64ValueFormatterAsNumber());
-			SorterPtr = MakeShareable(new FSorterByInt64Value(ColumnPtr.ToSharedRef()));
+			FormatterPtr = MakeShared<FInt64ValueFormatterAsNumber>();
+			SorterPtr = MakeShared<FSorterByInt64Value>(ColumnRef);
 			break;
 
 		case Trace::TableColumnType_Float:
@@ -308,8 +308,8 @@ void FTable::CreateColumnsFromTableLayout()
 			InitialColumnWidth = 60.0f;
 			//TODO: if (Hint == AsTimeMs)
 			//else // if (Hint == AsTimeAuto)
-			FormatterPtr = MakeShareable(new FFloatValueFormatterAsTimeAuto());
-			SorterPtr = MakeShareable(new FSorterByFloatValue(ColumnPtr.ToSharedRef()));
+			FormatterPtr = MakeShared<FFloatValueFormatterAsTimeAuto>();
+			SorterPtr = MakeShared<FSorterByFloatValue>(ColumnRef);
 			break;
 
 		case Trace::TableColumnType_Double:
@@ -319,16 +319,16 @@ void FTable::CreateColumnsFromTableLayout()
 			InitialColumnWidth = 80.0f;
 			//TODO: if (Hint == AsTimeMs)
 			//else // if (Hint == AsTimeAuto)
-			FormatterPtr = MakeShareable(new FDoubleValueFormatterAsTimeAuto());
-			SorterPtr = MakeShareable(new FSorterByDoubleValue(ColumnPtr.ToSharedRef()));
+			FormatterPtr = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+			SorterPtr = MakeShared<FSorterByDoubleValue>(ColumnRef);
 			break;
 
 		case Trace::TableColumnType_CString:
 			Column.SetDataType(ETableCellDataType::CString);
 			HorizontalAlignment = HAlign_Left;
 			InitialColumnWidth = FMath::Max(120.0f, 6.0f * ColumnNameStr.Len());
-			FormatterPtr = MakeShareable(new FCStringValueFormatterAsText());
-			SorterPtr = MakeShareable(new FSorterByCStringValue(ColumnPtr.ToSharedRef()));
+			FormatterPtr = MakeShared<FCStringValueFormatterAsText>();
+			SorterPtr = MakeShared<FSorterByCStringValue>(ColumnRef);
 			break;
 		}
 
@@ -346,7 +346,7 @@ void FTable::CreateColumnsFromTableLayout()
 
 		Column.SetAggregation(Aggregation);
 
-		Column.SetValueGetter(MakeShareable(new FTableTreeNodeValueGetter(Column.GetDataType())));
+		Column.SetValueGetter(MakeShared<FTableTreeNodeValueGetter>(Column.GetDataType()));
 
 		if (FormatterPtr.IsValid())
 		{
@@ -355,7 +355,7 @@ void FTable::CreateColumnsFromTableLayout()
 
 		Column.SetValueSorter(SorterPtr);
 
-		AddColumn(ColumnPtr);
+		AddColumn(ColumnRef);
 	}
 }
 

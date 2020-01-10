@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -441,7 +441,7 @@ protected:
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property);
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property);
 	
 	// camera state at last render
 	FViewCameraState CameraState;

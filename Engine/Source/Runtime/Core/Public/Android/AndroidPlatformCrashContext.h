@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -36,7 +36,7 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 		Context = InContext;
 	}
 
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) override;
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
 	virtual void AddPlatformSpecificProperties() const override;
 
 	void CaptureCrashInfo();
@@ -53,9 +53,16 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	// generate an absolute path to a crash report folder.
 	static void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
 
+	void DumpAllThreadCallstacks() const;
+
+	/** Async-safe ItoA */
+	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
+
 private:
 	TMap<FString, FString> AdditionalProperties;
 
+	// The path used by this instance to store the report.
+	char ReportDirectory[CrashReportMaxPathSize];
 };
 
 typedef FAndroidCrashContext FPlatformCrashContext;

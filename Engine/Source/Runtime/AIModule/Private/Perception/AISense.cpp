@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Perception/AISense.h"
 #include "Perception/AIPerceptionSystem.h"
@@ -131,7 +131,7 @@ FString UAISenseConfig::GetSenseName() const
 		const bool bHasSeparator = CachedSenseName.FindLastChar(TEXT('_'), SeparatorIdx);
 		if (bHasSeparator)
 		{
-			CachedSenseName = CachedSenseName.Mid(SeparatorIdx + 1);
+			CachedSenseName.MidInline(SeparatorIdx + 1, MAX_int32, false);
 		}
 	}
 

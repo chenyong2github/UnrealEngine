@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -46,7 +46,7 @@ FString AnalyticsConversionToString(const TArray<T, AllocatorType>& ValueArray)
 		Result += TEXT(",");
 	}
 	// Remove the trailing comma (LeftChop will ensure an empty container won't crash here).
-	Result = Result.LeftChop(1);
+	Result.LeftChopInline(1, false);
 	return Result;
 }
 
@@ -64,7 +64,7 @@ FString AnalyticsConversionToString(const TMap<KeyType, ValueType, Allocator, Ke
 		Result += TEXT(",");
 	}
 	// Remove the trailing comma (LeftChop will ensure an empty container won't crash here).
-	Result = Result.LeftChop(1);
+	Result.LeftChopInline(1, false);
 	return Result;
 }
 

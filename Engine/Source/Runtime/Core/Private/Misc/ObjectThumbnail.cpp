@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/ObjectThumbnail.h"
 #include "Serialization/StructuredArchive.h"
@@ -59,7 +59,7 @@ void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 		Record << SA_VALUE(TEXT("ImageData"), ImageData) << SA_VALUE(TEXT("bIsDirty"), bIsDirty);
 	}
 
-	if (Slot.GetUnderlyingArchive().IsLoading())
+	if (Slot.GetArchiveState().IsLoading())
 	{
 		bLoadedFromDisk = true;
 		if ((ImageWidth>0) && (ImageHeight>0))

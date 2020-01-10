@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PostProcessMobile.cpp: Uber post for mobile implementation.
@@ -1749,6 +1749,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunMergeES2::ComputeOutputDesc(EPassOu
 	Ret.Extent.Y = FMath::Max(1, PrePostSourceViewportSize.Y/4);
 	Ret.DebugName = TEXT("SunMerge");
 	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
+	Ret.AutoWritable = false;
 	return Ret;
 }
 
@@ -1955,6 +1956,7 @@ FPooledRenderTargetDesc FRCPassPostProcessSunMergeSmallES2::ComputeOutputDesc(EP
 	Ret.Extent.Y = FMath::Max(1, PrePostSourceViewportSize.Y/4);
 	Ret.DebugName = TEXT("SunMergeSmall");
 	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
+	Ret.AutoWritable = false;
 	return Ret;
 }
 
@@ -2958,6 +2960,12 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
 	}
+
+	// The previous frame target has been transitioned to writable in FRenderTargetPool::TransitionTargetsWritable(), so we
+	// need to transition it to readable again. Ideally we'll get rid of this useless read->write->read transition when we
+	// port this over to RDG.
+	const FSceneRenderTargetItem& PrevFrameInput = GetInput(ePId_Input1)->GetOutput()->RequestInput()->GetRenderTargetItem();
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PrevFrameInput.ShaderResourceTexture);
 	
 	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, LoadStoreAction);
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("AaES2"));

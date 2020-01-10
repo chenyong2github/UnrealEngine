@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -81,7 +81,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~SStartPageWindow();
 
-	SLATE_BEGIN_ARGS(SStartPageWindow){}
+	SLATE_BEGIN_ARGS(SStartPageWindow) {}
 	SLATE_END_ARGS()
 
 	/** Constructs this widget. */

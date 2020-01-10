@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CADSceneGraph.h"
 
@@ -74,7 +74,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveMockUp& MockUp)
 	Ar << MockUp.ColorHIdToColor;
 	Ar << MockUp.MaterialHIdToMaterial;
 
-	Ar << MockUp.InstanceSet;
+	Ar << MockUp.Instances;
 	Ar << MockUp.ComponentSet;
 	Ar << MockUp.UnloadedComponentSet;
 	Ar << MockUp.BodySet;

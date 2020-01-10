@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "VoipListenerSynthComponent.h"
 
 static float NumSecondsUntilIdling = 0.4f;
@@ -24,12 +24,27 @@ FAutoConsoleVariableRef CVarDefaultPatchGain(
 	TEXT("Changes the default gain of audio patches, in linear gain.\n"),
 	ECVF_Default);
 
+static int32 ShouldResyncCVar = 1;
+FAutoConsoleVariableRef CVarShouldResync(
+	TEXT("voice.playback.ShouldResync"),
+	ShouldResyncCVar,
+	TEXT("If set to 1, we will resync VOIP audio once it's latency goes beyond voice.playback.ResyncThreshold.\n"),
+	ECVF_Default);
+
 static int32 MuteAudioEngineOutputCVar = 0;
 FAutoConsoleVariableRef CVarMuteAudioEngineOutput(
 	TEXT("voice.MuteAudioEngineOutput"),
 	MuteAudioEngineOutputCVar,
 	TEXT("When set to a nonzero value, the output for the audio engine will be muted..\n"),
 	ECVF_Default);
+
+static float ResyncThresholdCVar = 0.3f;
+FAutoConsoleVariableRef CVarResyncThreshold(
+	TEXT("voice.playback.ResyncThreshold"),
+	ResyncThresholdCVar,
+	TEXT("If the amount of audio we have buffered is greater than this value, we drop the oldest audio we have and sync to have voice.JitterDelay worth of buffered audio.\n"),
+	ECVF_Default);
+
 
 
 bool UVoipListenerSynthComponent::Init(int32& SampleRate)
@@ -54,6 +69,13 @@ int32 UVoipListenerSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSam
 	}
 	else if (PacketBuffer.IsValid())
 	{
+		FScopeLock ScopeLock(&PacketBufferCriticalSection);
+		// Handle resync, if neccessary.
+		if (ShouldResyncCVar)
+		{
+			ForceResync();
+		}
+
 		PacketBuffer->PopAudio(OutAudio, NumSamples);
 	}
 
@@ -88,11 +110,13 @@ void UVoipListenerSynthComponent::OpenPacketStream(uint64 BeginningSampleCount, 
 	ClosePacketStream();
 	PacketBuffer.Reset(new FVoicePacketBuffer(BufferSize, NumSecondsUntilIdling * MySampleRate, BeginningSampleCount));
 	
+	JitterDelayInSeconds = JitterDelay;
 	PreDelaySampleCounter = JitterDelay * MySampleRate;
 }
 
 void UVoipListenerSynthComponent::ClosePacketStream()
 {
+	FScopeLock ScopeLock(&PacketBufferCriticalSection);
 	PacketBuffer.Reset();
 }
 
@@ -154,6 +178,29 @@ uint64 UVoipListenerSynthComponent::GetSampleCounter()
 	}
 }
 
+
+void UVoipListenerSynthComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	
+	ClosePacketStream();
+}
+
+void UVoipListenerSynthComponent::ForceResync()
+{
+	check(PacketBuffer.IsValid());
+
+	const int32 TargetLatencyInSamples = FMath::FloorToInt(JitterDelayInSeconds * NumChannels * MySampleRate);
+	const int32 CurrentLatencyInSamples = PacketBuffer->GetNumBufferedSamples();
+	const int32 ResyncThresholdInSamples = FMath::FloorToInt(ResyncThresholdCVar * NumChannels * MySampleRate);
+
+	int32 AmountToSkip = CurrentLatencyInSamples - TargetLatencyInSamples;
+
+	if (AmountToSkip > ResyncThresholdInSamples)
+	{
+		PacketBuffer->DropOldestAudio(AmountToSkip);
+	}
+}
 
 #if DEBUG_BUFFERING
 FDebugFMTone::FDebugFMTone(float InSampleRate, float InCarrierFreq, float InModFreq, float InCarrierAmp, float InModAmp)

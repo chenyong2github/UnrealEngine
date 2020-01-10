@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/MessageDialog.h"
@@ -25,6 +25,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "AnimationRuntime.h"
+#include "ClothCollisionData.h"
 
 #include "Logging/MessageLog.h"
 #include "CollisionDebugDrawingPublic.h"
@@ -206,7 +207,7 @@ void USkeletalMeshComponent::SetSimulatePhysics(bool bSimulate)
  	UpdateClothTickRegisteredState();
 }
 
-void USkeletalMeshComponent::OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps)
+void USkeletalMeshComponent::OnComponentCollisionSettingsChanged(bool bUpdateOverlaps)
 {
 	for(int32 i=0; i<Bodies.Num(); i++)
 	{
@@ -221,7 +222,7 @@ void USkeletalMeshComponent::OnComponentCollisionSettingsChanged(bool bDeferUpda
 		((FSkeletalMeshSceneProxy*)SceneProxy)->SetCollisionEnabled_GameThread(IsCollisionEnabled());
 	}
 
-	Super::OnComponentCollisionSettingsChanged(bDeferUpdateOverlaps);
+	Super::OnComponentCollisionSettingsChanged(bUpdateOverlaps);
 }
 
 void USkeletalMeshComponent::AddRadialImpulse(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bVelChange)
@@ -3336,7 +3337,7 @@ void USkeletalMeshComponent::SetAllUseCCD(bool InUseCCD)
 }
 
 // blueprint callable methods 
-float USkeletalMeshComponent::GetClothMaxDistanceScale()
+float USkeletalMeshComponent::GetClothMaxDistanceScale() const
 {
 	return ClothMaxDistanceScale;
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorStyle.h"
 
@@ -148,6 +148,14 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	
 	Style->Set("NiagaraEditor.SubduedHeadingTextBox", SubduedHeadingText);
 
+	// Details
+	FTextBlockStyle DetailsHeadingText = FTextBlockStyle(NormalText)
+		.SetFont(DEFAULT_FONT("Bold", 9))
+		.SetShadowOffset(FVector2D(0, 1))
+		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+
+	Style->Set("NiagaraEditor.DetailsHeadingText", DetailsHeadingText);
+
 	// Parameters
 	FSlateFontInfo ParameterFont = DEFAULT_FONT("Regular", 8);
 
@@ -222,6 +230,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("Niagara.CompileStatus.Warning.Small", new IMAGE_BRUSH("Icons/CompileStatus_Warning", Icon20x20));
 	Style->Set("Niagara.Asset.ReimportAsset.Needed", new IMAGE_BRUSH("Icons/icon_Reimport_Needed_40x", Icon40x40));
 	Style->Set("Niagara.Asset.ReimportAsset.Default", new IMAGE_BRUSH("Icons/icon_Reimport_40x", Icon40x40));
+	
+	Style->Set("Niagaraeditor.OverviewNode.IsolatedColor", FLinearColor::Yellow);
+	Style->Set("Niagaraeditor.OverviewNode.NotIsolatedColor", FLinearColor::Transparent);
 
 	// Icons
 	Style->Set("NiagaraEditor.Isolate", new IMAGE_PLUGIN_BRUSH("Icons/Isolate", Icon16x16));

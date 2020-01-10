@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosSolversModule.h"
 #include "CoreMinimal.h"
@@ -41,6 +41,10 @@ TAutoConsoleVariable<int32> CVarDedicatedThreadSyncThreshold(
 
 namespace Chaos
 {
+#if !UE_BUILD_SHIPPING
+	CHAOS_API extern bool bPendingHierarchyDump;
+#endif
+
 	void ChangeThreadingMode(EThreadingMode InMode)
 	{
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
@@ -555,13 +559,6 @@ TAutoConsoleVariable<FString> DumpHier_ElementBuckets(
 	TEXT("1,4,8,16,32,64,128,256,512"),
 	TEXT("Distribution buckets for dump hierarchy stats command"));
 
-#if !UE_BUILD_SHIPPING
-namespace Chaos
-{
-CHAOS_API extern int32 PendingHierarchyDump;
-}
-#endif
-
 void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 {
 	TArray<FString> BucketStrings;
@@ -597,7 +594,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 #if 0
 
-		const TArray<Chaos::TBox<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
+		const TArray<Chaos::TAABB<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
 
 		if(Boxes.Num() > 0)
 		{
@@ -711,7 +708,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 
 #if !UE_BUILD_SHIPPING
-		Chaos::PendingHierarchyDump = 1;	//mark solver pending dump to get more info
+		Chaos::bPendingHierarchyDump = true;	//mark solver pending dump to get more info
 #endif
 	}
 }
@@ -933,7 +930,12 @@ void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 
 void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 {
-	check(Dispatcher);
+	// @todo(bgallagher)
+	//check(Dispatcher);
+	if (!ensure(Dispatcher))
+	{
+		return;
+	}
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();

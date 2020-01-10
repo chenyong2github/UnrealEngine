@@ -1,10 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Profile/MediaProfileBlueprintLibrary.h"
 
 #include "Features/IModularFeatures.h"
 #include "Profile/IMediaProfileManager.h"
-#include "Profile/MediaProfileSettings.h"
 
 
 UMediaProfile* UMediaProfileBlueprintLibrary::GetMediaProfile()
@@ -21,11 +20,11 @@ void UMediaProfileBlueprintLibrary::SetMediaProfile(UMediaProfile* MediaProfile)
 
 TArray<UProxyMediaSource*> UMediaProfileBlueprintLibrary::GetAllMediaSourceProxy()
 {
-	return GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
+	return IMediaProfileManager::Get().GetAllMediaSourceProxy();
 }
 
 
 TArray<UProxyMediaOutput*> UMediaProfileBlueprintLibrary::GetAllMediaOutputProxy()
 {
-	return GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
+	return IMediaProfileManager::Get().GetAllMediaOutputProxy();
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 
@@ -42,7 +42,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 	if(PolicyOriginComp == nullptr)
 	{
 		UE_LOG(LogDisplayClusterProjection, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
-		PolicyOriginComp = GameMgr->GetRoot();
+		PolicyOriginComp = GameMgr->GetRootComponent();
 	}
 
 	if (!PolicyOriginComp)

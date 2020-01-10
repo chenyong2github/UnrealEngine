@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -95,10 +95,13 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Game API
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// Root
-	/** Returns Cluster Pawn. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root"), Category = "DisplayCluster|Game")
-	virtual UDisplayClusterRootComponent* GetRoot() = 0;
+	/** Returns DisplayCluster root actor. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root actor"), Category = "DisplayCluster|Game")
+	virtual ADisplayClusterRootActor* GetRootActor() = 0;
+
+	/** Returns DisplayCluster root component. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root component"), Category = "DisplayCluster|Game")
+	virtual UDisplayClusterRootComponent* GetRootComponent() = 0;
 
 	// Screens
 	/** Returns screen reference by id name. */

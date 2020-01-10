@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithLevelSequenceImporter.h"
 
@@ -372,6 +372,11 @@ namespace DatasmithLevelSequenceImporterImpl
 		}
 
 		TransformSection->SetMask((EMovieSceneTransformChannel)TransformAnimation->GetEnabledTransformChannels());
+
+		if (USceneComponent* SceneComp = Actor->GetRootComponent())
+		{
+			SceneComp->SetMobility(EComponentMobility::Movable);
+		}
 	}
 
 	void PopulateVisibilityTrack(const TSharedRef<IDatasmithVisibilityAnimationElement>& VisibilityAnimation, int32 AnimIndex, FDatasmithImportContext& ImportContext, ULevelSequence* LevelSequence, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
@@ -444,6 +449,11 @@ namespace DatasmithLevelSequenceImporterImpl
 		if (VisibilityAnimation->GetPropagateToChildren())
 		{
 			PropagateVisibilityTrackRecursive(Actor, AnimIndex + 1, LevelSequence, MovieScene, VisibilityTrack);
+		}
+
+		if (USceneComponent* SceneComp = Actor->GetRootComponent())
+		{
+			SceneComp->SetMobility(EComponentMobility::Movable);
 		}
 	}
 

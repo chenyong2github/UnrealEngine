@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanMemory.cpp: Vulkan memory RHI implementation.
@@ -2321,6 +2321,7 @@ namespace VulkanRHI
 			OutInfo.Data = AlignedData;
 			OutInfo.BufferSuballocation = BufferSuballocation;
 			OutInfo.CurrentOffset = (uint32)(AlignedData - MappedData);
+			OutInfo.Size = InSize;
 			CurrentData = AlignedData + InSize;
 			PeakUsed = FMath::Max(PeakUsed, (uint32)(CurrentData - MappedData));
 			return true;

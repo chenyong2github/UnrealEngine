@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "StreamingLevels/StreamingLevelCollectionModel.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
@@ -120,11 +120,20 @@ void FStreamingLevelCollectionModel::UnloadLevels(const FLevelModelList& InLevel
 	bool bHaveDirtyLevels = false;
 	for (const TSharedPtr<FLevelModel>& LevelModel : InLevelList)
 	{
-		if (LevelModel->IsDirty() && !LevelModel->IsLocked() && !LevelModel->IsPersistent())
+		if (!bHaveDirtyLevels && LevelModel->IsDirty() && !LevelModel->IsLocked() && !LevelModel->IsPersistent())
 		{
 			// this level is dirty and can be removed from the world
 			bHaveDirtyLevels = true;
-			break;
+		}
+
+		if (const ULevel* Level = LevelModel->GetLevelObject())
+		{
+			if (Level->IsPartitionSubLevel())
+			{
+				// this level is a partition sublevel and cannot be removed from the world
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RemoveLevel_PartitionSubLevel", "Cannot remove a level which is part of a partition. Delete the top level instead."));
+				return;
+			}
 		}
 	}
 

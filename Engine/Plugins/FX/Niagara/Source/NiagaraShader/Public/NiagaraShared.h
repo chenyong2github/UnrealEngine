@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	NiagaraShared.h: Shared Niagara definitions.
@@ -389,7 +389,7 @@ public:
 	static const FNiagaraShaderMap* GetShaderMapBeingCompiled(const FNiagaraShaderScript* Script);
 
 	/** Serializes the shader map. */
-	void Serialize(FArchive& Ar, bool bInlineShaderResources = true);
+	void Serialize(FArchive& Ar, bool bInlineShaderResources = true, bool bLoadedByCookedMaterial = false);
 
 	/** Saves this shader map to the derived data cache. */
 	void SaveToDerivedDataCache();
@@ -530,7 +530,8 @@ public:
 		GameThreadShaderMap(NULL),
 		RenderingThreadShaderMap(NULL),
 		FeatureLevel(GMaxRHIFeatureLevel),
-		bLoadedCookedShaderMapId(false)
+		bLoadedCookedShaderMapId(false),
+		bLoadedFromCookedMaterial(false)
 	{}
 
 	/**
@@ -777,6 +778,8 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 	uint32 bLoadedCookedShaderMapId : 1;
+	uint32 bLoadedFromCookedMaterial : 1;
+
 	FNiagaraShaderMapId CookedShaderMapId;
 
 	FOnNiagaraScriptCompilationComplete OnCompilationCompleteDelegate;

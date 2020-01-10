@@ -1,8 +1,6 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Streamer.h"
-#include "Codecs/PixelStreamingNvVideoEncoder.h"
-#include "Codecs/PixelStreamingAmfVideoEncoder.h"
 #include "AudioCapturer.h"
 #include "VideoCapturer.h"
 #include "PlayerSession.h"
@@ -16,12 +14,11 @@
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
+extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxBitrate;
+
 bool FStreamer::CheckPlatformCompatibility()
 {
-	return 
-		FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility() ||
-		FPixelStreamingAmfVideoEncoder::CheckPlatformCompatibility();
-
+	return AVEncoder::FVideoEncoderFactory::FindFactory(TEXT("h264")) ? true : false;
 }
 
 FStreamer::FStreamer(const FString& InSignallingServerUrl):
@@ -29,21 +26,46 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl):
 {
 	RedirectWebRtcLogsToUE4(rtc::LoggingSeverity::LS_VERBOSE);
 
+	FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("AVEncoder"));
+
 	// required for communication with Signalling Server and must be called in the game thread, while it's used in signalling thread
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
 	FParse::Value(FCommandLine::Get(), TEXT("WebRtcPlanB"), *reinterpret_cast<uint8*>(&bPlanB));
 
-	if (FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility())
+	AVEncoder::FVideoEncoderFactory* UEVideoEncoderFactory = AVEncoder::FVideoEncoderFactory::FindFactory(TEXT("h264"));
+	if (!UEVideoEncoderFactory)
 	{
-		HWEncoder = MakeUnique<FPixelStreamingNvVideoEncoder>();
-	}
-	else
-	{
-		HWEncoder = MakeUnique<FPixelStreamingAmfVideoEncoder>();
+		UE_LOG(PixelStreamer, Fatal, TEXT("No video encoder found"));
 	}
 
-	VideoEncoderFactoryStrong = std::make_unique<FVideoEncoderFactory>(*HWEncoder);
+	HWEncoderDetails.InitialMaxFPS = GEngine->GetMaxFPS();
+	if (HWEncoderDetails.InitialMaxFPS == 0)
+	{
+		check(IsInGameThread());
+		HWEncoderDetails.InitialMaxFPS = 60;
+		GEngine->SetMaxFPS(HWEncoderDetails.InitialMaxFPS);
+	}
+
+	HWEncoderDetails.Encoder = UEVideoEncoderFactory->CreateEncoder(TEXT("h264"));
+	if (!HWEncoderDetails.Encoder)
+	{
+		UE_LOG(PixelStreamer, Fatal, TEXT("Could not create video encoder"));
+	}
+
+	AVEncoder::FVideoEncoderConfig Cfg;
+	Cfg.Width = 1920;
+	Cfg.Height = 1080;
+	Cfg.Framerate = 60;
+	Cfg.MaxBitrate = CVarPixelStreamingEncoderMaxBitrate.GetValueOnAnyThread();
+	Cfg.Bitrate = FMath::Min((uint32)1000000, Cfg.MaxBitrate);
+	Cfg.Preset = AVEncoder::FVideoEncoderConfig::EPreset::LowLatency;
+	if (!HWEncoderDetails.Encoder->Initialize(Cfg))
+	{
+		UE_LOG(PixelStreamer, Fatal, TEXT("Could not initialize video encoder"));
+	}
+
+	VideoEncoderFactoryStrong = std::make_unique<FVideoEncoderFactory>(HWEncoderDetails);
 
 	// #HACK: Keep a pointer to the Video encoder factory, so we can use it to figure out the
 	// FPlayerSession <-> FVideoEncoder relationship later on
@@ -58,6 +80,7 @@ FStreamer::~FStreamer()
 	// stop WebRtc WndProc thread
 	PostThreadMessage(WebRtcSignallingThreadId, WM_QUIT, 0, 0);
 	WebRtcSignallingThread->Join();
+	HWEncoderDetails.Encoder->Shutdown();
 }
 
 void FStreamer::WebRtcSignallingThreadFunc()
@@ -274,7 +297,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 
 			Stream->AddTrack(AudioTrackLocal);
 
-			auto VideoCapturerStrong = std::make_unique<FVideoCapturer>(*HWEncoder);
+			auto VideoCapturerStrong = std::make_unique<FVideoCapturer>(HWEncoderDetails);
 			VideoCapturer = VideoCapturerStrong.get();
 			rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrackLocal(PeerConnectionFactory->CreateVideoTrack(
 				VideoLabel, PeerConnectionFactory->CreateVideoSource(std::move(VideoCapturerStrong))));
@@ -301,7 +324,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 
 		if (!VideoTrack)
 		{
-			auto VideoCapturerStrong = std::make_unique<FVideoCapturer>(*HWEncoder);
+			auto VideoCapturerStrong = std::make_unique<FVideoCapturer>(HWEncoderDetails);
 			VideoCapturer = VideoCapturerStrong.get();
 			VideoTrack = PeerConnectionFactory->CreateVideoTrack(
 				VideoLabel, PeerConnectionFactory->CreateVideoSource(std::move(VideoCapturerStrong)));

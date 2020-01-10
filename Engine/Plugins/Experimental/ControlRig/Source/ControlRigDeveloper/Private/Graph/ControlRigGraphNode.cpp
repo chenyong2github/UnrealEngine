@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/ControlRigGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
@@ -161,7 +161,7 @@ void UControlRigGraphNode::PrepareForCopying()
 		StructPath = ScriptStruct->GetPathName();
 	}
 	// or property
-	UProperty* Property = GetProperty();
+	FProperty* Property = GetProperty();
 	if (Property)
 	{
 		FString PropertyPath = Property->GetPathName();
@@ -373,7 +373,7 @@ void UControlRigGraphNode::AllocateDefaultPins()
 /** Helper function to check whether this is a struct reference pin */
 static bool IsStructReference(const TSharedPtr<FControlRigField>& InputInfo)
 {
-	if(UStructProperty* StructProperty = Cast<UStructProperty>(InputInfo->GetField()))
+	if(FStructProperty* StructProperty = CastField<FStructProperty>(InputInfo->GetField()))
 	{
 		return StructProperty->Struct->IsChildOf(FStructReference::StaticStruct());
 	}
@@ -777,13 +777,13 @@ void UControlRigGraphNode::GetFields(TFunction<bool(const FControlRigModelPin*, 
 	}
 }
 
-UStructProperty* UControlRigGraphNode::GetUnitProperty() const
+FStructProperty* UControlRigGraphNode::GetUnitProperty() const
 {
-	UProperty* ClassProperty = GetProperty();
+	FProperty* ClassProperty = GetProperty();
 	if(ClassProperty)
 	{
 		// Check if this is a unit struct and if so extract the pins we want to display...
-		if(UStructProperty* StructProperty = Cast<UStructProperty>(ClassProperty))
+		if(FStructProperty* StructProperty = CastField<FStructProperty>(ClassProperty))
 		{
 			if(StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
 			{
@@ -797,7 +797,7 @@ UStructProperty* UControlRigGraphNode::GetUnitProperty() const
 
 UScriptStruct* UControlRigGraphNode::GetUnitScriptStruct() const
 {
-	if(UStructProperty* StructProperty = GetUnitProperty())
+	if(FStructProperty* StructProperty = GetUnitProperty())
 	{
 		if(StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
 		{
@@ -827,7 +827,7 @@ UScriptStruct* UControlRigGraphNode::GetUnitScriptStruct() const
 	return nullptr;
 }
 
-UProperty* UControlRigGraphNode::GetProperty() const
+FProperty* UControlRigGraphNode::GetProperty() const
 {
 	if (UClass* MyControlRigClass = GetControlRigSkeletonGeneratedClass())
 	{

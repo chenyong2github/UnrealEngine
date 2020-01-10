@@ -1,9 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Declares.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintColor.h"
 #include "Chaos/PBDConstraintGraph.h"
 
@@ -34,6 +34,51 @@ namespace Chaos
 	protected:
 		int32 Priority;
 	};
+
+	/**
+	 * Constraint rule for evolutions that do not use Constraint Graphs or other acceleration schemes.
+	 */
+	class CHAOS_API FSimpleConstraintRule : public FConstraintRule
+	{
+	public:
+		FSimpleConstraintRule(int32 InPriority) : FConstraintRule(InPriority) {}
+
+		virtual void UpdatePositionBasedState(const FReal Dt) {}
+		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
+	};
+
+	template<typename T_CONSTRAINTS>
+	class CHAOS_API TSimpleConstraintRule : public FSimpleConstraintRule
+	{
+	public:
+		using FConstraints = T_CONSTRAINTS;
+
+		TSimpleConstraintRule(int32 InPriority, FConstraints& InConstraints)
+			: FSimpleConstraintRule(InPriority)
+			, Constraints(InConstraints)
+		{
+		}
+
+		virtual void UpdatePositionBasedState(const FReal Dt) override
+		{
+			return Constraints.UpdatePositionBasedState(Dt);
+		}
+
+		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override
+		{
+			Constraints.Apply(Dt, It, NumIts);
+		}
+
+		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override
+		{ 
+			return Constraints.ApplyPushOut(Dt, It, NumIts);
+		}
+
+	private:
+		FConstraints& Constraints;
+	};
+
 
 	/**
 	 * Base class for Constraint Rules that use the Contact Graph (which will be most optimized ones).
@@ -270,11 +315,14 @@ namespace Chaos
 							TVector<const TGeometryParticleHandle<FReal, 3>*, 2> Particles = Handle->GetConstrainedParticles();
 							if (It == NumIts - 1)
 							{
-								if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))
+								const bool bIsParticleDynamic0 = Particles[0]->CastToRigidParticle() && Particles[0]->ObjectState() == EObjectStateType::Dynamic;
+								const bool bIsParticleDynamic1 = Particles[1]->CastToRigidParticle() && Particles[1]->ObjectState() == EObjectStateType::Dynamic;
+
+								if (bIsParticleDynamic0 == false || IsTemporarilyStatic.Contains(Particles[0]))
 								{
 									IsTemporarilyStatic.Add(Particles[1]);
 								}
-								else if (Particles[1]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[1]))
+								else if (bIsParticleDynamic1 == false || IsTemporarilyStatic.Contains(Particles[1]))
 								{
 									IsTemporarilyStatic.Add(Particles[0]);
 								}

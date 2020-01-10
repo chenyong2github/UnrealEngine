@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,12 @@ public:
 	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 	{
 		STREAMABLERENDERASSET_NODEFAULT(GetMipDataFilename);
+		return false;
+	}
+
+	virtual bool DoesMipDataExist(const int32 MipIndex) const
+	{
+		STREAMABLERENDERASSET_NODEFAULT(DoesMipDataExist);
 		return false;
 	}
 

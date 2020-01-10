@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperOwnerContext.h"
 #include "PyWrapperObject.h"
@@ -12,14 +12,14 @@ FPyWrapperOwnerContext::FPyWrapperOwnerContext()
 {
 }
 
-FPyWrapperOwnerContext::FPyWrapperOwnerContext(PyObject* InOwner, const UProperty* InProp)
+FPyWrapperOwnerContext::FPyWrapperOwnerContext(PyObject* InOwner, const FProperty* InProp)
 	: OwnerObject(FPyObjectPtr::NewReference(InOwner))
 	, OwnerProperty(InProp)
 {
 	checkf(!OwnerProperty || OwnerObject.IsValid(), TEXT("Owner context cannot have an owner property without an owner object"));
 }
 
-FPyWrapperOwnerContext::FPyWrapperOwnerContext(const FPyObjectPtr& InOwner, const UProperty* InProp)
+FPyWrapperOwnerContext::FPyWrapperOwnerContext(const FPyObjectPtr& InOwner, const FProperty* InProp)
 	: OwnerObject(InOwner)
 	, OwnerProperty(InProp)
 {
@@ -42,7 +42,7 @@ PyObject* FPyWrapperOwnerContext::GetOwnerObject() const
 	return (PyObject*)OwnerObject.GetPtr();
 }
 
-const UProperty* FPyWrapperOwnerContext::GetOwnerProperty() const
+const FProperty* FPyWrapperOwnerContext::GetOwnerProperty() const
 {
 	return OwnerProperty;
 }
@@ -59,7 +59,7 @@ TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotif
 
 	auto AppendOwnerPropertyToChain = [&ChangeNotify](const FPyWrapperOwnerContext& InOwnerContext) -> bool
 	{
-		const UProperty* LeafProp = nullptr;
+		const FProperty* LeafProp = nullptr;
 		if (PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperObjectType) == 1 || PyObject_IsInstance(InOwnerContext.GetOwnerObject(), (PyObject*)&PyWrapperStructType) == 1)
 		{
 			LeafProp = InOwnerContext.GetOwnerProperty();
@@ -67,7 +67,7 @@ TUniquePtr<FPropertyAccessChangeNotify> FPyWrapperOwnerContext::BuildChangeNotif
 
 		if (LeafProp)
 		{
-			ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(LeafProp));
+			ChangeNotify->ChangedPropertyChain.AddHead(const_cast<FProperty*>(LeafProp));
 			return true;
 		}
 

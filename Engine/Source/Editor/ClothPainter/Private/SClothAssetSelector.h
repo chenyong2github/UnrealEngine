@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,7 +11,7 @@
 struct FAssetData;
 class USkeletalMesh;
 class UClothingAssetCommon;
-class UClothPhysicalMeshDataBase;
+struct FClothPhysicalMeshData;
 struct FPointWeightMap;
 
 struct FClothingAssetListItem
@@ -27,7 +27,7 @@ struct FClothingMaskListItem
 	{}
 
 	FPointWeightMap* GetMask();
-	UClothPhysicalMeshDataBase* GetMeshData();
+	FClothPhysicalMeshData* GetMeshData();
 	USkeletalMesh* GetOwningMesh();
 
 	TWeakObjectPtr<UClothingAssetCommon> ClothingAsset;

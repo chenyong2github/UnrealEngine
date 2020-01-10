@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	XAudio2Support.h: XAudio2 specific structures.
@@ -73,6 +73,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR pwstrDeviceId) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		for (IDeviceChangedListener* Listener : Listeners)
 		{
 			Listener->OnDefaultDeviceChanged();
@@ -87,6 +88,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR pwstrDeviceId) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		for (IDeviceChangedListener* Listener : Listeners)
 		{
 			Listener->OnDeviceRemoved(FString(pwstrDeviceId));
@@ -98,6 +100,7 @@ public:
 	{
 		if (dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
 		{
+			FScopeLock ScopeLock(&ListenerArrayMutationLock);
 			for (IDeviceChangedListener* Listener : Listeners)
 			{
 				Listener->OnDeviceRemoved(FString(pwstrDeviceId));
@@ -133,17 +136,20 @@ public:
 
 	void RegisterDeviceChangedListener(IDeviceChangedListener* DeviceChangedListener)
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Add(DeviceChangedListener);
 	}
 
 	void UnRegisterDeviceDeviceChangedListener(IDeviceChangedListener* DeviceChangedListener)
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Remove(DeviceChangedListener);
 	}
 
 private:
 	LONG Ref;
 	TSet<IDeviceChangedListener*> Listeners;
+	FCriticalSection ListenerArrayMutationLock;
 	IMMDeviceEnumerator* DeviceEnumerator;
 	bool bComInitialized;
 };

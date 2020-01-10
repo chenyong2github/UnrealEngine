@@ -1,8 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/UnrealString.h"
 #include "Model/NetProfilerProvider.h"
@@ -53,7 +52,7 @@ private:
 		uint32 ConnectionIndex;
 
 		// Current packet data
-		uint32 CurrentPacketStartIndex;
+		uint32 CurrentPacketStartIndex[Trace::ENetProfilerConnectionMode::Count];
 		Trace::ENetProfilerConnectionMode ConnectionMode;
 	};
 

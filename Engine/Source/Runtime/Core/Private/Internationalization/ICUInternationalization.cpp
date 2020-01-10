@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Internationalization/ICUInternationalization.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -755,28 +755,44 @@ void FICUInternationalization::InitializeInvariantGregorianCalendar()
 {
 	UErrorCode ICUStatus = U_ZERO_ERROR;
 	InvariantGregorianCalendar = MakeUnique<icu::GregorianCalendar>(ICUStatus);
-	InvariantGregorianCalendar->setTimeZone(icu::TimeZone::getUnknown());
+	if (InvariantGregorianCalendar)
+	{
+		InvariantGregorianCalendar->setTimeZone(icu::TimeZone::getUnknown());
+	}
 }
 
 UDate FICUInternationalization::UEDateTimeToICUDate(const FDateTime& DateTime)
 {
-	// UE4 and ICU have a different time scale for pre-Gregorian dates, so we can't just use the UNIX timestamp from the UE4 DateTime
-	// Instead we have to explode the UE4 DateTime into its component parts, and then use an ICU GregorianCalendar (set to the "unknown" 
-	// timezone so it doesn't apply any adjustment to the time) to reconstruct the DateTime as an ICU UDate in the correct scale
-	int32 Year, Month, Day;
-	DateTime.GetDate(Year, Month, Day);
-	const int32 Hour = DateTime.GetHour();
-	const int32 Minute = DateTime.GetMinute();
-	const int32 Second = DateTime.GetSecond();
+	UDate ICUDate = 0;
 
+	if (InvariantGregorianCalendar)
 	{
-		FScopeLock Lock(&InvariantGregorianCalendarCS);
+		// UE4 and ICU have a different time scale for pre-Gregorian dates, so we can't just use the UNIX timestamp from the UE4 DateTime
+		// Instead we have to explode the UE4 DateTime into its component parts, and then use an ICU GregorianCalendar (set to the "unknown" 
+		// timezone so it doesn't apply any adjustment to the time) to reconstruct the DateTime as an ICU UDate in the correct scale
+		int32 Year, Month, Day;
+		DateTime.GetDate(Year, Month, Day);
+		const int32 Hour = DateTime.GetHour();
+		const int32 Minute = DateTime.GetMinute();
+		const int32 Second = DateTime.GetSecond();
 
-		InvariantGregorianCalendar->set(Year, Month - 1, Day, Hour, Minute, Second);
-		
-		UErrorCode ICUStatus = U_ZERO_ERROR;
-		return InvariantGregorianCalendar->getTime(ICUStatus);
+		{
+			FScopeLock Lock(&InvariantGregorianCalendarCS);
+
+			InvariantGregorianCalendar->set(Year, Month - 1, Day, Hour, Minute, Second);
+
+			UErrorCode ICUStatus = U_ZERO_ERROR;
+			ICUDate = InvariantGregorianCalendar->getTime(ICUStatus);
+		}
 	}
+	else
+	{
+		// This method is less accurate (see the comment above), but will work well enough if an ICU GregorianCalendar isn't available
+		const int64 UnixTimestamp = DateTime.ToUnixTimestamp();
+		ICUDate = static_cast<UDate>(static_cast<double>(UnixTimestamp) * U_MILLIS_PER_SECOND);
+	}
+
+	return ICUDate;
 }
 
 UBool FICUInternationalization::OpenDataFile(const void* InContext, void** OutFileContext, void** OutContents, const char* InPath)

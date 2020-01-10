@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -108,7 +108,9 @@ public class Engine : ModuleRules
 				"AudioMixerCore",
 				"SignalProcessing",
 				"CrunchCompression",
-			}
+				"IntelISPC",
+				"TraceLog",
+            }
 		);
 
 		// Cross platform Audio Codecs:

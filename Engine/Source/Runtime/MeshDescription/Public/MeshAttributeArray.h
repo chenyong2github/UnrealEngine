@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "MeshTypes.h"
 #include "MeshElementRemappings.h"
 #include "Misc/TVariant.h"
+#include "Templates/CopyQualifiersFromTo.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoDecoder.h"
 #include "VideoSink.h"
@@ -321,13 +321,7 @@ bool FVideoDecoder::QueueBuffer(const webrtc::EncodedImage& InputImage, bool Mis
 
 	TRefCountPtr<IMFMediaBuffer> MediaBuffer;
 
-	int64 CaptureTs = 0;
 	SIZE_T BufferSize = InputImage._length;
-	if (FHUDStats::Get().bEnabled)
-	{
-		BufferSize -= sizeof(CaptureTs); // capture timestamp is appended to encoded frame
-		CaptureTs = *reinterpret_cast<const int64*>(InputImage._buffer + BufferSize);
-	}
 
 	CHECK_HR(MFCreateMemoryBuffer(BufferSize, MediaBuffer.GetInitReference()));
 
@@ -345,10 +339,15 @@ bool FVideoDecoder::QueueBuffer(const webrtc::EncodedImage& InputImage, bool Mis
 	CHECK_HR(Sample->AddBuffer(MediaBuffer));
 	// don't bother converting 90KHz -> 10MHz, decoder doesn't care and we can lose precision on convertion back and forth
 	CHECK_HR(Sample->SetSampleTime(InputImage.Timestamp()));
+
+	// #AVENCODER : What should we do here with the CaptureTs ? That was part of the buffer, and I removed it.
+#if 0
 	// to pass capture timestamp through decoder we set it as sample duration as we don't use duration
 	CHECK_HR(Sample->SetSampleDuration(CaptureTs));
 
 	UE_LOG(LogVideoDecoder, VeryVerbose, TEXT("(%d) enqueueing sample ts %u, capture ts %lld, queue size %d"), RtcTimeMs(), InputImage.Timestamp(), CaptureTs, InputQueueSize.GetValue() + 1);
+#endif
+
 	verify(InputQueue.Enqueue(Sample));
 	InputQueueSize.Increment();
 	InputQueuedEvent->Trigger();

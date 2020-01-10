@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SourceCodeNavigation.h"
@@ -613,7 +613,7 @@ void FSourceCodeNavigationImpl::NavigateToFunctionSource( const FString& Functio
 								int32 ArgumentIndex = -1;
 								if(SymbolName.FindLastChar(TCHAR('('), ArgumentIndex))
 								{
-									SymbolName = SymbolName.Left(ArgumentIndex);
+									SymbolName.LeftInline(ArgumentIndex, false);
 									int32 TemplateNesting = 0;
 									
 									int32 Pos = SymbolName.Len();
@@ -630,7 +630,7 @@ void FSourceCodeNavigationImpl::NavigateToFunctionSource( const FString& Functio
 										TCHAR Character = SymbolName[Pos - 1];
 										if(Character == TCHAR(' ') && TemplateNesting == 0)
 										{
-											SymbolName = SymbolName.Mid(Pos);
+											SymbolName.MidInline(Pos, MAX_int32, false);
 											break;
 										}
 										else if(Character == TCHAR('>'))
@@ -1082,7 +1082,7 @@ void FSourceCodeNavigationImpl::GatherFunctions( const FString& ModuleName, cons
 									int32 ArgumentIndex = -1;
 									if(FunctionSymbolName.FindLastChar(TCHAR('('), ArgumentIndex))
 									{
-										FunctionSymbolName = FunctionSymbolName.Left(ArgumentIndex);
+										FunctionSymbolName.LeftInline(ArgumentIndex, false);
 										int32 TemplateNesting = 0;
 										
 										int32 Pos = FunctionSymbolName.Len();
@@ -1099,7 +1099,7 @@ void FSourceCodeNavigationImpl::GatherFunctions( const FString& ModuleName, cons
 											TCHAR Character = FunctionSymbolName[Pos - 1];
 											if(Character == TCHAR(' ') && TemplateNesting == 0)
 											{
-												FunctionSymbolName = FunctionSymbolName.Mid(Pos);
+												FunctionSymbolName.MidInline(Pos, MAX_int32, false);
 												break;
 											}
 											else if(Character == TCHAR('>'))
@@ -1594,7 +1594,7 @@ bool FSourceCodeNavigation::NavigateToFunction(const UFunction* InFunction)
 	return false;
 }
 
-bool FSourceCodeNavigation::CanNavigateToProperty(const UProperty* InProperty)
+bool FSourceCodeNavigation::CanNavigateToProperty(const FProperty* InProperty)
 {
 	if (!InProperty)
 	{
@@ -1613,7 +1613,7 @@ bool FSourceCodeNavigation::CanNavigateToProperty(const UProperty* InProperty)
 	return InProperty->IsNative() && IsCompilerAvailable();
 }
 
-bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
+bool FSourceCodeNavigation::NavigateToProperty(const FProperty* InProperty)
 {
 	if (!InProperty)
 	{
@@ -1632,7 +1632,7 @@ bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
 	if (InProperty && InProperty->IsNative())
 	{
 		FString SourceFilePath;
-		const bool bFileLocated = FindClassHeaderPath(InProperty, SourceFilePath) &&
+		const bool bFileLocated = FindClassHeaderPath(InProperty->GetOwnerUField(), SourceFilePath) &&
 			IFileManager::Get().FileSize(*SourceFilePath) != INDEX_NONE;
 
 		if (bFileLocated)

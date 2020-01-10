@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDetailsViewBase.h"
 #include "GameFramework/Actor.h"
@@ -261,7 +261,7 @@ void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor
 	const TSharedRef< FPropertyNode > PinnedColorPropertyNode = PropertyEditor->GetPropertyNode();
 	ColorPropertyNode = PinnedColorPropertyNode;
 
-	UProperty* Property = PinnedColorPropertyNode->GetProperty();
+	FProperty* Property = PinnedColorPropertyNode->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
@@ -274,13 +274,13 @@ void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor
 		const uint8* Addr = ReadAddresses.GetAddress(ColorIndex);
 		if (Addr)
 		{
-			if (Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_Color)
+			if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
 			{
 				DWORDColor.Add((FColor*)Addr);
 			}
 			else
 			{
-				check(Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor);
+				check(CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor);
 				LinearColor.Add((FLinearColor*)Addr);
 			}
 		}
@@ -305,7 +305,7 @@ void SDetailsViewBase::SetColorPropertyFromColorPicker(FLinearColor NewColor)
 	const TSharedPtr< FPropertyNode > PinnedColorPropertyNode = ColorPropertyNode.Pin();
 	if (ensure(PinnedColorPropertyNode.IsValid()))
 	{
-		UProperty* Property = PinnedColorPropertyNode->GetProperty();
+		FProperty* Property = PinnedColorPropertyNode->GetProperty();
 		check(Property);
 
 		FObjectPropertyNode* ObjectNode = PinnedColorPropertyNode->FindObjectItemParent();
@@ -406,7 +406,7 @@ void SDetailsViewBase::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Wind
 	const TSharedPtr< FPropertyNode > PinnedColorPropertyNode = ColorPropertyNode.Pin();
 	if (ensure(PinnedColorPropertyNode.IsValid()))
 	{
-		UProperty* Property = PinnedColorPropertyNode->GetProperty();
+		FProperty* Property = PinnedColorPropertyNode->GetProperty();
 		if (Property && PropertyUtilities.IsValid())
 		{
 			FPropertyChangedEvent ChangeEvent(Property, EPropertyChangeType::ArrayAdd);

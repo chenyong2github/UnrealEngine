@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,7 +12,7 @@ namespace Trace
 
 class IAnalyzer;
 class IAnalysisSession;
-extern const FName ModuleFeatureName;
+extern TRACESERVICES_API const FName ModuleFeatureName;
 
 struct FModuleInfo
 {
@@ -28,6 +28,7 @@ public:
 	virtual void OnAnalysisBegin(IAnalysisSession& Session) = 0;
 	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) = 0;
 	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) = 0;
+	virtual const TCHAR* GetCommandLineArgument() = 0;
 };
 
 class IModuleService

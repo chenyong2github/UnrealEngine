@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -406,6 +406,9 @@ public:
 
 	/** Returns an approximate memory usage value for this component. */
 	virtual uint32 GetApproxMemoryUsage() const { return 0; }
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "LOD scalability"))
+	virtual void SetOwnerLOD(int32 LOD) {}
 };
 
 
@@ -605,6 +608,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FParticleCollisionSignature OnParticleCollide;
+
+	UPROPERTY()
+	bool bOldPositionValid;
 
 	UPROPERTY()
 	FVector OldPosition;
@@ -1318,7 +1324,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;

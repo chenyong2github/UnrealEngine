@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -90,7 +90,7 @@ CONSTEXPR const T* GetData(std::initializer_list<T> List)
 * Generically gets the number of items in a contiguous container
 */
 template<typename T, typename = typename TEnableIf<TIsContiguousContainer<T>::Value>::Type>
-SIZE_T GetNum(T&& Container)
+auto GetNum(T&& Container) -> decltype((SIZE_T)Container.Num())
 {
 	return (SIZE_T)Container.Num();
 }
@@ -546,29 +546,6 @@ struct FNoopStruct
 
 	~FNoopStruct()
 	{}
-};
-
-/**
- * Copies the cv-qualifiers from one type to another, e.g.:
- *
- * TCopyQualifiersFromTo<const    T1,       T2>::Type == const T2
- * TCopyQualifiersFromTo<volatile T1, const T2>::Type == const volatile T2
- */
-template <typename From, typename To> struct TCopyQualifiersFromTo                          { typedef                To Type; };
-template <typename From, typename To> struct TCopyQualifiersFromTo<const          From, To> { typedef const          To Type; };
-template <typename From, typename To> struct TCopyQualifiersFromTo<      volatile From, To> { typedef       volatile To Type; };
-template <typename From, typename To> struct TCopyQualifiersFromTo<const volatile From, To> { typedef const volatile To Type; };
-
-/**
- * Tests if qualifiers are lost between one type and another, e.g.:
- *
- * TCopyQualifiersFromTo<const    T1,                T2>::Value == true
- * TCopyQualifiersFromTo<volatile T1, const volatile T2>::Value == false
- */
-template <typename From, typename To>
-struct TLosesQualifiersFromTo
-{
-	enum { Value = !TAreTypesEqual<typename TCopyQualifiersFromTo<From, To>::Type, To>::Value };
 };
 
 /**

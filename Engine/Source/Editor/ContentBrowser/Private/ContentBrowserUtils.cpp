@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "ContentBrowserUtils.h"
@@ -1282,13 +1282,13 @@ bool ContentBrowserUtils::IsClassesFolder(const FString& InPath)
 	// Strip off any leading or trailing forward slashes
 	// We just want the name without any path separators
 	FString CleanFolderPath = InPath;
-	while ( CleanFolderPath.StartsWith(TEXT("/")) )
+	while ( CleanFolderPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive) )
 	{
-		CleanFolderPath = CleanFolderPath.Mid(1);
+		CleanFolderPath.MidInline(1, MAX_int32, false);
 	}
-	while ( CleanFolderPath.EndsWith(TEXT("/")) )
+	while ( CleanFolderPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) )
 	{
-		CleanFolderPath = CleanFolderPath.Mid(0, CleanFolderPath.Len() - 1);
+		CleanFolderPath.MidInline(0, CleanFolderPath.Len() - 1, false);
 	}
 
 	static const FString ClassesPrefix = TEXT("Classes_");
@@ -1414,13 +1414,13 @@ FText ContentBrowserUtils::GetRootDirDisplayName(const FString& FolderPath)
 	// Strip off any leading or trailing forward slashes
 	// We just want the name without any path separators
 	FString CleanFolderPath = FolderPath;
-	while(CleanFolderPath.StartsWith(TEXT("/")))
+	while(CleanFolderPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		CleanFolderPath = CleanFolderPath.Mid(1);
+		CleanFolderPath.MidInline(1, MAX_int32, false);
 	}
-	while(CleanFolderPath.EndsWith(TEXT("/")))
+	while(CleanFolderPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		CleanFolderPath = CleanFolderPath.Mid(0, CleanFolderPath.Len() - 1);
+		CleanFolderPath.MidInline(0, CleanFolderPath.Len() - 1, false);
 	}
 
 	static const FString ClassesPrefix = TEXT("Classes_");
@@ -1429,7 +1429,7 @@ FText ContentBrowserUtils::GetRootDirDisplayName(const FString& FolderPath)
 	// Strip off the "Classes_" prefix
 	if(bIsClassDir)
 	{
-		CleanFolderPath = CleanFolderPath.Mid(ClassesPrefix.Len());
+		CleanFolderPath.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 	}
 
 	// Also localize well known folder names, like "Engine" and "Game"
@@ -2175,7 +2175,7 @@ void ContentBrowserUtils::SyncPathsFromSourceControl(const TArray<FString>& Cont
 				if (PackagePath.Len() > 1 && PackagePath[PackagePath.Len() - 1] == TEXT('/'))
 				{
 					// The filter path can't end with a trailing slash
-					PackagePath = PackagePath.LeftChop(1);
+					PackagePath.LeftChopInline(1, false);
 				}
 				Filter.PackagePaths.Emplace(*PackagePath);
 			}

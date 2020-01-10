@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WindowsMixedRealityHandTracking.h"
 #include "IWindowsMixedRealityHMDPlugin.h"
@@ -207,12 +207,12 @@ bool FWindowsMixedRealityHandTracking::GetControllerOrientationAndPosition(const
 			{
 				bUseRightHand = true;
 				// Strip off the Right
-				SourceString = SourceString.Right(SourceString.Len() - 5);
+				SourceString.RightInline(SourceString.Len() - 5, false);
 			}
 			else
 			{
 				// Strip off the Left
-				SourceString = SourceString.Right(SourceString.Len() - 4);
+				SourceString.RightInline(SourceString.Len() - 4, false);
 			}
 			FName FullEnumName(*FString(TEXT("EWMRHandKeypoint::") + SourceString), FNAME_Find);
 			// Get the enum value from the name

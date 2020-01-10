@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneMultiPropertyRecorder.h"
 #include "UObject/UnrealType.h"
@@ -67,26 +67,26 @@ void FMovieSceneMultiPropertyRecorder::CreateSection(UObject* InObjectToRecord, 
 	for (const FName& PropertyName : PropertiesToRecord)
 	{
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		UProperty* Property = Binding.GetProperty(*InObjectToRecord);
+		FProperty* Property = Binding.GetProperty(*InObjectToRecord);
 		if (Property != nullptr)
 		{
-			if (Property->IsA<UBoolProperty>())
+			if (Property->IsA<FBoolProperty>())
 			{
 				PropertyRecorders.Add(MakeShareable(new FMovieScenePropertyRecorder<bool>(Binding)));
 			}
-			else if (Property->IsA<UByteProperty>())
+			else if (Property->IsA<FByteProperty>())
 			{
 				PropertyRecorders.Add(MakeShareable(new FMovieScenePropertyRecorder<uint8>(Binding)));
 			}
-			else if (Property->IsA<UEnumProperty>())
+			else if (Property->IsA<FEnumProperty>())
 			{
 				PropertyRecorders.Add(MakeShareable(new FMovieScenePropertyRecorderEnum(Binding)));
 			}
-			else if (Property->IsA<UFloatProperty>())
+			else if (Property->IsA<FFloatProperty>())
 			{
 				PropertyRecorders.Add(MakeShareable(new FMovieScenePropertyRecorder<float>(Binding)));
 			}
-			else if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+			else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
 				if (StructProperty->Struct->GetFName() == NAME_Vector)
 				{
@@ -119,25 +119,25 @@ void FMovieSceneMultiPropertyRecorder::Record(float CurrentTime)
 	}
 }
 
-bool FMovieSceneMultiPropertyRecorder::CanPropertyBeRecorded(const UProperty& InProperty)
+bool FMovieSceneMultiPropertyRecorder::CanPropertyBeRecorded(const FProperty& InProperty)
 {
-	if (InProperty.IsA<UBoolProperty>())
+	if (InProperty.IsA<FBoolProperty>())
 	{
 		return true;
 	}
-	else if (InProperty.IsA<UByteProperty>())
+	else if (InProperty.IsA<FByteProperty>())
 	{
 		return true;
 	}
-	else if (InProperty.IsA<UEnumProperty>())
+	else if (InProperty.IsA<FEnumProperty>())
 	{
 		return true;
 	}
-	else if (InProperty.IsA<UFloatProperty>())
+	else if (InProperty.IsA<FFloatProperty>())
 	{
 		return true;
 	}
-	else if (const UStructProperty* StructProperty = Cast<const UStructProperty>(&InProperty))
+	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(&InProperty))
 	{
 		if (StructProperty->Struct->GetFName() == NAME_Vector)
 		{

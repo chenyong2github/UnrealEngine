@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -64,13 +64,13 @@ template<typename T> struct TNamedAttribute
  * Class to contain a named attribute for serialization, with a default. Intended to be created as a temporary and passed to object
  * serialization methods, which can choose not to serialize the attribute if it matches the default.
  */
-template<typename T> struct TDefaultedNamedAttribute
+template<typename T> struct TOptionalNamedAttribute
 {
 	FArchiveFieldName Name;
 	T& Value;
 	const T& Default;
 
-	explicit FORCEINLINE TDefaultedNamedAttribute(FArchiveFieldName InName, T& InValue, const T& InDefault)
+	explicit FORCEINLINE TOptionalNamedAttribute(FArchiveFieldName InName, T& InValue, const T& InDefault)
 		: Name(InName)
 		, Value(InValue)
 		, Default(InDefault)
@@ -95,33 +95,21 @@ template<typename T> FORCEINLINE TNamedAttribute<T> MakeNamedAttribute(FArchiveF
 }
 
 /**
- * Helper function to construct a TDefaultedNamedAttribute, deducing the value type.
+ * Helper function to construct a TOptionalNamedAttribute, deducing the value type.
  */
-template<typename T> FORCEINLINE TDefaultedNamedAttribute<T> MakeDefaultedNamedAttribute(FArchiveFieldName Name, T& Value, const typename TIdentity<T>::Type& Default)
+template<typename T> FORCEINLINE TOptionalNamedAttribute<T> MakeOptionalNamedAttribute(FArchiveFieldName Name, T& Value, const typename TIdentity<T>::Type& Default)
 {
-	return TDefaultedNamedAttribute<T>(Name, Value, Default);
+	return TOptionalNamedAttribute<T>(Name, Value, Default);
 }
 
 /** Construct a TNamedValue given an ANSI string and value reference. */
-#if WITH_TEXT_ARCHIVE_SUPPORT
-	#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(Name), Value)
-#else
-	#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(), Value)
-#endif
+#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(Name), Value)
 
 /** Construct a TNamedAttribute given an ANSI string and value reference. */
-#if WITH_TEXT_ARCHIVE_SUPPORT
-	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(Name), Value)
-#else
-	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
-#endif
+#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(Name), Value)
 
-/** Construct a TDefaultedNamedAttribute given an ANSI string and value reference. */
-#if WITH_TEXT_ARCHIVE_SUPPORT
-	#define SA_DEFAULTED_ATTRIBUTE(Name, Value, Default) MakeDefaultedNamedAttribute(FArchiveFieldName(Name), Value, Default)
-#else
-	#define SA_DEFAULTED_ATTRIBUTE(Name, Value, Default) MakeNamedAttribute(FArchiveFieldName(), Value)
-#endif
+/** Construct a TOptionalNamedAttribute given an ANSI string and value reference. */
+#define SA_OPTIONAL_ATTRIBUTE(Name, Value, Default) MakeOptionalNamedAttribute(FArchiveFieldName(Name), Value, Default)
 
 /** Typedef for which formatter type to support */
 #if WITH_TEXT_ARCHIVE_SUPPORT
@@ -199,6 +187,8 @@ namespace UE4StructuredArchive_Private
 
 	public:
 		FArchive& GetUnderlyingArchive() const;
+
+		const FArchiveState& GetArchiveState() const;
 
 	protected:
 		FStructuredArchive& Ar;
@@ -280,7 +270,7 @@ public:
 	}
 
 	template <typename T>
-	FORCEINLINE void operator<<(TDefaultedNamedAttribute<T> Item)
+	FORCEINLINE void operator<<(TOptionalNamedAttribute<T> Item)
 	{
 		if (TOptional<FStructuredArchiveSlot> Attribute = TryEnterAttribute(Item.Name, Item.Value != Item.Default))
 		{
@@ -453,6 +443,14 @@ public:
 		return Formatter.GetUnderlyingArchive();
 	}
 
+	/**
+	 * Gets the archiving state.
+	 */
+	FORCEINLINE const FArchiveState& GetArchiveState() const
+	{
+		return GetUnderlyingArchive().GetArchiveState();
+	}
+
 	FStructuredArchive(const FStructuredArchive&) = delete;
 	FStructuredArchive& operator=(const FStructuredArchive&) = delete;
 
@@ -558,6 +556,11 @@ FORCEINLINE FArchive& UE4StructuredArchive_Private::FSlotBase::GetUnderlyingArch
 	return Ar.GetUnderlyingArchive();
 }
 
+FORCEINLINE const FArchiveState& UE4StructuredArchive_Private::FSlotBase::GetArchiveState() const
+{
+	return Ar.GetArchiveState();
+}
+
 FORCEINLINE bool FStructuredArchiveSlot::IsFilled() const
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT
@@ -573,7 +576,7 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<T>& I
 	int32 NumElements = InArray.Num();
 	FStructuredArchiveArray Array = Slot.EnterArray(NumElements);
 
-	if (Slot.GetUnderlyingArchive().IsLoading())
+	if (Slot.GetArchiveState().IsLoading())
 	{
 		InArray.SetNum(NumElements);
 	}
@@ -620,6 +623,9 @@ class CORE_API FStructuredArchiveFromArchive
 {
 	UE_NONCOPYABLE(FStructuredArchiveFromArchive)
 
+	static constexpr uint32 ImplSize      = 400;
+	static constexpr uint32 ImplAlignment = 8;
+
 	struct FImpl;
 
 public:
@@ -629,8 +635,8 @@ public:
 	FStructuredArchiveSlot GetSlot();
 
 private:
-	// Implmented as a pimpl in order to reduce dependencies
-	TUniqueObj<FImpl> Pimpl;
+	// Implmented as a pimpl in order to reduce dependencies, but an inline one to avoid heap allocations
+	alignas(ImplAlignment) uint8 ImplStorage[ImplSize];
 };
 
 #if WITH_TEXT_ARCHIVE_SUPPORT

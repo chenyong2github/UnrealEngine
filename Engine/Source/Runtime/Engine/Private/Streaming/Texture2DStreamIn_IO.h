@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn.h: Stream in helper for 2D textures using texture streaming files.
@@ -9,7 +9,7 @@ Texture2DStreamIn.h: Stream in helper for 2D textures using texture streaming fi
 #include "CoreMinimal.h"
 #include "Texture2DStreamIn.h"
 
-struct FBulkDataIORequest;
+class IBulkDataIORequest;
 
 // Base StreamIn framework exposing MipData
 class FTexture2DStreamIn_IO : public FTexture2DStreamIn
@@ -63,7 +63,7 @@ private:
 
 
 	// Request for loading into each mip.
-	TArray<FBulkDataIORequest*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > IORequests;
+	TArray<IBulkDataIORequest*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > IORequests;
 
 	bool bPrioritizedIORequest;
 
@@ -72,7 +72,6 @@ private:
 	FString IOFilename;
 #endif
 
-	int64 IOFileOffset;
-	FAsyncFileCallBack AsyncFileCallBack;
+	FBulkDataIORequestCallBack AsyncFileCallBack;
 };
 

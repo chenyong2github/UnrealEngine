@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
@@ -164,7 +164,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
 				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
 
-				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
+				CurrOffset += VectorToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K]),DeformedTriangle);
 			}
 			#endif		
 
@@ -174,8 +174,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
 			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
 
-			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle) + CurrOffset;
-			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle);
+			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle);
+			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;
 
 			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint - OutHairPositionOffset), RenderRestPosePositionBuffer[VertexIndex].w);
 

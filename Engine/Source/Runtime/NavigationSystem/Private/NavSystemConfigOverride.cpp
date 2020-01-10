@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavSystemConfigOverride.h"
 #include "Engine/World.h"
@@ -65,10 +65,11 @@ void ANavSystemConfigOverride::PostLoad()
 	Super::PostLoad();
 	
 #if WITH_EDITOR
+	// ApplyConfig in PostLoad only for Editor worlds; applied in BeginPlay for Game worlds.
 	UWorld* World = GetWorld();
 	if ((World != nullptr) && (World->IsGameWorld() == false))
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
+		ApplyConfig();
 	}
 #endif // WITH_EDITOR
 }

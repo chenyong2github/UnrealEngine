@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stats/StatsData.h"
 #include "Templates/Greater.h"
@@ -2057,7 +2057,7 @@ FString FStatsUtils::FromEscapedFString(const TCHAR* Escaped)
 				break;
 			}
 			Result += Input.Left(Index);
-			Input = Input.RightChop(Index + 1);
+			Input.RightChopInline(Index + 1, false);
 
 		}
 		{
@@ -2069,7 +2069,7 @@ FString FStatsUtils::FromEscapedFString(const TCHAR* Escaped)
 				break;
 			}
 			FString Number = Input.Left(IndexEnd);
-			Input = Input.RightChop(IndexEnd + 1);
+			Input.RightChopInline(IndexEnd + 1, false);
 			Result.AppendChar(TCHAR(uint32(FCString::Atoi64(*Number))));
 		}
 	}

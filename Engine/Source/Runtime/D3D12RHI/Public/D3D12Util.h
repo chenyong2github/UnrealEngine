@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12Util.h: D3D RHI utility definitions.
@@ -41,7 +41,7 @@ namespace D3D12RHI
 	 * @param	Filename - The filename of the source file containing Code.
 	 * @param	Line - The line number of Code within Filename.
 	 */
-	extern void VerifyD3D12Result(HRESULT Result, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device);
+	extern void VerifyD3D12Result(HRESULT Result, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message = FString());
 
 	/**
 	* Checks that the given result isn't a failure.  If it is, the application exits with an appropriate error message.
@@ -55,6 +55,7 @@ namespace D3D12RHI
 	/**
 	 * A macro for using VERIFYD3D12RESULT that automatically passes in the code and filename/line.
 	 */
+#define VERIFYD3D12RESULT_LAMBDA(x, Device, Lambda)	{HRESULT hres = x; if (FAILED(hres)) { VerifyD3D12Result(hres, #x, __FILE__, __LINE__, Device, Lambda()); }}
 #define VERIFYD3D12RESULT_EX(x, Device)	{HRESULT hres = x; if (FAILED(hres)) { VerifyD3D12Result(hres, #x, __FILE__, __LINE__, Device); }}
 #define VERIFYD3D12RESULT(x)			{HRESULT hres = x; if (FAILED(hres)) { VerifyD3D12Result(hres, #x, __FILE__, __LINE__, nullptr); }}
 #define VERIFYD3D12CREATETEXTURERESULT(x, Desc) {HRESULT hres = x; if (FAILED(hres)) { VerifyD3D12CreateTextureResult(hres, #x, __FILE__, __LINE__, Desc); }}

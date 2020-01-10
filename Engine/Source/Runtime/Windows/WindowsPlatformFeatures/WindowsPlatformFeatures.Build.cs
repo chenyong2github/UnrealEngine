@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using UnrealBuildTool;
@@ -19,12 +19,14 @@ public class WindowsPlatformFeatures : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AudioMixer",
-				"GameplayMediaEncoder"
+				"AVEncoder",
+				"GameplayMediaEncoder",
 			}
 		);
 
         PublicDelayLoadDLLs.Add("mfplat.dll");
         PublicDelayLoadDLLs.Add("mfuuid.dll");
         PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
+
     }
 }

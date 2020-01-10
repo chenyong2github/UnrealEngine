@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -89,7 +89,7 @@ struct FMockAbilitySyncState : public FFlyingMovementSyncState
 	}
 };
 
-struct FMockAbilityAuxstate : public FFlyingMovementAuxState
+struct FMockAbilityAuxState : public FFlyingMovementAuxState
 {
 	float MaxStamina = 100.f;
 	float StaminaRegenRate = 20.f;
@@ -125,41 +125,119 @@ struct FMockAbilityAuxstate : public FFlyingMovementAuxState
 // MockAbility NetSimCues - events emitted by the sim
 // -------------------------------------------------------
 
-// Cue for blink activation.
+// Cue for blink activation (the moment the ability starts)
+struct FMockAbilityBlinkActivateCue
+{
+	FMockAbilityBlinkActivateCue() = default;
+	FMockAbilityBlinkActivateCue(const FVector& InDestination, uint8 InRandomType)
+		: Destination(InDestination), RandomType(InRandomType) { }
+
+	NETSIMCUE_BODY();
+
+	FVector_NetQuantize10 Destination;
+	uint8 RandomType; // Random value used to color code the effect. This is the test/prove out mispredictions
+
+	using Traits = NetSimCueTraits::Strong;
+	
+	void NetSerialize(FArchive& Ar)
+	{
+		bool b = false;
+		Destination.NetSerialize(Ar, nullptr, b);
+		Ar << RandomType;
+	}
+	
+	bool NetIdentical(const FMockAbilityBlinkActivateCue& Other) const
+	{
+		const float ErrorTolerance = 1.f;
+		return Destination.Equals(Other.Destination, ErrorTolerance) && RandomType == Other.RandomType;
+	}
+};
+
+// This way works too but is less concise:
+//template<>
+//struct TNetSimCueTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+
+static_assert( TNetSimCueTraits<FMockAbilityBlinkActivateCue>::ReplicationTarget == NetSimCueTraits::Strong::ReplicationTarget, "Traits error" );
+
+// ----------------------------------------------------------------------------------------------
+
+
+#define LOG_BLINK_CUE 0 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
+
+// Cue for blink (the moment the teleport happens)
 struct FMockAbilityBlinkCue
 {
+	FMockAbilityBlinkCue()
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Default Constructor 0x%X"), this);
+	}
+
+	FMockAbilityBlinkCue(const FVector& Start, const FVector& Stop) : StartLocation(Start), StopLocation(Stop)
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Custom Constructor 0x%X"), this);
+	}
+
+	~FMockAbilityBlinkCue()
+	{ 
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Destructor 0x%X"), this);
+	}
+	
+	FMockAbilityBlinkCue(FMockAbilityBlinkCue&& Other)
+		: StartLocation(MoveTemp(Other.StartLocation)), StopLocation(Other.StopLocation)
+	{
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Move Constructor 0x%X (Other: 0x%X)"), this, &Other);
+	}
+	
+	FMockAbilityBlinkCue& operator=(FMockAbilityBlinkCue&& Other)
+	{
+		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Move assignment 0x%X (Other: 0x%X)"), this, &Other);
+		StartLocation = MoveTemp(Other.StartLocation);
+		StopLocation = MoveTemp(Other.StopLocation);
+		return *this;
+	}
+
+	FMockAbilityBlinkCue(const FMockAbilityBlinkCue& Other) = delete;
+	FMockAbilityBlinkCue& operator=(const FMockAbilityBlinkCue& Other) = delete;
+
 	NETSIMCUE_BODY();
 
 	FVector_NetQuantize10 StartLocation;
 	FVector_NetQuantize10 StopLocation;
 
+	using Traits = NetSimCueTraits::Strong;
+	
 	void NetSerialize(FArchive& Ar)
 	{
 		bool b = false;
 		StartLocation.NetSerialize(Ar, nullptr, b);
 		StopLocation.NetSerialize(Ar, nullptr, b);
 	}
-
-	static bool Unique(const FMockAbilityBlinkCue& A, const FMockAbilityBlinkCue& B)
+	
+	
+	bool NetIdentical(const FMockAbilityBlinkCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !A.StartLocation.Equals(B.StartLocation, ErrorTolerance) || !A.StopLocation.Equals(B.StopLocation, ErrorTolerance);
+		return StartLocation.Equals(Other.StartLocation, ErrorTolerance) && StopLocation.Equals(Other.StopLocation, ErrorTolerance);
 	}
 };
 
-/*
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraitsBase//<FMockAbilityBlinkCue>
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority };
-	static constexpr bool Replicate { false };
-};
-*/
+// -----------------------------------------------------------------------------------------------------
+// Subtypes of the BlinkCue - this is not an expected setup! This is done for testing/debugging so we can 
+// see the differences between the cue type traits in a controlled setup. See FMockAbilitySimulation::SimulationTick
+// -----------------------------------------------------------------------------------------------------
+#define DECLARE_BLINKCUE_SUBTYPE(TYPE, TRAITS) \
+ struct TYPE : public FMockAbilityBlinkCue { \
+ template <typename... ArgsType> TYPE(ArgsType&&... Args) : FMockAbilityBlinkCue(Forward<ArgsType>(Args)...) { } \
+ using Traits = TRAITS; \
+ void NetSerialize(FArchive& Ar) { FMockAbilityBlinkCue::NetSerialize(Ar); } \
+ bool NetIdentical(const TYPE& Other) const { return FMockAbilityBlinkCue::NetIdentical(Other); } \
+ NETSIMCUE_BODY(); };
+ 
 
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_ReplicatedNonPredicted { };
-
-
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, NetSimCueTraits::Weak);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, NetSimCueTraits::ReplicatedNonPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, NetSimCueTraits::ReplicatedXOrPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, NetSimCueTraits::Strong);
 
 // The set of Cues the MockAbility simulation will invoke
 struct FMockAbilityCueSet
@@ -167,38 +245,71 @@ struct FMockAbilityCueSet
 	template<typename TDispatchTable>
 	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
 	{
+		DispatchTable.template RegisterType<FMockAbilityBlinkActivateCue>();
 		DispatchTable.template RegisterType<FMockAbilityBlinkCue>();
+
+		// (Again, not a normal setup, just for debugging/testing purposes)
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_Weak>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_ReplicatedNonPredicted>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_ReplicatedXOrPredicted>();
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue_Strong>();
 	}
 };
+
+
 
 
 // -------------------------------------------------------
 // MockAbilitySimulation definition
 // -------------------------------------------------------
 
-using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
+using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxState>;
 
 class FMockAbilitySimulation : public FFlyingMovementSimulation
 {
 public:
-	/** Tick group the simulation maps to */
-	static const FName GroupName;
 
 	/** Main update function */
 	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
 };
 
-template<int32 InFixedStepMS=0>
-using FMockAbilitySystem = TNetworkedSimulationModel<FMockAbilitySimulation, TMockAbilityBufferTypes, TNetworkSimTickSettings<InFixedStepMS>>;
+class FMockAbilityNetSimModelDef : public FNetSimModelDefBase
+{
+public:
 
-class IMockFlyingAbilitySystemDriver : public TNetworkedSimulationModelDriver<TMockAbilityBufferTypes> { };
+	using Simulation = FMockAbilitySimulation;
+	using BufferTypes = TMockAbilityBufferTypes;
+
+	static const FName GroupName;
+
+	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
+	static bool ShouldReconcile(const FMockAbilitySyncState& AuthoritySync, const FMockAbilityAuxState& AuthorityAux, const FMockAbilitySyncState& PredictedSync, const FMockAbilityAuxState& PredictedAux)
+	{
+		return FFlyingMovementNetSimModelDef::ShouldReconcile(AuthoritySync, AuthorityAux, PredictedSync, PredictedAux);
+	}
+
+	static void Interpolate(const TInterpolatorParameters<FMockAbilitySyncState, FMockAbilityAuxState>& Params)
+	{
+		Params.Out.Sync = Params.To.Sync;
+		Params.Out.Aux = Params.To.Aux;
+
+		FFlyingMovementNetSimModelDef::Interpolate(Params.Cast<FFlyingMovementSyncState, FFlyingMovementAuxState>());
+	}
+};
+
+/** Additional specialized types of the Parametric Movement NetSimModel */
+class FMockAbilityNetSimModelDef_Fixed30hz : public FMockAbilityNetSimModelDef
+{ 
+public:
+	using TickSettings = TNetworkSimTickSettings<33>;
+};
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running Mock Ability Simulation 
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver
+class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public TNetworkedSimulationModelDriver<TMockAbilityBufferTypes>
 {
 	GENERATED_BODY()
 
@@ -210,15 +321,15 @@ public:
 	FProduceMockAbilityInput ProduceInputDelegate;
 
 	TNetSimStateAccessor<FMockAbilitySyncState> AbilitySyncState;
-	TNetSimStateAccessor<FMockAbilityAuxstate> AbilityAuxState;
+	TNetSimStateAccessor<FMockAbilityAuxState> AbilityAuxState;
 
 	// IMockFlyingAbilitySystemDriver
 	FString GetDebugName() const override;
 	const AActor* GetVLogOwner() const override;
-	void VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxstate* Aux, const FVisualLoggingParameters& SystemParameters) const override;
+	void VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
 
 	void ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd) override;
-	void FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxstate& AuxState) override;
+	void FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxState& AuxState) override;
 
 	// Required to supress -Woverloaded-virtual warning. We are effectively hiding UFlyingMovementComponent's methods
 	using UFlyingMovementComponent::VisualLog;
@@ -226,7 +337,8 @@ public:
 	using UFlyingMovementComponent::FinalizeFrame;
 
 	// NetSimCues
-	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime);
+	void HandleCue(const FMockAbilityBlinkActivateCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
+	void HandleCue(const FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
 
 	// -------------------------------------------------------------------------------------
 	//	Ability State and Notifications
@@ -263,6 +375,18 @@ public:
 	// Are we currently in the blinking (startup) state
 	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
 	bool IsBlinking() const { return bIsBlinking; }
+	
+	// Blueprint assignable events for blinking. THis allows the user/blueprint to implement rollback-able events
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMockAbilityBlinkCueEvent, FVector, DestinationLocation, int32, RandomValue, float, ElapsedTimeSeconds);
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityBlinkCueEvent OnBlinkActivateEvent;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMockAbilityBlinkCueRollback);
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityBlinkCueRollback OnBlinkActivateEventRollback;
+
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	float GetBlinkWarmupTimeSeconds() const;
 
 private:
 	
@@ -281,11 +405,10 @@ protected:
 	FMockAbilitySimulation* MockAbilitySimulation = nullptr;
 
 	template<typename TSimulation>
-	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxstate& InitialAuxState)
+	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxState& InitialAuxState)
 	{
 		check(MockAbilitySimulation == nullptr);
-		MockAbilitySimulation = Simulation;		
-
+		MockAbilitySimulation = Simulation;	
 		InitFlyingMovementSimulation(Simulation, InitialSyncState, InitialAuxState);
 	}
 
@@ -294,7 +417,6 @@ protected:
 	{
 		AbilitySyncState.Bind(Model);
 		MovementAuxState.Bind(Model);
-
 		InitFlyingMovementNetSimModel(Model);
 	}
 };

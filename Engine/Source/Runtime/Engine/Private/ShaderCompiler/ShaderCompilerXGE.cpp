@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderCompiler.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -125,7 +125,7 @@ bool FShaderCompileXGEThreadRunnable_XmlInterface::IsSupported()
 		}
 	}
 
-	return 
+	return
 		(XGEShaderCompilerVariables::Enabled == 1) && // XGE is enabled by CVar or command line.
 		(XGEShaderCompilerVariables::Mode    != 2) && // XGE xml mode is allowed (not force disabled).
 		bXgeFound;                             // We've found the xgConsole executable.
@@ -780,7 +780,7 @@ int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
 		// Different batches.
 		TArray<FJobBatch> JobBatches;
 
-		
+
 		for (int32 i = 0; i < PendingJobs.Num(); i++)
 		{
 			// Randomize the shader compile jobs a little.

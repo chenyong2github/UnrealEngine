@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Controllers/LiveLinkCameraController.h"
 
@@ -47,8 +47,8 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectRepr
 				{
 					if (StaticData->bIsFocalLengthSupported) { CineCameraComponent->CurrentFocalLength = FrameData->FocalLength; }
 					if (StaticData->bIsApertureSupported) { CineCameraComponent->CurrentAperture = FrameData->Aperture; }
-					if (StaticData->FilmBackWidth > 0.0f) { CineCameraComponent->FilmbackSettings.SensorWidth = StaticData->FilmBackWidth; }
-					if (StaticData->FilmBackHeight > 0.0f) { CineCameraComponent->FilmbackSettings.SensorHeight = StaticData->FilmBackHeight; }
+					if (StaticData->FilmBackWidth > 0.0f) { CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; }
+					if (StaticData->FilmBackHeight > 0.0f) { CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; }
 					if (StaticData->bIsFocusDistanceSupported) { CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance; }
 				}
 			}

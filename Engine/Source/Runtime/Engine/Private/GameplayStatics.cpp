@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/GameplayStatics.h"
 #include "Serialization/MemoryWriter.h"
@@ -1208,7 +1208,7 @@ bool UGameplayStatics::FindCollisionUV(const struct FHitResult& Hit, int32 UVCha
 	return bSuccess;
 }
 
-bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, FVector Location, float MaximumRange)
+bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange)
 {
 	if (!GEngine || !GEngine->UseSound())
 	{
@@ -1228,6 +1228,36 @@ bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObj
 	}	
 
 	return false;
+}
+
+bool UGameplayStatics::GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition)
+{
+	if (!GEngine || !GEngine->UseSound())
+	{
+		return false;
+	}
+
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld)
+	{
+		return false;
+	}
+
+	// If there is no valid world from the world context object then there certainly are no listeners
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	float OutDistSq;
+	const int32 ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Location, OutDistSq, bAllowAttenuationOverride);
+	if (ClosestListenerIndex == INDEX_NONE || ((MaximumRange * MaximumRange) < OutDistSq))
+	{
+		return false;
+	}
+
+	return AudioDevice->GetListenerPosition(ClosestListenerIndex, ListenerPosition, bAllowAttenuationOverride);
 }
 
 void UGameplayStatics::SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec)
@@ -2820,16 +2850,17 @@ bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 	{
 		// Get result.
 		Result = Options.Mid(1, MAX_int32);
-		if (Result.Contains(QuestionMark, ESearchCase::CaseSensitive))
+		const int32 QMIdx = Result.Find(QuestionMark, ESearchCase::CaseSensitive);
+		if (QMIdx != INDEX_NONE)
 		{
-			Result = Result.Left(Result.Find(QuestionMark, ESearchCase::CaseSensitive));
+			Result.LeftInline(QMIdx, false);
 		}
 
 		// Update options.
-		Options = Options.Mid(1, MAX_int32);
+		Options.MidInline(1, MAX_int32, false);
 		if (Options.Contains(QuestionMark, ESearchCase::CaseSensitive))
 		{
-			Options = Options.Mid(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32);
+			Options.MidInline(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32, false);
 		}
 		else
 		{

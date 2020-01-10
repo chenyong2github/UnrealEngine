@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectHash.h: Unreal object name hashes
@@ -145,6 +145,14 @@ COREUOBJECT_API void LogHashStatistics(FOutputDevice& Ar, const bool bShowHashBu
  * @param bShowHashBucketCollisionInfo whether to log each bucket's collision count
  */
 COREUOBJECT_API void LogHashOuterStatistics(FOutputDevice& Ar, const bool bShowHashBucketCollisionInfo);
+
+/**
+ * Logs out information about the total object hash memory usage for debug purposes
+ *
+ * @param Ar the archive to write the log data to
+ * @param bShowIndividualStats whether to log each hash/map memory usage separately
+ */
+COREUOBJECT_API void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividualStats);
 
 /**
  * Adds a uobject to the global array which is used for uobject iteration

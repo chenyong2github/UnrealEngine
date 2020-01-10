@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -358,6 +358,13 @@ namespace HLODOutliner
 
 		/** Callback function used to check if Hierarchical LOD functionality is enabled in the current world settings */
 		bool OutlinerEnabled() const;
+
+		/** Called when a PIE session is beginning */
+		void OnBeginPieEvent(bool bIsSimulating);
+
+		/** Called when a PIE session is ending */
+		void OnEndPieEvent(bool bIsSimulating);
+
 	private:
 		/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
 		void FullRefresh();
@@ -464,6 +471,9 @@ namespace HLODOutliner
 
 		/** Cached pointer to HLOD utilities */
 		IHierarchicalLODUtilities* HierarchicalLODUtilities;
+
+		/** Update active timer handle */
+		TSharedPtr<FActiveTimerHandle> ActiveTimerHandle;
 
 		/** Cached flag to see if we need to generate meshes (any actors are dirty) */
 		bool bCachedNeedsBuild;

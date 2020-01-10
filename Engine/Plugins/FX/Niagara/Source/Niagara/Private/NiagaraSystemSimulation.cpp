@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraModule.h"
@@ -160,9 +160,12 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
-		Context.Owner->Tick_Concurrent(Context);
-		Context.FinalizeEvents = nullptr;
+		{
+			PARTICLE_PERF_STAT_CYCLES(Context.System, TickConcurrent);
+			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
+			Context.Owner->Tick_Concurrent(Context);
+			Context.FinalizeEvents = nullptr;
+		}
 		WaitAllFinalizeTask->Unlock();
 	}
 };
@@ -192,7 +195,9 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		check(CurrentThread == ENamedThreads::GameThread);
+		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, false);
 
+		PARTICLE_PERF_STAT_CYCLES(SystemSim->GetSystem(), Finalize);
 		for (FNiagaraSystemInstance* Inst : Batch)
 		{
 			Inst->FinalizeTick_GameThread();
@@ -230,6 +235,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		PARTICLE_PERF_STAT_CYCLES(Batch[0]->GetSystem(), TickConcurrent);
 		for (FNiagaraSystemInstance* Inst : Batch)
 		{
 			Inst->Tick_Concurrent();
@@ -238,6 +244,25 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+
+void FNiagaraSystemSimulation::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	//We keep a hard ref to the system.
+	Collector.AddReferencedObject(EffectType);
+}
+
+FNiagaraSystemSimulation::FNiagaraSystemSimulation()
+	: EffectType(nullptr)
+	, SystemTickGroup(TG_MAX)
+	, World(nullptr)
+	, bCanExecute(false)
+	, bBindingsInitialized(false)
+	, bInSpawnPhase(false)
+	, bIsSolo(false)
+	, bHasEverTicked(false)
+{
+
+}
 
 FNiagaraSystemSimulation::~FNiagaraSystemSimulation()
 {
@@ -250,6 +275,7 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 	UNiagaraSystem* System = InSystem;
 	WeakSystem = System;
 
+	EffectType = InSystem->GetEffectType();
 	SystemTickGroup = InTickGroup;
 
 	World = InWorld;
@@ -424,8 +450,12 @@ void FNiagaraSystemSimulation::Destroy()
 UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterCollectionInstance(UNiagaraParameterCollection* Collection)
 {
 	UNiagaraSystem* System = WeakSystem.Get();
-	check(System != nullptr);
-	UNiagaraParameterCollectionInstance* Ret = System->GetParameterCollectionOverride(Collection);
+	UNiagaraParameterCollectionInstance* Ret = nullptr;
+
+	if (System)
+	{
+		System->GetParameterCollectionOverride(Collection);
+	}
 
 	//If no explicit override from the system, just get the current instance set on the world.
 	if (!Ret)
@@ -600,16 +630,18 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
+	UNiagaraSystem* System = WeakSystem.Get();
+	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
+	PARTICLE_PERF_STAT_INSTANCE_COUNT(System, SystemInstances.Num());
+	PARTICLE_PERF_STAT_CYCLES(System, TickGameThread);
+
 	bHasEverTicked = true;
 
 	SystemTickGraphEvent = nullptr;
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
-
-	UNiagaraSystem* System = WeakSystem.Get();
-
-	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
 
 	if (MaxDeltaTime.IsSet())
 	{
@@ -835,10 +867,14 @@ void FNiagaraSystemSimulation::UpdateTickGroups_GameThread()
 	UNiagaraSystem* System = WeakSystem.Get();
 	check(System != nullptr);
 
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
+
 	// Transfer promoted instances to the new tick group
 	//-OPT: This can be done async
-	for (FNiagaraSystemInstance* Instance : PendingTickGroupPromotions)
+	while (PendingTickGroupPromotions.Num() > 0)
 	{
+		FNiagaraSystemInstance* Instance = PendingTickGroupPromotions.Pop(false);
+
 		const ETickingGroup TickGroup = Instance->CalculateTickGroup();
 		if (TickGroup != SystemTickGroup)
 		{
@@ -888,7 +924,9 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
-	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
+
+	UNiagaraSystem* System = WeakSystem.Get();
+	FScopeCycleCounterUObject AdditionalScope(System, GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
 	WaitForSystemTickComplete(true);
 
@@ -898,6 +936,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds)
 	{
 		Tick_GameThread(DeltaSeconds, nullptr);
 	}
+
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
 
 	// Spawn instances
 	SpawningInstances.Reserve(PendingSystemInstances.Num());
@@ -1006,8 +1046,10 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT_CNC);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
-	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
+	FScopeCycleCounterUObject AdditionalScope(Context.System, GET_STATID(STAT_NiagaraOverview_GT_CNC));
+
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(Context.System, true, true);
 	FNiagaraSystemInstance* SoloSystemInstance = bIsSolo && Context.Instances.Num() == 1 ? Context.Instances[0] : nullptr;
 
 	if (bCanExecute && Context.Instances.Num())
@@ -1104,6 +1146,7 @@ void FNiagaraSystemSimulation::TickFastPath(FNiagaraSystemSimulationTickContext&
 			}
 			FNiagaraEmitterFastPath::FParamMap0& EmitterMap = EmitterInstance->GetFastPathMap();
 			EmitterMap.Engine.Owner.LODDistance = SystemInstance->GetOwnerLODDistance();
+			EmitterMap.Engine.Owner.MaxLODDistance = SystemInstance->GetOwnerMaxLODDistance();
 			EmitterMap.Engine.DeltaTime = Context.DeltaSeconds;
 			EmitterMap.Engine.Emitter.NumParticles = SystemInstance->GetNumParticles(EmitterIndex);
 			EmitterMap.Engine.Owner.Velocity = SystemInstance->GetOwnerVelocity();
@@ -1515,12 +1558,12 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 
 	for (int32 SystemIndex = 0; SystemIndex < Context.Instances.Num(); ++SystemIndex)
 	{
-		ENiagaraExecutionState ExecutionState = (ENiagaraExecutionState)SystemExecutionStateAccessor.GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
 		FNiagaraSystemInstance* SystemInst = Context.Instances[SystemIndex];
 
 		if (bIsUsingFastPath == false)
 		{
 			//Apply the systems requested execution state to it's actual execution state.
+			ENiagaraExecutionState ExecutionState = (ENiagaraExecutionState)SystemExecutionStateAccessor.GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
 			SystemInst->SetActualExecutionState(ExecutionState);
 		}
 
@@ -1596,6 +1639,14 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
 
 	check(IsInGameThread());
+	if (EffectType)
+	{
+		--EffectType->NumInstances;
+	}
+
+	// Remove from pending promotions list
+	PendingTickGroupPromotions.RemoveSingleSwap(Instance);
+
 	UNiagaraSystem* System = WeakSystem.Get();
 	if (Instance->IsPendingSpawn())
 	{
@@ -1701,6 +1752,11 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("=== Adding To Pending Spawn %d ==="), Instance->SystemInstanceIndex);
 		//MainDataSet.Dump(true, Instance->SystemInstanceIndex, 1);
+	}
+	
+	if (EffectType)
+	{
+		++EffectType->NumInstances;
 	}
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());

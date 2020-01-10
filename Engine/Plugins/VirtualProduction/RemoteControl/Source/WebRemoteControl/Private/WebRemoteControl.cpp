@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
@@ -189,7 +189,7 @@ namespace RemotePayloadSerializer
 
 		if (bOnlyReturn)
 		{
-			Policies.PropertyFilter = [](const UProperty* CurrentProp, const UProperty* ParentProperty) -> bool
+			Policies.PropertyFilter = [](const FProperty* CurrentProp, const FProperty* ParentProperty) -> bool
 			{
 				return CurrentProp->HasAnyPropertyFlags(CPF_ReturnParm|CPF_OutParm) || ParentProperty != nullptr;
 			};
@@ -709,7 +709,7 @@ private:
 			}
 		}
 
-		void Dispatch(UObject* InObject, UProperty* InProperty)
+		void Dispatch(UObject* InObject, FProperty* InProperty)
 		{
 			for (auto It = PendingEvents.CreateIterator(); It; ++It)
 			{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraBoolTypeEditorUtilities.h"
 #include "NiagaraTypes.h"
@@ -77,8 +77,8 @@ FString FNiagaraEditorBoolTypeUtilities::GetPinDefaultStringFromValue(const FNia
 
 bool FNiagaraEditorBoolTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
-	bool bBoolValue;
-	if (LexTryParseString(bBoolValue, *StringValue))
+	bool bBoolValue = false;
+	if (LexTryParseString(bBoolValue, *StringValue) || !Variable.IsDataAllocated())
 	{
 		FNiagaraBool BoolValue;
 		BoolValue.SetValue(bBoolValue);

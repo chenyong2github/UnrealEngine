@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkeletalMeshEdit.cpp: Unreal editor skeletal mesh/anim support
@@ -1393,7 +1393,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 							// Also avoid to endup with a empty name, we prefer having the Blendshapename instead of nothing
 							if(ChannelName.StartsWith(BlendShapeName) && ChannelName.Len() > BlendShapeName.Len())
 							{
-								ChannelName = ChannelName.Right(ChannelName.Len() - (BlendShapeName.Len()+1));
+								ChannelName.RightInline(ChannelName.Len() - (BlendShapeName.Len()+1), false);
 							}
 							
 							if (bMightBeBadMAXFile)

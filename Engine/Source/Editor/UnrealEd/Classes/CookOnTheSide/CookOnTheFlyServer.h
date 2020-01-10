@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,6 +16,7 @@
 
 
 class FAssetRegistryGenerator;
+class FAsyncIODelete;
 class ITargetPlatform;
 struct FPropertyChangedEvent;
 class IPlugin;
@@ -96,12 +97,15 @@ enum class ECookTickFlags : uint8
 };
 ENUM_CLASS_FLAGS(ECookTickFlags);
 
+DECLARE_LOG_CATEGORY_EXTERN(LogCook, Log, All);
+
 UCLASS()
 class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorObject, public FExec
 {
 	GENERATED_BODY()
 
 		UCookOnTheFlyServer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+		UCookOnTheFlyServer(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
 
 private:
 	/** Current cook mode the cook on the fly server is running in */
@@ -142,6 +146,7 @@ private:
 
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
+	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
 	bool bIsInitializingSandbox = false; // stop recursion into callbacks when we are initializing sandbox
 	mutable bool bIgnoreMarkupPackageAlreadyLoaded = false; // avoid marking up packages as already loaded (want to put this around some functionality as we want to load packages fully some times)
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
@@ -396,7 +401,7 @@ public:
 	* 
 	* @param name of the platform to clear the cooked packages for
 	*/
-	void ClearPlatformCookedData( const FName& PlatformName );
+	void ClearPlatformCookedData( const FString& PlatformName );
 
 
 	/**
@@ -540,10 +545,10 @@ private:
 	*/
 	void AddFileToCook( TArray<FName>& InOutFilesToCook, const FString &InFilename ) const;
 
-    /**
-     * Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library.
-     */
-    void InitShaderCodeLibrary(void);
+	/**
+	* Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library.
+	*/
+	void InitShaderCodeLibrary(void);
     
 	/**
 	* Invokes the necessary FShaderCodeLibrary functions to open a named code library.
@@ -560,10 +565,10 @@ private:
 	*/
 	void ProcessShaderCodeLibraries(const FString& LibraryName);
 
-    /**
-     * Invokes the necessary FShaderCodeLibrary functions to clean out all the temporary files.
-     */
-    void CleanShaderCodeLibraries();
+	/**
+	* Invokes the necessary FShaderCodeLibrary functions to clean out all the temporary files.
+	*/
+	void CleanShaderCodeLibraries();
 
 	/**
 	* Call back from the TickCookOnTheSide when a cook by the book finishes (when started form StartCookByTheBook)
@@ -660,6 +665,15 @@ private:
 	 */
 	void SaveCookedPackages(UPackage* PackageToSave, const TArray<FName>& TargetPlatformNames, const TArray<const ITargetPlatform*>& TargetPlatformsToCache, struct FCookerTimer& Timer, uint32& CookedPackageCount, uint32& Result);
 
+	/**
+	 * Attempts to update the metadata for a package in an asset registry generator
+	 *
+	 * @param Generator The asset registry generator to update
+	 * @param PackageName The name of the package to update info on
+	 * @param SavePackageResult The metadata to associate with the given package name
+	 */
+	void UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult);
+
 	/** Perform any special processing for freshly loaded packages 
 	 */
 	void ProcessUnsolicitedPackages();
@@ -693,6 +707,11 @@ private:
 	* Finalize the package store
 	*/
 	void FinalizePackageStore();
+
+	/**
+	* Empties SavePackageContexts and deletes the contents
+	*/
+	void ClearPackageStoreContexts();
 
 	/**
 	* Initialize all target platforms
@@ -816,6 +835,15 @@ private:
 	* This should be used instead of calling the Sandbox function
 	*/
 	FString GetSandboxDirectory( const FString& PlatformName ) const;
+
+	/* Delete the sandbox directory (asynchronously) for the given platform in preparation for a clean cook */
+	void DeleteSandboxDirectory(const FString& PlatformName);
+
+	/* Create the delete-old-cooked-directory helper. PlatformName tells it where to create its temp directory. AsyncDeleteDirectory is DeleteSandboxDirectory internal use only and should otherwise be set to nullptr. */
+	FAsyncIODelete& GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory = nullptr);
+
+	/** Get the directory that should be used for AsyncDeletes based on the given platform. SandboxDirectory is DeleteSandboxDirectory internal use only and should otherwise be set to nullptr. */
+	FString GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory = nullptr) const;
 
 	bool IsCookingDLC() const;
 

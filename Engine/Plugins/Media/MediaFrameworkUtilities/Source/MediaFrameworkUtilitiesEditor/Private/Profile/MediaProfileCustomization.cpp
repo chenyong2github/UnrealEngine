@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Profile/MediaProfileCustomization.h"
 
@@ -8,7 +8,6 @@
 #include "MediaAssets/ProxyMediaSource.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
-#include "Profile/MediaProfileSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "MediaProfileCustomization"
@@ -26,8 +25,8 @@ void FMediaProfileCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 {
 	Super::CustomizeDetails(DetailLayout);
 
-	const TArray<UProxyMediaSource*> SourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
-	const TArray<UProxyMediaOutput*> OutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
+	const TArray<UProxyMediaSource*> SourceProxies = IMediaProfileManager::Get().GetAllMediaSourceProxy();
+	const TArray<UProxyMediaOutput*> OutputProxies = IMediaProfileManager::Get().GetAllMediaOutputProxy();
 
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = DetailLayout.GetSelectedObjects();
 	for (const TWeakObjectPtr<UObject>& CurrentWeakObject : SelectedObjects)

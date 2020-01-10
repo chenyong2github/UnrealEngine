@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming files.
@@ -17,7 +17,7 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn(InTexture, InRequestedMips)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
-	, IOFileOffset(0)
+
 {
 	IORequests.AddZeroed(InTexture->GetNumMips());
 }
@@ -25,7 +25,7 @@ FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequ
 FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 {
 #if DO_CHECK
-	for (FBulkDataIORequest* IORequest : IORequests)
+	for (const IBulkDataIORequest* IORequest : IORequests)
 	{
 		check(!IORequest);
 	}
@@ -42,19 +42,9 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 	{
 		const FTexture2DMipMap& MipMap = OwnerMips[PendingFirstMip];
 	
-#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-		FString IOFilename;
-		IOFilename = MipMap.BulkData.GetFilename();
-#else
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 		verify(Context.Texture->GetMipDataFilename(PendingFirstMip, IOFilename));
 #endif
-		if (IOFilename.EndsWith(TEXT(".uasset")) || IOFilename.EndsWith(TEXT(".umap")))
-		{
-			IOFileOffset = -IFileManager::Get().FileSize(*IOFilename);
-			check(IOFileOffset < 0);
-			IOFilename = FPaths::GetBaseFilename(IOFilename, false) + TEXT(".uexp");
-			UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *IOFilename);
-		}
 	}
 }
 
@@ -75,22 +65,13 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 		IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
-			IOFileOffset,
+			TEXTURE2DMIPMAP_PARAM(IOFilename) // Only used if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA is enabled
+			0,
 			MipMap.BulkData.GetBulkDataSize(),
 			bPrioritizedIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallBack,
 			(uint8*)MipData[MipIndex]);
-#else
-		IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
-			IOFilename,
-			IOFileOffset,
-			MipMap.BulkData.GetBulkDataSize(),
-			bPrioritizedIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallBack,
-			(uint8*)MipData[MipIndex]);
-#endif
 	}
 }
 
@@ -98,7 +79,7 @@ void FTexture2DStreamIn_IO::CancelIORequests()
 {
 	for (int32 MipIndex = 0; MipIndex < IORequests.Num(); ++MipIndex)
 	{
-		FBulkDataIORequest* IORequest = IORequests[MipIndex];
+		IBulkDataIORequest* IORequest = IORequests[MipIndex];
 		if (IORequest)
 		{
 			// Calling cancel will trigger the SetAsyncFileCallback() which will also try a tick but will fail.
@@ -114,7 +95,7 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 
 	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
 	{
-		FBulkDataIORequest* IORequest = IORequests[MipIndex];
+		IBulkDataIORequest* IORequest = IORequests[MipIndex];
 		IORequests[MipIndex] = nullptr;
 
 		if (IORequest != nullptr)
@@ -132,7 +113,7 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 
 void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 {
-	AsyncFileCallBack = [this](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallBack = [this](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();
@@ -173,7 +154,7 @@ void FTexture2DStreamIn_IO::Abort()
 
 bool FTexture2DStreamIn_IO::HasPendingIORequests()
 {
-	for (FBulkDataIORequest* IORequest : IORequests)
+	for (IBulkDataIORequest* IORequest : IORequests)
 	{
 		if (IORequest != nullptr)
 		{

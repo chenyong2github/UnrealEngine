@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithConsumer.h"
 
@@ -97,7 +97,7 @@ bool UDatasmithConsumer::Initialize()
 
 	UpdateLevel();
 
-	UPackage* ParentPackage = CreatePackage( nullptr, *TargetContentFolder );
+	UPackage* ParentPackage = CreatePackage( nullptr, *GetTargetPackagePath() );
 	ParentPackage->FullyLoad();
 
 	// Re-create the DatasmithScene if it is invalid
@@ -436,13 +436,13 @@ void UDatasmithConsumer::UpdateScene()
 	FString DatasmithScenePath = FPaths::GetPath( DatasmithScene->GetPathName() );
 	if( DatasmithScenePath != TargetContentFolder )
 	{
+		// Force re-creation of Datasmith scene
+		DatasmithScene.Reset();
+
 		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( DatasmithScenePath ) );
 		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
 
 		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
-
-		// Force re-creation of Datasmith scene
-		DatasmithScene.Reset();
 	}
 	// Check if name of owning Dataprep asset has not changed
 	else

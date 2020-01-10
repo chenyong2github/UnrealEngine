@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IPAddressBSD.h"
 #include "SocketSubsystemBSD.h"
@@ -151,7 +151,7 @@ void FInternetAddrBSD::SetIp(const TCHAR* InAddr, bool& bIsValid)
 	if (AddressString.Contains("]:") || (FirstColonIndex == LastColonIndex && LastColonIndex != INDEX_NONE))
 	{
 		Port = AddressString.RightChop(LastColonIndex + 1);
-		AddressString = AddressString.Left(LastColonIndex);
+		AddressString.LeftInline(LastColonIndex, false);
 	}
 
 	// Strip these for backwards compatibility.
@@ -436,10 +436,10 @@ FString FInternetAddrBSD::ToString(bool bAppendPort) const
 		{
 			FString IPv6Str(ANSI_TO_TCHAR(IPStr));
 			// Remove the scope interface if it exists.
-			const int32 InterfaceMarkerIndex = IPv6Str.Find("%", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+			const int32 InterfaceMarkerIndex = IPv6Str.Find("%", ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 			if (InterfaceMarkerIndex != INDEX_NONE)
 			{
-				IPv6Str = IPv6Str.Left(InterfaceMarkerIndex);
+				IPv6Str.LeftInline(InterfaceMarkerIndex, false);
 			}
 
 			// Using dynamic formatting strings are deprecated.

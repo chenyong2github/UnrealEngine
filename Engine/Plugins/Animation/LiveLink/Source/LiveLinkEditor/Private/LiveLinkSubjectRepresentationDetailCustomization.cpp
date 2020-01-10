@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkSubjectRepresentationDetailCustomization.h"
 
@@ -26,7 +26,7 @@ void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeHeader(TSharedR
 	StructPropertyHandle = InPropertyHandle;
 	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 
-	check(CastChecked<UStructProperty>(StructPropertyHandle->GetProperty())->Struct == FLiveLinkSubjectRepresentation::StaticStruct());
+	check(CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct == FLiveLinkSubjectRepresentation::StaticStruct());
 
 	HeaderRow.NameContent()
 	[
@@ -79,7 +79,7 @@ FLiveLinkSubjectRepresentation FLiveLinkSubjectRepresentationDetailCustomization
 
 void FLiveLinkSubjectRepresentationDetailCustomization::SetValue(FLiveLinkSubjectRepresentation NewValue)
 {
-	UStructProperty* StructProperty = CastChecked<UStructProperty>(StructPropertyHandle->GetProperty());
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
 
 	TArray<void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);

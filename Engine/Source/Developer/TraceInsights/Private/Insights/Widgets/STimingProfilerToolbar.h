@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -21,8 +21,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~STimingProfilerToolbar();
 
-	SLATE_BEGIN_ARGS( STimingProfilerToolbar )
-		{}
+	SLATE_BEGIN_ARGS(STimingProfilerToolbar) {}
 	SLATE_END_ARGS()
 
 	/**

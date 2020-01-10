@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextLocalizationManager.h"
 #include "Internationalization/TextLocalizationResource.h"
@@ -21,6 +21,7 @@
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "Templates/UniquePtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextLocalizationManager, Log, All);
@@ -393,11 +394,14 @@ FTextLocalizationManager::FTextLocalizationManager()
 	: bIsInitialized(false)
 	, SynchronizationObject()
 	, TextRevisionCounter(0)
+	, LocResTextSource(MakeShared<FLocalizationResourceTextSource>())
 	, PolyglotTextSource(MakeShared<FPolyglotTextSource>())
 {
 	const bool bRefreshResources = false;
-	RegisterTextSource(MakeShared<FLocalizationResourceTextSource>(), bRefreshResources);
+	RegisterTextSource(LocResTextSource.ToSharedRef(), bRefreshResources);
 	RegisterTextSource(PolyglotTextSource.ToSharedRef(), bRefreshResources);
+
+	FCoreDelegates::OnPakFileMounted.AddRaw(this, &FTextLocalizationManager::OnPakFileMounted);
 }
 
 void FTextLocalizationManager::DumpMemoryInfo()
@@ -834,6 +838,82 @@ void FTextLocalizationManager::RefreshResources()
 	LocLoadFlags |= ELocalizationLoadFlags::Additional;
 
 	LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
+}
+
+void FTextLocalizationManager::OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId)
+{
+	if (ChunkId == INDEX_NONE || ChunkId == 0)
+	{
+		// Skip non-chunked PAK files, and chunk 0 as that contains the standard localization data
+		return;
+	}
+
+	// Track this so that full resource refreshes (eg, changing culture) work as expected
+	LocResTextSource->RegisterChunkId(ChunkId);
+
+	if (!bIsInitialized)
+	{
+		// If we're not yet initialized then don't bother patching, as the full initialization path will load the data for this chunk
+		return;
+	}
+
+	// Load the resources from each target in this chunk
+	// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
+	const TArray<FString> ChunkedLocalizationTargets = FLocalizationResourceTextSource::GetChunkedLocalizationTargets();
+	const TArray<FString> PrioritizedCultureNames = FInternationalization::Get().GetPrioritizedCultureNames(FInternationalization::Get().GetCurrentLanguage()->GetName());
+	const ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::Game;
+	FTextLocalizationResource UnusedNativeResource;
+	FTextLocalizationResource LocalizedResource;
+	{
+		TArray<FString> PrioritizedLocalizationPaths;
+		for (const FString& LocalizationTarget : ChunkedLocalizationTargets)
+		{
+			const FString LocalizationTargetForChunk = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(LocalizationTarget, ChunkId);
+			PrioritizedLocalizationPaths.Add(FPaths::ProjectContentDir() / TEXT("Localization") / LocalizationTargetForChunk);
+		}
+		LocResTextSource->LoadLocalizedResourcesFromPaths(TArrayView<FString>(), PrioritizedLocalizationPaths, TArrayView<FString>(), LocLoadFlags, PrioritizedCultureNames, UnusedNativeResource, LocalizedResource);
+	}
+
+	// Allow any higher priority text sources to override the text loaded for the chunk (eg, to allow polyglot hot-fixes to take priority)
+	// Note: If any text sources don't support dynamic queries, then we must do a much slower full refresh instead :(
+	bool bNeedsFullRefresh = false;
+	{
+		// Copy the IDs array as QueryLocalizedResource can update the map
+		TArray<FTextId> ChunkTextIds;
+		LocalizedResource.Entries.GenerateKeyArray(ChunkTextIds);
+
+		for (const TSharedPtr<ILocalizedTextSource>& LocalizedTextSource : LocalizedTextSources)
+		{
+			if (LocalizedTextSource->GetPriority() <= LocResTextSource->GetPriority())
+			{
+				continue;
+			}
+
+			for (const FTextId& ChunkTextId : ChunkTextIds)
+			{
+				if (LocalizedTextSource->QueryLocalizedResource(LocLoadFlags, PrioritizedCultureNames, ChunkTextId, UnusedNativeResource, LocalizedResource) == EQueryLocalizedResourceResult::NotImplemented)
+				{
+					bNeedsFullRefresh = true;
+					break;
+				}
+			}
+
+			if (bNeedsFullRefresh)
+			{
+				break;
+			}
+		}
+	}
+
+	// Apply the new data
+	if (bNeedsFullRefresh)
+	{
+		RefreshResources();
+	}
+	else
+	{
+		UpdateFromLocalizations(MoveTemp(LocalizedResource), /*bDirtyTextRevision*/true);
+	}
 }
 
 void FTextLocalizationManager::OnCultureChanged()

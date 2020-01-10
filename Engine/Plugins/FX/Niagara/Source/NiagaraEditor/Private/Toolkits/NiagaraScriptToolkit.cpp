@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptToolkit.h"
 #include "NiagaraEditorModule.h"
@@ -343,9 +343,11 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTa
 	DetailsView->OnFinishedChangingProperties().AddRaw(this, &FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging);
 	DetailsView->RegisterInstancedCustomPropertyLayout(
 		UNiagaraScript::StaticClass(),
-		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance, ScriptViewModelWeakPtr)
-	);
-
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance, ScriptViewModelWeakPtr));
+	DetailsView->RegisterInstancedCustomPropertyTypeLayout(
+		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
+	
 	DetailsView->SetObjects(DetailsScriptSelection->GetSelectedObjects().Array());
 
 	return SNew(SDockTab)
@@ -710,6 +712,7 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 
 	GWarn->EndSlowTask();
 	bEditedScriptHasPendingChanges = false;
+	FNiagaraEditorModule::Get().InvalidateCachedScriptAssetData();
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnSkeletalComponent.cpp: Actor component implementation.
@@ -39,6 +39,7 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "SkeletalRenderPublic.h"
 #include "ContentStreaming.h"
+#include "Animation/AnimTrace.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
 
@@ -826,6 +827,10 @@ void USkeletalMeshComponent::InitializeComponent()
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Trace the 'first frame' markers
+	TRACE_SKELETAL_MESH_COMPONENT(this);
+
 	if (AnimScriptInstance)
 	{
 		AnimScriptInstance->NativeBeginPlay();
@@ -838,7 +843,7 @@ void USkeletalMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if ( PropertyThatChanged != nullptr )
 	{
@@ -1004,13 +1009,10 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationBeforeAnimScriptInstance)
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
+			// Sub anim instances are always forced to do a parallel update 
+			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
@@ -1018,16 +1020,6 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 			// Tick the animation
 			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
-
-		if (LinkedAnimationEvaluationOrder == ELinkedAnimationUpdateOrder::UpdateAnimationAfterAnimScriptInstance)
-		{
-			for (UAnimInstance* LinkedInstance : LinkedInstances)
-			{
-				// Sub anim instances are always forced to do a parallel update 
-				LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-			}
-		}
-
 
 		if(ShouldUpdatePostProcessInstance())
 		{
@@ -2730,8 +2722,9 @@ void USkeletalMeshComponent::ResetLinkedAnimInstances()
 {
 	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		if(LinkedInstance)
+		if(LinkedInstance && LinkedInstance->bCreatedByLinkedAnimGraph)
 		{
+			LinkedInstance->EndNotifyStates();
 			LinkedInstance->MarkPendingKill();
 			LinkedInstance = nullptr;
 		}
@@ -3736,9 +3729,11 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 	ConditionallyDispatchQueuedAnimEvents();
 
 	OnBoneTransformsFinalized.Broadcast();
+
+	TRACE_SKELETAL_MESH_COMPONENT(this);
 }
 
-void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx)
+void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx) const
 {
 	if(SkeletalMesh)
 	{

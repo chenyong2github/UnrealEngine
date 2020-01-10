@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // Modified version of Recast/Detour's source file
 
 //
@@ -97,7 +97,7 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 	s->data.area = area;
 	s->next = 0;
 	
-	// Empty cell, add he first span.
+	// Empty cell, add the first span.
 	if (!hf.spans[idx])
 	{
 		hf.spans[idx] = s;
@@ -425,12 +425,14 @@ static void rasterizeTriTest(const float* v0, const float* v1, const float* v2,
 static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 						 const unsigned char area, rcHeightfield& hf,
 						 const float* bmin, const float* bmax,
-						 const float cs, const float ics, const float ich,
-						 const int flagMergeThr)
+						 const float cs, const float ics, const float ich, 
+						 const int flagMergeThr,
+						 const int rasterizationFlags /*UE4*/)
 {
 	const int w = hf.width;
 	const int h = hf.height;
 	const float by = bmax[1] - bmin[1];
+	const bool projectToBottom = rasterizationFlags & RC_PROJECT_TO_BOTTOM; //UE4
 
 	int intverts[3][2];
 
@@ -462,19 +464,19 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 	if (x0 == x1 && y0 == y1)
 	{
 		// Clamp the span to the heightfield bbox.
-		if (triangle_smin < 0.0f) triangle_smin = 0;
+		if (triangle_smin < 0.0f) triangle_smin = 0.0f;
 		if (triangle_smax > by) triangle_smax = by;
 
 		// Snap the span to the heightfield height grid.
-		unsigned short triangle_ismin = (unsigned short)rcClamp((int)floorf(triangle_smin * ich), 0, RC_SPAN_MAX_HEIGHT);
+		unsigned short triangle_ismin = projectToBottom ? 0 : (unsigned short)rcClamp((int)floorf(triangle_smin * ich), 0, RC_SPAN_MAX_HEIGHT); //UE4
 		unsigned short triangle_ismax = (unsigned short)rcClamp((int)ceilf(triangle_smax * ich), (int)triangle_ismin+1, RC_SPAN_MAX_HEIGHT);
 
 		addSpan(hf, x0, y0, triangle_ismin, triangle_ismax, area, flagMergeThr);
 		return;
 	}
 
-	short int triangle_ismin = (short int)rcClamp((int)floorf(triangle_smin * ich + 0.5f), -32000, 32000);
-	short int triangle_ismax = (short int)rcClamp((int)floorf(triangle_smax * ich + 0.5f), -32000, 32000);
+	const short int triangle_ismin = (short int)rcClamp((int)floorf(triangle_smin * ich), -32000, 32000);
+	const short int triangle_ismax = (short int)rcClamp((int)floorf(triangle_smax * ich), -32000, 32000);
 
 	x0 = intMax(x0, 0);
 	int x1_edge = intMin(x1, w);
@@ -626,8 +628,8 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 		}
 
 		// Snap the span to the heightfield height grid.
-		unsigned short triangle_ismin_clamp = (unsigned short)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT);
-		unsigned short triangle_ismax_clamp = (unsigned short)rcClamp((int)triangle_ismin, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
+		const unsigned short triangle_ismin_clamp = projectToBottom ? 0 : (unsigned short)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT); //UE4
+		const unsigned short triangle_ismax_clamp = (unsigned short)rcClamp((int)triangle_ismin, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
 
 		for (int y = y0; y <= y1; y++)
 		{
@@ -662,7 +664,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 			if (intverts[basevert][0] >= x0 && intverts[basevert][0] <= x1 && intverts[basevert][1] >= y0 && intverts[basevert][1] <= y1)
 			{
 				float sfloat = vertarray[basevert][1] - bmin[1];
-				short int sint = (short int)rcClamp((int)floorf(sfloat * ich + 0.5f), -32000, 32000);
+				short int sint = (short int)rcClamp((int)floorf(sfloat * ich), -32000, 32000);
 	#if TEST_NEW_RASTERIZER
 				rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 	#endif
@@ -700,7 +702,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 					if (y >= y0 && y <= y1)
 					{
 						float sfloat = temppnt[1] - bmin[1];
-						short int sint = (short int)rcClamp((int)floorf(sfloat * ich + 0.5f), -32000, 32000);
+						short int sint = (short int)rcClamp((int)floorf(sfloat * ich), -32000, 32000);
 #if TEST_NEW_RASTERIZER
 						rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -741,7 +743,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 						if (x >= x0 && x <= x1)
 						{
 							float sfloat = Inter[i][1] - bmin[1];
-							short int sint = (short int)rcClamp((int)floorf(sfloat * ich + 0.5f), -32000, 32000);
+							short int sint = (short int)rcClamp((int)floorf(sfloat * ich), -32000, 32000);
 #if TEST_NEW_RASTERIZER
 							rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -770,7 +772,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 						}
 						for (int x = xloop0; x <= xloop1; x++, sfloat += ds)
 						{
-							short int sint = (short int)rcClamp((int)floorf(sfloat * ich + 0.5f), -32000, 32000);
+							short int sint = (short int)rcClamp((int)floorf(sfloat * ich), -32000, 32000);
 #if TEST_NEW_RASTERIZER
 							rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -808,7 +810,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 				// Skip the span if it is outside the heightfield bbox
 				if (smin >= RC_SPAN_MAX_HEIGHT || smax < 0) continue;
 
-				smin = intMax(smin, 0);
+				smin = projectToBottom ? 0 : intMax(smin, 0); //UE4
 				smax = intMin(intMax(smax,smin+1), RC_SPAN_MAX_HEIGHT);
 
 	#if TEST_NEW_RASTERIZER
@@ -874,12 +876,14 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 						 const unsigned char area, rcHeightfield& hf,
 						 const float* bmin, const float* bmax,
 						 const float cs, const float ics, const float ich,
-						 const int flagMergeThr)
+						 const int flagMergeThr,
+						 const int rasterizationFlags) //UE4
 {
 	const int w = hf.width;
 	const int h = hf.height;
 	float tmin[3], tmax[3];
 	const float by = bmax[1] - bmin[1];
+	const bool projectToBottom = flags & RC_PROJECT_TO_BOTTOM; //UE4
 	
 	// Calculate the bounding box of the triangle.
 	rcVcopy(tmin, v0);
@@ -889,11 +893,11 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 	rcVmax(tmax, v1);
 	rcVmax(tmax, v2);
 	
-	// If the triangle does not touch the bbox of the heightfield, skip the triagle.
+	// If the triangle does not touch the bbox of the heightfield, skip the triangle.
 	if (!overlapBounds(bmin, bmax, tmin, tmax))
 		return;
 	
-	// Calculate the footpring of the triangle on the grid.
+	// Calculate the footprint of the triangle on the grid.
 	int x0 = (int)((tmin[0] - bmin[0])*ics);
 	int y0 = (int)((tmin[2] - bmin[2])*ics);
 	int x1 = (int)((tmax[0] - bmin[0])*ics);
@@ -946,7 +950,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 			if (smax > by) smax = by;
 			
 			// Snap the span to the heightfield height grid.
-			unsigned short ismin = (unsigned short)rcClamp((int)floorf(smin * ich), 0, RC_SPAN_MAX_HEIGHT);
+			unsigned short ismin = projectToBottom ? 0 : (unsigned short)rcClamp((int)floorf(smin * ich), 0, RC_SPAN_MAX_HEIGHT); //UE4
 			unsigned short ismax = (unsigned short)rcClamp((int)ceilf(smax * ich), (int)ismin+1, RC_SPAN_MAX_HEIGHT);
 			
 			addSpan(hf, x, y, ismin, ismax, area, flagMergeThr);
@@ -961,7 +965,8 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 /// @see rcHeightfield
 void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const float* v2,
 						 const unsigned char area, rcHeightfield& solid,
-						 const int flagMergeThr)
+						 const int flagMergeThr, 
+						 const int rasterizationFlags) //UE4
 {
 	rcAssert(ctx);
 
@@ -969,7 +974,7 @@ void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const
 
 	const float ics = 1.0f/solid.cs;
 	const float ich = 1.0f/solid.ch;
-	rasterizeTri(v0, v1, v2, area, solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr);
+	rasterizeTri(v0, v1, v2, area, solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr, rasterizationFlags); //UE4
 
 	ctx->stopTimer(RC_TIMER_RASTERIZE_TRIANGLES);
 }
@@ -981,7 +986,7 @@ void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const
 /// @see rcHeightfield
 void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 						  const int* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr)
+						  rcHeightfield& solid, const int flagMergeThr, const int rasterizationFlags) //UE4
 {
 	if (ctx)
 		ctx->startTimer(RC_TIMER_RASTERIZE_TRIANGLES);
@@ -995,7 +1000,7 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 		const float* v1 = &verts[tris[i*3+1]*3];
 		const float* v2 = &verts[tris[i*3+2]*3];
 		// Rasterize.
-		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr);
+		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr, rasterizationFlags); //UE4
 	}
 	
 	if (ctx)
@@ -1009,7 +1014,7 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 /// @see rcHeightfield
 void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 						  const unsigned short* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr)
+						  rcHeightfield& solid, const int flagMergeThr, const int rasterizationFlags) //UE4
 {
 	if (ctx)
 		ctx->startTimer(RC_TIMER_RASTERIZE_TRIANGLES);
@@ -1023,7 +1028,7 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 		const float* v1 = &verts[tris[i*3+1]*3];
 		const float* v2 = &verts[tris[i*3+2]*3];
 		// Rasterize.
-		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr);
+		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr, rasterizationFlags); //UE4
 	}
 	
 	if (ctx)
@@ -1036,7 +1041,7 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 ///
 /// @see rcHeightfield
 void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr)
+						  rcHeightfield& solid, const int flagMergeThr, const int rasterizationFlags) //UE4
 {
 	if (ctx)
 		ctx->startTimer(RC_TIMER_RASTERIZE_TRIANGLES);
@@ -1050,7 +1055,7 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned cha
 		const float* v1 = &verts[(i*3+1)*3];
 		const float* v2 = &verts[(i*3+2)*3];
 		// Rasterize.
-		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr);
+		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr, rasterizationFlags); //UE4
 	}
 	
 	if (ctx)

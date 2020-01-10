@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelVariantSets.h"
 
@@ -178,7 +178,7 @@ FString ULevelVariantSets::GetUniqueVariantSetName(const FString& InPrefix)
 	FString LastChar = VarSetName.Right(1);
 	while (LastChar.IsNumeric())
 	{
-		VarSetName = VarSetName.LeftChop(1);
+		VarSetName.LeftChopInline(1, false);
 		LastChar = VarSetName.Right(1);
 	}
 

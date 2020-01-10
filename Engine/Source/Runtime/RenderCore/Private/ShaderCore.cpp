@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderCore.h: Shader core module implementation.
@@ -611,18 +611,18 @@ static FString GetShaderSourceFilePath(const FString& VirtualFilePath, TArray<FS
 FString ParseVirtualShaderFilename(const FString& InFilename)
 {
 	FString ShaderDir = FString(FPlatformProcess::ShaderDir());
-	ShaderDir.ReplaceInline(TEXT("\\"), TEXT("/"));
+	ShaderDir.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	int32 CharIndex = ShaderDir.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromEnd, ShaderDir.Len() - 1);
 	if (CharIndex != INDEX_NONE)
 	{
-		ShaderDir = ShaderDir.Right(ShaderDir.Len() - CharIndex);
+		ShaderDir.RightInline(ShaderDir.Len() - CharIndex, false);
 	}
 
-	FString RelativeFilename = InFilename.Replace(TEXT("\\"), TEXT("/"));
+	FString RelativeFilename = InFilename.Replace(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	// remove leading "/" because this makes path absolute on Linux (and Mac).
 	if (RelativeFilename.Len() > 0 && RelativeFilename[0] == TEXT('/'))
 	{
-		RelativeFilename = RelativeFilename.Right(RelativeFilename.Len() - 1);
+		RelativeFilename.RightInline(RelativeFilename.Len() - 1, false);
 	}
 	RelativeFilename = IFileManager::Get().ConvertToRelativePath(*RelativeFilename);
 	CharIndex = RelativeFilename.Find(ShaderDir);
@@ -646,7 +646,7 @@ FString ParseVirtualShaderFilename(const FString& InFilename)
 			}
 			while (NewCharIndex != INDEX_NONE && ++NumDirsSkipped < NumDirsToSkip);
 		}
-		RelativeFilename = RelativeFilename.Mid(CharIndex, RelativeFilename.Len() - CharIndex);
+		RelativeFilename.MidInline(CharIndex, RelativeFilename.Len() - CharIndex, false);
 	}
 
 	// add leading "/" to the relative filename because that's what virtual shader path expects

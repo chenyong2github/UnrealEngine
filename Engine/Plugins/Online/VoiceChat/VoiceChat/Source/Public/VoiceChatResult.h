@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 enum class EVoiceChatResult
@@ -11,6 +11,8 @@ enum class EVoiceChatResult
 	NotInitialized,
 	NotConnected,
 	NotLoggedIn,
+	NotPermitted,
+	Throttled,
 
 	// Common argument errors
 	InvalidArgument,

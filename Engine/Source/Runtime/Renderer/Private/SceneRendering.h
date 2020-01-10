@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRendering.h: Scene rendering definitions.
@@ -743,6 +743,7 @@ struct FGTAOTAAHistory
 	//  scene color's RGBA are in RT[0].
 	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
 	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
+	TRefCountPtr<IPooledRenderTarget> Velocity[kRenderTargetCount];
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;

@@ -1,77 +1,58 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "Trace.h"
+#include "Trace/Config.h"
 
+#if UE_TRACE_ENABLED
+
+#include "Atomic.h"
+#include "Protocol.h"
 #include "Templates/UnrealTemplate.h"
+#include "Writer.inl"
 
 namespace Trace
 {
-
-////////////////////////////////////////////////////////////////////////////////
-enum : uint8
-{
-	/* Category */
-	_Field_CategoryMask	= 0300,
-	_Field_Integer		= 0000, 
-	_Field_Float		= 0100,
-	_Field_Array		= 0200, /* flag */
-
-	/* Size */
-	_Field_Pow2SizeMask	= 0003,
-	_Field_8			= 0000,
-	_Field_16			= 0001,
-	_Field_32			= 0002,
-	_Field_64			= 0003,
-#if PLATFORM_64BITS
-	_Field_Ptr			= _Field_64,
-#else
-	_Field_Ptr			= _Field_32,
-#endif
-
-	/* unused			= 0004, flag */
-	/* unused			= 0070, enum/flags*/
-};
-
-////////////////////////////////////////////////////////////////////////////////
-enum EFieldType : uint8
-{
-	Field_Bool		= _Field_Integer | _Field_8,
-	Field_Int8		= _Field_Integer | _Field_8,
-	Field_Int16		= _Field_Integer | _Field_16,
-	Field_Int32		= _Field_Integer | _Field_32,
-	Field_Int64		= _Field_Integer | _Field_64,
-	Field_Ptr		= _Field_Integer | _Field_Ptr,
-	Field_Float		= _Field_Float	 | _Field_32,
-	Field_Double	= _Field_Float	 | _Field_64,
-
-	/* Flags */
-	Field_Array		= _Field_Array,
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename Type> struct TFieldType;
 
-template <> struct TFieldType<bool>			{ enum { Value = Field_Bool }; };
-template <> struct TFieldType<int8>			{ enum { Value = Field_Int8 }; };
-template <> struct TFieldType<int16>		{ enum { Value = Field_Int16 }; };
-template <> struct TFieldType<int32>		{ enum { Value = Field_Int32 }; };
-template <> struct TFieldType<int64>		{ enum { Value = Field_Int64 }; };
-template <> struct TFieldType<uint8>		{ enum { Value = Field_Int8 }; };
-template <> struct TFieldType<uint16>		{ enum { Value = Field_Int16 }; };
-template <> struct TFieldType<uint32>		{ enum { Value = Field_Int32 }; };
-template <> struct TFieldType<uint64>		{ enum { Value = Field_Int64 }; };
-template <> struct TFieldType<float>		{ enum { Value = Field_Float }; };
-template <> struct TFieldType<double>		{ enum { Value = Field_Double }; };
-template <class T> struct TFieldType<T*>	{ enum { Value = Field_Ptr }; };
+template <> struct TFieldType<bool>			{ enum { Tid = int(EFieldType::Bool),	Size = sizeof(bool) }; };
+template <> struct TFieldType<int8>			{ enum { Tid = int(EFieldType::Int8),	Size = sizeof(int8) }; };
+template <> struct TFieldType<int16>		{ enum { Tid = int(EFieldType::Int16),	Size = sizeof(int16) }; };
+template <> struct TFieldType<int32>		{ enum { Tid = int(EFieldType::Int32),	Size = sizeof(int32) }; };
+template <> struct TFieldType<int64>		{ enum { Tid = int(EFieldType::Int64),	Size = sizeof(int64) }; };
+template <> struct TFieldType<uint8>		{ enum { Tid = int(EFieldType::Int8),	Size = sizeof(uint8) }; };
+template <> struct TFieldType<uint16>		{ enum { Tid = int(EFieldType::Int16),	Size = sizeof(uint16) }; };
+template <> struct TFieldType<uint32>		{ enum { Tid = int(EFieldType::Int32),	Size = sizeof(uint32) }; };
+template <> struct TFieldType<uint64>		{ enum { Tid = int(EFieldType::Int64),	Size = sizeof(uint64) }; };
+template <> struct TFieldType<float>		{ enum { Tid = int(EFieldType::Float32),Size = sizeof(float) }; };
+template <> struct TFieldType<double>		{ enum { Tid = int(EFieldType::Float64),Size = sizeof(double) }; };
+template <class T> struct TFieldType<T*>	{ enum { Tid = int(EFieldType::Pointer),Size = sizeof(void*) }; };
 
-} // namespace Trace
-
-#if UE_TRACE_ENABLED
-
-namespace Trace
+template <typename T>
+struct TFieldType<T[]>
 {
+	enum
+	{
+		Tid  = int(TFieldType<T>::Tid)|int(EFieldType::Array),
+		Size = 0,
+	};
+};
+
+#if 0
+template <typename T, int N>
+struct TFieldType<T[N]>
+{
+	enum
+	{
+		Tid  = int(TFieldType<T>::Tid)|int(EFieldType::Array),
+		Size = sizeof(T[N]),
+	};
+};
+#endif // 0
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FLiteralName
@@ -107,37 +88,170 @@ struct FFieldDesc
 	uint8			TypeInfo;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-template <int OffsetValue, typename Type>
-struct TFieldBase
-	: public FFieldDesc
-{
-	enum { Offset = OffsetValue, Size = sizeof(Type) };
 
-protected:
-	TFieldBase(const FLiteralName& Name)
-	: FFieldDesc(Name, TFieldType<Type>::Value, OffsetValue, Size)
-	{
-	}
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename Type> struct TField;
+
+enum class EIndexPack
+{
+	FieldCountMask	= 0xff,
+	MaybeHasAux		= 0x100,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-template <int Offset, typename Type> struct TField;
+#define TRACE_PRIVATE_FIELD(InIndex, InOffset, Type) \
+		enum \
+		{ \
+			Index	= InIndex, \
+			Offset	= InOffset, \
+			Tid		= TFieldType<Type>::Tid, \
+			Size	= TFieldType<Type>::Size, \
+		}; \
+		static_assert((Index & int(EIndexPack::FieldCountMask)) <= 127, "Trace events may only have up to a maximum of 127 fields"); \
+	private: \
+		FFieldDesc FieldDesc; \
+	public: \
+		TField(const FLiteralName& Name) \
+		: FieldDesc(Name, Tid, Offset, Size) \
+		{ \
+		}
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename Type>
+struct TField<InIndex, InOffset, Type[]>
+{
+	TRACE_PRIVATE_FIELD(InIndex|int(EIndexPack::MaybeHasAux), InOffset, Type[]);
+
+	static_assert(sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader), "FWriteBuffer::Overflow is not large enough");
+
+	struct FActionable
+	{
+		void Write(uint8* __restrict) const {}
+	};
+
+	const FActionable operator () (Type const* Data, int32 Count) const
+	{
+		if (Count > 0)
+		{
+			int32 Size = (Count * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
+			Impl((const uint8*)Data, Size);
+		}
+		return {};
+	}
+
+private:
+	FORCENOINLINE void Impl(const uint8* Data, int32 Size) const
+	{
+		using namespace Private;
+
+		// Header
+		const int bMaybeHasAux = true;
+		FWriteBuffer* Buffer = Writer_GetBuffer();
+		Buffer->Cursor += sizeof(FAuxHeader) - bMaybeHasAux;
+
+		auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
+		Header->Size = Size << 8;
+		Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::FieldCountMask)));
+
+		bool bCommit = ((uint8*)Header == Buffer->Committed);
+
+		// Array data
+		while (true)
+		{
+			if (Buffer->Cursor >= (uint8*)Buffer)
+			{
+				Buffer = Writer_NextBuffer(0);
+				bCommit = true;
+			}
+
+			int32 Remaining = int32((uint8*)Buffer - Buffer->Cursor);
+			int32 SegmentSize = (Remaining < Size) ? Remaining : Size;
+			memcpy(Buffer->Cursor, Data, SegmentSize);
+			Buffer->Cursor += SegmentSize;
+
+			if (bCommit)
+			{
+				AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
+			}
+
+			Size -= SegmentSize;
+			if (Size <= 0)
+			{
+				break;
+			}
+
+			Data += SegmentSize;
+		}
+
+		// The auxilary data null terminator.
+		Buffer->Cursor[0] = 0;
+		Buffer->Cursor++;
+	}
+};
+
+#if 0
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename Type, int Count>
+struct TField<InIndex, InOffset, Type[Count]>
+{
+	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type[Count]);
+
+	struct FActionable
+	{
+		void Write(uint8* __restrict) const {}
+	};
+
+	const FActionable operator () (Type const* Data, int Count) const
+	{
+	}
+};
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset, typename Type>
+struct TField
+{
+	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type);
+
+	struct FActionable
+	{
+		Type Value;
+		void Write(uint8* __restrict Ptr) const
+		{
+			::memcpy(Ptr + Offset, &Value, Size);
+		}
+	};
+
+	const FActionable operator () (const Type& __restrict Value) const
+	{
+		return { Value };
+	}
+};
+
+#undef TRACE_PRIVATE_FIELD
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Used to terminate the field list and determine an event's size.
-enum EndOfFields {};
-template <int Size>
-struct TField<Size, EndOfFields>
+enum EventProps {};
+template <int InFieldCount, int InSize>
+struct TField<InFieldCount, InSize, EventProps>
 {
-	enum : uint16 { Value = Size };
+	enum : uint16
+	{
+		FieldCount	= (InFieldCount & int(EIndexPack::FieldCountMask)),
+		Size		= InSize,
+		MaybeHasAux	= !!(InFieldCount & int(EIndexPack::MaybeHasAux)),
+	};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // Access to additional data that can be included along with a logged event.
 enum Attachment {};
-template <int Offset>
-struct TField<Offset, Attachment>
+template <int InOffset>
+struct TField<0, InOffset, Attachment>
 {
 	template <typename LambdaType>
 	struct FActionableLambda
@@ -145,7 +259,7 @@ struct TField<Offset, Attachment>
 		LambdaType& Value;
 		void Write(uint8* __restrict Ptr) const
 		{
-			Value(Ptr + Offset);
+			Value(Ptr + InOffset);
 		}
 	};
 
@@ -155,63 +269,19 @@ struct TField<Offset, Attachment>
 		return { Forward<LambdaType>(Lambda) };
 	}
 
-
 	struct FActionableMemcpy
 	{
 		const void* Data;
 		uint32 Size;
 		void Write(uint8* __restrict Ptr) const
 		{
-			::memcpy(Ptr + Offset, Data, Size);
+			::memcpy(Ptr + InOffset, Data, Size);
 		}
 	};
 
 	const FActionableMemcpy operator () (const void* Data, uint32 Size) const
 	{
 		return { Data, Size };
-	}
-};
-
-#if 0
-////////////////////////////////////////////////////////////////////////////////
-template <typename Type>
-struct TField<Type[]>
-	: public TFieldBase<sizeof(uint32)>
-{
-	TField(const ANSICHAR (Name)[]) : TFieldBase<sizeof(uint32)>(Name) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////
-template <int Offset, typename Type, int Count>
-struct TField<Offset, Type[Count]>
-	: public TFieldBase<Offset, Type>
-{
-	TField(const ANSICHAR (Name)[]) : TFieldBase<Offset, Type[Count]>(Name) {}
-};
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
-template <int Offset, typename Type>
-struct TField
-	: public TFieldBase<Offset, Type>
-{
-	struct FActionable
-	{
-		Type Value;
-		void Write(uint8* __restrict Ptr) const
-		{
-			*(Type*)(Ptr + Offset) = Value;
-		}
-	};
-
-	TField(const FLiteralName& Name)
-	: TFieldBase<Offset, Type>(Name)
-	{
-	}
-
-	const FActionable operator () (const Type& __restrict Value) const
-	{
-		return { Value };
 	}
 };
 

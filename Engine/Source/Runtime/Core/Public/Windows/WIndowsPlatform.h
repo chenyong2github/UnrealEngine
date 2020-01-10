@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -46,9 +46,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #if defined(__clang__)
 	// @todo clang: Clang compiler on Windows doesn't support SEH exception handling yet (__try/__except)
 	#define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
-
-	// @todo clang: Clang compiler on Windows doesn't support C++ exception handling yet (try/throw/catch)
-	#define PLATFORM_EXCEPTIONS_DISABLED					1
 #endif
 
 #define PLATFORM_SUPPORTS_PRAGMA_PACK						1
@@ -98,11 +95,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define FORCENOINLINE __declspec(noinline)							/* Force code to NOT be inline */
 #define FUNCTION_NO_RETURN_START __declspec(noreturn)				/* Indicate that the function never returns. */
 #define FUNCTION_NON_NULL_RETURN_START _Ret_notnull_				/* Indicate that the function never returns nullptr. */
-
-// Hints compiler that expression is true; generally restricted to comparisons against constants
-#if !defined(__clang__) || defined(_MSC_VER)	// Clang only supports __assume when using -fms-extensions
-	#define ASSUME(expr) __assume(expr)
-#endif
 
 #define DECLARE_UINT64(x)	x
 

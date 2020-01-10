@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -388,13 +388,6 @@ public:
 	* @return 1 if platform does not need to downsample mesh distance fields
 	*/
 	virtual float GetDownSampleMeshDistanceFieldDivider() const = 0;
-
-	/**
-	* Gets whether the platforms requires the OptData member of FTexturePlatformData.
-	* On platforms where this returns false, the OptData will be initialized to zero at
-	* runtime, and not serialized in the asset data stream.
-	*/
-	virtual bool RequiresOptTextureData() const = 0;
 
 #if WITH_ENGINE
 	/**

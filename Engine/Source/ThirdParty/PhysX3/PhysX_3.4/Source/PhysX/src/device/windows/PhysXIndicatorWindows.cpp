@@ -38,7 +38,10 @@
 #include <stdio.h>
 
 #if _MSC_VER >= 1800
+#pragma warning (push)
+#pragma warning (disable : 4800) /* forcing value to bool 'true' or 'false' (performance warning) */
 #include <VersionHelpers.h>
+#pragma warning (pop)
 #endif
 
 // Scope-based to indicate to NV driver that CPU PhysX is happening

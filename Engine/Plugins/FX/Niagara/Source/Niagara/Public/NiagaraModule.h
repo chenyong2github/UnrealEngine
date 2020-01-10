@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -96,6 +96,7 @@ public:
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_TimeSinceRendered() { return Engine_Owner_TimeSinceRendered; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_LODDistance() { return Engine_Owner_LODDistance; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_LODDistanceFraction() { return Engine_Owner_LODDistanceFraction; }
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_ExecutionState() { return Engine_Owner_ExecutionState; }
 
@@ -203,6 +204,7 @@ private:
 
 	static FNiagaraVariable Engine_Owner_TimeSinceRendered;
 	static FNiagaraVariable Engine_Owner_LODDistance;
+	static FNiagaraVariable Engine_Owner_LODDistanceFraction;
 	
 	static FNiagaraVariable Engine_Owner_ExecutionState;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintActionDatabase.h"
 #include "UObject/Class.h"
@@ -121,7 +121,7 @@ namespace FBlueprintNodeSpawnerFactory
 	 * @param  DelegateProperty	The delegate the spawner will bind to.
 	 * @return A new node-spawner, setup to spawn a UK2Node_AssignDelegate.
 	 */
-	static UBlueprintNodeSpawner* MakeAssignDelegateNodeSpawner(UMulticastDelegateProperty* DelegateProperty);
+	static UBlueprintNodeSpawner* MakeAssignDelegateNodeSpawner(FMulticastDelegateProperty* DelegateProperty);
 
 	/**
 	 * 
@@ -129,7 +129,7 @@ namespace FBlueprintNodeSpawnerFactory
 	 * @param  DelegateProperty	
 	 * @return 
 	 */
-	static UBlueprintNodeSpawner* MakeComponentBoundEventSpawner(UMulticastDelegateProperty* DelegateProperty);
+	static UBlueprintNodeSpawner* MakeComponentBoundEventSpawner(FMulticastDelegateProperty* DelegateProperty);
 
 	/**
 	 * 
@@ -137,7 +137,7 @@ namespace FBlueprintNodeSpawnerFactory
 	 * @param  DelegateProperty	
 	 * @return 
 	 */
-	static UBlueprintNodeSpawner* MakeActorBoundEventSpawner(UMulticastDelegateProperty* DelegateProperty);
+	static UBlueprintNodeSpawner* MakeActorBoundEventSpawner(FMulticastDelegateProperty* DelegateProperty);
 
 	/**
 	 * Constructs UK2Node_Event spawner that is owned by UAnimInstance. Used for Anim Notificatios and montage 
@@ -182,10 +182,10 @@ static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeMessageNodeSpawn
 	UBlueprintFunctionNodeSpawner* NodeSpawner = UBlueprintFunctionNodeSpawner::Create(UK2Node_Message::StaticClass(), InterfaceFunction);
 	check(NodeSpawner != nullptr);
 
-	auto SetNodeFunctionLambda = [](UEdGraphNode* NewNode, UField const* FuncField)
+	auto SetNodeFunctionLambda = [](UEdGraphNode* NewNode, FFieldVariant FuncField)
 	{
 		UK2Node_Message* MessageNode = CastChecked<UK2Node_Message>(NewNode);
-		MessageNode->FunctionReference.SetFromField<UFunction>(FuncField, /*bIsConsideredSelfContext =*/false);
+		MessageNode->FunctionReference.SetFromField<UFunction>(FuncField.Get<UField>(), /*bIsConsideredSelfContext =*/false);
 	};
 	NodeSpawner->SetNodeFieldDelegate = UBlueprintFunctionNodeSpawner::FSetNodeFieldDelegate::CreateStatic(SetNodeFunctionLambda);
 
@@ -248,7 +248,7 @@ static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeCommentNodeSpawn
 }
 
 //------------------------------------------------------------------------------
-static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeAssignDelegateNodeSpawner(UMulticastDelegateProperty* DelegateProperty)
+static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeAssignDelegateNodeSpawner(FMulticastDelegateProperty* DelegateProperty)
 {
 	// @TODO: it'd be awesome to have both nodes spawned by this available for 
 	//        context pin matching (the delegate inputs and the event outputs)
@@ -256,13 +256,13 @@ static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeAssignDelegateNo
 }
 
 //------------------------------------------------------------------------------
-static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeComponentBoundEventSpawner(UMulticastDelegateProperty* DelegateProperty)
+static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeComponentBoundEventSpawner(FMulticastDelegateProperty* DelegateProperty)
 {
 	return UBlueprintBoundEventNodeSpawner::Create(UK2Node_ComponentBoundEvent::StaticClass(), DelegateProperty);
 }
 
 //------------------------------------------------------------------------------
-static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeActorBoundEventSpawner(UMulticastDelegateProperty* DelegateProperty)
+static UBlueprintNodeSpawner* FBlueprintNodeSpawnerFactory::MakeActorBoundEventSpawner(FMulticastDelegateProperty* DelegateProperty)
 {
 	return UBlueprintBoundEventNodeSpawner::Create(UK2Node_ActorBoundEvent::StaticClass(), DelegateProperty);
 }
@@ -299,7 +299,7 @@ namespace BlueprintActionDatabaseImpl
 	 * @param  Property		The property you want to check.
 	 * @return True if the property can be seen from a blueprint.
 	 */
-	static bool IsPropertyBlueprintVisible(UProperty const* const Property);
+	static bool IsPropertyBlueprintVisible(FProperty const* const Property);
 
 	/**
 	 * Checks to see if the specified function is a blueprint owned function
@@ -548,11 +548,11 @@ static void BlueprintActionDatabaseImpl::OnProjectHotReloaded(bool bWasTriggered
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintActionDatabaseImpl::IsPropertyBlueprintVisible(UProperty const* const Property)
+static bool BlueprintActionDatabaseImpl::IsPropertyBlueprintVisible(FProperty const* const Property)
 {
 	bool const bIsAccessible = Property->HasAllPropertyFlags(CPF_BlueprintVisible);
 
-	bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
+	bool const bIsDelegate = Property->IsA(FMulticastDelegateProperty::StaticClass());
 	bool const bIsAssignableOrCallable = Property->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable);
 
 	return !Property->HasAnyPropertyFlags(CPF_Parm) && (bIsAccessible || (bIsDelegate && bIsAssignableOrCallable));
@@ -676,18 +676,18 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 	
 	// loop over all the properties in the specified class; exclude-super because 
 	// we can always get the super properties by looking up that class separately 
-	for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		if (!IsPropertyBlueprintVisible(Property))
 		{
 			continue;
 		}
 
-		bool const bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
-		if (bIsDelegate)
-		{
-			UMulticastDelegateProperty* DelegateProperty = CastChecked<UMulticastDelegateProperty>(Property);
+ 		bool const bIsDelegate = Property->IsA(FMulticastDelegateProperty::StaticClass());
+ 		if (bIsDelegate)
+ 		{
+			FMulticastDelegateProperty* DelegateProperty = CastFieldChecked<FMulticastDelegateProperty>(Property);
 			if (DelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
 				UBlueprintNodeSpawner* AddSpawner = UBlueprintDelegateNodeSpawner::Create(UK2Node_AddDelegate::StaticClass(), DelegateProperty);
@@ -716,7 +716,7 @@ static void BlueprintActionDatabaseImpl::AddClassPropertyActions(UClass const* c
 			{
 				ActionListOut.Add(MakeActorBoundEventSpawner(DelegateProperty));
 			}
-		}
+ 		}
 		else
 		{
 			UBlueprintVariableNodeSpawner* GetterSpawner = UBlueprintVariableNodeSpawner::CreateFromMemberOrParam(UK2Node_VariableGet::StaticClass(), Property);
@@ -738,9 +738,9 @@ static void BlueprintActionDatabaseImpl::AddClassDataObjectActions(UClass const*
 	const UStruct* ParentSparseDataStruct = Class->GetSuperClass() ? Class->GetSuperClass()->GetSparseClassDataStruct() : nullptr;
 	if (ParentSparseDataStruct != SparseDataStruct)
 	{
-		for (TFieldIterator<UProperty> PropertyIt(SparseDataStruct, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(SparseDataStruct, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			if (!IsPropertyBlueprintVisible(Property))
 			{
 				continue;
@@ -824,9 +824,9 @@ static void BlueprintActionDatabaseImpl::AddBlueprintGraphActions(UBlueprint con
 			// Create entries for function parameters
 			if (SkeletonFunction != nullptr)
 			{
-				for (TFieldIterator<UProperty> ParamIt(SkeletonFunction); ParamIt && (ParamIt->PropertyFlags & CPF_Parm); ++ParamIt)
+				for (TFieldIterator<FProperty> ParamIt(SkeletonFunction); ParamIt && (ParamIt->PropertyFlags & CPF_Parm); ++ParamIt)
 				{
-					UProperty* Param = *ParamIt;
+					FProperty* Param = *ParamIt;
 					const bool bIsFunctionInput = !Param->HasAnyPropertyFlags(CPF_ReturnParm) && (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm));
 					if (bIsFunctionInput)
 					{
@@ -839,13 +839,13 @@ static void BlueprintActionDatabaseImpl::AddBlueprintGraphActions(UBlueprint con
 			// Create entries for local variables
 			for (FBPVariableDescription const& LocalVar : FunctionEntry->LocalVariables)
 			{
-				// Create a member reference so we can safely resolve the UProperty
+				// Create a member reference so we can safely resolve the FProperty
 				FMemberReference Reference;
 				Reference.SetLocalMember(LocalVar.VarName, FunctionGraph->GetName(), LocalVar.VarGuid);
 
-				UBlueprintNodeSpawner* GetVarSpawner = UBlueprintVariableNodeSpawner::CreateFromLocal(UK2Node_VariableGet::StaticClass(), FunctionGraph, LocalVar, Reference.ResolveMember<UProperty>(Blueprint->SkeletonGeneratedClass));
+				UBlueprintNodeSpawner* GetVarSpawner = UBlueprintVariableNodeSpawner::CreateFromLocal(UK2Node_VariableGet::StaticClass(), FunctionGraph, LocalVar, Reference.ResolveMember<FProperty>(Blueprint->SkeletonGeneratedClass));
 				ActionListOut.Add(GetVarSpawner);
-				UBlueprintNodeSpawner* SetVarSpawner = UBlueprintVariableNodeSpawner::CreateFromLocal(UK2Node_VariableSet::StaticClass(), FunctionGraph, LocalVar, Reference.ResolveMember<UProperty>(Blueprint->SkeletonGeneratedClass));
+				UBlueprintNodeSpawner* SetVarSpawner = UBlueprintVariableNodeSpawner::CreateFromLocal(UK2Node_VariableSet::StaticClass(), FunctionGraph, LocalVar, Reference.ResolveMember<FProperty>(Blueprint->SkeletonGeneratedClass));
 				ActionListOut.Add(SetVarSpawner);
 			}
 		}
@@ -1603,27 +1603,27 @@ bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKe
 		{
 			if (Action != nullptr)
 			{
-				// because some asserts expect everything to be cleaned up in a 
-				// single GC pass, we can't wait for the GC'd Action to release its
-				// template node from the cache
-				Action->ClearCachedTemplateNode();
-			}
+			// because some asserts expect everything to be cleaned up in a 
+			// single GC pass, we can't wait for the GC'd Action to release its
+			// template node from the cache
+			Action->ClearCachedTemplateNode();
+		}
 		}
 		ActionRegistry.Remove(AssetObjectKey);
 	}
 
 	if (UObject* AssetObject = AssetObjectKey.ResolveObjectPtr())
 	{
-		if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
-		{
-			BlueprintAsset->OnChanged().RemoveAll(this);
-			BlueprintAsset->OnCompiled().RemoveAll(this);
-		}
+	if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+	{
+		BlueprintAsset->OnChanged().RemoveAll(this);
+		BlueprintAsset->OnCompiled().RemoveAll(this);
+	}
 
-		if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
-		{
-			EntryRemovedDelegate.Broadcast(AssetObject);
-		}
+	if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
+	{
+		EntryRemovedDelegate.Broadcast(AssetObject);
+	}
 	}
 	
 	return bHasEntry;

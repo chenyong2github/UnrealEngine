@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -12,6 +12,7 @@
 #include "UObject/ObjectKey.h"
 
 struct FAssetData;
+struct FMinimalViewInfo;
 class FCanvas;
 class FDragTool;
 class HModel;
@@ -119,7 +120,6 @@ private:
 	TMap<UPackage*, bool> InitialPackageDirtyStates;
 	
 };
-
 
 /** */
 class UNREALED_API FLevelEditorViewportClient : public FEditorViewportClient
@@ -748,6 +748,7 @@ public:
 
 	/** When enabled, the Unreal transform widget will become visible after an actor is selected, even if it was turned off via a show flag */
 	bool bAlwaysShowModeWidgetAfterSelectionChanges;
+
 private:
 	/** The actors that are currently being placed in the viewport via dragging */
 	static TArray< TWeakObjectPtr< AActor > > DropPreviewActors;

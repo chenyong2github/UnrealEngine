@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/ObjectPropertyTrackEditor.h"
 #include "Tracks/MovieSceneObjectPropertyTrack.h"
@@ -28,7 +28,7 @@ void FObjectPropertyTrackEditor::InitializeNewTrack(UMovieSceneObjectPropertyTra
 {
 	FPropertyTrackEditor::InitializeNewTrack(NewTrack, PropertyChangedParams);
 
-	UObjectPropertyBase* KeyedProperty = Cast<UObjectPropertyBase>(PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get());
+	FObjectPropertyBase* KeyedProperty = CastField<FObjectPropertyBase>(PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get());
 	if (KeyedProperty)
 	{
 		NewTrack->PropertyClass = KeyedProperty->PropertyClass;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PlayerInput.cpp: Unreal input system.
@@ -504,7 +504,7 @@ void UPlayerInput::InvertAxis(const FName AxisName)
 		}
 		if (bInverted)
 		{
-			InvertedAxis.Add(AxisName);
+			InvertedAxis.AddUnique(AxisName);
 		}
 		else
 		{
@@ -2098,7 +2098,7 @@ void UPlayerInput::SetBind(FName BindName, const FString& Command)
 		FString CommandMod = Command;
 		if ( CommandMod.Left(1) == TEXT("\"") && CommandMod.Right(1) == ("\"") )
 		{
-			CommandMod = CommandMod.Mid(1, CommandMod.Len() - 2);
+			CommandMod.MidInline(1, CommandMod.Len() - 2, false);
 		}
 
 		for(int32 BindIndex = DebugExecBindings.Num()-1;BindIndex >= 0;BindIndex--)

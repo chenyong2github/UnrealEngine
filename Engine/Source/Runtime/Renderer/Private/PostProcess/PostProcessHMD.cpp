@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessHMD.h"
 #include "EngineGlobals.h"
@@ -117,7 +117,9 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 	{
 		RHICmdList.SetViewport(OutputViewRect.Min.X, OutputViewRect.Min.Y, 0.0f, OutputViewRect.Max.X, OutputViewRect.Max.Y, 1.0f);
 
-		SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*VertexShader, *PixelShader));
+		FScreenPassPipelineState PipelineState(*VertexShader, *PixelShader);
+		PipelineState.VertexDeclaration = GDistortionVertexDeclaration.VertexDeclarationRHI;
+		SetScreenPassPipelineState(RHICmdList, PipelineState);
 
 		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
 		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);

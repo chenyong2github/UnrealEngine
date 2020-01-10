@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -132,12 +132,27 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
+	void EnsurePacketIsVisible(const int InPacketIndex);
+	void SetSelectedPacket(const int32 InPacketIndex);
+	void SelectPreviousPacket();
+	void SelectNextPacket();
+	void ExtendLeftSideOfSelectedInterval();
+	void ShrinkLeftSideOfSelectedInterval();
+	void ExtendRightSideOfSelectedInterval();
+	void ShrinkRightSideOfSelectedInterval();
+
+	void InvalidateState() { bIsStateDirty = true; }
+
 private:
+	void UpdateSelectedSample();
+
+	bool IsConnectionValid(const Trace::INetProfilerProvider& NetProfilerProvider, const uint32 InGameInstanceIndex, const uint32 InConnectionIndex, const Trace::ENetProfilerConnectionMode InConnectionMode);
 	void UpdateState();
 
 	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 
+	FNetworkPacketSampleRef GetSample(const int32 InPacketIndex);
 	FNetworkPacketSampleRef GetSampleAtMousePosition(float X, float Y);
 	void SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent);
 	void OnSelectionChanged();
@@ -172,7 +187,7 @@ private:
 	bool bIsViewportDirty;
 
 	/** Cached info for the packet series. */
-	TSharedPtr<FNetworkPacketSeries> PacketSeries;
+	TSharedRef<FNetworkPacketSeries> PacketSeries;
 	bool bIsStateDirty;
 
 	bool bIsAutoZoomEnabled;

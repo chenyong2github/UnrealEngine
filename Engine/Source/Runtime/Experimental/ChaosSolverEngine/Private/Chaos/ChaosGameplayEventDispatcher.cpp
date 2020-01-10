@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Components/PrimitiveComponent.h"
@@ -421,10 +421,9 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 	{
 		if (SleepData.Particle->Proxy != nullptr)
 		{
-			UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(SleepData.Particle->Proxy->GetOwner());
-			if (Component)
+			if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(SleepData.Particle->UserData()))
 			{
-				if (FBodyInstance* BodyInstance = Component->GetBodyInstance())
+				if (BodyInstance->bGenerateWakeEvents)
 				{
 					ESleepEvent WakeSleepEvent = SleepData.Sleeping ? ESleepEvent::SET_Sleep : ESleepEvent::SET_Wakeup;
 					AddPendingSleepingNotify(BodyInstance, WakeSleepEvent);
@@ -443,3 +442,4 @@ void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* Body
 }
 
 // PRAGMA_ENABLE_OPTIMIZATION
+

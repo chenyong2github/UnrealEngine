@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -1003,9 +1003,9 @@ namespace ImportExportAssetHelper
 					Extension = FPaths::GetExtension(ImportPath);
 				}
 
-				if (Extension.StartsWith(TEXT(".")))
+				if (Extension.StartsWith(TEXT("."), ESearchCase::CaseSensitive))
 				{
-					Extension = Extension.RightChop(1);
+					Extension.RightChopInline(1, false);
 				}
 
 				//Export the asset

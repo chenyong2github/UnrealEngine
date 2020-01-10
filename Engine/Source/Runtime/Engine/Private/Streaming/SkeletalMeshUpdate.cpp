@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
@@ -362,7 +362,7 @@ FString FSkeletalMeshStreamIn_IO::GetIOFilename(const FContext& Context)
 
 void FSkeletalMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
-	AsyncFileCallback = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();
@@ -405,27 +405,21 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 	{
 		SetAsyncFileCallback(Context);
 
-		const FSkeletalMeshLODRenderData& FirstLOD = RenderData->LODRenderData[PendingFirstMip];
-		const FSkeletalMeshLODRenderData& LastLOD = RenderData->LODRenderData[CurrentFirstLODIdx - 1];
+		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
+		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		{
+			BulkDataArray.Push(&RenderData->LODRenderData[Index].StreamingBulkData);
+		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-#if USE_BULKDATA_STREAMING_TOKEN
-		IORequest = FUntypedBulkData::CreateStreamingRequestForRange(
-			IOFilename,
-			FirstLOD.BulkDataStreamingToken,
-			LastLOD.BulkDataStreamingToken,
+		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
+			STREAMINGTOKEN_PARAM(IOFilename)
+			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
-#else
-		IORequest = BulkDataUtils::CreateStreamingRequestForRange(
-			FirstLOD.StreamingBulkData,
-			LastLOD.StreamingBulkData,
-			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallback);
-#endif
 	}
 	else
 	{

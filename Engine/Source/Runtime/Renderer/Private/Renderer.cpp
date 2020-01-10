@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Renderer.cpp: Renderer module implementation.
@@ -549,13 +549,13 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 		// e.g. mip2 or mip0
 		else if(Parameter.Left(3) == TEXT("mip"))
 		{
-			Parameter = Parameter.Right(Parameter.Len() - 3);
+			Parameter.RightInline(Parameter.Len() - 3, false);
 			GVisualizeTexture.CustomMip = FCString::Atoi(*Parameter);
 		}
 		// e.g. [0] or [2]
 		else if(Parameter.Left(5) == TEXT("index"))
 		{
-			Parameter = Parameter.Right(Parameter.Len() - 5);
+			Parameter.RightInline(Parameter.Len() - 5, false);
 			GVisualizeTexture.ArrayIndex = FCString::Atoi(*Parameter);
 		}
 		// e.g. RGB*6, A, *22, /2.7, A*7
@@ -571,7 +571,7 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 
 			if(Parameter.Left(3) == TEXT("rgb"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 3);
+				Parameter.RightInline(Parameter.Len() - 3, false);
 			}
 			else if(Parameter.Left(1) == TEXT("r")) SingleChannel = 0;
 			else if(Parameter.Left(1) == TEXT("g")) SingleChannel = 1;
@@ -579,7 +579,7 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 			else if(Parameter.Left(1) == TEXT("a")) SingleChannel = 3;
 			if ( SingleChannel >= 0 )
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				GVisualizeTexture.SingleChannel = SingleChannel;
 				GVisualizeTexture.SingleChannelMul = 1;
 				GVisualizeTexture.RGBMul = 0;
@@ -590,12 +590,12 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 			// * or /
 			if(Parameter.Left(1) == TEXT("*"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				Mul = FCString::Atof(*Parameter);
 			}
 			else if(Parameter.Left(1) == TEXT("/"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				Mul = 1.0f / FCString::Atof(*Parameter);
 			}
 			GVisualizeTexture.RGBMul *= Mul;

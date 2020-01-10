@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "HAL/FileManager.h"
@@ -19,6 +19,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "AssetRegistryModule.h"
 #include "GameDelegates.h"
+#include "Commandlets/IChunkDataGenerator.h"
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/ConfigCacheIni.h"
@@ -342,7 +343,13 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 					FinalChunkManifests.AddDefaulted(PakchunkIndex - FinalChunkManifests.Num() + 1);
 				}
 				checkf(PakchunkIndex < FinalChunkManifests.Num(), TEXT("Chunk %i out of range. %i manifests available"), PakchunkIndex, FinalChunkManifests.Num() - 1);
-				checkf(FinalChunkManifests[PakchunkIndex] == nullptr, TEXT("Manifest already exists for chunk %i"), PakchunkIndex);
+				checkf(FinalChunkManifests[PakchunkIndex] == nullptr || FinalChunkManifests[PakchunkIndex]->Num() == 0, TEXT("Manifest already exists for chunk %i"), PakchunkIndex);
+
+				if (FinalChunkManifests[PakchunkIndex])
+				{
+					delete FinalChunkManifests[PakchunkIndex];
+				}
+
 				FinalChunkManifests[PakchunkIndex] = NewManifest;
 			}
 		}
@@ -360,22 +367,24 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	// generate per-chunk pak list files
 	for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
 	{
+		const FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
+
 		// Serialize chunk layers whether chunk is empty or not
 		int32 TargetLayer = 0;
-		FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(FinalChunkManifests[PakchunkIndex], Platform, PakchunkIndex, TargetLayer);
+		FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(Manifest, Platform, PakchunkIndex, TargetLayer);
 
 		FString LayerString = FString::Printf(TEXT("%d\r\n"), TargetLayer);
 		ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
 
 		// Is this chunk empty?
-		if (!FinalChunkManifests[PakchunkIndex])
+		if (!Manifest)
 		{
 			continue;
 		}
 
 		int32 FilenameIndex = 0;
 		TArray<FString> ChunkFilenames;
-		FinalChunkManifests[PakchunkIndex]->GenerateValueArray(ChunkFilenames);
+		Manifest->GenerateValueArray(ChunkFilenames);
 		bool bFinishedAllFiles = false;
 		for (int32 SubChunkIndex = 0; !bFinishedAllFiles; ++SubChunkIndex)
 		{
@@ -421,6 +430,22 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 							ChunkFilenames.Add(AssetRegistryFilename);
 						}
 					}
+				}
+			}
+
+			// Allow the extra data generation steps to run and add their output to the manifest
+			if (ChunkDataGenerators.Num() > 0)
+			{
+				TSet<FName> PackagesInChunk;
+				PackagesInChunk.Reserve(Manifest->Num());
+				for (const auto& ChunkManifestPair : *Manifest)
+				{
+					PackagesInChunk.Add(ChunkManifestPair.Key);
+				}
+
+				for (const TSharedRef<IChunkDataGenerator>& ChunkDataGenerator : ChunkDataGenerators)
+				{
+					ChunkDataGenerator->GenerateChunkDataFiles(PakchunkIndex, PackagesInChunk, Platform, InSandboxFile, ChunkFilenames);
 				}
 			}
 
@@ -1052,6 +1077,11 @@ void FAssetRegistryGenerator::BuildChunkManifest(const TSet<FName>& InCookedPack
 
 	// anything that remains in the UnAssignedPackageSet will be put in chunk0 when we save the asset registry
 
+}
+
+void FAssetRegistryGenerator::RegisterChunkDataGenerator(TSharedRef<IChunkDataGenerator> InChunkDataGenerator)
+{
+	ChunkDataGenerators.Add(MoveTemp(InChunkDataGenerator));
 }
 
 void FAssetRegistryGenerator::PreSave(const TSet<FName>& InCookedPackages)

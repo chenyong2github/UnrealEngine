@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DriverSequence.h"
 #include "IStepExecutor.h"
@@ -178,7 +178,7 @@ public:
 
 class FAsyncActionSequence
 	: public IAsyncActionSequence
-	, public TSharedFromThis<FAsyncActionSequence>
+	, public TSharedFromThis<FAsyncActionSequence, ESPMode::ThreadSafe>
 {
 public:
 

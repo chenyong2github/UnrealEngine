@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnObjAllocator.cpp: Unreal object allocation
@@ -20,7 +20,7 @@ COREUOBJECT_API FUObjectAllocator GUObjectAllocator;
 void FUObjectAllocator::AllocatePermanentObjectPool(int32 InPermanentObjectPoolSize)
 {
 	PermanentObjectPoolSize	= InPermanentObjectPoolSize;
-	PermanentObjectPool		= (uint8*) FMemory::Malloc( PermanentObjectPoolSize );
+	PermanentObjectPool		= (uint8*) FMemory::MallocPersistentAuxiliary( PermanentObjectPoolSize );
 	PermanentObjectPoolTail	= PermanentObjectPool;
 	PermanentObjectPoolExceededTail = PermanentObjectPoolTail;
 }

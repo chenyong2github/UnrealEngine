@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -63,7 +63,7 @@ protected:
 	// Begin UAnimGraphNode_CustomProperty
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
-	void GetExposableProperties( TArray<UProperty*>& OutExposableProperties) const override;
+	void GetExposableProperties( TArray<FProperty*>& OutExposableProperties) const override;
 	virtual bool NeedsToSpecifyValidTargetClass() const override { return false; }
 	virtual UClass* GetTargetSkeletonClass() const override;
 
@@ -72,7 +72,7 @@ protected:
 	virtual const FAnimNode_LinkedAnimLayer* GetLinkedAnimGraphNode() const override { return &Node; }
 	virtual bool OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const override;
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
-	virtual bool IsStructuralProperty(UProperty* InProperty) const override;
+	virtual bool IsStructuralProperty(FProperty* InProperty) const override;
 
 	// Helper function to get the interface currently in use by the selected layer
 	TSubclassOf<UInterface> GetInterfaceForLayer() const;

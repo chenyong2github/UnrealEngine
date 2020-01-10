@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,9 +14,13 @@
 
 
 class FPhysTestSerializer;
-struct FSweepHit;
-struct FRaycastHit;
-struct FOverlapHit;
+
+namespace ChaosInterface
+{
+	struct FSweepHit;
+	struct FRaycastHit;
+	struct FOverlapHit;
+}
 
 namespace Chaos
 {

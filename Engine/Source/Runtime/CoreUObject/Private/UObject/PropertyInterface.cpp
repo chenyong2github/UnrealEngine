@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -7,13 +7,27 @@
 #include "Templates/Casts.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerPlaceholderClass.h"
 
-/*-----------------------------------------------------------------------------
-	UInterfaceProperty.
------------------------------------------------------------------------------*/
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
-void UInterfaceProperty::BeginDestroy()
+/*-----------------------------------------------------------------------------
+	FInterfaceProperty.
+-----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FInterfaceProperty)
+
+#if WITH_EDITORONLY_DATA
+FInterfaceProperty::FInterfaceProperty(UField* InField)
+	: FInterfaceProperty_Super(InField)
+{
+	UInterfaceProperty* SourceProperty = CastChecked<UInterfaceProperty>(InField);
+	InterfaceClass = SourceProperty->InterfaceClass;
+}
+#endif // WITH_EDITORONLY_DATA
+
+void FInterfaceProperty::BeginDestroy()
 {
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(InterfaceClass))
@@ -25,13 +39,20 @@ void UInterfaceProperty::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void FInterfaceProperty::PostDuplicate(const FField& InField)
+{
+	const FInterfaceProperty& Source = static_cast<const FInterfaceProperty&>(InField);
+	InterfaceClass = Source.InterfaceClass;
+	Super::PostDuplicate(InField);
+}
+
 /**
  * Returns the text to use for exporting this property to header file.
  *
  * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
  * @param	CPPExportFlags		flags for modifying the behavior of the export
  */
-FString UInterfaceProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
+FString FInterfaceProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	checkSlow(InterfaceClass);
 
@@ -53,7 +74,7 @@ FString UInterfaceProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
  * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
  * @param	CPPExportFlags		flags for modifying the behavior of the export
  */
-FString UInterfaceProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FInterfaceProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	checkSlow(InterfaceClass);
 
@@ -76,7 +97,7 @@ FString UInterfaceProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint
 	return TEXT("TScriptInterface");
 }
 
-FString UInterfaceProperty::GetCPPTypeForwardDeclaration() const
+FString FInterfaceProperty::GetCPPTypeForwardDeclaration() const
 {
 	checkSlow(InterfaceClass);
 	UClass* ExportClass = InterfaceClass;
@@ -90,14 +111,14 @@ FString UInterfaceProperty::GetCPPTypeForwardDeclaration() const
 	return FString::Printf(TEXT("class I%s;"), *ExportClass->GetName());
 }
 
-void UInterfaceProperty::LinkInternal(FArchive& Ar)
+void FInterfaceProperty::LinkInternal(FArchive& Ar)
 {
 	// for now, we won't support instancing of interface properties...it might be possible, but for the first pass we'll keep it simple
 	PropertyFlags &= ~CPF_InterfaceClearMask;
 	Super::LinkInternal(Ar);
 }
 
-bool UInterfaceProperty::Identical( const void* A, const void* B, uint32 PortFlags/*=0*/ ) const
+bool FInterfaceProperty::Identical( const void* A, const void* B, uint32 PortFlags/*=0*/ ) const
 {
 	FScriptInterface* InterfaceA = (FScriptInterface*)A;
 	FScriptInterface* InterfaceB = (FScriptInterface*)B;
@@ -110,7 +131,7 @@ bool UInterfaceProperty::Identical( const void* A, const void* B, uint32 PortFla
 	return (InterfaceA->GetObject() == InterfaceB->GetObject() && InterfaceA->GetInterface() == InterfaceB->GetInterface());
 }
 
-void UInterfaceProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
+void FInterfaceProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FScriptInterface* InterfaceValue = (FScriptInterface*)Value;
@@ -129,13 +150,13 @@ void UInterfaceProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Va
 	}
 }
 
-bool UInterfaceProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
+bool FInterfaceProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
 	//@todo
 	return false;
 }
 
-void UInterfaceProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FInterfaceProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	FScriptInterface* InterfaceValue = (FScriptInterface*)PropertyValue;
 
@@ -183,14 +204,14 @@ void UInterfaceProperty::ExportTextItem( FString& ValueStr, const void* Property
 	}
 }
 
-const TCHAR* UInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText/*=NULL*/ ) const
+const TCHAR* FInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText/*=NULL*/ ) const
 {
 	FScriptInterface* InterfaceValue = (FScriptInterface*)Data;
 	UObject* ResolvedObject = InterfaceValue->GetObject();
 	void* InterfaceAddress = InterfaceValue->GetInterface();
 
 	const TCHAR* Buffer = InBuffer;
-	if ( !UObjectPropertyBase::ParseObjectPropertyValue(this, Parent, UObject::StaticClass(), PortFlags, Buffer, ResolvedObject) )
+	if ( !FObjectPropertyBase::ParseObjectPropertyValue(this, Parent, UObject::StaticClass(), PortFlags, Buffer, ResolvedObject) )
 	{
 		// we only need to call SetObject here - if ObjectAddress was not modified, then InterfaceValue should not be modified either
 		// if it was set to NULL, SetObject will take care of clearing the interface address too
@@ -222,13 +243,13 @@ const TCHAR* UInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, voi
 	return Buffer;
 }
 
-bool UInterfaceProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FInterfaceProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	return true; 
 }
 
-/** Manipulates the data referenced by this UProperty */
-void UInterfaceProperty::Serialize( FArchive& Ar )
+/** Manipulates the data referenced by this FProperty */
+void FInterfaceProperty::Serialize( FArchive& Ar )
 {
 	Super::Serialize( Ar );
 
@@ -244,7 +265,7 @@ void UInterfaceProperty::Serialize( FArchive& Ar )
 	}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-	if ( !InterfaceClass && !HasAnyFlags(RF_ClassDefaultObject) )
+	if ( !InterfaceClass )
  	{
 		// If we failed to load the InterfaceClass and we're not a CDO, that means we relied on a class that has been removed or doesn't exist.
 		// The most likely cause for this is either an incomplete recompile, or if content was migrated between games that had native class dependencies
@@ -259,7 +280,7 @@ void UInterfaceProperty::Serialize( FArchive& Ar )
 
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-void UInterfaceProperty::SetInterfaceClass(UClass* NewInterfaceClass)
+void FInterfaceProperty::SetInterfaceClass(UClass* NewInterfaceClass)
 {
 	if (ULinkerPlaceholderClass* NewPlaceholderClass = Cast<ULinkerPlaceholderClass>(NewInterfaceClass))
 	{
@@ -274,20 +295,15 @@ void UInterfaceProperty::SetInterfaceClass(UClass* NewInterfaceClass)
 }
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-bool UInterfaceProperty::SameType(const UProperty* Other) const
+bool FInterfaceProperty::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && (InterfaceClass == ((UInterfaceProperty*)Other)->InterfaceClass);
+	return Super::SameType(Other) && (InterfaceClass == ((FInterfaceProperty*)Other)->InterfaceClass);
 }
 
-void UInterfaceProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void FInterfaceProperty::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UInterfaceProperty* This = CastChecked<UInterfaceProperty>(InThis);
-	Collector.AddReferencedObject(This->InterfaceClass, This);
-	Super::AddReferencedObjects(This, Collector);
+	Collector.AddReferencedObject(InterfaceClass);
+	Super::AddReferencedObjects(Collector);
 }
 
-IMPLEMENT_CORE_INTRINSIC_CLASS(UInterfaceProperty, UProperty,
-	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UInterfaceProperty, InterfaceClass), TEXT("InterfaceClass"));
-	}
-);
+#include "UObject/DefineUPropertyMacros.h"

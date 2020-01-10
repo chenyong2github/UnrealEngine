@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PackageBackup.cpp: Utility class for backing up a package.
@@ -182,7 +182,7 @@ bool FAutoPackageBackup::ShouldBackupPackage( const UPackage& InPackage, FString
 			FString CurBackupFileNameExtension = FPaths::GetExtension(CurBackupFileName);
 
 			// The base file name of the backup file is going to include an underscore followed by a timestamp, so they must be removed for comparison's sake
-			CurBackupBaseFileName = CurBackupBaseFileName.Left( CurBackupBaseFileName.Find( TEXT("_"), ESearchCase::CaseSensitive, ESearchDir::FromEnd ) );
+			CurBackupBaseFileName.LeftInline( CurBackupBaseFileName.Find( TEXT("_"), ESearchCase::CaseSensitive, ESearchDir::FromEnd ), false );
 					
 			// If the base file names and extensions match, we've found a backup
 			if ( CurBackupBaseFileName == ExistingBaseFileName &&  CurBackupFileNameExtension == ExistingFileNameExtension )

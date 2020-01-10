@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Generation/BuildStreamer.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -454,11 +454,11 @@ namespace BuildPatchServices
 		}
 		for (FString& Filename : IgnoreFiles)
 		{
-			int32 TabLocation = Filename.Find(TEXT("\t"));
+			int32 TabLocation = Filename.Find(TEXT("\t"), ESearchCase::CaseSensitive);
 			if (TabLocation != INDEX_NONE)
 			{
 				// Strip tab separated timestamp if it exists
-				Filename = Filename.Left(TabLocation);
+				Filename.LeftInline(TabLocation, false);
 			}
 			Filename = Config.BuildRoot / Filename;
 			FPaths::NormalizeFilename(Filename);

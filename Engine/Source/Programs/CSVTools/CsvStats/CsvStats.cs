@@ -1,5 +1,5 @@
 // Copyright (C) Microsoft. All rights reserved.
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,12 @@ namespace CSVStats
 {
     public class CsvEvent
     {
-        public CsvEvent(string NameIn, int FrameIn)
+		public CsvEvent(CsvEvent source)
+		{
+			Name = source.Name;
+			Frame = source.Frame;
+		}
+		public CsvEvent(string NameIn, int FrameIn)
         {
             Name = NameIn;
             Frame = FrameIn;
@@ -24,6 +29,7 @@ namespace CSVStats
         {
 
         }
+
         public string Name;
         public int Frame;
     };
@@ -39,7 +45,17 @@ namespace CSVStats
             return rv;
         }
 
-        public CsvMetadata()
+		public CsvMetadata(CsvMetadata source)
+		{
+			Values = new Dictionary<string, string>();
+			List<KeyValuePair<string, string>> pairList = source.Values.ToList();
+			foreach (KeyValuePair<string, string> pair in pairList)
+			{
+				Values.Add(pair.Key, pair.Value);
+			}
+		}
+
+		public CsvMetadata()
 		{
 			Values = new Dictionary<string, string>();
 		}
@@ -193,11 +209,15 @@ namespace CSVStats
 
     public class StatSamples : IComparable
     {
-        public StatSamples(StatSamples source)
+        public StatSamples(StatSamples source, bool copySamples=true)
         {
             Name = source.Name;
             samples = new List<float>();
-            average = source.average;
+			if (copySamples)
+			{
+				samples.AddRange(source.samples);
+			}
+			average = source.average;
             total = source.total;
             colour = source.colour;
             LegendName = source.LegendName;
@@ -352,7 +372,42 @@ namespace CSVStats
             Stats = new Dictionary<string, StatSamples>();
             Events = new List<CsvEvent>();
         }
-        public StatSamples GetStat(string name)
+		public CsvStats(CsvStats sourceCsvStats, string [] statNamesToFilter=null)
+		{
+			Stats = new Dictionary<string, StatSamples>();
+			Events = new List<CsvEvent>();
+			if (statNamesToFilter != null)
+			{
+				foreach (string statName in statNamesToFilter)
+				{
+					List<StatSamples> stats = sourceCsvStats.GetStatsMatchingString(statName);
+					foreach (StatSamples sourceStat in stats)
+					{
+						string key = sourceStat.Name.ToLower();
+						if (!Stats.ContainsKey(key))
+						{
+							Stats.Add(key,new StatSamples(sourceStat));
+						}
+					}
+				}
+			}
+			else
+			{
+				foreach (StatSamples sourceStat in sourceCsvStats.Stats.Values)
+				{
+					AddStat(new StatSamples(sourceStat));
+				}
+			}
+			foreach (CsvEvent ev in sourceCsvStats.Events)
+			{
+				Events.Add(new CsvEvent(ev));
+			}
+			if (sourceCsvStats.metaData != null)
+			{
+				metaData = new CsvMetadata(sourceCsvStats.metaData);
+			}
+		}
+		public StatSamples GetStat(string name)
         {
             name = name.ToLower();
             if (Stats.ContainsKey(name))
@@ -361,7 +416,7 @@ namespace CSVStats
             }
             return null;
         }
-        public void AddStat(StatSamples stat)
+		public void AddStat(StatSamples stat)
         {           
             Stats.Add(stat.Name.ToLower(), stat);
         }
@@ -609,8 +664,8 @@ namespace CSVStats
             // Write the metadata
         }
 
-        // Pad the stats
-        public void ComputeAveragesAndTotal()
+		// Pad the stats
+		public void ComputeAveragesAndTotal()
         {
             foreach (StatSamples stat in Stats.Values.ToArray())
             {
@@ -866,22 +921,25 @@ namespace CSVStats
             }
         }
 
-        public int StripByEvents(string startString, string endString, bool invert=false)
+        public CsvStats StripByEvents(string startString, string endString, bool invert, out int numFramesStripped)
         {
+			CsvStats newCsvStats = new CsvStats();
             List<int> startIndices = null;
             List<int> endIndices = null;
             GetEventFrameIndexDelimiters(startString, endString, out startIndices, out endIndices);
+			numFramesStripped = 0;
 			if (startIndices.Count == 0 )
             {
-                return 0;
+                return this;
             }
 
-            int framesStripped = -1;
-            int frameCount = 0;
+			numFramesStripped = -1;
+			int frameCount = 0;
             // Strip out samples and recompute averages
             foreach (StatSamples stat in Stats.Values)
             {
-                List<float> newSamples = new List<float>(SampleCount);
+				StatSamples newStat = new StatSamples(stat, false);
+				newStat.samples = new List<float>(SampleCount);
                 int stripEventIndex = 0;
                 for (int i = 0; i < stat.samples.Count; i++)
                 {
@@ -889,7 +947,7 @@ namespace CSVStats
                     int endIndex = (stripEventIndex < endIndices.Count) ? endIndices[stripEventIndex] : stat.samples.Count;
                     if (i < startIndex)
                     {
-                        newSamples.Add(stat.samples[i]);
+						newStat.samples.Add(stat.samples[i]);
                     }
                     else
                     {
@@ -899,31 +957,29 @@ namespace CSVStats
                         }
                     }
                 }
-                if (framesStripped == -1)
+                if (numFramesStripped == -1)
                 {
-                    framesStripped = stat.samples.Count - newSamples.Count;
+					numFramesStripped = stat.samples.Count - newStat.samples.Count;
                     frameCount = stat.samples.Count;
                 }
-                stat.samples = newSamples;
-                stat.ComputeAverageAndTotal();
+
+                newStat.ComputeAverageAndTotal();
+				newCsvStats.AddStat(newStat);
             }
 
             // Strip out the events
             int FrameOffset = 0;
             {
-                List<CsvEvent> newEvents = new List<CsvEvent>();
                 int stripEventIndex = 0;
                 for (int i = 0; i < Events.Count; i++)
                 {
                     CsvEvent csvEvent = Events[i];
                     int startIndex = (stripEventIndex < startIndices.Count) ? startIndices[stripEventIndex] : frameCount;
                     int endIndex = (stripEventIndex < endIndices.Count) ? endIndices[stripEventIndex] : frameCount;
-                    CsvEvent newEvent = new CsvEvent();
-                    newEvent.Frame = csvEvent.Frame + FrameOffset;
-                    newEvent.Name = csvEvent.Name;
+                    CsvEvent newEvent = new CsvEvent(csvEvent.Name, csvEvent.Frame + FrameOffset);
                     if (csvEvent.Frame < startIndex)
                     {
-                        newEvents.Add(newEvent);
+						newCsvStats.Events.Add(newEvent);
                     }
                     else
                     {
@@ -936,18 +992,17 @@ namespace CSVStats
 								FrameOffset -= endIndex - startIndex;
 							}
                         }
-
                         if (csvEvent.Frame == endIndex+1)
                         {
-                            newEvents.Add(newEvent);
+							newCsvStats.Events.Add(newEvent);
                             stripEventIndex++;
                         }
                     }
                 }
-                Events = newEvents;
             }
-            return framesStripped;
-        }
+			newCsvStats.metaData = metaData;
+			return newCsvStats;
+		}
 
         public int SampleCount
         {
@@ -964,7 +1019,31 @@ namespace CSVStats
             }
         }
 
-        public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
+		public static bool DoesMetadataMatchFilter(CsvMetadata metadata, string metadataFilterString)
+		{
+			string[] keyValuePairStrs = metadataFilterString.Split(',');
+			foreach (string keyValuePairStr in keyValuePairStrs)
+			{
+				string[] keyValue = keyValuePairStr.Split('=');
+				if (keyValue.Length != 2)
+				{
+					return false;
+				}
+				string key = keyValue[0].ToLower();
+				if (!metadata.Values.ContainsKey(key))
+				{
+					return false;
+				}
+				if (metadata.Values[key].ToLower() != keyValue[1].ToLower())
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+
+		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
         {
             string [] lines = ReadLinesFromFile(csvFilename);
             return ReadCSVFromLines(lines, statNames, numRowsToSkip);

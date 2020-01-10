@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,4 +19,9 @@ public:
 	virtual ~FEdModeMeshPaint() {}
 	virtual void Initialize() override;
 	virtual TSharedPtr< FModeToolkit> GetToolkit() override;
+
+	// IMeshPaintEdMode interface.
+	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) override;
+
+	bool IsEditingEnabled() const;
 };

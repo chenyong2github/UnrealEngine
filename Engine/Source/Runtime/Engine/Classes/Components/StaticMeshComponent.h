@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -390,7 +390,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetReverseCulling(bool ReverseCulling);
 
-	virtual void SetCollisionProfileName(FName InCollisionProfileName) override;
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 
 public:
 
@@ -404,7 +404,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 #if WITH_EDITORONLY_DATA
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;

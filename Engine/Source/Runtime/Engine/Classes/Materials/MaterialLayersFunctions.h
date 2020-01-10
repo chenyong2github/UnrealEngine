@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -148,15 +148,19 @@ struct ENGINE_API FMaterialLayersFunctions
 
 	void RemoveBlendedLayerAt(int32 Index)
 	{
-		check(Layers.IsValidIndex(Index) && Blends.IsValidIndex(Index-1) && LayerStates.IsValidIndex(Index));
-		Layers.RemoveAt(Index);
-		Blends.RemoveAt(Index-1);
-		LayerStates.RemoveAt(Index);
+		if (Layers.IsValidIndex(Index))
+		{
+			check(Layers.IsValidIndex(Index) && Blends.IsValidIndex(Index-1) && LayerStates.IsValidIndex(Index));
+			Layers.RemoveAt(Index);
+			Blends.RemoveAt(Index-1);
+			LayerStates.RemoveAt(Index);
 #if WITH_EDITOR
-		LayerNames.RemoveAt(Index);
-		RestrictToLayerRelatives.RemoveAt(Index);
-		RestrictToBlendRelatives.RemoveAt(Index - 1);
-#endif
+			check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index-1));
+			LayerNames.RemoveAt(Index);
+			RestrictToLayerRelatives.RemoveAt(Index);
+			RestrictToBlendRelatives.RemoveAt(Index-1);
+#endif //WITH_EDITOR
+		}
 	}
 
 	void ToggleBlendedLayerVisibility(int32 Index)

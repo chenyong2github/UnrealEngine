@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -11,8 +11,6 @@ using System.Linq;
 
 namespace Gauntlet
 {
-
-
 	public class AndroidBuild : IBuild
 	{
 		public UnrealTargetConfiguration Configuration { get; protected set; }
@@ -104,10 +102,14 @@ namespace Gauntlet
 				string BatContents = File.ReadAllText(Fi.FullName).Replace(Environment.NewLine, "\n");
 
 				// Replace .bat with .apk and strip up to and including the first _, that is then our APK name
-				string SourceApkPath = Regex.Replace(Fi.Name, ".bat", ".apk", RegexOptions.IgnoreCase);
-				SourceApkPath = SourceApkPath.Substring(SourceApkPath.IndexOf("_") + 1);
-				SourceApkPath = Path.Combine(AbsPath, SourceApkPath);
-
+				var SourceApkMatch = Regex.Match(BatContents, @" install\s+(.+\.apk)");
+				if ( SourceApkMatch.Groups.Count <= 0)
+				{
+					Log.Warning("Could not parse install command from {0}", Fi.FullName);
+					continue;
+				}
+				string SourceApkPath = Path.Combine(AbsPath,SourceApkMatch.Groups[1].ToString());
+				
 				// save com.companyname.product
 				string AndroidPackageName = Regex.Match(BatContents, @"uninstall\s+(com\..+)").Groups[1].ToString();
 
@@ -120,6 +122,12 @@ namespace Gauntlet
 				if (string.IsNullOrEmpty(SourceApkPath))
 				{
 					Log.Warning("No APK found for build at {0}", Fi.FullName);
+					continue;
+				}
+
+				if (!File.Exists(SourceApkPath))
+				{
+					Log.Warning("Resolved APK name but it doesn't exist {0}", SourceApkPath);
 					continue;
 				}
 
@@ -185,51 +193,54 @@ namespace Gauntlet
 
 			List<DirectoryInfo> AllDirs = new List<DirectoryInfo>();
 
-			// c:\path\to\build
-			DirectoryInfo PathDI = new DirectoryInfo(InPath);
-
-			if (PathDI.Name.IndexOf("Android", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				AllDirs.Add(PathDI);
-			}
-
-			// find all directories that begin with Android
-			DirectoryInfo[] AndroidDirs = PathDI.GetDirectories("Android*", SearchOption.TopDirectoryOnly);
-
-			AllDirs.AddRange(AndroidDirs);
-
-			List<DirectoryInfo> DirsToRecurse = AllDirs;
-
-			// now get subdirs
-			while (MaxRecursion-- > 0)
-			{
-				List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
-
-				DirsToRecurse.ToList().ForEach((D) =>
-				{
-					DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
-				});
-
-				AllDirs.AddRange(DiscoveredDirs);
-				DirsToRecurse = DiscoveredDirs;
-			}
-
 			//AndroidBuildSource BuildSource = null;
 			List<IBuild> Builds = new List<IBuild>();
 
-            string AndroidBuildFilter = Globals.Params.ParseValue("AndroidBuildFilter", "");
-            foreach (DirectoryInfo Di in AllDirs)
-			{
-				IEnumerable<AndroidBuild> FoundBuilds = AndroidBuild.CreateFromPath(InProjectName, Di.FullName);
+			// c:\path\to\build
+			DirectoryInfo PathDI = new DirectoryInfo(InPath);
 
-				if (FoundBuilds != null)
+			if (PathDI.Exists)
+			{
+				if (PathDI.Name.IndexOf("Android", StringComparison.OrdinalIgnoreCase) >= 0)
 				{
-                    if (!string.IsNullOrEmpty(AndroidBuildFilter))
-                    {
-                        //IndexOf used because Contains must be case-sensitive
-                        FoundBuilds = FoundBuilds.Where(B => B.SourceApkPath.IndexOf(AndroidBuildFilter, StringComparison.OrdinalIgnoreCase) >= 0);
-                    }
-                    Builds.AddRange(FoundBuilds);
+					AllDirs.Add(PathDI);
+				}
+
+				// find all directories that begin with Android
+				DirectoryInfo[] AndroidDirs = PathDI.GetDirectories("Android*", SearchOption.TopDirectoryOnly);
+
+				AllDirs.AddRange(AndroidDirs);
+
+				List<DirectoryInfo> DirsToRecurse = AllDirs;
+
+				// now get subdirs
+				while (MaxRecursion-- > 0)
+				{
+					List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
+
+					DirsToRecurse.ToList().ForEach((D) =>
+					{
+						DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
+					});
+
+					AllDirs.AddRange(DiscoveredDirs);
+					DirsToRecurse = DiscoveredDirs;
+				}
+
+				string AndroidBuildFilter = Globals.Params.ParseValue("AndroidBuildFilter", "");
+				foreach (DirectoryInfo Di in AllDirs)
+				{
+					IEnumerable<AndroidBuild> FoundBuilds = AndroidBuild.CreateFromPath(InProjectName, Di.FullName);
+
+					if (FoundBuilds != null)
+					{
+						if (!string.IsNullOrEmpty(AndroidBuildFilter))
+						{
+							//IndexOf used because Contains must be case-sensitive
+							FoundBuilds = FoundBuilds.Where(B => B.SourceApkPath.IndexOf(AndroidBuildFilter, StringComparison.OrdinalIgnoreCase) >= 0);
+						}
+						Builds.AddRange(FoundBuilds);
+					}
 				}
 			}
 

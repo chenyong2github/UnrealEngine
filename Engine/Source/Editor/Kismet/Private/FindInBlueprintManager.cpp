@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FindInBlueprintManager.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -52,6 +53,9 @@
 #include "UObject/EditorObjectVersion.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+
+DEFINE_LOG_CATEGORY(LogFindInBlueprint);
+CSV_DEFINE_CATEGORY(FindInBlueprint, false);
 
 #define LOCTEXT_NAMESPACE "FindInBlueprintManager"
 
@@ -123,28 +127,20 @@ FSearchDataVersionInfo FSearchDataVersionInfo::Current =
 
 ////////////////////////////////////
 // FStreamSearch
-FStreamSearch::FStreamSearch(const FString& InSearchValue)
-	: SearchValue(InSearchValue)
-	, bThreadCompleted(false)
-	, StopTaskCounter(0)
-	, MinimiumVersionRequirement(EFiBVersion::FIB_VER_LATEST)
-	, BlueprintCountBelowVersion(0)
-	, ImaginaryDataFilter(ESearchQueryFilter::AllFilter)
-{
-	// Add on a Guid to the thread name to ensure the thread is uniquely named.
-	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch%s"), *FGuid::NewGuid().ToString()), 0, TPri_BelowNormal );
-}
 
-FStreamSearch::FStreamSearch(const FString& InSearchValue, ESearchQueryFilter InImaginaryDataFilter, EFiBVersion InMinimiumVersionRequirement)
+FStreamSearch::FStreamSearch(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions)
 	: SearchValue(InSearchValue)
-	, bThreadCompleted(false)
+	, SearchOptions(InSearchOptions)
 	, StopTaskCounter(0)
-	, MinimiumVersionRequirement(InMinimiumVersionRequirement)
 	, BlueprintCountBelowVersion(0)
-	, ImaginaryDataFilter(InImaginaryDataFilter)
+	, bThreadCompleted(false)
 {
-	// Add on a Guid to the thread name to ensure the thread is uniquely named.
-	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch%s"), *FGuid::NewGuid().ToString()), 0, TPri_BelowNormal );
+	// Unique identifier for this search, used to generate a unique label for profiling and debugging.
+	static int32 GlobalSearchCounter = 0;
+	SearchId = GlobalSearchCounter++;
+
+	// Create a uniquely-named thread to ensure disambiguation in the thread view and assist with debugging multiple instances running in parallel.
+	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch_%d"), SearchId), 0, TPri_BelowNormal );
 }
 
 bool FStreamSearch::Init()
@@ -154,6 +150,9 @@ bool FStreamSearch::Init()
 
 uint32 FStreamSearch::Run()
 {
+	const double StartTime = FPlatformTime::Seconds();
+	CSV_EVENT(FindInBlueprint, TEXT("FStreamSearch_%d START"), SearchId);
+
 	FFindInBlueprintSearchManager::Get().BeginSearchQuery(this);
 
 	TFunction<void(const FSearchResult&)> OnResultReady = [this](const FSearchResult& Result) {
@@ -168,17 +167,17 @@ uint32 FStreamSearch::Run()
 		if (QueryResult.ImaginaryBlueprint.IsValid())
 		{
 			// If the Blueprint is below the version, add it to a list. The search will still proceed on this Blueprint
-			if (QueryResult.VersionInfo.FiBDataVersion < MinimiumVersionRequirement)
+			if (QueryResult.VersionInfo.FiBDataVersion < SearchOptions.MinimiumVersionRequirement)
 			{
 				++BlueprintCountBelowVersion;
 			}
 
 			TSharedPtr< FFiBSearchInstance > SearchInstance(new FFiBSearchInstance);
 			FSearchResult SearchResult;
-			if (ImaginaryDataFilter != ESearchQueryFilter::AllFilter)
+			if (SearchOptions.ImaginaryDataFilter != ESearchQueryFilter::AllFilter)
 			{
 				SearchInstance->MakeSearchQuery(*SearchValue, QueryResult.ImaginaryBlueprint);
-				SearchInstance->CreateFilteredResultsListFromTree(ImaginaryDataFilter, FilteredImaginaryResults);
+				SearchInstance->CreateFilteredResultsListFromTree(SearchOptions.ImaginaryDataFilter, FilteredImaginaryResults);
 				SearchResult = SearchInstance->GetSearchResults(QueryResult.ImaginaryBlueprint);
 			}
 			else
@@ -201,6 +200,9 @@ uint32 FStreamSearch::Run()
 	}
 
 	bThreadCompleted = true;
+
+	CSV_EVENT(FindInBlueprint, TEXT("FStreamSearch_%d END"), SearchId);
+	UE_LOG(LogFindInBlueprint, Log, TEXT("Search completed in %0.2f seconds."), FPlatformTime::Seconds() - StartTime);
 
 	return 0;
 }
@@ -378,6 +380,8 @@ namespace FiBSerializationHelpers
 	/** Helper function to validate and/or deserialize version info if necessary */
 	bool ValidateSearchDataVersionInfo(const FString& InAssetPath, const FString& InFiBData, FSearchDataVersionInfo& InOutVersionInfo)
 	{
+		CSV_SCOPED_TIMING_STAT(FindInBlueprint, ValidateSearchDataVersionInfo);
+
 		if (InOutVersionInfo.FiBDataVersion == EFiBVersion::FIB_VER_NONE)
 		{
 			// Deserialize the FiB data version
@@ -425,7 +429,7 @@ namespace BlueprintSearchMetaDataHelpers
 	/** Cache structure of searchable metadata and sub-properties relating to a Property */
 	struct FSearchableProperty
 	{
-		UProperty* TargetProperty;
+		FProperty* TargetProperty;
 		bool bIsSearchableMD;
 		bool bIsShallowSearchableMD;
 		bool bIsMarkedNotSearchableMD;
@@ -433,13 +437,15 @@ namespace BlueprintSearchMetaDataHelpers
 	};
 
 	/** Json Writer used for serializing FText's in the correct format for Find-in-Blueprints */
-	template < class PrintPolicy = TPrettyJsonPrintPolicy<TCHAR> >
-	class TJsonFindInBlueprintStringWriter : public TJsonStringWriter<PrintPolicy>
+	template<class PrintPolicy>
+	class TFindInBlueprintJsonStringWriter : public TJsonStringWriter<PrintPolicy>
 	{
 	public:
-		static TSharedRef< TJsonFindInBlueprintStringWriter > Create( FString* const InStream )
+		typedef PrintPolicy InnerPrintPolicy;
+
+		TFindInBlueprintJsonStringWriter(FString* const InOutString)
+			: TJsonStringWriter<PrintPolicy>(InOutString, 0)
 		{
-			return MakeShareable( new TJsonFindInBlueprintStringWriter( InStream ) );
 		}
 
 		using TJsonStringWriter<PrintPolicy>::WriteObjectStart;
@@ -487,77 +493,10 @@ namespace BlueprintSearchMetaDataHelpers
 			this->PreviousTokenWritten = this->WriteValueOnly( Value );
 		}
 
-		/** Converts the lookup table of ints (which are stored as identifiers and string values in the Json) and the FText's they represent to an FString. */
-		FString GetSerializedLookupTable()
-		{
-			return FiBSerializationHelpers::Serialize< TMap< int32, FText > >(LookupTable, true);
-		}
-
-		struct FLookupTableItem
-		{
-			FText Text;
-
-			FLookupTableItem(FText InText)
-				: Text(InText)
-			{
-
-			}
-
-			bool operator==(const FLookupTableItem& InObject) const
-			{
-				if (!Text.CompareTo(InObject.Text))
-				{
-					if (FTextInspector::GetNamespace(Text).Get(TEXT("DefaultNamespace")) == FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace")))
-					{
-						if (FTextInspector::GetKey(Text).Get(TEXT("DefaultKey")) == FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey")))
-						{
-							return true;
-						}
-					}
-				}
-
-				return false;
-			}
-
-			friend uint32 GetTypeHash(const FLookupTableItem& InObject)
-			{
-				FString Namespace = FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace"));
-				FString Key = FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey"));
-				uint32 Hash = HashCombine(GetTypeHash(InObject.Text.ToString()), HashCombine(GetTypeHash(Namespace), GetTypeHash(Key)));
-				return Hash;
-			}
-		};
-
 	protected:
-		TJsonFindInBlueprintStringWriter( FString* const InOutString )
-			: TJsonStringWriter<PrintPolicy>( InOutString, 0 )
+		virtual void WriteTextValue( const FText& Text )
 		{
-		}
-
-		virtual void WriteStringValue( const FString& String ) override
-		{
-			// We just want to make sure all strings are converted into FText hex strings, used by the FiB system
-			WriteTextValue(FText::FromString(String));
-		}
-
-		void WriteTextValue( const FText& Text )
-		{
-			// Check to see if the value has already been added.
-			int32* TableLookupValuePtr = ReverseLookupTable.Find(FLookupTableItem(Text));
-			if(TableLookupValuePtr)
-			{
-				TJsonStringWriter<PrintPolicy>::WriteStringValue(FString::FromInt(*TableLookupValuePtr));
-			}
-			else
-			{
-				// Add the FText to the table and write to the Json the ID to look the item up using
-				int32 TableLookupValue = LookupTable.Num();
-				{
-					LookupTable.Add(TableLookupValue, Text);
-					ReverseLookupTable.Add(FLookupTableItem(Text), TableLookupValue);
-				}
-				TJsonStringWriter<PrintPolicy>::WriteStringValue( FString::FromInt(TableLookupValue) );
-			}
+			TJsonStringWriter<PrintPolicy>::WriteStringValue(Text.ToString());
 		}
 
 		FORCEINLINE void WriteIdentifier( const FText& Identifier )
@@ -569,55 +508,108 @@ namespace BlueprintSearchMetaDataHelpers
 
 			WriteTextValue( Identifier );
 			PrintPolicy::WriteChar(this->Stream, TCHAR(':'));
-		}
-		
-		// This gets serialized
-		TMap< int32, FText > LookupTable;
-
-		// This is just locally needed for the write, to lookup the integer value by using the string of the FText
-		TMap< FLookupTableItem, int32 > ReverseLookupTable;
+			}
 
 	public:
 		/** Cached mapping of all searchable properties that have been discovered while gathering searchable data for the current Blueprint */
 		TMap<UStruct*, TArray<FSearchableProperty>> CachedPropertyMapping;
 	};
 
-	typedef TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>> SearchMetaDataWriterParentClass;
-	typedef TJsonFindInBlueprintStringWriter<TCondensedJsonPrintPolicy<TCHAR>> SearchMetaDataWriter;
-
 	/** Json Writer used for serializing FText's in the correct format for Find-in-Blueprints */
-	template <class CharType = TCHAR>
-	class TJsonFindInBlueprintStringReader : public TJsonReader<CharType>
-	{
+	class FFindInBlueprintJsonWriter : public TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>
+			{
 	public:
-		static TSharedRef< TJsonFindInBlueprintStringReader< TCHAR > > Create( FArchive* const Stream, TMap< int32, FText >& InLookupTable  )
+		FFindInBlueprintJsonWriter(FString* const InOutString)
+			:TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>(InOutString)
+			, JsonOutput(InOutString)
+				{
+		}
+
+		virtual bool Close() override
+					{
+			// This will copy the JSON output to the string given as input (must do this first)
+			bool bResult = TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::Close();
+
+			// Build the search metadata string for the asset tag (version + LUT + JSON)
+			*JsonOutput = FiBSerializationHelpers::Serialize(FSearchDataVersionInfo::Current.FiBDataVersion, false)
+				+ FiBSerializationHelpers::Serialize(LookupTable, true)
+				+ MoveTemp(*JsonOutput);
+
+			return bResult;
+			}
+
+	protected:
+		virtual void WriteStringValue(const FString& String) override
 		{
-			return MakeShareable( new TJsonFindInBlueprintStringReader( Stream, InLookupTable ) );
+			// We just want to make sure all strings are converted into FText hex strings, used by the FiB system
+			WriteTextValue(FText::FromString(String));
 		}
 
-		TJsonFindInBlueprintStringReader( FArchive* InStream,  TMap< int32, FText >& InLookupTable )
-			: TJsonReader<CharType>(InStream)
-			, LookupTable(MoveTemp(InLookupTable))
+		virtual void WriteTextValue(const FText& Text) override
 		{
-
+			// Check to see if the value has already been added.
+			int32* TableLookupValuePtr = ReverseLookupTable.Find(FLookupTableItem(Text));
+			if (TableLookupValuePtr)
+			{
+				TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::WriteStringValue(FString::FromInt(*TableLookupValuePtr));
+			}
+			else
+			{
+				// Add the FText to the table and write to the Json the ID to look the item up using
+				int32 TableLookupValue = LookupTable.Num();
+				{
+					LookupTable.Add(TableLookupValue, Text);
+					ReverseLookupTable.Add(FLookupTableItem(Text), TableLookupValue);
+				}
+				TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::WriteStringValue(FString::FromInt(TableLookupValue));
+			}
 		}
 
-		FORCEINLINE virtual const FString& GetIdentifier() const override
+	private:
+		struct FLookupTableItem
 		{
-			return this->Identifier;
+			FText Text;
+
+			FLookupTableItem(FText InText)
+				: Text(InText)
+			{
+
 		}
 
-		FORCEINLINE virtual  const FString& GetValueAsString() const override
-		{ 
-			check( this->CurrentToken == EJsonToken::String ); 
-			// The string value from Json is a Hex value that must be looked up in the LookupTable to find the FText it represents
-			return this->StringValue;
+			bool operator==(const FLookupTableItem& InObject) const
+			{
+				if (!Text.CompareTo(InObject.Text))
+				{
+					if (FTextInspector::GetNamespace(Text).Get(TEXT("DefaultNamespace")) == FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace")))
+	{
+						if (FTextInspector::GetKey(Text).Get(TEXT("DefaultKey")) == FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey")))
+		{
+							return true;
+						}
+					}
 		}
 
+				return false;
+		}
+
+			friend uint32 GetTypeHash(const FLookupTableItem& InObject)
+		{
+				FString Namespace = FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace"));
+				FString Key = FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey"));
+				uint32 Hash = HashCombine(GetTypeHash(InObject.Text.ToString()), HashCombine(GetTypeHash(Namespace), GetTypeHash(Key)));
+				return Hash;
+		}
+		};
+
+		// Output stream
+		FString* JsonOutput;
+
+		// This gets serialized
 		TMap< int32, FText > LookupTable;
-	};
 
-	typedef TJsonFindInBlueprintStringReader<TCHAR> SearchMetaDataReader;
+		// This is just locally needed for the write, to lookup the integer value by using the string of the FText
+		TMap< FLookupTableItem, int32 > ReverseLookupTable;
+	};
 
 	/**
 	 * Checks if Json value is searchable, eliminating data that not considered useful to search for
@@ -702,7 +694,8 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InWriter				Writer used for saving the Json
 	 * @param InPinType				The pin type to save
 	 */
-	void SavePinTypeToJson(TSharedRef< SearchMetaDataWriter>& InWriter, const FEdGraphPinType& InPinType)
+	template<class PrintPolicy>
+	void SavePinTypeToJson(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const FEdGraphPinType& InPinType)
 	{
 		// Only save strings that are not empty
 
@@ -731,7 +724,8 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InBlueprint				Blueprint the property for the variable can be found in, if any
 	 * @param InVariableDescription		The variable description being serialized to Json
 	 */
-	void SaveVariableDescriptionToJson(TSharedRef< SearchMetaDataWriter>& InWriter, const UBlueprint* InBlueprint, const FBPVariableDescription& InVariableDescription)
+	template<class PrintPolicy>
+	void SaveVariableDescriptionToJson(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprint* InBlueprint, const FBPVariableDescription& InVariableDescription)
 	{
 		FEdGraphPinType VariableType = InVariableDescription.VarType;
 
@@ -751,8 +745,8 @@ namespace BlueprintSearchMetaDataHelpers
 		// Save the variable's pin type
 		SavePinTypeToJson(InWriter, VariableType);
 
-		// Find the UProperty and convert it into a Json value.
-		UProperty* VariableProperty = FindField<UProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
+		// Find the FProperty and convert it into a Json value.
+		FProperty* VariableProperty = FindField<FProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
 		if(VariableProperty)
 		{
 			const uint8* PropData = VariableProperty->ContainerPtrToValuePtr<uint8>(InBlueprint->GeneratedClass->GetDefaultObject());
@@ -762,7 +756,7 @@ namespace BlueprintSearchMetaDataHelpers
 			if(BlueprintSearchMetaDataHelpers::CheckIfJsonValueIsSearchable(JsonValue))
 			{
 				TSharedRef< FJsonValue > JsonValueAsSharedRef = JsonValue.ToSharedRef();
-				FJsonSerializer::Serialize(JsonValue, FFindInBlueprintSearchTags::FiB_DefaultValue.ToString(), StaticCastSharedRef<SearchMetaDataWriterParentClass>(InWriter), false );
+				FJsonSerializer::Serialize<TCHAR, PrintPolicy>(JsonValue, FFindInBlueprintSearchTags::FiB_DefaultValue.ToString(), InWriter, false );
 			}
 		}
 
@@ -785,7 +779,8 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InStruct				Struct or class that represent the UObject's layout
 	 * @param InSearchableType		Informs the system how it should examine the properties to determine if they are searchable. All sub-properties of searchable properties are automatically gathered unless marked as not being searchable
 	 */
-	void GatherSearchableProperties(TSharedRef< SearchMetaDataWriter>& InWriter, const void* InValue, UStruct* InStruct, EGatherSearchableType InSearchableType = SEARCHABLE_AS_DESIRED);
+	template<class PrintPolicy>
+	void GatherSearchableProperties(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const void* InValue, UStruct* InStruct, EGatherSearchableType InSearchableType = SEARCHABLE_AS_DESIRED);
 
 	/**
 	 * Examines a searchable property and digs in deeper if it is a UObject, UStruct, or an array, or serializes it straight out to Json
@@ -795,9 +790,10 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InValue				Value to find the property in the UStruct
 	 * @param InStruct				Struct or class that represent the UObject's layout
 	 */
-	void GatherSearchablesFromProperty(TSharedRef< SearchMetaDataWriter>& InWriter, UProperty* InProperty, const void* InValue, UStruct* InStruct)
+	template<class PrintPolicy>
+	void GatherSearchablesFromProperty(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, FProperty* InProperty, const void* InValue, UStruct* InStruct)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			FScriptArrayHelper Helper(ArrayProperty, InValue);
 			InWriter->WriteArrayStart(FText::FromString(InProperty->GetName()));
@@ -807,14 +803,14 @@ namespace BlueprintSearchMetaDataHelpers
 			}
 			InWriter->WriteArrayEnd();
 		}
-		else if (UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+		else if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			if (!InProperty->HasMetaData(*FFiBMD::FiBSearchableMD) || InProperty->GetBoolMetaData(*FFiBMD::FiBSearchableMD))
 			{
 				GatherSearchableProperties(InWriter, InValue, StructProperty->Struct, SEARCHABLE_FULL);
 			}
 		}
-		else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(InProperty))
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
 			UObject* SubObject = ObjectProperty->GetObjectPropertyValue(InValue);
 			if (SubObject)
@@ -837,7 +833,7 @@ namespace BlueprintSearchMetaDataHelpers
 					// Shallow conversion of property to string
 					TSharedPtr<FJsonValue> JsonValue;
 					JsonValue = FJsonObjectConverter::UPropertyToJsonValue(InProperty, InValue, 0, 0);
-					FJsonSerializer::Serialize(JsonValue, InProperty->GetName(), StaticCastSharedRef<SearchMetaDataWriterParentClass>(InWriter), false);
+					FJsonSerializer::Serialize<TCHAR, PrintPolicy>(JsonValue, InProperty->GetName(), InWriter, false);
 				}
 			}
 		}
@@ -845,11 +841,12 @@ namespace BlueprintSearchMetaDataHelpers
 		{
 			TSharedPtr<FJsonValue> JsonValue;
 			JsonValue = FJsonObjectConverter::UPropertyToJsonValue(InProperty, InValue, 0, 0);
-			FJsonSerializer::Serialize(JsonValue, InProperty->GetName(), StaticCastSharedRef<SearchMetaDataWriterParentClass>(InWriter), false);
+			FJsonSerializer::Serialize<TCHAR, PrintPolicy>(JsonValue, InProperty->GetName(), InWriter, false);
 		}
 	}
 
-	void GatherSearchableProperties(TSharedRef<SearchMetaDataWriter>& InWriter, const void* InValue, UStruct* InStruct, EGatherSearchableType InSearchableType)
+	template<class PrintPolicy>
+	void GatherSearchableProperties(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const void* InValue, UStruct* InStruct, EGatherSearchableType InSearchableType)
 	{
 		if (InValue)
 		{
@@ -858,7 +855,7 @@ namespace BlueprintSearchMetaDataHelpers
 
 			for (FSearchableProperty& SearchableProperty : *SearchablePropertyData)
 			{
-				UProperty* Property = SearchableProperty.TargetProperty;
+				FProperty* Property = SearchableProperty.TargetProperty;
 				bool bIsSearchableMD = SearchableProperty.bIsSearchableMD;
 				bool bIsShallowSearchableMD = SearchableProperty.bIsShallowSearchableMD;
 				// It only is truly marked as not searchable if it has the metadata set to false, if the metadata is missing then we assume the searchable type that is passed in unless SEARCHABLE_AS_DESIRED
@@ -922,9 +919,9 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InValue						Value of the Object to serialize
 	 * @param InStruct						Struct or class that represent the UObject's layout
 	 */
-	void CacheSubPropertySearchables(TMap<UStruct*, TArray<FSearchableProperty>>& InOutCachePropertyMapping, UProperty* InProperty, const void* InValue, UStruct* InStruct)
+	void CacheSubPropertySearchables(TMap<UStruct*, TArray<FSearchableProperty>>& InOutCachePropertyMapping, FProperty* InProperty, const void* InValue, UStruct* InStruct)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			FScriptArrayHelper Helper(ArrayProperty, InValue);
 			for (int32 i = 0, n = Helper.Num(); i < n; ++i)
@@ -932,7 +929,7 @@ namespace BlueprintSearchMetaDataHelpers
 				CacheSubPropertySearchables(InOutCachePropertyMapping, ArrayProperty->Inner, Helper.GetRawPtr(i), InStruct);
 			}
 		}
-		else if (UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+		else if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			if (!InOutCachePropertyMapping.Find(StructProperty->Struct))
 			{
@@ -942,7 +939,7 @@ namespace BlueprintSearchMetaDataHelpers
 				}
 			}
 		}
-		else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(InProperty))
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
 			UObject* SubObject = ObjectProperty->GetObjectPropertyValue(InValue);
 			if (SubObject)
@@ -973,9 +970,9 @@ namespace BlueprintSearchMetaDataHelpers
 		{
 			TArray<FSearchableProperty> SearchableProperties;
 
-			for (TFieldIterator<UProperty> PropIt(InStruct); PropIt; ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(InStruct); PropIt; ++PropIt)
 			{
-				UProperty* Property = *PropIt;
+				FProperty* Property = *PropIt;
 				bool bIsSearchableMD = Property->GetBoolMetaData(*FFiBMD::FiBSearchableMD);
 				bool bIsShallowSearchableMD = Property->GetBoolMetaData(*FFiBMD::FiBSearchableShallowMD);
 				// It only is truly marked as not searchable if it has the metadata set to false, if the metadata is missing then we assume the searchable type that is passed in unless SEARCHABLE_AS_DESIRED
@@ -1017,7 +1014,8 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InWriter		The Json writer to use for serialization
 	 * @param InGraph		The graph to search through
 	 */
-	void GatherNodesFromGraph(TSharedRef< SearchMetaDataWriter>& InWriter, const UEdGraph* InGraph)
+	template<class PrintPolicy>
+	void GatherNodesFromGraph(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UEdGraph* InGraph)
 	{
 		// Collect all macro graphs
 		InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Nodes);
@@ -1094,7 +1092,8 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InTitle			The array title to place these graphs into
 	 * @param InOutSubGraphs	All the subgraphs that need to be processed later
 	 */
-	void GatherGraphSearchData(TSharedRef< SearchMetaDataWriter>& InWriter, const UBlueprint* InBlueprint, const TArray< UEdGraph* >& InGraphArray, FText InTitle, TArray< UEdGraph* >* InOutSubGraphs)
+	template<class PrintPolicy>
+	void GatherGraphSearchData(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprint* InBlueprint, const TArray< UEdGraph* >& InGraphArray, FText InTitle, TArray< UEdGraph* >* InOutSubGraphs)
 	{
 		if(InGraphArray.Num() > 0)
 		{
@@ -1154,6 +1153,102 @@ namespace BlueprintSearchMetaDataHelpers
 			}
 			InWriter->WriteArrayEnd();
 		}
+	}
+
+	template<class PrintPolicy>
+	void GatherBlueprintSearchMetadata(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprint* Blueprint)
+	{
+		FTemporarilyUseFriendlyNodeTitles TemporarilyUseFriendlyNodeTitles;
+
+		TMap<FString, TMap<FString, int>> AllPaths;
+		InWriter->WriteObjectStart();
+
+		// Only pull properties if the Blueprint has been compiled
+		if (Blueprint->SkeletonGeneratedClass)
+		{
+			InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Properties);
+			{
+				for (const FBPVariableDescription& Variable : Blueprint->NewVariables)
+				{
+					SaveVariableDescriptionToJson(InWriter, Blueprint, Variable);
+				}
+			}
+			InWriter->WriteArrayEnd(); // Properties
+		}
+
+		// Gather all graph searchable data
+		TArray< UEdGraph* > SubGraphs;
+
+		// Gather normal event graphs
+		GatherGraphSearchData(InWriter, Blueprint, Blueprint->UbergraphPages, FFindInBlueprintSearchTags::FiB_UberGraphs, &SubGraphs);
+
+		// We have interface graphs and function graphs to put into the Functions category. We cannot do them separately, so we must compile the full list
+		{
+			TArray<UEdGraph*> CompleteGraphList;
+			CompleteGraphList.Append(Blueprint->FunctionGraphs);
+			// Gather all interface graphs as functions
+			for (const FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+			{
+				CompleteGraphList.Append(InterfaceDesc.Graphs);
+			}
+			GatherGraphSearchData(InWriter, Blueprint, CompleteGraphList, FFindInBlueprintSearchTags::FiB_Functions, &SubGraphs);
+		}
+
+		// Gather Macros
+		GatherGraphSearchData(InWriter, Blueprint, Blueprint->MacroGraphs, FFindInBlueprintSearchTags::FiB_Macros, &SubGraphs);
+
+		// Sub graphs are processed separately so that they do not become children in the TreeView, cluttering things up if the tree is deep
+		GatherGraphSearchData(InWriter, Blueprint, SubGraphs, FFindInBlueprintSearchTags::FiB_SubGraphs, nullptr);
+
+		// Gather all SCS components
+		// If we have an SCS but don't support it, then we remove it
+		if (Blueprint->SimpleConstructionScript)
+		{
+			// Remove any SCS variable nodes
+			const TArray<USCS_Node*>& AllSCSNodes = Blueprint->SimpleConstructionScript->GetAllNodes();
+			InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Components);
+			for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+			{
+				FProperty* Property = *PropertyIt;
+				FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property);
+				const bool bComponentProperty = Obj && Obj->PropertyClass ? Obj->PropertyClass->IsChildOf<UActorComponent>() : false;
+				FName PropName = Property->GetFName();
+				if (bComponentProperty && FBlueprintEditorUtils::FindSCS_Node(Blueprint, PropName) != INDEX_NONE)
+				{
+					FEdGraphPinType PropertyPinType;
+					if (UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, PropertyPinType))
+					{
+						InWriter->WriteObjectStart();
+						{
+							InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(PropName));
+							InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_IsSCSComponent, true);
+							SavePinTypeToJson(InWriter, PropertyPinType);
+						}
+						InWriter->WriteObjectEnd();
+					}
+				}
+			}
+			InWriter->WriteArrayEnd(); // Components
+		}
+
+		InWriter->WriteObjectEnd();
+		InWriter->Close();
+	}
+
+	template<class JsonWriterType>
+	FString GatherBlueprintSearchMetadata(const UBlueprint* Blueprint)
+	{
+		CSV_SCOPED_TIMING_STAT(FindInBlueprint, GatherBlueprintSearchMetadata);
+
+		FString SearchMetaData;
+
+		// The search registry tags for a Blueprint are all in Json
+		TSharedRef<JsonWriterType> Writer = MakeShared<JsonWriterType>(&SearchMetaData);
+
+		typedef typename JsonWriterType::InnerPrintPolicy PrintPolicyType;
+		GatherBlueprintSearchMetadata<PrintPolicyType>(Writer, Blueprint);
+
+		return SearchMetaData;
 	}
 }
 
@@ -1485,11 +1580,14 @@ FFindInBlueprintSearchManager& FFindInBlueprintSearchManager::Get()
 }
 
 FFindInBlueprintSearchManager::FFindInBlueprintSearchManager()
-	: bEnableGatheringData(true)
-	, bDisableDeferredIndexing(false)
-	, bIsPausing(false)
-	, AssetRegistryModule(nullptr)
+	: AssetRegistryModule(nullptr)
 	, CachingObject(nullptr)
+	, bEnableGatheringData(true)
+	, bDisableDeferredIndexing(false)
+	, bEnableCSVStatsProfiling(false)
+	, bEnableDeveloperMenuTools(false)
+	, bDisableSearchResultTemplates(false)
+	, bIsPausing(false)
 {
 	for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 	{
@@ -1505,6 +1603,7 @@ FFindInBlueprintSearchManager::~FFindInBlueprintSearchManager()
 		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
 	}
 	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
@@ -1525,6 +1624,20 @@ void FFindInBlueprintSearchManager::Initialize()
 {
 	// Init configuration
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableDeferredIndexing"), bDisableDeferredIndexing, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableCsvStatsProfiling"), bEnableCSVStatsProfiling, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableDeveloperMenuTools"), bEnableDeveloperMenuTools, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableSearchResultTemplates"), bDisableSearchResultTemplates, GEditorIni);
+
+	// If profiling has been enabled, turn on the stat category and begin a capture.
+	if (bEnableCSVStatsProfiling)
+	{
+		FCsvProfiler::Get()->EnableCategoryByString(TEXT("FindInBlueprint"));
+		if (!FCsvProfiler::Get()->IsCapturing())
+		{
+			const FString CaptureFolder = FPaths::ProfilingDir() + TEXT("CSV/FindInBlueprint");
+			FCsvProfiler::Get()->BeginCapture(-1, CaptureFolder);
+		}
+	}
 
 	// Must ensure we do not attempt to load the AssetRegistry Module while saving a package, however, if it is loaded already we can safely obtain it
 	if (!GIsSavingPackage || (GIsSavingPackage && FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry"))))
@@ -1533,6 +1646,7 @@ void FFindInBlueprintSearchManager::Initialize()
 		AssetRegistryModule->Get().OnAssetAdded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetAdded);
 		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRemoved);
 		AssetRegistryModule->Get().OnAssetRenamed().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRenamed);
+		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded);
 	}
 	else
 	{
@@ -1640,6 +1754,9 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 
 void FFindInBlueprintSearchManager::ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, EFiBVersion InFiBDataVersion)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ExtractUnloadedFiBData);
+	CSV_CUSTOM_STAT(FindInBlueprint, ExtractUnloadedCountThisFrame, 1, ECsvCustomStatOp::Accumulate);
+
 	if (SearchMap.Contains(InAssetData.ObjectPath))
 	{
 		return;
@@ -1706,6 +1823,24 @@ void FFindInBlueprintSearchManager::ExtractUnloadedFiBData(const FAssetData& InA
 	AddSearchDataToDatabase(MoveTemp(NewSearchData));
 }
 
+FSearchData FFindInBlueprintSearchManager::GetSearchDataForAssetPath(FName InAssetPath)
+{
+	FScopeLock ScopeLock(&SafeModifyCacheCriticalSection);
+
+	const int32* ArrayIdx = SearchMap.Find(InAssetPath);
+	if (ArrayIdx)
+	{
+		checkf(*ArrayIdx < SearchArray.Num(),
+			TEXT("ArrayIdx:%d, SearchArray.Num():%d"),
+			*ArrayIdx,
+			SearchArray.Num());
+
+		return SearchArray[*ArrayIdx];
+	}
+
+	return FSearchData();
+}
+
 int32 FFindInBlueprintSearchManager::AddSearchDataToDatabase(FSearchData InSearchData)
 {
 	FName AssetPath = InSearchData.AssetPath; // Copy before we move the data into the array
@@ -1742,6 +1877,11 @@ void FFindInBlueprintSearchManager::OnAssetRenamed(const struct FAssetData& InAs
 	{
 		RemoveBlueprintByPath(FName(*InOldName));
 	}
+}
+
+void FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded()
+{
+	CSV_EVENT(FindInBlueprint, TEXT("OnAssetRegistryFilesLoaded"));
 }
 
 void FFindInBlueprintSearchManager::OnAssetLoaded(UObject* InAsset)
@@ -1781,99 +1921,11 @@ void FFindInBlueprintSearchManager::OnHotReload(bool bWasTriggeredAutomatically)
 	CachedAssetClasses.Reset();
 }
 
-FString FFindInBlueprintSearchManager::GatherBlueprintSearchMetadata(const UBlueprint* Blueprint)
-{	
-	FTemporarilyUseFriendlyNodeTitles TemporarilyUseFriendlyNodeTitles;
-
-	FString SearchMetaData;
-
-	// The search registry tags for a Blueprint are all in Json
-	TSharedRef< BlueprintSearchMetaDataHelpers::TJsonFindInBlueprintStringWriter<TCondensedJsonPrintPolicy<TCHAR>> > Writer = BlueprintSearchMetaDataHelpers::TJsonFindInBlueprintStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::Create( &SearchMetaData );
-
-	TMap<FString, TMap<FString,int>> AllPaths;
-	Writer->WriteObjectStart();
-
-	// Only pull properties if the Blueprint has been compiled
-	if(Blueprint->SkeletonGeneratedClass)
-	{
-		Writer->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Properties);
-		{
-			for (const FBPVariableDescription& Variable : Blueprint->NewVariables)
-			{
-				BlueprintSearchMetaDataHelpers::SaveVariableDescriptionToJson(Writer, Blueprint, Variable);
-			}
-		}
-		Writer->WriteArrayEnd(); // Properties
-	}
-
-	// Gather all graph searchable data
-	TArray< UEdGraph* > SubGraphs;
-
-	// Gather normal event graphs
-	BlueprintSearchMetaDataHelpers::GatherGraphSearchData(Writer, Blueprint, Blueprint->UbergraphPages, FFindInBlueprintSearchTags::FiB_UberGraphs, &SubGraphs);
-	
-	// We have interface graphs and function graphs to put into the Functions category. We cannot do them separately, so we must compile the full list
-	{
-		TArray<UEdGraph*> CompleteGraphList;
-		CompleteGraphList.Append(Blueprint->FunctionGraphs);
-		// Gather all interface graphs as functions
-		for (const FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
-		{
-			CompleteGraphList.Append(InterfaceDesc.Graphs);
-		}
-		BlueprintSearchMetaDataHelpers::GatherGraphSearchData(Writer, Blueprint, CompleteGraphList, FFindInBlueprintSearchTags::FiB_Functions, &SubGraphs);
-	}
-
-	// Gather Macros
-	BlueprintSearchMetaDataHelpers::GatherGraphSearchData(Writer, Blueprint, Blueprint->MacroGraphs, FFindInBlueprintSearchTags::FiB_Macros, &SubGraphs);
-
-	// Sub graphs are processed separately so that they do not become children in the TreeView, cluttering things up if the tree is deep
-	BlueprintSearchMetaDataHelpers::GatherGraphSearchData(Writer, Blueprint, SubGraphs, FFindInBlueprintSearchTags::FiB_SubGraphs, NULL);
-
-	// Gather all SCS components
-	// If we have an SCS but don't support it, then we remove it
-	if(Blueprint->SimpleConstructionScript)
-	{
-		// Remove any SCS variable nodes
-		const TArray<USCS_Node*>& AllSCSNodes = Blueprint->SimpleConstructionScript->GetAllNodes();
-		Writer->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Components);
-		for (TFieldIterator<UProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
-		{
-			UProperty* Property = *PropertyIt;
-			UObjectPropertyBase* Obj = Cast<UObjectPropertyBase>(Property);
-			const bool bComponentProperty = Obj && Obj->PropertyClass ? Obj->PropertyClass->IsChildOf<UActorComponent>() : false;
-			FName PropName = Property->GetFName();
-			if(bComponentProperty && FBlueprintEditorUtils::FindSCS_Node(Blueprint, PropName) != INDEX_NONE)
-			{
-				FEdGraphPinType PropertyPinType;
-				if(UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, PropertyPinType))
-				{
-					Writer->WriteObjectStart();
-					{
-						Writer->WriteValue(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(PropName));
-						Writer->WriteValue(FFindInBlueprintSearchTags::FiB_IsSCSComponent, true);
-						SavePinTypeToJson(Writer,  PropertyPinType);
-					}
-					Writer->WriteObjectEnd();
-				}
-			}
-		}
-		Writer->WriteArrayEnd(); // Components
-	}
-
-	Writer->WriteObjectEnd();
-	Writer->Close();
-
-	// Build the search metadata string for the asset tag (version + LUT + JSON)
-	SearchMetaData = FiBSerializationHelpers::Serialize(FSearchDataVersionInfo::Current.FiBDataVersion, false)
-		+ Writer->GetSerializedLookupTable()
-		+ SearchMetaData;
-
-	return SearchMetaData;
-}
-
 void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprint* InBlueprint, bool bInForceReCache/* = false*/)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, AddOrUpdateBlueprintSearchMetadata);
+	CSV_CUSTOM_STAT(FindInBlueprint, AddOrUpdateCountThisFrame, 1, ECsvCustomStatOp::Accumulate);
+
 	// No need to update the cache in the following cases:
 	//	a) Indexing is disabled.
 	//	b) The Blueprint is not yet fully loaded. This ensures that we don't make attempts to re-index before load completion.
@@ -1912,7 +1964,7 @@ void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprin
 	}
 
 	// Build the search data
-	if (UProperty* ParentClassProp = InBlueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
+	if (FProperty* ParentClassProp = InBlueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
 	{
 		ParentClassProp->ExportTextItem(SearchArray[Index].ParentClass, ParentClassProp->ContainerPtrToValuePtr<uint8>(InBlueprint), nullptr, InBlueprint, 0);
 	}
@@ -1923,8 +1975,10 @@ void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprin
 		// Cannot successfully gather most searchable data if there is no SkeletonGeneratedClass, so don't try, leave it as whatever it was last set to
 		if (InBlueprint->SkeletonGeneratedClass != nullptr)
 		{
+			using namespace BlueprintSearchMetaDataHelpers;
+
 			// Update search metadata string content
-			SearchArray[Index].Value = GatherBlueprintSearchMetadata(InBlueprint);
+			SearchArray[Index].Value = GatherBlueprintSearchMetadata<FFindInBlueprintJsonWriter>(InBlueprint);
 
 			// Update version info stored in database to latest
 			SearchArray[Index].VersionInfo = FSearchDataVersionInfo::Current;
@@ -2210,6 +2264,19 @@ void FFindInBlueprintSearchManager::BuildCache()
 	}
 }
 
+void FFindInBlueprintSearchManager::DumpCache(FArchive& Ar)
+{
+	FScopeLock ScopeLock(&SafeModifyCacheCriticalSection);
+
+	for (const FSearchData& SearchData : SearchArray)
+	{
+		if (SearchData.ImaginaryBlueprint.IsValid())
+		{
+			SearchData.ImaginaryBlueprint->DumpParsedObject(Ar);
+		}
+	}
+}
+
 FText FFindInBlueprintSearchManager::ConvertHexStringToFText(FString InHexString)
 {
 	TArray<uint8> SerializedData;
@@ -2235,6 +2302,12 @@ FString FFindInBlueprintSearchManager::ConvertFTextToHexString(FText InValue)
 	Ar.Close();
 
 	return BytesToHex(SerializedData.GetData(), SerializedData.Num());
+}
+
+FString FFindInBlueprintSearchManager::GenerateSearchIndexForDebugging(UBlueprint* InBlueprint)
+{
+	using namespace BlueprintSearchMetaDataHelpers;
+	return GatherBlueprintSearchMetadata<TFindInBlueprintJsonStringWriter<TPrettyJsonPrintPolicy<TCHAR>>>(InBlueprint);
 }
 
 void FFindInBlueprintSearchManager::OnCacheAllUnindexedAssets(bool bInSourceControlActive, bool bInCheckoutAndSave)
@@ -2539,8 +2612,8 @@ TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObje
 	OutFTextLookupTable = LookupTable = FiBSerializationHelpers::Deserialize< TMap<int32, FText> >(ReaderStream, SizeOfData);
 
 	// The original BufferReader should be positioned at the Json
-	TSharedPtr< FJsonObject > JsonObject = NULL;
-	TSharedRef< TJsonReader<> > Reader = BlueprintSearchMetaDataHelpers::SearchMetaDataReader::Create( &ReaderStream, LookupTable );
+	TSharedPtr<FJsonObject> JsonObject = nullptr;
+	TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReader<TCHAR>::Create(&ReaderStream);
 	FJsonSerializer::Deserialize( Reader, JsonObject );
 
 	return JsonObject;
@@ -2548,6 +2621,8 @@ TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObje
 
 void FFindInBlueprintSearchManager::GlobalFindResultsClosed(const TSharedRef<SFindInBlueprints>& FindResults)
 {
+	CSV_EVENT(FindInBlueprint, TEXT("GlobalFindResultsClosed: %s"), *FindResults->GetHostTabId().ToString());
+
 	for (TWeakPtr<SFindInBlueprints> FindResultsPtr : GlobalFindResults)
 	{
 		if (FindResultsPtr.Pin() == FindResults)
@@ -2590,6 +2665,8 @@ FText FFindInBlueprintSearchManager::GetGlobalFindResultsTabLabel(int32 TabIdx)
 
 TSharedRef<SDockTab> FFindInBlueprintSearchManager::SpawnGlobalFindResultsTab(const FSpawnTabArgs& SpawnTabArgs, int32 TabIdx)
 {
+	CSV_EVENT(FindInBlueprint, TEXT("SpawnGlobalFindResultsTab: %d"), TabIdx);
+
 	TAttribute<FText> Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FFindInBlueprintSearchManager::GetGlobalFindResultsTabLabel, TabIdx));
 
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
@@ -2746,6 +2823,8 @@ void FFindInBlueprintSearchManager::CloseOrphanedGlobalFindResultsTabs(TSharedPt
 
 void FFindInBlueprintSearchManager::Tick(float DeltaTime)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, Tick);
+
 	if(IsCacheInProgress())
 	{
 		check(CachingObject);
@@ -2770,5 +2849,31 @@ TStatId FFindInBlueprintSearchManager::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FFindInBlueprintSearchManager, STATGROUP_Tickables);
 }
+
+class FFiBDumpIndexCacheToFileExecHelper : public FSelfRegisteringExec
+{
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		if (FParse::Command(&Cmd, TEXT("DUMPFIBINDEXCACHE")))
+		{
+			FString FileLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("BlueprintSearchTools"));
+			FString FullPath = FString::Printf(TEXT("%s/FullBlueprintIndexCacheDump.csv"), *FileLocation);
+
+			FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
+			if (DumpFile)
+			{
+				FFindInBlueprintSearchManager::Get().DumpCache(*DumpFile);
+
+				DumpFile->Close();
+				delete DumpFile;
+
+				UE_LOG(LogFindInBlueprint, Log, TEXT("Wrote full index cache to %s"), *FullPath);
+			}
+			return true;
+		}
+		return false;
+	}
+};
+static FFiBDumpIndexCacheToFileExecHelper GFiBDumpIndexCacheToFileExec;
 
 #undef LOCTEXT_NAMESPACE

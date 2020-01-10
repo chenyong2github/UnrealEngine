@@ -1,7 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/SessionService.h"
 #include "SessionServicePrivate.h"
+#include "ModuleServicePrivate.h"
+#include "AnalysisServicePrivate.h"
 #include "Trace/DataStream.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -26,6 +28,11 @@ struct FDiagnosticsSessionAnalyzer
 {
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override
 	{
+		//if (Context.SessionContext.Version < 2)
+		//{
+		//	return;
+		//}
+
 		Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
 	}
 
@@ -64,10 +71,24 @@ struct FDiagnosticsSessionAnalyzer
 	int8 TargetType = 0;
 };
 
-FSessionService::FSessionService(FModuleService& InModuleService)
-	: ModuleService(InModuleService)
+FSessionService::FSessionService(FModuleService& InModuleService, FAnalysisService& InAnalysisService)
+	: FSessionService(InModuleService, InAnalysisService, nullptr)
 {
-	LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+
+}
+
+FSessionService::FSessionService(FModuleService& InModuleService, FAnalysisService& InAnalysisService, const TCHAR* OverrideSessionDirectory)
+	: ModuleService(InModuleService)
+	, AnalysisService(InAnalysisService)
+{
+	if (OverrideSessionDirectory)
+	{
+		LocalSessionDirectory = FString(OverrideSessionDirectory);
+	}
+	else
+	{
+		LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+	}
 	TraceStore = Store_Create(*LocalSessionDirectory);
 	TraceRecorder = Recorder_Create(TraceStore.ToSharedRef());
 
@@ -159,16 +180,6 @@ bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo&
 	return true;
 }
 
-Trace::IInDataStream* FSessionService::OpenSessionStream(FSessionHandle SessionHandle)
-{
-	return TraceStore->OpenSessionStream(SessionHandle);
-}
-
-Trace::IInDataStream* FSessionService::OpenSessionFromFile(const TCHAR* FilePath)
-{
-	return Trace::DataStream_ReadFile(FilePath);
-}
-
 void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName& ModuleName, bool bState)
 {
 	FScopeLock Lock(&SessionsCS);
@@ -179,11 +190,7 @@ void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName
 	}
 	if (bState)
 	{
-		TArray<const TCHAR*> Loggers;
-		if (!ModuleService.GetModuleLoggers(ModuleName, Loggers))
-		{
-			return;
-		}
+		TArray<const TCHAR*> Loggers = ModuleService.GetModuleLoggers(ModuleName);
 		TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(ModuleName);
 		for (const TCHAR* Logger : Loggers)
 		{
@@ -246,7 +253,7 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	{
 		FString PortString = AddressString.RightChop(LastColonIndex + 1);
 		Port = FCString::Atoi(*PortString);
-		AddressString = AddressString.Left(LastColonIndex);
+		AddressString.LeftInline(LastColonIndex);
 	}
 	
 	TSharedPtr<FInternetAddr> ClientAddr = Sockets->GetAddressFromString(AddressString);
@@ -272,6 +279,38 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	return true;
 }
 
+TSharedPtr<const IAnalysisSession> FSessionService::StartAnalysis(FSessionHandle SessionHandle)
+{
+	FScopeLock Lock(&SessionsCS);
+
+	FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
+	if (!FindIt)
+	{
+		return nullptr;
+	}
+	
+	TUniquePtr<IInDataStream> DataStream(TraceStore->OpenSessionStream(SessionHandle));
+	if (!DataStream)
+	{
+		return nullptr;
+	}
+
+	if (!FindIt->CommandLine.IsEmpty())
+	{
+		TSet<FName> CommandLineEnabledModules = ModuleService.GetEnabledModulesFromCommandLine(*FindIt->CommandLine);
+		for (const FName& EnabledModuleName : CommandLineEnabledModules)
+		{
+			TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(EnabledModuleName);
+			for (const TCHAR* Logger : ModuleService.GetModuleLoggers(EnabledModuleName))
+			{
+				EnabledLoggers.Add(Logger);
+			}
+		}
+	}
+
+	return AnalysisService.StartAnalysis(FindIt->Name, MoveTemp(DataStream));
+}
+
 bool FSessionService::Tick(float DeltaTime)
 {
 	UpdateSessions();
@@ -292,9 +331,14 @@ void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSes
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
+			if (BytesRead >= 48 * 1024)
+			{
+				return 0;
+			}
+
 			int32 InnerBytesRead = Inner->Read(Data, Size);
 			BytesRead += InnerBytesRead;
-			return (BytesRead < (2 << 20)) ? InnerBytesRead : 0;
+			return InnerBytesRead;
 		}
 
 		int32 BytesRead = 0;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MfMediaPlayer.h"
 
@@ -71,7 +71,12 @@ void FMfMediaPlayer::Close()
 	PresentationDescriptor.Reset();
 	RateControl.Reset();
 	RateSupport.Reset();
-	SourceReader.Reset();
+
+	if (SourceReader)
+	{
+		SourceReader->Flush(MF_SOURCE_READER_ALL_STREAMS);
+		SourceReader.Reset();
+	}
 	SourceReaderCallback.Reset();
 
 	Characteristics = 0;

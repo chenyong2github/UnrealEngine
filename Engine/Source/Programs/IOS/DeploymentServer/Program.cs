@@ -1,5 +1,5 @@
 /**
- * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+ * Copyright Epic Games, Inc. All Rights Reserved.
  */
 
 using System;
@@ -107,7 +107,6 @@ namespace DeploymentServer
 			protected bool LastResult = false;
 
 			System.Threading.Thread runLoop = null;
-			System.Threading.Thread listenLoop = null;
 			bool bCommandComplete = true;
 
 			public void StopRun()
@@ -117,10 +116,6 @@ namespace DeploymentServer
 					if (runLoop != null)
 					{
 						runLoop.Abort();
-					}
-					if (listenLoop != null)
-					{
-						listenLoop.Abort();
 					}
 				}
 				catch { }
@@ -257,8 +252,7 @@ namespace DeploymentServer
 
 				LastResult = true;
 				bCommandComplete = false;
-				bool bWaitForCompletion = ShouldWaitForCompletion(Command);
-				bNeedsResponse = bWaitForCompletion;
+				bNeedsResponse = true;
 
 				runLoop = new System.Threading.Thread(delegate ()
 				{
@@ -411,30 +405,7 @@ namespace DeploymentServer
 								}
 								else
 								{
-									listenLoop = new System.Threading.Thread(delegate ()
-									{
-										try
-										{
-											DeploymentProxy.Deployer.ListenToDevice(Device, Writer);
-										}
-										catch (IOException)
-										{
-											// we expect this to happen so we don't log it
-										}
-										catch (ThreadAbortException)
-										{
-											// we expect this to happen so we don't log it
-										}
-										catch (Exception e)
-										{
-											LocalLog("Exception: " + e.ToString());
-										}
-										finally
-										{
-											listenLoop = null;
-										}
-									});
-									listenLoop.Start();
+									LastResult = DeploymentProxy.Deployer.ListenToDevice(Device, Writer);
 								}
 								break;
 						}
@@ -466,21 +437,18 @@ namespace DeploymentServer
 				try
 				{
 					runLoop.Start();
-					if (bWaitForCompletion)
+					while (!bCommandComplete)
 					{
-						while (!bCommandComplete)
-						{
-							CoreFoundationRunLoop.RunLoopRunInMode(CoreFoundationRunLoop.kCFRunLoopDefaultMode(), 1.0, 0);
-						}
-						if (runLoop.ThreadState == System.Threading.ThreadState.Running)
-						{
-							runLoop.Abort();
-						}
+						CoreFoundationRunLoop.RunLoopRunInMode(CoreFoundationRunLoop.kCFRunLoopDefaultMode(), 1.0, 0);
+						System.Threading.Thread.Sleep(100);
+					}
+					if (runLoop.ThreadState == System.Threading.ThreadState.Running)
+					{
+						runLoop.Abort();
 					}
 				}
 				catch (Exception e)
-				{
-					
+				{			
 					if (Command != "stop")
 					{
 						LocalLog("Exception: " + e.ToString());
@@ -489,8 +457,7 @@ namespace DeploymentServer
 					LastResult = false;
 				}
 				finally
-				{
-						
+				{					
 				}
 
 				return LastResult ? 0 : 1;
@@ -626,15 +593,6 @@ namespace DeploymentServer
 				{
 					case "stop":
 					case "listdevices":
-					case "listentodevice":
-						return false;
-				}
-				return true;
-			}
-			public static bool ShouldWaitForCompletion(String Command)
-			{
-				switch (Command)
-				{
 					case "listentodevice":
 						return false;
 				}
@@ -885,7 +843,7 @@ namespace DeploymentServer
 				while (true)
 				{
 					CoreFoundationRunLoop.RunLoopRunInMode(CoreFoundationRunLoop.kCFRunLoopDefaultMode(), 1.0, 0);
-					System.Threading.Thread.Sleep(50);
+					System.Threading.Thread.Sleep(100);
 					Writer.Flush();
 					OutSm.Flush();
 					if (TCPForwarding.Count > 0)
@@ -1013,7 +971,7 @@ namespace DeploymentServer
 		static void ClientLoop(string[] Args, string LocalCommand)
 		{
 			// on mac we only start one local instance due to mono limitations
-			if (Environment.OSVersion.Platform == PlatformID.MacOSX || Environment.OSVersion.Platform == PlatformID.Unix || Args[0].Equals("-standalone"))
+			if (Environment.OSVersion.Platform == PlatformID.MacOSX || Environment.OSVersion.Platform == PlatformID.Unix || Args.Contains("-standalone"))
 			{
 				RunLocalInstance(Args);
 				return;
@@ -1076,7 +1034,11 @@ namespace DeploymentServer
 				while (true)
 				{
 					string Response = clientIn.ReadLine();
-					if (Response.EndsWith("CMDOK"))
+					if (Response == "" || Response == null)
+					{
+						Thread.Sleep(10);
+					}
+					else if (Response.EndsWith("CMDOK"))
 					{
 						Program.ExitCode = 0;
 						break;
@@ -1090,7 +1052,6 @@ namespace DeploymentServer
 					{
 						LocalLog(Response);
 					}
-					Thread.Sleep(10);
 				}
 			}
 			catch (Exception e)

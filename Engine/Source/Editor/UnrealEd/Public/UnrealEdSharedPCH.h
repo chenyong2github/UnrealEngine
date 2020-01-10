@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -575,7 +575,6 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunction.h"
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundAttenuation.h"
 #include "Engine/CurveTable.h"
 #include "Audio.h"

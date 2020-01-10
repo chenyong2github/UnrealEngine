@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeFunctionCall.h"
 #include "UObject/UnrealType.h"
@@ -607,6 +607,47 @@ UObject*  UNiagaraNodeFunctionCall::GetReferencedAsset() const
 	}
 }
 
+void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
+{
+	if (FunctionScript)
+	{
+		if (FunctionScript->bDeprecated)
+		{
+			UEdGraphNode::bHasCompilerMessage = true;
+			ErrorType = EMessageSeverity::Warning;
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("NodeName"), GetNodeTitle(ENodeTitleType::ListView));
+			Args.Add(TEXT("Recommendation"), FunctionScript->DeprecationRecommendation != nullptr ? FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName()) : LOCTEXT("UnspecifiedName","Unspecified"));
+			UEdGraphNode::ErrorMsg = FText::Format(LOCTEXT("DeprecationWarning", "{NodeName} is deprecated. Suggested replacement: {Recommendation}"), Args).ToString();
+		}
+		else if (FunctionScript->bExperimental)
+		{
+			UEdGraphNode::bHasCompilerMessage = true;
+			UEdGraphNode::ErrorType = EMessageSeverity::Info;
+			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+		}
+		else
+		{
+			UEdGraphNode::bHasCompilerMessage = false;
+			UEdGraphNode::ErrorMsg = FString();
+		}
+	}
+	else if (Signature.IsValid())
+	{
+		if (Signature.bExperimental)
+		{
+			UEdGraphNode::bHasCompilerMessage = true;
+			UEdGraphNode::ErrorType = EMessageSeverity::Info;
+			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+		}
+	}
+}
+
+void UNiagaraNodeFunctionCall::PostPlacedNewNode()
+{
+	UpdateNodeErrorMessage();
+}
+
 bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 {
 	bool bReload = false;
@@ -616,35 +657,14 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 		if (Source != nullptr)
 		{
 			bReload = CachedChangeId != Source->NodeGraph->GetChangeID();
-			if (bReload)
-			{
-				bReload = true;
-			}
 		}
-
-		if (FunctionScript->bDeprecated)
-		{
-			bHasCompilerMessage = true;
-			ErrorType = EMessageSeverity::Warning;
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("NodeName"), GetNodeTitle(ENodeTitleType::ListView));
-			Args.Add(TEXT("Recommendation"), FunctionScript->DeprecationRecommendation != nullptr ? FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName()) : LOCTEXT("UnspecifiedName","Unspecified"));
-			ErrorMsg = FText::Format(LOCTEXT("DeprecationWarning", "{NodeName} is deprecated. Suggested replacement: {Recommendation}"), Args).ToString();
-		}
-		else
-		{
-			bHasCompilerMessage = false;
-			ErrorMsg = FString();
-		}
-
 	}
-	else
+	else if (Signature.IsValid())
 	{
-		if (Signature.IsValid())
-		{
-			bReload = true;
-		}
+		bReload = true;		
 	}
+
+	UpdateNodeErrorMessage();
 
 	// Go over the static switch parameters to set their propagation status on the pins
 	UNiagaraGraph* CalledGraph = GetCalledGraph();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -55,7 +55,7 @@ protected:
 	TMap< TSubclassOf<class UEdGraphNode>, FNodeHandlingFunctor*> NodeHandlers;
 
 	// Map of properties created for timelines; to aid in debug data generation
-	TMap<class UTimelineTemplate*, class UProperty*> TimelineToMemberVariableMap;
+	TMap<class UTimelineTemplate*, class FProperty*> TimelineToMemberVariableMap;
 
 	// Map from UProperties to default object values, to be fixed up after compilation is complete
 	TMap<FName, FString> DefaultPropertyValueMap;
@@ -135,7 +135,7 @@ public:
 	FLinkerLoad* OldLinker;
 	UBlueprintGeneratedClass* TargetClass;
 
-	// Flag to trigger UMulticastDelegateProperty::SignatureFunction resolution in 
+	// Flag to trigger FMulticastDelegateProperty::SignatureFunction resolution in 
 	// CreateClassVariablesFromBlueprint:
 	bool bAssignDelegateSignatureFunction;
 
@@ -371,7 +371,7 @@ protected:
 	void CreateCommentBlockAroundNodes(const TArray<UEdGraphNode*>& Nodes, UObject* SourceObject, UEdGraph* TargetGraph, FString CommentText, FLinearColor CommentColor, int32& Out_OffsetX, int32& Out_OffsetY);
 
 	/** Creates a class variable */
-	UProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type);
+	FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type);
 
 	// Gives derived classes a chance to emit debug data
 	virtual void PostCompileDiagnostics() {}
@@ -384,22 +384,22 @@ protected:
 	virtual bool IsNodePure(const UEdGraphNode* Node) const;
 
 	/** Creates a property with flags including PropertyFlags in the Scope structure for each entry in the Terms array */
-	void CreatePropertiesFromList(UStruct* Scope, UField**& PropertyStorageLocation, TIndirectArray<FBPTerminal>& Terms, EPropertyFlags PropertyFlags, bool bPropertiesAreLocal, bool bPropertiesAreParameters = false);
+	void CreatePropertiesFromList(UStruct* Scope, FField**& PropertyStorageLocation, TIndirectArray<FBPTerminal>& Terms, EPropertyFlags PropertyFlags, bool bPropertiesAreLocal, bool bPropertiesAreParameters = false);
 
 	/** Create the properties on a function for input/output parameters */
-	void CreateParametersForFunction(FKismetFunctionContext& Context, UFunction* ParameterSignature, UField**& FunctionPropertyStorageLocation);
+	void CreateParametersForFunction(FKismetFunctionContext& Context, UFunction* ParameterSignature, FField**& FunctionPropertyStorageLocation);
 
 	/** Creates the properties on a function that store the local and event graph (if applicable) variables */
-	void CreateLocalVariablesForFunction(FKismetFunctionContext& Context, UField**& FunctionPropertyStorageLocation);
+	void CreateLocalVariablesForFunction(FKismetFunctionContext& Context, FField**& FunctionPropertyStorageLocation);
 
 	/** Creates user defined local variables for function */
-	void CreateUserDefinedLocalVariablesForFunction(FKismetFunctionContext& Context, UField**& FunctionPropertyStorageLocation);
+	void CreateUserDefinedLocalVariablesForFunction(FKismetFunctionContext& Context, FField**& FunctionPropertyStorageLocation);
 
 	/** Helper function for CreateUserDefinedLocalVariablesForFunction and compilation manager's FastGenerateSkeletonClass: */
-	static UProperty* CreateUserDefinedLocalVariableForFunction(const FBPVariableDescription& Variable, UFunction* Function, UBlueprintGeneratedClass* OwningClass, UField**& FunctionPropertyStorageLocation, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
+	static FProperty* CreateUserDefinedLocalVariableForFunction(const FBPVariableDescription& Variable, UFunction* Function, UBlueprintGeneratedClass* OwningClass, FField**& FunctionPropertyStorageLocation, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog);
 
 	/** Adds a default value entry into the DefaultPropertyValueMap for the property specified */
-	void SetPropertyDefaultValue(const UProperty* PropertyToSet, FString& Value);
+	void SetPropertyDefaultValue(const FProperty* PropertyToSet, FString& Value);
 
 	/** Copies default values cached for the terms in the DefaultPropertyValueMap to the final CDO */
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject);
@@ -569,7 +569,7 @@ protected:
 	void DetermineNodeExecLinks(UEdGraphNode* SourceNode, TMap<UEdGraphPin*, UEdGraphPin*>& SourceNodeLinks) const;
 
 private:
-	void CreateLocalsAndRegisterNets(FKismetFunctionContext& Context, UField**& FunctionPropertyStorageLocation);
+	void CreateLocalsAndRegisterNets(FKismetFunctionContext& Context, FField**& FunctionPropertyStorageLocation);
 
 	/**
 	 * Handles creating a new event node for a given output on a timeline node utilizing the named function

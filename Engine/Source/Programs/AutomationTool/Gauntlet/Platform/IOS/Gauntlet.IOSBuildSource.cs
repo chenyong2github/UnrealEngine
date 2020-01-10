@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -224,51 +224,55 @@ namespace Gauntlet
 
 			List<DirectoryInfo> AllDirs = new List<DirectoryInfo>();
 
+			List<IBuild> Builds = new List<IBuild>();
+
 			// c:\path\to\build
 			DirectoryInfo PathDI = new DirectoryInfo(InPath);
 
-			if (PathDI.Name.IndexOf("IOS", StringComparison.OrdinalIgnoreCase) >= 0)
+			if (PathDI.Exists)
 			{
-				AllDirs.Add(PathDI);
-			}
-
-			// find all directories that begin with IOS
-			DirectoryInfo[] IOSDirs = PathDI.GetDirectories("IOS*", SearchOption.TopDirectoryOnly);
-
-			AllDirs.AddRange(IOSDirs);
-
-			List<DirectoryInfo> DirsToRecurse = AllDirs;
-
-			// now get subdirs
-			while (MaxRecursion-- > 0)
-			{
-				List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
-
-				DirsToRecurse.ToList().ForEach((D) =>
+				if (PathDI.Name.IndexOf("IOS", StringComparison.OrdinalIgnoreCase) >= 0)
 				{
-					DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
-				});
+					AllDirs.Add(PathDI);
+				}
 
-				AllDirs.AddRange(DiscoveredDirs);
-				DirsToRecurse = DiscoveredDirs;
-			}
+				// find all directories that begin with IOS
+				DirectoryInfo[] IOSDirs = PathDI.GetDirectories("IOS*", SearchOption.TopDirectoryOnly);
 
-			//IOSBuildSource BuildSource = null;
-			List<IBuild> Builds = new List<IBuild>();
+				AllDirs.AddRange(IOSDirs);
 
-			string IOSBuildFilter = Globals.Params.ParseValue("IOSBuildFilter", "");
-			foreach (DirectoryInfo Di in AllDirs)
-			{
-				IEnumerable<IOSBuild> FoundBuilds = IOSBuild.CreateFromPath(InProjectName, Di.FullName);
+				List<DirectoryInfo> DirsToRecurse = AllDirs;
 
-				if (FoundBuilds != null)
+				// now get subdirs
+				while (MaxRecursion-- > 0)
 				{
-					if (!string.IsNullOrEmpty(IOSBuildFilter))
+					List<DirectoryInfo> DiscoveredDirs = new List<DirectoryInfo>();
+
+					DirsToRecurse.ToList().ForEach((D) =>
 					{
-						//IndexOf used because Contains must be case-sensitive
-						FoundBuilds = FoundBuilds.Where(B => B.SourceIPAPath.IndexOf(IOSBuildFilter, StringComparison.OrdinalIgnoreCase) >= 0);
+						DiscoveredDirs.AddRange(D.GetDirectories("*", SearchOption.TopDirectoryOnly));
+					});
+
+					AllDirs.AddRange(DiscoveredDirs);
+					DirsToRecurse = DiscoveredDirs;
+				}
+
+				//IOSBuildSource BuildSource = null;
+
+				string IOSBuildFilter = Globals.Params.ParseValue("IOSBuildFilter", "");
+				foreach (DirectoryInfo Di in AllDirs)
+				{
+					IEnumerable<IOSBuild> FoundBuilds = IOSBuild.CreateFromPath(InProjectName, Di.FullName);
+
+					if (FoundBuilds != null)
+					{
+						if (!string.IsNullOrEmpty(IOSBuildFilter))
+						{
+							//IndexOf used because Contains must be case-sensitive
+							FoundBuilds = FoundBuilds.Where(B => B.SourceIPAPath.IndexOf(IOSBuildFilter, StringComparison.OrdinalIgnoreCase) >= 0);
+						}
+						Builds.AddRange(FoundBuilds);
 					}
-					Builds.AddRange(FoundBuilds);
 				}
 			}
 

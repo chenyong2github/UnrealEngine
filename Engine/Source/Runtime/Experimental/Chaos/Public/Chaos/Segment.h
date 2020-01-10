@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 namespace Chaos
@@ -51,6 +51,13 @@ namespace Chaos
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
 			Ar << MPoint << MAxis << MLength;
+		}
+
+		FORCEINLINE TAABB<T, 3> BoundingBox() const
+		{
+			TAABB<T,3> Box(MPoint,MPoint);
+			Box.GrowToInclude(GetX2());
+			return Box;
 		}
 
 	private:

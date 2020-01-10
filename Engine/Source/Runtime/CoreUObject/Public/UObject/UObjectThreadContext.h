@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnAsyncLoading.cpp: Unreal async loading code.
@@ -77,7 +77,7 @@ public:
 	/* Object that is currently being constructed with ObjectInitializer */
 	UObject* ConstructedObject;
 	/** Async Package currently processing objects */
-	class FGCObject* AsyncPackage;
+	void* AsyncPackage;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Stack to ensure that PostInitProperties is routed through Super:: calls. **/

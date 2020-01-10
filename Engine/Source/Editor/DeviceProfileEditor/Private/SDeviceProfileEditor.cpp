@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDeviceProfileEditor.h"
 #include "Widgets/Text/STextBlock.h"
@@ -558,9 +558,9 @@ void SDeviceProfileEditor::RebuildPropertyTable()
 
 	PropertyTable->SetIsUserAllowedToChangeRoot( false );
 
-	for (TFieldIterator<UProperty> DeviceProfilePropertyIter( UDeviceProfile::StaticClass() ); DeviceProfilePropertyIter; ++DeviceProfilePropertyIter)
+	for (TFieldIterator<FProperty> DeviceProfilePropertyIter( UDeviceProfile::StaticClass() ); DeviceProfilePropertyIter; ++DeviceProfilePropertyIter)
 	{
-		TWeakObjectPtr< UProperty > DeviceProfileProperty = *DeviceProfilePropertyIter;
+		TWeakFieldPtr< FProperty > DeviceProfileProperty = *DeviceProfilePropertyIter;
 		if(DeviceProfileProperty->GetName() != TEXT("Parent") )
 		{
 			PropertyTable->AddColumn(DeviceProfileProperty);

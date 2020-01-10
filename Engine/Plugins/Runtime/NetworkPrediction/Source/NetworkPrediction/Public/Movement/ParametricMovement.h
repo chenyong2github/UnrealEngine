@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved
+// Copyright Epic Games, Inc. All Rights Reserved
 
 #pragma once
 
@@ -7,8 +7,33 @@
 
 #include "ParametricMovement.generated.h"
 
-struct FSimpleParametricMotion;
-class IMovementDriver;
+// Extremely simple struct for defining parametric motion. This is editable in UParametricMovementComponent's defaults, and also used by the simulation code above. 
+USTRUCT(BlueprintType)
+struct FSimpleParametricMotion
+{
+	GENERATED_BODY()
+
+	// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
+	void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const;
+
+	// Advance parametric time. This is meant to do simple things like looping/reversing etc.
+	void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	float MinTime = -1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	float MaxTime = 1.f;
+
+	FTransform CachedStartingTransform;
+};
+
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Parametric Movement Simulation Types
+// -------------------------------------------------------------------------------------------------------------------------------
 
 // State the client generates
 struct FParametricInputCmd
@@ -40,20 +65,13 @@ struct FParametricInputCmd
 // State we are evolving frame to frame and keeping in sync
 struct FParametricSyncState
 {
-	float Position;
-	float PlayRate;
+	float Position=0.f;
+	float PlayRate=1.f;
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << Position;
 		P.Ar << PlayRate;
-	}
-
-	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
-	bool ShouldReconcile(const FParametricSyncState& AuthorityState)
-	{
-		const float ErrorTolerance = 0.01f;
-		return (FMath::Abs<float>(AuthorityState.Position - Position) > ErrorTolerance) || (FMath::Abs<float>(AuthorityState.PlayRate - PlayRate) > ErrorTolerance);
 	}
 
 	void Log(FStandardLoggingParameters& Params) const
@@ -68,14 +86,6 @@ struct FParametricSyncState
 			Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
 			Params.Ar->Logf(TEXT("Rate: %.2f"), PlayRate);
 		}
-	}
-
-	void VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const;
-
-	static void Interpolate(const FParametricSyncState& From, const FParametricSyncState& To, const float PCT, FParametricSyncState& OutDest)
-	{
-		OutDest.Position = From.Position + ((To.Position - From.Position) * PCT);
-		OutDest.PlayRate = From.PlayRate + ((To.PlayRate - From.PlayRate) * PCT);
 	}
 };
 
@@ -102,12 +112,13 @@ struct FParametricAuxState
 	}
 };
 
+/** BufferTypes for ParametricMovement */
 using ParametricMovementBufferTypes = TNetworkSimBufferTypes<FParametricInputCmd, FParametricSyncState, FParametricAuxState>;
-	
+
+/** The actual movement simulation */
 class FParametricMovementSimulation : public FBaseMovementSimulation
 {
 public:
-	static const FName GroupName;
 
 	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<ParametricMovementBufferTypes>& Input, const TNetSimOutput<ParametricMovementBufferTypes>& Output);
 
@@ -115,39 +126,35 @@ public:
 	const FSimpleParametricMotion* Motion = nullptr;
 };
 
-
-// Actual definition of our network simulation.
-template<int32 FixedStepMS=0>
-using FParametricMovementSystem = TNetworkedSimulationModel<FParametricMovementSimulation, ParametricMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
-
-
-
-// Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
-// Also needed for forward declaring. Can't just be a typedef/using =
-class IParametricMovementDriver : public TNetworkedSimulationModelDriver<ParametricMovementBufferTypes> { };
-
-// Extremely simple struct for defining parametric motion. This is editable in UParametricMovementComponent's defaults, and also used by the simulation code above. 
-USTRUCT(BlueprintType)
-struct FSimpleParametricMotion
+/** NetworkedSimulation Model type */
+class FParametricMovementNetSimModelDef : public FNetSimModelDefBase
 {
-	GENERATED_BODY()
+public:
 
-	// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
-	void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const;
+	using Simulation = FParametricMovementSimulation;
+	using BufferTypes = ParametricMovementBufferTypes;
 
-	// Advance parametric time. This is meant to do simple things like looping/reversing etc.
-	void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const;
+	static const FName GroupName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
+	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
+	static bool ShouldReconcile(const FParametricSyncState& AuthoritySync, const FParametricAuxState& AuthorityAux, const FParametricSyncState& PredictedSync, const FParametricAuxState& PredictedAux)
+	{
+		const float ErrorTolerance = 0.01f;
+		return (FMath::Abs<float>(AuthoritySync.Position - PredictedSync.Position) > ErrorTolerance) || (FMath::Abs<float>(AuthoritySync.PlayRate - PredictedSync.PlayRate) > ErrorTolerance);
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	float MinTime = -1.f;
+	static void Interpolate(const TInterpolatorParameters<FParametricSyncState, FParametricAuxState>& Params)
+	{
+		Params.Out.Sync.Position = Params.From.Sync.Position + ((Params.To.Sync.Position - Params.From.Sync.Position) * Params.InterpolationPCT);
+		Params.Out.Sync.PlayRate = Params.From.Sync.PlayRate + ((Params.To.Sync.PlayRate - Params.From.Sync.PlayRate) * Params.InterpolationPCT);
+	}
+};
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
-	float MaxTime = 1.f;
-
-	FTransform CachedStartingTransform;
+/** Additional specialized types of the Parametric Movement NetSimModel */
+class FParametricMovementNetSimModelDef_Fixed30hz : public FParametricMovementNetSimModelDef
+{ 
+public:
+	using TickSettings = TNetworkSimTickSettings<33>;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -160,7 +167,7 @@ struct FSimpleParametricMotion
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementComponent, public IParametricMovementDriver
+class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementComponent, public TNetworkedSimulationModelDriver<ParametricMovementBufferTypes>
 {
 	GENERATED_BODY()
 

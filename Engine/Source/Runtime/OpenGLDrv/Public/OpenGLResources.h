@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLResources.h: OpenGL resource RHI definitions.
@@ -2088,7 +2088,7 @@ private:
 // Fences
 
 // Note that Poll() and WriteInternal() will stall the RHI thread if one is present.
-class FOpenGLGPUFence : public FRHIGPUFence
+class FOpenGLGPUFence final : public FRHIGPUFence
 {
 public:
 	FOpenGLGPUFence(FName InName)
@@ -2096,10 +2096,10 @@ public:
 		, bValidSync(false)
 	{}
 
-	virtual ~FOpenGLGPUFence() final override;
+	~FOpenGLGPUFence() override;
 
-	virtual void Clear() final override;
-	virtual bool Poll() const final override;
+	void Clear() override;
+	bool Poll() const override;
 	
 	void WriteInternal();
 private:
@@ -2108,7 +2108,7 @@ private:
 	bool bValidSync;
 };
 
-class FOpenGLStagingBuffer : public FRHIStagingBuffer
+class FOpenGLStagingBuffer final : public FRHIStagingBuffer
 {
 	friend class FOpenGLDynamicRHI;
 public:
@@ -2117,13 +2117,13 @@ public:
 		Initialize();
 	}
 
-	virtual ~FOpenGLStagingBuffer() final override;
+	~FOpenGLStagingBuffer() override;
 
 	// Locks the shadow of VertexBuffer for read. This will stall the RHI thread.
-	virtual void *Lock(uint32 Offset, uint32 NumBytes) final override;
+	void *Lock(uint32 Offset, uint32 NumBytes) override;
 
 	// Unlocks the shadow. This is an error if it was not locked previously.
-	virtual void Unlock() final override;
+	void Unlock() override;
 private:
 	void Initialize();
 

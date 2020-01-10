@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,6 +23,23 @@ class GAMEPLAYABILITIES_API IGameplayCueInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
+public:
+
+	/** Handle a single gameplay cue */
+	virtual void HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
+
+	/** Wrapper that handles multiple cues */
+	virtual void HandleGameplayCues(UObject* Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
+
+	/**
+	* Returns true if the object can currently accept gameplay cues associated with the given tag. Returns true by default.
+	* Allows objects to opt out of cues in cases such as pending death
+	*/
+	virtual bool ShouldAcceptGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
+
+
+	// DEPRECATED - use the UObject* signatures above
+
 	/** Handle a single gameplay cue */
 	virtual void HandleGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
 
@@ -31,6 +48,9 @@ class GAMEPLAYABILITIES_API IGameplayCueInterface
 
 	/** Returns true if the actor can currently accept gameplay cues associated with the given tag. Returns true by default. Allows actors to opt out of cues in cases such as pending death */
 	virtual bool ShouldAcceptGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
+
+	// END DEPRECATED
+
 
 	/** Return the cue sets used by this object. This is optional and it is possible to leave this list empty. */
 	virtual void GetGameplayCueSets(TArray<class UGameplayCueSet*>& OutSets) const {}
@@ -47,7 +67,7 @@ class GAMEPLAYABILITIES_API IGameplayCueInterface
 	virtual void ForwardGameplayCueToParent();
 
 	/** Calls the UFunction override for a specific gameplay cue */
-	static void DispatchBlueprintCustomHandler(AActor* Actor, UFunction* Func, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
+	static void DispatchBlueprintCustomHandler(UObject* Object, UFunction* Func, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters);
 
 	/** Clears internal cache of what classes implement which functions */
 	static void ClearTagToFunctionMap();

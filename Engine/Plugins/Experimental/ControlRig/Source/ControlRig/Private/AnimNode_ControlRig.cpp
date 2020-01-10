@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_ControlRig.h"
 #include "ControlRig.h"
@@ -95,6 +95,8 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 
 	PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
 	Source.Update(Context);
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Class"), *GetNameSafe(ControlRigClass.Get()));
 }
 
 void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)

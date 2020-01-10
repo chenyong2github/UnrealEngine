@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprintUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -66,7 +66,7 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 	FString Name = InName;
 	if (Name.StartsWith(TEXT("RigUnit_")))
 	{
-		Name = Name.RightChop(8);
+		Name.RightChopInline(8, false);
 	}
 
 	TSharedPtr<FKismetNameValidator> NameValidator;
@@ -106,7 +106,7 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 		// If the length of the final string will be too long, cut off the end so we can fit the number
 		if (CountLength + BaseName.Len() > NameValidator->GetMaximumNameLength())
 		{
-			BaseName = BaseName.Left(NameValidator->GetMaximumNameLength() - CountLength);
+			BaseName.LeftInline(NameValidator->GetMaximumNameLength() - CountLength);
 		}
 		Name = FString::Printf(TEXT("%s_%d"), *BaseName, Count);
 		Count++;

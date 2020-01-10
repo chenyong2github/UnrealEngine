@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTextureChunkManager.h"
 
@@ -23,15 +23,24 @@ static FAutoConsoleVariableRef CVarNumTranscodeRequests(
 	TEXT("Number of transcode request that can be in flight. default 32\n"),
 	ECVF_Default);
 
-static FVirtualTextureChunkStreamingManager* VirtualTexturePageStreamingManager = nullptr;
-struct FVirtualTextureChunkStreamingManager& FVirtualTextureChunkStreamingManager::Get()
+
+/** 
+ * FVirtualTextureChunkStreamingManager is a treated as a singleton referenced by multiple FUploadingVirtualTexture objects.
+ * Use RefCount to ensure it is unregistered and destroyed on shutdown.
+ */
+struct FVirtualTextureChunkStreamingManagerSingleton
 {
-	if (VirtualTexturePageStreamingManager == nullptr)
+	FVirtualTextureChunkStreamingManager* Ptr = nullptr;
+	int32 RefCount = 0;
+
+	~FVirtualTextureChunkStreamingManagerSingleton()
 	{
-		VirtualTexturePageStreamingManager = new FVirtualTextureChunkStreamingManager();
+		check(Ptr == nullptr);
+		check(RefCount == 0);
 	}
-	return *VirtualTexturePageStreamingManager;
-}
+
+} GVirtualTextureChunkStreamingManager;
+
 
 FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 {
@@ -47,6 +56,25 @@ FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()
 	GetVirtualTextureChunkDDCCache()->ShutDown();
 #endif
 	IStreamingManager::Get().RemoveStreamingManager(this);
+}
+
+FVirtualTextureChunkStreamingManager* FVirtualTextureChunkStreamingManager::AddRef()
+{
+	if (GVirtualTextureChunkStreamingManager.RefCount++ == 0)
+	{
+		GVirtualTextureChunkStreamingManager.Ptr = new FVirtualTextureChunkStreamingManager();
+	}
+	return GVirtualTextureChunkStreamingManager.Ptr;
+}
+
+void FVirtualTextureChunkStreamingManager::DecRef()
+{
+	check(GVirtualTextureChunkStreamingManager.RefCount > 0);
+	if (--GVirtualTextureChunkStreamingManager.RefCount == 0)
+	{
+		delete GVirtualTextureChunkStreamingManager.Ptr;
+		GVirtualTextureChunkStreamingManager.Ptr = nullptr;
+	}
 }
 
 void FVirtualTextureChunkStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)

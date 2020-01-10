@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObject.h"
@@ -12,15 +12,21 @@ namespace Chaos
 	{
 		if(Geometry)
 		{
-			if(const auto* Union = Geometry->template GetObject<TImplicitObjectUnion<T, d>>())
+			if(const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
+				const int32 OldShapeNum = ShapesArray.Num();
+
 				ShapesArray.SetNum(Union->GetObjects().Num());
-				int32 Inner = 0;
-				for(const auto& Geom : Union->GetObjects())
+
+				for (int32 ShapeIndex = 0; ShapeIndex < ShapesArray.Num(); ++ShapeIndex)
 				{
-					ShapesArray[Inner] = TPerShapeData<T, d>::CreatePerShapeData();
-					ShapesArray[Inner]->Geometry = MakeSerializable(Geom);
-					++Inner;
+					if (ShapeIndex >= OldShapeNum)
+					{
+						// If newly allocated shape, initialize it.
+						ShapesArray[ShapeIndex] = TPerShapeData<T, d>::CreatePerShapeData();
+					}
+
+					ShapesArray[ShapeIndex]->Geometry = MakeSerializable(Union->GetObjects()[ShapeIndex]);
 				}
 			}
 			else
@@ -34,7 +40,7 @@ namespace Chaos
 			{
 				for (auto& Shape : ShapesArray)
 				{
-					Shape->WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+					Shape->UpdateShapeBounds(ActorTM);
 				}
 			}
 		}
@@ -46,7 +52,14 @@ namespace Chaos
 
 	template <typename T, int d>
 	TPerShapeData<T, d>::TPerShapeData()
-	: UserData(nullptr)
+		: QueryData()
+		, SimData()
+		, UserData(nullptr)
+		, Geometry()
+		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
+		, Materials()
+		, bDisable(false)
+		, bSimulate(true)
 	{
 	}
 
@@ -59,6 +72,15 @@ namespace Chaos
 	TUniquePtr<TPerShapeData<T, d>> TPerShapeData<T, d>::CreatePerShapeData()
 	{
 		return TUniquePtr<TPerShapeData<T, d>>(new TPerShapeData<T, d>());
+	}
+
+	template<typename T, int d>
+	void TPerShapeData<T, d>::UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM)
+	{
+		if (Geometry && Geometry->HasBoundingBox())
+		{
+			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().TransformedAABB(WorldTM);
+		}
 	}
 
 	template <typename T, int d>
@@ -78,7 +100,7 @@ namespace Chaos
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			Ar << WorldSpaceInflatedShapeBounds;
+			TBox<T, d>::SerializeAsAABB(Ar, WorldSpaceInflatedShapeBounds);
 		}
 		else
 		{
@@ -89,6 +111,16 @@ namespace Chaos
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
 		{
 			Ar << Materials;
+		}
+
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		{
+			Ar << bDisable;
+		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
+		{
+			Ar << bSimulate;
 		}
 	}
 
@@ -115,7 +147,7 @@ namespace Chaos
 		{
 		case EParticleType::Static: return Ar.IsLoading() ? new TGeometryParticlesImp<T, d, SimType>() : nullptr;
 		case EParticleType::Kinematic: return Ar.IsLoading() ? new TKinematicGeometryParticlesImp<T, d, SimType>() : nullptr;
-		case EParticleType::Dynamic: return Ar.IsLoading() ? new TPBDRigidParticles<T, d>() : nullptr;
+		case EParticleType::Rigid: return Ar.IsLoading() ? new TPBDRigidParticles<T, d>() : nullptr;
 		case EParticleType::Clustered: return Ar.IsLoading() ? new TPBDRigidClusteredParticles<T, d>() : nullptr;
 		default:
 			check(false); return nullptr;

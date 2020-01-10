@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 TextureStreamingManager.h: Definitions of classes used for texture streaming.
@@ -18,8 +18,6 @@ class FRenderAssetStreamingMipCalcTask;
 class UPrimitiveComponent;
 
 template<typename TTask> class FAsyncTask;
-
-#define STATS_FAST 0
 
 /*-----------------------------------------------------------------------------
 	Texture or mesh streaming.
@@ -113,10 +111,8 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	/**
 	 * Exec command handlers
 	 */
-#if STATS_FAST
-	bool HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-#endif // STATS_FAST
 #if !UE_BUILD_SHIPPING
+	bool HandleDumpTextureStreamingStatsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleListStreamingRenderAssetsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleResetMaxEverRequiredRenderAssetMemoryCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleLightmapStreamingFactorCommand( const TCHAR* Cmd, FOutputDevice& Ar );
@@ -412,16 +408,8 @@ private:
 	TArray<int32> InflightRenderAssets;
 
 	TMap<FString, bool> CachedFileExistsChecks;
-	void OnPakFileMounted(const TCHAR* PakFilename);
+	void OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId);
 
-#if STATS_FAST
-	uint64 MaxStreamingTexturesSize;
-	uint64 MaxOptimalTextureSize;
-	int64 MaxStreamingOverBudget;
-	uint64 MaxTexturePoolAllocatedSize;
-	uint32 MaxNumWantingTextures;
-#endif
-	
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;
 

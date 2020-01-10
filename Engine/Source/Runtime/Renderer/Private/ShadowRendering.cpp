@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShadowRendering.cpp: Shadow rendering implementation
@@ -1516,6 +1516,10 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		else
 		{
 			NormalShadows.Add(ProjectedShadowInfo);
+			if (ProjectedShadowInfo->bAllocated && ProjectedShadowInfo->RenderTargets.DepthTarget)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProjectedShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
+			}
 		}
 	}
 

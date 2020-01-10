@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -58,20 +58,16 @@ public:
 	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(), );
 
 	/** Check the validity of a LOD index */
-	virtual bool IsValidLod(int32 InLodIndex)
+	virtual bool IsValidLod(int32 InLodIndex) const
 	PURE_VIRTUAL(UClothingAssetBase::IsValidLod(), return false;);
 
 	/** Get the number of LODs defined in the clothing asset */
-	virtual int32 GetNumLods()
+	virtual int32 GetNumLods() const
 	PURE_VIRTUAL(UClothingAssetBase::GetNumLods(), return 0;);
 
 	/** Add a new LOD class instance. */
 	virtual int32 AddNewLod()
 	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
-
-	/** Called from \c FPersonaMeshDetails::OnFinishedChangingClothingProperties(). */
-	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event)
-	PURE_VIRTUAL(UClothingAssetBase::PostPropertyChangeCb, );
 
 	/** Builds self collision data */
 	virtual void BuildSelfCollisionData()
@@ -84,6 +80,10 @@ public:
 	*/
 	virtual void BuildLodTransitionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
+
+	/** Called after all cloth assets sharing the same simulation are added or loaded */
+	virtual void PostUpdateAllAssets()
+	PURE_VIRTUAL(UClothingAssetBase::PostUpdateAllAssets(), );
 
 	/** Get the guid identifying this asset */
 	const FGuid& GetAssetGuid() const

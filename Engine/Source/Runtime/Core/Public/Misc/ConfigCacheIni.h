@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*-----------------------------------------------------------------------------
 	Config cache.
@@ -19,6 +19,8 @@
 #include "Math/Rotator.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"
+
+class FStringBuilderBase;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 
@@ -223,6 +225,8 @@ public:
 	// process the '+' and '.' commands, takingf into account ArrayOfStruct unique keys
 	void CORE_API HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed);
 
+	bool HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value);
+
 	template<typename Allocator> 
 	void MultiFind(const FName Key, TArray<FConfigValue, Allocator>& OutValues, const bool bMaintainOrder = false) const
 	{
@@ -340,7 +344,23 @@ public:
 	CORE_API bool Combine( const FString& Filename);
 	CORE_API void CombineFromBuffer(const FString& Buffer);
 	CORE_API void Read( const FString& Filename );
-	CORE_API bool Write( const FString& Filename, bool bDoRemoteWrite=true, const FString& InitialText=FString() );
+
+	/** Write this ConfigFile to the given Filename, constructed the text from the config sections in *this, prepended by the optional PrefixText */
+	CORE_API bool Write( const FString& Filename, bool bDoRemoteWrite=true, const FString& PrefixText=FString());
+
+	/** Write a ConfigFile to the ginve Filename, constructed from the given SectionTexts, in the given order, with sections in *this overriding sections in SectionTexts
+	 * @param Filename - The file to write to
+	 * @param bDoRemoteWrite - If true, also write the file to FRemoteConfig::Get()
+	 * @param InOutSectionTexts - A map from section name to existing text for that section; text does not include the name of the section.
+	 *  Entries in the TMap that also exist in *this will be updated.
+	 *  If the empty string is present, it will be written out first (it is interpreted as a prefix before the first section)
+	 * @param InSectionOrder - List of section names in the order in which each section should be written to disk, from e.g. the existing file.
+	 *  Any section in this array that is not found in InOutSectionTexts will be ignored.
+	 *  Any section in InOutSectionTexts that is not in this array will be appended to the end.
+	 *  Duplicate entries are ignored; the first found index is used.
+	 * @return TRUE if the write was successful
+	 */
+	CORE_API bool Write(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder);
 	CORE_API void Dump(FOutputDevice& Ar);
 
 	CORE_API bool GetString( const TCHAR* Section, const TCHAR* Key, FString& Value ) const;
@@ -368,8 +388,8 @@ public:
 	CORE_API void AddMissingProperties(const FConfigFile& InSourceFile);
 
 	/**
-	 * Saves only the sections in this FConfigFile its source files. All other sections in the file are left alone. The sections in this
-	 * file are completely replaced. If IniRootName is specified, the saved settings are the diffed against the file in the hierarchy up
+	 * Saves only the sections in this FConfigFile into the given file. All other sections in the file are left alone. The sections in this
+	 * file are completely replaced. If IniRootName is specified, the current section settings are diffed against the file in the hierarchy up
 	 * to right before this file (so, if you are saving DefaultEngine.ini, and IniRootName is "Engine", then Base.ini and BaseEngine.ini
 	 * will be loaded, and only differences against that will be saved into DefaultEngine.ini)
 	 *
@@ -430,6 +450,9 @@ private:
 	 * @param SectionName - The section name the array property is being written to
 	 * @param PropertyName - The property name of the array
 	 */
+	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<FConfigValue>& InCompletePropertyToProcess, FStringBuilderBase& OutText, const FString& SectionName, const FString& PropertyName);
+
+	/** Version of ProcessPropertyAndWriteForDefaults that takes an FString to append to rather than a StringBuilder */
 	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<FConfigValue>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName);
 
 	/**

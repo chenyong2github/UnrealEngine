@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	HlslUtils.h - Utilities for Hlsl.
@@ -170,6 +170,11 @@ namespace CrossCompiler
 			bool HasAllocation() const
 			{
 				return !!Data;
+			}
+
+			SizeType GetInitialCapacity() const
+			{
+				return 0;
 			}
 
 			FLinearAllocator* LinearAllocator;

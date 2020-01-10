@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	TextureDerivedDataTask.cpp: Tasks to update texture DDC.
@@ -256,14 +256,16 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SetIsCubemap(false);
 		DerivedData->VTData = nullptr;
 
+		FOptTexturePlatformData OptData;
+
 		// Compress the texture.
 		TArray<FCompressedImage2D> CompressedMips;
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
 			BuildSettingsPerLayer[0],
 			CompressedMips,
-			DerivedData->OptData.NumMipsInTail,
-			DerivedData->OptData.ExtData))
+			OptData.NumMipsInTail,
+			OptData.ExtData))
 		{
 			check(CompressedMips.Num());
 
@@ -297,6 +299,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 					check(CompressedImage.PixelFormat == DerivedData->PixelFormat);
 				}
 			}
+
+			DerivedData->SetOptData(OptData);
 
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!

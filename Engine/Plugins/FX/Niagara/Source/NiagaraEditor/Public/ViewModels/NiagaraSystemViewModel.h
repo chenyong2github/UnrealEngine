@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -100,6 +100,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
+	DECLARE_MULTICAST_DELEGATE(FOnPreClose);
+
 public:
 	struct FEmitterHandleToDuplicate
 	{
@@ -150,10 +152,11 @@ public:
 	/** Gets an array of the view models for the emitter handles owned by this System. */
 	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
 
-	/** Gets an emitter handle view model by id.  Returns an invalid shared ptr if it can't be found. */
+	/** Gets an emitter handle view model by ID. Returns an invalid shared ptr if it can't be found. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
 
-	TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
+	/** Gets an emitter handle view model for the given emitter. Returns an invalid shared ptr if it can't be found. */
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
 
 	/** Gets the view model for the System script. */
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
@@ -177,13 +180,13 @@ public:
 	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetEditMode() const;
 
 	/** Adds a new emitter to the System from an emitter asset data. */
-	NIAGARAEDITOR_API void AddEmitterFromAssetData(const FAssetData& AssetData);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitterFromAssetData(const FAssetData& AssetData);
 
 	/** Adds a new emitter to the System. */
-	void AddEmitter(UNiagaraEmitter& Emitter);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(UNiagaraEmitter& Emitter);
 
 	/** Deletes the emitters with the supplied ids from the system */
-	void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
+	NIAGARAEDITOR_API void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
 
 	/** Gets a multicast delegate which is called any time the array of emitter handle view models changes. */
 	NIAGARAEDITOR_API FOnEmitterHandleViewModelsChanged& OnEmitterHandleViewModelsChanged();
@@ -247,7 +250,7 @@ public:
 	void UpdateEmitterFixedBounds();
 
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
-	void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
+	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
 
 	/** Toggles the isolation state of a single emitter. */
 	void ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle);
@@ -267,8 +270,11 @@ public:
 	/** Checks whether or not an emitter is pinned in the stack UI*/
 	NIAGARAEDITOR_API bool GetIsEmitterPinned(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel);
 
-	NIAGARAEDITOR_API void OnPreSave();
-	NIAGARAEDITOR_API void OnPreClose();
+	NIAGARAEDITOR_API void NotifyPreSave();
+
+	NIAGARAEDITOR_API void NotifyPreClose();
+
+	NIAGARAEDITOR_API FOnPreClose& OnPreClose();
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -478,6 +484,9 @@ private:
 
 	/** A multicast delegate which is called whenever the system has been compiled. */
 	FOnSystemCompiled OnSystemCompiledDelegate;
+
+	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
+	FOnPreClose OnPreCloseDelegate;
 
 	/** A flag for preventing reentrancy when syncrhonizing sequencer data. */
 	bool bUpdatingEmittersFromSequencerDataChange;

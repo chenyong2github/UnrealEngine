@@ -1,15 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/Map.h"
 
 namespace Trace
 {
 	class IAnalysisSession;
-	class ICounter;
+	class IEditableCounter;
 	class ICounterProvider;
 }
 
@@ -31,5 +30,5 @@ private:
 
 	Trace::IAnalysisSession& Session;
 	Trace::ICounterProvider& CounterProvider;
-	TMap<uint16, Trace::ICounter*> CountersMap;
+	TMap<uint16, Trace::IEditableCounter*> CountersMap;
 };

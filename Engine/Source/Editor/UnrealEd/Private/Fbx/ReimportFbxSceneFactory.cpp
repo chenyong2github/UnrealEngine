@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/ReimportFbxSceneFactory.h"
 #include "Misc/Paths.h"
@@ -787,7 +787,7 @@ void UReimportFbxSceneFactory::RecursivelySetComponentProperties(USCS_Node* Curr
 	FString ReduceNodeName = NodeName;
 	if (NameContainTemplateSuffixe)
 	{
-		ReduceNodeName = ReduceNodeName.Left(IndexTemplateSuffixe);
+		ReduceNodeName.LeftInline(IndexTemplateSuffixe, false);
 	}
 
 	USceneComponent *CurrentNodeSceneComponent = Cast<USceneComponent>(CurrentNodeActorComponent);

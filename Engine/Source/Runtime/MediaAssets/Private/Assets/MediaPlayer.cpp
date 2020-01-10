@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaPlayer.h"
 #include "MediaAssetsPrivate.h"
@@ -53,7 +53,7 @@ UMediaPlayer::UMediaPlayer(const FObjectInitializer& ObjectInitializer)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		PlayerFacade = MakeShared<FMediaPlayerFacade, ESPMode::ThreadSafe>();
+		PlayerFacade = MakeShareable(new FMediaPlayerFacade());
 		PlayerFacade->OnMediaEvent().AddUObject(this, &UMediaPlayer::HandlePlayerMediaEvent);
 		Playlist = NewObject<UMediaPlaylist>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
 	}
@@ -533,6 +533,18 @@ bool UMediaPlayer::Play()
 	return PlayerFacade->SetRate(1.0f);
 }
 
+void UMediaPlayer::PlayAndSeek()
+{
+	PlayOnNext = false;
+	if (Play())
+	{
+		if (PlayerFacade->ActivePlayerOptions.IsSet() && !PlayerFacade->ActivePlayerOptions->SeekTime.IsZero() && SupportsSeeking())
+		{
+			Seek(PlayerFacade->ActivePlayerOptions->SeekTime);
+		}
+	}
+}
+
 
 bool UMediaPlayer::Previous()
 {
@@ -804,8 +816,8 @@ void UMediaPlayer::RegisterWithMediaModule()
 
 	if (MediaModule != nullptr)
 	{
+		// Make sure the PlayerFacade instance gets regular tick calls from various spots in the gameloop
 		MediaModule->GetClock().AddSink(PlayerFacade.ToSharedRef());
-		MediaModule->GetTicker().AddTickable(PlayerFacade.ToSharedRef());
 		RegisteredWithMediaModule = true;
 	}
 	else
@@ -891,14 +903,7 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 
 		if (bPlayOnOpen)
 		{
-			PlayOnNext = false;
-			if (Play())
-			{
-				if (PlayerFacade->ActivePlayerOptions.IsSet() && !PlayerFacade->ActivePlayerOptions->SeekTime.IsZero() && SupportsSeeking())
-				{
-					Seek(PlayerFacade->ActivePlayerOptions->SeekTime);
-				}
-			}
+			PlayAndSeek();
 		}
 		break;
 

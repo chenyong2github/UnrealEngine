@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/BuildVersion.h"
 #include "Misc/FileHelper.h"
@@ -29,7 +29,7 @@ FString FBuildVersion::GetFileNameForCurrentExecutable()
 #if PLATFORM_WINDOWS || PLATFORM_MAC
 	if(AppExecutableName.EndsWith(TEXT("-Cmd")))
 	{
-		AppExecutableName = AppExecutableName.Left(AppExecutableName.Len() - 4);
+		AppExecutableName.LeftInline(AppExecutableName.Len() - 4, false);
 	}
 #endif
 #if UE_BUILD_DEVELOPMENT
@@ -43,7 +43,7 @@ FString FBuildVersion::GetFileNameForCurrentExecutable()
 			{
 				break;
 			}
-			AppExecutableName = AppExecutableName.Left(EndIdx);
+			AppExecutableName.LeftInline(EndIdx, false);
 		}
 	}
 #endif

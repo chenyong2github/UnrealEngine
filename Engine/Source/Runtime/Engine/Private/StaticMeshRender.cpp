@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	StaticMeshRender.cpp: Static mesh rendering code.
@@ -317,8 +317,6 @@ FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 		Geometry.ReleaseResource();
 	}
 #endif
-
-	RemoveSpeedTreeWind();
 }
 
 void FStaticMeshSceneProxy::AddSpeedTreeWind()
@@ -572,6 +570,14 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 		}
 	}
 #endif
+}
+
+void FStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	FPrimitiveSceneProxy::DestroyRenderThreadResources();
+
+	// Call here because it uses RenderData from the StaticMesh which is not guaranteed to still be valid after this DestroyRenderThreadResources call
+	RemoveSpeedTreeWind();
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -1570,8 +1576,12 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		
 		RayTracingInstance.BuildInstanceMaskAndFlags();
 
-		check(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
-		OutRayTracingInstances.Add(RayTracingInstance);
+		//#dxr_todo: verify why this condition is not fulfilled sometimes
+		verify(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
+		if (RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num())
+		{
+			OutRayTracingInstances.Add(RayTracingInstance);
+		}
 	}
 }
 #endif
@@ -1724,7 +1734,7 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		LocalVolumeBounds = DistanceFieldData->LocalBoundingBox;
 		OutDistanceMinMax = DistanceFieldData->DistanceMinMax;
 		OutBlockMin = DistanceFieldData->VolumeTexture.GetAllocationMin();
-		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSize();
+		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSizeInAtlas();
 		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
 		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
 		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());

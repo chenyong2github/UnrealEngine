@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -616,8 +616,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY(meta = (SystemGameplayAttribute = "true"))
 	float IncomingDuration;
 
-	static UProperty* GetOutgoingDurationProperty();
-	static UProperty* GetIncomingDurationProperty();
+	static FProperty* GetOutgoingDurationProperty();
+	static FProperty* GetIncomingDurationProperty();
 
 	static const FGameplayEffectAttributeCaptureDefinition& GetOutgoingDurationCapture();
 	static const FGameplayEffectAttributeCaptureDefinition& GetIncomingDurationCapture();

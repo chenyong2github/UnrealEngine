@@ -1,11 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/RigidParticles.h"
 #include "Chaos/Rotation.h"
 
-#if !PLATFORM_PS4
+#if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable:4946)
 #endif
@@ -28,7 +28,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	CHAOS_API TPBDRigidParticles()
 	    : TRigidParticles<T, d>()
 	{
-		this->MParticleType = EParticleType::Dynamic;
+		this->MParticleType = EParticleType::Rigid;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -42,7 +42,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		, MPreV(MoveTemp(Other.MPreV))
 		, MPreW(MoveTemp(Other.MPreW))
 	{
-		this->MParticleType = EParticleType::Dynamic;
+		this->MParticleType = EParticleType::Rigid;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -79,15 +79,23 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 			PreW(Index) = this->W(Index);
 		}
 
-		if (Sleeping(Index) != bSleeping)
+		bool CurrentlySleeping = this->ObjectState(Index) == EObjectStateType::Sleeping;
+		if (CurrentlySleeping != bSleeping)
 		{
 			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
-			this->AddSleepData(Particle);
+			this->AddSleepData(Particle, bSleeping);
 		}
 
+		// Dynamic -> Sleeping or Sleeping -> Dynamic
 		if (this->ObjectState(Index) == EObjectStateType::Dynamic || this->ObjectState(Index) == EObjectStateType::Sleeping)
 		{
 			this->ObjectState(Index) = bSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic;
+		}
+
+		// Possible for code to set a Dynamic to Kinematic State then to Sleeping State
+		if (this->ObjectState(Index) == EObjectStateType::Kinematic && bSleeping)
+		{
+			this->ObjectState(Index) =  EObjectStateType::Sleeping;
 		}
 
 		if (bSleeping)
@@ -125,6 +133,9 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 				1.f / this->I(Index).M[0][0], 0.f, 0.f,
 				0.f, 1.f / this->I(Index).M[1][1], 0.f,
 				0.f, 0.f, 1.f / this->I(Index).M[2][2]);
+
+			this->P(Index) = this->X(Index);
+			this->Q(Index) = this->R(Index);
 		}
 		else if (InObjectState == EObjectStateType::Sleeping)
 		{
@@ -137,7 +148,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		if(bCurrentSleeping != bNewSleeping)
 		{
 			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
-			this->AddSleepData(Particle);
+ 			this->AddSleepData(Particle, bNewSleeping);
 		}
 
 		this->ObjectState(Index) = InObjectState;
@@ -151,6 +162,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosParticles);
 		TRigidParticles<T, d>::Serialize(Ar);
 		Ar << MP << MQ << MPreV << MPreW;
 	}
@@ -162,7 +174,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	TArrayCollectionArray<TVector<T, d>> MPreW;
 };
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API TPBDRigidParticles<float,3>;
+#else
 extern template class TPBDRigidParticles<float,3>;
+#endif
 
 template <typename T, int d>
 FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles)
@@ -172,6 +188,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles
 }
 }
 
-#if !PLATFORM_PS4
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

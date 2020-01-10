@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,14 +11,16 @@
 /**
  * TBB 64-bit scalable memory allocator.
  */
-class FMallocTBB
+class FMallocTBB final
 	: public FMalloc
 {
 public:
 	// FMalloc interface.
 	
-	virtual void* Malloc( SIZE_T Size, uint32 Alignment ) override;
-	virtual void* Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment ) override;
+	virtual void* Malloc(SIZE_T Size, uint32 Alignment) override;
+	virtual void* TryMalloc(SIZE_T Size, uint32 Alignment) override;
+	virtual void* Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) override;
+	virtual void* TryRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) override;
 	virtual void Free( void* Ptr ) override;
 	virtual bool GetAllocationSize( void *Original, SIZE_T &SizeOut ) override;
 	virtual void Trim(bool bTrimThreadCaches) override;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -359,13 +359,13 @@ namespace UnrealBuildTool
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileChaos = false;
+		public bool bCompileChaos = true;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bUseChaos = false;
+		public bool bUseChaos = true;
 
 		/// <summary>
 		/// Whether to compile in checked chaos features for debugging
@@ -417,6 +417,12 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileCEF3")]
 		public bool bCompileCEF3 = true;
+
+		/// <summary>
+		/// Whether to compile using ISPC.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileISPC = false;
 
 		/// <summary>
 		/// Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
@@ -1942,6 +1948,11 @@ namespace UnrealBuildTool
 		public bool bCompileCEF3
 		{
 			get { return Inner.bCompileCEF3; }
+		}
+
+		public bool bCompileISPC
+		{
+			get { return Inner.bCompileISPC; }
 		}
 
 		public bool bBuildEditor

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
 {
-	class AndroidToolChain : UEToolChain, IAndroidToolChain
+	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
 	{
 		// Android NDK toolchain that must be used for C++ compiling
 		readonly int MinimumNDKToolchain = 140100;
@@ -82,8 +82,8 @@ namespace UnrealBuildTool
 		static private Dictionary<string, string[]> ModulesToSkip = new Dictionary<string, string[]> {
 			{ "-armv7", new string[] {  } },
 			{ "-arm64", new string[] {  } },
-			{ "-x86",   new string[] { "OnlineSubsystemOculus", "OculusHMD" } },
-			{ "-x64",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OnlineSubsystemGooglePlay" } },
+			{ "-x86",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR" } },
+			{ "-x64",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR", "OnlineSubsystemGooglePlay" } },
 		};
 
 		static private Dictionary<string, string[]> GeneratedModulesToSkip = new Dictionary<string, string[]> {
@@ -1250,9 +1250,29 @@ namespace UnrealBuildTool
 			}
 			*/
 
+			// NDK setup (use no less than 21 for 64-bit targets)
+			int NDKApiLevel32Int = GetNdkApiLevelInt();
+			int NDKApiLevel64Int = NDKApiLevel32Int;
+			string NDKApiLevel32Bit = GetNdkApiLevel();
+			string NDKApiLevel64Bit = NDKApiLevel32Bit;
+			if (NDKApiLevel64Int < 21)
+			{
+				NDKApiLevel64Int = 21;
+				NDKApiLevel64Bit = "android-21";
+			}
+
 			if (!bHasPrintedApiLevel)
 			{
-				Log.TraceInformation("Compiling Native code with NDK API '{0}'", GetNdkApiLevel());
+				bool Has32Bit = Arches.Contains("-armv7") || Arches.Contains("-x86");
+				bool Has64Bit = Arches.Contains("-arm64") || Arches.Contains("-x64");
+				if (Has32Bit)
+				{
+					Log.TraceInformation("Compiling Native 32-bit code with NDK API '{0}'", NDKApiLevel32Bit);
+				}
+				if (Has64Bit)
+				{
+					Log.TraceInformation("Compiling Native 64-bit code with NDK API '{0}'", NDKApiLevel64Bit);
+				}
 				bHasPrintedApiLevel = true;
 			}
 
@@ -1309,16 +1329,28 @@ namespace UnrealBuildTool
 
 					switch (Arch)
 					{
-						case "-armv7": Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_ARM=1"; break;
-						case "-arm64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_ARM64=1"; break;
-						case "-x86": Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_X86=1"; break;
-						case "-x64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_X64=1"; break;
-						default: Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_ARM=1"; break;
+						case "-armv7": Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_ARM=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel32Int.ToString(); break;
+						case "-arm64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_ARM64=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel64Int.ToString(); break;
+						case "-x86": Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_X86=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel32Int.ToString(); break;
+						case "-x64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_X64=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel64Int.ToString(); break;
+						default: Arguments += " -DPLATFORM_64BITS=0 -DPLATFORM_ANDROID_ARM=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel32Int.ToString(); break;
 					}
 
 					if (Arch == "-arm64" || (Arch == "-armv7" && bUseNEONForArmV7))
 					{
 						Arguments += " -DPLATFORM_ENABLE_VECTORINTRINSICS_NEON=1";
+					}
+
+					if(CompileEnvironment.bCompileISPC)
+					{
+						if (Arch == "-armv7" && !bUseNEONForArmV7)
+						{
+							Arguments += " -DINTEL_ISPC=0";
+						}
+						else
+						{
+							Arguments += " -DINTEL_ISPC=1";
+						}
 					}
 
 					Arguments += " -DPLATFORM_ANDROIDGL4=" + ((GPUArchitecture == "-gl4") ? "1" : "0");
@@ -1355,6 +1387,7 @@ namespace UnrealBuildTool
 					{
 						Action CompileAction = new Action(ActionType.Compile);
 						CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+						CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 						string FileArguments = "";
 						bool bIsPlainCFile = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant() == ".C";
@@ -1544,6 +1577,376 @@ namespace UnrealBuildTool
 				}
 			}
 			return Pathname;
+		}
+
+		static public DirectoryReference InlineArchIncludeFolder(DirectoryReference PathRef, string Arch, string GPUArchitecture)
+		{
+			return DirectoryReference.Combine(PathRef, "include", Arch.Replace("-", "") + GPUArchitecture);
+		}
+
+		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		{
+			if (Arches.Count == 0)
+			{
+				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
+			}
+
+			CPPOutput Result = new CPPOutput();
+
+			if (!CompileEnvironment.bCompileISPC)
+			{
+				return Result;
+			}
+
+			foreach (string Arch in Arches)
+			{
+				foreach (string GPUArchitecture in GPUArchitectures)
+				{
+					if(Arch == "-armv7" && !bUseNEONForArmV7)
+					{
+						continue;
+					}
+
+					List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, Arch);
+
+					CompileEnvironment.UserIncludePaths.Add(InlineArchIncludeFolder(OutputDir, Arch, GPUArchitecture));
+
+					foreach (FileItem ISPCFile in InputFiles)
+					{
+						Action CompileAction = new Action(ActionType.Compile);
+						CompileAction.CommandDescription = "Compile";
+						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+						CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
+						CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+
+						// Disable remote execution to workaround mismatched case on XGE
+						CompileAction.bCanExecuteRemotely = false;
+
+						List<string> Arguments = new List<string>();
+
+						// Add the ISPC obj file as a prerequisite of the action.
+						Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+						// Add the ISPC h file to the produced item list.
+						FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
+							FileReference.Combine(
+								InlineArchIncludeFolder(OutputDir, Arch, GPUArchitecture),
+								Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.dummy.h"
+								)
+							);
+
+						// Add the ISPC file to be compiled.
+						Arguments.Add(String.Format("-h \"{0}\"", ISPCIncludeHeaderFile));
+
+						// Build target string. No comma on last
+						string TargetString = "";
+						foreach (string Target in CompileTargets)
+						{
+							if (Target == CompileTargets.Last())
+							{
+								TargetString += Target;
+							}
+							else
+							{
+								TargetString += Target + ",";
+							}
+						}
+
+						// Build target triplet
+						Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
+						Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, Arch)));
+						Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
+
+						Arguments.Add("--pic");
+
+						// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
+						foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+						{
+							Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
+						}
+
+						// System include paths.
+						foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
+						{
+							Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+						}
+
+						// Generate the included header dependency list
+						if (CompileEnvironment.bGenerateDependenciesFile)
+						{
+							FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, GPUArchitecture, true)));
+							Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
+							CompileAction.DependencyListFile = DependencyListFile;
+							CompileAction.ProducedItems.Add(DependencyListFile);
+						}
+
+						CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
+
+						CompileAction.CommandArguments = String.Join(" ", Arguments);
+
+						// Add the source file and its included files to the prerequisite item list.
+						CompileAction.PrerequisiteItems.Add(ISPCFile);
+						CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
+
+						Actions.Add(CompileAction);
+
+						FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
+							FileReference.Combine(
+								InlineArchIncludeFolder(OutputDir, Arch, GPUArchitecture),
+								Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.h"
+								)
+							);
+
+						// Fix interrupted build issue by copying header after generation completes
+						FileReference SourceFile = ISPCIncludeHeaderFile.Location;
+						FileReference TargetFile = ISPCFinalHeaderFile.Location;
+
+						FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
+						FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
+
+						Action CopyAction = new Action(ActionType.BuildProject);
+						CopyAction.CommandDescription = "Copy";
+						CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
+						if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
+						{
+							CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
+						}
+						else
+						{
+							CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
+						}
+						CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+						CopyAction.PrerequisiteItems.Add(SourceFileItem);
+						CopyAction.ProducedItems.Add(TargetFileItem);
+						CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
+						CopyAction.bCanExecuteRemotely = false;
+						CopyAction.bShouldOutputStatusDescription = false;
+						Actions.Add(CopyAction);
+
+						Result.GeneratedHeaderFiles.Add(TargetFileItem);
+
+						Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+					}
+				}
+			}
+
+			return Result;
+		}
+		
+		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		{
+			if (Arches.Count == 0)
+			{
+				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
+			}
+
+			CPPOutput Result = new CPPOutput();
+
+			if (!CompileEnvironment.bCompileISPC)
+			{
+				return Result;
+			}
+
+			foreach (string Arch in Arches)
+			{
+				foreach (string GPUArchitecture in GPUArchitectures)
+				{
+					if (Arch == "-armv7" && !bUseNEONForArmV7)
+					{
+						continue;
+					}
+
+					List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, Arch);
+
+					foreach (FileItem ISPCFile in InputFiles)
+					{
+						Action CompileAction = new Action(ActionType.Compile);
+						CompileAction.CommandDescription = "Compile";
+						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+						CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
+						CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+
+						// Disable remote execution to workaround mismatched case on XGE
+						CompileAction.bCanExecuteRemotely = false;
+
+						List<string> Arguments = new List<string>();
+
+						// Add the ISPC file to be compiled.
+						Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+						List<FileItem> CompiledISPCObjFiles = new List<FileItem>();
+						List<FileItem> FinalISPCObjFiles = new List<FileItem>();
+						string TargetString = "";
+
+						foreach (string Target in CompileTargets)
+						{
+							string ObjTarget = Target;
+
+							if (Target.Contains("-"))
+							{
+								// Remove lane width and gang size from obj file name
+								ObjTarget = Target.Split('-')[0];
+							}
+
+							FileItem CompiledISPCObjFile;
+							FileItem FinalISPCObjFile;
+
+							if (CompileTargets.Count > 1)
+							{
+								CompiledISPCObjFile = FileItem.GetItemByFileReference(
+								FileReference.Combine(
+									OutputDir,
+									Path.GetFileNameWithoutExtension(InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, GPUArchitecture, true)) + "_" + ObjTarget + ".o"
+									)
+								);
+
+								FinalISPCObjFile = FileItem.GetItemByFileReference(
+								FileReference.Combine(
+									OutputDir,
+									Path.GetFileName(ISPCFile.AbsolutePath) + "_" + ObjTarget + InlineArchName(".o", Arch, GPUArchitecture, true)
+									)
+								);
+							}
+							else
+							{
+								CompiledISPCObjFile = FileItem.GetItemByFileReference(
+									FileReference.Combine(
+										OutputDir,
+										InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, GPUArchitecture, true)
+										)
+									);
+
+								FinalISPCObjFile = CompiledISPCObjFile;
+							}
+
+							// Add the ISA specific ISPC obj files to the produced item list.
+							CompiledISPCObjFiles.Add(CompiledISPCObjFile);
+							FinalISPCObjFiles.Add(FinalISPCObjFile);
+
+							// Build target string. No comma on last
+							if (Target == CompileTargets.Last())
+							{
+								TargetString += Target;
+							}
+							else
+							{
+								TargetString += Target + ",";
+							}
+						}
+
+						// Add the common ISPC obj file to the produced item list.
+						FileItem CompiledISPCObjFileNoISA = FileItem.GetItemByFileReference(
+							FileReference.Combine(
+								OutputDir,
+								InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, GPUArchitecture, true)
+								)
+							);
+
+						CompiledISPCObjFiles.Add(CompiledISPCObjFileNoISA);
+						FinalISPCObjFiles.Add(CompiledISPCObjFileNoISA);
+
+						// Add the output ISPC obj file
+						Arguments.Add(String.Format("-o \"{0}\"", CompiledISPCObjFileNoISA));
+
+						// Build target triplet
+						Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
+						Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, Arch)));
+						Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
+
+						if (CompileEnvironment.Configuration == CppConfiguration.Debug)
+						{
+							Arguments.Add("-g -O0");
+						}
+						else
+						{
+							Arguments.Add("-O2");
+						}
+
+						Arguments.Add("--pic");
+
+						// Add include paths to the argument list (filtered by architecture)
+						foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
+						{
+							if (IsDirectoryForArch(IncludePath.FullName, Arch))
+							{
+								Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
+							}
+						}
+						foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+						{
+							if (IsDirectoryForArch(IncludePath.FullName, Arch))
+							{
+								Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
+							}
+						}
+
+						// Preprocessor definitions.
+						foreach (string Definition in CompileEnvironment.Definitions)
+						{
+							Arguments.Add(String.Format("-D\"{0}\"", Definition));
+						}
+
+						// Consume the included header dependency list
+						if (CompileEnvironment.bGenerateDependenciesFile)
+						{
+							FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, GPUArchitecture, true)));
+							CompileAction.DependencyListFile = DependencyListFile;
+							CompileAction.PrerequisiteItems.Add(DependencyListFile);
+						}
+
+						CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
+
+						CompileAction.CommandArguments = String.Join(" ", Arguments);
+
+						// Add the source file and its included files to the prerequisite item list.
+						CompileAction.PrerequisiteItems.Add(ISPCFile);
+						CompileAction.StatusDescription = string.Format("{0} [{1}-{2}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""), GPUArchitecture.Replace("-", ""));
+
+						Actions.Add(CompileAction);
+
+						for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
+						{
+							// ISPC compiler can't add suffix on the end of the arch, so copy to put into what linker expects
+							FileReference SourceFile = CompiledISPCObjFiles[i].Location;
+							FileReference TargetFile = FinalISPCObjFiles[i].Location;
+
+							if (SourceFile.Equals(TargetFile))
+							{
+								continue;
+							}
+
+							FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
+							FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
+
+							Action CopyAction = new Action(ActionType.BuildProject);
+							CopyAction.CommandDescription = "Copy";
+							CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
+							if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
+							{
+								CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
+							}
+							else
+							{
+								CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
+							}
+							CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+							CopyAction.PrerequisiteItems.Add(SourceFileItem);
+							CopyAction.ProducedItems.Add(TargetFileItem);
+							CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
+							CopyAction.bCanExecuteRemotely = false;
+							CopyAction.bShouldOutputStatusDescription = false;
+
+							Actions.Add(CopyAction);
+						}
+
+						Result.ObjectFiles.AddRange(FinalISPCObjFiles);
+
+						Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+					}
+				}
+			}
+
+			return Result;
 		}
 
 		public override FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)

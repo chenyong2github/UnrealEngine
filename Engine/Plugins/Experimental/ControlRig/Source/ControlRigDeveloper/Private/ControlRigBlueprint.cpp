@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
@@ -412,7 +412,7 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 
 					if (Node->IsParameter())
 					{
-						UProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
+						FProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
 						if (Property != nullptr)
 						{
 							EControlRigModelParameterType WasParameterType = EControlRigModelParameterType::Hidden;
@@ -715,6 +715,7 @@ void UControlRigBlueprint::PropagateHierarchyFromBPToInstances(bool bInitialize)
 			}
 
 			DefaultObject->Hierarchy = HierarchyContainer;
+			DefaultObject->Initialize(true);
 
 			TArray<UObject*> ArchetypeInstances;
 			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
@@ -723,6 +724,7 @@ void UControlRigBlueprint::PropagateHierarchyFromBPToInstances(bool bInitialize)
 				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 				{
 					InstanceRig->Hierarchy = HierarchyContainer;
+					InstanceRig->Initialize(true);
 				}
 			}
 		}

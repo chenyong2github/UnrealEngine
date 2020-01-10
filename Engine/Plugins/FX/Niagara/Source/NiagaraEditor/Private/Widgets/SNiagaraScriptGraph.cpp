@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraScriptGraph.h"
 #include "NiagaraScriptGraphViewModel.h"
@@ -155,6 +155,43 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 	Commands->MapAction(
 		FGraphEditorCommands::Get().CreateComment,
 		FExecuteAction::CreateRaw(this, &SNiagaraScriptGraph::OnCreateComment));
+	// Alignment Commands
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignTop)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignMiddle)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignBottom)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesLeft,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignLeft)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesCenter,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignCenter)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesRight,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnAlignRight)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnStraightenConnections)
+	);
+
+	// Distribution Commands
+	Commands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnDistributeNodesH)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+		FExecuteAction::CreateSP(this, &SNiagaraScriptGraph::OnDistributeNodesV)
+	);
 	
 	TSharedRef<SGraphEditor> CreatedGraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(Commands.ToSharedRef())
@@ -500,6 +537,80 @@ FReply SNiagaraScriptGraph::HandleGraphSearchBoxKeyDown(const FGeometry& MyGeome
 	}
 	return FReply::Unhandled();
 }
+
+
+void SNiagaraScriptGraph::OnAlignTop()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignTop();
+	}
+}
+
+void SNiagaraScriptGraph::OnAlignMiddle()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignMiddle();
+	}
+}
+
+void SNiagaraScriptGraph::OnAlignBottom()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignBottom();
+	}
+}
+
+void SNiagaraScriptGraph::OnAlignLeft()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignLeft();
+	}
+}
+
+void SNiagaraScriptGraph::OnAlignCenter()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignCenter();
+	}
+}
+
+void SNiagaraScriptGraph::OnAlignRight()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignRight();
+	}
+}
+
+void SNiagaraScriptGraph::OnStraightenConnections()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnStraightenConnections();
+	}
+}
+
+void SNiagaraScriptGraph::OnDistributeNodesH()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnDistributeNodesH();
+	}
+}
+
+void SNiagaraScriptGraph::OnDistributeNodesV()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnDistributeNodesV();
+	}
+}
+
 
 void SNiagaraScriptGraph::FocusGraphSearchBox()
 {

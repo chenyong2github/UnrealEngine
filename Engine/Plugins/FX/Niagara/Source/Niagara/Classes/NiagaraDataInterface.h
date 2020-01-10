@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Niagara/Public/NiagaraCommon.h"
@@ -185,28 +185,6 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
 };
 
-struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
-{
-	~FNiagaraDataInterfaceProxyCurveBase()
-	{
-		check(IsInRenderingThread());
-		CurveLUT.Release();
-	}
-
-	float LUTMinTime;
-	float LUTMaxTime;
-	float LUTInvTimeRange;
-	FReadBuffer CurveLUT;
-
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}
-
-	// @todo REMOVEME
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
-};
-
 //////////////////////////////////////////////////////////////////////////
 
 /** Base class for all Niagara data interfaces. */
@@ -284,6 +262,8 @@ public:
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const { return false; }
 
 	virtual bool RequiresDistanceFieldData() const { return false; }
+	virtual bool RequiresDepthBuffer() const { return false; }
+	virtual bool RequiresEarlyViewData() const { return false; }
 
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const { return NiagaraFirstTickGroup; }
@@ -334,141 +314,6 @@ protected:
 
 	TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy;
 };
-
-/** Base class for curve data interfaces which facilitates handling the curve data in a standardized way. */
-UCLASS(EditInlineNew, Category = "Curves", meta = (DisplayName = "Float Curve"))
-class NIAGARA_API UNiagaraDataInterfaceCurveBase : public UNiagaraDataInterface
-{
-protected:
-	GENERATED_BODY()
-	/*UPROPERTY()
-	bool GPUBufferDirty;*/
-	UPROPERTY()
-	TArray<float> ShaderLUT;
-	UPROPERTY()
-	float LUTMinTime;
-	UPROPERTY()
-	float LUTMaxTime;
-	UPROPERTY()
-	float LUTInvTimeRange;
-
-	/** Remap a sample time for this curve to 0 to 1 between first and last keys for LUT access.*/
-	FORCEINLINE float NormalizeTime(float T)
-	{
-		return (T - LUTMinTime) * LUTInvTimeRange;
-	}
-
-	/** Remap a 0 to 1 value between the first and last keys to a real sample time for this curve. */
-	FORCEINLINE float UnnormalizeTime(float T)
-	{
-		return (T / LUTInvTimeRange) + LUTMinTime;
-	}
-
-public:
-	UNiagaraDataInterfaceCurveBase()
-		: LUTMinTime(0.0f)
-		, LUTMaxTime(1.0f)
-		, LUTInvTimeRange(1.0f)
-		, bUseLUT(true)
-#if WITH_EDITORONLY_DATA
-		, ShowInCurveEditor(false)
-#endif
-	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
-	}
-
-	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer)
-		: LUTMinTime(0.0f)
-		, LUTMaxTime(1.0f)
-		, LUTInvTimeRange(1.0f)
-		, bUseLUT(true)
-#if WITH_EDITORONLY_DATA
-		, ShowInCurveEditor(false)
-#endif
-	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
-	}
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
-	uint32 bUseLUT : 1;
-	
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Transient, Category = "Curve")
-	bool ShowInCurveEditor;
-#endif
-
-	enum
-	{
-		CurveLUTWidth = 128,
-		CurveLUTWidthMinusOne = 127,
-	};
-	/** Structure to facilitate getting standardized curve information from a curve data interface. */
-	struct FCurveData
-	{
-		FCurveData(FRichCurve* InCurve, FName InName, FLinearColor InColor)
-			: Curve(InCurve)
-			, Name(InName)
-			, Color(InColor)
-		{
-		}
-		/** A pointer to the curve. */
-		FRichCurve* Curve;
-		/** The name of the curve, unique within the data interface, which identifies the curve in the UI. */
-		FName Name;
-		/** The color to use when displaying this curve in the UI. */
-		FLinearColor Color;
-	};
-
-	/** Gets information for all of the curves owned by this curve data interface. */
-	virtual void GetCurveData(TArray<FCurveData>& OutCurveData) { }
-
-	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters()const override;
-
-	virtual int32 GetCurveNumElems()const 
-	{
-		checkf(false, TEXT("You must implement this function so the GPU buffer can be created of the correct size."));
-		return 0; 
-	}
-
-	//TODO: Make this a texture and get HW filter + clamping?
-	//FReadBuffer& GetCurveLUTGPUBuffer();
-
-	//UNiagaraDataInterface interface
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
-	virtual void UpdateLUT() { };
-
-	FORCEINLINE float GetMinTime()const { return LUTMinTime; }
-	FORCEINLINE float GetMaxTime()const { return LUTMaxTime; }
-	FORCEINLINE float GetInvTimeRange()const { return LUTInvTimeRange; }
-
-protected:
-	void PushToRenderThread();
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	virtual bool CompareLUTS(const TArray<float>& OtherLUT) const;
-	//UNiagaraDataInterface interface END
-};
-
-//External function binder choosing between template specializations based on if a curve should use the LUT over full evaluation.
-template<typename NextBinder>
-struct TCurveUseLUTBinder
-{
-	template<typename... ParamTypes>
-	static void Bind(UNiagaraDataInterface* Interface, const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
-	{
-		UNiagaraDataInterfaceCurveBase* CurveInterface = CastChecked<UNiagaraDataInterfaceCurveBase>(Interface);
-		if (CurveInterface->bUseLUT)
-		{
-			NextBinder::template Bind<ParamTypes..., TIntegralConstant<bool, true>>(Interface, BindingInfo, InstanceData, OutFunc);
-		}
-		else
-		{
-			NextBinder::template Bind<ParamTypes..., TIntegralConstant<bool, false>>(Interface, BindingInfo, InstanceData, OutFunc);
-		}
-	}
-};
-
 
 /** Helper class for decoding NDI parameters into a usable struct type. */
 template<typename T>

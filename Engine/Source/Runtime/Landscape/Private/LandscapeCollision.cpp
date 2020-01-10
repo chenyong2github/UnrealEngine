@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
@@ -53,6 +53,7 @@
 #include "PhysXToChaosUtil.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
+#include "Chaos/Core.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -82,7 +83,7 @@ ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef::FHeightfieldGe
 
 ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef::~FHeightfieldGeometryRef()
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// Free the existing heightfield data.
 	if (RBHeightfield)
 	{
@@ -106,7 +107,7 @@ TMap<FGuid, ULandscapeMeshCollisionComponent::FPhysXMeshRef* > GSharedMeshRefs;
 
 ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// Free the existing heightfield data.
 	if (RBTriangleMesh)
 	{
@@ -128,7 +129,7 @@ ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 }
 
 // Generate a new guid to force a recache of landscape collison derived data
-#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("1ECE4BBBBC7146DA8C6ADAD75BA52C77")
+#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("2265A519785B402D90EF2E726E6D8759")
 
 static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const FGuid& StateId, const TArray<UPhysicalMaterial*>& PhysicalMaterials)
 {
@@ -287,9 +288,10 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 			// Create the geometry
 			FVector FinalScale(LandscapeScale.X * CollisionScale, LandscapeScale.Y * CollisionScale, LandscapeScale.Z * LANDSCAPE_ZSCALE);
-			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfield, PxMeshGeometryFlag::eDOUBLE_SIDED, LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
 
 #if PHYSICS_INTERFACE_PHYSX
+			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfield, PxMeshGeometryFlag::eDOUBLE_SIDED, LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
+
 			if (LandscapeComponentGeom.isValid())
 			{
 				// Creating both a sync and async actor, since this object is static
@@ -481,8 +483,17 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				}
 				else
 				{
-					PhysHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+					PhysHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 				}
+
+				// Construct Shape Bounds
+				for (auto& Shape : ShapeArray)
+				{
+					Chaos::FRigidTransform3 WorldTransform = Chaos::FRigidTransform3(PhysHandle->X(), PhysHandle->R());
+					Shape->UpdateShapeBounds(WorldTransform);
+				}
+
+
 
 				PhysHandle->SetShapesArray(MoveTemp(ShapeArray));
 
@@ -498,16 +509,10 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 				TArray<FPhysicsActorHandle> Actors;
 				Actors.Add(PhysHandle);
-				PhysScene->AddActorsToScene_AssumesLocked(Actors);
 
-#if WITH_EDITOR
-				// If we're in an editor world we will never simulate but we require up to date SQ for the tools
-				// #BGTODO consider a more automatic way to have scenes update when they aren't simulating to avoid this explicit flush
-				if(!GetWorld()->IsGameWorld())
-				{
-					PhysScene->Flush_AssumesLocked();
-				}
-#endif
+				bool bImmediateAccelStructureInsertion = true;
+				PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
+
 			}
 #endif // WITH_CHAOS
 		}
@@ -543,6 +548,9 @@ void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& In
 
 void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
+#if WITH_CHAOS
+	LLM_SCOPE(ELLMTag::ChaosLandscape);
+#endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))
 	{
@@ -643,9 +651,14 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 				for(UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 					//todo: total hack until we get landscape fully converted to chaos
-					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1, 1, 1));
-
 					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
+				}
+
+				// Release cooked collison data
+				// In cooked builds created collision object will never be deleted while component is alive, so we don't need this data anymore
+				if(FPlatformProperties::RequiresCookedData() || World->IsGameWorld())
+				{
+					CookedCollisionData.Empty();
 				}
 
 #if WITH_EDITOR
@@ -698,7 +711,10 @@ void ULandscapeHeightfieldCollisionComponent::SpeculativelyLoadAsyncDDCCollsionD
 TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(const ULandscapeHeightfieldCollisionComponent* const Component, const int32 CollisionSizeVerts, const bool bIsMirrored, const uint16* Heights, const bool bUseDefMaterial, const uint8* DominantLayers, UPhysicalMaterial* const DefMaterial, TArray<UPhysicalMaterial*> &InOutMaterials)
 {
 	const int32 NumSamples = FMath::Square(CollisionSizeVerts);
-
+	check(DefMaterial);
+	// Might return INDEX_NONE if DefMaterial wasn't added yet
+	int32 DefaultMaterialIndex = InOutMaterials.IndexOfByKey(DefMaterial);
+	
 	TArray<PxHeightFieldSample> Samples;
 	Samples.Reserve(NumSamples);
 	Samples.AddZeroed(NumSamples);
@@ -717,7 +733,7 @@ TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(const ULandscapeHeigh
 			if (RowIndex < CollisionSizeVerts - 1 &&
 				ColIndex < CollisionSizeVerts - 1)
 			{
-				int32 MaterialIndex = 0; // Default physical material.
+				int32 MaterialIndex = DefaultMaterialIndex; // Default physical material.
 				if (!bUseDefMaterial && DominantLayers)
 				{
 					uint8 DominantLayerIdx = DominantLayers[SrcSampleIndex];
@@ -729,12 +745,21 @@ TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(const ULandscapeHeigh
 							// If it's a hole, override with the hole flag.
 							MaterialIndex = PxHeightFieldMaterial::eHOLE;
 						}
+						else if (Layer && Layer->PhysMaterial)
+						{
+							MaterialIndex = InOutMaterials.AddUnique(Layer->PhysMaterial);
+						}
 						else
 						{
-							UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? Layer->PhysMaterial : DefMaterial;
-							MaterialIndex = InOutMaterials.AddUnique(DominantMaterial);
+							MaterialIndex = DefaultMaterialIndex;
 						}
 					}
+				}
+
+				// Default Material but Def Material wasn't added yet...
+				if (MaterialIndex == INDEX_NONE)
+				{
+					MaterialIndex = DefaultMaterialIndex = InOutMaterials.Add(DefMaterial);
 				}
 
 				Sample.materialIndex0 = MaterialIndex;
@@ -833,7 +858,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// List of materials which is actually used by heightfield
 	InOutMaterials.Empty();
-
+		
 	TArray<PxHeightFieldSample> Samples;
 	TArray<PxHeightFieldSample> SimpleSamples;
 	Samples = ConvertHeightfieldDataForPhysx(this, CollisionSizeVerts, bIsMirrored, Heights, bUseDefMaterial, DominantLayers, DefMaterial, InOutMaterials);
@@ -848,13 +873,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	{
 		DominantLayerData.Unlock();
 	}
-
-	// Add the default physical material to be used used when we have no dominant data.
-	if (InOutMaterials.Num() == 0)
-	{
-		InOutMaterials.Add(DefMaterial);
-	}
-
+	
 	//
 	FIntPoint HFSize = FIntPoint(CollisionSizeVerts, CollisionSizeVerts);
 
@@ -1213,7 +1232,7 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-					UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
+					CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
 #else
 					MeshRef->UsedPhysicalMaterialArray.Add(PhysicalMaterial->GetPhysicsMaterial().Material);
 #endif
@@ -1316,7 +1335,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 					if (PTriMeshGeomEd.isValid())
 					{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-						UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
+						CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
 #else
 						PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
 						PxShape* MeshShapeEdSync = GPhysXSDK->createShape(PTriMeshGeomEd, &PDefaultMat, 1, true);
@@ -1344,7 +1363,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 				BodyInstance.OwnerComponent = this;
 
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-				UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
+				CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
 #else
 				BodyInstance.ActorHandle.SyncActor = MeshActorSync;
 				MeshActorSync->userData = &BodyInstance.PhysicsUserData;
@@ -1871,7 +1890,7 @@ bool ULandscapeHeightfieldCollisionComponent::ComponentIsTouchingSelectionFrustu
 bool ULandscapeHeightfieldCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	check(IsInGameThread());
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield)
 	{
 		FTransform HFToW = GetComponentTransform();
@@ -1887,7 +1906,24 @@ bool ULandscapeHeightfieldCollisionComponent::DoCustomNavigableGeometryExport(FN
 			GeomExport.ExportPxHeightField(HeightfieldRef->RBHeightfield, HFToW);
 		}
 	}
-#endif// WITH_PHYSX
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield)
+	{
+		FTransform HFToW = GetComponentTransform();
+		if(HeightfieldRef->HeightfieldSimple)
+		{
+			const float SimpleCollisionScale = CollisionScale * CollisionSizeQuads / SimpleCollisionSizeQuads;
+			HFToW.MultiplyScale3D(FVector(SimpleCollisionScale, SimpleCollisionScale, LANDSCAPE_ZSCALE));
+			GeomExport.ExportChaosHeightField(HeightfieldRef->HeightfieldSimple.Get(), HFToW);
+		}
+		else
+		{
+			HFToW.MultiplyScale3D(FVector(CollisionScale, CollisionScale, LANDSCAPE_ZSCALE));
+			GeomExport.ExportChaosHeightField(HeightfieldRef->Heightfield.Get(), HFToW);
+		}
+	}
+#endif
+
 	return false;
 }
 
@@ -1912,7 +1948,7 @@ ENavDataGatheringMode ULandscapeHeightfieldCollisionComponent::GetGeometryGather
 void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 {
 	//check(IsInGameThread());
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr && CachedHeightFieldSamples.IsEmpty())
 	{
 		const UWorld* World = GetWorld();
@@ -1941,6 +1977,32 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 			}
 		}
 	}
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get() && CachedHeightFieldSamples.IsEmpty())
+	{
+		const UWorld* World = GetWorld();
+
+		if(World != nullptr)
+		{
+			HeightfieldRowsCount = HeightfieldRef->Heightfield->GetNumRows();
+			HeightfieldColumnsCount = HeightfieldRef->Heightfield->GetNumCols();
+
+			if(CachedHeightFieldSamples.Heights.Num() != HeightfieldRowsCount * HeightfieldRowsCount)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField_saveCells);
+
+				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
+				
+				for(int32 SampleIndex = 0; SampleIndex < CachedHeightFieldSamples.Heights.Num(); ++SampleIndex)
+				{
+					CachedHeightFieldSamples.Heights[SampleIndex] = HeightfieldRef->Heightfield->GetHeight(SampleIndex);
+					// #PHYSTODO Hole support
+					CachedHeightFieldSamples.Holes.Add(false);
+				}
+			}
+		}
+	}
+
 #endif// WITH_PHYSX
 }
 
@@ -2487,11 +2549,16 @@ ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent
 TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
 {
 	TOptional<float> Height;
-#if WITH_PHYSX
 	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr)
 	{
 		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
+	}
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
+	{
+		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y }) * ZScale;
 	}
 #endif
 	return Height;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // 
 
 
@@ -2194,6 +2194,29 @@ void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection
 	++GNumSaturatedConnections;
 }
 
+void UReplicationGraph::SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor)
+{
+	if (!DestroyedActor)
+	{
+		return;
+	}
+
+	check(NetDriver);
+	FNetworkGUID NetGUID = NetDriver->GuidCache->GetNetGUID(DestroyedActor);
+			
+	if (NetGUID.IsDefault())
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Warning, TEXT("SetActorDestructionInfoToIgnoreDistanceCulling ignored for %s. No NetGUID assigned to the actor"), *GetNameSafe(DestroyedActor));
+		return;
+	}
+
+	// See if a destruction info exists for this actor
+	if (const TUniquePtr<FActorDestructionInfo>* DestructionInfoPtr = NetDriver->DestroyedStartupOrDormantActors.Find(NetGUID))
+	{
+		(*DestructionInfoPtr)->bIgnoreDistanceCulling = true;
+	}
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -2509,23 +2532,24 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 	{
 		const FCachedDestructInfo& Info = PendingDestructInfoList[idx];
 		FActorDestructionInfo* DestructInfo = Info.DestructionInfo;
-		bool bStillInRelevency = false;
+		bool bSendDestructionInfo = false;
 
-		// Find if anyone is close to this object.
-		for (const FNetViewer& CurViewer : Viewers)
+		if (!DestructInfo->bIgnoreDistanceCulling)
 		{
-			float DistSquared = FMath::Square(Info.CachedPosition.X - CurViewer.ViewLocation.X) + FMath::Square(Info.CachedPosition.Y - CurViewer.ViewLocation.Y);
-
-			// Someone is nearby this object, do not remove it.
-			if (!(DistSquared < DestructInfoMaxDistanceSquared))
+			// Only send destruction info if the viewers are close enough to the destroyed actor
+			for (const FNetViewer& CurViewer : Viewers)
 			{
-				bStillInRelevency = true;
-				break;
+				const float DistSquared = FVector::DistSquared2D(Info.CachedPosition, CurViewer.ViewLocation);
+
+				if (DistSquared < DestructInfoMaxDistanceSquared)
+				{
+					bSendDestructionInfo = true;
+					break;
+				}
 			}
 		}
 
-		// Essentially, if no one can see this object, mark it for destruction.
-		if (!bStillInRelevency)
+		if (bSendDestructionInfo || DestructInfo->bIgnoreDistanceCulling)
 		{
 			UActorChannel* Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 			if (Channel)
@@ -3306,19 +3330,21 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.DynamicSpatialFrequency.Draw", CVar_RepGraph_DynamicSpatialFrequency_Draw, 0, "");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.DynamicSpatialFrequency.ForceMaxFreq", CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq, 0, "Forces DSF to set max frame replication periods on all actors (1 frame rep periods). 1 = default replication. 2 = fast path. 3 = Both (effectively, default)");
 
-FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint32 MinRepPeriod, const uint32 MaxRepPeriod, uint8& OutReplicationPeriodFrame, uint32& OutNextReplicationFrame, const uint32 LastRepFrameNum, const uint32 FrameNum, bool ForFastPath)
+FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint32 MinRepPeriod, const uint32 MaxRepPeriod, uint16& OutReplicationPeriodFrame, uint32& OutNextReplicationFrame, const uint32 LastRepFrameNum, const uint32 FrameNum, bool ForFastPath)
 {
 	const float PeriodRange = (float)(MaxRepPeriod - MinRepPeriod);
 	const uint32 ExtraPeriod = (uint32)FMath::CeilToInt(PeriodRange * FinalPCT);
 				
-	uint32 FinalPeriod = MinRepPeriod + ExtraPeriod;
-	OutReplicationPeriodFrame = FinalPeriod;
+	const uint32 FinalPeriod = MinRepPeriod + ExtraPeriod;
+	OutReplicationPeriodFrame = (uint16)FMath::Clamp<uint32>(FinalPeriod, 1, MAX_uint16);
 
-	const uint32 NextRepFrameNum = LastRepFrameNum + FinalPeriod;
+	const uint32 NextRepFrameNum = LastRepFrameNum + OutReplicationPeriodFrame;
 	OutNextReplicationFrame = NextRepFrameNum;
 
 
 #if !(UE_BUILD_SHIPPING)
+	ensureMsgf(OutReplicationPeriodFrame == FinalPeriod, TEXT("Overflow error when FinalPeriod(%u) was assigned to OutReplicationPeriodFrame(%u). RepPeriod values are probably too big"), FinalPeriod, OutReplicationPeriodFrame);
+
 	if (CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq > 0)
 	{
 		if ((CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq == 1 && ForFastPath == 0) ||

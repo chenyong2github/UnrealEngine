@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,12 +43,6 @@ public:
 	 * @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance. 
 	 */
 	CheckedCTError TopoFixes(double SewingToleranceFactor = 100);
-
-	/**
-	 * In case of patch with cyclic boundary, a process has to be done by kernel_IO
-	 */
-	CheckedCTError CleanBRep();
-
 
 	/**
 	 * @param InScaleFactor : use to scale meshing from Kernel-IO

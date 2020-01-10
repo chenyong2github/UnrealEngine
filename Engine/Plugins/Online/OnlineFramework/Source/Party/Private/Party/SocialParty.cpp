@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
@@ -186,11 +186,11 @@ bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, c
 	return !JoinApproval.GetDenialReason().HasAnyReason();
 }
 
-FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const
+FPartyJoinApproval USocialParty::EvaluateJoinRequest(const TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef>& Players, bool bFromJoinRequest) const
 {
 	FPartyJoinApproval JoinApproval;
 
-	if (IsPartyFull())
+	if ((GetNumPartyMembers() + Players.Num()) > GetPartyMaxSize())
 	{
 		JoinApproval.SetDenialReason(EPartyJoinDenialReason::PartyFull);
 	}
@@ -205,7 +205,14 @@ FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerI
 		{
 			if (bAlwaysCheckCrossplatformOnPartyJoin)
 			{
-				ApplyCrossplayRestriction(JoinApproval, Platform, JoinData);
+				for (const IOnlinePartyUserPendingJoinRequestInfoConstRef& Player : Players)
+				{
+					FUserPlatform Platform(Player->GetPlatform());
+					if (!ApplyCrossplayRestriction(JoinApproval, Platform, *Player->GetJoinData()))
+					{
+						break;
+					}
+				}
 			}
 		}
 
@@ -309,11 +316,26 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 		{
 			// Platform invites are sent as session invites on platform OSS' - this way we get the OS popups one would expect on XBox, PS4, etc.
 			bool bSentPlatformInvite = false;
-			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform));
-			if (PlatformSessionInterface.IsValid())
+			const FName SocialOssName = USocialManager::GetSocialOssName(ESocialSubsystem::Platform);
+			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), SocialOssName);
+			if (PlatformSessionInterface)
 			{
-				//@todo DanH Party: Any way to know if the session invite was a success? If we don't know we can't show it :/ #future
-				bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*GetOwningLocalMember().GetRepData().GetPlatformUniqueId(), NAME_PartySession, *UserPlatformId);
+				FUniqueNetIdRepl LocalUserPlatformId = GetOwningLocalMember().GetRepData().GetPlatformUniqueId();
+
+				//@todo FORT-244991 Temporarily fall back on grabbing the LocalUserPlatformId from the Platform identity interface
+				if (!LocalUserPlatformId.IsValid())
+				{
+					if (const IOnlineIdentityPtr PlatformIdentityInterface = Online::GetIdentityInterface(GetWorld(), SocialOssName))
+					{
+						LocalUserPlatformId = PlatformIdentityInterface->GetUniquePlayerId(GetOwningLocalPlayer().GetControllerId());
+					}
+				}
+
+				if (LocalUserPlatformId.IsValid())
+				{
+					//@todo DanH Party: Any way to know if the session invite was a success? If we don't know we can't show it :/ #future
+					bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*LocalUserPlatformId, NAME_PartySession, *UserPlatformId);
+				}
 			}
 			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite);
 			bSentInvite |= bSentPlatformInvite;
@@ -413,9 +435,9 @@ void USocialParty::InitializePartyInternal()
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	PartyInterface->AddOnPartyConfigChangedDelegate_Handle(FOnPartyConfigChangedConstDelegate::CreateUObject(this, &USocialParty::HandlePartyConfigChanged));
 	PartyInterface->AddOnPartyDataReceivedDelegate_Handle(FOnPartyDataReceivedConstDelegate::CreateUObject(this, &USocialParty::HandlePartyDataReceived));
-	PartyInterface->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyJoinRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJoinRequestReceived));
+	PartyInterface->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyGroupJoinRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJoinRequestReceived));
 	PartyInterface->AddOnPartyJIPRequestReceivedDelegate_Handle(FOnPartyJIPRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJIPRequestReceived));
-	PartyInterface->AddOnQueryPartyJoinabilityReceivedDelegate_Handle(FOnQueryPartyJoinabilityReceivedDelegate::CreateUObject(this, &USocialParty::HandleJoinabilityQueryReceived));
+	PartyInterface->AddOnQueryPartyJoinabilityReceivedDelegate_Handle(FOnQueryPartyJoinabilityGroupReceivedDelegate::CreateUObject(this, &USocialParty::HandleJoinabilityQueryReceived));
 	PartyInterface->AddOnPartyExitedDelegate_Handle(FOnPartyExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyLeft));
 	PartyInterface->AddOnPartyStateChangedDelegate_Handle(FOnPartyStateChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyStateChanged));
 
@@ -553,7 +575,7 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 		}
 		else
 		{
-			const bool bIsLocalUser = GetSocialManager().IsLocalUser(MemberId, ESocialSubsystem::Primary);
+			const bool bIsLocalUser = GetSocialManager().IsLocalUser(MemberId.AsShared(), ESocialSubsystem::Primary);
 			TSubclassOf<UPartyMember> PartyMemberClass = GetDesiredMemberClass(bIsLocalUser);
 			if (ensure(PartyMemberClass))
 			{
@@ -579,36 +601,43 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 	return PartyMember;
 }
 
-void USocialParty::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& JoinData)
+void USocialParty::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo)
 {
 	if (!IsLocalPlayerPartyLeader() || PartyId != GetPartyId())
 	{
 		return;
 	}
 
+	TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> JoiningUsers;
+	JoinRequestInfo.GetUsers(JoiningUsers);
+	check(JoiningUsers.IsValidIndex(0));
+
+	const IOnlinePartyUserPendingJoinRequestInfoConstRef& PrimaryJoiningUser = JoiningUsers[0];
+
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 #if !UE_BUILD_SHIPPING
 	if (AutoApproveJoinRequests != 0)
 	{
-		PartyInterface->ApproveJoinRequest(LocalUserId, PartyId, SenderId, true);
+		PartyInterface->ApproveJoinRequest(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), true);
 		return;
 	}
 #endif
 
-	const FUserPlatform MemberPlatform(Platform);
-	FPartyJoinApproval JoinApproval = EvaluateJoinRequest(SenderId, MemberPlatform, JoinData, true);
+	FPartyJoinApproval JoinApproval = EvaluateJoinRequest(JoiningUsers, true);
 
 	if (JoinApproval.GetApprovalAction() == EApprovalAction::Enqueue ||
 		JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
 	{
 		// Enqueue for a more opportune time
-		UE_LOG(LogParty, Verbose, TEXT("[%s] Enqueuing approval request for %s"), *PartyId.ToString(), *SenderId.ToString());
+		UE_LOG(LogParty, Verbose, TEXT("[%s] Enqueuing approval request for %s"), *PartyId.ToString(), *PrimaryJoiningUser->GetUserId()->ToDebugString());
 		
 		FPendingMemberApproval PendingApproval;
 		PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
-		PendingApproval.SenderId.SetUniqueNetId(SenderId.AsShared());
-		PendingApproval.Platform = MemberPlatform;
-		PendingApproval.JoinData = JoinData.AsShared();
+		PendingApproval.Members.Reserve(JoiningUsers.Num());
+		for (IOnlinePartyUserPendingJoinRequestInfoConstRef JoiningUser : JoiningUsers)
+		{
+			PendingApproval.Members.Emplace(JoiningUser->GetUserId(), JoiningUser->GetPlatform(), JoiningUser->GetJoinData());
+		}
 		PendingApproval.bIsJIPApproval = false;
 		PendingApprovals.Enqueue(PendingApproval);
 
@@ -620,9 +649,9 @@ void USocialParty::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserI
 	else
 	{
 		const bool bIsApproved = JoinApproval.CanJoin();
-		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *SenderId.ToString(), bIsApproved ? TEXT("approved") : TEXT("denied"));
+		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUser->GetUserId()->ToDebugString(), bIsApproved ? TEXT("approved") : TEXT("denied"));
 		
-		PartyInterface->ApproveJoinRequest(LocalUserId, PartyId, SenderId, bIsApproved, JoinApproval.GetDenialReason());
+		PartyInterface->ApproveJoinRequest(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), bIsApproved, JoinApproval.GetDenialReason());
 	}
 }
 
@@ -646,8 +675,7 @@ void USocialParty::RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUs
 
 	FPendingMemberApproval PendingApproval;
 	PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
-	PendingApproval.SenderId.SetUniqueNetId(PlayerToRemove.AsShared());
-	PendingApproval.Platform = MemberPlatform;
+	PendingApproval.Members.Emplace(PlayerToRemove.AsShared(), MemberPlatform);
 	PendingApproval.bIsJIPApproval = true;
 	PendingApproval.bIsPlayerRemoval = true;
 	PendingApprovals.Enqueue(PendingApproval);
@@ -689,8 +717,7 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 
 		FPendingMemberApproval PendingApproval;
 		PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
-		PendingApproval.SenderId.SetUniqueNetId(SenderId.AsShared());
-		PendingApproval.Platform = MemberPlatform;
+		PendingApproval.Members.Emplace(SenderId.AsShared(), MemberPlatform);
 		PendingApproval.bIsJIPApproval = true;
 		PendingApprovals.Enqueue(PendingApproval);
 
@@ -709,15 +736,21 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 }
 
 
-void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& JoinData)
+void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo)
 {
-	if (PartyId == GetPartyId())
+	if (PartyId == GetPartyId()) 
 	{
-		FPartyJoinApproval JoinabilityInfo = EvaluateJoinRequest(SenderId, FUserPlatform(Platform), JoinData, false);
-		UE_LOG(LogParty, VeryVerbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *SenderId.ToString(), JoinabilityInfo.CanJoin() ? TEXT("approved") : TEXT("denied"));
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> JoiningUsers;
+		JoinRequestInfo.GetUsers(JoiningUsers);
+		check(JoiningUsers.IsValidIndex(0));
+
+		const IOnlinePartyUserPendingJoinRequestInfoConstRef& PrimaryJoiningUser = JoiningUsers[0];
+
+		FPartyJoinApproval JoinabilityInfo = EvaluateJoinRequest(JoiningUsers, false);
+		UE_LOG(LogParty, VeryVerbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUser->GetUserId()->ToString(), JoinabilityInfo.CanJoin() ? TEXT("approved") : TEXT("denied"));
 
 		const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, SenderId, JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason());
+		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason());		
 	}
 }
 
@@ -894,6 +927,25 @@ void USocialParty::HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, con
 	OnAttemptComplete.ExecuteIfBound(LeaveResult);
 }
 
+void USocialParty::HandleRemoveLocalPlayerComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete)
+{
+	UE_LOG(LogParty, Verbose, TEXT("Removed Local player [%s] is no longer in party [%s]."), *LocalUserId.ToDebugString(), *ToDebugString());
+
+	// Remove the secondary member from the party members ids
+	for (UPartyMember* PartyMember : GetPartyMembers())
+	{
+		if (LocalUserId == *PartyMember->GetPrimaryNetId())
+		{
+			PartyMember->NotifyRemovedFromParty(EMemberExitedReason::Unknown);
+			PartyMember->MarkPendingKill();
+			PartyMembersById.Remove(PartyMember->GetPrimaryNetId());
+			break;
+		}
+	}
+
+	OnAttemptComplete.ExecuteIfBound(LeaveResult);
+}
+
 void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings)
 {
 	check(IsLocalPlayerPartyLeader());
@@ -941,9 +993,17 @@ void USocialParty::HandlePartyLeft(const FUniqueNetId& LocalUserId, const FOnlin
 	// this function is called when a party is left due to unintentional leave (e.g. disconnect)
 	if (PartyId == GetPartyId())
 	{
-		// process an full "leave" for the party which will clean it up here and in OnlinePartyMcp
-		// this will also trigger a new persistent party to be created
-		LeaveParty();
+		if (LocalUserId == *OwningLocalUserId)
+		{
+			// process an full "leave" for the party which will clean it up here and in OnlinePartyMcp
+			// this will also trigger a new persistent party to be created
+			LeaveParty();
+		}
+		else
+		{
+			// process just the secondary member leaving the party
+			RemoveLocalMember(FUniqueNetIdRepl(LocalUserId.AsShared()));
+		}
 	}
 }
 
@@ -951,13 +1011,14 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 {
 	if (PartyId == GetPartyId())
 	{
-		if (UPartyMember** FoundPartyMember = PartyMembersById.Find(MemberId))
+		if (UPartyMember** FoundPartyMember = PartyMembersById.Find(MemberId.AsShared()))
 		{
 			if (LocalUserId == MemberId)
 			{
 				//@todo DanH Party: Do I get this for a self-initiated party leave as well? #required
 				if (!bIsLeavingParty)
 				{
+					check(LocalUserId == *OwningLocalUserId);		// Only the primary player is allowed to finalize a party leave
 					FinalizePartyLeave(ExitReason);
 				}
 			}
@@ -1165,9 +1226,35 @@ void USocialParty::LeaveParty(const FOnLeavePartyAttemptComplete& OnLeaveAttempt
 		const FOnlinePartyId& PartyId = GetPartyId();
 		if (OwningLocalUserId.IsValid() && PartyId.IsValid())
 		{
+			// All local players will be removed as a consequence of leaving the party with the primary player
 			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 			FOnLeavePartyComplete OnLeaveComplete = FOnLeavePartyComplete::CreateUObject(this, &USocialParty::HandleLeavePartyComplete, OnLeaveAttemptComplete);
 			PartyInterface->LeaveParty(*OwningLocalUserId, PartyId, OnLeaveComplete);
+		}
+		else
+		{
+			OnLeaveAttemptComplete.ExecuteIfBound(ELeavePartyCompletionResult::UnknownClientFailure);
+		}
+	}
+}
+
+void USocialParty::RemoveLocalMember(const FUniqueNetIdRepl& LocalUserId, const FOnLeavePartyAttemptComplete& OnLeaveAttemptComplete)
+{
+	if (bIsLeavingParty)
+	{
+		// Already working on it for the primary player!
+		OnLeaveAttemptComplete.ExecuteIfBound(ELeavePartyCompletionResult::LeavePending);
+	}
+	else
+	{
+		UE_LOG(LogParty, Verbose, TEXT("Attempting to leave party LocalUserId=[%s] [%s] "), *LocalUserId.ToDebugString(), *ToDebugString());
+
+		const FOnlinePartyId& PartyId = GetPartyId();
+		if (LocalUserId.IsValid() && PartyId.IsValid())
+		{
+			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+			FOnLeavePartyComplete OnLeaveComplete = FOnLeavePartyComplete::CreateUObject(this, &USocialParty::HandleRemoveLocalPlayerComplete, OnLeaveAttemptComplete);
+			PartyInterface->LeaveParty(*LocalUserId, PartyId, OnLeaveComplete);
 		}
 		else
 		{
@@ -1279,22 +1366,25 @@ void USocialParty::ConnectToReservationBeacon()
 							ReservationBeaconClient->OnHostConnectionFailure().BindUObject(this, &USocialParty::HandleBeaconHostConnectionFailed);
 							ReservationBeaconClient->OnReservationRequestComplete().BindUObject(this, &USocialParty::HandleReservationRequestComplete);
 
-							FPlayerReservation Reservation;
-							Reservation.UniqueId = NextApproval.SenderId;
-							Reservation.Platform = NextApproval.Platform;
-
-							if (!NextApproval.bIsJIPApproval)
-							{
-								const ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*NextApproval.JoinData);
-								Reservation.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
-							}
-							else
-							{
-								Reservation.bAllowCrossplay = true; // This will not matter since we are JIP, and the session already has crossplay set.
-							}
-
 							TArray<FPlayerReservation> ReservationAsArray;
-							ReservationAsArray.Add(Reservation);
+							ReservationAsArray.Reserve(NextApproval.Members.Num());
+							for (const FPendingMemberApproval::FMemberInfo& MemberInfo : NextApproval.Members)
+							{
+								FPlayerReservation& Reservation = ReservationAsArray.Emplace_GetRef();
+								Reservation.UniqueId = MemberInfo.MemberId;
+								Reservation.Platform = MemberInfo.Platform;
+
+								if (!NextApproval.bIsJIPApproval && MemberInfo.JoinData.IsValid())
+								{
+									const ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*MemberInfo.JoinData);
+									Reservation.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
+								}
+								else
+								{
+									Reservation.bAllowCrossplay = true; // This will not matter since we are JIP, and the session already has crossplay set.
+								}
+							}
+
 							bStartedConnection = ReservationBeaconClient->RequestReservationUpdate(URL, Session->GetSessionIdStr(), GetPartyLeader()->GetPrimaryNetId(), ReservationAsArray, NextApproval.bIsPlayerRemoval);
 						}
 					}
@@ -1318,14 +1408,15 @@ void USocialParty::RejectAllPendingJoinRequests()
 	while (!PendingApprovals.IsEmpty())
 	{
 		PendingApprovals.Dequeue(PendingApproval);
-		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with denied"), *PartyId.ToString(), *PendingApproval.SenderId.ToString());
+		const FUniqueNetId& PrimaryJoiningUserId = *PendingApproval.Members[0].MemberId.GetUniqueNetId();
+		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with denied"), *PartyId.ToString(), *PrimaryJoiningUserId.ToDebugString());
 		if (PendingApproval.bIsJIPApproval)
 		{
-			PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, PartyId, *PendingApproval.SenderId, false, (int32)EPartyJoinDenialReason::Busy);
+			PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, PartyId, PrimaryJoiningUserId, false, (int32)EPartyJoinDenialReason::Busy);
 		}
 		else
 		{
-			PartyInterface->ApproveJoinRequest(*PendingApproval.RecipientId, PartyId, *PendingApproval.SenderId, false, (int32)EPartyJoinDenialReason::Busy);
+			PartyInterface->ApproveJoinRequest(*PendingApproval.RecipientId, PartyId, PrimaryJoiningUserId, false, (int32)EPartyJoinDenialReason::Busy);
 		}
 	}
 }
@@ -1371,36 +1462,28 @@ void USocialParty::PumpApprovalQueue()
 	{
 		if (ensure(ReservationBeaconClient))
 		{
-			if (NextApproval.bIsJIPApproval == false)
+			TArray<FPlayerReservation> PlayersToAdd;
+			PlayersToAdd.Reserve(NextApproval.Members.Num());
+			for (const FPendingMemberApproval::FMemberInfo& MemberInfo : NextApproval.Members)
 			{
-				// This is a request to join our party
-				ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*NextApproval.JoinData);
+				FPlayerReservation& NewPlayerRes = PlayersToAdd.Emplace_GetRef();
+				NewPlayerRes.UniqueId = MemberInfo.MemberId;
+				NewPlayerRes.Platform = MemberInfo.Platform;
 
-				FPlayerReservation NewPlayerRes;
-				NewPlayerRes.UniqueId = NextApproval.SenderId;
-				NewPlayerRes.Platform = NextApproval.Platform;
-				NewPlayerRes.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
-
-				TArray<FPlayerReservation> PlayersToAdd;
-				PlayersToAdd.Add(NewPlayerRes);
-
-				ReservationBeaconClient->RequestReservationUpdate(GetPartyLeader()->GetPrimaryNetId(), PlayersToAdd);
+				if (NextApproval.bIsJIPApproval == false && MemberInfo.JoinData.IsValid())
+				{
+					// This is a request to join our party
+					ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*MemberInfo.JoinData);
+					NewPlayerRes.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
+				}
+				else
+				{
+					// This is a request from a party member to join a JIP game.
+					// This doesn't matter, since the crossplay state of the match has already been set.
+					NewPlayerRes.bAllowCrossplay = true;
+				}
 			}
-			else
-			{
-				// This is a request from a party member to join a JIP game.
-				FPlayerReservation NewPlayerRes;
-				NewPlayerRes.UniqueId = NextApproval.SenderId;
-				NewPlayerRes.Platform = NextApproval.Platform;
-
-				// This doesn't matter, since the crossplay state of the match has already been set.
-				NewPlayerRes.bAllowCrossplay = true;
-
-				TArray<FPlayerReservation> PlayersToAdd;
-				PlayersToAdd.Add(NewPlayerRes);
-
-				ReservationBeaconClient->RequestReservationUpdate(GetPartyLeader()->GetPrimaryNetId(), PlayersToAdd);
-			}
+			ReservationBeaconClient->RequestReservationUpdate(GetPartyLeader()->GetPrimaryNetId(), PlayersToAdd);
 		}
 		else
 		{
@@ -1431,7 +1514,7 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 			if (PendingApproval.bIsJIPApproval)
 			{
 				// This player is already in our party. ApproveJIPRequest
-				PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.SenderId, bReservationApproved, DenialReason);
+				PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.Members[0].MemberId, bReservationApproved, DenialReason);
 			}
 			else if (PendingApproval.bIsPlayerRemoval)
 			{
@@ -1439,7 +1522,7 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 			}
 			else
 			{
-				PartyInterface->ApproveJoinRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.SenderId, bReservationApproved, DenialReason);
+				PartyInterface->ApproveJoinRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.Members[0].MemberId, bReservationApproved, DenialReason);
 			}
 		}
 		PumpApprovalQueue();

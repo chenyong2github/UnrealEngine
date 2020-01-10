@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -51,9 +51,10 @@ public:
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed)
 	    , MObject(Object)
 	    , MTransform(InTransform)
-	    , MLocalBoundingBox(Object->BoundingBox().TransformedBox(InTransform))
+	    , MLocalBoundingBox(Object->BoundingBox().TransformedAABB(InTransform))
 	{
 		this->bIsConvex = Object->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	/**
@@ -66,8 +67,9 @@ public:
 	{
 		static_assert(bSerializable, "Non-serializable TImplicitObjectTransformed created with a UniquePtr");
 		this->MObject = FStorage::Convert(MObjectOwner);
-		this->MLocalBoundingBox = MObject->BoundingBox().TransformedBox(InTransform);
+		this->MLocalBoundingBox = MObject->BoundingBox().TransformedAABB(InTransform);
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	TImplicitObjectTransformed(const TImplicitObjectTransformed<T, d, bSerializable>& Other) = delete;
@@ -79,6 +81,7 @@ public:
 	    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	{
 		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
 	~TImplicitObjectTransformed() {}
 
@@ -90,6 +93,11 @@ public:
 	const FImplicitObject* GetTransformedObject() const
 	{
 		return MObject.Get();
+	}
+
+	bool GetDoCollide() const
+	{
+		return MObject->GetDoCollide();
 	}
 
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override
@@ -153,6 +161,20 @@ public:
 		return ClosestIntersection;
 	}
 
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override
+	{
+		const FVec3 LocalPoint = MTransform.InverseTransformPosition(Position);
+		int32 FaceIndex = MObject->FindClosestFaceAndVertices(LocalPoint, FaceVertices, SearchDist);
+		if (FaceIndex != INDEX_NONE)
+		{
+			for (FVec3& Vec : FaceVertices)
+			{
+				Vec = MTransform.TransformPosition(Vec);
+			}
+		}
+		return FaceIndex;
+	}
+
 	const TRigidTransform<T, d>& GetTransform() const { return MTransform; }
 	void SetTransform(const TRigidTransform<T, d>& InTransform)
 	{
@@ -173,9 +195,9 @@ public:
 		TImplicitObjectTransformAccumulateSerializableHelper(Out, MObject, NewTM);
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TAABB<T, d>& LocalBounds) const
 	{
-		const TBox<T, d> SubobjectBounds = LocalBounds.TransformedBox(MTransform.Inverse());
+		const TAABB<T, d> SubobjectBounds = LocalBounds.TransformedAABB(MTransform.Inverse());
 		int32 NumOut = Out.Num();
 		MObject->FindAllIntersectingObjects(Out, SubobjectBounds);
 		if (Out.Num() > NumOut)
@@ -184,7 +206,26 @@ public:
 		}
 	}
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MLocalBoundingBox; }
+
+	const FReal GetVolume() const
+	{
+		// TODO: More precise volume!
+		return BoundingBox().GetVolume();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		// TODO: More precise inertia!
+		return BoundingBox().GetInertiaTensor(Mass);
+	}
+
+	const FVec3 GetCenterOfMass() const
+	{
+		// TODO: Actually compute this!
+		return BoundingBox().GetCenterOfMass();
+	}
+
 
 	const ObjectType Object() const { return MObject; }
 	
@@ -195,7 +236,7 @@ public:
 		FImplicitObject::SerializeImp(Ar);
 		TImplicitObjectTransformSerializeHelper(Ar, MObject);
 		Ar << MTransform;
-		Ar << MLocalBoundingBox;
+		TBox<T, d>::SerializeAsAABB(Ar, MLocalBoundingBox);
 	}
 
 	virtual uint32 GetTypeHash() const override
@@ -213,7 +254,7 @@ private:
 	ObjectType MObject;
 	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;
 	TRigidTransform<T, d> MTransform;
-	TBox<T, d> MLocalBoundingBox;
+	TAABB<T, d> MLocalBoundingBox;
 
 	//needed for serialization
 	TImplicitObjectTransformed() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed) {}

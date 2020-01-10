@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -153,6 +153,7 @@ public:
 	virtual FString GetVoiceDebugState() const override;
 	virtual Audio::FPatchOutputStrongPtr GetMicrophoneOutput() override;
 	virtual Audio::FPatchOutputStrongPtr GetRemoteTalkerOutput() override;
+	virtual float GetAmplitudeOfRemoteTalker(const FUniqueNetId& PlayerId) override;
 	virtual bool PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput = true) override;
 	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName) override;
 	virtual void DisconnectAllEndpoints() override;

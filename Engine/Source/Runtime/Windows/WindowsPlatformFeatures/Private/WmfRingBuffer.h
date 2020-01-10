@@ -1,11 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "WmfPrivate.h"
 
 #include "HAL/ThreadSafeBool.h"
-#include "GameplayMediaEncoderSample.h"
+#include "AVEncoder.h"
 
 class FWmfRingBuffer
 {
@@ -22,11 +22,11 @@ public:
 
 	FTimespan GetDuration() const;
 
-	void Push(FGameplayMediaEncoderSample&& Sample);
+	void Push(AVEncoder::FAVPacket&& Sample);
 
 	void PauseCleanup(bool bPause);
 
-	TArray<FGameplayMediaEncoderSample> GetCopy();
+	TArray<AVEncoder::FAVPacket> GetCopy();
 
 	void Reset();
 
@@ -35,7 +35,7 @@ private:
 
 private:
 	FTimespan MaxDuration = 0;
-	TArray<FGameplayMediaEncoderSample> Samples;
+	TArray<AVEncoder::FAVPacket> Samples;
 	FCriticalSection Mutex;
 	FThreadSafeBool bCleanupPaused = false;
 };

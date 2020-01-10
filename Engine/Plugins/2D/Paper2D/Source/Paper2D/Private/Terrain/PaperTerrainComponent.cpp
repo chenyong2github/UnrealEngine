@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTerrainComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -18,8 +18,6 @@
 
 #define PAPER_USE_MATERIAL_SLOPES 1
 #define PAPER_TERRAIN_DRAW_DEBUG 0
-
-DECLARE_CYCLE_STAT(TEXT("Terrain Spline Proxy"), STAT_TerrainSpline_GetDynamicMeshElements, STATGROUP_Paper2D);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -71,38 +69,29 @@ public:
 	}
 
 	FPaperTerrainSceneProxy(const UPaperTerrainComponent* InComponent, const TArray<FPaperTerrainSpriteGeometry>& InDrawingData);
-
-protected:
-	TArray<FPaperTerrainSpriteGeometry> DrawingData;
-protected:
-	// FPaperRenderSceneProxy interface
-	virtual void GetDynamicMeshElementsForView(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const override;
-	// End of FPaperRenderSceneProxy interface
 };
 
 FPaperTerrainSceneProxy::FPaperTerrainSceneProxy(const UPaperTerrainComponent* InComponent, const TArray<FPaperTerrainSpriteGeometry>& InDrawingData)
 	: FPaperRenderSceneProxy(InComponent)
 {
-	DrawingData = InDrawingData;
+	//@TODO: PAPER2D: Build/store the data in the 'new' batch format directly rather than converting it here
+	BatchedSections.AddDefaulted(InDrawingData.Num());
+	FSpriteRenderSection* DstBatch = BatchedSections.GetData();
+	for (const FPaperTerrainSpriteGeometry& SrcBatch : InDrawingData)
+	{
+		DstBatch->Material = SrcBatch.Material;
+		for (const FSpriteDrawCallRecord& SrcRecord : SrcBatch.Records)
+		{
+			DstBatch->AddVerticesFromDrawCallRecord(SrcRecord, 0, SrcRecord.RenderVerts.Num(), Vertices);
+		}
+		++DstBatch;
+	}
 
 	// Combine the material relevance for all materials
-	for (const FPaperTerrainSpriteGeometry& Batch : DrawingData)
+	for (const FPaperTerrainSpriteGeometry& Batch : InDrawingData)
 	{
 		const UMaterialInterface* MaterialInterface = (Batch.Material != nullptr) ? Batch.Material : UMaterial::GetDefaultMaterial(MD_Surface);
 		MaterialRelevance |= MaterialInterface->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
-	}
-}
-
-void FPaperTerrainSceneProxy::GetDynamicMeshElementsForView(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const
-{
-	SCOPE_CYCLE_COUNTER(STAT_TerrainSpline_GetDynamicMeshElements);
-
-	for (const FPaperTerrainSpriteGeometry& Batch : DrawingData)
-	{
-		if (Batch.Material != nullptr)
-		{
-			GetBatchMesh(View, Batch.Material, Batch.Records, ViewIndex, Collector);
-		}
 	}
 }
 

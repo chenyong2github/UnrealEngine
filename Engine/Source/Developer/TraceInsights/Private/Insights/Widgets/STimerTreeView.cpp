@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimerTreeView.h"
 
@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimerTreeView::STimerTreeView()
-	: Table(MakeShareable(new Insights::FTable()))
+	: Table(MakeShared<Insights::FTable>())
 	, ViewName()
 	, TreeView(nullptr)
 	, TreeViewHeaderRow(nullptr)
@@ -227,9 +227,9 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (Column.IsVisible() && Column.CanBeSorted())
 		{
@@ -289,9 +289,9 @@ void STimerTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		FUIAction Action_ToggleColumn
 		(
@@ -315,7 +315,7 @@ void STimerTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 void STimerTreeView::InitializeAndShowHeaderColumns()
 {
 	// Create columns.
-	TArray<TSharedPtr<Insights::FTableColumn>> Columns;
+	TArray<TSharedRef<Insights::FTableColumn>> Columns;
 	FTimersViewColumnFactory::CreateTimerTreeViewColumns(Columns);
 	ensure(Columns.Num() > 0 && Columns[0]->IsHierarchy());
 	Columns[0]->SetShortName(ViewName);
@@ -323,11 +323,11 @@ void STimerTreeView::InitializeAndShowHeaderColumns()
 	Table->SetColumns(Columns);
 
 	// Show columns.
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ColumnPtr->ShouldBeVisible())
+		if (ColumnRef->ShouldBeVisible())
 		{
-			ShowColumn(ColumnPtr->GetId());
+			ShowColumn(ColumnRef->GetId());
 		}
 	}
 }
@@ -563,11 +563,11 @@ void STimerTreeView::CreateSortings()
 	AvailableSorters.Reset();
 	CurrentSorter = nullptr;
 
-	for (const TSharedPtr<Insights::FTableColumn> ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ColumnPtr->CanBeSorted())
+		if (ColumnRef->CanBeSorted())
 		{
-			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnPtr->GetValueSorter();
+			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnRef->GetValueSorter();
 			if (ensure(SorterPtr.IsValid()))
 			{
 				AvailableSorters.Add(SorterPtr);
@@ -858,9 +858,9 @@ void STimerTreeView::ContextMenu_ShowAllColumns_Execute()
 	ColumnSortMode = GetDefaultColumnSortMode();
 	UpdateCurrentSortingByColumn();
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (!Column.IsVisible())
 		{
@@ -886,9 +886,9 @@ void STimerTreeView::ContextMenu_ResetColumns_Execute()
 	ColumnSortMode = GetDefaultColumnSortMode();
 	UpdateCurrentSortingByColumn();
 
-	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const Insights::FTableColumn& Column = *ColumnPtr;
+		const Insights::FTableColumn& Column = *ColumnRef;
 
 		if (Column.ShouldBeVisible() && !Column.IsVisible())
 		{
@@ -947,7 +947,7 @@ FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const Trace::FTimingProfilerBut
 	if (Node.Timer == nullptr)
 	{
 		return nullptr;
-		//return MakeShareable(new FTimerNode(0, FName(TEXT("!!!!!")), FName(TEXT("[Group]")), ETimerNodeType::InvalidOrMax));
+		//return MakeShared<FTimerNode>(0, FName(TEXT("!!!!!")), FName(TEXT("[Group]")), ETimerNodeType::InvalidOrMax);
 	}
 
 	const uint64 Id = Node.Timer->Id;
@@ -955,7 +955,7 @@ FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const Trace::FTimingProfilerBut
 	const FName Group(Node.Timer->IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
 	const ETimerNodeType Type = Node.Timer->IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 
-	FTimerNodePtr TimerNodePtr = MakeShareable(new FTimerNode(Id, Name, Group, Type));
+	FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Id, Name, Group, Type);
 
 	Trace::FTimingProfilerAggregatedStats AggregatedStats;
 	AggregatedStats.InstanceCount = Node.Count;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOS/IOSAppDelegate.h"
 #include "IOS/IOSCommandLineHelper.h"
@@ -1365,10 +1365,10 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 	// "MyGame://arg1 arg2 arg3 ..."
 	// So, we're going to make it look like:
 	// "arg1 arg2 arg3 ..."
-	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"));
+	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"), ESearchCase::CaseSensitive);
 	if ( URLTerminator > -1 )
 	{
-		CommandLineParameters = CommandLineParameters.RightChop(URLTerminator + 3);
+		CommandLineParameters.RightChopInline(URLTerminator + 3, false);
 	}
 
 	FIOSCommandLineHelper::InitCommandArgs(CommandLineParameters);

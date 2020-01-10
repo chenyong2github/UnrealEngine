@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -137,6 +137,9 @@ public:
 
 private:
 
+	/** True if the linker is currently deleting loader */
+	bool					bIsDestroyingLoader;
+
 	/** Structured archive interface. Wraps underlying loader to provide contextual metadata to the values being written
 	 *  which ultimately allows text based serialization of the data
 	 */
@@ -147,10 +150,6 @@ private:
 
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
-
-	int32* LocalImportIndices = nullptr;
-	UObject** GlobalImportObjects = nullptr;
-	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
 
 protected:
 
@@ -173,14 +172,15 @@ public:
 		return Loader != nullptr;
 	}
 
-	void DestroyLoader()
+	void DestroyLoader();
+
+	FORCEINLINE bool IsDestroyingLoader() const
 	{
-		delete Loader;
-		Loader = nullptr;
+		return bIsDestroyingLoader;
 	}
 
 	/** The async package associated with this linker */
-	class FGCObject* AsyncRoot;
+	struct FAsyncPackage* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FUntypedBulkData*> BulkDataLoaders;
@@ -823,10 +823,10 @@ private:
 		int32 Number = 0;
 		Ar << Number;
 
-		if (ActiveNameMap->IsValidIndex(NameIndex))
+		if (NameMap.IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = (*ActiveNameMap)[NameIndex];
+			FNameEntryId MappedName = NameMap[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);
@@ -1183,7 +1183,7 @@ private:
 
 	/** 
 	 * Internal list to track imports that were deferred, but don't belong to 
-	 * the ImportMap (thinks ones loaded through config files via UProperty::ImportText).
+	 * the ImportMap (thinks ones loaded through config files via FProperty::ImportText).
 	 */
 	TMap<FName, FLinkerPlaceholderBase*> ImportPlaceholders;
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING

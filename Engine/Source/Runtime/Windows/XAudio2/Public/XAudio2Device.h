@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	XAudio2Device.h: Unreal XAudio2 audio interface object.
@@ -187,16 +187,6 @@ protected:
 
 	/** Creates a mastering voice. Returns false if fails. */
 	struct IXAudio2MasteringVoice* CreateMasteringVoice();
-
-	/**
-     * Allocates memory from permanent pool. This memory will NEVER be freed.
-	 *
-	 * @param	Size	Size of allocation.
-	 * @param	AllocatedInPool	(OUT) True if the allocation occurred from the pool; false if it was a regular physical allocation.
-	 *
-	 * @return pointer to a chunk of memory with size Size
-	 */
-	void* AllocatePermanentMemory( int32 Size, /*OUT*/ bool& AllocatedInPool );
 
 	/** Retrieves the platform settings */
 	virtual FAudioPlatformSettings GetPlatformSettings() const override;

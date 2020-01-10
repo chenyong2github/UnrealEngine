@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Tiles/WorldTileCollectionModel.h"
 #include "Misc/PackageName.h"
 #include "Components/PrimitiveComponent.h"
@@ -1608,7 +1608,7 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 		// Extract tile prefix
 		FString FolderName = FPaths::GetBaseFilename(ImportSettings.HeightmapFileList[0]);
 		int32 PrefixEnd = FolderName.Find(TEXT("_x"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		FolderName = FolderName.Left(PrefixEnd);
+		FolderName.LeftInline(PrefixEnd, false);
 		WorldRootPath+= FolderName;
 		WorldRootPath+= TEXT("/");
 
@@ -1956,7 +1956,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				{
 					LandscapeActors.Add(LandscapeProxy);
 				}
-				else 
+				else if(!Actor->IsA<AInstancedFoliageActor>()) // Exclude Foliage from merged mesh
 				{
 					Actors.Add(Actor);
 				}

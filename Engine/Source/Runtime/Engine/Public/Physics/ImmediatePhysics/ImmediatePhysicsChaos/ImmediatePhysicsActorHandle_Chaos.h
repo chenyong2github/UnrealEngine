@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,6 +13,9 @@ namespace ImmediatePhysics_Chaos
 	{
 	public:
 		~FActorHandle();
+
+		void SetName(const FName& InName) { Name = InName; }
+		const FName& GetName() const { return Name; }
 
 		void SetEnabled(bool bEnabled);
 
@@ -56,6 +59,8 @@ namespace ImmediatePhysics_Chaos
 
 		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
 
+		void AddImpulseAtLocation(FVector Impulse, FVector Location);
+
 		/** Set the linear damping*/
 		void SetLinearDamping(float NewLinearDamping);
 
@@ -85,12 +90,14 @@ namespace ImmediatePhysics_Chaos
 
 		/** Get the inverse mass. */
 		float GetInverseMass() const;
+		float GetMass() const;
 
 		/** Set the inverse inertia. Mass-space inverse inertia diagonal vector */
 		void SetInverseInertia(const FVector& NewInverseInertia);
 
 		/** Get the inverse inertia. Mass-space inverse inertia diagonal vector */
 		FVector GetInverseInertia() const;
+		FVector GetInertia() const;
 
 		/** Set the max depenetration velocity*/
 		void SetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity);
@@ -105,7 +112,7 @@ namespace ImmediatePhysics_Chaos
 		float GetMaxContactImpulse() const;
 
 		/** Get the actor-space centre of mass offset */
-		const FTransform& GetLocalCoMTransform() const;
+		FTransform GetLocalCoMTransform() const;
 
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle();
 		const Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle() const;
@@ -119,15 +126,15 @@ namespace ImmediatePhysics_Chaos
 		friend struct FSimulation;
 		friend struct FJointHandle;
 
-		FActorHandle(Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* InEvolution, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
+		FActorHandle(Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
 
 		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
 
-		Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* Evolution;
+		FName Name;
+		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;
 		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>> Shapes;
-		FTransform ActorToCoMTransform;
 		int32 Level;
 	};
 

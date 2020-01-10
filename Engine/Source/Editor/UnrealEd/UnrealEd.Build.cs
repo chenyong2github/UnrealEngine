@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -184,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"ScriptDisassembler",
 				"ToolMenus",
 				"FreeImage",
+				"IoStoreUtilities",
             }
 		);
 
@@ -245,7 +246,8 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
-				"EditorInteractiveToolsFramework"
+				"EditorInteractiveToolsFramework",
+				"TraceInsights",
 			}
 		);
 

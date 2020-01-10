@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,14 +43,14 @@ public:
 			return false;
 		}
 
-		UProperty* InItemProperty = InPropertyNode.GetProperty();
+		FProperty* InItemProperty = InPropertyNode.GetProperty();
 		if (!InItemProperty)
 		{
 			return false;
 		}
 
 		UStruct* OwnerStruct = InItemProperty->GetOwnerStruct();
-		if (!OwnerStruct || OwnerStruct->Children == nullptr)
+		if (!OwnerStruct || (OwnerStruct->Children == nullptr && OwnerStruct->ChildProperties == nullptr))
 		{
 			// Verify that the property is not part of an invalid trash class
 			return false;
@@ -122,7 +122,7 @@ public:
 		check(0 == Index);
 		return HasValidStructData() ? StructData->GetStructMemory() : NULL;
 	}
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const UProperty* InProperty, FPropertyNode* InParentNode) override
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) override
 	{ 
 		check(0 == Index);
 		uint8* StructBaseAddress = HasValidStructData() ? StructData->GetStructMemory() : nullptr;

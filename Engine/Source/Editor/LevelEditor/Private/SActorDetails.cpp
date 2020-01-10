@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SActorDetails.h"
 #include "Widgets/SBoxPanel.h"
@@ -182,7 +182,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 				[
 					SNew(SActorDetailsUneditableComponentWarning)
 					.Visibility(this, &SActorDetails::GetNativeComponentWarningVisibility)
-					.WarningText(NSLOCTEXT("SActorDetails", "UneditableNativeComponentWarning", "Native components are editable when declared as a UProperty in <a id=\"HyperlinkDecorator\" style=\"DetailsView.BPMessageHyperlinkStyle\">C++</>"))
+					.WarningText(NSLOCTEXT("SActorDetails", "UneditableNativeComponentWarning", "Native components are editable when declared as a FProperty in <a id=\"HyperlinkDecorator\" style=\"DetailsView.BPMessageHyperlinkStyle\">C++</>"))
 					.OnHyperlinkClicked(this, &SActorDetails::OnNativeComponentWarningHyperlinkClicked)
 				]
 				+ SVerticalBox::Slot()
@@ -617,7 +617,7 @@ bool SActorDetails::IsPropertyReadOnly(const FPropertyAndParent& PropertyAndPare
 		UActorComponent* Component = Node->GetComponentTemplate();
 		if (Component && Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
 		{
-			TSet<const UProperty*> UCSModifiedProperties;
+			TSet<const FProperty*> UCSModifiedProperties;
 			Component->GetUCSModifiedProperties(UCSModifiedProperties);
 			if (UCSModifiedProperties.Contains(&PropertyAndParent.Property) || 
 				(PropertyAndParent.ParentProperties.Num() > 0 && UCSModifiedProperties.Contains(PropertyAndParent.ParentProperties[0])))

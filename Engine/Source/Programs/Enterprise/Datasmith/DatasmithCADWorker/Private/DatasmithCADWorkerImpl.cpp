@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithCADWorkerImpl.h"
 
@@ -16,9 +16,10 @@ DEFINE_LOG_CATEGORY(LogDatasmithCADWorker);
 using namespace DatasmithDispatcher;
 
 
-FDatasmithCADWorkerImpl::FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServerPort, const FString& InCachePath)
+FDatasmithCADWorkerImpl::FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServerPort, const FString& InKernelIOPath, const FString& InCachePath)
 	: ServerPID(InServerPID)
 	, ServerPort(InServerPort)
+	, KernelIOPath(InKernelIOPath)
 	, CachePath(InCachePath)
 	, PingStartCycle(0)
 {
@@ -125,7 +126,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	FCompletedTaskCommand CompletedTask;
 #ifdef CAD_INTERFACE
-	CADLibrary::FCoreTechFileParser FileParser(FileToProcess, CachePath, ImportParameters);
+	CADLibrary::FCoreTechFileParser FileParser(FileToProcess, CachePath, ImportParameters, *KernelIOPath);
 	CADLibrary::FCoreTechFileParser::EProcessResult ProcessResult = FileParser.ProcessFile();
 
 	CompletedTask.ProcessResult = ProcessResult;

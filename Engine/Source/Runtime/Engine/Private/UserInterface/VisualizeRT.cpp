@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VisualizeRT.cpp: Implements the VisualizeRT Slate window
@@ -61,12 +61,12 @@ struct FRTInfo : public FRefCountedObject
 		Type = TEXT("-");
 
 		// Current Desc Info format: (DIM W[xH[xD]] FMT[ RT]) NUM NAME SIZEkB
-		if ( !Text.IsEmpty() && Text.Split(TEXT(" "), &Dimensions, &Text))
+		if ( !Text.IsEmpty() && Text.Split(TEXT(" "), &Dimensions, &Text, ESearchCase::CaseSensitive))
 		{
-			Dimensions = Dimensions.Mid(1);
+			Dimensions.MidInline(1, MAX_int32, false);
 			if (Dimensions.StartsWith(TEXT("Cube")))
 			{
-				if (!Text.Split(TEXT(" "), &Width, &Text))
+				if (!Text.Split(TEXT(" "), &Width, &Text, ESearchCase::CaseSensitive))
 				{
 					return false;
 				}
@@ -84,14 +84,14 @@ struct FRTInfo : public FRefCountedObject
 							return false;
 						}
 
-						if (!Text.Split(TEXT(" "), &Depth, &Text))
+						if (!Text.Split(TEXT(" "), &Depth, &Text, ESearchCase::CaseSensitive))
 						{
 							return false;
 						}
 					}
 					else
 					{
-						if (!Text.Split(TEXT(" "), &Height, &Text))
+						if (!Text.Split(TEXT(" "), &Height, &Text, ESearchCase::CaseSensitive))
 						{
 							return false;
 						}
@@ -100,18 +100,18 @@ struct FRTInfo : public FRefCountedObject
 			}
 
 			// Might or not have Type
-			if (Text.Split(TEXT(") "), &Format, &Text))
+			if (Text.Split(TEXT(") "), &Format, &Text, ESearchCase::CaseSensitive))
 			{
-				if (Text.Split(TEXT(" "), &Number, &Text))
+				if (Text.Split(TEXT(" "), &Number, &Text, ESearchCase::CaseSensitive))
 				{
-					if (Text.Split(TEXT(" "), &Name, &Size))
+					if (Text.Split(TEXT(" "), &Name, &Size, ESearchCase::CaseSensitive))
 					{
 						// Get the type if found
-						int32 Found = Format.Find(TEXT(" "));
+						int32 Found = Format.Find(TEXT(" "), ESearchCase::CaseSensitive);
 						if (Found > 0)
 						{
 							Type = Format.Mid(Found + 1);
-							Format = Format.Mid(0, Found);
+							Format.MidInline(0, Found, false);
 						}
 						return true;
 					}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -71,6 +71,8 @@ public:
 	// Development commands
 	TSharedPtr< FUICommandInfo > SaveIntermediateBuildProducts;
 	TSharedPtr< FUICommandInfo > GenerateNativeCode;
+	TSharedPtr< FUICommandInfo > GenerateSearchIndex;
+	TSharedPtr< FUICommandInfo > DumpCachedIndexData;
 	TSharedPtr< FUICommandInfo > ShowActionMenuItemSignatures;
 
 	// SSC commands

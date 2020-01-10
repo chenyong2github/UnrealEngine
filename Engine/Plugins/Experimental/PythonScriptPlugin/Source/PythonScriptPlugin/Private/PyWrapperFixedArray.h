@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FPyWrapperFixedArray : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the fixed-array */
-	const UProperty* ArrayProp;
+	PyUtil::FConstPropOnScope ArrayProp;
 
 	/** Wrapped fixed-array instance */
 	void* ArrayInstance;
@@ -36,7 +36,7 @@ struct FPyWrapperFixedArray : public FPyWrapperBase
 	static int Init(FPyWrapperFixedArray* InSelf, const PyUtil::FPropertyDef& InPropDef, const int32 InLen);
 
 	/** Initialize this wrapper instance to the given value (called via tp_init for Python, or directly in C++) */
-	static int Init(FPyWrapperFixedArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const UProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
+	static int Init(FPyWrapperFixedArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
 
 	/** Deinitialize this wrapper instance (called via Init and Free to restore the instance to its New state) */
 	static void Deinit(FPyWrapperFixedArray* InSelf);

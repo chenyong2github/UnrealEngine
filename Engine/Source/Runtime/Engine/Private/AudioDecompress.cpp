@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "AudioDecompress.h"
@@ -361,7 +361,11 @@ const uint8* IStreamedCompressedInfo::GetLoadedChunk(USoundWave* InSoundWave, ui
 {
 	if (!InSoundWave || ChunkIndex >= InSoundWave->GetNumChunks())
 	{
-		UE_LOG(LogAudio, Error, TEXT("Error calling GetLoadedChunk for ChunkIndex %d!"), ChunkIndex);
+		if(InSoundWave)
+		{
+			UE_LOG(LogAudio, Verbose, TEXT("Error calling GetLoadedChunk on wave with %d chunks. ChunkIndex: %d. Name: %s"), InSoundWave->GetNumChunks(), ChunkIndex, *InSoundWave->GetFullName());
+		}
+		
 		OutChunkSize = 0;
 		return nullptr;
 	}

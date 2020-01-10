@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalIndexBuffer.cpp: Metal Index buffer RHI implementation.
@@ -148,4 +148,3 @@ FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICo
 		return IndexBuffer.GetReference();
 	}
 }
-

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/ServerStatReplicator.h"
 #include "Net/UnrealNetwork.h"
@@ -33,7 +33,6 @@ void AServerStatReplicator::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(AServerStatReplicator, Channels);
 	DOREPLIFETIME(AServerStatReplicator, InRate);
 	DOREPLIFETIME(AServerStatReplicator, OutRate);
-	DOREPLIFETIME(AServerStatReplicator, OutSaturation);
 	DOREPLIFETIME(AServerStatReplicator, MaxPacketOverhead);
 	DOREPLIFETIME(AServerStatReplicator, InRateClientMax);
 	DOREPLIFETIME(AServerStatReplicator, InRateClientMin);
@@ -99,7 +98,6 @@ void AServerStatReplicator::Tick(float DeltaSeconds)
 		SET_DWORD_STAT(STAT_InLoss, InLoss);
 		SET_DWORD_STAT(STAT_InRate, InRate);
 		SET_DWORD_STAT(STAT_OutRate, OutRate);
-		SET_DWORD_STAT(STAT_OutSaturation, OutSaturation);
 		SET_DWORD_STAT(STAT_InPackets, InPackets);
 		SET_DWORD_STAT(STAT_OutPackets, OutPackets);
 		SET_DWORD_STAT(STAT_InBunches, InBunches);

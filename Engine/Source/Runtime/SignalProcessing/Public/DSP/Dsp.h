@@ -1,9 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/IsFloatingPoint.h"
+#include "Templates/IsIntegral.h"
+#include "Templates/IsSigned.h"
 
 // Macros which can be enabled to cause DSP sample checking
 #if 0
@@ -510,7 +513,7 @@ namespace Audio
 	 * Designed to be thread safe for SPSC; However, if Push() and Pop() are both trying to access an overlapping area of the buffer,
 	 * One of the calls will be truncated. Thus, it is advised that you use a high enough capacity that the producer and consumer are never in contention.
 	 */
-	template <class SampleType>
+	template <typename SampleType>
 	class TCircularAudioBuffer
 	{
 	private:
@@ -643,6 +646,388 @@ namespace Audio
 			const uint32 WriteIndex = WriteCounter.GetValue();
 
 			return (Capacity - 1 - WriteIndex + ReadIndex) % Capacity;
+		}
+	};
+
+	/**
+	 * This allows us to write a compile time exponent of a number.
+	 */
+	template <int Base, int Exp>
+	struct TGetPower
+	{
+		static_assert(Exp >= 0, "TGetPower only supports positive exponents.");
+		static const int64 Value = Base * TGetPower<Base, Exp - 1>::Value;
+	};
+
+	template <int Base>
+	struct TGetPower<Base, 0>
+	{
+		static const int64 Value = 1;
+	};
+
+	/**
+	 * TSample<SampleType, Q>
+	 * Variant type to simplify converting and performing operations on fixed precision and floating point samples.
+	 */
+	template <typename SampleType, uint32 Q = (sizeof(SampleType) * 8 - 1)>
+	class TSample
+	{
+		SampleType Sample;
+
+		template <typename SampleTypeToCheck>
+		static void CheckValidityOfSampleType()
+		{
+			constexpr bool bIsTypeValid = !!(TIsFloatingPoint<SampleTypeToCheck>::Value || TIsIntegral<SampleTypeToCheck>::Value);
+			static_assert(bIsTypeValid, "Invalid sample type! TSampleRef only supports float or integer values.");
+		}
+
+		template <typename SampleTypeToCheck, uint32 QToCheck>
+		static void CheckValidityOfQ()
+		{
+			// If this is a fixed-precision value, our Q offset must be less than how many bits we have.
+			constexpr bool bIsTypeValid = !!(TIsFloatingPoint<SampleTypeToCheck>::Value || ((sizeof(SampleTypeToCheck) * 8) > QToCheck));
+			static_assert(bIsTypeValid, "Invalid value for Q! TSampleRef only supports float or int types. For int types, Q must be smaller than the number of bits in the int type.");
+		}
+
+		// This is the number used to convert from float to our fixed precision value.
+		static constexpr float QFactor = TGetPower<2, Q>::Value - 1;
+
+		// for fixed precision types, the max and min values that we can represent are calculated here:
+		static constexpr float MaxValue = TGetPower<2, (sizeof(SampleType) * 8 - Q)>::Value;
+		static constexpr float MinValue = !!TIsSigned<SampleType>::Value ? (-1.0f * MaxValue) : 0.0f;
+
+	public:
+
+		TSample(SampleType& InSample)
+			: Sample(InSample)
+		{
+			CheckValidityOfQ<SampleType, Q>();
+			CheckValidityOfSampleType<SampleType>();
+		}
+
+		template<typename ReturnType = float>
+		ReturnType AsFloat() const
+		{
+			static_assert(TIsFloatingPoint<ReturnType>::Value, "Return type for AsFloat() must be a floating point type.");
+
+			if (TIsFloatingPoint<SampleType>::Value)
+			{
+				return static_cast<ReturnType>(Sample);
+			}
+			else if (TIsIntegral<SampleType>::Value)
+			{
+				// Cast from fixed to float.
+				return static_cast<ReturnType>(Sample) / QFactor;
+			}
+			else
+			{
+				checkNoEntry();
+				return static_cast<ReturnType>(Sample);
+			}
+		}
+
+		template<typename ReturnType, uint32 ReturnQ = (sizeof(SampleType) * 8 - 1)>
+		ReturnType AsFixedPrecisionInt()
+		{
+			static_assert(TIsIntegral<ReturnType>::Value, "This function must be called with an integer type as ReturnType.");
+			CheckValidityOfQ<ReturnType, ReturnQ>();
+
+			if (TIsIntegral<SampleType>::Value)
+			{
+				if (Q > ReturnQ)
+				{
+					return Sample << (Q - ReturnQ);
+				}
+				else if (Q < ReturnQ)
+				{
+					return Sample >> (ReturnQ - Q);
+				}
+				else
+				{
+					return Sample;
+				}
+			}
+			else if (TIsFloatingPoint<SampleType>::Value)
+			{
+				static constexpr float ReturnQFactor = TGetPower<2, ReturnQ>::Value - 1;
+				return (ReturnType)(Sample * ReturnQFactor);
+			}
+		}
+
+		template <typename OtherSampleType>
+		TSample<SampleType, Q>& operator =(const OtherSampleType InSample)
+		{
+			CheckValidityOfSampleType<OtherSampleType>();
+
+			if (TIsSame<SampleType, OtherSampleType>::Value)
+			{
+				Sample = InSample;
+				return *this;
+			}
+			else if (TIsIntegral<OtherSampleType>::Value && TIsFloatingPoint<SampleType>::Value)
+			{
+				// Cast from Q15 to float.
+				Sample = ((SampleType)InSample) / QFactor;
+				return *this;
+			}
+			else if (TIsFloatingPoint<OtherSampleType>::Value && TIsIntegral<SampleType>::Value)
+			{
+				// cast from float to Q15.
+				Sample = static_cast<SampleType>(InSample * QFactor);
+				return *this;
+			}
+			else
+			{
+				checkNoEntry();
+				return *this;
+			}
+		}
+
+		template <typename OtherSampleType>
+		friend TSample<SampleType, Q> operator *(const TSample<SampleType, Q>& LHS, const OtherSampleType& RHS)
+		{
+			CheckValidityOfSampleType<OtherSampleType>();
+
+			// Float case:
+			if (TIsFloatingPoint<SampleType>::Value)
+			{
+				if (TIsFloatingPoint<OtherSampleType>::Value)
+				{
+					// float * float.
+					return LHS.Sample * RHS;
+				}
+				else if (TIsIntegral<OtherSampleType>::Value)
+				{
+					// float * Q.
+					SampleType FloatRHS = ((SampleType)RHS) / QFactor;
+					return LHS.Sample * FloatRHS;
+				}
+				else
+				{
+					checkNoEntry();
+					return LHS.Sample;
+				}
+
+			}
+			// Q Case
+			else if (TIsIntegral<SampleType>::Value)
+			{
+				if (TIsFloatingPoint<OtherSampleType>::Value)
+				{
+					// fixed * float.
+					OtherSampleType FloatLHS = ((OtherSampleType)LHS.Sample) / QFactor;
+					OtherSampleType Result = FMath::Clamp(FloatLHS * RHS, MinValue, MaxValue);
+					return static_cast<SampleType>(Result * QFactor);
+				}
+				else if (TIsIntegral<OtherSampleType>::Value)
+				{
+					// Q * Q.
+					float FloatLHS = ((float)LHS.Sample) / QFactor;
+					float FloatRHS = ((float)RHS) / QFactor;
+					float Result = FMath::Clamp(FloatLHS * FloatRHS, MinValue, MaxValue);
+					return static_cast<OtherSampleType>(Result * QFactor);
+				}
+				else
+				{
+					checkNoEntry();
+					return LHS.Sample;
+				}
+			}
+			else
+			{
+				checkNoEntry();
+				return LHS.Sample;
+			}
+		}
+	};
+
+
+	/**
+	 * TSampleRef<SampleType, Q>
+	 * Ref version of TSample. Useful for converting between fixed and float precisions.
+	 * Example usage:
+	 * int16 FixedPrecisionSample;
+	 * TSampleRef<int16, 15> SampleRef(FixedPrecisionSample);
+	 * 
+	 * // Set the sample value directly:
+	 * SampleRef = 0.5f;
+	 * 
+	 * // Or multiply the the sample:
+	 * SampleRef *= 0.5f;
+	 *
+	 * bool bThisCodeWorks = FixedPrecisionSample == TNumericLimits<int16>::Max() / 4;
+	 */
+	template <typename SampleType, uint32 Q = (sizeof(SampleType) * 8 - 1)>
+	class TSampleRef
+	{
+		SampleType& Sample;
+
+		template <typename SampleTypeToCheck>
+		static void CheckValidityOfSampleType()
+		{
+			constexpr bool bIsTypeValid = !!(TIsFloatingPoint<SampleTypeToCheck>::Value || TIsIntegral<SampleTypeToCheck>::Value);
+			static_assert(bIsTypeValid, "Invalid sample type! TSampleRef only supports float or integer values.");
+		}
+
+		template <typename SampleTypeToCheck, uint32 QToCheck>
+		static void CheckValidityOfQ()
+		{
+			// If this is a fixed-precision value, our Q offset must be less than how many bits we have.
+			constexpr bool bIsTypeValid = !!(TIsFloatingPoint<SampleTypeToCheck>::Value || (sizeof(SampleTypeToCheck) * 8) > QToCheck);
+			static_assert(bIsTypeValid, "Invalid value for Q! TSampleRef only supports float or int types. For int types, Q must be smaller than the number of bits in the int type.");
+		}
+
+		// This is the number used to convert from float to our fixed precision value.
+		static constexpr float QFactor = TGetPower<2, Q>::Value - 1;
+
+		// for fixed precision types, the max and min values that we can represent are calculated here:
+		static constexpr float MaxValue = TGetPower<2, (sizeof(SampleType) * 8 - Q)>::Value;
+		static constexpr float MinValue = !!TIsSigned<SampleType>::Value ? (-1.0f * MaxValue) : 0.0f;
+
+	public:
+
+		TSampleRef(SampleType& InSample)
+			: Sample(InSample)
+		{
+			CheckValidityOfQ<SampleType, Q>();
+			CheckValidityOfSampleType<SampleType>();
+		}
+
+		template<typename ReturnType = float>
+		ReturnType AsFloat() const
+		{
+			static_assert(TIsFloatingPoint<ReturnType>::Value, "Return type for AsFloat() must be a floating point type.");
+
+			if (TIsFloatingPoint<SampleType>::Value)
+			{
+				return static_cast<ReturnType>(Sample);
+			}
+			else if (TIsIntegral<SampleType>::Value)
+			{
+				// Cast from fixed to float.
+				return static_cast<ReturnType>(Sample) / QFactor;
+			}
+			else
+			{
+				checkNoEntry();
+				return static_cast<ReturnType>(Sample);
+			}
+		}
+
+		template<typename ReturnType, uint32 ReturnQ = (sizeof(SampleType) * 8 - 1)>
+		ReturnType AsFixedPrecisionInt()
+		{
+			static_assert(TIsIntegral<ReturnType>::Value, "This function must be called with an integer type as ReturnType.");
+			
+			CheckValidityOfQ<ReturnType, ReturnQ>();
+
+			if (TIsIntegral<SampleType>::Value)
+			{
+				if (Q > ReturnQ)
+				{
+					return Sample << (Q - ReturnQ);
+				}
+				else if (Q < ReturnQ)
+				{
+					return Sample >> (ReturnQ - Q);
+				}
+				else
+				{
+					return Sample;
+				}
+			}
+			else if (TIsFloatingPoint<SampleType>::Value)
+			{
+				static constexpr SampleType ReturnQFactor = TGetPower<2, ReturnQ>::Value - 1;
+				return (ReturnType) (Sample * ReturnQFactor);
+			}
+		}
+
+		template <typename OtherSampleType>
+		TSampleRef<SampleType, Q>& operator =(const OtherSampleType InSample)
+		{
+			CheckValidityOfSampleType<OtherSampleType>();
+
+			if (TIsSame<SampleType, OtherSampleType>::Value)
+			{
+				Sample = InSample;
+				return *this;
+			}
+			else if (TIsIntegral<OtherSampleType>::Value && TIsFloatingPoint<SampleType>::Value)
+			{
+				// Cast from fixed to float.
+				Sample = ((SampleType)InSample) / QFactor;
+				return *this;
+			}
+			else if (TIsFloatingPoint<OtherSampleType>::Value && TIsIntegral<SampleType>::Value)
+			{
+				// cast from float to fixed.
+				Sample = (SampleType)(InSample * QFactor);
+				return *this;
+			}
+			else
+			{
+				checkNoEntry();
+				return *this;
+			}
+		}
+
+		template <typename OtherSampleType>
+		friend SampleType operator *(const TSampleRef<SampleType>& LHS, const OtherSampleType& RHS)
+		{
+			CheckValidityOfSampleType<OtherSampleType>();
+
+			// Float case:
+			if (TIsFloatingPoint<SampleType>::Value)
+			{
+				if (TIsFloatingPoint<OtherSampleType>::Value)
+				{
+					// float * float.
+					return LHS.Sample * RHS;
+				}
+				else if (TIsIntegral<OtherSampleType>::Value)
+				{
+					// float * fixed.
+					SampleType FloatRHS = ((SampleType)RHS) / QFactor;
+					return LHS.Sample * FloatRHS;
+				}
+				else
+				{
+					checkNoEntry();
+					return LHS.Sample;
+				}
+
+			}
+			// Fixed Precision Case
+			else if (TIsIntegral<SampleType>::Value)
+			{
+				if (TIsFloatingPoint<OtherSampleType>::Value)
+				{
+					// fixed * float.
+					OtherSampleType FloatLHS = ((OtherSampleType)LHS.Sample) / QFactor;
+					OtherSampleType Result = FMath::Clamp(FloatLHS * RHS, MinValue, MaxValue);
+					return static_cast<SampleType>(Result * QFactor);
+				}
+				else if (TIsIntegral<OtherSampleType>::Value)
+				{
+					// fixed * fixed.
+					float FloatLHS = ((float)LHS.Sample) / QFactor;
+					float FloatRHS = ((float)RHS) / QFactor;
+					float Result = FMath::Clamp(FloatLHS * FloatRHS, MinValue, MaxValue);
+					
+					return static_cast<SampleType>(Result * QFactor);
+				}
+				else
+				{
+					checkNoEntry();
+					return LHS.Sample;
+				}
+			}
+			else
+			{
+				checkNoEntry();
+				return LHS.Sample;
+			}
 		}
 	};
 }

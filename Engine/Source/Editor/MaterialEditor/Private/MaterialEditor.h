@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,7 @@
 #include "SMaterialEditorViewport.h"
 #include "Materials/Material.h"
 #include "Tickable.h"
+#include "UObject/WeakFieldPtr.h"
 
 struct FAssetData;
 class FCanvas;
@@ -695,8 +696,8 @@ private:
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 	// FNotifyHook interface
-	virtual void NotifyPreChange(UProperty* PropertyAboutToChange) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 	/** Flags the material as dirty */
 	void SetMaterialDirty() {bMaterialDirty = true;}
@@ -725,7 +726,7 @@ private:
 
 	/** Pointer to the object that the current color picker is working on. Can be NULL and stale. */
 	TWeakObjectPtr<UObject> ColorPickerObject;
-	TWeakObjectPtr<UProperty> ColorPickerProperty;
+	TWeakFieldPtr<FProperty> ColorPickerProperty;
 
 	/** Called before the color picker commits a change. */
 	void PreColorPickerCommit(FLinearColor LinearColor);
@@ -766,6 +767,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Find(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ParameterDefaults(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_CustomPrimitiveData(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_LayerProperties(const FSpawnTabArgs& Args);
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
@@ -801,6 +803,8 @@ private:
 
 	/** Parameter overview list View */
 	TSharedPtr<class SMaterialParametersOverviewPanel> MaterialParametersOverviewWidget;
+
+	TSharedPtr<class SMaterialCustomPrimitiveDataPanel> MaterialCustomPrimitiveDataWidget;
 
 	/** Layer Properties View */
 	TSharedPtr<class SMaterialLayersFunctionsMaterialWrapper> MaterialLayersFunctionsInstance;
@@ -858,6 +862,7 @@ private:
 	static const FName FindTabId;
 	static const FName PreviewSettingsTabId;
 	static const FName ParameterDefaultsTabId;
+	static const FName CustomPrimitiveTabId;
 	static const FName LayerPropertiesTabId;
 
 	/** Object that stores all of the possible parameters we can edit. */

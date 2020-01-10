@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithWorkerHandler.h"
 
 #include "DatasmithDispatcher.h"
@@ -57,6 +57,12 @@ FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 
 void FDatasmithWorkerHandler::StartWorkerProcess()
 {
+	FString KernelIOPath;
+#ifdef CAD_INTERFACE
+	KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
+	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
+#endif
+
 	ensure(ErrorState == EWorkerErrorState::Ok);
 	FString ProcessorPath = GetWorkerExecutablePath();
 	if (FPaths::FileExists(ProcessorPath))
@@ -72,6 +78,7 @@ void FDatasmithWorkerHandler::StartWorkerProcess()
 		CommandToProcess += TEXT(" -ServerPID ") + FString::FromInt(FPlatformProcess::GetCurrentProcessId());
 		CommandToProcess += TEXT(" -ServerPort ") + FString::FromInt(ListenPort);
 		CommandToProcess += TEXT(" -CacheDir \"") + CachePath + TEXT('"');
+		CommandToProcess += TEXT(" -KernelIOPath \"") + KernelIOPath + TEXT('"');
 		UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("CommandToProcess: %s"), *CommandToProcess);
 
 		uint32 WorkerProcessId = 0;
@@ -323,10 +330,9 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 		return;
 	}
 
-	FString CurrentPath = FPaths::GetPath(CurrentTask->FileName);
 	for (const FString& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
-		Dispatcher.AddTask(FPaths::Combine(CurrentPath, ExternalReferenceFile));
+		Dispatcher.AddTask(ExternalReferenceFile);
 	}
 	FString CurrentFileName = FPaths::GetCleanFilename(CurrentTask->FileName);
 	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);

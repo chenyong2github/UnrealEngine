@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,7 +38,7 @@ public:
 	* @param	InRequiredAPIMacroIfPresent *_API macro if present (empty otherwise)
 	* @param	OutClassData Parsed class meta data
 	*/
-	void ParseClassProperties(const TArray<FPropertySpecifier>& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent);
+	void ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent);
 
 	/**
 	* Merges all category properties with the class which at this point only has its parent propagated categories

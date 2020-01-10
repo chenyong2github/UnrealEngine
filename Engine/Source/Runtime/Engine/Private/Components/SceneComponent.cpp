@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneComponent.cpp
@@ -444,7 +444,7 @@ static bool SceneComponentNeedsLoadForTarget(USceneComponent const* SceneCompone
 		}
 	}
 
-	return true;
+	return TargetPlatform->HasEditorOnlyData() || !SceneComponentObject->IsEditorOnly();
 }
 
 static bool CheckDescendantsAreAlsoCulledForTarget(USceneComponent const* SceneComponentObject, const ITargetPlatform* TargetPlatform)
@@ -477,7 +477,7 @@ bool USceneComponent::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPl
 		// Child not culled, so warn
 		if(!bDescendantsCulled)
 		{
-			UE_LOG(LogSceneComponent, Warning, TEXT("Component %s not cooked out for client because descendants were not also cooked out."), *GetName());
+			UE_LOG(LogSceneComponent, Warning, TEXT("Component %s not cooked out for client because descendants were not also cooked out."), *GetPathName());
 			return true;
 		}
 
@@ -2376,7 +2376,7 @@ void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransfor
 	}
 }
 
-void USceneComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void USceneComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 
@@ -3324,7 +3324,7 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 	}
 }
 
-bool USceneComponent::CanEditChange( const UProperty* Property ) const
+bool USceneComponent::CanEditChange( const FProperty* Property ) const
 {
 	bool bIsEditable = Super::CanEditChange( Property );
 	if( bIsEditable && Property != nullptr )

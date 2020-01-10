@@ -1,20 +1,27 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundWave.h"
+
+#include "ActiveSound.h"
+#include "Audio.h"
+#include "AudioCompressionSettingsUtils.h"
+#include "AudioDecompress.h"
+#include "AudioDerivedData.h"
+#include "AudioDevice.h"
+#include "AudioThread.h"
+#include "SampleBuffer.h"
 #include "Serialization/MemoryWriter.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundSubmix.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineDefines.h"
 #include "Components/AudioComponent.h"
 #include "ContentStreaming.h"
-#include "ActiveSound.h"
-#include "AudioThread.h"
-#include "AudioDevice.h"
-#include "AudioDecompress.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "AudioDerivedData.h"
+#include "Sound/SoundClass.h"
 #include "SubtitleManager.h"
 #include "DerivedDataCacheInterface.h"
 #include "EditorFramework/AssetImportData.h"
@@ -22,12 +29,10 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
-#include "AudioCompressionSettingsUtils.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
-#include "SampleBuffer.h"
 
 #include "Misc/CommandLine.h"
 
@@ -729,7 +734,7 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStreamingChunks)
 {
 	CompressedDataGuid = FGuid::NewGuid();
-	ZerothChunkData.Reset();
+	ZerothChunkData.Empty();
 	CompressedFormatData.FlushData();
 
 	if (bFreeResources)
@@ -877,7 +882,7 @@ void USoundWave::PostLoad()
 void USoundWave::EnsureZerothChunkIsLoaded()
 {
 	// If the zeroth chunk is already loaded, early exit.
-	if (ZerothChunkData.Num() > 0 || !ShouldUseStreamCaching())
+	if (ZerothChunkData.GetView().Num() > 0 || !ShouldUseStreamCaching())
 	{
 		return;
 	}
@@ -897,24 +902,16 @@ void USoundWave::EnsureZerothChunkIsLoaded()
 		return;
 	}
 
-	// TODO: Support passing a TArray by ref into FStreamedAudioPlatformData::GetChunkFromDDC.
-	// Currently not feasible unless FUntypedBulkData::GetCopy API was changed.
-	// For now in editor, we have an extra allocated buffer in this scope.
-	ZerothChunkData.Reset();
-	ZerothChunkData.AddUninitialized(ChunkSizeInBytes);
-	FMemory::Memcpy(ZerothChunkData.GetData(), TempChunkBuffer, ChunkSizeInBytes);
-	FMemory::Free(TempChunkBuffer);
+	ZerothChunkData.Reset(TempChunkBuffer, ChunkSizeInBytes);
+
 #else // WITH_EDITOR
 	// Otherwise, the zeroth chunk is cooked out to RunningPlatformData, and we just need to retrieve it.
 	check(RunningPlatformData && RunningPlatformData->Chunks.Num() > 0);
 	FStreamedAudioChunk& ZerothChunk = RunningPlatformData->Chunks[0];
 	// Some sanity checks to ensure that the bulk size set up
-	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize && ZerothChunk.DataSize >= ZerothChunk.AudioDataSize);
+	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize);
 
-	ZerothChunkData.Reset();
-	ZerothChunkData.AddUninitialized(ZerothChunk.AudioDataSize);
-	uint8* Destination = ZerothChunkData.GetData();
-	ZerothChunk.BulkData.GetCopy((void**)&Destination, true);
+	ZerothChunkData = ZerothChunk.BulkData.GetCopyAsBuffer(ZerothChunk.AudioDataSize, true);
 #endif // WITH_EDITOR
 }
 
@@ -948,6 +945,14 @@ uint32 USoundWave::GetSizeOfChunk(uint32 ChunkIndex)
 void USoundWave::BeginDestroy()
 {
 	Super::BeginDestroy();
+	
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		for (ISoundWaveClient* i: SourcesPlaying)
+		{
+			i->OnBeginDestroy(this);
+		}
+	}
 
 #if WITH_EDITOR
 	// Flush any async results so we dont leak them in the DDC
@@ -1471,7 +1476,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		// Regenerate on save any compressed sound formats or if analysis needs to be re-done
-		if (UProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
 			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
@@ -1608,6 +1613,15 @@ FWaveInstance& USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT
 
 bool USoundWave::IsReadyForFinishDestroy()
 {
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		
+		for (ISoundWaveClient* i : SourcesPlaying)
+		{
+			i->OnIsReadyForFinishDestroy(this);
+		}
+	}
+
 	const bool bIsStreamingInProgress = IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(this);
 
 	check(GetPrecacheState() != ESoundWavePrecacheState::InProgress);
@@ -1649,6 +1663,8 @@ void USoundWave::FinishDestroy()
 
 void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
+	check(AudioDevice);
+
 	FWaveInstance* WaveInstance = ActiveSound.FindWaveInstance(NodeWaveInstanceHash);
 
 	const bool bIsNewWave = WaveInstance == nullptr;
@@ -1716,7 +1732,9 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->SoundClass = ParseParams.SoundClass;
 	if (ParseParams.SoundClass)
 	{
-		FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(ParseParams.SoundClass);
+		const FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(ParseParams.SoundClass);
+		check(SoundClassProperties);
+
 		// Use values from "parsed/ propagated" sound class properties
 		float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
 		WaveInstance->SetVolumeMultiplier(VolumeMultiplier* SoundClassProperties->Volume);
@@ -1734,9 +1752,18 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
 		WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
 		WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
-		WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied || SoundClassProperties->bApplyEffects;
 		WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
 		WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
+
+		if (SoundClassProperties->bApplyEffects)
+		{
+			const UAudioSettings* Settings = GetDefault<UAudioSettings>();
+			WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->EQSubmix.TryLoad());
+		}
+		else if (SoundClassProperties->DefaultSubmix)
+		{
+			WaveInstance->SoundSubmix = SoundClassProperties->DefaultSubmix;
+		}
 
 		if (SoundClassProperties->bApplyAmbientVolumes)
 		{
@@ -1755,13 +1782,27 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->RadioFilterVolumeThreshold = 0.f;
 		WaveInstance->StereoBleed = 0.f;
 		WaveInstance->LFEBleed = 0.f;
-		WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied;
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound;
 		WaveInstance->bIsMusic = ActiveSound.bIsMusic;
 		WaveInstance->bReverb = ActiveSound.bReverb;
 		WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly;
 
 		bAlwaysPlay = ActiveSound.bAlwaysPlay;
+	}
+
+	WaveInstance->bIsAmbisonics = bIsAmbisonics;
+	if (bIsAmbisonics)
+	{
+		const UAudioSettings* Settings = GetDefault<UAudioSettings>();
+		WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->AmbisonicSubmix.TryLoad());
+	}
+	else if (ParseParams.SoundSubmix)
+	{
+		WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
+	}
+	else if (USoundSubmix* WaveSubmix = GetSoundSubmix())
+	{
+		WaveInstance->SoundSubmix = WaveSubmix;
 	}
 
 	// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume
@@ -1804,11 +1845,10 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 		// Apply stereo normalization to wave instances if enabled
 		if (ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
-		{
-			const float ThisVolumeMultiplier = WaveInstance->GetVolumeMultiplier();
-			WaveInstance->SetVolumeMultiplier(ThisVolumeMultiplier * 0.5f);
+	{
+			float WaveInstanceVolume = WaveInstance->GetVolume();
+			WaveInstance->SetVolume(WaveInstanceVolume * 0.5f);
 		}
-
 	}
 
 	// Copy reverb send settings
@@ -1823,7 +1863,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->EnvelopeFollowerReleaseTime = ParseParams.EnvelopeFollowerReleaseTime;
 
 	// Copy over the submix sends.
-	WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
 	WaveInstance->SoundSubmixSends = ParseParams.SoundSubmixSends;
 
 	// Copy over the source bus send and data
@@ -1842,8 +1881,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->OcclusionPluginSettings = ParseParams.OcclusionPluginSettings;
 	WaveInstance->ReverbPluginSettings = ParseParams.ReverbPluginSettings;
 	WaveInstance->ModulationPluginSettings = ParseParams.ModulationPluginSettings;
-
-	WaveInstance->bIsAmbisonics = bIsAmbisonics;
 
 	if (WaveInstance->IsPlaying())
 	{
@@ -1975,7 +2012,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 			EnsureZerothChunkIsLoaded();
 		}
 
-		check(ZerothChunkData.Num() > 0);
+		check(ZerothChunkData.GetView().Num() > 0);
 
 		if (GetNumChunks() > 1)
 		{
@@ -1983,7 +2020,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
 		}
 
-		return TArrayView<const uint8>(ZerothChunkData);
+		return ZerothChunkData.GetView();
 	}
 	else
 	{
@@ -2015,6 +2052,28 @@ bool USoundWave::HasCookedFFTData() const
 bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 {
 	return CookedEnvelopeTimeData.Num() > 0;
+}
+
+void USoundWave::AddPlayingSource(const FSoundWaveClientPtr& Source)
+{
+	check(Source);
+	check(IsInAudioThread() || IsInGameThread());   // Don't allow incrementing on other threads as it's not safe (for GCing of this wave).
+	if (Source)
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		check(!SourcesPlaying.Contains(Source));
+		SourcesPlaying.Add(Source);
+	}
+}
+
+void USoundWave::RemovePlayingSource(const FSoundWaveClientPtr& Source)
+{
+	if (Source)
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		check(SourcesPlaying.Contains(Source));
+		SourcesPlaying.RemoveSwap(Source);
+	}
 }
 
 void USoundWave::UpdatePlatformData()

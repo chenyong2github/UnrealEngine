@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderDocPluginModule.h"
 
@@ -48,6 +48,19 @@ static TAutoConsoleVariable<int32> CVarRenderDocSaveAllInitials(
 	TEXT("0 - Disregard initial states of resources. ")
 	TEXT("1 - Always capture the initial state of all rendering resources. ")
 	TEXT("Please note that doing this will significantly increase capture size."));
+static TAutoConsoleVariable<int32> CVarRenderDocCaptureDelayInSeconds(
+	TEXT("renderdoc.CaptureDelayInSeconds"),
+	1,
+	TEXT("0 - Capture delay's unit is in frames.")
+	TEXT("1 - Capture delay's unit is in seconds."));
+static TAutoConsoleVariable<int32> CVarRenderDocCaptureDelay(
+	TEXT("renderdoc.CaptureDelay"),
+	0,
+	TEXT("If > 0, RenderDoc will trigger the capture only after this amount of time (or frames, if CaptureDelayInSeconds is false) has passed."));
+static TAutoConsoleVariable<int32> CVarRenderDocCaptureFrameCount(
+	TEXT("renderdoc.CaptureFrameCount"),
+	0,
+	TEXT("If > 0, the RenderDoc capture will encompass more than a single frame. Note: this implies that all activity in all viewports and editor windows will be captured (i.e. same as CaptureAllActivity)"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper classes
@@ -148,7 +161,6 @@ void FRenderDocPluginModule::StartupModule()
 #if WITH_EDITOR && !UE_BUILD_SHIPPING // Disable in shipping builds
 	Loader.Initialize();
 	RenderDocAPI = nullptr;
-	TickNumber = 0;
 
 #if WITH_EDITOR
 	EditorExtensions = nullptr;
@@ -178,7 +190,14 @@ void FRenderDocPluginModule::StartupModule()
 	check(RenderDocAPI);
 
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
-	TickNumber = 0;
+	DelayedCaptureTick = 0;
+	DelayedCaptureSeconds = 0.0;
+	CaptureFrameCount = 0;
+	CaptureEndTick = 0;
+	bCaptureDelayInSeconds = false;
+	bPendingCapture = false;
+	bCaptureInProgress = false;
+	bShouldCaptureAllActivity = false;
 
 	// Setup RenderDoc settings
 	FString RenderDocCapturePath = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("RenderDocCaptures"));
@@ -218,11 +237,7 @@ void FRenderDocPluginModule::StartupModule()
 void FRenderDocPluginModule::BeginCapture()
 {
 	UE_LOG(RenderDocPlugin, Log, TEXT("Capture frame and launch renderdoc!"));
-#if WITH_EDITOR
-	FRenderDocPluginNotification::Get().ShowNotification(LOCTEXT("CaptureNotification", "Capturing frame"));
-#else
-	GEngine->AddOnScreenDebugMessage((uint64)-1, 2.0f, FColor::Emerald, FString("RenderDoc: Capturing frame"));
-#endif
+	ShowNotification(LOCTEXT("RenderDocBeginCaptureNotification", "RenderDoc capture started"), true);
 
 	pRENDERDOC_SetCaptureOptionU32 SetOptions = Loader.RenderDocAPI->SetCaptureOptionU32;
 	int ok = SetOptions(eRENDERDOC_Option_CaptureCallstacks, CVarRenderDocCaptureCallstacks.GetValueOnAnyThread() ? 1 : 0); check(ok);
@@ -239,6 +254,21 @@ void FRenderDocPluginModule::BeginCapture()
 		{
 			FRenderDocFrameCapturer::BeginCapture(WindowHandle, RenderDocAPILocal, Plugin);
 		});
+}
+
+bool FRenderDocPluginModule::ShouldCaptureAllActivity() const
+{
+	// capturing more than 1 frame means that we can't just capture the current viewport : 
+	return CVarRenderDocCaptureAllActivity.GetValueOnAnyThread() || (CVarRenderDocCaptureFrameCount.GetValueOnAnyThread() > 1);
+}
+
+void FRenderDocPluginModule::ShowNotification(const FText& Message, bool bForceNewNotification)
+{
+#if WITH_EDITOR
+	FRenderDocPluginNotification::Get().ShowNotification(Message, bForceNewNotification);
+#else
+	GEngine->AddOnScreenDebugMessage((uint64)-1, 2.0f, FColor::Emerald, Message.ToString());
+#endif
 }
 
 void FRenderDocPluginModule::InjectDebugExecKeybind()
@@ -274,21 +304,56 @@ void FRenderDocPluginModule::EndCapture()
 		{
 			FRenderDocFrameCapturer::EndCapture(WindowHandle, RenderDocAPILocal, Plugin);
 		});
+
+	DelayedCaptureTick = 0;
+	DelayedCaptureSeconds = 0.0;
+	CaptureFrameCount = 0;
+	CaptureEndTick = 0;
+	bPendingCapture = false;
+	bCaptureInProgress = false;
 }
 
 void FRenderDocPluginModule::CaptureFrame()
 {
-	if (CVarRenderDocCaptureAllActivity.GetValueOnAnyThread())
+	int32 FrameDelay = CVarRenderDocCaptureDelay.GetValueOnAnyThread();
+
+	// Don't do anything if we're currently already waiting for a capture to end : 
+	if (bCaptureInProgress)
+		return;
+
+	// in case there's no delay and we capture the current viewport, we can trigger the capture immediately : 
+	bShouldCaptureAllActivity = ShouldCaptureAllActivity();
+	if ((FrameDelay == 0) && !bShouldCaptureAllActivity)
 	{
-		CaptureEntireFrame();
-	}	
+		DoCaptureCurrentViewport();
+	}
 	else
 	{
-		CaptureCurrentViewport();
+		// store all CVars at beginning of capture in case they change while the capture is occuring : 
+		CaptureFrameCount = CVarRenderDocCaptureFrameCount.GetValueOnAnyThread();
+		bCaptureDelayInSeconds = CVarRenderDocCaptureDelayInSeconds.GetValueOnAnyThread() > 0;
+
+		if (bCaptureDelayInSeconds)
+		{
+			DelayedCaptureSeconds = FPlatformTime::Seconds() + (double)FrameDelay;
+		}
+		else
+		{
+			// Begin tracking the global tick counter so that the Tick() method below can
+			// identify the beginning and end of a complete engine update cycle.
+			// NOTE: GFrameCounter counts engine ticks, while GFrameNumber counts render
+			// frames. Multiple frames might get rendered in a single engine update tick.
+			// All active windows are updated, in a round-robin fashion, within a single
+			// engine tick. This includes thumbnail images for material preview, material
+			// editor previews, cascade/persona previes, etc.
+			DelayedCaptureTick = GFrameCounter + FrameDelay;
+		}
+
+		bPendingCapture = true;
 	}
 }
 
-void FRenderDocPluginModule::CaptureCurrentViewport()
+void FRenderDocPluginModule::DoCaptureCurrentViewport()
 {
 	BeginCapture();
 
@@ -317,51 +382,72 @@ void FRenderDocPluginModule::CaptureCurrentViewport()
 	EndCapture();
 }
 
-void FRenderDocPluginModule::CaptureEntireFrame()
-{
-	// Are we already in the workings of capturing an entire engine frame?
-	if (TickNumber != 0)
-		return;
-
-	// Begin tracking the global tick counter so that the Tick() method below can
-	// identify the beginning and end of a complete engine update cycle.
-	// NOTE: GFrameCounter counts engine ticks, while GFrameNumber counts render
-	// frames. Multiple frames might get rendered in a single engine update tick.
-	// All active windows are updated, in a round-robin fashion, within a single
-	// engine tick. This includes thumbnail images for material preview, material
-	// editor previews, cascade/persona previes, etc.
-	TickNumber = GFrameCounter;
-}
-
 void FRenderDocPluginModule::Tick(float DeltaTime)
 {
-	if (TickNumber == 0)
+	if (!bPendingCapture && !bCaptureInProgress)
 		return;
 
-	const uint32 TickDiff = GFrameCounter - TickNumber;
-	const uint32 MaxCount = 2;
-
-	check(TickDiff <= MaxCount);
-
-	if (TickDiff == 1)
+	if (bPendingCapture)
 	{
-		BeginCapture();
+		check(!bCaptureInProgress); // can't be in progress and pending at the same time
+
+		bool bStartCapturing = false;
+		if (bCaptureDelayInSeconds)
+		{
+			bStartCapturing = FPlatformTime::Seconds() > DelayedCaptureSeconds;
+		}
+		else
+		{
+			const int64 TickDiff = GFrameCounter - DelayedCaptureTick;
+			bStartCapturing = (TickDiff == 1);
+		}
+
+		if (bStartCapturing)
+		{
+			// are we capturing only the current viewport?
+			if (!bShouldCaptureAllActivity)
+			{
+				DoCaptureCurrentViewport();
+				check(!bCaptureInProgress && !bPendingCapture); // EndCapture must have been called
+			}
+			else
+			{
+				BeginCapture();
+				// from now on, we'll detect the end of the capture by counting ticks : 
+				CaptureEndTick = GFrameCounter + CaptureFrameCount + 1;
+				bCaptureInProgress = true;
+				bPendingCapture = false;
+			}
+		}
+		else
+		{
+			float TimeLeft = bCaptureDelayInSeconds ? (float)(DelayedCaptureSeconds - FPlatformTime::Seconds()) : (float)(DelayedCaptureTick - GFrameCounter);
+			const FText& SecondsOrFrames = bCaptureDelayInSeconds ? LOCTEXT("RenderDocSeconds", "seconds") : LOCTEXT("RenderDocFrames", "frames");
+
+			ShowNotification(LOCGEN_FORMAT_ORDERED(LOCTEXT("RenderDocPendingCaptureNotification", "RenderDoc capture starting in {0} {1}"), TimeLeft, SecondsOrFrames), false);
+		}
 	}
 
-	if (TickDiff == MaxCount)
+	const int64 TickDiff = GFrameCounter - DelayedCaptureTick;
+	if (bCaptureInProgress)
 	{
-		EndCapture();
-		TickNumber = 0;
+		check(!bPendingCapture); // can't be in progress and pending at the same time
+
+		if (GFrameCounter == CaptureEndTick)
+		{
+			EndCapture();
+		}
+		else
+		{
+			ShowNotification(LOCGEN_FORMAT_ORDERED(LOCTEXT("RenderDocCaptureInProgressNotification", "RenderDoc capturing frame #{0}"),
+				CaptureFrameCount - (CaptureEndTick - 1 - GFrameCounter)), false);
+		}
 	}
 }
 
 void FRenderDocPluginModule::StartRenderDoc(FString FrameCaptureBaseDirectory)
 {
-#if WITH_EDITOR
-	FRenderDocPluginNotification::Get().ShowNotification(LOCTEXT("LaunchNotification", "Launching RenderDoc GUI") );
-#else
-	GEngine->AddOnScreenDebugMessage((uint64)-1, 2.0f, FColor::Emerald, FString("RenderDoc: Launching RenderDoc GUI"));
-#endif
+	ShowNotification(LOCTEXT("RenderDocLaunchRenderDocNotification", "Launching RenderDoc GUI"), true);
 
 	FString NewestCapture = GetNewestCapture(FrameCaptureBaseDirectory);
 	FString ArgumentString = FString::Printf(TEXT("\"%s\""), *FPaths::ConvertRelativePathToFull(NewestCapture).Append(TEXT(".log")));
@@ -375,15 +461,12 @@ void FRenderDocPluginModule::StartRenderDoc(FString FrameCaptureBaseDirectory)
 			if (0 == PID)
 			{
 				UE_LOG(LogTemp, Error, TEXT("Could not launch RenderDoc!!"));
+				ShowNotification(LOCTEXT("RenderDocLaunchRenderDocNotificationFailure", "Failed to launch RenderDoc GUI"), true);
 			}
 		}
 	}
 
-#if WITH_EDITOR
-	FRenderDocPluginNotification::Get().ShowNotification(LOCTEXT("LaunchCompletedNotification", "RenderDoc GUI Launched!") );
-#else
-	GEngine->AddOnScreenDebugMessage((uint64)-1, 2.0f, FColor::Emerald, FString("RenderDoc: GUI Launched!"));
-#endif
+	ShowNotification(LOCTEXT("RenderDocLaunchRenderDocNotificationCompleted", "RenderDoc GUI Launched!"), true);
 }
 
 FString FRenderDocPluginModule::GetNewestCapture(FString BaseDirectory)

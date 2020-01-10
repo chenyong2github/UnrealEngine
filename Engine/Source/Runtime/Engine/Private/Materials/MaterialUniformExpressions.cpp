@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShared.cpp: Shared material implementation.
@@ -20,7 +20,7 @@
 static TAutoConsoleVariable<int32> CVarSupportMaterialLayers(
 	TEXT("r.SupportMaterialLayers"),
 	0,
-	TEXT("Support new material layering in 4.19. Disabling it reduces some overhead in place to support the experimental feature."),
+	TEXT("Support new material layering"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 // Temporary flag for toggling experimental material layers functionality
@@ -848,10 +848,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			else
 			{
 				// Don't have valid resources to bind for this VT, so make sure something is bound
-				*ResourceTablePageTexture0Ptr = GWhiteTexture->TextureRHI;
+				*ResourceTablePageTexture0Ptr = GBlackUintTexture->TextureRHI;
 				if (ResourceTablePageTexture1Ptr != nullptr)
 				{
-					*ResourceTablePageTexture1Ptr = GWhiteTexture->TextureRHI;
+					*ResourceTablePageTexture1Ptr = GBlackUintTexture->TextureRHI;
 				}
 			}
 		}

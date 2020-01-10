@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Static mesh creation from FBX data.
@@ -961,6 +961,14 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			if (bBeginGetMeshEdgeIndexForPolygonCalled)
 			{
 				Mesh->EndGetMeshEdgeIndexForPolygon();
+			}
+			if (SkippedVertexInstance > 0)
+			{
+				//We must compact the sparse array before reserving new space
+				//When we reserve it will make a hole in the sparse array if the last reserve was not fully use
+				//The importer assume there will be no hole when importing a mesh
+				FElementIDRemappings OutRemappings;
+				MeshDescription->Compact(OutRemappings);
 			}
 		}
 	}
@@ -2165,7 +2173,7 @@ static void FindMeshSockets( FbxNode* StartNode, TArray<FbxSocketNode>& OutFbxSo
 			if( SocketName.StartsWith( SocketPrefix ) )
 			{
 				// Remove the prefix from the name
-				SocketName = SocketName.RightChop( SocketPrefix.Len() );
+				SocketName.RightChopInline( SocketPrefix.Len(), false );
 
 				FbxSocketNode NewNode;
 				NewNode.Node = StartNode;

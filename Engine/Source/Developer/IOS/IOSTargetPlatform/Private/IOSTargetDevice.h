@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "Interfaces/ITargetDevice.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Containers/Queue.h"
 
 class FMessageEndpoint;
 class ITargetPlatform;
@@ -32,7 +33,7 @@ public:
      * Creates and initializes a new instance.
      *
      */
-    FTcpDSCommander(const uint8* Data, int32 Count, void* WPipe);
+    FTcpDSCommander(const uint8* Data, int32 Count, TQueue<FString>& InOutputQueue);
     
     /** Virtual destructor. */
     virtual ~FTcpDSCommander();
@@ -82,7 +83,7 @@ private:
     /** Holds the thread object. */
     FRunnableThread* Thread;
     
-    void* WritePipe;
+	TQueue<FString>& OutputQueue;
     uint8* DSCommand;
     int32 DSCommandLen;
     double LastActivity;

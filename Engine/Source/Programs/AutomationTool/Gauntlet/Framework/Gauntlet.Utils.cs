@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1128,7 +1128,36 @@ namespace Gauntlet
 								{
 									Log.Error("File Copy failed with {0}.", ex.Message);
 								}
-								throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
+
+								// Warn with message if we're exceeding long path, otherwise throw an exception
+								const int MAX_PATH = 260;
+								bool LongPath = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && (SourcePath.Length >= MAX_PATH || DestFile.Length >= MAX_PATH);
+
+								if (!LongPath)
+								{
+									throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
+								}
+								else
+								{
+									string LongPathMessage = (Environment.OSVersion.Version.Major > 6) ?
+										"Long path detected, check that long paths are enabled." :
+										"Long path detected, OS version doesn't support long paths.";
+
+									// Break out of loop with warning
+									Copied = true;
+
+									// Filter out some known unneeded files which can cause this warning, and log the message instead
+									string[] Blacklist = new string[]{ "UE4CC-XboxOne" };
+									string Message = string.Format("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message);
+									if ( Blacklist.FirstOrDefault(B => { return SourcePath.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
+									{
+										Log.Warning(Message); 
+									}
+									else
+									{
+										Log.Info(Message);
+									}
+								}
 							}
 						}
 					} while (Copied == false);

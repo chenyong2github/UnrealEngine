@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/ControlRigGraph.h"
 #include "ControlRigBlueprint.h"
@@ -87,7 +87,7 @@ void UControlRigGraph::PostLoad()
 				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
 				if (RigNode != nullptr)
 				{
-					UStructProperty* Property = Cast<UStructProperty>(BlueprintClass->FindPropertyByName(RigNode->GetPropertyName()));
+					FStructProperty* Property = CastField<FStructProperty>(BlueprintClass->FindPropertyByName(RigNode->GetPropertyName()));
 					if (Property != nullptr)
 					{
 						// found the hierarchy ref variable

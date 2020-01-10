@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -25,7 +25,7 @@ public:
 	{
 	}
 
-	CADLibrary::CheckedCTError AddBRep(ON_Brep& brep, bool& bOutBRepHasLoopNonManifold);
+	CADLibrary::CheckedCTError AddBRep(ON_Brep& brep);
 	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession(double SceneUnit, double ScaleFactor);
 
 	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);

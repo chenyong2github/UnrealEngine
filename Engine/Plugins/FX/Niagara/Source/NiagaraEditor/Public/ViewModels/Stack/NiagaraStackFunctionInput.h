@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,9 @@ class UNiagaraScript;
 class UEdGraphPin;
 class UNiagaraDataInterface;
 enum class EStackParameterBehavior;
+class UNiagaraClipboardFunctionInput;
+class UNiagaraClipboardFunction;
+class UNiagaraScriptVariable;
 
 /** Represents a single module input in the module stack view model. */
 UCLASS()
@@ -85,8 +88,19 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual FText GetTooltipText() const override;
 	virtual bool GetIsEnabled() const override;
-	
-	UObject* GetExternalAsset() const override;
+	virtual UObject* GetExternalAsset() const override;
+	virtual bool SupportsCut() const override { return true; }
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	virtual FText GetCutTransactionText() const override;
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void RemoveForCut() override;
+	virtual bool SupportsCopy() const override { return true; }
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual bool SupportsPaste() const override { return true; }
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
 
 	FText GetTooltipText(EValueMode InValueMode) const;
 
@@ -108,17 +122,17 @@ public:
 	/** Gets the dynamic input node providing the value for this input, if one is available. */
 	UNiagaraNodeFunctionCall* GetDynamicInputNode() const;
 
-	/** Gets the expression input node providing the value for this input, if one is available. */
-	UNiagaraNodeCustomHlsl* GetExpressionNode() const;
-
 	/** Gets the dynamic inputs available for this input. */
 	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
-	void SetDynamicInput(UNiagaraScript* DynamicInput);
+	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString());
+
+	/** Gets the expression providing the value for this input, if one is available. */
+	FText GetCustomExpressionText() const;
 
 	/** Sets the dynamic custom expression script for this input. */
-	void SetCustomExpression(const FString& InputText);
+	void SetCustomExpression(const FString& InCustomExpression);
 
 	/** Gets the current struct value of this input is there is one. */
 	TSharedPtr<FStructOnScope> GetLocalValueStruct();
@@ -136,7 +150,7 @@ public:
 	bool IsEnabled() const;
 
 	/** Sets this input's local value. */
-	void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue);
+	void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue, bool bIsOverride = false);
 	
 	/** Returns whether or not the value or handle of this input has been overridden and can be reset. */
 	bool CanReset() const;
@@ -215,6 +229,10 @@ public:
 
 	/** Gets whether or not this input is filtered from search results and appearing in stack due to visibility metadata*/
 	bool GetShouldPassFilterForVisibleCondition() const;
+
+	const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
+
+	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
 public:
 	//~ UNiagaraStackEntry interface
@@ -312,7 +330,7 @@ private:
 
 private:
 	/** Refreshes the current values for this input from the state of the graph. */
-	void RefreshValues();
+	void RefreshValues(bool bFromSetLocalValue=false);
 
 	/** Refreshes additional state for this input which comes from input metadata. */
 	void RefreshFromMetaData();
@@ -343,8 +361,10 @@ private:
 	  * pin don't exist, they will be created. */
 	UEdGraphPin& GetOrCreateOverridePin();
 
+	bool TryGetDefaultBinding(FNiagaraParameterHandle& LinkedValueHandle, UNiagaraScriptVariable* Variable, UEdGraphPin& ValuePin);
+
 	/** Tries to get a local value for this input if it exists by checking the graph data directly. */
-	bool TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse);
+	bool TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse, UNiagaraScriptVariable* Variable);
 
 	/** Tries to get a data interface value for this input if it exists by checking the graph data directly .*/
 	bool TryGetCurrentDataValue(FDataValues& DataValues, UEdGraphPin* OverrideValuePin, UEdGraphPin& DefaultValuePin, UNiagaraDataInterface* LocallyOwnedDefaultDataValueObjectToReuse);
@@ -462,4 +482,7 @@ private:
 
 	/** Whether or not the dynamic input for this input has a function script reassignment pending due to a request to fix a missing script. */
 	bool bIsDynamicInputScriptReassignmentPending;
+
+	bool bIsLocalOverride;
+	UNiagaraScriptVariable* Variable;
 };

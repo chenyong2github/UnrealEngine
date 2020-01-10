@@ -1,9 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "ClothingAssetBase.h"
 #include "ClothConfigBase.h"
 #include "ClothLODData.h"
+#include "ClothConfig_Legacy.h"
+#include "ClothLODData_Legacy.h"
 #include "ClothingSimulationInteractor.h"
 
 #include "ClothingAsset.generated.h"
@@ -107,9 +109,6 @@ public:
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh) override;
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex) override;
 
-	void ReregisterComponentsUsingClothing();
-	void ForEachInteractorUsingClothing(TFunction<void (UClothingSimulationInteractor*)> Func);
-
 	/** 
 	 * Callback envoked after weights have been edited.
 	 * Calls \c PushWeightsToMesh() on each \c ClothLodData, and invalidates cached data. 
@@ -131,54 +130,92 @@ public:
 	 */
 	virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh) override;
 
-	/**
-	 * Calculates the prefered root bone for the simulation.
-	 */
+	/** Calculates the preferred root bone for the simulation. */
 	void CalculateReferenceBoneIndex();
 
-	/**
-	 * Returns \c true if \p InLodIndex is a valid LOD id (index into \c ClothLodData).
-	 */
-	virtual bool IsValidLod(int32 InLodIndex) override;
+	/** Returns \c true if \p InLodIndex is a valid LOD id (index into \c ClothLodData). */
+	virtual bool IsValidLod(int32 InLodIndex) const override;
+
+	/** Returns the number of valid LOD's (length of the \c ClothLodData array). */
+	virtual int32 GetNumLods() const override;
+
+#if WITH_EDITOR
+	/** * Add a new LOD class instance. */
+	virtual int32 AddNewLod() override;
 
 	/**
-	 * Returns the number of valid LOD's (length of the \c ClothLodData array).
+	 * Called on the clothing asset when the base data (physical mesh etc.) has
+	 * changed, so any intermediate generated data can be regenerated.
 	 */
-	virtual int32 GetNumLods() override;
+	virtual void InvalidateCachedData() override;
+
+	/* Called after changes in any of the asset properties. */
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
+#endif // WITH_EDITOR
 
 	/**
 	 * Builds self collision data.
 	 * The default behavior is if the \c ClothSimConfig reports that self collisions
 	 * are enabled, it envokes \c BuildSelfCollisionData() on each \c ClothLodData's
-	 * \c PhysicalMeshData member.
+	 * \c ClothPhysicalMeshData member.
 	 */
 	virtual void BuildSelfCollisionData() override;
+
+	/** Return a const cloth config pointer of the desired cloth config type, or nullptr if there isn't any suitable. */
+	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
+	const ClothConfigType* GetClothConfig() const
+	{
+		const UClothConfigBase* const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
+		return ClothConfig ? ExactCast<ClothConfigType>(*ClothConfig) : nullptr;
+	}
+
+	/** Return a cloth config pointer of the desired cloth config type, or nullptr if there isn't any suitable. */
+	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
+	ClothConfigType* GetClothConfig()
+	{
+		UClothConfigBase* const* const ClothConfig = ClothConfigs.Find(ClothConfigType::StaticClass()->GetFName());
+		return ClothConfig ? ExactCast<ClothConfigType>(*ClothConfig) : nullptr;
+	}
+
+	/** Migrate deprecated objects. */
+	virtual void PostLoad() override;
+
+	/** Serialize deprecated objects. */
+	virtual void Serialize(FArchive& Ar) override;
+
+	/** Propagate the shared simulation configs between assets. Called after all cloth assets sharing the same simulation are loaded. */
+	virtual void PostUpdateAllAssets() override;
 
 	// The physics asset to extract collisions from when building a simulation.
 	UPROPERTY(EditAnywhere, Category = Config)
 	UPhysicsAsset* PhysicsAsset;
 
+	// Simulation specific cloth parameters. 
+	// Use GetClothConfig() to retrieve the correct parameters/config type for the desired cloth simulation system.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, EditFixedSize, Instanced, Category = Config)
+	TMap<FName, UClothConfigBase*> ClothConfigs;
+
 	// Shared by all cloth instances in a skeletal mesh
 	// Only supported with Chaos Cloth for now
 	// This may not be editable on unused cloth assets
-	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
-	UClothSharedSimConfigBase* ClothSharedSimConfig;
+	UPROPERTY()
+	UClothConfigBase* ClothSharedSimConfig_DEPRECATED;
 
 	// Parameters for how the NVcloth behaves.
 	// These will have no effect on Chaos cloth
-	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
-	UClothConfigBase* ClothSimConfig;
+	UPROPERTY()
+	UClothConfigBase* ClothSimConfig_DEPRECATED;
 
 	// Parameters for how Chaos cloth behaves 
 	// These will not affect NVcloth
 	// For now, we have two configuration parameters so that we can switch between chaos and
 	// non chaos at will without losing the original NVcloth data
-	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
-	UClothConfigBase* ChaosClothSimConfig;
+	UPROPERTY()
+	UClothConfigBase* ChaosClothSimConfig_DEPRECATED;
 
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
-	TArray<UClothLODDataBase*> ClothLodData;
+	TArray<UClothLODDataCommon*> ClothLodData;
 
 	// Tracks which clothing LOD each skel mesh LOD corresponds to (LodMap[SkelLod]=ClothingLod).
 	UPROPERTY()
@@ -199,4 +236,43 @@ public:
 	// Custom data applied by the importer depending on where the asset was imported from.
 	UPROPERTY()
 	UClothingAssetCustomData* CustomData;
+
+	/** 
+	 * Deprecated property for transitioning the \c FClothConfig struct to the 
+	 * \c UClothConfigBase array, in a new property called \c ClothConfigs.
+	 */
+	UPROPERTY()
+	FClothConfig_Legacy ClothConfig_DEPRECATED;
+
+	/** 
+	 * Deprecated property for transitioning \c FClothLODData struct to the 
+	 * \c UClothLODDataCommon class, in a new property called \c ClothLodData.
+	 */
+	UPROPERTY()
+	TArray<FClothLODData_Legacy> LodData_DEPRECATED;
+
+private:
+
+	// Add or replace a new cloth config of the specified type.
+	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
+	void SetClothConfig(ClothConfigType* ClothConfig)
+	{
+		check(ClothConfig);
+		ClothConfigs.Add(ClothConfig->GetClass()->GetFName(), static_cast<UClothConfigBase*>(ClothConfig));
+	}
+
+	// Create and add any missing cloth configs.
+	// If a config from a different factory exists already, the newly
+	// created config will attempt to initialize its parameters from it.
+	void AddClothConfigs();
+
+	// Propagate the shared simulation configs between assets.
+	// Called after a cloth asset is created or loaded.
+	void PropagateSharedConfigs();
+
+#if WITH_EDITOR
+	// Helper functions used in PostPropertyChangeCb
+	void ReregisterComponentsUsingClothing();
+	void ForEachInteractorUsingClothing(TFunction<void (UClothingSimulationInteractor*)> Func);
+#endif // WITH_EDITOR
 };

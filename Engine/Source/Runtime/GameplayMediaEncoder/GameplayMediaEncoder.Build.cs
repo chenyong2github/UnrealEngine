@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using UnrealBuildTool;
@@ -24,6 +24,7 @@ public class GameplayMediaEncoder : ModuleRules
 			"Slate",
 			"HTTP",
 			"Json",
+			"AVEncoder",
 			//"IBMRTMPIngest"
         });
 
@@ -40,6 +41,7 @@ public class GameplayMediaEncoder : ModuleRules
 
 			PublicSystemLibraries.Add("d3d11.lib");
 		}
+
 	}
 }
 

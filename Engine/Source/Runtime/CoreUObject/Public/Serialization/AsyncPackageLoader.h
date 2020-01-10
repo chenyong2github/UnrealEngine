@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,9 +13,6 @@ extern const FName PrestreamPackageClassNameLoad;
 
 /** Returns true if we're inside a FGCScopeLock */
 extern bool IsGarbageCollectionLocked();
-
-/** Returns true if GC wants to run */
-extern bool IsGarbageCollectionWaiting();
 
 bool IsFullyLoadedObj(UObject* Obj);
 
@@ -43,14 +40,13 @@ void ClearFlagsAndDissolveClustersFromLoadedObjects(T& LoadedObjects)
 
 class IAsyncPackageLoader;
 class FPackageIndex;
-class FGCObject;
 
 class IEDLBootNotificationManager
 {
 public:
 	virtual ~IEDLBootNotificationManager() = default;
 
-	virtual bool AddWaitingPackage(FGCObject* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) = 0;
+	virtual bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) = 0;
 	virtual bool ConstructWaitingBootObjects() = 0;
 	virtual bool FireCompletedCompiledInImports(bool bFinalRun = false) = 0;
 	virtual bool IsWaitingForSomething() = 0;
@@ -180,7 +176,7 @@ public:
 
 	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) = 0;
 
-	virtual void FireCompletedCompiledInImport(FGCObject* AsyncPackage, FPackageIndex Import) = 0;
+	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) = 0;
 };
 
 // Stats for ChartCreation.cpp

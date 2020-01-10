@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperObject.h"
 #include "PyWrapperOwnerContext.h"
@@ -238,7 +238,7 @@ PyObject* FPyWrapperObject::CallFunction_Impl(UObject* InObj, const PyGenUtil::F
 			}
 		}
 
-		if (InFuncDef.Func->Children == nullptr)
+		if (InFuncDef.Func->ChildProperties == nullptr)
 		{
 			// No return value
 			if (!PyUtil::InvokeFunctionCall(InObj, InFuncDef.Func, nullptr, InErrorCtxt))
@@ -356,10 +356,10 @@ PyObject* FPyWrapperObject::CallDynamicFunction_Impl(FPyWrapperObject* InSelf, P
 
 		FStructOnScope FuncParams(InFuncDef.Func);
 		PyGenUtil::ApplyParamDefaults(FuncParams.GetStructMemory(), InFuncDef.InputParams);
-		if (ensureAlways(Cast<UObjectPropertyBase>(InSelfParam.ParamProp)))
+		if (ensureAlways(CastField<FObjectPropertyBase>(InSelfParam.ParamProp)))
 		{
 			void* SelfArgInstance = InSelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
-			Cast<UObjectPropertyBase>(InSelfParam.ParamProp)->SetObjectPropertyValue(SelfArgInstance, InSelf->ObjectInstance);
+			CastField<FObjectPropertyBase>(InSelfParam.ParamProp)->SetObjectPropertyValue(SelfArgInstance, InSelf->ObjectInstance);
 		}
 		for (int32 ParamIndex = 0; ParamIndex < Params.Num(); ++ParamIndex)
 		{
@@ -771,7 +771,7 @@ PyTypeObject InitializePyWrapperObjectType()
 			const UClass* Class = InSelf->ObjectInstance->GetClass();
 
 			const FName ResolvedName = FPyWrapperObjectMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
+			const FProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
 			if (!ResolvedProp)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *Class->GetName()));
@@ -827,7 +827,7 @@ PyTypeObject InitializePyWrapperObjectType()
 			const UClass* Class = InSelf->ObjectInstance->GetClass();
 
 			const FName ResolvedName = FPyWrapperObjectMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
+			const FProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
 			if (!ResolvedProp)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *Class->GetName()));
@@ -1194,7 +1194,7 @@ public:
 		return FinalizedClass;
 	}
 
-	bool CreatePropertyFromDefinition(const FString& InFieldName, FPyUPropertyDef* InPyPropDef)
+	bool CreatePropertyFromDefinition(const FString& InFieldName, FPyFPropertyDef* InPyPropDef)
 	{
 		UClass* SuperClass = NewClass->GetSuperClass();
 
@@ -1207,14 +1207,14 @@ public:
 		}
 
 		// Create the property from its definition
-		UProperty* Prop = PyUtil::CreateProperty(InPyPropDef->PropType, 1, NewClass, PropName);
+		FProperty* Prop = PyUtil::CreateProperty(InPyPropDef->PropType, 1, NewClass, PropName);
 		if (!Prop)
 		{
 			PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property for '%s' (%s)"), *InFieldName, *PyUtil::GetFriendlyTypename(InPyPropDef->PropType)));
 			return false;
 		}
 		Prop->PropertyFlags |= (CPF_Edit | CPF_BlueprintVisible);
-		FPyUPropertyDef::ApplyMetaData(InPyPropDef, Prop);
+		FPyFPropertyDef::ApplyMetaData(InPyPropDef, Prop);
 		NewClass->AddCppProperty(Prop);
 
 		// Resolve any getter/setter function names
@@ -1372,10 +1372,10 @@ public:
 			// Check for a malformed function rather than assert in the remove
 			if (FuncArgNames.Num() > 0 && FuncArgDefaults.Num() > 0)
 			{
-				// Strip the zero'th 'self' argument when processing a non-static function
-				FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
-				FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
-			}
+			// Strip the zero'th 'self' argument when processing a non-static function
+			FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+		}
 			else
 			{
 				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Incorrect number of arguments specified for '%s' (missing self?)"), *InFieldName));
@@ -1398,7 +1398,7 @@ public:
 				while (ArgIndex >= 0)
 				{
 					PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncParamTypes, ArgIndex);
-					UProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
+					FProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
 					if (!ArgProp)
 					{
 						PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property (%s) for function '%s' argument '%s'"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, *FuncArgNames[ArgIndex]));
@@ -1417,7 +1417,7 @@ public:
 				const bool bOptionalReturn = PyTuple_Check(InPyFuncDef->FuncRetType);
 
 				PyObject* RetType = bOptionalReturn ? (PyObject*)&PyBool_Type : InPyFuncDef->FuncRetType;
-				UProperty* RetProp = PyUtil::CreateProperty(RetType, 1, Func, TEXT("ReturnValue"));
+				FProperty* RetProp = PyUtil::CreateProperty(RetType, 1, Func, TEXT("ReturnValue"));
 				if (!RetProp)
 				{
 					PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create return property (%s) for function '%s'"), *PyUtil::GetFriendlyTypename(RetType), *InFieldName));
@@ -1432,7 +1432,7 @@ public:
 					for (int32 ArgIndex = 0; ArgIndex < NumOutArgs; ++ArgIndex)
 					{
 						PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncRetType, ArgIndex);
-						UProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FString::Printf(TEXT("OutValue%d"), ArgIndex));
+						FProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FString::Printf(TEXT("OutValue%d"), ArgIndex));
 						if (!ArgProp)
 						{
 							PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create output property (%s) for function '%s' at index %d"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, ArgIndex));
@@ -1452,7 +1452,7 @@ public:
 		for (int32 InputArgIndex = 0; InputArgIndex < GeneratedWrappedFunction.InputParams.Num(); ++InputArgIndex)
 		{
 			PyGenUtil::FGeneratedWrappedMethodParameter& GeneratedWrappedMethodParam = GeneratedWrappedFunction.InputParams[InputArgIndex];
-			const UProperty* Param = GeneratedWrappedMethodParam.ParamProp;
+			const FProperty* Param = GeneratedWrappedMethodParam.ParamProp;
 
 			const FName DefaultValueMetaDataKey = *FString::Printf(TEXT("CPP_Default_%s"), *Param->GetName());
 
@@ -1460,7 +1460,7 @@ public:
 			if (FuncArgDefaults.IsValidIndex(InputArgIndex) && FuncArgDefaults[InputArgIndex])
 			{
 				// Convert the default value to the given property...
-				PyUtil::FPropValueOnScope DefaultValue(Param);
+				PyUtil::FPropValueOnScope DefaultValue(PyUtil::FConstPropOnScope::ExternalReference(Param));
 				if (!DefaultValue.IsValid() || !DefaultValue.SetValue(FuncArgDefaults[InputArgIndex], *PyUtil::GetErrorContext(PyType)))
 				{
 					PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to convert default value for function '%s' argument '%s' (%s)"), *InFieldName, *FuncArgNames[InputArgIndex], *Param->GetClass()->GetName()));
@@ -1542,18 +1542,18 @@ public:
 		NewClass->PropertyDefs.Reserve(OldClass->PropertyDefs.Num());
 		for (const TSharedPtr<PyGenUtil::FPropertyDef>& OldPropDef : OldClass->PropertyDefs)
 		{
-			const UProperty* OldProp = OldPropDef->GeneratedWrappedGetSet.Prop.Prop;
+			const FProperty* OldProp = OldPropDef->GeneratedWrappedGetSet.Prop.Prop;
 			const UFunction* OldGetter = OldPropDef->GeneratedWrappedGetSet.GetFunc.Func;
 			const UFunction* OldSetter = OldPropDef->GeneratedWrappedGetSet.SetFunc.Func;
 
-			UProperty* Prop = DuplicateObject<UProperty>(OldProp, NewClass, OldProp->GetFName());
+			FProperty* Prop = CastFieldChecked<FProperty>(FField::Duplicate(OldProp, NewClass, OldProp->GetFName()));
 			if (!Prop)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to duplicate property for '%s'"), UTF8_TO_TCHAR(OldPropDef->PyGetSet.name)));
 				return false;
 			}
 
-			UMetaData::CopyMetadata((UProperty*)OldProp, Prop);
+			FField::CopyMetaData(OldProp, Prop);
 			NewClass->AddCppProperty(Prop);
 
 			PyGenUtil::FPropertyDef& PropDef = *NewClass->PropertyDefs.Add_GetRef(MakeShared<PyGenUtil::FPropertyDef>());
@@ -1793,9 +1793,9 @@ UPythonGeneratedClass* UPythonGeneratedClass::GenerateClass(PyTypeObject* InPyTy
 		{
 			const FString FieldName = PyUtil::PyObjectToUEString(FieldKey);
 
-			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyUPropertyDefType) == 1)
+			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyFPropertyDefType) == 1)
 			{
-				FPyUPropertyDef* PyPropDef = (FPyUPropertyDef*)FieldValue;
+				FPyFPropertyDef* PyPropDef = (FPyFPropertyDef*)FieldValue;
 				if (!PythonClassBuilder.CreatePropertyFromDefinition(FieldName, PyPropDef))
 				{
 					return nullptr;

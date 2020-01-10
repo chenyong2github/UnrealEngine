@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "CoreMinimal.h"
@@ -635,8 +635,8 @@ bool UUnrealEdEngine::HandleConvertMatineesCommand( const TCHAR* Str, FOutputDev
 				StartLocation.Y += 50;
 
 				MatineeActor->MatineeData = InterpData;
-				UProperty* MatineeDataProp = NULL;
-				for( UProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+				FProperty* MatineeDataProp = NULL;
+				for( FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 				{
 					if( Property->GetName() == TEXT("MatineeData") )
 					{
@@ -653,17 +653,17 @@ bool UUnrealEdEngine::HandleConvertMatineesCommand( const TCHAR* Str, FOutputDev
 		return true;
 	}
 
-bool UUnrealEdEngine::HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar )
+bool UUnrealEdEngine::HandleDisasmScriptCommand(const TCHAR* Str, FOutputDevice& Ar)
+{
+	FString ClassName;
+
+	if (FParse::Token(Str, ClassName, false))
 	{
-		FString ClassName;
-
-		if (FParse::Token(Str, ClassName, false))
-		{
-			FKismetBytecodeDisassembler::DisassembleAllFunctionsInClasses(Ar, ClassName);
-		}
-
-		return true;
+		FKismetBytecodeDisassembler::DisassembleAllFunctionsInClasses(Ar, ClassName);
 	}
+
+	return true;
+}
 
 bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
 {
@@ -1086,7 +1086,7 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 						UAssetImportData* ImportData = nullptr;
 
 						// Root out the asset import data property
-						for (UObjectProperty* Property : TFieldRange<UObjectProperty>(Asset->GetClass()))
+						for (FObjectProperty* Property : TFieldRange<FObjectProperty>(Asset->GetClass()))
 						{
 							ImportData = Cast<UAssetImportData>(Property->GetObjectPropertyValue(Property->ContainerPtrToValuePtr<UObject*>(Asset)));
 							if (ImportData)
@@ -1270,9 +1270,9 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 						FString CurrentWindowName = OpenWindows[WindowId]->GetTitle().ToString();
 
 						//Strip off the * from the end if it exists
-						if( CurrentWindowName.EndsWith(TEXT("*")) )
+						if( CurrentWindowName.EndsWith(TEXT("*"), ESearchCase::CaseSensitive) )
 						{
-							CurrentWindowName = CurrentWindowName.LeftChop(1);
+							CurrentWindowName.LeftChopInline(1, false);
 						}
 
 						if( CurrentWindowName == WindowNameStr )

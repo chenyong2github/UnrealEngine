@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
@@ -13,6 +13,7 @@
 #include "NiagaraConstants.h"
 #include "NiagaraGraph.h"
 #include "NiagaraStackEditorData.h"
+#include "NiagaraClipboard.h"
 
 #include "EdGraph/EdGraphPin.h"
 #include "ScopedTransaction.h"
@@ -75,6 +76,26 @@ bool UNiagaraStackFunctionInputCollection::GetIsEnabled() const
 void UNiagaraStackFunctionInputCollection::SetShouldShowInStack(bool bInShouldShowInStack)
 {
 	bShouldShowInStack = bInShouldShowInStack;
+}
+
+void UNiagaraStackFunctionInputCollection::ToClipboardFunctionInputs(UObject* InOuter, TArray<const UNiagaraClipboardFunctionInput*>& OutClipboardFunctionInputs) const
+{
+	TArray<UNiagaraStackInputCategory*> ChildCategories;
+	GetUnfilteredChildrenOfType(ChildCategories);
+	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
+	{
+		ChildCategory->ToClipboardFunctionInputs(InOuter, OutClipboardFunctionInputs);
+	}
+}
+
+void UNiagaraStackFunctionInputCollection::SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs)
+{
+	TArray<UNiagaraStackInputCategory*> ChildCategories;
+	GetUnfilteredChildrenOfType(ChildCategories);
+	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
+	{
+		ChildCategory->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
+	}
 }
 
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

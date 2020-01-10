@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
@@ -341,7 +341,7 @@ FString FStaticMeshStreamIn_IO::GetIOFilename(const FContext& Context)
 
 void FStaticMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
-	AsyncFileCallback = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();
@@ -379,27 +379,21 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString
 	{
 		SetAsyncFileCallback(Context);
 
-		const FStaticMeshLODResources& FirstLOD = RenderData->LODResources[PendingFirstMip];
-		const FStaticMeshLODResources& LastLOD = RenderData->LODResources[CurrentFirstLODIdx - 1];
+		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
+		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		{
+			BulkDataArray.Push(&RenderData->LODResources[Index].StreamingBulkData);
+		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-#if USE_BULKDATA_STREAMING_TOKEN
-		IORequest = FUntypedBulkData::CreateStreamingRequestForRange(
-			IOFilename,
-			FirstLOD.BulkDataStreamingToken,
-			LastLOD.BulkDataStreamingToken,
+		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
+			STREAMINGTOKEN_PARAM(IOFilename)
+			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
-#else
-		IORequest = BulkDataUtils::CreateStreamingRequestForRange(
-			FirstLOD.StreamingBulkData,
-			LastLOD.StreamingBulkData,
-			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallback);
-#endif
 	}
 	else
 	{
@@ -431,6 +425,13 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
+		// Temporary workaround for FORT-245343
+		// TODO: find a more elegant solution
+		while (!IORequest->PollCompletion())
+		{
+			FPlatformProcess::Sleep(0.000001f);
+		}
+		
 		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
 

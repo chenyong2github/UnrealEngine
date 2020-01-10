@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "K2Node_VariableSet.h"
@@ -34,7 +34,7 @@ namespace K2Node_VariableSetImpl
 	 * @param  VariableProperty	The variable property you wish to check.
 	 * @return True if the specified variable RepNotify AND is defined in a blueprint.
 	 */
-	static bool PropertyHasLocalRepNotify(UProperty const* VariableProperty);
+	static bool PropertyHasLocalRepNotify(FProperty const* VariableProperty);
 }
 
 static FText K2Node_VariableSetImpl::GetBaseTooltip(FName VarName)
@@ -46,7 +46,7 @@ static FText K2Node_VariableSetImpl::GetBaseTooltip(FName VarName)
 
 }
 
-static bool K2Node_VariableSetImpl::PropertyHasLocalRepNotify(UProperty const* VariableProperty)
+static bool K2Node_VariableSetImpl::PropertyHasLocalRepNotify(FProperty const* VariableProperty)
 {
 	if (VariableProperty != nullptr)
 	{
@@ -131,7 +131,7 @@ void UK2Node_VariableSet::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*
 
 
 
-FText UK2Node_VariableSet::GetPropertyTooltip(UProperty const* VariableProperty)
+FText UK2Node_VariableSet::GetPropertyTooltip(FProperty const* VariableProperty)
 {
 	FText TextFormat;
 	FFormatNamedArguments Args;
@@ -224,7 +224,7 @@ FText UK2Node_VariableSet::GetTooltipText() const
 {
 	if (CachedTooltip.IsOutOfDate(this))
 	{
-		if (UProperty* Property = GetPropertyForVariable())
+		if (FProperty* Property = GetPropertyForVariable())
 		{
 			CachedTooltip.SetCachedText(GetPropertyTooltip(Property), this);
 		}
@@ -302,13 +302,13 @@ bool UK2Node_VariableSet::ShouldFlushDormancyOnSet() const
 	}
 
 	// Flush net dormancy before setting a replicated property
-	UProperty *Property = FindField<UProperty>(GetVariableSourceClass(), GetVarName());
+	FProperty *Property = FindField<FProperty>(GetVariableSourceClass(), GetVarName());
 	return (Property != NULL && (Property->PropertyFlags & CPF_Net));
 }
 
 FName UK2Node_VariableSet::GetRepNotifyName() const
 {
-	UProperty * Property = GetPropertyForVariable();
+	FProperty * Property = GetPropertyForVariable();
 	if (Property)
 	{
 		return Property->RepNotifyFunc;
@@ -352,14 +352,14 @@ void UK2Node_VariableSet::ValidateNodeDuringCompilation(FCompilerResultsLog& Mes
 	// Some expansions will create sets for non-blueprint visible properties, and we don't want to validate against that
 	if (!IsIntermediateNode())
 	{
-		if (UProperty* Property = GetPropertyForVariable())
+		if (FProperty* Property = GetPropertyForVariable())
 		{
 			const FBlueprintEditorUtils::EPropertyWritableState PropertyWritableState = FBlueprintEditorUtils::IsPropertyWritableInBlueprint(GetBlueprint(), Property);
 
 			if (PropertyWritableState != FBlueprintEditorUtils::EPropertyWritableState::Writable)
 			{
 				FFormatNamedArguments Args;
-				if (UObject* Class = Property->GetOuter())
+				if (UObject* Class = Property->GetOwner<UObject>())
 				{
 					Args.Add(TEXT("VariableName"), FText::AsCultureInvariant(FString::Printf(TEXT("%s.%s"), *Class->GetName(), *Property->GetName())));
 				}
@@ -391,7 +391,7 @@ void UK2Node_VariableSet::ExpandNode(class FKismetCompilerContext& CompilerConte
 
 	if (CompilerContext.bIsFullCompile)
 	{
-		UProperty* VariableProperty = GetPropertyForVariable();
+		FProperty* VariableProperty = GetPropertyForVariable();
 
 		const UEdGraphSchema_K2* K2Schema = CompilerContext.GetSchema();
 

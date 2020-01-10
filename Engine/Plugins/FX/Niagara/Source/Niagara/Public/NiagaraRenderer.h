@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraRenderer.h: Base class for Niagara render modules
@@ -23,6 +23,8 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraBoundsCalculator.h"
 
 class FNiagaraDataSet;
+class FNiagaraSceneProxy;
+class FNiagaraGPURendererCount;
 
 /** Struct used to pass dynamic data from game thread to render thread */
 struct FNiagaraDynamicDataBase
@@ -76,14 +78,6 @@ struct FNiagaraRendererVariableInfo
 	bool bUpload;
 };
 
-// The number of GPU renderers registered in the instance count manager.
-// Shared between the manager and the renderers.
-class FNiagaraGPURendererCount : public FRefCountedObject
-{
-public:
-	int32 Value = 0;
-};
-
 /**
 * Base class for Niagara System renderers.
 */
@@ -112,9 +106,10 @@ public:
 	void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, int32 SortVarIdx, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const;
 
 	void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
-	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData()const { return DynamicDataRender; }
-	FORCEINLINE bool HasDynamicData()const { return DynamicDataRender != nullptr; }
-	FORCEINLINE bool HasLights()const { return bHasLights; }
+	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData() const { return DynamicDataRender; }
+	FORCEINLINE bool HasDynamicData() const { return DynamicDataRender != nullptr; }
+	FORCEINLINE bool HasLights() const { return bHasLights; }
+	FORCEINLINE bool IsMotionBlurEnabled() const { return bMotionBlurEnabled; }
 
 #if RHI_RAYTRACING
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) {}
@@ -138,6 +133,7 @@ protected:
 
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
+	uint32 bMotionBlurEnabled : 1;
 	const ENiagaraSimTarget SimTarget;
 	uint32 NumIndicesPerInstance;
 

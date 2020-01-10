@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -36,6 +36,10 @@ class UMaterialExpressionRuntimeVirtualTextureOutput : public UMaterialExpressio
 	/** Input for Opacity value used for blending to virtual texture. */
 	UPROPERTY()
 	FExpressionInput Opacity;
+
+	/** Input for Mask to output to virtual texture. */
+	UPROPERTY()
+	FExpressionInput Mask;
 
 public:
 #if WITH_EDITOR

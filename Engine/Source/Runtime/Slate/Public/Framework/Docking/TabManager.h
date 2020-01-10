@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,7 @@
 
 class FJsonObject;
 class FMenuBuilder;
+class FBlacklistNames;
 class FMultiBox;
 class FProxyTabmanager;
 class SDockingArea;
@@ -801,6 +802,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Returns the owner tab (if it exists) */
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
 
+		/** Returns filter for additional control over available tabs */
+		TSharedRef<FBlacklistNames>& GetTabBlacklist();
+
 	protected:
 		void InvokeTabForMenu( FName TabId );
 
@@ -966,6 +970,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/* Prevent or allow Drag operation. */
 		bool bCanDoDragOperation;
+
+		/** Allow systems to dynamically hide tabs */
+		TSharedRef<FBlacklistNames> TabBlacklist;
 };
 
 

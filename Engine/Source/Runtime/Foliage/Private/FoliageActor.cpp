@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageActor.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageType_Actor.h"
 #include "FoliageHelper.h"
+#include "Engine/Engine.h"
 
 //
 //
@@ -85,9 +86,10 @@ AActor* FFoliageActor::Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance
 	SpawnParameters.ObjectFlags = RF_Transactional;
 	SpawnParameters.bHideFromSceneOutliner = true;
 	SpawnParameters.OverrideLevel = IFA->GetLevel();
-	AActor* NewActor = IFA->GetWorld()->SpawnActor<AActor>(ActorClass, Instance.GetInstanceWorldTransform(), SpawnParameters);
+	AActor* NewActor = IFA->GetWorld()->SpawnActor(ActorClass, nullptr, nullptr, SpawnParameters);
 	if (NewActor)
 	{
+		NewActor->SetActorTransform(Instance.GetInstanceWorldTransform());
 		FFoliageHelper::SetIsOwnedByFoliage(NewActor);
 	}
 	return NewActor;
@@ -128,15 +130,47 @@ void FFoliageActor::AddInstance(AInstancedFoliageActor* IFA, const FFoliageInsta
 	ActorInstances.Add(Spawn(IFA, NewInstance));
 }
 
+void FFoliageActor::AddExistingInstance(AInstancedFoliageActor* IFA, const FFoliageInstance& ExistingInstance, UObject* InstanceImplementation)
+{
+	AActor* Actor = Cast<AActor>(InstanceImplementation);
+	check(Actor);
+	check(Actor->GetClass() == ActorClass);
+	Actor->SetActorTransform(ExistingInstance.GetInstanceWorldTransform());
+	FFoliageHelper::SetIsOwnedByFoliage(Actor);
+	check(IFA->GetLevel() == Actor->GetLevel());
+	ActorInstances.Add(Actor);
+}
+
 void FFoliageActor::RemoveInstance(int32 InstanceIndex)
 {
 	AActor* Actor = ActorInstances[InstanceIndex];
 	ActorInstances.RemoveAtSwap(InstanceIndex);
+	Actor->GetWorld()->DestroyActor(Actor, true);
+	bActorsDestroyed = true;
+}
 
-	if (Actor && Actor->GetWorld())
+void FFoliageActor::MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImplementation)
+{
+	AActor* Actor = ActorInstances[InstanceIndex];
+	OutInstanceImplementation = Actor;
+	ActorInstances.RemoveAtSwap(InstanceIndex);
+}
+
+void FFoliageActor::BeginUpdate()
+{
+	bActorsDestroyed = false;
+}
+
+void FFoliageActor::EndUpdate()
+{
+	if (bActorsDestroyed)
 	{
-		Actor->GetWorld()->DestroyActor(Actor, true);
+		// This is to null out refs to components that have been created through ConstructionScript (same as it is done in edactDeleteSelected).
+		// Because components that return true for IsCreatedByConstructionScript forward their Modify calls to their owning Actor so they are not part of the transaction.
+		// Undoing the DestroyActor will re-run the construction script and those components will be recreated.
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
+	bActorsDestroyed = false;
 }
 
 void FFoliageActor::SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport)
@@ -211,6 +245,37 @@ void FFoliageActor::UpdateActorTransforms(const TArray<FFoliageInstance>& Instan
 void FFoliageActor::PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
 {
 	UpdateActorTransforms(Instances);
+}
+
+void FFoliageActor::PreMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved)
+{
+	for (int32 Index : InInstancesMoved)
+	{
+		if (AActor* Actor = ActorInstances[Index])
+		{
+			Actor->Modify();
+		}
+	}
+}
+
+void FFoliageActor::PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved, bool bFinished)
+{
+	// Copy because moving actors might remove them from ActorInstances
+	TArray<AActor*> MovedActors;
+	MovedActors.Reserve(InInstancesMoved.Num());
+	for (int32 Index : InInstancesMoved)
+	{
+		if (AActor * Actor = ActorInstances[Index])
+		{
+			MovedActors.Add(Actor);
+			Actor->PostEditMove(bFinished);
+		}
+	}
+
+	if (GIsEditor && GEngine && MovedActors.Num() && bFinished)
+	{
+		GEngine->BroadcastActorsMoved(MovedActors);
+	}
 }
 
 void FFoliageActor::NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged)

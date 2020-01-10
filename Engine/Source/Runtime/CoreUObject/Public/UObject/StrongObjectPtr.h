@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -45,6 +45,11 @@ namespace UE4StrongObjectPtr_Private
 			Collector.AddReferencedObject(Object);
 		}
 
+		virtual FString GetReferencerName() const override
+		{
+			return "UE4StrongObjectPtr_Private::FInternalReferenceCollector";
+		}
+
 	private:
 		const volatile UObject* Object;
 	};
@@ -76,7 +81,7 @@ public:
 
 	template <
 		typename OtherObjectType,
-		typename = typename TEnableIf<TPointerIsConvertibleFromTo<OtherObjectType, ObjectType>::Value>::Type
+		typename = decltype(ImplicitConv<ObjectType*>((OtherObjectType*)nullptr))
 	>
 	FORCEINLINE_DEBUGGABLE TStrongObjectPtr(const TStrongObjectPtr<OtherObjectType>& InOther)
 		: ReferenceCollector(InOther.Get())
@@ -90,11 +95,11 @@ public:
 		return *this;
 	}
 
-	template <typename OtherObjectType>
-	FORCEINLINE_DEBUGGABLE typename TEnableIf<
-		TPointerIsConvertibleFromTo<OtherObjectType, ObjectType>::Value,
-		TStrongObjectPtr&
-	>::Type operator=(const TStrongObjectPtr<OtherObjectType>& InOther)
+	template <
+		typename OtherObjectType,
+		typename = decltype(ImplicitConv<ObjectType*>((OtherObjectType*)nullptr))
+	>
+	FORCEINLINE_DEBUGGABLE TStrongObjectPtr& operator=(const TStrongObjectPtr<OtherObjectType>& InOther)
 	{
 		ReferenceCollector->Set(InOther.Get());
 		return *this;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectTemplates/DatasmithCineCameraComponentTemplate.h"
 
@@ -162,7 +162,7 @@ UObject* UDatasmithCineCameraComponentTemplate::UpdateObject( UObject* Destinati
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( CurrentFocalLength, CineCameraComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( CurrentAperture, CineCameraComponent, PreviousTemplate );
 
-	FilmbackSettings.Apply( &CineCameraComponent->FilmbackSettings, PreviousTemplate ? &PreviousTemplate->FilmbackSettings : nullptr );
+	FilmbackSettings.Apply( &CineCameraComponent->Filmback, PreviousTemplate ? &PreviousTemplate->FilmbackSettings : nullptr );
 	LensSettings.Apply( &CineCameraComponent->LensSettings, PreviousTemplate ? &PreviousTemplate->LensSettings : nullptr );
 	FocusSettings.Apply( &CineCameraComponent->FocusSettings, PreviousTemplate ? &PreviousTemplate->FocusSettings : nullptr );
 
@@ -185,7 +185,7 @@ void UDatasmithCineCameraComponentTemplate::Load( const UObject* Source )
 	CurrentFocalLength = CineCameraComponent->CurrentFocalLength;
 	CurrentAperture = CineCameraComponent->CurrentAperture;
 
-	FilmbackSettings.Load( CineCameraComponent->FilmbackSettings );
+	FilmbackSettings.Load( CineCameraComponent->Filmback );
 	LensSettings.Load( CineCameraComponent->LensSettings );
 	FocusSettings.Load( CineCameraComponent->FocusSettings );
 

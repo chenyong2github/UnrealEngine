@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -14,21 +14,27 @@ public class AnimGraphRuntime : ModuleRules
 				"Core", 
 				"CoreUObject", 
 				"Engine",
-                "AnimationCore",
+				"AnimationCore",
 			}
 		);
 
-        SetupModulePhysicsSupport(Target);
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"TraceLog",
+			}
+		);
 
-        if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-                new string[] {
+		SetupModulePhysicsSupport(Target);
+
+		if (Target.bCompileChaos || Target.bUseChaos)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
 					"ChaosSolvers",
 					"GeometryCollectionEngine",
 					"GeometryCollectionSimulationCore"
-                }
-            );
-        }
-    }
+				}
+			);
+		}
+	}
 }

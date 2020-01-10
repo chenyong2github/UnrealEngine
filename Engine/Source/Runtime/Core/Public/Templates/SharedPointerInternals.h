@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -432,6 +432,30 @@ namespace SharedPointerInternals
 				{
 					ReferenceController = nullptr;
 				}
+			}
+		}
+
+		/** Creates a shared referencer object from a weak referencer object.  This will only result
+		    in a valid object reference if the object already has at least one other shared referencer. */
+		FSharedReferencer( FWeakReferencer< Mode >&& InWeakReference )
+			: ReferenceController( InWeakReference.ReferenceController )
+		{
+			// If the incoming reference had an object associated with it, then go ahead and increment the
+			// shared reference count
+			if( ReferenceController != nullptr )
+			{
+				// Attempt to elevate a weak reference to a shared one.  For this to work, the object this
+				// weak counter is associated with must already have at least one shared reference.  We'll
+				// never revive a pointer that has already expired!
+				if( !TOps::ConditionallyAddSharedReference(ReferenceController) )
+				{
+					ReferenceController = nullptr;
+				}
+
+				// Tell the reference counter object that we're no longer referencing the object with
+				// this weak pointer
+				TOps::ReleaseWeakReference(InWeakReference.ReferenceController);
+				InWeakReference.ReferenceController = nullptr;
 			}
 		}
 

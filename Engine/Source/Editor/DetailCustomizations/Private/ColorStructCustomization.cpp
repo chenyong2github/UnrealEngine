@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/ColorStructCustomization.h"
 #include "UObject/UnrealType.h"
@@ -27,7 +27,7 @@ void FColorStructCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle
 {
 	StructPropertyHandle = InStructPropertyHandle;
 
-	bIsLinearColor = CastChecked<UStructProperty>(StructPropertyHandle->GetProperty())->Struct->GetFName() == NAME_LinearColor;
+	bIsLinearColor = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct->GetFName() == NAME_LinearColor;
 	bIgnoreAlpha = StructPropertyHandle->GetProperty()->HasMetaData(TEXT("HideAlphaChannel"));
 	
 	if (StructPropertyHandle->GetProperty()->HasMetaData(TEXT("sRGB")))

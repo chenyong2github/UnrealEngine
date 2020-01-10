@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -644,6 +644,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
 	bool Play();
+
+	/**
+	 * Starts playback from the media opened event, but can be used elsewhere.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
+	void PlayAndSeek();
 
 	/**
 	 * Open the previous item in the current play list.

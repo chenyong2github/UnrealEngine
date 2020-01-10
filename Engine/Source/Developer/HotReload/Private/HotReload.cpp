@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/PlatformProcess.h"
@@ -1346,14 +1346,14 @@ void FHotReloadModule::StripModuleSuffixFromFilename(FString& InOutModuleFilenam
 		int32 SecondHyphenIndex = FirstHyphenIndex;
 		do
 		{
-			SecondHyphenIndex = InOutModuleFilename.Find(TEXT("-"), ESearchCase::IgnoreCase, ESearchDir::FromStart, SecondHyphenIndex + 1);
+			SecondHyphenIndex = InOutModuleFilename.Find(TEXT("-"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SecondHyphenIndex + 1);
 			if (SecondHyphenIndex != INDEX_NONE)
 			{
 				// Make sure that the section between hyphens is the expected module name. This guards against cases where module name has a hyphen inside.
 				FString HotReloadedModuleName = InOutModuleFilename.Mid(FirstHyphenIndex + 1, SecondHyphenIndex - FirstHyphenIndex - 1);
 				if (HotReloadedModuleName == ModuleName)
 				{
-					InOutModuleFilename = InOutModuleFilename.Mid(0, SecondHyphenIndex);
+					InOutModuleFilename.MidInline(0, SecondHyphenIndex, false);
 					SecondHyphenIndex = INDEX_NONE;
 				}
 			}

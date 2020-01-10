@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebMVideoDecoder.h"
 
@@ -271,7 +271,7 @@ void FWebMVideoDecoder::ConvertYUVToRGBAndSubmit(const FConvertParams& Params)
 			PixelShader->SetParameters(CommandList, DecodedY->GetTexture2D(), DecodedU->GetTexture2D(), DecodedV->GetTexture2D(), FIntPoint(Image->d_w, Image->d_h), MediaShaders::YuvToSrgbDefault, MediaShaders::YUVOffset8bits, true);
 
 			// draw full-size quad
-			CommandList.SetViewport(0, 0, 0.0f, Image->w, Image->d_h, 1.0f);
+			CommandList.SetViewport(0, 0, 0.0f, Image->d_w, Image->d_h, 1.0f);
 			CommandList.SetStreamSource(0, GMoviePlayerResources.VertexBufferRHI, 0);
 			CommandList.DrawPrimitive(0, 2, 1);
 		}

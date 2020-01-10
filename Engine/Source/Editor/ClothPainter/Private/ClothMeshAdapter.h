@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -63,21 +63,6 @@ public:
 	virtual FMatrix GetComponentToWorldMatrix() const override;
 
 	virtual TArray<FVector> SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const;
-
-	/** Retrieves the backstop distance value for the given vertex index from the simulation data */
-	virtual float GetBackstopDistanceValue(int32 VertexIndex) const;
-	/** Sets the backstop distance value for the given vertex index to Value */
-	virtual void SetBackstopDistanceValue(int32 VertexIndex, float Value);
-
-	/** Retrieves the backstop radius value for the given vertex index from the simulation data */
-	virtual float GetBackstopRadiusValue(int32 VertexIndex) const;
-	/** Sets the backstop radius value for the given vertex index to Value */
-	virtual void SetBackstopRadiusValue(int32 VertexIndex, float Value);
-
-	/** Retrieves the max distance value for the given vertex index from the simulation data */
-	virtual float GetMaxDistanceValue(int32 VertexIndex) const;
-	/** Sets the max distance value for the given vertex index to Value */
-	virtual void SetMaxDistanceValue(int32 VertexIndex, float Value);
 
 	/** Sets the represented clothing asset to the UClothingAssetBase retrieved from the AssetGUID */
 	virtual void SetSelectedClothingAsset(const FGuid& InAssetGuid, int32 InAssetLod, int32 InMaskIndex);

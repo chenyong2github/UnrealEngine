@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMergeGraphView.h"
 #include "Engine/Blueprint.h"
@@ -462,7 +462,7 @@ void SMergeGraphView::Construct(const FArguments InArgs
 			int32 PeriodIndex = INDEX_NONE;
 			if (DisplayString.FindLastChar('.', PeriodIndex))
 			{
-				DisplayString = DisplayString.Mid(PeriodIndex + 1);
+				DisplayString.MidInline(PeriodIndex + 1, MAX_int32, false);
 			}
 
 			return SNew(SHorizontalBox)

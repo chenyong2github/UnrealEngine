@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 ConsoleManager.cpp: console command handling
@@ -1335,7 +1335,7 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 	const bool bCommandEndedInQuestion = Param1.EndsWith(TEXT("?"), ESearchCase::CaseSensitive);
 	if (bCommandEndedInQuestion)
 	{
-		Param1 = Param1.Mid(0, Param1.Len() - 1);
+		Param1.MidInline(0, Param1.Len() - 1, false);
 	}
 
 	IConsoleObject* CObj = FindConsoleObject(*Param1);
@@ -1402,13 +1402,13 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 			{
 				if(Param2[0] == (TCHAR)'\"' && Param2[Param2.Len() - 1] == (TCHAR)'\"')
 				{
-					Param2 = Param2.Mid(1, Param2.Len() - 2);
+					Param2.MidInline(1, Param2.Len() - 2, false);
 				}
 				// this is assumed to be unintended e.g. copy and paste accident from ini file
 				if(Param2.Len() > 0 && Param2[0] == (TCHAR)'=')
 				{
 					Ar.Logf(TEXT("Warning: Processing the console input parameters the leading '=' is ignored (only needed for ini files)."));
-					Param2 = Param2.Mid(1, Param2.Len() - 1);
+					Param2.MidInline(1, Param2.Len() - 1, false);
 				}
 			}
 

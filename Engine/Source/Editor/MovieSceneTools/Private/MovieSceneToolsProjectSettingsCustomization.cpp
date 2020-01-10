@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolsProjectSettingsCustomization.h"
 #include "MovieSceneToolsProjectSettings.h"
@@ -37,6 +37,6 @@ void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
 	}
 	else if (ProjectSettings->TakeSeparator.Len() > 1)
 	{
-		ProjectSettings->TakeSeparator = ProjectSettings->TakeSeparator.LeftChop(ProjectSettings->TakeSeparator.Len()-1);
+		ProjectSettings->TakeSeparator.LeftChopInline(ProjectSettings->TakeSeparator.Len()-1);
 	}
 }

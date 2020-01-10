@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterScreenComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -8,7 +8,7 @@
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
 
-#include "DisplayClusterRootComponent.h"
+#include "DisplayClusterRootActor.h"
 
 #include "Game/IPDisplayClusterGameManager.h"
 #include "DisplayClusterGlobals.h"
@@ -47,15 +47,15 @@ void UDisplayClusterScreenComponent::TickComponent( float DeltaTime, ELevelTick 
 	static const IPDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetPrivateGameMgr();
 	if (GameMgr)
 	{
-		UDisplayClusterRootComponent* const RootComp = GameMgr->GetRoot();
-		if (RootComp)
+		ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
+		if (RootActor)
 		{
-			if (RootComp->GetProjectionScreenMaterial())
+			if (RootActor->GetProjectionScreenMaterial())
 			{
-				ScreenGeometryComponent->SetMaterial(0, RootComp->GetProjectionScreenMaterial());
+				ScreenGeometryComponent->SetMaterial(0, RootActor->GetProjectionScreenMaterial());
 			}
 
-			const bool bScreenVisible = RootComp->GetShowProjectionScreens();
+			const bool bScreenVisible = RootActor->GetShowProjectionScreens();
 			ScreenGeometryComponent->SetVisibility(bScreenVisible);
 		}
 	}

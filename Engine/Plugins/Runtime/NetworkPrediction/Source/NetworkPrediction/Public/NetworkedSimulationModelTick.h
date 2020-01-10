@@ -1,10 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
 #include "NetworkedSimulationModelTime.h"
-#include "NetworkedSimulationModelCues.h"
-
 
 // Holds per-simulation settings about how ticking is supposed to happen.
 template<int32 InFixedStepMS=0, int32 InMaxStepMS=0>
@@ -168,32 +165,6 @@ struct TSimulationTicker : public FSimulationTickState
 private:
 
 	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;	
-};
-
-// Scoped helper to be used right before entering a call to the sim's ::SimulationTick function.
-// Important to note that this advances the PendingFrame to the output Frame. So that any writes that occur to the buffers during this scope will go to the output frame.
-struct TScopedSimulationTick
-{
-	TScopedSimulationTick(FSimulationTickState& InTicker, FCueDispatcher& InDispatcher, ESimulationTickContext TickContext, const int32& InOutputFrame, const FNetworkSimTime& InDeltaSimTime)
-		: Ticker(InTicker), Dispatcher(InDispatcher), OutputFrame(InOutputFrame), DeltaSimTime(InDeltaSimTime)
-	{
-		check(Ticker.bUpdateInProgress == false);
-		Ticker.PendingFrame = OutputFrame;
-		Ticker.bUpdateInProgress = true;
-
-		Dispatcher.PushContext({Ticker.GetTotalProcessedSimulationTime() + DeltaSimTime, TickContext}); // Cues "take place" at the end of the frame
-	}
-	~TScopedSimulationTick()
-	{
-		Ticker.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputFrame);
-		Ticker.bUpdateInProgress = false;
-
-		Dispatcher.PopContext();
-	}
-	FSimulationTickState& Ticker;
-	FCueDispatcher& Dispatcher;
-	const int32& OutputFrame;
-	const FNetworkSimTime& DeltaSimTime;
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

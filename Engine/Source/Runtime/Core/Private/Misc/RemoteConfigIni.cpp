@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/RemoteConfigIni.h"
 #include "Async/AsyncWork.h"
@@ -523,7 +523,7 @@ void MakeLocalCopy(const TCHAR* Filename)
 		FString FilenameStr = Filename;
 		if (FCString::Stristr(*FilenameStr, TEXT(".ini")))
 		{
-			FilenameStr = FilenameStr.LeftChop(4);
+			FilenameStr.LeftChopInline(4, false);
 		} 
 		else
 		{

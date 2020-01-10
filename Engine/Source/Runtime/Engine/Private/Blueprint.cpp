@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Blueprint.h"
 #include "Misc/CoreMisc.h"
@@ -17,6 +17,7 @@
 #include "Engine/Breakpoint.h"
 #include "Components/TimelineComponent.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/TextProperty.h"
 
 #if WITH_EDITOR
 #include "BlueprintCompilationManager.h"
@@ -41,6 +42,7 @@
 #include "UObject/MetaData.h"
 #include "BlueprintAssetHandler.h"
 #include "Blueprint/BlueprintExtension.h"
+#include "UObject/TextProperty.h"
 #endif
 #include "Engine/InheritableComponentHandler.h"
 
@@ -201,16 +203,16 @@ namespace
 						UStruct* TypeToCheck = TypesToCheck.Pop(/*bAllowShrinking*/false);
 						TypesChecked.Add(TypeToCheck);
 
-						for (TFieldIterator<const UProperty> PropIt(TypeToCheck, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); !bForceHasScript && PropIt; ++PropIt)
+						for (TFieldIterator<const FProperty> PropIt(TypeToCheck, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); !bForceHasScript && PropIt; ++PropIt)
 						{
-							auto ProcessInnerProperty = [&bForceHasScript, &TypesToCheck, &TypesChecked](const UProperty* InProp) -> bool
+							auto ProcessInnerProperty = [&bForceHasScript, &TypesToCheck, &TypesChecked](const FProperty* InProp) -> bool
 							{
-								if (const UTextProperty* TextProp = Cast<const UTextProperty>(InProp))
+								if (const FTextProperty* TextProp = CastField<const FTextProperty>(InProp))
 								{
 									bForceHasScript = true;
 									return true;
 								}
-								if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProp))
+								if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProp))
 								{
 									if (!TypesChecked.Contains(StructProp->Struct))
 									{
@@ -223,16 +225,16 @@ namespace
 
 							if (!ProcessInnerProperty(*PropIt))
 							{
-								if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(*PropIt))
+								if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(*PropIt))
 								{
 									ProcessInnerProperty(ArrayProp->Inner);
 								}
-								if (const UMapProperty* MapProp = Cast<const UMapProperty>(*PropIt))
+								if (const FMapProperty* MapProp = CastField<const FMapProperty>(*PropIt))
 								{
 									ProcessInnerProperty(MapProp->KeyProp);
 									ProcessInnerProperty(MapProp->ValueProp);
 								}
-								if (const USetProperty* SetProp = Cast<const USetProperty>(*PropIt))
+								if (const FSetProperty* SetProp = CastField<const FSetProperty>(*PropIt))
 								{
 									ProcessInnerProperty(SetProp->ElementProp);
 								}
@@ -1584,7 +1586,7 @@ ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& 
 	// If an object property was specified, find the class of that property instead
 	if(ObjectPropertyName != NAME_None)
 	{
-		UObjectPropertyBase* ObjProperty = FindField<UObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
+		FObjectPropertyBase* ObjProperty = FindField<FObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
 		if(ObjProperty == NULL)
 		{
 			UE_LOG(LogBlueprint, Log, TEXT("GetTimelineSignatureForFunction: Object Property '%s' not found."), *ObjectPropertyName.ToString());

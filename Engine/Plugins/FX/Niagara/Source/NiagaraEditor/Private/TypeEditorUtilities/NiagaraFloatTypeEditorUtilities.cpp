@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraFloatTypeEditorUtilities.h"
 #include "SNiagaraParameterEditor.h"
@@ -104,7 +104,7 @@ FString FNiagaraEditorFloatTypeUtilities::GetPinDefaultStringFromValue(const FNi
 bool FNiagaraEditorFloatTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	FNiagaraFloat FloatValue;
-	if (LexTryParseString(FloatValue.Value, *StringValue))
+	if (LexTryParseString(FloatValue.Value, *StringValue) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FNiagaraFloat>(FloatValue);
 		return true;

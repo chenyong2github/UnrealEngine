@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IbmLiveStreaming.h"
 
@@ -14,8 +14,6 @@
 #if defined(WITH_IBMRTMPINGEST) && LIVESTREAMING
 
 DEFINE_LOG_CATEGORY(IbmLiveStreaming);
-
-GAMEPLAYMEDIAENCODER_START
 
 extern "C"
 {
@@ -1017,8 +1015,6 @@ void FIbmLiveStreaming::OnStreamBandwidthChanged(RTMPModuleBroadcaster* Module, 
 {
 	reinterpret_cast<FIbmLiveStreaming*>(Module->customData)->OnStreamBandwidthChangedImpl(Module, Bandwidth, QueueWasEmpty != 0 );
 }
-
-GAMEPLAYMEDIAENCODER_END
 
 #endif // WITH_IBMRTMPINGEST
 

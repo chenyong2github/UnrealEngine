@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Core includes.
 #include "Misc/CoreDelegates.h"
@@ -31,7 +31,10 @@ FCoreDelegates::FOnMountPak FCoreDelegates::OnMountPak;
 FCoreDelegates::FOnUnmountPak FCoreDelegates::OnUnmountPak;
 FCoreDelegates::FOnOptimizeMemoryUsageForMountedPaks FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks;
 
+FCoreDelegates::FOnPakFileMounted FCoreDelegates::OnPakFileMounted;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FPakFileMountedDelegate FCoreDelegates::PakFileMountedCallback;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FNewFileAddedDelegate FCoreDelegates::NewFileAddedDelegate;
 FCoreDelegates::FNoPakFilesMountedDelegate FCoreDelegates::NoPakFilesMountedDelegate;
 FCoreDelegates::FOnFileOpenedForReadFromPakFile FCoreDelegates::OnFileOpenedForReadFromPakFile;

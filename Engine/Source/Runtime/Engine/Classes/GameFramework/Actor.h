@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -377,7 +377,7 @@ private:
 	UPROPERTY()
 	uint8 bActorEnableCollision:1;
 
-	/** Set when actor is about to be deleted. Needs to be a UProperty so it is included in transactions. */
+	/** Set when actor is about to be deleted. Needs to be a FProperty so it is included in transactions. */
 	UPROPERTY(Transient, DuplicateTransient)
 	uint8 bActorIsBeingDestroyed:1;
 
@@ -948,9 +948,10 @@ public:
 	 * @param	bOnlyCollidingComponents	If true, will only return the bounding box for components with collision enabled.
 	 * @param	Origin						Set to the center of the actor in world space
 	 * @param	BoxExtent					Set to half the actor's size in 3d space
+	 * @param	bIncludeFromChildActors		If true then recurse in to ChildActor components 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(DisplayName = "GetActorBounds"))
-	void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent) const;
+	void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
 
 	/** Returns the RootComponent of this Actor */
 	UFUNCTION(BlueprintGetter)
@@ -1619,11 +1620,12 @@ public:
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual bool IsSelectedInEditor() const override;
 
 	/** When selected can this actor be deleted? */
@@ -2098,7 +2100,7 @@ protected:
 public:
 	/** 
 	 * Set the owner of this Actor, used primarily for network replication. 
-	 * @param NewOwner	The Actor whom takes over ownership of this Actor
+	 * @param NewOwner	The Actor who takes over ownership of this Actor
 	 */
 	UFUNCTION(BlueprintCallable, Category=Actor)
 	virtual void SetOwner( AActor* NewOwner );
@@ -2584,17 +2586,23 @@ public:
 	/** 
 	 * Returns the world space bounding box of all components in this Actor.
 	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding box
+	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
 	 */
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false) const;
+	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
 	/** 
 	 * Calculates the actor space bounding box of all components in this Actor.  This is slower than GetComponentsBoundingBox(), because the local bounds of the components are not cached -- they are recalculated every time this function is called.
 	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding box
+	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
 	 */
-	virtual FBox CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding = false) const;
+	virtual FBox CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
-	/** Get half-height/radius of a big axis-aligned cylinder around this actors registered colliding components, or all registered components if bNonColliding is false. */
-	virtual void GetComponentsBoundingCylinder(float& CollisionRadius, float& CollisionHalfHeight, bool bNonColliding = false) const;
+	/** 
+	 * Get half-height/radius of a big axis-aligned cylinder around this actors registered colliding components, or all registered components if bNonColliding is false. 
+	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding cylinder
+	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	*/
+	virtual void GetComponentsBoundingCylinder(float& CollisionRadius, float& CollisionHalfHeight, bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
 	/**
 	 * Get axis-aligned cylinder around this actor, used for simple collision checks (ie Pawns reaching a destination).
@@ -2838,26 +2846,28 @@ public:
 
 private:
 	/**
-	 * Internal helper function to centralize GetComponents logic. 
+	 * Internal helper function to call a compile-time lambda on all components of a given type
 	 * Use template parameter bClassIsActorComponent to avoid doing unnecessary IsA checks when the ComponentClass is exactly UActorComponent
+	 * Use template parameter bIncludeFromChildActors to recurse in to ChildActor components and find components of the appropriate type in those actors as well
 	 */
-	template<bool bClassIsActorComponent, class AllocatorType>
-	void GetComponents_Internal(TSubclassOf<UActorComponent> ComponentClass, TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	template<class ComponentType, bool bClassIsActorComponent, bool bIncludeFromChildActors, typename Func>
+	void ForEachComponent_Internal(TSubclassOf<UActorComponent> ComponentClass, Func InFunc) const
 	{
 		check(bClassIsActorComponent == false || ComponentClass == UActorComponent::StaticClass());
+		check(ComponentClass->IsChildOf(ComponentType::StaticClass()));
 
-		TArray<AActor*> ChildActors;
-
-		for (UActorComponent* OwnedComponent : OwnedComponents)
+		// static check, so that the most common case (bIncludeFromChildActors) doesn't need to allocate an additional array : 
+		if (bIncludeFromChildActors)
 		{
-			if (OwnedComponent)
+			TArray<AActor*, TInlineAllocator<NumInlinedActorComponents>> ChildActors;
+			for (UActorComponent* OwnedComponent : OwnedComponents)
 			{
-				if (bClassIsActorComponent || OwnedComponent->IsA(ComponentClass))
+				if (OwnedComponent)
 				{
-					OutComponents.Add(OwnedComponent);
-				}
-				if (bIncludeFromChildActors)
-				{
+					if (bClassIsActorComponent || OwnedComponent->IsA(ComponentClass))
+					{
+						InFunc(static_cast<ComponentType*>(OwnedComponent));
+					}
 					if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(OwnedComponent))
 					{
 						if (AActor* ChildActor = ChildActorComponent->GetChildActor())
@@ -2867,15 +2877,81 @@ private:
 					}
 				}
 			}
-		}
 
-		for (AActor* ChildActor : ChildActors)
+			for (AActor* ChildActor : ChildActors)
+			{
+				ChildActor->ForEachComponent_Internal<ComponentType, bClassIsActorComponent, bIncludeFromChildActors>(ComponentClass, InFunc);
+			}
+		}
+		else
 		{
-			ChildActor->GetComponents_Internal<bClassIsActorComponent>(ComponentClass, OutComponents, true);
+			for (UActorComponent* OwnedComponent : OwnedComponents)
+			{
+				if (OwnedComponent)
+				{
+					if (bClassIsActorComponent || OwnedComponent->IsA(ComponentClass))
+					{
+						InFunc(static_cast<ComponentType*>(OwnedComponent));
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Internal helper function to call a compile-time lambda on all components of a given type
+	 * Redirects the call to the proper template function specialization for bClassIsActorComponent and bIncludeFromChildActors :
+	 */
+	template<class ComponentType, typename Func>
+	void ForEachComponent_Internal(TSubclassOf<UActorComponent> ComponentClass, bool bIncludeFromChildActors, Func InFunc) const
+	{
+		static_assert(TPointerIsConvertibleFromTo<ComponentType, const UActorComponent>::Value, "'ComponentType' template parameter to ForEachComponent must be derived from UActorComponent");
+		if (ComponentClass == UActorComponent::StaticClass())
+		{
+			if (bIncludeFromChildActors)
+			{
+				ForEachComponent_Internal<ComponentType, true /*bClassIsActorComponent*/, true /*bIncludeFromChildActors*/>(ComponentClass, InFunc);
+			}
+			else
+			{
+				ForEachComponent_Internal<ComponentType, true /*bClassIsActorComponent*/, false /*bIncludeFromChildActors*/>(ComponentClass, InFunc);
+			}
+		}
+		else
+		{
+			if (bIncludeFromChildActors)
+			{
+				ForEachComponent_Internal<ComponentType, false /*bClassIsActorComponent*/, true /*bIncludeFromChildActors*/>(ComponentClass, InFunc);
+			}
+			else
+			{
+				ForEachComponent_Internal<ComponentType, false /*bClassIsActorComponent*/, false /*bIncludeFromChildActors*/>(ComponentClass, InFunc);
+			}
 		}
 	}
 
 public:
+
+	/**
+	 * Calls the compile-time lambda on each component of the specified type
+	 * @param ComponentType             The component class to find all components of a class derived from
+	 * @param bIncludeFromChildActors   If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	 */
+	template<class ComponentType, typename Func>
+	void ForEachComponent(bool bIncludeFromChildActors, Func InFunc) const
+	{		
+		ForEachComponent_Internal<ComponentType>(ComponentType::StaticClass(), bIncludeFromChildActors, InFunc);
+	}
+
+	/**
+	 * Calls the compile-time lambda on each valid component 
+	 * @param bIncludeFromChildActors   If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	 */
+	template<typename Func>
+	void ForEachComponent(bool bIncludeFromChildActors, Func InFunc) const
+	{
+		ForEachComponent_Internal<UActorComponent>(UActorComponent::StaticClass(), bIncludeFromChildActors, InFunc);
+	}
 
 	UE_DEPRECATED(4.24, "Use one of the GetComponents implementations as appropriate")
 	TArray<UActorComponent*> GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
@@ -2900,14 +2976,10 @@ public:
 		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
 
 		OutComponents.Reset();
-		if (ComponentClass == UActorComponent::StaticClass())
+		ForEachComponent_Internal<UActorComponent>(ComponentClass, bIncludeFromChildActors, [&](UActorComponent* InComp)
 		{
-			GetComponents_Internal<true>(ComponentClass, OutComponents, bIncludeFromChildActors);
-		}
-		else
-		{
-			GetComponents_Internal<false>(ComponentClass, OutComponents, bIncludeFromChildActors);
-		}
+			OutComponents.Add(InComp);
+		});
 	}
 
 	/**
@@ -2925,9 +2997,11 @@ public:
 	{
 		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
 
-		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to GetComponents must be derived from UActorComponent");
 		OutComponents.Reset();
-		GetComponents_Internal<false>(T::StaticClass(), *reinterpret_cast<TArray<UActorComponent*, AllocatorType>*>(&OutComponents), bIncludeFromChildActors);
+		ForEachComponent_Internal<T>(T::StaticClass(), bIncludeFromChildActors, [&](T* InComp)
+		{
+			OutComponents.Add(InComp);
+		});
 	}
 
 	/**
@@ -2947,7 +3021,10 @@ public:
 		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
 
 		OutComponents.Reset();
-		GetComponents_Internal<true>(UActorComponent::StaticClass(), OutComponents, bIncludeFromChildActors);
+		ForEachComponent_Internal<UActorComponent>(UActorComponent::StaticClass(), bIncludeFromChildActors, [&](UActorComponent* InComp)
+		{
+			OutComponents.Add(InComp);
+		});
 	}
 
 	/**
@@ -3015,7 +3092,7 @@ private:
 
 #if WITH_EDITOR
 	/** Maps natively-constructed components to properties that reference them. */
-	TMultiMap<FName, UObjectProperty*> NativeConstructedComponentToPropertyMap;
+	TMultiMap<FName, FObjectProperty*> NativeConstructedComponentToPropertyMap;
 #endif
 
 	/** Array of ActorComponents that have been added by the user on a per-instance basis. */
@@ -3555,7 +3632,7 @@ FORCEINLINE_DEBUGGABLE bool AActor::IsNetMode(ENetMode Mode) const
 	FVector GetActorForwardVector() const { return Super::GetActorForwardVector(); } \
 	FVector GetActorUpVector() const { return Super::GetActorUpVector(); } \
 	FVector GetActorRightVector() const { return Super::GetActorRightVector(); } \
-	void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent) const { return Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent); } \
+	void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const { return Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors); } \
 	void SetActorScale3D(FVector NewScale3D) { Super::SetActorScale3D(NewScale3D); } \
 	FVector GetActorScale3D() const { return Super::GetActorScale3D(); } \
 	void SetActorRelativeScale3D(FVector NewRelativeScale) { Super::SetActorRelativeScale3D(NewRelativeScale); } \

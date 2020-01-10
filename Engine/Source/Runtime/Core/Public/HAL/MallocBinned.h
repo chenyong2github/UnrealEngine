@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@
 #endif
 
 #ifndef USE_OS_SMALL_BLOCK_ALLOC
-#define USE_OS_SMALL_BLOCK_ALLOC PLATFORM_IOS
+#define USE_OS_SMALL_BLOCK_ALLOC 0
 #endif //USE_OS_SMALL_BLOCK_ALLOC
 
 #ifndef USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -73,12 +73,21 @@ public:
 	virtual bool Private_IsItemSelected( const ItemType& TheItem ) const = 0;
 
 	/**
-	* Test if the current item should be highlighted. This is separate from hover highlights.
-	*
-	* @param TheItem The item to test.
-	*
-	* @return true if the item is marked as highlighted in this list; false otherwise.
-	*/
+	 * Test if the current item can be selected or navigated to.
+	 *
+	 * @param InItem The item to test.
+	 *
+	 * @return true if the item is selectable or navigable; false otherwise.
+	 */
+	virtual bool Private_IsItemSelectableOrNavigable(const ItemType& TheItem) const = 0;
+
+	/**
+	 * Test if the current item should be highlighted. This is separate from hover highlights.
+	 *
+	 * @param TheItem The item to test.
+	 *
+	 * @return true if the item is marked as highlighted in this list; false otherwise.
+	 */
 	virtual bool Private_IsItemHighlighted(const ItemType& TheItem) const = 0;
 	
 	/**
@@ -196,6 +205,18 @@ public:
 
 	/** Is the list pending a refresh? */
 	virtual bool Private_IsPendingRefresh() const = 0;
+
+	/** @return All currently selected items in the table view */
+	virtual TArray<ItemType> GetSelectedItems() const = 0;
+
+	/**
+	 * Find a widget for this item if it has already been constructed.
+	 *
+	 * @param InItem  The item for which to find the widget.
+	 *
+	 * @return A pointer to the corresponding widget if it exists; otherwise nullptr.
+	*/
+	virtual TSharedPtr<ITableRow> WidgetFromItem(const ItemType& InItem) const = 0;
 
 	/** @return Is the tableview a tree or a list? */
 	virtual ETableViewMode::Type GetTableViewMode() const = 0;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,6 +31,8 @@ struct FNDIPhysicsAssetArrays
 	TArray<FVector4> CurrentTransform;
 	TArray<FVector4> InverseTransform;
 	TArray<FVector4> PreviousTransform;
+	TArray<FVector4> RestTransform;
+	TArray<FVector4> RestInverse;
 	TArray<FVector4> ElementExtent;
 };
 
@@ -64,6 +66,12 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	/** Inverse transform buffer*/
 	FRWBuffer InverseTransformBuffer;
 
+	/** Rest transform buffer */
+	FRWBuffer RestTransformBuffer;
+
+	/** Rest transform buffer */
+	FRWBuffer RestInverseBuffer;
+
 	/** Element extent buffer */
 	FRWBuffer ElementExtentBuffer;
 
@@ -85,6 +93,12 @@ struct FNDIPhysicsAssetData
 {
 	/** Physics asset Gpu buffer */
 	FNDIPhysicsAssetBuffer* AssetBuffer;
+
+	/** Bounding box center */
+	FVector BoxOrigin;
+
+	/** Bounding box extent */
+	FVector BoxExtent;
 };
 
 /** Data Interface for the strand base */
@@ -141,6 +155,12 @@ public:
 	/** Get the closest point */
 	void GetClosestPoint(FVectorVMContext& Context);
 
+	/** Get the closest texture point */
+	void GetTexturePoint(FVectorVMContext& Context);
+
+	/** Get the projection point */
+	void GetProjectionPoint(FVectorVMContext& Context);
+
 	/** Name of element offsets */
 	static const FString ElementOffsetsName;
 
@@ -153,8 +173,20 @@ public:
 	/** Name of the inverse transform buffer */
 	static const FString InverseTransformBufferName;
 
+	/** Name of the rest transform buffer */
+	static const FString RestTransformBufferName;
+
+	/** Name of the rest inverse transform buffer */
+	static const FString RestInverseBufferName;
+
 	/** Name of the element extent buffer */
 	static const FString ElementExtentBufferName;
+
+	/** Init Box Origin */
+	static const FString BoxOriginName;
+
+	/** Init Box extent */
+	static const FString BoxExtentName;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -174,7 +206,7 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPhysicsAssetBuffer* AssetBuffer);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPhysicsAssetBuffer* AssetBuffer, const FVector& BoxOrigin, const FVector& BoxExtent);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

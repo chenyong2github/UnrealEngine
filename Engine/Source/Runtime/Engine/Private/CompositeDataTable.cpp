@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/CompositeDataTable.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
@@ -253,7 +253,7 @@ void UCompositeDataTable::PostEditChangeProperty(FPropertyChangedEvent& Property
 {
 	static FName Name_ParentTables = GET_MEMBER_NAME_CHECKED(UCompositeDataTable, ParentTables);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged != nullptr ? PropertyThatChanged->GetFName() : NAME_None;
 
 	if (PropertyName == Name_ParentTables)

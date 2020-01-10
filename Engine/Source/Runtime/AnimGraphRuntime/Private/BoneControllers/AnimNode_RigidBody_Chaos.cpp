@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_RigidBody_Chaos.h"
 
@@ -28,6 +28,7 @@ TAutoConsoleVariable<int32> CVarChaosRigidBodyLODThreshold(TEXT("p.ChaosRigidBod
 FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	: QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
 	OverridePhysicsAsset = nullptr;
@@ -41,6 +42,7 @@ FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	OverrideWorldGravity = FVector::ZeroVector;
 	TotalMass = 0.f;
 	CachedBounds.W = 0;
+	PhysScene = nullptr;
 	UnsafeWorld = nullptr;
 	bSimulationStarted = false;
 	bCheckForBodyTransformInit = false;
@@ -78,6 +80,21 @@ void FAnimNode_RigidBody_Chaos::GatherDebugData(FNodeDebugData& DebugData)
 	if (!bUsingFrozenPose)
 	{
 		ComponentPose.GatherDebugData(DebugData);
+	}
+}
+
+FTransform SpaceToWorldTransformChaos(ESimulationSpace Space, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace:
+		return ComponentToWorld;
+	case ESimulationSpace::WorldSpace:
+		return FTransform::Identity;
+	case ESimulationSpace::BaseBoneSpace:
+		return BaseBoneTM * ComponentToWorld;
+	default:
+		return FTransform::Identity;
 	}
 }
 
@@ -246,6 +263,11 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
 		}
 		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
+
+#if !UE_BUILD_SHIPPING
+		// Only used for debug draw...
+		PhysicsSimulation->SetSimulationSpaceTransform(SpaceToWorldTransformChaos(SimulationSpace, CompWorldSpaceTM, BaseBoneTM));
+#endif
 
 		// Initialize potential new bodies because of LOD change.
 		if (ResetSimulatedTeleportType == ETeleportType::None && bCheckForBodyTransformInit)

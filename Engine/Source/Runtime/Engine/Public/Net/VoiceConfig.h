@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -163,6 +163,9 @@ public:
 
 	// Returns the amount of seconds to spend buffering specified by AudioSettings.
 	static float GetBufferingDelay();
+
+	// Returns the noise gate threshold we use for incoming audio.
+	static float GetVoiceNoiseGateLevel();
 
 	// returns the amount of packets to allocate memory for based on the buffering delay.
 	static int32 GetNumBufferedPackets();

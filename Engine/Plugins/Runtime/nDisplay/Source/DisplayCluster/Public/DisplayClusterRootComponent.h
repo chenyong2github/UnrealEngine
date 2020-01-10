@@ -1,11 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Components/SceneComponent.h"
-#include "Camera/PlayerCameraManager.h"
-
-#include "DisplayClusterEnums.h"
 
 #include "DisplayClusterRootComponent.generated.h"
 
@@ -14,13 +11,12 @@ class UCameraComponent;
 class UDisplayClusterCameraComponent;
 class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
-class UMaterial;
 
 
 /**
  * DisplayCluster root component (nDisplay root)
  */
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=(Custom) )
 class DISPLAYCLUSTER_API UDisplayClusterRootComponent
 	: public USceneComponent
 {
@@ -34,7 +30,6 @@ public:
 public:
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
 	TArray<UDisplayClusterScreenComponent*> GetAllScreens() const;
@@ -61,43 +56,9 @@ protected:
 	// Default camera for this root
 	UDisplayClusterCameraComponent* DefaultCameraComponent = nullptr;
 
-public:
-	bool GetShowProjectionScreens() const
-	{ return bShowProjectionScreens; }
-
-	UMaterial* GetProjectionScreenMaterial() const
-	{ return ProjectionScreensMaterial; }
-
-protected:
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))
-	bool bExitOnEsc;
-
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Show projection screens"))
-	bool bShowProjectionScreens;
-
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Projection screens material"))
-	UMaterial* ProjectionScreensMaterial;
-
-#if WITH_EDITORONLY_DATA
-public:
-	FString GetEditorConfigPath() const
-	{ return EditorConfigPath; }
-
-	FString GetEditorNodeId() const
-	{ return EditorNodeId; }
-
-protected:
-	UPROPERTY(EditAnywhere, Category = "nDisplay (Editor only)", meta = (DisplayName = "Config file"))
-	FString EditorConfigPath;
-
-	UPROPERTY(EditAnywhere, Category = "nDisplay (Editor only)", meta = (DisplayName = "Node ID"))
-	FString EditorNodeId;
-#endif
-
 protected:
 	// Creates all hierarchy objects declared in a config file
 	virtual bool InitializeHierarchy();
-	virtual bool InitializeExtra();
 	virtual bool CreateScreens();
 	virtual bool CreateNodes();
 	virtual bool CreateCameras();
@@ -113,9 +74,4 @@ private:
 
 private:
 	mutable FCriticalSection InternalsSyncScope;
-
-	// Current operation mode
-	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
-
-	int32 NativeInputSyncPolicy = 0;
 };

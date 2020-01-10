@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -36,8 +36,11 @@ public:
 
 	inline uint32 Release() const
 	{
-#if DO_CHECK
-		CheckRefCount();
+#if DO_GUARD_SLOW
+		if (NumRefs == 0)
+		{
+			CheckRefCount();
+		}
 #endif
 
 		const int32 Refs = FPlatformAtomics::InterlockedDecrement(&NumRefs);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionControllerDetails.h"
 #include "MotionControllerComponent.h"
@@ -45,7 +45,7 @@ void FMotionControllerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayo
 	{
 		IDetailPropertyRow& PropertyRow = VisualizationDetails.AddProperty(VisProp);
 
-		UProperty* RawProperty = VisProp->GetProperty();
+		FProperty* RawProperty = VisProp->GetProperty();
 		if (RawProperty == ModelSrcProperty->GetProperty())
 		{
 			CustomizeModelSourceRow(ModelSrcProperty, PropertyRow);

@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectArchetype.cpp: Unreal object archetype relationship management
 =============================================================================*/
 
+#include "UObject/UObjectArchetypeInternal.h"
 #include "CoreMinimal.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Object.h"
@@ -11,6 +12,45 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 #include "Stats/StatsMisc.h"
+
+#define UE_CACHE_ARCHETYPE (1 && !WITH_EDITORONLY_DATA)
+#define UE_VERIFY_CACHED_ARCHETYPE 0
+
+#if UE_CACHE_ARCHETYPE
+struct FArchetypeInfo
+{
+	/**
+	* default contructor
+	* Default constructor must be the default item
+	*/
+	FArchetypeInfo()
+		: ArchetypeIndex(INDEX_NONE)
+	{
+	}
+	/**
+	* Determine if this linker pair is the default
+	* @return true is this is a default pair. We only check the linker because CheckInvariants rules out bogus combinations
+	*/
+	FORCEINLINE bool IsDefault() const
+	{
+		return ArchetypeIndex == INDEX_NONE;
+	}
+
+	/**
+	* Constructor
+	* @param InArchetype Archetype to assign
+	*/
+	FArchetypeInfo(int32 InArchetypeIndex)
+		: ArchetypeIndex(InArchetypeIndex)
+	{
+	}
+
+	int32 ArchetypeIndex;
+};
+
+static FUObjectAnnotationDense<FArchetypeInfo, true> ArchetypeAnnotation;
+
+#endif // UE_CACHE_ARCHETYPE
 
 UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags, bool bUseUpToDateClass)
 {
@@ -29,7 +69,18 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 			void LockUObjectHashTables();
 			LockUObjectHashTables();
 
-			UObject* ArchetypeToSearch = GetArchetypeFromRequiredInfoImpl(Outer->GetClass(), Outer->GetOuter(), Outer->GetFName(), Outer->GetFlags(), bUseUpToDateClass);
+			UObject* ArchetypeToSearch = nullptr;
+#if UE_CACHE_ARCHETYPE
+			ArchetypeToSearch = Outer->GetArchetype();
+#if UE_VERIFY_CACHED_ARCHETYPE
+			{
+				UObject* VerifyArchetype = GetArchetypeFromRequiredInfoImpl(Outer->GetClass(), Outer->GetOuter(), Outer->GetFName(), Outer->GetFlags(), bUseUpToDateClass);
+				checkf(ArchetypeToSearch == VerifyArchetype, TEXT("Cached archetype mismatch, expected: %s, cached: %s"), *GetFullNameSafe(VerifyArchetype), *GetFullNameSafe(ArchetypeToSearch));
+			}
+#endif // UE_VERIFY_CACHED_ARCHETYPE
+#else
+			ArchetypeToSearch = GetArchetypeFromRequiredInfoImpl(Outer->GetClass(), Outer->GetOuter(), Outer->GetFName(), Outer->GetFlags(), bUseUpToDateClass);
+#endif // UE_CACHE_ARCHETYPE
 			UObject* MyArchetype = static_cast<UObject*>(FindObjectWithOuter(ArchetypeToSearch, Class, Name));
 			if (MyArchetype)
 			{
@@ -92,6 +143,18 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 	return Result;
 }
 
+void CacheArchetypeForObject(UObject* Object, UObject* Archetype)
+{
+#if UE_CACHE_ARCHETYPE
+#if UE_VERIFY_CACHED_ARCHETYPE
+	bool bUseUpToDateClass = false;
+	UObject* VerifyArchetype = GetArchetypeFromRequiredInfoImpl(Object->GetClass(), Object->GetOuter(), Object->GetFName(), Object->GetFlags(), bUseUpToDateClass);
+	checkf(Archetype == VerifyArchetype, TEXT("Cached archetype mismatch, expected: %s, cached: %s"), *GetFullNameSafe(VerifyArchetype), *GetFullNameSafe(Archetype));
+#endif
+	ArchetypeAnnotation.AddAnnotation(Object, GUObjectArray.ObjectToIndex(Archetype));
+#endif
+}
+
 UObject* UObject::GetArchetypeFromRequiredInfo(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags)
 {
 	bool bUseUpToDateClass = false;
@@ -102,45 +165,6 @@ UObject* UObject::GetArchetypeFromRequiredInfo(const UClass* Class, const UObjec
 #endif
 	return GetArchetypeFromRequiredInfoImpl(Class, Outer, Name, ObjectFlags, bUseUpToDateClass);
 }
-
-#define UE_CACHE_ARCHETYPE (1 && !WITH_EDITORONLY_DATA)
-#define UE_VERIFY_CACHED_ARCHETYPE 0
-
-#if UE_CACHE_ARCHETYPE
-struct FArchetypeInfo
-{
-	/**
-	* default contructor
-	* Default constructor must be the default item
-	*/
-	FArchetypeInfo() 
-		: ArchetypeIndex(INDEX_NONE)
-	{
-	}
-	/**
-	* Determine if this linker pair is the default
-	* @return true is this is a default pair. We only check the linker because CheckInvariants rules out bogus combinations
-	*/
-	FORCEINLINE bool IsDefault() const
-	{
-		return ArchetypeIndex == INDEX_NONE;
-	}
-
-	/**
-	* Constructor
-	* @param InArchetype Archetype to assign
-	*/
-	FArchetypeInfo(int32 InArchetypeIndex) 
-		: ArchetypeIndex(InArchetypeIndex)
-	{
-	}
-
-	int32 ArchetypeIndex;
-};
-
-static FUObjectAnnotationDense<FArchetypeInfo, true> ArchetypeAnnotation;
-
-#endif // UE_CACHE_ARCHETYPE
 
 //DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("UObject::GetArchetype"), STAT_FArchiveRealtimeGC_GetArchetype, STATGROUP_GC);
 
@@ -154,7 +178,8 @@ UObject* UObject::GetArchetype() const
 	if (ArchetypeIndex == INDEX_NONE)
 	{
 		Archetype = GetArchetypeFromRequiredInfo(GetClass(), GetOuter(), GetFName(), GetFlags());
-		if (Archetype)
+		// If the Outer is pending load we can't cache the archetype as it may be inacurate
+		if (Archetype && !(GetOuter() && GetOuter()->HasAnyFlags(RF_NeedLoad)))
 		{
 			ArchetypeAnnotation.AddAnnotation(this, GUObjectArray.ObjectToIndex(Archetype));
 		}
@@ -165,10 +190,10 @@ UObject* UObject::GetArchetype() const
 		check(ArchetypeItem != nullptr);
 		Archetype = static_cast<UObject*>(ArchetypeItem->Object);
 #if UE_VERIFY_CACHED_ARCHETYPE
-		UObject* CurrentArchetype = GetArchetypeFromRequiredInfo(GetClass(), GetOuter(), GetFName(), GetFlags());
-		if (CurrentArchetype != Archetype)
+		UObject* ExpectedArchetype = GetArchetypeFromRequiredInfo(GetClass(), GetOuter(), GetFName(), GetFlags());
+		if (ExpectedArchetype != Archetype)
 		{
-			UE_LOG(LogClass, Fatal, TEXT("Cached archetype mismatch: %s vs current: %s"), *Archetype->GetFullName(), *CurrentArchetype->GetFullName());
+			UE_LOG(LogClass, Fatal, TEXT("Cached archetype mismatch, expected: %s, cached: %s"), *ExpectedArchetype->GetFullName(), *Archetype->GetFullName());
 		}
 #endif // UE_VERIFY_CACHED_ARCHETYPE
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyHelpers.h"
 #include "UObject/UnrealType.h"
@@ -19,7 +19,7 @@ namespace PropertyHelpers
 			if (PropertyName.FindLastChar('[', OpenIndex))
 			{
 				FString TruncatedPropertyName(OpenIndex, *PropertyName);
-				PropertyAndIndex.Property = FindField<UProperty>(InStruct, *TruncatedPropertyName);
+				PropertyAndIndex.Property = FindField<FProperty>(InStruct, *TruncatedPropertyName);
 				if (PropertyAndIndex.Property)
 				{
 					const int32 NumberLength = PropertyName.Len() - OpenIndex - 2;
@@ -35,11 +35,11 @@ namespace PropertyHelpers
 			}
 		}
 
-		PropertyAndIndex.Property = FindField<UProperty>(InStruct, *PropertyName);
+		PropertyAndIndex.Property = FindField<FProperty>(InStruct, *PropertyName);
 		return PropertyAndIndex;
 	}
 
-	FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, TArray<UProperty*>& InOutPropertyChain, bool bAllowArrayResize)
+	FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, TArray<FProperty*>& InOutPropertyChain, bool bAllowArrayResize)
 	{
 		FPropertyAndIndex PropertyAndIndex = FindPropertyAndArrayIndex(InStruct, *InPropertyNames[Index]);
 
@@ -47,7 +47,7 @@ namespace PropertyHelpers
 
 		if (PropertyAndIndex.ArrayIndex != INDEX_NONE)
 		{
-			UArrayProperty* ArrayProp = CastChecked<UArrayProperty>(PropertyAndIndex.Property);
+			FArrayProperty* ArrayProp = CastFieldChecked<FArrayProperty>(PropertyAndIndex.Property);
 
 			FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(BasePointer));
 			if (bAllowArrayResize)
@@ -57,7 +57,7 @@ namespace PropertyHelpers
 
 			if (ArrayHelper.IsValidIndex(PropertyAndIndex.ArrayIndex))
 			{
-				UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProp->Inner);
+				FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProp->Inner);
 				if (InnerStructProp && InPropertyNames.IsValidIndex(Index + 1))
 				{
 					return FindPropertyRecursive(ArrayHelper.GetRawPtr(PropertyAndIndex.ArrayIndex), InnerStructProp->Struct, InPropertyNames, Index + 1, InOutPropertyChain, bAllowArrayResize);
@@ -71,7 +71,7 @@ namespace PropertyHelpers
 				}
 			}
 		}
-		else if (UStructProperty* StructProp = Cast<UStructProperty>(PropertyAndIndex.Property))
+		else if (FStructProperty* StructProp = CastField<FStructProperty>(PropertyAndIndex.Property))
 		{
 			NewAddress.Property = StructProp;
 			NewAddress.Address = BasePointer;
@@ -87,7 +87,7 @@ namespace PropertyHelpers
 				check(StructProp->GetName() == InPropertyNames[Index]);
 			}
 		}
-		else if (UObjectProperty* ObjectProp = Cast<UObjectProperty>(PropertyAndIndex.Property))
+		else if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(PropertyAndIndex.Property))
 		{
 			NewAddress.Property = ObjectProp;
 			NewAddress.Address = BasePointer;
@@ -119,7 +119,7 @@ namespace PropertyHelpers
 		return NewAddress;
 	}
 
-	FPropertyAddress FindProperty(void* BasePointer, UStruct* InStruct, const FString& InPropertyPath, TArray<UProperty*>& InOutPropertyChain, bool bAllowArrayResize)
+	FPropertyAddress FindProperty(void* BasePointer, UStruct* InStruct, const FString& InPropertyPath, TArray<FProperty*>& InOutPropertyChain, bool bAllowArrayResize)
 	{
 		TArray<FString> PropertyNames;
 

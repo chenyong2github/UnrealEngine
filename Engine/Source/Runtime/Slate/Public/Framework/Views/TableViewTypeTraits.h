@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -78,6 +78,14 @@ struct TIsValidListItem<TWeakObjectPtr<T>>
 		Value = true
 	};
 };
+template <typename T>
+struct TIsValidListItem<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, FField>::Value>::Type>
+{
+	enum
+	{
+		Value = true
+	};
+};
 
 /**
  * Furthermore, ListViews of TSharedPtr<> work differently from lists of UObject*.
@@ -86,7 +94,7 @@ struct TIsValidListItem<TWeakObjectPtr<T>>
  */
 template <typename T, typename Enable=void> struct TListTypeTraits
 {
-	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, TSharedRef, or TSharedPtr.");
+	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, FField pointer, TSharedRef, or TSharedPtr.");
 };
 
 
@@ -417,6 +425,73 @@ public:
 	static const T* NullableItemTypeConvertToItemType( const T* InPtr ) { return InPtr; }
 
 	static FString DebugDump( const T* InPtr )
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
+	typedef FGCObject SerializerType;
+};
+
+
+/**
+ * Lists of pointer types only work if the pointers are deriving from UObject*.
+ * In addition to testing and setting the pointers to null, Lists of UObjects
+ * will serialize the objects they are holding onto.
+ */
+template <typename T>
+struct TListTypeTraits<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, FField>::Value>::Type>
+{
+public:
+	typedef T* NullableType;
+
+	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<T*, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<T*, FSparseItemInfo, false>;
+	using SetKeyFuncs = DefaultKeyFuncs<T*>;
+
+	template<typename U>
+	static void AddReferencedObjects(FReferenceCollector& Collector,
+		TArray<T*>& ItemsWithGeneratedWidgets,
+		TSet<T*>& SelectedItems,
+		TMap< const U*, T* >& WidgetToItemMap)
+	{
+		// Serialize generated items
+		for (T* Item : ItemsWithGeneratedWidgets)
+		{
+			if (Item)
+			{
+				Item->AddReferencedObjects(Collector);
+			}
+		}
+
+		// Serialize the map Value. We only do it for the WidgetToItemMap because we know that both maps are updated at the same time and contains the same objects
+		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
+		for (auto& It : WidgetToItemMap)
+		{
+			if (It.Value)
+			{
+				It.Value->AddReferencedObjects(Collector);
+			}
+		}
+
+		// Serialize the selected items
+		for (T* Item : SelectedItems)
+		{
+			if (Item)
+			{
+				Item->AddReferencedObjects(Collector);
+			}
+		}
+	}
+
+	static bool IsPtrValid(T* InPtr) { return InPtr != nullptr; }
+
+	static void ResetPtr(T*& InPtr) { InPtr = nullptr; }
+
+	static T* MakeNullPtr() { return nullptr; }
+
+	static T* NullableItemTypeConvertToItemType(T* InPtr) { return InPtr; }
+
+	static FString DebugDump(T* InPtr)
 	{
 		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
 	}

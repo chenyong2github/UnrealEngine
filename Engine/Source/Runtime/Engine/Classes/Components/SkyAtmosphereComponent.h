@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -185,7 +185,7 @@ public:
 //	virtual void PostLoad() override;
 //	virtual bool IsPostLoadThreadSafe() const override;
 //	virtual void BeginDestroy() override;
-	virtual void PostInterpChange(UProperty* PropertyThatChanged) override;
+	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

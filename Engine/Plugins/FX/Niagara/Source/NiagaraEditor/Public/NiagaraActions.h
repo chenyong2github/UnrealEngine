@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,10 +18,7 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 	DECLARE_DELEGATE(FOnExecuteStackAction);
 	DECLARE_DELEGATE_RetVal(bool, FCanExecuteStackAction);
 
-	FNiagaraMenuAction()
-	{
-	}
-
+	FNiagaraMenuAction() {}
 	FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, int32 InSectionID = 0);
 	FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, FCanExecuteStackAction InCanPerformAction, int32 InSectionID = 0);
 
@@ -38,6 +35,8 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 		// Fire the 'can execute' delegate if we have one, otherwise always return true
 		return CanPerformAction.IsBound() ? CanPerformAction.Execute() : true;
 	}
+
+	bool IsExperimental = false;
 
 private:
 	FOnExecuteStackAction Action;

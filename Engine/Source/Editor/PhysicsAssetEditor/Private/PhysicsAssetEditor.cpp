@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditor.h"
 #include "Framework/MultiBox/MultiBox.h"
@@ -1372,7 +1372,7 @@ bool FPhysicsAssetEditor::ShouldFilterAssetBasedOnSkeleton( const FAssetData& As
 void FPhysicsAssetEditor::CreateOrConvertConstraint(EPhysicsAssetEditorConstraintType ConstraintType)
 {
 	//we have to manually call PostEditChange to ensure profiles are updated correctly
-	UProperty* DefaultInstanceProperty = FindField<UProperty>(UPhysicsConstraintTemplate::StaticClass(), GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
+	FProperty* DefaultInstanceProperty = FindField<FProperty>(UPhysicsConstraintTemplate::StaticClass(), GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
 
 	const FScopedTransaction Transaction( LOCTEXT( "CreateConvertConstraint", "Create Or Convert Constraint" ) );
 
@@ -2933,11 +2933,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	SharedData->EditorSkelComp->Stop();
 
-	SharedData->EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 	SharedData->EditorSkelComp->PreviewInstance = NewObject<UPhysicsAssetEditorAnimInstance>(SharedData->EditorSkelComp, TEXT("PhatAnimScriptInstance"));
-	SharedData->EditorSkelComp->AnimScriptInstance = SharedData->EditorSkelComp->PreviewInstance;
-	SharedData->EditorSkelComp->AnimScriptInstance->InitializeAnimation();
-	SharedData->EditorSkelComp->InitAnim(true);
 
 	SharedData->PhysicalAnimationComponent = NewObject<UPhysicalAnimationComponent>(Actor);
 	SharedData->PhysicalAnimationComponent->SetSkeletalMeshComponent(SharedData->EditorSkelComp);

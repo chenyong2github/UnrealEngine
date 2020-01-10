@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 NiagaraSimulationShader.usf: 
@@ -37,13 +37,12 @@ float Reciprocal(float x){ return 1.0f/x; }
  */
 #if GPU_SIMULATION
 
-	#define THREADGROUP_SIZE 64
-
 	static uint3 GDispatchThreadId;
 	static uint3 GGroupThreadId;
 	static uint GCurrentPhase;
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
+	static uint GRandomSeedOffset = 0;
 
 	// To be removed as well but don't know who is using it
 	#include "/Engine/Private/SceneTexturesCommon.ush"
@@ -68,9 +67,6 @@ float Reciprocal(float x){ return 1.0f/x; }
 		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld);
 		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
 	}
-
-
-	static uint GRandomSeedOffset;
 
 	// MASSIVE HACK - Tracked in JIRA UE-69298
 	// Hardcoded random function accessible from inner part of node implementation.
@@ -261,6 +257,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	}
 #else
 	// Old unseeded, passthrough to FRandomStream
+
+	float rand(float x); // Invokes EVectorVMOp::random
+
 	float2 rand(float2 x)
 	{
 		return float2(rand(x.x), rand(x.y));
@@ -276,10 +275,65 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		return float4(rand(x.x), rand(x.y), rand(x.z), rand(x.w));
 	}
 	
-	// NOTE(mv): Where's rand(float)? Seems to work regardless..
-	int rand(int x);
+	int rand(int x); // Invokes EVectorVMOp::randomi and is semi-open. This is inconsistent with the rest of the functions above. As a result this function and the ones above should be deprecated in favor of the functions below
 #endif
 
+// Explicit non-deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x)
+{
+	return rand(x.x);
+}
+
+float2 rand_float(float2 x)
+{
+	return float2(rand_float(x.x), rand_float(x.y));
+}
+
+float3 rand_float(float3 x)
+{
+	return float3(rand_float(x.x), rand_float(x.y), rand_float(x.z));
+}
+
+float4 rand_float(float4 x) 
+{
+	return float4(rand_float(x.x), rand_float(x.y), rand_float(x.z), rand_float(x.w));
+}
+
+int rand_int(int x)
+{
+	// Going through the float function also give us a better distribution than using modulo 
+	// to get an integer range.
+	// This will not include the upper range as rand_float returns [0, max), not [0, max].
+	return rand_float(x.x);
+}
+
+// Explicit deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x.x, Seed1, Seed2, Seed3);
+}
+
+float2 rand_float(float2 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float3 rand_float(float3 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float4 rand_float(float4 x, int Seed1, int Seed2, int Seed3) 
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+int rand_int(int x, int Seed1, int Seed2, int Seed3)
+{
+	// This will not include the upper range as rand_float returns [0, max), not [0, max]
+	// The deterministic rand call will include the upper range, so we subtract a one to compensate
+	return rand(x.x-1, Seed1, Seed2, Seed3);
+}
 
 /* -----------------------------------------------------------------
  * VM simulation function declarations
@@ -333,8 +387,15 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	/* Parameters for spawning and simulations
 	 */
 	uint UpdateStartInstance;
-	uint DefaultShaderStageIndex;
-	uint ShaderStageIndex;
+	
+	/*
+	 * declared as int instead of uint to avoid compiler warnings because we can't expose uint on Niagara module parameters.  
+	 * This is still declared as a uint in the corresponding C++ classes
+	 */
+	int DefaultShaderStageIndex;
+	int ShaderStageIndex;
+
+
 	int IterationInterfaceCount;
 	uint SpawnedInstances;
 
@@ -357,9 +418,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	uint ReadInstanceCountOffset;
 	uint WriteInstanceCountOffset;
 
-	//TODO: IDs for GPU
-//	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
-// 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
+	Buffer<int> FreeIDList;
+	RWBuffer<int> RWIDToIndexTable;
+
 
 	/* Returns the current instance index relative to the operation (spawn/update)
 	 */
@@ -375,6 +436,46 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		}
 	}
 
+	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
+		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
+		int SpawnIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		IDIndex = FreeIDList[SpawnIndex];
+		IDAcquireTag = EmitterTickCounter;
+	}
+
+ 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		RWIDToIndexTable[IDIndex] = InstanceIndex;
+	}
+
+#define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)
+#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
+
+#if USE_GROUP_SHARED
+	#if THREADGROUP_SIZE == 64
+		groupshared uint GroupSharedIndex[64];
+		groupshared uint GroupSharedIndex4[16];
+		groupshared uint GroupSharedIndex16[4];
+		groupshared uint GroupSharedIndex64;
+	#elif THREADGROUP_SIZE == 32
+		groupshared uint GroupSharedIndex[32];
+		groupshared uint GroupSharedIndex4[8];
+		groupshared uint GroupSharedIndex16[2];
+		groupshared uint GroupSharedIndex64;
+	#endif
+#endif // USE_GROUP_SHARED
 
 	/* Acquire an output index - the default index is the scratch instance; one additional instance is allocated 
 	 *	at the end of the buffer, so no branching on -1 is necessary during OutputData operations
@@ -387,25 +488,104 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		// End static assert
 
 		#if USE_SHADER_STAGES
-			if(ShaderStageIndex == 0)
+			if(ShaderStageIndex != 0)
 			{
-				int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
-				if(bDoAcquire == true)
+				bDoAcquire = false; // Prevent any change to the atomic
+			}
+		#endif // USE_SHADER_STAGES
+
+		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+
+		#if USE_WAVE_INTRISICS
+
+			uint NumCounters = WaveActiveCountBits(bDoAcquire);
+			uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
+			if(NumCounters)
+			{
+				if(WaveIsFirstLane())
 				{
-					// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
 					uint RetPrevIdx;
-					// @TODO : add some TLS logic to avoid thread group for doing atomic for each thread. (gathering the actual required count)
-					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
+					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
 					PrevIdx = (int)RetPrevIdx;
 				}
-				return PrevIdx;
-			}
-			else
+
+				if(bDoAcquire)
+				{
+					PrevIdx = WaveReadFirstLane(PrevIdx);
+					PrevIdx += PrefixCounts;
+				}
+			}	
+
+		#elif USE_GROUP_SHARED
+
+			GroupSharedIndex[GGroupThreadId.x] = bDoAcquire ? 1 : 0;
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 4
+			if ((GGroupThreadId.x & 0x3) == 0)
 			{
-				return ExecIndex();
+				const uint Index = GGroupThreadId.x;
+
+				const uint ActiveCount1 = GroupSharedIndex[Index];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex[Index + 1];
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex[Index + 2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex[Index + 3];
+				
+				GroupSharedIndex[Index] = 0;
+				GroupSharedIndex[Index + 1] = ActiveCount1;
+				GroupSharedIndex[Index + 2] = ActiveCount2;
+				GroupSharedIndex[Index + 3] = ActiveCount3;
+				GroupSharedIndex4[Index / 4] = ActiveCount4;
 			}
-		#else
-			int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 16
+			if ((GGroupThreadId.x & 0xF) == 0)
+			{
+				const uint Index = GGroupThreadId.x / 4;
+
+				const uint ActiveCount1 = GroupSharedIndex4[Index];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex4[Index + 1];
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex4[Index + 2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex4[Index + 3];
+
+				GroupSharedIndex4[Index] = 0;
+				GroupSharedIndex4[Index + 1] = ActiveCount1;
+				GroupSharedIndex4[Index + 2] = ActiveCount2;
+				GroupSharedIndex4[Index + 3] = ActiveCount3;
+				GroupSharedIndex16[Index / 4] = ActiveCount4;
+			}
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 64
+			if (GGroupThreadId.x == 0)
+			{
+				const uint ActiveCount1 = GroupSharedIndex16[0];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex16[1];
+		#if THREADGROUP_SIZE == 64
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex16[2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex16[3];
+		#endif
+				GroupSharedIndex16[0] = 0;
+				GroupSharedIndex16[1] = ActiveCount1;
+		#if THREADGROUP_SIZE == 64
+				GroupSharedIndex16[2] = ActiveCount2;
+				GroupSharedIndex16[3] = ActiveCount3;
+		#endif
+				uint RetPrevIdx = 0;
+		#if THREADGROUP_SIZE == 64
+				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], ActiveCount4, RetPrevIdx);
+		#elif THREADGROUP_SIZE == 32
+				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], ActiveCount2, RetPrevIdx);
+		#endif
+				GroupSharedIndex64 = RetPrevIdx;
+			}
+			GroupMemoryBarrierWithGroupSync(); 
+
+			PrevIdx = GroupSharedIndex64 + GroupSharedIndex16[GGroupThreadId.x / 16] + GroupSharedIndex4[GGroupThreadId.x / 4] + GroupSharedIndex[GGroupThreadId.x];
+
+		#else // !USE_WAVE_INTRISICS && !USE_GROUP_SHARED
+
 			if(bDoAcquire == true)
 			{
 				// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
@@ -414,8 +594,17 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
 				PrevIdx = (int)RetPrevIdx;
 			}
-			return PrevIdx;
-		#endif
+
+		#endif // USE_WAVE_INTRISICS || USE_GROUP_SHARED
+
+		#if USE_SHADER_STAGES
+			if(ShaderStageIndex != 0)
+			{
+				return ExecIndex();
+			}
+		#endif // USE_SHADER_STAGES
+
+		return PrevIdx;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -459,7 +648,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 
 	void EnterStatScope(int ID)	{}
 	void ExitStatScope()	{}
-#endif
+#endif // GPU_SIMULATION
 
 	/* 
 	 * Get the index to write onto the output buffer
@@ -468,11 +657,11 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	{
 		#if USE_SHADER_STAGES
 			const int DenseIndex = AcquireIndex(DataSetID,bIsValid);
-			const int SparseIndex = ExecIndex();
+			const int SparseIndex = GDispatchThreadId.x;
 			return (bIsPersistent && (DenseIndex != SparseIndex) ) ? SparseIndex : DenseIndex;
 		#else
 			return AcquireIndex(DataSetID,bIsValid);
-		#endif
+		#endif // USE_SHADER_STAGES
 	}
 
 //Include the simulation shader code generated by the node graph.
@@ -493,9 +682,11 @@ void SimulateMainComputeCS(
 {
 	GDispatchThreadId = DispatchThreadId;
 	GGroupThreadId = GroupThreadId;
+	GCurrentPhase = -1;
 	GEmitterTickCounter = EmitterTickCounter;
 	GSimStart = SimStart;
 	GRandomSeedOffset = 0;
+
 	/*
 	if(CopyInstancesBeforeStart == 1)
 	{
@@ -503,7 +694,7 @@ void SimulateMainComputeCS(
 	}
 	*/
 
-	uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
+	const uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
 	if (ReadInstanceCountOffset == 0xFFFFFFFF)
 	{
 		GSpawnStartInstance = 0;
@@ -512,59 +703,57 @@ void SimulateMainComputeCS(
 	{
 		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
 	}
-	int MaxInstances = GSpawnStartInstance + SpawnedInstances;
+	const int MaxInstances = GSpawnStartInstance + SpawnedInstances;
 
-	bool UseInterface = false;
+	bool bRunPhase1 = InstanceID < GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;
+	bool bRunPhase0 = InstanceID >= GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;
+	
 	#if USE_SHADER_STAGES
 	if (IterationInterfaceCount > 0)
 	{
-		if (InstanceID < IterationInterfaceCount)
-		{
-			if (GSimStart == 1)
-			{
-				SimulateMain(InstanceID, 0, 0);
-			}
-			else
-			{
-				SimulateMain(InstanceID, 0, 1);
-			}
-		}
-		UseInterface = true;
+		bRunPhase1 = InstanceID < IterationInterfaceCount && GSimStart != 1;
+		bRunPhase0 = InstanceID < IterationInterfaceCount && GSimStart == 1;
 	}
-	#endif
-	if( !UseInterface && InstanceID < UpdateStartInstance + MaxInstances )
+	#endif // USE_SHADER_STAGES
+
+	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID*16384, 0 * 8196, (bRunPhase1 ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed
+
+	FSimulationContext Context = (FSimulationContext)0;
+	InitConstants(Context);
+
+	BRANCH
+	if (bRunPhase1)
 	{
-		// calculate event index for the current instance; this is primarily for spawn events, where we do a single read from a secondary DataSet for a subset of particles
-		//  for all-particle events, this will always end up being 0 because NumParticlesPerEvent = total particles in the set
-		uint EventIndex = 0; //(InstanceID-SimulateStartInstance) / NumParticlesPerEvent;
+		GCurrentPhase = 1;
 
-		// before the simulation start - either update or copy
-		//
-		if(InstanceID < GSpawnStartInstance)
-		{
-			// copy instances before simulation start inst (e.g. for event spawns)
-			/*
-			if(CopyInstancesBeforeStart)
-			{
-				CopyInstance(InstanceID);
-			}
-			else
-			*/
-			{
-				GCurrentPhase = 1;
-				SimulateMain(InstanceID, EventIndex, 1);
-			}
+		LoadUpdateVariables(Context, InstanceID);
+		ReadDataSets(Context);
 
-		}
-
-		// after simulation start - spawn phase
-		//
-		else if(InstanceID >= GSpawnStartInstance)
-		{
-			GCurrentPhase = 0;
-			SimulateMain(InstanceID, EventIndex, 0);		// SimulateMain spawn phase
-		}
+		SimulateMapUpdate(Context);
+		WriteDataSets(Context);
 	}
+	else if (bRunPhase0)
+	{
+		GCurrentPhase = 0;
+
+		GetEmitterSpawnInfoForParticle(ExecIndex());
+
+		InitSpawnVariables(Context);
+		ReadDataSets(Context);
+
+		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex();
+		ConditionalInterpolateParameters(Context);
+		SimulateMapSpawn(Context);
+
+		GCurrentPhase = 1;
+
+		TransferAttributes(Context);
+
+		SimulateMapUpdate(Context);
+		WriteDataSets(Context);
+	}
+
+	StoreUpdateVariables(Context);
 }
 
 #endif//GPU_SIMULATION

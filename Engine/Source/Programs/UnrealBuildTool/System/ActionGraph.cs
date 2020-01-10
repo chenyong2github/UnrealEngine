@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -129,7 +129,13 @@ namespace UnrealBuildTool
 				{
 					Executor = new XGE();
 				}
-				else if(BuildConfiguration.bAllowDistcc)
+#if __FASTBUILD_AVAILABLE__
+				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
+				{
+					Executor = new FASTBuild();
+				}
+#endif
+				else if (BuildConfiguration.bAllowDistcc)
 				{
 					Executor = new Distcc();
 				}

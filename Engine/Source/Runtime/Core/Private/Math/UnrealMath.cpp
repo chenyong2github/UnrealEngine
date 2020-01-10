@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnMath.cpp: Unreal math routines
@@ -2947,7 +2947,7 @@ FString FMath::FormatIntToHumanReadable(int32 Val)
 	while (Src.Len() > 3 && Src[Src.Len() - 4] != TEXT('-'))
 	{
 		Dst = FString::Printf(TEXT(",%s%s"), *Src.Right(3), *Dst);
-		Src = Src.Left(Src.Len() - 3);
+		Src.LeftInline(Src.Len() - 3, false);
 	}
 
 	Dst = Src + Dst;

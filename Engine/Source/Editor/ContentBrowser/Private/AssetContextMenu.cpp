@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetContextMenu.h"
 #include "Templates/SubclassOf.h"
@@ -249,7 +249,14 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			}
 		}));
 
-		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::AddMenuOptions));
+		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
+			if (Context && Context->AssetContextMenu.IsValid())
+			{
+				Context->AssetContextMenu.Pin()->AddMenuOptions(InMenu);
+			}
+		}));
 	}
 }
 
@@ -874,7 +881,7 @@ void FAssetContextMenu::DoTextFormatRoundtrip()
 	Args.bIncludeEngineContent = true;
 	Args.bVerifyJson = true;
 	Args.CSVFilename = TEXT("");
-	Args.ProcessingMode = UTextAssetCommandlet::EProcessingMode::RoundTrip;
+	Args.ProcessingMode = ETextAssetCommandletMode::RoundTrip;
 	Args.bFilenameIsFilter = false;
 
 	for (const FAssetData& Asset : SelectedAssets)

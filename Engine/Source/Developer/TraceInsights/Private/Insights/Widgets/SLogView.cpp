@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLogView.h"
 
@@ -20,6 +20,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/MarkersTimingTrack.h" // for FTimeMarkerTrackBuilder::GetColorBy*
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
@@ -741,7 +742,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))
 				{
-					CategoryStr = CategoryStr.RightChop(3);
+					CategoryStr.RightChopInline(3, false);
 				}
 				if (Categories.Contains(FName(*CategoryStr)))
 				{
@@ -810,8 +811,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 
 				for (int32 Index = TotalNumMessages; Index < NewMessageCount; Index++)
 				{
-					FLogMessage LogMessage(Index);
-					Messages.Add(MakeShared<FLogMessage>(MoveTemp(LogMessage)));
+					Messages.Add(MakeShared<FLogMessage>(Index));
 				}
 
 				const int32 NumAddedMessages = NewMessageCount - TotalNumMessages;
@@ -879,8 +879,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			const int32 NumFilteredMessages = FilteredMessages.Num();
 			for (int32 Index = 0; Index < NumFilteredMessages; Index++)
 			{
-				FLogMessage LogMessage(FilteredMessages[Index]);
-				Messages.Add(MakeShared<FLogMessage>(MoveTemp(LogMessage)));
+				Messages.Add(MakeShared<FLogMessage>(FilteredMessages[Index]));
 			}
 
 			TotalNumMessages = Task.GetEndIndex();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTileMap.h"
 #include "UObject/ConstructorHelpers.h"
@@ -67,7 +67,7 @@ void UPaperTileMap::PostInitProperties()
 }
 
 #if WITH_EDITOR
-void UPaperTileMap::PreEditChange(UProperty* PropertyAboutToChange)
+void UPaperTileMap::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if ((PropertyAboutToChange != nullptr) && (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPaperTileMap, HexSideLength)))
 	{
@@ -216,7 +216,7 @@ void UPaperTileMap::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UPaperTileMap::CanEditChange(const UProperty* InProperty) const
+bool UPaperTileMap::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange(InProperty);
 	if (bIsEditable && InProperty)

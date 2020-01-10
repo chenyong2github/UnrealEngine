@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/SynthComponent.h"
 #include "AudioDevice.h"
@@ -44,8 +44,10 @@ void USynthSound::StartOnAudioDevice(FAudioDevice* InAudioDevice)
 
 void USynthSound::OnBeginGenerate()
 {
-	check(OwningSynthComponent);
-	OwningSynthComponent->OnBeginGenerate();
+	if (ensure(OwningSynthComponent))
+	{
+		OwningSynthComponent->OnBeginGenerate();
+	}
 }
 
 int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
@@ -146,6 +148,12 @@ void USynthComponent::OnAudioComponentEnvelopeValue(const UAudioComponent* InAud
 	{
 		OnAudioEnvelopeValueNative.Broadcast(InAudioComponent, EnvelopeValue);
 	}
+}
+
+void USynthComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	Stop();
 }
 
 void USynthComponent::Activate(bool bReset)
@@ -475,11 +483,6 @@ void USynthComponent::Start()
 		// Set the audio component's sound to be our procedural sound wave
 		AudioComponent->SetSound(Synth);
 		AudioComponent->Play(0);
-
-		// Copy sound base data to the sound
-		Synth->SourceEffectChain = SourceEffectChain;
-		Synth->SoundSubmixObject = SoundSubmix;
-		Synth->SoundSubmixSends = SoundSubmixSends;
 
 		SetActiveFlag(AudioComponent->IsActive());
 

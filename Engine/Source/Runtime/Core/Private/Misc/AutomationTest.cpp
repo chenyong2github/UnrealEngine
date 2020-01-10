@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
 #include "HAL/PlatformStackWalk.h"
@@ -67,7 +67,7 @@ void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const 
 			if (LogString.StartsWith(*AnalyticsString))
 			{
 				//Remove "analytics" from the string
-				LogString = LogString.Right(LogString.Len() - (AnalyticsString.Len() + 1));
+				LogString.RightInline(LogString.Len() - (AnalyticsString.Len() + 1), false);
 
 				CurTest->AddAnalyticsItem(LogString);
 			}

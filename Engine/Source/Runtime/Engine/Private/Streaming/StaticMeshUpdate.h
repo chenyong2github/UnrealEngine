@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 StaticMeshUpdate.h: Helpers to stream in and out static mesh LODs.
@@ -183,8 +183,8 @@ protected:
 	/** Called by FAsyncCancelIORequestsTask to cancel inflight IO request if any */
 	void CancelIORequest();
 
-	struct FBulkDataIORequest* IORequest;
-	FAsyncFileCallBack AsyncFileCallback;
+	class IBulkDataIORequest* IORequest;
+	FBulkDataIORequestCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,9 @@ inline const TCHAR* LexToString(EBackgroundHTTPPriority InType)
 		return TEXT("Normal");
 	case EBackgroundHTTPPriority::Low:
 		return TEXT("Low");
+	case EBackgroundHTTPPriority::Num:
+		return TEXT("INVALID(Num)");
+
 	default:
 		break;
 	}

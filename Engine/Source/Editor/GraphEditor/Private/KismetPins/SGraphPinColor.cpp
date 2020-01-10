@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "KismetPins/SGraphPinColor.h"
@@ -75,6 +75,11 @@ FLinearColor SGraphPinColor::GetColor() const
 
 void SGraphPinColor::OnColorCommitted(FLinearColor InColor)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	// Update pin object
 	FString ColorString = InColor.ToString();
 

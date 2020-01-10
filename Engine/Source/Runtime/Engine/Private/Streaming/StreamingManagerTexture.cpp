@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	TextureStreamingManager.cpp: Implementation of content streaming classes.
@@ -111,14 +111,6 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 	// Convert from MByte to byte.
 	MemoryMargin *= 1024 * 1024;
 
-#if STATS_FAST
-	MaxStreamingTexturesSize = 0;
-	MaxOptimalTextureSize = 0;
-	MaxStreamingOverBudget = MIN_int64;
-	MaxTexturePoolAllocatedSize = 0;
-	MaxNumWantingTextures = 0;
-#endif
-
 	for ( int32 LODGroup=0; LODGroup < TEXTUREGROUP_MAX; ++LODGroup )
 	{
 		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureGroup(LODGroup));
@@ -142,7 +134,7 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::PakFileMountedCallback.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
 }
 
 FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
@@ -197,7 +189,7 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 
 
 
-void FRenderAssetStreamingManager::OnPakFileMounted(const TCHAR* PakFilename)
+void FRenderAssetStreamingManager::OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId)
 {
 	// clear the cached file exists checks which failed as they may now be loaded
 	bNewFilesLoaded = true;
@@ -1785,27 +1777,34 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 	}
 }
 
-#if STATS_FAST
+#if !UE_BUILD_SHIPPING
+
 bool FRenderAssetStreamingManager::HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	Ar.Logf( TEXT("Current Texture Streaming Stats") );
-	Ar.Logf( TEXT("  Textures In Memory, Current (KB) = %f"), MaxStreamingTexturesSize / 1024.0f);
-	Ar.Logf( TEXT("  Textures In Memory, Target (KB) =  %f"), MaxOptimalTextureSize / 1024.0f );
-	Ar.Logf( TEXT("  Over Budget (KB) =                 %f"), MaxStreamingOverBudget / 1024.0f );
-	Ar.Logf( TEXT("  Pool Memory Used (KB) =            %f"), MaxTexturePoolAllocatedSize / 1024.0f );
-	Ar.Logf( TEXT("  Num Wanting Textures =             %d"), MaxNumWantingTextures );
-	MaxStreamingTexturesSize = 0;
-	MaxOptimalTextureSize = 0;
-	MaxStreamingOverBudget = MIN_int64;
-	MaxTexturePoolAllocatedSize = 0;
-	MaxNumWantingTextures = 0;
+	float CurrentOccupancyPct = 0.f;
+	float TargetOccupancyPct = 0.f;
+	if (DisplayedStats.StreamingPool > 0)
+	{
+		CurrentOccupancyPct = 100.f * (DisplayedStats.WantedMips / (float)DisplayedStats.StreamingPool);
+		TargetOccupancyPct = 100.f * (DisplayedStats.RequiredPool / (float)DisplayedStats.StreamingPool);
+	}
+
+	float StreamingPoolMB = DisplayedStats.StreamingPool / 1024.f / 1024.f;
+
+	// uses csv stats for access in test builds
+	Ar.Logf(TEXT("--------------------------------------------------------"));
+	Ar.Logf(TEXT("Texture Streaming Stats:") );
+	Ar.Logf(TEXT("Total Pool Size (aka RenderAssetPool) = %.2f MB"), DisplayedStats.RenderAssetPool / 1024.f / 1024.f);
+	Ar.Logf(TEXT("Non-Streaming Mips = %.2f MB"), DisplayedStats.NonStreamingMips / 1024.f / 1024.f);
+	Ar.Logf(TEXT("Remaining Streaming Pool Size = %.2f MB"), StreamingPoolMB);
+	Ar.Logf(TEXT("Streaming Assets, Current/Pool = %.2f / %.2f MB (%d%%)"), DisplayedStats.WantedMips / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(CurrentOccupancyPct));
+	Ar.Logf(TEXT("Streaming Assets, Target/Pool =  %.2f / %.2f MB (%d%%)"), DisplayedStats.RequiredPool / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(TargetOccupancyPct));
+	Ar.Logf(TEXT("--------------------------------------------------------"));
+
 	return true;
 }
-#endif // STATS_FAST
-
-#if !UE_BUILD_SHIPPING
 
 bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
@@ -2419,14 +2418,12 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
  */
 bool FRenderAssetStreamingManager::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
-#if STATS_FAST
+#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("DumpTextureStreamingStats"))
 		|| FParse::Command(&Cmd, TEXT("DumpRenderAssetStreamingStats")))
 	{
 		return HandleDumpTextureStreamingStatsCommand( Cmd, Ar );
 	}
-#endif
-#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("ListStreamingTextures"))
 		|| FParse::Command(&Cmd, TEXT("ListStreamingRenderAssets")))
 	{

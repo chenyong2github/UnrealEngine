@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScript.h"
 #include "Modules/ModuleManager.h"
@@ -31,6 +31,8 @@
 
 #include "NiagaraFunctionLibrary.h"
 #include "VectorVM.h"
+
+#include "Async/Async.h"
 
 DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
 
@@ -101,15 +103,14 @@ void FNiagaraVMExecutableDataId::Invalidate()
 
 bool FNiagaraVMExecutableDataId::HasInterpolatedParameters() const
 {
-	return AdditionalDefines.Contains("InterpolatedSpawn");
+	return bInterpolatedSpawn;
 }
 
 bool FNiagaraVMExecutableDataId::RequiresPersistentIDs() const
 {
-	return AdditionalDefines.Contains("RequiresPersistentIDs");
+	return bRequiresPersistentIDs;
 }
 
-#if WITH_EDITORONLY_DATA
 /**
 * Tests this set against another for equality, disregarding override settings.
 *
@@ -122,13 +123,18 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		ScriptUsageType != ReferenceSet.ScriptUsageType || 
 		ScriptUsageTypeID != ReferenceSet.ScriptUsageTypeID ||
 		BaseScriptID != ReferenceSet.BaseScriptID ||
+#if WITH_EDITORONLY_DATA
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
+#endif
 		DetailLevelMask != ReferenceSet.DetailLevelMask ||
-		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams)
+		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
+		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
+		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
 	{
 		return false;
 	}
 
+#if WITH_EDITORONLY_DATA
 	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
 	{
 		return false;
@@ -156,11 +162,13 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 			return false;
 		}
 	}
+#endif
 
 
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
 void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 {
 	KeyString += FString::Printf(TEXT("%d_"), (int32)ScriptUsageType);
@@ -256,6 +264,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
+	Id.bInterpolatedSpawn = false;
+	Id.bRequiresPersistentIDs = false;
 	Id.DetailLevelMask = 0xFFFFFFFF; // Unused for now.
 	
 	// Ideally we wouldn't want to do this but rather than push the data down
@@ -273,10 +283,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			(Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
 			Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
 		{
+			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
 		}
 		if (Emitter->RequiresPersistantIDs())
 		{
+			Id.bRequiresPersistentIDs = true;
 			Id.AdditionalDefines.Add(TEXT("RequiresPersistentIDs"));
 		}
 		if (Emitter->bLocalSpace)
@@ -465,6 +477,67 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 	return TOptional<ENiagaraSimTarget>();
 }
 
+void UNiagaraScript::AsyncOptimizeByteCode()
+{
+	if ( !CachedScriptVM.IsValid() || (CachedScriptVM.OptimizedByteCode.Num() > 0) || (CachedScriptVM.ByteCode.Num() == 0) )
+	{
+		return;
+	}
+
+	static const IConsoleVariable* CVarOptimizeVMCode = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.OptimizeVMByteCode"));
+	if (!CVarOptimizeVMCode || CVarOptimizeVMCode->GetInt() == 0 )
+	{
+		return;
+	}
+
+	// This has to be done game code side as we can not access anything in CachedScriptVM
+	TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
+	ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
+	for (const FVMExternalFunctionBindingInfo FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
+	{
+		const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
+		ExternalFunctionRegisterCounts.Add(RegisterCount);
+	}
+
+	// If we wish to release the original ByteCode we must optimize synchronously currently
+	//-TODO: Find a safe point where we can release the original ByteCode
+	static const IConsoleVariable* CVarFreeUnoptimizedByteCode = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.FreeUnoptimizedByteCode"));
+	if ( FPlatformProperties::RequiresCookedData() && CVarFreeUnoptimizedByteCode && (CVarFreeUnoptimizedByteCode->GetInt() != 0) )
+	{
+		VectorVM::OptimizeByteCode(CachedScriptVM.ByteCode.GetData(), CachedScriptVM.OptimizedByteCode, MakeArrayView(ExternalFunctionRegisterCounts));
+		if (CachedScriptVM.OptimizedByteCode.Num() > 0)
+		{
+			CachedScriptVM.ByteCode.Empty();
+		}
+	}
+	else
+	{
+		// Async optimize the ByteCode
+		AsyncTask(
+			ENamedThreads::AnyThread,
+			[WeakScript=TWeakObjectPtr<UNiagaraScript>(this), InExternalFunctionRegisterCounts=MoveTemp(ExternalFunctionRegisterCounts), InByteCode=CachedScriptVM.ByteCode, InCachedScriptVMId=CachedScriptVMId]() mutable
+			{
+				// Generate optimized byte code on any thread
+				TArray<uint8> OptimizedByteCode;
+				VectorVM::OptimizeByteCode(InByteCode.GetData(), OptimizedByteCode, MakeArrayView(InExternalFunctionRegisterCounts));
+
+				// Kick off task to set optimized byte code on game thread
+				AsyncTask(
+					ENamedThreads::GameThread,
+					[WeakScript, InOptimizedByteCode = MoveTemp(OptimizedByteCode), InCachedScriptVMId]() mutable
+					{
+						UNiagaraScript* NiagaraScript = WeakScript.Get();
+						if ( (NiagaraScript != nullptr) && (NiagaraScript->CachedScriptVMId == InCachedScriptVMId) )
+						{
+							NiagaraScript->CachedScriptVM.OptimizedByteCode = MoveTemp(InOptimizedByteCode);
+						}
+					}
+				);
+			}
+		);
+	}
+}
+
 void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
@@ -538,7 +611,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 				NumRemoved++;
 			}
 
-			UE_LOG(LogNiagara, Display, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, TemporaryStore.GetNumParameters(), *GetFullName());
+			UE_LOG(LogNiagara, Verbose, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, TemporaryStore.GetNumParameters(), *GetFullName());
 		}
 	}
 
@@ -732,19 +805,7 @@ void UNiagaraScript::PostLoad()
 #endif
 
 	// Optimize the VM script for runtime usage
-	if ( FPlatformProperties::RequiresCookedData() && CachedScriptVM.IsValid() )
-	{
-		TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
-		ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
-
-		for ( const FVMExternalFunctionBindingInfo FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions )
-		{
-			const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
-			ExternalFunctionRegisterCounts.Add(RegisterCount);
-		}
-
-		VectorVM::OptimizeByteCode(CachedScriptVM.ByteCode.GetData(), CachedScriptVM.OptimizedByteCode, MakeArrayView(ExternalFunctionRegisterCounts));
-	}
+	AsyncOptimizeByteCode();
 
 	//FNiagaraUtilities::DumpHLSLText(RapidIterationParameters.ToString(), *GetPathName());
 }
@@ -814,6 +875,8 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			Source->MarkNotSynchronized(TEXT("Deprecation changed."));
 		}
 	}
+
+	CustomAssetRegistryTagCache.Reset();
 }
 
 #endif
@@ -1154,6 +1217,8 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 
 	InvalidateExecutionReadyParameterStores();
 	
+	AsyncOptimizeByteCode();
+
 	OnVMScriptCompiled().Broadcast(this);
 }
 
@@ -1284,15 +1349,48 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 {
 	Super::GetAssetRegistryTags(OutTags);
 #if WITH_EDITORONLY_DATA
-	FName TagName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies);
-	FString DependenciesProvidedString;
-	for (FName DependencyProvided : ProvidedDependencies)
-	{
-		DependenciesProvidedString.Append(DependencyProvided.ToString() + ",");
-	}
+
 	if (ProvidedDependencies.Num() > 0)
 	{
-		OutTags.Add(FAssetRegistryTag(TagName, DependenciesProvidedString, UObject::FAssetRegistryTag::TT_Hidden));
+		FName ProvidedDependenciesName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies);
+		FString* ProvidedDependenciesTags;
+
+		if (CustomAssetRegistryTagCache.IsSet() == false)
+		{
+			CustomAssetRegistryTagCache = TMap<FName, FString>();
+		}
+
+		ProvidedDependenciesTags = CustomAssetRegistryTagCache->Find(ProvidedDependenciesName);
+		if(ProvidedDependenciesTags == nullptr)
+		{
+			ProvidedDependenciesTags = &CustomAssetRegistryTagCache->Add(ProvidedDependenciesName);
+			for (FName ProvidedDependency : ProvidedDependencies)
+			{
+				ProvidedDependenciesTags->Append(ProvidedDependency.ToString() + ",");
+			}
+		}
+
+		OutTags.Add(FAssetRegistryTag(ProvidedDependenciesName, *ProvidedDependenciesTags, UObject::FAssetRegistryTag::TT_Hidden));
+	}
+
+	if (Highlights.Num() > 0)
+	{
+		FName HighlightsName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights);
+		FString* HighlightsTags;
+
+		if (CustomAssetRegistryTagCache.IsSet() == false)
+		{
+			CustomAssetRegistryTagCache = TMap<FName, FString>();
+		}
+
+		HighlightsTags = CustomAssetRegistryTagCache->Find(HighlightsName);
+		if (HighlightsTags == nullptr)
+		{
+			HighlightsTags = &CustomAssetRegistryTagCache->Add(HighlightsName);
+			FNiagaraScriptHighlight::ArrayToJson(Highlights, *HighlightsTags);
+		}
+
+		OutTags.Add(FAssetRegistryTag(HighlightsName, *HighlightsTags, UObject::FAssetRegistryTag::TT_Hidden));
 	}
 #endif
 }
@@ -1608,7 +1706,7 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 	{
 		if (CachedScriptVM.IsValid())
 		{
-			return CachedScriptVM.ByteCode.Num() == 0 && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
+			return (CachedScriptVM.ByteCode.Num() == 0) && (CachedScriptVM.OptimizedByteCode.Num() == 0) && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
 		}
 		return false;
 	}
@@ -1634,7 +1732,7 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 	{
 		if (CachedScriptVM.IsValid())
 		{
-			return CachedScriptVM.ByteCode.Num() != 0;
+			return (CachedScriptVM.ByteCode.Num() != 0) || (CachedScriptVM.OptimizedByteCode.Num() != 0);
 		}
 	}
 

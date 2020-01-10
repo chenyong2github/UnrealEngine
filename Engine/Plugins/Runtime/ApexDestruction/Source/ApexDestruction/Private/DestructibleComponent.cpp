@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DestructibleComponent.cpp: UDestructibleComponent methods.
@@ -1503,7 +1503,7 @@ void UDestructibleComponent::SetCollisionEnabled(ECollisionEnabled::Type NewType
 #endif // WITH_APEX
 }
 
-void UDestructibleComponent::SetCollisionProfileName(FName InCollisionProfileName)
+void UDestructibleComponent::SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps)
 {
     FBodyInstance* LocalInstance = GetBodyInstance();
     if (!LocalInstance)
@@ -1529,7 +1529,7 @@ void UDestructibleComponent::SetCollisionProfileName(FName InCollisionProfileNam
 		{
 			EnsurePhysicsStateCreated();
 		}
-		OnComponentCollisionSettingsChanged();
+		OnComponentCollisionSettingsChanged(bUpdateOverlaps);
 	}
 }
 

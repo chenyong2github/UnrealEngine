@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNetworkingProfilerWindow.h"
 
@@ -179,7 +179,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_NetStatsView(const FSpa
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(NetStatsView, SNetStatsView)
+			SAssignNew(NetStatsView, SNetStatsView, SharedThis(this))
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnNetStatsViewTabClosed));
@@ -510,7 +510,7 @@ void SNetworkingProfilerWindow::UpdateAvailableGameInstances()
 		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 		NetProfilerProvider.ReadGameInstances([this](const Trace::FNetProfilerGameInstance& GameInstance)
 		{
-			AvailableGameInstances.Add(MakeShareable(new FGameInstanceItem(GameInstance)));
+			AvailableGameInstances.Add(MakeShared<FGameInstanceItem>(GameInstance));
 		});
 	}
 
@@ -535,7 +535,7 @@ void SNetworkingProfilerWindow::UpdateAvailableConnections()
 		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 		NetProfilerProvider.ReadConnections(SelectedGameInstance->GetIndex(), [this](const Trace::FNetProfilerConnection& Connection)
 		{
-			AvailableConnections.Add(MakeShareable(new FConnectionItem(Connection)));
+			AvailableConnections.Add(MakeShared<FConnectionItem>(Connection));
 		});
 	}
 
@@ -557,11 +557,11 @@ void SNetworkingProfilerWindow::UpdateAvailableConnectionModes()
 	{
 		if (SelectedConnection->Connection.bHasIncomingData)
 		{
-			AvailableConnectionModes.Add(MakeShareable(new FConnectionModeItem(Trace::ENetProfilerConnectionMode::Incoming)));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Incoming));
 		}
 		if (SelectedConnection->Connection.bHasOutgoingData)
 		{
-			AvailableConnectionModes.Add(MakeShareable(new FConnectionModeItem(Trace::ENetProfilerConnectionMode::Outgoing)));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Outgoing));
 		}
 	}
 
@@ -747,13 +747,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::GameInstance_OnSelectionChanged(TSharedPtr<FGameInstanceItem> NewGameInstance, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedGameInstance.IsValid() && !NewGameInstance.IsValid()) ||
+							(SelectedGameInstance.IsValid() && NewGameInstance.IsValid() &&
+								SelectedGameInstance->GetIndex() == NewGameInstance->GetIndex());
+
 	SelectedGameInstance = NewGameInstance;
-	UpdateAvailableConnections();
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		UpdateAvailableConnections();
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -804,13 +812,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::Connection_OnSelectionChanged(TSharedPtr<FConnectionItem> NewConnection, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedConnection.IsValid() && !NewConnection.IsValid()) ||
+							(SelectedConnection.IsValid() && NewConnection.IsValid() &&
+								SelectedConnection->GetIndex() == NewConnection->GetIndex());
+
 	SelectedConnection = NewConnection;
-	UpdateAvailableConnectionModes();
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		UpdateAvailableConnectionModes();
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -861,12 +877,20 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SNetworkingProfilerWindow::ConnectionMode_OnSelectionChanged(TSharedPtr<FConnectionModeItem> NewConnectionMode, ESelectInfo::Type SelectInfo)
 {
+	const bool bSameValue = (!SelectedConnectionMode.IsValid() && !NewConnectionMode.IsValid()) ||
+							(SelectedConnectionMode.IsValid() && NewConnectionMode.IsValid() &&
+								SelectedConnectionMode->Mode == NewConnectionMode->Mode);
+
 	SelectedConnectionMode = NewConnectionMode;
-	if (PacketView.IsValid())
+
+	if (!bSameValue)
 	{
-		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		if (PacketView.IsValid())
+		{
+			PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
+		}
+		UpdateAggregatedNetStats();
 	}
-	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -929,17 +953,18 @@ void SNetworkingProfilerWindow::SetSelectedBitRange(uint32 StartPos, uint32 EndP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetworkingProfilerWindow::SetSelectedEventType(const uint64 InEventTypeId)
+void SNetworkingProfilerWindow::SetSelectedEventTypeIndex(const uint32 InEventTypeIndex)
 {
-	if (InEventTypeId != SelectedEventTypeId)
+	if (InEventTypeIndex != SelectedEventTypeIndex)
 	{
-		SelectedEventTypeId = InEventTypeId;
+		SelectedEventTypeIndex = InEventTypeIndex;
 
-		if (SelectedEventTypeId != InvalidEventTypeId)
+		if (SelectedEventTypeIndex != InvalidEventTypeIndex)
 		{
 			if (NetStatsView)
 			{
-				NetStatsView->SelectNetEventNode(SelectedEventTypeId);
+				const uint64 NodeId = static_cast<uint64>(SelectedEventTypeIndex);
+				NetStatsView->SelectNetEventNode(NodeId);
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimInstanceDetails.h"
 #include "UObject/UnrealType.h"
@@ -56,9 +56,9 @@ void FAnimInstanceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 	{
 		TargetSkeletonName = FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName());
 
-		for (TFieldIterator<UProperty> It(CommonBaseClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
+		for (TFieldIterator<FProperty> It(CommonBaseClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{
-			UProperty* TargetProperty = *It;
+			FProperty* TargetProperty = *It;
 
 			TSharedRef<IPropertyHandle> TargetPropertyHandle = DetailBuilder.GetProperty(*TargetProperty->GetName(), CommonBaseClass);
 			if ((*TargetPropertyHandle).GetProperty() )
@@ -94,9 +94,9 @@ void FAnimInstanceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 	}
 }
 
-TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(UProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle)
+TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle)
 {
-	if(const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>( TargetProperty ))
+	if(const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>( TargetProperty ))
 	{
 		if(ObjectProperty->PropertyClass->IsChildOf(UAnimationAsset::StaticClass()))
 		{

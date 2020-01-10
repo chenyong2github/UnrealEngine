@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utility/DatasmithImporterUtils.h"
 
@@ -270,7 +270,11 @@ void FDatasmithImporterUtils::DeleteNonImportedDatasmithElementFromSceneActor(AD
 					// Removed the non imported components
 					for ( UActorComponent* ComponentToRemove : ComponentsToRemove )
 					{
-						ComponentToRemove->DestroyComponent( true );
+						// Some components can destroy other components when being destroyed
+						if ( !ComponentToRemove->IsBeingDestroyed() )
+						{
+							ComponentToRemove->DestroyComponent( true );
+						}
 					}
 				}
 				else
@@ -644,8 +648,8 @@ namespace FDatasmithImporterUtilsHelper
 
 		const UCineCameraComponent* CineCameraComponent = CameraActor->GetCineCameraComponent();
 
-		CameraElement->SetSensorWidth( CineCameraComponent->FilmbackSettings.SensorWidth );
-		CameraElement->SetSensorAspectRatio( CineCameraComponent->FilmbackSettings.SensorWidth / CineCameraComponent->FilmbackSettings.SensorHeight );
+		CameraElement->SetSensorWidth( CineCameraComponent->Filmback.SensorWidth );
+		CameraElement->SetSensorAspectRatio( CineCameraComponent->Filmback.SensorWidth / CineCameraComponent->Filmback.SensorHeight );
 		CameraElement->SetFocalLength( CineCameraComponent->CurrentFocalLength );
 		CameraElement->SetFStop( CineCameraComponent->CurrentAperture );
 		CameraElement->SetEnableDepthOfField( CineCameraComponent->FocusSettings.FocusMethod == ECameraFocusMethod::Manual );

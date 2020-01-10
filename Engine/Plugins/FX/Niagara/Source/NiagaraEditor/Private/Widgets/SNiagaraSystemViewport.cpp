@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraSystemViewport.h"
 #include "Widgets/Layout/SBox.h"
@@ -445,7 +445,12 @@ void SNiagaraSystemViewport::OnFocusViewportToSelection()
 {
 	if( PreviewComponent )
 	{
-		SystemViewportClient->FocusViewportOnBox( PreviewComponent->Bounds.GetBox() );
+		// FocusViewportOnBox disables orbit, so remember our state
+		bool bIsOrbit = SystemViewportClient->ShouldOrbitCamera();
+
+		SystemViewportClient->FocusViewportOnBox(PreviewComponent->Bounds.GetBox());
+
+		SystemViewportClient->ToggleOrbitCamera(bIsOrbit);
 	}
 }
 

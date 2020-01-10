@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -55,7 +55,13 @@ class CADINTERFACES_API FCoreTechFileParser
 public:
 	using EProcessResult = ECoretechParsingResult;
 
-	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams);
+	/**
+	 * @param InCTFullPath Full path of the CAD file to parse
+	 * @param InCachePath Full path of the cache in which the data will be saved
+	 * @param ImportParams Parameters that setting import data like mesh SAG...
+	 * @param KernelIOPath Full Path of KernelIO libraries (oda_translator.exe, ...). Mandatory to import DWG, or DGN files
+	 */
+	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath = TEXT(""));
 
 	double GetMetricUnit() const { return 0.01; }
 
@@ -100,6 +106,7 @@ private:
 	void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex);
 
 	void ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData);
+	void GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue);
 
 	CT_FLAGS SetCoreTechImportOption(const FString& MainFileExt);
 	void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);

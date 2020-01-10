@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================================
@@ -21,6 +21,7 @@ struct FIOSPlatformRHIFramePacer : public FGenericPlatformRHIFramePacer
 {
     // FGenericPlatformRHIFramePacer interface
     static bool IsEnabled();
+	static uint32 GetMaxRefreshRate();
 	static void InitWithEvent(class FEvent* TriggeredEvent);
 	static void AddHandler(FIOSFramePacerHandler Handler);
 	static void RemoveHandler(FIOSFramePacerHandler Handler);

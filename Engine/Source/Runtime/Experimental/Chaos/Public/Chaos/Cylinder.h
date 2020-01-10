@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
@@ -28,7 +28,7 @@ namespace Chaos
 		    , MLocalBoundingBox(x1, x1)
 		{
 			MLocalBoundingBox.GrowToInclude(x2);
-			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
+			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
 		}
 		TCylinder(const TCylinder<T>& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Cylinder)
@@ -169,7 +169,7 @@ namespace Chaos
 			return SideDistance;
 		}
 
-		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3> BoundingBox() const override { return MLocalBoundingBox; }
 
 		T GetRadius() const { return MRadius; }
 		T GetHeight() const { return MHeight; }
@@ -218,7 +218,7 @@ namespace Chaos
 			Ar << MPlane2;
 			Ar << MHeight;
 			Ar << MRadius;
-			Ar << MLocalBoundingBox;
+			TBox<T, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 		}
 
 	private:
@@ -269,7 +269,7 @@ namespace Chaos
 	private:
 		TPlane<T, 3> MPlane1, MPlane2;
 		T MHeight, MRadius;
-		TBox<T, 3> MLocalBoundingBox;
+		TAABB<T, 3> MLocalBoundingBox;
 	};
 
 	template<typename T>

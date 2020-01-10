@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
  
 #pragma once
 
@@ -140,6 +140,8 @@ public:
 	 */
 	void Construct( const typename STileView<ItemType>::FArguments& InArgs )
 	{
+		this->Clipping = InArgs._Clipping;
+
 		this->OnGenerateRow = InArgs._OnGenerateTile;
 		this->OnRowReleased = InArgs._OnTileReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
@@ -207,6 +209,7 @@ public:
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 				this->ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 

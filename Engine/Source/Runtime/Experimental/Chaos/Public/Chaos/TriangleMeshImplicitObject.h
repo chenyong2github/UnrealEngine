@@ -1,71 +1,162 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
 #include "Chaos/GeometryParticles.h"
-#include "Chaos/SegmentMesh.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/SegmentMesh.h"
 
-#include "ImplicitObject.h"
-#include "Box.h"
-#include "BoundingVolumeHierarchy.h"
-#include "BoundingVolume.h"
-#include "ChaosArchive.h"
-#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "AABBTree.h"
+#include "BoundingVolume.h"
+#include "BoundingVolumeHierarchy.h"
+#include "Box.h"
+#include "ChaosArchive.h"
+#include "ImplicitObject.h"
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 namespace Chaos
 {
-
-	template <typename T>
+	template<typename T>
 	class TCapsule;
 
-	template <typename T, int d>
-	class TConvex;
+	class FConvex;
 
-	template<typename T>
-	class CHAOS_API TTriangleMeshImplicitObject final : public FImplicitObject
+	class CHAOS_API FTrimeshIndexBuffer
+	{
+	public:
+		using LargeIdxType = int32;
+		using SmallIdxType = uint16;
+
+		FTrimeshIndexBuffer() = default;
+		FTrimeshIndexBuffer(TArray<TVector<LargeIdxType, 3>>&& Elements)
+		    : LargeIdxBuffer(MoveTemp(Elements))
+		    , bRequiresLargeIndices(true)
+		{
+		}
+
+		FTrimeshIndexBuffer(TArray<TVector<SmallIdxType, 3>>&& Elements)
+		    : SmallIdxBuffer(MoveTemp(Elements))
+		    , bRequiresLargeIndices(false)
+		{
+		}
+
+		FTrimeshIndexBuffer(const FTrimeshIndexBuffer& Other) = delete;
+		FTrimeshIndexBuffer& operator=(const FTrimeshIndexBuffer& Other) = delete;
+
+		void Serialize(FArchive& Ar)
+		{
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshCanUseSmallIndices)
+			{
+				Ar << LargeIdxBuffer;
+				bRequiresLargeIndices = true;
+			}
+			else
+			{
+				Ar << bRequiresLargeIndices;
+				if (bRequiresLargeIndices)
+				{
+					Ar << LargeIdxBuffer;
+				}
+				else
+				{
+					Ar << SmallIdxBuffer;
+				}
+			}
+		}
+
+		bool RequiresLargeIndices() const
+		{
+			return bRequiresLargeIndices;
+		}
+
+		const auto& GetLargeIndexBuffer() const
+		{
+			check(bRequiresLargeIndices);
+			return LargeIdxBuffer;
+		}
+
+		const auto& GetSmallIndexBuffer() const
+		{
+			check(!bRequiresLargeIndices);
+			return SmallIdxBuffer;
+		}
+
+	private:
+		TArray<TVector<LargeIdxType, 3>> LargeIdxBuffer;
+		TArray<TVector<SmallIdxType, 3>> SmallIdxBuffer;
+		bool bRequiresLargeIndices;
+	};
+
+	FORCEINLINE FArchive& operator<<(FArchive& Ar, FTrimeshIndexBuffer& Buffer)
+	{
+		Buffer.Serialize(Ar);
+		return Ar;
+	}
+
+	class CHAOS_API FTriangleMeshImplicitObject final : public FImplicitObject
 	{
 	public:
 		using FImplicitObject::GetTypeName;
 
-		TTriangleMeshImplicitObject(TParticles<T,3>&& Particles, TArray<TVector<int32, 3>>&& Elements, TArray<uint16>&& InMaterialIndices);
-		TTriangleMeshImplicitObject(const TTriangleMeshImplicitObject& Other) = delete;
-		TTriangleMeshImplicitObject(TTriangleMeshImplicitObject&& Other) = default;
-		virtual ~TTriangleMeshImplicitObject() {}
-
-		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
+		template <typename IdxType>
+		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices)
+		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
+		, MParticles(MoveTemp(Particles))
+		, MElements(MoveTemp(Elements))
+		, MLocalBoundingBox(MParticles.X(0), MParticles.X(0))
+		, MaterialIndices(MoveTemp(InMaterialIndices))
 		{
-			ensure(false);	//not supported yet - might support it in the future or we may change the interface
-			return (T)0;
+			for (uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
+			{
+				MLocalBoundingBox.GrowToInclude(MParticles.X(Idx));
+			}
+			RebuildBV();
 		}
 
-		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex) const override;
-		virtual bool Overlap(const TVector<T, 3>& Point, const T Thickness) const override;
+		FTriangleMeshImplicitObject(const FTriangleMeshImplicitObject& Other) = delete;
+		FTriangleMeshImplicitObject(FTriangleMeshImplicitObject&& Other) = delete;
+		virtual ~FTriangleMeshImplicitObject() {}
 
-		bool OverlapGeom(const TSphere<T,3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool OverlapGeom(const TImplicitObjectScaled<TImplicitObjectScaled<TConvex<T, 3>>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const;
 
-		bool SweepGeom(const TSphere<T,3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T,3>& Dir, const T Length, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TConvex<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
-		bool SweepGeom(const TImplicitObjectScaled<TConvex<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const bool bComputeMTD = false) const;
+		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;
+		virtual bool Overlap(const FVec3& Point, const FReal Thickness) const override;
 
-		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDistance) const override;
-		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
+		bool OverlapGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TImplicitObjectScaled<FConvex>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
 
-		virtual const TBox<T, 3>& BoundingBox() const
+		bool SweepGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const FConvex& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness = 0, const bool bComputeMTD = false) const;
+
+		bool GJKContactPoint(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TImplicitObjectScaled < TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TImplicitObjectScaled < TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TImplicitObjectScaled < TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+		bool GJKContactPoint(const TImplicitObjectScaled < FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+
+
+		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDistance) const override;
+		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
+
+		virtual const TAABB<FReal, 3> BoundingBox() const
 		{
 			return MLocalBoundingBox;
 		}
@@ -82,22 +173,22 @@ namespace Chaos
 			FImplicitObject::SerializeImp(Ar);
 			Ar << MParticles;
 			Ar << MElements;
-			Ar << MLocalBoundingBox;
+			TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::RemovedConvexHullsFromTriangleMeshImplicitObject)
 			{
-				TUniquePtr<TGeometryParticles<T, 3>> ConvexHulls;
+				TUniquePtr<TGeometryParticles<FReal, 3>> ConvexHulls;
 				Ar << ConvexHulls;
 			}
 
-			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesBV)
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesBV)
 			{
 				// Should now only hit when loading older trimeshes
 				RebuildBV();
 			}
-			else if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
+			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
 			{
-				TBoundingVolume<int32, T, 3> Dummy;
+				TBoundingVolume<int32, FReal, 3> Dummy;
 				Ar << Dummy;
 				RebuildBV();
 			}
@@ -107,102 +198,109 @@ namespace Chaos
 				Ar << BVH;
 			}
 
-			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddTrimeshMaterialIndices)
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddTrimeshMaterialIndices)
 			{
 				Ar << MaterialIndices;
 			}
 		}
 
-		virtual void Serialize(FChaosArchive& Ar) override
+		virtual void Serialize(FChaosArchive& Ar) override;
+
+		virtual FString ToString() const
 		{
-			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
-			SerializeImp(Ar);
+			return FString::Printf(TEXT("TriangleMesh"));
 		}
 
-		virtual uint32 GetTypeHash() const override
-		{
-			uint32 Result = MParticles.GetTypeHash();
-			Result = HashCombine(Result, MLocalBoundingBox.GetTypeHash());
+		virtual uint32 GetTypeHash() const override;
 
-			for(TVector<int32, 3> Tri : MElements)
-			{
-				uint32 TriHash = HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2])));
-				Result = HashCombine(Result, TriHash);
-			}
+		FVec3 GetFaceNormal(const int32 FaceIdx) const;
 
-			return Result;
-		}
+		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;
 
-		TVector<T, 3> GetFaceNormal(const int32 FaceIdx) const;
-
-		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
-		{
-			if (MaterialIndices.IsValidIndex(HintIndex))
-			{
-				return MaterialIndices[HintIndex];
-			}
-
-			// 0 should always be the default material for a shape
-			return 0;
-		}
+		const TParticles<FReal, 3>& Particles() const;
+		const FTrimeshIndexBuffer& Elements() const;
 
 	private:
-
 		void RebuildBV();
 
-		TParticles<T, 3> MParticles;
-		TArray<TVector<int32, 3>> MElements;
-		TBox<T, 3> MLocalBoundingBox;
+		TParticles<FReal, 3> MParticles;
+		FTrimeshIndexBuffer MElements;
+		TAABB<FReal, 3> MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, T>, T>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal, /*bMutable=*/false>;
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;
 
+		template<bool bRequiresLargeIndex>
 		struct FBvEntry
 		{
-			TTriangleMeshImplicitObject* TmData;
+			FTriangleMeshImplicitObject* TmData;
 			int32 Index;
 
 			bool HasBoundingBox() const { return true; }
 
-			TBox<T, 3> BoundingBox() const
+			TAABB<FReal, 3> BoundingBox() const
 			{
-				TBox<T, 3> Bounds(TmData->MParticles.X(TmData->MElements[Index][0]), TmData->MParticles.X(TmData->MElements[Index][0]));
+				auto LambdaHelper = [&](const auto& Elements)
+				{
+					TAABB<FReal,3> Bounds(TmData->MParticles.X(Elements[Index][0]), TmData->MParticles.X(Elements[Index][0]));
 
-				Bounds.GrowToInclude(TmData->MParticles.X(TmData->MElements[Index][1]));
-				Bounds.GrowToInclude(TmData->MParticles.X(TmData->MElements[Index][2]));
+					Bounds.GrowToInclude(TmData->MParticles.X(Elements[Index][1]));
+					Bounds.GrowToInclude(TmData->MParticles.X(Elements[Index][2]));
 
-				return Bounds;
+					return Bounds;
+				};
+
+				if(bRequiresLargeIndex)
+				{
+					return LambdaHelper(TmData->MElements.GetLargeIndexBuffer());
+				}
+				else
+				{
+					return LambdaHelper(TmData->MElements.GetSmallIndexBuffer());
+				}
 			}
 
-			template <typename TPayloadType>
+			template<typename TPayloadType>
 			int32 GetPayload(int32 Idx) const
 			{
 				return Idx;
 			}
 		};
-		TArray<FBvEntry> BVEntries;
 
 		BVHType BVH;
 
-		template <typename Geom, typename R>
-		friend struct TTriangleMeshSweepVisitor;
+		template<typename Geom, typename IdxType>
+		friend struct FTriangleMeshSweepVisitor;
 
 		// Required by implicit object serialization, disabled for general use.
 		friend class FImplicitObject;
 
-		TTriangleMeshImplicitObject() 
-			: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::TriangleMesh)
-		{};
+		FTriangleMeshImplicitObject()
+		    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::TriangleMesh){};
 
 		template <typename QueryGeomType>
-		bool OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
 
-		template <typename QueryGeomType>
-		bool SweepGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, const bool bComputeMTD) const;
+		template<typename QueryGeomType>
+		bool OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const;
+
+		template<typename QueryGeomType>
+		bool SweepGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, const bool bComputeMTD) const;
+
+		template <typename IdxType>
+		bool RaycastImp(const TArray<TVector<IdxType, 3>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const;
+
+		template <typename IdxType>
+		bool OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const;
+
+		template<typename IdxType>
+		int32 FindMostOpposingFace(const TArray<TVec3<IdxType>>& Elements, const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const;
+
+		template <typename IdxType>
+		void RebuildBVImp(const TArray<TVec3<IdxType>>& Elements);
 	};
 }
-

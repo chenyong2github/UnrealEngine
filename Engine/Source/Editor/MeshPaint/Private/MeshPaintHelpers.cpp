@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintHelpers.h"
 
@@ -106,7 +106,7 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 	FStaticMeshRenderData& RenderData = *StaticMesh->RenderData;
 	FStaticMeshLODResources& RenderModel = RenderData.LODResources[LODIndex];
 	FColorVertexBuffer& ColorVertexBuffer = *ComponentLODInfo.OverrideVertexColors;
-	if (RenderData.WedgeMap.Num() > 0 && ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
+	if (RenderModel.WedgeMap.Num() > 0 && ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
 	{
 		// Use the wedge map if it is available as it is lossless.
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
@@ -119,14 +119,14 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 
 		FStaticMeshAttributes Attributes(*MeshDescription);
 		int32 NumWedges = MeshDescription->VertexInstances().Num();
-		if (RenderData.WedgeMap.Num() == NumWedges)
+		if (RenderModel.WedgeMap.Num() == NumWedges)
 		{
 			TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 			int32 VertexInstanceIndex = 0;
 			for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
 				FLinearColor WedgeColor = FLinearColor::White;
-				int32 Index = RenderData.WedgeMap[VertexInstanceIndex];
+				int32 Index = RenderModel.WedgeMap[VertexInstanceIndex];
 				if (Index != INDEX_NONE)
 				{
 					WedgeColor = FLinearColor(ColorVertexBuffer.VertexColor(Index));
@@ -160,7 +160,7 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 		int32 VertexIndex = 0;
 		for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 		{
-			VertexPositionsDup[VertexIndex] = VertexPositions[VertexID];
+			VertexPositionsDup[VertexIndex++] = VertexPositions[VertexID];
 		}
 		TempPositionVertexBuffer.Init(VertexPositionsDup);
 		RemapPaintedVertexColors(

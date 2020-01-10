@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Movement/ParametricMovement.h"
 #include "HAL/IConsoleManager.h"
@@ -37,7 +37,7 @@ static FAutoConsoleVariableRef CVarFixStepMS(TEXT("parametricmover.FixStep"),
 // ParametricMovement
 // -------------------------------------------------------------------------------------------------------------------------------
 
-const FName FParametricMovementSimulation::GroupName(TEXT("Parametric"));
+const FName FParametricMovementNetSimModelDef::GroupName(TEXT("Parametric"));
 
 void FParametricMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<ParametricMovementBufferTypes>& Input, const TNetSimOutput<ParametricMovementBufferTypes>& Output)
 {
@@ -97,12 +97,12 @@ INetworkedSimulationModel* UParametricMovementComponent::InstantiateNetworkedSim
 	// Model
 	if (ParametricMoverCVars::FixStep > 0)
 	{
-		auto *NewModel = new FParametricMovementSystem<32>( ParametricMovementSimulation, this);
+		auto* NewModel = new TNetworkedSimulationModel<FParametricMovementNetSimModelDef_Fixed30hz>(ParametricMovementSimulation, this, InitialSyncState, InitialAuxState);
 		InitParametricMovementNetSimModel(NewModel);
 		return NewModel;
 	}
 	
-	auto *NewModel = new FParametricMovementSystem<>(ParametricMovementSimulation, this);
+	auto* NewModel = new TNetworkedSimulationModel<FParametricMovementNetSimModelDef>(ParametricMovementSimulation, this, InitialSyncState, InitialAuxState);
 	InitParametricMovementNetSimModel(NewModel);
 	return NewModel;
 }
@@ -150,7 +150,6 @@ void UParametricMovementComponent::VisualLog(const FParametricInputCmd* Input, c
 	FVisualLoggingHelpers::VisualLogActor(GetOwner(), Transform, SystemParameters);
 	//DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Frame, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 }
-
 
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {

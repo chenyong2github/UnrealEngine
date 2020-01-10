@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRig.h"
 #include "GameFramework/Actor.h"
@@ -73,9 +73,9 @@ void UControlRig::CacheDebugClassData()
 		DebugClassSize = CurrentClass->PropertiesSize;
 
 		Destructors.Reset();
-		for (UProperty* P = CurrentClass->DestructorLink; P; P = P->DestructorLinkNext)
+		for (FProperty* P = CurrentClass->DestructorLink; P; P = P->DestructorLinkNext)
 		{
-			UStructProperty* StructProperty = Cast<UStructProperty>(P);
+			FStructProperty* StructProperty = CastField<FStructProperty>(P);
 			if (StructProperty)
 			{
 				Destructors.Add(StructProperty->Struct);
@@ -83,7 +83,7 @@ void UControlRig::CacheDebugClassData()
 		}
 
 		PropertyData.Reset();
-		for (UProperty* P = CurrentClass->PropertyLink; P; P = P->PropertyLinkNext)
+		for (FProperty* P = CurrentClass->PropertyLink; P; P = P->PropertyLinkNext)
 		{
 			FPropertyData PropData;
 			PropData.Offset = P->GetOffset_ForDebug();
@@ -108,9 +108,9 @@ void UControlRig::ValidateDebugClassData()
 			TEXT("Class [%s] size has changed : used be [size %d], and current class is [size %d]"), *GetNameSafe(CurrentClass), DebugClassSize, CurrentClass->GetStructureSize());
 
 		int32 Index = 0;
-		for (UProperty* P = CurrentClass->DestructorLink; P; P = P->DestructorLinkNext)
+		for (FProperty* P = CurrentClass->DestructorLink; P; P = P->DestructorLinkNext)
 		{
-			UStructProperty* StructProperty = Cast<UStructProperty>(P);
+			FStructProperty* StructProperty = CastField<FStructProperty>(P);
 			if (StructProperty)
 			{
 				ensureAlways(Destructors[Index++] == (StructProperty->Struct));
@@ -118,7 +118,7 @@ void UControlRig::ValidateDebugClassData()
 		}
 
 		Index = 0;
-		for (UProperty* P = CurrentClass->PropertyLink; P; P = P->PropertyLinkNext)
+		for (FProperty* P = CurrentClass->PropertyLink; P; P = P->PropertyLinkNext)
 		{
 			const FPropertyData& PropData = PropertyData[Index++];
 			ensureAlwaysMsgf(PropData.Offset == P->GetOffset_ForDebug() && PropData.Size == P->GetSize(), TEXT("Property (%s) size changes"), *PropData.PropertyName.ToString());
@@ -184,7 +184,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	if (GeneratedClass)
 	{
-		for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
+		for (FStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
 		{
 			FRigUnit* RigUnit = UnitProperty->ContainerPtrToValuePtr<FRigUnit>(this);
 			RigUnit->RigUnitName = UnitProperty->GetFName();
@@ -485,7 +485,7 @@ FName UControlRig::GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const
 	if (InRigUnit)
 	{
 		UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
-		for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
+		for (FStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
 		{
 			if (UnitProperty->ContainerPtrToValuePtr<FRigUnit>(this) == InRigUnit)
 			{
@@ -502,7 +502,7 @@ FRigUnit_Control* UControlRig::GetControlRigUnitFromName(const FName& PropertyNa
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
-	for (UStructProperty* ControlProperty : GeneratedClass->ControlUnitProperties)
+	for (FStructProperty* ControlProperty : GeneratedClass->ControlUnitProperties)
 	{
 		if (ControlProperty->GetFName() == PropertyName)
 		{
@@ -518,7 +518,7 @@ FRigUnit* UControlRig::GetRigUnitFromName(const FName& PropertyName)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
-	for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
+	for (FStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
 	{
 		if (UnitProperty->GetFName() == PropertyName)
 		{
@@ -538,7 +538,7 @@ void UControlRig::PostReinstanceCallback(const UControlRig* Old)
 
 	// propagate values from the CDO to the instance
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
-	for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
+	for (FStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
 	{
 		FRigUnit* Source = UnitProperty->ContainerPtrToValuePtr<FRigUnit>(GeneratedClass->ClassDefaultObject);
 		FRigUnit* Dest = UnitProperty->ContainerPtrToValuePtr<FRigUnit>(this);
@@ -616,7 +616,7 @@ void UControlRig::QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& O
 	for (auto Iter = Properties.CreateConstIterator(); Iter; ++Iter)
 	{
 		const FCachedPropertyPath& PropPath = Iter.Value();
-		UProperty* Property = PropPath.GetUProperty();
+		FProperty* Property = PropPath.GetFProperty();
 		FControlRigIOVariable NewVar;
 		NewVar.PropertyPath = PropPath.ToString();
 		NewVar.PropertyType = FControlRigIOHelper::GetFriendlyTypeName(Property);

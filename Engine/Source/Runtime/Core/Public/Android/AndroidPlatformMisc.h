@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================================
@@ -23,6 +23,8 @@ class TFunction;
 #endif
 
 #define UE_DEBUG_BREAK_IMPL()	PLATFORM_BREAK()
+
+#define ANDROID_HAS_RTSIGNALS !PLATFORM_LUMIN && PLATFORM_USED_NDK_VERSION_INTEGER >= 21
 
 /**
  * Android implementation of the misc OS functions
@@ -148,6 +150,7 @@ public:
 
 	static void RegisterForRemoteNotifications();
 	static void UnregisterForRemoteNotifications();
+	static bool IsAllowedRemoteNotifications();
 
 	/** @return Memory representing a true type or open type font provided by the platform as a default font for unreal to consume; empty array if the default font failed to load. */
 	static TArray<uint8> GetSystemFontBytes();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshInspectorTool.h"
 #include "InteractiveToolManager.h"
@@ -286,7 +286,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	GetToolManager()->PostInvalidation();
 	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;

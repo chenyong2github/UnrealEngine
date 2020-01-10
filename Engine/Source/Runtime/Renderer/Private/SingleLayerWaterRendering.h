@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SingleLayerWaterRendering.h: Water pass rendering implementation.
@@ -20,7 +20,8 @@ struct FSingleLayerWaterPassData
 
 	struct FSingleLayerWaterPassViewData
 	{
-		FVector2D SceneWithoutSingleLayerWaterMaxUV;
+		FIntRect SceneWithoutSingleLayerWaterViewRect;
+		FVector4 SceneWithoutSingleLayerWaterMinMaxUV;
 	};
 
 	TArray<FSingleLayerWaterPassViewData> ViewData;

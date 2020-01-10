@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Components/ShapeComponent.h"
@@ -80,6 +80,8 @@ bool UShapeComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& 
 
 void UShapeComponent::GetNavigationData(FNavigationRelevantData& Data) const
 {
+	Super::GetNavigationData(Data);
+
 	if (bDynamicObstacle)
 	{
 		Data.Modifiers.CreateAreaModifiers(this, AreaClass);

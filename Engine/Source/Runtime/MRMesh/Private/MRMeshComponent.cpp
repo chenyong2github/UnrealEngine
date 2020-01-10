@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MRMeshComponent.h"
 #include "PrimitiveSceneProxy.h"
@@ -556,7 +556,7 @@ void UMRMeshComponent::SetCollisionEnabled(ECollisionEnabled::Type NewType)
 	Super::SetCollisionEnabled(NewType);
 }
 
-void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName)
+void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MrMesh_SetCollisionProfileName);
 
@@ -577,7 +577,7 @@ void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName)
 		}
 	}
 
-	Super::SetCollisionProfileName(InCollisionProfileName);
+	Super::SetCollisionProfileName(InCollisionProfileName, bUpdateOverlaps);
 }
 
 void UMRMeshComponent::SetCollisionObjectType(ECollisionChannel Channel)

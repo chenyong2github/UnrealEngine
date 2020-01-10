@@ -1,8 +1,6 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Debugging/SlateDebugging.h"
-
-#if WITH_SLATE_DEBUGGING
 
 #include "SlateGlobals.h"
 #include "FastUpdate/WidgetProxy.h"
@@ -12,6 +10,11 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/SWidget.h"
 #include "Application/SlateApplicationBase.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, true);
+
+#if WITH_SLATE_DEBUGGING
 
 #define LOCTEXT_NAMESPACE "SlateDebugger"
 

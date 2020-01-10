@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	RendererInterface.h: Renderer interface definition.
@@ -184,6 +184,43 @@ public:
 		NewDesc.TargetableFlags = InTargetableFlags;
 		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
 		NewDesc.DebugName = TEXT("UnknownTextureCube");
+		NewDesc.AutoWritable = InAutowritable;
+		check(NewDesc.IsCubemap());
+
+		return NewDesc;
+	}
+
+	/**
+	 * Factory function to create cube map array texture description
+	 * @param InFlags bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV
+	 */
+	static FPooledRenderTargetDesc CreateCubemapArrayDesc(
+		uint32 InExtent,
+		EPixelFormat InFormat,
+		const FClearValueBinding& InClearValue,
+		uint32 InFlags,
+		uint32 InTargetableFlags,
+		bool bInForceSeparateTargetAndShaderResource,
+		uint32 InArraySize,
+		uint16 InNumMips = 1,
+		bool InAutowritable = true)
+	{
+		check(InExtent);
+
+		FPooledRenderTargetDesc NewDesc;
+		NewDesc.ClearValue = InClearValue;
+		NewDesc.Extent = FIntPoint(InExtent, InExtent);
+		NewDesc.Depth = 0;
+		NewDesc.ArraySize = InArraySize;
+		NewDesc.bIsArray = true;
+		NewDesc.bIsCubemap = true;
+		NewDesc.NumMips = InNumMips;
+		NewDesc.NumSamples = 1;
+		NewDesc.Format = InFormat;
+		NewDesc.Flags = InFlags;
+		NewDesc.TargetableFlags = InTargetableFlags;
+		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.DebugName = TEXT("UnknownTextureCubeArray");
 		NewDesc.AutoWritable = InAutowritable;
 		check(NewDesc.IsCubemap());
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigGraphPanelPinFactory.h"
 #include "Graph/ControlRigGraphSchema.h"
@@ -38,7 +38,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 					FString NodeName, PropertyName;
 					if (InPin->GetName().Split(TEXT("."), &NodeName, &PropertyName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 					{
-						UProperty* Property = Struct->FindPropertyByName(*PropertyName);
+						FProperty* Property = Struct->FindPropertyByName(*PropertyName);
 						if (Property)
 						{
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineStoreGooglePlay.h"
 #include "OnlineSubsystemGooglePlay.h"
@@ -59,7 +59,8 @@ TSharedRef<FOnlineStoreOffer> ConvertProductToStoreOffer(const FInAppPurchasePro
 	int32 CloseParenIdx = -1;
 	if (Title.FindLastChar(TEXT(')'), CloseParenIdx) && Title.FindLastChar(TEXT('('), OpenParenIdx) && (OpenParenIdx < CloseParenIdx))
 	{
-		Title = Title.Left(OpenParenIdx).TrimEnd();
+		Title.LeftInline(OpenParenIdx);
+		Title.TrimEndInline();
 	}
 
 	NewProductInfo->Title = FText::FromString(Title);

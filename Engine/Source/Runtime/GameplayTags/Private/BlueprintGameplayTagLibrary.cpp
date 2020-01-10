@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintGameplayTagLibrary.h"
 #include "GameplayTagsModule.h"
@@ -231,15 +231,15 @@ bool UBlueprintGameplayTagLibrary::NotEqual_TagContainerTagContainer(FGameplayTa
 	FString TagString = MoveTemp(B);
 	if (TagString.StartsWith(OpenParenthesesStr, ESearchCase::CaseSensitive) && TagString.EndsWith(CloseParenthesesStr, ESearchCase::CaseSensitive))
 	{
-		TagString = TagString.LeftChop(1);
-		TagString = TagString.RightChop(1);
+		TagString.LeftChopInline(1, false);
+		TagString.RightChopInline(1, false);
 
 		const FString EqualStr(TEXT("="));
 
 		TagString.Split(EqualStr, nullptr, &TagString, ESearchCase::CaseSensitive);
 
-		TagString = TagString.LeftChop(1);
-		TagString = TagString.RightChop(1);
+		TagString.LeftChopInline(1, false);
+		TagString.RightChopInline(1, false);
 
 		FString ReadTag;
 		FString Remainder;
@@ -252,11 +252,11 @@ bool UBlueprintGameplayTagLibrary::NotEqual_TagContainerTagContainer(FGameplayTa
 			ReadTag.Split(EqualStr, nullptr, &ReadTag, ESearchCase::CaseSensitive);
 			if (ReadTag.EndsWith(CloseParenthesesStr, ESearchCase::CaseSensitive))
 			{
-				ReadTag = ReadTag.LeftChop(1);
+				ReadTag.LeftChopInline(1, false);
 				if (ReadTag.StartsWith(QuoteStr, ESearchCase::CaseSensitive) && ReadTag.EndsWith(QuoteStr, ESearchCase::CaseSensitive))
 				{
-					ReadTag = ReadTag.LeftChop(1);
-					ReadTag = ReadTag.RightChop(1);
+					ReadTag.LeftChopInline(1, false);
+					ReadTag.RightChopInline(1, false);
 				}
 			}
 			TagString = Remainder;
@@ -273,11 +273,11 @@ bool UBlueprintGameplayTagLibrary::NotEqual_TagContainerTagContainer(FGameplayTa
 			Remainder.Split(EqualStr, nullptr, &Remainder, ESearchCase::CaseSensitive);
 			if (Remainder.EndsWith(CloseParenthesesStr, ESearchCase::CaseSensitive))
 			{
-				Remainder = Remainder.LeftChop(1);
+				Remainder.LeftChopInline(1, false);
 				if (Remainder.StartsWith(QuoteStr, ESearchCase::CaseSensitive) && Remainder.EndsWith(QuoteStr, ESearchCase::CaseSensitive))
 				{
-					Remainder = Remainder.LeftChop(1);
-					Remainder = Remainder.RightChop(1);
+					Remainder.LeftChopInline(1, false);
+					Remainder.RightChopInline(1, false);
 				}
 			}
 			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Remainder));

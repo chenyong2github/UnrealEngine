@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,7 +23,11 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "Enum"))
 	TArray<FSoftObjectPath> AdditionalParameterEnums;
-	
+
+	/** Default effect type to use for effects that don't define their own. Can be null. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
+	FSoftObjectPath DefaultEffectType;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR
@@ -31,6 +35,9 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 #endif
 	// END UDeveloperSettings Interface
 
+	UNiagaraEffectType* GetDefaultEffectType()const;
+
+	virtual void PostInitProperties();
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -43,4 +50,9 @@ public:
 protected:
 	static FOnNiagaraSettingsChanged SettingsChangedDelegate;
 #endif
+
+
+private:
+	UPROPERTY(transient)
+	mutable UNiagaraEffectType* DefaultEffectTypePtr;
 };

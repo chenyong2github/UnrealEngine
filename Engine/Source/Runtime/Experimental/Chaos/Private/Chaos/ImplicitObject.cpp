@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/Box.h"
@@ -12,6 +12,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TrackedGeometryManager.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/DestructionObjectVersion.h"
@@ -21,21 +22,42 @@ using namespace Chaos;
 FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
     : Type(InType)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
-    , bIgnoreAnalyticCollisions(!!(Flags & EImplicitObject::IgnoreAnalyticCollisions))
+    , bDoCollide(!(Flags & EImplicitObject::DisableCollisions))
     , bHasBoundingBox(!!(Flags & EImplicitObject::HasBoundingBox))
+#if TRACK_CHAOS_GEOMETRY
+    , bIsTracked(false)
+#endif
 {
 }
 
 FImplicitObject::~FImplicitObject()
 {
+#if TRACK_CHAOS_GEOMETRY
+	if (bIsTracked)
+	{
+		FTrackedGeometryManager::Get().RemoveGeometry(this);
+	}
+#endif
 }
+
+#if TRACK_CHAOS_GEOMETRY
+
+void FImplicitObject::Track(TSerializablePtr<FImplicitObject> This, const FString& DebugInfo)
+{
+	if (ensure(This.Get() == this))
+	{
+		if (!bIsTracked)
+		{
+			bIsTracked = true;
+			FTrackedGeometryManager::Get().AddGeometry(This, DebugInfo);
+		}
+	}
+}
+
+#endif
 
 EImplicitObjectType FImplicitObject::GetType(bool bGetTrueType) const
 {
-	if (bIgnoreAnalyticCollisions && !bGetTrueType)
-	{
-		return ImplicitObjectType::Unknown;
-	}
 	return Type;
 }
 
@@ -68,10 +90,10 @@ FVec3 FImplicitObject::Normal(const FVec3& x) const
 	return Normal;
 }
 
-const TBox<FReal, 3>& FImplicitObject::BoundingBox() const
+const TAABB<FReal, 3> FImplicitObject::BoundingBox() const
 {
 	check(false);
-	static const TBox<FReal, 3> Unbounded(FVec3(-FLT_MAX), FVec3(FLT_MAX));
+	static const TAABB<FReal, 3> Unbounded(FVec3(-FLT_MAX), FVec3(FLT_MAX));
 	return Unbounded;
 }
 
@@ -88,7 +110,7 @@ Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject
 	FReal Phi = Thickness;
 	if (HasBoundingBox())
 	{
-		TBox<FReal, 3> ImplicitBox = BoundingBox().TransformedBox(OtherToLocalTransform.Inverse());
+		TAABB<FReal, 3> ImplicitBox = BoundingBox().TransformedAABB(OtherToLocalTransform.Inverse());
 		ImplicitBox.Thicken(Thickness);
 		TArray<int32> PotentialParticles = Particles->FindAllIntersections(ImplicitBox);
 		for (int32 i : PotentialParticles)
@@ -244,7 +266,7 @@ Pair<FVec3, bool> FImplicitObject::FindClosestIntersectionImp(const FVec3& Start
 	return MakePair(ClosestPoint, true);
 }
 
-void FImplicitObject::FindAllIntersectingObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TBox<FReal, 3>& LocalBounds) const
+void FImplicitObject::FindAllIntersectingObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal, 3>& LocalBounds) const
 {
 	if (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()))
 	{
@@ -292,7 +314,12 @@ void FImplicitObject::SerializeImp(FArchive& Ar)
 	Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) >= FDestructionObjectVersion::ChaosArchiveAdded)
 	{
-		Ar << bIsConvex << bIgnoreAnalyticCollisions;
+		Ar << bIsConvex << bDoCollide;
+	}
+
+	if (Ar.CustomVer(FDestructionObjectVersion::GUID) <= FDestructionObjectVersion::ImplicitObjectDoCollideAttribute)
+	{
+		bDoCollide = true;
 	}
 }
 
@@ -349,8 +376,8 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 			EImplicitObjectType InnerType = GetInnerType(ObjectType);
 			switch (InnerType)
 			{
-			case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TConvex<FReal, 3>>(); } break;
-			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>(); } break;
+			case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TImplicitObjectScaled<FConvex>(); } break;
+			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<FTriangleMeshImplicitObject>(); } break;
 			default: check(false);
 			}
 
@@ -365,11 +392,12 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::Plane: if (Ar.IsLoading()) { return new TPlane<FReal, 3>(); } break;
 	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new TCapsule<FReal>(); } break;
 	case ImplicitObjectType::Transformed: if (Ar.IsLoading()) { return new TImplicitObjectTransformed<FReal, 3>(); } break;
-	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new TImplicitObjectUnion<FReal, 3>(); } break;
+	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new FImplicitObjectUnion(); } break;
+	case ImplicitObjectType::UnionClustered: if (Ar.IsLoading()) { return new FImplicitObjectUnionClustered(); } break;
 	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<FReal, 3>(); } break;
-	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TConvex<FReal, 3>(); } break;
+	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
-	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TTriangleMeshImplicitObject<FReal>(); } break;
+	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new FTriangleMeshImplicitObject(); } break;
 	case ImplicitObjectType::DEPRECATED_Scaled:
 	{
 		ensure(Ar.IsLoading() && (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete));

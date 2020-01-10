@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/VoiceConfig.h"
 #include "Engine/World.h"
@@ -19,6 +19,54 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionReleaseTime(TEXT("vo
 static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voice.SilenceDetectionThreshold"),
 	0.08f,
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
+	ECVF_Default);
+
+static float MicInputGainCvar = 1.0f;
+FAutoConsoleVariableRef CVarMicInputGain(
+	TEXT("voice.MicInputGain"),
+	MicInputGainCvar,
+	TEXT("The default gain amount in linear amplitude.\n")
+	TEXT("Value: Gain multiplier."),
+	ECVF_Default);
+
+static float MicStereoBiasCvar = 0.0f;
+FAutoConsoleVariableRef CVarMicStereoBias(
+	TEXT("voice.MicStereoBias"),
+	MicStereoBiasCvar,
+	TEXT("This will attenuate the left or right channel.\n")
+	TEXT("0.0: Centered. 1.0: right channel only. -1.0: Left channel only."),
+	ECVF_Default);
+
+static float JitterBufferDelayCvar = 0.3f;
+FAutoConsoleVariableRef CVarJitterBufferDelay(
+	TEXT("voice.JitterBufferDelay"),
+	JitterBufferDelayCvar,
+	TEXT("The default amount of audio we buffer, in seconds, before we play back audio. Decreasing this value will decrease latency but increase the potential for underruns.\n")
+	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
+static float MicNoiseGateThresholdCvar = 0.08f;
+FAutoConsoleVariableRef CVarMicNoiseGateThreshold(
+	TEXT("voice.MicNoiseGateThreshold"),
+	JitterBufferDelayCvar,
+	TEXT("Our threshold, in linear amplitude, for  our noise gate on input. Similar to voice.SilenceDetectionThreshold, except that audio quieter than our noise gate threshold will still output silence.\n")
+	TEXT("Value: Number of seconds of audio we buffer."),
+	ECVF_Default);
+
+static float MicNoiseGateAttackTimeCvar = 0.05f;
+FAutoConsoleVariableRef CVarMicNoiseGateAttackTime(
+	TEXT("voice.MicNoiseAttackTime"),
+	MicNoiseGateAttackTimeCvar,
+	TEXT("Sets the fade-in time for our noise gate.\n")
+	TEXT("Value: Number of seconds we fade in over."),
+	ECVF_Default);
+
+static float MicNoiseGateReleaseTimeCvar = 0.30f;
+FAutoConsoleVariableRef CVarMicNoiseGateReleaseTime(
+	TEXT("voice.MicNoiseReleaseTime"),
+	MicNoiseGateReleaseTimeCvar,
+	TEXT("Sets the fade out time for our noise gate.\n")
+	TEXT("Value: Number of seconds we fade out over."),
 	ECVF_Default);
 
 static int32 NumVoiceChannelsCvar = 1;
@@ -83,16 +131,16 @@ uint32 UVOIPStatics::GetMaxVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 14 * 1024;
+			return 14 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 32 * 1024;
+			return 32 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 8 * 1024;
+			return 8 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
@@ -103,7 +151,7 @@ uint32 UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel()
 	// This amounts to approximates a second of audio for the minimum voice engine tick frequency.
 	// At 48 kHz, DirectSound will occasionally have to load up to 256 samples into the overflow buffer.
 	// This is the reason for the added 1024 bytes.
-	return GetVoiceSampleRate() * sizeof(uint16) + 1024;
+	return GetVoiceSampleRate() * sizeof(uint16) * GetVoiceNumChannels() + 1024 * GetVoiceNumChannels();
 }
 
 uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
@@ -115,16 +163,16 @@ uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 2 * 1024;
+			return 2 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 4 * 1024;
+			return 4 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 1 * 1024;
+			return 1 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
@@ -142,18 +190,12 @@ EAudioEncodeHint UVOIPStatics::GetAudioEncodingHint()
 
 float UVOIPStatics::GetBufferingDelay()
 {
-	static bool bRetrievedBufferingDelay = false;
-	static float DesiredBufferDelay = 0.2f;
-	if (!bRetrievedBufferingDelay)
-	{
-		bRetrievedBufferingDelay = true;
-		float SettingsBufferDelay;
-		if (GConfig->GetFloat(TEXT("/Script/Engine.AudioSettings"), TEXT("VoipBufferingDelay"), SettingsBufferDelay, GEngineIni) && SettingsBufferDelay > 0.0f)
-		{
-			DesiredBufferDelay = SettingsBufferDelay;
-		}
-	}
-	return DesiredBufferDelay;
+	return JitterBufferDelayCvar;
+}
+
+float UVOIPStatics::GetVoiceNoiseGateLevel()
+{
+	return MicNoiseGateThresholdCvar;
 }
 
 int32 UVOIPStatics::GetNumBufferedPackets()

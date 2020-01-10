@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ struct CORE_API FBitReader : public FBitArchive
 public:
 	FBitReader( uint8* Src = nullptr, int64 CountBits = 0 );
 
-    FBitReader(FBitReader&) = default;
+	FBitReader(const FBitReader&) = default;
     FBitReader& operator=(const FBitReader&) = default;
     FBitReader(FBitReader&&) = default;
     FBitReader& operator=(FBitReader&&) = default;

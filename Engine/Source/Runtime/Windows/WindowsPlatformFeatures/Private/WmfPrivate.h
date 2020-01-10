@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,9 +43,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 	}
 }
 
-
 #include "Windows/HideWindowsPlatformTypes.h"
-
 
 // macro to deal with COM calls inside a function that returns `false` on error
 #define CHECK_HR(COM_call)\
@@ -77,6 +75,18 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		{\
 			UE_LOG(WMF, Error, TEXT("`" #COM_call "` failed: 0x%X - %s"), Res, *GetComErrorDescription(Res));\
 			return;\
+		}\
+	}
+
+// macro to deal with COM calls inside a function and return `{}` on error
+// This has the advantage of being able to return any type that can be initialized with `{}`
+#define CHECK_HR_DEFAULT(COM_call)\
+	{\
+		HRESULT Res = COM_call;\
+		if (FAILED(Res))\
+		{\
+			UE_LOG(WMF, Error, TEXT("`" #COM_call "` failed: 0x%X - %s"), Res, *GetComErrorDescription(Res));\
+			return {};\
 		}\
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -456,6 +456,11 @@ void FGenericPlatformMemory::InternalUpdateStats( const FPlatformMemoryStats& Me
 bool FGenericPlatformMemory::IsExtraDevelopmentMemoryAvailable()
 {
 	return false;
+}
+
+uint64 FGenericPlatformMemory::GetExtraDevelopmentMemorySize()
+{
+	return 0;
 }
 
 bool FGenericPlatformMemory::GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment)

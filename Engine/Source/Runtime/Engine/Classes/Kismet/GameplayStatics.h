@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -436,8 +436,20 @@ public:
 	 * @note This will always return false if there is no audio device, or the audio device is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static bool AreAnyListenersWithinRange(const UObject* WorldContextObject, FVector Location, float MaximumRange);
+	static bool AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
 	
+
+	/**
+	 * Finds and returns the position of the closest listener to the specified location
+	 * @param Location						The location from which we'd like to find the closest listener, in world space.
+	 * @param MaximumRange					The maximum distance away from Location that a listener can be.
+	 * @param bAllowAttenuationOverride		True for the adjusted listener position (if attenuation override is set), false for the raw listener position (for panning)
+	 * @param ListenerPosition				[Out] The position of the closest listener in world space, if found.
+	 * @return true if we've successfully found a listener within MaximumRange of Location, otherwise false.
+ 	 * @note This will always return false if there is no audio device, or the audio device is disabled.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static bool GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition);
 
 	/**
 	* Sets a global pitch modulation scalar that will apply to all non-UI sounds

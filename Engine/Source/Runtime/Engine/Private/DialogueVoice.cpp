@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/DialogueVoice.h"
 #include "UObject/UnrealType.h"
@@ -24,12 +24,12 @@ FString UDialogueVoice::GetDesc()
 {
 	FString SummaryString;
 	{
-		UByteProperty* GenderProperty = CastChecked<UByteProperty>(FindFieldChecked<UProperty>(GetClass(), GET_MEMBER_NAME_CHECKED(UDialogueVoice, Gender)));
+		FByteProperty* GenderProperty = CastFieldChecked<FByteProperty>(FindFieldChecked<FProperty>(GetClass(), GET_MEMBER_NAME_CHECKED(UDialogueVoice, Gender)));
 		SummaryString += GenderProperty->Enum->GetDisplayNameTextByValue(Gender).ToString();
 
 		if( Plurality != EGrammaticalNumber::Singular )
 		{
-			UByteProperty* PluralityProperty = CastChecked<UByteProperty>( FindFieldChecked<UProperty>( GetClass(), GET_MEMBER_NAME_CHECKED(UDialogueVoice, Plurality)) );
+			FByteProperty* PluralityProperty = CastFieldChecked<FByteProperty>( FindFieldChecked<FProperty>( GetClass(), GET_MEMBER_NAME_CHECKED(UDialogueVoice, Plurality)) );
 
 			SummaryString += ", ";
 			SummaryString += PluralityProperty->Enum->GetDisplayNameTextByValue(Plurality).ToString();

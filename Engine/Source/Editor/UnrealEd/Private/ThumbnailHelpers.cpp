@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThumbnailHelpers.h"
 #include "FinalPostProcessSettings.h"
@@ -511,8 +511,9 @@ void FStaticMeshThumbnailScene::SetStaticMesh(UStaticMesh* StaticMesh)
 		// Center the mesh at the world origin then offset to put it on top of the plane
 		const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetStaticMeshComponent()->Bounds);
 		PreviewActor->SetActorLocation( -PreviewActor->GetStaticMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false );
-		PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
 	}
+
+	PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
 }
 
 void FStaticMeshThumbnailScene::SetOverrideMaterials(const TArray<class UMaterialInterface*>& OverrideMaterials)

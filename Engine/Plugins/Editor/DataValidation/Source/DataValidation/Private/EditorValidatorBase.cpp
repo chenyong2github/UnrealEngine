@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorValidatorBase.h"
 
@@ -40,7 +40,7 @@ void UEditorValidatorBase::AssetFails(UObject* InAsset, const FText& InMessage, 
 	Arguments.Add(TEXT("CustomMessage"), InMessage);
 	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));
 
-	FText FailureMessage = FText::Format(LOCTEXT("AssetCheck_Message_Display", "{AssetName} failed: {CustomMessage}. ({ValidatorName})"), Arguments);
+	FText FailureMessage = FText::Format(LOCTEXT("AssetCheck_Message_Error", "{AssetName} failed: {CustomMessage}. ({ValidatorName})"), Arguments);
 
 	if(LogContentValidation.GetVerbosity() >= ELogVerbosity::Verbose)
 	{
@@ -63,7 +63,7 @@ void UEditorValidatorBase::AssetWarning(UObject* InAsset, const FText& InMessage
 	Arguments.Add(TEXT("CustomMessage"), InMessage);
 	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));
 
-	FText WarningMessage = FText::Format(LOCTEXT("AssetCheck_Message_Display", "{AssetName} warning: {CustomMessage}. ({ValidatorName})"), Arguments);
+	FText WarningMessage = FText::Format(LOCTEXT("AssetCheck_Message_Warning", "{AssetName} warning: {CustomMessage}. ({ValidatorName})"), Arguments);
 	AllWarnings.Add(WarningMessage);
 }
 

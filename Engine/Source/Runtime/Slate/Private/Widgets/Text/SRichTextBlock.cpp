@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Text/SRichTextBlock.h"
 
@@ -192,6 +192,15 @@ bool SRichTextBlock::ComputeVolatility() const
 		|| Justification.IsBound()
 		|| LineHeightPercentage.IsBound()
 		|| MinDesiredWidth.IsBound();
+}
+
+void SRichTextBlock::SetFontSizeMultiplier(const float NewFontSizeMultiplier)
+{
+	if (Marshaller)
+	{
+		Marshaller->SetFontSizeMultiplier(NewFontSizeMultiplier);
+		Invalidate(EInvalidateWidget::Layout);
+	}
 }
 
 #endif //WITH_FANCY_TEXT

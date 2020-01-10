@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.h: Definitions of classes used for content streaming.
@@ -586,6 +586,7 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 {
 	/** Default constructor, initializing all member variables. */
 	ENGINE_API FStreamingManagerCollection();
+	ENGINE_API ~FStreamingManagerCollection();
 
 	/**
 	 * Calls UpdateResourceStreaming(), and does per-frame cleaning. Call once per frame.

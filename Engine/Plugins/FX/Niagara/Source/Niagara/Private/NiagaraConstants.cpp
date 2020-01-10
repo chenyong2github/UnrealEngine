@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraConstants.h"
 #include "NiagaraModule.h"
@@ -46,6 +46,7 @@ void FNiagaraConstants::Init()
 		SystemParameters.Add(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE);
 
 		SystemParameters.Add(SYS_PARAM_ENGINE_LOD_DISTANCE);
+		SystemParameters.Add(SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION);
 		SystemParameters.Add(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED);
 
 		SystemParameters.Add(SYS_PARAM_ENGINE_EXECUTION_STATE);
@@ -160,6 +161,7 @@ void FNiagaraConstants::Init()
 
 		SystemStrMap.Add(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, LOCTEXT("TimeSinceRendered", "The time in seconds that have passed since this system was last rendered."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_LOD_DISTANCE, LOCTEXT("LODDistance", "The distance to use in LOD scaling/culling. Typically, the distance to the nearest camera."));
+		SystemStrMap.Add(SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION, LOCTEXT("LODDistanceFraction", "The distance fraction between this system and it's max culling distance defined in it's EffectType scalabiltiy settings."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_EXECUTION_STATE, LOCTEXT("ExecutionState", "The execution state of the systems owner. Takes precedence over the systems internal execution state."));
 
 		SystemStrMap.Add(SYS_PARAM_ENGINE_EXEC_COUNT, LOCTEXT("ExecCountDesc", "The index of this particle in the read buffer."));
@@ -344,9 +346,9 @@ void FNiagaraConstants::Init()
 		Var.SetValue<float>(10.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, Var);
 
-		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, TEXT("1.0"));
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, TEXT("0.0"));
 		Var = SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING;
-		Var.SetValue<float>(1.0f);
+		Var.SetValue<float>(0.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, TEXT("0"));

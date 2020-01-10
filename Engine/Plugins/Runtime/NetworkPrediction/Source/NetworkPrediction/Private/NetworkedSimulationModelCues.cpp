@@ -1,52 +1,58 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkedSimulationModelCues.h"
 
 DEFINE_LOG_CATEGORY(LogNetSimCues);
 
 FGlobalCueTypeTable FGlobalCueTypeTable::Singleton;
+constexpr FNetworkSimTime FCueDispatcherTraitsBase::ReplicationWindow;
 
 // ------------------------------------------------------------------------------------------------------------------------------------------
-//	Mock Cue example
+//	Mock Cue example: Minimal example of NetSimCue pipeline
+//		(1)	- How to define cue types and traits
+//		(2) - How to define cue sets
+//		(3) - How to define handlers
+//		(4) - How to invoke cues in simulation
+//
 // ------------------------------------------------------------------------------------------------------------------------------------------
 
-// Minimal example of NetSimCue pipeline
 #define ENABLE_MOCK_CUE 0
 #if ENABLE_MOCK_CUE
 
 // ---------------------------------------------------------------------
-// Mock Cue Types
+// (1) Mock Cue Types
 // ---------------------------------------------------------------------
 
+// Example "Weak" cue (will default to NetSimCueTraits::Default traits, which are "Weak" non replicated, non resimulated). No NetSerialize/NetIdentical is required.
 struct FMockImpactCue
 {
 	NETSIMCUE_BODY();
 
+	FMockImpactCue() = default;
+	FMockImpactCue(const FVector& InImpact) : ImpactLocation(InImpact) { }
+
 	FVector ImpactLocation;
 
-	void NetSerialize(FArchive& Ar)
-	{
-		Ar << ImpactLocation;
-	}
-
-	static bool Unique(const FMockImpactCue& A, const FMockImpactCue& B)
-	{
-		const float ErrorTolerance = 1.f;
-		return !A.ImpactLocation.Equals(B.ImpactLocation, ErrorTolerance);
-	}
-
 };
-NETSIMCUE_REGISTER(FMockImpactCue, TEXT("Impact"));
+NETSIMCUE_REGISTER(FMockImpactCue, TEXT("Impact")); // Must go in .cpp
+static_assert(TNetSimCueTraits<FMockImpactCue>::InvokeMask == NetSimCueTraits::Default::InvokeMask, "Traits Errors"); // Not required: just asserting what this classes traits are
 
 // ----------------
 
+// Example "Strong" cue. Explicitly sets NetSimCueTraits::Strong and implements NetSerialize/NetIdentical (will not compile without these functions) 
 struct FMockDamageCue
 {
 	NETSIMCUE_BODY();
 
+	FMockDamageCue() = default;
+	FMockDamageCue(const int32 InSourceID, const int32 InDamageType, const FVector& InHitLocation) 
+		: SourceID(InSourceID), DamageType(InDamageType), HitLocation(InHitLocation) { }
+
 	int32 SourceID;
 	int32 DamageType;
 	FVector HitLocation;
+
+	using Traits = NetSimCueTraits::Strong; // Sets our traits via preset.
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -55,20 +61,28 @@ struct FMockDamageCue
 		Ar << HitLocation;
 	}
 
-	static bool Unique(const FMockDamageCue& A, const FMockDamageCue& B)
+	bool NetIdentical(const FMockDamageCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return A.SourceID != B.SourceID || A.DamageType != B.DamageType || !A.HitLocation.Equals(B.HitLocation, ErrorTolerance);
+		return SourceID == Other.SourceID && DamageType && Other.DamageType && HitLocation.Equals(Other.HitLocation, ErrorTolerance);
 	}
 };
-NETSIMCUE_REGISTER(FMockDamageCue, TEXT("Damage"));
+NETSIMCUE_REGISTER(FMockDamageCue, TEXT("Damage")); // Must go in .cpp
+static_assert(TNetSimCueTraits<FMockDamageCue>::InvokeMask == NetSimCueTraits::Strong::InvokeMask, "Traits Errors"); // Not required: just asserting what this classes traits are
 
+// Alternative way of explicitly setting traits
 struct FMockHealingCue
 {
 	NETSIMCUE_BODY();
+	
+	FMockHealingCue() = default;
+	FMockHealingCue(const int32 InSourceID, const int32 InHealingAmount) 
+		: SourceID(InSourceID), HealingAmount(InHealingAmount) { }
 
 	int32 SourceID;
 	int32 HealingAmount;
+
+	using Traits = TNetSimCueTraitsExplicit<ENetSimCueInvoker::All, ENetSimCueReplicationTarget::All, true>; // Sets our traits explicitly
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -76,87 +90,110 @@ struct FMockHealingCue
 		Ar << HealingAmount;
 	}
 
-	static bool Unique(const FMockHealingCue& A, const FMockHealingCue& B)
+	bool NetIdentical(const FMockHealingCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return A.SourceID != B.SourceID || A.HealingAmount != B.HealingAmount;
+		return SourceID == Other.SourceID && HealingAmount == Other.HealingAmount;
 	}
 };
-NETSIMCUE_REGISTER(FMockHealingCue, TEXT("Healing"));
+NETSIMCUE_REGISTER(FMockHealingCue, TEXT("Healing")); // Must go in .cpp
+static_assert(TNetSimCueTraits<FMockHealingCue>::InvokeMask == ENetSimCueInvoker::All, "Traits Errors"); // Not required: just asserting what this classes traits are
 
 // ---------------------------------------------------------------------
-// Mock Handlers (equevilent to actor component hierarchy)
+// (2) Cue Sets: just a collection of cue types that a simulation emits.
+//
+//	This isn't really a core type, it is just a pattern for grouping cue types
+//	together so that handlers can register with sets of cues rather than each cue individually
+//
+//	This example illustrates how a base set can be built off of by child simulations
 // ---------------------------------------------------------------------
 
-class TestHandlerBase
+struct FMockCueSet_Base
 {
-public:
-
 	template<typename TDispatchTable>
 	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
 	{
 		DispatchTable.template RegisterType<FMockImpactCue>();
 	}
+};
 
-	void HandleCue(FMockImpactCue& ImpactCue, const FNetworkSimTime& ElapsedTime)
+struct FMockCueSet_Child
+{
+	template<typename TDispatchTable>
+	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
+	{
+		FMockCueSet_Base::RegisterNetSimCueTypes(DispatchTable); // Superset of the base cueset
+		DispatchTable.template RegisterType<FMockDamageCue>();
+		DispatchTable.template RegisterType<FMockHealingCue>();
+	}
+};
+
+
+// ---------------------------------------------------------------------
+// (3) Mock Handlers 
+//	-Implements ::HandeCue function to receive the cue (thats it!)
+//	-Meant to be implemented by owning actor/component that is driving the NetworkedSimulation
+//	-E.g, in practice, these aren't standalone classes. These are just functions/body that you put on your actor/component.
+//
+//	Again, we show how a base handler can be implemented and how a child class can extend off of that.
+// ---------------------------------------------------------------------
+
+class TestHandlerBase
+{
+public:
+	void HandleCue(const FMockImpactCue& ImpactCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Impact!"));
 	}
 };
 
+NETSIMCUESET_REGISTER(TestHandlerBase, FMockCueSet_Base); // Must go in cpp. Says "TestHandlerBase" can accepts cues in "FMockCueSet_Base"
+
 class TestHandlerChild : public TestHandlerBase
 {
 public:
 
-	template<typename TDispatchTable>
-	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
-	{
-		TestHandlerBase::RegisterNetSimCueTypes(DispatchTable);
-		DispatchTable.template RegisterType<FMockDamageCue>();
-		DispatchTable.template RegisterType<FMockHealingCue>();
-	}
-
 	using TestHandlerBase::HandleCue; // Required for us to "use" the HandleCue methods in our parent class
 
-	void HandleCue(FMockDamageCue& DamageCue, const FNetworkSimTime& ElapsedTime)
+	void HandleCue(const FMockDamageCue& DamageCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Damage. SourceID: %d DamageType: %d HitLocation: %s"), DamageCue.SourceID, DamageCue.DamageType, *DamageCue.HitLocation.ToString());
 	}
 
-	void HandleCue(FMockHealingCue& HealingCue, const FNetworkSimTime& ElapsedTime)
+	void HandleCue(const FMockHealingCue& HealingCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Healing. SourceID: %d Healing Amount: %d"), HealingCue.SourceID, HealingCue.HealingAmount);
 	}
 };
 
-NETSIMCUEHANDLER_REGISTER(TestHandlerChild);
+NETSIMCUESET_REGISTER(TestHandlerChild, FMockCueSet_Child); // Must go in cpp. Says "TestHandlerBase" can accepts cues in "FMockCueSet_Base" // Must go in cpp. Says "TestHandlerBase" can accepts cues in "FMockCueSet_Base"
 
 void TestCues()
 {
 	// -------------------------------------
-	// Simuation/Invoke
+	// (4) Simuation/Invoke
 	// -------------------------------------
 
 	struct FBaseSimulation
 	{
-		static void TickSimulation(FCueDispatcher& Dispatcher)
+		static void TickSimulation(FNetSimCueDispatcher& Dispatcher)
 		{
-			Dispatcher.Invoke<FMockImpactCue>( { FVector(1.f, 2.f, 3.f) } );
+			Dispatcher.Invoke<FMockImpactCue>(FVector(1.f, 2.f, 3.f)); // Constructing emplace avoids copy and moves. This is the ideal way to invoke!
 		}
 	};
 
 	struct FChildSimulation
 	{
-		static void TickSimulation(FCueDispatcher& Dispatcher)
+		static void TickSimulation(FNetSimCueDispatcher& Dispatcher)
 		{
 			FBaseSimulation::TickSimulation(Dispatcher);
 
-			Dispatcher.Invoke<FMockDamageCue>( { 1, 2, FVector(1.f, 2.f, 3.f) } );
-			Dispatcher.Invoke<FMockHealingCue>( { 10, 32 } );
+			Dispatcher.Invoke<FMockDamageCue>(1, 2, FVector(1.f, 2.f, 3.f));
+			Dispatcher.Invoke<FMockHealingCue>(10, 32);
 		}
 	};
 
-	FCueDispatcher ServerDispatcher;
+	TNetSimCueDispatcher<void> ServerDispatcher;
 	FChildSimulation::TickSimulation(ServerDispatcher);
 
 	// -------------------------------------
@@ -164,15 +201,15 @@ void TestCues()
 	// -------------------------------------
 
 	FNetBitWriter TempWriter(1024 << 3);
-	ServerDispatcher.NetSerializeSavedCues(TempWriter, false);
+	ServerDispatcher.NetSerializeSavedCues(TempWriter, ENetSimCueReplicationTarget::All);
 
 	// -------------------------------------
 	// Receive
 	// -------------------------------------
 
 	FNetBitReader TempReader(nullptr, TempWriter.GetData(), TempWriter.GetNumBits());
-	FCueDispatcher ClientDispatcher;
-	ClientDispatcher.NetSerializeSavedCues(TempReader, false);
+	TNetSimCueDispatcher<void> ClientDispatcher;
+	ClientDispatcher.NetSerializeSavedCues(TempReader, ENetSimCueReplicationTarget::All);
 
 	TestHandlerChild MyObject;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,6 +29,7 @@ public:
 	virtual FWebSocketClosedEvent& OnClosed() override						{ return ClosedEvent; }
 	virtual FWebSocketMessageEvent& OnMessage() override					{ return MessageEvent; }
 	virtual FWebSocketRawMessageEvent& OnRawMessage() override				{ return RawMessageEvent; }
+	virtual FWebSocketMessageSentEvent& OnMessageSent() override { return OnMessageSentEvent; }
 
 public:
 	virtual bool Tick(float DeltaTime) override;
@@ -50,6 +51,8 @@ private:
 	FWebSocketClosedEvent ClosedEvent;
 	FWebSocketMessageEvent MessageEvent;
 	FWebSocketRawMessageEvent RawMessageEvent;
+	FWebSocketMessageSentEvent OnMessageSentEvent;
+
 	bool bUserClose;
 };
 

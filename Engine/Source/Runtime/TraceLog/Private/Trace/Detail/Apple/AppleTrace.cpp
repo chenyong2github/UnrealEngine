@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <mach/mach.h>
@@ -84,22 +85,10 @@ void ThreadDestroy(UPTRINT Handle)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-const mach_timebase_info_data_t& TimeGetInfo()
-{
-    static mach_timebase_info_data_t Info;
-    static dispatch_once_t OnceToken;
-
-	dispatch_once(&OnceToken, ^{
-		   (void) mach_timebase_info(&Info);
-	   });
-
-	return Info;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 uint64 TimeGetFrequency()
 {
-	const mach_timebase_info_data_t& Info = TimeGetInfo();
+	mach_timebase_info_data_t Info;
+	mach_timebase_info(&Info);
 	return (uint64(1 * 1000 * 1000 * 1000) * uint64(Info.denom)) / uint64(Info.numer);
 }
 
@@ -127,6 +116,7 @@ static bool TcpSocketSetNonBlocking(int Socket, bool bNonBlocking)
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 {
+#if PLATFORM_MAC // We're only accepting named hosts on desktop platforms
 	struct FAddrInfoPtr
 	{
 					~FAddrInfoPtr()	{ freeaddrinfo(Value); }
@@ -152,6 +142,16 @@ UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 
 	auto* SockAddr = (sockaddr_in*)Info->ai_addr;
 	SockAddr->sin_port = htons(Port);
+	int SockAddrSize = int(Info->ai_addrlen);
+#else
+	sockaddr_in SockAddrIp;
+	SockAddrIp.sin_family = AF_INET;
+	SockAddrIp.sin_addr.s_addr = inet_addr(Host);
+	SockAddrIp.sin_port = htons(Port);
+
+	auto* SockAddr = &SockAddrIp;
+	int SockAddrSize = sizeof(SockAddrIp);
+#endif
 
 	int Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (Socket < 0)
@@ -159,7 +159,7 @@ UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 		return 0;
 	}
 
-	int Result = connect(Socket, Info->ai_addr, int(Info->ai_addrlen));
+	int Result = connect(Socket, (sockaddr*)SockAddr, SockAddrSize);
 	if (Result < 0)
 	{
 		close(Socket);

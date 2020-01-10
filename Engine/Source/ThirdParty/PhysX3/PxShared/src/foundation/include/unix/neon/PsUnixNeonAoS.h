@@ -37,11 +37,7 @@
 #endif
 
 // only ARM NEON compatible platforms should reach this
-#if PX_P64_FAMILY
-#include <arm64_neon.h>
-#else
 #include <arm_neon.h>
-#endif
 
 typedef float32x2_t FloatV;
 typedef float32x4_t Vec3V;

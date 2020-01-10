@@ -1,41 +1,32 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterRootComponent.h"
 
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
+#include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
-
 #include "Camera/CameraComponent.h"
-#include "GameFramework/PlayerController.h"
 
 #include "DisplayClusterCameraComponent.h"
 #include "DisplayClusterSceneComponent.h"
-#include "DisplayClusterSceneComponentSyncParent.h"
 #include "DisplayClusterScreenComponent.h"
-#include "DisplayClusterPlayerInput.h"
 
 #include "DisplayClusterGlobals.h"
 #include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
-#include "Misc/DisplayClusterAppExit.h"
-
 
 UDisplayClusterRootComponent::UDisplayClusterRootComponent(const FObjectInitializer& ObjectInitializer)
 	: USceneComponent(ObjectInitializer)
-	, bExitOnEsc(true)
-	, bShowProjectionScreens(false)
-	, ProjectionScreensMaterial(nullptr)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
 	// This component settings
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 void UDisplayClusterRootComponent::BeginPlay()
@@ -43,28 +34,13 @@ void UDisplayClusterRootComponent::BeginPlay()
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
 	// Store current operation mode on BeginPlay (not in the constructor)
-	OperationMode = GDisplayCluster->GetOperationMode();
+	const EDisplayClusterOperationMode OperationMode = GDisplayCluster->GetOperationMode();
 
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		// Read native input synchronization settings
-		IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-		if (ConfigMgr)
-		{
-			FDisplayClusterConfigGeneral CfgGeneral = ConfigMgr->GetConfigGeneral();
-			NativeInputSyncPolicy = CfgGeneral.NativeInputSyncPolicy;
-			UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %d"), NativeInputSyncPolicy);
-		}
-
 		// Build nDisplay hierarchy
 		InitializeHierarchy();
-
-		// Extra initialization
-		InitializeExtra();
-
-		// Set this root as currently active
-		GDisplayCluster->GetPrivateGameMgr()->SetRoot(this);
 	}
 
 	Super::BeginPlay();
@@ -74,75 +50,22 @@ void UDisplayClusterRootComponent::BeginDestroy()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
-	// Clean containers. We store only pointers so there is no need to do any additional
-	// operations. All components will be destroyed by the engine.
-	ScreenComponents.Reset();
-	CameraComponents.Reset();
-	SceneNodeComponents.Reset();
+	{
+		FScopeLock lock(&InternalsSyncScope);
+
+		// Clean containers. We store only pointers so there is no need to do any additional
+		// operations. All components will be destroyed by the engine.
+		ScreenComponents.Reset();
+		CameraComponents.Reset();
+		SceneNodeComponents.Reset();
+	}
 
 	Super::BeginDestroy();
-}
-
-void UDisplayClusterRootComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
-		OperationMode == EDisplayClusterOperationMode::Editor)
-	{
-		UWorld* const CurWorld = GetWorld();
-		if (CurWorld)
-		{
-			APlayerController* const CurPlayerController = CurWorld->GetFirstPlayerController();
-			if (CurPlayerController)
-			{
-				APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
-				if (CurPlayerCameraManager)
-				{
-					this->SetWorldLocation(CurPlayerCameraManager->GetCameraLocation());
-					this->SetWorldRotation(CurPlayerCameraManager->GetCameraRotation());
-				}
-
-				if (bExitOnEsc)
-				{
-					if (CurPlayerController->WasInputKeyJustPressed(EKeys::Escape))
-					{
-						FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Exit on ESC requested"));
-					}
-				}
-			}
-		}
-	}
 }
 
 bool UDisplayClusterRootComponent::InitializeHierarchy()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
-	// Use sync components if no native input synchronization activated
-	if (NativeInputSyncPolicy == 0)
-	{
-		// Add replication components
-		const TSet<UActorComponent*> ActorComponents = GetOwner()->GetComponents();
-		int CompIdx = 0;
-		for (UActorComponent* Component : ActorComponents)
-		{
-			USceneComponent* const SceneComp = Cast<USceneComponent>(Component);
-			if (SceneComp)
-			{
-				const FString CompName = FString::Printf(TEXT("sync_comp_%d"), CompIdx++);
-
-				UDisplayClusterSceneComponentSyncParent* NewSyncComp = NewObject<UDisplayClusterSceneComponentSyncParent>(Component->GetOwner(), FName(*CompName));
-				if (NewSyncComp)
-				{
-					NewSyncComp->AttachToComponent(SceneComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-					NewSyncComp->RegisterComponent();
-				}
-			}
-		}
-	}
 
 	// Now create all child components
 	if (!(CreateCameras() && CreateScreens() && CreateNodes()))
@@ -169,25 +92,6 @@ bool UDisplayClusterRootComponent::InitializeHierarchy()
 		if (CameraComponents.Contains(DefaultCamId))
 		{
 			SetDefaultCamera(DefaultCamId);
-		}
-	}
-
-	return true;
-}
-
-bool UDisplayClusterRootComponent::InitializeExtra()
-{
-	EDisplayClusterOperationMode OpMode = GDisplayCluster->GetOperationMode();
-	if (OpMode == EDisplayClusterOperationMode::Cluster)
-	{
-		// Optionally activate native input synchronization
-		if (NativeInputSyncPolicy == 1)
-		{
-			APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
-			if (PlayerController)
-			{
-				PlayerController->PlayerInput = NewObject<UDisplayClusterPlayerInput>(PlayerController);
-			}
 		}
 	}
 
@@ -316,7 +220,6 @@ int32 UDisplayClusterRootComponent::GetCamerasAmount() const
 UDisplayClusterCameraComponent* UDisplayClusterRootComponent::GetDefaultCamera() const
 {
 	FScopeLock lock(&InternalsSyncScope);
-
 	return DefaultCameraComponent;
 }
 

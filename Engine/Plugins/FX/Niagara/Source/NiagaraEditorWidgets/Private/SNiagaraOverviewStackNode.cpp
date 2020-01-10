@@ -1,20 +1,33 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewStackNode.h"
 #include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraEmitter.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
-
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "AssetThumbnail.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/SBoxPanel.h"
+#include "NiagaraRendererProperties.h"
+#include "Widgets/SWidget.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
+
+const float ThumbnailSize = 24.0f;
 
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
@@ -22,8 +35,11 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	OverviewStackNode = InNode;
 	StackViewModel = nullptr;
 	OverviewSelectionViewModel = nullptr;
-	EmitterHandleViewModelWeak.Reset();
+	CurrentIssueIndex = -1;
 
+	EmitterHandleViewModelWeak.Reset();
+	ThumbnailPool = MakeShared<FAssetThumbnailPool>(100, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraOverviewStackNode::IsHoveringThumbnail)));
+	ThumbnailBar = SNew(SHorizontalBox);
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -42,9 +58,14 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 					StackViewModel = EmitterHandleViewModelWeak.Pin()->GetEmitterStackViewModel();
 				}
 			}
+			if (StackViewModel)
+			{
+				StackViewModel->OnDataObjectChanged().AddSP(this, &SNiagaraOverviewStackNode::FillThumbnailBar, true);
+			}
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
 		}
 	}
+
 	UpdateGraphNode();
 }
 
@@ -80,19 +101,141 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		]
 		// Name
 		+ SHorizontalBox::Slot()
-		.Padding(4, 0, 0, 0)
+		.Padding(3, 0, 0, 0)
+		.FillWidth(1.0f)
 		[
 			DefaultTitle
-		]
-		// Stack issues icon
+		];
+}
+
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
+{
+	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.Padding(5, 0, 0, 0)
+		.Padding(0, 0, 1, 0)
+		[
+			SNew(SButton)
+			.IsFocusable(false)
+			.ToolTipText(LOCTEXT("OpenAndFocusParentEmitterToolTip", "Open and Focus Parent Emitter"))
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
+			.ContentPadding(2)
+			.OnClicked(this, &SNiagaraOverviewStackNode::OpenParentEmitter)
+			.Visibility(this, &SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility)
+			.DesiredSizeScale(FVector2D(14.0f / 30.0f, 14.0f / 30.0f)) // GoToSourceIcon is 30x30, scale down
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.GoToSourceIcon"))
+				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 1, 0)
 		[
 			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
 			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
+			.OnClicked(this, &SNiagaraOverviewStackNode::OnCycleThroughIssues)
 		];
+}
+
+FReply SNiagaraOverviewStackNode::OnCycleThroughIssues()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		const TArray<UNiagaraStackEntry*>& ChildrenWithIssues = StackViewModel->GetRootEntry()->GetAllChildrenWithIssues();
+		if (ChildrenWithIssues.Num() > 0)
+		{
+			++CurrentIssueIndex;
+
+			if (CurrentIssueIndex >= ChildrenWithIssues.Num())
+			{
+				CurrentIssueIndex = 0;
+			}
+
+			if (ChildrenWithIssues.IsValidIndex(CurrentIssueIndex))
+			{
+				UNiagaraStackEntry* ChildToSelect = ChildrenWithIssues[CurrentIssueIndex];
+				UNiagaraStackModuleItem* ModuleToSelect = Cast<UNiagaraStackModuleItem>(ChildToSelect);
+				if (ModuleToSelect == nullptr)
+				{
+					ModuleToSelect = ChildToSelect->GetTypedOuter<UNiagaraStackModuleItem>();
+				}
+
+				if (ModuleToSelect != nullptr)
+				{
+					OverviewSelectionViewModel->UpdateSelectedEntries(TArray<UNiagaraStackEntry*> { ModuleToSelect },
+						TArray<UNiagaraStackEntry*>(), true /* bClearCurrentSelection */ );
+				}
+			}
+		}
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData)
+{
+	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
+	TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, InThumbnailSize, InThumbnailSize, ThumbnailPool));
+	if (AssetThumbnail)
+	{
+		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+		TSharedPtr<FAssetThumbnail> TooltipThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, 64.0f, 64.0f, ThumbnailPool));
+		TSharedRef<SToolTip> ThumbnailTooltipWidget = SNew(SToolTip)
+			.Content()
+			[
+				SNew(SBox)
+				.MinDesiredHeight(64.0f)
+				.MaxDesiredHeight(64.0f)
+				.MinDesiredWidth(64.0f)
+				.MaxDesiredWidth(64.0f)
+				[
+					TooltipThumbnail->MakeThumbnailWidget()
+				]
+			];
+		ThumbnailWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData->RenderingEntry));
+		ThumbnailWidget->SetOnMouseEnter(FNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, true));
+		ThumbnailWidget->SetOnMouseLeave(FSimpleNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, false));
+		ThumbnailWidget->SetToolTip(ThumbnailTooltipWidget);
+	}
+	return ThumbnailWidget;
+}
+
+FReply SNiagaraOverviewStackNode::OnClickedRenderingPreview(const FGeometry& InGeometry, const FPointerEvent& InEvent, UNiagaraStackEntry* InEntry)
+{
+	if (InEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		TArray<UNiagaraStackEntry*> SelectedEntries;
+		SelectedEntries.Add(InEntry);
+		TArray<UNiagaraStackEntry*> DeselectedEntries;
+		OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, true);
+
+		CurrentIssueIndex = -1;
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
+void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (OverviewStackNode != nullptr)
+	{
+		if (OverviewStackNode->IsRenamePending() && !SGraphNode::IsRenamePending())
+		{
+			SGraphNode::RequestRename();
+			OverviewStackNode->RenameStarted();
+		}
+	}
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
@@ -111,13 +254,30 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		ContentWidget = SNullWidget::NullWidget;
 	}
 
+	FillThumbnailBar(nullptr, false);
+
 	// NODE CONTENT AREA
-	return SNew(SBorder)
+	TSharedRef<SWidget> NodeWidget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding(FMargin(2, 2, 2, 4))
 		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 2.0f)
+			[
+				ThumbnailBar.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(0.0f)
+			[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -145,7 +305,81 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 				// RIGHT
 				SAssignNew(RightNodeBox, SVerticalBox)
 			]
+			]
 		];
+
+
+	return NodeWidget;
+
+}
+
+void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const bool bIsTriggeredByObjectUpdate)
+{
+	UNiagaraRendererProperties* RendererProperties = Cast< UNiagaraRendererProperties>(ChangedObject);
+	if (!bIsTriggeredByObjectUpdate || RendererProperties != nullptr)
+	{
+		if (ThumbnailBar.IsValid() && ThumbnailBar->GetChildren())
+		{
+			ThumbnailBar->ClearChildren();
+		}
+		if (EmitterHandleViewModelWeak.IsValid())
+		{
+			EmitterHandleViewModelWeak.Pin()->GetRendererPreviewData(PreviewData);
+
+			// Isolate toggle button
+			ThumbnailBar->AddSlot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(2, 0, 0, 0)
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.HAlign(HAlign_Center)
+					.ContentPadding(1)
+					.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
+					.OnClicked(this, &SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked)
+					.Visibility(this, &SNiagaraOverviewStackNode::GetToggleIsolateVisibility)
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Isolate"))
+						.ColorAndOpacity(this, &SNiagaraOverviewStackNode::GetToggleIsolateImageColor)
+					]
+				];
+
+			for (FRendererPreviewData* Preview : PreviewData)
+			{
+				if (Preview->RenderingObject)
+				{
+					ThumbnailBar->AddSlot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding(2.0f, 2.0f, 4.0f, 4.0f)
+						.MaxWidth(ThumbnailSize)
+						[
+							SNew(SBox)
+							.MinDesiredHeight(ThumbnailSize)
+							.MaxDesiredHeight(ThumbnailSize)
+							.MinDesiredWidth(ThumbnailSize)
+							.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+							[
+								CreateThumbnailWidget(ThumbnailSize, Preview)
+							]
+						];
+				}
+			}
+		}
+
+		ThumbnailBar->AddSlot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNullWidget::NullWidget
+			];
+	}
 }
 
 EVisibility SNiagaraOverviewStackNode::GetIssueIconVisibility() const
@@ -170,6 +404,67 @@ void SNiagaraOverviewStackNode::OnEnabledCheckStateChanged(ECheckBoxState InChec
 	{
 		EmitterHandleViewModel->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
 	}
+}
+
+FReply SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		bool bShouldBeIsolated = !EmitterHandleViewModel->GetIsIsolated();
+		EmitterHandleViewModel->SetIsIsolated(bShouldBeIsolated);
+	}
+	return FReply::Handled();
+}
+
+FText SNiagaraOverviewStackNode::GetToggleIsolateToolTip() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && EmitterHandleViewModel->GetIsIsolated()
+		? LOCTEXT("TurnOffEmitterIsolation", "Disable emitter isolation.")
+		: LOCTEXT("IsolateThisEmitter", "Enable isolation for this emitter.");
+}
+
+EVisibility SNiagaraOverviewStackNode::GetToggleIsolateVisibility() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() &&
+		EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset 
+		? EVisibility::Visible 
+		: EVisibility::Collapsed;
+}
+
+FSlateColor SNiagaraOverviewStackNode::GetToggleIsolateImageColor() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && 
+		EmitterHandleViewModel->GetIsIsolated()
+		? FEditorStyle::GetSlateColor("SelectionColor")
+		: FLinearColor::Gray;
+}
+
+FReply SNiagaraOverviewStackNode::OpenParentEmitter()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+
+	if (EmitterHandleViewModel.IsValid())
+	{
+		UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter());
+		if (ParentEmitter != nullptr)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
+		}
+	}
+	return FReply::Handled();
+}
+
+EVisibility SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && 
+		EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter() != nullptr
+		? EVisibility::Visible 
+		: EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

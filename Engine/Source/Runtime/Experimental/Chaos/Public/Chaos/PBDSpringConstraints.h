@@ -1,12 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "ChaosStats.h"
 
 #include "Templates/EnableIf.h"
+
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
 
 namespace Chaos
 {
@@ -63,6 +66,7 @@ class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public FPB
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 		for (int32 i = 0; i < MConstraints.Num(); ++i)
 		{
 			Apply(InParticles, Dt, i);
@@ -71,6 +75,7 @@ class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public FPB
 
 	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 		for (int32 i : InConstraintIndices)
 		{
 			const auto& Constraint = MConstraints[i];

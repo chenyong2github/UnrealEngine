@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/PlayerController.h"
 #include "Misc/PackageName.h"
@@ -28,6 +28,7 @@
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Widgets/SViewport.h"
 #include "Engine/Console.h"
 #include "Net/UnrealNetwork.h"
@@ -104,6 +105,7 @@ const float ForceRetryClientRestartTime = -100.0f;
 
 FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
 	: bIsVisible(bInIsVisible)
+	, bSkipCloseOnError(false)
 {
 	const UPackage* const LevelPackage = Level->GetOutermost();
 	PackageName = LevelPackage->GetFName();
@@ -2685,7 +2687,7 @@ void APlayerController::SpawnPlayerCameraManager()
 	}
 }
 
-void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir)
+void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const
 {
 	FVector ViewLocation;
 	FRotator ViewRotation;
@@ -2716,7 +2718,7 @@ void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& 
 	OutRightDir = ViewRotationMatrix.GetUnitAxis( EAxis::Y );
 }
 
-bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation)
+bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const
 {
 	if (bOverrideAudioAttenuationListener)
 	{
@@ -4337,7 +4339,7 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
-void APlayerController::ClientPlayCameraShakeFromSource_Implementation(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4345,7 +4347,7 @@ void APlayerController::ClientPlayCameraShakeFromSource_Implementation(TSubclass
 	}
 }
 
-void APlayerController::ClientStopCameraShakesFromSource_Implementation(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4500,7 +4502,16 @@ ULocalPlayer* APlayerController::GetLocalPlayer() const
 
 bool APlayerController::IsInViewportClient(UGameViewportClient* ViewportClient) const
 {
-	return ViewportClient && ViewportClient->GetGameViewportWidget().IsValid() && ViewportClient->GetGameViewportWidget()->IsDirectlyHovered();
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (LocalPlayer && ViewportClient)
+	{
+		TSharedPtr<const FSlateUser> SlateUser = LocalPlayer->GetSlateUser();
+		if (SlateUser && SlateUser->IsWidgetDirectlyUnderCursor(ViewportClient->GetGameViewportWidget()))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 APlayerController::GetInputIndex() const

@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PerParticleRule.h"
@@ -35,14 +36,28 @@ class TPerParticlePBDUpdateFromDeltaPosition : public TPerParticleRule<T, d>
 
 	inline void Apply(TPBDRigidParticleHandle<T, d>* Particle, const T Dt) const override //-V762
 	{
-		Particle->V() = (Particle->P() - Particle->X()) / Dt;
-		Particle->W() = TRotation<T, d>::CalculateAngularVelocity(Particle->R(), Particle->Q(), Dt);
+#if CHAOS_PARTICLE_ACTORTRANSFORM
+		const FVec3& CenterOfMass = Particle->CenterOfMass();
+		const FVec3 CenteredX = Particle->X() + Particle->R().RotateVector(CenterOfMass);
+		const FVec3 CenteredP = Particle->P() + Particle->Q().RotateVector(CenterOfMass);
+		Particle->V() = FVec3::CalculateVelocity(CenteredX, CenteredP, Dt);
+#else
+		Particle->V() = FVec3::CalculateVelocity(Particle->X(), Particle->P(), Dt);
+#endif
+		Particle->W() = FRotation3::CalculateAngularVelocity(Particle->R(), Particle->Q(), Dt);
 	}
 
 	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
 	{
-		Particle.V() = (Particle.P() - Particle.X()) / Dt;
-		Particle.W() = TRotation<T, d>::CalculateAngularVelocity(Particle.R(), Particle.Q(), Dt);
+#if CHAOS_PARTICLE_ACTORTRANSFORM
+		const FVec3& CenterOfMass = Particle.CenterOfMass();
+		const FVec3 CenteredX = Particle.X() + Particle.R().RotateVector(CenterOfMass);
+		const FVec3 CenteredP = Particle.P() + Particle.Q().RotateVector(CenterOfMass);
+		Particle.V() = FVec3::CalculateVelocity(CenteredX, CenteredP, Dt);
+#else
+		Particle.V() = FVec3::CalculateVelocity(Particle.X(), Particle.P(), Dt);
+#endif
+		Particle.W() = FRotation3::CalculateAngularVelocity(Particle.R(), Particle.Q(), Dt);
 	}
 };
 }

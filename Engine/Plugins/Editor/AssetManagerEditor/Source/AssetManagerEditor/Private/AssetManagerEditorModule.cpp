@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetManagerEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -732,11 +732,11 @@ void FAssetManagerEditorModule::OpenSizeMapUI(TArray<FAssetIdentifier> SelectedI
 void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedPackages)
 {
 	FString SubPath;
-	FString CommonSubPath = "";
+	FString CommonPath = "";
 	if(SelectedPackages.Num())
 	{
 		//Find the common path
-		FString CommonPath = SelectedPackages[0].ToString();
+		CommonPath = SelectedPackages[0].ToString();
 		uint32 CommonIdentical = CommonPath.Len();
 		for (FName Name : SelectedPackages)
 		{
@@ -752,7 +752,7 @@ void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedP
 			}
 			CommonIdentical = FMath::Min(Identical, CommonIdentical);
 		}
-		CommonSubPath = CommonPath.Left(CommonIdentical);
+		CommonPath.LeftInline(CommonIdentical);
 	}
 	static const FName LevelEditorModuleName("LevelEditor");
 	static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
@@ -761,7 +761,7 @@ void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedP
 	TSharedRef<SDockTab> Tab = TabManager->InvokeTab(LevelEditorStatsViewerTab);
 	TSharedRef<SWidget> Content = Tab->GetContent();
 	IStatsViewer* StatsView = (IStatsViewer*)&*Content;
-	StatsView->SwitchAndFilterPage(EStatsPage::ShaderCookerStats, CommonSubPath, FString("Path"));
+	StatsView->SwitchAndFilterPage(EStatsPage::ShaderCookerStats, CommonPath, FString("Path"));
 }
 
 void FAssetManagerEditorModule::GetAssetDataInPaths(const TArray<FString>& Paths, TArray<FAssetData>& OutAssetData)
@@ -2186,11 +2186,15 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 	bool bSuccess = false;
 
 	TSet<FName> ObjectPathsToAddToCollection;
-	for (FName PackageToAdd : PackageNames)
+
+	FARFilter Filter;
+	Filter.PackageNames = PackageNames;
+	Filter.bIncludeOnlyOnDiskAssets = true;
+	TArray<FAssetData> AssetsInPackages;
+	AssetRegistry->GetAssets(Filter, AssetsInPackages);
+	for (const FAssetData& AssetData : AssetsInPackages)
 	{
-		const FString PackageString = PackageToAdd.ToString();
-		const FName ObjectPath = *FString::Printf(TEXT("%s.%s"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
-		ObjectPathsToAddToCollection.Add(ObjectPath);
+		ObjectPathsToAddToCollection.Add(AssetData.ObjectPath);
 	}
 
 	if (ObjectPathsToAddToCollection.Num() == 0)

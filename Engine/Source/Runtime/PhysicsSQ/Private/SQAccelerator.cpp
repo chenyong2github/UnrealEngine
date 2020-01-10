@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SQAccelerator.h"
 #include "CollisionQueryFilterCallbackCore.h"
@@ -14,7 +14,7 @@
 
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/ISpatialAcceleration.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/DebugDrawQueue.h"
 
@@ -180,10 +180,7 @@ private:
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
 		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
 
-		//////////////////////////////////////////////////////////////////////////
-		// Temporarily disabled shape bounds checked due to conflicts with some shape unions
-		const bool bTestShapeBounds = false; // Shapes.Num() > 1;
-		//////////////////////////////////////////////////////////////////////////
+		const bool bTestShapeBounds =  Shapes.Num() > 1;
 
 		const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
 
@@ -352,7 +349,7 @@ void SweepHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelerati
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(StartTM);
+	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
 	const FVector HalfExtents = Bounds.Extents() * 0.5f;
 
 	TSQVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
@@ -372,7 +369,7 @@ void OverlapHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelera
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(GeomPose);
+	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(GeomPose);
 	TSQVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Overlap(Bounds, OverlapVisitor);

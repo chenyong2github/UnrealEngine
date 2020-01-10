@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,32 @@
 #include "Templates/IsArrayOrRefOfType.h"
 
 #define MAX_SPRINTF 1024
+
+/** Determines case sensitivity options for string comparisons. */
+namespace ESearchCase
+{
+	enum Type
+	{
+		/** Case sensitive. Upper/lower casing must match for strings to be considered equal. */
+		CaseSensitive,
+
+		/** Ignore case. Upper/lower casing does not matter when making a comparison. */
+		IgnoreCase,
+	};
+};
+
+/** Determines search direction for string operations. */
+namespace ESearchDir
+{
+	enum Type
+	{
+		/** Search from the start, moving forward through the string. */
+		FromStart,
+
+		/** Search from the end, moving backward through the string. */
+		FromEnd,
+	};
+}
 
 /** Helper class used to convert CString into a boolean value. */
 struct CORE_API FToBoolHelper

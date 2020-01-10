@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_AnimSequence.h"
 #include "Animation/AnimSequence.h"
@@ -82,7 +82,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 			)
 		);
 
-	/* Not supported, streamable animation logic will be ported to UAnimSequence
+	// Not supported, streamable animation logic will be ported to UAnimSequence (temp undone in FN for event)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewAnimStreamable", "Create AnimStreamable"),
 		LOCTEXT("AnimSequence_NewAnimStreamableTooltip", "Creates an AnimStreamable using the selected anim sequence."),
@@ -91,7 +91,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimStreamable, Sequences),
 			FCanExecuteAction()
 		)
-	);*/
+	);
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewPoseAsset", "Create PoseAsset"),

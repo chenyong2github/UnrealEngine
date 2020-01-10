@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MallocTTB.cpp: IntelTTB Malloc
@@ -30,13 +30,12 @@ THIRD_PARTY_INCLUDES_START
 #include <tbb/scalable_allocator.h>
 THIRD_PARTY_INCLUDES_END
 
-void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
+void* FMallocTBB::TryMalloc( SIZE_T Size, uint32 Alignment )
 {
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && Size > LocalMaxSingleAlloc)
 	{
-		FPlatformMemory::OnOutOfMemory(Size, Alignment);
 		return nullptr;
 	}
 #endif
@@ -63,26 +62,34 @@ void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
 	}
 #endif
 
-	if( !NewPtr && Size )
-	{
-		OutOfMemory(Size, Alignment);
-	}
 #if UE_BUILD_DEBUG
-	else if (Size)
+	if (Size && NewPtr != nullptr)
 	{
 		FMemory::Memset(NewPtr, DEBUG_FILL_NEW, scalable_msize(NewPtr));
 	}
 #endif
+
 	return NewPtr;
 }
 
-void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
+void* FMallocTBB::Malloc(SIZE_T Size, uint32 Alignment)
+{
+	void* Result = TryMalloc(Size, Alignment);
+
+	if (Result == nullptr && Size)
+	{
+		OutOfMemory(Size, Alignment);
+	}
+
+	return Result;
+}
+
+void* FMallocTBB::TryRealloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 {
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && NewSize > LocalMaxSingleAlloc)
 	{
-		FPlatformMemory::OnOutOfMemory(NewSize, Alignment);
 		return nullptr;
 	}
 #endif
@@ -120,11 +127,20 @@ void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 		FMemory::Memset((uint8*)NewPtr + OldSize, DEBUG_FILL_NEW, scalable_msize(NewPtr) -OldSize);
 	}
 #endif
-	if( !NewPtr && NewSize )
+
+	return NewPtr;
+}
+
+void* FMallocTBB::Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment)
+{
+	void* Result = TryRealloc(Ptr, NewSize, Alignment);
+
+	if (Result == nullptr && NewSize)
 	{
 		OutOfMemory(NewSize, Alignment);
 	}
-	return NewPtr;
+
+	return Result;
 }
 
 void FMallocTBB::Free( void* Ptr )

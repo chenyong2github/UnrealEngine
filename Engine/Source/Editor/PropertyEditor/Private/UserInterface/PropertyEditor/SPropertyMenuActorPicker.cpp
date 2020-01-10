@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyMenuActorPicker.h"
 #include "Modules/ModuleManager.h"
@@ -160,10 +160,10 @@ bool SPropertyMenuActorPicker::CanPaste()
 
 	FString Class;
 	FString PossibleObjectPath = ClipboardText;
-	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath ) )
+	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath, ESearchCase::CaseSensitive) )
 	{
 		// Remove the last item
-		PossibleObjectPath = PossibleObjectPath.LeftChop( 1 );
+		PossibleObjectPath.LeftChopInline( 1, false );
 	}
 
 	bool bCanPaste = false;

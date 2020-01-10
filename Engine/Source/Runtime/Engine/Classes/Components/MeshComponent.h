@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -17,7 +17,7 @@
  * @see UStaticMeshComponent
  * @see USkeletalMeshComponent
  */
-UCLASS(abstract)
+UCLASS(abstract, ShowCategories = (VirtualTexture))
 class ENGINE_API UMeshComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()

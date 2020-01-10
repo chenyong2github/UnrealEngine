@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplaceMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -18,9 +18,9 @@ namespace {
 	{
 		TArray<int> EdgesToProcess;
 		for (int tid : Mesh.EdgeIndicesItr())
-		{
+	{
 			EdgesToProcess.Add(tid);
-		}
+	}
 		int MaxTriangleID = Mesh.MaxTriangleID();
 
 		TArray<int> TriSplitEdges;
@@ -35,53 +35,53 @@ namespace {
 			if (result == EMeshResult::Ok)
 			{
 				if (EdgeTris.A < MaxTriangleID && TriSplitEdges[EdgeTris.A] == -1)
-				{
+	{
 					TriSplitEdges[EdgeTris.A] = SplitInfo.NewEdges.B;
 				}
 				if (EdgeTris.B != FDynamicMesh3::InvalidID)
-				{
+		{
 					if (EdgeTris.B < MaxTriangleID && TriSplitEdges[EdgeTris.B] == -1)
-					{
+			{
 						TriSplitEdges[EdgeTris.B] = SplitInfo.NewEdges.C;
 					}
 				}
-			}
 		}
+	}
 
 		for (int eid : TriSplitEdges)
 		{
 			if (eid != -1)
-			{
+	{
 				FDynamicMesh3::FEdgeFlipInfo FlipInfo;
 				Mesh.FlipEdge(eid, FlipInfo);
-			}
-		}
+	}
+	}
 	}
 
 	namespace ComputeDisplacement {
 		void Constant(const FDynamicMesh3& Mesh,
 				const TArray<FVector3d>& Positions, const FMeshNormals& Normals, double Intensity,
 				TArray<FVector3d>& DisplacedPositions)
-		{
+	{
 			DisplacedPositions.SetNumUninitialized(Positions.Num());
 			for (int vid : Mesh.VertexIndicesItr())
-			{
+	{
 				DisplacedPositions[vid] = Positions[vid] + (Intensity * Normals[vid]);
-			}
-		}
+	}
+	}
 
 		void RandomNoise(const FDynamicMesh3& Mesh,
 				const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
 				double Intensity, int RandomSeed,
 				TArray<FVector3d>& DisplacedPositions)
-		{
-			FMath::SRandInit(RandomSeed);
+	{
+	FMath::SRandInit(RandomSeed);
 			for (int vid : Mesh.VertexIndicesItr())
-			{
-				double RandVal = 2.0 * (FMath::SRand() - 0.5);
+	{
+		double RandVal = 2.0 * (FMath::SRand() - 0.5);
 				DisplacedPositions[vid] = Positions[vid] + (Normals[vid] * RandVal * Intensity);
 			}
-		}
+	}
 
 		void Map(const FDynamicMesh3& Mesh,
 				const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
@@ -90,14 +90,14 @@ namespace {
 		{
 			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(0);
 			for (int tid : Mesh.TriangleIndicesItr())
-			{
+	{
 				FIndex3i Tri = Mesh.GetTriangle(tid);
-				FIndex3i UVTri = UVOverlay->GetTriangle(tid);
-				for (int j = 0; j < 3; ++j)
-				{
-					int vid = Tri[j];
-					FVector2f UV = UVOverlay->GetElement(UVTri[j]);
-					double Offset = DisplaceField.BilinearSampleClamped(UV);
+		FIndex3i UVTri = UVOverlay->GetTriangle(tid);
+		for (int j = 0; j < 3; ++j)
+		{
+			int vid = Tri[j];
+			FVector2f UV = UVOverlay->GetElement(UVTri[j]);
+			double Offset = DisplaceField.BilinearSampleClamped(UV);
 					DisplacedPositions[vid] = Positions[vid] + (Offset * Intensity * Normals[vid]);
 				}
 			}
@@ -123,7 +123,7 @@ namespace {
 #endif
 			DisplacementMap->UpdateResource();
 
-			FormattedImageData = static_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
+			FormattedImageData = reinterpret_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
 		}
 		FTextureAccess(const FTextureAccess&) = delete;
 		FTextureAccess(FTextureAccess&&) = delete;
@@ -369,34 +369,34 @@ namespace {
 		if (DisplacementMap == nullptr ||
 			DisplacementMap->PlatformData == nullptr ||
 			DisplacementMap->PlatformData->Mips.Num() < 1)
-		{
-			DisplaceField = FSampledScalarField2f();
-			return;
-		}
+	{
+		DisplaceField = FSampledScalarField2f();
+		return;
+	}
 
 		FTextureAccess TextureAccess(DisplacementMap);
-		if (!TextureAccess.HasData())
-		{
-			DisplaceField = FSampledScalarField2f();
-		}
-		else
-		{
-			int TextureWidth = DisplacementMap->GetSizeX();
-			int TextureHeight = DisplacementMap->GetSizeY();
-			DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
-			DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
+	if (!TextureAccess.HasData())
+	{
+		DisplaceField = FSampledScalarField2f();
+	}
+	else
+	{
+		int TextureWidth = DisplacementMap->GetSizeX();
+		int TextureHeight = DisplacementMap->GetSizeY();
+		DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
+		DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
 
-			const FColor* FormattedData = TextureAccess.GetData();
-			for (int y = 0; y < TextureHeight; ++y)
+		const FColor* FormattedData = TextureAccess.GetData();
+		for (int y = 0; y < TextureHeight; ++y)
+		{
+			for (int x = 0; x < TextureWidth; ++x)
 			{
-				for (int x = 0; x < TextureWidth; ++x)
-				{
-					FColor PixelColor = FormattedData[y*TextureWidth + x];
-					float Value = PixelColor.R / 255.0;
-					DisplaceField.GridValues[y*TextureWidth + x] = Value;
-				}
+				FColor PixelColor = FormattedData[y*TextureWidth + x];
+				float Value = PixelColor.R / 255.0;
+				DisplaceField.GridValues[y*TextureWidth + x] = Value;
 			}
 		}
+	}
 	}
 } // namespace
 
@@ -472,11 +472,11 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->SetOwnerVisibility(true);
 
 		if (ShutdownType == EToolShutdownType::Accept)
-		{
+	{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("DisplaceMeshToolTransactionName", "Displace Mesh"));
 			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
-			{
+		{
 				DynamicMeshComponent->Bake(MeshDescription, Subdivisions > 0);
 			});
 			GetToolManager()->EndUndoTransaction();
@@ -494,26 +494,26 @@ void UDisplaceMeshTool::ValidateSubdivisions()
 	double NumTriangles = OriginalMesh.MaxTriangleID();
 	int MaxSubdivisions = (int)floor(log2(MaxTriangles / NumTriangles) / 2.0);
 	if (Subdivisions > MaxSubdivisions)
-	{
+		{
 		FText WarningText = FText::Format(LOCTEXT("SubdivisionsTooHigh", "Desired number of Subdivisions ({0}) exceeds maximum number of {1}"), FText::AsNumber(Subdivisions), FText::AsNumber(MaxSubdivisions));
 		GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
 		Subdivisions = MaxSubdivisions;
 	}
 	else
-	{
+			{
 		FText ClearWarningText;
 		GetToolManager()->DisplayMessage(ClearWarningText, EToolMessageLevel::UserWarning);
 	}
 	if (Subdivisions < 0)
-	{
+				{
 		Subdivisions = 0;
-	}
+				}
 }
 
 #if WITH_EDITOR
 void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		FSubdivideMeshOpFactory*  SubdividerDownCast = static_cast<FSubdivideMeshOpFactory*>(Subdivider.Get());
@@ -521,18 +521,18 @@ void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		const FName PropName = PropertyThatChanged->GetFName();
 		bNeedsDisplaced = true;
 		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, Subdivisions))
-		{
+				{
 			ValidateSubdivisions();
 			if (Subdivisions != SubdividerDownCast->GetSubdivisionsCount())
-			{
+					{
 				SubdividerDownCast->SetSubdivisionsCount(Subdivisions);
 				bNeedsSubdivided = true;
-			}
+					}
 			else
 			{
 				return;
+				}
 			}
-		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, RandomSeed))
 		{
 			DisplacerDownCast->SetRandomSeed(RandomSeed);
@@ -542,9 +542,9 @@ void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			DisplacerDownCast->SetDisplacementType(DisplacementType);
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplaceIntensity))
-		{
+			{
 			DisplacerDownCast->SetIntensity(DisplaceIntensity);
-		}
+			}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplacementMap))
 		{
 			DisplacerDownCast->SetDisplacementMap(DisplacementMap);

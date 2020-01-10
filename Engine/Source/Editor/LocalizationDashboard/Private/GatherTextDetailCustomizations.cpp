@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GatherTextDetailCustomizations.h"
 #include "Misc/Attribute.h"
@@ -185,7 +185,7 @@ namespace
 			CurrentPath.FindLastChar(TEXT('*'), WildcardStarIndex);
 			if (WildcardStarIndex != INDEX_NONE)
 			{
-				CurrentPath = CurrentPath.Left(WildcardStarIndex);
+				CurrentPath.LeftInline(WildcardStarIndex, false);
 			}
 		}
 

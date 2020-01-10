@@ -1,15 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/StabilizeLocalizationKeys.h"
 #include "UObject/TextProperty.h"
 
 #if WITH_EDITOR
 
-void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* InProp, void* InPropData, const FString& InNamespace, const FString& InKeyRoot, const bool bAppendPropertyNameToKey)
+void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(FProperty* InProp, void* InPropData, const FString& InNamespace, const FString& InKeyRoot, const bool bAppendPropertyNameToKey)
 {
-	auto ShouldStabilizeInnerProperty = [](UProperty* InnerProperty) -> bool
+	auto ShouldStabilizeInnerProperty = [](FProperty* InnerProperty) -> bool
 	{
-		return InnerProperty->IsA<UTextProperty>() || InnerProperty->IsA<UStructProperty>();
+		return InnerProperty->IsA<FTextProperty>() || InnerProperty->IsA<FStructProperty>();
 	};
 
 	auto GetPropertyName = [InProp]() -> FString
@@ -29,7 +29,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 
 	const FString PropKeyRoot = bAppendPropertyNameToKey ? FString::Printf(TEXT("%s_%s"), *InKeyRoot, *GetPropertyName()) : InKeyRoot;
 
-	if (UTextProperty* TextProp = Cast<UTextProperty>(InProp))
+	if (FTextProperty* TextProp = CastField<FTextProperty>(InProp))
 	{
 		for (int32 ArrIndex = 0; ArrIndex < TextProp->ArrayDim; ++ArrIndex)
 		{
@@ -53,7 +53,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 		return;
 	}
 
-	if (UStructProperty* StructProp = Cast<UStructProperty>(InProp))
+	if (FStructProperty* StructProp = CastField<FStructProperty>(InProp))
 	{
 		for (int32 ArrIndex = 0; ArrIndex < StructProp->ArrayDim; ++ArrIndex)
 		{
@@ -81,7 +81,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 		return;
 	}
 
-	if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(InProp))
+	if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(InProp))
 	{
 		if (ShouldStabilizeInnerProperty(ArrayProp->Inner))
 		{
@@ -102,7 +102,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 		return;
 	}
 
-	if (USetProperty* SetProp = Cast<USetProperty>(InProp))
+	if (FSetProperty* SetProp = CastField<FSetProperty>(InProp))
 	{
 		if (ShouldStabilizeInnerProperty(SetProp->ElementProp))
 		{
@@ -132,7 +132,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 		return;
 	}
 
-	if (UMapProperty* MapProp = Cast<UMapProperty>(InProp))
+	if (FMapProperty* MapProp = CastField<FMapProperty>(InProp))
 	{
 		if (ShouldStabilizeInnerProperty(MapProp->KeyProp) || ShouldStabilizeInnerProperty(MapProp->ValueProp))
 		{
@@ -182,7 +182,7 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(UProperty* 
 
 void StabilizeLocalizationKeys::StabilizeLocalizationKeysForStruct(UStruct* InStruct, void* InStructData, const FString& InNamespace, const FString& InKeyRoot)
 {
-	for (TFieldIterator<UProperty> It(InStruct); It; ++It)
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
 		StabilizeLocalizationKeysForProperty(*It, It->ContainerPtrToValuePtr<void>(InStructData), InNamespace, InKeyRoot);
 	}

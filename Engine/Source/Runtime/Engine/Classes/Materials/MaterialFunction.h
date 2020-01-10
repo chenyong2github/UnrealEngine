@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -69,6 +69,9 @@ class UMaterialFunction : public UMaterialFunctionInterface
 
 	UPROPERTY(transient)
 	UMaterial* PreviewMaterial;
+
+	UPROPERTY()
+	TArray<class UMaterialExpressionMaterialFunctionCall*> DependentFunctionExpressionCandidates;
 #endif // WITH_EDITORONLY_DATA
 
 private:
@@ -112,6 +115,15 @@ public:
 	/** @return true if this function is dependent on the passed in function, directly or indirectly. */
 	virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction) override;
 
+	/**
+	 * Iterates all functions that this function is dependent on, directly or indrectly.
+	 *
+	 * @param Predicate a visitor predicate returning true to continue iteration, false to break
+	 *
+	 * @return true if all dependent functions were visited, false if the Predicate did break iteration
+	 */
+	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
+
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
 
@@ -122,6 +134,8 @@ public:
 	virtual UMaterialInterface* GetPreviewMaterial() override;
 
 	virtual void UpdateInputOutputTypes() override;
+
+	virtual void UpdateDependentFunctionCandidates();
 
 	/**
 	 * Checks whether a Material Function is arranged in the old style, with inputs flowing from right to left

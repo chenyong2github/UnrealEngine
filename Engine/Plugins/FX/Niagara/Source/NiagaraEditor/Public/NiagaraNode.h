@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -45,6 +45,7 @@ public:
 	virtual void NodeConnectionListChanged() override;	
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override; 
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	//~ End EdGraphNode Interface
 
 	/** Get the Niagara graph that owns this node */

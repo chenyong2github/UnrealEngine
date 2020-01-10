@@ -1,10 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "ClothingAsset.h"
 #include "ClothingAssetFactoryInterface.h"
-#include "ClothLODDataNv.h"
 #include "GPUSkinPublicDefs.h"
 
 #include "ClothingAssetFactory.generated.h"
@@ -13,6 +12,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingAssetFactory, Log, All);
 
 class FSkeletalMeshLODModel;
+class UClothingAssetCommon;
 
 namespace nvidia
 {
@@ -65,16 +65,16 @@ private:
 
 	// Extraction methods for pulling the required data from an APEX asset and
 	// pushing it to a UClothingAssetCommon
-	void ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData, TArray<FApexVertData>& OutApexVertData);
+	void ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataCommon &InLodData, TArray<FApexVertData>& OutApexVertData);
 	void ExtractBoneData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
-	void ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData);
+	void ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataCommon &InLodData);
 	void ExtractMaterialParameters(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset);
 #endif
 
 	// Utility methods for skeletal mesh extraction //////////////////////////
 
 	/** Handles internal import of LODs */
-	bool ImportToLodInternal(USkeletalMesh* SourceMesh, int32 SourceLodIndex, int32 SourceSectionIndex, UClothingAssetCommon* DestAsset, UClothLODDataBase* DestLod, UClothLODDataBase* InParameterRemapSource = nullptr);
+	bool ImportToLodInternal(USkeletalMesh* SourceMesh, int32 SourceLodIndex, int32 SourceSectionIndex, UClothingAssetCommon* DestAsset, UClothLODDataCommon* DestLod, UClothLODDataCommon* InParameterRemapSource = nullptr);
 
 	//////////////////////////////////////////////////////////////////////////
 

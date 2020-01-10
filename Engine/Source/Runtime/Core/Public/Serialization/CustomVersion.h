@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -82,9 +82,6 @@ private:
 };
 
 typedef TArray<FCustomVersion> FCustomVersionArray;
-
-UE_DEPRECATED(4.19, "FCustomVersionSet renamed to FCustomVersionArray")
-typedef FCustomVersionArray FCustomVersionSet;
 
 class CORE_API FCustomVersionRegistration;
 

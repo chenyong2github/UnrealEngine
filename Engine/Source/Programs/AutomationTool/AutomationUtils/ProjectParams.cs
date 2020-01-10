@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -280,6 +280,7 @@ namespace AutomationTool
             this.RunTimeoutSeconds = InParams.RunTimeoutSeconds;
 			this.Clean = InParams.Clean;
 			this.Pak = InParams.Pak;
+			this.IoStore = InParams.IoStore;
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
 			this.PakAlignForMemoryMapping = InParams.PakAlignForMemoryMapping;
@@ -454,6 +455,7 @@ namespace AutomationTool
 			bool? NoXGE = null,
 			bool? Package = null,
 			bool? Pak = null,
+			bool? IoStore = null,
 			bool? Prereqs = null,
 			string AppLocalDirectory = null,
 			bool? NoBootstrapExe = null,
@@ -626,6 +628,7 @@ namespace AutomationTool
 			}
 			this.PakAlignForMemoryMapping = GetParamValueIfNotSpecified(Command, PakAlignForMemoryMapping, this.PakAlignForMemoryMapping, "PakAlignForMemoryMapping");
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
+			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
 			if (this.SkipPak)
 			{
@@ -1178,6 +1181,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("pak", "generate a pak file")]
 		public bool Pak { private set; get; }
+
+		/// <summary>
+		/// Shared: True if container file(s) should be generated with ZenPak.
+		/// </summary>
+		[Help("iostore", "generate I/O store container file(s)")]
+		public bool IoStore { private set; get; }
 
 		/// <summary>
 		/// 
@@ -2766,6 +2775,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("MapsToCook={0}", MapsToCook.ToString());
 				CommandUtils.LogLog("MapIniSectionsToCook={0}", MapIniSectionsToCook.ToString());
 				CommandUtils.LogLog("Pak={0}", Pak);
+				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);
