@@ -348,8 +348,17 @@ namespace UnrealBuildTool
 			{
 				if (CompileEnvironment.bUseAVX)
 				{
-					// Allow the compiler to generate AVX instructions.
+					// Define /arch:AVX for the current compilation unit.  Machines without AVX support will crash on any SSE/AVX instructions if they run this compilation unit.
 					Arguments.Add("/arch:AVX");
+
+					// AVX available implies sse4 and sse2 available.
+					// Inform Unreal code that we have sse2, sse4, and AVX, both available to compile and available to run
+					// By setting the ALWAYS_HAS defines, we we direct Unreal code to skip cpuid checks to verify that the running hardware supports sse/avx.
+					AddDefinition(Arguments, "PLATFORM_ENABLE_VECTORINTRINSICS=1");
+					AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_SSE4_1=1");
+					AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_SSE4_1=1");
+					AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_AVX=1");
+					AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
 				}
 				// SSE options are not allowed when using the 64 bit toolchain
 				// (enables SSE2 automatically)

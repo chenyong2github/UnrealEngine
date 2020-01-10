@@ -12,89 +12,16 @@
 #include "XboxOne/XboxOneSystemIncludes.h"
 #endif
 
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-#include "Math/UnrealPlatformMathSSE.h"
-#endif
+#include "Math/UnrealPlatformMathSSE4.h"
 
 /**
 * Windows implementation of the Math OS functions
 **/
-struct FWindowsPlatformMath : public FGenericPlatformMath
+struct FWindowsPlatformMath : public TUnrealPlatformMathSSE4Base<FGenericPlatformMath>
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	static FORCEINLINE int32 TruncToInt(float F)
-	{
-		return UnrealPlatformMathSSE::TruncToInt(F);
-	}
-
-	static FORCEINLINE float TruncToFloat(float F)
-	{
-		return UnrealPlatformMathSSE::TruncToFloat(F);
-	}
-
-	static FORCEINLINE double TruncToDouble(double F)
-	{
-		return UnrealPlatformMathSSE::TruncToDouble(F);
-	}
-
-	static FORCEINLINE int32 RoundToInt( float F )
-	{
-		return UnrealPlatformMathSSE::RoundToInt(F);
-	}
-
-	static FORCEINLINE float RoundToFloat(float F)
-	{
-		return UnrealPlatformMathSSE::RoundToFloat(F);
-	}
-
-	static FORCEINLINE double RoundToDouble(double F)
-	{
-		return UnrealPlatformMathSSE::RoundToDouble(F);
-	}
-
-	static FORCEINLINE int32 FloorToInt(float F)
-	{
-		return UnrealPlatformMathSSE::FloorToInt(F);
-	}
-
-	static FORCEINLINE float FloorToFloat(float F)
-	{
-		return UnrealPlatformMathSSE::FloorToFloat(F);
-	}
-
-	static FORCEINLINE double FloorToDouble(double F)
-	{
-		return UnrealPlatformMathSSE::FloorToDouble(F);
-	}
-
-	static FORCEINLINE int32 CeilToInt(float F)
-	{
-		return UnrealPlatformMathSSE::CeilToInt(F);
-	}
-
-	static FORCEINLINE float CeilToFloat(float F)
-	{
-		return UnrealPlatformMathSSE::CeilToFloat(F);
-	}
-
-	static FORCEINLINE double CeilToDouble(double F)
-	{
-		return UnrealPlatformMathSSE::CeilToDouble(F);
-	}
-
 	static FORCEINLINE bool IsNaN( float A ) { return _isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return _finite(A) != 0; }
-
-	static FORCEINLINE float InvSqrt(float F)
-	{
-		return UnrealPlatformMathSSE::InvSqrt(F);
-	}
-
-	static FORCEINLINE float InvSqrtEst( float F )
-	{
-		return UnrealPlatformMathSSE::InvSqrtEst(F);
-	}
-		
 
 	#pragma intrinsic( _BitScanReverse )
 	static FORCEINLINE uint32 FloorLog2(uint32 Value) 

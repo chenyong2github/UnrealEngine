@@ -567,7 +567,8 @@ namespace UnrealBuildTool
 		public bool bUseRTTI = false;
 
 		/// <summary>
-		/// Use AVX instructions
+		/// Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it.
+		/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
 		/// </summary>
 		public bool bUseAVX = false;
 

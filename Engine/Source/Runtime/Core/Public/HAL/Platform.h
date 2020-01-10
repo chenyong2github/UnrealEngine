@@ -162,9 +162,29 @@
 #ifndef PLATFORM_SUPPORTS_PRAGMA_PACK
 	#define PLATFORM_SUPPORTS_PRAGMA_PACK		0
 #endif
+
+// Defines for the availibility of the various levels of vector intrinsics.
+// These may be set from UnrealBuildTool, otherwise each platform-specific platform.h is expected to set them appropriately.
 #ifndef PLATFORM_ENABLE_VECTORINTRINSICS
 	#define PLATFORM_ENABLE_VECTORINTRINSICS	0
 #endif
+// If PLATFORM_MAYBE_HAS_### is 1, then ### intrinsics are compilable.
+// This does not guarantee that the intrinsics are runnable on all instances of the platform however; a runtime check such as cpuid may be required to confirm availability.
+// If PLATFORM_ALWAYS_HAS_### is 1, then ## intrinsics will compile and run on all instances of the platform.  PLATFORM_ALWAYS_HAS_### == 1 implies PLATFORM_MAYBE_HAS_### == 1.
+#ifndef PLATFORM_MAYBE_HAS_SSE4_1
+	#define PLATFORM_MAYBE_HAS_SSE4_1			0
+#endif
+#ifndef PLATFORM_ALWAYS_HAS_SSE4_1
+	#define PLATFORM_ALWAYS_HAS_SSE4_1			0
+#endif
+#ifndef PLATFORM_MAYBE_HAS_AVX
+	#define PLATFORM_MAYBE_HAS_AVX				0
+#endif
+#ifndef PLATFORM_ALWAYS_HAS_AVX
+	#define PLATFORM_ALWAYS_HAS_AVX				0
+#endif
+
+
 #ifndef PLATFORM_HAS_CPUID
 	#if defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__x86_64__) || defined (__amd64__)
 		#define PLATFORM_HAS_CPUID				1
