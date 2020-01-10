@@ -170,7 +170,7 @@ namespace Chaos
 		}
 
 		uint32 TlsSlot;
-		FRWLock InnerLock;
 		TAtomic<uint32> CurrentWriterThreadId;
+		FRWLock InnerLock;
 	};
 }

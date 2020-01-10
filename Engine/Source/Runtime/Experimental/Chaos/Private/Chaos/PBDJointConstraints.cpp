@@ -185,9 +185,9 @@ namespace Chaos
 	
 	FPBDJointConstraints::FPBDJointConstraints(const FPBDJointSolverSettings& InSettings)
 		: Settings(InSettings)
+		, bRequiresSort(false)
 		, PreApplyCallback(nullptr)
 		, PostApplyCallback(nullptr)
-		, bRequiresSort(false)
 	{
 	}
 
