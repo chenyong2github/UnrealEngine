@@ -31,7 +31,7 @@ struct FMobileShadingModelContext
 	half ClearCoat;
 	half ClearCoatRoughness;
 	float NoV;
-	half SpecPreEnvBrdf;
+	half3 SpecPreEnvBrdf;
 #elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	half BaseMaterialCoverageOverWater;
 	half WaterVisibility;
