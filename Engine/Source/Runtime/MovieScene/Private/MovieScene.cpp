@@ -1304,12 +1304,12 @@ int32 UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 	return MarkedIndex;
 }
 
-void UMovieScene::RemoveMarkedFrame(int32 RemoveIndex)
+void UMovieScene::DeleteMarkedFrame(int32 DeleteIndex)
 {
-	MarkedFrames.RemoveAt(RemoveIndex);
+	MarkedFrames.RemoveAt(DeleteIndex);
 }
 
-void UMovieScene::ClearMarkedFrames()
+void UMovieScene::DeleteMarkedFrames()
 {
 	MarkedFrames.Empty();
 }

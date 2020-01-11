@@ -252,8 +252,8 @@ private:
 	FFrameTime ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping = true) const;
 
 	void AddMarkAtFrame(FFrameNumber FrameNumber);
-	void ClearMarkAtFrame(FFrameNumber FrameNumber);
-	void ClearAllMarks();
+	void DeleteMarkAtIndex(int32 InMarkIndex);
+	void DeleteAllMarks();
 
 private:
 
