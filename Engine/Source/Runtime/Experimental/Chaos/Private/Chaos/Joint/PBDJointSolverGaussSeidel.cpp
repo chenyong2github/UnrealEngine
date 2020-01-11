@@ -5,6 +5,9 @@
 #include "Chaos/Utilities.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"
+#if INTEL_ISPC
+#include "PBDJointSolverGaussSeidel.ispc.generated.h"
+#endif
 
 //#pragma optimize("", off)
 
@@ -244,6 +247,13 @@ namespace Chaos
 
 	FJointSolverGaussSeidel::FJointSolverGaussSeidel()
 	{
+		if (INTEL_ISPC)
+		{
+#if INTEL_ISPC
+			check(bChaos_Joint_Accumulate == false);
+			check(sizeof(FJointSolverGaussSeidel) == ispc::SizeofFJointSolverGaussSeidel());
+#endif
+		}
 	}
 
 
@@ -856,42 +866,51 @@ namespace Chaos
 		const FReal Delta,
 		FReal& Lambda)
 	{
-		// World-space inverse mass
-		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
-		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
-
-		// Joint-space inverse mass
-		const FVec3 AngularAxis0 = FVec3::CrossProduct(Xs[0] - Ps[0], Axis);
-		const FVec3 AngularAxis1 = FVec3::CrossProduct(Xs[1] - Ps[1], Axis);
-		const FVec3 IA0 = Utilities::Multiply(InvI0, AngularAxis0);
-		const FVec3 IA1 = Utilities::Multiply(InvI1, AngularAxis1);
-		const FReal II0 = FVec3::DotProduct(AngularAxis0, IA0);
-		const FReal II1 = FVec3::DotProduct(AngularAxis1, IA1);
-		const FReal II = (InvMs[0] + II0 + InvMs[1] + II1);
-
-		FReal VelDt = 0;
-		if (Damping > KINDA_SMALL_NUMBER)
+		if (INTEL_ISPC)
 		{
-			const FVec3 V0 = FVec3::CalculateVelocity(PrevXs[0], Xs[0], 1.0f);
-			const FVec3 V1 = FVec3::CalculateVelocity(PrevXs[1], Xs[1], 1.0f);
-			VelDt = FVec3::DotProduct(V0 - V1, Axis);
+#if INTEL_ISPC
+			ispc::ApplyPositionConstraintSoft((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&)Axis, Delta, Lambda);
+#endif
 		}
-
-		const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / (InvMs[0] + InvMs[1]) : 1.0f;
-		const FReal S = SpringMassScale * Stiffness * Dt * Dt;
-		const FReal D = SpringMassScale * Damping * Dt;
-		const FReal Multiplier = (FReal)1 / ((S + D) * II + (FReal)1);
-		const FReal DLambda = Multiplier * (S * Delta - D * VelDt - Lambda);
-
-		const FVec3 DP0 = (InvMs[0] * DLambda) * Axis;
-		const FVec3 DP1 = (-InvMs[1] * DLambda) * Axis;
-		const FVec3 DR0 = DLambda * Utilities::Multiply(InvI0, AngularAxis0);
-		const FVec3 DR1 = -DLambda * Utilities::Multiply(InvI1, AngularAxis1);
-
-		Lambda += DLambda;
-		ApplyPositionDelta((FReal)1, DP0, DP1);
-		ApplyRotationDelta((FReal)1, DR0, DR1);
-		UpdateDerivedState();
+		else
+		{
+			// World-space inverse mass
+			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
+			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+	
+			// Joint-space inverse mass
+			const FVec3 AngularAxis0 = FVec3::CrossProduct(Xs[0] - Ps[0], Axis);
+			const FVec3 AngularAxis1 = FVec3::CrossProduct(Xs[1] - Ps[1], Axis);
+			const FVec3 IA0 = Utilities::Multiply(InvI0, AngularAxis0);
+			const FVec3 IA1 = Utilities::Multiply(InvI1, AngularAxis1);
+			const FReal II0 = FVec3::DotProduct(AngularAxis0, IA0);
+			const FReal II1 = FVec3::DotProduct(AngularAxis1, IA1);
+			const FReal II = (InvMs[0] + II0 + InvMs[1] + II1);
+	
+			FReal VelDt = 0;
+			if (Damping > KINDA_SMALL_NUMBER)
+			{
+				const FVec3 V0 = FVec3::CalculateVelocity(PrevXs[0], Xs[0], 1.0f);
+				const FVec3 V1 = FVec3::CalculateVelocity(PrevXs[1], Xs[1], 1.0f);
+				VelDt = FVec3::DotProduct(V0 - V1, Axis);
+			}
+	
+			const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / (InvMs[0] + InvMs[1]) : 1.0f;
+			const FReal S = SpringMassScale * Stiffness * Dt * Dt;
+			const FReal D = SpringMassScale * Damping * Dt;
+			const FReal Multiplier = (FReal)1 / ((S + D) * II + (FReal)1);
+			const FReal DLambda = Multiplier * (S * Delta - D * VelDt - Lambda);
+	
+			const FVec3 DP0 = (InvMs[0] * DLambda) * Axis;
+			const FVec3 DP1 = (-InvMs[1] * DLambda) * Axis;
+			const FVec3 DR0 = DLambda * Utilities::Multiply(InvI0, AngularAxis0);
+			const FVec3 DR1 = -DLambda * Utilities::Multiply(InvI1, AngularAxis1);
+	
+			Lambda += DLambda;
+			ApplyPositionDelta((FReal)1, DP0, DP1);
+			ApplyRotationDelta((FReal)1, DR0, DR1);
+			UpdateDerivedState();
+		}
 	}
 	
 	
@@ -950,58 +969,67 @@ namespace Chaos
 		const FReal Angle,
 		FReal& Lambda)
 	{
-		// World-space inverse mass
-		const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
-		const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
-		const FVec3 IA0 = Utilities::Multiply(InvI0, Axis0);
-		const FVec3 IA1 = Utilities::Multiply(InvI1, Axis1);
-
-		// Joint-space inverse mass
-		const FReal II0 = FVec3::DotProduct(Axis0, IA0);
-		const FReal II1 = FVec3::DotProduct(Axis1, IA1);
-		const FReal II = (II0 + II1);
-
-		// Damping angular velocity
-		FReal AngVelDt = 0;
-		if (Damping > KINDA_SMALL_NUMBER)
+		if (INTEL_ISPC)
 		{
-			const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], 1.0f);
-			const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], 1.0f);
-			AngVelDt = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
+#if INTEL_ISPC
+			ispc::ApplyRotationConstraintSoft((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis0, (ispc::FVector&)Axis1, Angle, Lambda);
+#endif
 		}
-
-		const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
-		const FReal S = SpringMassScale * Stiffness * Dt * Dt;
-		const FReal D = SpringMassScale * Damping * Dt;
-		const FReal Multiplier = (FReal)1 / ((S + D) * II + (FReal)1);
-		const FReal DLambda = Multiplier * (S * Angle - D * AngVelDt - Lambda);
-
-		//const FVec3 DR0 = IA0 * DLambda;
-		//const FVec3 DR1 = IA1 * -DLambda;
-		const FVec3 DR0 = Axis0 * (DLambda * II0);
-		const FVec3 DR1 = Axis1 * -(DLambda * II1);
-
-		Lambda += DLambda;
-		ApplyRotationDelta(1.0f, DR0, DR1);
-
-		// Correct the positional error that was introduced by the rotation correction. This is
-		// correct when the position dofs are all locked, but not otherwise (fixable).
-		// This significantly improves angular stiffness at lower iterations, although the same effect
-		// is achieved by increasing iterations.
-		// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-		if (AngularPositionCorrection > 0)
+		else
 		{
-			const FVec3 PrevX0 = Xs[0];
-			const FVec3 PrevX1 = Xs[1];
+			// World-space inverse mass
+			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
+			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+			const FVec3 IA0 = Utilities::Multiply(InvI0, Axis0);
+			const FVec3 IA1 = Utilities::Multiply(InvI1, Axis1);
+
+			// Joint-space inverse mass
+			const FReal II0 = FVec3::DotProduct(Axis0, IA0);
+			const FReal II1 = FVec3::DotProduct(Axis1, IA1);
+			const FReal II = (II0 + II1);
+
+			// Damping angular velocity
+			FReal AngVelDt = 0;
+			if (Damping > KINDA_SMALL_NUMBER)
+			{
+				const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], 1.0f);
+				const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], 1.0f);
+				AngVelDt = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
+			}
+
+			const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
+			const FReal S = SpringMassScale * Stiffness * Dt * Dt;
+			const FReal D = SpringMassScale * Damping * Dt;
+			const FReal Multiplier = (FReal)1 / ((S + D) * II + (FReal)1);
+			const FReal DLambda = Multiplier * (S * Angle - D * AngVelDt - Lambda);
+
+			//const FVec3 DR0 = IA0 * DLambda;
+			//const FVec3 DR1 = IA1 * -DLambda;
+			const FVec3 DR0 = Axis0 * (DLambda * II0);
+			const FVec3 DR1 = Axis1 * -(DLambda * II1);
+
+			Lambda += DLambda;
+			ApplyRotationDelta(1.0f, DR0, DR1);
+
+			// Correct the positional error that was introduced by the rotation correction. This is
+			// correct when the position dofs are all locked, but not otherwise (fixable).
+			// This significantly improves angular stiffness at lower iterations, although the same effect
+			// is achieved by increasing iterations.
+			// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
+			if (AngularPositionCorrection > 0)
+			{
+				const FVec3 PrevX0 = Xs[0];
+				const FVec3 PrevX1 = Xs[1];
+				UpdateDerivedState();
+
+				const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
+				const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
+				const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
+				ApplyPositionDelta(AngularPositionCorrection, DP0, DP1);
+			}
+
 			UpdateDerivedState();
-
-			const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
-			const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
-			const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
-			ApplyPositionDelta(AngularPositionCorrection, DP0, DP1);
 		}
-
-		UpdateDerivedState();
 	}
 
 
@@ -1403,33 +1431,43 @@ namespace Chaos
 		const FVec3 CX = Xs[1] - Xs[0];
 		if (CX != FVec3(0))
 		{
-			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
-			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
-
-			// Calculate constraint correction
-			FMatrix33 M0 = FMatrix33(0, 0, 0);
-			FMatrix33 M1 = FMatrix33(0, 0, 0);
-			if (InvMs[0] > 0)
+			if (INTEL_ISPC)
 			{
-				M0 = Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], InvI0, InvMs[0]);
+#if INTEL_ISPC
+				FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+				ispc::ApplyPointPositionConstraint((ispc::FJointSolverGaussSeidel*)this, (ispc::FVector&)CX, LinearStiffness);
+#endif
 			}
-			if (InvMs[1] > 0)
+			else
 			{
-				M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
+				const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
+				const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+
+				// Calculate constraint correction
+				FMatrix33 M0 = FMatrix33(0, 0, 0);
+				FMatrix33 M1 = FMatrix33(0, 0, 0);
+				if (InvMs[0] > 0)
+				{
+					M0 = Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], InvI0, InvMs[0]);
+				}
+				if (InvMs[1] > 0)
+				{
+					M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
+				}
+				const FMatrix33 MI = (M0 + M1).Inverse();
+				const FVec3 DX = Utilities::Multiply(MI, CX);
+
+				// Apply constraint correction
+				const FVec3 DP0 = InvMs[0] * DX;
+				const FVec3 DP1 = -InvMs[1] * DX;
+				const FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
+				const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
+
+				FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+				ApplyPositionDelta(LinearStiffness, DP0, DP1);
+				ApplyRotationDelta(LinearStiffness, DR0, DR1);
+				UpdateDerivedState();
 			}
-			const FMatrix33 MI = (M0 + M1).Inverse();
-			const FVec3 DX = Utilities::Multiply(MI, CX);
-
-			// Apply constraint correction
-			const FVec3 DP0 = InvMs[0] * DX;
-			const FVec3 DP1 = -InvMs[1] * DX;
-			const FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
-			const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
-
-			FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
-			ApplyPositionDelta(LinearStiffness, DP0, DP1);
-			ApplyRotationDelta(LinearStiffness, DR0, DR1);
-			UpdateDerivedState();
 		}
 	}
 
@@ -1632,40 +1670,49 @@ namespace Chaos
 		{
 			FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
 			const FReal ParentMassScale = FMath::Max(0.0f, 1.0f - LinearProjection);
+			if (INTEL_ISPC)
+			{
+#if INTEL_ISPC
+				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+				ispc::ApplyPositionProjection((ispc::FJointSolverGaussSeidel*)this, (ispc::FVector&)CX, CXLen, ParentMassScale, Stiffness);
+#endif
+			}
+			else
+			{
+				const FVec3 CXDir = CX / CXLen;
+				const FVec3 V0 = Vs[0] + FVec3::CrossProduct(Ws[0], Xs[0] - Ps[0]);
+				const FVec3 V1 = Vs[1] + FVec3::CrossProduct(Ws[1], Xs[1] - Ps[1]);
+				FVec3 CV = FVec3::DotProduct(V1 - V0, CXDir) * CXDir;
 
-			const FVec3 CXDir = CX / CXLen;
-			const FVec3 V0 = Vs[0] + FVec3::CrossProduct(Ws[0], Xs[0] - Ps[0]);
-			const FVec3 V1 = Vs[1] + FVec3::CrossProduct(Ws[1], Xs[1] - Ps[1]);
-			FVec3 CV = FVec3::DotProduct(V1 - V0, CXDir) * CXDir;
+				const FReal IM0 = ParentMassScale * InvMs[0];
+				const FReal IM1 = InvMs[1];
+				const FVec3 IIL0 = ParentMassScale * InvILs[0];
+				const FVec3& IIL1 = InvILs[1];
+				FMatrix33 II0 = Utilities::ComputeWorldSpaceInertia(Qs[0], IIL0);
+				FMatrix33 II1 = Utilities::ComputeWorldSpaceInertia(Qs[1], IIL1);
+				FMatrix33 J0 = (IM0 > 0) ? Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], II0, IM0) : FMatrix33(0, 0, 0);
+				FMatrix33 J1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], II1, IM1);
+				FMatrix33 IJ = (J0 + J1).Inverse();
 
-			const FReal IM0 = ParentMassScale * InvMs[0];
-			const FReal IM1 = InvMs[1];
-			const FVec3 IIL0 = ParentMassScale * InvILs[0];
-			const FVec3& IIL1 = InvILs[1];
-			FMatrix33 II0 = Utilities::ComputeWorldSpaceInertia(Qs[0], IIL0);
-			FMatrix33 II1 = Utilities::ComputeWorldSpaceInertia(Qs[1], IIL1);
-			FMatrix33 J0 = (IM0 > 0) ? Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], II0, IM0) : FMatrix33(0, 0, 0);
-			FMatrix33 J1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], II1, IM1);
-			FMatrix33 IJ = (J0 + J1).Inverse();
+				const FVec3 DX = Utilities::Multiply(IJ, CX);
+				const FVec3 DV = Utilities::Multiply(IJ, CV);
 
-			const FVec3 DX = Utilities::Multiply(IJ, CX);
-			const FVec3 DV = Utilities::Multiply(IJ, CV);
+				const FVec3 DP0 = IM0 * DX;
+				const FVec3 DP1 = -IM1 * DX;
+				const FVec3 DR0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
+				const FVec3 DR1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
 
-			const FVec3 DP0 = IM0 * DX;
-			const FVec3 DP1 = -IM1 * DX;
-			const FVec3 DR0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
-			const FVec3 DR1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
+				const FVec3 DV0 = IM0 * DV;
+				const FVec3 DV1 = -IM1 * DV;
+				const FVec3 DW0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DV));
+				const FVec3 DW1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DV));
 
-			const FVec3 DV0 = IM0 * DV;
-			const FVec3 DV1 = -IM1 * DV;
-			const FVec3 DW0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DV));
-			const FVec3 DW1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DV));
-
-			const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
-			ApplyPositionDelta(Stiffness, DP0, DP1);
-			ApplyRotationDelta(Stiffness, DR0, DR1);
-			ApplyVelocityDelta(Stiffness, DV0, DW0, DV1, DW1);
-			UpdateDerivedState();
+				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+				ApplyPositionDelta(Stiffness, DP0, DP1);
+				ApplyRotationDelta(Stiffness, DR0, DR1);
+				ApplyVelocityDelta(Stiffness, DV0, DW0, DV1, DW1);
+				UpdateDerivedState();
+			}
 		}
 	}
 }
