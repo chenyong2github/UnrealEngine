@@ -244,6 +244,11 @@ TSharedRef<FInternetAddr> FSocketSubsystemBSD::CreateInternetAddr()
 	return MakeShareable(new FInternetAddrBSD(this));
 }
 
+TSharedRef<FInternetAddr> FSocketSubsystemBSD::CreateInternetAddr(const FName ProtocolType)
+{
+	return MakeShareable(new FInternetAddrBSD(this, ProtocolType));
+}
+
 bool FSocketSubsystemBSD::IsSocketWaitSupported() const
 {
 	return true;

@@ -178,3 +178,8 @@ TSharedRef<FInternetAddr> FSocketSubsystemIOS::CreateInternetAddr()
 {
 	return MakeShareable(new FInternetAddrBSDIOS(this));
 }
+
+TSharedRef<FInternetAddr> FSocketSubsystemIOS::CreateInternetAddr(const FName RequiredProtocol)
+{
+	return MakeShareable(new FInternetAddrBSDIOS(this, RequiredProtocol));
+}

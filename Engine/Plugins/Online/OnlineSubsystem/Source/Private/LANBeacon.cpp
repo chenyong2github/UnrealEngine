@@ -43,7 +43,7 @@ bool FLanBeacon::Init(int32 Port)
 	ListenAddr = SocketSubsystem->GetLocalBindAddr(*GWarn);
 	ListenAddr->SetPort(Port);
 	// Set our broadcast address
-	BroadcastAddr = SocketSubsystem->CreateInternetAddr();
+	BroadcastAddr = SocketSubsystem->CreateInternetAddr(ListenAddr->GetProtocolType());
 	BroadcastAddr->SetBroadcastAddress();
 	BroadcastAddr->SetPort(Port);
 	// A temporary "received from" address

@@ -292,6 +292,15 @@ public:
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() = 0;
 
 	/**
+	 * Create a FInternetAddr of the desired protocol
+	 */
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(const FName ProtocolType)
+	{
+		// If not implemented, returns the base version
+		return CreateInternetAddr();
+	}
+
+	/**
 	 * Create a platform specific FRecvMulti representation
 	 *
 	 * @param MaxNumPackets			The maximum number of packet receives supported

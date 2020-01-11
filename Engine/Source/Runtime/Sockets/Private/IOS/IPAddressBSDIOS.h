@@ -11,10 +11,12 @@
 
 class FInternetAddrBSDIOS : public FInternetAddrBSD
 {
-
 public:
 
-	FInternetAddrBSDIOS(FSocketSubsystemBSD* InSocketSubsystem) : FInternetAddrBSD(InSocketSubsystem) {}
+	FInternetAddrBSDIOS(FSocketSubsystemBSD* InSocketSubsystem, FName RequestedProtocol = NAME_None) : 
+		FInternetAddrBSD(InSocketSubsystem, RequestedProtocol)
+	{
+	}
 
 	/** Sets the address to broadcast */
 	virtual void SetIPv6BroadcastAddress() override

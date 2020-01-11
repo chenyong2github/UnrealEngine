@@ -318,7 +318,7 @@ public:
 		}
 		else
 		{
-			TSharedRef<FInternetAddr> MulticastAddress = SocketSubsystem->CreateInternetAddr();
+			TSharedRef<FInternetAddr> MulticastAddress = SocketSubsystem->CreateInternetAddr(RemoteAddr->GetProtocolType());
 			MulticastAddress->SetBroadcastAddress();
 			TSharedPtr<FInternetAddr> AddressToUse = nullptr;
 

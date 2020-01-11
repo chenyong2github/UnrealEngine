@@ -38,6 +38,7 @@ public:
 
 	// ISocketSubsystem interface
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(const FName ProtocolType) override;
 
 	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false) override
 	{

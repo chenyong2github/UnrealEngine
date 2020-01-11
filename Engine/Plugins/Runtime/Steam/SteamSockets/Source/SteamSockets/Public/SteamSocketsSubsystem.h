@@ -53,6 +53,7 @@ public:
 	virtual bool GetHostName(FString& HostName) override;
 
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(const FName RequestedProtocol) override;
 
 	virtual const TCHAR* GetSocketAPIName() const override;
 

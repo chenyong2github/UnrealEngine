@@ -55,6 +55,7 @@ public:
 	virtual bool HasNetworkDevice() override;
 	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType) override;
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(const FName RequiredProtocol) override;
 	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll) override;
 	virtual class FSocketBSD* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol) override;
 };
