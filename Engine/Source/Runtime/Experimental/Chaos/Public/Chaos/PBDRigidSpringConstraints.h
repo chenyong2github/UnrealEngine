@@ -176,6 +176,14 @@ namespace Chaos
 		// Island Rule API
 		//
 
+		void PrepareConstraints(FReal Dt)
+		{
+		}
+
+		void UnprepareConstraints(FReal Dt)
+		{
+		}
+
 		void UpdatePositionBasedState(const T Dt)
 		{
 		}
