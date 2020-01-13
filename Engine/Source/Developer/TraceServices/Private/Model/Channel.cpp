@@ -1,4 +1,5 @@
 #include "Channel.h"
+#include "UObject/NameTypes.h"
 
 namespace Trace {
 
