@@ -156,21 +156,21 @@ public:
 	* The GUID of the subgraph this shader primarily represents.
 	*/
 	UPROPERTY()
-	FGuid BaseScriptID;
+	FGuid BaseScriptID_DEPRECATED;
 
-#if WITH_EDITORONLY_DATA
 	/**
 	* The hash of the subgraph this shader primarily represents.
 	*/
 	UPROPERTY()
 	FNiagaraCompileHash BaseScriptCompileHash;
 
+#if WITH_EDITORONLY_DATA
 	/** Compile hashes of any top level scripts the script was dependent on that might trigger a recompile if they change. */
 	UPROPERTY()
 	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
 
 	/** Temp storage while generating the Id. This is NOT serialized and shouldn't be used in any comparisons*/
-	TArray<UObject*> ReferencedObjects;
+	TArray<FString> DebugReferencedObjects;
 #endif
 
 	FNiagaraVMExecutableDataId()
@@ -180,7 +180,7 @@ public:
 		, bUsesRapidIterationParams(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
-		, BaseScriptID(0, 0, 0, 0)
+		, BaseScriptID_DEPRECATED(0, 0, 0, 0)
 	{ }
 
 
@@ -192,7 +192,7 @@ public:
 	
 	friend uint32 GetTypeHash(const FNiagaraVMExecutableDataId& Ref)
 	{
-		return Ref.BaseScriptID.A;
+		return Ref.BaseScriptCompileHash.GetTypeHash();
 	}
 
 	SIZE_T GetSizeBytes() const
@@ -222,7 +222,8 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Appends string representations of this Id to a key string. */
-	void AppendKeyString(FString& KeyString) const;
+	void AppendKeyString(FString& KeyString, const FString& Delimiter = TEXT("_"), bool bAppendObjectForDebugging = false) const;
+
 #endif
 };
 
@@ -502,7 +503,7 @@ public:
 
 	NIAGARA_API FGuid GetBaseChangeID() const;
 	NIAGARA_API ENiagaraScriptCompileStatus GetLastCompileStatus() const;
-	void InvalidateCachedCompileIds();
+	void ForceGraphToRecompileOnNextCheck();
 
 	NIAGARA_API bool HandleVariableRenames(const TMap<FNiagaraVariable, FNiagaraVariable>& OldToNewVars, const FString& UniqueEmitterName);
 #endif

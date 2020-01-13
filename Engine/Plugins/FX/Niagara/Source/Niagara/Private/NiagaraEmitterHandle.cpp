@@ -83,12 +83,12 @@ void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 	Name = UniqueName;
 	if (Instance->SetUniqueEmitterName(Name.ToString()))
 	{
-#if WITH_EDITOR
+ #if WITH_EDITOR
 		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetSource())
 		{
 			// Just invalidate the system scripts here. The emitter scripts have their important variables 
 			// changed in the SetUniqueEmitterName method above.
-			InOwnerSystem.GetSystemSpawnScript()->GetSource()->InvalidateCachedCompileIds();
+			InOwnerSystem.GetSystemSpawnScript()->GetSource()->MarkNotSynchronized(TEXT("EmitterHandleRenamed"));
 		}
 #endif
 	}

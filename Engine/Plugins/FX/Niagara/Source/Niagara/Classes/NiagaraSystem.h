@@ -266,7 +266,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
 	bool UsesScript(const UNiagaraScript* Script)const; 
-	void InvalidateCachedCompileIds();
+	void ForceGraphToRecompileOnNextCheck();
 
 	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
 
