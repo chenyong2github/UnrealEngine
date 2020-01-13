@@ -16,9 +16,11 @@ FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 	ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 );
 
-FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, float InDt)
+// If InSolver is null, then the tick task will tick all solvers in the solvers module
+FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt)
 	: CompletionEvent(InCompletionEvent)
 	, Module(nullptr)
+	, PhysicsSolver(InPhysicsSolver)
 	, Dt(InDt)
 {
 	Module = FChaosSolversModule::GetModule();
@@ -50,7 +52,12 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 	// per-solver commands and the solver advance
 	FGraphEventRef CommandsTask = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
 
-	const TArray<FPhysicsSolver*>& SolverList = Module->GetSolvers();
+	// If the stored solver is non-null, create a temporary solver list with just that element.
+	// Otherwise get a full list of solvers from the solvers module.
+	const TArray<FPhysicsSolver*>& SolverList
+		= (PhysicsSolver == nullptr)
+		? Module->GetSolvers()
+		: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(PhysicsSolver, 1); return Solvers; }();
 
 	// List of active solvers (assume all are active for single alloc)
 	TArray<FPhysicsSolver*> ActiveSolvers;
