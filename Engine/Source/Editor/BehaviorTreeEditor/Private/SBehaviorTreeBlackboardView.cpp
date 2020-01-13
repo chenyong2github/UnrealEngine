@@ -219,8 +219,8 @@ private:
 			BlackboardEntryAction->BlackboardData->Modify();
 			BlackboardEntryAction->Key.EntryName = NewName;
 
-			UProperty* KeysArrayProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
-			UProperty* NameProperty = FindField<UProperty>(FBlackboardEntry::StaticStruct(), GET_MEMBER_NAME_CHECKED(FBlackboardEntry, EntryName));
+			FProperty* KeysArrayProperty = FindField<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+			FProperty* NameProperty = FindField<FProperty>(FBlackboardEntry::StaticStruct(), GET_MEMBER_NAME_CHECKED(FBlackboardEntry, EntryName));
 			FEditPropertyChain PropertyChain;
 			PropertyChain.AddHead(KeysArrayProperty);
 			PropertyChain.AddTail(NameProperty);
