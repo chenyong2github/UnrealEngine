@@ -442,6 +442,8 @@ enum ERouteId : uint16
 	RouteId_NewEvent,
 	RouteId_NewTrace,
 	RouteId_Timing,
+	RouteId_ChannelAnnounce,
+	RouteId_ChannelToggle,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -463,6 +465,8 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
 	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
 	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
+	AddRoute(SelfIndex, RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
+	AddRoute(SelfIndex, RouteId_ChannelToggle, "$Trace", "ChannelToggle");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -533,9 +537,11 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
-	case RouteId_NewTrace:	OnNewTrace(Context);			break;
-	case RouteId_Timing:	OnTiming(Context);				break;
+	case RouteId_NewEvent:			OnNewEventInternal(Context);		break;
+	case RouteId_NewTrace:			OnNewTrace(Context);				break;
+	case RouteId_Timing:			OnTiming(Context);					break;
+	case RouteId_ChannelAnnounce:	OnChannelAnnounceInternal(Context);	break;
+	case RouteId_ChannelToggle:		OnChannelToggleInternal(Context);	break;
 	}
 
 	return true;
@@ -1090,6 +1096,30 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 		Collector.Push(AuxData);
 
 		Reader.Advance(BlockSize);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
+{
+	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
+{
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelToggle(ChannelId, bEnabled);
 	}
 }
 

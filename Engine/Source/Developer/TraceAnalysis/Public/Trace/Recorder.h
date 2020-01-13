@@ -53,6 +53,16 @@ public:
 	 * @param bState True to enable the event and false to disable it.
 	 * @return True if the command was successfully sent. */
 	virtual bool ToggleEvent(FRecorderSessionHandle RecordingHandle, const TCHAR* EventSpec, bool bState) = 0;
+
+	/**
+	 * Toggles one or more channels on and off. A channel or a comma separated list
+	 * of channels can be controlled.
+	 * @param RecordingHandle Identifier of the active session, from GetActiveSessions().
+	 * @param Channels A single channel name or a comma separated list of channel names.
+	 * @param bState True to enable channel(s), false to disable.
+	 * @return True if the command was successfully sent.
+	 */
+	virtual bool ToggleChannels(FRecorderSessionHandle RecordingHandle, const TCHAR* Channels, bool bState) = 0;
 };
 
 /**

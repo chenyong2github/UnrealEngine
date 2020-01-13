@@ -41,6 +41,7 @@ public:
 	virtual bool GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo& OutSessionInfo) const = 0;
 	virtual void SetModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName, bool bState) = 0;
 	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const = 0;
+	virtual bool ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState) = 0;
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) = 0;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(FSessionHandle SessionHandle) = 0;
 };

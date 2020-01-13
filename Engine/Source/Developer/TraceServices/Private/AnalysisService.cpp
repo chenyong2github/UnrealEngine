@@ -16,6 +16,7 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/CountersPrivate.h"
 #include "Model/NetProfilerProvider.h"
+#include "Model/Channel.h"
 
 namespace Trace
 {
@@ -174,7 +175,10 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 		FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(Session);
 		Session.AddProvider(FNetProfilerProvider::ProviderName, NetProfilerProvider);
 
-		Session.AddAnalyzer(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
+		FChannelProvider* ChannelProvider = new FChannelProvider();
+		Session.AddProvider(FChannelProvider::ProviderName, ChannelProvider);
+
+		Session.AddAnalyzer(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider));
 		Session.AddAnalyzer(new FLogTraceAnalyzer(Session, *LogProvider));
 
 		ModuleService.OnAnalysisBegin(Session);

@@ -8,6 +8,33 @@
 
 #include "CoreTypes.h"
 
+#define TRACE_PRIVATE_CHANNEL_DECLARE(LinkageType, ChannelName) \
+	LinkageType Trace::FChannel ChannelName;
+
+#define TRACE_PRIVATE_CHANNEL_IMPL(ChannelName) \
+	struct F##ChannelName##Registrator \
+	{ \
+		F##ChannelName##Registrator() \
+		{ \
+			Trace::FChannel::Register(ChannelName, PREPROCESSOR_TO_STRING(ChannelName)); \
+		} \
+	}; \
+	static F##ChannelName##Registrator ChannelName##Reg = F##ChannelName##Registrator();
+
+#define TRACE_PRIVATE_CHANNEL(ChannelName) \
+	TRACE_PRIVATE_CHANNEL_DECLARE(static, ChannelName) \
+	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
+
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName) \
+	TRACE_PRIVATE_CHANNEL_DECLARE(extern, ChannelName)
+
+#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName) \
+	TRACE_PRIVATE_CHANNEL_DECLARE(, ChannelName) \
+	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
+
+#define TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) \
+	bool(ChannelsExpr)
+
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEventDef LoggerName##EventName##Event;
 
@@ -25,7 +52,6 @@
 		{ \
 			static const bool bOnceOnly = [] () \
 			{ \
-				const uint32 Always = Trace::FEventDef::Flag_Always; \
 				const uint32 Important = Trace::FEventDef::Flag_Important; \
 				uint32 Flags = decltype(EventProps_Private)::MaybeHasAux ? Trace::FEventDef::Flag_MaybeHasAux : 0; \
 				Flags |= (0, ##__VA_ARGS__); \
@@ -52,17 +78,19 @@
 		explicit operator bool () const { return true; } \
 	};
 
+#define TRACE_PRIVATE_EVENT_IS_IMPORTANT(LoggerName, EventName) \
+	( LoggerName##EventName##Event.bImportant )
+
 #define TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName) \
 	( \
 		(LoggerName##EventName##Event.bInitialized || (F##LoggerName##EventName##Fields::Initialize(), true)) \
-		&& (LoggerName##EventName##Event.Enabled.Test) \
 	)
 
 #define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \
 	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
 
-#define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
-	if (TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
+#define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
+	if ((TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) || TRACE_PRIVATE_EVENT_IS_IMPORTANT(LoggerName, EventName)) && TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
 			if (auto LogScope = Trace::FEventDef::FLogScope( \
 				LoggerName##EventName##Event.Uid, \
@@ -72,6 +100,15 @@
 					LogScope
 
 #else
+
+#define TRACE_PRIVATE_CHANNEL(ChannelName)
+
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ModuleApi, ChannelName)
+
+#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
+
+#define TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)\
+	false
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName)
 
@@ -101,7 +138,7 @@
 		const FTraceDisabled& Attachment; \
 	};
 
-#define TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName) \
+#define TRACE_PRIVATE_EVENT_IS_INITIALIZED(LoggerName, EventName) \
 	(false)
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \

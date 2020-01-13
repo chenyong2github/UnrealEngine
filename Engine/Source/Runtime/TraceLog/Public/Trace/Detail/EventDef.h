@@ -20,9 +20,8 @@ class FEventDef
 public:
 	enum
 	{
-		Flag_Always			= 1 << 0,
-		Flag_Important		= 1 << 1,
-		Flag_MaybeHasAux	= 1 << 2,
+		Flag_Important		= 1 << 0,
+		Flag_MaybeHasAux	= 1 << 1,
 	};
 
 	class FLogScope
@@ -49,6 +48,7 @@ public:
 		uint16					Test;
 	}							Enabled;
 	bool						bInitialized;
+	bool						bImportant;
 	TRACELOG_API static void	Create(FEventDef* Target, const FLiteralName& LoggerName, const FLiteralName& EventName, const FFieldDesc* FieldDescs, uint32 FieldCount, uint32 Flags=0);
 };
 

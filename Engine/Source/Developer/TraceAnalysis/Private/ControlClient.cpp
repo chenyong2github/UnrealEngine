@@ -128,6 +128,12 @@ void FControlClient::SendToggleEvent(const TCHAR* EventSpec, bool bState)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FControlClient::SendToggleChannel(const TCHAR* Channels, bool bState /*= true*/)
+{
+	FormatAndSend(TEXT("ToggleChannels %s %d"), Channels, bState);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FControlClient::Send(const TCHAR* Command)
 {
 	int Length = FCString::Strlen(Command);
@@ -172,4 +178,4 @@ void FControlClient::Send(const uint8* Data, int Length)
     }
 }
 
-} // namesapce Trace
+} // namespace Trace

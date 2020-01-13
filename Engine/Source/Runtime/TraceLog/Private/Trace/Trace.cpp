@@ -36,6 +36,13 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+bool Initialize()
+{
+	FChannel::ToggleAll(false);
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool SendTo(const TCHAR* InHost)
 {
 	char Host[32];
@@ -58,6 +65,21 @@ uint32 ToggleEvent(const TCHAR* Wildcard, bool bState)
 	ToAnsiCheap(WildcardA, Wildcard);
 
 	return Private::Writer_EventToggle(WildcardA, bState);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
+{
+	ANSICHAR ChannelNameA[64];
+	ToAnsiCheap(ChannelNameA, ChannelName);
+
+	return FChannel::Toggle(ChannelNameA, bEnabled);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool ToggleChannel(struct FChannel& Channel, bool bEnabled)
+{
+	return FChannel::Toggle(&Channel, bEnabled);
 }
 
 } // namespace Trace

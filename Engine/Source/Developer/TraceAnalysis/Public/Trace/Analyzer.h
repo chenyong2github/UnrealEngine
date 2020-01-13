@@ -194,6 +194,20 @@ public:
 		return true;
 	}
 
+	/** A new channel has been announced.
+	 * @param ChannelName Clear text name of the channel
+	 * @param ChannelId Unique identifier for the channel */
+	virtual void OnChannelAnnounce(const ANSICHAR* ChannelName, uint32 ChannelId)
+	{
+	}
+
+	/** A channel enabled state has changed.
+	 * @param ChannelId Unique identifier for the channel, see OnChannelAnnounce.
+	 * @param bEnabled True if the channel has been enabled, false otherwise */
+	virtual void OnChannelToggle(uint32 ChannelId, bool bEnabled)
+	{
+	}
+
 private:
 	template <typename ValueType> static ValueType CoerceValue(const void* Addr, int16 SizeAndType);
 };

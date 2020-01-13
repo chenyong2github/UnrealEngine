@@ -14,9 +14,15 @@ template <typename Type> bool	AtomicCompareExchangeRelaxed(Type volatile* Target
 template <typename Type> bool	AtomicCompareExchangeAcquire(Type volatile* Target, Type New, Type Expected);
 template <typename Type> bool	AtomicCompareExchangeRelease(Type volatile* Target, Type New, Type Expected);
 uint32							AtomicIncrementRelaxed(uint32 volatile* Target);
+void							PlatformYield();
 
 } // namespace Private
 } // namespace Trace
+
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_CPU_X86_FAMILY
+#include <emmintrin.h>
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 #define IS_MSVC					0
@@ -43,6 +49,18 @@ uint32							AtomicIncrementRelaxed(uint32 volatile* Target);
 
 namespace Trace {
 namespace Private {
+
+////////////////////////////////////////////////////////////////////////////////
+inline void PlatformYield()
+{
+#if PLATFORM_CPU_X86_FAMILY
+	_mm_pause();
+#elif PLATFORM_CPU_ARM_FAMILY
+	__builtin_arm_yield();
+#else
+	#error Unsupported architecture!
+#endif
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 #if IS_MSVC

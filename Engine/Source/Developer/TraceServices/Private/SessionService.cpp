@@ -232,6 +232,17 @@ bool FSessionService::IsModuleEnabled(Trace::FSessionHandle SessionHandle, const
 	return FindIt->EnabledModuleLoggersMap.Contains(ModuleName);
 }
 
+bool FSessionService::ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState)
+{
+	FScopeLock Lock(&SessionsCS);
+	const FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
+	if (!FindIt)
+	{
+		return false;
+	}
+	return TraceRecorder->ToggleChannels(FindIt->RecorderSessionHandle, Channels, bState);
+}
+
 bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 {
 	ISocketSubsystem* Sockets = ISocketSubsystem::Get();

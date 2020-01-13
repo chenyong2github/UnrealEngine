@@ -6,20 +6,14 @@
 
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Channel.h"
 #include "Trace/Platform.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
 #include "Templates/UnrealTemplate.h"
 
-#if PLATFORM_CPU_X86_FAMILY
-	#include <emmintrin.h>
-	#define PLATFORM_YIELD()	_mm_pause()
-#elif PLATFORM_CPU_ARM_FAMILY
-	#define PLATFORM_YIELD()	__builtin_arm_yield();
-#else
-	#error Unsupported architecture!
-#endif
+
 
 namespace Trace {
 namespace Private {
@@ -42,16 +36,6 @@ UE_TRACE_EVENT_BEGIN($Trace, Memory, Always)
 UE_TRACE_EVENT_END()
 #endif // TRACE_PRIVATE_PERF
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-inline void Writer_Yield()
-{
-	PLATFORM_YIELD();
-}
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 static uint64 GStartCycle = 0;
 
@@ -66,12 +50,12 @@ void Writer_InitializeTiming()
 {
 	GStartCycle = TimeGetTimestamp();
 
-	UE_TRACE_EVENT_BEGIN($Trace, Timing, Always|Important)
+	UE_TRACE_EVENT_BEGIN($Trace, Timing, Important)
 		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_END()
 
-	UE_TRACE_LOG($Trace, Timing)
+	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
 		<< Timing.StartCycle(GStartCycle)
 		<< Timing.CycleFrequency(TimeGetFrequency());
 }
@@ -99,7 +83,7 @@ FWriteTlsContext::FWriteTlsContext()
 	Buffer = Target;
 
 	// Assign a new id to this thread.
-	for (;; Writer_Yield())
+	for (;; Private::PlatformYield())
 	{
 		UPTRINT CandidateId = UPTRINT(AtomicLoadRelaxed((void* volatile*)&ThreadIdCounter));
 		UPTRINT NextId = CandidateId + 1;
@@ -176,7 +160,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		{
 			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->Next, Owned))
 			{
-				Writer_Yield();
+				Private::PlatformYield();
 				continue;
 			}
 		}
@@ -194,7 +178,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		{
 			// Someone else is mapping memory so we'll briefly yield and try the
 			// free list again.
-			Writer_Yield();
+			Private::PlatformYield();
 			continue;
 		}
 
@@ -218,7 +202,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		}
 
 		// And insert the block list into the freelist. 'Block' is now the last block
-		for (auto* ListNode = (FWriteBuffer*)Block;; Writer_Yield())
+		for (auto* ListNode = (FWriteBuffer*)Block;; Private::PlatformYield())
 		{
 			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
 			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->Next))
@@ -237,7 +221,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 	NextBuffer->EtxOffset = 0;
 
 	// Add this next buffer to the active list.
-	for (;; Writer_Yield())
+	for (;; Private::PlatformYield())
 	{
 		NextBuffer->Next = AtomicLoadRelaxed(&GNextBufferList);
 		if (AtomicCompareExchangeRelease(&GNextBufferList, NextBuffer, NextBuffer->Next))
@@ -404,7 +388,7 @@ static void Writer_ConsumeEvents()
 
 	// Claim ownership of the latest chain of sent events.
 	FWriteBuffer* __restrict NextBufferList;
-	for (;; Writer_Yield())
+	for (;; Private::PlatformYield())
 	{
 		NextBufferList = AtomicLoadRelaxed(&GNextBufferList);
 		if (AtomicCompareExchangeAcquire(&GNextBufferList, (FWriteBuffer*)nullptr, NextBufferList))
@@ -592,18 +576,18 @@ static void Writer_ConsumeEvents()
 	}
 
 #if TRACE_PRIVATE_PERF
-	UE_TRACE_LOG($Trace, WorkerThread)
+	UE_TRACE_LOG($Trace, WorkerThread, TraceLogChannel)
 		<< WorkerThread.Cycles(uint32(TimeGetTimestamp() - StartTsc))
 		<< WorkerThread.BytesSent(BytesSent);
 
-	UE_TRACE_LOG($Trace, Memory)
+	UE_TRACE_LOG($Trace, Memory, TraceLogChannel)
 		<< Memory.AllocSize(uint32(GPoolPageCursor - GPoolBase));
 #endif // TRACE_PRIVATE_PERF
 
 	// Put the retirees we found back into the system again.
 	if (RetireList.Head != nullptr)
 	{
-		for (FWriteBuffer* ListNode = RetireList.Tail;; Writer_Yield())
+		for (FWriteBuffer* ListNode = RetireList.Tail;; Private::PlatformYield())
 		{
 			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
 			if (AtomicCompareExchangeRelease(&GPoolFreeList, RetireList.Head, ListNode->Next))
@@ -675,7 +659,7 @@ enum class EControlState : uint8
 
 struct FControlCommands
 {
-	enum { Max = 3 };
+	enum { Max = 16 };
 	struct
 	{
 		uint32	Hash;
@@ -938,6 +922,28 @@ static void Writer_InitializeControl()
 			Writer_EventToggle(Wildcard, State[0] != '0');
 		}
 	);
+
+	Writer_ControlAddCommand("ToggleChannels", nullptr, 
+		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV) 
+		{
+			if (ArgC < 2)
+			{
+				return;
+			}
+
+			const size_t BufferSize = 512;
+			ANSICHAR Channels[BufferSize] = {};
+			ANSICHAR* Ctx;
+			const bool bState = (ArgV[1][0] != '0');
+			strcpy_s(Channels, BufferSize, ArgV[0]);
+			ANSICHAR* Channel = FPlatformString::Strtok(Channels, ",", &Ctx);
+			while (Channel)
+			{
+				FChannel::Toggle(Channel, bState);
+				Channel = FPlatformString::Strtok(nullptr, ",", &Ctx);
+			}
+		}
+	);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -979,13 +985,13 @@ static bool GInitialized = false;
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Always|Important)
+	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Important)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
 		UE_TRACE_EVENT_FIELD(uint8, Version)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 	UE_TRACE_EVENT_END()
 
-	UE_TRACE_LOG($Trace, NewTrace)
+	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
 		<< NewTrace.Version(2)
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*));
@@ -1123,7 +1129,7 @@ void Writer_EventCreate(
 
 	// Assign a unique ID for this event
 	uint32 Uid;
-	for (;; Writer_Yield())
+	for (;; Private::PlatformYield())
 	{
 		UPTRINT CurrentUid = UPTRINT(AtomicLoadRelaxed((void* volatile*)&GEventUidCounter));
 		UPTRINT NextUid = CurrentUid + 1;
@@ -1150,9 +1156,9 @@ void Writer_EventCreate(
  	Target->Uid = uint16(Uid);
 	Target->LoggerHash = LoggerHash;
 	Target->Hash = Writer_EventGetHash(LoggerHash, NameHash);
-	Target->Enabled.Internal = !!(Flags & FEventDef::Flag_Always);
 	Target->Enabled.bOptedIn = false;
 	Target->bInitialized = true;
+	Target->bImportant = Flags & FEventDef::Flag_Important;
 
 	// Calculate the number of fields and size of name data.
 	int NamesSize = LoggerName.Length + EventName.Length;
@@ -1217,7 +1223,7 @@ void Writer_EventCreate(
 	Writer_EndLog(LogInstance);
 
 	// Add this new event into the list so we can look them up later.
-	for (;; Writer_Yield())
+	for (;; Private::PlatformYield())
 	{
 		FEventDef* HeadEvent = AtomicLoadRelaxed(&GHeadEvent);
 		Target->Handle = HeadEvent;

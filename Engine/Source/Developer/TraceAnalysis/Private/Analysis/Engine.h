@@ -42,6 +42,8 @@ private:
 	void				OnNewEventInternal(const FOnEventContext& Context);
 	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
 	void				OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData);
+	void				OnChannelAnnounceInternal(const FOnEventContext& Context);
+	void				OnChannelToggleInternal(const FOnEventContext& Context);
 
 	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
