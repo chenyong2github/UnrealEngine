@@ -38,7 +38,7 @@ namespace EBlackboardDescription
 }
 
 
-UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent), hidecategories = (Sockets, Collision))
 class AIMODULE_API UBlackboardComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -101,7 +101,7 @@ public:
 	/** caches UBrainComponent pointer to be used in communication */
 	void CacheBrainComponent(UBrainComponent& BrainComponent);
 
-	/** setup component for using given blackboard asset */
+	/** setup component for using given blackboard asset, returns true if blackboard is properly initialized for specified blackboard data */
 	bool InitializeBlackboard(UBlackboardData& NewAsset);
 	
 	/** @return true if component can be used with specified blackboard asset */
@@ -234,6 +234,9 @@ protected:
 	UBrainComponent* BrainComp;
 
 	/** data asset defining entries */
+	UPROPERTY(EditDefaultsOnly, Category = AI)
+	UBlackboardData* DefaultBlackboardAsset;
+
 	UPROPERTY(transient)
 	UBlackboardData* BlackboardAsset;
 
