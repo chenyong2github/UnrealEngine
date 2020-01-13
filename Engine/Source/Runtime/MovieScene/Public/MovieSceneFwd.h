@@ -50,6 +50,9 @@ enum class EUpdateClockSource : uint8
 
 	/** Use current timecode provider for timing. Does not honor world or actor pause state. */
 	Timecode,
+
+	/** Custom clock source created and defined externally. */
+	Custom,
 };
 
 MOVIESCENE_API DECLARE_LOG_CATEGORY_EXTERN(LogMovieScene, Log, All);

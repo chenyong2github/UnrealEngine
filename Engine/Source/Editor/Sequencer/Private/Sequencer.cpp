@@ -639,7 +639,6 @@ void FSequencer::Tick(float InDeltaTime)
 	TimeController->Tick(InDeltaTime, PlaybackSpeed * Dilation);
 
 	FQualifiedFrameTime GlobalTime = GetGlobalTime();
-	FFrameTime NewGlobalTime = TimeController->RequestCurrentTime(GlobalTime, PlaybackSpeed * Dilation);
 
 	static const float AutoScrollFactor = 0.1f;
 
@@ -665,8 +664,10 @@ void FSequencer::Tick(float InDeltaTime)
 
 	if (PlaybackState == EMovieScenePlayerStatus::Playing)
 	{
+		FFrameTime NewGlobalTime = TimeController->RequestCurrentTime(GlobalTime, PlaybackSpeed * Dilation);
+
 		// Put the time into local space
-		SetLocalTimeLooped(NewGlobalTime * RootToLocalTransform);
+ 		SetLocalTimeLooped(NewGlobalTime * RootToLocalTransform);
 
 		if (IsAutoScrollEnabled() && GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
@@ -10882,12 +10883,19 @@ void FSequencer::UpdateTimeBases()
 
 void FSequencer::ResetTimeController()
 {
-	switch (GetRootMovieSceneSequence()->GetMovieScene()->GetClockSource())
+	UMovieScene* MovieScene = GetRootMovieSceneSequence()->GetMovieScene();
+	switch (MovieScene->GetClockSource())
 	{
-	case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();    break;
-	case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
-	case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
-	default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
+	case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();         break;
+	case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>();      break;
+	case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>();      break;
+	case EUpdateClockSource::Custom:   TimeController = MovieScene->MakeCustomTimeController(GetPlaybackContext()); break;
+	default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();               break;
+	}
+
+	if (!TimeController)
+	{
+		TimeController = MakeShared<FMovieSceneTimeController_Tick>();
 	}
 
 	TimeController->PlayerStatusChanged(PlaybackState, GetGlobalTime());
