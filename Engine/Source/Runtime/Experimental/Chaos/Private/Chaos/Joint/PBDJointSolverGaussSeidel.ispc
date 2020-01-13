@@ -36,12 +36,6 @@ struct FJointSolverGaussSeidel
 	FVector Vs[MaxConstrainedBodies];			// World-space particle CoM velocities
 	FVector Ws[MaxConstrainedBodies];			// World-space particle CoM angular velocities
 
-	// Accumulated world-body state deltas
-	FVector DPs[MaxConstrainedBodies];			// World-space particle CoM positions
-	FVector DRs[MaxConstrainedBodies];			// World-space particle CoM rotations (in axis-angle form)
-	FVector DVs[MaxConstrainedBodies];			// World-space particle CoM velocities
-	FVector DWs[MaxConstrainedBodies];			// World-space particle CoM angular velocities
-
 	// XPBD Previous iteration world-space body state
 	FVector PrevPs[MaxConstrainedBodies];		// World-space particle CoM positions
 	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
