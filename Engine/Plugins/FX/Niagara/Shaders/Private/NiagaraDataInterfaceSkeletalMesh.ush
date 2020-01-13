@@ -179,7 +179,7 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedPointOnTriangleWS(in FDISkelMeshCo
 	return FinalVertex;
 }
 
-void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, NiagaraRandInfo InRandomInfo, out uint OutTriangle, out float3 OutBaryCoord)
+void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, NiagaraRandInfo InRandomInfo, out int OutTriangle, out float3 OutBaryCoord)
 {
 	float RandT0 = NiagaraInternalNoise(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3);
 
