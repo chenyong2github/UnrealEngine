@@ -512,9 +512,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			FBloomInputs PassInputs;
 			PassInputs.SceneColor = SceneColor;
 
-			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > 0.0f;
+			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
 
-			// Reuse the main scene downsample chain if a threshold isn't required for bloom. 
+			// Reuse the main scene downsample chain if a threshold isn't required for bloom.
 			if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
 			{
 				PassInputs.SceneDownsampleChain = &SceneDownsampleChain;
