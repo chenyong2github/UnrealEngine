@@ -10,7 +10,6 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "KismetArrayLibrary.generated.h"
 
 class AActor;
@@ -264,7 +263,6 @@ public:
  
  		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(int32*)RESULT_PARAM = GenericArray_Add(ArrayAddr, ArrayProperty, StorageSpace);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -293,7 +291,6 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(int32*)RESULT_PARAM = GenericArray_AddUnique(ArrayAddr, ArrayProperty, StorageSpace);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -313,7 +310,6 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Shuffle(ArrayAddr, ArrayProperty);
 		P_NATIVE_END;
 	}
@@ -372,7 +368,6 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, TargetArrayProperty);
 		GenericArray_Append(TargetArrayAddr, TargetArrayProperty, SourceArrayAddr, SourceArrayProperty);
 		P_NATIVE_END;
 	}
@@ -401,7 +396,6 @@ public:
 		P_GET_PROPERTY(FIntProperty, Index);
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Insert(ArrayAddr, ArrayProperty, StorageSpace, Index);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -422,7 +416,6 @@ public:
 		P_GET_PROPERTY(FIntProperty, Index);
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Remove(ArrayAddr, ArrayProperty, Index);
 		P_NATIVE_END;
 	}
@@ -453,7 +446,6 @@ public:
 		// Bools need to be processed internally by the property so that C++ bool value is properly set.
 		GenericArray_HandleBool(InnerProp, ItemPtr);
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(bool*)RESULT_PARAM = GenericArray_RemoveItem(ArrayAddr, ArrayProperty, ItemPtr);
 		P_NATIVE_END;
 
@@ -473,7 +465,6 @@ public:
 		}
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Clear(ArrayAddr, ArrayProperty);
 		P_NATIVE_END;
 	}
@@ -492,7 +483,6 @@ public:
 		P_GET_PROPERTY(FIntProperty, Size);
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Resize(ArrayAddr, ArrayProperty, Size);
 		P_NATIVE_END;
 	}
@@ -588,7 +578,6 @@ public:
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Set(ArrayAddr, ArrayProperty, Index, StorageSpace, bSizeToFit);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -612,7 +601,6 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Swap(ArrayAddr, ArrayProperty, First, Second);
 		P_NATIVE_END;
 	}
@@ -696,7 +684,6 @@ public:
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
-		MARK_PROPERTY_DIRTY(Stack.Object, Stack.MostRecentProperty);
 		GenericArray_SetArrayPropertyByName(OwnerObject, ArrayPropertyName, SrcArrayAddr);
 		P_NATIVE_END;
 	}

@@ -20,7 +20,6 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/InheritableComponentHandler.h"
 #include "Misc/ScopeLock.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "UObject/CoreObjectVersion.h"
 
 #if WITH_EDITOR
@@ -1681,7 +1680,7 @@ void UBlueprintGeneratedClass::GetLifetimeBlueprintReplicationList(TArray<FLifet
 		{
 			PropertiesLeft--;
 			
-			OutLifetimeProps.AddUnique(FLifetimeProperty(Prop->RepIndex, Prop->GetBlueprintReplicationCondition(), REPNOTIFY_OnChanged, PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL()));
+			OutLifetimeProps.AddUnique(FLifetimeProperty(Prop->RepIndex, Prop->GetBlueprintReplicationCondition()));
 		}
 	}
 

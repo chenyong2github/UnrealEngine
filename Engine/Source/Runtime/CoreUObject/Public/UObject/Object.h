@@ -1457,40 +1457,7 @@ private:
 
 public:
 
-	virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const {}	
-
-private:
-	
-	friend struct FObjectNetPushIdHelper;
-	virtual void SetNetPushIdDynamic(const int32 NewNetPushId)
-	{
-		// This method should only be called on Objects that are networked, and those should
-		// always have this implemented (by UHT).
-		check(false);
-	}
-	
-	virtual int32 GetNetPushIdDynamic() const
-	{
-		return INDEX_NONE;
-	}
-};
-
-struct FObjectNetPushIdHelper
-{
-private:
-	friend struct FNetPrivatePushIdHelper;
-	friend class UNetPushModelHelpers;
-	friend class UKismetArrayLibrary;
-
-	static void SetNetPushIdDynamic(UObject* Object, const int32 NewNetPushId)
-	{
-		Object->SetNetPushIdDynamic(NewNetPushId);
-	}
-	
-	static int32 GetNetPushIdDynamic(const UObject* const Object)
-	{
-		return Object->GetNetPushIdDynamic();
-	}
+	virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const {}
 };
 
 /**
