@@ -567,12 +567,12 @@ void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImme
 		RHICmdList.EndRenderPass();
 	}
  
-	// #todo-renderpasses must generate mips outside of a renderpass?
+	// #todo-renderpasses must generate mips outside of a renderpass (right now compute only is used; but this is not possible on all platforms) ?
 	if (Owner->bAutoGenerateMips)
 	{
 		/**Convert the input values from the editor to a compatible format for FSamplerStateInitializerRHI. 
 			Ensure default sampler is Bilinear clamp*/
-		FGenerateMips::Execute(RHICmdList, RenderTargetTextureRHI, FGenerateMipsParams{
+		FGenerateMips::Execute(RHICmdList, RenderTargetTextureRHI, CachedMipsGenParams, FGenerateMipsParams{
 			Owner->MipsSamplerFilter == TF_Nearest ? SF_Point : (Owner->MipsSamplerFilter == TF_Trilinear ? SF_Trilinear : SF_Bilinear),
 			Owner->MipsAddressU == TA_Wrap ? AM_Wrap : (Owner->MipsAddressU == TA_Mirror ? AM_Mirror : AM_Clamp),
 			Owner->MipsAddressV == TA_Wrap ? AM_Wrap : (Owner->MipsAddressV == TA_Mirror ? AM_Mirror : AM_Clamp)});
