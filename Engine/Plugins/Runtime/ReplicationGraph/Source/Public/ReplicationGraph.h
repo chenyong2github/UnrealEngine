@@ -1091,8 +1091,6 @@ public:
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
 	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() const { return ConnectionGraphNodes; }
 
-	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
-
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
@@ -1114,8 +1112,12 @@ public:
 
 	virtual void NotifyRemoveDestructionInfo(FActorDestructionInfo* DestructInfo) override;
 
+	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
+
 	virtual void NotifyResetDestructionInfo() override;
 	//~ End UReplicationConnectionDriver Interface
+
+	virtual void NotifyResetAllNetworkActors();
 
 	/** Generates a set of all the visible level names for this connection and its subconnections (if any) */
 	virtual void GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const;
