@@ -3594,16 +3594,6 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_SERVER_CODE=0");
 			}
 
-			// Set the defines for Push Model
-			if (Rules.bWithPushModel)
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_PUSH_MODEL=1");
-			}
-			else
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_PUSH_MODEL=0");
-			}
-
 			// Set the define for whether we're compiling with CEF3
 			if (Rules.bCompileCEF3 && (Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Mac || Platform == UnrealTargetPlatform.Linux))
 			{

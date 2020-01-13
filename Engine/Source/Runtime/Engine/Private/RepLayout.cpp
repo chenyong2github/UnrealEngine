@@ -21,7 +21,6 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "Templates/AndOrNot.h"
-#include "PushModelPerNetDriverState.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -60,17 +59,6 @@ static FAutoConsoleVariableRef CVarShareShadowState(TEXT("net.ShareShadowState")
 
 int32 GShareInitialCompareState = 0;
 static FAutoConsoleVariableRef CVarShareInitialCompareState(TEXT("net.ShareInitialCompareState"), GShareInitialCompareState, TEXT("If true and net.ShareShadowState is enabled, attempt to also share initial replication compares across connections."));
-
-#if WITH_PUSH_VALIDATION_SUPPORT
-
-static bool GbPushModelValidateProperties = false;
-static FAutoConsoleVariableRef CVarPushModelValidateProperties(TEXT("net.PushModelValidateProperties"), GbPushModelValidateProperties, TEXT("When true, we will compare all push model properties and warn if they haven't been marked dirty properly."));
-
-#else
-
-constexpr bool GbPushModelValidateProperties = false;
-
-#endif
 
 int32 MaxRepArraySize = UNetworkSettings::DefaultMaxRepArraySize;
 int32 MaxRepArrayMemory = UNetworkSettings::DefaultMaxRepArrayMemory;
@@ -224,35 +212,6 @@ namespace UE4_RepLayout_Private
 
 		NETWORK_PROFILER(GNetworkProfiler.TrackWritePropertyHeader(Property, HeaderBits, nullptr));
 	}
-
-#if WITH_PUSH_MODEL
-	const UE4PushModelPrivate::FPushModelPerNetDriverHandle ConditionallyAddPushModelObject(const UE4PushModelPrivate::FNetPushObjectId ObjectId, const TSharedRef<const FRepLayout>& InRepLayout)
-	{
-		const int32 NumReplicatedProperties = InRepLayout->GetNumParents();
-		if (UE4PushModelPrivate::IsPushModelEnabled() &&
-			NumReplicatedProperties > 0 &&
-			EnumHasAnyFlags(InRepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport | ERepLayoutFlags::PartialPushSupport))
-		{
-			return UE4PushModelPrivate::AddPushModelObject(ObjectId, NumReplicatedProperties);
-		}
-
-		return UE4PushModelPrivate::FPushModelPerNetDriverHandle::MakeInvalidHandle();
-	}
-
-	void ConditionallyRemovePushModelObject(const UE4PushModelPrivate::FPushModelPerNetDriverHandle Handle)
-	{
-		if (Handle.IsValid())
-		{
-			UE4PushModelPrivate::RemovePushModelObject(Handle);
-		}
-	}
-
-	UE4PushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const UE4PushModelPrivate::FPushModelPerNetDriverHandle Handle)
-	{
-		return Handle.IsValid() ? UE4PushModelPrivate::GetPerNetDriverState(Handle) : nullptr;
-	}
-
-#endif
 }
 
 //~ TODO: Consider moving the FastArray members into their own sub-struct to save memory for non fast array
@@ -785,26 +744,6 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	return CompatibleChecksum;
 }
 
-#if (WITH_PUSH_MODEL)
-struct FNetPrivatePushIdHelper
-{
-	static void SetNetPushID(UObject* InObject, const UE4PushModelPrivate::FNetPushObjectId ObjectId)
-	{
-		const UE4PushModelPrivate::FNetPushObjectId CurrentId = FObjectNetPushIdHelper::GetNetPushIdDynamic(InObject);
-		if (CurrentId != ObjectId)
-		{
-			check(CurrentId == INDEX_NONE);
-			FObjectNetPushIdHelper::SetNetPushIdDynamic(InObject, ObjectId);
-		}
-	}
-
-	static void MarkPropertyDirty(UObject* InObject, const int32 RepIndex)
-	{
-		MARK_PROPERTY_DIRTY_UNSAFE(InObject, RepIndex);
-	}
-};
-#endif // (WITH_PUSH_MODEL)
-
 FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
 		bIsReplay(InbIsReplay),
 		bIsClientReplayRecording(InbIsClientReplayRecording),
@@ -813,21 +752,13 @@ FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, c
 
 FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
 
-void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
+void FRepChangedPropertyTracker::SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive)
 {
-	FRepChangedParent& Parent = Parents[RepIndex];
+	FRepChangedParent & Parent = Parents[RepIndex];
 
-	Parent.OldActive = Parent.Active;
 	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
-
-#if WITH_PUSH_MODEL
-	if (!Parent.OldActive && Parent.Active)
-	{
-		FNetPrivatePushIdHelper::MarkPropertyDirty(OwningObject, RepIndex);
-	}
-#endif	
+	Parent.OldActive = Parent.Active;
 }
-
 
 void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
 {
@@ -967,35 +898,15 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 
 FRepChangelistState::FRepChangelistState(
 	const TSharedRef<const FRepLayout>& InRepLayout,
-	const uint8* InSource,
-	const UObject* InRepresenting,
-	FCustomDeltaChangelistState* InDeltaChangelistState)
+	const uint8* Source,
+	FCustomDeltaChangelistState* InDeltaChangelistState):
 
-	: CustomDeltaChangelistState(InDeltaChangelistState)
-	, HistoryStart(0)
-	, HistoryEnd(0)
-	, CompareIndex(0)
-	, StaticBuffer(InRepLayout->CreateShadowBuffer(InSource))
-
-#if WITH_PUSH_MODEL
-	, PushModelObjectHandle(UE4_RepLayout_Private::ConditionallyAddPushModelObject(InRepresenting->GetUniqueID(), InRepLayout))
-#endif // WITH_PUSH_MODEL
-
-{
-#if (WITH_PUSH_MODEL)
-	if (PushModelObjectHandle.IsValid())
-	{
-		FNetPrivatePushIdHelper::SetNetPushID(const_cast<UObject*>(InRepresenting), PushModelObjectHandle.ObjectId);
-	}
-#endif // (WITH_PUSH_MODEL)
-}
-
-FRepChangelistState::~FRepChangelistState()
-{
-#if WITH_PUSH_MODEL
-	UE4_RepLayout_Private::ConditionallyRemovePushModelObject(PushModelObjectHandle);
-#endif // WITH_PUSH_MODEL
-}
+	CustomDeltaChangelistState(InDeltaChangelistState),
+	HistoryStart(0),
+	HistoryEnd(0),
+	CompareIndex(0),
+	StaticBuffer(InRepLayout->CreateShadowBuffer(Source))
+{}
 
 void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
@@ -1014,33 +925,23 @@ void FRepChangelistState::CountBytes(FArchive& Ar) const
 
 FReplicationChangelistMgr::FReplicationChangelistMgr(
 	const TSharedRef<const FRepLayout>& InRepLayout,
-	const uint8* InSource,
-	const UObject* InRepresenting,
-	FCustomDeltaChangelistState* DeltaChangelistState)
+	const uint8* Source,
+	FCustomDeltaChangelistState* DeltaChangelistState):
 
-	: LastReplicationFrame(0)
-	, LastInitialReplicationFrame(0)
-	, RepChangelistState(InRepLayout, InSource, InRepresenting, DeltaChangelistState)
+	LastReplicationFrame(0),
+	LastInitialReplicationFrame(0),
+	RepChangelistState(InRepLayout, Source, DeltaChangelistState)
 {
 }
 
-FReplicationChangelistMgr::~FReplicationChangelistMgr()
+FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
+	StaticBuffer(MoveTemp(InStaticBuffer))
 {
 }
 
-void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
-{
-	RepChangelistState.CountBytes(Ar);
-}
-
-FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) 
-	: StaticBuffer(MoveTemp(InStaticBuffer))
-{
-}
-
-FRepLayout::FRepLayout()
-	: Flags(ERepLayoutFlags::None)
-	, Owner(nullptr)
+FRepLayout::FRepLayout() :
+	Flags(ERepLayoutFlags::None),
+	Owner(nullptr)
 {}
 
 FRepLayout::~FRepLayout()
@@ -1100,6 +1001,11 @@ void FRepLayout::UpdateChangelistMgr(
 	}
 }
 
+void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
+{
+	RepChangelistState.CountBytes(Ar);
+}
+
 struct FComparePropertiesSharedParams
 {
 	const bool bIsInitial;
@@ -1107,180 +1013,117 @@ struct FComparePropertiesSharedParams
 	const ERepLayoutFlags Flags;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
-	FSendingRepState* const RepState;
-	FRepChangelistState* const RepChangelistState;
-	FRepChangedPropertyTracker* const RepChangedPropertyTracker;
-};
-
-struct FComparePropertiesStackParams
-{
-	const FConstRepObjectDataBuffer Data;
-	FRepShadowDataBuffer ShadowData;
-	TArray<uint16>& Changed;
 };
 
 static uint16 CompareProperties_r(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams,
 	const uint16 CmdStart,
 	const uint16 CmdEnd,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
 	uint16 Handle);
 
 static void CompareProperties_Array_r(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
 	const uint16 CmdIndex,
 	const uint16 Handle);
 
 static void CompareRoleProperty(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams,
+	const FConstRepObjectDataBuffer Data,
 	const uint16 RoleOrRemoteRoleIndex,
-	TEnumAsByte<ENetRole>& SavedRoleOrRemoteRole)
+	TEnumAsByte<ENetRole>& SavedRoleOrRemoteRole,
+	TArray<uint16>& Changed)
 {
 	const FRepParentCmd& RoleOrRemoteRoleParent = SharedParams.Parents[RoleOrRemoteRoleIndex];
 	const FRepLayoutCmd& RoleOrRemoteRoleCmd = SharedParams.Cmds[RoleOrRemoteRoleParent.CmdStart];
 	const uint16 Handle = RoleOrRemoteRoleCmd.RelativeHandle;
-	const TEnumAsByte<ENetRole> ActorRoleOrRemoteRole = *(const TEnumAsByte<ENetRole>*)(StackParams.Data + RoleOrRemoteRoleParent).Data;
+	const TEnumAsByte<ENetRole> ActorRoleOrRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + RoleOrRemoteRoleParent).Data;
 	if (SharedParams.bForceFail || SavedRoleOrRemoteRole != ActorRoleOrRemoteRole)
 	{
 		SavedRoleOrRemoteRole = ActorRoleOrRemoteRole;
-		StackParams.Changed.Add(Handle);
+		Changed.Add(Handle);
 	}
 }
 
 static void CompareRoleProperties(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams)
+	FSendingRepState* RESTRICT RepState,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed)
 {
-	if (SharedParams.RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
+	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
 	{
-		CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
-		CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
+		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
+		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::Role, RepState->SavedRole, Changed);
 	}
-}
-
-static void CompareParentProperty(
-	const int32 ParentIndex,
-	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams)
-{
-	const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
-	const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
-
-	// Active state of a property applies to *all* connections.
-	// If the property is inactive, we can skip comparing it because we know it won't be sent.
-	// Further, this will keep the last active state of the property in the shadow buffer,
-	// meaning the next time the property becomes active it will be sent to all connections.
-	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->Parents[ParentIndex].Active;
-
-	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
-
-	if (bShouldSkip)
-	{
-		return;
-	}
-
-	const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
-
-	if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
-	{
-		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
-		{
-			CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
-			return;
-		}
-		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
-		{
-			CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
-			return;
-		}
-	}
-
-	// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
-	CompareProperties_r(SharedParams, StackParams, Parent.CmdStart, Parent.CmdEnd, Cmd.RelativeHandle - 1);
 }
 
 static void CompareParentProperties(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams)
+	FSendingRepState* RESTRICT RepState,
+	FRepChangelistState* RESTRICT RepChangelistState,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed)
 {
-	check(StackParams.ShadowData);
+	FRepShadowDataBuffer ShadowData = RepChangelistState->StaticBuffer.GetData();
+	check(ShadowData);
 
-#if WITH_PUSH_MODEL
+	FRepChangedPropertyTracker* RepChangedPropertyTracker = (RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr);
 
-	if (UE4PushModelPrivate::FPushModelPerNetDriverState* PushModelObject = UE4_RepLayout_Private::GetPerNetDriverState(SharedParams.RepChangelistState->GetPushModelObjectHandle()))
+	const bool bCheckForRole = EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor) && RepState != nullptr;
+
+	for (uint16 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 	{
-		// Typically, on an initial compare all properties will be dirty anyway.
-		// However, if an Actor is awakened from Dormancy, it's SendingRepState will have been recreated, invalidating
-		// its saved Role and RemoteRole (regardless of whether or not they were changed).
-		// This really shouldn't cause any problems, but it will cause Validation to consistently fail (if GbPushModelValidateProperties
-		// is enabled).
-		// To get around this, and just to be sure our code paths are consistent, we forcibly mark Role and RemoteRole dirty here.
-		if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor) && SharedParams.bIsInitial)
+		const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
+
+		const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
+
+		// Active state of a property applies to *all* connections.
+		// If the property is inactive, we can skip comparing it because we know it won't be sent.
+		// Further, this will keep the last active state of the property in the shadow buffer,
+		// meaning the next time the property becomes active it will be sent to all connections.
+		const bool bIsActive = !RepChangedPropertyTracker || RepChangedPropertyTracker->Parents[ParentIndex].Active;
+
+		const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
+
+		if (bShouldSkip)
 		{
-			PushModelObject->MarkPropertyDirty((int32)AActor::ENetFields_Private::RemoteRole);
-			PushModelObject->MarkPropertyDirty((int32)AActor::ENetFields_Private::Role);
+			continue;
 		}
 
-		// If we're forcibly comparing all properties, then don't bother checking dirty state.
-		if (SharedParams.bForceFail)
+		if (bCheckForRole)
 		{
-			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
+			if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
 			{
-				CompareParentProperty(ParentIndex, SharedParams, StackParams);
+				CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::Role, RepState->SavedRole, Changed);
+				continue;
+			}
+			else if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
+			{
+				CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
+				continue;
 			}
 		}
-
-		// If we have full push model support, then we only need to check properties that are actually dirty.
-		else if (!GbPushModelValidateProperties && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushSupport))
-		{
-			for (TConstSetBitIterator<> It = PushModelObject->GetDirtyProperties(); It; ++It)
-			{
-				CompareParentProperty(It.GetIndex(), SharedParams, StackParams);
-			}
-		}
-		else
-		{
-#if WITH_PUSH_VALIDATION_SUPPORT
-			int32 StartChangedNum = 0;
-#endif
-
-			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
-			{
-				const bool bIsPropertyDirty = !EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::UsePushModel) || PushModelObject->IsPropertyDirty(ParentIndex);
-				if (GbPushModelValidateProperties || bIsPropertyDirty)
-				{
-					CompareParentProperty(ParentIndex, SharedParams, StackParams);
-
-#if WITH_PUSH_VALIDATION_SUPPORT
-					const bool bWasFoundDirtyButNotMarkedDirty = GbPushModelValidateProperties && !bIsPropertyDirty && StackParams.Changed.Num() > StartChangedNum;
-
-					ensureAlwaysMsgf(!bWasFoundDirtyButNotMarkedDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
-
-					StartChangedNum = StackParams.Changed.Num();
-#endif
-				}
-			}
-		}
-
-		PushModelObject->ResetDirtyStates();
-		return;
-	}
-#endif
-
-	for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
-	{
-		CompareParentProperty(ParentIndex, SharedParams, StackParams);
+		
+		// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
+		const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
+		const uint16 Handle = Cmd.RelativeHandle;
+		CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
 	}
 }
 
-
 static uint16 CompareProperties_r(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams,
 	const uint16 CmdStart,
 	const uint16 CmdEnd,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
 	uint16 Handle)
 {
 	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
@@ -1291,26 +1134,17 @@ static uint16 CompareProperties_r(
 
 		++Handle;
 
-		const FConstRepObjectDataBuffer Data = StackParams.Data + Cmd;
-		FRepShadowDataBuffer ShadowData = StackParams.ShadowData + Cmd;
-
 		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
 		{
-			FComparePropertiesStackParams NewStackParams{
-				Data,
-				ShadowData,
-				StackParams.Changed
-			};
-
 			// Once we hit an array, start using a stack based approach
-			CompareProperties_Array_r(SharedParams, NewStackParams, CmdIndex, Handle);
+			CompareProperties_Array_r(SharedParams, ShadowData + Cmd, Data + Cmd, Changed, CmdIndex, Handle);
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
-		else if (SharedParams.bForceFail || !PropertiesAreIdentical(Cmd, ShadowData.Data, Data.Data))
+		else if (SharedParams.bForceFail || !PropertiesAreIdentical(Cmd, (ShadowData + Cmd).Data, (Data + Cmd).Data))
 		{
-			StoreProperty(Cmd, ShadowData.Data, Data.Data);
-			StackParams.Changed.Add(Handle);
+			StoreProperty(Cmd, (ShadowData + Cmd).Data, (Data + Cmd.Offset).Data);
+			Changed.Add(Handle);
 		}
 	}
 
@@ -1319,14 +1153,16 @@ static uint16 CompareProperties_r(
 
 static void CompareProperties_Array_r(
 	const FComparePropertiesSharedParams& SharedParams,
-	FComparePropertiesStackParams& StackParams,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
 	const uint16 CmdIndex,
 	const uint16 Handle)
 {
 	const FRepLayoutCmd& Cmd = SharedParams.Cmds[CmdIndex];
 
-	FScriptArray* ShadowArray = (FScriptArray*)StackParams.ShadowData.Data;
-	FScriptArray* Array = (FScriptArray*)StackParams.Data.Data;
+	FScriptArray* ShadowArray = (FScriptArray*)ShadowData.Data;
+	FScriptArray* Array = (FScriptArray*)Data.Data;
 
 	const uint16 ArrayNum = Array->Num();
 	const uint16 ShadowArrayNum = ShadowArray->Num();
@@ -1351,23 +1187,16 @@ static void CompareProperties_Array_r(
 		{
 			const int32 ArrayElementOffset = i * Cmd.ElementSize;
 			bForceFail = bOldForceFail || i >= ShadowArrayNum;
-
-			FComparePropertiesStackParams NewStackParams{
-				ArrayData + ArrayElementOffset,
-				ShadowArrayData + ArrayElementOffset,
-				ChangedLocal
-			};
-
-			LocalHandle = CompareProperties_r(SharedParams, NewStackParams, CmdIndex + 1, Cmd.EndCmd - 1, LocalHandle);
+			LocalHandle = CompareProperties_r(SharedParams, CmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset, ArrayData + ArrayElementOffset, ChangedLocal, LocalHandle);
 		}
 	}
 
 	if (ChangedLocal.Num())
 	{
-		StackParams.Changed.Add(Handle);
-		StackParams.Changed.Add(ChangedLocal.Num());		// This is so we can jump over the array if we need to
-		StackParams.Changed.Append(ChangedLocal);
-		StackParams.Changed.Add(0);
+		Changed.Add(Handle);
+		Changed.Add(ChangedLocal.Num());		// This is so we can jump over the array if we need to
+		Changed.Append(ChangedLocal);
+		Changed.Add(0);
 	}
 	else if (ArrayNum != ShadowArrayNum)
 	{
@@ -1375,9 +1204,9 @@ static void CompareProperties_Array_r(
 		check(ArrayNum < ShadowArrayNum || SharedParams.Cmds[CmdIndex + 1].Type == ERepLayoutCmdType::DynamicArray);
 
 		// Array got smaller, send the array handle to force array size change
-		StackParams.Changed.Add(Handle);
-		StackParams.Changed.Add(0);
-		StackParams.Changed.Add(0);
+		Changed.Add(Handle);
+		Changed.Add(0);
+		Changed.Add(0);
 	}
 }
 
@@ -1409,25 +1238,16 @@ bool FRepLayout::CompareProperties(
 		/*bForceFail=*/ false,
 		Flags,
 		Parents,
-		Cmds,
-		RepState,
-		RepChangelistState,
-		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr)
-	};
-
-	FComparePropertiesStackParams StackParams{
-		Data,
-		RepChangelistState->StaticBuffer.GetData(),
-		Changed
+		Cmds
 	};
 
 	if (RepFlags.bRolesOnly)
 	{
-		CompareRoleProperties(SharedParams, StackParams);
+		CompareRoleProperties(SharedParams, RepState, Data, Changed);
 	}
 	else
 	{
-		CompareParentProperties(SharedParams, StackParams);
+		CompareParentProperties(SharedParams, RepState, RepChangelistState, Data, Changed);
 	}
 
 	if (Changed.Num() == 0)
@@ -2939,7 +2759,7 @@ static FGuidReferencesMap* PrepReceivedArray(
 	return NewGuidReferencesArray ? NewGuidReferencesArray->Array : nullptr;
 }
 
-/** Struct containing parameters that don't change or can be shared throughout recursion of ReceiveProperties_r */
+/** Struct containing parameters that don't change throughout recursion of ReceiveProperties_r */
 struct FReceivePropertiesSharedParams
 {
 	const bool bDoChecksum;
@@ -2950,15 +2770,10 @@ struct FReceivePropertiesSharedParams
 	bool& bOutGuidsChanged;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
-	UObject* OwningObject;
 	uint16 ReadHandle = 0;
-	
-#if WITH_PUSH_MODEL	
-	int32 LastReceivedParent = INDEX_NONE;
-#endif	
 };
 
-/** Struct containing parameters that do change or can't be shared as we recurse into ReceiveProperties_r */
+/** Struct containing parameters that do change as we recurse into ReceiveProperties_r */
 struct FReceivePropertiesStackParams
 {
 	FRepObjectDataBuffer ObjectData;
@@ -3016,22 +2831,11 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 		else
 		{
 			UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_r: Parent=%d, Cmd=%d"), Cmd.ParentIndex, CmdIndex);
-
-			const FRepParentCmd& Parent = Params.Parents[Cmd.ParentIndex];
-
-#if WITH_PUSH_MODEL
-			if (Cmd.ParentIndex != Params.LastReceivedParent)
-			{
-				// Make sure we mark received properties dirty.
-				// This will make sure that anything we receive can be picked up by other Net Drivers
-				// (like the DemoNetDriver) on clients.
-				Params.LastReceivedParent = Cmd.ParentIndex;
-				FNetPrivatePushIdHelper::MarkPropertyDirty(Params.OwningObject, Params.LastReceivedParent);
-			}
-#endif
-
+				
 			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
 			{
+				const FRepParentCmd& Parent = Params.Parents[Cmd.ParentIndex];
+
 				// Don't worry about checking the ShadowData for nullptr here.
 				// We're either:
 				//	1. At the top level and it's valid
@@ -3133,6 +2937,7 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 			// TODO: Might be worth doing this before and after ReadNextHandle, or having ReadNextHandle check for errors?
 			if (Params.Bunch.IsError())
 			{
+				const FRepParentCmd& Parent = Params.Parents[Cmd.ParentIndex];
 				UE_LOG(LogRep, Error, TEXT("ReceiveProperties_r: Failed to receive property, BunchIsError - Property=%s, Parent=%d, Cmd=%d, ReadHandle=%d"), *Parent.CachedPropertyName.ToString(), Cmd.ParentIndex, CmdIndex, Params.ReadHandle);
 				return false;
 			}
@@ -3150,7 +2955,7 @@ bool FRepLayout::ReceiveProperties(
 	UActorChannel* OwningChannel,
 	UClass* InObjectClass,
 	FReceivingRepState* RESTRICT RepState,
-	UObject* Object,
+	FRepObjectDataBuffer Data,
 	FNetBitReader& InBunch,
 	bool& bOutHasUnmapped,
 	bool& bOutGuidsChanged,
@@ -3158,7 +2963,6 @@ bool FRepLayout::ReceiveProperties(
 {
 	check(InObjectClass == Owner);
 
-	FRepObjectDataBuffer Data(Object);
 	const bool bEnableRepNotifies = EnumHasAnyFlags(ReceiveFlags, EReceivePropertiesFlags::RepNotifies);
 
 	if (OwningChannel->Connection->InternalAck)
@@ -3185,13 +2989,12 @@ bool FRepLayout::ReceiveProperties(
 		bDoChecksum,
 		// We can skip swapping roles if we're not an Actor layout, or if we've been explicitly told we can skip.
 		EnumHasAnyFlags(ReceiveFlags, EReceivePropertiesFlags::SkipRoleSwap) || !EnumHasAnyFlags(Flags, ERepLayoutFlags::IsActor),
-		bEnableRepNotifies ? &RepState->RepNotifies : nullptr,
+		EnumHasAnyFlags(ReceiveFlags, EReceivePropertiesFlags::RepNotifies) ? &RepState->RepNotifies : nullptr,
 		InBunch,
 		bOutHasUnmapped,
 		bOutGuidsChanged,
 		Parents,
-		Cmds,
-		Object
+		Cmds
 	};
 
 	FReceivePropertiesStackParams StackParams{
@@ -4972,10 +4775,7 @@ static int32 InitFromProperty_r(
 	return RelativeHandle;
 }
 
-static FORCEINLINE uint16 AddParentProperty(
-	TArray<FRepParentCmd>& Parents,
-	FProperty* Property,
-	int32 ArrayIndex)
+static FORCEINLINE uint16 AddParentProperty(TArray<FRepParentCmd>& Parents, FProperty* Property, int32 ArrayIndex)
 {
 	return Parents.Emplace(Property, ArrayIndex);
 }
@@ -5105,11 +4905,7 @@ static void BuildShadowOffsets_r(TArray<FRepLayoutCmd>::TIterator& CmdIt, int32&
 }
 
 template<ERepBuildType ShadowType>
-static void BuildShadowOffsets(
-	UStruct* Owner,
-	TArray<FRepParentCmd>& Parents,
-	TArray<FRepLayoutCmd>& Cmds,
-	int32& ShadowOffset)
+static void BuildShadowOffsets(UStruct* Owner, TArray<FRepParentCmd>& Parents, TArray<FRepLayoutCmd>& Cmds, int32& ShadowOffset)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RepLayout_BuildShadowOffsets);
 
@@ -5323,11 +5119,6 @@ void FRepLayout::InitFromClass(
 
 	Object->GetLifetimeReplicatedProps(LifetimeProps);
 
-	// Tracks the number of (non-delta) lifetime properties so we can check that against our
-	// Push Model Enabled properties.
-	int32 NumberOfLifetimeProperties = 0;
-	int32 NumberOfPushModelProperties = 0;
-
 	// Setup lifetime replicated properties
 	for (int32 i = 0; i < LifetimeProps.Num(); i++)
 	{
@@ -5355,22 +5146,7 @@ void FRepLayout::InitFromClass(
 			Parents[ParentIndex].RepNotifyNumParams = RepNotifyFunc->NumParms;
 		}
 
-		if (!EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::IsCustomDelta))
-		{
-			Parents[ParentIndex].Flags |= ERepParentFlags::IsLifetime;
-			if (LifetimeProps[i].Condition == COND_None)
-			{
-				Parents[ParentIndex].Flags &= ~ERepParentFlags::IsConditional;
-			}
-
-			++NumberOfLifetimeProperties;
-			if (IS_PUSH_MODEL_ENABLED() && LifetimeProps[i].bIsPushBased)
-			{
-				++NumberOfPushModelProperties;
-				Parents[ParentIndex].Flags |= ERepParentFlags::UsePushModel;
-			}
-		}
-		else
+		if (EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::IsCustomDelta))
 		{
 			// We'll track all Custom Lifetime Properties here, and we'll handle Fast Array Serialization
 			// specially.
@@ -5453,6 +5229,16 @@ void FRepLayout::InitFromClass(
 			{
 				LifetimeCustomPropertyState->Add(FLifetimeCustomDeltaProperty(ParentIndex));
 			}
+
+			continue;
+		}
+
+		Parents[ParentIndex].Flags |= ERepParentFlags::IsLifetime;
+
+		if (LifetimeProps[i].Condition == COND_None)
+		{
+			Parents[ParentIndex].Flags &= ~ERepParentFlags::IsConditional;
+		}
 	}
 
 	if (bIsObjectActor)
@@ -5470,13 +5256,6 @@ void FRepLayout::InitFromClass(
 			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Flags |= ERepParentFlags::IsConditional;
 			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Condition = COND_None;
 		}
-	}	
-
-	if (IS_PUSH_MODEL_ENABLED() && NumberOfPushModelProperties > 0)
-	{
-		Flags |= (NumberOfLifetimeProperties == NumberOfPushModelProperties) ?
-			ERepLayoutFlags::FullPushSupport :
-			ERepLayoutFlags::PartialPushSupport;
 	}
 
 	if (!ServerConnection || EnumHasAnyFlags(CreateFlags, ECreateRepLayoutFlags::MaySendProperties))
@@ -6246,7 +6025,7 @@ TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr
 		ShadowStateSource = (const uint8*)InObject;
 	}
 
-	return MakeShareable(new FReplicationChangelistMgr(AsShared(), ShadowStateSource, InObject, DeltaChangelistState));
+	return MakeShareable(new FReplicationChangelistMgr(AsShared(), ShadowStateSource, DeltaChangelistState));
 }
 
 TUniquePtr<FRepState> FRepLayout::CreateRepState(
@@ -6817,9 +6596,6 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 						TArray<uint16> NewChangelist;
 						for (auto& IDIndexPair : ChangedElements)
 						{
-							NewChangelist.Empty(1);
-							const int32 ArrayElementOffset = ElementSize * IDIndexPair.Idx;
-
 							// Go ahead and do a property compare here, regardless of what we'll actually use below.
 							// This is to prevent issues where someone with an initial / outdated connection doesn't properly
 							// update the changelists in our history, but does update the shadow state inadvertently.
@@ -6828,19 +6604,16 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 								/*bForceFail=*/ bIsInitial || ShadowArrayItemIsNew[IDIndexPair.Idx],
 								Flags,
 								Parents,
-								Cmds,
-								nullptr,
-								nullptr,
-								nullptr
+								Cmds
 							};
 
-							FComparePropertiesStackParams StackParams{
-								FConstRepObjectDataBuffer(ObjectArrayData + ArrayElementOffset),
-								FRepShadowDataBuffer(ShadowArrayData + ArrayElementOffset),
-								NewChangelist
-							};
+							const int32 ArrayElementOffset = ElementSize * IDIndexPair.Idx;
 
-							CompareProperties_r(SharedParams, StackParams, ItemLayoutStart, ItemLayoutEnd, 0);
+							FConstRepObjectDataBuffer ElementData(ObjectArrayData + ArrayElementOffset);
+							FRepShadowDataBuffer ElementShadowData(ShadowArrayData + ArrayElementOffset);
+							NewChangelist.Empty(1);
+
+							CompareProperties_r(SharedParams, ItemLayoutStart, ItemLayoutEnd, ElementShadowData, ElementData, NewChangelist, 0);
 
 							if (NewChangelist.Num())
 							{
@@ -6851,7 +6624,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 								// to copying them into the shadow state (see FFastArraySerializerItem::operator=).
 								// In that case, we need to make make sure we reset our ID so they can be found the next
 								// time we try to replicate them.
-								int32& ShadowReplicationID = CustomDeltaProperty.GetFastArrayItemReplicationIDMutable(StackParams.ShadowData.Data);
+								int32& ShadowReplicationID = CustomDeltaProperty.GetFastArrayItemReplicationIDMutable(ElementShadowData.Data);
 								ShadowReplicationID = IDIndexPair.ID;
 							}
 						}
@@ -7088,8 +6861,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 					bOutHasUnmapped,
 					bOutGuidsChanged,
 					Parents,
-					Cmds,
-					Object
+					Cmds
 				};
 
 				FReceivePropertiesStackParams StackParams{
