@@ -29,7 +29,7 @@ enum class EGraphOptions
 	UseEventDuration		= (1 << 5),
 	ShowBars				= (1 << 6),
 
-	All						= ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
+	All = ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
 };
 
 ENUM_CLASS_FLAGS(EGraphOptions);

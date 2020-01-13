@@ -645,7 +645,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPoints))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPoints))
 		{
 			FUIAction Action_ShowPoints
 			(
@@ -664,7 +664,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPointsWithBorder))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPointsWithBorder))
 		{
 			FUIAction Action_ShowPointsWithBorder
 			(
@@ -683,7 +683,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowLines))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowLines))
 		{
 			FUIAction Action_ShowLines
 			(
@@ -702,7 +702,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPolygon))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowPolygon))
 		{
 			FUIAction Action_ShowPolygon
 			(
@@ -721,7 +721,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::UseEventDuration))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::UseEventDuration))
 		{
 			FUIAction Action_UseEventDuration
 			(
@@ -740,7 +740,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if(EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowBars))
+		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowBars))
 		{
 			FUIAction Action_ShowBars
 			(
@@ -768,7 +768,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			.MaxDesiredHeight(150.0f)
 			[
 				SNew(SGraphSeriesList, SharedThis(this))
-			], 
+			],
 			FText::GetEmpty(), true);
 	}
 	MenuBuilder.EndSection();
