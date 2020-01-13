@@ -580,7 +580,7 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 		{
 			CachedElementList = &LocalCachedElementList;
 			{
-				SCOPE_CYCLE_SWIDGET(WidgetScope, LocalCachedElementList.Widget);
+				SCOPE_CYCLE_SWIDGET(LocalCachedElementList.Widget);
 				AddElementsInternal(LocalCachedElementList.DrawElements, ViewportSize);
 			}
 
