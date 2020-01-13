@@ -713,22 +713,9 @@ void FVulkanDynamicRHI::InitInstance()
 
 		GUseTexture3DBulkDataRHI = true;
 
-		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-		{
-			ResourceIt->InitRHI();
-		}
-		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-		{
-			ResourceIt->InitDynamicRHI();
-		}
-
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
 		GProjectionSignY = 1.0f;
-
-		GIsRHIInitialized = true;
 
 		SavePipelineCacheCmd = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("r.Vulkan.SavePipelineCache"),
@@ -779,6 +766,11 @@ void FVulkanDynamicRHI::InitInstance()
 		);
 
 #endif
+
+		GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
+		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+		FRenderResource::InitPreRHIResources();
+		GIsRHIInitialized = true;
 	}
 }
 

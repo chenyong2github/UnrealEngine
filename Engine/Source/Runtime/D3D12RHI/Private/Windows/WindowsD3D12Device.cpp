@@ -709,22 +709,6 @@ void FD3D12DynamicRHI::Init()
 
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
-	GRHICommandList.GetImmediateCommandList().SetContext(GetDynamicRHI<FD3D12DynamicRHI>()->RHIGetDefaultContext());
-	GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
-
-	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		ResourceIt->InitRHI();
-	}
-	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		ResourceIt->InitDynamicRHI();
-	}
-
 	{
 		GRHISupportsHDROutput = SupportsHDROutput(this);
 
@@ -761,7 +745,9 @@ void FD3D12DynamicRHI::Init()
 	GRHISupportsRayTracing = GetAdapter().GetD3DRayTracingDevice() != nullptr;
 #endif
 
-	// Set the RHI initialized flag.
+	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
+	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
 }
 
