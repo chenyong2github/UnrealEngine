@@ -446,6 +446,7 @@ void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 			if (ConnectionManager->NetConnection == NetConnection)
 			{
 				ensure(!bFound);
+				ConnectionManager->TearDown();
 				Connections.RemoveAtSwap(idx, 1, false);
 				bFound = true;
 			}
@@ -504,6 +505,11 @@ void UReplicationGraph::InitializeForWorld(UWorld* World)
 	for (UReplicationGraphNode* Manager : GlobalGraphNodes)
 	{
 		Manager->NotifyResetAllNetworkActors();
+	}
+
+	for (UNetReplicationGraphConnection* RepGraphConnection : Connections)
+	{
+		RepGraphConnection->NotifyResetAllNetworkActors();
 	}
 	
 	if (World)
@@ -2468,6 +2474,16 @@ void UNetReplicationGraphConnection::NotifyResetDestructionInfo()
 	TrackedDestructionInfoPtrs.Reset();
 	PendingDestructInfoList.Reset();
 	OutOfRangeDestroyedActors.Reset();
+}
+
+void UNetReplicationGraphConnection::NotifyResetAllNetworkActors()
+{
+	for (UReplicationGraphNode* Node : ConnectionGraphNodes)
+	{
+		Node->NotifyResetAllNetworkActors();
+	}
+
+	ActorInfoMap.ResetActorMap();
 }
 
 void UNetReplicationGraphConnection::GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const
