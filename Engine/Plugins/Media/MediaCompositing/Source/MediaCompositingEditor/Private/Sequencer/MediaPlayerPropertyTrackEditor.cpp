@@ -101,7 +101,7 @@ void FMediaPlayerPropertyTrackEditor::OnAnimatedPropertyChanged(const FPropertyC
 		return;
 	}
 
-	UProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
+	FProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 	if (!Property)
 	{
 		return;
