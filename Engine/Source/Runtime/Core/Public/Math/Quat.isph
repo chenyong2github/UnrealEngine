@@ -11,7 +11,7 @@ inline uniform FVector4 MatrixToQuat(const uniform FMatrix &M)
 	// If Matrix is NULL, return Identity quaternion. If any of them is 0, you won't be able to construct rotation
 	// if you have two plane at least, we can reconstruct the frame using cross product, but that's a bit expensive op to do here
 	// for now, if you convert to matrix from 0 scale and convert back, you'll lose rotation. Don't do that.
-	if (IsAnyMatrixScaledAxesNearlyZero(M, KINDA_SMALL_NUMBER))
+	if (IsMatrixScaledAxesNearlyZero(M))
 	{
 		return Float0001;
 	}
@@ -108,17 +108,19 @@ inline FVector4 VectorNormalizeQuaternion(const FVector4& UnnormalizedQuat)
 
 inline uniform FVector4 VectorNormalizeQuaternion(const uniform FVector4& UnnormalizedQuat)
 {
-	return VectorNormalizeSafe2(UnnormalizedQuat, Float0001);
+	return VectorNormalizeSafe(UnnormalizedQuat, Float0001);
 }
 
 inline FVector4 QuatInverse(const FVector4 &Quat)
 {
-	return Quat * QINV_SIGN_MASK;
+    static const uniform FVector4 Mul = {{-1.0f, -1.0f, -1.0f, 1.0f}};
+	return Quat * Mul;
 }
 
 inline uniform FVector4 QuatInverse(const uniform FVector4 &Quat)
 {
-	return Quat * QINV_SIGN_MASK;
+    static const uniform FVector4 Mul = {{-1.0f, -1.0f, -1.0f, 1.0f}};
+	return Quat * Mul;
 }
 
 inline FVector4 QuatFastLerp(const FVector4& A, const FVector4& B, const float Alpha)
@@ -182,21 +184,6 @@ inline uniform FVector4 VectorQuaternionRotateVector(const uniform FVector4& Qua
 	return Rotated;
 }
 
-inline uniform FVector VectorQuaternionRotateVector(const uniform FVector4& Quat, const uniform FVector& V)
-{	
-	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
-	// V' = V + 2w(Q x V) + (2Q x (Q x V))
-	// refactor:
-	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
-	// T = 2(Q x V);
-	// V' = V + w*(T) + (Q x T)
-
-	const uniform FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
-	const uniform FVector T = VectorCross(Q, V) * 2.f;
-	const uniform FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
-	return Result;
-}
-
 inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform FVector4& B, const uniform float Alpha)
 {
 	// Blend rotation
@@ -213,14 +200,6 @@ inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform 
 	const uniform FVector4 UnnormalizedResult = VectorMultiplyAdd(BiasTimesA, OneMinusAlpha, BTimesWeight);
 
 	return UnnormalizedResult;
-}
-
-inline uniform FVector4 VectorQuaternionEnforceShortestArcWith(const uniform FVector4& A, const uniform FVector4& B)
-{
-	const uniform float DotResult = VectorDot(B, A);
-	const uniform float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
-
-	return A * Bias;
 }
 
 #endif
