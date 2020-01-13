@@ -43,7 +43,7 @@ bool UNiagaraNode::NestedPropertiesAppendCompileHash(const void* Container, cons
 	return FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(Container, Struct, IteratorFlags, BaseName, InVisitor);
 }
 
-bool UNiagaraNode::PODPropertyAppendCompileHash(const void* Container, UProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const
+bool UNiagaraNode::PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const
 {
 	return FNiagaraEditorUtilities::PODPropertyAppendCompileHash(Container, Property, PropertyName, InVisitor);
 }
