@@ -585,6 +585,12 @@ namespace UnrealBuildTool
 		private bool? bWithServerCodeOverride;
 
 		/// <summary>
+		/// When enabled, Push Model Networking will be used on the server. This can help reduce CPU overhead of networking, at the cost of more memory.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithPushModel = false;
+
+		/// <summary>
 		/// Whether to include stats support even without the engine.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2051,6 +2057,11 @@ namespace UnrealBuildTool
 		public bool bWithServerCode
 		{
 			get { return Inner.bWithServerCode; }
+		}
+
+		public bool bWithPushModel
+		{
+			get { return Inner.bWithPushModel; }
 		}
 
 		public bool bCompileWithStatsWithoutEngine
