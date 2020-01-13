@@ -88,4 +88,14 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 	return nullptr;
 }
 
+FString USoundCueTemplateFactory::GetDefaultNewAssetName() const
+{
+	if (SoundCueTemplateClass)
+	{
+		return SoundCueTemplateClass->GetName() + FString(TEXT("_"));
+	}
+
+	return Super::GetDefaultNewAssetName();
+}
+
 #undef LOCTEXT_NAMESPACE // "SoundCueTemplatesEditor"
