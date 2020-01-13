@@ -5,10 +5,13 @@
 #include "CoreTypes.h"
 #include "ObjectTrace.h"
 #include "CoreMinimal.h"
+#include "Trace/Trace.h"
 
 #define ANIM_TRACE_ENABLED OBJECT_TRACE_ENABLED
 
 #if ANIM_TRACE_ENABLED
+
+ENGINE_API UE_TRACE_CHANNEL_EXTERN(AnimationChannel);
 
 struct FAnimInstanceProxy;
 struct FAnimTickRecord;

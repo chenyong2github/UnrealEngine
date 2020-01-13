@@ -27,6 +27,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Trace/Trace.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
@@ -59,6 +60,7 @@ class FRayTracingPipelineState;
 
 DECLARE_STATS_GROUP(TEXT("RHICmdList"), STATGROUP_RHICMDLIST, STATCAT_Advanced);
 
+RHI_API extern Trace::FChannel RHICommandsChannel;
 
 // set this one to get a stat for each RHI command 
 #define RHI_STATS 0
@@ -83,6 +85,11 @@ extern RHI_API uint32 GWorkingRHIThreadStartCycles;
 
 /** How many cycles the from sampling input to the frame being flipped. */
 extern RHI_API uint64 GInputLatencyTime;
+
+/*Trace::FChannel& FORCEINLINE GetRHICommandsChannel() 
+{
+
+}*/
 
 /**
 * Whether the RHI commands are being run in a thread other than the render thread
@@ -697,28 +704,8 @@ struct FRHICommand : public FRHICommandBase
 
 	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext& Context) override final
 	{
-#if CPUPROFILERTRACE_ENABLED
-		static uint16 __CpuProfilerEventSpecId;
-		if (__CpuProfilerEventSpecId == 0)
-		{
-			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(NameType::TStr(), CpuProfilerGroup_Default);
-		}
-
-		extern RHI_API int32 GRHICmdTraceEvents;
-		struct FConditionalTraceScope
-		{
-			FConditionalTraceScope(const uint16 InSpecId) : SpecId(InSpecId)
-			{
-				if (SpecId) FCpuProfilerTrace::OutputBeginEvent(SpecId);
-			}
-			~FConditionalTraceScope()
-			{
-				if (SpecId) FCpuProfilerTrace::OutputEndEvent();
-			}
-			const uint16 SpecId;
-		} TraceScope(GRHICmdTraceEvents ? __CpuProfilerEventSpecId : 0);
-#endif // CPUPROFILERTRACE_ENABLED
-
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(NameType::TStr(), RHICommandsChannel);
+		
 		TCmd *ThisCmd = static_cast<TCmd*>(this);
 #if RHI_COMMAND_LIST_DEBUG_TRACES
 		ThisCmd->StoreDebugInfo(Context);
@@ -3759,14 +3746,7 @@ class RHI_API FRHICommandListImmediate : public FRHICommandList
 
 		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
 		{
-#if CPUPROFILERTRACE_ENABLED
-			static uint16 __CpuProfilerEventSpecId;
-			if (__CpuProfilerEventSpecId == 0)
-			{
-				__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(TEXT("TRHILambdaCommand"), CpuProfilerGroup_Default);
-			}
-			FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
-#endif
+			TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
 			Lambda(*static_cast<FRHICommandListImmediate*>(&CmdList));
 			Lambda.~LAMBDA();
 		}

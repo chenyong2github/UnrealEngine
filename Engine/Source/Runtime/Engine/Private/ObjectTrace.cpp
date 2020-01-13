@@ -15,6 +15,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 
+UE_TRACE_CHANNEL(ObjectChannel)
+
 UE_TRACE_EVENT_BEGIN(Object, Class, Important)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint64, SuperId)
@@ -81,7 +83,7 @@ void FObjectTrace::Init()
 		UE_TRACE_EVENT_IS_ENABLED(Object, Class);
 		UE_TRACE_EVENT_IS_ENABLED(Object, Object);
 		UE_TRACE_EVENT_IS_ENABLED(Object, ObjectEvent);
-		Trace::ToggleEvent(TEXT("Object"), true);
+		Trace::ToggleChannel(ObjectChannel, true);
 	}
 }
 
@@ -122,8 +124,8 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 
 void FObjectTrace::OutputClass(const UClass* InClass)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Object, Class);
-	if (!bEventEnabled || InClass == nullptr)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InClass == nullptr)
 	{
 		return;
 	}
@@ -147,7 +149,7 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 		FPlatformMemory::Memcpy(reinterpret_cast<TCHAR*>(Out) + ClassNameStringLength, *InClass->GetPathName(), ClassFullNameStringLength * sizeof(TCHAR));
 	};
 
-	UE_TRACE_LOG(Object, Class, (ClassNameStringLength + ClassFullNameStringLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Object, Class, ObjectChannel, (ClassNameStringLength + ClassFullNameStringLength) * sizeof(TCHAR))
 		<< Class.ClassNameStringLength(ClassNameStringLength)
 		<< Class.Id(GetObjectId(InClass))
 		<< Class.SuperId(GetObjectId(InClass->GetSuperClass()))
@@ -156,8 +158,8 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 
 void FObjectTrace::OutputObject(const UObject* InObject)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Object, Object);
-	if (!bEventEnabled || InObject == nullptr)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InObject == nullptr)
 	{
 		return;
 	}
@@ -194,7 +196,7 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 		FPlatformMemory::Memcpy(reinterpret_cast<TCHAR*>(Out) + ObjectNameStringLength, *InObject->GetPathName(), ObjectPathNameStringLength * sizeof(TCHAR));
 	};
 
-	UE_TRACE_LOG(Object, Object, (ObjectNameStringLength + ObjectPathNameStringLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Object, Object, ObjectChannel, (ObjectNameStringLength + ObjectPathNameStringLength) * sizeof(TCHAR))
 		<< Object.ObjectNameStringLength(ObjectNameStringLength)
 		<< Object.Id(GetObjectId(InObject))
 		<< Object.ClassId(GetObjectId(InObject->GetClass()))
@@ -204,8 +206,8 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 
 void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEvent)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Object, ObjectEvent);
-	if (!bEventEnabled || InObject == nullptr)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InObject == nullptr)
 	{
 		return;
 	}
@@ -224,7 +226,7 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 
 	int32 StringBufferSize = (FCString::Strlen(InEvent) + 1) * sizeof(TCHAR);
 
-	UE_TRACE_LOG(Object, ObjectEvent, StringBufferSize)
+	UE_TRACE_LOG(Object, ObjectEvent, ObjectChannel, StringBufferSize)
 		<< ObjectEvent.Cycle(FPlatformTime::Cycles64())
 		<< ObjectEvent.Id(GetObjectId(InObject))
 		<< ObjectEvent.Attachment(InEvent, StringBufferSize);

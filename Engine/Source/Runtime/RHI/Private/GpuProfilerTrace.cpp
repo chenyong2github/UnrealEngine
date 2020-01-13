@@ -8,6 +8,8 @@
 
 #if GPUPROFILERTRACE_ENABLED
 
+UE_TRACE_CHANNEL(GpuProfilerChannel)
+
 UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, Always)
 	UE_TRACE_EVENT_FIELD(const void*, EventType)
 	UE_TRACE_EVENT_FIELD(uint16, NameLength)
@@ -24,7 +26,7 @@ FGpuProfilerTrace::FEventType::FEventType(const TCHAR* Name)
 {
 	uint16 NameLength = FCString::Strlen(Name);
 	uint16 NameSize = (NameLength + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(GpuProfiler, EventSpec, NameSize) 
+	UE_TRACE_LOG(GpuProfiler, EventSpec, GpuProfilerChannel, NameSize)
 		<< EventSpec.EventType(this)
 		<< EventSpec.NameLength(NameLength)
 		<< EventSpec.Attachment(Name, NameSize);
@@ -69,7 +71,7 @@ void FGpuProfilerTrace::EndFrame()
 {
 	if (CurrentFrame.EventBufferSize)
 	{
-		UE_TRACE_LOG(GpuProfiler, Frame, CurrentFrame.EventBufferSize)
+		UE_TRACE_LOG(GpuProfiler, Frame, GpuProfilerChannel, CurrentFrame.EventBufferSize)
 			<< Frame.TimestampBase(CurrentFrame.TimestampBase)
 			<< Frame.RenderingFrameNumber(CurrentFrame.RenderingFrameNumber)
 			<< Frame.Attachment(CurrentFrame.EventBuffer, CurrentFrame.EventBufferSize);

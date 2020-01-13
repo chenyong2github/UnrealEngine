@@ -113,7 +113,6 @@ public:
 #endif
 
 #define SCOPED_NAMED_EVENT(Name, Color) \
-	TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
 	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_##Name##_)(Color, NAMED_EVENT_STR(#Name));
 
 #define SCOPED_NAMED_EVENT_FSTRING(Text, Color)  FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, *Text);

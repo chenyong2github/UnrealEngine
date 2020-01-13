@@ -10,6 +10,8 @@
 
 #if STATSTRACE_ENABLED
 
+UE_TRACE_CHANNEL(StatsChannel)
+
 UE_TRACE_EVENT_BEGIN(Stats, Spec, Always)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsFloatingPoint)
@@ -72,7 +74,7 @@ FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 
 void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 {
-	UE_TRACE_LOG(Stats, EventBatch, ThreadState->BufferSize)
+	UE_TRACE_LOG(Stats, EventBatch, StatsChannel, ThreadState->BufferSize)
 		<< EventBatch.ThreadId(ThreadState->ThreadId)
 		<< EventBatch.Attachment(ThreadState->Buffer, ThreadState->BufferSize);
 	ThreadState->BufferSize = 0;
@@ -111,7 +113,7 @@ void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCH
 		memcpy(Buffer, Name, NameSize);
 		memcpy(Buffer + NameSize, Description, DescriptionSize);
 	};
-	UE_TRACE_LOG(Stats, Spec, NameSize + DescriptionSize)
+	UE_TRACE_LOG(Stats, Spec, StatsChannel, NameSize + DescriptionSize)
 		<< Spec.Id(Stat.GetComparisonIndex().ToUnstableInt())
 		<< Spec.IsFloatingPoint(IsFloatingPoint)
 		<< Spec.IsMemory(IsMemory)

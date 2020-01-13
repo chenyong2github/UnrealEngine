@@ -208,6 +208,7 @@ class FFeedbackContext;
 #if defined(WITH_LAUNCHERCHECK) && WITH_LAUNCHERCHECK
 	#include "ILauncherCheckModule.h"
 #endif
+#include <String/ParseTokens.h>
 
 #if WITH_COREUOBJECT
 	#ifndef USE_LOCALIZED_PACKAGE_CACHE
@@ -1288,10 +1289,25 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
-	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-	TRACE_CPUPROFILER_INIT(CmdLine);
-	TRACE_PLATFORMFILE_INIT(CmdLine);
-	TRACE_COUNTERS_INIT(CmdLine);
+#if UE_TRACE_ENABLED
+	{
+		Trace::Initialize();
+
+		FString EnabledChannels;
+		FParse::Value(CmdLine, TEXT("-trace="), EnabledChannels, false);
+		UE::String::ParseTokens(EnabledChannels, TEXT(","), [](FStringView Token) {
+			TCHAR ChannelName[64];
+			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
+			ChannelName[ChannelNameSize] = '\0';
+			Trace::ToggleChannel(ChannelName, true);
+		});
+
+		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+		TRACE_CPUPROFILER_INIT(CmdLine);
+		TRACE_PLATFORMFILE_INIT(CmdLine);
+		TRACE_COUNTERS_INIT(CmdLine);
+	}
+#endif
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
@@ -1321,14 +1337,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
 		uint8 CommandLineOffset = AddToPayload(CmdLine);
 
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
 			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
 			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
 			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 			UE_TRACE_EVENT_FIELD(uint8, TargetType)
 		UE_TRACE_EVENT_END()
 
-		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
+		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
 			<< Session.AppNameOffset(AppNameOffset)
 			<< Session.CommandLineOffset(CommandLineOffset)
 			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))

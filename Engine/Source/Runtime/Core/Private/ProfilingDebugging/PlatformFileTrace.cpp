@@ -9,6 +9,8 @@
 #include "Misc/Parse.h"
 #include "Trace/Trace.h"
 
+UE_TRACE_CHANNEL(FileChannel)
+
 UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
@@ -66,7 +68,7 @@ UE_TRACE_EVENT_END()
 void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 {
 	uint16 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(PlatformFile, BeginOpen, PathSize)
+	UE_TRACE_LOG(PlatformFile, BeginOpen, FileChannel, PathSize)
 		<< BeginOpen.Cycle(FPlatformTime::Cycles64())
 		<< BeginOpen.Attachment(Path, PathSize)
 		<< BeginOpen.ThreadId(FPlatformTLS::GetCurrentThreadId());
@@ -74,7 +76,7 @@ void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 
 void FPlatformFileTrace::EndOpen(uint64 FileHandle)
 {
-	UE_TRACE_LOG(PlatformFile, EndOpen)
+	UE_TRACE_LOG(PlatformFile, EndOpen, FileChannel)
 		<< EndOpen.Cycle(FPlatformTime::Cycles64())
 		<< EndOpen.FileHandle(FileHandle)
 		<< EndOpen.ThreadId(FPlatformTLS::GetCurrentThreadId());
@@ -82,7 +84,7 @@ void FPlatformFileTrace::EndOpen(uint64 FileHandle)
 
 void FPlatformFileTrace::BeginClose(uint64 FileHandle)
 {
-	UE_TRACE_LOG(PlatformFile, BeginClose)
+	UE_TRACE_LOG(PlatformFile, BeginClose, FileChannel)
 		<< BeginClose.Cycle(FPlatformTime::Cycles64())
 		<< BeginClose.FileHandle(FileHandle)
 		<< BeginClose.ThreadId(FPlatformTLS::GetCurrentThreadId());
@@ -90,14 +92,14 @@ void FPlatformFileTrace::BeginClose(uint64 FileHandle)
 
 void FPlatformFileTrace::EndClose()
 {
-	UE_TRACE_LOG(PlatformFile, EndClose)
+	UE_TRACE_LOG(PlatformFile, EndClose, FileChannel)
 		<< EndClose.Cycle(FPlatformTime::Cycles64())
 		<< EndClose.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
 void FPlatformFileTrace::BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 Offset, uint64 Size)
 {
-	UE_TRACE_LOG(PlatformFile, BeginRead)
+	UE_TRACE_LOG(PlatformFile, BeginRead, FileChannel)
 		<< BeginRead.Cycle(FPlatformTime::Cycles64())
 		<< BeginRead.ReadHandle(ReadHandle)
 		<< BeginRead.FileHandle(FileHandle)
@@ -108,7 +110,7 @@ void FPlatformFileTrace::BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 
 
 void FPlatformFileTrace::EndRead(uint64 ReadHandle, uint64 SizeRead)
 {
-	UE_TRACE_LOG(PlatformFile, EndRead)
+	UE_TRACE_LOG(PlatformFile, EndRead, FileChannel)
 		<< EndRead.Cycle(FPlatformTime::Cycles64())
 		<< EndRead.ReadHandle(ReadHandle)
 		<< EndRead.SizeRead(SizeRead)
@@ -117,7 +119,7 @@ void FPlatformFileTrace::EndRead(uint64 ReadHandle, uint64 SizeRead)
 
 void FPlatformFileTrace::BeginWrite(uint64 WriteHandle, uint64 FileHandle, uint64 Offset, uint64 Size)
 {
-	UE_TRACE_LOG(PlatformFile, BeginWrite)
+	UE_TRACE_LOG(PlatformFile, BeginWrite, FileChannel)
 		<< BeginWrite.Cycle(FPlatformTime::Cycles64())
 		<< BeginWrite.WriteHandle(WriteHandle)
 		<< BeginWrite.FileHandle(FileHandle)
@@ -128,7 +130,7 @@ void FPlatformFileTrace::BeginWrite(uint64 WriteHandle, uint64 FileHandle, uint6
 
 void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 {
-	UE_TRACE_LOG(PlatformFile, EndWrite)
+	UE_TRACE_LOG(PlatformFile, EndWrite, FileChannel)
 		<< EndWrite.Cycle(FPlatformTime::Cycles64())
 		<< EndWrite.WriteHandle(WriteHandle)
 		<< EndWrite.SizeWritten(SizeWritten)
@@ -147,7 +149,7 @@ void FPlatformFileTrace::Init(const TCHAR* CmdLine)
 		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndRead);
 		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginWrite);
 		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndWrite);
-		Trace::ToggleEvent(TEXT("PlatformFile"), true);
+		Trace::ToggleChannel(FileChannel, true);
 	}
 }
 

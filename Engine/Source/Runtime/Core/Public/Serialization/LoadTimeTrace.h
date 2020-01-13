@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "Trace/Trace.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
 #if !defined(LOADTIMEPROFILERTRACE_ENABLED)
@@ -15,6 +16,8 @@
 #endif
 
 #if LOADTIMEPROFILERTRACE_ENABLED
+
+CORE_API UE_TRACE_CHANNEL_EXTERN(LoadTimeChannel);
 
 struct FLoadTimeProfilerTrace
 {

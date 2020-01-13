@@ -17,6 +17,8 @@
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 
+UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
+
 UE_TRACE_EVENT_BEGIN(Animation, TickRecord)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
@@ -276,8 +278,8 @@ void FAnimTrace::Init()
 
 void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, const FAnimTickRecord& InTickRecord)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, TickRecord);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -303,7 +305,7 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 			BlendSpacePositionY = InTickRecord.BlendSpace.BlendSpacePositionY;
 	}
 
-		UE_TRACE_LOG(Animation, TickRecord)
+		UE_TRACE_LOG(Animation, TickRecord, AnimationChannel)
 			<< TickRecord.Cycle(FPlatformTime::Cycles64())
 			<< TickRecord.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 			<< TickRecord.AssetId(FObjectTrace::GetObjectId(InTickRecord.SourceAsset))
@@ -322,8 +324,8 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 
 void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMesh);
-	if (!bEventEnabled || InMesh == nullptr)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled || InMesh == nullptr)
 	{
 		return;
 	}
@@ -347,7 +349,7 @@ void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 		}
 	};
 
-	UE_TRACE_LOG(Animation, SkeletalMesh, BoneCount * sizeof(int32))
+	UE_TRACE_LOG(Animation, SkeletalMesh, AnimationChannel, BoneCount * sizeof(int32))
 		<< SkeletalMesh.Id(FObjectTrace::GetObjectId(InMesh))
 		<< SkeletalMesh.BoneCount(BoneCount)
 		<< SkeletalMesh.Attachment(CopyParentIndices);
@@ -372,7 +374,7 @@ uint32 FAnimTrace::OutputName(const FName& InName)
 
 		uint32 NewId = CurrentId++;
 
-		UE_TRACE_LOG(Animation, Name, NameStringLength * sizeof(TCHAR))
+		UE_TRACE_LOG(Animation, Name, AnimationChannel, NameStringLength * sizeof(TCHAR))
 			<< Name.Id(NewId)
 			<< Name.Attachment(StringCopyFunc);
 
@@ -387,8 +389,8 @@ uint32 FAnimTrace::OutputName(const FName& InName)
 
 void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InComponent)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshComponent);
-	if (!bEventEnabled || InComponent == nullptr)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled || InComponent == nullptr)
 	{
 		return;
 	}
@@ -436,7 +438,8 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 			}
 		};
 
-		UE_TRACE_LOG(Animation, SkeletalMeshComponent, ((BoneCount + 1) * sizeof(FTransform)) + (CurveCount * (sizeof(float) + sizeof(uint32))))
+		//todo: Crashes on cook enginetest
+		/*UE_TRACE_LOG(Animation, SkeletalMeshComponent, true, ((BoneCount + 1) * sizeof(FTransform)) + (CurveCount * (sizeof(float) + sizeof(uint32))))
 			<< SkeletalMeshComponent.Cycle(FPlatformTime::Cycles64())
 			<< SkeletalMeshComponent.ComponentId(FObjectTrace::GetObjectId(InComponent))
 			<< SkeletalMeshComponent.MeshId(FObjectTrace::GetObjectId(InComponent->SkeletalMesh))
@@ -444,21 +447,14 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 			<< SkeletalMeshComponent.CurveCount((uint32)CurveCount)
 			<< SkeletalMeshComponent.LodIndex((uint16)InComponent->PredictedLODLevel)
 			<< SkeletalMeshComponent.FrameCounter((uint16)(GFrameCounter % 0xffff))
-			<< SkeletalMeshComponent.Attachment(CopyTransformsAndCurves);
+			<< SkeletalMeshComponent.Attachment(CopyTransformsAndCurves);*/
 	}
 }
 
 void FAnimTrace::OutputSkeletalMeshFrame(const USkeletalMeshComponent* InComponent)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, SkeletalMeshFrame);
-	if (!bEventEnabled || InComponent == nullptr)
-	{
-		return;
-	}
-
 	TRACE_OBJECT(InComponent);
-
-	UE_TRACE_LOG(Animation, SkeletalMeshFrame)
+	UE_TRACE_LOG(Animation, SkeletalMeshFrame, AnimationChannel)
 		<< SkeletalMeshFrame.Cycle(FPlatformTime::Cycles64())
 		<< SkeletalMeshFrame.ComponentId(FObjectTrace::GetObjectId(InComponent))
 		<< SkeletalMeshFrame.FrameCounter((uint16)(GFrameCounter % 0xffff));
@@ -466,8 +462,8 @@ void FAnimTrace::OutputSkeletalMeshFrame(const USkeletalMeshComponent* InCompone
 
 void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 InStartCycle, uint64 InEndCycle, uint8 InPhase)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimGraph);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -479,7 +475,7 @@ void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 
 
 	TRACE_OBJECT(AnimInstance);
 
-	UE_TRACE_LOG(Animation, AnimGraph)
+	UE_TRACE_LOG(Animation, AnimGraph, AnimationChannel)
 		<< AnimGraph.StartCycle(InStartCycle)
 		<< AnimGraph.EndCycle(InEndCycle)
 		<< AnimGraph.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
@@ -490,8 +486,8 @@ void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 
 
 void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uint64 InStartCycle, int32 InPreviousNodeId, int32 InNodeId, float InBlendWeight, float InRootMotionWeight, uint8 InPhase)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeStart);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -515,7 +511,7 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 
 	DisplayNameString.RemoveFromStart(TEXT("Anim Node "));
 
-	UE_TRACE_LOG(Animation, AnimNodeStart, (DisplayNameString.Len() + 1) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeStart, AnimationChannel, (DisplayNameString.Len() + 1) * sizeof(TCHAR))
 		<< AnimNodeStart.StartCycle(InStartCycle)
 		<< AnimNodeStart.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeStart.PreviousNodeId(InPreviousNodeId)
@@ -528,8 +524,8 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 
 void FAnimTrace::OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint64 InEndCycle)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeEnd);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -538,15 +534,15 @@ void FAnimTrace::OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint6
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
-	UE_TRACE_LOG(Animation, AnimNodeEnd)
+	UE_TRACE_LOG(Animation, AnimNodeEnd, AnimationChannel)
 		<< AnimNodeEnd.EndCycle(InEndCycle)
 		<< AnimNodeEnd.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()));
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, bool InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueBool);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -557,7 +553,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueBool, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueBool, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueBool.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueBool.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueBool.NodeId(InContext.GetCurrentNodeId())
@@ -569,8 +565,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, int32 InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueInt);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -581,7 +577,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueInt, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueInt, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueInt.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueInt.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueInt.NodeId(InContext.GetCurrentNodeId())
@@ -593,8 +589,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, float InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueFloat);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -605,7 +601,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueFloat, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueFloat, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueFloat.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueFloat.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueFloat.NodeId(InContext.GetCurrentNodeId())
@@ -623,8 +619,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector& InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueVector);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -635,7 +631,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueVector, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueVector, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueVector.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueVector.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueVector.NodeId(InContext.GetCurrentNodeId())
@@ -649,8 +645,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FName& InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueString);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -668,7 +664,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 		InValue.ToString(reinterpret_cast<TCHAR*>(Out) + KeyLength, ValueLength);
 	};
 
-	UE_TRACE_LOG(Animation, AnimNodeValueString, (KeyLength + ValueLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel, (KeyLength + ValueLength) * sizeof(TCHAR))
 		<< AnimNodeValueString.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueString.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueString.NodeId(InContext.GetCurrentNodeId())
@@ -679,8 +675,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const TCHAR* InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueString);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -698,7 +694,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 		FCString::Strncpy(reinterpret_cast<TCHAR*>(Out) + KeyLength, InValue, ValueLength);
 	};
 
-	UE_TRACE_LOG(Animation, AnimNodeValueString, (KeyLength + ValueLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel, (KeyLength + ValueLength) * sizeof(TCHAR))
 		<< AnimNodeValueString.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueString.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueString.NodeId(InContext.GetCurrentNodeId())
@@ -709,8 +705,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UObject* InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueObject);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -722,7 +718,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueObject, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueObject, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueObject.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueObject.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueObject.NodeId(InContext.GetCurrentNodeId())
@@ -734,8 +730,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UClass* InValue)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueObject);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -747,7 +743,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
 
-	UE_TRACE_LOG(Animation, AnimNodeValueClass, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueClass, AnimationChannel, KeyLength * sizeof(TCHAR))
 		<< AnimNodeValueClass.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueClass.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueClass.NodeId(InContext.GetCurrentNodeId())
@@ -759,8 +755,8 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayer& InNode)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, AnimSequencePlayer);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -769,7 +765,7 @@ void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
-	UE_TRACE_LOG(Animation, AnimSequencePlayer)
+	UE_TRACE_LOG(Animation, AnimSequencePlayer, AnimationChannel)
 		<< AnimSequencePlayer.Cycle(FPlatformTime::Cycles64())
 		<< AnimSequencePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimSequencePlayer.NodeId(InContext.GetCurrentNodeId())
@@ -780,8 +776,8 @@ void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext
 
 void FAnimTrace::OutputStateMachineState(const FAnimationBaseContext& InContext, int32 InStateMachineIndex, int32 InStateIndex, float InStateWeight, float InElapsedTime)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, StateMachineState);
-	if (!bEventEnabled)
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
 	{
 		return;
 	}
@@ -790,7 +786,7 @@ void FAnimTrace::OutputStateMachineState(const FAnimationBaseContext& InContext,
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
-	UE_TRACE_LOG(Animation, StateMachineState)
+	UE_TRACE_LOG(Animation, StateMachineState, AnimationChannel)
 		<< StateMachineState.Cycle(FPlatformTime::Cycles64())
 		<< StateMachineState.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< StateMachineState.NodeId(InContext.GetCurrentNodeId())

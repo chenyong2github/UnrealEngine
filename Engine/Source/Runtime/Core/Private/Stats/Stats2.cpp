@@ -607,12 +607,6 @@ public:
 			}
 		}
 
-#if CPUPROFILERTRACE_ENABLED
-		if (bCycleStat)
-		{
-			Result->TraceCpuProfilerSpecId = FCpuProfilerTrace::OutputEventType(*StatDescription, CpuProfilerGroup_Stats);
-		}
-#endif
 #if STATSTRACE_ENABLED
 		if (!bCycleStat && (InStatType == EStatDataType::ST_int64 || InStatType == EStatDataType::ST_double))
 		{

@@ -129,10 +129,6 @@ struct TStatIdData
 
 	/** const WIDECHAR* pointer to a string describing the stat */
 	TUniquePtr<ANSICHAR[]> StatDescriptionAnsi;
-
-#if CPUPROFILERTRACE_ENABLED
-	uint32 TraceCpuProfilerSpecId = 0;
-#endif
 };
 
 struct TStatId
@@ -167,13 +163,6 @@ struct TStatId
 	{
 		return MinimalNameToName(StatIdPtr->Name);
 	}
-
-#if CPUPROFILERTRACE_ENABLED
-	FORCEINLINE uint16 GetTraceCpuProfilerSpecId() const
-	{
-		return StatIdPtr->TraceCpuProfilerSpecId;
-	}
-#endif
 
 	FORCEINLINE static const TStatIdData& GetStatNone()
 	{
@@ -1533,9 +1522,6 @@ class FCycleCounter
 {
 	/** Name of the stat, usually a short name **/
 	FName StatId;
-#if CPUPROFILERTRACE_ENABLED
-	uint16 TraceCpuProfilerSpecId = 0;
-#endif
 
 public:
 
@@ -1550,14 +1536,6 @@ public:
 		{
 			return;
 		}
-#if CPUPROFILERTRACE_ENABLED
-		if (bAlways || GCycleStatsShouldEmitNamedEvents > 0)
-		{
-			TraceCpuProfilerSpecId = InStatId.GetTraceCpuProfilerSpecId();
-			FCpuProfilerTrace::OutputBeginEvent(TraceCpuProfilerSpecId);
-		}
-#endif
-
 		if( (bAlways && FThreadStats::WillEverCollectData()) || FThreadStats::IsCollectingData() )
 		{
 			FName StatName = MinimalNameToName(StatMinimalName);
@@ -1581,13 +1559,6 @@ public:
 	 */
 	FORCEINLINE_STATS void Stop()
 	{
-#if CPUPROFILERTRACE_ENABLED
-		if (TraceCpuProfilerSpecId)
-		{
-			FCpuProfilerTrace::OutputEndEvent();
-			TraceCpuProfilerSpecId = 0;
-		}
-#endif
 		if( !StatId.IsNone() )
 		{
 			FThreadStats::AddMessage(StatId, EStatOperation::CycleScopeEnd);
