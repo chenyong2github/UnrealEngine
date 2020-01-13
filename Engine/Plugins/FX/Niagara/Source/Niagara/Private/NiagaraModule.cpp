@@ -698,17 +698,13 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		FString ClassName = TDStruct->GetPathName();
 		InVisitor->UpdateString(TEXT("\tStructName"), ClassName);
 		// Structs are potentially changed, so we will want to register their actual types and variable names.
-		for (TFieldIterator<UProperty> PropertyIt(TDStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(TDStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			if (Property->HasMetaData(TEXT("SkipForCompileHash")))
 			{
 				continue;
 			}
-			/*if (Property->HasAnyFlags(RF_Transient))
-			{
-				continue;
-			}*/
 			InVisitor->UpdateString(TEXT("\t\tPropertyName"), Property->GetName());
 			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), Property->GetClass()->GetName());
 		}

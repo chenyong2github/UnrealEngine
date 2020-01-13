@@ -333,67 +333,67 @@ void FNiagaraEditorUtilities::WriteTextFileToDisk(FString SaveDirectory, FString
 }
 
 
-bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container, UProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) 
+bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) 
 {
-	if (Property->IsA(UFloatProperty::StaticClass()))
+	if (Property->IsA(FFloatProperty::StaticClass()))
 	{
-		UFloatProperty* CastProp = CastChecked<UFloatProperty>(Property);
+		FFloatProperty* CastProp = CastFieldChecked<FFloatProperty>(Property);
 		float Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UIntProperty::StaticClass()))
+	else if (Property->IsA(FIntProperty::StaticClass()))
 	{
-		UIntProperty* CastProp = CastChecked<UIntProperty>(Property);
+		FIntProperty* CastProp = CastFieldChecked<FIntProperty>(Property);
 		int32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UInt16Property::StaticClass()))
+	else if (Property->IsA(FInt16Property::StaticClass()))
 	{
-		UInt16Property* CastProp = CastChecked<UInt16Property>(Property);
+		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
 		int16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UUInt32Property::StaticClass()))
+	else if (Property->IsA(FUInt32Property::StaticClass()))
 	{
-		UUInt32Property* CastProp = CastChecked<UUInt32Property>(Property);
+		FUInt32Property* CastProp = CastFieldChecked<FUInt32Property>(Property);
 		uint32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UUInt16Property::StaticClass()))
+	else if (Property->IsA(FInt16Property::StaticClass()))
 	{
-		UUInt16Property* CastProp = CastChecked<UUInt16Property>(Property);
+		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
 		uint16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UByteProperty::StaticClass()))
+	else if (Property->IsA(FByteProperty::StaticClass()))
 	{
-		UByteProperty* CastProp = CastChecked<UByteProperty>(Property);
+		FByteProperty* CastProp = CastFieldChecked<FByteProperty>(Property);
 		uint8 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UBoolProperty::StaticClass()))
+	else if (Property->IsA(FBoolProperty::StaticClass()))
 	{
-		UBoolProperty* CastProp = CastChecked<UBoolProperty>(Property);
+		FBoolProperty* CastProp = CastFieldChecked<FBoolProperty>(Property);
 		bool Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(UNameProperty::StaticClass()))
+	else if (Property->IsA(FNameProperty::StaticClass()))
 	{
-		UNameProperty* CastProp = CastChecked<UNameProperty>(Property);
+		FNameProperty* CastProp = CastFieldChecked<FNameProperty>(Property);
 		FName Value = CastProp->GetPropertyValue_InContainer(Container);
 		InVisitor->UpdateString(*PropertyName, Value.ToString());
 		return true;
 	}
-	else if (Property->IsA(UStrProperty::StaticClass()))
+	else if (Property->IsA(FStrProperty::StaticClass()))
 	{
-		UStrProperty* CastProp = CastChecked<UStrProperty>(Property);
+		FStrProperty* CastProp = CastFieldChecked<FStrProperty>(Property);
 		FString Value = CastProp->GetPropertyValue_InContainer(Container);
 		InVisitor->UpdateString(*PropertyName, Value);
 		return true;
@@ -414,32 +414,32 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 		}
 	}
 
-	TFieldIterator<UProperty> PropertyCountIt(Struct, IteratorFlags);
+	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags);
 	int32 NumProperties = 0;
 	for (; PropertyCountIt; ++PropertyCountIt)
 	{
 		NumProperties++;
 	}
 
-	for (TFieldIterator<UProperty> PropertyIt(Struct, IteratorFlags); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(Struct, IteratorFlags); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 
 		static FName SkipMeta = TEXT("SkipForCompileHash");
 		if (Property->HasMetaData(SkipMeta))
 		{
 			continue;
 		}
-		
+
 		FString PropertyName = (NumProperties == 1) ? (BaseName) : (BaseName + "." + Property->GetName());
 
 		if (PODPropertyAppendCompileHash(Container, Property, PropertyName, InVisitor))
 		{
 			continue;
 		}
-		else if (Property->IsA(UMapProperty::StaticClass()))
+		else if (Property->IsA(FMapProperty::StaticClass()))
 		{
-			UMapProperty* CastProp = CastChecked<UMapProperty>(Property);
+			FMapProperty* CastProp = CastFieldChecked<FMapProperty>(Property);
 			FScriptMapHelper MapHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
 			InVisitor->UpdatePOD(*PropertyName, MapHelper.Num());
 			if (MapHelper.GetKeyProperty())
@@ -448,7 +448,7 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 				InVisitor->UpdateString(TEXT("ValuePathname"), MapHelper.GetValueProperty()->GetPathName());
 
 				// We currently only support maps with keys of FNames. Anything else should generate a warning.
-				if (MapHelper.GetKeyProperty()->GetClass() == UNameProperty::StaticClass())
+				if (MapHelper.GetKeyProperty()->GetClass() == FNameProperty::StaticClass())
 				{
 					// To be safe, let's gather up all the keys and sort them lexicographically so that this is stable across application runs.
 					TArray<FName> Names;
@@ -471,10 +471,10 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 
 					// Now hash out the values directly.
 					// We support map values of POD types or map values of structs with POD types internally. Anything else we should generate a warning on.
-					if (MapHelper.GetValueProperty()->IsA(UStructProperty::StaticClass()))
+					if (MapHelper.GetValueProperty()->IsA(FStructProperty::StaticClass()))
 					{
 						bool bPassed = true;
-						UStructProperty* StructProp = CastChecked<UStructProperty>(MapHelper.GetValueProperty());
+						FStructProperty* StructProp = CastFieldChecked<FStructProperty>(MapHelper.GetValueProperty());
 
 						for (int32 ArrayIdx = 0; ArrayIdx < MapHelper.Num(); ArrayIdx++)
 						{
@@ -517,19 +517,19 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			}
 			continue;
 		}
-		else if (Property->IsA(UArrayProperty::StaticClass()))
+		else if (Property->IsA(FArrayProperty::StaticClass()))
 		{
-			UArrayProperty* CastProp = CastChecked<UArrayProperty>(Property);
+			FArrayProperty* CastProp = CastFieldChecked<FArrayProperty>(Property);
 
 			FScriptArrayHelper ArrayHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
 			InVisitor->UpdatePOD(*PropertyName, ArrayHelper.Num());
 			InVisitor->UpdateString(TEXT("InnerPathname"), CastProp->Inner->GetPathName());
 
 			// We support arrays of POD types or arrays of structs with POD types internally. Anything else we should generate a warning on.
-			if (CastProp->Inner->IsA(UStructProperty::StaticClass()))
+			if (CastProp->Inner->IsA(FStructProperty::StaticClass()))
 			{
 				bool bPassed = true;
-				UStructProperty* StructProp = CastChecked<UStructProperty>(CastProp->Inner);
+				FStructProperty* StructProp = CastFieldChecked<FStructProperty>(CastProp->Inner);
 
 				for (int32 ArrayIdx = 0; ArrayIdx < ArrayHelper.Num(); ArrayIdx++)
 				{
@@ -569,15 +569,15 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an array property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
 			continue;
 		}
-		else if (Property->IsA(UTextProperty::StaticClass()))
+		else if (Property->IsA(FTextProperty::StaticClass()))
 		{
-			UTextProperty* CastProp = CastChecked<UTextProperty>(Property);
+			FTextProperty* CastProp = CastFieldChecked<FTextProperty>(Property);
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is a UText property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
 			return true;
 		}
-		else if (Property->IsA(UEnumProperty::StaticClass()))
+		else if (Property->IsA(FEnumProperty::StaticClass()))
 		{
-			UEnumProperty* CastProp = CastChecked<UEnumProperty>(Property);
+			FEnumProperty* CastProp = CastFieldChecked<FEnumProperty>(Property);
 			const void* EnumContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
 			if (PODPropertyAppendCompileHash(EnumContainer, CastProp->GetUnderlyingProperty(), PropertyName, InVisitor))
 			{
@@ -586,9 +586,9 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			check(false);
 			return false;
 		}
-		else if (Property->IsA(UObjectProperty::StaticClass()))
+		else if (Property->IsA(FObjectProperty::StaticClass()))
 		{
-			UObjectProperty* CastProp = CastChecked<UObjectProperty>(Property);
+			FObjectProperty* CastProp = CastFieldChecked<FObjectProperty>(Property);
 			UObject* Obj = CastProp->GetObjectPropertyValue_InContainer(Container);
 			if (Obj != nullptr)
 			{
@@ -603,9 +603,9 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			}
 			continue;
 		}
-		else if (Property->IsA(UStructProperty::StaticClass()))
+		else if (Property->IsA(FStructProperty::StaticClass()))
 		{
-			UStructProperty* StructProp = CastChecked<UStructProperty>(Property);
+			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
 			const void* StructContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
 			NestedPropertiesAppendCompileHash(StructContainer, StructProp->Struct, EFieldIteratorFlags::IncludeSuper, PropertyName, InVisitor);
 			continue;
