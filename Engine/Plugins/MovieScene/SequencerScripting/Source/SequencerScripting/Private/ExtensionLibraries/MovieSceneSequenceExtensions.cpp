@@ -547,21 +547,21 @@ int32 UMovieSceneSequenceExtensions::AddMarkedFrame(UMovieSceneSequence* Sequenc
 	return INDEX_NONE;
 }
 
-void UMovieSceneSequenceExtensions::RemoveMarkedFrame(UMovieSceneSequence* Sequence, int32 RemoveIndex)
+void UMovieSceneSequenceExtensions::DeleteMarkedFrame(UMovieSceneSequence* Sequence, int32 DeleteIndex)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
-		MovieScene->RemoveMarkedFrame(RemoveIndex);
+		MovieScene->DeleteMarkedFrame(DeleteIndex);
 	}
 }
 
-void UMovieSceneSequenceExtensions::ClearMarkedFrames(UMovieSceneSequence* Sequence)
+void UMovieSceneSequenceExtensions::DeleteMarkedFrames(UMovieSceneSequence* Sequence)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
-		MovieScene->ClearMarkedFrames();
+		MovieScene->DeleteMarkedFrames();
 	}
 }
 

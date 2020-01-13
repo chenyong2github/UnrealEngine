@@ -422,18 +422,18 @@ public:
 	static int32 AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
-	 * Remove the user marked frame by index.
+	 * Delete the user marked frame by index.
 	 *
-	 * @RemoveIndex The index to the user marked frame to remove
+	 * @DeleteIndex The index to the user marked frame to delete
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static void RemoveMarkedFrame(UMovieSceneSequence* Sequence, int32 RemoveIndex);
+	static void DeleteMarkedFrame(UMovieSceneSequence* Sequence, int32 DeleteIndex);
 
 	/*
-	 * Clear all user marked frames
+	 * Delete all user marked frames
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static void ClearMarkedFrames(UMovieSceneSequence* Sequence);
+	static void DeleteMarkedFrames(UMovieSceneSequence* Sequence);
 
 	/*
 	 * Find the user marked frame by label
