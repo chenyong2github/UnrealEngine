@@ -95,8 +95,19 @@ public:
 	/** Final phase of system instance tick. Must be executed on the game thread. */
 	void FinalizeTick_GameThread();
 
-	/** Blocks until any async work for this system instance has completed. Must be called on the game thread. */
-	void WaitForAsyncTick(bool bEnsureComplete=false);
+	/**
+		Blocks until any async work for this system instance has completed, must be called on the GameThread.
+		This will NOT call finalize on the instance, be very careful when using to avoid leaving the instance in an undefined state.
+		Note: This only waits for the instance to be safe to touch, it does not wait for the owning system simulation to be safe.
+	*/
+	void WaitForAsyncTickDoNotFinalize(bool bEnsureComplete = false);
+
+	/**
+		Blocks until any async work for this system instance has completed, must be called on the GameThread.
+		This will call finalize if required by the instance and can therefore complete leaving removing the instance from the owning system simulation.
+		Note: This only waits for the instance to be safe to touch, it does not wait for the owning system simulation to be safe.
+	*/
+	void WaitForAsyncTickAndFinalize(bool bEnsureComplete = false);
 
 	/** Handles completion of the system and returns true if the system is complete. */
 	bool HandleCompletion();
