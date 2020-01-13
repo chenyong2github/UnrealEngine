@@ -20,6 +20,12 @@ public class LevelSequence : ModuleRules
 			}
 		);
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"MediaAssets",
+			}
+		);
+
 		if (Target.bBuildEditor == true)
 		{
 			PrivateDependencyModuleNames.AddRange(

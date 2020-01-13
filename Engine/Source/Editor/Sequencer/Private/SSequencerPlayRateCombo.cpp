@@ -15,6 +15,11 @@
 #include "ScopedTransaction.h"
 #include "Widgets/SFrameRateEntryBox.h"
 #include "EditorFontGlyphs.h"
+#include "Evaluation/IMovieSceneCustomClockSource.h"
+#include "SceneOutlinerModule.h"
+#include "SceneOutlinerPublicTypes.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 #include "Misc/Timecode.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerPlayRateCombo"
@@ -343,21 +348,107 @@ void SSequencerPlayRateCombo::PopulateClockSourceMenu(FMenuBuilder& MenuBuilder)
 			{
 				EUpdateClockSource Value = (EUpdateClockSource)ClockSourceEnum->GetValueByIndex(Index);
 
-				MenuBuilder.AddMenuEntry(
-					ClockSourceEnum->GetDisplayNameTextByIndex(Index),
-					ClockSourceEnum->GetToolTipTextByIndex(Index),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &SSequencerPlayRateCombo::SetClockSource, Value),
-						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([=]{ return RootSequence->GetMovieScene()->GetClockSource() == Value; })
-					),
-					NAME_None,
-					EUserInterfaceActionType::RadioButton
-				);
+				if (Value == EUpdateClockSource::Custom)
+				{
+					MenuBuilder.AddSubMenu(
+						ClockSourceEnum->GetDisplayNameTextByIndex(Index),
+						ClockSourceEnum->GetToolTipTextByIndex(Index),
+						FNewMenuDelegate::CreateSP(this, &SSequencerPlayRateCombo::PopulateCustomClockSourceMenu),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SSequencerPlayRateCombo::SetClockSource, Value),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateLambda([=]{ return RootSequence->GetMovieScene()->GetClockSource() == Value; })
+						),
+						NAME_None,
+						EUserInterfaceActionType::RadioButton
+					);
+				}
+				else
+				{
+					MenuBuilder.AddMenuEntry(
+						ClockSourceEnum->GetDisplayNameTextByIndex(Index),
+						ClockSourceEnum->GetToolTipTextByIndex(Index),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SSequencerPlayRateCombo::SetClockSource, Value),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateLambda([=]{ return RootSequence->GetMovieScene()->GetClockSource() == Value; })
+						),
+						NAME_None,
+						EUserInterfaceActionType::RadioButton
+					);
+				}
 			}
 		}
 	}
+}
+
+void SSequencerPlayRateCombo::PopulateCustomClockSourceMenu(FMenuBuilder& MenuBuilder)
+{
+	auto ActorClockSourceMenu = [this](FMenuBuilder& ActorMenuBuilder)
+	{
+		auto IsActorValid = [](const AActor* Actor)
+		{
+			return Actor && Actor->GetClass()->ImplementsInterface(UMovieSceneCustomClockSource::StaticClass());
+		};
+
+		using namespace SceneOutliner;
+
+		// Set up a menu entry to assign an actor to the object binding node
+		FInitializationOptions InitOptions;
+		InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
+
+		// We hide the header row to keep the UI compact.
+		InitOptions.bShowHeaderRow = false;
+		InitOptions.bShowSearchBox = true;
+		InitOptions.bShowCreateNewFolder = false;
+		InitOptions.bFocusSearchBoxWhenOpened = true;
+		// Only want the actor label column
+		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
+
+		// Only display actors that are not possessed already
+		InitOptions.Filters->AddFilterPredicate( FActorFilterPredicate::CreateLambda( IsActorValid ) );
+
+		// actor selector to allow the user to choose an actor
+		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+		ActorMenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(400.0f)
+			.WidthOverride(300.0f)
+			[
+				SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateLambda([this](AActor* In){ this->SetCustomClockSource(In); }))
+			],
+			FText(),
+			true /*bNoIndent*/
+		);
+	};
+
+	auto AssetClockSourceMenu = [this](FMenuBuilder& ActorMenuBuilder)
+	{
+		FAssetPickerConfig AssetPickerConfig;
+		AssetPickerConfig.Filter.ClassNames.Add(UMovieSceneCustomClockSource::StaticClass()->GetFName());
+		AssetPickerConfig.bAllowNullSelection = false;
+		AssetPickerConfig.Filter.bRecursiveClasses = true;
+		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateLambda([this](const FAssetData& In){ this->SetCustomClockSource(In.GetAsset()); });
+		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+		AssetPickerConfig.bAllowDragging = false;
+
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+
+		ActorMenuBuilder.AddWidget(
+			SNew(SBox)
+			.WidthOverride(300)
+			.HeightOverride(300)
+			[
+				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			],
+			FText(),
+			true /*bNoIndent*/
+		);
+	};
+
+	MenuBuilder.AddSubMenu(LOCTEXT("ActorClockSource", "Actors"), FText(), FNewMenuDelegate::CreateLambda(ActorClockSourceMenu));
+	MenuBuilder.AddSubMenu(LOCTEXT("AssetClockSource", "Assets"), FText(), FNewMenuDelegate::CreateLambda(AssetClockSourceMenu));
 }
 
 void SSequencerPlayRateCombo::AddMenuEntry(FMenuBuilder& MenuBuilder, const FCommonFrameRateInfo& Info)
@@ -393,6 +484,28 @@ void SSequencerPlayRateCombo::SetClockSource(EUpdateClockSource NewClockSource)
 
 		MovieScene->Modify();
 		MovieScene->SetClockSource(NewClockSource);
+
+		Sequencer->ResetTimeController();
+	}
+}
+
+void SSequencerPlayRateCombo::SetCustomClockSource(UObject* InClockSource)
+{
+	TSharedPtr<FSequencer> Sequencer    = WeakSequencer.Pin();
+	UMovieSceneSequence*   RootSequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
+	if (RootSequence && InClockSource)
+	{
+		UMovieScene* MovieScene = RootSequence->GetMovieScene();
+
+		if (MovieScene->IsReadOnly())
+		{
+			return;
+		}
+
+		FScopedTransaction ScopedTransaction(LOCTEXT("SetClockSource", "Set Clock Source"));
+
+		MovieScene->Modify();
+		MovieScene->SetClockSource(InClockSource);
 
 		Sequencer->ResetTimeController();
 	}
