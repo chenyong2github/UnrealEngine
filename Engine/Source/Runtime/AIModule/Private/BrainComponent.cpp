@@ -328,6 +328,11 @@ EAILogicResuming::Type UBrainComponent::ResumeLogic(const FString& Reason)
 	return EAILogicResuming::Continue;
 }
 
+void UBrainComponent::StartLogic()
+{
+
+}
+
 void UBrainComponent::RestartLogic()
 {
 

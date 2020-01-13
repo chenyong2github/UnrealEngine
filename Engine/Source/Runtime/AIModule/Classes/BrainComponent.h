@@ -113,7 +113,7 @@ private:
 	FAIMessageObserver& operator=(const FAIMessageObserver&);
 };
 
-UCLASS(BlueprintType)
+UCLASS(ClassGroup = AI, BlueprintType, hidecategories = (Sockets, Collision))
 class AIMODULE_API UBrainComponent : public UActorComponent, public IAIResourceInterface
 {
 	GENERATED_UCLASS_BODY()
@@ -138,16 +138,26 @@ public:
 	 *	@note this call does nothing if logic is not locked at the moment of call */
 	void RequestLogicRestartOnUnlock();
 
+	/** Starts brain logic. If brain is already running, will not do anything. */
+	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
+	virtual void StartLogic();
+
+	/** Restarts currently running or previously ran brain logic. */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
 	virtual void RestartLogic();
 
+	/** Stops currently running brain logic. */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
 	virtual void StopLogic(const FString& Reason);
 
 	/** AI logic won't be needed anymore, stop all activity and run cleanup */
 	virtual void Cleanup() {}
+
+	/** Pause logic and blackboard updates. */
 	virtual void PauseLogic(const FString& Reason) {}
-	/** MUST be called by child implementations!
+	
+	/** Resumes paused brain logic.
+	 *  MUST be called by child implementations!
 	 *	@return indicates whether child class' ResumeLogic should be called (true) or has it been 
 	 *	handled in a different way and no other actions are required (false)*/
 	virtual EAILogicResuming::Type ResumeLogic(const FString& Reason);
