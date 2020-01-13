@@ -186,7 +186,7 @@ bool FOnlineEncryptedAppTicketSteam::GetEncryptedAppTicket(TArray<uint8>& OutEnc
 		if (SteamUserPtr)
 		{
 			uint32 ExactTicketSize = 0;
-			SteamUserPtr->GetEncryptedAppTicket(nullptr, 1, &ExactTicketSize);
+			SteamUserPtr->GetEncryptedAppTicket(nullptr, 0, &ExactTicketSize);
 
 			if (ExactTicketSize > 0)
 			{

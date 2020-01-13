@@ -293,7 +293,7 @@ void USteamSocketsNetDriver::TickDispatch(float DeltaTime)
 					FindClientConnectionForHandle(Message->m_conn) : ServerConnection);
 
 				// Grab sender information for the purposes of logging
-				FInternetAddrSteamSockets MessageSender(Message->m_sender);
+				FInternetAddrSteamSockets MessageSender(Message->m_identityPeer);
 
 				// Set the P2P channel information if we're not over IP (which will already have the right data set)
 				if (MessageSender.GetProtocolType() != FNetworkProtocolTypes::SteamSocketsIP)

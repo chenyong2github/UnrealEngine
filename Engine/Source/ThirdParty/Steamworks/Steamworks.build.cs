@@ -9,7 +9,7 @@ public class Steamworks : ModuleRules
 	public Steamworks(ReadOnlyTargetRules Target) : base(Target)
 	{
 		// The current SDK version number.
-        double SteamVersionNumber = 1.46;
+        double SteamVersionNumber = 1.47;
 
         // Mark the current version of the Steam SDK
         string SteamVersion = String.Format("v{0}", SteamVersionNumber).Replace(".", "");

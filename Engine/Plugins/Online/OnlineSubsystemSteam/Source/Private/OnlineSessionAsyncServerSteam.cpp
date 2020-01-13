@@ -444,7 +444,7 @@ void FOnlineAsyncTaskSteamCreateServer::Finalize()
 
 			// Create the proper ip address for this server
 			NewSessionInfo->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-			NewSessionInfo->HostAddr->SetIp(SteamGameServerPtr->GetPublicIP());
+			NewSessionInfo->HostAddr->SetIp(SteamGameServerPtr->GetPublicIP().m_unIPv4);
 			NewSessionInfo->HostAddr->SetPort(Subsystem->GetGameServerGamePort());
 			UE_LOG_ONLINE_SESSION(Verbose, TEXT("Server IP: %s"), *NewSessionInfo->HostAddr->ToString(true));
 
@@ -480,7 +480,7 @@ void FOnlineAsyncTaskSteamCreateServer::Finalize()
 			if (SteamUser() && bShouldUseAdvertise)
 			{
 				UE_LOG_ONLINE(Warning, TEXT("AUTH: CreateServerSteam is calling the depricated AdvertiseGame call"));
-				SteamUser()->AdvertiseGame(k_steamIDNonSteamGS, SteamGameServerPtr->GetPublicIP(), Subsystem->GetGameServerGamePort());
+				SteamUser()->AdvertiseGame(k_steamIDNonSteamGS, SteamGameServerPtr->GetPublicIP().m_unIPv4, Subsystem->GetGameServerGamePort());
 			}
 		}
 		else
