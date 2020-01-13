@@ -34,15 +34,6 @@
 			]
 		},
 		{
-			"Name": "UnrealUSDBinding",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
-		},
-		{
 			"Name": "USDUtilities",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

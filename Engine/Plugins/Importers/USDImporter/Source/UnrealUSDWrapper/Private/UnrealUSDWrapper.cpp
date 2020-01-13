@@ -10,32 +10,33 @@
 
 #include "USDIncludesStart.h"
 
-#include "pxr/usd/usd/usdFileFormat.h"
-#include "pxr/usd/usd/common.h"
-#include "pxr/usd/usd/stage.h"
-#include "pxr/base/tf/errorMark.h"
-#include "pxr/base/plug/registry.h"
+#include "pxr/base/gf/rotation.h"
 #include "pxr/base/plug/plugin.h"
-#include "pxr/usd/sdf/schema.h"
-#include "pxr/usd/usd/attribute.h"
-#include "pxr/usd/usd/modelAPI.h"
-#include "pxr/usd/usd/relationship.h"
-#include "pxr/usd/usd/references.h"
-#include "pxr/usd/usd/stageCacheContext.h"
-#include "pxr/usd/usdGeom/modelAPI.h"
-#include "pxr/usd/usdGeom/mesh.h"
-#include "pxr/usd/usdGeom/xformCommonAPI.h"
-#include "pxr/usd/usdGeom/faceSetAPI.h"
-#include "pxr/usd/usdGeom/metrics.h"
-#include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/base/plug/registry.h"
+#include "pxr/base/tf/errorMark.h"
 #include "pxr/base/tf/getenv.h"
 #include "pxr/base/tf/setenv.h"
 #include "pxr/usd/ar/defaultResolver.h"
 #include "pxr/usd/ar/defineResolver.h"
-#include "pxr/base/gf/rotation.h"
-#include "pxr/usd/usd/variantSets.h"
-#include "pxr/usd/usd/debugCodes.h"
 #include "pxr/usd/kind/registry.h"
+#include "pxr/usd/sdf/schema.h"
+#include "pxr/usd/usd/attribute.h"
+#include "pxr/usd/usd/common.h"
+#include "pxr/usd/usd/debugCodes.h"
+#include "pxr/usd/usd/modelAPI.h"
+#include "pxr/usd/usd/references.h"
+#include "pxr/usd/usd/relationship.h"
+#include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usd/stageCacheContext.h"
+#include "pxr/usd/usd/usdFileFormat.h"
+#include "pxr/usd/usd/variantSets.h"
+#include "pxr/usd/usdGeom/faceSetAPI.h"
+#include "pxr/usd/usdGeom/mesh.h"
+#include "pxr/usd/usdGeom/metrics.h"
+#include "pxr/usd/usdGeom/modelAPI.h"
+#include "pxr/usd/usdGeom/xformCommonAPI.h"
+#include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/usd/usdUtils/stageCache.h"
 
 #include "USDIncludesEnd.h"
 
@@ -977,8 +978,7 @@ double UnrealUSDWrapper::GetDefaultTimeCode()
 
 pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()
 {
-	static TUsdStore< pxr::UsdStageCache > UsdStageCache;
-	return UsdStageCache.Get();
+	return pxr::UsdUtilsStageCache::Get();
 }
 #endif // USE_USD_SDK
 
