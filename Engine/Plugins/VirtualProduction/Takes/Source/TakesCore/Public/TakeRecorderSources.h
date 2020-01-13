@@ -168,8 +168,8 @@ private:
 	/** Finds the folder that the given Source should be created in, creating it if necessary. */
 	class UMovieSceneFolder* AddFolderForSource(const UTakeRecorderSource* InSource, class UMovieScene* InMovieScene);
 
-	/** Gets the current frame time for recording, optionally resolving out the engine's custom Timecode provider. */
-	FQualifiedFrameTime GetCurrentRecordingFrameTime(const FTimecode& InTimeCode, bool& bHasValidTimeCodeSource) const;
+	/** Gets the current frame time for recording */
+	FQualifiedFrameTime GetCurrentRecordingFrameTime() const;
 
 	/** Remove object bindings that don't have any tracks and are not bindings for attach/path tracks */
 	void RemoveRedundantTracks();
@@ -220,9 +220,6 @@ private:
 
 	/** Timecode time at start of recording */
 	FTimecode StartRecordingTimecodeSource;
-
-	/** Last Timecode Frame Number, used to avoid recording same time twice*/
-	TOptional<FFrameNumber> LastTimecodeFrameNumber;
 
 	/** All sources after PreRecord */
 	TArray<UTakeRecorderSource *> PreRecordedSources;
