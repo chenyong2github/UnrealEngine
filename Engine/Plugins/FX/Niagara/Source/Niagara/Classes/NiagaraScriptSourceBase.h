@@ -117,7 +117,7 @@ class UNiagaraScriptSourceBase : public UObject
 
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
-	virtual void InvalidateCachedCompileIds() {}
+	virtual void ForceGraphToRecompileOnNextCheck() {}
 
 	virtual void RefreshFromExternalChanges() {}
 

@@ -137,6 +137,24 @@ enum class ENodeEnabledState : uint8
 	DevelopmentOnly
 };
 
+inline const TCHAR* const LexToString(const ENodeEnabledState State)
+{
+	switch (State)
+	{
+	case ENodeEnabledState::Enabled:
+		return TEXT("Enabled");
+	case ENodeEnabledState::Disabled:
+		return TEXT("Disabled");
+	case ENodeEnabledState::DevelopmentOnly:
+		return TEXT("DevelopmentOnly");
+	default:
+		break;
+	}
+
+	checkf(false, TEXT("Missing ENodeEnabledState Type: %d"), static_cast<const int32>(State));
+	return TEXT("");
+}
+
 /** Enum that defines what kind of orphaned pins should be retained. */
 enum class ESaveOrphanPinMode : uint8
 {
