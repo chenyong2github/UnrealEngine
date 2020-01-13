@@ -202,6 +202,8 @@ namespace Chaos
 		}
 
 		{
+			ConsumerLock.Lock();
+
 			SCOPE_CYCLE_COUNTER(STAT_TaskCommands);
 			TFunction<void(FPersistentPhysicsTask*)> TaskCommand;
 			while(TaskCommandQueue.Dequeue(TaskCommand))
@@ -209,6 +211,8 @@ namespace Chaos
 				// No dedicated thread task in this threading mode.
 				TaskCommand(nullptr);
 			}
+
+			ConsumerLock.Unlock();
 		}
 	}
 }
