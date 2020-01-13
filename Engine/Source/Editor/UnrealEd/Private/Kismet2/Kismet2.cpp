@@ -990,23 +990,28 @@ void FKismetEditorUtilities::ConformBlueprintFlagsAndComponents(UBlueprint* Blue
 /** @return		true is it's possible to create a blueprint from the specified class */
 bool FKismetEditorUtilities::CanCreateBlueprintOfClass(const UClass* Class)
 {
-	bool bAllowDerivedBlueprints = false;
-	GConfig->GetBool(TEXT("Kismet"), TEXT("AllowDerivedBlueprints"), /*out*/ bAllowDerivedBlueprints, GEngineIni);
+	bool bCanCreateBlueprint = false;
+	
+	if (Class)
+	{
+		bool bAllowDerivedBlueprints = false;
+		GConfig->GetBool(TEXT("Kismet"), TEXT("AllowDerivedBlueprints"), /*out*/ bAllowDerivedBlueprints, GEngineIni);
 
-	const bool bCanCreateBlueprint =
-		!Class->HasAnyClassFlags(CLASS_Deprecated)
-		&& !Class->HasAnyClassFlags(CLASS_NewerVersionExists)
-		&& (!Class->ClassGeneratedBy || (bAllowDerivedBlueprints && !IsClassABlueprintSkeleton(Class)));
+		bCanCreateBlueprint = !Class->HasAnyClassFlags(CLASS_Deprecated)
+			&& !Class->HasAnyClassFlags(CLASS_NewerVersionExists)
+			&& (!Class->ClassGeneratedBy || (bAllowDerivedBlueprints && !IsClassABlueprintSkeleton(Class)));
 
-	const bool bIsBPGC = (Cast<UBlueprintGeneratedClass>(Class) != nullptr);
+		const bool bIsBPGC = (Cast<UBlueprintGeneratedClass>(Class) != nullptr);
 
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-	const bool bIsValidClass = Class->GetBoolMetaDataHierarchical(FBlueprintMetadata::MD_IsBlueprintBase)
-		|| (Class == UObject::StaticClass())
-		|| (Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || Class == USceneComponent::StaticClass() || Class == UActorComponent::StaticClass())
-		|| bIsBPGC;  // BPs are always considered inheritable
-
-	return bCanCreateBlueprint && bIsValidClass;
+		const bool bIsValidClass = Class->GetBoolMetaDataHierarchical(FBlueprintMetadata::MD_IsBlueprintBase)
+			|| (Class == UObject::StaticClass())
+			|| (Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || Class == USceneComponent::StaticClass() || Class == UActorComponent::StaticClass())
+			|| bIsBPGC;  // BPs are always considered inheritable
+			
+		bCanCreateBlueprint &= bIsValidClass;
+	}
+	
+	return bCanCreateBlueprint;
 }
 
 UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FString& Path, AActor* Actor, const bool bReplaceActor, bool bKeepMobility /*= false*/)
