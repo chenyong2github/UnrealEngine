@@ -28,8 +28,8 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.DriveStiffnessScale"), ChaosImmediate_DriveStiffnessScale, TEXT("Conversion factor for drive stiffness."));
 	FAutoConsoleVariableRef CVarDriveDampingScale(TEXT("p.Chaos.ImmPhys.DriveDampingScale"), ChaosImmediate_DriveDampingScale, TEXT("Conversion factor for drive damping."));
 
-	float ChaosImmediate_SoftLinearStiffnessScale = 1.0f;
-	float ChaosImmediate_SoftLinearDampingScale = 1.0f;
+	float ChaosImmediate_SoftLinearStiffnessScale = 1.75f;
+	float ChaosImmediate_SoftLinearDampingScale = 1.75f;
 	FAutoConsoleVariableRef CVarSoftLinearStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftLinearStiffnessScale"), ChaosImmediate_SoftLinearStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
 	FAutoConsoleVariableRef CVarSoftLinearDampingScale(TEXT("p.Chaos.ImmPhys.SoftLinearDampingScale"), ChaosImmediate_SoftLinearDampingScale, TEXT("Conversion factor for soft-joint damping."));
 
@@ -38,7 +38,7 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarSoftLinearForceMode(TEXT("p.Chaos.ImmPhys.SoftLinearForceMode"), ChaosImmediate_SoftLinearForceMode, TEXT("Soft Linear constraint force mode (0: Acceleration; 1: Force"));
 	FAutoConsoleVariableRef CVarSoftAngularForceMode(TEXT("p.Chaos.ImmPhys.SoftAngularForceMode"), ChaosImmediate_SoftAngularForceMode, TEXT("Soft Angular constraint force mode (0: Acceleration; 1: Force"));
 
-	// This value is from PhysX UE - in Chaos we don't really need Soft constraints with stiffness greater than about 1000
+	// This value US passed to PhysX was 100000 UE
 	// (In PhysX, Soft constraints were implicitly integrated, and essentially equivalent to XPBD, which for large stiffness is just PBD).
 	float ChaosImmediate_SoftAngularStiffnessScale = 100000.0f;
 	float ChaosImmediate_SoftAngularDampingScale = 100000.0f;
