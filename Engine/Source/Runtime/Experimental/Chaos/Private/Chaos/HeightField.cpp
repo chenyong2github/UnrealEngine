@@ -618,8 +618,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -652,8 +656,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -1629,19 +1637,6 @@ namespace Chaos
 		// Cache per-cell bounds
 		const int32 NumX = GeomData.NumCols - 1;
 		const int32 NumY = GeomData.NumRows - 1;
-		//GeomData.CellBounds.SetNum(NumX * NumY);
-		GeomData.CellHeights.SetNum(NumX*NumY);
-		for(int32 XIndex = 0; XIndex < NumX; ++XIndex)
-		{
-			for(int32 YIndex = 0; YIndex < NumY; ++YIndex)
-			{
-				const TVector<int32, 2> Cell(XIndex, YIndex);
-				TVector<T, 3> Min, Max;
-				CalcCellBounds3D(Cell, Min, Max);
-				//GeomData.CellBounds[YIndex * NumX + XIndex] = TAABB<T, 3>(Min, Max);
-				GeomData.CellHeights[YIndex * NumX + XIndex] = Max.Z;
-			}
-		}
 	}
 
 	template<typename T>

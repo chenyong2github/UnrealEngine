@@ -104,6 +104,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Convexes use concrete planes
 		ConvexUsesTPlaneConcrete,
+
+		// Heightfield uses uint16 heights directly
+		HeightfieldUsesHeightsDirectly,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
