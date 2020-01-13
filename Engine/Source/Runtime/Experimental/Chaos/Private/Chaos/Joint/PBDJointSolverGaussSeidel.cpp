@@ -14,9 +14,9 @@
 #if !INTEL_ISPC
 const bool bChaos_Joint_ISPC_Enabled = false;
 #elif UE_BUILD_SHIPPING
-const bool bChaos_Joint_ISPC_Enabled = true;
+const bool bChaos_Joint_ISPC_Enabled = false;
 #else
-bool bChaos_Joint_ISPC_Enabled = true;
+bool bChaos_Joint_ISPC_Enabled = false;
 FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
 #endif
 
@@ -355,7 +355,7 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		ApplyPositionConstraints(Dt, SolverSettings, JointSettings);
-
+	
 		ApplyRotationConstraints(Dt, SolverSettings, JointSettings);
 	}
 
@@ -365,9 +365,9 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		ApplyRotationDrives(Dt, SolverSettings, JointSettings);
-
 		ApplyPositionDrives(Dt, SolverSettings, JointSettings);
+
+		ApplyRotationDrives(Dt, SolverSettings, JointSettings);
 	}
 
 
@@ -893,8 +893,34 @@ namespace Chaos
 			const FVec3 IA1 = Utilities::Multiply(InvI1, Axis1);
 
 			// Joint-space inverse mass
-			const FReal II0 = FVec3::DotProduct(Axis0, IA0);
-			const FReal II1 = FVec3::DotProduct(Axis1, IA1);
+			FReal II0 = FVec3::DotProduct(Axis0, IA0);
+			FReal II1 = FVec3::DotProduct(Axis1, IA1);
+
+			// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
+			// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
+			if (AngularPositionCorrection > 0)
+			{
+				if (InvMs[0] > 0)
+				{
+					const FVec3 LinearAxis0 = FVec3::CrossProduct(Xs[0] - Ps[0], Axis0);
+					const FReal LinearAxisLen0Sq = LinearAxis0.SizeSquared();
+					if (LinearAxisLen0Sq > KINDA_SMALL_NUMBER)
+					{
+						const FReal IM0 = InvMs[0] / LinearAxisLen0Sq;
+						II0 = II0 * IM0 / (II0 + IM0);
+					}
+				}
+				if (InvMs[1] > 0)
+				{
+					const FVec3 LinearAxis1 = FVec3::CrossProduct(Xs[1] - Ps[1], Axis1);
+					const FReal LinearAxisLen1Sq = LinearAxis1.SizeSquared();
+					if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
+					{
+						const FReal IM1 = InvMs[1] / LinearAxisLen1Sq;
+						II1 = II1 * IM1 / (II1 + IM1);
+					}
+				}
+			}
 			const FReal II = (II0 + II1);
 
 			// Damping angular velocity
