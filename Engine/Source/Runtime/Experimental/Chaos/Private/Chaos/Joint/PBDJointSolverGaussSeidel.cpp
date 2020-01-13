@@ -11,7 +11,9 @@
 
 //#pragma optimize("", off)
 
-#if UE_BUILD_SHIPPING
+#if !INTEL_ISPC
+const bool bChaos_Joint_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
 const bool bChaos_Joint_ISPC_Enabled = true;
 #else
 bool bChaos_Joint_ISPC_Enabled = true;
