@@ -1028,7 +1028,7 @@ void FNiagaraSystemSimulation::WaitForInstancesTickComplete(bool bEnsureComplete
 	{
 		// If we're in a spawn phase all existing instances should be complete already.
 		FNiagaraSystemInstance* Inst = SystemInstances[SystemInstIndex];
-		Inst->WaitForAsyncTick(bInSpawnPhase);
+		Inst->WaitForAsyncTickAndFinalize(bInSpawnPhase);
 
 		// If the system completes during finalize it can be removed from instances so we don't update the index.
 		if ( SystemInstances[SystemInstIndex] == Inst)
@@ -1713,12 +1713,12 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		// Wait for the system simulation & the system instances tick to complete as we are touching both the SystemInstances & DataSet
 		// Note: We do not need to wait for all instances to complete as the system simulation concurrent tick will have transfered data from the DataSet out to ParameterStores
 		WaitForSystemTickComplete();
-		Instance->WaitForAsyncTick();
+		Instance->WaitForAsyncTickDoNotFinalize();
 
-		int32 NumInstances = MainDataSet.GetCurrentDataChecked().GetNumInstances();
+		const int32 NumInstances = MainDataSet.GetCurrentDataChecked().GetNumInstances();
 		check(SystemInstances.Num() == NumInstances);
 
-		int32 SystemIndex = Instance->SystemInstanceIndex;
+		const int32 SystemIndex = Instance->SystemInstanceIndex;
 		check(Instance == SystemInstances[SystemIndex]);
 		check(SystemInstances.IsValidIndex(SystemIndex));
 
