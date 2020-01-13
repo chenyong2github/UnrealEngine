@@ -112,11 +112,11 @@ private:
 	/** index of state from buffer to show */
 	int32 ActiveStepIndex;
 
-	/** index of displayed step, used to detect changes */
-	int32 DisplayedStepIndex;
+	/** execution id of displayed step, used to detect changes */
+	int32 DisplayedExecutionStepId;
 
-	/** id of last valid step */
-	int32 LastValidStepId;
+	/** execution id of last valid step */
+	int32 LastValidExecutionStepId;
 
 	/** indices of display steps for different step actions */
 	int32 StepForwardIntoIdx;
