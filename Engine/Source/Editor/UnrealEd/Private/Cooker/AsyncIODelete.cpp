@@ -143,15 +143,26 @@ void FAsyncIODelete::Teardown()
 	bInitialized = false;
 }
 
-void FAsyncIODelete::WaitForAllTasks()
+bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 {
 	if (!bInitialized)
 	{
-		return;
+		return true;
 	}
 
-	TasksComplete->Wait();
+	if (TimeLimitSeconds <= 0.f)
+	{
+		TasksComplete->Wait();
+	}
+	else
+	{
+		if (!TasksComplete->Wait(FTimespan::FromSeconds(TimeLimitSeconds)))
+		{
+			return false;
+		}
+	}
 	check(ActiveTaskCount == 0);
+	return true;
 }
 
 bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedType)
