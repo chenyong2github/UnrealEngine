@@ -54,9 +54,6 @@ public:
 	// when using the legacy wind calculation mode
 	float WindAdaption;
 
-	// Whether and how we should teleport the simulation this tick
-	EClothingTeleportMode TeleportMode;
-
 	// Scale for the max distance constraints of the simulation mesh
 	float MaxDistanceScale;
 };
