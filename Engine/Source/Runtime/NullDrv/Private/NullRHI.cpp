@@ -34,25 +34,6 @@ void FNullDynamicRHI::Init()
 	GRHIVendorId = 1;
 
 	check(!GIsRHIInitialized);
-
-	// do not do this at least on dedicated server; clients with -NullRHI may need additional consideration
-#if !WITH_EDITOR	
-	if (!IsRunningDedicatedServer())
-#endif
-	{
-		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->InitRHI();
-		}
-		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->InitDynamicRHI();
-		}
-	}
-
-	GIsRHIInitialized = true;
 }
 
 

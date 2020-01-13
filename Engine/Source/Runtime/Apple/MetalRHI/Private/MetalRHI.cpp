@@ -838,10 +838,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (ImmediateContext.Profiler)
 		ImmediateContext.Profiler->BeginFrame();
 #endif
-		
-	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-	FRenderResource::InitPreRHIResources();	
-	
+
 	AsyncComputeContext = GSupportsEfficientAsyncCompute ? new FMetalRHIComputeContext(ImmediateContext.Profiler, new FMetalContext(ImmediateContext.Context->GetDevice(), ImmediateContext.Context->GetCommandQueue(), true)) : nullptr;
 
 #if ENABLE_METAL_GPUPROFILE
@@ -903,7 +900,6 @@ uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Forma
 
 void FMetalDynamicRHI::Init()
 {
-	GIsRHIInitialized = true;
 }
 
 void FMetalRHIImmediateCommandContext::RHIBeginFrame()
