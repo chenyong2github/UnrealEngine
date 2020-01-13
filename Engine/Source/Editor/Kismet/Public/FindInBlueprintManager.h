@@ -138,7 +138,7 @@ struct FSearchDataVersionInfo
 };
 
 /** State flags for search database entries */
-enum ESearchDataStateFlags
+enum class ESearchDataStateFlags : uint8
 {
 	None = 0,
 	/** Set when this search database entry has been fully indexed, which is completed asynchronously */
