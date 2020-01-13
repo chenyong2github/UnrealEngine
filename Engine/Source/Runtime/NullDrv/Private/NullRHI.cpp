@@ -35,9 +35,9 @@ void FNullDynamicRHI::Init()
 
 	check(!GIsRHIInitialized);
 
-	// Create render resources if app supports rendering
+	// do not do this at least on dedicated server; clients with -NullRHI may need additional consideration
 #if !WITH_EDITOR	
-	if (FApp::CanEverRender())
+	if (!IsRunningDedicatedServer())
 #endif
 	{
 		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
