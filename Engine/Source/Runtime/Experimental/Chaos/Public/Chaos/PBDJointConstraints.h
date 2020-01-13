@@ -176,6 +176,7 @@ namespace Chaos
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
+		bool bRequiresSort;
 
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
@@ -183,8 +184,6 @@ namespace Chaos
 
 		// @todo(ccaulfield): optimize storage for joint solver
 		TArray<FJointSolverGaussSeidel> ConstraintSolvers;
-
-		bool bRequiresSort;
 	};
 
 }
