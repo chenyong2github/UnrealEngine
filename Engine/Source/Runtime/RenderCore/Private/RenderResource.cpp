@@ -34,15 +34,12 @@ TLinkedList<FRenderResource*>*& FRenderResource::GetResourceList()
 
 /** Initialize all resources initialized before the RHI was initialized */
 void FRenderResource::InitPreRHIResources()
-{
-	check(!GIsRHIInitialized);
-
+{	
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
 	{
 		ResourceIt->InitRHI();
 	}
-
 	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
 	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
 	{
