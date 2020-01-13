@@ -30,7 +30,7 @@ enum class ENiagaraSpriteFacingMode : uint8
 	FaceCamera,
 	/** The sprite billboard plane is completely parallel to the camera plane. Particle always looks "flat" */
 	FaceCameraPlane,
-	/** The sprite billboard faces toward the "Particles.SpriteFacing" vector attribute, using the per-axis CustomFacingVectorMask as a lerp factor from the standard FaceCamera mode. If the "Particles.SpriteFacing" attribute is missing, this falls back to FaceCamera mode.*/
+	/** The sprite billboard faces toward the "Particles.SpriteFacing" vector attribute. If the "Particles.SpriteFacing" attribute is missing, this falls back to FaceCamera mode.*/
 	CustomFacingVector,
 	/** Faces the camera position, but is not dependent on the camera rotation.  This method produces more stable particles under camera rotation. Uses the up axis of (0,0,1).*/
 	FaceCameraPosition,
@@ -89,10 +89,6 @@ public:
 	/** Determines how the particle billboard orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	ENiagaraSpriteFacingMode FacingMode;
-
-	/** Used as a per-axis interpolation factor with the CustomFacingVector mode to determine how the billboard orients itself relative to the camera. A value of 1.0 is fully facing the custom vector. A value of 0.0 uses the standard facing strategy.*/
-	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	FVector CustomFacingVectorMask;
 
 	/** Determines the location of the pivot point of this particle. It follows Unreal's UV space, which has the upper left of the image at 0,0 and bottom right at 1,1. The middle is at 0.5, 0.5. */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
