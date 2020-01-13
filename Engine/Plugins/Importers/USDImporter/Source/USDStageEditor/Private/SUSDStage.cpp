@@ -396,7 +396,12 @@ void SUsdStage::OnReloadStage()
 
 		if ( UsdStage )
 		{
+			UsdUtils::StartMonitoringErrors();
 			UsdStage->Reload();
+			if (UsdUtils::ShowErrorsAndStopMonitoring())
+			{
+				return;
+			}
 
 			// If we were editing an unsaved layer, when we reload the edit target will be cleared.
 			// We need to make sure we're always editing something or else UsdEditContext might trigger some errors
