@@ -31,6 +31,9 @@ AGameStateBase::AGameStateBase(const FObjectInitializer& ObjectInitializer)
 
 	// Default to every few seconds.
 	ServerWorldTimeSecondsUpdateFrequency = 0.1f;
+
+	SumServerWorldTimeSecondsDelta = 0.0;
+	NumServerWorldTimeSecondsDeltas = 0;
 }
 
 const AGameModeBase* AGameStateBase::GetDefaultGameMode() const
@@ -158,7 +161,30 @@ void AGameStateBase::OnRep_ReplicatedWorldTimeSeconds()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		ServerWorldTimeSecondsDelta = ReplicatedWorldTimeSeconds - World->GetTimeSeconds();
+		const float ServerWorldTimeDelta = ReplicatedWorldTimeSeconds - World->GetTimeSeconds();
+
+		// Accumulate the computed server world delta
+		SumServerWorldTimeSecondsDelta += ServerWorldTimeDelta;
+		NumServerWorldTimeSecondsDeltas += 1.0;
+
+		// Reset the accumulated values to ensure that we remain representative of the current delta
+		if (NumServerWorldTimeSecondsDeltas > 250)
+		{
+			SumServerWorldTimeSecondsDelta /= NumServerWorldTimeSecondsDeltas;
+			NumServerWorldTimeSecondsDeltas = 1;
+		}
+
+		double TargetWorldTimeSecondsDelta = SumServerWorldTimeSecondsDelta / NumServerWorldTimeSecondsDeltas;
+
+		// Smoothly interpolate towards the new delta if we've already got one to avoid significant spikes
+		if (ServerWorldTimeSecondsDelta == 0.0)
+		{
+			ServerWorldTimeSecondsDelta = TargetWorldTimeSecondsDelta;
+		}
+		else
+		{
+			ServerWorldTimeSecondsDelta += (TargetWorldTimeSecondsDelta - ServerWorldTimeSecondsDelta) * 0.5;
+		}
 	}
 }
 
