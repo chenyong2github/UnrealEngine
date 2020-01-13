@@ -68,7 +68,15 @@ FImaginaryFiBData::FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPt
 	: UnparsedJsonObject(InUnparsedJsonObject)
 	, LookupTablePtr(InLookupTablePtr)
 	, Outer(InOuter)
+	, bHasParsedJsonObject(false)
+	, bRequiresInterlockedParsing(false)
 {
+	// Backwards-compatibility; inherit the flag that only allows one thread at a time into the JSON parsing logic.
+	const FImaginaryFiBDataSharedPtr OuterPtr = Outer.Pin();
+	if (OuterPtr.IsValid())
+	{
+		bRequiresInterlockedParsing = OuterPtr->bRequiresInterlockedParsing;
+	}
 }
 
 FSearchResult FImaginaryFiBData::CreateSearchResult(FSearchResult InParent) const
@@ -157,8 +165,6 @@ bool FImaginaryFiBData::CanCallFilter(ESearchQueryFilter InSearchQueryFilter) co
 
 void FImaginaryFiBData::ParseAllChildData_Internal(ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::Searchable*/)
 {
-	FScopeLock ScopeLock(&FImaginaryFiBData::ParseChildDataCriticalSection);
-
 	if (UnparsedJsonObject.IsValid())
 	{
 		if (InSearchabilityOverride & ESearchableValueStatus::Searchable)
@@ -236,8 +242,21 @@ void FImaginaryFiBData::ParseAllChildData(ESearchableValueStatus InSearchability
 	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ParseAllChildData);
 	CSV_CUSTOM_STAT(FindInBlueprint, ParseAllChildDataIterations, 1, ECsvCustomStatOp::Accumulate);
 
-	FScopeLock ScopeLock(&FImaginaryFiBData::ParseChildDataCriticalSection);
-	ParseAllChildData_Internal(InSearchabilityOverride);
+	if (bRequiresInterlockedParsing)
+	{
+		ParseChildDataCriticalSection.Lock();
+	}
+
+	if (!bHasParsedJsonObject)
+	{
+		ParseAllChildData_Internal(InSearchabilityOverride);
+		bHasParsedJsonObject = true;
+	}
+
+	if (bRequiresInterlockedParsing)
+	{
+		ParseChildDataCriticalSection.Unlock();
+	}
 }
 
 void FImaginaryFiBData::ParseJsonValue(FText InKey, FText InDisplayKey, TSharedPtr< FJsonValue > InJsonValue, TArray<FSearchableValueInfo>& OutParsedValues, bool bIsInArray/*=false*/, ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::Searchable*/)
