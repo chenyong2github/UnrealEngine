@@ -43,8 +43,10 @@ void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraSt
 {
 	for (FInputParameterHandleAndType& Input : Inputs)
 	{
-		UNiagaraStackFunctionInput* InputChild = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInput>(CurrentChildren,
-			[&](UNiagaraStackFunctionInput* CurrentInput) { return CurrentInput->GetInputParameterHandle() == Input.ParameterHandle; });
+		UNiagaraStackFunctionInput* InputChild = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInput>(CurrentChildren, [&](UNiagaraStackFunctionInput* CurrentInput) 
+		{ 
+			return CurrentInput->GetInputParameterHandle() == Input.ParameterHandle && CurrentInput->GetInputFunctionCallInitialScript() == InputFunctionCallNode->FunctionScript; 
+		});
 
 		if (InputChild == nullptr)
 		{
