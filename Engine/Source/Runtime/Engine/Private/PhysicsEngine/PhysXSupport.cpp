@@ -505,27 +505,47 @@ FPhysXCookingDataReader::FPhysXCookingDataReader( FByteBulkData& InBulkData, FBo
 	ConvexMeshes.Empty(NumConvexElementsCooked);
 	for( int32 ElementIndex = 0; ElementIndex < NumConvexElementsCooked; ElementIndex++ )
 	{
-		PxConvexMesh* ConvexMesh = ReadConvexMesh( Ar, DataPtr, InBulkData.GetBulkDataSize() );
+		//NOTE: these tags currently get ignored because of low level allocator
+		PxConvexMesh* ConvexMesh;
+		{
+			LLM_SCOPE(ELLMTag::PhysXConvex);
+			ConvexMesh = ReadConvexMesh(Ar,DataPtr,InBulkData.GetBulkDataSize());
+		}
+		
 		ConvexMeshes.Add( ConvexMesh );
 	}
 
 	ConvexMeshesNegX.Empty(NumMirroredElementsCooked);
 	for( int32 ElementIndex = 0; ElementIndex < NumMirroredElementsCooked; ElementIndex++ )
 	{
-		PxConvexMesh* ConvexMeshNegX = ReadConvexMesh( Ar, DataPtr, InBulkData.GetBulkDataSize() );
+		PxConvexMesh* ConvexMeshNegX;
+		{
+			LLM_SCOPE(ELLMTag::PhysXConvex);
+			ConvexMeshNegX = ReadConvexMesh( Ar, DataPtr, InBulkData.GetBulkDataSize() );
+		}
+		
 		ConvexMeshesNegX.Add( ConvexMeshNegX );
 	}
 
 	TriMeshes.Empty(NumTriMeshesCooked);
 	for(int32 ElementIndex = 0; ElementIndex < NumTriMeshesCooked; ++ElementIndex)
 	{
-		PxTriangleMesh* TriMesh = ReadTriMesh( Ar, DataPtr, InBulkData.GetBulkDataSize() );
+		PxTriangleMesh* TriMesh;
+		{
+			LLM_SCOPE(ELLMTag::PhysXTrimesh);
+			TriMesh = ReadTriMesh( Ar, DataPtr, InBulkData.GetBulkDataSize() );
+		}
+		
 		TriMeshes.Add(TriMesh);
 	}
 
 	// Init UVInfo pointer
 	check(UVInfo);
-	Ar << *UVInfo;
+	{
+		LLM_SCOPE(ELLMTag::PhysXTrimesh);
+		Ar << *UVInfo;
+	}
+	
 
 	InBulkData.Unlock();
 }
