@@ -333,6 +333,14 @@ void FFrameProProfiler::PopEvent(const ANSICHAR* Override)
 	}
 }
 
+static int32 ScopeMinTimeMicroseconds = 25;
+static FAutoConsoleVariableRef CVarScopeMinTimeMicroseconds(
+	TEXT("framepro.ScopeMinTimeMicroseconds"),
+	ScopeMinTimeMicroseconds,
+	TEXT("Scopes with time taken below this threshold are not recorded in the FramePro capture.\n")
+	TEXT(" This value is only used when starting framepro captures with framepro.startrec.")
+);
+
 void FFrameProProfiler::StartFrameProRecordingFromCommand(const TArray< FString >& Args)
 {
 	FString FilenameRoot = FString::Printf(TEXT("ProfilePid%d"), FPlatformProcess::GetCurrentProcessId());
@@ -341,18 +349,7 @@ void FFrameProProfiler::StartFrameProRecordingFromCommand(const TArray< FString 
 		FilenameRoot = Args[0];
 	}
 
-	StartFrameProRecording(FilenameRoot, 50);
-}
-
-void FFrameProProfiler::StartFrameProRecordingScopeOverrideFromCommand(const TArray< FString >& Args)
-{
-	int32 MinScopeTime = 50;
-	if (Args.Num() > 0 && Args[0].Len() > 0)
-	{
-		MinScopeTime = FCString::Atoi(*Args[0]);
-	}
-
-	StartFrameProRecording(FString::Printf(TEXT("ProfilePid%d"), FPlatformProcess::GetCurrentProcessId()), MinScopeTime);
+	StartFrameProRecording(FilenameRoot, ScopeMinTimeMicroseconds);
 }
 
 FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime)
@@ -389,12 +386,6 @@ static FAutoConsoleCommand StartFrameProRecordCommand(
 	TEXT("framepro.startrec"),
 	TEXT("Start FramePro recording"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FFrameProProfiler::StartFrameProRecordingFromCommand)
-);
-
-static FAutoConsoleCommand StartFrameProRecordScopeOverrideCommand(
-	TEXT("framepro.startrecscopeoverride"),
-	TEXT("Start FramePro recording with a minimum event scope override"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(&FFrameProProfiler::StartFrameProRecordingScopeOverrideFromCommand)
 );
 
 void FFrameProProfiler::StopFrameProRecording()
