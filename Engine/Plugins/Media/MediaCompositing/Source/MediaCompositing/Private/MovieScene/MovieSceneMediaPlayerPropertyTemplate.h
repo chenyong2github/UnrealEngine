@@ -18,7 +18,7 @@ struct FMovieSceneMediaPlayerPropertySectionTemplate
 	GENERATED_BODY()
 
 	/** Default constructor. */
-	FMovieSceneMediaPlayerPropertySectionTemplate() { }
+	FMovieSceneMediaPlayerPropertySectionTemplate() : MediaSource(nullptr), bLoop(false) { }
 	FMovieSceneMediaPlayerPropertySectionTemplate(const UMovieSceneMediaPlayerPropertySection* InSection, const UMovieSceneMediaPlayerPropertyTrack* InTrack);
 
 public:
