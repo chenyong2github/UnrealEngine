@@ -56,6 +56,8 @@ namespace Chaos
 		TQueue<TFunction<void()>, EQueueMode::Mpsc> GlobalCommandQueue;
 		TQueue<TFunction<void(FPersistentPhysicsTask*)>, EQueueMode::Mpsc> TaskCommandQueue;
 		TQueue<TUniquePtr<FCommandListData>, EQueueMode::Mpsc> CommandLists;
+
+		FCriticalSection ConsumerLock;
 	};
 
 	////////////////////////////////////////////////////////////////////////////
