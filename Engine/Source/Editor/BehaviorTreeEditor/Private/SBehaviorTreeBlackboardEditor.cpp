@@ -115,7 +115,7 @@ void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 			BlackboardData->SetFlags(RF_Transactional);
 			BlackboardData->Modify();
 
-			UProperty* KeysProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+			FProperty* KeysProperty = FindField<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
 			BlackboardData->PreEditChange(KeysProperty);
 		
 			for(int32 ItemIndex = 0; ItemIndex < BlackboardData->Keys.Num(); ItemIndex++)
@@ -246,7 +246,7 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	BlackboardData->SetFlags(RF_Transactional);
 	BlackboardData->Modify();
 
-	UProperty* KeysProperty = FindField<UProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+	FProperty* KeysProperty = FindField<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
 	BlackboardData->PreEditChange(KeysProperty);
 
 	// create a name for this new key
