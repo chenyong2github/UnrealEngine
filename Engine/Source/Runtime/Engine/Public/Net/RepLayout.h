@@ -21,6 +21,7 @@
 #include "UObject/GCObject.h"
 #include "Containers/StaticBitArray.h"
 #include "Net/GuidReferences.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Templates/CopyQualifiersFromTo.h"
 
 class FGuidReferences;
@@ -158,10 +159,14 @@ public:
 	 *
 	 * @see DOREPLIFETIME_ACTIVE_OVERRIDE
 	 *
-	 * @param RepIndex	Replication index for the Property.
-	 * @param bIsActive	The new Active state.
+	 * @param OwningObject	The object that we're tracking.
+	 * @param RepIndex		Replication index for the Property.
+	 * @param bIsActive		The new Active state.
 	 */
-	virtual void SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive) override;
+	virtual void SetCustomIsActiveOverride(
+		UObject* OwningObject,
+		const uint16 RepIndex,
+		const bool bIsActive) override;
 
 	/**
 	 * Sets (or resets) the External Data.
@@ -400,9 +405,12 @@ private:
 	FRepChangelistState(
 		const TSharedRef<const FRepLayout>& InRepLayout,
 		const uint8* Source,
-		struct FCustomDeltaChangelistState* CustomDeltaChangelistState);
+		const UObject* InRepresenting,
+		struct FCustomDeltaChangelistState* InDeltaChangelistState);
 
 public:
+
+	~FRepChangelistState();
 
 	/** The maximum number of individual changelists allowed.*/
 	static const int32 MAX_CHANGE_HISTORY = 64;
@@ -429,6 +437,17 @@ public:
 	FRepSerializationSharedInfo SharedSerialization;
 
 	void CountBytes(FArchive& Ar) const;
+
+#if WITH_PUSH_MODEL
+
+	const UE4PushModelPrivate::FPushModelPerNetDriverHandle& GetPushModelObjectHandle() const
+	{
+		return PushModelObjectHandle;
+	}
+
+private:
+	const UE4PushModelPrivate::FPushModelPerNetDriverHandle PushModelObjectHandle;
+#endif
 };
 
 /**
@@ -447,9 +466,12 @@ private:
 	FReplicationChangelistMgr(
 		const TSharedRef<const FRepLayout>& InRepLayout,
 		const uint8* Source,
+		const UObject* InRepresenting,
 		struct FCustomDeltaChangelistState* CustomDeltaChangelistState);
 
 public:
+
+	~FReplicationChangelistMgr();
 
 	FRepChangelistState* GetRepChangelistState() const
 	{
@@ -692,8 +714,9 @@ enum class ERepParentFlags : uint32
 	IsNetSerialize		= (1 << 4), //! This property uses a custom net serializer. Mutually exclusive with IsCustomDelta.
 	IsStructProperty	= (1 << 5),	//! This property is a FStructProperty.
 	IsZeroConstructible	= (1 << 6),	//! This property is ZeroConstructible.
-	IsFastArray			= (1 << 7), //! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
+	IsFastArray			= (1 << 7),	//! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
 									//! these Custom Delta structs will have their inner properties tracked.
+	UsePushModel		= (1 << 8),	//! This object relies on PushModel, and can be skipped when not dirty.	
 };
 
 ENUM_CLASS_FLAGS(ERepParentFlags)
@@ -712,8 +735,8 @@ public:
 		CachedPropertyName(InProperty ? InProperty->GetFName() : NAME_None),
 		ArrayIndex(InArrayIndex),
 		ShadowOffset(0),
-		CmdStart(0), 
-		CmdEnd(0), 
+		CmdStart(0),
+		CmdEnd(0),
 		Condition(COND_None),
 		RepNotifyCondition(REPNOTIFY_OnChanged),
 		RepNotifyNumParams(INDEX_NONE),
@@ -985,8 +1008,10 @@ ENUM_CLASS_FLAGS(ECreateRepLayoutFlags);
 
 enum class ERepLayoutFlags : uint8
 {
-	None = 0,
-	IsActor = 1 << 1,	//! This RepLayout is for AActor or a subclass of AActor.
+	None				= 0,
+	IsActor 			= 1 << 0,	//! This RepLayout is for AActor or a subclass of AActor.
+	PartialPushSupport	= 1 << 1,	//! This RepLayout has some properties that use Push Model and some that don't.
+	FullPushSupport		= 1 << 2,	//! All properties in this RepLayout use Push Model.
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 
@@ -1199,11 +1224,11 @@ public:
 		UActorChannel* OwningChannel,
 		UClass* InObjectClass,
 		FReceivingRepState* RESTRICT RepState,
-		FRepObjectDataBuffer Data,
+		UObject* Object,
 		FNetBitReader& InBunch,
 		bool& bOutHasUnmapped,
 		bool& bOutGuidsChanged,
-		const EReceivePropertiesFlags Flags) const;
+		const EReceivePropertiesFlags InFlags) const;
 
 	/**
 	 * Finds any properties in the Shadow Buffer of the given Rep State that are currently valid
@@ -1434,6 +1459,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const bool IsEmpty() const
 	{
 		return 0 == Parents.Num();
+	}
+
+	const int32 GetNumParents() const
+	{
+		return Parents.Num();
 	}
 
 	void CountBytes(FArchive& Ar) const;
