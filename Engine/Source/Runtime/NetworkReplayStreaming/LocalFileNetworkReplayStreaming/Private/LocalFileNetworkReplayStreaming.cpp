@@ -682,6 +682,14 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 
 	const FString FullDemoFilename = GetDemoFullFilename(FinalDemoName);
 
+	// only record to valid replay file names
+	if (Params.bRecord && !FullDemoFilename.EndsWith(FNetworkReplayStreaming::GetReplayFileExtension()))
+	{
+		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::StartStreaming. Invalid replay file name for recording: %s"), *FullDemoFilename);
+		Delegate.ExecuteIfBound(Result);
+		return;
+	}
+
 	CurrentStreamName = FinalDemoName;
 
 	if (!Params.bRecord)
@@ -994,7 +1002,7 @@ void FLocalFileNetworkReplayStreamer::EnumerateStreams(const FNetworkReplayVersi
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_Enumerate);
 
-			const FString WildCardPath = GetDemoPath() + TEXT("*.replay");
+			const FString WildCardPath = GetDemoPath() + TEXT("*") + FNetworkReplayStreaming::GetReplayFileExtension();
 
 			TArray<FString> ReplayFileNames;
 			IFileManager::Get().FindFiles(ReplayFileNames, *WildCardPath, true, false);
@@ -1566,7 +1574,7 @@ void FLocalFileNetworkReplayStreamer::RenameReplay_Internal(const FString& Repla
 			const FString& NewReplayName = GetDemoFullFilename(NewName);
 
 			FString NewReplayBaseName = FPaths::GetBaseFilename(NewReplayName);
-			NewReplayBaseName.RemoveFromEnd(".replay");
+			NewReplayBaseName.RemoveFromEnd(FNetworkReplayStreaming::GetReplayFileExtension());
 
 			// Sanity check to make sure the input name isn't changing directories.
 			if (NewName != NewReplayBaseName)
@@ -2518,7 +2526,7 @@ FString FLocalFileNetworkReplayStreamer::GetDemoFullFilename(const FString& Stre
 	if (FPaths::IsRelative(StreamName))
 	{
 		// Treat relative paths as demo stream names.
-		return FPaths::Combine(*GetDemoPath(), *StreamName) + TEXT(".replay");
+		return FPaths::Combine(*GetDemoPath(), *StreamName) + FNetworkReplayStreaming::GetReplayFileExtension();
 	}
 	else
 	{
@@ -2554,10 +2562,10 @@ FString FLocalFileNetworkReplayStreamer::GetAutomaticDemoName() const
 
 				for (FString& AutoReplay : FoundAutoReplays)
 				{
-					// Convert the replay name to a full path, making sure to remove the extra .replay postfix
+					// Convert the replay name to a full path, making sure to remove the file extension
 					// that GetDemoFullFilename will add.
 					AutoReplay = GetDemoFullFilename(AutoReplay);
-					AutoReplay.RemoveFromEnd(TEXT(".replay"));
+					AutoReplay.RemoveFromEnd(FNetworkReplayStreaming::GetReplayFileExtension());
 
 					FDateTime Timestamp = FileManager.GetTimeStamp(*AutoReplay);
 					if (Timestamp < OldestReplayTimestamp)
