@@ -1635,14 +1635,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 			// Let's check if there're any SteamVR specific key that already exists for this action
 			for (FSteamVRInputKeyMapping SteamVRKeyInputMappingInner : SteamVRKeyInputMappings)
 			{
-				// Ensure the hmd proximity key is always generated
-				//if (SteamVRKeyInputMappingInner.InputKeyMapping.Key.GetFName().ToString().Contains(TEXT("SteamVR_HMD_Proximity")))
-				//{
-				//	UE_LOG(LogTemp, Warning, TEXT("*** Action includes a SteamVR_HMD_Proximity!"));
-				//	bIsGenericController = false;
-				//	break;
-				//}
-
 				// Check for generic controllers that have steamvr inputs already defined
 				if (SteamVRKeyInputMapping.InputKeyMapping.ActionName.ToString().Equals(SteamVRKeyInputMappingInner.InputKeyMapping.ActionName.ToString())
 					&& IsVRKey(SteamVRKeyInputMappingInner.InputKeyMapping.Key.GetFName())
@@ -1667,10 +1659,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				&& !SteamVRKeyInputMapping.InputKeyMapping.Key.GetFName().ToString().Contains(TEXT("HMD_Proximity"))
 				)
 			{
-				//UE_LOG(LogTemp, Warning, TEXT("*** %s %s %s"), *Controller.KeyEquivalent, 
-				//	*SteamVRKeyInputMapping.InputKeyMapping.Key.GetFName().ToString(),
-				//	*SteamVRKeyInputMapping.ControllerName
-				//	);
 				continue;
 			}
 			else
@@ -1734,16 +1722,8 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				}
 				else
 				{
-					// Set cap sense input state
-					if (CurrentInputKeyName.Contains(TEXT("ValveIndex")) && InputState.bIsTrackpad)
-					{
-						InputState.bIsCapSense = true;					
-					}
-					else
-					{
-						InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("CapSense"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
-							CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-					}
+					InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("CapSense"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
+						CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 				}
 
 				// Check for DPad Keys
@@ -1814,7 +1794,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				CacheMode = InputState.bIsPress ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsTrackpad ? FName(TEXT("trackpad")) : CacheMode;
 				CacheMode = InputState.bIsThumbstick ? FName(TEXT("joystick")) : CacheMode;
-				//CacheMode = (InputState.bIsTrackpad || InputState.bIsThumbstick) && !InputState.bIsAxis ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsGrip ? FName(TEXT("button")) : CacheMode;
 				CacheMode = InputState.bIsPinchGrab || InputState.bIsGripGrab ? FName(TEXT("grab")) : CacheMode;
 
@@ -1827,10 +1806,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				{
 					CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_BUMPER_LEFT)) : FString(TEXT(ACTION_PATH_BUMPER_RIGHT));
 				}
-				//else if (InputState.bIsThumbstick)
-				//{
-				//	CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_THUMBSTICK_LEFT)) : FString(TEXT(ACTION_PATH_THUMBSTICK_RIGHT));
-				//}
 				else if (InputState.bIsTrackpad)
 				{
 					CachePath = InputState.bIsLeft ? FString(TEXT(ACTION_PATH_TRACKPAD_LEFT)) : FString(TEXT(ACTION_PATH_TRACKPAD_RIGHT));
@@ -1910,9 +1885,16 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				// Add parameters if Dpad
 				if (InputState.bIsDpadUp || InputState.bIsDpadDown || InputState.bIsDpadLeft || InputState.bIsDpadRight)
 				{
-					// Create Submode
+					// Create Submode - Vive will use click as default
 					TSharedRef<FJsonObject> SubmodeJsonObject = MakeShareable(new FJsonObject());
-					SubmodeJsonObject->SetStringField(TEXT("sub_mode"), TEXT("click"));
+					if (Controller.Description.Contains(TEXT("Vive")))
+					{
+						SubmodeJsonObject->SetStringField(TEXT("sub_mode"), TEXT("click"));
+					}
+					else
+					{
+						SubmodeJsonObject->SetStringField(TEXT("sub_mode"), TEXT("touch"));
+					}
 					
 					// Create Parameter
 					TSharedPtr<FJsonObject> ParametersJsonObject = MakeShareable(new FJsonObject());
@@ -3489,6 +3471,7 @@ void FSteamVRInputDevice::RegisterApplication(FString ManifestPath)
 		GetInputError(InputError, FString(TEXT("Setting main action set")));
 
 		// Add to action set array
+		SteamVRInputActionSets.Empty();
 		SteamVRInputActionSets.Add(FSteamVRInputActionSet(0, ACTION_SET, MainActionSet));
 
 		// Populate Active Action sets that will later be used in OpenVR calls
@@ -3602,35 +3585,55 @@ void FSteamVRInputDevice::ProcessActionEvents(FSteamVRInputActionSet SteamVRInpu
 			// Get digital data from SteamVR
 			InputDigitalActionData_t DigitalData;
 			EVRInputError ActionStateError = VRInput()->GetDigitalActionData(Action.Handle, &DigitalData, sizeof(DigitalData), k_ulInvalidInputValueHandle);
-
+			
 			if (ActionStateError != VRInputError_None)
 			{
 				//GetInputError(ActionStateError, TEXT("Error encountered retrieving digital data from SteamVR"));
 				//UE_LOG(LogSteamVRInputDevice, Error, TEXT("%s"), *Action.Path);
 				continue;
 			}
-			else if (ActionStateError == VRInputError_None &&
-				DigitalData.bActive &&
-				DigitalData.bState != Action.bState
-				)
+			else if (ActionStateError == VRInputError_None && DigitalData.bActive)
 			{
-				// Update our action to the value reported by SteamVR
-				Action.bState = DigitalData.bState;
-
-				// Update the active origin
-				Action.ActiveOrigin = DigitalData.activeOrigin;
-
-				// Test what we're receiving from SteamVR
-				//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyX %s Value %i"), *Action.Path, *FoundKey.GetFName().ToString(), DigitalData.bState);
-
-				// Sent event back to Engine
-				if (Action.bState && Action.KeyX != NAME_None)
+				// Send event back to Engine
+				if (Action.KeyX != NAME_None)
 				{
-					MessageHandler->OnControllerButtonPressed(Action.KeyX, 0, false);
-				}
-				else
-				{
-					MessageHandler->OnControllerButtonReleased(Action.KeyX, 0, false);
+					// Update the active origin
+					Action.ActiveOrigin = DigitalData.activeOrigin;
+
+					if (DigitalData.bState)
+					{
+						if (!Action.bState)
+						{
+							MessageHandler->OnControllerButtonPressed(Action.KeyX, 0, false);
+							Action.bState = DigitalData.bState;
+							Action.LastUpdated = DigitalData.fUpdateTime;
+							Action.bIsRepeat = false;
+							//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyX %s Value %i Changed %i UpdateTime %f"), *Action.Path, *Action.KeyX.ToString(), DigitalData.bState, DigitalData.bChanged, DigitalData.fUpdateTime);
+						}	
+						else
+						{
+							float EffectiveDelay = Action.bIsRepeat ? REPEAT_DIGITAL_ACTION_DELAY : INITIAL_DIGITAL_ACTION_DELAY;
+
+							if (Action.LastUpdated - DigitalData.fUpdateTime >= EffectiveDelay)
+							{
+								MessageHandler->OnControllerButtonPressed(Action.KeyX, 0, true);
+								Action.LastUpdated = DigitalData.fUpdateTime;
+								Action.bIsRepeat = true;
+								//UE_LOG(LogTemp, Warning, TEXT("[REPEAT] Handle %s KeyX %s Value %i Changed %i UpdateTime %f"), *Action.Path, *Action.KeyX.ToString(), DigitalData.bState, DigitalData.bChanged, DigitalData.fUpdateTime);
+							}							
+						}
+					}
+					else 
+					{
+						if (Action.bState)
+						{
+							MessageHandler->OnControllerButtonReleased(Action.KeyX, 0, false);
+							//UE_LOG(LogTemp, Display, TEXT("Handle %s KeyX %s Value %i Changed %i UpdateTime %f"), *Action.Path, *Action.KeyX.ToString(), DigitalData.bState, DigitalData.bChanged, DigitalData.fUpdateTime);
+						}
+
+						Action.bState = DigitalData.bState;
+						Action.bIsRepeat = false;
+					}
 				}
 			}
 		}
@@ -3652,7 +3655,7 @@ void FSteamVRInputDevice::ProcessActionEvents(FSteamVRInputActionSet SteamVRInpu
 				// Update the active origin
 				Action.ActiveOrigin = AnalogData.activeOrigin;
 
-				if (Action.KeyX != NAME_None && (AnalogData.deltaX > KINDA_SMALL_NUMBER || Action.Name.IsEqual(FName(CONTROLLER_BINDING_PATH))))
+				if (Action.KeyX != NAME_None && (FMath::Abs(AnalogData.deltaX) > KINDA_SMALL_NUMBER || Action.Name.IsEqual(FName(CONTROLLER_BINDING_PATH))))
 				{
 					// Test what we're receiving from SteamVR
 					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyX %s X-Value [%f]"), *Action.Path, *Action.KeyX.ToString(), AnalogData.x);
@@ -3661,7 +3664,7 @@ void FSteamVRInputDevice::ProcessActionEvents(FSteamVRInputActionSet SteamVRInpu
 					MessageHandler->OnControllerAnalog(Action.KeyX, 0, Action.Value.X);
 				}
 
-				if (Action.KeyY != NAME_None && (AnalogData.deltaY > KINDA_SMALL_NUMBER))
+				if (Action.KeyY != NAME_None && (FMath::Abs(AnalogData.deltaY) > KINDA_SMALL_NUMBER))
 				{
 					// Test what we're receiving from SteamVR
 					//UE_LOG(LogTemp, Warning, TEXT("Handle %s KeyY %s Y-Value {%f}"), *Action.Path, *Action.KeyY.ToString(), AnalogData.y);
