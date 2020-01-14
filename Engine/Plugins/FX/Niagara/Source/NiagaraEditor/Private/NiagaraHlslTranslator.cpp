@@ -1751,35 +1751,54 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 
 			// grab the buffer definition from the interface
 			//
-			int32 NewIdx = DIParamInfo.AddDefaulted(1);
-			DIParamInfo[NewIdx].DataInterfaceHLSLSymbol = SanitizedOwnerIDString;
-			DIParamInfo[NewIdx].DIClassName = Info.Type.GetClass()->GetName();
-			CDO->GetParameterDefinitionHLSL(DIParamInfo[NewIdx], InterfaceUniformHLSL);
+			FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo = DIParamInfo.AddDefaulted_GetRef();
+			DIInstanceInfo.DataInterfaceHLSLSymbol = SanitizedOwnerIDString;
+			DIInstanceInfo.DIClassName = Info.Type.GetClass()->GetName();
 
-			// grab the function hlsl from the interface
-			//
+			// Build a list of function instances that will be generated for this DI.
 			const TSet<FNiagaraFunctionSignature>* DataInterfaceFunctions = DataInterfaceRegisteredFunctions.Find(Info.Type.GetFName());
 			if (DataInterfaceFunctions != nullptr)
 			{
+				DIInstanceInfo.GeneratedFunctions.Reserve(DataInterfaceFunctions->Num());
 				for (const FNiagaraFunctionSignature& OriginalSig : *DataInterfaceFunctions)
 				{
-					FNiagaraFunctionSignature Sig = OriginalSig;	// make a copy so we can modify the owner id and get the correct hlsl signature
-					Sig.OwnerName = Info.Name;
-					FString DefStr = GetFunctionSignatureSymbol(Sig);
-
-					const bool HlslOK = CDO->GetFunctionHLSL(Sig.Name, DefStr, DIParamInfo[NewIdx], InterfaceFunctionHLSL);
-					if (OriginalSig.bSupportsGPU == false || HlslOK == false)
+					if (!OriginalSig.bSupportsGPU)
 					{
-						Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU or is not implemented."), FText::FromName(Info.Type.GetFName()), FText::FromName(Sig.Name))
-							, nullptr, nullptr);
+						Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(OriginalSig.Name)), nullptr, nullptr);
+						continue;
 					}
+
+					// make a copy so we can modify the owner id and get the correct hlsl signature
+					FNiagaraFunctionSignature Sig = OriginalSig;
+					Sig.OwnerName = Info.Name;
+
+					FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions.AddDefaulted_GetRef();
+					DIFunc.DefinitionName = Sig.Name;
+					DIFunc.InstanceName = GetFunctionSignatureSymbol(Sig);
+					DIFunc.Specifiers.Empty(Sig.FunctionSpecifiers.Num());
+					for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
+					{
+						DIFunc.Specifiers.Add(Specifier);
+					}
+				}
+			}
+
+			CDO->GetParameterDefinitionHLSL(DIInstanceInfo, InterfaceUniformHLSL);
+
+			// Ask the DI to generate HLSL.
+			for(int FunctionInstanceIndex = 0; FunctionInstanceIndex < DIInstanceInfo.GeneratedFunctions.Num(); ++FunctionInstanceIndex)
+			{
+				const FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions[FunctionInstanceIndex];
+				const bool HlslOK = CDO->GetFunctionHLSL(DIInstanceInfo, DIFunc, FunctionInstanceIndex, InterfaceFunctionHLSL);
+				if (!HlslOK)
+				{
+					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} is not implemented for GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(DIFunc.DefinitionName)), nullptr, nullptr);
 				}
 			}
 		}
 		else
 		{
-			Error(FText::Format(LOCTEXT("NonGPUDataInterfaceError", "DataInterface {0} ({1}) cannot run on the GPU."), FText::FromName(Info.Name), FText::FromString(CDO ? CDO->GetClass()->GetName() : TEXT("")))
-				, nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("NonGPUDataInterfaceError", "DataInterface {0} ({1}) cannot run on the GPU."), FText::FromName(Info.Name), FText::FromString(CDO ? CDO->GetClass()->GetName() : TEXT(""))), nullptr, nullptr);
 		}
 	}
 	InHlslOutput += InterfaceCommonHLSL + InterfaceUniformHLSL + InterfaceFunctionHLSL;

@@ -296,39 +296,39 @@ void UNiagaraDataInterfaceTexture::SamplePseudoVolumeTexture(FVectorVMContext& C
 	}
 }
 
-bool UNiagaraDataInterfaceTexture::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceTexture::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	if (DefinitionFunctionName == SampleTexture2DName)
+	if (FunctionInfo.DefinitionName == SampleTexture2DName)
 	{
 		FString HLSLTextureName = TextureName + ParamInfo.DataInterfaceHLSLSymbol;
 		FString HLSLSamplerName = SamplerName + ParamInfo.DataInterfaceHLSLSymbol;
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float2 In_UV, out float4 Out_Value) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float2 In_UV, out float4 Out_Value) \n{\n");
 		OutHLSL += TEXT("\t Out_Value = ") + HLSLTextureName + TEXT(".SampleLevel(") + HLSLSamplerName + TEXT(", In_UV, 0);\n");
 		OutHLSL += TEXT("\n}\n");
 		return true;
 	}
-	/*else if (DefinitionFunctionName == SampleVolumeTextureName)
+	/*else if (FunctionInfo.DefinitionName == SampleVolumeTextureName)
 	{
 		FString HLSLTextureName = TextureName + ParamInfo.DataInterfaceHLSLSymbol;
 		FString HLSLSamplerName = SamplerName + ParamInfo.DataInterfaceHLSLSymbol;
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float3 In_UV, out float4 Out_Value) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_UV, out float4 Out_Value) \n{\n");
 		OutHLSL += TEXT("\t Out_Value = ") + HLSLTextureName + TEXT(".SampleLevel(") + HLSLSamplerName + TEXT(", In_UV, 0);\n");
 		OutHLSL += TEXT("\n}\n");
 		return true;
 	}*/
-	else if (DefinitionFunctionName == SamplePseudoVolumeTextureName)
+	else if (FunctionInfo.DefinitionName == SamplePseudoVolumeTextureName)
 	{
 		FString HLSLTextureName = TextureName + ParamInfo.DataInterfaceHLSLSymbol;
 		FString HLSLSamplerName = SamplerName + ParamInfo.DataInterfaceHLSLSymbol;
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float3 In_UVW, in float2 In_XYNumFrames, in float In_TotalNumFrames, in int In_MipMode, in float In_MipLevel, in float2 In_DDX, in float2 In_DDY, out float4 Out_Value) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_UVW, in float2 In_XYNumFrames, in float In_TotalNumFrames, in int In_MipMode, in float In_MipLevel, in float2 In_DDX, in float2 In_DDY, out float4 Out_Value) \n{\n");
 		OutHLSL += TEXT("\t Out_Value = PseudoVolumeTexture(") + HLSLTextureName + TEXT(", ") + HLSLSamplerName + TEXT(", In_UVW, In_XYNumFrames, In_TotalNumFrames, (uint) In_MipMode, In_MipLevel, In_DDX, In_DDY); \n");
 		OutHLSL += TEXT("\n}\n");
 		return true;
 	}
-	else if (DefinitionFunctionName == TextureDimsName)
+	else if (FunctionInfo.DefinitionName == TextureDimsName)
 	{
 		FString DimsVar = DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(out float2 Out_Value) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(out float2 Out_Value) \n{\n");
 		OutHLSL += TEXT("\t Out_Value = ") + DimsVar + TEXT(";\n");
 		OutHLSL += TEXT("\n}\n");
 		return true;
@@ -336,7 +336,7 @@ bool UNiagaraDataInterfaceTexture::GetFunctionHLSL(const FName& DefinitionFuncti
 	return false;
 }
 
-void UNiagaraDataInterfaceTexture::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceTexture::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	FString HLSLTextureName = TextureName + ParamInfo.DataInterfaceHLSLSymbol;
 	FString HLSLSamplerName = SamplerName + ParamInfo.DataInterfaceHLSLSymbol;
