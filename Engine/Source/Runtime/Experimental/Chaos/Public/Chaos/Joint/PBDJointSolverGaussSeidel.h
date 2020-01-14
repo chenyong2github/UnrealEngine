@@ -315,10 +315,14 @@ namespace Chaos
 
 		// World-space constraint state
 		FVec3 Xs[MaxConstrainedBodies];				// World-space joint connector positions
+		FReal LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+		FReal LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 Rs[MaxConstrainedBodies];		// World-space joint connector rotations
 
 		// World-space body state
 		FVec3 Ps[MaxConstrainedBodies];				// World-space particle CoM positions
+		FReal TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+		FReal SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
 		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
 		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
@@ -331,17 +335,11 @@ namespace Chaos
 
 		// XPBD Previous iteration world-space body state
 		FVec3 PrevPs[MaxConstrainedBodies];			// World-space particle CoM positions
+		FReal TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+		FReal SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
 		FVec3 PrevXs[MaxConstrainedBodies];			// World-space joint connector positions
-
-		// XPBD constraint multipliers (net applied constraint-space deltas)
-		FReal LinearSoftLambda;
-		FReal LinearDriveLambda;
-		FReal TwistSoftLambda;
-		FReal SwingSoftLambda;
-		FReal TwistDriveLambda;
-		FReal SwingDriveLambda;
-
+		
 		// Post-angular constraint position fixup (to reduce iterations required for stiff angular constraints)
 		FReal AngularPositionCorrection;
 	};

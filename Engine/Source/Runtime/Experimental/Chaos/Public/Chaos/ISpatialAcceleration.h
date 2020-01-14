@@ -10,20 +10,21 @@ namespace Chaos
 struct CHAOS_API FQueryFastData
 {
 	FQueryFastData(const FVec3& InDir, const FReal InLength)
-		: bParallel{ InDir[0] == 0, InDir[1] == 0, InDir[2] == 0 }
-		, Dir(InDir)
+		: Dir(InDir)
 		, InvDir(bParallel[0] ? 0 : 1 / Dir[0], bParallel[1] ? 0 : 1 / Dir[1], bParallel[2] ? 0 : 1 / Dir[2])
+		, bParallel{ InDir[0] == 0, InDir[1] == 0, InDir[2] == 0 }
 	{
 		ensure(InLength);
 		SetLength(InLength);
 	}
 
-	const bool bParallel[3];
 	const FVec3& Dir;
 	const FVec3 InvDir;
 
 	FReal CurrentLength;
 	FReal InvCurrentLength;
+
+	const bool bParallel[3];
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#pragma warning (push)
@@ -49,9 +50,9 @@ struct CHAOS_API FQueryFastData
 
 protected:
 	FQueryFastData(const FVec3& InDummyDir)
-		: bParallel{}
-		, Dir(InDummyDir)
+		: Dir(InDummyDir)
 		, InvDir()
+		, bParallel{}
 	{}
 };
 
