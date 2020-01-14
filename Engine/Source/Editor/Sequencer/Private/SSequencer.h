@@ -194,11 +194,14 @@ public:
 		/** Called when the user sets a marked frame */
 		SLATE_EVENT(FOnSetMarkedFrame, OnSetMarkedFrame)
 
-		/** Called when the user changes on the set of marked frames */
-		SLATE_EVENT(FOnMarkedFrameChanged, OnMarkedFrameChanged)
+		/** Called when the user adds a marked frame */
+		SLATE_EVENT(FOnAddMarkedFrame, OnAddMarkedFrame)
 
-		/** Called when all marked frames should be cleared */
-		SLATE_EVENT( FSimpleDelegate, OnClearAllMarkedFrames)
+		/** Called when the user deletes a marked frame */
+		SLATE_EVENT(FOnDeleteMarkedFrame, OnDeleteMarkedFrame)
+
+		/** Called when all marked frames should be deleted */
+		SLATE_EVENT( FSimpleDelegate, OnDeleteAllMarkedFrames)
 
 		/** Called when the user changes the clamp range */
 		SLATE_EVENT( FOnTimeRangeChanged, OnClampRangeChanged )

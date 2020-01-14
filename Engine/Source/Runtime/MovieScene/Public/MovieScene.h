@@ -895,16 +895,16 @@ public:
 	int32 AddMarkedFrame(const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
-	 * Remove the user marked frame by index.
+	 * Delete the user marked frame by index.
 	 *
-	 * @RemoveIndex The index to the user marked frame to remove
+	 * @DeleteIndex The index to the user marked frame to delete
 	 */
-	void RemoveMarkedFrame(int32 RemoveIndex);
+	void DeleteMarkedFrame(int32 DeleteIndex);
 
 	/*
-	 * Clear all user marked frames
+	 * Delete all user marked frames
 	 */
-	void ClearMarkedFrames();
+	void DeleteMarkedFrames();
 
 	/*
 	 * Find the user marked frame by label
