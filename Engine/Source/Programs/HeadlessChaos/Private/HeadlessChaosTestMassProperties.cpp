@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Chaos/Box.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/TriangleMesh.h"
@@ -238,6 +239,48 @@ namespace ChaosTest {
 			EXPECT_NEAR(ILocal2.Y, ILocal.Y, KINDA_SMALL_NUMBER);
 			EXPECT_NEAR(ILocal2.Z, ILocal.Z, KINDA_SMALL_NUMBER);
 		}
+	}
 
+	TEST(MassPropertyTests, TestScaleInertia)
+	{
+		FReal Mass = 12.0f;
+		FVec3 Dim = FVec3(2.0f, 5.0f, 10.0f);
+		FVec3 UnscaledInertia = TBox<FReal, 3>::GetInertiaTensor(Mass, Dim).GetDiagonal();
+		FReal UnscaledVolume = Dim.X * Dim.Y * Dim.Z;
+
+		FVec3 Scales[] = {
+			FVec3(1, 1, 1),
+			FVec3(5, 5, 5),
+			FVec3(5, 1, 1),
+			FVec3(1, 5, 1),
+			FVec3(1, 1, 5),
+			FVec3(5, 3, 2),
+			FVec3(0.1f, 0.1f, 0.1f),
+			FVec3(0.1f, 0.5f, 0.3f),
+			FVec3(0.5f, 2.3f, 1.5f),
+		};
+
+		bool bScaleMass = false;
+
+		for (int32 MassScale = 0; MassScale < 2; ++MassScale)
+		{
+			for (int32 Index = 0; Index < UE_ARRAY_COUNT(Scales); ++Index)
+			{
+				const FVec3& Scale = Scales[Index];
+
+				FReal ScaledVolume = Dim.X * Dim.Y * Dim.Z * Scale.X * Scale.Y * Scale.Z;
+				FReal ScaledMass = (bScaleMass) ? Mass * ScaledVolume / UnscaledVolume : Mass;
+				FVec3 ExpectedScaledInertia = TBox<FReal, 3>::GetInertiaTensor(ScaledMass, Dim * Scale).GetDiagonal();
+				
+				FVec3 ScaledInertia = Utilities::ScaleInertia(UnscaledInertia, Scale, bScaleMass);
+
+				// Accurate to 0.1%?
+				EXPECT_NEAR(ScaledInertia.X, ExpectedScaledInertia.X, ExpectedScaledInertia.X / 1000.0f);
+				EXPECT_NEAR(ScaledInertia.Y, ExpectedScaledInertia.Y, ExpectedScaledInertia.Y / 1000.0f);
+				EXPECT_NEAR(ScaledInertia.Z, ExpectedScaledInertia.Z, ExpectedScaledInertia.Z / 1000.0f);
+			}
+
+			bScaleMass = !bScaleMass;
+		}
 	}
 }
