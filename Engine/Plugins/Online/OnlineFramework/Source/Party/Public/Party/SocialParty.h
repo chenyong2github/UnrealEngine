@@ -153,7 +153,10 @@ public:
 		PartyMembers.Reserve(PartyMembersById.Num());
 		for (const auto& IdMemberPair : PartyMembersById)
 		{
-			PartyMembers.Add(Cast<MemberT>(IdMemberPair.Value));
+			if (MemberT* PartyMember = Cast<MemberT>(IdMemberPair.Value))
+			{
+				PartyMembers.Add(PartyMember);
+			}
 		}
 		return PartyMembers;
 	}
