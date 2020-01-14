@@ -43,12 +43,13 @@ DEFINE_LOG_CATEGORY(LogHeadlessChaos);
 
 TEST(ImplicitTests, Implicit) {
 	ChaosTest::ImplicitPlane<float>();
-	ChaosTest::ImplicitCube<float>();
+	//ChaosTest::ImplicitCube<float>();
 	ChaosTest::ImplicitSphere<float>();
 	ChaosTest::ImplicitCylinder<float>();
 	ChaosTest::ImplicitTaperedCylinder<float>();
 	ChaosTest::ImplicitCapsule<float>();
 	ChaosTest::ImplicitScaled<float>();
+	ChaosTest::ImplicitScaled2<float>();
 	ChaosTest::ImplicitTransformed<float>();
 	ChaosTest::ImplicitIntersection<float>();
 	ChaosTest::ImplicitUnion<float>();
@@ -134,15 +135,15 @@ TEST(ClothTests, DeformableGravity) {
 TEST(RaycastTests, Raycast) {
 	ChaosTest::SphereRaycast<float>();
 	ChaosTest::PlaneRaycast<float>();
-	ChaosTest::CylinderRaycast<float>();
-	ChaosTest::TaperedCylinderRaycast<float>();
+	//ChaosTest::CylinderRaycast<float>();
+	//ChaosTest::TaperedCylinderRaycast<float>();
 	ChaosTest::CapsuleRaycast<float>();
 	ChaosTest::TriangleRaycast<float>();
 	ChaosTest::BoxRaycast<float>();
 	ChaosTest::ScaledRaycast<float>();
-	ChaosTest::TransformedRaycast<float>();
-	ChaosTest::UnionRaycast<float>();
-	ChaosTest::IntersectionRaycast<float>();
+	//ChaosTest::TransformedRaycast<float>();
+	//ChaosTest::UnionRaycast<float>();
+	//ChaosTest::IntersectionRaycast<float>();
 	
 	SUCCEED();
 }
