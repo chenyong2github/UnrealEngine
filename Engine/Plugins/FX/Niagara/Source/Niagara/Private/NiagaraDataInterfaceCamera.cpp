@@ -154,12 +154,12 @@ void UNiagaraDataInterfaceCamera::GetFunctions(TArray<FNiagaraFunctionSignature>
 	OutFunctions.Add(Sig);
 }
 
-bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	TMap<FString, FStringFormatArg> ArgsSample;
-	ArgsSample.Add(TEXT("FunctionName"), InstanceFunctionName);
+	ArgsSample.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 
-	if (DefinitionFunctionName == GetViewPropertiesName)
+	if (FunctionInfo.DefinitionName == GetViewPropertiesName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize, out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter)
@@ -177,7 +177,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	if (DefinitionFunctionName == GetFieldOfViewName)
+	if (FunctionInfo.DefinitionName == GetFieldOfViewName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float Out_FieldOfViewAngle)
@@ -188,7 +188,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	if (DefinitionFunctionName == GetClipSpaceTransformsName)
+	if (FunctionInfo.DefinitionName == GetClipSpaceTransformsName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float4x4 Out_WorldToClipTransform, out float4x4 Out_TranslatedWorldToClipTransform, out float4x4 Out_ClipToWorldTransform, out float4x4 Out_ClipToViewTransform,
@@ -207,7 +207,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	if (DefinitionFunctionName == GetViewSpaceTransformsName)
+	if (FunctionInfo.DefinitionName == GetViewSpaceTransformsName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float4x4 Out_TranslatedWorldToViewTransform, out float4x4 Out_ViewToTranslatedWorldTransform, out float4x4 Out_TranslatedWorldToCameraViewTransform,
@@ -224,7 +224,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	if (DefinitionFunctionName == GetCameraPropertiesName)
+	if (FunctionInfo.DefinitionName == GetCameraPropertiesName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_CameraPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector)

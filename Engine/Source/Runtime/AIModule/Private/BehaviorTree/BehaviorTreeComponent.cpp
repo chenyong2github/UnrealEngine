@@ -101,9 +101,35 @@ void UBehaviorTreeComponent::UninitializeComponent()
 	Super::UninitializeComponent();
 }
 
+void UBehaviorTreeComponent::StartLogic()
+{
+	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
+
+	if (TreeHasBeenStarted())
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s: Skipping, logic already started."), ANSI_TO_TCHAR(__FUNCTION__));
+		return;
+	}
+
+	if (TreeStartInfo.IsSet() == false)
+	{
+		TreeStartInfo.Asset = DefaultBehaviorTreeAsset;
+	}
+
+	if (TreeStartInfo.IsSet())
+	{
+		TreeStartInfo.bPendingInitialize = true;
+		ProcessPendingInitialize();
+	}
+	else
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s: Could not find BehaviorTree asset to run."), ANSI_TO_TCHAR(__FUNCTION__));
+	}
+}
+
 void UBehaviorTreeComponent::RestartLogic()
 {
-	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("UBehaviorTreeComponent::RestartLogic"));
+	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
 	RestartTree();
 }
 
@@ -375,7 +401,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 
 void UBehaviorTreeComponent::RestartTree()
 {
-	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("UBehaviorTreeComponent::RestartTree"));
+	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
 	
 	if (!bIsRunning)
 	{
@@ -665,7 +691,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTDecorator* RequestedBy)
 	if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask)
 	{
 		EBTNodeRelativePriority RelativePriority = CalculateRelativePriority(RequestedBy, ActiveInstance.ActiveNode);
-		UE_CVLOG(RelativePriority < EBTNodeRelativePriority::Same, GetOwner(), LogBehaviorTree, Error, TEXT("UBehaviorTreeComponent::RequestExecution decorator requesting restart has lower priority than Current Task"));
+		UE_CVLOG(RelativePriority < EBTNodeRelativePriority::Same, GetOwner(), LogBehaviorTree, Error, TEXT("%s decorator requesting restart has lower priority than Current Task"), ANSI_TO_TCHAR(__FUNCTION__));
 		ensure(RelativePriority >= EBTNodeRelativePriority::Same);
 	}
 
@@ -2481,7 +2507,7 @@ void UBehaviorTreeComponent::StoreDebuggerExecutionStep(EBTExecutionSnap::Type S
 	}
 
 	FBehaviorTreeExecutionStep CurrentStep;
-	CurrentStep.StepIndex = DebuggerSteps.Num() ? DebuggerSteps.Last().StepIndex + 1 : 0;
+	CurrentStep.ExecutionStepId = DebuggerSteps.Num() ? DebuggerSteps.Last().ExecutionStepId + 1 : 0;
 	CurrentStep.TimeStamp = GetWorld()->GetTimeSeconds();
 	CurrentStep.BlackboardValues = SearchStartBlackboard;
 

@@ -103,7 +103,7 @@ protected:
 public:
 	FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
-	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
+	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
@@ -139,8 +139,6 @@ public:
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt;	}
 	FORCEINLINE uint32 GetGPUInstanceCountBufferOffset() const { return GPUInstanceCountBufferOffset; }
 	FORCEINLINE void ClearGPUInstanceCountBufferOffset() { GPUInstanceCountBufferOffset = INDEX_NONE; }
-	FORCEINLINE uint32 GetGPUNumAllocatedIDs() const { return NumIDsAllocatedForGPU; }
-	FORCEINLINE FRWBuffer& GetGPUFreeIDs() { return GPUFreeIDs; }
 	FORCEINLINE FRWBuffer& GetGPUIDToIndexTable() { return GPUIDToIndexTable; }
 
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
@@ -198,10 +196,6 @@ private:
 	FRWBuffer GPUBufferFloat;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferInt;
-	/** Size of the GPU ID buffers. */
-	uint32 NumIDsAllocatedForGPU;
-	/** GPU list of free particle IDs. */
-	FRWBuffer GPUFreeIDs;
 	/** GPU table which maps particle ID to index. */
 	FRWBuffer GPUIDToIndexTable;
 	//////////////////////////////////////////////////////////////////////////
@@ -309,6 +303,8 @@ public:
 	FORCEINLINE int32& GetMaxUsedID() { return MaxUsedID; }
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
 	FORCEINLINE void SetIDAcquireTag(int32 InTag) { IDAcquireTag = InTag; }
+	FORCEINLINE FRWBuffer& GetGPUFreeIDs() { return GPUFreeIDs; }
+	FORCEINLINE uint32 GetGPUNumAllocatedIDs() const { return GPUNumAllocatedIDs; }
 
 	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables()const { return CompiledData.Variables; }
 	FORCEINLINE uint32 GetNumVariables()const { return CompiledData.Variables.Num(); }
@@ -347,6 +343,8 @@ public:
 	/** Release the GPU instance counts so that they can be reused */
 	void ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
+	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+
 private:
 
 	void Reset();
@@ -383,6 +381,12 @@ private:
 
 	/** Tag to use when new IDs are acquired. Should be unique per tick. */
 	int32 IDAcquireTag;
+
+	/** GPU buffer of free IDs available on the next tick. */
+	FRWBuffer GPUFreeIDs;
+
+	/** NUmber of IDs allocated for the GPU simulation. */
+	uint32 GPUNumAllocatedIDs;
 
 	/** Buffer containing the current simulation state. */
 	FNiagaraDataBuffer* CurrentData;

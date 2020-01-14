@@ -158,6 +158,7 @@ public:
 
 		return (uint8*)AllocationHeader + sizeof(FPhysXAllocationHeader);
 #else
+		LLM_SCOPE(ELLMTag::PhysXAllocator);
 		void* ptr = FMemory::Malloc(size, 16);
 #if PHYSX_MEMORY_STAT_ONLY
 		INC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, FMemory::GetAllocSize(ptr));

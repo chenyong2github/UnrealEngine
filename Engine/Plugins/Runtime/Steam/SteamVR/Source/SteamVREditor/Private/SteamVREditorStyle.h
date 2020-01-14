@@ -1,6 +1,6 @@
 /*
 Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
-This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+This code includes modifications by Epic Games.  Modifications (c) Epic Games, Inc.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -30,25 +30,35 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "SteamVREditorStyle.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 
-class FSteamVREditorCommands : public TCommands<FSteamVREditorCommands>
+/**  */
+class FSteamVREditorStyle
 {
 public:
+	static void Initialize();
 
-	FSteamVREditorCommands()
-		: TCommands<FSteamVREditorCommands>(TEXT("SteamVREditor"), NSLOCTEXT("Contexts", "SteamVREditor", "SteamVREditor Plugin"), NAME_None, TEXT("SteamVREditor.Common.Icon"))
-	{
-	}
+	static void Shutdown();
 
-	// TCommands<> interface
-	virtual void RegisterCommands() override;
+	/** reloads textures used by slate renderer */
+	static void ReloadTextures();
 
-public:
-	TSharedPtr<FUICommandInfo> PluginAction;
-	TSharedPtr<FUICommandInfo> JsonActionManifest;
-	TSharedPtr<FUICommandInfo> JsonControllerBindings;
-	TSharedPtr<FUICommandInfo> ReloadActionManifest;
-	TSharedPtr<FUICommandInfo> LaunchBindingsURL;
-	TSharedPtr<FUICommandInfo> AddSampleInputs;
+	/** @return The Slate style set */
+	static const ISlateStyle& Get();
+
+	static FName GetStyleSetName();
+
+private:
+
+	static TSharedRef< class FSlateStyleSet > Create();
+
+private:
+
+	static TSharedPtr< class FSlateStyleSet > StyleInstance;
 };

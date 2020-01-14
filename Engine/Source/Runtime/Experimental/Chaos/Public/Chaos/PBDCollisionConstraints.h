@@ -127,6 +127,10 @@ public:
 	// General Rule API
 	//
 
+	void PrepareConstraints(FReal Dt) {}
+
+	void UnprepareConstraints(FReal Dt) {}
+
 	/**
 	 * Generate all contact constraints.
 	 */

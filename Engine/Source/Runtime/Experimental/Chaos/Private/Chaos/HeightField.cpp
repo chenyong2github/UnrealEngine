@@ -143,11 +143,22 @@ namespace Chaos
 				{
 					if(Time < OutTime)
 					{
-						OutPosition = ResultPosition;
-						OutNormal = ResultNormal;
-						OutTime = Time;
-						OutFaceIndex = FaceIndex;
-						CurrentLength = Time;
+						bool bHole = false;
+
+						const int32 CellIndex = FaceIndex / 2;
+						if(GeomData->MaterialIndices.IsValidIndex(CellIndex))
+						{
+							bHole = GeomData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max();
+						}
+
+						if(!bHole)
+						{
+							OutPosition = ResultPosition;
+							OutNormal = ResultNormal;
+							OutTime = Time;
+							OutFaceIndex = FaceIndex;
+							CurrentLength = Time;
+						}
 					}
 				}
 
@@ -217,6 +228,7 @@ namespace Chaos
 				{
 					return false;
 				}
+
 				TTriangle<T> Convex(A, B, C);
 
 				T Time;
@@ -226,18 +238,29 @@ namespace Chaos
 				{
 					if(Time < OutTime)
 					{
-						OutNormal = HitNormal;
-						OutPosition = HitPosition;
-						OutTime = Time;
-						OutFaceIndex = FaceIndex;
+						bool bHole = false;
 
-						if(Time <= 0)	//initial overlap or MTD, so stop
+						const int32 CellIndex = FaceIndex / 2;
+						if(HfData->MaterialIndices.IsValidIndex(CellIndex))
 						{
-							CurrentLength = 0;
-							return false;
+							bHole = HfData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max();
 						}
 
-						CurrentLength = Time;
+						if(!bHole)
+						{
+							OutNormal = HitNormal;
+							OutPosition = HitPosition;
+							OutTime = Time;
+							OutFaceIndex = FaceIndex;
+
+							if(Time <= 0) //initial overlap or MTD, so stop
+							{
+								CurrentLength = 0;
+								return false;
+							}
+
+							CurrentLength = Time;
+						}
 					}
 				}
 
@@ -563,7 +586,7 @@ namespace Chaos
 				
 				FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
 
-				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] + Pts[3].Z * Bary[2];
 			}
 			else
 			{
@@ -583,7 +606,7 @@ namespace Chaos
 
 				FVector Bary = FMath::GetBaryCentric2D({FractionX, FractionY, 0.0f}, Tri[0], Tri[1], Tri[2]);
 
-				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] + Pts[3].Z * Bary[2];
 			}
 		}
 
@@ -595,8 +618,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -629,8 +656,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -828,9 +859,9 @@ namespace Chaos
 			, NumY(Size[1])
 		{
 			int32 BitsNeeded = NumX * NumY;
-			int32 BytesNeeded = 1 + (BitsNeeded) / 8;
-			Data = MakeUnique<uint8[]>(BytesNeeded);
-			FMemory::Memzero(Data.Get(), BytesNeeded);
+			DataSize = 1 + (BitsNeeded) / 8;
+			Data = MakeUnique<uint8[]>(DataSize);
+			FMemory::Memzero(Data.Get(), DataSize);
 		}
 
 		bool Contains(const TVector<int32, 2>& Coordinate)
@@ -838,6 +869,7 @@ namespace Chaos
 			int32 Idx = Coordinate[1] * NumX + Coordinate[0];
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
+			check(ByteIdx >= 0 && ByteIdx < DataSize);
 			bool bContains = (Data[ByteIdx] >> BitIdx) & 0x1;
 			return bContains;
 		}
@@ -848,6 +880,7 @@ namespace Chaos
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
 			uint8 Mask = 1 << BitIdx;
+			check(ByteIdx >= 0 && ByteIdx < DataSize);
 			Data[ByteIdx] |= Mask;
 		}
 
@@ -855,6 +888,7 @@ namespace Chaos
 		int32 NumX;
 		int32 NumY;
 		TUniquePtr<uint8[]> Data;
+		int32 DataSize;
 	};
 
 	template<typename T>
@@ -982,7 +1016,7 @@ namespace Chaos
 							CurrentCell += Direction;
 
 							// Fail if we leave the grid
-							if(Begin[0] < 0 || Begin[1] < 0 || Begin[0] > FlatGrid.Counts()[0] - 1 || Begin[1] > FlatGrid.Counts()[1] - 1)
+							if(CurrentCell[0] < 0 || CurrentCell[1] < 0 || CurrentCell[0] > FlatGrid.Counts()[0] - 1 || CurrentCell[1] > FlatGrid.Counts()[1] - 1)
 							{
 								break;
 							}
@@ -1235,6 +1269,15 @@ namespace Chaos
 		for (const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
+			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
+			
+			// Check for holes and skip checking if we'll never collide
+			if(GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
+			{
+				continue;
+			}
+
+			// The triangle is solid so proceed to test it
 			GeomData.GetPointsScaled(SingleIndex, Points);
 
 			if (OverlapTriangle(Points[0], Points[1], Points[3], LocalContactLocation, LocalContactNormal, LocalContactPhi))
@@ -1258,7 +1301,7 @@ namespace Chaos
 			}
 		}
 
-		if (ContactPhi < 0)
+		if(ContactPhi < 0)
 			return true;
 		return false;
 	}
@@ -1594,19 +1637,6 @@ namespace Chaos
 		// Cache per-cell bounds
 		const int32 NumX = GeomData.NumCols - 1;
 		const int32 NumY = GeomData.NumRows - 1;
-		//GeomData.CellBounds.SetNum(NumX * NumY);
-		GeomData.CellHeights.SetNum(NumX*NumY);
-		for(int32 XIndex = 0; XIndex < NumX; ++XIndex)
-		{
-			for(int32 YIndex = 0; YIndex < NumY; ++YIndex)
-			{
-				const TVector<int32, 2> Cell(XIndex, YIndex);
-				TVector<T, 3> Min, Max;
-				CalcCellBounds3D(Cell, Min, Max);
-				//GeomData.CellBounds[YIndex * NumX + XIndex] = TAABB<T, 3>(Min, Max);
-				GeomData.CellHeights[YIndex * NumX + XIndex] = Max.Z;
-			}
-		}
 	}
 
 	template<typename T>

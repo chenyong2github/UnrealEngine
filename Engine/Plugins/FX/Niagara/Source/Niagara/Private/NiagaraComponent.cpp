@@ -424,7 +424,6 @@ void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, 
 
 UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, OverrideParameters(this)
 	, bForceSolo(false)
 	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
 	, DesiredAge(0.0f)
@@ -449,6 +448,8 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, OwnerLOD(0)
 {
+	OverrideParameters.SetOwner(this);
+
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics;
 	PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
@@ -913,41 +914,31 @@ void UNiagaraComponent::Deactivate()
 
 void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */)
 {
-	if (IsActive())
+	// Unregister with the scalability manager if this is a genuine deactivation from outside.
+	// The scalability manager itself can call this function when culling systems.
+	if (bIsScalabilityCull == false)
+	{
+		UnregisterWithScalabilityManager();
+	}
+
+	if (IsActive() && SystemInstance)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
 		//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
 
-		if (SystemInstance)
-		{
-			// Don't deactivate in solo mode as we are not ticked by the world but rather the component
-			// Deactivating will cause the system to never Complete
-			if (SystemInstance->IsSolo() == false)
-			{
-				Super::Deactivate();
-			}
-
-			SystemInstance->Deactivate();
-
-			// We are considered active until we are complete
-			SetActiveFlag(!SystemInstance->IsComplete());
-		}
-		else
+		// Don't deactivate in solo mode as we are not ticked by the world but rather the component
+		// Deactivating will cause the system to never Complete
+		if (SystemInstance->IsSolo() == false)
 		{
 			Super::Deactivate();
-			SetActiveFlag(false);
-		}
-
-		//Unregister with the scalability manager if this is a genuine deactivation from outside.
-		//The scalability manager itself can call this function when culling systems.
-		if (bIsScalabilityCull == false)
-		{
-			UnregisterWithScalabilityManager();
 		}
 
 		SystemInstance->Deactivate();
+
+		// We are considered active until we are complete
+		SetActiveFlag(!SystemInstance->IsComplete());
 	}
 	else
 	{
@@ -1173,7 +1164,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if ( SystemInstance )
 	{
-		SystemInstance->WaitForAsyncTick();
+		SystemInstance->WaitForAsyncTickAndFinalize();
 	}
 }
 

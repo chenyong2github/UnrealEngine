@@ -955,6 +955,12 @@ struct FPerConnectionActorInfoMap
 		return ChannelMap.CreateIterator();
 	}
 
+	void ResetActorMap()
+	{
+		ActorMap.Reset();
+		ChannelMap.Reset();
+	}
+
 	int32 Num() const { return ActorMap.Num(); }
 
 	void CountBytes(FArchive& Ar) const

@@ -81,6 +81,22 @@ enum EEdGraphPinDirection
 	EGPD_MAX,
 };
 
+inline const TCHAR* const LexToString(const EEdGraphPinDirection State)
+{
+	switch (State)
+	{
+	case EEdGraphPinDirection::EGPD_Input:
+		return TEXT("Input");
+	case EEdGraphPinDirection::EGPD_Output:
+		return TEXT("Output");
+	default:
+		break;
+	}
+
+	checkf(false, TEXT("Missing EEdGraphPinDirection Type: %d"), static_cast<const int32>(State));
+	return TEXT("");
+}
+
 /** Enum used to define what container type a pin represents. */
 UENUM()
 enum class EPinContainerType : uint8
@@ -136,6 +152,24 @@ enum class ENodeEnabledState : uint8
 	/** Node is enabled for development only. */
 	DevelopmentOnly
 };
+
+inline const TCHAR* const LexToString(const ENodeEnabledState State)
+{
+	switch (State)
+	{
+	case ENodeEnabledState::Enabled:
+		return TEXT("Enabled");
+	case ENodeEnabledState::Disabled:
+		return TEXT("Disabled");
+	case ENodeEnabledState::DevelopmentOnly:
+		return TEXT("DevelopmentOnly");
+	default:
+		break;
+	}
+
+	checkf(false, TEXT("Missing ENodeEnabledState Type: %d"), static_cast<const int32>(State));
+	return TEXT("");
+}
 
 /** Enum that defines what kind of orphaned pins should be retained. */
 enum class ESaveOrphanPinMode : uint8

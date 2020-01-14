@@ -363,8 +363,9 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
 		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
-		TimeSliderArgs.OnMarkedFrameChanged = InArgs._OnMarkedFrameChanged;
-		TimeSliderArgs.OnClearAllMarkedFrames = InArgs._OnClearAllMarkedFrames;
+		TimeSliderArgs.OnAddMarkedFrame = InArgs._OnAddMarkedFrame;
+		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
+		TimeSliderArgs.OnDeleteAllMarkedFrames = InArgs._OnDeleteAllMarkedFrames;
 
 		TimeSliderArgs.Settings = Settings;
 		TimeSliderArgs.NumericTypeInterface = GetNumericTypeInterface();

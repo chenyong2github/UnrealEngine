@@ -32,7 +32,6 @@ FCookStatsManager::FAutoRegisterCallback NiagaraCutoutCookStats::RegisterCookSta
 UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	: Alignment(ENiagaraSpriteAlignment::Unaligned)
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
-	, CustomFacingVectorMask(ForceInitToZero)
 	, PivotInUVSpace(0.5f, 0.5f)
 	, SortMode(ENiagaraSortMode::None)
 	, SubImageSize(1.0f, 1.0f)

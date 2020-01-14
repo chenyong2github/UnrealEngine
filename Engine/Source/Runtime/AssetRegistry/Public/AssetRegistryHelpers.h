@@ -82,4 +82,14 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Asset Registry")
 	static FARFilter SetFilterTagsAndValues(const FARFilter& InFilter, const TArray<FTagAndValue>& InTagsAndValues);
+
+	/** Enable/disable asset registry caching mode for the duration of the scope */
+	struct ASSETREGISTRY_API FTemporaryCachingModeScope
+	{
+		FTemporaryCachingModeScope(bool InTempCachingMode);
+		~FTemporaryCachingModeScope();
+
+	private:
+		bool PreviousCachingMode;
+	};
 };

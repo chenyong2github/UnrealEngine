@@ -738,13 +738,17 @@ bool FDatasmithC4DImporter::AddChildActor(melange::BaseObject* Object, TSharedPt
 		0.0,            0.0,             0.0, 1.0);
 
 	// Remove any scaling from the matrix and get the scale vector that was initially present.
-	Imath::Vec3<float> Scale;
-	Imath::Vec3<float> Shear;
+	Imath::Vec3<float> Scale(1.0f, 1.0f, 1.0f);
+	Imath::Vec3<float> Shear(0.0f, 0.0f, 0.0f);
 	bool bExtracted = Imath::extractAndRemoveScalingAndShear<float>(Matrix, Scale, Shear, false);
 	if (!bExtracted)
 	{
 		UE_LOG(LogDatasmithC4DImport, Warning, TEXT("Actor %ls (%ls) has some zero scaling"), Actor->GetName(), Actor->GetLabel());
-		return false;
+
+		// extractAndRemoveScalingAndShear may have partially written to these vectors, so we need to
+		// reset them here to make sure they're valid for code below
+		Scale = Imath::Vec3<float>(1.0f, 1.0f, 1.0f);
+		Shear = Imath::Vec3<float>(0.0f, 0.0f, 0.0f);
 	}
 
 	// Initialize a rotation quaternion with the rotation matrix.

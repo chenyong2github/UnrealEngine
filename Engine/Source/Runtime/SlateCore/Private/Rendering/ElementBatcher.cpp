@@ -24,7 +24,7 @@ DEFINE_STAT(STAT_SlateElements_Text);
 DEFINE_STAT(STAT_SlateElements_ShapedText);
 DEFINE_STAT(STAT_SlateElements_Line);
 DEFINE_STAT(STAT_SlateElements_Other);
-DEFINE_STAT(STAT_SlateCachedElements);
+DEFINE_STAT(STAT_SlateInvalidation_RecachedElements);
 
 int32 GSlateFeathering = 0;
 
@@ -283,7 +283,7 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 	ElementStat_Text = 0;
 	ElementStat_ShapedText = 0;
 	ElementStat_Line = 0;
-	ElementStat_CachedElements = 0;
+	ElementStat_RecachedElements = 0;
 #endif
 
 	BatchData = &WindowElementList.GetBatchData();
@@ -329,7 +329,7 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 	INC_DWORD_STAT_BY(STAT_SlateElements_ShapedText, ElementStat_ShapedText);
 	INC_DWORD_STAT_BY(STAT_SlateElements_Line, ElementStat_Line);
 	INC_DWORD_STAT_BY(STAT_SlateElements_Other, ElementStat_Other);
-	INC_DWORD_STAT_BY(STAT_SlateCachedElements, ElementStat_CachedElements);
+	INC_DWORD_STAT_BY(STAT_SlateInvalidation_RecachedElements, ElementStat_RecachedElements);
 #endif
 }
 
@@ -437,6 +437,7 @@ void FSlateElementBatcher::AddElementsInternal(const FSlateDrawElementArray& Dra
 void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElementData, const FVector2D& ViewportSize)
 {
 	CSV_SCOPED_TIMING_STAT(Slate, AddCachedElements);
+	SCOPED_NAMED_EVENT_TEXT("Slate::AddCachedElements", FColor::Magenta);
 
 #if SLATE_CSV_TRACKER
 	FCsvProfiler::RecordCustomStat("Paint/CacheListsWithNewData", CSV_CATEGORY_INDEX(Slate), CachedElementData.ListsWithNewData.Num(), ECsvCustomStatOp::Set);
@@ -444,13 +445,11 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 	int32 RecachedEmptyDrawLists = 0;
 #endif
 
-	SCOPED_NAMED_EVENT_TEXT("Slate::AddCachedBatches", FColor::Magenta);
-
 	for (FSlateCachedElementList* List : CachedElementData.ListsWithNewData)
 	{
 		if (List->DrawElements.Num() > 0)
 		{
-			STAT(ElementStat_CachedElements += List->DrawElements.Num());
+			STAT(ElementStat_RecachedElements += List->DrawElements.Num());
 
 #if SLATE_CSV_TRACKER
 			RecachedDrawElements += List->DrawElements.Num();
@@ -1170,7 +1169,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 	const TArray<FShapedGlyphEntry>& GlyphsToRender = ShapedGlyphSequence->GetGlyphsToRender();
 	ensure(GlyphsToRender.Num() > 0);
 
-	FColor BaseTint = PackVertexColor(DrawElementPayload.GetTint());
+	const FColor BaseTint = PackVertexColor(DrawElementPayload.GetTint());
 
 	FSlateFontCache& FontCache = *RenderingPolicy->GetFontCache();
 	FSlateShaderResourceManager& ResourceManager = *RenderingPolicy->GetResourceManager();

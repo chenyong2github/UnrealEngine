@@ -4,10 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "UnrealWidget.h"
+#include "UObject/Interface.h"
+#include "IControlRigManipulationLayer.generated.h"
 
 class ISequencer;
 class IControlRigManipulatable;
 class AControlRigGizmoActor;
+
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
+class CONTROLRIGMANIPULATION_API UControlRigManipulationLayer : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
 
 /**
  * Manipulation Layer interface to create interactive interface
@@ -16,8 +24,10 @@ class AControlRigGizmoActor;
 class CONTROLRIGMANIPULATION_API IControlRigManipulationLayer
 {
 public:
+
+	GENERATED_IINTERFACE_BODY()
+
 	IControlRigManipulationLayer();
-	virtual ~IControlRigManipulationLayer() {};
 
 	virtual void CreateLayer();
 	virtual void DestroyLayer();
@@ -40,8 +50,7 @@ public:
 protected:
 
 	// because manipulatable is created externally often. Manipulation Layer doesn't have any ownership on these object
-	// @fixme: We may want to make weak ptr? Can't be object ptr because IControlRiGManipulatable is not from UObject
-	TArray<IControlRigManipulatable*> ManipulatableObjects;
+	TArray<TWeakObjectPtr<UObject>> ManipulatableObjects;
 
 private:
 	// tracks whether this layer is created or not

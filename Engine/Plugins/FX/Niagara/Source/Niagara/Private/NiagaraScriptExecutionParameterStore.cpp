@@ -36,7 +36,7 @@ uint32 OffsetAlign(uint32 SrcOffset, uint32 Size)
 	}
 }
 
-void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset)
+uint32 FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset)
 {
 	uint32 VectorPaddedSize = (TShaderParameterTypeInfo<FVector4>::NumRows * TShaderParameterTypeInfo<FVector4>::NumColumns) * sizeof(float);
 
@@ -115,10 +115,11 @@ void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FN
 				check(false);
 			}
 
-			GenerateLayoutInfoInternal(Members, NextMemberOffset, Struct, InSrcOffset);
+			InSrcOffset = GenerateLayoutInfoInternal(Members, NextMemberOffset, Struct, InSrcOffset);
 		}
 	}
 
+	return InSrcOffset;
 }
 
 void FNiagaraScriptExecutionParameterStore::AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset)

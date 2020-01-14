@@ -700,7 +700,7 @@ namespace BuildPatchServices
 			{
 				ChunkDataSizeProvider->AddManifestData(InstallerAction.TryGetInstallManifest());
 			}
-		});
+		}).Wait();
 
 		// Init build statistics that are known.
 		{

@@ -686,12 +686,12 @@ void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Co
 	//UE_LOG(LogPressureGrid, Warning, TEXT("Get Grid Transform : %s"), *InstData->WorldTransform.ToString() );
 }
 
-bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIPressureGridParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
-		{TEXT("InstanceFunctionName"), InstanceFunctionName},
+		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
 		{TEXT("GridCurrentBufferName"), ParamNames.GridCurrentBufferName},
 		{TEXT("GridDestinationBufferName"), ParamNames.GridDestinationBufferName},
 		{TEXT("GridOriginName"), ParamNames.GridOriginName},
@@ -701,7 +701,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		{TEXT("PressureGridContextName"), TEXT("DIPRESSUREGRID_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
 	};
 
-	if (DefinitionFunctionName == BuildVelocityFieldName)
+	if (FunctionInfo.DefinitionName == BuildVelocityFieldName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int StrandsSize, in float3 NodePosition, in float NodeMass, in float3 NodeVelocity, in float3 VelocityGradientX, in float3 VelocityGradientY, in float3 VelocityGradientZ, 
@@ -713,7 +713,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SampleVelocityFieldName)
+	else if (FunctionInfo.DefinitionName == SampleVelocityFieldName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float3 NodePosition, in float3 GridVelocity, in float GridLength, out float3 OutGridVelocity, out float OutGridDensity, out float3 OutGridGradientX, out float3 OutGridGradientY, out float3 OutGridGradientZ )
@@ -724,7 +724,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectVelocityFieldName)
+	else if (FunctionInfo.DefinitionName == ProjectVelocityFieldName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, out bool OutProjectStatus, out float OutCellDivergence)
@@ -735,7 +735,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetCellPositionName)
+	else if (FunctionInfo.DefinitionName == GetCellPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, in float3 GridOrigin, in float GridLength, out float3 OutGridPosition)
@@ -746,7 +746,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetSolidBoundaryName)
+	else if (FunctionInfo.DefinitionName == SetSolidBoundaryName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, in float SolidDistance, in float3 SolidVelocity, out bool OutBoundaryStatus)
@@ -757,7 +757,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeBoundaryWeightsName)
+	else if (FunctionInfo.DefinitionName == ComputeBoundaryWeightsName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, out bool OutWeightsStatus)
@@ -768,7 +768,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == TransferCellVelocityName)
+	else if (FunctionInfo.DefinitionName == TransferCellVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, out bool OutTransferStatus)
@@ -779,7 +779,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FName& DefinitionF
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == BuildGridTopologyName)
+	else if (FunctionInfo.DefinitionName == BuildGridTopologyName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float3 GridCenter, in float3 GridExtent, out float3 OutGridOrigin, out float OutGridLength)
@@ -800,7 +800,7 @@ void UNiagaraDataInterfacePressureGrid::GetCommonHLSL(FString& OutHLSL)
 	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush\"\n");
 }
 
-void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	OutHLSL += TEXT("DIPRESSUREGRID_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }

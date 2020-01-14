@@ -260,6 +260,11 @@ void FPaperRenderSceneProxy::RecreateCachedRenderData()
 				VertexFactory.Init(&VertexBuffer);
 			}
 		}
+		else
+		{
+			VertexBuffer.InitResource();
+			VertexFactory.Init(&VertexBuffer);
+		}
 	}
 }
 
@@ -465,6 +470,8 @@ bool FPaperRenderSceneProxy::GetMeshElement(int32 SectionIndex, uint8 DepthPrior
 	const FSpriteRenderSection& Section = BatchedSections[SectionIndex];
 	if (Section.IsValid())
 	{
+		checkSlow(VertexBuffer.IsInitialized() && VertexFactory.IsInitialized());
+
 		OutMeshBatch.bCanApplyViewModeOverrides = true;
 		OutMeshBatch.bUseWireframeSelectionColoring = bIsSelected;
 
@@ -638,6 +645,7 @@ FPaperRenderSceneProxy_SpriteBase::FPaperRenderSceneProxy_SpriteBase(const UMesh
 void FPaperRenderSceneProxy_SpriteBase::SetSprite_RenderThread(const FSpriteDrawCallRecord& NewDynamicData, int32 SplitIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PaperRender_SetSpriteRT);
+	check(IsInRenderingThread());
 
 	BatchedSections.Reset();
 	Vertices.Reset();

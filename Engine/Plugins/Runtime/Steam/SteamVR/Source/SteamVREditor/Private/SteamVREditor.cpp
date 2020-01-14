@@ -1,6 +1,6 @@
 /*
 Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
-This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+This code includes modifications by Epic Games.  Modifications (c) Epic Games, Inc.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -35,7 +35,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Features/IModularFeatures.h"
 #include "SteamVREditorStyle.h"
 #include "SteamVREditorCommands.h"
-#include "SteamVRControllerKeys.h"
 #include "LevelEditor.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"

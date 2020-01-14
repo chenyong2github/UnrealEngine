@@ -82,7 +82,11 @@ void FGameplayDebuggerExtension_HUD::SetGameHUDEnabled(bool bEnable)
 	AHUD* GameHUD = OwnerPC ? OwnerPC->GetHUD() : nullptr;
 	if (GameHUD)
 	{
-		GameHUD->bShowHUD = bEnable;
+		// ShowHUD is actually a toggle and is a UFUNCTION(exec).
+		// We make sure the flag is !bEnable before calling the function so we don't end up desynced.
+		// Also, we don't simply set the flag to bEnable because we want to execute functions that overrides ShowHUD.
+		GameHUD->bShowHUD = !bEnable;
+		GameHUD->ShowHUD();
 	}
 
 	bIsGameHUDEnabled = bEnable;

@@ -107,7 +107,7 @@ private:
 	UPROPERTY()
 	uint32 PaddedParameterSize;
 
-	static void GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset);
+	static uint32 GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset);
 
 	UPROPERTY()
 	TArray<FNiagaraScriptExecutionPaddingInfo> PaddingInfo;

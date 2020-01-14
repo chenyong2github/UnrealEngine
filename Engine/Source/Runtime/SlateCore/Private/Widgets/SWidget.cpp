@@ -695,7 +695,7 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 		return false;
 	}
 
-	FWidgetProxy MyProxy(this);
+	FWidgetProxy MyProxy(*this);
 	MyProxy.Index = FastPathList.Num();
 	MyProxy.ParentIndex = ParentIndex;
 	MyProxy.Visibility = GetVisibility();
@@ -1403,7 +1403,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget();
+	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget(*this);
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);

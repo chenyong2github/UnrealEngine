@@ -25,6 +25,7 @@ namespace Chaos
 		float ContactPhiWidth = 1.5f;
 		float ContactOwnerWidth = 0.0f;
 		float ConstraintAxisLen = 5.0f;
+		float JointComSize = 2.0f;
 		float LineThickness = 0.15f;
 		float DrawScale = 1.0f;
 		float FontHeight = 10.0f;
@@ -198,7 +199,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InXb, const FMatrix33& Rb, int32 Level, int32 Index, FReal ColorScale, uint32 FeatureMask)
+		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 Level, int32 Index, FReal ColorScale, uint32 FeatureMask)
 		{
 			using namespace Chaos::DebugDraw;
 			FColor R = (ColorScale * FColor::Red).ToFColor(false);
@@ -209,15 +210,59 @@ namespace Chaos
 			FColor Y = (ColorScale * FColor::Yellow).ToFColor(false);
 			FVec3 Pa = SpaceTransform.TransformPosition(InPa);
 			FVec3 Pb = SpaceTransform.TransformPosition(InPb);
+			FVec3 Ca = SpaceTransform.TransformPosition(InCa);
+			FVec3 Cb = SpaceTransform.TransformPosition(InCb);
 			FVec3 Xa = SpaceTransform.TransformPosition(InXa);
 			FVec3 Xb = SpaceTransform.TransformPosition(InXb);
 
-			if (FeatureMask & (uint32)EDebugDrawJointFeature::Connector)
+			if (FeatureMask & (uint32)EDebugDrawJointFeature::ActorConnector)
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Pa, Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Pb, Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugPoint(Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, DrawScale * PointSize);
-				FDebugDrawQueue::GetInstance().DrawDebugPoint(Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, DrawScale * PointSize);
+				const FReal ConnectorThickness = 1.5f * LineThickness;
+				const FReal CoMSize = DrawScale * JointComSize;
+				// Leave a gap around the actor position so we can see where the center is
+				FVec3 Sa = Pa;
+				const FReal Lena = (Xa - Pa).Size();
+				if (Lena > KINDA_SMALL_NUMBER)
+				{
+					Sa = FMath::Lerp(Pa, Xa, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
+				}
+				FVec3 Sb = Pb;
+				const FReal Lenb = (Xb - Pb).Size();
+				if (Lenb > KINDA_SMALL_NUMBER)
+				{
+					Sb = FMath::Lerp(Pb, Xb, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
+				}
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Pa, Sa, FColor::White, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Pb, Sb, FColor::White, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+			}
+			if (FeatureMask & (uint32)EDebugDrawJointFeature::CoMConnector)
+			{
+				const FReal ConnectorThickness = 1.5f * LineThickness;
+				const FReal CoMSize = DrawScale * JointComSize;
+				// Leave a gap around the body position so we can see where the center is
+				FVec3 Sa = Ca;
+				const FReal Lena = (Xa - Ca).Size();
+				if (Lena > KINDA_SMALL_NUMBER)
+				{
+					Sa = FMath::Lerp(Ca, Xa, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
+				}
+				FVec3 Sb = Cb;
+				const FReal Lenb = (Xb - Cb).Size();
+				if (Lenb > KINDA_SMALL_NUMBER)
+				{
+					Sb = FMath::Lerp(Cb, Xb, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
+				}
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Ca, Sa, FColor::Black, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Cb, Sb, FColor::Black, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+			}
+			if (FeatureMask & (uint32)EDebugDrawJointFeature::Stretch)
+			{
+				const FReal StretchThickness = 3.0f * LineThickness;
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Xa, Xb, M, false, KINDA_SMALL_NUMBER, DrawPriority, StretchThickness);
 			}
 			if (FeatureMask & (uint32)EDebugDrawJointFeature::Axes)
 			{
@@ -245,12 +290,14 @@ namespace Chaos
 			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();
 			if ((RigidParticle0 && RigidParticle0->ObjectState() == EObjectStateType::Dynamic) || (RigidParticle1 && RigidParticle1->ObjectState() == EObjectStateType::Dynamic))
 			{
-				FVec3 Pa = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1]));
-				FVec3 Pb = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0]));
+				FVec3 Pa = FParticleUtilities::GetActorWorldTransform(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1])).GetTranslation();
+				FVec3 Pb = FParticleUtilities::GetActorWorldTransform(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0])).GetTranslation();
+				FVec3 Ca = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1]));
+				FVec3 Cb = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0]));
 				FVec3 Xa, Xb;
 				FMatrix33 Ra, Rb;
 				ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb);
-				DrawJointConstraintImpl(SpaceTransform, Pa, Xa, Ra, Pb, Xb, Rb, ConstraintHandle->GetConstraintLevel(), ConstraintHandle->GetConstraintIndex(), ColorScale, FeatureMask);
+				DrawJointConstraintImpl(SpaceTransform, Pa, Ca, Xa, Ra, Pb, Cb, Xb, Rb, ConstraintHandle->GetConstraintLevel(), ConstraintHandle->GetConstraintIndex(), ColorScale, FeatureMask);
 			}
 		}
 

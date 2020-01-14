@@ -420,6 +420,14 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 		}
 	}
 	MouseLockMode = GetDefault<UInputSettings>()->DefaultViewportMouseLockMode;
+
+	// Don't capture mouse when headless
+	if(!FApp::CanEverRender())
+	{
+		MouseCaptureMode = EMouseCaptureMode::NoCapture;
+		MouseLockMode = EMouseLockMode::DoNotLock;
+	}
+
 	// In off-screen rendering mode don't lock mouse to the viewport, as we don't want mouse to lock to an invisible window
 	if (FSlateApplication::Get().IsRenderingOffScreen()) {
 		MouseLockMode = EMouseLockMode::DoNotLock;
@@ -821,11 +829,7 @@ bool UGameViewportClient::GetMousePosition(FVector2D& MousePosition) const
 {
 	bool bGotMousePosition = false;
 
-#ifdef USE_CONSOLE_CONTROLLER
 	if (Viewport && FSlateApplication::Get().IsMouseAttached())
-#else
-	if (Viewport)
-#endif
 	{
 		FIntPoint MousePos;
 		Viewport->GetMousePos(MousePos);
@@ -2624,7 +2628,8 @@ void UGameViewportClient::VerifyPathRenderingComponents()
 
 bool UGameViewportClient::CaptureMouseOnLaunch()
 {
-	return GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
+	// Capture mouse unless headless
+	return !FApp::CanEverRender() ? false : GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
 }
 
 bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)

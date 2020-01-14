@@ -277,11 +277,15 @@ protected:
 
 	/**
 	 * @param	FrameNumber The FrameNumber in Ticks
-	 * @param	bSetMark  true to set the mark, false to clear the mark
 	 */
-	void OnMarkedFrameChanged(FFrameNumber FrameNumber, bool bSetMark);
+	void AddMarkedFrame(FFrameNumber FrameNumber);
 
-	void ClearAllMarkedFrames();
+	/**
+	 * @param InMarkIndex The marked frame index to delete
+     */
+	void DeleteMarkedFrame(int32 InMarkIndex);
+
+	void DeleteAllMarkedFrames();
 
 public:
 

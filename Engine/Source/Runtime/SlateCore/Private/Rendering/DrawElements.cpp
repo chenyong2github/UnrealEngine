@@ -741,10 +741,6 @@ void FSlateWindowElementList::PushPaintingWidget(const SWidget& CurrentWidget, i
 	FSlateCachedElementData* CurrentCachedElementData = GetCurrentCachedElementData();
 	if (CurrentCachedElementData)
 	{
-		const FWidgetDrawElementState& PreviousState = WidgetDrawStack.Num() ? WidgetDrawStack.Top() : FWidgetDrawElementState(FSlateCachedElementsHandle::Invalid, false, nullptr);
-
-		WidgetDrawStack.Emplace(CurrentCacheHandle, CurrentWidget.IsVolatileIndirectly() || CurrentWidget.IsVolatile(), &CurrentWidget);
-
 		// When a widget is pushed reset its draw elements.  They are being recached or possibly going away
 		if (CurrentCacheHandle.IsValid())
 		{
@@ -753,15 +749,22 @@ void FSlateWindowElementList::PushPaintingWidget(const SWidget& CurrentWidget, i
 #endif
 			CurrentCacheHandle.ClearCachedElements();
 		}
+
+		WidgetDrawStack.Emplace(CurrentCacheHandle, CurrentWidget.IsVolatileIndirectly() || CurrentWidget.IsVolatile(), &CurrentWidget);
 	}
 }
 
-FSlateCachedElementsHandle FSlateWindowElementList::PopPaintingWidget()
+FSlateCachedElementsHandle FSlateWindowElementList::PopPaintingWidget(const SWidget& CurrentWidget)
 {
 	FSlateCachedElementData* CurrentCachedElementData = GetCurrentCachedElementData();
 	if (CurrentCachedElementData)
 	{
-		return WidgetDrawStack.Pop().CacheHandle;
+#if WITH_SLATE_DEBUGGING
+		check(WidgetDrawStack.Top().Widget == &CurrentWidget);
+#endif
+
+		const bool bAllowShrinking = false;
+		return WidgetDrawStack.Pop(bAllowShrinking).CacheHandle;
 	}
 
 	return FSlateCachedElementsHandle::Invalid;
@@ -826,7 +829,6 @@ void FSlateWindowElementList::PopCachedElementData()
 	CachedElementDataListStack.Pop();
 }
 
-
 int32 FSlateWindowElementList::PushClip(const FSlateClippingZone& InClipZone)
 {
 	const int32 NewClipIndex = ClippingManager.PushClip(InClipZone);
@@ -889,6 +891,7 @@ void FSlateWindowElementList::ResetElementList()
 	MemManager.Flush();
 	
 	CachedElementDataList.Empty();
+	CachedElementDataListStack.Empty();
 
 	check(WidgetDrawStack.Num() == 0);
 
@@ -925,6 +928,13 @@ void FSlateCachedElementData::Empty()
 		UE_LOG(LogSlate, Log, TEXT("Resetting cached element data.  Num: %d"), CachedElementLists.Num());
 	}
 
+#if WITH_SLATE_DEBUGGING
+	for (TSharedPtr<FSlateCachedElementList>& CachedElementList : CachedElementLists)
+	{
+		ensure(CachedElementList.IsUnique());
+	}
+#endif
+
 	CachedElementLists.Empty();
 	CachedBatches.Empty();
 	CachedClipStates.Empty();
@@ -944,7 +954,6 @@ FSlateCachedElementsHandle FSlateCachedElementData::AddCache(const SWidget* Widg
 	NewList->Initialize();
 
 	CachedElementLists.Add(NewList);
-
 
 	return FSlateCachedElementsHandle(NewList);
 }
@@ -1081,27 +1090,33 @@ void FSlateCachedElementList::AddReferencedObjects(FReferenceCollector& Collecto
 
 void FSlateCachedElementList::DestroyCachedData()
 {
-	if (CachedRenderingData)
-	{
-		if (FSlateApplicationBase::IsInitialized())
-		{
-			FSlateApplicationBase::Get().GetRenderer()->DestroyCachedFastPathRenderingData(CachedRenderingData);
-		}
-		else
-		{
-			delete CachedRenderingData;
-		}
-	}
+	// Clear out any cached draw elements
+	DrawElements.Reset();
 
-	CachedRenderingData = nullptr;
-
+	// Clear out any cached render batches
 	if (CachedRenderBatchIndices.Num())
 	{
 		ParentData->RemoveCachedRenderBatches(CachedRenderBatchIndices);
 		CachedRenderBatchIndices.Reset();
 	}
 
-	DrawElements.Reset();
+	// Destroy any cached rendering data we own.
+	if (CachedRenderingData)
+	{
+		if (FSlateApplicationBase::IsInitialized())
+		{
+			if (FSlateRenderer* SlateRenderer = FSlateApplicationBase::Get().GetRenderer())
+			{
+				SlateRenderer->DestroyCachedFastPathRenderingData(CachedRenderingData);
+			}
+		}
+		else
+		{
+			delete CachedRenderingData;
+		}
+
+		CachedRenderingData = nullptr;
+	}
 }
 
 FSlateCachedElementsHandle FSlateCachedElementsHandle::Invalid;

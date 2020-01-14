@@ -410,8 +410,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.VerticalFrames(this, &FSequencer::GetVerticalFrames)
 		.MarkedFrames(this, &FSequencer::GetMarkedFrames)
 		.OnSetMarkedFrame(this, &FSequencer::SetMarkedFrame)
-		.OnMarkedFrameChanged(this, &FSequencer::OnMarkedFrameChanged)
-		.OnClearAllMarkedFrames(this, &FSequencer::ClearAllMarkedFrames )
+		.OnAddMarkedFrame(this, &FSequencer::AddMarkedFrame)
+		.OnDeleteMarkedFrame(this, &FSequencer::DeleteMarkedFrame)
+		.OnDeleteAllMarkedFrames(this, &FSequencer::DeleteAllMarkedFrames )
 		.SubSequenceRange( this, &FSequencer::GetSubSequenceRange )
 		.OnPlaybackRangeChanged( this, &FSequencer::SetPlaybackRange )
 		.OnPlaybackRangeBeginDrag( this, &FSequencer::OnPlaybackRangeBeginDrag )
@@ -644,7 +645,6 @@ void FSequencer::Tick(float InDeltaTime)
 	TimeController->Tick(InDeltaTime, PlaybackSpeed * Dilation);
 
 	FQualifiedFrameTime GlobalTime = GetGlobalTime();
-	FFrameTime NewGlobalTime = TimeController->RequestCurrentTime(GlobalTime, PlaybackSpeed * Dilation);
 
 	static const float AutoScrollFactor = 0.1f;
 
@@ -670,8 +670,10 @@ void FSequencer::Tick(float InDeltaTime)
 
 	if (PlaybackState == EMovieScenePlayerStatus::Playing)
 	{
+		FFrameTime NewGlobalTime = TimeController->RequestCurrentTime(GlobalTime, PlaybackSpeed * Dilation);
+
 		// Put the time into local space
-		SetLocalTimeLooped(NewGlobalTime * RootToLocalTransform);
+ 		SetLocalTimeLooped(NewGlobalTime * RootToLocalTransform);
 
 		if (IsAutoScrollEnabled() && GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
@@ -1787,6 +1789,19 @@ void FSequencer::BakeTransform()
 		for (auto RuntimeObject : FindBoundObjects(Guid, ActiveTemplateIDs.Top()) )
 		{
 			AActor* Actor = Cast<AActor>(RuntimeObject.Get());
+			if (!Actor)
+			{
+				UActorComponent* ActorComponent = Cast<UActorComponent>(RuntimeObject.Get());
+				if (ActorComponent)
+				{
+					Actor = ActorComponent->GetOwner();
+				}
+			}
+
+			if (!Actor)
+			{
+				continue;
+			}
 
 			UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(RuntimeObject.Get());
 
@@ -9272,10 +9287,10 @@ void FSequencer::ToggleMarkAtPlayPosition()
 			int32 MarkedFrameIndex = FocusedMovieScene->FindMarkedFrameByFrameNumber(TickFrameNumber);
 			if (MarkedFrameIndex != INDEX_NONE)
 			{
-				FScopedTransaction RemoveMarkedFrameTransaction(LOCTEXT("RemoveMarkedFrames_Transaction", "Remove Marked Frame"));
+				FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrames_Transaction", "Delete Marked Frame"));
 
 				FocusedMovieScene->Modify();
-				FocusedMovieScene->RemoveMarkedFrame(MarkedFrameIndex);
+				FocusedMovieScene->DeleteMarkedFrame(MarkedFrameIndex);
 			}
 			else
 			{
@@ -9302,7 +9317,7 @@ void FSequencer::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
 	}
 }
 
-void FSequencer::OnMarkedFrameChanged(FFrameNumber FrameNumber, bool bSetMark)
+void FSequencer::AddMarkedFrame(FFrameNumber FrameNumber)
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
 	if (FocusedMovieSequence != nullptr)
@@ -9310,29 +9325,34 @@ void FSequencer::OnMarkedFrameChanged(FFrameNumber FrameNumber, bool bSetMark)
 		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
 		if (FocusedMovieScene != nullptr)
 		{
-			if (bSetMark)
+			FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
+
+			FocusedMovieScene->Modify();
+			FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(FrameNumber));
+		}
+	}
+}
+
+void FSequencer::DeleteMarkedFrame(int32 InMarkIndex)
+{
+	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+	if (FocusedMovieSequence != nullptr)
+	{
+		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (FocusedMovieScene != nullptr)
+		{
+			if (InMarkIndex != INDEX_NONE)
 			{
-				FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
+				FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrame_Transaction", "Delete Marked Frame"));
 
 				FocusedMovieScene->Modify();
-				FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(FrameNumber));
-			}
-			else
-			{
-				int32 MarkedFrameIndex = FocusedMovieScene->FindMarkedFrameByFrameNumber(FrameNumber);
-				if (MarkedFrameIndex != INDEX_NONE)
-				{
-					FScopedTransaction RemoveMarkedFrameTransaction(LOCTEXT("RemoveMarkedFrame_Transaction", "Remove Marked Frame"));
-
-					FocusedMovieScene->Modify();
-					FocusedMovieScene->RemoveMarkedFrame(MarkedFrameIndex);
-				}
+				FocusedMovieScene->DeleteMarkedFrame(InMarkIndex);
 			}
 		}
 	}
 }
 
-void FSequencer::ClearAllMarkedFrames()
+void FSequencer::DeleteAllMarkedFrames()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
 	if (FocusedMovieSequence != nullptr)
@@ -9340,10 +9360,10 @@ void FSequencer::ClearAllMarkedFrames()
 		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
 		if (FocusedMovieScene != nullptr)
 		{
-			FScopedTransaction ClearAllMarkedFramesTransaction(LOCTEXT("ClearAllMarkedFrames_Transaction", "Clear All Marked Frames"));
+			FScopedTransaction DeleteAllMarkedFramesTransaction(LOCTEXT("DeleteAllMarkedFrames_Transaction", "Delete All Marked Frames"));
 
 			FocusedMovieScene->Modify();
-			FocusedMovieScene->ClearMarkedFrames();
+			FocusedMovieScene->DeleteMarkedFrames();
 		}
 	}
 }
@@ -11000,12 +11020,19 @@ void FSequencer::UpdateTimeBases()
 
 void FSequencer::ResetTimeController()
 {
-	switch (GetRootMovieSceneSequence()->GetMovieScene()->GetClockSource())
+	UMovieScene* MovieScene = GetRootMovieSceneSequence()->GetMovieScene();
+	switch (MovieScene->GetClockSource())
 	{
-	case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();    break;
-	case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
-	case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
-	default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
+	case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();         break;
+	case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>();      break;
+	case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>();      break;
+	case EUpdateClockSource::Custom:   TimeController = MovieScene->MakeCustomTimeController(GetPlaybackContext()); break;
+	default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();               break;
+	}
+
+	if (!TimeController)
+	{
+		TimeController = MakeShared<FMovieSceneTimeController_Tick>();
 	}
 
 	TimeController->PlayerStatusChanged(PlaybackState, GetGlobalTime());

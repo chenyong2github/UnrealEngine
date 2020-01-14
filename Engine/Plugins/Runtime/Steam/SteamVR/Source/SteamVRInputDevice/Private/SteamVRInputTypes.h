@@ -1,6 +1,6 @@
 /*
 Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
-This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+This code includes modifications by Epic Games.  Modifications (c) Epic Games, Inc.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -46,6 +46,8 @@ using namespace vr;
 #define STEAMVR_SKELETON_BONE_COUNT		31
 #define DOT_45DEG						0.707f
 #define TOUCHPAD_DEADZONE				0.0f
+#define INITIAL_DIGITAL_ACTION_DELAY	0.2f	
+#define REPEAT_DIGITAL_ACTION_DELAY		0.1f	
 
 // Manifest constants
 #define MAX_ACTION_SETS					25
@@ -324,6 +326,9 @@ struct FSteamVRInputAction
 	VRInputValueHandle_t ActiveOrigin = 0;		// The input value handle of the origin of the latest input event
 	EVRInputError LastError;					// A cache for the last Error for operations against this action (could also be "No Error")
 
+	bool		bIsRepeat;						// If this action is being repeated
+	float		LastUpdated;					// Last update time as reported by SteamVR
+
 	FString GetActionTypeName()
 	{
 		return SActionTypes[(int)Type];
@@ -341,7 +346,10 @@ struct FSteamVRInputAction
 		, bRequirement(inRequirement)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName, bool inState)
 		: Path(inPath)
@@ -355,7 +363,10 @@ struct FSteamVRInputAction
 		, bRequirement(true)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 	FSteamVRInputAction(const FString& inPath, const FName& inName, bool inRequirement, const FName& inKeyName, bool inState)
 		: Path(inPath)
@@ -369,7 +380,10 @@ struct FSteamVRInputAction
 		, bRequirement(inRequirement)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName, float inValue1D)
 		: Path(inPath)
@@ -395,7 +409,10 @@ struct FSteamVRInputAction
 		, bRequirement(true)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName_X, const FName& inKeyName_Y, const FName& inKeyName_Z, const FVector& inValue3D)
 		: Path(inPath)
@@ -408,7 +425,10 @@ struct FSteamVRInputAction
 		, bRequirement(true)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 	FSteamVRInputAction(const FString& inPath, const EActionType& inActionType, const bool& inRequirement, const FName& inName)
 		: Path(inPath)
@@ -421,7 +441,10 @@ struct FSteamVRInputAction
 		, bRequirement(inRequirement)
 		, Handle()
 		, LastError(VRInputError_None)
-	{}
+	{
+		bIsRepeat = false;
+		LastUpdated = 0.f;
+	}
 
 };
 

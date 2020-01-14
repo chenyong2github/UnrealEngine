@@ -16,6 +16,12 @@ class GAMEPLAYTAGSEDITOR_VTABLE SAddNewGameplayTagWidget : public SCompoundWidge
 {
 public:
 
+	enum class EResetType : uint8
+	{
+		ResetAll,
+		DoNotResetSource
+	};
+
 	DECLARE_DELEGATE_ThreeParams(FOnGameplayTagAdded, const FString& /*TagName*/, const FString& /*TagComment*/, const FName& /*TagSource*/);
 
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsValidTag, const FString& /*TagName*/, FText* /*OutError*/)
@@ -44,7 +50,7 @@ public:
 	void AddSubtagFromParent(const FString& ParentTagName, const FName& ParentTagSource);
 
 	/** Resets all input fields */
-	void Reset();
+	void Reset(EResetType ResetType);
 
 private:
 

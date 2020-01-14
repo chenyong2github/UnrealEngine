@@ -19,6 +19,8 @@
 #include "MovieSceneTimeController.h"
 #include "MovieScene.generated.h"
 
+struct FMovieSceneTimeController;
+
 class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
@@ -688,11 +690,29 @@ public:
 	}
 
 	/**
+	 * Retrieve a time controller from this sequence instance, if the clock source is set to custom
+	 */
+	TSharedPtr<FMovieSceneTimeController> MakeCustomTimeController(UObject* PlaybackContext);
+
+	/**
 	 * Assign the clock source to be used for this moviescene
 	 */
 	void SetClockSource(EUpdateClockSource InNewClockSource)
 	{
 		ClockSource = InNewClockSource;
+		if (ClockSource != EUpdateClockSource::Custom)
+		{
+			CustomClockSourcePath.Reset();
+		}
+	}
+
+	/**
+	 * Assign the clock source to be used for this moviescene
+	 */
+	void SetClockSource(UObject* InNewClockSource)
+	{
+		ClockSource = EUpdateClockSource::Custom;
+		CustomClockSourcePath = InNewClockSource;
 	}
 
 	/*
@@ -875,16 +895,16 @@ public:
 	int32 AddMarkedFrame(const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
-	 * Remove the user marked frame by index.
+	 * Delete the user marked frame by index.
 	 *
-	 * @RemoveIndex The index to the user marked frame to remove
+	 * @DeleteIndex The index to the user marked frame to delete
 	 */
-	void RemoveMarkedFrame(int32 RemoveIndex);
+	void DeleteMarkedFrame(int32 DeleteIndex);
 
 	/*
-	 * Clear all user marked frames
+	 * Delete all user marked frames
 	 */
-	void ClearMarkedFrames();
+	void DeleteMarkedFrames();
 
 	/*
 	 * Find the user marked frame by label
@@ -1014,6 +1034,9 @@ private:
 
 	UPROPERTY()
 	EUpdateClockSource ClockSource;
+
+	UPROPERTY()
+	FSoftObjectPath CustomClockSourcePath;
 
 	/** The set of user-marked frames */
 	UPROPERTY()

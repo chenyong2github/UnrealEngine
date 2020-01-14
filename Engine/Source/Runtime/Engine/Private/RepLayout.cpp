@@ -1047,7 +1047,7 @@ static void CompareRoleProperty(
 	{
 		SavedRoleOrRemoteRole = ActorRoleOrRemoteRole;
 		Changed.Add(Handle);
-		}
+	}
 }
 
 static void CompareRoleProperties(
@@ -1057,7 +1057,7 @@ static void CompareRoleProperties(
 	TArray<uint16>& Changed)
 {
 	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
-		{
+	{
 		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
 		CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::Role, RepState->SavedRole, Changed);
 	}
@@ -1104,17 +1104,17 @@ static void CompareParentProperties(
 				continue;
 			}
 			else if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
-		{
+			{
 				CompareRoleProperty(SharedParams, Data, (int32)AActor::ENetFields_Private::RemoteRole, RepState->SavedRemoteRole, Changed);
 				continue;
 			}
 		}
 		
-			// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
+		// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
 		const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 		const uint16 Handle = Cmd.RelativeHandle;
-			CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
-		}
+		CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
+	}
 }
 
 static uint16 CompareProperties_r(
@@ -2531,6 +2531,10 @@ void FRepLayout::SendProperties_BackwardsCompatible(
 
 		PackageMapClient->AddNetFieldExportGroup(OwnerPathName, NetFieldExportGroup);
 	}
+
+	checkf(NetFieldExportGroup->NetFieldExports.Num() == Cmds.Num(),
+		TEXT("NetFieldExports.Num() does not match number of commands! PathName = %s, NetFieldExportGroup.PathName = %s, Cmds.Num() = %d, NetFieldExports.Num() = %d"),
+		*OwnerPathName, *(NetFieldExportGroup->PathName), Cmds.Num(), NetFieldExportGroup->NetFieldExports.Num());
 
 	const int32 NumBits = Writer.GetNumBits();
 
@@ -6370,6 +6374,10 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 			LocalNetFieldExportGroup = CreateNetfieldExportGroup();
 			PackageMap->AddNetFieldExportGroup(OwnerPathName, LocalNetFieldExportGroup);
 		}
+
+		checkf(LocalNetFieldExportGroup->NetFieldExports.Num() == Cmds.Num(),
+			TEXT("NetFieldExports.Num() does not match number of commands! PathName = %s, NetFieldExportGroup.PathName = %s, Cmds.Num() = %d, NetFieldExports.Num() = %d"),
+			*OwnerPathName, *(LocalNetFieldExportGroup->PathName), Cmds.Num(), LocalNetFieldExportGroup->NetFieldExports.Num());
 
 		NetFieldExportGroup = LocalNetFieldExportGroup.Get();
 	}

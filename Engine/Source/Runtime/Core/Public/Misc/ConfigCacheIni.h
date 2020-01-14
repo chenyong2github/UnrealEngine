@@ -236,12 +236,9 @@ public:
 	template<typename Allocator> 
 	void MultiFind(const FName Key, TArray<FString, Allocator>& OutValues, const bool bMaintainOrder = false) const
 	{
-		for (const TPair<FName, FConfigValue>& Pair : Pairs)
+		for (typename ElementSetType::TConstKeyIterator It(Pairs, Key); It; ++It)
 		{
-			if (Pair.Key == Key)
-			{
-				OutValues.Add(Pair.Value.GetValue());
-			}
+			OutValues.Add(It->Value.GetValue());
 		}
 
 		if (bMaintainOrder)

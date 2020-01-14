@@ -497,6 +497,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
 	UMaterialInterface* LandscapeMaterial;
 
+#if !WITH_EDITORONLY_DATA
+	/** Used to cache grass types from GetGrassTypes */
+	UMaterialInterface* LandscapeMaterialCached;
+
+	/** Cached grass types from GetGrassTypes */
+	TArray<ULandscapeGrassType*> LandscapeGrassTypes;
+#endif
+
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
 	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
 	UMaterialInterface* LandscapeHoleMaterial;
@@ -835,7 +843,7 @@ public:
 
 
 	/* Get the list of grass types on this landscape */
-	TArray<ULandscapeGrassType*> GetGrassTypes() const;
+	static void GetGrassTypes(UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut);
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache = false);

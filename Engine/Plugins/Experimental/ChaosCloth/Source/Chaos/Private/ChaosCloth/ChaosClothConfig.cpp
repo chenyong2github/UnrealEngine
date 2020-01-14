@@ -6,7 +6,6 @@
 #include "ClothingSimulationInteractor.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
-//  WindDragCoefficient
 //  WindMethod
 //  VerticalConstraintConfig.CompressionLimit
 //  VerticalConstraintConfig.StretchLimit
@@ -74,8 +73,6 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 {
 	IterationCount = FMath::Clamp(int32(ClothConfig.SolverFrequency / 60.f), 1, 100);
 
-	SolverFrequency = ClothConfig.SolverFrequency;
-
 	SelfCollisionThickness = FMath::Clamp(ClothConfig.SelfCollisionRadius, 0.f, 1000.f);
 
 	CollisionThickness = FMath::Clamp(ClothConfig.CollisionThickness, 0.f, 1000.f);
@@ -88,6 +85,8 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 	GravityScale = ClothConfig.GravityScale;
 
 	Gravity = ClothConfig.GravityOverride;
+
+	WindDrag = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.5f;  // Only Accurate wind uses the WindDragCoefficient
 }
 
 void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)

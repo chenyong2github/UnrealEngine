@@ -136,11 +136,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "100"))
 	int32 IterationCount = 1;
 
-	// The expected simulation frequency in Hz that, if not closely matching the game tick frequency, will trigger substepping to help keep a more consistent time step.
-	// Use higher values to avoid jitter, and smaller value to avoid the extra cost of substepping.
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "30", UIMax = "240", ClampMin = "1", ClampMax = "1080"))
-	float SolverFrequency = 60.f;
-
 	// The radius of the spheres used in self collision 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float SelfCollisionThickness = 2.0f;
@@ -164,6 +159,10 @@ public:
 	// The gravitational acceleration vector [cm/s^2]
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
+
+	// The wind drag coefficient applying on each particle
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
+	float WindDrag = 0.5f;
 
 	// Enable the XPBD constraints that resolve stiffness independently from the number of iterations
 	// Experimental, this feature might be removed without warning, not for production use

@@ -293,6 +293,14 @@ void UNiagaraEmitter::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
+	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
+	{
+		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
+		{
+			RendererProperties.RemoveAt(RendererIndex);
+		}
+	}
+
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -388,7 +396,7 @@ void UNiagaraEmitter::PostLoad()
 			UObject* OuterObj = GetOuter();
 			if (OuterObj == GetOutermost())
 			{
-				GraphSource->InvalidateCachedCompileIds();
+				GraphSource->ForceGraphToRecompileOnNextCheck();
 				bGenerateNewChangeId = true;
 				GenerateNewChangeIdReason = TEXT("PostLoad - Force compile on load");
 				if (GEnableVerboseNiagaraChangeIdLogging)
@@ -700,6 +708,17 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 		}
 	}
 
+	if (!bCompilableOnly)
+	{
+		for (int32 i = 0; i < ShaderStages.Num(); i++)
+		{
+			if (ShaderStages[i] && ShaderStages[i]->Script)
+			{
+				OutScripts.Add(ShaderStages[i]->Script);
+			}
+		}
+	}
+
 	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		OutScripts.Add(GPUComputeScript);
@@ -767,6 +786,14 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 	{
 		if (EventHandlerScriptProps[i].Script && EventHandlerScriptProps[i].Script->IsCompilable() && !EventHandlerScriptProps[i].Script->AreScriptAndSourceSynchronized())
+		{
+			return false;
+		}
+	}
+
+	for (int32 i = 0; i < ShaderStages.Num(); i++)
+	{
+		if (ShaderStages[i] && ShaderStages[i]->Script  && ShaderStages[i]->Script->IsCompilable() && !ShaderStages[i]->Script->AreScriptAndSourceSynchronized())
 		{
 			return false;
 		}

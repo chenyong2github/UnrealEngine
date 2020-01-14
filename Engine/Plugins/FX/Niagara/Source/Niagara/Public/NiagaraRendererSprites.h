@@ -60,7 +60,6 @@ private:
 	//Cached data from the properties struct.
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;
-	FVector CustomFacingVectorMask;
 	FVector2D PivotInUVSpace;
 	ENiagaraSortMode SortMode;
 	FVector2D SubImageSize;

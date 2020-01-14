@@ -6,6 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Templates/SharedPointer.h"
+#include "Misc/SecureHash.h"
 #include "NiagaraTypes.generated.h"
 
 class UNiagaraDataInterfaceBase;
@@ -306,6 +307,138 @@ enum class ENiagaraExecutionState : uint32
 	Num UMETA(Hidden)
 };
 
+USTRUCT()
+struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	UPROPERTY()
+	FString Object;
+
+	UPROPERTY()
+	TArray<FString> PropertyKeys;
+
+	UPROPERTY()
+	TArray<FString> PropertyValues;
+};
+
+/**
+Used to store the state of a graph when deciding if it has been dirtied for recompile.
+*/
+struct NIAGARA_API FNiagaraCompileHashVisitor
+{
+public:
+	FNiagaraCompileHashVisitor(FSHA1& InHashState) : HashState(InHashState) {}
+
+	FSHA1& HashState;
+	TArray<const void*> ObjectList;
+
+	static int LogCompileIdGeneration;
+
+#if WITH_EDITORONLY_DATA
+
+	// Debug data about the compilation hash, including key value pairs to detect differences.
+	TArray<FNiagaraCompileHashVisitorDebugInfo> Values;
+
+	template<typename T>
+	void ToDebugString(const T* InData, uint64 InDataCount, FString& OutStr)
+	{
+		for (int32 i = 0; i < InDataCount; i++)
+		{
+			FString DataStr = LexToString(InData[i]);
+			OutStr.Appendf(TEXT("%s "), *DataStr);
+		}
+	}
+#endif
+	/**
+	Registers a pointer for later reference in the compile id in a deterministic manner.
+	*/
+	int32 RegisterReference(const void* InObject)
+	{
+		if (InObject == nullptr)
+		{
+			return -1;
+		}
+
+		int32 Index = ObjectList.Find(InObject);
+		if (Index < 0)
+		{
+			Index = ObjectList.Add(InObject);
+		}
+		return Index;
+	}
+
+	/**
+	We don't usually want to save GUID's or pointer values because they have nondeterministic values. Consider a PostLoad upgrade operation that creates a new node.
+	Each pin and node gets a unique ID. If you close the editor and reopen, you'll get a different set of values. One of the characteristics we want for compilation
+	behavior is that the same graph structure produces the same compile results, so we only want to embed information that is deterministic. This method is for use
+	when registering a pointer to an object that is serialized within the compile hash.
+	*/
+	bool UpdateReference(const TCHAR* InDebugName, const void* InObject)
+	{
+		int32 Index = RegisterReference(InObject);
+		return UpdatePOD(InDebugName, Index);
+	}
+
+	/**
+	Adds an array of POD (plain old data) values to the hash.
+	*/
+	template<typename T>
+	bool UpdateArray(const TCHAR* InDebugName, const T* InData, uint64 InDataCount = 1)
+	{
+		static_assert(TIsPODType<T>::Value, "UpdateArray does not support a constructor / destructor on the element class.");
+		HashState.Update((const uint8 *)InData, sizeof(T)*InDataCount);
+#if WITH_EDITORONLY_DATA
+		if (LogCompileIdGeneration != 0)
+		{
+			FString ValuesStr = InDebugName;
+			ValuesStr.Append(TEXT(" = "));
+			ToDebugString(InData, InDataCount, ValuesStr);
+			Values.Top().PropertyKeys.Push(InDebugName);
+			Values.Top().PropertyValues.Push(ValuesStr);
+		}
+#endif
+		return true;
+	}
+
+	/**
+	Adds a single value of typed POD (plain old data) to the hash.
+	*/
+	template<typename T>
+	bool UpdatePOD(const TCHAR* InDebugName, const T& InData)
+	{
+		static_assert(TIsPODType<T>::Value, "Update does not support a constructor / destructor on the element class.");
+		HashState.Update((const uint8 *)&InData, sizeof(T));
+#if WITH_EDITORONLY_DATA
+		if (LogCompileIdGeneration != 0)
+		{
+			FString ValuesStr;
+			ToDebugString(&InData, 1, ValuesStr);
+			Values.Top().PropertyKeys.Push(InDebugName);
+			Values.Top().PropertyValues.Push(ValuesStr);
+		}
+#endif
+		return true;
+	}
+
+	/**
+	Adds an string value to the hash.
+	*/
+	bool UpdateString(const TCHAR* InDebugName, const FString& InData)
+	{
+		HashState.Update((const uint8 *)(*InData), sizeof(TCHAR)*InData.Len());
+#if WITH_EDITORONLY_DATA
+		if (LogCompileIdGeneration != 0)
+		{
+			Values.Top().PropertyKeys.Push(InDebugName);
+			Values.Top().PropertyValues.Push(InData);
+		}
+#endif
+		return true;
+	}
+};
+
+
 /** Defines options for conditionally editing and showing script inputs in the UI. */
 USTRUCT()
 struct NIAGARA_API FNiagaraInputConditionMetadata
@@ -335,33 +468,33 @@ public:
 	{
 	}
 public:
-	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
 	FText Description;
 
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	FText CategoryName;
 
 	/** Declares that this input is advanced and should only be visible if expanded inputs have been expanded. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	bool bAdvancedDisplay;
 
-	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero."))
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero.", SkipForCompileHash = "true"))
 	int32 EditorSortPriority;
 
 	/** Declares the associated input is used as an inline edit condition toggle, so it should be hidden and edited as a 
 	checkbox inline with the input which was designated as its edit condition. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	FNiagaraInputConditionMetadata EditCondition;
 
 	/** Declares the associated input should be conditionally visible based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	FNiagaraInputConditionMetadata VisibleCondition;
 
-	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
+	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
 
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
@@ -550,6 +683,8 @@ public:
 	{ 
 		return ClassStructOrEnum != nullptr;
 	}
+
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 	/*
 	Underlying type for this variable, use FUnderlyingType to determine type without casting
@@ -1035,7 +1170,7 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 private:
 	//This gets serialized but do we need to worry about endianness doing things like this? If not, where does that get handled?
 	//TODO: Remove storage here entirely and move everything to an FNiagaraParameterStore.
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<uint8> VarData;
 };
 

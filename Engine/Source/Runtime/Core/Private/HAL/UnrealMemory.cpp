@@ -24,6 +24,7 @@
 #include "HAL/MallocLeakDetectionProxy.h"
 #include "HAL/PlatformMallocCrash.h"
 #include "HAL/MallocPoisonProxy.h"
+#include "HAL/MallocDoubleFreeFinder.h"
 
 #if MALLOC_GT_HOOKS
 
@@ -382,6 +383,7 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 	UE_LOG(LogMemory, Display, TEXT("Used memory before allocating anything was %.2fMB"), SizeInMb);
 #endif
 
+	GMalloc = FMallocDoubleFreeFinder::OverrideIfEnabled(GMalloc);
 	return 0;
 }
 

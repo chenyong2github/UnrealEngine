@@ -20,6 +20,16 @@ struct NIAGARACORE_API FNiagaraCompileHash
 		DataHash = InDataHash;
 	}
 
+	explicit FNiagaraCompileHash(const uint8* InDataHash, uint32 InCount) : DataHash(InDataHash, InCount)
+	{
+		checkf(InCount == HashSize, TEXT("Invalid hash data."));
+		/*.AddUninitialized(InCount);
+		for (uint32 i = 0; i < InCount; i++)
+		{
+			DataHash[i] = InDataHash[i];
+		}*/
+	}
+
 	bool operator==(const FNiagaraCompileHash& Other) const;
 
 	bool operator!=(const FNiagaraCompileHash& Other) const;

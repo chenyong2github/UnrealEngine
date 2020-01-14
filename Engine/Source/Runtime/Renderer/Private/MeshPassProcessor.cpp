@@ -148,7 +148,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.SRVs));
 
 		uint32 TypeByteIndex = SRVIndex / 8;
-		uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+		uint32 TypeBitIndex = SRVIndex % 8;
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
@@ -233,7 +233,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		FShaderParameterInfo Parameter = SRVParameters[SRVIndex];
 
 		uint32 TypeByteIndex = SRVIndex / 8;
-		uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+		uint32 TypeBitIndex = SRVIndex % 8;
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
@@ -620,7 +620,7 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 			FShaderParameterInfo Parameter = SRVParameters[SRVIndex];
 
 			uint32 TypeByteIndex = SRVIndex / 8;
-			uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+			uint32 TypeBitIndex = SRVIndex % 8;
 
 			if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 			{
