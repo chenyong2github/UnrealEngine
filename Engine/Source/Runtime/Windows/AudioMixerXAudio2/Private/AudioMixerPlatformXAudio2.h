@@ -112,7 +112,6 @@ namespace Audio
 		FCriticalSection AudioDeviceSwapCriticalSection;
 		FString OriginalAudioDeviceId;
 		FString NewAudioDeviceId;
-		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		double LastDeviceSwapTime;
 
 		// When we are running the null device,
