@@ -14,9 +14,9 @@
 #if !INTEL_ISPC
 const bool bChaos_Joint_ISPC_Enabled = false;
 #elif UE_BUILD_SHIPPING
-const bool bChaos_Joint_ISPC_Enabled = false;
+const bool bChaos_Joint_ISPC_Enabled = true;
 #else
-bool bChaos_Joint_ISPC_Enabled = false;
+bool bChaos_Joint_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
 #endif
 
