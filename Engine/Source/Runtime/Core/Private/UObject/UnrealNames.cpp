@@ -1808,7 +1808,7 @@ struct FNameHelper
 			checkf(false, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator."), NAME_SIZE - 1, View.Len);
 			return FName("ERROR_NAME_SIZE_EXCEEDED");
 		}
-
+		
 		FNamePool& Pool = GetNamePool();
 
 		FNameEntryId DisplayId, ComparisonId;
