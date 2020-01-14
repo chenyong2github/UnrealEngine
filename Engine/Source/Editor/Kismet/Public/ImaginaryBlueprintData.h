@@ -169,6 +169,12 @@ public:
 		return Outer;
 	}
 
+	/** Called to enable interlocked parsing (only allow one thread at a time). In place to support backwards-compatibility with non-deferred indexing, may be removed later. */
+	void EnableInterlockedParsing()
+	{
+		bRequiresInterlockedParsing = true;
+	}
+
 	/** Dumps the parsed object (including all children) to the given archive */
 	void DumpParsedObject(FArchive& Ar, int32 InTreeLevel = 0) const;
 
@@ -218,6 +224,12 @@ protected:
 
 	/** Outer of this object that owns it, used for climbing up the hierarchy. Must be declared as thread-safe because it may be accessed on different threads. */
 	FImaginaryFiBDataWeakPtr Outer;
+
+	/** Set after the JSON object has been parsed. */
+	TAtomic<bool> bHasParsedJsonObject;
+
+	/** Set if this instance requires interlocked parsing. */
+	bool bRequiresInterlockedParsing;
 
 	/** Allows for thread-safe parsing of the imaginary data. Only a single Imaginary data can be parsed at a time. */
 	static FCriticalSection ParseChildDataCriticalSection;
