@@ -1180,12 +1180,19 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 
 	if (!CustomCoordinateSystemProvided)
 	{
-		const int32 Num = GetSelectedActors()->CountSelections<AActor>();
-
-		// Coordinate system needs to come from the last actor selected
-		if (Num > 0)
+		if (USceneComponent* SceneComponent = GetSelectedComponents()->GetBottom<USceneComponent>())
 		{
-			Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
+			Matrix = FQuatRotationMatrix(SceneComponent->GetComponentQuat());
+		}
+		else
+		{
+			const int32 Num = GetSelectedActors()->CountSelections<AActor>();
+
+			// Coordinate system needs to come from the last actor selected
+			if (Num > 0)
+			{
+				Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
+			}
 		}
 	}
 
