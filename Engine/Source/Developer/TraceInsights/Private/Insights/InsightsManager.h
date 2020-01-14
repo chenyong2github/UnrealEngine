@@ -22,6 +22,7 @@ class SStartPageWindow;
 struct FInsightsManagerTabs
 {
 	static const FName StartPageTabId;
+	static const FName SessionInfoTabId;
 	static const FName TimingProfilerTabId;
 	static const FName LoadingProfilerTabId;
 	static const FName NetworkingProfilerTabId;
@@ -123,6 +124,9 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	bool ShouldOpenAnalysisInSeparateProcess() const { return bShouldOpenAnalysisInSeparateProcess; }
+	void SetOpenAnalysisInSeparateProcess(bool bOnOff) { bShouldOpenAnalysisInSeparateProcess = bOnOff; }
+
 	bool IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const;
 	bool IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const;
 
@@ -215,4 +219,6 @@ private:
 	static TSharedPtr<FInsightsManager> Instance;
 
 	bool bIsNetworkingProfilerAvailable;
+
+	bool bShouldOpenAnalysisInSeparateProcess;
 };

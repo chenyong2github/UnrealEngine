@@ -14,8 +14,11 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
@@ -361,9 +364,30 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SStartPageWindow::SStartPageWindow()
-	: DurationActive(0.0f)
+	: NotificationList()
+	, ActiveNotifications()
+	, OverlaySettingsSlot(nullptr)
+	, DurationActive(0.0f)
+	, ActiveTimerHandle()
+	, MainContentPanel()
 	, AvailableSessionCount(0)
 	, LiveSessionCount(0)
+#if WITH_EDITOR
+	, bAutoStartAnalysisForLiveSessions(false)
+#else
+	, bAutoStartAnalysisForLiveSessions(true)
+#endif
+	, AutoStartedSessions()
+	, AutoStartPlatformFilter()
+	, AutoStartAppNameFilter()
+	, AutoStartConfigurationTypeFilter(EBuildConfiguration::Unknown)
+	, AutoStartTargetTypeFilter(EBuildTargetType::Unknown)
+	, TraceSessionsListView()
+	, TraceSessions()
+	, TraceSessionsMap()
+	, HostTextBox()
+	, SelectedTraceSession()
+	, SplashScreenOverlayFadeTime(0.0f)
 {
 }
 
@@ -391,24 +415,47 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 			// Version
 			+ SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Top)
-				.Padding(0.0f, -16.0f, 0.0f, 0.0f)
-				[
-					SNew(STextBlock)
-						.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
-						.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
-						.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
-				]
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Top)
+			.Padding(0.0f, -16.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
+				.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
+				.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
+			]
 
 			// Overlay slot for the main window area
 			+ SOverlay::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SScrollBox)
+				.Orientation(Orient_Vertical)
+
+				+ SScrollBox::Slot()
 				[
-					SNew(SVerticalBox)
+					SAssignNew(MainContentPanel, SVerticalBox)
 
 					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					.Padding(3.0f, 3.0f)
+					[
+						SNew(SBox)
+						.WidthOverride(1024.0f)
+						[
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							.HAlign(HAlign_Fill)
+							[
+								ConstructSessionsPanel()
+							]
+						]
+					]
+
+						+ SVerticalBox::Slot()
 						.AutoHeight()
 						.HAlign(HAlign_Center)
 						.Padding(3.0f, 3.0f)
@@ -421,63 +468,93 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 								.Padding(8.0f)
 								.HAlign(HAlign_Fill)
 								[
-									ConstructSessionsPanel()
+									ConstructAutoStartPanel()
 								]
 							]
 						]
 
 					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(3.0f, 3.0f)
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					.Padding(3.0f, 3.0f)
+					[
+						SNew(SBox)
+						.WidthOverride(256.0f)
 						[
-							SNew(SBox)
-							.WidthOverride(256.0f)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							.HAlign(HAlign_Fill)
 							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-								.Padding(8.0f)
-								.HAlign(HAlign_Fill)
-								[
-									ConstructRecorderPanel()
-								]
+								ConstructRecorderPanel()
 							]
 						]
+					]
 
 					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(3.0f, 3.0f)
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					.Padding(3.0f, 3.0f)
+					[
+						SNew(SBox)
+						.WidthOverride(512.0f)
+						.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
 						[
-							SNew(SBox)
-							.WidthOverride(512.0f)
-							.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							.HAlign(HAlign_Fill)
 							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-								.Padding(8.0f)
-								.HAlign(HAlign_Fill)
-								[
-									ConstructConnectPanel()
-								]
+								ConstructConnectPanel()
 							]
 						]
+					]
 				]
+			]
+
+			// Overlay for fake splashscreen.
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Padding(0.0f)
+			[
+				SNew(SBox)
+				.Visibility(this, &SStartPageWindow::SplashScreenOverlay_Visibility)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderBackgroundColor(this, &SStartPageWindow::SplashScreenOverlay_ColorAndOpacity)
+					.Padding(0.0f)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					[
+						SNew(SBox)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(this, &SStartPageWindow::GetSplashScreenOverlayText)
+							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+							.ColorAndOpacity(this, &SStartPageWindow::SplashScreenOverlay_TextColorAndOpacity)
+						]
+					]
+				]
+			]
 
 			// Notification area overlay
 			+ SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Bottom)
-				.Padding(16.0f)
-				[
-					SAssignNew(NotificationList, SNotificationList)
-				]
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Bottom)
+			.Padding(16.0f)
+			[
+				SAssignNew(NotificationList, SNotificationList)
+			]
 
 			// Settings dialog overlay
 			+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Expose(OverlaySettingsSlot)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Expose(OverlaySettingsSlot)
 		];
 
 #if WITH_EDITOR
@@ -681,6 +758,51 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<SWidget> SStartPageWindow::ConstructAutoStartPanel()
+{
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SCheckBox)
+			.ToolTipText(LOCTEXT("AutoStart_Tooltip", "Enable auto-start analysis for LIVE sessions."))
+			.IsChecked(this, &SStartPageWindow::AutoStart_IsChecked)
+			.OnCheckStateChanged(this, &SStartPageWindow::AutoStart_OnCheckStateChanged)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("AutoStart_Text", "Auto Start Analysis for LIVE Sessions"))
+			]
+		]
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(AutoStartPlatformFilter, SSearchBox)
+			.HintText(LOCTEXT("AutoStartPlatformFilter_Hint", "Platform"))
+			.ToolTipText(LOCTEXT("AutoStartPlatformFilter_Tooltip", "Type here to specify the Platform filter.\nAuto-start analysis will be enabled only for live sessions with this specified Platform."))
+		]
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(AutoStartAppNameFilter, SSearchBox)
+			.HintText(LOCTEXT("AutoStartAppNameFilter_Hint", "AppName"))
+			.ToolTipText(LOCTEXT("AutoStartAppNameFilter_Tooltip", "Type here to specify the AppName filter.\nAuto-start analysis will be enabled only for live sessions with this specified AppName."))
+		]
+	;
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SWidget> SStartPageWindow::ConstructRecorderPanel()
 {
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
@@ -768,7 +890,6 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecorderPanel()
 					.ColorAndOpacity(FLinearColor::Gray)
 				]
 		]
-
 	;
 
 	return Widget;
@@ -842,6 +963,69 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStartPageWindow::ShowSplashScreenOverlay()
+{
+	SplashScreenOverlayFadeTime = 3.5f;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::TickSplashScreenOverlay(const float InDeltaTime)
+{
+	if (SplashScreenOverlayFadeTime > 0.0f)
+	{
+		SplashScreenOverlayFadeTime = FMath::Max(0.0f, SplashScreenOverlayFadeTime - InDeltaTime);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float SStartPageWindow::SplashScreenOverlayOpacity() const
+{
+	constexpr float FadeInStartTime = 3.5f;
+	constexpr float FadeInEndTime = 3.0f;
+	constexpr float FadeOutStartTime = 1.0f;
+	constexpr float FadeOutEndTime = 0.0f;
+
+	const float Opacity =
+		SplashScreenOverlayFadeTime > FadeInStartTime ? 0.0f :
+		SplashScreenOverlayFadeTime > FadeInEndTime ? 1.0f - (SplashScreenOverlayFadeTime - FadeInEndTime) / (FadeInStartTime - FadeInEndTime) :
+		SplashScreenOverlayFadeTime > FadeOutStartTime ? 1.0f :
+		SplashScreenOverlayFadeTime > FadeOutEndTime ? (SplashScreenOverlayFadeTime - FadeOutEndTime) / (FadeOutStartTime - FadeOutEndTime) : 0.0f;
+
+	return Opacity;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+EVisibility SStartPageWindow::SplashScreenOverlay_Visibility() const
+{
+	return SplashScreenOverlayFadeTime > 0.0f ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor SStartPageWindow::SplashScreenOverlay_ColorAndOpacity() const
+{
+	return FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, SplashScreenOverlayOpacity()));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor SStartPageWindow::SplashScreenOverlay_TextColorAndOpacity() const
+{
+	return FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f, SplashScreenOverlayOpacity()));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SStartPageWindow::GetSplashScreenOverlayText() const
+{
+	return FText::Format(LOCTEXT("StartAnalysis", "Starting analysis...\n{0}"), FText::FromString(SplashScreenOverlayTraceFile));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply SStartPageWindow::RefreshTraceSessions_OnClicked()
 {
 	RefreshTraceSessionList();
@@ -901,6 +1085,9 @@ void SStartPageWindow::RefreshTraceSessionList()
 
 	bool bSessionChanged = false;
 
+	FString AutoStartPlatformFilterStr = AutoStartPlatformFilter->GetText().ToString();
+	FString AutoStartAppNameFilterStr = AutoStartAppNameFilter->GetText().ToString();
+
 	// Count number of live sessions and update file sizes.
 	int32 OldLiveSessionCount = LiveSessionCount;
 	LiveSessionCount = 0;
@@ -911,6 +1098,19 @@ void SStartPageWindow::RefreshTraceSessionList()
 		if (SessionInfo.bIsLive)
 		{
 			++LiveSessionCount;
+
+			// Auto start.
+			if (bAutoStartAnalysisForLiveSessions && !AutoStartedSessions.Contains(SessionHandle))
+			{
+				if ((AutoStartPlatformFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartPlatformFilterStr, SessionInfo.Platform) == 0) &&
+					(AutoStartAppNameFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartAppNameFilterStr, SessionInfo.AppName) == 0) &&
+					(AutoStartConfigurationTypeFilter == EBuildConfiguration::Unknown || AutoStartConfigurationTypeFilter == SessionInfo.ConfigurationType) &&
+					(AutoStartTargetTypeFilter == EBuildTargetType::Unknown || AutoStartTargetTypeFilter == SessionInfo.TargetType))
+				{
+					AutoStartedSessions.Add(SessionHandle);
+					LoadTraceFile(SessionInfo.Uri);
+				}
+			}
 		}
 
 		TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(SessionHandle);
@@ -982,10 +1182,7 @@ void SStartPageWindow::TraceSessions_OnSelectionChanged(TSharedPtr<FTraceSession
 
 void SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession)
 {
-	if (TraceSession.IsValid())
-	{
-		FInsightsManager::Get()->LoadSession(TraceSession->SessionHandle);
-	}
+	LoadTraceSession(TraceSession);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -993,6 +1190,20 @@ void SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceS
 EVisibility SStartPageWindow::TraceSessions_Visibility() const
 {
 	return (TraceSessions.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState SStartPageWindow::AutoStart_IsChecked() const
+{
+	return bAutoStartAnalysisForLiveSessions ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::AutoStart_OnCheckStateChanged(ECheckBoxState NewState)
+{
+	bAutoStartAnalysisForLiveSessions = (NewState == ECheckBoxState::Checked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1008,6 +1219,8 @@ void SStartPageWindow::Tick(const FGeometry& AllottedGeometry, const double InCu
 		NextTimestamp = Time + WaitTime;
 		RefreshTraceSessionList();
 	}
+
+	TickSplashScreenOverlay(InDeltaTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1111,7 +1324,7 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
 				if (DraggedFileExtension == TEXT(".utrace"))
 				{
-					FInsightsManager::Get()->LoadTraceFile(Files[0]);
+					LoadTraceFile(Files[0]);
 					return FReply::Handled();
 				}
 			}
@@ -1132,11 +1345,7 @@ bool SStartPageWindow::Open_IsEnabled() const
 
 FReply SStartPageWindow::Open_OnClicked()
 {
-	if (SelectedTraceSession.IsValid())
-	{
-		Trace::FSessionHandle SessionHandle = SelectedTraceSession->SessionHandle;
-		FInsightsManager::Get()->LoadSession(SessionHandle);
-	}
+	LoadTraceSession(SelectedTraceSession);
 	return FReply::Handled();
 }
 
@@ -1171,23 +1380,76 @@ void SStartPageWindow::OpenFileDialog()
 	{
 		if (OutFiles.Num() == 1)
 		{
-			FInsightsManager::Get()->LoadTraceFile(OutFiles[0]);
+			LoadTraceFile(OutFiles[0]);
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::LoadTraceFile(const TCHAR* TraceFile)
+void SStartPageWindow::LoadTraceSession(TSharedPtr<FTraceSession> InTraceSession)
 {
-	FInsightsManager::Get()->LoadTraceFile(FString(TraceFile));
+	if (InTraceSession.IsValid())
+	{
+		if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
+		{
+			LoadTraceFile(InTraceSession->Uri.ToString());
+		}
+		else
+		{
+			LoadSession(InTraceSession->SessionHandle);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
+{
+	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
+	{
+		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
+
+		FString CmdLine = TEXT("-Trace=\"") + InTraceFile + TEXT("\"");
+
+		constexpr bool bLaunchDetached = false;
+		constexpr bool bLaunchHidden = false;
+		constexpr bool bLaunchReallyHidden = false;
+
+		uint32 ProcessID = 0;
+		const int32 PriorityModifier = 0;
+		const TCHAR* OptionalWorkingDirectory = nullptr;
+
+		void* PipeWriteChild = nullptr;
+		void* PipeReadChild = nullptr;
+
+		FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
+		FPlatformProcess::CloseProc(Handle);
+
+		SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(InTraceFile);
+		ShowSplashScreenOverlay();
+	}
+	else
+	{
+		FInsightsManager::Get()->LoadTraceFile(InTraceFile);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStartPageWindow::LoadSession(Trace::FSessionHandle SessionHandle)
 {
-	FInsightsManager::Get()->LoadSession(SessionHandle);
+	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
+	{
+		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+		Trace::FSessionInfo SessionInfo;
+		SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+		LoadTraceFile(SessionInfo.Uri);
+	}
+	else
+	{
+		FInsightsManager::Get()->LoadSession(SessionHandle);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

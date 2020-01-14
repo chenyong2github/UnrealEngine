@@ -3,6 +3,7 @@
 #include "UserInterfaceCommand.h"
 
 #include "Async/TaskGraphInterfaces.h"
+//#include "Brushes/SlateImageBrush.h"
 #include "Containers/Ticker.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
@@ -15,12 +16,14 @@
 #include "ISourceCodeAccessModule.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "StandaloneRenderer.h"
 #include "Widgets/Docking/SDockTab.h"
 
 // Insights
 #include "Insights/IUnrealInsightsModule.h"
+#include "Insights/Version.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -30,7 +33,6 @@
 
 namespace UserInterfaceCommand
 {
-	TSharedPtr<FTabManager::FLayout> ApplicationLayout;
 	TSharedRef<FWorkspaceItem> DeveloperTools = FWorkspaceItem::NewGroup(NSLOCTEXT("UnrealInsights", "DeveloperToolsMenu", "Developer Tools"));
 }
 
@@ -38,8 +40,6 @@ namespace UserInterfaceCommand
 
 void FUserInterfaceCommand::Run()
 {
-	FString UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
-
 	FCoreStyle::ResetToDefault();
 
 	// Load required modules.
@@ -53,7 +53,7 @@ void FUserInterfaceCommand::Run()
 	// Load optional modules.
 	FModuleManager::Get().LoadModule("SettingsEditor");
 
-	InitializeSlateApplication(UnrealInsightsLayoutIni);
+	InitializeSlateApplication();
 
 	// Initialize source code access.
 	// Load the source code access module.
@@ -103,23 +103,27 @@ void FUserInterfaceCommand::Run()
 
 	//im: ??? FCoreDelegates::OnExit.Broadcast();
 
-	ShutdownSlateApplication(UnrealInsightsLayoutIni);
+	ShutdownSlateApplication();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FUserInterfaceCommand::InitializeSlateApplication(const FString& LayoutIni)
+void FUserInterfaceCommand::InitializeSlateApplication()
 {
 	//TODO: FSlateApplication::InitHighDPI(true);
 
 	// Crank up a normal Slate application using the platform's standalone renderer.
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
+	//const FSlateBrush* AppIcon = new FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate/Icons/Insights/AppIcon_24x.png", FVector2D(24.0f, 24.0f));
+	//FSlateApplication::Get().SetAppIcon(AppIcon);
+
 	// Menu anims aren't supported. See Runtime\Slate\Private\Framework\Application\MenuStack.cpp.
 	FSlateApplication::Get().EnableMenuAnimations(false);
 
 	// Set the application name.
-	FGlobalTabmanager::Get()->SetApplicationTitle(NSLOCTEXT("UnrealInsights", "AppTitle", "Unreal Insights"));
+	const FText ApplicationTitle = FText::Format(NSLOCTEXT("UnrealInsights", "AppTitle", "Unreal Insights {0}"), FText::FromString(TEXT(UNREAL_INSIGHTS_VERSION_STRING_EX)));
+	FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);
 
 	// Load widget reflector.
 	const bool bAllowDebugTools = FParse::Param(FCommandLine::Get(), TEXT("DebugTools"));
@@ -128,40 +132,33 @@ void FUserInterfaceCommand::InitializeSlateApplication(const FString& LayoutIni)
 		FModuleManager::LoadModuleChecked<ISlateReflectorModule>("SlateReflector").RegisterTabSpawner(UserInterfaceCommand::DeveloperTools);
 	}
 
-	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
-
-	// Allow TraceInsights module to update the layout.
 	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	TraceInsightsModule.OnNewLayout(NewLayout);
 
-	// Create area and tab for Slate's WidgetReflector.
-	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
-	NewLayout->AddArea
-	(
-		FTabManager::NewArea(600.0f * DPIScaleFactor, 600.0f * DPIScaleFactor)
-			->SetWindow(FVector2D(10.0f * DPIScaleFactor, 10.0f * DPIScaleFactor), false)
-			->Split
-			(
-				FTabManager::NewStack()->AddTab("WidgetReflector", bAllowDebugTools ? ETabState::OpenedTab : ETabState::ClosedTab)
-			)
-	);
+	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
+	TCHAR* TraceFile = new TCHAR[MaxPath + 1];
+	TraceFile[0] = 0;
+	bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-Trace="), TraceFile, MaxPath, true);
 
-	// Restore application layout.
-	UserInterfaceCommand::ApplicationLayout = FLayoutSaveRestore::LoadFromConfig(LayoutIni, NewLayout);
-	FGlobalTabmanager::Get()->RestoreFrom(UserInterfaceCommand::ApplicationLayout.ToSharedRef(), TSharedPtr<SWindow>());
+	if (bUseTraceFile)
+	{
+		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+		TraceInsightsModule.StartAnalysisForTraceFile(TraceFile);
+	}
+	else
+	{
+		const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
+		TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
+	}
 
-	TraceInsightsModule.OnLayoutRestored(FGlobalTabmanager::Get());
+	delete[] TraceFile;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FUserInterfaceCommand::ShutdownSlateApplication(const FString& LayoutIni)
+void FUserInterfaceCommand::ShutdownSlateApplication()
 {
-	check(UserInterfaceCommand::ApplicationLayout.IsValid());
-
-	// Save application layout.
-	FLayoutSaveRestore::SaveToConfig(LayoutIni, UserInterfaceCommand::ApplicationLayout.ToSharedRef());
-	GConfig->Flush(false, LayoutIni);
+	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	TraceInsightsModule.ShutdownUserInterface();
 
 	// Shut down application.
 	FSlateApplication::Shutdown();

@@ -92,6 +92,7 @@ public:
 
 private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
+	TSharedRef<SWidget> ConstructAutoStartPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
 	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
 	TSharedRef<SWidget> ConstructRecorderPanel();
@@ -99,6 +100,15 @@ private:
 
 	/** Generate a new row for the TraceSessions list view. */
 	TSharedRef<ITableRow> TraceSessions_OnGenerateRow(TSharedPtr<FTraceSession> InConnection, const TSharedRef<STableViewBase>& OwnerTable);
+
+	void ShowSplashScreenOverlay();
+	void TickSplashScreenOverlay(const float InDeltaTime);
+	float SplashScreenOverlayOpacity() const;
+
+	EVisibility SplashScreenOverlay_Visibility() const;
+	FSlateColor SplashScreenOverlay_ColorAndOpacity() const;
+	FSlateColor SplashScreenOverlay_TextColorAndOpacity() const;
+	FText GetSplashScreenOverlayText() const;
 
 	/** Callback for determining the visibility of the 'Please select a trace' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
@@ -109,8 +119,10 @@ private:
 	FReply Open_OnClicked();
 
 	void OpenFileDialog();
-	void LoadTraceFile(const TCHAR* TraceFile);
-	void LoadSession(Trace::FSessionHandle SessionHandle);
+
+	void LoadTraceSession(TSharedPtr<FTraceSession> InTraceSession);
+	void LoadTraceFile(const FString& InTraceFile);
+	void LoadSession(Trace::FSessionHandle InSessionHandle);
 
 	TSharedRef<SWidget> MakeSessionListMenu();
 
@@ -119,6 +131,9 @@ private:
 	void TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession);
 	EVisibility TraceSessions_Visibility() const;
 	FReply RefreshTraceSessions_OnClicked();
+
+	ECheckBoxState AutoStart_IsChecked() const;
+	void AutoStart_OnCheckStateChanged(ECheckBoxState NewState);
 
 	FText GetLocalSessionDirectory() const;
 	FReply ExploreLocalSessionDirectory_OnClicked();
@@ -215,12 +230,20 @@ private:
 	int32 AvailableSessionCount;
 	int32 LiveSessionCount;
 
+	bool bAutoStartAnalysisForLiveSessions;
+	TArray<Trace::FSessionHandle> AutoStartedSessions; // tracks sessions that were auto started (in order to not start them again)
+
+	TSharedPtr<SSearchBox> AutoStartPlatformFilter;
+	TSharedPtr<SSearchBox> AutoStartAppNameFilter;
+	EBuildConfiguration AutoStartConfigurationTypeFilter;
+	EBuildTargetType AutoStartTargetTypeFilter;
+
 	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
 	TArray<TSharedPtr<FTraceSession>> TraceSessions;
 	TMap<Trace::FSessionHandle, TSharedPtr<FTraceSession>> TraceSessionsMap;
 	TSharedPtr<SEditableTextBox> HostTextBox;
 	TSharedPtr<FTraceSession> SelectedTraceSession;
 
-	//TArray<Trace::FModuleInfo> AvailableModules;
-	//TArray<bool> AvailableModulesEnabledState;
+	FString SplashScreenOverlayTraceFile;
+	float SplashScreenOverlayFadeTime;
 };

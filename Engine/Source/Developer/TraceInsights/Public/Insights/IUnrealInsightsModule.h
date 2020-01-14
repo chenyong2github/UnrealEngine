@@ -11,16 +11,31 @@ class IUnrealInsightsModule : public IModuleInterface
 {
 public:
 	/**
-	 * Called when application starts and a new layout is created. It allows the module to create its own areas.
-	 *
-	 * @param NewLayout The newly created layout.
+	 * Called when the application starts in "Browser" mode.
 	 */
-	virtual void OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayout) = 0;
+	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
 
 	/**
-	 * Called after application layout was restored.
-	 *
-	 * @param TabManager The tab manager used by Unreal Insights tools.
+	 * Called when the application starts in "Viewer" mode.
 	 */
-	virtual void OnLayoutRestored(TSharedPtr<FTabManager> TabManager) = 0;
+	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
+
+	/**
+	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
+	 *
+	 * @param InTraceFile The file path to the *.utrace file to analyze.
+	 */
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
+
+	/**
+	 * Starts analysis of the specified session. Called when the application starts in "Viewer" mode.
+	 *
+	 * @param InSessionId The id of the session to analyze. If nullptr, the app will wait for a live session.
+	 */
+	virtual void StartAnalysisForSession(const TCHAR* InSessionId) = 0;
+
+	/**
+	 * Called when the application shutsdown.
+	 */
+	virtual void ShutdownUserInterface() = 0;
 };

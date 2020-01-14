@@ -19,6 +19,7 @@
 #define LOCTEXT_NAMESPACE "InsightsManager"
 
 const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
+const FName FInsightsManagerTabs::SessionInfoTabId(TEXT("SessionInfo"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
 const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
@@ -38,6 +39,11 @@ FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAn
 	, Settings()
 	, bIsDebugInfoEnabled(false)
 	, bIsNetworkingProfilerAvailable(false)
+#if WITH_EDITOR
+	, bShouldOpenAnalysisInSeparateProcess(false)
+#else
+	, bShouldOpenAnalysisInSeparateProcess(true)
+#endif
 {
 }
 
@@ -195,6 +201,12 @@ void FInsightsManager::OnSessionChanged()
 
 void FInsightsManager::SpawnAndActivateTabs()
 {
+	// Open Session Info tab.
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::SessionInfoTabId))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::SessionInfoTabId);
+	}
+
 	// Open Timing Insights tab.
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::TimingProfilerTabId))
 	{
