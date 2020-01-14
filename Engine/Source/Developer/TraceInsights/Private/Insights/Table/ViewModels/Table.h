@@ -6,6 +6,7 @@
 
 namespace Trace
 {
+	class ITableLayout;
 	class IUntypedTable;
 	class IUntypedTableReader;
 }
@@ -79,14 +80,13 @@ public:
 	TSharedPtr<Trace::IUntypedTable> GetSourceTable() const { return SourceTable; }
 	TSharedPtr<Trace::IUntypedTableReader> GetTableReader() const { return TableReader; }
 
-	/* Init this table to use the IUntypedTable source table. It will create new Columns array based on table layout. */
-	void Init(TSharedPtr<Trace::IUntypedTable> InSourceTable);
-	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable);
+	/* Update table content. Returns true if the table layout has changed. */
+	bool UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable);
 
 private:
 	void AddColumn(TSharedRef<FTableColumn> Column);
 	void CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName);
-	void CreateColumnsFromTableLayout();
+	void CreateColumns(const Trace::ITableLayout& TableLayout);
 
 private:
 	FName Name;
