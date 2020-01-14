@@ -131,9 +131,9 @@ int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWi
 
 void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
-	if (Proxy.Widget->PersistentState.CachedElementListNode)
+	if (Proxy.Widget->PersistentState.CachedElementHandle.IsValid())
 	{
-		CachedElementData->RemoveCache(Proxy.Widget->PersistentState.CachedElementListNode);
+		Proxy.Widget->PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 
 	if (Proxy.Index == 0)
@@ -265,13 +265,8 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 		FastWidgetPathList[ProxyIndex].Widget = nullptr;
 	
 	}
-
-	if (Widget->PersistentState.CachedElementListNode)
-	{
-		CachedElementData->RemoveCache(Widget->PersistentState.CachedElementListNode);
-	}
-
-	Widget->PersistentState.CachedElementListNode = nullptr;
+		
+	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
@@ -636,7 +631,7 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 	{
 		if (Proxy.Widget)
 		{
-			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
+			Proxy.Widget->PersistentState.CachedElementHandle = FSlateCachedElementsHandle::Invalid;
 			if (bClearResourcesImmediately)
 			{
 				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
