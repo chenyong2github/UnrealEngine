@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class Hotfix : ModuleRules
@@ -19,5 +20,12 @@ public class Hotfix : ModuleRules
 				"OnlineTracing"
 			}
 			);
-    }
+
+		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Plugins", "Online", "NotForLicensees", "OnlineTracing"));
+		if (bHasOnlineTracing)
+		{
+			PublicDefinitions.Add("WITH_ONLINETRACING=1");
+			PrivateDependencyModuleNames.Add("OnlineTracing");
+		}
+	}
 }
