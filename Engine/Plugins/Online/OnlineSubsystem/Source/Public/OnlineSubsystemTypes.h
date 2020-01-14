@@ -1043,6 +1043,11 @@ public:
 		return Start >= 0 && Count >= 0;
 	}
 
+	bool operator==(const FPagedQuery& Other) const
+	{
+		return Other.Start == Start && Other.Count == Count;
+	}
+
 	/** first entry to fetch */
 	int32 Start;
 	/** total entries to fetch. -1 means ALL */
