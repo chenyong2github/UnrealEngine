@@ -1449,7 +1449,12 @@ namespace Gauntlet
 	{
 		public static bool MatchAndApplyGroups(string InContent, string RegEx, Action<string[]> InFunc)
 		{
-			Match M = Regex.Match(InContent, RegEx, RegexOptions.IgnoreCase);
+			return MatchAndApplyGroups(InContent, RegEx, RegexOptions.IgnoreCase, InFunc);
+		}
+
+		public static bool MatchAndApplyGroups(string InContent, string RegEx, RegexOptions Options, Action<string[]> InFunc)
+		{
+			Match M = Regex.Match(InContent, RegEx, Options);
 
 			IEnumerable<string> StringMatches = null;
 
@@ -1462,4 +1467,24 @@ namespace Gauntlet
 			return M.Success;
 		}
 	}
+
+	public static class DirectoryUtils
+	{
+		/// <summary>
+		/// Enumerate files from a given directory that pass the specified regex
+		/// </summary>
+		/// <param name="BaseDir">Base directory to search in</param>
+		/// <param name="Pattern">Pattern for matching files</param>
+		/// <param name="Option">Options for the search</param>
+		/// <returns>Sequence of file references</returns>
+		public static IEnumerable<string> FindFiles(string BaseDir, Regex Pattern)
+		{
+			IEnumerable<string> Files = System.IO.Directory.EnumerateFiles(BaseDir, "*");
+
+			Files = Files.Where(F => Pattern.IsMatch(F));
+
+			return Files.ToArray();
+		}
+	}
+
 }
