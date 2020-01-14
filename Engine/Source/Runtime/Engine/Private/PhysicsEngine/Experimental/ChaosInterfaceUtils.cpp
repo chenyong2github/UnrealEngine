@@ -262,7 +262,16 @@ namespace ChaosInterface
 				//}
 				//else
 				{
-					auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FConvex>>(MakeSerializable(ConvexImplicit), Scale);
+					TUniquePtr<Chaos::FImplicitObject> Implicit;
+					if(Scale == FVector(1))
+					{
+						Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit));
+					}
+					else
+					{
+						Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FConvex>(ConvexImplicit,Scale));
+					}
+
 					auto NewShape = NewShapeHelper(MakeSerializable(Implicit), (void*)CollisionBody.GetUserData());
 					Shapes.Emplace(MoveTemp(NewShape));
 					Geoms.Add(MoveTemp(Implicit));
@@ -272,7 +281,15 @@ namespace ChaosInterface
 
 		for (const auto& ChaosTriMesh : InParams.ChaosTriMeshes)
 		{
-			auto Implicit = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>>(ChaosTriMesh, Scale);
+			TUniquePtr<Chaos::FImplicitObject> Implicit;
+			if(Scale == FVector(1))
+			{
+				Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FTriangleMeshImplicitObject>(ChaosTriMesh));
+			} else
+			{
+				Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>(ChaosTriMesh,Scale));
+			}
+			
 			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), nullptr, true);
 			Shapes.Emplace(MoveTemp(NewShape));
 			Geoms.Add(MoveTemp(Implicit));

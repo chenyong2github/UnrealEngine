@@ -33,6 +33,22 @@ namespace Chaos
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>(), TM);
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>(), TM);
 		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>(), TM);
+		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Sphere:
+		{
+			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TSphere<FReal,3>>>().GetInstancedObject()->template GetObjectChecked<TSphere<FReal,3>>(),TM);
+		}
+		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Box:
+		{
+			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TBox<FReal,3>>>().GetInstancedObject()->template GetObjectChecked<TBox<FReal,3>>(),TM);
+		}
+		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule:
+		{
+			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>().GetInstancedObject()->template GetObjectChecked<TCapsule<FReal>>(),TM);
+		}
+		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex:
+		{
+			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FConvex>>().GetInstancedObject()->template GetObjectChecked<FConvex>(),TM);
+		}
 		case ImplicitObjectType::Transformed:
 		{
 			const auto& ImplicitObjectTransformed = (Geom.template GetObjectChecked<TImplicitObjectTransformed<FReal,3>>());
@@ -106,6 +122,11 @@ namespace Chaos
 				{
 					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
 					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness);
+				}
+				else if(IsInstanced(AType))
+				{
+					const auto& AInstanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
+					return AInstanced.LowLevelOverlapGeom(B,BToATM,Thickness);
 				}
 				else
 				{
@@ -210,6 +231,12 @@ namespace Chaos
 				{
 					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
 					bResult = AScaled.LowLevelSweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
+					break;
+				}
+				else if(IsInstanced(AType))
+				{
+					const auto& Instanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
+					bResult = Instanced.LowLevelSweepGeom(B,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,OutFaceIndex,Thickness,bComputeMTD);
 					break;
 				}
 				else
