@@ -50,6 +50,11 @@ public:
 
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
+
+	UNiagaraRendererProperties* StaticDuplicateWithNewMergeId(UObject* InOuter) const
+	{
+		return CastChecked<UNiagaraRendererProperties>(Super::StaticDuplicateWithNewMergeIdInternal(InOuter));
+	}
 #endif // WITH_EDITORONLY_DATA
 
 

@@ -46,4 +46,11 @@ FGuid UNiagaraMergeable::GetMergeId()
 {
 	return MergeId;
 }
+
+UNiagaraMergeable* UNiagaraMergeable::StaticDuplicateWithNewMergeIdInternal(UObject* InOuter) const
+{
+	UNiagaraMergeable* Duplicate = CastChecked<UNiagaraMergeable>(StaticDuplicateObject(this, InOuter));
+	Duplicate->MergeId = FGuid::NewGuid();
+	return Duplicate;
+}
 #endif
