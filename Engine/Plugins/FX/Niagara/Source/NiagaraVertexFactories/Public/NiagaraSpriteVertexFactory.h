@@ -64,7 +64,23 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, NIAGARAVER
 	SHADER_PARAMETER(uint32, SortedIndicesOffset)
 	SHADER_PARAMETER(uint32, IndirectArgsOffset)
 	SHADER_PARAMETER_SRV(Buffer<float2>, CutoutGeometry)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataPosition)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataVelocity)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataColor)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataRotation)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSize)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFacing)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataAlignment)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSubImage)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCameraOffset)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataUVScale)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataNormalizedAge)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialRandom)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCustomSorting)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam0)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam1)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam2)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam3)
 	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -161,7 +177,7 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
+	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
 	}
@@ -176,7 +192,7 @@ public:
 		return FloatDataStride;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
 	{
 		return SortedIndicesSRV;
 	}

@@ -463,12 +463,30 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	FNiagaraSpriteVFLooseParameters VFLooseParams;
 	VFLooseParams.NumCutoutVerticesPerFrame = CollectorResources.VertexFactory.GetNumCutoutVerticesPerFrame();
 	VFLooseParams.CutoutGeometry = CollectorResources.VertexFactory.GetCutoutGeometrySRV() ? CollectorResources.VertexFactory.GetCutoutGeometrySRV() : GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV.GetReference();
-	VFLooseParams.NiagaraParticleDataFloat = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	
+	VFLooseParams.NiagaraParticleDataPosition = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataVelocity = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataColor = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataRotation = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataSize = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataFacing = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataAlignment = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataSubImage = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataCameraOffset = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataUVScale = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataNormalizedAge = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataMaterialRandom = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataCustomSorting = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataMaterialParam0 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataMaterialParam1 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataMaterialParam2 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+	VFLooseParams.NiagaraParticleDataMaterialParam3 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
+
 	VFLooseParams.NiagaraFloatDataOffset = CollectorResources.VertexFactory.GetFloatDataOffset();
 	VFLooseParams.NiagaraFloatDataStride = CollectorResources.VertexFactory.GetFloatDataStride();
 	VFLooseParams.ParticleAlignmentMode = CollectorResources.VertexFactory.GetAlignmentMode();
 	VFLooseParams.ParticleFacingMode = CollectorResources.VertexFactory.GetFacingMode();
-	VFLooseParams.SortedIndices = CollectorResources.VertexFactory.GetSortedIndicesSRV() ? CollectorResources.VertexFactory.GetSortedIndicesSRV().GetReference() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
+	VFLooseParams.SortedIndices = CollectorResources.VertexFactory.GetSortedIndicesSRV() ? CollectorResources.VertexFactory.GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
 	VFLooseParams.SortedIndicesOffset = CollectorResources.VertexFactory.GetSortedIndicesOffset();
 	if (IndirectArgsOffset != INDEX_NONE)
 	{

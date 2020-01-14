@@ -35,6 +35,26 @@
 /** Blends between FaceCamera and FaceCameraPosition.*/
 #define FACING_MODE_FACECAMERADISTANCEBLEND 4
 
+#if NIAGARA_LOOSEPARAM_BINDING
+	Buffer<float> NiagaraParticleDataPosition;
+	Buffer<float> NiagaraParticleDataVelocity;
+	Buffer<float> NiagaraParticleDataColor;
+	Buffer<float> NiagaraParticleDataRotation;
+	Buffer<float> NiagaraParticleDataSize;
+	Buffer<float> NiagaraParticleDataFacing;
+	Buffer<float> NiagaraParticleDataAlignment;
+	Buffer<float> NiagaraParticleDataSubImage;
+	Buffer<float> NiagaraParticleDataCameraOffset;
+	Buffer<float> NiagaraParticleDataUVScale;
+	Buffer<float> NiagaraParticleDataNormalizedAge;
+	Buffer<float> NiagaraParticleDataMaterialRandom;
+	Buffer<float> NiagaraParticleDataCustomSorting;
+	Buffer<float> NiagaraParticleDataMaterialParam0;
+	Buffer<float> NiagaraParticleDataMaterialParam1;
+	Buffer<float> NiagaraParticleDataMaterialParam2;
+	Buffer<float> NiagaraParticleDataMaterialParam3;
+#endif
+
 struct FVertexFactoryInput
 {
 	float2	TexCoord				: ATTRIBUTE0;
@@ -641,7 +661,7 @@ float3 GetNiagaraParticlePosition(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return TransformPosition(NiagaraSpriteVF.DefaultPos.xyz);
 	}
-	return TransformPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
+	return TransformPosition(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraSpriteVF.PositionDataOffset, InstanceID));
 }
 float3 GetNiagaraParticlePrevPosition(uint InstanceID)
 {
@@ -650,7 +670,7 @@ float3 GetNiagaraParticlePrevPosition(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return TransformPrevPosition(NiagaraSpriteVF.DefaultPos.xyz);
 	}
-	return TransformPrevPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
+	return TransformPrevPosition(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraSpriteVF.PositionDataOffset, InstanceID));
 }
 float3 GetNiagaraParticleVelocity(uint InstanceID)
 {
@@ -659,7 +679,7 @@ float3 GetNiagaraParticleVelocity(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return TransformVector(float3(0.0f,0.0f,0.0f));
 	}
-	return TransformVector(GetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID));
+	return TransformVector(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataVelocity), NiagaraSpriteVF.VelocityDataOffset, InstanceID));
 }
 float2 GetNiagaraParticleSize(uint InstanceID)
 {
@@ -668,7 +688,7 @@ float2 GetNiagaraParticleSize(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return float2(50.0f, 50.0f);
 	}
-	return GetVec2(NiagaraSpriteVF.SizeDataOffset, InstanceID);
+	return GetVec2(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataSize), NiagaraSpriteVF.SizeDataOffset, InstanceID);
 }
 float GetNiagaraParticleRotation(uint InstanceID)
 {
@@ -677,7 +697,7 @@ float GetNiagaraParticleRotation(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return 0.0f;
 	}
-	return (GetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID) / 180.0f) * PI;
+	return (GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataRotation), NiagaraSpriteVF.RotationDataOffset, InstanceID) / 180.0f) * PI;
 }
 float4 GetNiagaraParticleColor(uint InstanceID)
 {
@@ -686,7 +706,7 @@ float4 GetNiagaraParticleColor(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return float4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
-	return GetVec4(NiagaraSpriteVF.ColorDataOffset, InstanceID);
+	return GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataColor), NiagaraSpriteVF.ColorDataOffset, InstanceID);
 }
 
 float2 GetNiagaraUVScale(uint InstanceID)
@@ -696,7 +716,7 @@ float2 GetNiagaraUVScale(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return float2(1.0f, 1.0f);
 	}
-	return GetVec2(NiagaraSpriteVF.UVScaleDataOffset, InstanceID);	
+	return GetVec2(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataUVScale), NiagaraSpriteVF.UVScaleDataOffset, InstanceID);	
 }
 
 float GetNiagaraParticleRandom(uint InstanceID)
@@ -706,7 +726,7 @@ float GetNiagaraParticleRandom(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return 0.0f;
 	}
-	return GetFloat(NiagaraSpriteVF.MaterialRandomDataOffset, InstanceID);	
+	return GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialRandom), NiagaraSpriteVF.MaterialRandomDataOffset, InstanceID);	
 }
 
 float GetNiagaraCameraOffset(uint InstanceID)
@@ -716,7 +736,7 @@ float GetNiagaraCameraOffset(uint InstanceID)
 		// See FNiagaraConstants for a synchronized value...
 		return 0.0f;
 	}
-	return GetFloat(NiagaraSpriteVF.CameraOffsetDataOffset, InstanceID);
+	return GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataCameraOffset), NiagaraSpriteVF.CameraOffsetDataOffset, InstanceID);
 }
 
 #if USE_PARTICLE_TIME
@@ -726,7 +746,7 @@ float GetNiagaraNormalizedAge(uint InstanceID)
 	{
 		return 0;
 	}
-	return GetFloat(NiagaraSpriteVF.NormalizedAgeDataOffset, InstanceID);
+	return GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataNormalizedAge), NiagaraSpriteVF.NormalizedAgeDataOffset, InstanceID);
 }
 #endif
 
@@ -735,7 +755,7 @@ float4 GetNiagaraParticleDynamicParameters(uint InstanceID)
 {
 	if (NiagaraSpriteVF.MaterialParamDataOffset != -1)
 	{
-		return GetVec4(NiagaraSpriteVF.MaterialParamDataOffset, InstanceID);
+		return GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam0), NiagaraSpriteVF.MaterialParamDataOffset, InstanceID);
 	}
 	else
 	{
@@ -748,7 +768,7 @@ float4 GetNiagaraParticleDynamicParameters1(uint InstanceID)
 {
 	if (NiagaraSpriteVF.MaterialParam1DataOffset != -1)
 	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam1DataOffset, InstanceID);
+		return GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam1), NiagaraSpriteVF.MaterialParam1DataOffset, InstanceID);
 	}
 	else
 	{
@@ -761,7 +781,7 @@ float4 GetNiagaraParticleDynamicParameters2(uint InstanceID)
 {
 	if (NiagaraSpriteVF.MaterialParam2DataOffset != -1)
 	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam2DataOffset, InstanceID);
+		return GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam2), NiagaraSpriteVF.MaterialParam2DataOffset, InstanceID);
 	}
 	else
 	{
@@ -774,7 +794,7 @@ float4 GetNiagaraParticleDynamicParameters3(uint InstanceID)
 {
 	if (NiagaraSpriteVF.MaterialParam3DataOffset != -1)
 	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam3DataOffset, InstanceID);
+		return GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam3), NiagaraSpriteVF.MaterialParam3DataOffset, InstanceID);
 	}
 	else
 	{
@@ -790,7 +810,7 @@ float GetNiagaraParticleSubimage(uint InstanceID)
 	float Val = 0.0f;
     if(NiagaraSpriteVF.SubimageDataOffset != -1)
 	{
-		Val = GetFloat(NiagaraSpriteVF.SubimageDataOffset, InstanceID);
+		Val = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataSubImage), NiagaraSpriteVF.SubimageDataOffset, InstanceID);
 	}
 	return Val;
 }
@@ -801,7 +821,7 @@ float3 GetNiagaraParticleFacingVector(uint InstanceID)
 	float3 Val = float3(1.0f, 0.0f, 0.0f);
     if(NiagaraSpriteVF.FacingDataOffset != -1)
 	{
-		Val = GetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID);
+		Val = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFacing), NiagaraSpriteVF.FacingDataOffset, InstanceID);
 	}
 	return TransformVector(Val);
 }
@@ -811,7 +831,7 @@ float3 GetNiagaraParticleAlignmentVector(uint InstanceID)
 	float3 Val = float3(1.0f, 0.0f, 0.0f);
     if(NiagaraSpriteVF.AlignmentDataOffset != -1)
 	{
-		Val = GetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID);
+		Val = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataAlignment), NiagaraSpriteVF.AlignmentDataOffset, InstanceID);
 	}
 	return TransformVector(Val);
 }
