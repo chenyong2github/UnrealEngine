@@ -9,6 +9,7 @@
 #include "ClothConfigNv.h"
 #include "ClothCollisionData.h"
 
+class FPrimitiveDrawInterface;
 class UClothingAssetBase;
 class UClothingAssetCommon;
 
