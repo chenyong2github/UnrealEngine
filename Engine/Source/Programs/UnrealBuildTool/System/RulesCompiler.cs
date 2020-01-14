@@ -256,6 +256,9 @@ namespace UnrealBuildTool
 					DirectoryItem BaseDirectory = DirectoryItem.GetItemByDirectoryReference(Directory);
 					Queue.Enqueue(() => FindAllRulesFilesRecursively(BaseDirectory, Cache, Queue));
 				}
+				Cache.ModuleRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
+				Cache.TargetRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
+				Cache.AutomationModules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
 				RootFolderToRulesFileCache[Directory] = Cache;
 			}
 
