@@ -1811,4 +1811,14 @@ inline uniform FVector VectorNegate(const uniform FVector &A)
 	return *((uniform FVector *uniform)&Result);
 }
 
+inline uniform float VectorSizeSquared(const uniform FVector4 &A)
+{
+	return VectorDot(A, A);
+}
+
+inline uniform float VectorSizeSquared(const uniform FVector &A)
+{
+	return VectorDot(A, A);
+}
+
 #endif
