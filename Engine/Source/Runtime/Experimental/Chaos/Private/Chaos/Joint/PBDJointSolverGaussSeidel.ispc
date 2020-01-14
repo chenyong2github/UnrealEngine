@@ -50,7 +50,8 @@ struct FJointSolverGaussSeidel
 static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 &Q, const uniform FVector &I)
 {
 	const uniform FMatrix33 QM = MakeQuatRotationTranslationMatrix(Q);
-	return MultiplyAB(QM, MultiplyABt(SetMatrix33(I.V[0], I.V[1], I.V[2]), QM));
+	const uniform FMatrix33 L = SetMatrix33(I.V[0], I.V[1], I.V[2]);
+	return MultiplyAB(QM, MultiplyABt(L, QM));
 }
 
 static inline uniform FMatrix33 ComputeJointFactorMatrix(const uniform FVector& V, const uniform FMatrix33& M, const uniform float Im)
@@ -228,8 +229,34 @@ export void ApplyRotationConstraintSoft(
 	const uniform FVector IA1 = Multiply(InvI1, Axis1);
 
 	// Joint-space inverse mass
-	const uniform float II0 = VectorDot(Axis0, IA0);
-	const uniform float II1 = VectorDot(Axis1, IA1);
+	uniform float II0 = VectorDot(Axis0, IA0);
+	uniform float II1 = VectorDot(Axis1, IA1);
+
+	// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
+	// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
+	if (M->AngularPositionCorrection > 0)
+	{
+		if (M->InvMs[0] > 0)
+		{
+			const uniform FVector LinearAxis0 = VectorCross(M->Xs[0] - M->Ps[0], Axis0);
+			const uniform float LinearAxisLen0Sq = VectorSizeSquared(LinearAxis0);
+			if (LinearAxisLen0Sq > KINDA_SMALL_NUMBER)
+			{
+				const uniform float IM0 = M->InvMs[0] / LinearAxisLen0Sq;
+				II0 = II0 * IM0 / (II0 + IM0);
+			}
+		}
+		if (M->InvMs[1] > 0)
+		{
+			const uniform FVector LinearAxis1 = VectorCross(M->Xs[1] - M->Ps[1], Axis1);
+			const uniform float LinearAxisLen1Sq = VectorSizeSquared(LinearAxis1);
+			if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
+			{
+				const uniform float IM1 = M->InvMs[1] / LinearAxisLen1Sq;
+				II1 = II1 * IM1 / (II1 + IM1);
+			}
+		}
+	}
 	const uniform float II = (II0 + II1);
 
 	// Damping angular velocity
