@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef __VECTOR_ISPH__
 #define __VECTOR_ISPH__
@@ -46,10 +46,13 @@ struct FIntVector
 #define SMALL_NUMBER (1.e-8f)
 #define KINDA_SMALL_NUMBER	(1.e-4f)
 #define SIGN_BIT (0x80000000)
+#define FLT_MAX 3.402823466e+38F
+#define FLT_MIN 1.175494351e-38F
 
 static const uniform struct FVector4 QMULTI_SIGN_MASK0 = { {1.f, -1.f, 1.f, -1.f} };
 static const uniform struct FVector4 QMULTI_SIGN_MASK1 = { {1.f, 1.f, -1.f, -1.f} };
 static const uniform struct FVector4 QMULTI_SIGN_MASK2 = { {-1.f, 1.f, 1.f, -1.f} };
+static const uniform struct FVector4 QINV_SIGN_MASK = { {-1.f, -1.f, -1.f, 1.f} };
 static const uniform struct FVector4 FloatZero = { {0.f, 0.f, 0.f, 0.f} };
 static const uniform struct FVector4 FloatOne = { {1.f, 1.f, 1.f, 1.f} };
 static const uniform struct FVector4 FloatMinusOne = { {-1.f, -1.f, -1.f, -1.f} };
@@ -71,8 +74,6 @@ static const uniform struct FVector4 FloatNeg127 = { {-127.0f, -127.0f, -127.0f,
 static const uniform struct FVector4 Float360 = { {360.f, 360.f, 360.f, 360.f} };
 static const uniform struct FVector4 Float180 = { {180.f, 180.f, 180.f, 180.f} };
 static const uniform struct FVector4 FloatNonFractional = { {8388608.f, 8388608.f, 8388608.f, 8388608.f} };
-
-static const uniform struct FVector4 SignBit = { {(unsigned int)SIGN_BIT, (unsigned int)SIGN_BIT, (unsigned int)SIGN_BIT, (unsigned int)SIGN_BIT} };
 
 static const uniform struct FVector4 DEG_TO_RAD ={ {PI/(180.f), PI/(180.f), PI/(180.f), PI/(180.f) } };
 static const uniform struct FVector4 DEG_TO_RAD_HALF = { {(PI/180.f)*0.5f, (PI/180.f)*0.5f, (PI/180.f)*0.5f, (PI/180.f)*0.5f} };
@@ -136,12 +137,8 @@ inline FVector4 operator+(const FVector4 &A, const float F)
 
 inline uniform FVector4 operator+(const uniform FVector4 &A, const uniform float F)
 {
-	varying float S0, Result;
-	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
-
-	Result = S0 + F;
-
-	return *((uniform FVector4 *uniform)&Result);
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return A + FVec;
 }
 
 inline FVector4 operator*(const FVector4 &A, const FVector4 &B)
@@ -205,12 +202,14 @@ inline FVector4 operator*(const FVector4 &A, const uniform float F)
 
 inline uniform FVector4 operator*(const uniform FVector4 &A, const uniform float F)
 {
-	varying float S0, Result;
-	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return A * FVec;
+}
 
-	Result = S0 * F;
-
-	return *((uniform FVector4 *uniform)&Result);
+inline uniform FVector4 operator*(const uniform float F, const uniform FVector4 &A)
+{
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return FVec * A;
 }
 
 inline FVector4 operator/(const FVector4 &A, const FVector4 &B)
@@ -234,6 +233,12 @@ inline uniform FVector4 operator/(const uniform FVector4 &A, const uniform FVect
 	Result = S0 / S1;
 
 	return *((uniform FVector4 *uniform)&Result);
+}
+
+inline uniform FVector4 operator/(const uniform FVector4 &A, const uniform float F)
+{
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return A / FVec;
 }
 
 inline FVector4 operator-(const FVector4 &A, const FVector4 &B)
@@ -297,12 +302,14 @@ inline FVector4 operator-(const FVector4 &A, const uniform float F)
 
 inline uniform FVector4 operator-(const uniform FVector4 &A, const uniform float F)
 {
-	varying float S0, Result;
-	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return A - FVec;
+}
 
-	Result = S0 - F;
-
-	return *((uniform FVector4 *uniform)&Result);
+inline uniform FVector4 operator-(const uniform float F, const uniform FVector4 &A)
+{
+	const uniform FVector4 FVec = {{F,F,F,F}};
+	return FVec - A;
 }
 
 inline FVector4 SetVector4(const float X, const float Y, const float Z, const float W)
@@ -314,6 +321,18 @@ inline FVector4 SetVector4(const float X, const float Y, const float Z, const fl
 inline uniform FVector4 SetVector4(const uniform float X, const uniform float Y, const uniform float Z, const uniform float W)
 {
 	const uniform FVector4 Result = {{X, Y, Z, W}};
+	return Result;
+}
+
+inline uniform FVector4 SetVector4(const uniform FVector &V, const uniform float W)
+{
+	const uniform FVector4 Result = {{V.V[0], V.V[1], V.V[2], W}};
+	return Result;
+}
+
+inline uniform FVector4 SetVector4(const uniform float F)
+{
+	const uniform FVector4 Result = {{F, F, F, F}};
 	return Result;
 }
 
@@ -330,13 +349,13 @@ inline FVector operator+(const FVector &A, const FVector &B)
 
 inline uniform FVector operator+(const uniform FVector &A, const uniform FVector &B)
 {
-	uniform FVector Result;
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
 
-	Result.V[0] = A.V[0] + B.V[0];
-	Result.V[1] = A.V[1] + B.V[1];
-	Result.V[2] = A.V[2] + B.V[2];
+	Result = S0 + S1;
 
-	return Result;
+	return *((uniform FVector *uniform)&Result);
 }
 
 inline FVector operator+(const FVector &A, const uniform FVector &B)
@@ -363,13 +382,8 @@ inline FVector operator+(const FVector &A, const float F)
 
 inline uniform FVector operator+(const uniform FVector &A, const uniform float F)
 {
-	uniform FVector Result;
-
-	Result.V[0] = A.V[0] + F;
-	Result.V[1] = A.V[1] + F;
-	Result.V[2] = A.V[2] + F;
-
-	return Result;
+	const uniform FVector FVec = {{F,F,F}};
+	return A + FVec;
 }
 
 inline FVector operator*(const FVector &A, const FVector &B)
@@ -385,13 +399,13 @@ inline FVector operator*(const FVector &A, const FVector &B)
 
 inline uniform FVector operator*(const uniform FVector &A, const uniform FVector &B)
 {
-	uniform FVector Result;
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
 
-	Result.V[0] = A.V[0] * B.V[0];
-	Result.V[1] = A.V[1] * B.V[1];
-	Result.V[2] = A.V[2] * B.V[2];
+	Result = S0 * S1;
 
-	return Result;
+	return *((uniform FVector *uniform)&Result);
 }
 
 inline FVector operator*(const FVector &A, const uniform FVector &B)
@@ -429,13 +443,14 @@ inline FVector operator*(const FVector &A, const float F)
 
 inline uniform FVector operator*(const uniform FVector &A, const uniform float F)
 {
-	uniform FVector Result;
+	const uniform FVector FVec = {{F,F,F}};
+	return A * FVec;
+}
 
-	Result.V[0] = A.V[0] * F;
-	Result.V[1] = A.V[1] * F;
-	Result.V[2] = A.V[2] * F;
-
-	return Result;
+inline uniform FVector operator*(const uniform float F, const uniform FVector &A)
+{
+	const uniform FVector FVec = {{F,F,F}};
+	return FVec * A;
 }
 
 inline FVector operator-(const FVector &A, const FVector &B)
@@ -451,13 +466,13 @@ inline FVector operator-(const FVector &A, const FVector &B)
 
 inline uniform FVector operator-(const uniform FVector &A, const uniform FVector &B)
 {
-	uniform FVector Result;
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
 
-	Result.V[0] = A.V[0] - B.V[0];
-	Result.V[1] = A.V[1] - B.V[1];
-	Result.V[2] = A.V[2] - B.V[2];
+	Result = S0 - S1;
 
-	return Result;
+	return *((uniform FVector *uniform)&Result);
 }
 
 inline FVector operator-(const FVector &A, const uniform FVector &B)
@@ -495,13 +510,14 @@ inline FVector operator-(const FVector &A, const float F)
 
 inline uniform FVector operator-(const uniform FVector &A, const uniform float F)
 {
-	uniform FVector Result;
+	const uniform FVector FVec = {{F,F,F}};
+	return A - FVec;
+}
 
-	Result.V[0] = A.V[0] - F;
-	Result.V[1] = A.V[1] - F;
-	Result.V[2] = A.V[2] - F;
-
-	return Result;
+inline uniform FVector operator-(const uniform float F, const uniform FVector &A)
+{
+	const uniform FVector FVec = {{F,F,F}};
+	return FVec - A;
 }
 
 inline FVector operator-(const float F, const FVector &A)
@@ -528,13 +544,13 @@ inline FVector operator/(const FVector &A, const FVector &B)
 
 inline uniform FVector operator/(const uniform FVector &A, const uniform FVector &B)
 {
-	uniform FVector Result;
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
 
-	Result.V[0] = A.V[0] / B.V[0];
-	Result.V[1] = A.V[1] / B.V[1];
-	Result.V[2] = A.V[2] / B.V[2];
+	Result = S0 / S1;
 
-	return Result;
+	return *((uniform FVector *uniform)&Result);
 }
 
 inline FVector operator/(const FVector &A, const uniform FVector &B)
@@ -561,13 +577,8 @@ inline FVector operator/(const FVector &A, const float F)
 
 inline uniform FVector operator/(const uniform FVector &A, const uniform float F)
 {
-	uniform FVector Result;
-
-	Result.V[0] = A.V[0] / F;
-	Result.V[1] = A.V[1] / F;
-	Result.V[2] = A.V[2] / F;
-
-	return Result;
+	const uniform FVector FVec = {{F,F,F}};
+	return A / FVec;
 }
 
 inline FVector SetVector(const float X, const float Y, const float Z)
@@ -585,17 +596,6 @@ inline uniform FVector SetVector(const uniform float X, const uniform float Y, c
 inline uniform FVector SetVector(const uniform FVector4 &Vec)
 {
 	const uniform FVector Result = {{Vec.V[0], Vec.V[1], Vec.V[2]}};
-	return Result;
-}
-
-inline uniform FVector VectorAbs(const uniform FVector& A)
-{
-	uniform FVector Result;
-
-	Result.V[0] = abs(A.V[0]);
-	Result.V[1] = abs(A.V[1]);
-	Result.V[2] = abs(A.V[2]);
-
 	return Result;
 }
 
@@ -808,70 +808,28 @@ inline FIntVector SetIntVector(const FVector &A)
 	return Result;
 }
 
-inline bool IsVectorLessEqual(const FVector &A, const uniform FVector &B)
-{
-	return A.V[0] <= B.V[0] && A.V[1] <= B.V[1] && A.V[2] <= B.V[2];
-}
-
-inline bool IsVectorGreaterEqual(const FVector &A, const uniform FVector &B)
-{
-	return A.V[0] >= B.V[0] && A.V[1] >= B.V[1] && A.V[2] >= B.V[2];
-}
-
-inline FVector VectorMax(const FVector& V1, const FVector& V2)
-{
-	FVector Result;
-
-	Result.V[0] = max(V1.V[0], V2.V[0]);
-	Result.V[1] = max(V1.V[1], V2.V[1]);
-	Result.V[2] = max(V1.V[2], V2.V[2]);
-
-	return Result;
-}
-
-inline uniform FVector VectorMax(const uniform FVector& V1, const uniform FVector& V2)
-{
-	uniform FVector Result;
-
-	Result.V[0] = max(V1.V[0], V2.V[0]);
-	Result.V[1] = max(V1.V[1], V2.V[1]);
-	Result.V[2] = max(V1.V[2], V2.V[2]);
-
-	return Result;
-}
-
-inline FVector VectorMin(const FVector& V1, const FVector& V2)
-{
-	FVector Result;
-
-	Result.V[0] = min(V1.V[0], V2.V[0]);
-	Result.V[1] = min(V1.V[1], V2.V[1]);
-	Result.V[2] = min(V1.V[2], V2.V[2]);
-
-	return Result;
-}
-
-inline uniform FVector VectorMin(const uniform FVector& V1, const uniform FVector& V2)
-{
-	uniform FVector Result;
-
-	Result.V[0] = min(V1.V[0], V2.V[0]);
-	Result.V[1] = min(V1.V[1], V2.V[1]);
-	Result.V[2] = min(V1.V[2], V2.V[2]);
-
-	return Result;
-}
-
-inline uniform bool VectorIsNearlyZero(const uniform FVector &V)
+inline uniform bool VectorIsAnyNearlyZero(const uniform FVector &V, const uniform float Tolerance)
 {
 	varying bool NearlyZero = false;
-	varying float S0;
+	varying float S0 = FLT_MAX;
 
 	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&V);
 
-	NearlyZero = abs(S0) <= KINDA_SMALL_NUMBER ? true : false;
+	NearlyZero = abs(S0) <= Tolerance ? true : false;
 
 	return any(NearlyZero);
+}
+
+inline uniform bool VectorIsAllNearlyZero(const uniform FVector &V, const uniform float Tolerance)
+{
+	varying bool NearlyZero = false;
+	varying float S0 = FLT_MIN;
+
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&V);
+
+	NearlyZero = abs(S0) <= Tolerance ? true : false;
+
+	return all(NearlyZero);
 }
 
 inline FVector VectorLerp(const FVector& A, const FVector& B, const float Alpha)
@@ -1031,9 +989,24 @@ inline uniform FVector4 VectorAbs(const uniform FVector4& A)
 	return *((uniform FVector4 *uniform)&Result);
 }
 
+inline uniform FVector VectorAbs(const uniform FVector& A)
+{
+	uniform FVector4 S0, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+
+	Result = VectorAbs(S0);
+
+	return *((uniform FVector *uniform)&Result);
+}
+
 inline bool IsVectorLessEqual(const FVector4 &A, const uniform FVector4 &B)
 {
 	return A.V[0] <= B.V[0] && A.V[1] <= B.V[1] && A.V[2] <= B.V[2] && A.V[3] <= B.V[3];
+}
+
+inline bool IsVectorLessEqual(const FVector &A, const uniform FVector &B)
+{
+	return A.V[0] <= B.V[0] && A.V[1] <= B.V[1] && A.V[2] <= B.V[2];
 }
 
 inline uniform bool IsVectorGreaterEqual(const uniform FVector4 &A, const uniform FVector4 &B)
@@ -1046,6 +1019,11 @@ inline uniform bool IsVectorGreaterEqual(const uniform FVector4 &A, const unifor
 	b = S0 >= S1 ? true : false;
 
 	return all(b);
+}
+
+inline bool IsVectorGreaterEqual(const FVector &A, const uniform FVector &B)
+{
+	return A.V[0] >= B.V[0] && A.V[1] >= B.V[1] && A.V[2] >= B.V[2];
 }
 
 inline FVector4 VectorCompareGE(const FVector4 &A, const uniform FVector4 &B)
@@ -1083,6 +1061,11 @@ inline uniform FVector4 VectorCompareGE(const uniform FVector4 &A, const uniform
 	return *((uniform FVector4 *uniform)&Result);
 }
 
+inline uniform float CompareGE(const uniform float &A, const uniform float &B)
+{
+	return A >= B ? floatbits(0xFFFFFFFF) : floatbits(0);
+}
+
 inline uniform FVector4 VectorCompareGT(const uniform FVector4 &A, const uniform FVector4 &B)
 {
 	varying float S0, S1, Result;
@@ -1117,6 +1100,28 @@ inline uniform FVector4 VectorMax(const uniform FVector4& V1, const uniform FVec
 	return *((uniform FVector4 *uniform)&Result);
 }
 
+inline FVector VectorMax(const FVector& V1, const FVector& V2)
+{
+	FVector Result;
+
+	Result.V[0] = max(V1.V[0], V2.V[0]);
+	Result.V[1] = max(V1.V[1], V2.V[1]);
+	Result.V[2] = max(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline uniform FVector VectorMax(const uniform FVector& A, const uniform FVector& B)
+{
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
+
+	Result = VectorMax(S0, S1);
+
+	return *((uniform FVector *uniform)&Result);
+}
+
 inline FVector4 VectorMin(const FVector4& V1, const FVector4& V2)
 {
 	FVector4 Result;
@@ -1138,6 +1143,28 @@ inline uniform FVector4 VectorMin(const uniform FVector4& V1, const uniform FVec
 	Result = min(S0, S1);
 
 	return *((uniform FVector4 *uniform)&Result);
+}
+
+inline FVector VectorMin(const FVector& V1, const FVector& V2)
+{
+	FVector Result;
+
+	Result.V[0] = min(V1.V[0], V2.V[0]);
+	Result.V[1] = min(V1.V[1], V2.V[1]);
+	Result.V[2] = min(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline uniform FVector VectorMin(const uniform FVector& A, const uniform FVector& B)
+{
+	uniform FVector4 S0, S1, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&B);
+
+	Result = VectorMin(S0, S1);
+
+	return *((uniform FVector *uniform)&Result);
 }
 
 inline FVector4 VectorReciprocal(const FVector4& V)
@@ -1380,6 +1407,38 @@ inline uniform FVector4 VectorReciprocalSqrtAccurate(const uniform FVector4& V)
 	return x2;
 }
 
+inline uniform float ReciprocalSqrtAccurate(const uniform float V)
+{
+	// Perform two passes of Newton-Raphson iteration on the hardware estimate
+	//    v^-0.5 = x
+	// => x^2 = v^-1
+	// => 1/(x^2) = v
+	// => F(x) = x^-2 - v
+	//    F'(x) = -2x^-3
+
+	//    x1 = x0 - F(x0)/F'(x0)
+	// => x1 = x0 + 0.5 * (x0^-2 - Vec) * x0^3
+	// => x1 = x0 + 0.5 * (x0 - Vec * x0^3)
+	// => x1 = x0 + x0 * (0.5 - 0.5 * Vec * x0^2)
+
+	const uniform float DivBy2 = V * 0.5f;
+
+	// Initial estimate
+	const uniform float x0 = rsqrt_fast(V);
+
+	// First iteration
+	uniform float x1 = x0 * x0;
+	x1 = 0.5f - (DivBy2 * x1);
+	x1 = x0 * x1 + x0;
+
+	// Second iteration
+	uniform float x2 = x1 * x1;
+	x2 = 0.5f - (DivBy2 * x2);
+	x2 = x1 * x2 + x1;
+
+	return x2;
+}
+
 /**
  * Replicates one element into all four elements and returns the new vector.
  *
@@ -1415,6 +1474,11 @@ inline FVector4 VectorSwizzle(const FVector4 &Vec, const uniform int X, const un
 inline uniform FVector4 VectorSwizzle(const uniform FVector4 &Vec, const uniform int X, const uniform int Y, const uniform int Z, const uniform int W)
 {
 	return SetVector4(Vec.V[X], Vec.V[Y], Vec.V[Z], Vec.V[W]);
+}
+
+inline uniform FVector VectorSwizzle(const uniform FVector &Vec, const uniform int X, const uniform int Y, const uniform int Z)
+{
+	return SetVector(Vec.V[X], Vec.V[Y], Vec.V[Z]);
 }
 
 /**
@@ -1454,6 +1518,15 @@ inline uniform FVector4 VectorCross(const uniform FVector4& Vec1, const uniform 
 	return (A_YZXW * B_ZXYW) - (A_ZXYW * B_YZXW);
 }
 
+inline uniform FVector VectorCross(const uniform FVector& Vec1, const uniform FVector& Vec2)
+{
+	const uniform FVector A_YZXW = VectorSwizzle(Vec1, 1,2,0);
+	const uniform FVector B_ZXYW = VectorSwizzle(Vec2, 2,0,1);
+	const uniform FVector A_ZXYW = VectorSwizzle(Vec1, 2,0,1);
+	const uniform FVector B_YZXW = VectorSwizzle(Vec2, 1,2,0);
+	return (A_YZXW * B_ZXYW) - (A_ZXYW * B_YZXW);
+}
+
 /**
  * Calculates the dot4 product of two vectors and returns a vector with the result in all 4 components.
  * Only really efficient on Xbox 360.
@@ -1480,6 +1553,22 @@ inline uniform FVector4 VectorDot4( const uniform FVector4& Vec1, const uniform 
 	Temp1 = Temp1 + Temp2; // (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
 	Temp2 = VectorSwizzle(Temp1, 1,2,3,0); // Rotate left 4 bytes (Y,Z,W,X).
 	return Temp1 + Temp2; // (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
+}
+
+inline uniform float VectorDot( const uniform FVector4& Vec1, const uniform FVector4& Vec2 )
+{
+	uniform FVector4 Temp1, Temp2;
+	Temp1 = Vec1 * Vec2;
+	Temp2 = VectorSwizzle(Temp1, 2,3,0,1);	// (Z,W,X,Y).
+	Temp1 = Temp1 + Temp2; // (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
+	Temp2 = VectorSwizzle(Temp1, 1,2,3,0); // Rotate left 4 bytes (Y,Z,W,X).
+	return Temp1.V[0] + Temp2.V[0]; // (X*X + Z*Z + Y*Y + W*W)
+}
+
+inline uniform float VectorDot( const uniform FVector &Vec1, const uniform FVector &Vec2 )
+{
+	const uniform FVector Temp = Vec1 * Vec2;
+	return Temp.V[0] + Temp.V[1] + Temp.V[2];
 }
 
 /**
@@ -1565,6 +1654,16 @@ inline uniform FVector4 VectorNormalizeSafe( const uniform FVector4& Vector, con
 	return VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);
 }
 
+inline uniform FVector4 VectorNormalizeSafe2( const uniform FVector4& Vector, const uniform FVector4& DefaultValue)
+{
+	const uniform float SquareSum = VectorDot(Vector, Vector);
+	const uniform float NonZeroMask = CompareGE(SquareSum, SMALL_NUMBER);
+	const uniform float InvLength = ReciprocalSqrtAccurate(SquareSum);
+	const uniform FVector4 NormalizedVector = Vector * InvLength;
+	const uniform FVector4 VNonZeroMask = SetVector4(NonZeroMask, NonZeroMask, NonZeroMask, NonZeroMask);
+	return VectorSelect(VNonZeroMask, NormalizedVector, DefaultValue);
+}
+
 inline uniform FVector4 VectorTruncate(const uniform FVector4 &X)
 {
 	varying float S0, Result;
@@ -1582,6 +1681,16 @@ inline uniform FVector4 VectorBitwiseAnd(const uniform FVector4 &Vec1, const uni
 	*((uniform FVector4 *uniform)&S1) = *((uniform FVector4 *uniform)&Vec2);
 
 	Result = floatbits(intbits(S0) & intbits(S1));
+
+	return *((uniform FVector4 *uniform)&Result);
+}
+
+inline uniform FVector4 VectorBitwiseAnd(const uniform FVector4 &Vec1, const uniform unsigned int I)
+{
+	varying float S0, Result;
+	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&Vec1);
+
+	Result = floatbits(intbits(S0) & I);
 
 	return *((uniform FVector4 *uniform)&Result);
 }
@@ -1637,7 +1746,7 @@ inline void VectorSinCos(uniform FVector4 &VSinAngles, uniform FVector4 &VCosAng
 	uniform FVector4 X = VectorSubtract(VAngles, VectorMultiply(TwoPi, Quotient));
 
 	// Map in [-pi/2,pi/2]
-	uniform FVector4 sign = VectorBitwiseAnd(X, SignBit);
+	uniform FVector4 sign = VectorBitwiseAnd(X, SIGN_BIT);
 	const uniform FVector4 c = VectorBitwiseOr(Pi, sign);  // pi when x >= 0, -pi when x < 0
 	const uniform FVector4 absx = VectorAbs(X);
 	const uniform FVector4 rflx = VectorSubtract(c, X);
@@ -1680,6 +1789,26 @@ inline uniform FVector4 VectorLerp(const uniform FVector4 &A, const uniform FVec
 {
 	const uniform FVector4 Delta = VectorSubtract(B, A);
 	return VectorMultiplyAdd(Alpha, Delta, A);
+}
+
+inline uniform FVector4 VectorNegate(const uniform FVector4 &A)
+{
+	varying float S0, Result;
+	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
+
+	Result = floatbits(intbits(S0) ^ SIGN_BIT);
+
+	return *((uniform FVector4 *uniform)&Result);
+}
+
+inline uniform FVector VectorNegate(const uniform FVector &A)
+{
+	varying float S0, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+
+	Result = floatbits(intbits(S0) ^ SIGN_BIT);
+
+	return *((uniform FVector *uniform)&Result);
 }
 
 #endif
