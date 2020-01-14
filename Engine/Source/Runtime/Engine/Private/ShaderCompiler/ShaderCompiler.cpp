@@ -3668,13 +3668,6 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Target.Platform);
-		const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(EShaderPlatform(Target.Platform)).ToString());
-		const bool bVirtualTextureEnabled = UseVirtualTexturing(FeatureLevel, TargetPlatform);
-		Input.Environment.SetDefine(TEXT("PROJECT_SUPPORT_VIRTUAL_TEXTURE"), bVirtualTextureEnabled ? 1 : 0);
-	}
-
-	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ForceFullPrecisionInPS"));
 		if (CVar && CVar->GetInt() != 0)
 		{
