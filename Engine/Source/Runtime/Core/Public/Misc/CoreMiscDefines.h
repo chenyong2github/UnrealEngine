@@ -56,9 +56,9 @@
 #define RETURN_VAL_IF_EXIT_REQUESTED(x)
 
 #if CHECK_PUREVIRTUALS
-#define PURE_VIRTUAL(func,extra) =0;
+#define PURE_VIRTUAL(func,...) =0;
 #else
-#define PURE_VIRTUAL(func,extra) { LowLevelFatalError(TEXT("Pure virtual not implemented (%s)"), TEXT(#func)); extra }
+#define PURE_VIRTUAL(func,...) { LowLevelFatalError(TEXT("Pure virtual not implemented (%s)"), TEXT(#func)); __VA_ARGS__ }
 #endif
 
 
