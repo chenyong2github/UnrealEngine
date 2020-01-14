@@ -1017,6 +1017,10 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, TargetDisplayOrder(ELandscapeLayerDisplayMode::Default)
 #endif // WITH_EDITORONLY_DATA
+#if !WITH_EDITORONLY_DATA
+	, LandscapeMaterialCached(nullptr)
+	, LandscapeGrassTypes()
+#endif
 	, bHasLandscapeGrass(true)
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -1291,17 +1295,6 @@ void ULandscapeComponent::GetGeneratedTexturesAndMaterialInstances(TArray<UObjec
 ALandscapeProxy* ULandscapeComponent::GetLandscapeProxy() const
 {
 	return CastChecked<ALandscapeProxy>(GetOuter());
-}
-
-FIntPoint ULandscapeComponent::GetSectionBase() const
-{
-	return FIntPoint(SectionBaseX, SectionBaseY);
-}
-
-void ULandscapeComponent::SetSectionBase(FIntPoint InSectionBase)
-{
-	SectionBaseX = InSectionBase.X;
-	SectionBaseY = InSectionBase.Y;
 }
 
 const FMeshMapBuildData* ULandscapeComponent::GetMeshMapBuildData() const
