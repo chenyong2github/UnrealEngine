@@ -10,8 +10,9 @@ public class RHI : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("TraceLog");
 		PrivateDependencyModuleNames.Add("ApplicationCore");
+        PrivateDependencyModuleNames.Add("RenderCore");
 
-		if (Target.bCompileAgainstEngine)
+        if (Target.bCompileAgainstEngine)
 		{
 			DynamicallyLoadedModuleNames.Add("NullDrv");
 

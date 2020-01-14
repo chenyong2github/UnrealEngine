@@ -14,6 +14,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
+#include "RenderResource.h"
 
 #ifndef PLATFORM_ALLOW_NULL_RHI
 	#define PLATFORM_ALLOW_NULL_RHI		0
@@ -52,6 +53,15 @@ void InitNullRHI()
 	GDynamicRHI->Init();
 	GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
+
+	// do not do this at least on dedicated server; clients with -NullRHI may need additional consideration
+#if !WITH_EDITOR
+	if (!IsRunningDedicatedServer())
+#endif
+	{
+		FRenderResource::InitPreRHIResources();
+	}
+
 	GUsingNullRHI = true;
 	GRHISupportsTextureStreaming = false;
 
@@ -239,6 +249,8 @@ void RHIInit(bool bHasEditorToken)
 				GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
 				GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
 
+				FRenderResource::InitPreRHIResources();
+
 				FString FeatureLevelString;
 				GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);
 
@@ -268,6 +280,7 @@ void RHIInit(bool bHasEditorToken)
 		}
 
 		check(GDynamicRHI);
+		GIsRHIInitialized = true;
 	}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC
