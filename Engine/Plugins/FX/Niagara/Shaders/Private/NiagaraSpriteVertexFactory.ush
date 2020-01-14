@@ -28,7 +28,7 @@
 #define FACING_MODE_FACECAMERA 0
 /** The sprite billboard plane is completely parallel to the camera plane. Particle always looks "flat" */
 #define FACING_MODE_FACECAMERAPLANE 1
-/** The sprite billboard faces toward the "Particles.SpriteFacing" vector attribute, using the per-axis CustomFacingVectorMask as a lerp factor from the standard FaceCamera mode.*/
+/** The sprite billboard faces toward the "Particles.SpriteFacing" vector attribute. */
 #define FACING_MODE_CUSTOMFACINGVECTOR 2
 /** Faces the camera position, but is not dependent on the camera rotation.  This method produces more stable particles under camera rotation. Uses the up axis of (0,0,1).*/
 #define FACING_MODE_FACECAMERAPOSITION 3 
@@ -440,10 +440,7 @@ void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermed
 	float3 CameraDirection = SafeNormalize(CameraVector);
 	float3 ParticleDirection	= SafeNormalizeWithFallback(WorldPosition.xyz - OldWorldPosition.xyz, float3(0,0,1));
 
-	// First interpolate between the base facing mode and the custom facing mode. We assume that the code setting up this call has the facing vector mask
-	// set to 0,0,0,0 if not in FACING_MODE_CUSTOMFACINGVECTOR.
-	float3 CustomFacingVectorMask =  NiagaraSpriteVF.CustomFacingVectorMask;
-	float3 CustomFacingVector = Intermediates.CustomFacingVector * CustomFacingVectorMask + CameraDirection * (float3(1.0,1.0,1.0)-CustomFacingVectorMask);
+	float3 CustomFacingVector = NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_CUSTOMFACINGVECTOR ? Intermediates.CustomFacingVector : CameraDirection;
 	
 	// the particle's movement direction.
 	float3 DirectionVector	= lerp(ParticleDirection, Intermediates.CustomAlignmentVector, NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_CUSTOMALIGNMENT);

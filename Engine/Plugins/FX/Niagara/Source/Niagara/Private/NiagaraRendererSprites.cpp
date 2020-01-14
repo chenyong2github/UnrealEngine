@@ -98,7 +98,6 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, Alignment(ENiagaraSpriteAlignment::Unaligned)
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
-	, CustomFacingVectorMask(ForceInitToZero)
 	, PivotInUVSpace(0.5f, 0.5f)
 	, SortMode(ENiagaraSortMode::ViewDistance)
 	, SubImageSize(1.0f, 1.0f)
@@ -115,7 +114,6 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	
 	Alignment = Properties->Alignment;
 	FacingMode = Properties->FacingMode;
-	CustomFacingVectorMask = Properties->CustomFacingVectorMask;
 	PivotInUVSpace = Properties->PivotInUVSpace;
 	SortMode = Properties->SortMode;
 	SubImageSize = Properties->SubImageSize;
@@ -235,7 +233,6 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.MacroUVParameters = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
 	PerViewUniformParameters.CameraFacingBlend = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
 	PerViewUniformParameters.RemoveHMDRoll = bRemoveHMDRollInVR;
-	PerViewUniformParameters.CustomFacingVectorMask = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 
 	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraSpriteVFLayout::Position].GetGPUOffset();
@@ -289,11 +286,6 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 		// velocity aligned
 		PerViewUniformParameters.RotationScale = 0.0f;
 		PerViewUniformParameters.TangentSelector = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
-	}
-
-	if (ActualFacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
-	{
-		PerViewUniformParameters.CustomFacingVectorMask = CustomFacingVectorMask;
 	}
 
 	return FNiagaraSpriteUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
