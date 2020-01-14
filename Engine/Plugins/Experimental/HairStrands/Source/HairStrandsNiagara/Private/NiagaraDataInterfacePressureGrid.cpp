@@ -86,7 +86,7 @@ void FNDIPressureGridBuffer::ReleaseRHI()
 
 void FNDIPressureGridBuffer::ClearBuffers(FRHICommandList& RHICmdList)
 {
-	ClearUAV(RHICmdList, GridDataBuffer, FLinearColor(0, 0, 0, 0));
+	RHICmdList.ClearUAVFloat(GridDataBuffer.UAV, FVector4(ForceInitToZero));
 }
 
 //------------------------------------------------------------------------------------------------------------
