@@ -1579,6 +1579,27 @@ bool FSaveGameNetworkReplayStreamer::ReadMetaDataFromLocalStream(FArchive& Strea
 			ReplayEventData.SetNumUninitialized(LocalEvent.SizeInBytes);
 			StreamArchive.Seek(LocalEvent.EventDataOffset);
 			StreamArchive.Serialize(ReplayEventData.GetData(), ReplayEventData.Num());
+
+			if (FileReplayInfo.bEncrypted)
+			{
+				if (SupportsEncryption())
+				{
+					TArray<uint8> PlaintextData;
+										
+					if (!DecryptBuffer(ReplayEventData, PlaintextData, FileReplayInfo.EncryptionKey))
+					{
+						UE_LOG(LogSaveGameReplay, Error, TEXT("FSaveGameNetworkReplayStreamer::ReadMetaDataFromLocalStream. DecryptBuffer failed."));
+						return false;
+					}
+
+					ReplayEventData = MoveTemp(PlaintextData);
+				}
+				else
+				{
+					UE_LOG(LogSaveGameReplay, Error, TEXT("FSaveGameNetworkReplayStreamer::ReadMetaDataFromLocalStream. Encrypted event but streamer does not support encryption."));
+					return false;
+				}
+			}
 		}
 
 		EventList.Add(MoveTemp(ReplayEvent));
