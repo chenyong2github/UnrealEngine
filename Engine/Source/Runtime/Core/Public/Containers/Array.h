@@ -2535,11 +2535,15 @@ private:
 		{
 			NewMax = AllocatorInstance.CalculateSlackReserve(NewMax, sizeof(ElementType));
 		}
-		if (NewMax != PrevMax)
+		if (NewMax > PrevMax)
 		{
 			AllocatorInstance.ResizeAllocation(0, NewMax, sizeof(ElementType));
+			ArrayMax = NewMax;
 		}
-		ArrayMax = NewMax;
+		else
+		{
+			ArrayMax = PrevMax;
+		}
 	}
 
 
