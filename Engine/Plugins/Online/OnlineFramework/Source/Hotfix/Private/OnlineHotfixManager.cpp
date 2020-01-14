@@ -22,6 +22,7 @@
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "OnlineTracingModule.h"
 
 DEFINE_LOG_CATEGORY(LogHotfixManager);
 
@@ -856,6 +857,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	bool bUpdateLogSuppression = false;
 	bool bUpdateConsoleVariables = false;
 	bool bUpdateHttpConfigs = false;
+	bool bUpdateOnlineTracing = false;
 	TSet<FString> OnlineSubSections;
 	// Find the set of object classes that were affected
 	while (StartIndex >= 0 && StartIndex < IniData.Len() && EndIndex >= StartIndex)
@@ -913,6 +915,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
 					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
 					const TCHAR* OnlineSubSectionKey = TEXT("[OnlineSubsystem"); // note "]" omitted on purpose since we want a partial match
+					const TCHAR* OnlineTracingSection = TEXT("[OnlineTracing]");
 					if (!bUpdateLogSuppression && FCString::Strnicmp(*IniData + StartIndex, LogConfigSection, FCString::Strlen(LogConfigSection)) == 0)
 					{
 						bUpdateLogSuppression = true;
@@ -924,6 +927,10 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					else if (!bUpdateHttpConfigs &&	FCString::Strnicmp(*IniData + StartIndex, HttpSection, FCString::Strlen(HttpSection)) == 0)
 					{
 						bUpdateHttpConfigs = true;
+					}
+					else if (!bUpdateOnlineTracing && FCString::Strnicmp(*IniData + StartIndex, OnlineTracingSection, FCString::Strlen(OnlineTracingSection)) == 0)
+					{
+						bUpdateOnlineTracing = true;
 					}
 					else if (FCString::Strnicmp(*IniData + StartIndex, OnlineSubSectionKey, FCString::Strlen(OnlineSubSectionKey)) == 0)
 					{
@@ -1043,6 +1050,13 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	if (bUpdateHttpConfigs)
 	{
 		FHttpModule::Get().UpdateConfigs();
+	}
+
+	// Reload configs for tracing system, this may init or tear it down if enable is toggled
+	if (bUpdateOnlineTracing && 
+		FOnlineTracingModule::IsAvailable())
+	{
+		FOnlineTracingModule::Get().UpdateConfig();
 	}
 
 	// Reload configs relevant to OSS config sections that were updated
