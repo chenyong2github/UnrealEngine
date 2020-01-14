@@ -132,19 +132,19 @@ void SWidget::CreateStatID() const
 
 #endif
 
-void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode)
+void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle)
 {
 #if WITH_SLATE_DEBUGGING
-	check(!CacheNode || CacheNode->GetValue().Widget == this);
+	check(!CacheHandle.IsValid() || CacheHandle.IsOwnedByWidget(this));
 #endif
 
-	if (PersistentState.CachedElementListNode != nullptr && PersistentState.CachedElementListNode != CacheNode)
+	// Account for the case when the widget gets a new handle for some reason.  This should really never happen
+	if (PersistentState.CachedElementHandle.IsValid() && PersistentState.CachedElementHandle != CacheHandle)
 	{
-	//	ensure(false);
-		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+		ensure(false);
+		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
-
-	PersistentState.CachedElementListNode = CacheNode;
+	PersistentState.CachedElementHandle = CacheHandle;
 
 	if (FastPathProxyHandle.IsValid())
 	{
@@ -235,10 +235,7 @@ SWidget::~SWidget()
 
 		// Note: this would still be valid if a widget was painted and then destroyed in the same frame.  
 		// In that case invalidation hasn't taken place for added widgets so the invalidation panel doesn't know about their cached element data to clean it up
-		if (PersistentState.CachedElementListNode)
-		{
-			PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
-		}
+		PersistentState.CachedElementHandle.RemoveFromCache();
 
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
@@ -698,7 +695,7 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 		return false;
 	}
 
-	FWidgetProxy MyProxy(this);
+	FWidgetProxy MyProxy(*this);
 	MyProxy.Index = FastPathList.Num();
 	MyProxy.ParentIndex = ParentIndex;
 	MyProxy.Visibility = GetVisibility();
@@ -717,12 +714,12 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 
 	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
 
-	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementListNode != nullptr)
+	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementHandle.IsValid())
 	{
 #if WITH_SLATE_DEBUGGING
-		check(PersistentState.CachedElementListNode->GetValue().Widget == this);
+		check(PersistentState.CachedElementHandle.IsOwnedByWidget(this));
 #endif
-		Root.GetCachedElements().ResetCache(PersistentState.CachedElementListNode);
+		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 
 	FastPathList.Add(MyProxy);
@@ -787,10 +784,8 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
 	}
 
-	if (PersistentState.CachedElementListNode)
-	{
-		PersistentState.CachedElementListNode->GetValue().Reset();
-	}
+
+	PersistentState.CachedElementHandle.ClearCachedElements();
 
 	FChildren* MyChildren = GetAllChildren();
 	const int32 NumChildren = MyChildren->Num();
@@ -1270,13 +1265,14 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	ensure(!MutableThis.IsUnique());
 #endif
 
-
-	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementListNode != nullptr)
+#if WITH_SLATE_DEBUGGING
+	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementHandle.IsValid())
 	{
 		ensure(!bInvisibleDueToParentOrSelfVisibility);
 	}
+#endif
 
-	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementListNode);
+	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementHandle);
 
 	if (bOutgoingHittestability)
 	{
@@ -1407,13 +1403,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	FSlateCachedElementListNode* NewCacheNode = OutDrawElements.PopPaintingWidget();
+	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget(*this);
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);
 	}
 
-	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheNode);
+	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheHandle);
 
 	return NewLayerId;
 

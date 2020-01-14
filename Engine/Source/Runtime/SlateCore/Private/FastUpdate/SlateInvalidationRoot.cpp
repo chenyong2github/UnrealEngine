@@ -131,9 +131,9 @@ int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWi
 
 void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
-	if (Proxy.Widget->PersistentState.CachedElementListNode)
+	if (Proxy.Widget->PersistentState.CachedElementHandle.IsValid())
 	{
-		CachedElementData->RemoveCache(Proxy.Widget->PersistentState.CachedElementListNode);
+		Proxy.Widget->PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 
 	if (Proxy.Index == 0)
@@ -263,15 +263,9 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 	if (FastWidgetPathList.IsValidIndex(ProxyIndex) && FastWidgetPathList[ProxyIndex].Widget == Widget)
 	{
 		FastWidgetPathList[ProxyIndex].Widget = nullptr;
-	
 	}
-
-	if (Widget->PersistentState.CachedElementListNode)
-	{
-		CachedElementData->RemoveCache(Widget->PersistentState.CachedElementListNode);
-	}
-
-	Widget->PersistentState.CachedElementListNode = nullptr;
+		
+	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
@@ -407,10 +401,10 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 
 	for (FWidgetProxy& Proxy : FastWidgetPathList)
 	{
-		if (Proxy.Widget)
+		if (SWidget* Widget = Proxy.Widget)
 		{
-			Proxy.Widget->PersistentState.DesktopGeometry = Proxy.Widget->PersistentState.AllottedGeometry;
-			Proxy.Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
+			Widget->PersistentState.DesktopGeometry = Widget->PersistentState.AllottedGeometry;
+			Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
 		}
 	}
 }
@@ -634,12 +628,12 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 {
 	for (const FWidgetProxy& Proxy : FastWidgetPathList)
 	{
-		if (Proxy.Widget)
+		if (SWidget* Widget = Proxy.Widget)
 		{
-			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
+			Widget->PersistentState.CachedElementHandle = FSlateCachedElementsHandle::Invalid;
 			if (bClearResourcesImmediately)
 			{
-				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
+				Widget->FastPathProxyHandle = FWidgetProxyHandle();
 			}
 		}
 	}
