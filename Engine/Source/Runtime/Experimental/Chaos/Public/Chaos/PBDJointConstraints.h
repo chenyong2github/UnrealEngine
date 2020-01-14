@@ -131,6 +131,9 @@ namespace Chaos
 		// General Rule API
 		//
 
+		void PrepareConstraints(FReal Dt);
+		void UnprepareConstraints(FReal Dt);
+
 		void UpdatePositionBasedState(const FReal Dt);
 
 		//
@@ -154,8 +157,6 @@ namespace Chaos
 
 	private:
 		friend class FPBDJointConstraintHandle;
-
-		void PrepareConstraints(FReal Dt);
 
 		void GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const;
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const;

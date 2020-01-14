@@ -406,7 +406,7 @@ namespace Chaos
 		ConstraintStates[ConstraintIndex].ParticleLevels = ParticleLevels;
 		bRequiresSort = bRequiresSort || (NewLevel != PreviousLevel);
 	}
-
+	
 
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
@@ -415,8 +415,6 @@ namespace Chaos
 			SortConstraints();
 			bRequiresSort = false;
 		}
-
-		PrepareConstraints(Dt);
 	}
 
 
@@ -451,6 +449,15 @@ namespace Chaos
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
 			}
+		}
+	}
+
+
+	void FPBDJointConstraints::UnprepareConstraints(FReal Dt)
+	{
+		if (!ChaosJoint_UseCholeskySolver)
+		{
+			ConstraintSolvers.Empty();
 		}
 	}
 

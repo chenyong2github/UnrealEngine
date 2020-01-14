@@ -95,8 +95,6 @@ namespace Chaos
 
 		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
-		void InitAccumulatedDeltas();
-		void ApplyAccumulatedDeltas();
 
 		void ApplyPositionConstraints(
 			const FReal Dt,
@@ -326,12 +324,6 @@ namespace Chaos
 		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
 		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
 		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
-
-		// Accumulated world-body state deltas
-		FVec3 DPs[MaxConstrainedBodies];			// World-space particle CoM positions
-		FVec3 DRs[MaxConstrainedBodies];			// World-space particle CoM rotations (in axis-angle form)
-		FVec3 DVs[MaxConstrainedBodies];			// World-space particle CoM velocities
-		FVec3 DWs[MaxConstrainedBodies];			// World-space particle CoM angular velocities
 
 		// XPBD Previous iteration world-space body state
 		FVec3 PrevPs[MaxConstrainedBodies];			// World-space particle CoM positions
