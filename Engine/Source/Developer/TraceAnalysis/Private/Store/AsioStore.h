@@ -8,6 +8,8 @@
 
 #include "AsioFile.h"
 #include "AsioObject.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Utils.h"
 
 namespace Trace

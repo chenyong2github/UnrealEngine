@@ -9,6 +9,7 @@
 #include "AsioRecorder.h"
 #include "AsioStore.h"
 #include "AsioStoreCborServer.h"
+#include "HAL/PlatformFile.h"
 
 namespace Trace
 {

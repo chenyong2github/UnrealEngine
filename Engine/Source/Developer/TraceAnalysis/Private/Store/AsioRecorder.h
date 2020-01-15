@@ -8,6 +8,7 @@
 
 #include "AsioTcpServer.h"
 #include "AsioTickable.h"
+#include "Containers/Array.h"
 
 namespace Trace
 {

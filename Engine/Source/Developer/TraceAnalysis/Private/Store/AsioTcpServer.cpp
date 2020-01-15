@@ -4,6 +4,8 @@
 
 #if TRACE_WITH_ASIO
 
+#include "Templates/UnrealTemplate.h"
+
 namespace Trace
 {
 

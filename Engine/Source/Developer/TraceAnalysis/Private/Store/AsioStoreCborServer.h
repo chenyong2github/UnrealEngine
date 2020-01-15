@@ -7,6 +7,7 @@
 #if TRACE_WITH_ASIO
 
 #include "AsioTcpServer.h"
+#include "Containers/Array.h"
 
 namespace Trace
 {

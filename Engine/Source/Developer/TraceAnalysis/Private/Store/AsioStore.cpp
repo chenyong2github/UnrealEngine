@@ -4,6 +4,11 @@
 
 #if TRACE_WITH_ASIO
 
+#include "HAL/PlatformFile.h"
+#include "Containers/UnrealString.h"
+#include "Misc/CString.h"
+#include "Misc/DateTime.h"
+
 namespace Trace
 {
 

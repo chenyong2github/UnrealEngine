@@ -8,6 +8,8 @@
 
 #if TRACE_WITH_ASIO
 
+#include "HAL/Platform.h"
+
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"
 #	include "Windows/AllowWindowsPlatformAtomics.h"

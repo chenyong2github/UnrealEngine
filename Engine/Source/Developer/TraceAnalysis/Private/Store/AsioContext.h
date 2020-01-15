@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Asio/Asio.h"
+#include "Containers/Array.h"
 
 #if TRACE_WITH_ASIO
 
