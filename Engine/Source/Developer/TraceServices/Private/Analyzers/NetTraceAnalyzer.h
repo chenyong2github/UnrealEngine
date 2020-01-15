@@ -92,6 +92,7 @@ private:
 	{
 		TMap<uint32, TSharedRef<FNetTraceConnectionState>> ActiveConnections;
 		TMap<uint64, FNetTraceActiveObjectState> ActiveObjects;
+		TMap<int32, uint32> ChannelNames;
 
 		uint32 GameInstanceIndex;
 	};
