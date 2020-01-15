@@ -505,7 +505,7 @@ void InitAsyncThread()
 {
 	if (FIoDispatcher::IsInitialized())
 	{
-		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(FIoDispatcher::Get(), GetGEDLBootNotificationManager());
+		GPackageLoader.Reset(MakeAsyncPackageLoader2(FIoDispatcher::Get(), GetGEDLBootNotificationManager()));
 	}
 	else
 	{

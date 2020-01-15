@@ -20,6 +20,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/BufferWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/AsyncLoading2.h"
 #include "UObject/NameBatchSerialization.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/ObjectResource.h"
@@ -194,42 +195,10 @@ static FIoChunkId CreateChunkIdForBulkData(int32 GlobalPackageId, uint64 Bulkdat
 	return ChunkId;
 }
 
-struct FZenPackageSummary
-{
-	uint32 PackageFlags;
-	int32 NameMapOffset;
-	int32 ImportMapOffset;
-	int32 ExportMapOffset;
-	int32 ExportBundlesOffset;
-	int32 GraphDataOffset;
-	int32 GraphDataSize;
-	int32 BulkDataStartOffset;
-	int32 GlobalImportIndex;
-	int32 Pad;
-};
-
 enum EPreloadDependencyType
 {
 	PreloadDependencyType_Create,
 	PreloadDependencyType_Serialize,
-};
-
-enum EEventLoadNode2 : uint8
-{
-	Package_ExportsSerialized,
-	Package_PostLoad,
-	Package_Delete,
-	Package_NumPhases,
-
-	ExportBundle_Process = 0,
-	ExportBundle_NumPhases,
-};
-
-enum class EExportFilterFlags : uint8
-{
-	None,
-	NotForClient,
-	NotForServer
 };
 
 struct FArc
@@ -241,17 +210,6 @@ struct FArc
 	{
 		return ToNodeIndex == Other.ToNodeIndex && FromNodeIndex == Other.FromNodeIndex;
 	}
-};
-
-struct FExportBundleEntry
-{
-	enum EExportCommandType
-	{
-		ExportCommandType_Create,
-		ExportCommandType_Serialize
-	};
-	uint32 LocalExportIndex;
-	EExportCommandType CommandType;
 };
 
 struct FExportGraphNode;
@@ -934,12 +892,6 @@ struct FExportData
 	FExportGraphNode* SerializeNode = nullptr;
 };
 
-struct FExportBundleMeta
-{
-	uint32 LoadOrder = -1;
-	uint32 PayloadSize = -1;
-};
-
 static void FindImport(TArray<FImportData>& GlobalImports, TMap<FString, int32>& GlobalImportsByFullName, TArray<FString>& TempFullNames, FObjectImport* ImportMap, int32 LocalImportIndex)
 {
 	FObjectImport* Import = &ImportMap[LocalImportIndex];
@@ -1088,7 +1040,7 @@ void SerializePackageData(
 	const TArray<FObjectExport>& ObjectExports,
 	const TArray<FExportData>& GlobalExports,
 	const TMap<FString, int32>& GlobalImportsByFullName,
-	FExportBundleMeta* ExportBundleMetaEntries,
+	FExportBundleMetaEntry* ExportBundleMetaEntries,
 	const FPackageStoreBulkDataManifest& BulkDataManifest,
 	bool bWithBulkDataManifest)
 {
@@ -1105,56 +1057,56 @@ void SerializePackageData(
 		Package->ImportMapSize = ImportMapArchive.Tell();
 
 		// Temporary Archive for serializing EDL graph data
-		FBufferWriter ZenGraphArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+		FBufferWriter GraphArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 
 		int32 InternalArcCount = Package->InternalArcs.Num();
-		ZenGraphArchive << InternalArcCount;
+		GraphArchive << InternalArcCount;
 		for (FArc& InternalArc : Package->InternalArcs)
 		{
-			ZenGraphArchive << InternalArc.FromNodeIndex;
-			ZenGraphArchive << InternalArc.ToNodeIndex;
+			GraphArchive << InternalArc.FromNodeIndex;
+			GraphArchive << InternalArc.ToNodeIndex;
 		}
 
 		int32 ReferencedPackagesCount = Package->ExternalArcs.Num();
-		ZenGraphArchive << ReferencedPackagesCount;
+		GraphArchive << ReferencedPackagesCount;
 		for (auto& KV : Package->ExternalArcs)
 		{
 			FPackage* ImportedPackage = KV.Key;
 			TArray<FArc>& Arcs = KV.Value;
 			int32 ExternalArcCount = Arcs.Num();
 
-			ZenGraphArchive << ImportedPackage->GlobalPackageId;
-			ZenGraphArchive << ExternalArcCount;
+			GraphArchive << ImportedPackage->GlobalPackageId;
+			GraphArchive << ExternalArcCount;
 			for (FArc& ExternalArc : Arcs)
 			{
-				ZenGraphArchive << ExternalArc.FromNodeIndex;
-				ZenGraphArchive << ExternalArc.ToNodeIndex;
+				GraphArchive << ExternalArc.FromNodeIndex;
+				GraphArchive << ExternalArc.ToNodeIndex;
 			}
 		}
-		Package->UGraphSize = ZenGraphArchive.Tell();
+		Package->UGraphSize = GraphArchive.Tell();
 
 		// Temporary Archive for serializing export map data
-		FBufferWriter ZenExportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+		FBufferWriter ExportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 		for (int32 I = 0; I < Package->ExportCount; ++I)
 		{
 			const FObjectExport& ObjectExport = ObjectExports[Package->ExportIndexOffset + I];
 			const FExportData& ExportData = GlobalExports[Package->Exports[I]];
 
 			int64 SerialSize = ObjectExport.SerialSize;
-			ZenExportMapArchive << SerialSize;
-			NameMapBuilder.SerializeName(ZenExportMapArchive, ObjectExport.ObjectName);
+			ExportMapArchive << SerialSize;
+			NameMapBuilder.SerializeName(ExportMapArchive, ObjectExport.ObjectName);
 			FPackageIndex OuterIndex = ExportData.OuterIndex;
-			ZenExportMapArchive << OuterIndex;
+			ExportMapArchive << OuterIndex;
 			FPackageIndex ClassIndex = ExportData.ClassIndex;
-			ZenExportMapArchive << ClassIndex;
+			ExportMapArchive << ClassIndex;
 			FPackageIndex SuperIndex = ExportData.SuperIndex;
-			ZenExportMapArchive << SuperIndex;
+			ExportMapArchive << SuperIndex;
 			FPackageIndex TemplateIndex = ExportData.TemplateIndex;
-			ZenExportMapArchive << TemplateIndex;
+			ExportMapArchive << TemplateIndex;
 			int32 GlobalImportIndex = ExportData.GlobalImportIndex;
-			ZenExportMapArchive << GlobalImportIndex;
+			ExportMapArchive << GlobalImportIndex;
 			uint32 ObjectFlags = ObjectExport.ObjectFlags;
-			ZenExportMapArchive << ObjectFlags;
+			ExportMapArchive << ObjectFlags;
 			uint8 FilterFlags = uint8(EExportFilterFlags::None);
 			if (ObjectExport.bNotForClient)
 			{
@@ -1164,20 +1116,20 @@ void SerializePackageData(
 			{
 				FilterFlags = uint8(EExportFilterFlags::NotForServer);
 			}
-			ZenExportMapArchive << FilterFlags;
+			ExportMapArchive << FilterFlags;
 			uint8 Pad = 0;
-			ZenExportMapArchive.Serialize(&Pad, 7);
+			ExportMapArchive.Serialize(&Pad, 7);
 		}
-		Package->ExportMapSize = ZenExportMapArchive.Tell();
+		Package->ExportMapSize = ExportMapArchive.Tell();
 
 		// Temporary archive for serializing export bundle data
-		FBufferWriter ZenExportBundlesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+		FBufferWriter ExportBundlesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 		int32 ExportBundleEntryIndex = 0;
 		for (FExportBundle& ExportBundle : Package->ExportBundles)
 		{
-			ZenExportBundlesArchive << ExportBundleEntryIndex;
+			ExportBundlesArchive << ExportBundleEntryIndex;
 			int32 EntryCount = ExportBundle.Nodes.Num();
-			ZenExportBundlesArchive << EntryCount;
+			ExportBundlesArchive << EntryCount;
 			ExportBundleEntryIndex += ExportBundle.Nodes.Num();
 		}
 		for (FExportBundle& ExportBundle : Package->ExportBundles)
@@ -1185,67 +1137,67 @@ void SerializePackageData(
 			for (FExportGraphNode* ExportNode : ExportBundle.Nodes)
 			{
 				uint32 CommandType = uint32(ExportNode->BundleEntry.CommandType);
-				ZenExportBundlesArchive << CommandType;
-				ZenExportBundlesArchive << ExportNode->BundleEntry.LocalExportIndex;
+				ExportBundlesArchive << ExportNode->BundleEntry.LocalExportIndex;
+				ExportBundlesArchive << CommandType;
 			}
 		}
-		Package->ExportBundlesSize = ZenExportBundlesArchive.Tell();
+		Package->ExportBundlesSize = ExportBundlesArchive.Tell();
 
 		Package->NameMapSize = Package->NameIndices.Num() * Package->NameIndices.GetTypeSize();
 
 		{
-			const uint64 ZenSummarySize =
-				sizeof(FZenPackageSummary)
+			const uint64 PackageSummarySize =
+				sizeof(FPackageSummary)
 				+ Package->NameMapSize
 				+ Package->ImportMapSize
 				+ Package->ExportMapSize
 				+ Package->ExportBundlesSize
 				+ Package->UGraphSize;
 
-			uint8* ZenSummaryBuffer = static_cast<uint8*>(FMemory::Malloc(ZenSummarySize));
-			FZenPackageSummary* ZenSummary = reinterpret_cast<FZenPackageSummary*>(ZenSummaryBuffer);
+			uint8* PackageSummaryBuffer = static_cast<uint8*>(FMemory::Malloc(PackageSummarySize));
+			FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageSummaryBuffer);
 
-			ZenSummary->PackageFlags = Package->PackageFlags;
-			ZenSummary->GraphDataSize = Package->UGraphSize;
-			ZenSummary->BulkDataStartOffset = Package->BulkDataStartOffset;
+			PackageSummary->PackageFlags = Package->PackageFlags;
+			PackageSummary->GraphDataSize = Package->UGraphSize;
+			PackageSummary->BulkDataStartOffset = Package->BulkDataStartOffset;
 			const int32* FindGlobalImportIndexForPackage = GlobalImportsByFullName.Find(Package->Name.ToString());
-			ZenSummary->GlobalImportIndex = FindGlobalImportIndexForPackage ? *FindGlobalImportIndexForPackage : -1;
+			PackageSummary->GlobalImportIndex = FindGlobalImportIndexForPackage ? *FindGlobalImportIndexForPackage : -1;
 
-			FBufferWriter ZenAr(ZenSummaryBuffer, ZenSummarySize);
-			ZenAr.Seek(sizeof(FZenPackageSummary));
+			FBufferWriter SummaryArchive(PackageSummaryBuffer, PackageSummarySize);
+			SummaryArchive.Seek(sizeof(FPackageSummary));
 
 			// NameMap data
 			{
-				ZenSummary->NameMapOffset = ZenAr.Tell();
-				ZenAr.Serialize(Package->NameIndices.GetData(), Package->NameMapSize);
+				PackageSummary->NameMapOffset = SummaryArchive.Tell();
+				SummaryArchive.Serialize(Package->NameIndices.GetData(), Package->NameMapSize);
 			}
 
 			// ImportMap data
 			{
 				check(ImportMapArchive.Tell() == Package->ImportMapSize);
-				ZenSummary->ImportMapOffset = ZenAr.Tell();
-				ZenAr.Serialize(ImportMapArchive.GetWriterData(), ImportMapArchive.Tell());
+				PackageSummary->ImportMapOffset = SummaryArchive.Tell();
+				SummaryArchive.Serialize(ImportMapArchive.GetWriterData(), ImportMapArchive.Tell());
 			}
 
 			// ExportMap data
 			{
-				check(ZenExportMapArchive.Tell() == Package->ExportMapSize);
-				ZenSummary->ExportMapOffset = ZenAr.Tell();
-				ZenAr.Serialize(ZenExportMapArchive.GetWriterData(), ZenExportMapArchive.Tell());
+				check(ExportMapArchive.Tell() == Package->ExportMapSize);
+				PackageSummary->ExportMapOffset = SummaryArchive.Tell();
+				SummaryArchive.Serialize(ExportMapArchive.GetWriterData(), ExportMapArchive.Tell());
 			}
 
 			// ExportBundle data
 			{
-				check(ZenExportBundlesArchive.Tell() == Package->ExportBundlesSize);
-				ZenSummary->ExportBundlesOffset = ZenAr.Tell();
-				ZenAr.Serialize(ZenExportBundlesArchive.GetWriterData(), ZenExportBundlesArchive.Tell());
+				check(ExportBundlesArchive.Tell() == Package->ExportBundlesSize);
+				PackageSummary->ExportBundlesOffset = SummaryArchive.Tell();
+				SummaryArchive.Serialize(ExportBundlesArchive.GetWriterData(), ExportBundlesArchive.Tell());
 			}
 
 			// Graph data
 			{
-				check(ZenGraphArchive.Tell() == Package->UGraphSize);
-				ZenSummary->GraphDataOffset = ZenAr.Tell();
-				ZenAr.Serialize(ZenGraphArchive.GetWriterData(), ZenGraphArchive.Tell());
+				check(GraphArchive.Tell() == Package->UGraphSize);
+				PackageSummary->GraphDataOffset = SummaryArchive.Tell();
+				SummaryArchive.Serialize(GraphArchive.GetWriterData(), GraphArchive.Tell());
 			}
 
 			// Export bundle chunks
@@ -1261,11 +1213,11 @@ void SerializePackageData(
 #endif
 				ExpAr->Close();
 
-				uint64 BundleBufferSize = ZenSummarySize;
+				uint64 BundleBufferSize = PackageSummarySize;
 				for (int32 ExportBundleIndex = 0; ExportBundleIndex < Package->ExportBundles.Num(); ++ExportBundleIndex)
 				{
 					FExportBundle& ExportBundle = Package->ExportBundles[ExportBundleIndex];
-					FExportBundleMeta* ExportBundleMetaEntry = ExportBundleMetaEntries + Package->FirstExportBundleMetaEntry + ExportBundleIndex;
+					FExportBundleMetaEntry* ExportBundleMetaEntry = ExportBundleMetaEntries + Package->FirstExportBundleMetaEntry + ExportBundleIndex;
 					ExportBundleMetaEntry->LoadOrder = ExportBundle.LoadOrder;
 					for (FExportGraphNode* Node : ExportBundle.Nodes)
 					{
@@ -1283,10 +1235,10 @@ void SerializePackageData(
 
 #if !SKIP_WRITE_CONTAINER
 				uint8* BundleBuffer = static_cast<uint8*>(FMemory::Malloc(BundleBufferSize));
-				FMemory::Memcpy(BundleBuffer, ZenSummaryBuffer, ZenSummarySize);
+				FMemory::Memcpy(BundleBuffer, PackageSummaryBuffer, PackageSummarySize);
 #endif
-				FMemory::Free(ZenSummaryBuffer);
-				uint64 BundleBufferOffset = ZenSummarySize;
+				FMemory::Free(PackageSummaryBuffer);
+				uint64 BundleBufferOffset = PackageSummarySize;
 				for (FExportBundle& ExportBundle : Package->ExportBundles)
 				{
 					for (FExportGraphNode* Node : ExportBundle.Nodes)
@@ -1385,7 +1337,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 ImportPreloadCount = 0;
 	uint64 ExportPreloadCount = 0;
 	FExportGraph ExportGraph;
-	TArray<FExportBundleMeta> ExportBundleMetaEntries;
+	TArray<FExportBundleMetaEntry> ExportBundleMetaEntries;
 
 	TArray<FInstallChunk> InstallChunks;
 	TArray<FPackage*> Packages;
@@ -2043,7 +1995,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	int32 StoreTocByteCount = StoreTocArchive->TotalSize();
 	int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
 	int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
-	int32 ExportBundleMetaByteCount = ExportBundleMetaEntries.Num() * sizeof(FExportBundleMeta);
+	int32 ExportBundleMetaByteCount = ExportBundleMetaEntries.Num() * sizeof(FExportBundleMetaEntry);
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
 		FLargeMemoryWriter GlobalMetaArchive(0, true);
@@ -2118,7 +2070,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 ExportMapSize = 0;
 	uint64 NameMapSize = 0;
 	uint64 NameMapCount = 0;
-	uint64 ZenPackageSummarySize = Packages.Num() * sizeof(FZenPackageSummary);
+	uint64 PackageSummarySize = Packages.Num() * sizeof(FPackageSummary);
 	uint64 ImportedPackagesCount = 0;
 	uint64 InitialLoadSize = InitialLoadArchive->Tell();
 	uint64 ScriptArcsCount = 0;
@@ -2132,7 +2084,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 BundleCount = 0;
 	uint64 BundleEntryCount = 0;
 
-	uint64 ZenPackageHeaderSize = 0;
+	uint64 PackageHeaderSize = 0;
 
 	uint64 UniqueImportPackages = 0;
 	for (const FImportData& ImportData : GlobalImports)
@@ -2173,7 +2125,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 	}
 
-	ZenPackageHeaderSize = ZenPackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
+	PackageHeaderSize = PackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
 
 	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary: %s --------------------"), *Target.TargetPlatform->PlatformName());
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
@@ -2188,8 +2140,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportNames, %d total imports, %d script imports, %d UPackage imports"),
 		(double)GlobalImportNamesByteCount / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), NumScriptImports, UniqueImportPackages);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script arcs, %d script outers, %d packages"), (double)InitialLoadSize / 1024.0 / 1024.0, ScriptArcsCount, NumScriptImports, Packages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)ZenPackageHeaderSize / 1024.0 / 1024.0, Packages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)ZenPackageSummarySize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)PackageHeaderSize / 1024.0 / 1024.0, Packages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)PackageSummarySize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageNameMap, %d indices"), (double)NameMapSize / 1024.0 / 1024.0, NameMapCount);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
