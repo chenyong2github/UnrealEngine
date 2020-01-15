@@ -84,4 +84,13 @@ apply plugin: 'com.google.gms.google-services'
 		</if>
 	</gradleCopies>
 
+	<gameActivityAllowedRemoteNotificationsAdditions>
+		<if condition="bEnabled">
+			<true>
+				<insert>		bPluginEnabled = true;</insert>
+				<insertNewline/>
+			</true>
+		</if>
+	</gameActivityAllowedRemoteNotificationsAdditions>
+
 </root>

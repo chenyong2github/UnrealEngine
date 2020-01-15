@@ -5132,7 +5132,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
 	{
-		return NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
+		bool bPluginEnabled = false;
+//$${gameActivityAllowedRemoteNotificationsAdditions}$$
+		return bPluginEnabled && NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
 	}
 
 	public void AndroidThunkJava_SetDesiredViewSize(int width, int height)
