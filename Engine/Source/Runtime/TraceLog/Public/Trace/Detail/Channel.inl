@@ -37,7 +37,6 @@ struct FTraceChannel : public FChannel
 
 }
 
-// General trace channel. Used by all built in events.
-static Trace::FTraceChannel TraceLogChannel;
+extern TRACELOG_API Trace::FTraceChannel TraceLogChannel;
 
 #endif //UE_TRACE_ENABLED

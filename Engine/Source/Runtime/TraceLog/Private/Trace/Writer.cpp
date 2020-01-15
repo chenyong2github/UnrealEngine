@@ -935,7 +935,7 @@ static void Writer_InitializeControl()
 			ANSICHAR Channels[BufferSize] = {};
 			ANSICHAR* Ctx;
 			const bool bState = (ArgV[1][0] != '0');
-			strcpy_s(Channels, BufferSize, ArgV[0]);
+			FPlatformString::Strcpy(Channels, BufferSize, ArgV[0]);
 			ANSICHAR* Channel = FPlatformString::Strtok(Channels, ",", &Ctx);
 			while (Channel)
 			{
