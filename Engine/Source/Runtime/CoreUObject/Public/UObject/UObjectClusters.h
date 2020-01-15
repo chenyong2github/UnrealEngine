@@ -25,3 +25,5 @@ COREUOBJECT_API void FindStaleClusters(const TArray<FString>& Args);
 
 #endif // !UE_BUILD_SHIPPING
 
+// Whether object clusters can be created or not.
+bool CanCreateObjectClusters();
