@@ -358,11 +358,14 @@ private:
 
 struct FNDISkeletalMesh_InstanceData
 {
-	//Cached ptr to component we sample from. 
+	//Cached ptr to component we sample from. TODO: This should not need to be a weak ptr. We should always be clearing out DIs when the component is destroyed.
 	TWeakObjectPtr<USceneComponent> Component;
 
 	/** A binding to the user ptr we're reading the mesh from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
+
+	//Always reset the DI when the attach parent changes.
+	USceneComponent* CachedAttachParent;
 
 	UObject* CachedUserParam;
 
