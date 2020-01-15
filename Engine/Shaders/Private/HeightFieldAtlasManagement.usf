@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	HeightFieldAtlasManagement.usf
+=============================================================================*/
+
+uint4 UpdateRegionOffsetAndSize;
+float4 SourceScaleBias;
+uint SourceMipBias;
+
+Texture2D<float4> SourceTexture;
+SamplerState SourceTextureSampler;
+
+RWTexture2D<float2> RWHeightFieldAtlas;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void UploadHeightFieldToAtlasCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId.xy < UpdateRegionOffsetAndSize.zw))
+	{
+		float2 SourceUV = DispatchThreadId.xy * SourceScaleBias.xy + SourceScaleBias.zw;
+		uint2 WriteCoord = DispatchThreadId.xy + UpdateRegionOffsetAndSize.xy;
+
+		RWHeightFieldAtlas[WriteCoord] = SourceTexture.SampleLevel(SourceTextureSampler, SourceUV, SourceMipBias).xy;
+	}
+}
