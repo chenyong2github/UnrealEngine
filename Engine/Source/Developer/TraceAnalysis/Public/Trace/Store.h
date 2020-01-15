@@ -61,4 +61,4 @@ public:
  */
 TRACEANALYSIS_API TSharedPtr<IStore> Store_Create(const TCHAR* StoreDir);
 
-}
+} // namespace Trace

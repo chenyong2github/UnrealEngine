@@ -1,0 +1,61 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Asio/Asio.h"
+
+#if TRACE_WITH_ASIO
+
+#include "AsioFile.h"
+#include "AsioObject.h"
+#include "Utils.h"
+
+namespace Trace
+{
+
+class FAsioReadable;
+class FAsioWriteable;
+
+////////////////////////////////////////////////////////////////////////////////
+enum class EStoreVersion
+{
+	Value = 0x0100, // 0xMMmm MM=major, mm=minor
+};
+
+////////////////////////////////////////////////////////////////////////////////
+class FAsioStore
+	: public FAsioObject
+{
+public:
+	class FTrace
+	{
+	public:
+		const TCHAR*	GetName() const		{ return *Name; }
+		uint32			GetId() const		{ return QuickStoreHash(GetName()); }
+		uint64			GetSize() const		{ return 3; }
+
+	private:
+		friend			FAsioStore;
+		FString			Name;
+	};
+
+						FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir);
+						~FAsioStore();
+	uint32				GetTraceCount() const;
+	const FTrace*		GetTraceInfo(uint32 Index) const;
+	int32				ReadTrace(uint32 Id);
+	FAsioWriteable*		CreateTrace();
+	FAsioReadable*		OpenTrace(uint32 Id);
+
+private:
+	FTrace*				GetTrace(uint32 Id);
+	FString				StoreDir;
+	TArray<FTrace*>		Traces;
+#if 0
+	int32				LastTraceId = -1;
+#endif // 0
+};
+
+} // namespace Trace
+
+#endif // TRACE_WITH_ASIO
