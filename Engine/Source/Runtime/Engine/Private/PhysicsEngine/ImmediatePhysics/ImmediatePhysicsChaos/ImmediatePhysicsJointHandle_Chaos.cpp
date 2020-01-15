@@ -52,24 +52,15 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarJointMinAngularProjection(TEXT("p.Chaos.ImmPhys.JointMinAngularProjection"), ChaosImmediate_JointMinAngularProjection, TEXT("Joint min projection (for joints with projection disabled)."));
 	FAutoConsoleVariableRef CVarJointMaxAngularProjection(TEXT("p.Chaos.ImmPhys.JointMaxAngularProjection"), ChaosImmediate_JointMaxAngularProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 
-	FJointHandle::FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* Actor1, FActorHandle* Actor2)
-		: ActorHandles({ Actor1, Actor2 })
-		, Constraints(InConstraints)
+	void TransferJointSettings(FConstraintInstance* ConstraintInstance, Chaos::FPBDJointSettings& ConstraintSettings)
 	{
 		using namespace Chaos;
 
 		const FConstraintProfileProperties& Profile = ConstraintInstance->ProfileInstance;
 
-		FPBDJointSettings ConstraintSettings;
-		TVector<FRigidTransform3, 2> ConstraintFrames;
-
-		// BodyInstance/PhysX has the constraint locations in actor-space, but we need them in Center-of-Mass space
-		ConstraintFrames[0] = FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor1->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame1));
-		ConstraintFrames[1] = FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor2->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame2));
-
 		ConstraintSettings.Stiffness = ChaosImmediate_JointStiffness;
 
-		ConstraintSettings.LinearMotionTypes = 
+		ConstraintSettings.LinearMotionTypes =
 		{
 			static_cast<EJointMotionType>(ConstraintInstance->GetLinearXMotion()),
 			static_cast<EJointMotionType>(ConstraintInstance->GetLinearYMotion()),
@@ -97,8 +88,8 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.SoftTwistDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftTwistLimitDamping();
 		ConstraintSettings.SoftSwingStiffness = ChaosImmediate_SoftAngularStiffnessScale * ConstraintInstance->GetSoftSwingLimitStiffness();
 		ConstraintSettings.SoftSwingDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftSwingLimitDamping();
-		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0)? EJointForceMode::Acceleration : EJointForceMode::Force;
-		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0)? EJointForceMode::Acceleration : EJointForceMode::Force;
+		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
+		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
 		ConstraintSettings.LinearDriveTarget = Profile.LinearDrive.PositionTarget;
 		ConstraintSettings.bLinearPositionDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;
@@ -160,6 +151,35 @@ namespace ImmediatePhysics_Chaos
 		//{
 		//	ConstraintSettings.bSoftSwingLimitsEnabled = false;
 		//}
+	}
+
+	FJointHandle::FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* Actor1, FActorHandle* Actor2)
+		: ActorHandles({ Actor1, Actor2 })
+		, Constraints(InConstraints)
+	{
+		using namespace Chaos;
+
+		FPBDJointSettings ConstraintSettings;
+		TVector<FRigidTransform3, 2> ConstraintFrames;
+
+		if (ConstraintInstance != nullptr)
+		{
+			// BodyInstance/PhysX has the constraint locations in actor-space, but we need them in Center-of-Mass space
+			ConstraintFrames[0] = FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor1->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame1));
+			ConstraintFrames[1] = FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor2->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame2));
+			TransferJointSettings(ConstraintInstance, ConstraintSettings);
+		}
+		else
+		{
+			// TEMP: all creation with null ConstraintIndex for PhAt handles
+			ConstraintFrames[0] = Actor2->GetWorldTransform().GetRelativeTransform(Actor1->GetWorldTransform());
+			ConstraintFrames[1] = FRigidTransform3();
+			ConstraintSettings.LinearMotionTypes = { EJointMotionType::Limited, EJointMotionType::Limited, EJointMotionType::Limited };
+			ConstraintSettings.LinearLimit = 0.0f;
+			ConstraintSettings.SoftLinearStiffness = 10.0f;
+			ConstraintSettings.SoftLinearDamping = 1.0f;
+			ConstraintSettings.LinearSoftForceMode = EJointForceMode::Acceleration;
+		}
 
 		ConstraintSettings.Sanitize();
 
@@ -195,4 +215,15 @@ namespace ImmediatePhysics_Chaos
 	{
 		ConstraintHandle->SetParticleLevels({ ActorHandles[0]->GetLevel(), ActorHandles[1]->GetLevel() });
 	}
+
+	void FJointHandle::SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping)
+	{
+		using namespace Chaos;
+		FPBDJointSettings JointSettings = ConstraintHandle->GetSettings();
+		JointSettings.bSoftLinearLimitsEnabled = bLinearSoft;
+		JointSettings.SoftLinearStiffness = bLinearSoft ? LinearStiffness : 0.0f;
+		JointSettings.SoftLinearDamping = bLinearSoft ? LinearDamping : 0.0f;
+		ConstraintHandle->SetSettings(JointSettings);
+	}
 }
+
