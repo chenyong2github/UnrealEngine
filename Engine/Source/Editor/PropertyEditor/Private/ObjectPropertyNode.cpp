@@ -176,7 +176,7 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 	}
 
 	UStruct* OwnerStruct = InItemProperty->GetOwnerStruct();
-	if (!OwnerStruct || OwnerStruct->ChildProperties == nullptr)
+	if (!OwnerStruct || OwnerStruct->IsStructTrashed())
 	{
 		// Verify that the property is not part of an invalid trash class
 		return false;
