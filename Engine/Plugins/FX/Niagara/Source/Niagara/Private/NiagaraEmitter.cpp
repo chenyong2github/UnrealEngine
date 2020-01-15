@@ -301,6 +301,14 @@ void UNiagaraEmitter::PostLoad()
 		}
 	}
 
+	for (int32 ShaderStageIndex = ShaderStages.Num() - 1; ShaderStageIndex >= 0; --ShaderStageIndex)
+	{
+		if (ensureMsgf(ShaderStages[ShaderStageIndex] != nullptr && ShaderStages[ShaderStageIndex]->Script != nullptr, TEXT("Null shader stage, or shader stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), ShaderStageIndex) == false)
+		{
+			ShaderStages.RemoveAt(ShaderStageIndex);
+		}
+	}
+
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
