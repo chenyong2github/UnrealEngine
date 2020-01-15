@@ -2486,6 +2486,12 @@ bool UKismetSystemLibrary::GetVolumeButtonsHandledBySystem()
 	return FPlatformMisc::GetVolumeButtonsHandledBySystem();
 }
 
+void UKismetSystemLibrary::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	FPlatformApplicationMisc::SetGamepadsBlockDeviceFeedback(bBlock);
+
+}
+
 void UKismetSystemLibrary::ResetGamepadAssignments()
 {
 	FPlatformApplicationMisc::ResetGamepadAssignments();
