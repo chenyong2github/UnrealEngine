@@ -36,12 +36,12 @@ FAutoConsoleVariableRef CVarAOLogObjectBufferReallocation(
 	);
 
 // Must match equivalent shader defines
-int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
-int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
-int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
-int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
-int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
-int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
 
 // In float4's.  Must match corresponding usf definition
 int32 UploadObjectDataStride = 1 + FDistanceFieldObjectBuffers::ObjectDataStride;
