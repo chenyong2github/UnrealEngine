@@ -670,7 +670,7 @@ struct FControlCommands
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool	Writer_SendTo(const ANSICHAR*);
+bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
@@ -895,7 +895,7 @@ static void Writer_InitializeControl()
 		{
 			if (ArgC > 0)
 			{
-				Writer_SendTo(ArgV[0]);
+				Writer_SendTo(ArgV[0], 1980);
 			}
 		}
 	);
@@ -1061,11 +1061,11 @@ void Writer_Initialize()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_SendTo(const ANSICHAR* Host)
+bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 {
 	Writer_Initialize();
 
-	UPTRINT DataHandle = TcpSocketConnect(Host, 1980);
+	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
 	if (!DataHandle)
 	{
 		return false;

@@ -19,7 +19,7 @@ namespace Trace
 {
 
 UE_TRACE_API bool	Initialize() UE_TRACE_IMPL(false);
-UE_TRACE_API bool	SendTo(const TCHAR* Host) UE_TRACE_IMPL(false);
+UE_TRACE_API bool	SendTo(const TCHAR* Host, uint32 Port=1980) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
 UE_TRACE_API uint32 ToggleEvent(const TCHAR* Wildcard, bool bState) UE_TRACE_IMPL(0);
 UE_TRACE_API bool	ToggleChannel(const TCHAR* ChannelName, bool bEnabled) UE_TRACE_IMPL(false);

@@ -13,7 +13,7 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-bool	Writer_SendTo(const ANSICHAR*);
+bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
@@ -43,11 +43,11 @@ bool Initialize()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool SendTo(const TCHAR* InHost)
+bool SendTo(const TCHAR* InHost, uint32 Port)
 {
 	char Host[32];
 	ToAnsiCheap(Host, InHost);
-	return Private::Writer_SendTo(Host);
+	return Private::Writer_SendTo(Host, Port);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
