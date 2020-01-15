@@ -452,7 +452,8 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUClearFreeIDListSizeTable);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, FreeIDListSizesBuffer.UAV);
-		ClearUAV(RHICmdList, FreeIDListSizesBuffer, 0);
+		RHICmdList.ClearUAVUint(FreeIDListSizesBuffer.UAV, FUintVector4(ForceInitToZero));
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, FreeIDListSizesBuffer.UAV);
 	}
 }
 
@@ -1199,10 +1200,12 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	{
 		// Put INDEX_NONE in all the slots of the ID to index table. The simulation will fill in the
 		// indices for the IDs which are currently in use, so we can compute the free ID list based on
-		// the unused slots. No need for an explicit barrier here, ClearUAV() inserts a RW barrier.
+		// the unused slots.
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUClearIDTable);
 		SCOPED_GPU_STAT(RHICmdList, NiagaraGPUClearIDTable);
-		ClearUAV(RHICmdList, DestinationData.GetGPUIDToIndexTable(), INDEX_NONE);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestinationData.GetGPUIDToIndexTable().UAV);
+		RHICmdList.ClearUAVUint(DestinationData.GetGPUIDToIndexTable().UAV, FUintVector4(INDEX_NONE));
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestinationData.GetGPUIDToIndexTable().UAV);
 	}
 
 	RHICmdList.SetComputeShader(Shader->GetComputeShader());

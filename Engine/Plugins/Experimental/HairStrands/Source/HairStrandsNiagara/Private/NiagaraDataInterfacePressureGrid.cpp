@@ -86,7 +86,9 @@ void FNDIPressureGridBuffer::ReleaseRHI()
 
 void FNDIPressureGridBuffer::ClearBuffers(FRHICommandList& RHICmdList)
 {
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GridDataBuffer.UAV);
 	RHICmdList.ClearUAVFloat(GridDataBuffer.UAV, FVector4(ForceInitToZero));
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GridDataBuffer.UAV);
 }
 
 //------------------------------------------------------------------------------------------------------------
