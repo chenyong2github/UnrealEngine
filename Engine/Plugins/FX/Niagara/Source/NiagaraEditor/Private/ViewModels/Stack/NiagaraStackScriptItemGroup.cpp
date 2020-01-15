@@ -335,7 +335,7 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 		bool bValidUsage = false;
 		for (const UNiagaraClipboardFunction* Function : ClipboardContent->Functions)
 		{
-			if (Function != nullptr && Function->Script->GetSupportedUsageContexts().Contains(ScriptUsage))
+			if (Function != nullptr && Function->Script != nullptr && Function->Script->GetSupportedUsageContexts().Contains(ScriptUsage))
 			{
 				bValidUsage = true;
 			}
