@@ -185,8 +185,6 @@ inline Type FResponse::GetValue(const char* Key, Type Default, LambdaType&& Lamb
 		{
 			return Lambda(Context, uint32(MemoryReader.Tell()));
 		}
-
-		if (String[0] == '$') __debugbreak();
 	}
 }
 
