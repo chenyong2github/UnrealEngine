@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FastUpdate/WidgetProxy.h"
 #include "Widgets/SWidget.h"
@@ -7,6 +7,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
 #include "Input/HittestGrid.h"
+#include "Widgets/SWidgetUtils.h"
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
 
@@ -64,6 +65,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	bool bWidgetNeedsRepaint = false;
 	if (!bInvisibleDueToParentOrSelfVisibility && ParentIndex != INDEX_NONE && !Widget->PrepassLayoutScaleMultiplier.IsSet())
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
 		FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
 		if (ParentProxy.Widget)
@@ -77,6 +79,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform | EInvalidateWidget::Layout | EInvalidateWidget::Visibility | EInvalidateWidget::ChildOrder))
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		// When layout changes compute a new desired size for this widget
 		FVector2D CurrentDesiredSize = Widget->GetDesiredSize();
 		FVector2D NewDesiredSize = FVector2D::ZeroVector;
@@ -131,6 +134,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 
 		bWidgetNeedsRepaint = true;

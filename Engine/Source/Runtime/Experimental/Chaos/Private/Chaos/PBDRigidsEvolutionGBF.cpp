@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Framework/Parallel.h"
@@ -312,11 +312,6 @@ TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InPar
 			Particle.X() = Particle.P();
 			Particle.R() = Particle.Q();
 		});
-	});
-
-	AddForceFunction([this](TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt) 
-	{
-		ExternalForces.Apply(HandleIn, Dt);
 	});
 
 	AddForceFunction([this](TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt)

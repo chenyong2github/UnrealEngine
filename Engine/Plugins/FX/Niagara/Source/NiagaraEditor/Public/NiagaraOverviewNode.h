@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "EdGraph/EdGraphNode.h"
@@ -30,6 +30,8 @@ public:
 	virtual bool CanDuplicateNode() const override;
 
 	virtual void OnRenameNode(const FString& NewName) override;
+
+	virtual bool GetCanRenameNode() const override;
 
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	//~ End UEdGraphNode Interface

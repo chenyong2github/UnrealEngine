@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeEditLayers.cpp: Landscape editing layers mode
@@ -1842,8 +1842,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 
 		for (FWeightmapLayerAllocationInfo& Allocation : ComponentLayerAllocations)
 		{
-			Allocation.WeightmapTextureChannel = 255;
-			Allocation.WeightmapTextureIndex = 255;
+			Allocation.Free();
 		}
 	}
 }
@@ -3151,7 +3150,8 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 		}
 	}
 		
-	InvalidateGeneratedComponentData(ChangedComponents);
+	const bool bInvalidateLightingCache = true;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);
 }
 
 void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
@@ -3257,6 +3257,10 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	ENQUEUE_RENDER_COMMAND(FLandscapeLayersReadSurfaceCommand)(
 		[InCPUReadBackTexture, &OutMipsData](FRHICommandListImmediate& RHICmdList) mutable
 	{
+ 		// D3D12RHI requires heavyweight BlockUntilGPUIdle() call to ensure commands have finished.
+ 		// Note that this needs improving but for now is enshrined in the RHIUnitTest::VerifyBufferContents unit test
+		RHICmdList.BlockUntilGPUIdle();
+
 		OutMipsData.AddDefaulted(InCPUReadBackTexture->TextureRHI->GetNumMips());
 
 		int32 MipSizeU = InCPUReadBackTexture->GetSizeX();
@@ -3343,7 +3347,7 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 
 				for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : ComponentLayerData->WeightmapData.LayerAllocations)
 				{
-					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.WeightmapTextureIndex != 255 && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
+					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.IsAllocated() && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
 					{
 						FLandscapeLayerWeightmapExtractMaterialLayersComponentData Data;
 
@@ -3518,8 +3522,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 
 		for (FWeightmapLayerAllocationInfo& BaseWeightmapAllocation : BaseLayerAllocations)
 		{
-			BaseWeightmapAllocation.WeightmapTextureChannel = 255;
-			BaseWeightmapAllocation.WeightmapTextureIndex = 255;
+			BaseWeightmapAllocation.Free();
 		}
 
 		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
@@ -4449,7 +4452,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 
 		for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
 		{
-			check(AllocInfo.WeightmapTextureIndex != 255 && AllocInfo.WeightmapTextureIndex < ComponentWeightmaps.Num());
+			check(AllocInfo.IsAllocated() && AllocInfo.WeightmapTextureIndex < ComponentWeightmaps.Num());
 			UTexture2D* Weightmap = ComponentWeightmaps[AllocInfo.WeightmapTextureIndex];
 			WeightmapsToResolve.FindOrAdd(Weightmap).Add(TPair<ULandscapeComponent*,const FWeightmapLayerAllocationInfo*>(Component, &AllocInfo));
 		}
@@ -4502,7 +4505,9 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 		}
 	}
 		
-	InvalidateGeneratedComponentData(ChangedComponents.Array());	
+	// Weightmaps shouldn't invalidate lighting
+	const bool bInvalidateLightingCache = false;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);	
 }
 
 bool ALandscape::HasLayersContent() const
@@ -5960,7 +5965,7 @@ uint32 ULandscapeComponent::ComputeLayerHash() const
 
 	for (const FWeightmapLayerAllocationInfo& AllocationInfo : AllocationInfos)
 	{
-		if (AllocationInfo.WeightmapTextureChannel != 255 && AllocationInfo.WeightmapTextureIndex != 255)
+		if (AllocationInfo.IsAllocated())
 		{
             // Compute hash of actual data of the texture that is owned by the component (per Texture Channel)
 			UTexture2D* Weightmap = Weightmaps[AllocationInfo.WeightmapTextureIndex];

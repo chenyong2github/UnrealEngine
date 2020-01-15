@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
@@ -12,7 +12,9 @@
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Chaos/Core.h"
 #include "SkeletalMeshTypes.h"
+#include "AnimPreviewInstance.h"
 #include "UObject/Package.h"
 #include "EditorStyleSet.h"
 
@@ -496,4 +498,16 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RefreshBoneTransforms(FActorCompo
 		FinalizeBoneTransform();
 		bNeedToFlipSpaceBaseBuffers = true;
 	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+#if !WITH_CHAOS
+	Super::AddImpulseAtLocation(Impulse, Location, BoneName);
+#else
+	if (PreviewInstance != nullptr)
+	{
+		PreviewInstance->AddImpulseAtLocation(Impulse, Location, BoneName);
+	}
+#endif
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //=============================================================================
 // LocalPlayer
@@ -27,6 +27,7 @@
 
 class AActor;
 class FSceneView;
+class FSlateUser;
 class UGameInstance;
 class ULocalPlayer;
 struct FMinimalViewInfo;
@@ -263,6 +264,10 @@ public:
 	 */
 	FReply& GetSlateOperations() { return SlateOperations; }
 	const FReply& GetSlateOperations() const { return SlateOperations; }
+
+	/** Get the SlateUser that this LocalPlayer corresponds to */
+	TSharedPtr<FSlateUser> GetSlateUser();
+	TSharedPtr<const FSlateUser> GetSlateUser() const;
 
 	/**
 	 * Get the world the players actor belongs to

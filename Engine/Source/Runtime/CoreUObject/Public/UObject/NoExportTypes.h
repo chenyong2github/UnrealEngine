@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Reflection mirrors of C++ structs defined in Core or CoreUObject, those modules are not parsed by the Unreal Header Tool.
 // The documentation comments here are only for use in the editor tooltips, and is ignored for the API docs.

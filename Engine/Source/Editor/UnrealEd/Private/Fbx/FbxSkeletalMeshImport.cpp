@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Skeletal mesh creation from FBX data.
@@ -1454,75 +1454,12 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 
 bool UnFbx::FFbxImporter::ReplaceSkeletalMeshGeometryImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex)
 {
-	FSkeletalMeshModel *ImportedResource = SkeletalMesh->GetImportedModel();
-	check(ImportedResource && ImportedResource->LODModels.IsValidIndex(LodIndex));
-	FSkeletalMeshLODModel& SkeletalMeshLODModel = ImportedResource->LODModels[LodIndex];
-
-	const FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIndex);
-	check(LodInfo);
-
-	//Load the original skeletal mesh import data
-	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
-
-	//Backup the new geometry and skinning to be able to apply the skinning to the old geometry
-	FSkeletalMeshImportData NewGeometryAndRigData = *ImportData;
-
-	ImportData->bHasNormals = OriginalSkeletalMeshImportData.bHasNormals;
-	ImportData->bHasTangents = OriginalSkeletalMeshImportData.bHasTangents;
-	ImportData->bHasVertexColors = OriginalSkeletalMeshImportData.bHasVertexColors;
-	ImportData->NumTexCoords = OriginalSkeletalMeshImportData.NumTexCoords;
-	
-	ImportData->Materials.Reset();
-	ImportData->Points.Reset();
-	ImportData->Faces.Reset();
-	ImportData->Wedges.Reset();
-	ImportData->PointToRawMap.Reset();
-
-	//Material is a special case since we cannot serialize the UMaterialInstance when saving the RawSkeletalMeshBulkData
-	//So it has to be reconstructed.
-	ImportData->MaxMaterialIndex = 0;
-	for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMesh->Materials.Num(); ++MaterialIndex)
-	{
-		SkeletalMeshImportData::FMaterial NewMaterial;
-
-		NewMaterial.MaterialImportName = SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName.ToString();
-		NewMaterial.Material = SkeletalMesh->Materials[MaterialIndex].MaterialInterface;
-		// Add an entry for each unique material
-		ImportData->MaxMaterialIndex = FMath::Max(ImportData->MaxMaterialIndex, (uint32)(ImportData->Materials.Add(NewMaterial)));
-	}
-
-	ImportData->NumTexCoords = OriginalSkeletalMeshImportData.NumTexCoords;
-	ImportData->Points += OriginalSkeletalMeshImportData.Points;
-	ImportData->Faces += OriginalSkeletalMeshImportData.Faces;
-	ImportData->Wedges += OriginalSkeletalMeshImportData.Wedges;
-	ImportData->PointToRawMap += OriginalSkeletalMeshImportData.PointToRawMap;
-
-	return ImportData->ApplyRigToGeo(NewGeometryAndRigData);
+	return FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(SkeletalMesh, ImportData, LodIndex);
 }
 
 bool UnFbx::FFbxImporter::ReplaceSkeletalMeshSkinningImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex)
 {
-	FSkeletalMeshModel *ImportedResource = SkeletalMesh->GetImportedModel();
-	check(ImportedResource && ImportedResource->LODModels.IsValidIndex(LodIndex));
-	FSkeletalMeshLODModel& SkeletalMeshLODModel = ImportedResource->LODModels[LodIndex];
-
-	const FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIndex);
-	check(LodInfo);
-
-	//Load the original skeletal mesh import data
-	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
-
-	ImportData->bDiffPose = OriginalSkeletalMeshImportData.bDiffPose;
-	ImportData->bUseT0AsRefPose = OriginalSkeletalMeshImportData.bUseT0AsRefPose;
-
-	ImportData->RefBonesBinary.Reset();
-
-	ImportData->RefBonesBinary += OriginalSkeletalMeshImportData.RefBonesBinary;
-
-	//Fix the old skinning to match the new geometry
-	return ImportData->ApplyRigToGeo(OriginalSkeletalMeshImportData);
+	return FSkeletalMeshImportData::ReplaceSkeletalMeshRigImportData(SkeletalMesh, ImportData, LodIndex);
 }
 
 bool UnFbx::FFbxImporter::FillSkeletalMeshImportPoints(FSkeletalMeshImportData* OutData, FbxNode* RootNode, FbxNode* Node, FbxShape* FbxShape)
@@ -1591,7 +1528,7 @@ bool UnFbx::FFbxImporter::GatherPointsForMorphTarget(FSkeletalMeshImportData* Ou
 		FbxMesh* FbxMesh = Node->GetMesh();
 
 		FbxShape* FbxShape = nullptr;
-		if (FbxShapeArray)
+		if (FbxShapeArray && FbxShapeArray->IsValidIndex(NodeIndex))
 		{
 			FbxShape = (*FbxShapeArray)[NodeIndex];
 		}
@@ -1773,18 +1710,15 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			ExistingSkelMesh->GetLODImportedDataVersions(SafeLODIndex, GeoImportVersion, SkinningImportVersion);
 		}
 
-		if ((ImportOptions->bImportAsSkeletalSkinning || ImportOptions->bImportAsSkeletalGeometry))
+		if (ImportOptions->bImportAsSkeletalSkinning)
 		{
-			if (ImportOptions->bImportAsSkeletalSkinning)
-			{
-				//Replace geometry import data by original existing skel mesh geometry data
-				ReplaceSkeletalMeshGeometryImportData(ExistingSkelMesh, SkelMeshImportDataPtr, SafeLODIndex);
-			}
-			else if (ImportOptions->bImportAsSkeletalGeometry)
-			{
-				//Replace skinning import data by original existing skel mesh skinning data
-				ReplaceSkeletalMeshSkinningImportData(ExistingSkelMesh, SkelMeshImportDataPtr, SafeLODIndex);
-			}
+			//Replace geometry import data by original existing skel mesh geometry data
+			ReplaceSkeletalMeshGeometryImportData(ExistingSkelMesh, SkelMeshImportDataPtr, SafeLODIndex);
+		}
+		else if (ImportOptions->bImportAsSkeletalGeometry)
+		{
+			//Replace skinning import data by original existing skel mesh skinning data
+			ReplaceSkeletalMeshSkinningImportData(ExistingSkelMesh, SkelMeshImportDataPtr, SafeLODIndex);
 		}
 
 		//Reuse the vertex color in case we are not re-importing weights only and there is some vertexcolor in the existing skeleMesh

@@ -1,9 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperArray.h"
 #include "PyWrapperTypeRegistry.h"
-#include "PyCore.h"
-#include "PyUtil.h"
 #include "PyConversion.h"
 #include "PyReferenceCollector.h"
 #include "UObject/UnrealType.h"
@@ -121,7 +119,7 @@ FPyWrapperArray* FPyWrapperArray::New(PyTypeObject* InType)
 	if (Self)
 	{
 		new(&Self->OwnerContext) FPyWrapperOwnerContext();
-		Self->ArrayProp = nullptr;
+		new(&Self->ArrayProp) PyUtil::FConstArrayPropOnScope();
 		Self->ArrayInstance = nullptr;
 	}
 	return Self;
@@ -132,6 +130,7 @@ void FPyWrapperArray::Free(FPyWrapperArray* InSelf)
 	Deinit(InSelf);
 
 	InSelf->OwnerContext.~FPyWrapperOwnerContext();
+	InSelf->ArrayProp.~TPropOnScope();
 	FPyWrapperBase::Free(InSelf);
 }
 
@@ -145,15 +144,15 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const PyUtil::FPropertyDef& I
 		return BaseInit;
 	}
 
-	FProperty* ArrayElementProp = PyUtil::CreateProperty(InElementDef, 1);
+	PyUtil::FPropOnScope ArrayElementProp = PyUtil::FPropOnScope::OwnedReference(PyUtil::CreateProperty(InElementDef, 1));
 	if (!ArrayElementProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Array element property was null during init"));
 		return -1;
 	}
 
-	FArrayProperty* ArrayProp = new FArrayProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FArrayProperty::StaticClass()), RF_NoFlags);
-	ArrayProp->Inner = ArrayElementProp;
+	PyUtil::FArrayPropOnScope ArrayProp = PyUtil::FArrayPropOnScope::OwnedReference(new FArrayProperty(FFieldVariant(), PyUtil::DefaultPythonPropertyName, RF_NoFlags));
+	ArrayProp->Inner = ArrayElementProp.Release();
 
 	// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
 	{
@@ -164,7 +163,7 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const PyUtil::FPropertyDef& I
 	void* ArrayValue = FMemory::Malloc(ArrayProp->GetSize(), ArrayProp->GetMinAlignment());
 	ArrayProp->InitializeValue(ArrayValue);
 
-	InSelf->ArrayProp = ArrayProp;
+	InSelf->ArrayProp = MoveTemp(ArrayProp);
 	InSelf->ArrayInstance = ArrayValue;
 
 	FPyWrapperArrayFactory::Get().MapInstance(InSelf->ArrayInstance, InSelf);
@@ -185,29 +184,30 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext&
 
 	check(InProp && InValue);
 
-	const FArrayProperty* PropToUse = nullptr;
+	PyUtil::FConstArrayPropOnScope PropToUse;
 	void* ArrayInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{
 	case EPyConversionMethod::Copy:
 	case EPyConversionMethod::Steal:
 		{
-			FProperty* ArrayElementProp = PyUtil::CreateProperty(InProp->Inner);
+			PyUtil::FPropOnScope ArrayElementProp = PyUtil::FPropOnScope::OwnedReference(PyUtil::CreateProperty(InProp->Inner));
 			if (!ArrayElementProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create element property from '%s' (%s)"), *InProp->Inner->GetName(), *InProp->Inner->GetClass()->GetName()));
 				return -1;
 			}
 
-			FArrayProperty* ArrayProp = new FArrayProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FArrayProperty::StaticClass()), RF_NoFlags);
-			ArrayProp->Inner = ArrayElementProp;
-			PropToUse = ArrayProp;
+			PyUtil::FArrayPropOnScope ArrayProp = PyUtil::FArrayPropOnScope::OwnedReference(new FArrayProperty(FFieldVariant(), PyUtil::DefaultPythonPropertyName, RF_NoFlags));
+			ArrayProp->Inner = ArrayElementProp.Release();
 
 			// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
 			{
 				FArchive Ar;
 				ArrayProp->LinkWithoutChangingOffset(Ar);
 			}
+
+			PropToUse = MoveTemp(ArrayProp);
 
 			ArrayInstanceToUse = FMemory::Malloc(PropToUse->GetSize(), PropToUse->GetMinAlignment());
 			PropToUse->InitializeValue(ArrayInstanceToUse);
@@ -225,7 +225,7 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext&
 
 	case EPyConversionMethod::Reference:
 		{
-			PropToUse = InProp;
+			PropToUse = PyUtil::FConstArrayPropOnScope::ExternalReference(InProp);
 			ArrayInstanceToUse = InValue;
 		}
 		break;
@@ -238,7 +238,7 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext&
 	check(PropToUse && ArrayInstanceToUse);
 
 	InSelf->OwnerContext = InOwnerContext;
-	InSelf->ArrayProp = PropToUse;
+	InSelf->ArrayProp = MoveTemp(PropToUse);
 	InSelf->ArrayInstance = ArrayInstanceToUse;
 
 	FPyWrapperArrayFactory::Get().MapInstance(InSelf->ArrayInstance, InSelf);
@@ -264,7 +264,7 @@ void FPyWrapperArray::Deinit(FPyWrapperArray* InSelf)
 		}
 		FMemory::Free(InSelf->ArrayInstance);
 	}
-	InSelf->ArrayProp = nullptr;
+	InSelf->ArrayProp.Reset();
 	InSelf->ArrayInstance = nullptr;
 }
 
@@ -1535,7 +1535,7 @@ void FPyWrapperArrayMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FRe
 	FPyWrapperArray* Self = static_cast<FPyWrapperArray*>(Instance);
 	if (Self->ArrayProp && Self->ArrayInstance && !Self->OwnerContext.HasOwner())
 	{
-		const_cast<FArrayProperty*>(Self->ArrayProp)->AddReferencedObjects(Collector);
+		Self->ArrayProp.AddReferencedObjects(Collector);
 		FPyReferenceCollector::AddReferencedObjectsFromProperty(Collector, Self->ArrayProp, Self->ArrayInstance);
 	}
 }

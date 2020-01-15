@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/BulkData2.h"
 
@@ -711,6 +711,7 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 const void* FBulkDataBase::LockReadOnly() const
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
+	LockStatus = LOCKSTATUS_ReadOnlyLock;
 	return DataBuffer;
 }
 

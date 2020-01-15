@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraWorldManager.h"
 #include "NiagaraModule.h"
@@ -52,6 +52,7 @@ FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
+FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
 TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
@@ -166,6 +167,8 @@ void FNiagaraWorldManager::OnStartup()
 	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&FNiagaraWorldManager::OnPreWorldFinishDestroy);
 	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddStatic(&FNiagaraWorldManager::OnWorldBeginTearDown);
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
+
+	PostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddStatic(&FNiagaraWorldManager::OnPostGarbageCollect);
 }
 
 void FNiagaraWorldManager::OnShutdown()
@@ -175,6 +178,8 @@ void FNiagaraWorldManager::OnShutdown()
 	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
 	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
+
+	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGCHandle);
 
 	//Should have cleared up all world managers by now.
 	check(WorldManagers.Num() == 0);
@@ -348,6 +353,14 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
 	}
+
+	ScalabilityManagers.Empty();
+}
+
+void FNiagaraWorldManager::PostGarbageCollect()
+{
+	//Clear out and scalability managers who's EffectTypes have been GCd.
+	while (ScalabilityManagers.Remove(nullptr)) {}
 }
 
 void FNiagaraWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
@@ -410,6 +423,14 @@ void FNiagaraWorldManager::DestroyAllSystemSimulations(class UNiagaraSystem* Sys
 void FNiagaraWorldManager::TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 {
 	Get(World)->PostActorTick(DeltaSeconds);
+}
+
+void FNiagaraWorldManager::OnPostGarbageCollect()
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->PostGarbageCollect();
+	}
 }
 
 void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
@@ -592,6 +613,7 @@ void FNiagaraWorldManager::UpdateScalabilityManagers()
 	{
 		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
 		UNiagaraEffectType* EffectType = Pair.Key;
+		check(EffectType);
 
 		EffectType->ProcessLastFrameCycleCounts();
 
@@ -604,6 +626,7 @@ void FNiagaraWorldManager::UpdateScalabilityManagers()
 
 void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Component)
 {
+	check(Component);
 	if (UNiagaraEffectType* EffectType = Component->GetAsset()->GetEffectType())
 	{
 		FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType);
@@ -620,10 +643,19 @@ void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Com
 
 void FNiagaraWorldManager::UnregisterWithScalabilityManager(UNiagaraComponent* Component)
 {
+	check(Component);
 	if (UNiagaraEffectType* EffectType = Component->GetAsset()->GetEffectType())
 	{
-		FNiagaraScalabilityManager& ScalabilityManager = ScalabilityManagers.FindChecked(EffectType);
-		ScalabilityManager.Unregister(Component);
+		//Possibly the manager has been GCd.
+		if (FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType))
+		{
+			ScalabilityManager->Unregister(Component);
+		}
+		else
+		{
+			//The component does this itself in unregister.
+			//Component->ScalabilityManagerHandle = INDEX_NONE;
+		}
 	}
 }
 
@@ -833,7 +865,7 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 
 float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FVector Location)
 {
-	if (ScalabilitySettings.bCullByDistance)
+	if (ScalabilitySettings.bCullByDistance && bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		for (FVector ViewLocation : CachedPlayerViewLocations)

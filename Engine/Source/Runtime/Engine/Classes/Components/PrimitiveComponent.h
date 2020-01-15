@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -553,10 +553,13 @@ public:
 	int32 CustomDepthStencilValue;
 
 private:
-	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering)
+	/** Optional user defined default values for the custom primitive data of this primitive */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, meta = (DisplayName = "Custom Primitive Data Defaults"))
 	FCustomPrimitiveData CustomPrimitiveData;
 
+	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
+	UPROPERTY(Transient)
+	FCustomPrimitiveData CustomPrimitiveDataInternal;
 public:
 
 	/**
@@ -802,7 +805,7 @@ public:
 	 * Get the custom primitive data for this primitive component.
 	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
 	 */
-	const FCustomPrimitiveData& GetCustomPrimitiveData() const { return CustomPrimitiveData; }
+	const FCustomPrimitiveData& GetCustomPrimitiveData() const { return CustomPrimitiveDataInternal; }
 
 #if WITH_EDITOR
 	/** Override delegate used for checking the selection state of a component */
@@ -811,6 +814,9 @@ public:
 #endif
 
 protected:
+
+	/** Reset the custom primitive data of this primitive to the optional user defined default */
+	void ResetCustomPrimitiveData();
 
 	/** Insert an array of floats into the CustomPrimitiveData, starting at the given index */
 	void SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values);

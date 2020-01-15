@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,6 @@ public:
 	virtual bool SupportsRuntimeInteraction() override;
 	virtual UClothingSimulationInteractor* CreateInteractor() override;
 
-	virtual TSubclassOf<UClothConfigBase> GetClothConfigClass() const override;
+	virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const override;
 	virtual const UEnum* GetWeightMapTargetEnum() const override;
 };

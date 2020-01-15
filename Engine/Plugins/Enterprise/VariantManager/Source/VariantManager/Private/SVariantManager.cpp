@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SVariantManager.h"
 
@@ -2187,9 +2187,9 @@ void SVariantManager::RefreshPropertyList()
 			{
 				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerEnumPropertyNode>(Props, VariantManagerPtr));
 			}
-			else if (FirstProp->GetPropertyClass()->IsChildOf(UStrProperty::StaticClass()) ||
-					 FirstProp->GetPropertyClass()->IsChildOf(UNameProperty::StaticClass()) ||
-					 FirstProp->GetPropertyClass()->IsChildOf(UTextProperty::StaticClass()))
+			else if (FirstProp->GetPropertyClass()->IsChildOf(FStrProperty::StaticClass()) ||
+					 FirstProp->GetPropertyClass()->IsChildOf(FNameProperty::StaticClass()) ||
+					 FirstProp->GetPropertyClass()->IsChildOf(FTextProperty::StaticClass()))
 			{
 				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerStringPropertyNode>(Props, VariantManagerPtr));
 			}

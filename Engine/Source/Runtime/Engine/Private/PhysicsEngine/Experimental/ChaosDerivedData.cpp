@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosDerivedData.h"
 
@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("F7001A4C79B149E09EAAA7CC9EFB5AE3");
+	return TEXT("6249C3BD908145F3B3AC3048F3BF1C01");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -119,56 +119,69 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
 	const int32 NumTriangles = FinalIndices.Num() / 3;
 	bool bHasMaterials = InParams.TriangleMeshDesc.MaterialIndices.Num() > 0;
-	TArray<Chaos::TVector<int32, 3>> Triangles;
 	TArray<uint16> MaterialIndices;
-	Triangles.Reserve(NumTriangles);
 
-	if(bHasMaterials)
+	auto LambdaHelper = [&](auto& Triangles)
 	{
-		MaterialIndices.Reserve(NumTriangles);
-	}
-
-	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-	{
-		// Only add this triangle if it is valid
-		const int32 BaseIndex = TriangleIndex * 3;
-		const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
-			FinalVerts[FinalIndices[BaseIndex]],
-			FinalVerts[FinalIndices[BaseIndex + 1]],
-			FinalVerts[FinalIndices[BaseIndex + 2]]);
-
-		// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
-		//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
-		if (bIsValidTriangle)
+		if(bHasMaterials)
 		{
-			Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+			MaterialIndices.Reserve(NumTriangles);
+		}
 
-			if(bHasMaterials)
+		Triangles.Reserve(NumTriangles);
+		for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+		{
+			// Only add this triangle if it is valid
+			const int32 BaseIndex = TriangleIndex * 3;
+			const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
+				FinalVerts[FinalIndices[BaseIndex]],
+				FinalVerts[FinalIndices[BaseIndex + 1]],
+				FinalVerts[FinalIndices[BaseIndex + 2]]);
+
+			// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
+			//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
+			if (bIsValidTriangle)
 			{
-				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
-				{
-					MaterialIndices.Empty();
-					bHasMaterials = false;
-				}
-				else
-				{
-					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+				Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
 
-					if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
-					{
-						MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
-					}
-					else
+				if(bHasMaterials)
+				{
+				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
 					{
 						MaterialIndices.Empty();
 						bHasMaterials = false;
 					}
+					else
+					{
+					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+
+						if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+						{
+							MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+						}
+						else
+						{
+							MaterialIndices.Empty();
+							bHasMaterials = false;
+						}
+					}
 				}
 			}
 		}
-	}
 
-	OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+	};
+
+	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
+	{
+		TArray<Chaos::TVector<uint16, 3>> TrianglesSmallIdx;
+		LambdaHelper(TrianglesSmallIdx);
+	}
+	else
+	{
+		TArray<Chaos::TVector<int32, 3>> TrianglesLargeIdx;
+		LambdaHelper(TrianglesLargeIdx);
+	}	
 }
 
 void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)

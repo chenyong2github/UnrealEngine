@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraStack.h"
 
@@ -12,6 +12,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemLinkedInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutput.h"
@@ -21,10 +22,7 @@
 #include "ViewModels/Stack/NiagaraStackItemFooter.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
-#include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
-#include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -37,14 +35,12 @@
 #include "IDetailTreeNode.h"
 #include "Stack/SNiagaraStackFunctionInputName.h"
 #include "Stack/SNiagaraStackFunctionInputValue.h"
-#include "Stack/SNiagaraStackEmitterPropertiesItem.h"
-#include "Stack/SNiagaraStackEventHandlerPropertiesItem.h"
+#include "Stack/SNiagaraStackItem.h"
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "Stack/SNiagaraStackItemGroup.h"
 #include "Stack/SNiagaraStackModuleItem.h"
 #include "Stack/SNiagaraStackParameterStoreEntryName.h"
 #include "Stack/SNiagaraStackParameterStoreEntryValue.h"
-#include "Stack/SNiagaraStackRendererItem.h"
 #include "Stack/SNiagaraStackTableRow.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "NiagaraEditorWidgetsUtilities.h"
@@ -54,6 +50,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
+#include "NiagaraStackCommandContext.h"
 #include "NiagaraEditorUtilities.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -253,6 +250,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 	NameColumnWidth = .3f;
 	ContentColumnWidth = .7f;
 	bNeedsJumpToNextOccurence = false;
+	StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
 
 	ChildSlot
 	[
@@ -280,9 +278,9 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
 				.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
 				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
-				.SelectionMode(ESelectionMode::Single)
+				.OnSelectionChanged(this, &SNiagaraStack::StackTreeSelectionChanged)
+				.SelectionMode(ESelectionMode::Multi)
 				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
-				.OnMouseButtonClick(this, &SNiagaraStack::OnStackItemClicked)
 			]
 		]
 	];
@@ -314,6 +312,8 @@ void SNiagaraStack::SynchronizeTreeExpansion()
 
 TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 {
+	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorWidgetsStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
+
 	return SNew(SVerticalBox)
 		//~ Top level object list view
 		+ SVerticalBox::Slot()
@@ -350,26 +350,52 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 			.AutoWidth()
 			.Padding(4, 0, 0, 0)
 			[
-				SNew(SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
-				.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
-				.ContentPadding(0)
-				.MenuPlacement(MenuPlacement_BelowRightAnchor)
-				.ButtonContent()
+				SNew(SBorder)
+				.Padding(0)
+				.BorderImage(this, &SNiagaraStack::GetViewOptionsIconBrush)
 				[
-					SNew(SBox)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SComboButton)
+					.ComboButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ViewOptionsButton")
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
+					.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
+					.ContentPadding(1)
+					.MenuPlacement(MenuPlacement_BelowRightAnchor)
+					.ButtonContent()
 					[
-						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
-						.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+						SNew(SOverlay)
+						// drop shadow
+						+ SOverlay::Slot()
+						.VAlign(VAlign_Top)
+						.Padding(ViewOptionsShadowOffset.X, ViewOptionsShadowOffset.Y, 0, 0)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("GenericViewButton"))
+							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ViewOptionsShadowColor"))
+						]
+						+ SOverlay::Slot()
+						.VAlign(VAlign_Top)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("GenericViewButton"))
+							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+						]
 					]
 				]
 			]
 		];
+}
+
+const FSlateBrush* SNiagaraStack::GetViewOptionsIconBrush() const
+{
+	bool bIsDefault = StackViewModel->GetShowAllAdvanced() == false &&
+		StackViewModel->GetShowLinkedInputs() == false &&
+		StackViewModel->GetShowOutputs() == false &&
+		StackViewModel->GetShowOnlyIssues() == false;
+
+	return bIsDefault ? 
+		FCoreStyle::Get().GetBrush("NoBrush") :
+		FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.HighlightedButtonBrush");
 }
 
 void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)
@@ -814,7 +840,7 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		break;
 	}
 
-	return SNew(SNiagaraStackTableRow, StackViewModel, Item, StackTree.ToSharedRef())
+	return SNew(SNiagaraStackTableRow, StackViewModel, Item, StackCommandContext.ToSharedRef(), StackTree.ToSharedRef())
 		.RowPadding(RowPadding)
 		.ContentPadding(ContentPadding)
 		.ItemBackgroundColor(ItemBackgroundColor)
@@ -830,6 +856,16 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		.OnCanAcceptDrop(this, &SNiagaraStack::OnRowCanAcceptDrop)
 		.OnAcceptDrop(this, &SNiagaraStack::OnRowAcceptDrop)
 		.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility);
+}
+
+
+FReply SNiagaraStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (StackCommandContext->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
 
 void SNiagaraStack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -854,10 +890,6 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		TSharedRef<SNiagaraStackModuleItem> ModuleItemWidget = SNew(SNiagaraStackModuleItem, *CastChecked<UNiagaraStackModuleItem>(Item), StackViewModel);
 		Container->AddFillRowContextMenuHandler(SNiagaraStackTableRow::FOnFillRowContextMenu::CreateSP(ModuleItemWidget, &SNiagaraStackModuleItem::FillRowContextMenu));
 		return FRowWidgets(ModuleItemWidget);
-	}
-	else if (Item->IsA<UNiagaraStackRendererItem>())
-	{
-		return FRowWidgets(SNew(SNiagaraStackRendererItem, *CastChecked<UNiagaraStackRendererItem>(Item), StackViewModel));
 	}
 	else if (Item->IsA<UNiagaraStackFunctionInput>())
 	{
@@ -889,16 +921,6 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackItemFooter* ItemExpander = CastChecked<UNiagaraStackItemFooter>(Item);
 		return FRowWidgets(SNew(SNiagaraStackItemFooter, *ItemExpander));
-	}
-	else if (Item->IsA<UNiagaraStackEmitterPropertiesItem>())
-	{
-		UNiagaraStackEmitterPropertiesItem* PropertiesItem = CastChecked<UNiagaraStackEmitterPropertiesItem>(Item);
-		return FRowWidgets(SNew(SNiagaraStackEmitterPropertiesItem, *PropertiesItem, StackViewModel));
-	}
-	else if (Item->IsA<UNiagaraStackEventHandlerPropertiesItem>())
-	{
-		UNiagaraStackEventHandlerPropertiesItem* PropertiesItem = CastChecked<UNiagaraStackEventHandlerPropertiesItem>(Item);
-		return FRowWidgets(SNew(SNiagaraStackEventHandlerPropertiesItem, *PropertiesItem, StackViewModel));
 	}
 	else if (Item->IsA<UNiagaraStackParameterStoreEntry>())
 	{
@@ -976,12 +998,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	}
 	else if (Item->IsA<UNiagaraStackItem>())
 	{
-		return FRowWidgets(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText));
+		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
+		return FRowWidgets(SNew(SNiagaraStackItem, *StackItem, StackViewModel));
 	}
 	else
 	{
@@ -997,6 +1015,13 @@ void SNiagaraStack::OnGetChildren(UNiagaraStackEntry* Item, TArray<UNiagaraStack
 void SNiagaraStack::StackTreeScrolled(double ScrollValue)
 {
 	StackViewModel->SetLastScrollPosition(ScrollValue);
+}
+
+void SNiagaraStack::StackTreeSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo)
+{
+	TArray<UNiagaraStackEntry*> SelectedStackEntries;
+	StackTree->GetSelectedItems(SelectedStackEntries);
+	StackCommandContext->SetSelectedEntries(SelectedStackEntries);
 }
 
 float SNiagaraStack::GetNameColumnWidth() const
@@ -1029,13 +1054,6 @@ void SNiagaraStack::StackStructureChanged()
 EVisibility SNiagaraStack::GetIssueIconVisibility() const
 {
 	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-void SNiagaraStack::OnStackItemClicked(UNiagaraStackEntry* Item)
-{
-	// Focus the stack search if we are just clicking on an item
-	// This won't be hit by a bubbling-up click if a widget with text entry is clicked
-	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::OtherWidgetLostFocus);
 }
 
 void SNiagaraStack::OnCycleThroughIssues()

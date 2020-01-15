@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -59,7 +59,7 @@ public:
 		return bEnabled;
 	}
 
-	virtual bool IsEnabledByDefault() const override;
+	virtual bool IsEnabledByDefault(bool bAllowEnginePluginsEnabledByDefault) const override;
 
 	virtual bool IsHidden() const override
 	{

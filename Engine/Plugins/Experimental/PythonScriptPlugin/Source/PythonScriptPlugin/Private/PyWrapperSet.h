@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FPyWrapperSet : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the set */
-	const FSetProperty* SetProp;
+	PyUtil::FConstSetPropOnScope SetProp;
 
 	/** Wrapped set instance */
 	void* SetInstance;

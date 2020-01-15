@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditorTools.h"
 #include "Framework/Commands/UIAction.h"
@@ -32,22 +32,22 @@
 #include "SPerPlatformPropertiesWidget.h"
 #include "PlatformInfo.h"
 
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
-#include "EngineAnalytics.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "ScopedTransaction.h"
-#include "JsonObjectConverter.h"
-#include "Engine/SkeletalMesh.h"
-#include "IMeshReductionManagerModule.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "Widgets/Input/SFilePathPicker.h"
+#include "ContentStreaming.h"
 #include "EditorDirectories.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Engine/SkeletalMesh.h"
+#include "EngineAnalytics.h"
 #include "Factories/FbxStaticMeshImportData.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "IMeshReductionManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "ContentStreaming.h"
-
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "JsonObjectConverter.h"
+#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "ScopedTransaction.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/Input/SFilePathPicker.h"
+#include "Widgets/Input/STextComboBox.h"
 
 const uint32 MaxHullCount = 64;
 const uint32 MinHullCount = 2;
@@ -97,7 +97,8 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 		!StaticMeshEditor.GetStaticMesh()->AssetImportData ||
 		!StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
 	{
-		// Hide the ability to change the import settings object
+		ImportSettings->MarkResetToDefaultCustomized();
+
 		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
 		Row.CustomWidget(true)
 			.NameContent()

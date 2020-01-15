@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialToolkit.h"
 #include "SocialManager.h"
@@ -785,13 +785,13 @@ void USocialToolkit::HandleMapExternalIdComplete(ESocialSubsystem SubsystemType,
 void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TSharedRef<FOnlineUserPresence>& NewPresence, ESocialSubsystem SubsystemType)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialToolkit_HandlePresenceReceived);
-	if (USocialUser* UpdatedUser = FindUser(UserId))
+	if (USocialUser* UpdatedUser = FindUser(UserId.AsShared()))
 	{
 		UpdatedUser->NotifyPresenceChanged(SubsystemType);
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{
-		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found.\n"), *UserId.ToDebugString());
+		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found."), *UserId.ToDebugString());
 	}
 }
 
@@ -807,7 +807,7 @@ void USocialToolkit::HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful
 	}
 	else
 	{
-		QueueUserDependentActionInternal(IdentifiedUserId, ESocialSubsystem::Primary,
+		QueueUserDependentActionInternal(IdentifiedUserId.AsShared(), ESocialSubsystem::Primary,
 			[this, DisplayName] (USocialUser& SocialUser)
 			{
 				if (SocialUser.IsBlocked())
@@ -830,7 +830,7 @@ void USocialToolkit::HandleFriendInviteReceived(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		QueueUserDependentActionInternal(SenderId, SubsystemType,
+		QueueUserDependentActionInternal(SenderId.AsShared(), SubsystemType,
 			[this, SubsystemType] (USocialUser& SocialUser)
 			{
 				//@todo DanH: This event should send the name of the list the accepting friend is on, shouldn't it?
@@ -851,7 +851,7 @@ void USocialToolkit::HandleFriendInviteAccepted(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		QueueUserDependentActionInternal(FriendId, SubsystemType,
+		QueueUserDependentActionInternal(FriendId.AsShared(), SubsystemType,
 			[this, SubsystemType] (USocialUser& SocialUser)
 			{
 				//@todo DanH: This event should send the name of the list the accepting friend is on, shouldn't it?
@@ -872,7 +872,7 @@ void USocialToolkit::HandleFriendInviteRejected(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		if (USocialUser* InvitedUser = FindUser(FriendId))
+		if (USocialUser* InvitedUser = FindUser(FriendId.AsShared()))
 		{
 			InvitedUser->NotifyFriendInviteRemoved(SubsystemType);
 		}
@@ -883,7 +883,7 @@ void USocialToolkit::HandleFriendInviteSent(int32 LocalUserNum, bool bWasSuccess
 {
 	if (bWasSuccessful)
 	{
-		QueueUserDependentActionInternal(InvitedUserId, SubsystemType,
+		QueueUserDependentActionInternal(InvitedUserId.AsShared(), SubsystemType,
 			[this, SubsystemType, ListName, LocalUserNum] (USocialUser& SocialUser)
 			{
 				IOnlineFriendsPtr FriendsInterface = Online::GetFriendsInterfaceChecked(GetWorld(), USocialManager::GetSocialOssName(SubsystemType));
@@ -904,7 +904,7 @@ void USocialToolkit::HandleFriendRemoved(const FUniqueNetId& LocalUserId, const 
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		USocialUser* FormerFriend = FindUser(FriendId);
+		USocialUser* FormerFriend = FindUser(FriendId.AsShared());
 		if (ensure(FormerFriend))
 		{
 			FormerFriend->NotifyUserUnfriended(SubsystemType);
@@ -916,7 +916,7 @@ void USocialToolkit::HandleDeleteFriendComplete(int32 InLocalUserNum, bool bWasS
 {
 	if (bWasSuccessful && InLocalUserNum == GetLocalUserNum())
 	{
-		USocialUser* FormerFriend = FindUser(DeletedFriendId);
+		USocialUser* FormerFriend = FindUser(DeletedFriendId.AsShared());
 		if (ensure(FormerFriend))
 		{
 			FormerFriend->NotifyUserUnfriended(SubsystemType);
@@ -936,7 +936,7 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 	if (LocalUserId == *GetLocalUserNetId(ESocialSubsystem::Primary))
 	{
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
-		QueueUserDependentActionInternal(SenderId, ESocialSubsystem::Primary,
+		QueueUserDependentActionInternal(SenderId.AsShared(), ESocialSubsystem::Primary,
 			[this] (USocialUser& User)
 			{
 				if (User.IsFriend(ESocialSubsystem::Primary))
@@ -951,7 +951,7 @@ void USocialToolkit::HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSucc
 {
 	if (bWasSuccessful && LocalUserNum == GetLocalUserNum())
 	{
-		QueueUserDependentActionInternal(BlockedPlayerId, SubsystemType, 
+		QueueUserDependentActionInternal(BlockedPlayerId.AsShared(), SubsystemType, 
 			[this, SubsystemType] (USocialUser& User)
 			{
 				// Quite frustrating that the event doesn't sent the FOnlineBlockedPlayer in the first place or provide a direct getter on the interface...
@@ -983,7 +983,7 @@ void USocialToolkit::HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSu
 {
 	if (bWasSuccessful && LocalUserNum == GetLocalUserNum())
 	{
-		USocialUser* UnblockedUser = FindUser(UnblockedPlayerId);
+		USocialUser* UnblockedUser = FindUser(UnblockedPlayerId.AsShared());
 		if (ensure(UnblockedUser))
 		{
 			UnblockedUser->NotifyUserUnblocked(SubsystemType);

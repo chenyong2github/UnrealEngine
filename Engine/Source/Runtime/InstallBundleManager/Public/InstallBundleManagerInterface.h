@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -73,27 +73,27 @@ public:
 
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
 
-	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
+	FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags);
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
-	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
+	void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None"));
 	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
 
     virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
     
-	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
+	void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>());
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
 
-	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) = 0;
+	void CancelRequestRemoveContentOnNextInit(FName BundleName);
 	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) = 0;
 
-	virtual void CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
+	void CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags);
 	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) = 0;
 
-	virtual void PauseUpdateContent(FName BundleName) = 0;
+	void PauseUpdateContent(FName BundleName);
 	virtual void PauseUpdateContent(TArrayView<const FName> BundleNames) = 0;
 
-	virtual void ResumeUpdateContent(FName BundleName) = 0;
+	void ResumeUpdateContent(FName BundleName);
 	virtual void ResumeUpdateContent(TArrayView<const FName> BundleNames) = 0;
 
 	virtual void RequestPausedBundleCallback() = 0;
@@ -101,7 +101,7 @@ public:
 	virtual TOptional<FInstallBundleProgress> GetBundleProgress(FName BundleName) const = 0;
 
 	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const = 0;
-	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
+	void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags);
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
 
 	virtual bool IsNullInterface() const = 0;
@@ -109,5 +109,8 @@ public:
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 
 	virtual TSharedPtr<IAnalyticsProviderET> GetAnalyticsProvider() const { return TSharedPtr<IAnalyticsProviderET>(); }
+
+	virtual void StartPersistentStatTrackingSession(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false) {}
+	virtual void StopPersistentStatTrackingSession(const FString& SessionName) {}
 };
 

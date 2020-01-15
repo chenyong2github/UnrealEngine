@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,8 +22,10 @@
 #include "Editor/ContentBrowser/Private/AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "HistoryManager.h"
+#include "Misc/BlacklistNames.h"
 
 class FMenuBuilder;
+class FBlacklistPaths;
 class FWeakWidgetPath;
 class FWidgetPath;
 class SAssetColumnView;
@@ -442,6 +444,9 @@ private:
 	/** Removes asset data items from the given array that don't pass all applied backend (asset registry) filters */
 	void RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const;
 
+	/** Removes asset data items from the given array that don't pass all blacklist filters */
+	void RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const;
+
 	/** Returns true if the current filters deem that the asset view should be filtered recursively (overriding folder view) */
 	bool ShouldFilterRecursively() const;
 
@@ -842,7 +847,8 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
-	FARFilter SupportedFilter;
+	TSharedPtr<FBlacklistNames> AssetClassBlacklist;
+	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** If true, the source items will be refreshed next frame. Very slow. */

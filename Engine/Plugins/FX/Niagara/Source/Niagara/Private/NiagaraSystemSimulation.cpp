@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraModule.h"
@@ -871,8 +871,10 @@ void FNiagaraSystemSimulation::UpdateTickGroups_GameThread()
 
 	// Transfer promoted instances to the new tick group
 	//-OPT: This can be done async
-	for (FNiagaraSystemInstance* Instance : PendingTickGroupPromotions)
+	while (PendingTickGroupPromotions.Num() > 0)
 	{
+		FNiagaraSystemInstance* Instance = PendingTickGroupPromotions.Pop(false);
+
 		const ETickingGroup TickGroup = Instance->CalculateTickGroup();
 		if (TickGroup != SystemTickGroup)
 		{
@@ -1641,6 +1643,9 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	{
 		--EffectType->NumInstances;
 	}
+
+	// Remove from pending promotions list
+	PendingTickGroupPromotions.RemoveSingleSwap(Instance);
 
 	UNiagaraSystem* System = WeakSystem.Get();
 	if (Instance->IsPendingSpawn())

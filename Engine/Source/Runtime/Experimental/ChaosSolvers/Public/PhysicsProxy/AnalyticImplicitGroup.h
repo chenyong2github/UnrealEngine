@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -457,7 +457,7 @@ public:
 								Chaos::TRigidTransform<float, 3>(Xf))));
 				}
 			}
-			return new Chaos::TImplicitObjectUnion<float, 3>(MoveTemp(ImplicitObjects));
+			return new Chaos::FImplicitObjectUnion(MoveTemp(ImplicitObjects));
 		}
 	}
 

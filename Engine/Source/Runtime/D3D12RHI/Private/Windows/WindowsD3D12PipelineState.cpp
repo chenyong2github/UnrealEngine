@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Implementation of D3D12 Pipelinestate related functions
 
@@ -9,6 +9,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Stats/StatsMisc.h"
 #include "nvapi.h"
+
 #include "d3dcompiler.h"
 
 // UE-65533
@@ -600,112 +601,87 @@ FD3D12PipelineStateCache::~FD3D12PipelineStateCache()
 
 DECLARE_CYCLE_STAT(TEXT("Create time"), STAT_PSOCreateTime, STATGROUP_D3D12PipelineState);
 
-// Thread-safe create graphics/compute pipeline state. Conditionally load/store the PSO using a Pipeline Library.
-static void CreatePipelineState(ID3D12PipelineState*&PSO, ID3D12Device* Device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* Desc, ID3D12PipelineLibrary* Library, const TCHAR* Name)
+static void DumpShaderAsm(const D3D12_SHADER_BYTECODE& Shader, const TCHAR* Stage)
 {
-	SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
-	HRESULT r = Device->CreateGraphicsPipelineState(Desc, IID_PPV_ARGS(&PSO));
-	if (FAILED(r))
+	if (Shader.pShaderBytecode)
 	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create PipelineState with hash %s"), Name);
-
 		ID3DBlob* blob = nullptr;
-		if (Desc->VS.pShaderBytecode)
+		if (SUCCEEDED(D3DDisassemble(Shader.pShaderBytecode, Shader.BytecodeLength, 0, "", &blob)))
 		{
-			r = D3DDisassemble(Desc->VS.pShaderBytecode, Desc->VS.BytecodeLength, 0, "", &blob);
-			if (SUCCEEDED(r))
-			{
-				UE_LOG(LogD3D12RHI, Display, TEXT("VS:\n%S\n"), blob->GetBufferPointer());
-				blob->Release();
-			}
-		}
-
-		if (Desc->GS.pShaderBytecode)
-		{
-			r = D3DDisassemble(Desc->GS.pShaderBytecode, Desc->GS.BytecodeLength, 0, "", &blob);
-			if (SUCCEEDED(r))
-			{
-				UE_LOG(LogD3D12RHI, Display, TEXT("GS:\n%S\n"), blob->GetBufferPointer());
-				blob->Release();
-			}
-		}
-
-		if (Desc->PS.pShaderBytecode)
-		{
-			r = D3DDisassemble(Desc->PS.pShaderBytecode, Desc->PS.BytecodeLength, 0, "", &blob);
-			if (SUCCEEDED(r))
-			{
-				UE_LOG(LogD3D12RHI, Display, TEXT("PS:\n%S\n"), blob->GetBufferPointer());
-				blob->Release();
-			}
-		}
-	}
-}
-
-static void CreatePipelineState(ID3D12PipelineState*&PSO, ID3D12Device* Device, const D3D12_COMPUTE_PIPELINE_STATE_DESC* Desc, ID3D12PipelineLibrary* Library, const TCHAR* Name)
-{
-	SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
-	HRESULT r = Device->CreateComputePipelineState(Desc, IID_PPV_ARGS(&PSO));
-	if (FAILED(r))
-	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create PipelineState with hash %s"), Name);
-
-		ID3DBlob* blob = nullptr;
-		if (Desc->CS.pShaderBytecode)
-		{
-			r = D3DDisassemble(Desc->CS.pShaderBytecode, Desc->CS.BytecodeLength, 0, "", &blob);
-			if (SUCCEEDED(r))
-			{
-				UE_LOG(LogD3D12RHI, Display, TEXT("CS:\n%S\n"), blob->GetBufferPointer());
-				blob->Release();
-			}
+			UE_LOG(LogD3D12RHI, Display, TEXT("%s:\n%S\n"), Stage, blob->GetBufferPointer());
+			blob->Release();
 		}
 	}
 }
 
 // Thread-safe create graphics/compute pipeline state. Conditionally load/store the PSO using a Pipeline Library.
-void CreatePipelineStateFromStream(ID3D12PipelineState*& PSO, ID3D12Device2* Device, const D3D12_PIPELINE_STATE_STREAM_DESC* Desc, ID3D12PipelineLibrary1* Library, const TCHAR* Name)
+static HRESULT CreatePipelineState(ID3D12PipelineState*&PSO, ID3D12Device* Device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* Desc, ID3D12PipelineLibrary* Library, const TCHAR* Name)
 {
+	HRESULT hr = S_OK;
+	if (Library == nullptr || Library->LoadGraphicsPipeline(Name, Desc, IID_PPV_ARGS(&PSO)) == E_INVALIDARG)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
+		hr = Device->CreateGraphicsPipelineState(Desc, IID_PPV_ARGS(&PSO));
+	}
+
+	if (Library && SUCCEEDED(hr))
+	{
+		HRESULT r = Library->StorePipeline(Name, PSO);
+		check(r != E_INVALIDARG);
+	}
+
+	return hr;
+}
+
+static HRESULT CreatePipelineState(ID3D12PipelineState*&PSO, ID3D12Device* Device, const D3D12_COMPUTE_PIPELINE_STATE_DESC* Desc, ID3D12PipelineLibrary* Library, const TCHAR* Name)
+{
+	HRESULT hr = S_OK;
+	if (Library == nullptr || Library->LoadComputePipeline(Name, Desc, IID_PPV_ARGS(&PSO)) == E_INVALIDARG)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
+		hr = Device->CreateComputePipelineState(Desc, IID_PPV_ARGS(&PSO));
+	}
+
+	if (Library && SUCCEEDED(hr))
+	{
+		HRESULT r = Library->StorePipeline(Name, PSO);
+		check(r != E_INVALIDARG);
+	}
+
+	return hr;
+}
+
+// Thread-safe create graphics/compute pipeline state. Conditionally load/store the PSO using a Pipeline Library.
+static HRESULT CreatePipelineStateFromStream(ID3D12PipelineState*& PSO, ID3D12Device2* Device, const D3D12_PIPELINE_STATE_STREAM_DESC* Desc, ID3D12PipelineLibrary1* Library, const TCHAR* Name)
+{
+	HRESULT hr;
 	if (Library)
 	{
 		// Try to load the PSO from the library.
-		check(Name);
-		HRESULT HResult = Library->LoadPipeline(Name, Desc, IID_PPV_ARGS(&PSO));
-		if (E_INVALIDARG == HResult)
+		hr = Library->LoadPipeline(Name, Desc, IID_PPV_ARGS(&PSO));
+		if (hr == E_INVALIDARG)
 		{
 			// The name doesn't exist or the input desc doesn't match the data in the library, just create the PSO.
 			{
 				SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
-				VERIFYD3D12RESULT(Device->CreatePipelineState(Desc, IID_PPV_ARGS(&PSO)));
+				hr = Device->CreatePipelineState(Desc, IID_PPV_ARGS(&PSO));
 			}
 
-			// Try to save the PSO to the library for another time.
-			check(PSO);
-			HResult = Library->StorePipeline(Name, PSO);
-			if (E_INVALIDARG != HResult)
+			if (SUCCEEDED(hr))
 			{
-				// E_INVALIDARG means the name already exists in the library. Since the name is based on the hash, this is a hash collision.
-				// We ignore E_INVALIDARG because we just create PSO's if they don't exist in the library.
-				VERIFYD3D12RESULT(HResult);
+				// Try to save the PSO to the library for another time.
+				hr = Library->StorePipeline(Name, PSO);
+				check(hr != E_INVALIDARG);
 			}
-		}
-		else
-		{
-			VERIFYD3D12RESULT(HResult);
 		}
 	}
 	else
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
-		HRESULT r = Device->CreatePipelineState(Desc, IID_PPV_ARGS(&PSO));
-
-		if (FAILED(r))
-		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("Failed to create PipelineState with hash %s"), Name);
-		}
+		hr = Device->CreatePipelineState(Desc, IID_PPV_ARGS(&PSO));
 	}
 
-	check(PSO);
+	return hr;
 }
 
 static inline void FastHashName(wchar_t Name[17], uint64 Hash)
@@ -718,34 +694,87 @@ static inline void FastHashName(wchar_t Name[17], uint64 Hash)
 	Name[16] = 0;
 }
 
-template <typename TDesc>
-static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const TDesc* CreationArgs)
+static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs)
 {
 	// Get the pipeline state name, currently based on the hash.
 	wchar_t Name[17];
 	FastHashName(Name, CreationArgs->Desc.CombinedHash);
 
 #if LOG_PSO_CREATES
-	const FString CreatePipelineStateMessage = FString::Printf(TEXT("CreatePipelineState (%s, Hash = %s)"), TPSOStreamFunctionMap<TDesc>::GetString(), Name);
+	const FString CreatePipelineStateMessage = FString::Printf(TEXT("CreateGraphicsPipelineState (Hash = %s)"), Name);
 	SCOPE_LOG_TIME(*CreatePipelineStateMessage, &GD3D12CreatePSOTime);
 #endif
 
-	// FORT-243931 - Only use old school path for now
-#if 0
 	// Use pipeline streams if the system supports it.
 	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
 	if (pDevice2)
 	{
-		typename TPSOStreamFunctionMap<TDesc>::D3D12PipelineStateStreamType Stream = CreationArgs->Desc.Desc.PipelineStateStream();
+		FD3D12_GRAPHICS_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.PipelineStateStream();
 		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
-		CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
+		HRESULT hr = CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash %s"), Name);
+
+			DumpShaderAsm(Stream.VS, TEXT("VS"));
+			DumpShaderAsm(Stream.GS, TEXT("GS"));
+			DumpShaderAsm(Stream.HS, TEXT("HS"));
+			DumpShaderAsm(Stream.DS, TEXT("DS"));
+			DumpShaderAsm(Stream.PS, TEXT("PS"));
+		}
 	}
 	else
-#endif
 	{
-		// Use the older pipeline descs.
-		const typename TPSOStreamFunctionMap<TDesc>::D3D12PipelineStateDescV0Type Desc = (CreationArgs->Desc.Desc.*TPSOStreamFunctionMap<TDesc>::GetPipelineStateDescV0())();
-		CreatePipelineState(*PSO, Adapter->GetD3DDevice(), &Desc, CreationArgs->Library, Name);
+		const D3D12_GRAPHICS_PIPELINE_STATE_DESC Desc = CreationArgs->Desc.Desc.GraphicsDescV0();
+		HRESULT hr = CreatePipelineState(*PSO, Adapter->GetD3DDevice(), &Desc, CreationArgs->Library, Name);
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash %s"), Name);
+
+			DumpShaderAsm(Desc.VS, TEXT("VS"));
+			DumpShaderAsm(Desc.GS, TEXT("GS"));
+			DumpShaderAsm(Desc.HS, TEXT("HS"));
+			DumpShaderAsm(Desc.DS, TEXT("DS"));
+			DumpShaderAsm(Desc.PS, TEXT("PS"));
+		}
+	}
+}
+
+static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs)
+{
+	// Get the pipeline state name, currently based on the hash.
+	wchar_t Name[17];
+	FastHashName(Name, CreationArgs->Desc.CombinedHash);
+
+#if LOG_PSO_CREATES
+	const FString CreatePipelineStateMessage = FString::Printf(TEXT("CreateComputePipelineState (Hash = %s)"), Name);
+	SCOPE_LOG_TIME(*CreatePipelineStateMessage, &GD3D12CreatePSOTime);
+#endif
+
+	// Use pipeline streams if the system supports it.
+	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
+	if (pDevice2)
+	{
+		FD3D12_COMPUTE_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.PipelineStateStream();
+		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
+		HRESULT hr = CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash %s"), Name);
+
+			DumpShaderAsm(Stream.CS, TEXT("CS"));
+		}
+	}
+	else
+	{
+		D3D12_COMPUTE_PIPELINE_STATE_DESC Desc = CreationArgs->Desc.Desc.ComputeDescV0();
+		HRESULT hr = CreatePipelineState(*PSO, Adapter->GetD3DDevice(), &Desc, CreationArgs->Library, Name);
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash %s"), Name);
+
+			DumpShaderAsm(Desc.CS, TEXT("CS"));
+		}
 	}
 }
 
@@ -794,12 +823,11 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 			{
 				if (Extension.Parameter.Type == EShaderParameterType::UAV)
 				{
-					const typename TPSOStreamFunctionMap<GraphicsPipelineCreationArgs_POD>::D3D12PipelineStateDescV0Type PsoDesc
-						= (CreationArgs->Desc.Desc.*TPSOStreamFunctionMap<GraphicsPipelineCreationArgs_POD>::GetPipelineStateDescV0())();
+					D3D12_GRAPHICS_PIPELINE_STATE_DESC Desc = CreationArgs->Desc.Desc.GraphicsDescV0();
 
 					const NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC ShdExtensionDesc = GetNVShaderExtensionDesc(Extension.Parameter.BaseIndex);
 					const NVAPI_D3D12_PSO_EXTENSION_DESC* NvExtensions[] = { &ShdExtensionDesc };
-					NvAPI_Status NvStatus = NvAPI_D3D12_CreateGraphicsPipelineState(Adapter->GetD3DDevice(), &PsoDesc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
+					NvAPI_Status NvStatus = NvAPI_D3D12_CreateGraphicsPipelineState(Adapter->GetD3DDevice(), &Desc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
 					check(NvStatus == NVAPI_OK);
 					return;
 				}
@@ -834,12 +862,11 @@ static void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter*
 			{
 				if (Extension.Parameter.Type == EShaderParameterType::UAV)
 				{
-					const typename TPSOStreamFunctionMap<ComputePipelineCreationArgs_POD>::D3D12PipelineStateDescV0Type PsoDesc
-						= (CreationArgs->Desc.Desc.*TPSOStreamFunctionMap<ComputePipelineCreationArgs_POD>::GetPipelineStateDescV0())();
+					D3D12_COMPUTE_PIPELINE_STATE_DESC Desc = CreationArgs->Desc.Desc.ComputeDescV0();
 
 					const NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC ShdExtensionDesc = GetNVShaderExtensionDesc(Extension.Parameter.BaseIndex);
 					const NVAPI_D3D12_PSO_EXTENSION_DESC* NvExtensions[] = { &ShdExtensionDesc };
-					NvAPI_Status NvStatus = NvAPI_D3D12_CreateComputePipelineState(Adapter->GetD3DDevice(), &PsoDesc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
+					NvAPI_Status NvStatus = NvAPI_D3D12_CreateComputePipelineState(Adapter->GetD3DDevice(), &Desc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
 					check(NvStatus == NVAPI_OK);
 					return;
 				}

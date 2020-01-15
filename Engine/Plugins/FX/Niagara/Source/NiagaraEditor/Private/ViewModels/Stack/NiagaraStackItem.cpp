@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackItemFooter.h"
@@ -27,6 +27,11 @@ UNiagaraStackItem::FOnModifiedGroupItems& UNiagaraStackItem::OnModifiedGroupItem
 	return ModifiedGroupItemsDelegate;
 }
 
+UNiagaraStackItem::FOnRequestPaste& UNiagaraStackItem::OnRequestPaste()
+{
+	return RequestPasteDelegate;
+}
+
 void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 {
 	if (ItemFooter != nullptr)
@@ -34,15 +39,6 @@ void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 		ItemFooter->SetIsEnabled(bInIsEnabled);
 	}
 	SetIsEnabledInternal(bInIsEnabled);
-}
-
-void UNiagaraStackItem::Delete()
-{
-	if (GetDisplayedObject() != nullptr)
-	{
-		GetSystemViewModel()->GetSelectionViewModel()->RemoveEntryFromSelectionByDisplayedObject(GetDisplayedObject());
-	}
-	DeleteInternal();
 }
 
 const TArray<FNiagaraScriptHighlight>& UNiagaraStackItem::GetHighlights() const

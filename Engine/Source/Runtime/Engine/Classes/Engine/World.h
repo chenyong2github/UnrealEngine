@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1469,7 +1469,7 @@ public:
 #endif
 
 	/** Called when the world computes how post process volumes contribute to the scene. */
-	DECLARE_EVENT_OneParam(UWorld, FOnBeginPostProcessSettings, FVector);
+	DECLARE_EVENT_TwoParams(UWorld, FOnBeginPostProcessSettings, FVector, FSceneView*);
 	FOnBeginPostProcessSettings OnBeginPostProcessSettings;
 
 	/** Inserts a post process volume into the world in priority order */

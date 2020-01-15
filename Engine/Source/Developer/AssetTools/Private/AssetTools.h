@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetData.h"
 #include "AssetRenameManager.h"
+#include "Misc/BlacklistNames.h"
 #include "AssetTools.generated.h"
 
 class FAssetFixUpRedirectors;
@@ -78,6 +79,7 @@ public:
 	virtual UObject* CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None) override;
 	virtual UObject* DuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) override;
 	virtual UObject* DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) override;
+	virtual UObject* DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle) override;
 	virtual bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) override;
 	virtual void RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) override;
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) override;
@@ -116,6 +118,9 @@ public:
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const override;
 	virtual bool IsAssetClassSupported(const UClass* AssetClass) const override;
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
+	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() override;
+	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() override;
+
 public:
 	/** Gets the asset tools singleton as a FAssetTools for asset tools module use */
 	static UAssetToolsImpl& Get();
@@ -168,6 +173,9 @@ private:
 
 	UObject* PerformDuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, bool bWithDialog);
 
+	/** Internal method that performs actions when asset class blacklist filter changes */
+	void AssetClassBlacklistChanged();
+
 private:
 	/** The list of all registered AssetTypeActions */
 	TArray<TSharedRef<IAssetTypeActions>> AssetTypeActionsList;
@@ -178,10 +186,14 @@ private:
 	/** The categories that have been allocated already */
 	TMap<FName, FAdvancedAssetCategory> AllocatedCategoryBits;
 	
-	TSet<FName> SupportedAssetTypes;
-	
 	/** The next user category bit to allocate (set to 0 when there are no more bits left) */
 	uint32 NextUserCategoryBit;
+
+	/** Blacklist of assets by class name */
+	TSharedRef<FBlacklistNames> AssetClassBlacklist;
+
+	/** Blacklist of folder paths */
+	TSharedRef<FBlacklistPaths> FolderBlacklist;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

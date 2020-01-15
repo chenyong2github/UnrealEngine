@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditorAnimInstanceProxy.h"
 #include "PhysicsAssetEditorAnimInstance.h"
@@ -51,6 +51,11 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 		InRootNode->Evaluate_AnyThread(Output);
 		return true;
 	}
+}
+
+void FPhysicsAssetEditorAnimInstanceProxy::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+	RagdollNode.AddImpulseAtLocation(Impulse, Location, BoneName);
 }
 
 FPhysicsAssetEditorAnimInstanceProxy::~FPhysicsAssetEditorAnimInstanceProxy()

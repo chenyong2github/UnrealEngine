@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneManagement.h"
 #include "Misc/App.h"
@@ -20,7 +20,8 @@
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	TEXT("lod.TemporalLag"),
 	0.5f,
-	TEXT("This controls the the time lag for temporal LOD, in seconds."));
+	TEXT("This controls the the time lag for temporal LOD, in seconds."),
+	ECVF_Scalability | ECVF_Default);
 
 void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float LastRenderTime)
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
 #include "ChaosCloth/ChaosClothConfig.h"
@@ -32,9 +32,14 @@ UClothingSimulationInteractor* UChaosClothingSimulationFactory::CreateInteractor
 	return NewObject<UChaosClothingSimulationInteractor>(GetTransientPackage());
 }
 
-TSubclassOf<UClothConfigBase> UChaosClothingSimulationFactory::GetClothConfigClass() const
+TArrayView<const TSubclassOf<UClothConfigBase>> UChaosClothingSimulationFactory::GetClothConfigClasses() const
 {
-	return TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass());
+	static const TArray<TSubclassOf<UClothConfigBase>> ClothConfigClasses(
+		{
+			TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass()),
+			TSubclassOf<UClothConfigBase>(UChaosClothSharedSimConfig::StaticClass())
+		});
+	return ClothConfigClasses;
 }
 
 const UEnum* UChaosClothingSimulationFactory::GetWeightMapTargetEnum() const

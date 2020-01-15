@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "ClothingAssetBase.h"
@@ -134,10 +134,10 @@ public:
 	void CalculateReferenceBoneIndex();
 
 	/** Returns \c true if \p InLodIndex is a valid LOD id (index into \c ClothLodData). */
-	virtual bool IsValidLod(int32 InLodIndex) override;
+	virtual bool IsValidLod(int32 InLodIndex) const override;
 
 	/** Returns the number of valid LOD's (length of the \c ClothLodData array). */
-	virtual int32 GetNumLods() override;
+	virtual int32 GetNumLods() const override;
 
 #if WITH_EDITOR
 	/** * Add a new LOD class instance. */
@@ -177,19 +177,14 @@ public:
 		return ClothConfig ? ExactCast<ClothConfigType>(*ClothConfig) : nullptr;
 	}
 
-	/** Add or replace a new cloth config of the specified type. */
-	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
-	void SetClothConfig(ClothConfigType* ClothConfig)
-	{
-		check(ClothConfig);
-		ClothConfigs.Add(ClothConfig->GetClass()->GetFName(), static_cast<UClothConfigBase*>(ClothConfig));
-	}
-
 	/** Migrate deprecated objects. */
 	virtual void PostLoad() override;
 
 	/** Serialize deprecated objects. */
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Propagate the shared simulation configs between assets. Called after all cloth assets sharing the same simulation are loaded. */
+	virtual void PostUpdateAllAssets() override;
 
 	// The physics asset to extract collisions from when building a simulation.
 	UPROPERTY(EditAnywhere, Category = Config)
@@ -258,8 +253,22 @@ public:
 
 private:
 
-	// Add any missing cloth configs, for example after reloading clothing assets
+	// Add or replace a new cloth config of the specified type.
+	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
+	void SetClothConfig(ClothConfigType* ClothConfig)
+	{
+		check(ClothConfig);
+		ClothConfigs.Add(ClothConfig->GetClass()->GetFName(), static_cast<UClothConfigBase*>(ClothConfig));
+	}
+
+	// Create and add any missing cloth configs.
+	// If a config from a different factory exists already, the newly
+	// created config will attempt to initialize its parameters from it.
 	void AddClothConfigs();
+
+	// Propagate the shared simulation configs between assets.
+	// Called after a cloth asset is created or loaded.
+	void PropagateSharedConfigs();
 
 #if WITH_EDITOR
 	// Helper functions used in PostPropertyChangeCb

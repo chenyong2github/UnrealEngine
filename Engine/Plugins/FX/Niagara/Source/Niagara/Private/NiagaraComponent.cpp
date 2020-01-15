@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraComponent.h"
 #include "VectorVM.h"
@@ -21,6 +21,7 @@
 #include "EngineUtils.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/CollisionProfile.h"
+#include "PrimitiveSceneInfo.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
@@ -124,9 +125,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 	if (SystemInst)
 	{
 		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraSceneProxy %p"), this);
-
 		CreateRenderers(InComponent);
-		bAlwaysHasVelocity = true;
 		Batcher = SystemInst->GetBatcher();
 
 #if STATS
@@ -183,6 +182,8 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 	};
 	TArray<FSortInfo, TInlineAllocator<8>> RendererSortInfo;
 
+	bAlwaysHasVelocity = false;
+
 	ReleaseRenderers();
 	ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	for(TSharedRef<const FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : Component->GetSystemInstance()->GetEmitters())
@@ -196,6 +197,7 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 				if (Properties->GetIsEnabled() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 				{
 					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
+					bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
 				}
 				EmitterRenderers.Add(NewRenderer);
 			}
@@ -230,6 +232,7 @@ FNiagaraSceneProxy::~FNiagaraSceneProxy()
 			delete EmitterRenderer;
 		}
 	}
+	UniformBufferNoVelocity.ReleaseResource();
 	EmitterRenderers.Empty();
 }
 
@@ -242,6 +245,7 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 			Renderer->ReleaseRenderThreadResources();
 		}
 	}
+	UniformBufferNoVelocity.ReleaseResource();
 }
 
 // FPrimitiveSceneProxy interface.
@@ -261,6 +265,7 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 void FNiagaraSceneProxy::OnTransformChanged()
 {
 	LocalToWorldInverse = GetLocalToWorld().Inverse();
+	UniformBufferNoVelocity.ReleaseResource();
 }
 
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
@@ -286,6 +291,43 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	return Relevance;
 }
 
+FRHIUniformBuffer* FNiagaraSceneProxy::GetUniformBufferNoVelocity() const
+{
+	if ( !UniformBufferNoVelocity.IsInitialized() )
+	{
+		bool bHasPrecomputedVolumetricLightmap;
+		FMatrix PreviousLocalToWorld;
+		int32 SingleCaptureIndex;
+		bool bOutputVelocity;
+		FPrimitiveSceneInfo* LocalPrimitiveSceneInfo = GetPrimitiveSceneInfo();
+		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(LocalPrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+
+		UniformBufferNoVelocity.SetContents(
+			GetPrimitiveUniformShaderParameters(
+				GetLocalToWorld(),
+				PreviousLocalToWorld,
+				GetActorPosition(),
+				GetBounds(),
+				GetLocalBounds(),
+				GetLocalBounds(),
+				ReceivesDecals(),
+				HasDistanceFieldRepresentation(),
+				HasDynamicIndirectShadowCasterRepresentation(),
+				UseSingleSampleShadowFromStationaryLights(),
+				bHasPrecomputedVolumetricLightmap,
+				DrawsVelocity(),
+				GetLightingChannelMask(),
+				LpvBiasMultiplier,
+				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0,
+				SingleCaptureIndex,
+				false,
+				GetCustomPrimitiveData()
+			)
+		);
+		UniformBufferNoVelocity.InitResource();
+	}
+	return UniformBufferNoVelocity.GetUniformBufferRHI();
+}
 
 uint32 FNiagaraSceneProxy::GetMemoryFootprint() const
 { 
@@ -979,6 +1021,7 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 			WorldMan->UnregisterWithScalabilityManager(this);
 		}
 	}
+	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
 }
 
 void UNiagaraComponent::OnSystemComplete()
@@ -1262,6 +1305,8 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	if (SystemInstance.IsValid())
 	{
 		SystemBounds = SystemInstance->GetLocalBounds();
+		SystemBounds.BoxExtent *= BoundsScale;
+		SystemBounds.SphereRadius *= BoundsScale;
 	}
 	else
 	{

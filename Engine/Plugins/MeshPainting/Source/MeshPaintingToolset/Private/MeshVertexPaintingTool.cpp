@@ -190,7 +190,7 @@ void UMeshVertexPaintingTool::Tick(float DeltaTime)
 	}
 }
 
-void UMeshVertexPaintingTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMeshVertexPaintingTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	bResultValid = false;
 }

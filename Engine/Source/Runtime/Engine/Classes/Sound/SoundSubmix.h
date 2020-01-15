@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -177,14 +177,13 @@ protected:
 	TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 
 public:
-
 	// Sound Submix Editor functionality
 #if WITH_EDITOR
 
 	/**
 	* @return true if the child sound class exists in the tree
 	*/
-	bool RecurseCheckChild(USoundSubmix* ChildSoundSubmix);
+	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
 	/**
 	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner

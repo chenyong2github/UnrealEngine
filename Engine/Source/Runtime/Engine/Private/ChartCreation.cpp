@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /** 
  * ChartCreation
@@ -661,7 +661,7 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 
 	StartBatteryLevel = -1;
 	StopBatteryLevel = -1;
-	DeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
+	DeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
 	bIsChartingPaused = false;
 }
 
@@ -712,7 +712,7 @@ void FPerformanceTrackingChart::StartCharting()
 {
 	StartTemperatureLevel = FPlatformMisc::GetDeviceTemperatureLevel();
 	StartBatteryLevel = FPlatformMisc::GetBatteryLevel();
-	DeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
+	DeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
 	bIsChartingPaused = false;
 }
 
@@ -734,7 +734,7 @@ void FPerformanceTrackingChart::ResumeCharting()
 
 void FPerformanceTrackingChart::OnDeviceProfileManagerUpdated()
 {
-	FString CurrentDeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
+	FString CurrentDeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
 	if (CurrentDeviceProfileName != DeviceProfileName)
 	{
 		DeviceProfileName = TEXT("Mixed");

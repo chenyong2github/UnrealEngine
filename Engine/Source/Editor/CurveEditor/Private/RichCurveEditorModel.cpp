@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RichCurveEditorModel.h"
 #include "RichCurveKeyProxy.h"
@@ -545,7 +545,9 @@ TUniquePtr<IBufferedCurveModel> FRichCurveEditorModel::CreateBufferedCurveCopy()
 		}
 
 		TArray<FKeyPosition> KeyPositions;
+		KeyPositions.SetNumUninitialized(TargetKeyHandles.Num());
 		TArray<FKeyAttributes> KeyAttributes;
+		KeyAttributes.SetNumUninitialized(TargetKeyHandles.Num());
 		GetKeyPositions(TargetKeyHandles, KeyPositions);
 		GetKeyAttributes(TargetKeyHandles, KeyAttributes);
 

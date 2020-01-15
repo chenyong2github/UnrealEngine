@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimClassInterface.h"
@@ -238,6 +238,8 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 			// Never delete the owning animation instance
 			if (InstanceToRun != InOwningAnimInstance)
 			{
+				// Only call UninitializeAnimation if we are not the owning anim instance
+				InstanceToRun->UninitializeAnimation();
 				InstanceToRun->MarkPendingKill();
 			}
 			InstanceToRun = nullptr;

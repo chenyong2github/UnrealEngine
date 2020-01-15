@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef imp_ParallelRenderCommandEncoder_hpp
 #define imp_ParallelRenderCommandEncoder_hpp

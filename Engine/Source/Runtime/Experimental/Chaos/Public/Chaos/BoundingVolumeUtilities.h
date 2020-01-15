@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -89,7 +89,7 @@ bool HasBoundingBox(const TPBDRigidParticleHandleImp<T, d, bPersistent>& Handle)
 }
 
 template<class OBJECT_ARRAY, class T, int d>
-const TAABB<T, d>& GetWorldSpaceBoundingBox(const OBJECT_ARRAY& Objects, const int32 i, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
+const TAABB<T, d> GetWorldSpaceBoundingBox(const OBJECT_ARRAY& Objects, const int32 i, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
 {
 	return Objects[i]->BoundingBox();
 }
@@ -107,7 +107,7 @@ const TAABB<T, d>& GetWorldSpaceBoundingBox(const TGeometryParticles<T, d>& Obje
 }
 
 template<class T, int d>
-const TAABB<T, d>& GetWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects, const int32 i, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
+const TAABB<T, d> GetWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects, const int32 i, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
 {
 	return GetWorldSpaceBoundingBox(static_cast<const TParticles<T, d>&>(Objects), i, WorldSpaceBoxes);
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ namespace Chaos
 			return Cross.Size() > 1e-4;
 		}
 
-		static void Build(const TParticles<FReal, 3>& InParticles, TArray <TPlane<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<FReal, 3>& OutSurfaceParticles, TAABB<FReal, 3>& OutLocalBounds)
+		static void Build(const TParticles<FReal, 3>& InParticles, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<FReal, 3>& OutSurfaceParticles, TAABB<FReal, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
 			OutSurfaceParticles.Resize(0);
@@ -60,7 +60,7 @@ namespace Chaos
 				{
 					FVec3 Vs[3] = {InParticles.X(Idx[0]), InParticles.X(Idx[1]), InParticles.X(Idx[2])};
 					const FVec3 Normal = FVec3::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
-					OutPlanes.Add(TPlane<FReal, 3>(Vs[0], Normal));
+					OutPlanes.Add(TPlaneConcrete<FReal, 3>(Vs[0], Normal));
 					TArray<int32> FaceIndices;
 					FaceIndices.SetNum(3);
 					FaceIndices[0] = AddIndex(Idx[0]);
@@ -84,7 +84,7 @@ namespace Chaos
 				if (ensureMsgf(bIsValidTriangle, TEXT("FConvexBuilder::Build(): Generated invalid triangle!")))
 				{
 					FVec3 Normal = FVec3::CrossProduct(InParticles.X(1) - InParticles.X(0), InParticles.X(2) - InParticles.X(0)).GetSafeNormal();
-					OutPlanes.Add(TPlane<FReal, 3>(InParticles.X(0), Normal));
+					OutPlanes.Add(TPlaneConcrete<FReal, 3>(InParticles.X(0), Normal));
 					OutSurfaceParticles.AddParticles(3);
 					OutSurfaceParticles.X(0) = InParticles.X(0);
 					OutSurfaceParticles.X(1) = InParticles.X(1);
@@ -161,7 +161,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, SurfaceParticles %d"), NumPlanes, NumParticles);
 		}
 
-		static CHAOS_API void Simplify(TArray <TPlane<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TParticles<FReal, 3>& InOutParticles, TAABB<FReal, 3>& InOutLocalBounds)
+		static CHAOS_API void Simplify(TArray <TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TParticles<FReal, 3>& InOutParticles, TAABB<FReal, 3>& InOutLocalBounds)
 		{
 			struct TPair
 			{
@@ -254,7 +254,7 @@ namespace Chaos
 		struct FHalfEdge;
 		struct FConvexFace
 		{
-			FConvexFace(const TPlane<FReal, 3>& FacePlane)
+			FConvexFace(const TPlaneConcrete<FReal, 3>& FacePlane)
 				: ConflictList(nullptr)
 				, Plane(FacePlane)
 			{
@@ -262,7 +262,7 @@ namespace Chaos
 
 			FHalfEdge* FirstEdge;
 			FHalfEdge* ConflictList; //Note that these half edges are really just free verts grouped together
-			TPlane<FReal, 3> Plane;
+			TPlaneConcrete<FReal, 3> Plane;
 			FConvexFace* Prev;
 			FConvexFace* Next; //these have no geometric meaning, just used for book keeping
 		};
@@ -296,7 +296,7 @@ namespace Chaos
 			const FReal RSTNormalSize = RSTNormal.Size();
 			check(RSTNormalSize > 1e-4);
 			RSTNormal = RSTNormal * (1 / RSTNormalSize);
-			FConvexFace* RST = new FConvexFace(TPlane<FReal, 3>(InParticles.X(RS->Vertex), RSTNormal));
+			FConvexFace* RST = new FConvexFace(TPlaneConcrete<FReal, 3>(InParticles.X(RS->Vertex), RSTNormal));
 			RST->FirstEdge = RS;
 			RS->Face = RST;
 			ST->Face = RST;

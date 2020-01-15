@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -362,6 +362,14 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		{
 			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
 			KeyProp->InitializeValue(TempKeyStorage);
+		}
+
+		if (KeyProp->IsA<FLazyObjectProperty>())
+		{
+			UE_LOG(LogProperty, Warning, 
+				TEXT("Loading map properties with lazy object pointer keys has a known bug in UE4.24.1 (UE-85796). "
+					 "Resaving this package may cause data loss. '%s' in package '%s'. "),
+				*GetFullName(), *UnderlyingArchive.GetArchiveName());
 		}
 
 		// Read remaining items into container

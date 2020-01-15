@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -71,6 +71,9 @@ public:
 
 	// delegate for handling when a new pak file is successfully mounted passes in the name of the mounted pak file
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPakFileMountedDelegate, const TCHAR*);
+
+	// delegate for handling when a new pak file is successfully mounted passes in the name of the pak file and its chunk ID (or INDEX_NONE)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPakFileMounted, const TCHAR*, const int32);
 
 	// delegate to let other systems no that no paks were mounted, in case something wants to handle that case
 	DECLARE_MULTICAST_DELEGATE(FNoPakFilesMountedDelegate);
@@ -160,7 +163,9 @@ public:
 	// Callback to optimize memeory for currently mounted paks
 	static FOnOptimizeMemoryUsageForMountedPaks OnOptimizeMemoryUsageForMountedPaks;
 
-	// After a pakfile is mounted this callback is called for each new file
+	// After a pakfile is mounted this is called
+	static FOnPakFileMounted OnPakFileMounted;
+	UE_DEPRECATED(4.25, "FCoreDelegates::PakFileMountedCallback is deprecated. Use FCoreDelegates::OnPakFileMounted instead.")
 	static FPakFileMountedDelegate PakFileMountedCallback;
 
 	// After a file is added this is called

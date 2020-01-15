@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/PlayerController.h"
 #include "Misc/PackageName.h"
@@ -28,6 +28,7 @@
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Widgets/SViewport.h"
 #include "Engine/Console.h"
 #include "Net/UnrealNetwork.h"
@@ -4501,7 +4502,16 @@ ULocalPlayer* APlayerController::GetLocalPlayer() const
 
 bool APlayerController::IsInViewportClient(UGameViewportClient* ViewportClient) const
 {
-	return ViewportClient && ViewportClient->GetGameViewportWidget().IsValid() && ViewportClient->GetGameViewportWidget()->IsDirectlyHovered();
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (LocalPlayer && ViewportClient)
+	{
+		TSharedPtr<const FSlateUser> SlateUser = LocalPlayer->GetSlateUser();
+		if (SlateUser && SlateUser->IsWidgetDirectlyUnderCursor(ViewportClient->GetGameViewportWidget()))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 APlayerController::GetInputIndex() const

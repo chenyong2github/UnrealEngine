@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -558,6 +558,8 @@ public:
 	/* Allocate the space we need. Use this before calling this API in multithreaded. */
 	void ReserveLODImportData(int32 MaxLODIndex);
 	
+	void ForceBulkDataResident(const int32 LODIndex);
+
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
 

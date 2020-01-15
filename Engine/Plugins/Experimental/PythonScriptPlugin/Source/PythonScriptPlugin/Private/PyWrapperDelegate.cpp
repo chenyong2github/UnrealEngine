@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperDelegate.h"
 #include "PyWrapperObject.h"
@@ -360,7 +360,7 @@ struct TPyWrapperDelegateImpl
 
 		const PyGenUtil::FGeneratedWrappedFunction& DelegateSignature = MetaDataType::GetDelegateSignature(InSelf);
 
-		if (DelegateSignature.Func->Children == nullptr)
+		if (DelegateSignature.Func->ChildProperties == nullptr)
 		{
 			// Simple case, no parameters or return value
 			FDelegateInvocation::Call(*InSelf->DelegateInstance, nullptr);

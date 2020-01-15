@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -110,21 +110,6 @@ struct FTemplateMapInfo
 
 class FPerformanceMonitor;
 
-
-/** Struct used in filtering allowed references between assets. Passes context about the referencers to game-level filters */
-struct FAssetReferenceFilterContext
-{
-	TArray<FAssetData> ReferencingAssets;
-};
-
-/** Used in filtering allowed references between assets. Implement a subclass of this and return it in OnMakeAssetReferenceFilter */
-class IAssetReferenceFilter
-{
-public:
-	virtual ~IAssetReferenceFilter() { }
-	/** Filter function to pass/fail an asset. Called in some situations that are performance-sensitive so is expected to be fast. */
-	virtual bool PassesFilter(const FAssetData& AssetData, FText* OutOptionalFailureReason = nullptr) const = 0;
-};
 
 UCLASS(config=Engine, transient)
 class UNREALED_API UUnrealEdEngine : public UEditorEngine, public FNotifyHook
@@ -836,15 +821,7 @@ public:
 
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
-	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
-	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IAssetReferenceFilter>, FOnMakeAssetReferenceFilter, const FAssetReferenceFilterContext& /*Context*/);
-	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
-	TSharedPtr<IAssetReferenceFilter> MakeAssetReferenceFilter(const FAssetReferenceFilterContext& Context) { return OnMakeAssetReferenceFilterDelegate.IsBound() ? OnMakeAssetReferenceFilterDelegate.Execute(Context) : nullptr; }
-	
 protected:
-
-	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
-	FOnMakeAssetReferenceFilter OnMakeAssetReferenceFilterDelegate;
 
 	/** Called when global editor selection changes */
 	void OnEditorSelectionChanged(UObject* SelectionThatChanged);

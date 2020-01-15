@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
@@ -210,7 +210,7 @@ bool FStructSerializerCborByteArrayTest::RunTest( const FString& Parameters )
 
 		// Skip the array properties named "ByteArray" and "Int8Array".
 		FStructDeserializerPolicies Policies;
-		Policies.PropertyFilter = [](const UProperty* CurrentProp, const UProperty* ParentProp)
+		Policies.PropertyFilter = [](const FProperty* CurrentProp, const FProperty* ParentProp)
 		{
 			const bool bFilteredOut = (CurrentProp->GetFName() == FName(TEXT("ByteArray")) || CurrentProp->GetFName() == FName(TEXT("Int8Array")));
 			return !bFilteredOut;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -132,6 +132,11 @@ namespace UnrealBuildTool
 		/// Enable inlining.
 		/// </summary>
 		public bool bUseInlining = false;
+
+		/// <summary>
+		/// Whether to compile ISPC files.
+		/// </summary>
+		public bool bCompileISPC = false;
 
 		/// <summary>
 		/// Use AVX instructions
@@ -386,6 +391,7 @@ namespace UnrealBuildTool
 			bUseSharedBuildEnvironment = Other.bUseSharedBuildEnvironment;
 			bUseRTTI = Other.bUseRTTI;
 			bUseInlining = Other.bUseInlining;
+			bCompileISPC = Other.bCompileISPC;
 			bUseAVX = Other.bUseAVX;
 			bUseUnity = Other.bUseUnity;
 			MinSourceFilesForUnityBuildOverride = Other.MinSourceFilesForUnityBuildOverride;

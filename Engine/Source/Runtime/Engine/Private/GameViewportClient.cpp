@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameViewportClient.h"
 #include "HAL/FileManager.h"
@@ -326,12 +326,20 @@ void UGameViewportClient::DetachViewportClient()
 
 FSceneViewport* UGameViewportClient::GetGameViewport()
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 const FSceneViewport* UGameViewportClient::GetGameViewport() const
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 
@@ -813,7 +821,11 @@ bool UGameViewportClient::GetMousePosition(FVector2D& MousePosition) const
 {
 	bool bGotMousePosition = false;
 
+#ifdef USE_CONSOLE_CONTROLLER
 	if (Viewport && FSlateApplication::Get().IsMouseAttached())
+#else
+	if (Viewport)
+#endif
 	{
 		FIntPoint MousePos;
 		Viewport->GetMousePos(MousePos);

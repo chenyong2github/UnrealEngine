@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12RHIPrivate.h: Private D3D RHI definitions.
@@ -1165,5 +1165,26 @@ private:
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 
 #endif
+
+
+#define EMBED_DXGI_ERROR_LIST(PerEntry, Terminator)	\
+	PerEntry(DXGI_ERROR_UNSUPPORTED) Terminator \
+	PerEntry(DXGI_ERROR_NOT_CURRENT) Terminator \
+	PerEntry(DXGI_ERROR_MORE_DATA) Terminator \
+	PerEntry(DXGI_ERROR_MODE_CHANGE_IN_PROGRESS) Terminator \
+	PerEntry(DXGI_ERROR_ALREADY_EXISTS) Terminator \
+	PerEntry(DXGI_ERROR_SESSION_DISCONNECTED) Terminator \
+	PerEntry(DXGI_ERROR_ACCESS_DENIED) Terminator \
+	PerEntry(DXGI_ERROR_NON_COMPOSITED_UI) Terminator \
+	PerEntry(DXGI_ERROR_CACHE_FULL) Terminator \
+	PerEntry(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE) Terminator \
+	PerEntry(DXGI_ERROR_CACHE_CORRUPT) Terminator \
+	PerEntry(DXGI_ERROR_WAIT_TIMEOUT) Terminator \
+	PerEntry(DXGI_ERROR_FRAME_STATISTICS_DISJOINT) Terminator \
+	PerEntry(DXGI_ERROR_DYNAMIC_CODE_POLICY_VIOLATION) Terminator \
+	PerEntry(DXGI_ERROR_REMOTE_OUTOFMEMORY) Terminator \
+	PerEntry(DXGI_ERROR_ACCESS_LOST) Terminator
+
+
 
 #endif //!PLATFORM_XBOXONE

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -74,7 +74,7 @@ public:
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
-	bool GetIsPropertyVisibleFromProperty(const UProperty& Property) const;
+	bool GetIsPropertyVisibleFromProperty(const FProperty& Property) const;
 
 protected:
 	void OnChangeMode(FName ModeName);

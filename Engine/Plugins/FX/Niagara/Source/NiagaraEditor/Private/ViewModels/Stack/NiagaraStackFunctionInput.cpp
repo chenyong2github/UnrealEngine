@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
@@ -267,14 +267,27 @@ bool UNiagaraStackFunctionInput::TestCanCutWithMessage(FText& OutMessage) const
 		OutMessage = LOCTEXT("CantCutInvalidMessage", "The current input state doesn't support cutting.");
 		return false;
 	}
+	if (GetIsEnabledAndOwnerIsEnabled() == false)
+	{
+		OutMessage = LOCTEXT("CantCutDisabled", "Can not cut and input when it's owner is disabled.");
+		return false;
+	}
 	OutMessage = LOCTEXT("CanCutMessage", "Cut will copy the value of this input including\nany data objects and dynamic inputs, and will reset it to default.");
 	return true;
 }
 
-void UNiagaraStackFunctionInput::Cut()
+FText UNiagaraStackFunctionInput::GetCutTransactionText() const
 {
-	FScopedTransaction ScopedTransaction(LOCTEXT("CutInput", "Cut niagara input"));
-	Copy();
+	return LOCTEXT("CutInputTransaction", "Cut niagara input");
+}
+
+void UNiagaraStackFunctionInput::CopyForCut(UNiagaraClipboardContent* ClipboardContent) const
+{
+	Copy(ClipboardContent);
+}
+
+void UNiagaraStackFunctionInput::RemoveForCut()
+{
 	Reset();
 }
 
@@ -289,32 +302,58 @@ bool UNiagaraStackFunctionInput::TestCanCopyWithMessage(FText& OutMessage) const
 	return true;
 }
 
-void UNiagaraStackFunctionInput::Copy() const
+void UNiagaraStackFunctionInput::Copy(UNiagaraClipboardContent* ClipboardContent) const
 {
 	const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(GetTransientPackage());
 	if (ClipboardInput != nullptr)
 	{
-		FNiagaraEditorModule::Get().GetClipboard().Copy(ClipboardInput);
+		ClipboardContent->FunctionInputs.Add(ClipboardInput);
 	}
 }
 
-bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(FText& OutMessage) const
+bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const
 {
-	const UNiagaraClipboardFunctionInput* ClipboardInput = FNiagaraEditorModule::Get().GetClipboard().GetCopiedInput();
-	if (GetIsEnabledAndOwnerIsEnabled() &&  ClipboardInput != nullptr && ClipboardInput->InputType == InputType)
+	if (ClipboardContent->FunctionInputs.Num() == 0 || GetIsEnabledAndOwnerIsEnabled() == false)
 	{
-		OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here.");
-		return true;
+		// Empty clipboard, or disabled don't allow paste, but be silent.
+		return false;
 	}
-	return false;
+	else if (ClipboardContent->FunctionInputs.Num() == 1)
+	{
+		if (ClipboardContent->FunctionInputs[0] != nullptr)
+		{
+			if (ClipboardContent->FunctionInputs[0]->InputType == InputType)
+			{
+				OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here.");
+				return true;
+			}
+			else
+			{
+				OutMessage = LOCTEXT("CantPasteIncorrectType", "Can not paste inputs with mismatched types.");
+				return false;
+			}
+		}
+		return false;
+	}
+	else
+	{
+		OutMessage = LOCTEXT("CantPasteMultipleInputs", "Can't paste multiple inputs onto a single input.");
+		return false;
+	}
 }
 
-void UNiagaraStackFunctionInput::Paste()
+FText UNiagaraStackFunctionInput::GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const
 {
-	const UNiagaraClipboardFunctionInput* ClipboardInput = FNiagaraEditorModule::Get().GetClipboard().GetCopiedInput();
+	return LOCTEXT("PasteInputTransactionText", "Paste niagara inputs");
+}
+
+void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* ClipboardContent)
+{
+	checkf(ClipboardContent != nullptr && ClipboardContent->FunctionInputs.Num() == 1, TEXT("Clipboard must not be null, and must contain a single input.  Call TestCanPasteWithMessage to validate"));
+
+	const UNiagaraClipboardFunctionInput* ClipboardInput = ClipboardContent->FunctionInputs[0];
 	if (ClipboardInput != nullptr && ClipboardInput->InputType == InputType)
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("PasteInput", "Paste niagara input"));
 		SetValueFromClipboardFunctionInput(*ClipboardInput);
 	}
 }
@@ -1022,7 +1061,7 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	}
 }
 
-void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput)
+void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetDynamicInput", "Make dynamic input"));
 
@@ -1034,7 +1073,7 @@ void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput)
 	}
 
 	UNiagaraNodeFunctionCall* FunctionCallNode;
-	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode);
+	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode, FGuid(), SuggestedName);
 	FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(GetSystemViewModel(), GetEmitterViewModel(), GetStackEditorData(), *OwningModuleNode, *FunctionCallNode);
 	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
 
@@ -1734,6 +1773,7 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 {
 	const UNiagaraClipboardFunctionInput* ClipboardInput = nullptr;
 	FName InputName = InputParameterHandle.GetName();
+	TOptional<bool> bEditConditionValue = GetHasEditCondition() ? GetEditConditionEnabled() : TOptional<bool>();
 	switch (InputValues.Mode)
 	{
 	case EValueMode::Local:
@@ -1741,21 +1781,21 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 		TArray<uint8> LocalValueData;
 		LocalValueData.AddUninitialized(InputType.GetSize());
 		FMemory::Memcpy(LocalValueData.GetData(), InputValues.LocalStruct->GetStructMemory(), InputType.GetSize());
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateLocalValue(InOuter, InputName, InputType, LocalValueData);
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateLocalValue(InOuter, InputName, InputType, bEditConditionValue, LocalValueData);
 		break;
 	}
 	case EValueMode::Linked:
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateLinkedValue(InOuter, InputName, InputType, InputValues.LinkedHandle.GetParameterHandleString());
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateLinkedValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.LinkedHandle.GetParameterHandleString());
 		break;
 	case EValueMode::Data:
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDataValue(InOuter, InputName, InputType, InputValues.DataObjects.GetValueObject());
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDataValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DataObjects.GetValueObject());
 		break;
 	case EValueMode::Expression:
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateExpressionValue(InOuter, InputName, InputType, InputValues.ExpressionNode->GetHlslText().ToString());
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateExpressionValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.ExpressionNode->GetHlslText().ToString());
 		break;
 	case EValueMode::Dynamic:
 	{
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, InputValues.DynamicNode->FunctionScript);
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DynamicNode->GetFunctionName(), InputValues.DynamicNode->FunctionScript);
 
 		TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 		GetUnfilteredChildrenOfType(DynamicInputCollections);
@@ -1766,6 +1806,9 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 
 		break;
 	}
+	case EValueMode::Invalid:
+		// Do nothing.
+		break;
 	default:
 		ensureMsgf(false, TEXT("A new value mode was added without adding support for copy paste."));
 		break;
@@ -1799,7 +1842,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
 				TEXT("Can not set dynamic input value from clipboard, only script asset funcitons can be set.")))
 			{
-				SetDynamicInput(ClipboardFunctionInput.Dynamic->Script);
+				SetDynamicInput(ClipboardFunctionInput.Dynamic->Script, ClipboardFunctionInput.Dynamic->FunctionName);
 				TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 				GetUnfilteredChildrenOfType(DynamicInputCollections);
 				for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
@@ -1812,6 +1855,11 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			ensureMsgf(false, TEXT("A new value mode was added without adding support for copy paste."));
 			break;
 		}
+	}
+
+	if (GetHasEditCondition() && ClipboardFunctionInput.bHasEditCondition)
+	{
+		SetEditConditionEnabled(ClipboardFunctionInput.bEditConditionValue);
 	}
 }
 

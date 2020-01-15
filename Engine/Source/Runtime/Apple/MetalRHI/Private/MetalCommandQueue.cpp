@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalCommandQueue.cpp: Metal command queue wrapper..
@@ -391,15 +391,10 @@ mtlpp::CommandBuffer FMetalCommandQueue::CreateCommandBuffer(void)
 	{
 		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBufferWithUnretainedReferences()) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer());
 		
-		if (RuntimeDebuggingLevel >= EMetalDebugLevelLogDebugGroups)
+		if (RuntimeDebuggingLevel > EMetalDebugLevelOff)
 		{			
-			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).debugGroups = [[NSMutableArray new] autorelease];
 			METAL_DEBUG_ONLY(FMetalCommandBufferDebugging AddDebugging(CmdBuffer));
 			MTLPP_VALIDATION(mtlpp::CommandBufferValidationTable ValidatedCommandBuffer(CmdBuffer));
-		}
-		if (RuntimeDebuggingLevel >= EMetalDebugLevelTrackResources)
-		{
-			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).resourceTracker = [[FMetalResourceTracker new] autorelease];
 		}
 	}
 	CommandBufferFences.Push(new mtlpp::CommandBufferFence(CmdBuffer.GetCompletionFence()));

@@ -1429,7 +1429,7 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 

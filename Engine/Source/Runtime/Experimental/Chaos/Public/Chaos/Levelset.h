@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayND.h"
@@ -35,7 +35,7 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override;
 	T SignedDistance(const TVector<T, d>& x) const;
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MOriginalLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MOriginalLocalBoundingBox; }
 
 	// Returns a const ref to the underlying phi grid
 	const TArrayND<T, d>& GetPhiArray() const { return MPhi; }

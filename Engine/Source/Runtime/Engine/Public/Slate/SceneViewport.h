@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -25,6 +25,8 @@ class SWindow;
 DECLARE_DELEGATE_OneParam( FOnSceneViewportResize, FVector2D );
 
 class SViewport;
+
+extern const FName NAME_SceneViewport;
 
 /**
  * A viewport for use with Slate SViewport widgets.

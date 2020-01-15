@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshBuilder.h"
 #include "Modules/ModuleManager.h"
@@ -56,9 +56,17 @@ namespace SkeletalMeshBuilderHelperNS
 {
 	void FixFaceMaterial(USkeletalMesh* SkeletalMesh, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces)
 	{
+		if (RawMeshMaterials.Num() <= 1)
+		{
+			//Nothing to fix if we have 1 or less material
+			return;
+		}
+
 		//Fix the material for the faces
 		TArray<int32> MaterialRemap;
 		MaterialRemap.Reserve(RawMeshMaterials.Num());
+		//Optimization to avoid doing the remap if no material have to change
+		bool bNeedRemapping = false;
 		for (int32 MaterialIndex = 0; MaterialIndex < RawMeshMaterials.Num(); ++MaterialIndex)
 		{
 			MaterialRemap.Add(MaterialIndex);
@@ -68,15 +76,32 @@ namespace SkeletalMeshBuilderHelperNS
 				FName MeshMaterialName = SkeletalMesh->Materials[MeshMaterialIndex].ImportedMaterialSlotName;
 				if (MaterialImportName == MeshMaterialName)
 				{
+					if (MaterialRemap[MaterialIndex] != MeshMaterialIndex)
+					{
+						bNeedRemapping = true;
+					}
 					MaterialRemap[MaterialIndex] = MeshMaterialIndex;
 					break;
 				}
 			}
 		}
-		//Update all the faces
-		for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+		if (bNeedRemapping)
 		{
-			LODFaces[FaceIndex].MeshMaterialIndex = MaterialRemap[LODFaces[FaceIndex].MeshMaterialIndex];
+			//Make sure the data is good before doing the change, We cannot do the remap if we
+			//have a bad synchronization between the face data and the Materials data.
+			for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+			{
+				if (!MaterialRemap.IsValidIndex(LODFaces[FaceIndex].MeshMaterialIndex))
+				{
+					return;
+				}
+			}
+
+			//Update all the faces
+			for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+			{
+				LODFaces[FaceIndex].MeshMaterialIndex = MaterialRemap[LODFaces[FaceIndex].MeshMaterialIndex];
+			}
 		}
 	}
 }
@@ -110,6 +135,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 
 	FSkeletalMeshImportData SkeletalMeshImportData;
 	float ProgressStepSize = SkeletalMesh->IsReductionActive(LODIndex) ? 0.5f : 1.0f;
+	int32 NumTextCoord = 1; //We need to send rendering at least one tex coord buffer
 
 	//This scope define where we can use the LODModel, after a reduction the LODModel must be requery since it is a new instance
 	{
@@ -124,6 +150,9 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;
 		TArray<int32> LODPointToRawMap;
 		SkeletalMeshImportData.CopyLODImportData(LODPoints, LODWedges, LODFaces, LODInfluences, LODPointToRawMap);
+
+		//Use the max because we need to have at least one texture coordinnate
+		NumTextCoord = FMath::Max<int32>(NumTextCoord, SkeletalMeshImportData.NumTexCoords);
 
 		SkeletalMeshBuilderHelperNS::FixFaceMaterial(SkeletalMesh, SkeletalMeshImportData.Materials, LODFaces);
 
@@ -149,7 +178,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		BuildLODModel.SyncronizeUserSectionsDataArray();
 
 		// Set texture coordinate count on the new model.
-		BuildLODModel.NumTexCoords = SkeletalMeshImportData.NumTexCoords;
+		BuildLODModel.NumTexCoords = NumTextCoord;
 
 		//Re-apply the morph target
 		SlowTask.EnterProgressFrame(1.0f, NSLOCTEXT("SkeltalMeshBuilder", "RebuildMorphTarget", "Rebuilding morph targets..."));
@@ -227,7 +256,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 	FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings, LODIndex);
 
 	LODModelAfterReduction.SyncronizeUserSectionsDataArray();
-	LODModelAfterReduction.NumTexCoords = SkeletalMeshImportData.NumTexCoords;
+	LODModelAfterReduction.NumTexCoords = NumTextCoord;
 	LODModelAfterReduction.BuildStringID = BackupBuildStringID;
 
 	SlowTask.EnterProgressFrame(ProgressStepSize, NSLOCTEXT("SkeltalMeshBuilder", "RegenerateDependentLODs", "Regenerate Dependent LODs..."));

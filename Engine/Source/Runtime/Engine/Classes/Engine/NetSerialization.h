@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	NetworkSerialization.h: 
@@ -903,7 +903,7 @@ bool FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::Read
 	Reader << Header.ArrayReplicationKey;
 	Reader << Header.BaseReplicationKey;
 
-	int32 NumDeletes;
+	int32 NumDeletes = 0;
 	Reader << NumDeletes;
 
 	UE_LOG(LogNetFastTArray, Log, TEXT("Received [%d/%d]."), Header.ArrayReplicationKey, Header.BaseReplicationKey);
@@ -933,7 +933,7 @@ bool FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::Read
 	{
 		for (int32 i = 0; i < NumDeletes; ++i)
 		{
-			int32 ElementID;
+			int32 ElementID = 0;
 			Reader << ElementID;
 
 			int32* ElementIndexPtr = ArraySerializer.ItemMap.Find(ElementID);
@@ -1338,7 +1338,7 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 		//---------------
 		for(int32 i = 0; i < Header.NumChanged; ++i)
 		{
-			int32 ElementID;
+			int32 ElementID = 0;
 			Reader << ElementID;
 
 			int32* ElementIndexPtr = ArraySerializer.ItemMap.Find(ElementID);

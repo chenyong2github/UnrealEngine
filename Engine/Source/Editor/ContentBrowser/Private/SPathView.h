@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,6 +20,7 @@ class FSourcesSearch;
 struct FHistoryData;
 struct FTreeItem;
 class FContentBrowserSingleton;
+class FBlacklistPaths;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
 
@@ -327,8 +328,8 @@ protected:
 
 	TSharedPtr<SWidget> PathViewWidget;
 
-	/** Cached pointer to content browser singleton */
-	FContentBrowserSingleton* ContentBrowserSingleton;
+	/** Blacklist filter to hide folders */
+	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 
 private:
 

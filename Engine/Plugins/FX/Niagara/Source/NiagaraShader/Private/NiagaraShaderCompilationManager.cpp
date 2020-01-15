@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShaderCompilationManager.h"
 #include "NiagaraShared.h"
@@ -78,8 +78,11 @@ public:
 	}
 };
 
-
-NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
+FNiagaraShaderCompilationManager& FNiagaraShaderCompilationManager::Get()
+{
+	static FNiagaraShaderCompilationManager Instance;
+	return Instance;
+}
 
 bool FNiagaraShaderCompilationManager::IsAsyncHackEnabled()const
 {

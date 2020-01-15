@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	BodySetup.cpp
@@ -713,6 +713,10 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 			{
 				ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
 
+#if TRACK_CHAOS_GEOMETRY
+				ConvexElem.GetChaosConvexMesh()->Track(Chaos::MakeSerializable(ConvexElem.GetChaosConvexMesh()),FullName);
+#endif
+
 				if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
 				{
 					const FString& PerformanceString = ConvexElem.GetChaosConvexMesh()->PerformanceWarningAndSimplifaction();
@@ -735,6 +739,20 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	ChaosTriMeshes = MoveTemp(InReader.TrimeshImplicitObjects);
 	UVInfo = MoveTemp(InReader.UVInfo);
 	FaceRemap = MoveTemp(InReader.FaceRemap);
+#if TRACK_CHAOS_GEOMETRY
+	for (auto& TriMesh : ChaosTriMeshes)
+	{
+		TriMesh->Track(Chaos::MakeSerializable(TriMesh), FullName);
+	}
+#endif
+
+#if WITH_CHAOS
+	// Force trimesh collisions off
+	for (auto& TriMesh : ChaosTriMeshes)
+	{
+		TriMesh->SetDoCollide(false);
+	}
+#endif
 
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)
@@ -1100,28 +1118,7 @@ void UBodySetup::PostLoad()
 	// data and extract the index data from there.
 	for(FKConvexElem& Convex : AggGeom.ConvexElems)
 	{
-		const int32 NumVerts = Convex.VertexData.Num();
-		if(NumVerts > 0 && Convex.IndexData.Num() == 0)
-		{
-			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
-			ConvexParticles.AddParticles(NumVerts);
-
-			for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
-			{
-				ConvexParticles.X(VertIndex) = Convex.VertexData[VertIndex];
-			}
-
-			TArray<Chaos::TVector<int32, 3>> Triangles;
-			Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
-
-			Convex.IndexData.Reset(Triangles.Num() * 3);
-			for(Chaos::TVector<int32, 3> Tri : Triangles)
-			{
-				Convex.IndexData.Add(Tri[0]);
-				Convex.IndexData.Add(Tri[1]);
-				Convex.IndexData.Add(Tri[2]);
-			}
-		}
+		Convex.ComputeChaosConvexIndices();
 	}
 #endif
 }
@@ -1718,19 +1715,42 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 }
 
 #if WITH_CHAOS
-const TUniquePtr<Chaos::FConvex>& FKConvexElem::GetChaosConvexMesh() const
-{
-	return ChaosConvex;
-}
 
-void FKConvexElem::SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex)
+void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
+	ComputeChaosConvexIndices();
 }
 
 void FKConvexElem::ResetChaosConvexMesh()
 {
 	ChaosConvex.Reset();
+}
+
+ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
+{
+	const int32 NumVerts = VertexData.Num();
+	if(NumVerts > 0 && IndexData.Num() == 0)
+	{
+		Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
+		ConvexParticles.AddParticles(NumVerts);
+
+		for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		{
+			ConvexParticles.X(VertIndex) = VertexData[VertIndex];
+		}
+
+		TArray<Chaos::TVector<int32, 3>> Triangles;
+		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
+
+		IndexData.Reset(Triangles.Num() * 3);
+		for(Chaos::TVector<int32, 3> Tri : Triangles)
+		{
+			IndexData.Add(Tri[0]);
+			IndexData.Add(Tri[1]);
+			IndexData.Add(Tri[2]);
+		}
+	}
 }
 #endif
 

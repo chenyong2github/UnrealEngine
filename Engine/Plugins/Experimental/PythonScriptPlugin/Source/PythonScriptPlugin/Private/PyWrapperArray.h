@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FPyWrapperArray : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the array */
-	const FArrayProperty* ArrayProp;
+	PyUtil::FConstArrayPropOnScope ArrayProp;
 
 	/** Wrapped array instance */
 	void* ArrayInstance;

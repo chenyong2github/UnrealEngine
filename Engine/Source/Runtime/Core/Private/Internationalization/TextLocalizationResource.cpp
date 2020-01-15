@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextLocalizationResource.h"
 #include "Internationalization/TextLocalizationResourceVersion.h"
@@ -674,6 +674,13 @@ const TArray<FString>& TextLocalizationResourceUtil::GetDisabledLocalizationTarg
 	}
 
 	return DisabledLocalizationTargets;
+}
+
+FString TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(const FString& InLocalizationTargetName, const int32 InChunkId)
+{
+	return InChunkId == INDEX_NONE || InChunkId == 0
+		? InLocalizationTargetName
+		: FString::Printf(TEXT("%s_locchunk%d"), *InLocalizationTargetName, InChunkId);
 }
 
 #undef PRELOAD_LOCMETA_FILES

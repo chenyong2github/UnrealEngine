@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,7 @@ class FNiagaraEmitterViewModel;
 class FNiagaraScriptViewModel;
 class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
+class UNiagaraClipboardContent;
 
 UENUM()
 enum class EStackIssueSeverity : uint8
@@ -109,6 +110,7 @@ public:
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
+		static const FName ShaderStage;
 		static const FName Render;
 	};
 
@@ -348,19 +350,32 @@ public:
 
 	virtual bool TestCanCutWithMessage(FText& OutMessage) const { return false; }
 
-	virtual void Cut() { }
+	virtual FText GetCutTransactionText() const { return FText(); }
+
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const { }
+	virtual void RemoveForCut() { }
 
 	virtual bool SupportsCopy() const { return false; }
 
 	virtual bool TestCanCopyWithMessage(FText& OutMessage) const { return false; }
 
-	virtual void Copy() const { }
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const { }
 
 	virtual bool SupportsPaste() const { return false; }
 
-	virtual bool TestCanPasteWithMessage(FText& OutMessage) const { return false; }
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const { return false; }
 
-	virtual void Paste() { }
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const { return FText(); }
+
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) { }
+
+	virtual bool SupportsDelete() const { return false; }
+
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
+
+	virtual FText GetDeleteTransactionText() const { return FText(); }
+
+	virtual void Delete() { }
 
 protected:
 	virtual void BeginDestroy() override;

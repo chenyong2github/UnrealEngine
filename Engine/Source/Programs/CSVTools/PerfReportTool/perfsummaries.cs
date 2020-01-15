@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -883,11 +883,6 @@ namespace PerfSummaries
             }
             htmlFile.WriteLine("  </table>");
 			htmlFile.WriteLine("<p style='font-size:8'>Note: Simplified hitch metric. All frames over threshold are counted" + "</p>");
-
-			if (csvStats.Events.Count == 0)
-            {
-                return;
-            }
         }
         public double[] HitchThresholds;
     };

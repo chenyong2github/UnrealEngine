@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,7 +19,9 @@ public:
 private:
 	TSharedRef<SWidget> ConstructAddButton();
 
-	EVisibility GetDeleteButtonVisibility() const;
+	FText GetDeleteButtonToolTip() const;
+
+	bool GetDeleteButtonIsEnabled() const;
 
 	FReply DeleteClicked();
 

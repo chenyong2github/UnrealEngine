@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
@@ -97,7 +97,11 @@ void UNiagaraStackInputCategory::ToClipboardFunctionInputs(UObject* InOuter, TAr
 	GetUnfilteredChildrenOfType(ChildInputs);
 	for (UNiagaraStackFunctionInput* ChildInput : ChildInputs)
 	{
-		OutClipboardFunctionInputs.Add(ChildInput->ToClipboardFunctionInput(InOuter));
+		const UNiagaraClipboardFunctionInput* FunctionInput = ChildInput->ToClipboardFunctionInput(InOuter);
+		if (FunctionInput != nullptr)
+		{
+			OutClipboardFunctionInputs.Add(FunctionInput);
+		}
 	}
 }
 

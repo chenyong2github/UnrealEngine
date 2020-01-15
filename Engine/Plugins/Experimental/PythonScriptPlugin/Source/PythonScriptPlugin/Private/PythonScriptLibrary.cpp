@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptLibrary.h"
 #include "PythonScriptPlugin.h"
@@ -54,7 +54,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 		FPyObjectPtr PyTempLocalDict = PyTempGlobalDict;
 
 		// Read the standard function arguments
-		P_GET_PROPERTY_REF(UStrProperty, PythonScript);
+		P_GET_PROPERTY_REF(FStrProperty, PythonScript);
 		P_GET_TARRAY_REF(FString, PythonInputs);
 		P_GET_TARRAY_REF(FString, PythonOutputs);
 
@@ -65,7 +65,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 			{
 				// Note: Medium term the Blueprint interpreter will change to provide us with a list of properties and 
 				// instance pointers, rather than forcing us to jump in and out of its interpreter loop (via StepCompiledIn)
-				Stack.StepCompiledIn<UProperty>(nullptr);
+				Stack.StepCompiledIn<FProperty>(nullptr);
 				check(Stack.MostRecentProperty && Stack.MostRecentPropertyAddress);
 
 				FPyObjectPtr PyInput;
@@ -83,7 +83,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 
 		struct FPyOutputParam
 		{
-			UProperty* Property = nullptr;
+			FProperty* Property = nullptr;
 			uint8* PropAddr = nullptr;
 			const TCHAR* OutputName = nullptr;
 		};
@@ -94,7 +94,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 		{
 			// Note: Medium term the Blueprint interpreter will change to provide us with a list of properties and 
 			// instance pointers, rather than forcing us to jump in and out of its interpreter loop (via StepCompiledIn)
-			Stack.StepCompiledIn<UProperty>(nullptr);
+			Stack.StepCompiledIn<FProperty>(nullptr);
 			check(Stack.MostRecentProperty && Stack.MostRecentPropertyAddress);
 
 			FPyOutputParam& OutParam = OutParms.AddDefaulted_GetRef();

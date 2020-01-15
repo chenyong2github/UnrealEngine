@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -709,6 +709,8 @@ namespace UnrealBuildTool
 			{
 				Target.bDisableDebugInfoForGeneratedCode = false;
 			}
+
+			Target.bCompileISPC = true;
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
 			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion);

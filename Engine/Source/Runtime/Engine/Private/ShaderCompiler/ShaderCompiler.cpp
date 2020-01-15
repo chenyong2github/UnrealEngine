@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderCompiler.cpp: Platform independent shader compilations.
@@ -83,7 +83,7 @@ FString GetMaterialShaderMapDDCKey()
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes (also search for the second one with the same name, todo: put into one header file)
 const int32 ShaderCompileWorkerInputVersion = 10;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerOutputVersion = 5;
+const int32 ShaderCompileWorkerOutputVersion = 6;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
 const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
@@ -1571,6 +1571,7 @@ void FShaderCompilerStats::WriteStats()
 		StatWriter.AddColumn(TEXT("Compiled"));
 		StatWriter.AddColumn(TEXT("Cooked"));
 		StatWriter.AddColumn(TEXT("Permutations"));
+		StatWriter.AddColumn(TEXT("Compiletime"));
 		StatWriter.AddColumn(TEXT("CompiledDouble"));
 		StatWriter.AddColumn(TEXT("CookedDouble"));
 		StatWriter.CycleRow();
@@ -1591,6 +1592,7 @@ void FShaderCompilerStats::WriteStats()
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.Compiled);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.Cooked);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.PermutationCompilations.Num());
+					StatWriter.AddColumn(TEXT("%f"), SingleStats.CompileTime);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.CompiledDouble);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.CookedDouble);
 					StatWriter.CycleRow();
@@ -1660,7 +1662,7 @@ void FShaderCompilerStats::WriteStats()
 	}
 #endif // ALLOW_DEBUG_FILES
 }
-void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
+void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
 {
 	FScopeLock Lock(&CompileStatsLock);
 	if(!CompileStats.IsValidIndex(Platform))
@@ -1670,6 +1672,7 @@ void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, EShaderPlatfo
 	}
 
 	FShaderCompilerStats::FShaderStats& Stats = CompileStats[Platform].FindOrAdd(MaterialPath);
+	Stats.CompileTime += CompileTime;
 	bool bFound = false;
 	for (FShaderCompilerSinglePermutationStat& Stat : Stats.PermutationCompilations)
 	{
@@ -1857,10 +1860,12 @@ FShaderCompilingManager::FShaderCompilingManager() :
 		float CookerMemoryUsedInGB = 0.0f;
 		float MemoryToLeaveForTheOSInGB = 0.0f;
 		float MemoryUsedPerSCWProcessInGB = 0.0f;
+		int32 MinSCWsToSpawnBeforeWarning = 8; // optional, default to 8
 		bool bFoundEntries = true;
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("CookerMemoryUsedInGB"), CookerMemoryUsedInGB, GEngineIni);
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("MemoryToLeaveForTheOSInGB"), MemoryToLeaveForTheOSInGB, GEngineIni);
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("MemoryUsedPerSCWProcessInGB"), MemoryUsedPerSCWProcessInGB, GEngineIni);
+		GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("MinSCWsToSpawnBeforeWarning"), MinSCWsToSpawnBeforeWarning, GEngineIni);
 		if (bFoundEntries)
 		{
 			uint32 PhysicalGBRam = FPlatformMemory::GetPhysicalGBRam();
@@ -1889,7 +1894,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 				GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bUseVirtualCores"), bUseVirtualCores, GEngineIni);
 				uint32 MaxNumCoresToUse = bUseVirtualCores ? NumVirtualCores : FPlatformMisc::NumberOfCores();
 				NumShaderCompilingThreads = FMath::Clamp<uint32>(NumShaderCompilingThreads, 1, MaxNumCoresToUse - 1);
-				if (NumShaderCompilingThreads < 8)
+				if (NumShaderCompilingThreads < static_cast<uint32>(MinSCWsToSpawnBeforeWarning))
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("Only %d SCWs will be spawned, which will result in longer shader compile times."), NumShaderCompilingThreads);
 				}
@@ -2438,9 +2443,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			Material->NotifyCompilationFinished();
 		}
 
-		PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
+		if (FApp::CanEverRender())
+		{
+			PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
 
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+		}
 	}
 #endif // WITH_EDITOR
 }

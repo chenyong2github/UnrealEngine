@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SMyBlueprint.h"
@@ -1717,7 +1717,7 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 
 				TSharedRef< FKismetFunctionDragDropAction> DragOperation =
 					FKismetFunctionDragDropAction::New(
-						InAction, Function->GetFName(),
+						InAction, (Function ? Function->GetFName() : Event->GetFName()),
 						GetBlueprintObj()->SkeletonGeneratedClass,
 						FMemberReference(),
 						AnalyticsDelegate,

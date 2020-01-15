@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/SynthComponent.h"
 #include "AudioDevice.h"
@@ -502,12 +502,6 @@ void USynthComponent::Stop()
 		if (AudioComponent)
 		{
 			AudioComponent->Stop();
-
-			FAudioDevice* AudioDevice = AudioComponent->GetAudioDevice();
-			if (AudioDevice)
-			{
-				AudioDevice->StopSoundsUsingResource(Synth);
-			}
 		}
 
 		SetActiveFlag(false);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
@@ -19,6 +19,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEditorSettings.h"
+#include "NiagaraClipboard.h"
 
 #include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
@@ -327,6 +328,49 @@ void UNiagaraStackScriptItemGroup::FinalizeInternal()
 	Super::FinalizeInternal();
 }
 
+bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const
+{
+	if (ClipboardContent->Functions.Num() > 0)
+	{
+		bool bValidUsage = false;
+		for (const UNiagaraClipboardFunction* Function : ClipboardContent->Functions)
+		{
+			if (Function != nullptr && Function->Script->GetSupportedUsageContexts().Contains(ScriptUsage))
+			{
+				bValidUsage = true;
+			}
+		}
+		if (bValidUsage)
+		{
+			OutMessage = LOCTEXT("PasteModules", "Paste modules from the clipboard which have a valid usage.");
+			return true;
+		}
+		else
+		{
+			OutMessage = LOCTEXT("CantPasteModulesForUsage", "Can't paste the copied modules because they don't support the correct usage.");
+			return false;
+		}
+	}
+	OutMessage = FText();
+	return false;
+}
+
+FText UNiagaraStackScriptItemGroup::GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const
+{
+	return LOCTEXT("PasteModuleTransactionText", "Paste niagara modules");
+}
+
+void UNiagaraStackScriptItemGroup::Paste(const UNiagaraClipboardContent* ClipboardContent)
+{
+	if (ClipboardContent->Functions.Num() > 0)
+	{
+		TArray<UNiagaraStackModuleItem*> ModuleItems;
+		GetUnfilteredChildrenOfType(ModuleItems);
+		int32 PasteIndex = ModuleItems.Num() > 0 ? ModuleItems.Last()->GetModuleIndex() + 1 : 0;
+		PasteModules(ClipboardContent, PasteIndex);
+	}
+}
+
 void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ScriptViewModel.Pin();
@@ -354,6 +398,7 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 				ModuleItem = NewObject<UNiagaraStackModuleItem>(this);
 				ModuleItem->Initialize(CreateDefaultChildRequiredData(), GetAddUtilities(), *ModuleNode);
 				ModuleItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildModifiedGroupItems);
+				ModuleItem->OnRequestPaste().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestPaste);
 			}
 
 			NewChildren.Add(ModuleItem);
@@ -896,11 +941,150 @@ void UNiagaraStackScriptItemGroup::ChildModifiedGroupItems()
 	RefreshChildren();
 }
 
+void UNiagaraStackScriptItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex)
+{
+	PasteModules(ClipboardContent, PasteIndex);
+}
+
 void UNiagaraStackScriptItemGroup::OnScriptGraphChanged(const struct FEdGraphEditAction& InAction)
 {
 	if (InAction.Action == GRAPHACTION_RemoveNode)
 	{
 		OnRequestFullRefreshDeferred().Broadcast();
+	}
+}
+
+void GatherRenamedModuleOutputs(
+	UNiagaraStackScriptItemGroup* InOwnerEntry,
+	TArray<TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>> InClipboardFunctionAndNodeFunctionPairs,
+	TMap<FName, FName>& OutOldModuleOutputNameToNewModuleOutputNameMap)
+{
+	for (TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>& ClipboardFunctionAndNodeFunctionPair : InClipboardFunctionAndNodeFunctionPairs)
+	{
+		const UNiagaraClipboardFunction* ClipboardFunction = ClipboardFunctionAndNodeFunctionPair.Key;
+		UNiagaraNodeFunctionCall* NewFunctionCallNode = ClipboardFunctionAndNodeFunctionPair.Value;
+		if (NewFunctionCallNode->GetFunctionName() != ClipboardFunction->FunctionName)
+		{
+			TArray<FNiagaraVariable> OutputVariables;
+			TArray<FNiagaraVariable> OutputVariablesWithOriginalAliasesIntact;
+			FCompileConstantResolver ConstantResolver = InOwnerEntry->GetEmitterViewModel().IsValid()
+				? FCompileConstantResolver(InOwnerEntry->GetEmitterViewModel()->GetEmitter())
+				: FCompileConstantResolver();
+			FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*NewFunctionCallNode, ConstantResolver, OutputVariables, OutputVariablesWithOriginalAliasesIntact);
+
+			for (FNiagaraVariable& OutputVariableWithOriginalAliasesIntact : OutputVariablesWithOriginalAliasesIntact)
+			{
+				TArray<FString> SplitAliasedVariableName;
+				OutputVariableWithOriginalAliasesIntact.GetName().ToString().ParseIntoArray(SplitAliasedVariableName, TEXT("."));
+				if (SplitAliasedVariableName.Contains(TEXT("Module")))
+				{
+					TArray<FString> SplitOldVariableName = SplitAliasedVariableName;
+					TArray<FString> SplitNewVariableName = SplitAliasedVariableName;
+					for (int32 i = 0; i < SplitAliasedVariableName.Num(); i++)
+					{
+						if (SplitAliasedVariableName[i] == TEXT("Module"))
+						{
+							SplitOldVariableName[i] = ClipboardFunction->FunctionName;
+							SplitNewVariableName[i] = NewFunctionCallNode->GetFunctionName();
+						}
+					}
+					OutOldModuleOutputNameToNewModuleOutputNameMap.Add(*FString::Join(SplitOldVariableName, TEXT(".")), *FString::Join(SplitNewVariableName, TEXT(".")));
+				}
+			}
+		}
+	}
+}
+
+void RenameInputsFromClipboard(TMap<FName, FName> OldModuleOutputNameToNewModuleOutputNameMap, UObject* InOuter, const TArray<const UNiagaraClipboardFunctionInput*>& InSourceInputs, TArray<const UNiagaraClipboardFunctionInput*>& OutRenamedInputs)
+{
+	for (const UNiagaraClipboardFunctionInput* SourceInput : InSourceInputs)
+	{
+		TOptional<bool> bEditConditionValue = SourceInput->bHasEditCondition 
+			? TOptional<bool>(SourceInput->bEditConditionValue)
+			: TOptional<bool>();
+		if (SourceInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Linked && OldModuleOutputNameToNewModuleOutputNameMap.Contains(SourceInput->Linked))
+		{
+			FName RenamedLinkedValue = OldModuleOutputNameToNewModuleOutputNameMap[SourceInput->Linked];
+			OutRenamedInputs.Add(UNiagaraClipboardFunctionInput::CreateLinkedValue(InOuter, SourceInput->InputName, SourceInput->InputType, bEditConditionValue, RenamedLinkedValue));
+		}
+		else if (SourceInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
+		{
+			const UNiagaraClipboardFunctionInput* RenamedDynamicInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, SourceInput->InputName, SourceInput->InputType, bEditConditionValue, SourceInput->Dynamic->FunctionName, SourceInput->Dynamic->Script);
+			RenameInputsFromClipboard(OldModuleOutputNameToNewModuleOutputNameMap, RenamedDynamicInput->Dynamic, SourceInput->Dynamic->Inputs, RenamedDynamicInput->Dynamic->Inputs);
+			OutRenamedInputs.Add(RenamedDynamicInput);
+		}
+		else
+		{
+			OutRenamedInputs.Add(CastChecked<UNiagaraClipboardFunctionInput>(StaticDuplicateObject(SourceInput, InOuter)));
+		}
+	}
+}
+
+void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex)
+{
+	UNiagaraNodeOutput* OutputNode = GetScriptOutputNode();
+	
+	// Add the new function call nodes from the clipboard functions and collected the pairs.
+	TArray<TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>> ClipboardFunctionAndNodeFunctionPairs;
+	int32 CurrentPasteIndex = PasteIndex;
+	for (const UNiagaraClipboardFunction* ClipboardFunction : ClipboardContent->Functions)
+	{
+		if (ClipboardFunction != nullptr)
+		{
+			UNiagaraNodeFunctionCall* NewFunctionCallNode = nullptr;
+			switch (ClipboardFunction->ScriptMode)
+			{
+			case ENiagaraClipboardFunctionScriptMode::Assignment:
+			{
+				NewFunctionCallNode = FNiagaraStackGraphUtilities::AddParameterModuleToStack(ClipboardFunction->AssignmentTargets, *OutputNode, CurrentPasteIndex, ClipboardFunction->AssignmentDefaults);
+				break;
+			}
+			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
+			{
+				if (ClipboardFunction->Script->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				{
+					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ClipboardFunction->Script, *OutputNode, CurrentPasteIndex);
+				}
+				break;
+			}
+			default:
+				checkf(false, TEXT("Unsupported clipboard function mode."));
+			}
+
+			NewFunctionCallNode->SuggestName(ClipboardFunction->FunctionName);
+			ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
+			CurrentPasteIndex++;
+		}
+	}
+	RefreshChildren();
+
+	// Check to see if any of the functions were renamed, and if they were, check if they had aliased outputs that need to be fixed up.
+	TMap<FName, FName> OldModuleOutputNameToNewModuleOutputNameMap;
+	GatherRenamedModuleOutputs(this, ClipboardFunctionAndNodeFunctionPairs, OldModuleOutputNameToNewModuleOutputNameMap);
+
+	// Apply the function inputs now that we have the map of old module output names to new module output names.
+	for(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>& ClipboardFunctionAndNodeFunctionPair : ClipboardFunctionAndNodeFunctionPairs)
+	{
+		const UNiagaraClipboardFunction* ClipboardFunction = ClipboardFunctionAndNodeFunctionPair.Key;
+		UNiagaraNodeFunctionCall* NewFunctionCallNode = ClipboardFunctionAndNodeFunctionPair.Value;
+
+		TArray<UNiagaraStackModuleItem*> ModuleItems;
+		GetUnfilteredChildrenOfType(ModuleItems);
+
+		UNiagaraStackModuleItem** NewModuleItemPtr = ModuleItems.FindByPredicate([NewFunctionCallNode](UNiagaraStackModuleItem* ModuleItem) { return &ModuleItem->GetModuleNode() == NewFunctionCallNode; });
+		if (NewModuleItemPtr != nullptr)
+		{
+			TArray<const UNiagaraClipboardFunctionInput*> FunctionInputs;
+			if (OldModuleOutputNameToNewModuleOutputNameMap.Num() > 0)
+			{
+				RenameInputsFromClipboard(OldModuleOutputNameToNewModuleOutputNameMap, GetTransientPackage(), ClipboardFunction->Inputs, FunctionInputs);
+			}
+			else
+			{
+				FunctionInputs = ClipboardFunction->Inputs;
+			}
+			(*NewModuleItemPtr)->SetInputValuesFromClipboardFunctionInputs(FunctionInputs);
+		}
 	}
 }
 

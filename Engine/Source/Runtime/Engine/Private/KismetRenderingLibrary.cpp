@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetRenderingLibrary.h"
 #include "HAL/FileManager.h"
@@ -50,20 +50,13 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
 		ENQUEUE_RENDER_COMMAND(ClearRTCommand)(
 			[RenderTargetResource, ClearColor](FRHICommandList& RHICmdList)
-			{
-				// Use hardware fast clear if the clear colors match.
-				const FTexture2DRHIRef& Texture = RenderTargetResource->GetRenderTargetTexture();
-				const bool bFastClear = Texture->GetClearColor() == ClearColor;
-
-				FRHIRenderPassInfo RPInfo(RenderTargetResource->GetRenderTargetTexture(), bFastClear ? ERenderTargetActions::Clear_Store : ERenderTargetActions::DontLoad_Store);
-				TransitionRenderPassTargets(RHICmdList, RPInfo);
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-				if (!bFastClear)
-				{
-					DrawClearQuad(RHICmdList, ClearColor);
-				}
-				RHICmdList.EndRenderPass();
-			});
+		{
+			FRHIRenderPassInfo RPInfo(RenderTargetResource->GetRenderTargetTexture(), ERenderTargetActions::DontLoad_Store);
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
+			DrawClearQuad(RHICmdList, ClearColor);
+			RHICmdList.EndRenderPass();
+		});
 	}
 }
 

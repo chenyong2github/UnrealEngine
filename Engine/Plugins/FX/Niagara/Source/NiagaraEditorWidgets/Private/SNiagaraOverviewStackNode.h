@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,7 +14,6 @@ class FAssetThumbnailPool;
 class FAssetThumbnail;
 struct FRendererPreviewData;
 
-
 class SNiagaraOverviewStackNode : public SGraphNode
 {
 public:
@@ -27,8 +26,10 @@ public:
 
 protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
+	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	void FillThumbnailBar(UObject* ChangedObject, const bool bIsTriggeredByObjectUpdate);
+
 private:
 	EVisibility GetIssueIconVisibility() const;
 	EVisibility GetEnabledCheckBoxVisibility() const;
@@ -53,6 +54,10 @@ private:
 		return bIsHoveringThumbnail;
 	}
 
+	FReply OnCycleThroughIssues();
+	FReply OpenParentEmitter();
+	EVisibility GetOpenParentEmitterVisibility() const;
+
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
 	UNiagaraStackViewModel* StackViewModel;
@@ -63,4 +68,5 @@ private:
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
 	TArray<FRendererPreviewData*> PreviewData;
 	bool bIsHoveringThumbnail;
+	int32 CurrentIssueIndex;
 };

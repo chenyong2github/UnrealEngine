@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -2655,7 +2655,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Whether to look in the machine store for signing certificates, rather than the user store.
 		/// </summary>
-		static bool bUseMachineStoreForCertificates = false;
+		static bool bUseMachineStoreForCertificates = true;
 
 		public enum SignatureType
 		{

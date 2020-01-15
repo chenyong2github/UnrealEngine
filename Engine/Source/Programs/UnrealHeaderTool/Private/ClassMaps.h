@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,12 +35,12 @@ struct FArchiveTypeDefinePair
 extern TMap<FString, TSharedRef<FUnrealSourceFile> > GUnrealSourceFilesMap;
 extern TMap<UField*, TSharedRef<FUnrealTypeDefinitionInfo> > GTypeDefinitionInfoMap;
 extern TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
-extern TMap<UClass*, FString> GClassStrippedHeaderTextMap;
-extern TMap<UClass*, FString> GClassHeaderNameWithNoPathMap;
+extern FCriticalSection GPackageSingletonsCriticalSection;
 extern TSet<FUnrealSourceFile*> GPublicSourceFileSet;
 extern TMap<FProperty*, FString> GArrayDimensions;
 extern TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
 extern TMap<void*, uint32> GGeneratedCodeHashes;
+extern FRWLock GGeneratedCodeHashesLock;
 extern TMap<UEnum*, EUnderlyingEnumType> GEnumUnderlyingTypes;
 extern TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
 extern TSet<FProperty*> GUnsizedProperties;

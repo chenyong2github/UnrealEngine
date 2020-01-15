@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,6 +23,7 @@
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationFactory.h"
+#include "ClothCollisionPrim.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 #include "SkeletalMeshComponent.generated.h"
@@ -1009,7 +1010,7 @@ public:
 	 * Get/Set the max distance scale of clothing mesh vertices
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
-	float GetClothMaxDistanceScale();
+	float GetClothMaxDistanceScale() const;
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
 	void SetClothMaxDistanceScale(float Scale);
 
@@ -1693,7 +1694,7 @@ public:
 
 	FOnBoneTransformsFinalized OnBoneTransformsFinalized;
 
-	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx);
+	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx) const;
 
 	// Conditions used to gate when post process events happen
 	bool ShouldUpdatePostProcessInstance() const;
@@ -2143,7 +2144,7 @@ private:
 	/** See UpdateClothTransform for documentation. */
 	void UpdateClothTransformImp();
 
-	friend class FClothingSimulationBase;
+	friend class FClothingSimulationContextCommon;
 
 	friend class FTickClothingTask;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Convex.h"
 
 namespace Chaos
@@ -13,7 +13,7 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlane<FReal, 3>& Plane = Planes[Idx];
+			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
 			const FReal Distance = Plane.SignedDistance(Position);
 			if (FMath::Abs(Distance) < SearchDist)
 			{
@@ -43,7 +43,7 @@ namespace Chaos
 		TSet<int32> IncludedParticles;
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlane<FReal, 3>& Plane = Planes[Idx];
+			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
 			FReal AbsOfSignedDistance = FMath::Abs(Plane.SignedDistance(Position));
 			if (AbsOfSignedDistance < SearchDist)
 			{

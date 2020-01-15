@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClassViewerFilter.h"
 
@@ -9,8 +9,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
-#include "Editor/UnrealEdEngine.h"
-#include "UnrealEdGlobals.h"
+#include "Editor.h"
 #include "AssetRegistryModule.h"
 #include "PropertyHandle.h"
 
@@ -398,7 +397,7 @@ FClassViewerFilter::FClassViewerFilter(const FClassViewerInitializationOptions& 
 	AssetRegistry(FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get())
 {
 	// Create a game-specific filter, if the referencing property/assets were supplied
-	if (GUnrealEd)
+	if (GEditor)
 	{
 		FAssetReferenceFilterContext AssetReferenceFilterContext;
 		AssetReferenceFilterContext.ReferencingAssets = InInitOptions.AdditionalReferencingAssets;
@@ -411,7 +410,7 @@ FClassViewerFilter::FClassViewerFilter(const FClassViewerInitializationOptions& 
 				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
 			}
 		}
-		AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 	}
 }
 

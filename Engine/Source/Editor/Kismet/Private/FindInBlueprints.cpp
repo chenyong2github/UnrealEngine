@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "FindInBlueprints.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
@@ -130,11 +130,6 @@ FFindInBlueprintsResult::FFindInBlueprintsResult(const FText& InDisplayText )
 {
 }
 
-FFindInBlueprintsResult::FFindInBlueprintsResult( const FText& InDisplayText, TSharedPtr<FFindInBlueprintsResult> InParent) 
-	: Parent(InParent), DisplayText(InDisplayText)
-{
-}
-
 FReply FFindInBlueprintsResult::OnClick()
 {
 	// If there is a parent, handle it using the parent's functionality
@@ -218,9 +213,8 @@ FText FFindInBlueprintsResult::GetDisplayString() const
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsGraphNode
 
-FFindInBlueprintsGraphNode::FFindInBlueprintsGraphNode(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, Glyph("EditorStyle", "")
+FFindInBlueprintsGraphNode::FFindInBlueprintsGraphNode()
+	: Glyph("EditorStyle", "")
 	, Class(nullptr)
 {
 }
@@ -326,9 +320,8 @@ UObject* FFindInBlueprintsGraphNode::GetObject(UBlueprint* InBlueprint) const
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsPin
 
-FFindInBlueprintsPin::FFindInBlueprintsPin(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, FString InSchemaName)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, SchemaName(InSchemaName)
+FFindInBlueprintsPin::FFindInBlueprintsPin(FString InSchemaName)
+	: SchemaName(InSchemaName)
 	, IconColor(FSlateColor::UseForeground())
 {
 }
@@ -405,9 +398,8 @@ void FFindInBlueprintsPin::FinalizeSearchData()
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsProperty
 
-FFindInBlueprintsProperty::FFindInBlueprintsProperty(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, bIsSCSComponent(false)
+FFindInBlueprintsProperty::FFindInBlueprintsProperty()
+	: bIsSCSComponent(false)
 {
 }
 
@@ -512,9 +504,8 @@ void FFindInBlueprintsProperty::FinalizeSearchData()
 //////////////////////////////////////////////////////////
 // FFindInBlueprintsGraph
 
-FFindInBlueprintsGraph::FFindInBlueprintsGraph(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, EGraphType InGraphType)
-	: FFindInBlueprintsResult(InValue, InParent)
-	, GraphType(InGraphType)
+FFindInBlueprintsGraph::FFindInBlueprintsGraph(EGraphType InGraphType)
+	: GraphType(InGraphType)
 {
 }
 

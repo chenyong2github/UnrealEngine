@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chat/SocialGroupChannel.h"
 #include "User/SocialUser.h"
@@ -11,7 +11,7 @@ USocialGroupChannel::USocialGroupChannel()
 
 void USocialGroupChannel::Initialize(IOnlineGroupsPtr InGroupInterface, USocialUser& InSocialUser, const FUniqueNetId& InGroupId)
 {
-	GroupId = InGroupId;
+	GroupId = InGroupId.AsShared();
 	SocialUser = &InSocialUser;
 	GroupInterfacePtr = InGroupInterface;
 

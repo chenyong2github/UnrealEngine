@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,7 +6,7 @@
 
 #include "MoviePlayer.h"
 #include "WebMAudioBackend.h"
-#include "WebMAudioBackendDefines.h"
+#include COMPILED_PLATFORM_HEADER(WebMAudioBackendDefines.h)
 #include "WebMMediaFrame.h"
 #include "Containers/Queue.h"
 #include "WebMSamplesSink.h"
