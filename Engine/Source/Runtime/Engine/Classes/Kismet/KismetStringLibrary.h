@@ -36,6 +36,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (IntVector)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_IntVectorToString(FIntVector InIntVec);
 
+	/** Converts an IntPoint value to a string, in the form 'X= Y=' */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (IntPoint)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_IntPointToString(FIntPoint InIntPoint);
+
 	/** Converts a vector2d value to a string, in the form 'X= Y=' */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (vector2d)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_Vector2dToString(FVector2D InVec);

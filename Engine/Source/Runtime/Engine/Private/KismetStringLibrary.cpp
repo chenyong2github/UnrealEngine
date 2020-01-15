@@ -76,6 +76,11 @@ FString UKismetStringLibrary::Conv_IntVectorToString(FIntVector InIntVec)
 	return InIntVec.ToString();
 }
 
+FString UKismetStringLibrary::Conv_IntPointToString(FIntPoint InIntPoint)
+{
+	return InIntPoint.ToString();
+}
+
 FString UKismetStringLibrary::Conv_Vector2dToString(FVector2D InVec)
 {
 	return InVec.ToString();	

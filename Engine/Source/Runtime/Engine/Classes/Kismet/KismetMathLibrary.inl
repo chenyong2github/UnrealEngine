@@ -909,6 +909,124 @@ bool UKismetMathLibrary::EqualEqual_TransformTransform(const FTransform& A, cons
 }
 
 
+/* FIntPoint
+*****************************************************************************/
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_Zero()
+{
+	return FIntPoint::ZeroValue;
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_One()
+{
+	return FIntPoint(1);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_Up()
+{
+	return FIntPoint(0, -1);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_Left()
+{
+	return FIntPoint(-1, 0);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_Right()
+{
+	return FIntPoint(1, 0);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::IntPoint_Down()
+{
+	return FIntPoint(0, 1);
+}
+
+KISMET_MATH_FORCEINLINE
+FVector2D UKismetMathLibrary::Conv_IntPointToVector2D(FIntPoint InIntPoint)
+{
+	return FVector2D(InIntPoint.X, InIntPoint.Y);
+}
+
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Add_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	return A + B;
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Add_IntPointInt(FIntPoint A, int32 B)
+{
+	return A + FIntPoint(B);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Subtract_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	return A - B;
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Subtract_IntPointInt(FIntPoint A, int32 B)
+{
+	return A - FIntPoint(B);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Multiply_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	return A * B;
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Multiply_IntPointInt(FIntPoint A, int32 B)
+{
+	return A * FIntPoint(B);
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Divide_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	if (B.X == 0 || B.Y == 0)
+	{
+		ReportError_Divide_IntPointOnIntPoint();
+		return FIntPoint::ZeroValue;
+	}
+	return A / B;
+}
+
+KISMET_MATH_FORCEINLINE
+FIntPoint UKismetMathLibrary::Divide_IntPointInt(FIntPoint A, int32 B)
+{
+	if (B == 0)
+	{
+		ReportError_Divide_IntPointOnInt();
+		return FIntPoint::ZeroValue;
+	}
+
+	return A / FIntPoint(B);
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::Equal_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	return A == B;
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::NotEqual_IntPointIntPoint(FIntPoint A, FIntPoint B)
+{
+	return A != B;
+}
+
+
 /* FVector2D
 *****************************************************************************/
 
