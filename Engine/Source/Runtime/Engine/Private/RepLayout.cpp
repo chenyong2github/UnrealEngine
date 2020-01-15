@@ -5369,11 +5369,13 @@ void FRepLayout::InitFromClass(
 			}
 
 			++NumberOfLifetimeProperties;
+#if WITH_PUSH_MODEL
 			if (bIsPushModelEnabled && LifetimeProps[i].bIsPushBased)
 			{
 				++NumberOfPushModelProperties;
 				Parents[ParentIndex].Flags |= ERepParentFlags::UsePushModel;
 			}
+#endif
 		}
 		else
 		{
@@ -5478,12 +5480,14 @@ void FRepLayout::InitFromClass(
 		}
 	}	
 
+#if WITH_PUSH_MODEL
 	if (bIsPushModelEnabled && NumberOfPushModelProperties > 0)
 	{
 		Flags |= (NumberOfLifetimeProperties == NumberOfPushModelProperties) ?
 			ERepLayoutFlags::FullPushSupport :
 			ERepLayoutFlags::PartialPushSupport;
 	}
+#endif
 
 	if (!ServerConnection || EnumHasAnyFlags(CreateFlags, ECreateRepLayoutFlags::MaySendProperties))
 	{
