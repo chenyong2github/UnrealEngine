@@ -2574,6 +2574,18 @@ uint8 UKismetMathLibrary::Conv_IntToByte(int32 InInt)
 }
 
 KISMET_MATH_FORCEINLINE
+int32 UKismetMathLibrary::Conv_Int64ToInt(int64 InInt)
+{
+	return (int32)InInt;
+}
+
+KISMET_MATH_FORCEINLINE
+uint8 UKismetMathLibrary::Conv_Int64ToByte(int64 InInt)
+{
+	return (uint8)InInt;
+}
+
+KISMET_MATH_FORCEINLINE
 FIntVector UKismetMathLibrary::Conv_IntToIntVector(int32 InInt)
 {
 	return FIntVector(InInt, InInt, InInt);
