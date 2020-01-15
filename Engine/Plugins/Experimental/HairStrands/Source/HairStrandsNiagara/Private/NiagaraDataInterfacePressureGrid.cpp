@@ -9,6 +9,10 @@
 
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+#include "ShaderParameterStruct.h"
+#include "GlobalShader.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePressureGrid"
 DEFINE_LOG_CATEGORY_STATIC(LogPressureGrid, Log, All);
@@ -18,12 +22,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogPressureGrid, Log, All);
 static const FName BuildVelocityFieldName(TEXT("BuildVelocityField"));
 static const FName ProjectVelocityFieldName(TEXT("ProjectVelocityField"));
 static const FName SampleVelocityFieldName(TEXT("SampleVelocityField"));
-static const FName GetCellPositionName(TEXT("GetCellPosition"));
+static const FName GetNodePositionName(TEXT("GetNodePosition"));
 static const FName TransferCellVelocityName(TEXT("TransferCellVelocity"));
 static const FName SetSolidBoundaryName(TEXT("SetSolidBoundary"));
 static const FName ComputeBoundaryWeightsName(TEXT("ComputeBoundaryWeights"));
 static const FName BuildGridTopologyName(TEXT("BuildGridTopology"));
 static const FName UpdateGridTransformName(TEXT("UpdateGridTransform"));
+static const FName AddGridVelocityName(TEXT("AddGridVelocity"));
+static const FName GetGridVelocityName(TEXT("GetGridVelocity"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -64,18 +70,18 @@ struct FNDIPressureGridParametersName
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPressureGridBuffer::SetGridSize(const FUintVector4 InGridSize)
+void FNDIPressureGridBuffer::Initialize(const FIntVector InGridSize)
 {
 	GridSize = InGridSize;
 }
 
 void FNDIPressureGridBuffer::InitRHI()
 {
-	if(GridSize.X != 0 && GridSize.Y != 0 && GridSize.Z != 0)
+	if (GridSize.X != 0 && GridSize.Y != 0 && GridSize.Z != 0)
 	{
-		static const uint32 NumComponents = 14;
-		GridDataBuffer.Initialize(sizeof(int32), GridSize.X*NumComponents, GridSize.Y,
-			GridSize.Z, EPixelFormat::PF_R32_SINT);
+		static const uint32 NumComponents = 17;
+		GridDataBuffer.Initialize(sizeof(int32), (GridSize.X + 1)*NumComponents, (GridSize.Y + 1),
+			(GridSize.Z + 1), EPixelFormat::PF_R32_SINT);
 	}
 }
 
@@ -84,18 +90,62 @@ void FNDIPressureGridBuffer::ReleaseRHI()
 	GridDataBuffer.Release();
 }
 
-void FNDIPressureGridBuffer::ClearBuffers(FRHICommandList& RHICmdList)
-{
-	ClearUAV(RHICmdList, GridDataBuffer, FLinearColor(0, 0, 0, 0));
-}
-
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPressureGridData::SwapBuffers()
+void FNDIPressureGridData::Swap()
 {
 	FNDIPressureGridBuffer* StoredBufferPointer = CurrentGridBuffer;
 	CurrentGridBuffer = DestinationGridBuffer;
 	DestinationGridBuffer = StoredBufferPointer;
+}
+
+void FNDIPressureGridData::Release()
+{
+	if (CurrentGridBuffer)
+	{
+		BeginReleaseResource(CurrentGridBuffer);
+		ENQUEUE_RENDER_COMMAND(DeleteResourceA)(
+			[ParamPointerToRelease = CurrentGridBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			delete ParamPointerToRelease;
+		});
+		CurrentGridBuffer = nullptr;
+	}
+	if (DestinationGridBuffer)
+	{
+		BeginReleaseResource(DestinationGridBuffer);
+		ENQUEUE_RENDER_COMMAND(DeleteResourceB)(
+			[ParamPointerToRelease = DestinationGridBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			delete ParamPointerToRelease;
+		});
+		DestinationGridBuffer = nullptr;
+	}
+}
+
+bool FNDIPressureGridData::Init(UNiagaraDataInterfacePressureGrid* Interface, FNiagaraSystemInstance* SystemInstance)
+{
+	CurrentGridBuffer = nullptr;
+	DestinationGridBuffer = nullptr;
+
+	GridOrigin = FVector4(0, 0, 0, 0);
+	GridSize = FIntVector(1, 1, 1);
+	WorldTransform = WorldInverse = FMatrix::Identity;
+
+	if (Interface != nullptr)
+	{
+		GridSize = Interface->GridSize;
+
+		CurrentGridBuffer = new FNDIPressureGridBuffer();
+		CurrentGridBuffer->Initialize(Interface->GridSize);
+		BeginInitResource(CurrentGridBuffer);
+
+		DestinationGridBuffer = new FNDIPressureGridBuffer();
+		DestinationGridBuffer->Initialize(Interface->GridSize);
+		BeginInitResource(DestinationGridBuffer);
+	}
+
+	return true;
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -149,7 +199,8 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 		FNDIPressureGridData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
 
-		if (ProxyData != nullptr)
+		if (ProxyData != nullptr && ProxyData->CurrentGridBuffer != nullptr && ProxyData->DestinationGridBuffer != nullptr
+			&& ProxyData->CurrentGridBuffer->IsInitialized() && ProxyData->DestinationGridBuffer->IsInitialized())
 		{
 			FNDIPressureGridBuffer* CurrentGridBuffer = ProxyData->CurrentGridBuffer;
 			FNDIPressureGridBuffer* DestinationGridBuffer = ProxyData->DestinationGridBuffer;
@@ -160,13 +211,10 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBuffer->GridDataBuffer.UAV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, CurrentGridBuffer->GridDataBuffer.SRV);
 
-			//UE_LOG(LogPressureGrid, Warning, TEXT("Binding Grid Origin : %s"), *ProxyData->GridOrigin.ToString());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, GridOrigin, ProxyData->GridOrigin);
 
-			//UE_LOG(LogPressureGrid, Warning, TEXT("Binding Grid Size : %d %d %d"), ProxyData->GridSize.X, ProxyData->GridSize.Y, ProxyData->GridSize.Z);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, ProxyData->GridSize);
 
-			//UE_LOG(LogPressureGrid, Warning, TEXT("Binding Grid Transform : %s"), *ProxyData->WorldTransform.ToString());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, ProxyData->WorldTransform);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, ProxyData->WorldTransform.Inverse());
 		}
@@ -175,8 +223,8 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, FNiagaraRenderer::GetDummyUIntBuffer().UAV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
 
-			SetShaderValue(RHICmdList, ComputeShaderRHI, GridOrigin, FVector4(0,0,0,0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, FUintVector4());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, GridOrigin, FVector4(0, 0, 0, 0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, FIntVector());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, FMatrix::Identity);
@@ -200,57 +248,17 @@ private:
 	FShaderParameter WorldInverse;
 };
 
-//------------------------------------------------------------------------------------------------------------
-
-void FNDIPressureGridProxy::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
-}
-
-void FNDIPressureGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
-{
-	FNDIPressureGridData* SourceData = static_cast<FNDIPressureGridData*>(PerInstanceData);
-	FNDIPressureGridData& TargetData = SystemInstancesToProxyData.FindOrAdd(Instance);
-
-	TargetData.WorldTransform = SourceData->WorldTransform;
-	TargetData.GridOrigin = SourceData->GridOrigin;
-}
-
-void FNDIPressureGridProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPressureGridBuffer* CurrentGridBuffer,
-FNDIPressureGridBuffer* DestinationGridBuffer, const FVector4& GridOrigin, const FUintVector4& GridSize)
-{
-	check(IsInRenderingThread());
-
-	FNDIPressureGridData& TargetData = SystemInstancesToProxyData.FindOrAdd(SystemInstance);
-	
-	TargetData.CurrentGridBuffer = CurrentGridBuffer;
-	TargetData.DestinationGridBuffer = DestinationGridBuffer;
-	TargetData.GridOrigin = GridOrigin;
-	TargetData.GridSize = GridSize;
-}
-
-void FNDIPressureGridProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
-{
-	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
-}
 
 //------------------------------------------------------------------------------------------------------------
 
 UNiagaraDataInterfacePressureGrid::UNiagaraDataInterfacePressureGrid(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, GridSize(10)
-	, GridOrigin(0,0,0)
-	, GridLength(1)
+	, MinIteration(0)
+	, MaxIteration(0)
+	, MinOutput(0)
+	, MaxOutput(0)
 {
-
 	Proxy = MakeShared<FNDIPressureGridProxy, ESPMode::ThreadSafe>();
 }
 
@@ -258,69 +266,50 @@ bool UNiagaraDataInterfacePressureGrid::InitPerInstanceData(void* PerInstanceDat
 {
 	FNDIPressureGridData* InstanceData = new (PerInstanceData) FNDIPressureGridData();
 	check(InstanceData);
-	
-	FNDIPressureGridBuffer* CurrentGridBuffer = new FNDIPressureGridBuffer;
-	FNDIPressureGridBuffer* DestinationGridBuffer = new FNDIPressureGridBuffer;
-		
 
-	// Push instance data to RT
+	TSet<int> RT_OutputShaderStages;
+	TSet<int> RT_IterationShaderStages;
+
+	for (int32 i = MinIteration; i < MaxIteration; ++i)
 	{
-		const FUintVector4 LocalGridSize(GridSize.X, GridSize.Y, GridSize.Z,0);
-		const FVector4 LocalGridOrigin(GridOrigin.X,GridOrigin.Y,GridOrigin.Z,GridLength);
-		CurrentGridBuffer->SetGridSize(LocalGridSize);
-		DestinationGridBuffer->SetGridSize(LocalGridSize);
-
-		TSet<int> RT_OutputShaderStages = OutputShaderStages;
-		TSet<int> RT_IterationShaderStages = IterationShaderStages;
-		
-		InstanceData->CurrentGridBuffer = CurrentGridBuffer;
-		InstanceData->DestinationGridBuffer = DestinationGridBuffer;
-		InstanceData->GridSize = LocalGridSize;
-		InstanceData->GridOrigin = LocalGridOrigin;
-
-		InstanceData->WorldTransform = FMatrix::Identity;// SystemInstance->GetComponent()->GetComponentToWorld().ToMatrixWithScale();
-
-		FNDIPressureGridProxy* ThisProxy = GetProxyAs<FNDIPressureGridProxy>();
-		ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
-			[ThisProxy, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId(), CurrentGridBuffer, DestinationGridBuffer, LocalGridSize, LocalGridOrigin](FRHICommandListImmediate& CmdList)
-		{
-			ThisProxy->OutputShaderStages = RT_OutputShaderStages;
-			ThisProxy->IterationShaderStages = RT_IterationShaderStages;
-			ThisProxy->SetElementCount(LocalGridSize.X*LocalGridSize.Y*LocalGridSize.Z);
-
-			CurrentGridBuffer->InitResource();
-			DestinationGridBuffer->InitResource();
-
-			ThisProxy->InitializePerInstanceData(InstanceID, CurrentGridBuffer, DestinationGridBuffer, LocalGridOrigin, LocalGridSize);
-		}
-		);
+		RT_IterationShaderStages.Add(i);
 	}
-	return true;
+	for (int32 i = MinOutput; i < MaxOutput; ++i)
+	{
+		RT_OutputShaderStages.Add(i);
+	}
+	const int32 ElementCount = (GridSize.X + 1)*(GridSize.Y + 1)*(GridSize.Z + 1);
+
+	FNDIPressureGridProxy* ThisProxy = GetProxyAs<FNDIPressureGridProxy>();
+	ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
+		[ThisProxy, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId(), ElementCount](FRHICommandListImmediate& CmdList)
+	{
+		ThisProxy->OutputShaderStages = RT_OutputShaderStages;
+		ThisProxy->IterationShaderStages = RT_IterationShaderStages;
+		ThisProxy->SetElementCount(ElementCount);
+
+		//ThisProxy->InitializePerInstanceData(InstanceID);
+	}
+	);
+
+	return InstanceData->Init(this, SystemInstance);
 }
 
 void UNiagaraDataInterfacePressureGrid::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	FNDIPressureGridData* InstanceData = static_cast<FNDIPressureGridData*>(PerInstanceData);
+
+	InstanceData->Release();
 	InstanceData->~FNDIPressureGridData();
 
-	if (InstanceData->CurrentGridBuffer && InstanceData->DestinationGridBuffer)
+	FNDIPressureGridProxy* ThisProxy = GetProxyAs<FNDIPressureGridProxy>();
+	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
+		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
-		FNDIPressureGridProxy* ThisProxy = GetProxyAs<FNDIPressureGridProxy>();
-		FNDIPressureGridBuffer* CurrentGridBuffer = InstanceData->CurrentGridBuffer;
-		FNDIPressureGridBuffer* DestinationGridBuffer = InstanceData->DestinationGridBuffer;
-		ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-			[ThisProxy, CurrentGridBuffer, DestinationGridBuffer, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
-		{
-			CurrentGridBuffer->ReleaseResource();
-			DestinationGridBuffer->ReleaseResource();
-			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
-			delete CurrentGridBuffer;
-			delete DestinationGridBuffer;
-		}
-		);
-		InstanceData->CurrentGridBuffer = nullptr;
-		InstanceData->DestinationGridBuffer = nullptr;
+		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
+		//ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
 	}
+	);
 }
 
 bool UNiagaraDataInterfacePressureGrid::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds)
@@ -332,7 +321,7 @@ bool UNiagaraDataInterfacePressureGrid::PerInstanceTick(void* PerInstanceData, F
 	{
 		InstanceData->WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld().ToMatrixWithScale();
 	}
-	
+
 	return RequireReset;
 }
 
@@ -345,8 +334,10 @@ bool UNiagaraDataInterfacePressureGrid::CopyToInternal(UNiagaraDataInterface* De
 
 	UNiagaraDataInterfacePressureGrid* OtherTyped = CastChecked<UNiagaraDataInterfacePressureGrid>(Destination);
 	OtherTyped->GridSize = GridSize;
-	OtherTyped->GridOrigin = GridOrigin;
-	OtherTyped->GridLength= GridLength;
+	OtherTyped->MinIteration = MinIteration;
+	OtherTyped->MaxIteration = MaxIteration;
+	OtherTyped->MinOutput = MinOutput;
+	OtherTyped->MaxOutput = MaxOutput;
 
 	return true;
 }
@@ -359,7 +350,8 @@ bool UNiagaraDataInterfacePressureGrid::Equals(const UNiagaraDataInterface* Othe
 	}
 	const UNiagaraDataInterfacePressureGrid* OtherTyped = CastChecked<const UNiagaraDataInterfacePressureGrid>(Other);
 
-	return (OtherTyped->GridSize == GridSize) && (OtherTyped->GridOrigin == GridOrigin) && (OtherTyped->GridLength == GridLength);
+	return (OtherTyped->GridSize == GridSize) && (OtherTyped->MinIteration == MinIteration) && (OtherTyped->MaxIteration == MaxIteration) &&
+		(OtherTyped->MinOutput == MinOutput) && (OtherTyped->MaxOutput == MaxOutput);
 }
 
 void UNiagaraDataInterfacePressureGrid::PostInitProperties()
@@ -417,13 +409,13 @@ void UNiagaraDataInterfacePressureGrid::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Grid Cell")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Init Stage")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Project Status")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Cell Divergence")));
 		OutFunctions.Add(Sig);
 	}
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = GetCellPositionName;
+		Sig.Name = GetNodePositionName;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
@@ -465,6 +457,7 @@ void UNiagaraDataInterfacePressureGrid::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Grid Cell")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Grid Length")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Transfer Status")));
 
 		OutFunctions.Add(Sig);
@@ -493,17 +486,42 @@ void UNiagaraDataInterfacePressureGrid::GetFunctions(TArray<FNiagaraFunctionSign
 
 		OutFunctions.Add(Sig);
 	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = AddGridVelocityName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Grid Cell")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Grid Velocity")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Add Status")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetGridVelocityName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Grid Cell")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Grid Velocity")));
+
+		OutFunctions.Add(Sig);
+	}
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, BuildVelocityField);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, ProjectVelocityField);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetCellPosition);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetNodePosition);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, SetSolidBoundary);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, TransferCellVelocity);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, ComputeBoundaryWeights);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, SampleVelocityField);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, BuildGridTopology);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, UpdateGridTransform);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, AddGridVelocity);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetGridVelocity);
 
 void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
@@ -514,13 +532,13 @@ void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalF
 	}
 	else if (BindingInfo.Name == ProjectVelocityFieldName)
 	{
-		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 2);
+		check(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, ProjectVelocityField)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == GetCellPositionName)
+	else if (BindingInfo.Name == GetNodePositionName)
 	{
 		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 3);
-		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetCellPosition)::Bind(this, OutFunc);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetNodePosition)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SampleVelocityFieldName)
 	{
@@ -537,9 +555,9 @@ void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalF
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, ComputeBoundaryWeights)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name ==TransferCellVelocityName)
+	else if (BindingInfo.Name == TransferCellVelocityName)
 	{
-		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
+		check(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, TransferCellVelocity)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == BuildGridTopologyName)
@@ -551,6 +569,16 @@ void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalF
 	{
 		check(BindingInfo.GetNumInputs() == 17 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, UpdateGridTransform)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == AddGridVelocityName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, AddGridVelocity)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetGridVelocityName)
+	{
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetGridVelocity)::Bind(this, OutFunc);
 	}
 }
 
@@ -564,7 +592,7 @@ void UNiagaraDataInterfacePressureGrid::ProjectVelocityField(FVectorVMContext& C
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::GetCellPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::GetNodePosition(FVectorVMContext& Context)
 {
 	// @todo : implement function for cpu 
 }
@@ -585,6 +613,16 @@ void UNiagaraDataInterfacePressureGrid::SetSolidBoundary(FVectorVMContext& Conte
 }
 
 void UNiagaraDataInterfacePressureGrid::TransferCellVelocity(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
+}
+
+void UNiagaraDataInterfacePressureGrid::AddGridVelocity(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
+}
+
+void UNiagaraDataInterfacePressureGrid::GetGridVelocity(FVectorVMContext& Context)
 {
 	// @todo : implement function for cpu 
 }
@@ -610,13 +648,13 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 		const FVector GridExtent(*ExtentXParam.GetDestAndAdvance(), *ExtentYParam.GetDestAndAdvance(), *ExtentZParam.GetDestAndAdvance());
 
 		const FVector GridLengths(2.0 * GridExtent.X / (InstData->GridSize.X - 1),
-								  2.0 * GridExtent.Y / (InstData->GridSize.Y - 1),
-								  2.0 * GridExtent.Z / (InstData->GridSize.Z - 1));
+			2.0 * GridExtent.Y / (InstData->GridSize.Y - 1),
+			2.0 * GridExtent.Z / (InstData->GridSize.Z - 1));
 		const float MaxLength = GridLengths.GetMax();
 
-		const FVector RegularExtent((InstData->GridSize.X - 1)*MaxLength, 
-								    (InstData->GridSize.Y - 1)*MaxLength, 
-									(InstData->GridSize.Z - 1)*MaxLength);
+		const FVector RegularExtent((InstData->GridSize.X - 1)*MaxLength,
+			(InstData->GridSize.Y - 1)*MaxLength,
+			(InstData->GridSize.Z - 1)*MaxLength);
 		const FVector BoxOrigin = GridCenter - 0.5 * RegularExtent;
 		InstData->GridOrigin = FVector4(BoxOrigin.X, BoxOrigin.Y, BoxOrigin.Z, MaxLength);
 
@@ -727,20 +765,20 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == ProjectVelocityFieldName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-				void {InstanceFunctionName} (in int GridCell, out bool OutProjectStatus, out float OutCellDivergence)
+				void {InstanceFunctionName} (in int GridCell, in int InitStage, out bool OutProjectStatus)
 				{
-					{PressureGridContextName} DIPressureGrid_ProjectVelocityField(DIContext,GridCell,OutProjectStatus,OutCellDivergence);
+					{PressureGridContextName} DIPressureGrid_ProjectVelocityField(DIContext,GridCell,InitStage,OutProjectStatus);
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (FunctionInfo.DefinitionName == GetCellPositionName)
+	else if (FunctionInfo.DefinitionName == GetNodePositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int GridCell, in float3 GridOrigin, in float GridLength, out float3 OutGridPosition)
 				{
-					{PressureGridContextName} DIPressureGrid_GetCellPosition(DIContext,GridCell,GridOrigin,GridLength,OutGridPosition);
+					{PressureGridContextName} DIPressureGrid_GetNodePosition(DIContext,GridCell,GridOrigin,GridLength,OutGridPosition);
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -771,9 +809,9 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == TransferCellVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-				void {InstanceFunctionName} (in int GridCell, out bool OutTransferStatus)
+				void {InstanceFunctionName} (in int GridCell, in float GridLength, out bool OutTransferStatus)
 				{
-					{PressureGridContextName} DIPressureGrid_TransferCellVelocity(DIContext,GridCell,OutTransferStatus);
+					{PressureGridContextName} DIPressureGrid_TransferCellVelocity(DIContext,GridCell,GridLength,OutTransferStatus);
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -785,6 +823,28 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 				void {InstanceFunctionName} (in float3 GridCenter, in float3 GridExtent, out float3 OutGridOrigin, out float OutGridLength)
 				{
 					{PressureGridContextName} DIPressureGrid_BuildGridTopology(DIContext,GridCenter,GridExtent,OutGridOrigin,OutGridLength);
+				}
+				)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == AddGridVelocityName)
+	{
+		static const TCHAR *FormatSample = TEXT(R"(
+				void {InstanceFunctionName} (in int GridCell, in float3 GridVelocity, out bool OutAddStatus)
+				{
+					{PressureGridContextName} DIPressureGrid_AddGridVelocity(DIContext,GridCell,GridVelocity,OutAddStatus);
+				}
+				)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetGridVelocityName)
+	{
+		static const TCHAR *FormatSample = TEXT(R"(
+				void {InstanceFunctionName} (in int GridCell, out float3 OutGridVelocity)
+				{
+					{PressureGridContextName} DIPressureGrid_GetGridVelocity(DIContext,GridCell,OutGridVelocity);
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -811,13 +871,161 @@ void UNiagaraDataInterfacePressureGrid::ProvidePerInstanceDataForRenderThread(vo
 	FNDIPressureGridData* RenderThreadData = static_cast<FNDIPressureGridData*>(DataForRenderThread);
 
 	RenderThreadData->WorldTransform = GameThreadData->WorldTransform;
+	RenderThreadData->WorldInverse = GameThreadData->WorldInverse;
 	RenderThreadData->GridOrigin = GameThreadData->GridOrigin;
+	RenderThreadData->CurrentGridBuffer = GameThreadData->CurrentGridBuffer;
+	RenderThreadData->DestinationGridBuffer = GameThreadData->DestinationGridBuffer;
+	RenderThreadData->GridSize = GameThreadData->GridSize;
 }
 
 FNiagaraDataInterfaceParametersCS*
 UNiagaraDataInterfacePressureGrid::ConstructComputeParameters() const
 {
 	return new FNDIPressureGridParametersCS();
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT 64
+
+class FClearPressureGridCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearPressureGridCS);
+	SHADER_USE_PARAMETER_STRUCT(FClearPressureGridCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector, GridSize)
+		SHADER_PARAMETER(int32, CopyPressure)
+		SHADER_PARAMETER_SRV(Texture3D, GridCurrentBuffer)
+		SHADER_PARAMETER_UAV(RWTexture3D, GridDestinationBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FClearPressureGridCS, "/Plugin/Experimental/HairStrands/Private/NiagaraClearPressureGrid.usf", "MainCS", SF_Compute);
+
+static void AddClearPressureGridPass(
+	FRDGBuilder& GraphBuilder,
+	FRHIShaderResourceView* GridCurrentBuffer,
+	FRHIUnorderedAccessView* GridDestinationBuffer,
+	const FIntVector& GridSize, const bool CopyPressure)
+{
+	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+	const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
+
+	FClearPressureGridCS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearPressureGridCS::FParameters>();
+	Parameters->GridCurrentBuffer = GridCurrentBuffer;
+	Parameters->GridDestinationBuffer = GridDestinationBuffer;
+	Parameters->GridSize = GridSize;
+	Parameters->CopyPressure = CopyPressure;
+
+	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+
+	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+
+	TShaderMapRef<FClearPressureGridCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ClearPressureGrid"),
+		*ComputeShader,
+		Parameters,
+		FIntVector(DispatchCount, 1, 1));
+}
+
+inline void ClearBuffer(FNDIPressureGridBuffer* CurrentGridBuffer, FNDIPressureGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
+{
+	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
+	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
+	FRHIUnorderedAccessView* CurrentGridBufferUAV = CurrentGridBuffer->GridDataBuffer.UAV;
+
+	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
+	{
+		const FIntVector LocalGridSize = GridSize;
+		const bool LocalCopyPressure = CopyPressure;
+
+		ENQUEUE_RENDER_COMMAND(ClearPressureGrid)(
+			[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize, LocalCopyPressure]
+		(FRHICommandListImmediate& RHICmdListImm)
+		{
+			FRDGBuilder GraphBuilder(RHICmdListImm);
+
+			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBufferUAV);
+			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBufferUAV);
+
+			AddClearPressureGridPass(
+				GraphBuilder,
+				CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize, LocalCopyPressure);
+
+			GraphBuilder.Execute();
+		});
+	}
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+void FNDIPressureGridProxy::DeferredDestroy()
+{
+	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
+	{
+		SystemInstancesToProxyData.Remove(Sys);
+	}
+
+	DeferredDestroyList.Empty();
+}
+
+void FNDIPressureGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
+{
+	FNDIPressureGridData* SourceData = static_cast<FNDIPressureGridData*>(PerInstanceData);
+	FNDIPressureGridData* TargetData = &(SystemInstancesToProxyData.FindOrAdd(Instance));
+
+	ensure(TargetData);
+	if (TargetData)
+	{
+		TargetData->WorldTransform = SourceData->WorldTransform;
+		TargetData->WorldInverse = SourceData->WorldInverse;
+		TargetData->GridOrigin = SourceData->GridOrigin;
+		TargetData->GridSize = SourceData->GridSize;
+		TargetData->DestinationGridBuffer = SourceData->DestinationGridBuffer;
+		TargetData->CurrentGridBuffer = SourceData->CurrentGridBuffer;
+	}
+	else
+	{
+		UE_LOG(LogPressureGrid, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
+	}
+}
+
+void FNDIPressureGridProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
+{
+	check(IsInRenderingThread());
+
+	FNDIPressureGridData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
+	if (TargetData != nullptr)
+	{
+		DeferredDestroyList.Remove(SystemInstance);
+	}
+	else
+	{
+		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
+	}
+}
+
+void FNDIPressureGridProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
+{
+	check(IsInRenderingThread());
+
+	DeferredDestroyList.Add(SystemInstance);
+	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
 }
 
 void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
@@ -829,7 +1037,7 @@ void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	{
 		if (!Context.IsIterationStage)
 		{
-			ProxyData->DestinationGridBuffer->ClearBuffers(RHICmdList);
+			ClearBuffer(ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
 		}
 		else
 		{
@@ -853,7 +1061,13 @@ void FNDIPressureGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	{
 		if (ProxyData != nullptr)
 		{
-			ProxyData->SwapBuffers();
+			ENQUEUE_RENDER_COMMAND(CopyPressureGrid)(
+				[ProxyData](FRHICommandListImmediate& RHICmdList)
+			{
+				FRHICopyTextureInfo CopyInfo;
+				RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
+					ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);
+			});
 		}
 	}
 }
@@ -862,10 +1076,10 @@ void FNDIPressureGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagar
 {
 	FNDIPressureGridData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstance);
 
-	if (ProxyData != nullptr)
+	if (ProxyData != nullptr && ProxyData->DestinationGridBuffer != nullptr && ProxyData->CurrentGridBuffer != nullptr)
 	{
-		ProxyData->CurrentGridBuffer->ClearBuffers(RHICmdList);
-		ProxyData->DestinationGridBuffer->ClearBuffers(RHICmdList);
+		ClearBuffer(ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, false);
+		ClearBuffer(ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer, ProxyData->GridSize, false);
 	}
 }
 

@@ -490,7 +490,7 @@ public:
 
 	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
 
-	void AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture);
+	void AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, bool bCreateShaderResourceView = false);
 	void AllocateScreenTransmittanceMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenTransmittanceMaskTexture);
 
 	TRefCountPtr<IPooledRenderTarget>& GetReflectionBrightnessTarget();

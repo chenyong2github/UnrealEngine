@@ -126,32 +126,35 @@ FHairTransmittanceData GetHairTransmittance(
 	const float3 V,
 	const float3 L,
 	FGBufferData GBuffer,
-	float4 HairTransmittance,
+	FHairTransmittanceMask TransmittanceMask,
 	Texture3D<float4> HairLUTTexture,
 	SamplerState HairLUTSampler,
 	const uint HairComponents)
 {
 	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
-	TransmittanceData.Transmittance = HairTransmittance.xyz;
-	TransmittanceData.HairCount = HairTransmittance.w;
+	TransmittanceData.Transmittance = TransmittanceMask.Transmittance;
+	TransmittanceData.HairCount = TransmittanceMask.HairCount;
 	TransmittanceData.GlobalScattering = 1;
 	TransmittanceData.LocalScattering = 0;
 	TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
-	TransmittanceData.OpaqueVisibility = 1;
+	TransmittanceData.OpaqueVisibility = TransmittanceMask.Visibility;
+
+	// Hack: Override the actual roughness, with a different value to achieve a specific look
+	const float Roughness = GBuffer.CustomData.x > 0 ? GBuffer.CustomData.x : GBuffer.Roughness;
 
 	const float3 T = GBuffer.WorldNormal;
 	{
 		const float SinLightAngle = dot(L, T);
 
 		// Compute the transmittance based on precompute Hair transmittance LUT
-		HairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+		HairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, HairLUTSampler, GBuffer.BaseColor, Roughness, SinLightAngle);
 		TransmittanceData.A_front = AverageScattering.A_front;
 		TransmittanceData.A_back = AverageScattering.A_back;
 	}
 
 	ComputeDualScatteringTerms(
 		TransmittanceData,
-		GBuffer.Roughness,
+		Roughness,
 		V,
 		L,
 		T,
@@ -168,21 +171,22 @@ FHairTransmittanceData GetHairTransmittance(
 	FGBufferData GBuffer,
 	const uint SampleOffset,
 	const uint HairTransmittanceBufferMaxCount,
-	StructuredBuffer<float4> HairTransmittanceBuffer,
+	StructuredBuffer<FPackedHairTransmittanceMask> HairTransmittanceBuffer,
 	Texture3D<float4> HairLUTTexture,
 	SamplerState HairLUTSampler,
 	const uint HairComponents)
 {
-	float4 HairTransmittance = float4(1, 1, 1, 0);
+	FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
 	if (SampleOffset < HairTransmittanceBufferMaxCount)
 	{
-		HairTransmittance = HairTransmittanceBuffer[SampleOffset];
+		const FPackedHairTransmittanceMask Packed = HairTransmittanceBuffer[SampleOffset];
+		TransmittanceMask = UnpackTransmittanceMask(Packed);
 	}
 	return GetHairTransmittance(
 		V,
 		L,
 		GBuffer,
-		HairTransmittance,
+		TransmittanceMask,
 		HairLUTTexture,
 		HairLUTSampler,
 		HairComponents);
