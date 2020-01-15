@@ -399,6 +399,14 @@ bool FSocialUserList::EvaluateUserPresence(const USocialUser& User, ESocialSubsy
 			{
 				bInSameParty = CurrentParty->ContainsUser(User);
 			}
+
+#if WITH_EDITOR
+			if (OwnerToolkit->Debug_IsRandomlyChangingPresence())
+			{
+				bIsOnline = User.GetOnlineStatus() != EOnlinePresenceState::Offline;
+				bIsPlayingThisGame = bIsOnline;
+			}
+#endif
 		}
 
 		return EvaluatePresenceFlag(bIsOnline, ESocialUserStateFlags::Online)
