@@ -367,7 +367,7 @@ public:
 
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const { return FText(); }
 
-	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) { }
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) { }
 
 	virtual bool SupportsDelete() const { return false; }
 

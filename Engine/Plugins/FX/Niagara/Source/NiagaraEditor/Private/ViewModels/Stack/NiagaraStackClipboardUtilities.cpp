@@ -183,7 +183,7 @@ bool FNiagaraStackClipboardUtilities::TestCanPasteSelectionWithMessage(const TAr
 	return false;
 }
 
-void FNiagaraStackClipboardUtilities::PasteSelection(const TArray<UNiagaraStackEntry*>& SelectedEntries)
+void FNiagaraStackClipboardUtilities::PasteSelection(const TArray<UNiagaraStackEntry*>& SelectedEntries, FText& OutPasteWarning)
 {
 	if (SelectedEntries.Num() == 1)
 	{
@@ -198,7 +198,7 @@ void FNiagaraStackClipboardUtilities::PasteSelection(const TArray<UNiagaraStackE
 		FScopedTransaction PasteTransaction(TransactionMessage);
 		if (ClipboardContent != nullptr)
 		{
-			SelectedEntries[0]->Paste(ClipboardContent);
+			SelectedEntries[0]->Paste(ClipboardContent, OutPasteWarning);
 		}
 	}
 }
