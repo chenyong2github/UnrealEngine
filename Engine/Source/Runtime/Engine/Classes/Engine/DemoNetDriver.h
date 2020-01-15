@@ -300,6 +300,7 @@ struct FRollbackNetStartupActorInfo
 	UObject*	Archetype;
 	FVector		Location;
 	FRotator	Rotation;
+	FVector		Scale3D;
 	UPROPERTY()
 	ULevel*		Level;
 
