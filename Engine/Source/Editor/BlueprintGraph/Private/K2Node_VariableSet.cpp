@@ -308,7 +308,7 @@ bool UK2Node_VariableSet::ShouldFlushDormancyOnSet() const
 
 bool UK2Node_VariableSet::IsNetProperty() const
 {
-	UProperty* Property = GetPropertyForVariable();
+	FProperty* Property = GetPropertyForVariable();
 	return Property && (Property->PropertyFlags & CPF_Net);
 }
 
