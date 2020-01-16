@@ -32,6 +32,7 @@
 #include "Misc/Fnv.h"
 
 #include "Async/MappedFileHandle.h"
+#include "IO/IoDispatcher.h"
 
 DEFINE_LOG_CATEGORY(LogPakFile);
 
@@ -6330,6 +6331,21 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 
 		if (bSuccess)
 		{
+			if (FIoDispatcher::IsInitialized())
+			{
+				FIoStoreEnvironment IoStoreEnvironment;
+				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()));
+				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment);
+				if (IoStatus.IsOk())
+				{
+					UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+				}
+			}
+
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS

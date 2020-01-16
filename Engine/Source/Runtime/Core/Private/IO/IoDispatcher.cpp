@@ -147,11 +147,6 @@ public:
 	~FIoDispatcherImpl()
 	{
 		delete Thread;
-		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
-		if (ChunkInstall && ChunkDownloadedDelegateHandle.IsValid())
-		{
-			ChunkInstall->RemoveChunkInstallDelegate(ChunkDownloadedDelegateHandle);
-		}
 	}
 
 	FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment)
@@ -161,48 +156,6 @@ public:
 		{
 			return IoStatus;
 		}
-
-		FIoBuffer IoBuffer;
-		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
-		ReadWithCallback(
-			CreateIoChunkId(0, 0, EIoChunkType::InstallManifest),
-			FIoReadOptions(),
-			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
-		{
-			if (Result.IsOk())
-			{
-				IoBuffer = Result.ConsumeValueOrDie();
-			}
-			Event->Trigger();
-		});
-		Event->Wait();
-		if (!IoBuffer.DataSize())
-		{
-			return FIoStatusBuilder(EIoErrorCode::NotFound) << TEXT("Failed to open install manifest");
-		}
-		FLargeMemoryReader InstallManifestAr(IoBuffer.Data(), IoBuffer.DataSize());
-
-		FIoStoreInstallManifest InstallManifest;
-		InstallManifestAr << InstallManifest;
-
-		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
-		if (ChunkInstall)
-		{
-			ChunkDownloadedDelegateHandle = ChunkInstall->AddChunkInstallDelegate(FPlatformChunkInstallDelegate::CreateRaw(this, &FIoDispatcherImpl::OnChunkDownloaded));
-		}
-		for (const FIoStoreInstallManifest::FEntry& InstallManifestEntry : InstallManifest.ReadEntries())
-		{
-			FIoStoreEnvironment PartitionEnvironment(InitialEnvironment, InstallManifestEntry.PartitionName);
-			if (ChunkInstall && ChunkInstall->GetChunkLocation(InstallManifestEntry.InstallChunkId) == EChunkLocation::NotAvailable)
-			{
-				PendingInstallChunks.Add(MakeTuple(InstallManifestEntry.InstallChunkId, PartitionEnvironment));
-			}
-			else
-			{
-				Mount(PartitionEnvironment);
-			}
-		}
-
 		return FIoStatus::Ok;
 	}
 
@@ -419,23 +372,6 @@ private:
 		}
 	}
 
-	void OnChunkDownloaded(uint32 ChunkId, bool bSuccess)
-	{
-		if (bSuccess)
-		{
-			for (auto It = PendingInstallChunks.CreateIterator(); It; ++It)
-			{
-				int32 PendingChunkId = It->Get<0>();
-				if (PendingChunkId == ChunkId)
-				{
-					const FIoStoreEnvironment& PendingEnvironment = It->Get<1>();
-					Mount(PendingEnvironment);
-					It.RemoveCurrent();
-				}
-			}
-		}
-	}
-
 	virtual bool Init()
 	{
 		return true;
@@ -476,8 +412,6 @@ private:
 	int32 CurrentRequestsToSubmitIndex = 0;
 	FIoRequestImpl* SubmittedRequestsHead = nullptr;
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
-	FDelegateHandle ChunkDownloadedDelegateHandle;
-	TArray<TTuple<int32, FIoStoreEnvironment>> PendingInstallChunks;
 	TAtomic<bool> bStopRequested { false };
 };
 

@@ -16,19 +16,13 @@ FIoStoreEnvironment::FIoStoreEnvironment()
 {
 }
 
-FIoStoreEnvironment::FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView InPartitionName)
-{
-	BasePath = BaseEnvironment.BasePath;
-	PartitionName = InPartitionName;
-}
-
 FIoStoreEnvironment::~FIoStoreEnvironment()
 {
 }
 
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InBasePath)
+void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InPath)
 {
-	BasePath = InBasePath;
+	Path = InPath;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -45,15 +39,10 @@ public:
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
-		FString PartitionName = Environment.GetPartitionName();
-		if (PartitionName.IsEmpty())
-		{
-			PartitionName = TEXT("global");
-		}
-		FString TocFilePath = Environment.GetBasePath() / PartitionName + TEXT(".utoc");
-		FString ContainerFilePath = Environment.GetBasePath() / PartitionName + TEXT(".ucas");
+		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
+		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 
-		Ipf.CreateDirectoryTree(*Environment.GetBasePath());
+		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
 		ContainerFileHandle.Reset(Ipf.OpenWrite(*ContainerFilePath, /* append */ false, /* allowread */ true));
 

@@ -1585,6 +1585,22 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	if (!FParse::Param(CmdLine, TEXT("noiodispatcher")))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
@@ -5508,22 +5524,6 @@ bool FEngineLoop::AppInit( )
 	FAutomationTestFramework::Get().SetForceSmokeTests(bForceSmokeTests);
 
 	FEmbeddedCommunication::ForceTick(18);
-
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher if available
-	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-
-		FIoStoreEnvironment IoStoreEnvironment;
-		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
-		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
-		{
-			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
-			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
-		}
-	}
-#endif
 
 	// Init other systems.
 	{

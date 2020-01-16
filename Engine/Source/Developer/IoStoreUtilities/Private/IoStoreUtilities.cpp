@@ -39,15 +39,31 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 #define OUTPUT_NAMEMAP_CSV 0
 #define OUTPUT_IMPORTMAP_CSV 0
 #define SKIP_WRITE_CONTAINER 0
-#define SKIP_BULKDATA 0
 
-struct FContainerTarget 
+struct FContainerSourceFile 
 {
-	const ITargetPlatform* TargetPlatform;
-	const FString CookedDirectory;
-	const FString CookedProjectDirectory;
-	const FString OutputDirectory;
-	const FString ChunkListFile;
+	FString Path;
+};
+
+struct FContainerSourceSpec
+{
+	FString OutputPath;
+	TArray<FContainerSourceFile> SourceFiles;
+};
+
+struct FPackage;
+
+struct FContainerTargetFile
+{
+	FPackage* Package;
+	FString SourcePath;
+	bool bIsBulkData;
+};
+
+struct FContainerTargetSpec
+{
+	FIoStoreWriter* IoStoreWriter;
+	TArray<FContainerTargetFile> TargetFiles;
 };
 
 class FNameMapBuilder
@@ -220,8 +236,6 @@ struct FExportBundle
 	uint32 LoadOrder;
 };
 
-struct FPackage;
-
 struct FPackageGraphNode
 {
 	FPackage* Package = nullptr;
@@ -329,7 +343,6 @@ struct FPackage
 {
 	FName Name;
 	FString FileName;
-	FString RelativeFileName;
 	int32 GlobalPackageId = 0;
 	uint32 PackageFlags = 0;
 	int32 NameCount = 0;
@@ -436,13 +449,6 @@ struct FCircularImportChain
 	{
 		return In.Hash;
 	}
-};
-
-struct FInstallChunk
-{
-	FString Name;
-	int32 ChunkId;
-	TArray<FPackage*> Packages;
 };
 
 TArray<FPackage*> FPackageGraph::TopologicalSort() const
@@ -996,7 +1002,7 @@ static void FindExport(TArray<FExportData>& GlobalExports, TMap<FString, int32>&
 	}
 };
 
-FPackage* AddPackage(const TCHAR* FileName, const TCHAR* CookedDir, TArray<FPackage*>& Packages, TMap<FName, FPackage*>& PackageMap)
+FPackage* FindOrAddPackage(const TCHAR* FileName, const TCHAR* CookedDir, TArray<FPackage*>& Packages, TMap<FName, FPackage*>& PackageMap)
 {
 	FString RelativeFileName = FileName;
 	RelativeFileName.RemoveFromStart(CookedDir);
@@ -1014,16 +1020,10 @@ FPackage* AddPackage(const TCHAR* FileName, const TCHAR* CookedDir, TArray<FPack
 	FName PackageFName = *PackageName;
 
 	FPackage* Package = PackageMap.FindRef(PackageFName);
-	if (Package)
-	{
-		UE_LOG(LogIoStore, Warning, TEXT("Package in multiple pakchunks: '%s'"), *PackageFName.ToString());
-	}
-	else
+	if (!Package)
 	{
 		Package = new FPackage();
 		Package->Name = PackageFName;
-		Package->FileName = FileName;
-		Package->RelativeFileName = MoveTemp(RelativeFileName);
 		Package->GlobalPackageId = Packages.Num();
 		Packages.Add(Package);
 		PackageMap.Add(PackageFName, Package);
@@ -1033,20 +1033,15 @@ FPackage* AddPackage(const TCHAR* FileName, const TCHAR* CookedDir, TArray<FPack
 }
 
 void SerializePackageData(
-	FIoStoreWriter* IoStoreWriter,
-	int32 TotalPackages,
-	const TArray<FPackage*>& Packages,
+	const FContainerTargetFile& TargetFile,
 	const FNameMapBuilder& NameMapBuilder,
 	const TArray<FObjectExport>& ObjectExports,
 	const TArray<FExportData>& GlobalExports,
 	const TMap<FString, int32>& GlobalImportsByFullName,
 	FExportBundleMetaEntry* ExportBundleMetaEntries,
-	const FPackageStoreBulkDataManifest& BulkDataManifest,
-	bool bWithBulkDataManifest)
+	FIoStoreWriter* IoStoreWriter)
 {
-	for (FPackage* Package : Packages)
-	{
-		UE_CLOG(Package->GlobalPackageId % 1000 == 0, LogIoStore, Display, TEXT("Serializing %d/%d: '%s'"), Package->GlobalPackageId, TotalPackages, *Package->Name.ToString());
+	FPackage* Package = TargetFile.Package;
 
 		// Temporary Archive for serializing ImportMap
 		FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
@@ -1262,54 +1257,14 @@ void SerializePackageData(
 				FMemory::Free(ExportsBuffer);
 #endif
 			}
-
-#if !SKIP_BULKDATA
-			// Bulk chunks
-			if (bWithBulkDataManifest)
-			{
-				FString BulkFileName = FPaths::ChangeExtension(Package->FileName, TEXT(".ubulk"));
-				FPaths::NormalizeFilename(BulkFileName);
-
-				WriteBulkData(BulkFileName, EIoChunkType::BulkData, *Package, BulkDataManifest, IoStoreWriter);
-
-				FString OptionalBulkFileName = FPaths::ChangeExtension(Package->FileName, TEXT(".uptnl"));
-				FPaths::NormalizeFilename(OptionalBulkFileName);
-
-				WriteBulkData(OptionalBulkFileName, EIoChunkType::OptionalBulkData, *Package, BulkDataManifest, IoStoreWriter);
-			}
-#endif
-		}
 	}
 }
 
-template <class T>
-class FCookedHeaderVisitor : public IPlatformFile::FDirectoryVisitor
-{
-	T& FoundFiles;
-public:
-	FCookedHeaderVisitor(T& InFoundFiles) : FoundFiles(InFoundFiles) {}
-	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-	{
-		if (bIsDirectory == false)
-		{
-			FString Filename(FilenameOrDirectory);
-			if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")))
-			{
-				FoundFiles.Add(MoveTemp(Filename));
-			}
-		}
-		return true;
-	}
-};
-
-int32 CreateTarget(const FContainerTarget& Target)
+int32 CreateTarget(const TCHAR* OutputDir, const TCHAR* CookedDir, const TArray<FContainerSourceSpec> Containers)
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
-	const FString CookedDir = Target.CookedDirectory;
-	const FString OutputDir = Target.OutputDirectory;
-	
-	FPackageStoreBulkDataManifest BulkDataManifest(Target.CookedProjectDirectory);
+	FPackageStoreBulkDataManifest BulkDataManifest(FString(CookedDir) / FApp::GetProjectName());
 	const bool bWithBulkDataManifest = BulkDataManifest.Load();
 	if (bWithBulkDataManifest)
 	{
@@ -1339,149 +1294,61 @@ int32 CreateTarget(const FContainerTarget& Target)
 	FExportGraph ExportGraph;
 	TArray<FExportBundleMetaEntry> ExportBundleMetaEntries;
 
-	TArray<FInstallChunk> InstallChunks;
 	TArray<FPackage*> Packages;
 	TMap<FName, FPackage*> PackageMap;
 
-	if (Target.ChunkListFile.IsEmpty())
+	TArray<FIoStoreWriter*> IoStoreWriters;
+	FIoStoreWriter* GlobalIoStoreWriter;
+	FIoStoreEnvironment GlobalIoStoreEnv;
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Searching for .uasset and .umap files..."));
-		TArray<FString> FileNames;
-		FCookedHeaderVisitor<TArray<FString>> CookedHeaderVistor(FileNames);
-		FPlatformFileManager::Get().GetPlatformFile().IterateDirectoryRecursively(*CookedDir, CookedHeaderVistor);
-		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), FileNames.Num());
-
-		FInstallChunk& InstallChunk = InstallChunks.AddDefaulted_GetRef();
-		InstallChunk.Name = TEXT("container0");
-		for (FString& FileName : FileNames)
-		{
-			if (FPackage* Package = AddPackage(*FileName, *CookedDir, Packages, PackageMap))
-			{
-				InstallChunk.Packages.Add(Package);
-			}
-		}
+		FString GlobalOutputPath = FString(OutputDir) / TEXT("global");
+		GlobalIoStoreEnv.InitializeFileEnvironment(*GlobalOutputPath);
+		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
+		IoStoreWriters.Add(GlobalIoStoreWriter);
+#if !SKIP_WRITE_CONTAINER
+		FIoStatus IoStatus = GlobalIoStoreWriter->Initialize();
+		check(IoStatus.IsOk());
+#endif
 	}
-	else
+
+	TArray<FContainerTargetSpec> ContainerTargets;
+
+	for (const FContainerSourceSpec& Container : Containers)
 	{
-		TArray<FString> ChunkFileEntries;
-		FString ChunkFilesDirectory = FPaths::GetPath(Target.ChunkListFile);
-		if (!FFileHelper::LoadFileToStringArray(ChunkFileEntries, *Target.ChunkListFile))
+		FContainerTargetSpec& ContainerTarget = ContainerTargets.AddDefaulted_GetRef();
+		if (Container.OutputPath.IsEmpty())
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Failed to read chunk list file '%s'."), *Target.ChunkListFile);
-			return -1;
+			ContainerTarget.IoStoreWriter = GlobalIoStoreWriter;
 		}
-
-		UE_LOG(LogIoStore, Display, TEXT("Searching for .uasset and .umap files..."));
-		TSet<FString> FileNames;
-		FCookedHeaderVisitor<TSet<FString>> CookedHeaderVistor(FileNames);
-		FPlatformFileManager::Get().GetPlatformFile().IterateDirectoryRecursively(*CookedDir, CookedHeaderVistor);
-		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), FileNames.Num());
-
-		UE_LOG(LogIoStore, Display, TEXT("Parsing chunk list file '%s'"), *Target.ChunkListFile);
-
-		const FString SpaceStr(TEXT(" "));
-		for (FString& ChunkFileEntry : ChunkFileEntries)
+		else
 		{
-			FString ChunkFileName;
-			FString Remainder;
-			FString Option;
-			if (!ChunkFileEntry.Split(SpaceStr, &ChunkFileName, &Remainder, ESearchCase::CaseSensitive))
+			FIoStoreEnvironment ContainerIoStoreEnv;
+			ContainerIoStoreEnv.InitializeFileEnvironment(Container.OutputPath);
+			ContainerTarget.IoStoreWriter = new FIoStoreWriter(ContainerIoStoreEnv);
+			IoStoreWriters.Add(ContainerTarget.IoStoreWriter);
+#if !SKIP_WRITE_CONTAINER
+			FIoStatus IoStatus = ContainerTarget.IoStoreWriter->Initialize();
+			check(IoStatus.IsOk());
+#endif
+		}
+		for (const FContainerSourceFile& SourceFile : Container.SourceFiles)
+		{
+			FPackage* Package = FindOrAddPackage(*SourceFile.Path, CookedDir, Packages, PackageMap);
+			if (Package)
 			{
-				// no options, only a chunk file name
-				ChunkFileName = MoveTemp(ChunkFileEntry);
-				UE_LOG(LogIoStore, Log, TEXT("Parsing chunk file entry for '%s' with no options"), *ChunkFileName);
-			}
-			else
-			{
-				UE_LOG(LogIoStore, Log, TEXT("Parsing chunk file entry for '%s' with options '%s'"), *ChunkFileName, *Remainder);
-			}
+				FContainerTargetFile& TargetFile = ContainerTarget.TargetFiles.AddDefaulted_GetRef();
+				TargetFile.SourcePath = SourceFile.Path;
+				TargetFile.Package = Package;
 
-			const TCHAR* PakChunkPrefix = TEXT("pakchunk");
-			const int32 PakChunkPrefixLength = 8;
-			if (!ChunkFileName.StartsWith(PakChunkPrefix))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Unexpected file name prefix in '%s'"), *ChunkFileName);
-				continue;
-			}
-			int32 Index = PakChunkPrefixLength;
-			int32 DigitCount = 0;
-			while (Index < ChunkFileName.Len() && FChar::IsDigit(ChunkFileName[Index]))
-			{
-				++DigitCount;
-				++Index;
-			}
-			if (DigitCount <= 0)
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Unexpected file name digits in '%s'"), *ChunkFileName);
-				continue;
-			}
-
-			while (Remainder.Split(SpaceStr, &Option, &Remainder, ESearchCase::CaseSensitive) || Remainder.Len() > 0)
-			{
-				if (Option.Len() == 0)
+				FString Extension = FPaths::GetExtension(SourceFile.Path);
+				if (Extension == TEXT("uasset") || Extension == TEXT("umap"))
 				{
-					Option = MoveTemp(Remainder);
-				}
-
-				if (FPlatformString::Stricmp(*Option, TEXT("compressed")))
-				{
-					UE_LOG(LogIoStore, Log, TEXT("Ignored option '%s' for chunk '%s'"), *Option, *ChunkFileName);
-				}
-				else if (Option.StartsWith(TEXT("encryptionkeyguid=")))
-				{
-					UE_LOG(LogIoStore, Log, TEXT("Ignored option '%s' for chunk '%s'"), *Option, *ChunkFileName);
+					TargetFile.bIsBulkData = false;
+					Package->FileName = SourceFile.Path;
 				}
 				else
 				{
-					UE_LOG(LogIoStore, Warning, TEXT("Unexpected option '%s' for chunk '%s'"), *Option, *ChunkFileName);
-				}
-			}
-
-			FString ChunkManifestFullPath = ChunkFilesDirectory / ChunkFileName;
-			TArray<FString> ChunkManifest;
-			if (!FFileHelper::LoadFileToStringArray(ChunkManifest, *ChunkManifestFullPath))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Failed to read chunk manifest file '%s'."), *ChunkManifestFullPath);
-				continue;
-			}
-
-			if (ChunkManifest.Num() == 0)
-			{
-				UE_LOG(LogIoStore, Verbose, TEXT("Skipped zero size chunk manifest file '%s'."), *ChunkManifestFullPath);
-				continue;
-			}
-
-			FString ChunkIdString = ChunkFileName.Mid(PakChunkPrefixLength, DigitCount);
-			check(ChunkIdString.IsNumeric());
-			int32 ChunkId;
-			TTypeFromString<int32>::FromString(ChunkId, *ChunkIdString);
-			FInstallChunk& InstallChunk = InstallChunks.AddDefaulted_GetRef();
-			InstallChunk.Name = TEXT("container") + FPaths::GetBaseFilename(ChunkFileName.RightChop(8));
-			InstallChunk.ChunkId = ChunkId;
-
-			UE_LOG(LogIoStore, Log, TEXT("Parsing chunk manifest file '%s'"), *ChunkManifestFullPath);
-			for (const FString& FileNameWithoutExtension : ChunkManifest)
-			{
-				FString RelativePathWithoutExtension = IFileManager::Get().ConvertToRelativePath(*FileNameWithoutExtension);
-				FString FileName = RelativePathWithoutExtension + ".uasset";
-				if (!FileNames.Contains(FileName))
-				{
-					FileName = RelativePathWithoutExtension + ".umap";
-					if (!FileNames.Contains(FileName))
-					{
-						FileName.Empty();
-					}
-				}
-				if (FileName.Len() > 0)
-				{
-					if (FPackage* Package = AddPackage(*FileName, *CookedDir, Packages, PackageMap))
-					{
-						InstallChunk.Packages.Add(Package);
-					}
-				}
-				else
-				{
-					UE_LOG(LogIoStore, Log, TEXT("Ignored file '%s' since it has no corresponding package header file (.map/.uasset) in '%s'."), *FileNameWithoutExtension, *CookedDir);
+					TargetFile.bIsBulkData = true;
 				}
 			}
 		}
@@ -1951,47 +1818,50 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing..."));
 
-	TUniquePtr<FIoStoreWriter> GlobalIoStoreWriter;
-	FIoStoreEnvironment GlobalIoStoreEnv;
+	int32 TotalFileCount = 0;
+	for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
 	{
-		GlobalIoStoreEnv.InitializeFileEnvironment(OutputDir);
-		GlobalIoStoreWriter = MakeUnique<FIoStoreWriter>(GlobalIoStoreEnv);
-#if !SKIP_WRITE_CONTAINER
-		FIoStatus IoStatus = GlobalIoStoreWriter->Initialize();
-		check(IoStatus.IsOk());
-#endif
+		TotalFileCount += ContainerTarget.TargetFiles.Num();
 	}
-
-	FIoStoreInstallManifest Manifest;
-	for (const FInstallChunk& InstallChunk : InstallChunks)
+	int32 CurrentFileIndex = 0;
+	for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
 	{
-		TUniquePtr<FIoStoreWriter> IoStoreWriter;
-		FIoStoreEnvironment InstallChunkIoStoreEnv(GlobalIoStoreEnv, InstallChunk.Name);
-		IoStoreWriter = MakeUnique<FIoStoreWriter>(InstallChunkIoStoreEnv);
-#if !SKIP_WRITE_CONTAINER
-		FIoStatus IoStatus = IoStoreWriter->Initialize();
-		check(IoStatus.IsOk());
-#endif
-		SerializePackageData(
-			IoStoreWriter.Get(),
-			PackageMap.Num(),
-			InstallChunk.Packages,
-			NameMapBuilder,
-			ObjectExports,
-			GlobalExports,
-			GlobalImportsByFullName,
-			ExportBundleMetaEntries.GetData(),
-			BulkDataManifest,
-			bWithBulkDataManifest);
-		FIoStoreInstallManifest::FEntry& ManifestEntry = Manifest.EditEntries().AddDefaulted_GetRef();
-		ManifestEntry.InstallChunkId = InstallChunk.ChunkId;
-		ManifestEntry.PartitionName = InstallChunk.Name;
+		for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
+		{
+			UE_CLOG(CurrentFileIndex % 1000 == 0, LogIoStore, Display, TEXT("Serializing %d/%d: '%s'"), CurrentFileIndex, TotalFileCount, *TargetFile.SourcePath);
+			++CurrentFileIndex;
+			if (TargetFile.bIsBulkData)
+			{
+				if (bWithBulkDataManifest)
+				{
+					FString NormalizedSourcePath = TargetFile.SourcePath;
+					FPaths::NormalizeFilename(NormalizedSourcePath);
+
+					FString Extension = FPaths::GetExtension(NormalizedSourcePath);
+					if (Extension == TEXT("uptnl"))
+					{
+						WriteBulkData(NormalizedSourcePath, EIoChunkType::OptionalBulkData, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
+					}
+					else
+					{
+						WriteBulkData(NormalizedSourcePath, EIoChunkType::BulkData, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
+					}
+				}
+			}
+			else
+			{
+				SerializePackageData(
+					TargetFile,
+					NameMapBuilder,
+					ObjectExports,
+					GlobalExports,
+					GlobalImportsByFullName,
+					ExportBundleMetaEntries.GetData(),
+					ContainerTarget.IoStoreWriter);
+			}
+		}
 	}
-	TUniquePtr<FLargeMemoryWriter> ManifestArchive = MakeUnique<FLargeMemoryWriter>(0, true);
-	*ManifestArchive << Manifest;
-
-	GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::InstallManifest), FIoBuffer(FIoBuffer::Wrap, ManifestArchive->GetData(), ManifestArchive->TotalSize()));
-
+	
 	int32 StoreTocByteCount = StoreTocArchive->TotalSize();
 	int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
 	int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
@@ -2061,6 +1931,12 @@ int32 CreateTarget(const FContainerTarget& Target)
 #endif
 	}
 
+	for (FIoStoreWriter* IoStoreWriter : IoStoreWriters)
+	{
+		delete IoStoreWriter;
+	}
+	IoStoreWriters.Empty();
+
 	UE_LOG(LogIoStore, Display, TEXT("Calculating stats..."));
 	uint64 UExpSize = 0;
 	uint64 UAssetSize = 0;
@@ -2127,7 +2003,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	PackageHeaderSize = PackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
 
-	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary: %s --------------------"), *Target.TargetPlatform->PlatformName());
+	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary --------------------"));
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
 		PackageMap.Num(), CircularPackagesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects"), BundleCount, BundleEntryCount, GlobalExports.Num());
@@ -2155,41 +2031,147 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 {
 	UE_LOG(LogIoStore, Display, TEXT("==================== IoStore Utils ===================="));
 
-	const TArray<ITargetPlatform*>& Platforms = GetTargetPlatformManagerRef().GetActiveTargetPlatforms();
-
-	FString OutputDirectory;
-	if (FParse::Value(FCommandLine::Get(), TEXT("OutputDirectory="), OutputDirectory))
+	FString CommandListFile;
+	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Using output directory: '%s'"), *OutputDirectory);
-	}
-	else
-	{
-		UE_LOG(LogIoStore, Display, TEXT("No output directory specified, using project's cooked folder"));
-	}
+		UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
 
-	FString ChunkListFile;
-	if (FParse::Value(FCommandLine::Get(), TEXT("ChunkListFile="), ChunkListFile))
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Using chunk list file: '%s'"), *ChunkListFile);
-	}
+		FString OutputDirectory;
+		if (!FParse::Value(FCommandLine::Get(), TEXT("OutputDirectory="), OutputDirectory))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("OutputDirectory must be specified"));
+			return 1;
+		}
 
-	for (const ITargetPlatform* TargetPlatform : Platforms)
-	{
-		const FString TargetCookedDirectory = FPaths::ProjectSavedDir() / TEXT("Cooked") / TargetPlatform->PlatformName();
-		const FString TargetCookedProjectDirectory = TargetCookedDirectory / FApp::GetProjectName();
+		FString CookedDirectory;
+		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), CookedDirectory))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("CookedDirectory must be specified"));
+			return 1;
+		}
 
-		const FString TargetOutputDirectory = OutputDirectory.Len() > 0
-			? OutputDirectory
-			: TargetCookedProjectDirectory / TEXT("Content") / TEXT("Containers");
+		TArray<FString> Commands;
+		if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+			return -1;
+		}
 
-		FContainerTarget Target{ TargetPlatform, TargetCookedDirectory, TargetCookedProjectDirectory, TargetOutputDirectory, ChunkListFile };
+		TArray<FContainerSourceSpec> Containers;
+		for (const FString& Command : Commands)
+		{
+			FContainerSourceSpec& ContainerSpec = Containers.AddDefaulted_GetRef();
 
-		UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output directory: '%s'"), *Target.TargetPlatform->PlatformName(), *Target.OutputDirectory);
+			if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
+				return -1;
+			}
 
-		int32 ReturnValue = CreateTarget(Target);
+			FString ResponseFilePath;
+			if (!FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("ResponseFile argument missing from command '%s'"), *Command);
+				return -1;
+			}
+
+			TArray<FString> ResponseFileContents;
+			if (!FFileHelper::LoadFileToStringArray(ResponseFileContents, *ResponseFilePath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Failed to read response file '%s'."), *ResponseFilePath);
+				return -1;
+			}
+
+			for (const FString& ResponseLine : ResponseFileContents)
+			{
+				TArray<FString> SourceAndDest;
+				TArray<FString> Switches;
+
+				FString NextToken;
+				const TCHAR* ResponseLinePtr = *ResponseLine;
+				while (FParse::Token(ResponseLinePtr, NextToken, false))
+				{
+					if ((**NextToken == TCHAR('-')))
+					{
+						new(Switches) FString(NextToken.Mid(1));
+					}
+					else
+					{
+						new(SourceAndDest) FString(NextToken);
+					}
+				}
+
+				if (SourceAndDest.Num() == 0)
+				{
+					continue;
+				}
+
+				if (SourceAndDest.Num() != 2)
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Invalid line in response file '%s'."), *ResponseLine);
+					return -1;
+				}
+
+				FContainerSourceFile& FileEntry = ContainerSpec.SourceFiles.AddDefaulted_GetRef();
+				FileEntry.Path = SourceAndDest[0];
+			}
+		}
+
+		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers);
 		if (ReturnValue != 0)
 		{
 			return ReturnValue;
+		}
+	}
+	else
+	{
+		const TArray<ITargetPlatform*>& Platforms = GetTargetPlatformManagerRef().GetActiveTargetPlatforms();
+
+		for (const ITargetPlatform* TargetPlatform : Platforms)
+		{
+			const FString TargetCookedDirectory = FPaths::ProjectSavedDir() / TEXT("Cooked") / TargetPlatform->PlatformName();
+			const FString TargetCookedProjectDirectory = TargetCookedDirectory / FApp::GetProjectName();
+
+			UE_LOG(LogIoStore, Display, TEXT("Searching for cooked files..."));
+			class FCookedFileVisitor
+				: public IPlatformFile::FDirectoryVisitor
+			{
+				FContainerSourceSpec& ContainerSpec;
+
+			public:
+				FCookedFileVisitor(FContainerSourceSpec& InContainerSpec)
+					: ContainerSpec(InContainerSpec)
+				{
+				}
+
+				virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+				{
+					if (bIsDirectory == false)
+					{
+						FString Filename(FilenameOrDirectory);
+						if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")) || Filename.EndsWith(TEXT(".ubulk")) || Filename.EndsWith(TEXT(".uptnl")))
+						{
+							FContainerSourceFile& FileEntry = ContainerSpec.SourceFiles.AddDefaulted_GetRef();
+							FileEntry.Path = MoveTemp(FilenameOrDirectory);
+						}
+					}
+					return true;
+				}
+			};
+			
+			TArray<FContainerSourceSpec> Containers;
+			FContainerSourceSpec& ContainerSpec = Containers.AddDefaulted_GetRef();
+			FCookedFileVisitor CookedFileVistor(ContainerSpec);
+			FPlatformFileManager::Get().GetPlatformFile().IterateDirectoryRecursively(*TargetCookedDirectory, CookedFileVistor);
+			UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), ContainerSpec.SourceFiles.Num());
+
+			UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output path: '%s'"), *TargetPlatform->PlatformName(), *TargetCookedProjectDirectory);
+
+			int32 ReturnValue = CreateTarget(*TargetCookedProjectDirectory, *TargetCookedDirectory, Containers);
+			if (ReturnValue != 0)
+			{
+				return ReturnValue;
+			}
 		}
 	}
 

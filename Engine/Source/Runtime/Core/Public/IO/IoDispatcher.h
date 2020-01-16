@@ -570,51 +570,6 @@ private:
 	uint8	Id[12];
 };
 
-class FIoStoreInstallManifest
-{
-public:
-	struct FEntry
-	{
-		FString PartitionName;
-		int32 InstallChunkId;
-	};
-
-	inline const TArray<FEntry>& ReadEntries() const
-	{
-		return Entries;
-	}
-
-	inline TArray<FEntry>& EditEntries()
-	{
-		return Entries;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FIoStoreInstallManifest& IoStoreManifest)
-	{
-		int32 Version = CurrentVersion;
-		Ar << Version;
-		check(Version == CurrentVersion);
-		int32 EntryCount = IoStoreManifest.Entries.Num();
-		Ar << EntryCount;
-		if (Ar.IsLoading())
-		{
-			IoStoreManifest.Entries.SetNum(EntryCount);
-		}
-		for (int32 Index = 0; Index < EntryCount; ++Index)
-		{
-			FEntry& Entry = IoStoreManifest.Entries[Index];
-			Ar << Entry.PartitionName;
-			Ar << Entry.InstallChunkId;
-		}
-		return Ar;
-	}
-
-private:
-	static constexpr int32 CurrentVersion = 1;
-
-	TArray<FEntry> Entries;
-};
-
 /**
  * Addressable chunk types.
  */
@@ -812,17 +767,14 @@ class FIoStoreEnvironment
 {
 public:
 	CORE_API FIoStoreEnvironment();
-	CORE_API FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView PartitionName);
 	CORE_API ~FIoStoreEnvironment();
 
-	CORE_API void InitializeFileEnvironment(FStringView InBasePath);
+	CORE_API void InitializeFileEnvironment(FStringView InPath);
 
-	CORE_API const FString& GetBasePath() const { return BasePath; }
-	CORE_API const FString& GetPartitionName() const { return PartitionName; }
+	CORE_API const FString& GetPath() const { return Path; }
 
 private:
-	FString			BasePath;
-	FString			PartitionName;
+	FString			Path;
 };
 
 //////////////////////////////////////////////////////////////////////////
