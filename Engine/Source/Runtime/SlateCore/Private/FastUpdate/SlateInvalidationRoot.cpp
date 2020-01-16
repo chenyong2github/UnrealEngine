@@ -131,9 +131,9 @@ int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWi
 
 void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
-	if (Proxy.Widget->PersistentState.CachedElementHandle.IsValid())
+	if (Proxy.Widget->PersistentState.CachedElementListNode)
 	{
-		Proxy.Widget->PersistentState.CachedElementHandle.RemoveFromCache();
+		CachedElementData->RemoveCache(Proxy.Widget->PersistentState.CachedElementListNode);
 	}
 
 	if (Proxy.Index == 0)
@@ -263,9 +263,15 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 	if (FastWidgetPathList.IsValidIndex(ProxyIndex) && FastWidgetPathList[ProxyIndex].Widget == Widget)
 	{
 		FastWidgetPathList[ProxyIndex].Widget = nullptr;
+	
 	}
-		
-	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
+
+	if (Widget->PersistentState.CachedElementListNode)
+	{
+		CachedElementData->RemoveCache(Widget->PersistentState.CachedElementListNode);
+	}
+
+	Widget->PersistentState.CachedElementListNode = nullptr;
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
@@ -401,10 +407,10 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 
 	for (FWidgetProxy& Proxy : FastWidgetPathList)
 	{
-		if (SWidget* Widget = Proxy.Widget)
+		if (Proxy.Widget)
 		{
-			Widget->PersistentState.DesktopGeometry = Widget->PersistentState.AllottedGeometry;
-			Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
+			Proxy.Widget->PersistentState.DesktopGeometry = Proxy.Widget->PersistentState.AllottedGeometry;
+			Proxy.Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
 		}
 	}
 }
@@ -628,12 +634,12 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 {
 	for (const FWidgetProxy& Proxy : FastWidgetPathList)
 	{
-		if (SWidget* Widget = Proxy.Widget)
+		if (Proxy.Widget)
 		{
-			Widget->PersistentState.CachedElementHandle = FSlateCachedElementsHandle::Invalid;
+			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
 			if (bClearResourcesImmediately)
 			{
-				Widget->FastPathProxyHandle = FWidgetProxyHandle();
+				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
 			}
 		}
 	}
