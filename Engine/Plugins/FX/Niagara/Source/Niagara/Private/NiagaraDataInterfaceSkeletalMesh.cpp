@@ -1393,7 +1393,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	}
 
 	//Detect and reset on any attachment change.
-	if (Comp->GetAttachParent() != CachedAttachParent)
+	if (CachedAttachParent.IsValid() && Comp->GetAttachParent() != CachedAttachParent.Get())
 	{
 		return true;
 	}
