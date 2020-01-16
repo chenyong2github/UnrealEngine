@@ -317,7 +317,7 @@ void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstan
 {
 	check(IsInGameThread());
 	check(InPtr != nullptr);
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Emplace(MoveTemp(InPtr));
+	DeferredDeletionQueue.Emplace(MoveTemp(InPtr));
 }
 
 void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher)
@@ -326,11 +326,7 @@ void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBat
 	// This is required because the batcher is accessed in FNiagaraEmitterInstance::~FNiagaraEmitterInstance
 	if (World && World->FXSystem && World->FXSystem->GetInterface(NiagaraEmitterInstanceBatcher::Name) == InBatcher)
 	{
-		for ( int32 i=0; i < NumDeferredQueues; ++i)
-		{
-			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
-			DeferredDeletionQueue[i].Queue.Empty();
-		}
+		DeferredDeletionQueue.Empty();
 	}
 }
 
@@ -348,11 +344,7 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	}
 	CleanupParameterCollections();
 
-	for ( int32 i=0; i < NumDeferredQueues; ++i)
-	{
-		DeferredDeletionQueue[i].Fence.Wait();
-		DeferredDeletionQueue[i].Queue.Empty();
-	}
+	DeferredDeletionQueue.Empty();
 
 	ScalabilityManagers.Empty();
 }
@@ -470,23 +462,9 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	bCachedPlayerViewLocationsValid = false;
 	CachedPlayerViewLocations.Reset();
 
-	// Enqueue fence for deferred deletion if we need to wait on anything
-	if (DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0)
-	{
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
-	}
-
-	// Remove instances from oldest frame making sure they aren't in use on the RT
-	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
-	if (DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0)
-	{
-		if (!DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.IsFenceComplete())
-		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
-			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
-		}
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
-	}
+	// Delete any instances that were pending deletion
+	//-TODO: This could be done after each system sim has run
+	DeferredDeletionQueue.Empty();
 
 	// Update tick groups
 	for (FNiagaraWorldManagerTickFunction& TickFunc : TickFunctions )

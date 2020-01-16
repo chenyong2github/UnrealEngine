@@ -137,36 +137,21 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 	if (GPUExecContext != nullptr)
 	{
 		/** We defer the deletion of the particle dataset and the compute context to the RT to be sure all in-flight RT commands have finished using it.*/
-		NiagaraEmitterInstanceBatcher* B = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
-		FNiagaraComputeExecutionContext* Context = GPUExecContext;
-		FNiagaraDataSet* DataSet = ParticleDataSet;
+		NiagaraEmitterInstanceBatcher* Batcher_RT = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 		ENQUEUE_RENDER_COMMAND(FDeleteContextCommand)(
-			[B, Context, DataSet](FRHICommandListImmediate& RHICmdList)
+			[Batcher_RT, ExecContext=GPUExecContext, DataSet= ParticleDataSet](FRHICommandListImmediate& RHICmdList)
 			{
-				if (Context)
+				if ( Batcher_RT != nullptr )
 				{
-					if (B)
-					{
-						B->GiveEmitterContextToDestroy_RenderThread(Context);
-					}
-					else
-					{
-						delete Context;
-					}
+					Batcher_RT->ReleaseInstanceCounts_RenderThread(ExecContext, DataSet);
 				}
-
-				//TODO: deleting these on the RT shouldn't be needed any more.
-				if (DataSet)
+				if ( ExecContext != nullptr )
 				{
-					if (B)
-					{
-						B->GiveDataSetToDestroy_RenderThread(DataSet);
-					}
-					else
-					{
-						delete DataSet;
-					}
-
+					delete ExecContext;
+				}
+				if ( DataSet != nullptr )
+				{
+					delete DataSet;
 				}
 			}
 		);
