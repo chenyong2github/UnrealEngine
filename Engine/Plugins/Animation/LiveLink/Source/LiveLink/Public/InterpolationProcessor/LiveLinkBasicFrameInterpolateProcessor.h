@@ -28,7 +28,7 @@ public:
 		{
 			bool bInterpolatePropertyValues = true;
 			bool bCopyClosestFrame = true;
-			bool bCopyClosestMetaData = true; // only used if bCopyClosestFrame is false
+			bool bCopyClosestMetaData = true; // only used if bCopyClosestFrame is false. Does NOT apply to SceneTime, it will always be interpolated.
 			bool bInterpolateInterpProperties = true;
 		};
 

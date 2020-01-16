@@ -268,6 +268,10 @@ FORCEINLINE FFrameTime operator*(FFrameTime A, float Scalar)
 	return FFrameTime::FromDecimal(A.AsDecimal() * Scalar);
 }
 
+FORCEINLINE FFrameTime operator*(float Scalar, FFrameTime A)
+{
+	return FFrameTime::FromDecimal(A.AsDecimal() * Scalar);
+}
 
 FORCEINLINE FFrameTime operator/(FFrameTime A, float Scalar)
 {
