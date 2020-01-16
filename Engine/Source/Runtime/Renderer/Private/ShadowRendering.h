@@ -417,7 +417,7 @@ public:
 	void RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const class FViewInfo& View, const FIntRect& ScissorRect, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading);
 
 	/** Render one pass point light shadow projections. */
-	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading) const;
+	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData) const;
 
 	/**
 	 * Renders the projected shadow's frustum wireframe with the given FPrimitiveDrawInterface.
@@ -1295,7 +1295,7 @@ private:
  * Pixel shader used to project one pass point light shadows.
  */
 // Quality = 0 / 1
-template <uint32 Quality, bool bUseTransmission>
+template <uint32 Quality, bool bUseTransmission, bool bUseSubPixel>
 class TOnePassPointShadowProjectionPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(TOnePassPointShadowProjectionPS,Global);
@@ -1315,6 +1315,7 @@ public:
 		PointLightDepthBias.Bind(Initializer.ParameterMap,TEXT("PointLightDepthBias"));
 		PointLightProjParameters.Bind(Initializer.ParameterMap, TEXT("PointLightProjParameters"));
 		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
+		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1322,6 +1323,7 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADOW_QUALITY"), Quality);
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), (uint32)(bUseTransmission ? 1 : 0));
+		OutEnvironment.SetDefine(TEXT("SUBPIXEL_SHADOW"), (uint32)(bUseSubPixel ? 1 : 0));
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1356,6 +1358,11 @@ public:
 		FVector2D projParam = FVector2D(1.0f / param.Y, param.X / param.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, PointLightDepthBias, FVector(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
 		SetShaderValue(RHICmdList, ShaderRHI, PointLightProjParameters, FVector2D(projParam.X, projParam.Y));
+
+		if (bUseSubPixel && HairVisibilityData && HairVisibilityData->CategorizationTexture)
+		{
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRenderTargetItem().ShaderResourceTexture);
+		}
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		{
@@ -1401,6 +1408,7 @@ public:
 		Ar << PointLightDepthBias;
 		Ar << PointLightProjParameters;
 		Ar << TransmissionProfilesTexture;
+		Ar << HairCategorizationTexture;
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -1414,6 +1422,7 @@ private:
 	FShaderParameter PointLightDepthBias;
 	FShaderParameter PointLightProjParameters;
 	FShaderResourceParameter TransmissionProfilesTexture;
+	FShaderResourceParameter HairCategorizationTexture;
 
 
 };

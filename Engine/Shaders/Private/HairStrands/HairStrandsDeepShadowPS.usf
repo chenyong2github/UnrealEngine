@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVoxelPageCommonStruct.ush"
+
 #include "../Common.ush"
 
-//#define SceneTexturesStruct DeepShadowPass.SceneTextures
+//#define SceneTexturesStruct VoxelRasterPass.SceneTextures
 
 #include "../SceneTexturesCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsVoxelPageCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
 static const float FixPointMaxValue = 1000;	// 100m @hair_todo: make this camera relative, and expose a CVAR fix changing this value
 static const float FixPointScale	= 100;	// 0.1mm precision
-static const float FixPointRange	= 2 * FixPointMaxValue * FixPointScale;
+static const float FixPointRange	= 2 * FixPointMaxValue * FixPointScale;    
 
 #define SUPPORT_OPACITY_MASK 0
 
@@ -44,24 +47,40 @@ void MainDom(
 	#endif
 
 	const uint2 PixelCoord = uint2(floor(SvPosition.xy));
-    const float FrontDepth = DeepShadowPass.FrontDepthTexture.Load(uint3(PixelCoord, 0));
+	const float FrontDepth = DeepRasterPass.FrontDepthTexture.Load(uint3(PixelCoord, 0));
 	const float DistanceToFrontDepth = GetDomDistanceToFrontDepth(FrontDepth, SvPosition.z);
 
-    OutColor = ComputeDOMWeights(DistanceToFrontDepth) * HairCoverage;
+	OutColor = ComputeDOMWeights(DistanceToFrontDepth) * HairCoverage;
 }
+
+#define DEBUG_OUTPUT 0
+
+#if DEBUG_OUTPUT == 1
+	#define REGISTER_OUT_0 u1
+	#define REGISTER_OUT_1 u2
+	#define REGISTER_OUT_2 u3
+	#define REGISTER_OUT_3 u4
+	#define REGISTER_OUT_4 u5
+#else
+	#define REGISTER_OUT_0 u0
+	#define REGISTER_OUT_1 u1
+	#define REGISTER_OUT_2 u2
+	#define REGISTER_OUT_3 u3
+	#define REGISTER_OUT_4 u4
+#endif
 
 #if VF_STRAND_HAIR
   #if SM5_PROFILE && COMPILER_HLSL
-	RWTexture3D<uint> DensityTexture  : register(u1);
+	RWTexture3D<uint> DensityTexture  : register(REGISTER_OUT_0);
 
 	#if SUPPORT_TANGENT_PROPERTY == 1
-	RWTexture3D<uint> TangentXTexture : register(u2);
-	RWTexture3D<uint> TangentYTexture : register(u3);
-	RWTexture3D<uint> TangentZTexture : register(u4);
+	RWTexture3D<uint> TangentXTexture : register(REGISTER_OUT_1);
+	RWTexture3D<uint> TangentYTexture : register(REGISTER_OUT_2);
+	RWTexture3D<uint> TangentZTexture : register(REGISTER_OUT_3);
 	#endif
 
 	#if SUPPORT_MATERIAL_PROPERTY == 1
-	RWTexture3D<uint> MaterialTexture : register(u5);
+	RWTexture3D<uint> MaterialTexture : register(REGISTER_OUT_4);
 	#endif
   #else
 	RWTexture3D<uint> DensityTexture;
@@ -79,21 +98,66 @@ void MainDom(
 #endif 
 
 void MainVoxel(
-#if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1
+#if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1 
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 #endif
 	in float4 SvPosition : SV_Position,
 	in float4 PixelPosition : TEXCOORD6,
-	in float HairCoverage: CUSTOM_COVERAGE,
-	out uint OutColor : SV_Target0)
+	in float HairCoverage: CUSTOM_COVERAGE
+#if DEBUG_OUTPUT
+,	out uint OutColor : SV_Target0 // For debug purpose only
+#endif
+)
 {
-#if VF_STRAND_HAIR
-	const int3 VoxelCoord = (PixelPosition.xyz - DeepShadowPass.VoxelMinAABB) / (DeepShadowPass.VoxelMaxAABB - DeepShadowPass.VoxelMinAABB) * DeepShadowPass.VoxelResolution;
+#if VF_STRAND_HAIR  
+  #if SUPPORT_SPARSE	
+	const FPackedVirtualVoxelNodeDesc PackedNode = VoxelRasterPass.VirtualVoxel.NodeDescBuffer[VoxelRasterPass.MacroGroupId];
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VoxelRasterPass.VirtualVoxel.PageResolution);
+
+	const int3 VoxelCoord = PositionToCoord(PixelPosition.xyz, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
+	if (VoxelCoord.x >= 0 || VoxelCoord.y >= 0 || VoxelCoord.z >= 0 ||
+		VoxelCoord.x < int(NodeDesc.VirtualResolution.x) || 
+		VoxelCoord.y < int(NodeDesc.VirtualResolution.y) || 
+		VoxelCoord.z < int(NodeDesc.VirtualResolution.z))
+	{
+		const int3 PageIndexCoord		= VoxelCoord / VoxelRasterPass.VirtualVoxel.PageResolution;
+		const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
+		const int3 VoxelCoordBase		= PageIndexCoord * VoxelRasterPass.VirtualVoxel.PageResolution;
+		const int3 VoxelCoordOffset		= VoxelCoord - VoxelCoordBase;
+		if (LinearPageIndexCoord < VoxelRasterPass.VirtualVoxel.PageIndexCount)
+		{
+			const uint PageIndex = VoxelRasterPass.VirtualVoxel.PageIndexBuffer[LinearPageIndexCoord];
+			if (PageIndex != INVALID_VOXEL_PAGE_INDEX)
+			{
+				const uint3 PageCoord			= IndexToCoord(PageIndex, VoxelRasterPass.VirtualVoxel.PageCountResolution);
+				const uint3 PageVoxelCoordBase	= PageCoord * VoxelRasterPass.VirtualVoxel.PageResolution;
+				const uint3 PageVoxelCoord		= PageVoxelCoordBase + VoxelCoordOffset;
+
+				const float HairCount			= HairCoverage;
+				const float VoxelFixPointScale	= GetVoxelDensityFixPointScale();
+				InterlockedAdd(DensityTexture[PageVoxelCoord], HairCount * VoxelFixPointScale);
+
+				#if DEBUG_OUTPUT
+				OutColor = 0xFF;
+				#endif
+				return;
+			}
+			else
+			{
+				#if DEBUG_OUTPUT
+				OutColor = 0x0F;
+				#endif
+				return;
+			}
+		}
+	}
+  #else
+	const int3 VoxelCoord = (PixelPosition.xyz - VoxelRasterPass.VoxelMinAABB) / (VoxelRasterPass.VoxelMaxAABB - VoxelRasterPass.VoxelMinAABB) * VoxelRasterPass.VoxelResolution;
 		 
 	if (VoxelCoord.x >= 0 || VoxelCoord.y >= 0 || VoxelCoord.z >= 0 ||
-		VoxelCoord.x < int(DeepShadowPass.VoxelResolution) || 
-		VoxelCoord.y < int(DeepShadowPass.VoxelResolution) || 
-		VoxelCoord.z < int(DeepShadowPass.VoxelResolution))
+		VoxelCoord.x < int(VoxelRasterPass.VoxelResolution.x) || 
+		VoxelCoord.y < int(VoxelRasterPass.VoxelResolution.y) || 
+		VoxelCoord.z < int(VoxelRasterPass.VoxelResolution.z))
 	{
 		const float HairCount = HairCoverage;
 		const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
@@ -128,6 +192,10 @@ void MainVoxel(
 		#endif
 
 	}
-#endif
+
+	#if DEBUG_OUTPUT
 	OutColor = 0xFF;
+	#endif
+  #endif
+#endif
 }

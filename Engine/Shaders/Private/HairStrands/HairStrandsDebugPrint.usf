@@ -2,11 +2,15 @@
 
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
+#include "../ShaderDrawDebug.ush"
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsDebugCommon.ush"
+#include "HairStrandsAABBCommon.ush"
 
 int2 PixelCoord;
 int2 MaxResolution;
 uint FastResolveMask;
+uint HairMacroGroupCount;
 uint2 GroupSize; 
 
 Texture2D<uint4> CategorizationTexture;
@@ -15,32 +19,25 @@ SamplerState LinearSampler;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 
+Buffer<int> HairMacroGroupAABBBuffer;
+
 #define MATERIAL_DATA 0
 #define DETAIL_DATA 0
-
-float3 HUEtoRGB(in float H)
-{
-	float R = abs(H * 6 - 3) - 1;
-	float G = 2 - abs(H * 6 - 2);
-	float B = 2 - abs(H * 6 - 4);
-	return saturate(float3(R, G, B));
-}
-
-float3 HSVtoRGB(in float3 HSV)
-{
-	float3 RGB = HUEtoRGB(HSV.x);
-	return ((RGB - 1) * HSV.y + 1) * HSV.z;
-}
-
-float3 GetColorCode(float x)
-{
-	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
-	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
-}
 
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {	
+	// Draw AABB of the instance groups
+	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0 && DispatchThreadId.z == 0)
+	{
+		for (uint GroupIndex =0;GroupIndex< HairMacroGroupCount; GroupIndex++)
+		{
+			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
+			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
+			AddAABB(Bound.Min, Bound.Max, InstanceBoundColor);
+		}
+	}
+
 	const float2 PixelPos = PixelCoord;
 	if (PixelCoord.x < 0 || PixelCoord.y < 0 || PixelCoord.x >= MaxResolution.x || PixelCoord.y >= MaxResolution.y)
 		return;
@@ -335,20 +332,24 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
 
-		// ClusterId
+		// MacroGroupId
 		Pos = ShaderPrintSymbol(Pos, _DOT_);
+		Pos = ShaderPrintSymbol(Pos, _M_);
+		Pos = ShaderPrintSymbol(Pos, _A_);
 		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
 		Pos = ShaderPrintSymbol(Pos, _R_);
+		Pos = ShaderPrintSymbol(Pos, _O_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrintSymbol(Pos, _G_);
+		Pos = ShaderPrintSymbol(Pos, _R_);
+		Pos = ShaderPrintSymbol(Pos, _O_);
+		Pos = ShaderPrintSymbol(Pos, _U_);
+		Pos = ShaderPrintSymbol(Pos, _P_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
 		Pos = ShaderPrintSymbol(Pos, _I_);
 		Pos = ShaderPrintSymbol(Pos, _D_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleVisData.ClusterId);
+		Pos = ShaderPrint(Pos, SampleVisData.MacroGroupId);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;		

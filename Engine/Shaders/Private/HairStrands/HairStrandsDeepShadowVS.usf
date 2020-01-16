@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
@@ -27,7 +28,7 @@ struct FDeepShadowAccumulateVSToPS
 #define VS_OUTPUT_TYPE FDeepShadowAccumulateVSToPS
 #define SUPPORT_WPO 0
 
-#if VERTEXSHADER
+#if VERTEXSHADER 
 
 /** transform mesh as normal */
 void Main(
@@ -39,11 +40,50 @@ void Main(
 	ResolvedView = ResolveView();
 
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);		
+
+#if MESH_RENDER_MODE == MESH_RENDER_VOXEL
+	float4x4 WorldToClipMatrix = VoxelRasterPass.WorldToClipMatrix;
+#elif MESH_RENDER_MODE == MESH_RENDER_DEPTH || MESH_RENDER_MODE == MESH_RENDER_DOM
+	float4x4 WorldToClipMatrix = DeepRasterPass.WorldToClipMatrix;
+#endif
+
+#ifdef VF_STRAND_HAIR	
+	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
+
+	FHairViewInfo HairViewInfo;
+	HairViewInfo.TranslatedWorldCameraOrigin = ResolvedView.TranslatedWorldCameraOrigin;
+	HairViewInfo.ViewForward = ResolvedView.ViewForward;
+	HairViewInfo.RadiusAtDepth1 = HairRenderInfo.RadiusAtDepth1Primary;
+	HairViewInfo.bIsOrthoView = HairRenderInfo.bIsOrthoView;
+
+	#if MESH_RENDER_MODE == MESH_RENDER_VOXEL
+	float2 ViewportScale;
+	if (HairRenderInfo.bIsGPUDriven)
+	{
+		const uint MacroGroupId = VoxelRasterPass.MacroGroupId;
+		FVoxelizationViewInfo VoxelizationViewInfo = VoxelRasterPass.VoxelizationViewInfoBuffer.Load(MacroGroupId);
+		WorldToClipMatrix			= VoxelizationViewInfo.WorldToClip;
+		HairViewInfo.ViewForward	= VoxelizationViewInfo.ViewForward;
+		ViewportScale				= VoxelizationViewInfo.RasterResolution / float2(VoxelRasterPass.ViewportResolution);
+	}
+	#endif
+
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, HairViewInfo);
+#else
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+#endif
 	WorldPosition.xyz -= ResolvedView.PreViewTranslation.xyz; // Remove the camera relative position (todo move this into matrix transform)
 
-	Output.Position = mul(WorldPosition, DeepShadowPass.WorldToClipMatrix);
+	Output.Position = mul(WorldPosition, WorldToClipMatrix);
+
 #if MESH_RENDER_MODE == MESH_RENDER_VOXEL && defined(VF_STRAND_HAIR)
+	if (HairRenderInfo.bIsGPUDriven)
+	{
+		Output.Position.xy += float2(1, 1);
+		Output.Position.xy *= ViewportScale;
+		Output.Position.xy -= float2(1, 1);
+	}
+
 	Output.PixelPosition = WorldPosition;
   #if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1
 	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
@@ -54,7 +94,6 @@ void Main(
 
 #if MESH_RENDER_MODE == MESH_RENDER_DOM || MESH_RENDER_MODE == MESH_RENDER_VOXEL
   #ifdef VF_STRAND_HAIR	
-	FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 	const float CurrentDepth = Output.Position.z / Output.Position.w;
 	const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderInfo.RadiusAtDepth1Primary);
 	const float StrandRealRadius = VFIntermediates.HairDimensions.y;

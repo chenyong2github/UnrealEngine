@@ -11,6 +11,7 @@
 #include "Shader.h"
 #include "HairStrandsUtils.h"
 #include "HairStrandsCluster.h"
+#include "HairStrandsClusters.h"
 #include "HairStrandsLUT.h"
 #include "HairStrandsDeepShadow.h"
 #include "HairStrandsVoxelization.h"
@@ -26,7 +27,7 @@ struct FHairStrandsDatas
 {
 	FHairStrandsDeepShadowViews DeepShadowViews;
 	FHairStrandsVisibilityViews HairVisibilityViews;
-	FHairStrandsClusterViews HairClusterPerViews;
+	FHairStrandsMacroGroupViews MacroGroupsPerViews;
 };
 
 enum class EHairStrandsInterpolationType
@@ -38,5 +39,9 @@ enum class EHairStrandsInterpolationType
 void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
+	const struct FShaderDrawDebugData* DebugShaderData,
 	TShaderMap<FGlobalShaderType>* ShaderMap, 
-	EHairStrandsInterpolationType Type);
+	EHairStrandsInterpolationType Type,
+	FHairStrandClusterData* ClusterData);
+
+

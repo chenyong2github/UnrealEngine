@@ -12,24 +12,33 @@
 #include "MeshMaterialShader.h"
 #include "HairStrandsInterface.h"
 
-static float GStrandHairWidth = 0.0f;
-static FAutoConsoleVariableRef CVarStrandHairWidth(TEXT("r.HairStrands.StrandWidth"), GStrandHairWidth, TEXT("Width of hair strand"));
-
-float FHairStrandsVertexFactory::GetMaxStrandRadius(uint32 GroupIndex) const
-{
-	return GStrandHairWidth > 0 ? GStrandHairWidth * 0.5f : Data.HairGroups[GroupIndex].MaxStrandRadius;
-}
-
-#define OPTIMIZE_OFF 0
-
-#if OPTIMIZE_OFF
-	#pragma optimize("", off)
-#endif
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
 template<typename T> inline void BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value)	{ if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
 template<typename T> inline void BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value)	{ if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
+
+class FDummyCulledDispatchVertexIdsBuffer : public FVertexBuffer
+{
+public:
+	FShaderResourceViewRHIRef SRVUint;
+	FShaderResourceViewRHIRef SRVFloat;
+
+	virtual void InitRHI() override
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		void* BufferData = nullptr;
+		uint32 NumBytes = sizeof(uint32) * 4;
+		VertexBufferRHI = RHICreateAndLockVertexBuffer(NumBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+		uint32* DummyContents = (uint32*)BufferData;
+		DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
+		RHIUnlockVertexBuffer(VertexBufferRHI);
+
+		SRVUint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+		SRVFloat = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
+	}
+
+};
+TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexIdsBuffer;
 
 class FHairStrandsVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
@@ -42,12 +51,16 @@ public:
 	FShaderParameter PositionOffset;
 	FShaderParameter PreviousPositionOffset;
 	FShaderParameter Density;
+	FShaderParameter Culling;
 
 	FShaderResourceParameter PositionBuffer;
 	FShaderResourceParameter PreviousPositionBuffer;
 	FShaderResourceParameter AttributeBuffer;
 	FShaderResourceParameter MaterialBuffer;
 	FShaderResourceParameter TangentBuffer;
+
+	FShaderResourceParameter CulledVertexIdsBuffer;
+	FShaderResourceParameter CulledVertexRadiusScaleBuffer;
 
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
@@ -56,12 +69,16 @@ public:
 		PositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffset"));
 		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
+		Culling.Bind(ParameterMap, TEXT("HairStrandsVF_CullingEnable"));
 
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
 		AttributeBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_AttributeBuffer"));
 		MaterialBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_MaterialBuffer"));
 		TangentBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_TangentBuffer"));
+
+		CulledVertexIdsBuffer.Bind(ParameterMap, TEXT("CulledVertexIdsBuffer"));
+		CulledVertexRadiusScaleBuffer.Bind(ParameterMap, TEXT("CulledVertexRadiusScaleBuffer"));
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -73,12 +90,16 @@ public:
 		Ar << PositionOffset;
 		Ar << PreviousPositionOffset;
 		Ar << Density;
+		Ar << Culling;
 
 		Ar << PositionBuffer;
 		Ar << PreviousPositionBuffer;
 		Ar << AttributeBuffer;
 		Ar << MaterialBuffer;
 		Ar << TangentBuffer;
+
+		Ar << CulledVertexIdsBuffer;
+		Ar << CulledVertexRadiusScaleBuffer;
 	}
 
 	virtual void GetElementShaderBindings(
@@ -95,7 +116,9 @@ public:
 	{
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
 
-		const uint64 GroupIndex = reinterpret_cast<uint64>(BatchElement.UserData);
+		const FHairGroupPublicData* GroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(BatchElement.VertexFactoryUserData);
+		check(GroupPublicData);
+		const uint64 GroupIndex = GroupPublicData->GetGroupIndex();
 		BindParam(ShaderBindings, PositionBuffer, VF->GetPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionBuffer, VF->GetPreviousPositionSRV(GroupIndex));
 		BindParam(ShaderBindings, AttributeBuffer, VF->GetAttributeSRV(GroupIndex));
@@ -106,6 +129,22 @@ public:
 		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
+		
+		FShaderResourceViewRHIRef CulledDispatchVertexIdsSRV = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
+		FShaderResourceViewRHIRef CulledCompactedRadiusScaleBufferSRV = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
+
+		FHairGroupPublicData* PublicGroupData = VF->GetHairGroupPublicData(GroupIndex);
+		
+		const bool bCulling = PublicGroupData ? PublicGroupData->GetCullingResultAvailable() : false;
+		if (bCulling && PublicGroupData)
+		{
+			CulledDispatchVertexIdsSRV = PublicGroupData->GetCulledVertexIdBuffer().SRV;
+			CulledCompactedRadiusScaleBufferSRV = PublicGroupData->GetCulledVertexRadiusScaleBuffer().SRV;
+		}
+
+		BindParam(ShaderBindings, Culling, bCulling ? 1 : 0);
+		ShaderBindings.Add(CulledVertexIdsBuffer, CulledDispatchVertexIdsSRV);
+		ShaderBindings.Add(CulledVertexRadiusScaleBuffer, CulledCompactedRadiusScaleBufferSRV);
 	}
 };
 
@@ -213,9 +252,4 @@ void FHairStrandsVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 }
 
-
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,true,true,true);
-
-#if OPTIMIZE_OFF
-	#pragma optimize("", on)
-#endif

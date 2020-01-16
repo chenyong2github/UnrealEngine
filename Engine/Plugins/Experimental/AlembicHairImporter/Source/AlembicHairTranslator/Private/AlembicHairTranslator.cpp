@@ -264,7 +264,7 @@ namespace AlembicHairTranslatorUtils
 			TStrandAttributesRef<AttributeType> StrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<AttributeType>(AttributeName);
 			if (!StrandAttributeRef.IsValid())
 			{
-				HairDescription.StrandAttributes().RegisterAttribute<AttributeType>(AttributeName);
+				HairDescription.StrandAttributes().RegisterAttribute<AttributeType>(AttributeName, 1, AttributeType::ZeroVector);
 				StrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<AttributeType>(AttributeName);
 			}
 
@@ -345,7 +345,15 @@ namespace AlembicHairTranslatorUtils
 				break;
 				case Alembic::Util::kInt32POD:
 				{
-					ConvertAlembicAttribute<Alembic::AbcGeom::IInt32GeomParam, Alembic::Abc::Int32ArraySamplePtr, int>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName);
+					switch (Extent)
+					{
+					case 1:
+						ConvertAlembicAttribute<Alembic::AbcGeom::IInt32GeomParam, Alembic::Abc::Int32ArraySamplePtr, int>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName);
+						break;
+					case 3:
+						ConvertAlembicAttribute<Alembic::AbcGeom::IV3iGeomParam, Alembic::Abc::V3iArraySamplePtr, FVector>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName, DataType.getExtent());
+						break;
+					}
 				}
 				break;
 				case Alembic::Util::kFloat32POD:

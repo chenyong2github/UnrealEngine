@@ -362,6 +362,20 @@ void MainOnePassPointLightPS(
 {
 	float2 ScreenUV = float2( SVPos.xy * View.BufferSizeAndInvSize.zw );
 	float SceneW = CalcSceneDepth( ScreenUV );
+
+#if SUBPIXEL_SHADOW
+	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
+	const FCategorizationData CategorizationData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+	if (CategorizationData.PixelCoverage > 0)
+	{
+		SceneW = ConvertFromDeviceZ(CategorizationData.ClosestDepth);
+	}
+	else
+	{
+		discard;
+	}
+#endif
+
 	float2 ScreenPosition = ( ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy;
 	float3 WorldPosition = mul(float4(ScreenPosition.xy * SceneW, SceneW, 1), View.ScreenToWorld).xyz;
 
@@ -380,6 +394,7 @@ void MainOnePassPointLightPS(
 	// Unlike spot/rect/direction light, point lights performs depth bias only at projection time. 
 	// This is why the slope bias drives the normal receiver bias here.
 	float SlopeBias = 0;
+#if !SUBPIXEL_SHADOW
 	{
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
 		const bool bIsDirectional = LightPositionOrDirection.w == 0;
@@ -387,6 +402,7 @@ void MainOnePassPointLightPS(
 		const float NoL = saturate(dot(GBufferData.WorldNormal, LightDirection));
 		SlopeBias = (1-NoL) * PointLightDepthBias.y;
 	}
+#endif
 
 	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, SlopeBias, PointLightDepthBias.z);
 

@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
 #include "RenderGraphResources.h"
+#include "Shader.h"
+#include "GroomDesc.h"
 
 struct FHairStrandsInterpolationInput
 {
@@ -32,9 +34,16 @@ struct FHairStrandsInterpolationInput
 		bool					bIsRTGeometryInitialized = false;
 		#endif
 
+		uint32		ClusterCount = 0;
+		uint32		ClusterVertexCount = 0;
+		FReadBuffer*VertexToClusterIdBuffer = nullptr;
+		FReadBuffer*ClusterVertexIdBuffer = nullptr;
+		FReadBuffer*ClusterIndexRadiusScaleInfoBuffer = nullptr;
+
 		bool bIsSimulationEnable = false;
-		float HairRadius = 0;
-		float HairRaytracingRadiusScale = 0;
+		
+		FHairGroupDesc GroupDesc;
+
 		FVector InRenderHairPositionOffset = FVector::ZeroVector;
 		FVector InSimHairPositionOffset = FVector::ZeroVector;
 		FVector OutHairPositionOffset = FVector::ZeroVector;
@@ -67,9 +76,13 @@ struct FHairStrandsInterpolationOutput
 		FShaderResourceViewRHIRef HairTangentBuffer = nullptr;
 		FShaderResourceViewRHIRef HairAttributeBuffer = nullptr;
 		FShaderResourceViewRHIRef HairMaterialBuffer = nullptr;
+
 		FVector HairPositionOffset = FVector::ZeroVector;
 		FVector HairPreviousPositionOffset = FVector::ZeroVector;
 		uint32 VertexCount = 0;
+		float HairRadius = 0;
+		float HairLength = 0;
+		float HairDensity = 0;
 
 		inline void Reset()
 		{
@@ -81,6 +94,9 @@ struct FHairStrandsInterpolationOutput
 			HairPositionOffset = FVector::ZeroVector;
 			HairPreviousPositionOffset = FVector::ZeroVector;
 			VertexCount = 0;
+			HairRadius = 0;
+			HairLength = 0;
+			HairDensity = 0;
 		}
 	};
 
@@ -96,9 +112,14 @@ struct FHairStrandsInterpolationOutput
 
 		FRWBuffer* SimTangentBuffer = nullptr;
 
+		FRWBuffer* RenderGroupAABBBuffer = nullptr;
+		FRWBuffer* RenderClusterAABBBuffer = nullptr;
+		FReadBuffer* ClusterInfoBuffer = nullptr;
+
 		// Debug buffers (allocated on-the-fly if used)
 		FRWBuffer RenderPatchedAttributeBuffer;
 
+		class FHairGroupPublicData* HairGroupPublicData = nullptr;
 		VertexFactoryInput VFInput;
 
 		inline bool IsValid() const
@@ -116,11 +137,22 @@ struct FHairStrandsInterpolationOutput
 	TArray<HairGroup> HairGroups;
 };
 
+// Reset the interpolation data. This needs to be called prior to ComputeHairStrandsInterpolation 
+// and prior to the actual hair simulation in order to insure that:
+//  1) when hair simulation is enabled, the first frame is correct
+//  2) when hair simulation is enabled/disabled (i.e., toggle/change) 
+//     we reset to deform buffer to rest state)
+void ResetHairStrandsInterpolation(
+	FRHICommandListImmediate& RHICmdList,
+	FHairStrandsInterpolationInput* InInput,
+	FHairStrandsInterpolationOutput* InOutput);
+
 void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
+	const struct FShaderDrawDebugData* DebugShaderData,
 	FHairStrandsInterpolationInput* Input,
 	FHairStrandsInterpolationOutput* Output, 
 	struct FHairStrandsProjectionHairData& RenHairDatas,
 	struct FHairStrandsProjectionHairData& SimHairDatas,
-	int32 LODIndex);
-
+	int32 LODIndex,
+	struct FHairStrandClusterData* ClusterData);

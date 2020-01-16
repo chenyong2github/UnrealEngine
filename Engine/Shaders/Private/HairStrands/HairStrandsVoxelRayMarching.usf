@@ -5,7 +5,8 @@
 #include "../SceneTextureParameters.ush"
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
-#include "HairStrandsDeepVoxelCommon.ush"
+#include "HairStrandsVoxelPageCommon.ush"
+#include "HairStrandsDebugCommon.ush"
 
 float3 VoxelMinAABB;
 uint   VoxelResolution;
@@ -22,28 +23,6 @@ Texture3D<uint> MaterialTexture;
 
 SamplerState LinearSampler;
 
-
-float3 HUEtoRGB(in float H)
-{
-	float R = abs(H * 6 - 3) - 1;
-	float G = 2 - abs(H * 6 - 2);
-	float B = 2 - abs(H * 6 - 4);
-	return saturate(float3(R, G, B));
-}
-
-float3 HSVtoRGB(in float3 HSV)
-{
-	float3 RGB = HUEtoRGB(HSV.x);
-	return ((RGB - 1) * HSV.y + 1) * HSV.z;
-}
-
-float3 GetColorCode(float x)
-{
-	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
-	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
-}
-
-
 float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
 {
 	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
@@ -51,6 +30,21 @@ float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
 	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
 
 	return WorldPosition;
+}
+
+float3 GetHairVoxelTangent(
+	uint3 InVolumeCoord,
+	float InHairDensity,
+	Texture3D<uint> InVoxelTangentXTexture,
+	Texture3D<uint> InVoxelTangentYTexture,
+	Texture3D<uint> InVoxelTangentZTexture)
+{
+	float3 T8Bits;
+	T8Bits.x = InVoxelTangentXTexture.Load(int4(InVolumeCoord, 0));
+	T8Bits.y = InVoxelTangentYTexture.Load(int4(InVolumeCoord, 0));
+	T8Bits.z = InVoxelTangentZTexture.Load(int4(InVolumeCoord, 0));
+	T8Bits /= InHairDensity;
+	return From8bits(T8Bits);
 }
 
 // Config
@@ -105,7 +99,8 @@ void MainPS(
 			const float3 HitP = Offset + O + ((Dither+StepIt)*Delta + HitT.x) * D;
 			const float3 UVW  = (HitP - VoxelMinAABB) / (VoxelMaxAABB - VoxelMinAABB);
 			const int3 VolumeCoord = clamp(int3(UVW * MipResolution), int3(0,0,0), int3(MipResolution.xxx-1));
-			const float Density = GetHairVoxelDensity(VolumeCoord, DensityTexture, MipLevel) * VoxelDensityScale;
+			const FHairTraversalResult Result = GetHairVoxelDensity(VolumeCoord, DensityTexture, MipLevel, VoxelDensityScale);
+			const float Density = Result.HairCount + (Result.Visibility == 0 ? 1000000 : 0);
 		#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_DENSITY
 			if (Density > 0)
 			{
