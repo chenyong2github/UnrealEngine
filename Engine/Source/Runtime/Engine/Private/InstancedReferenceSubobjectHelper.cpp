@@ -340,7 +340,7 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(UObject* OldObject, UObje
 					const bool bNotHandledYet = !ReferenceReplacementMap.Contains(Obj);
 					if (bKeptByOld && bNotHandledYet)
 					{
-						UObject* NewEditInlineSubobject = StaticDuplicateObject(Obj, NewObject);
+						UObject* NewEditInlineSubobject = StaticDuplicateObject(Obj, NewObject, Obj->GetFName());
 						ReferenceReplacementMap.Add(Obj, NewEditInlineSubobject);
 
 						// NOTE: we cannot patch OldObject's linker table here, since we don't 
