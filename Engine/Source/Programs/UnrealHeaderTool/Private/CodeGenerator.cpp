@@ -2970,7 +2970,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FUHTStringBuilder EnhancedUObjectConstructorsMacroCall;
 
 	FClassMetaData* ClassData = GScriptHelper.FindClassData(Class);
-	check(ClassData);
+	checkf(ClassData, TEXT("No class data generated for file %s"), *SourceFile.GetFilename());
 
 	// C++ -> VM stubs (native function execs)
 	FUHTStringBuilder ClassMacroCalls;
