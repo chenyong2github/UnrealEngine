@@ -273,7 +273,7 @@ public:
 			break;
 		};
 
-		CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
 	}
 
 	/** This override is required otherwise the shaders aren't ready for use when the surface is rendered resulting in a blank image */

@@ -263,7 +263,7 @@ public:
 
 				// Override with a special usage so we won't re-use the shader map used by the material for rendering
 				ResourceId.Usage = GetShaderMapUsage();
-				CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
+				CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
 			}
 		}
 	}
