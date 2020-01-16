@@ -466,6 +466,8 @@ bool FPhysScene_Chaos::IsTickable() const
 
 void FPhysScene_Chaos::Tick(float DeltaTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 	LLM_SCOPE(ELLMTag::Chaos);
 
 #if WITH_EDITOR

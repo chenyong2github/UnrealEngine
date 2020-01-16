@@ -187,6 +187,7 @@ void UWorld::FinishPhysicsSim()
 void FStartPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FStartPhysicsTickFunction_ExecuteTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 	check(Target);
 	Target->StartPhysicsSim();
 }
@@ -204,6 +205,7 @@ FName FStartPhysicsTickFunction::DiagnosticContext(bool bDetailed)
 void FEndPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FEndPhysicsTickFunction_ExecuteTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
 	check(Target);
 	FPhysScene* PhysScene = Target->GetPhysicsScene();
