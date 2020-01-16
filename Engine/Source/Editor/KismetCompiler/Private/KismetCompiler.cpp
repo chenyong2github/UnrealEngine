@@ -3305,7 +3305,6 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 			bool bExistsAsGraph = false;
 
 			// Any function that can be implemented as an event needs to check to see if there is already an interface function graph
-			// If there is, we want to warn the user that this is unexpected but proceed to successfully compile the Blueprint
 			if (bCanImplementAsEvent)
 			{
 				for (UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
@@ -3313,9 +3312,6 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 					if (InterfaceGraph->GetFName() == Function->GetFName())
 					{
 						bExistsAsGraph = true;
-
-						// Having an event override implemented as a function won't cause issues but is something the user should be aware of.
-						MessageLog.Warning(TEXT("Interface '@@' is already implemented as a function graph but is expected as an event. Remove the function graph and reimplement as an event."), InterfaceGraph);
 					}
 				}
 			}
