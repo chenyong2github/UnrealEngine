@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
