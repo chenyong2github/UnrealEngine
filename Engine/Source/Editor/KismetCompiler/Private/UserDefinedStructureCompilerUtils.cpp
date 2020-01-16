@@ -159,13 +159,10 @@ struct FUserDefinedStructureCompilerInner
 
 			StructToClean->SetSuperStruct(nullptr);
 			StructToClean->Children = nullptr;
+			StructToClean->DestroyChildPropertiesAndResetPropertyLinks();
 			StructToClean->Script.Empty();
 			StructToClean->MinAlignment = 0;
-			StructToClean->RefLink = nullptr;
-			StructToClean->PropertyLink = nullptr;
-			StructToClean->DestructorLink = nullptr;
 			StructToClean->ScriptObjectReferences.Empty();
-			StructToClean->PropertyLink = nullptr;
 			StructToClean->ErrorMessage.Empty();
 			StructToClean->SetStructTrashed(true);
 		}
