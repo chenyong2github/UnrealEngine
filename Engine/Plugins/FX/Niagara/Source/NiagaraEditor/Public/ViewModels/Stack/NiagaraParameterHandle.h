@@ -53,6 +53,10 @@ public:
 
 	bool IsParameterCollectionHandle() const;
 
+	bool IsReadOnlyHandle() const;
+
+	bool IsTransientHandle() const;
+
 public:
 	static const FName UserNamespace;
 	static const FName EngineNamespace;

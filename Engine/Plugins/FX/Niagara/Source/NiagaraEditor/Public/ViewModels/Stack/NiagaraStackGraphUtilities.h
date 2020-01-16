@@ -149,7 +149,7 @@ namespace FNiagaraStackGraphUtilities
 
 	bool IsValidDefaultDynamicInput(UNiagaraScript& OwningScript, UEdGraphPin& DefaultPin);
 
-	bool ParameterIsCompatibleWithScriptUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage);
+	bool CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage);
 
 	bool DoesDynamicInputMatchDefault(
 		FString EmitterUniqueName,

@@ -136,7 +136,7 @@ bool UNiagaraStackRenderItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 		OutMessage = LOCTEXT("PasteRenderers", "Paste renderers from the clipboard.");
 		return true;
 	}
-	OutMessage = LOCTEXT("NoRenderers", "No renderers on the clipboard.");
+	OutMessage = FText();
 	return false;
 }
 
@@ -145,7 +145,7 @@ FText UNiagaraStackRenderItemGroup::GetPasteTransactionText(const UNiagaraClipbo
 	return LOCTEXT("PasteRenderersTransactionText", "Paste renderers");
 }
 
-void UNiagaraStackRenderItemGroup::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackRenderItemGroup::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
 	if (EmitterWeak.IsValid())
 	{
@@ -172,7 +172,8 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 		{
 			RendererItem = NewObject<UNiagaraStackRendererItem>(this);
 			RendererItem->Initialize(CreateDefaultChildRequiredData(), RendererProperties);
-			RendererItem->OnRequestPaste().AddUObject(this, &UNiagaraStackRenderItemGroup::ChildRequestPaste);
+			RendererItem->SetOnRequestCanPaste(UNiagaraStackRendererItem::FOnRequestCanPaste::CreateUObject(this, &UNiagaraStackRenderItemGroup::ChildRequestCanPaste));
+			RendererItem->SetOnRequestPaste(UNiagaraStackRendererItem::FOnRequestPaste::CreateUObject(this, &UNiagaraStackRenderItemGroup::ChildRequestPaste));
 		}
 
 		NewChildren.Add(RendererItem);
@@ -193,9 +194,14 @@ void UNiagaraStackRenderItemGroup::EmitterRenderersChanged()
 	}
 }
 
-void UNiagaraStackRenderItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex)
+bool UNiagaraStackRenderItemGroup::ChildRequestCanPaste(const UNiagaraClipboardContent* ClipboardContent, FText& OutCanPasteMessage)
 {
-	Paste(ClipboardContent);
+	return TestCanPasteWithMessage(ClipboardContent, OutCanPasteMessage);
+}
+
+void UNiagaraStackRenderItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning)
+{
+	Paste(ClipboardContent, OutPasteWarning);
 }
 
 void UNiagaraStackRenderItemGroup::FinalizeInternal()

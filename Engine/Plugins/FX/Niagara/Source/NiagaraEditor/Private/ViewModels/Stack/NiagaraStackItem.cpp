@@ -27,9 +27,14 @@ UNiagaraStackItem::FOnModifiedGroupItems& UNiagaraStackItem::OnModifiedGroupItem
 	return ModifiedGroupItemsDelegate;
 }
 
-UNiagaraStackItem::FOnRequestPaste& UNiagaraStackItem::OnRequestPaste()
+void UNiagaraStackItem::SetOnRequestCanPaste(FOnRequestCanPaste InOnRequestCanPaste)
 {
-	return RequestPasteDelegate;
+	RequestCanPasteDelegete = InOnRequestCanPaste;
+}
+
+void UNiagaraStackItem::SetOnRequestPaste(FOnRequestPaste InOnRequestCanPaste)
+{
+	RequestPasteDelegate = InOnRequestCanPaste;
 }
 
 void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
