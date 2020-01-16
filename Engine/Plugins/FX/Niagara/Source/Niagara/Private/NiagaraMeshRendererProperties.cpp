@@ -33,6 +33,8 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
 	, SortMode(ENiagaraSortMode::None)
 	, bSortOnlyWhenTranslucent(true)
+	, SubImageSize(1.0f, 1.0f)
+	, bSubImageBlend(false)
 {
 }
 
@@ -111,6 +113,7 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
 		ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
 		VelocityBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VELOCITY);
+		SubImageIndexBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX);
 		DynamicMaterialBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM);
 		DynamicMaterial1Binding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1);
 		DynamicMaterial2Binding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2);
@@ -239,6 +242,7 @@ const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttri
 		Attrs.Add(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
 		Attrs.Add(SYS_PARAM_PARTICLES_SCALE);
 		Attrs.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION);
+		Attrs.Add(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX);
 		Attrs.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM);
 		Attrs.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1);
 		Attrs.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2);
@@ -275,6 +279,9 @@ void UNiagaraMeshRendererProperties::PreEditChange(class FProperty* PropertyThat
 
 void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	SubImageSize.X = FMath::Max<float>(SubImageSize.X, 1.f);
+	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
+
 	static FName ParticleMeshName(TEXT("ParticleMesh"));
 	if (ParticleMesh && PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == ParticleMeshName)
 	{
