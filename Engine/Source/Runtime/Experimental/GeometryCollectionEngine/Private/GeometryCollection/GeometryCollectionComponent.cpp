@@ -158,7 +158,9 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
 #if INCLUDE_CHAOS
-	return GeometryCollectionComponent.ChaosSolverActor != nullptr ? GeometryCollectionComponent.ChaosSolverActor->GetSolver() : GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
+	return GeometryCollectionComponent.ChaosSolverActor != nullptr ? 
+		GeometryCollectionComponent.ChaosSolverActor->GetSolver() : 
+		GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
 #else
 	return nullptr;
 #endif
