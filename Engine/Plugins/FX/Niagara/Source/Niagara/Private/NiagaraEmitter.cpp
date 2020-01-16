@@ -293,6 +293,14 @@ void UNiagaraEmitter::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
+	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
+	{
+		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
+		{
+			RendererProperties.RemoveAt(RendererIndex);
+		}
+	}
+
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
