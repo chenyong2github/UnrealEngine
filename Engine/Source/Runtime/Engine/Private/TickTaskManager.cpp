@@ -27,8 +27,6 @@ DECLARE_CYCLE_STAT(TEXT("Queue Ticks"),STAT_QueueTicks,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Queue Ticks Wait"),STAT_QueueTicksWait,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Queue Tick Task"),STAT_QueueTickTask,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Post Queue Tick Task"),STAT_PostTickTask,STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("Cooldown Dequeuing"),STAT_DequeueCooldowns,STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("Gather Ticks for Parallel"),STAT_GatherTicksForParallel,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Finalize Parallel Queue"),STAT_FinalizeParallelQueue,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Schedule cooldowns"),STAT_ScheduleCooldowns,STATGROUP_Game);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Ticks Queued"),STAT_TicksQueued,STATGROUP_Game);
@@ -743,7 +741,6 @@ public:
 
 		int32 CooldownTicksEnabled = 0;
 		{
-			SCOPE_CYCLE_COUNTER(STAT_DequeueCooldowns);
 			// Determine which cooled down ticks will be enabled this frame
 			float CumulativeCooldown = 0.f;
 			FTickFunction* TickFunction = AllCoolingDownTickFunctions.Head;
@@ -780,7 +777,6 @@ public:
 		bTickNewlySpawned = true;
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_GatherTicksForParallel);
 			for (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)
 			{
 				FTickFunction* TickFunction = *It;
@@ -788,7 +784,6 @@ public:
 			}
 		}
 		{
-			SCOPE_CYCLE_COUNTER(STAT_DequeueCooldowns);
 			// Determine which cooled down ticks will be enabled this frame
 			float CumulativeCooldown = 0.f;
 			FTickFunction* TickFunction = AllCoolingDownTickFunctions.Head;
