@@ -799,7 +799,7 @@ static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPa
 							FIoStoreWriter* IoStoreWriter)
 {
 
-	const FPackageStoreBulkDataManifest::PackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
+	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
 	if (PackageDesc != nullptr)
 	{
 		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, TNumericLimits<uint64>::Max()-1, Type, *Package.FileName);
@@ -826,7 +826,7 @@ static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPa
 #endif
 
 		// Create additional mapping chunks as needed
-		for (const FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
+		for (const FPackageStoreBulkDataManifest::FPackageDesc::FBulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
 		{
 			if (BulkDataDesc.Type == Type)
 			{

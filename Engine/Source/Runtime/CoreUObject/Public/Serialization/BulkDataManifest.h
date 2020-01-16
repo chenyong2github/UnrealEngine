@@ -18,10 +18,10 @@ public:
 
 	const FString& GetFilename() const { return Filename; }
 
-	class PackageDesc
+	class FPackageDesc
 	{
 	public:
-		struct BulkDataDesc
+		struct FBulkDataDesc
 		{
 			uint64 ChunkId;	// Note this is the Offset before the linker BulkDataStartOffset is
 							// applied, to make it easier to compute at runtime.
@@ -33,20 +33,20 @@ public:
 		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
 		void AddZeroByteData(EIoChunkType InType);
 
-		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
+		const TArray<FBulkDataDesc>& GetDataArray() const { return Data; }
 	private:
-		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);
-		TArray<BulkDataDesc> Data;
+		friend FArchive& operator<<(FArchive& Ar, FPackageDesc& Entry);
+		TArray<FBulkDataDesc> Data;
 	};
 
-	COREUOBJECT_API const PackageDesc* Find(const FString& PackageName) const;
+	COREUOBJECT_API const FPackageDesc* Find(const FString& PackageName) const;
 
 private:
-	PackageDesc& GetOrCreateFileAccess(const FString& PackageFilename);
+	FPackageDesc& GetOrCreateFileAccess(const FString& PackageFilename);
 
 	FString FixFilename(const FString& InFileName) const;
 
 	FString RootPath;
 	FString Filename;
-	TMap<FString, PackageDesc> Data;
+	TMap<FString, FPackageDesc> Data;
 };

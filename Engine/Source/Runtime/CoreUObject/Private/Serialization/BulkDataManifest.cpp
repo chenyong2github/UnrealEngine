@@ -6,16 +6,16 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
-void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
+void FPackageStoreBulkDataManifest::FPackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
 {
 	// The ChunkId is supposed to be unique for each type
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
+	auto func = [=](const FBulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
 	if (Data.FindByPredicate(func) != nullptr)
 	{
 		FString Message;
 		for (int i = 0; i < Data.Num(); ++i)
 		{
-			const BulkDataDesc& Entry = Data[i];
+			const FBulkDataDesc& Entry = Data[i];
 			Message.Appendf(TEXT("[%3d] ID: %20llu Offset: %8llu Size: %8llu Type: %d\n"),
 				i, Entry.ChunkId, Entry.Offset, Entry.Size, Entry.Type);
 		}
@@ -27,7 +27,7 @@ void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, ui
 	}
 	else
 	{
-		BulkDataDesc& Entry = Data.Emplace_GetRef();
+		FBulkDataDesc& Entry = Data.Emplace_GetRef();
 
 		Entry.ChunkId = InChunkId;
 		Entry.Offset = InOffset;
@@ -36,13 +36,13 @@ void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, ui
 	}
 }
 
-void FPackageStoreBulkDataManifest::PackageDesc::AddZeroByteData(EIoChunkType InType)
+void FPackageStoreBulkDataManifest::FPackageDesc::AddZeroByteData(EIoChunkType InType)
 {
 	// Make sure we only add one empty read per Bulkdata type!
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.Type == InType && Entry.Size == 0; };
+	auto func = [=](const FBulkDataDesc& Entry) { return Entry.Type == InType && Entry.Size == 0; };
 	if (Data.FindByPredicate(func) == nullptr)
 	{
-		BulkDataDesc& Entry = Data.Emplace_GetRef();
+		FBulkDataDesc& Entry = Data.Emplace_GetRef();
 
 		Entry.ChunkId = TNumericLimits<uint64>::Max();
 		Entry.Offset = 0;
@@ -56,7 +56,7 @@ FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& Proj
 	Filename = ProjectPath / TEXT("Metadata/BulkDataInfo.ubulkmanifest");
 }
 
-FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::FPackageDesc::FBulkDataDesc& Entry)
 {
 	Ar << Entry.ChunkId;
 	Ar << Entry.Offset;
@@ -66,7 +66,7 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::B
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc& Entry)
+FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::FPackageDesc& Entry)
 {
 	Ar << Entry.Data;
 
@@ -99,7 +99,7 @@ void FPackageStoreBulkDataManifest::Save()
 	*BinArchive << Data;
 }
 
-const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest::Find(const FString& PackageFilename) const
+const FPackageStoreBulkDataManifest::FPackageDesc* FPackageStoreBulkDataManifest::Find(const FString& PackageFilename) const
 {
 	const  FString NormalizedFilename = FixFilename(PackageFilename);
 	return Data.Find(NormalizedFilename);
@@ -109,7 +109,7 @@ void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename
 {
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 
-	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
+	FPackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
 
 	if (InSize > 0)
 	{
@@ -122,9 +122,9 @@ void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename
 
 }
 
-FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
+FPackageStoreBulkDataManifest::FPackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
 {
-	if (PackageDesc* Entry = Data.Find(PackageFilename))
+	if (FPackageDesc* Entry = Data.Find(PackageFilename))
 	{
 		return *Entry;
 	}
