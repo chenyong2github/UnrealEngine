@@ -101,12 +101,13 @@ namespace Chaos
 		using FImplicitObject::GetTypeName;
 
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices)
+		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr)
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
 		, MLocalBoundingBox(MParticles.X(0), MParticles.X(0))
 		, MaterialIndices(MoveTemp(InMaterialIndices))
+		, ExternalFaceIndexMap(MoveTemp(InExternalFaceIndexMap))
 		{
 			for (uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
 			{
@@ -151,6 +152,9 @@ namespace Chaos
 		bool GJKContactPoint(const TImplicitObjectScaled < TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
 		bool GJKContactPoint(const TImplicitObjectScaled < TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
 		bool GJKContactPoint(const TImplicitObjectScaled < FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const;
+
+		// Returns -1 if InternalFaceIndex is not in map, or map is invalid.
+		int32 GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const;
 
 
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDistance) const override;
@@ -202,6 +206,29 @@ namespace Chaos
 			{
 				Ar << MaterialIndices;
 			}
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::TriangleMeshHasFaceIndexMap)
+			{
+				// TODO: This data is only needed in editor unless project configuration requests this for gameplay. We should not serialize this when cooking
+				// unless it is required for gameplay, as we are wasting disk space.
+				if (Ar.IsLoading())
+				{
+					ExternalFaceIndexMap = MakeUnique<TArray<int32>>(TArray<int32>());
+					Ar << *ExternalFaceIndexMap;
+				}
+				else
+				{
+					if (ExternalFaceIndexMap == nullptr)
+					{
+						TArray<int32> EmptyArray;
+						Ar << EmptyArray;
+					}
+					else
+					{
+						Ar << *ExternalFaceIndexMap;
+					}
+				}
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override;
@@ -227,6 +254,7 @@ namespace Chaos
 		FTrimeshIndexBuffer MElements;
 		TAABB<FReal, 3> MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
+		TUniquePtr<TArray<int32>> ExternalFaceIndexMap;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
 		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal, /*bMutable=*/false>;

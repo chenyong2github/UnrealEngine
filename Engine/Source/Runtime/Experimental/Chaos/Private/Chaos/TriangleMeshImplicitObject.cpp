@@ -355,7 +355,18 @@ bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< F
 	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
 }
 
+int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const
+{
+	if (InternalFaceIndex > -1 && ExternalFaceIndexMap.Get())
+	{
+		if (ensure(InternalFaceIndex >= 0 && InternalFaceIndex < ExternalFaceIndexMap->Num()))
+		{
+			return (*ExternalFaceIndexMap)[InternalFaceIndex];
+		}
+	}
 
+	return -1;
+}
 
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const
