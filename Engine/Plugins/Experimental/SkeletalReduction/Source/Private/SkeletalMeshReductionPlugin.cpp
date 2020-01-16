@@ -944,6 +944,7 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 	const bool bLockEdges             = Settings.bLockEdges;
 	const bool bPreserveVolume        = (VolumeImportance > 1.e-4);
 	const bool bEnforceBoneBoundaries = Settings.bEnforceBoneBoundaries;
+	const bool bLockColorBoundaries   = Settings.bLockColorBounaries;
 
 	// Terminator tells the simplifier when to stop
 	SkeletalSimplifier::FSimplifierTerminator Terminator(MinTriNumToRetain, SrcTriNum, MinVerNumToRetain, SrcVertNum, MaxCollapseCost, MaxDist);
@@ -1047,7 +1048,7 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 	const float CoAlignmentLimit = FMath::Cos(45.f * PI / 180.); // 45 degrees limit
 
 	// Create the simplifier
-
+	
 	SkeletalSimplifier::FMeshSimplifier  Simplifier(Mesh.VertexBuffer, (uint32)Mesh.NumVertices(),
 		                                            Mesh.IndexBuffer, (uint32)Mesh.NumIndices(), 
 		                                            CoAlignmentLimit, VolumeImportance, bPreserveVolume,  bEnforceBoneBoundaries);
@@ -1077,6 +1078,12 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 		{
 			// If locking the boundary, this has be be done before costs are computed.
 			Simplifier.SetBoundaryLocked();
+		}
+
+		if (bLockColorBoundaries)
+		{
+			// Lock the verts in edges that connect differnt colors.  Also locks verts that have multiple colors.
+			Simplifier.SetColorEdgeLocked();
 		}
 
 	}

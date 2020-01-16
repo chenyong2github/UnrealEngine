@@ -138,6 +138,10 @@ struct FSkeletalMeshOptimizationSettings
 	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings, meta = (DisplayName = "Lock Mesh Edges"))
 	uint8 bLockEdges : 1;
 
+	/** Disallow edge collapse when the vertices do not have a common color*/
+	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings, meta = (DisplayName = "Lock Vertex Color Boundaries"))
+	uint8 bLockColorBounaries : 1;
+
 	/** Base LOD index to generate this LOD. By default, we generate from LOD 0 */
 	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings)
 	int32 BaseLOD;
@@ -173,6 +177,7 @@ struct FSkeletalMeshOptimizationSettings
 		, bEnforceBoneBoundaries(false)
 		, VolumeImportance(1.f)
 		, bLockEdges(false)
+		, bLockColorBounaries(false)
 		, BaseLOD(0)
 #if WITH_EDITORONLY_DATA
 		, BakePose_DEPRECATED(nullptr)

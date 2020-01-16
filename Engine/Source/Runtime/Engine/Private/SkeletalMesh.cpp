@@ -4003,6 +4003,7 @@ static void SerializeReductionSettingsForDDC(FArchive& Ar, FSkeletalMeshOptimiza
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bRecalcNormals);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bEnforceBoneBoundaries);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockEdges);
+	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockColorBounaries);
 	Ar << ReductionSettings.TerminationCriterion;
 	Ar << ReductionSettings.NumOfTrianglesPercentage;
 	Ar << ReductionSettings.NumOfVertPercentage;
