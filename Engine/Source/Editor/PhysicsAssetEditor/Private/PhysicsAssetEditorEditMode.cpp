@@ -14,7 +14,7 @@
 #include "IPersonaPreviewScene.h"
 #include "PhysicsAssetEditor.h"
 #include "PhysicsAssetEditorHitProxies.h"
-#include "PhysicsEngine/PhysicsHandleComponent.h"
+#include "PhysicsAssetEditorPhysicsHandleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "SEditorViewport.h"
 #include "IPersonaToolkit.h"

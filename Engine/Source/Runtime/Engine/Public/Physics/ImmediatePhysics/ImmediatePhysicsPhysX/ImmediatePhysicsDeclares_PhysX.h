@@ -7,5 +7,6 @@ namespace ImmediatePhysics_PhysX
 {
 	struct FSimulation;
 	struct FActorHandle;
+	struct FJointHandle;
 }
 #endif

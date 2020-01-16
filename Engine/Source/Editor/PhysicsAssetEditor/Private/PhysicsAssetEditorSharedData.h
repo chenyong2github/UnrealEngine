@@ -12,7 +12,7 @@ class UBodySetup;
 class UPhysicsAssetEditorSkeletalMeshComponent;
 class UPhysicsAsset;
 class UPhysicsConstraintTemplate;
-class UPhysicsHandleComponent;
+class UPhysicsAssetEditorPhysicsHandleComponent;
 class USkeletalMesh;
 class UStaticMeshComponent;
 struct FBoneVertInfo;
@@ -247,7 +247,7 @@ public:
 	EAppReturnType::Type NewBodyResponse;
 
 	/** Helps define how the asset behaves given user interaction in simulation mode*/
-	UPhysicsHandleComponent* MouseHandle;
+	UPhysicsAssetEditorPhysicsHandleComponent* MouseHandle;
 
 	/** Draw color for center of mass debug strings */
 	const FColor COMRenderColor;

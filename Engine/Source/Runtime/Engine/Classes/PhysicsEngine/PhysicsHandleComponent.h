@@ -139,7 +139,7 @@ public:
 
 protected:
 	/** Move the kinematic handle to the specified */
-	void UpdateHandleTransform(const FTransform& NewTransform);
+	virtual void UpdateHandleTransform(const FTransform& NewTransform);
 
 	/** Update the underlying constraint drive settings from the params in this component */
 	virtual void UpdateDriveSettings();
