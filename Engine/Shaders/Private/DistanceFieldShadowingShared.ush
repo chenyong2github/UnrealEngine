@@ -194,4 +194,134 @@ float ShadowRayTraceThroughCulledObjects(
 
 	return MinConeVisibility;
 }
+
+float RayTraceHeightfieldLocal(
+	float3 LocalRayStart,
+	float3 LocalRayUnitDirection,
+	float StartRayTime,
+	float EndRayTime,
+	float4 AtlasUVScaleBias,
+	float TanLightAngle,
+	float LocalSelfShadowScale,
+	float LocalMaxSphereRadius)
+{
+#if DF_SHADOW_QUALITY == 3
+	float MaxSteps = 32;
+#elif DF_SHADOW_QUALITY == 2
+	float MaxSteps = 16;
+#else
+	float MaxSteps = 8;
+#endif
+
+	float StepRayTime = (EndRayTime - StartRayTime) / MaxSteps;
+	float SampleRayTime = StartRayTime;
+	float MinConeVisibility = 1.0;
+
+	for (float StepIndex = 0; StepIndex < MaxSteps; ++StepIndex)
+	{
+		float3 StepPosition = LocalRayStart + LocalRayUnitDirection * SampleRayTime;
+		float2 StepUV = StepPosition.xy * AtlasUVScaleBias.xy + AtlasUVScaleBias.zw;
+		float StepHeight = SampleHeightFieldAtlas(StepUV);
+
+		float SelfShadowVisibility = 1 - saturate(SampleRayTime * LocalSelfShadowScale);
+
+		float SphereRadius = clamp(TanLightAngle * SampleRayTime, 0.0001, LocalMaxSphereRadius);
+		float Distance = StepPosition.z - StepHeight;
+		float StepVisibility = max(saturate(Distance / SphereRadius), SelfShadowVisibility);
+
+		MinConeVisibility = min(MinConeVisibility, StepVisibility);
+		SampleRayTime += StepRayTime;
+
+		if (MinConeVisibility < 0.01)
+		{
+			break;
+		}
+	}
+
+	return MinConeVisibility;
+}
+
+float ShadowRayTraceThroughCulledHeightFieldObjects(
+	float3 WorldRayStart,
+	float3 WorldRayEnd,
+	float TanLightAngle,
+	float MaxSphereRadius,
+	float SelfShadowFadeDistance,
+	uint CulledDataParameter,
+	uint NumIntersectingObjects,
+	uniform bool bUseCulling,
+	uniform bool bUseScatterTileCulling)
+{
+	float MinConeVisibility = 1.0;
+
+	for (uint ListObjectIndex = 0; ListObjectIndex < NumIntersectingObjects; ++ListObjectIndex)
+	{
+		uint ObjectIndex;
+
+		if (bUseCulling)
+		{
+			if (bUseScatterTileCulling)
+			{
+				uint CulledDataStart = CulledDataParameter;
+				ObjectIndex = ShadowTileArrayData.Load((ListObjectIndex + CulledDataStart) * SHADOW_TILE_ARRAY_DATA_STRIDE);
+			}
+			else
+			{
+				uint GroupIndex = CulledDataParameter;
+				ObjectIndex = IntersectingObjectIndices[MAX_INTERSECTING_OBJECTS * GroupIndex + ListObjectIndex];
+			}
+		}
+		else
+		{
+			ObjectIndex = ListObjectIndex;
+		}
+
+		float4x4 WorldToLocal = LoadHeightFieldObjectWorldToLocal(ObjectIndex);
+		float2 HeightFieldSize = LoadHeightFieldObjectRect(ObjectIndex).zw;
+
+		float3 LocalRayStart = mul(float4(WorldRayStart, 1.0), WorldToLocal).xyz;
+		float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), WorldToLocal).xyz;
+
+		float3 LocalBoundsMin = float3(0, 0, DecodePackedHeight(float2(0, 0)));
+		float3 LocalBoundsMax = float3(HeightFieldSize, DecodePackedHeight(float2(1, 1)));
+
+		float2 IntersectionNearFar = LineBoxIntersect(LocalRayStart, LocalRayEnd, LocalBoundsMin, LocalBoundsMax);
+		bool bValidIntersection = IntersectionNearFar.y > IntersectionNearFar.x;
+
+		if (bValidIntersection)
+		{
+			float4 AtlasUVScaleBias = LoadHeightFieldObjectAtlasUVScaleBias(ObjectIndex);
+
+			float3 LocalRayDirection = LocalRayEnd - LocalRayStart;
+			float LocalRayLength = length(LocalRayDirection);
+			float3 LocalRayUnitDirection = LocalRayDirection / LocalRayLength;
+			float StartRayTime = LocalRayLength * IntersectionNearFar.x;
+			float EndRayTime = LocalRayLength * IntersectionNearFar.y;
+
+			float WorldToLocalScale = length(WorldToLocal[0].xyz);
+			float LocalSelfShadowScale = 1.0 / (SelfShadowFadeDistance * WorldToLocalScale);
+			float LocalMaxSphereRadius = MaxSphereRadius * WorldToLocalScale;
+
+			float TempVisibility = RayTraceHeightfieldLocal(
+				LocalRayStart,
+				LocalRayUnitDirection,
+				StartRayTime,
+				EndRayTime,
+				AtlasUVScaleBias,
+				TanLightAngle,
+				LocalSelfShadowScale,
+				LocalMaxSphereRadius);
+
+			MinConeVisibility = min(MinConeVisibility, TempVisibility);
+
+			if (MinConeVisibility < 0.01)
+			{
+				MinConeVisibility = 0;
+				break;
+			}
+		}
+	}
+
+	return MinConeVisibility;
+}
 	

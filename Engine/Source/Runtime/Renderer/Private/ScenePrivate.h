@@ -1746,6 +1746,19 @@ public:
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
 };
 
+class FHeightFieldPrimitiveRemoveInfo : public FPrimitiveRemoveInfo
+{
+public:
+	FHeightFieldPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive)
+		: FPrimitiveRemoveInfo(InPrimitive)
+	{
+		const FBoxSphereBounds Bounds = InPrimitive->Proxy->GetBounds();
+		SphereBound = FVector4(Bounds.Origin, Bounds.SphereRadius);
+	}
+
+	FVector4 SphereBound;
+};
+
 class FSurfelBufferAllocator
 {
 public:
@@ -1787,11 +1800,29 @@ public:
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
 	}
 
+	bool HasPendingHeightFieldOperations() const
+	{
+		return PendingHeightFieldAddOps.Num() > 0 || PendingHeightFieldUpdateOps.Num() > 0 || PendingHeightFieldRemoveOps.Num() > 0;
+	}
+
 	bool HasPendingRemovePrimitive(const FPrimitiveSceneInfo* Primitive) const
 	{
-		for (int32 RemoveIndex = 0; RemoveIndex < PendingRemoveOperations.Num(); RemoveIndex++)
+		for (int32 RemoveIndex = 0; RemoveIndex < PendingRemoveOperations.Num(); ++RemoveIndex)
 		{
 			if (PendingRemoveOperations[RemoveIndex].Primitive == Primitive)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool HasPendingRemoveHeightFieldPrimitive(const FPrimitiveSceneInfo* Primitive) const
+	{
+		for (int32 RemoveIndex = 0; RemoveIndex < PendingHeightFieldRemoveOps.Num(); ++RemoveIndex)
+		{
+			if (PendingHeightFieldRemoveOps[RemoveIndex].Primitive == Primitive)
 			{
 				return true;
 			}
@@ -1805,18 +1836,30 @@ public:
 		return bCanUse16BitObjectIndices && (NumObjectsInBuffer < (1 << 16));
 	}
 
+	bool CanUse16BitHeightFieldObjectIndices() const
+	{
+		return bCanUse16BitObjectIndices && (NumHeightFieldObjectsInBuffer < 65536);
+	}
+
 	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
 	{
 		return ObjectBuffers[ObjectBufferIndex];
 	}
 
+	const class FHeightFieldObjectBuffers* GetHeightFieldObjectBuffers() const
+	{
+		return HeightFieldObjectBuffers;
+	}
+
 	int32 NumObjectsInBuffer;
+	int32 NumHeightFieldObjectsInBuffer;
 	class FDistanceFieldObjectBuffers* ObjectBuffers[2];
+	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
 	int ObjectBufferIndex;
 
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
-	TArray<const FPrimitiveSceneInfo*> HeightfieldPrimitives;
+	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
 
 	class FSurfelBuffers* SurfelBuffers;
 	FSurfelBufferAllocator SurfelAllocations;
@@ -1831,8 +1874,13 @@ public:
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
 	TArray<FVector4> PrimitiveModifiedBounds[GDF_Num];
 
+	TArray<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
+	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
+	TArray<FHeightFieldPrimitiveRemoveInfo> PendingHeightFieldRemoveOps;
+
 	/** Used to detect atlas reallocations, since objects store UVs into the atlas and need to be updated when it changes. */
 	int32 AtlasGeneration;
+	int32 HeightFieldAtlasGeneration;
 
 	bool bTrackAllPrimitives;
 	bool bCanUse16BitObjectIndices;
