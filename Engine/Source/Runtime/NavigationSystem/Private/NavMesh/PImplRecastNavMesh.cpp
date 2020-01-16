@@ -44,6 +44,7 @@ static_assert(RECAST_UNWALKABLE_POLY_COST == DT_UNWALKABLE_POLY_COST, "Unwalkabl
 
 static void* DetourMalloc(int Size, dtAllocHint)
 {
+	LLM_SCOPE(ELLMTag::NavigationRecast);
 	void* Result = FMemory::Malloc(uint32(Size));
 #if STATS
 	const uint32 ActualSize = FMemory::GetAllocSize(Result);
@@ -55,6 +56,7 @@ static void* DetourMalloc(int Size, dtAllocHint)
 
 static void* RecastMalloc(int Size, rcAllocHint)
 {
+	LLM_SCOPE(ELLMTag::NavigationRecast);
 	void* Result = FMemory::Malloc(uint32(Size));
 #if STATS
 	const uint32 ActualSize = FMemory::GetAllocSize(Result);
@@ -66,6 +68,7 @@ static void* RecastMalloc(int Size, rcAllocHint)
 
 static void RecastFree( void* Original )
 {
+	LLM_SCOPE(ELLMTag::NavigationRecast);
 #if STATS
 	const uint32 Size = FMemory::GetAllocSize(Original);
 	DEC_DWORD_STAT_BY(STAT_NavigationMemory, Size);	
