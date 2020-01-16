@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "LandscapeSubsystem.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/EngineBaseTypes.h"
