@@ -54,13 +54,41 @@ public:
 	// setup
 	// 
 
+	/** ECustomMetricType defines how a FCustomMetric should be interpreted  */
+	enum class ECustomMetricType
+	{
+		ReplaceValue = 0,		/** Use given parameter instead of default metric value */
+		Multiplier = 1,			/** Multiply default metric value by given parameter */
+		MinValue = 2			/** Use minimum of default metric value and given parameter */
+	};
+	/** FCustomMetric overrides/modifies the default should-snap-happen metric */
+	struct FCustomMetric
+	{
+		/** What kind of custom metric is this */
+		ECustomMetricType Type;
+		/** parameter for custom metric */
+		double Value;
+		static FCustomMetric Minimum(double Val) { return FCustomMetric{ ECustomMetricType::MinValue, Val }; }
+		static FCustomMetric Replace(double Val) { return FCustomMetric{ ECustomMetricType::ReplaceValue, Val }; }
+		static FCustomMetric Multiplier(double Val) { return FCustomMetric{ ECustomMetricType::Multiplier, Val }; }
+	};
+
 	/**
 	 * Add a snap target point at the given Position
+	 * @param Position snap target point location
 	 * @param TargetID identifier for this target. Can be shared with other targets
 	 * @param Priority importance of this snap point. Lower priority is more important.
-	 * @param OverrideMetric if provided, then we only snap to this point if Metric < OverrideMetric, as well as the global tolerance
 	 */
-	virtual void AddPointTarget(const FVector3d& Position, int TargetID, int Priority = 100, double OverrideMetric = TNumericLimits<double>::Max());
+	virtual void AddPointTarget(const FVector3d& Position, int TargetID, int Priority = 100);
+
+	/**
+	 * Add a snap target point at the given Position
+	 * @param Position snap target point location
+	 * @param TargetID identifier for this target. Can be shared with other targets
+	 * @param CustomMetric Use the given custom metric instead of the default metric
+	 * @param Priority importance of this snap point. Lower priority is more important.
+	 */
+	virtual void AddPointTarget(const FVector3d& Position, int TargetID, const FCustomMetric& CustomMetric, int Priority = 100);
 
 	/** Remove any point targets with this TargetID */
 	virtual bool RemovePointTargetsByID(int TargetID);
@@ -141,12 +169,20 @@ protected:
 
 		int TargetID;
 		int Priority;
-		double OverrideMetric = TNumericLimits<double>::Max();
+
+		FCustomMetric CustomMetric;
+		bool bHaveCustomMetric = false;
 
 		bool bIsSnapLine = false;
 		FLine3d SnapLine;
 		bool bIsSnapDistance = false;
 		int SnapDistanceID = -1;
+
+		// if true, then Position is the snap target point but ConstrainedPosition is the one we should return
+		// Sounds weird but allows for things like axis-constrained grid snapping to work. We have to snap to
+		// the line first, based on user interaction, and then to the grid once the line is selected
+		bool bHaveConstrainedPosition = false;
+		FVector3d ConstrainedPosition;
 	};
 	TArray<FSnapTargetPoint> TargetPoints;
 

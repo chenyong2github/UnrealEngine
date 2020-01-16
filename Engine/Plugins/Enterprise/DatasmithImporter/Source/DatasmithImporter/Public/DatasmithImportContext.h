@@ -276,7 +276,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< TSharedRef< IDatasmithLevelVariantSetsElement >, ULevelVariantSets* > ImportedLevelVariantSets;
 
 	/** Feedback context provided by ImportFactory. Used to display import progress */
-	FFeedbackContext* Warn;
+	FFeedbackContext* FeedbackContext;
 
 	/** Actors specific import context */
 	FDatasmithActorImportContext ActorsContext;

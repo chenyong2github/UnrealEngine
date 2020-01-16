@@ -23,10 +23,12 @@ struct FTemplateItem
 	FString		AssetTypes;
 
 	FString		CodeProjectFile;
+	UTemplateProjectDefs* CodeTemplateDefs = nullptr;
 	FString		BlueprintProjectFile;
+	UTemplateProjectDefs* BlueprintTemplateDefs = nullptr;
 
 	TArray<ETemplateSetting> HiddenSettings;
 
-	bool		bIsEnterprise;
-	bool		bIsBlankTemplate;
+	bool		bIsEnterprise = false;
+	bool		bIsBlankTemplate = false;
 };

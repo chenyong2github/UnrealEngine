@@ -26,7 +26,6 @@ public class Text3D : ModuleRules
 			// 3rd party libraries
 			"FreeType2",
 			"OpenGL",   // only for include purposes
-			"FTGL",
 			"HarfBuzz",
 			"GLUtesselator"
 		});

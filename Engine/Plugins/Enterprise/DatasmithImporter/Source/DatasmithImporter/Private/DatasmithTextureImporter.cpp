@@ -274,12 +274,30 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(Texture);
 
+		bool bUpdateResource = false;
+
 		if (FMath::IsNearlyEqual(RGBCurve, 1.0f) == false && RGBCurve > 0.f)
 		{
 			Texture->AdjustRGBCurve = RGBCurve;
-			Texture->UpdateResource();
+			bUpdateResource = true;
 		}
 
+		EDatasmithColorSpace ColorSpace = TextureElement->GetSRGB();
+		if (!Texture->SRGB && ColorSpace == EDatasmithColorSpace::sRGB)
+		{
+			Texture->SRGB = true;
+			bUpdateResource = true;
+		}
+		else if (Texture->SRGB && ColorSpace == EDatasmithColorSpace::Linear)
+		{
+			Texture->SRGB = false;
+			bUpdateResource = true;
+		}
+
+		if (bUpdateResource)
+		{
+			Texture->UpdateResource();
+		}
 		Texture->MarkPackageDirty();
 	}
 

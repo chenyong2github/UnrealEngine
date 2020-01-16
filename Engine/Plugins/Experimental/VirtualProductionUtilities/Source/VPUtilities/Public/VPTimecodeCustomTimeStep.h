@@ -43,6 +43,8 @@ public:
 private:
 	bool InitializeFirstStep(UEngine* InEngine);
 
+	void OnTimecodeProviderChanged();
+
 private:
 	/** The current SynchronizationState of the CustomTimeStep. */
 	ECustomTimeStepSynchronizationState State = ECustomTimeStepSynchronizationState::Closed;
@@ -56,9 +58,6 @@ private:
 	/** The time at initialization. */
 	double InitializedSeconds = 0.0;
 
+	/** Only warn once about the synchronization state. */
 	bool bWarnAboutSynchronizationState = false;
-
-	/** TimecodeProvider used to initialize the CustomTimeStep. */
-	UPROPERTY(Transient)
-	const UTimecodeProvider* InitializedTimecodeProvider = nullptr;
 };

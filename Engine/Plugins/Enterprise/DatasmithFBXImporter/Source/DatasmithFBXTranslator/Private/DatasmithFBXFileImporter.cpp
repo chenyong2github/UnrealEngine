@@ -5,8 +5,8 @@
 #include "DatasmithFBXImportOptions.h"
 #include "DatasmithFBXScene.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "Async/Async.h"
 #include "Curves/RichCurve.h"
@@ -245,10 +245,21 @@ void FDatasmithFBXFileImporter::TraverseHierarchyNodeRecursively(FbxNode* Parent
 		FVector4 Scale = FBXFileImporterImpl::ConvertScale(LocalScale);
 		FQuat Rotation = FBXFileImporterImpl::ConvertRotToQuat(LocalRotQuat);
 
+		FVector RotEuler = Rotation.Euler();
+
+		// Avoid singularity around 90 degree pitch, as UE4 doesn't seem to support it very well
+		// See UE-75467 and UE-83049
+		if (FMath::IsNearlyEqual(abs(RotEuler.Y), 90.0f))
+		{
+			Rotation.W += 1e-3;
+			Rotation.Normalize();
+		}
+
 		// Converting exactly 180.0 degree quaternions into Euler is unreliable, so add some
 		// small noise so that it produces the correct actor transform
-		FVector RotEuler = Rotation.Euler();
-		if (abs(RotEuler.X) == 180.0000f || abs(RotEuler.Y) == 180.0000f || abs(RotEuler.Z) == 180.0000f)
+		if (abs(RotEuler.X) == 180.0f ||
+			abs(RotEuler.Y) == 180.0f ||
+			abs(RotEuler.Z) == 180.0f)
 		{
 			Rotation.W += 1.e-7;
 			Rotation.Normalize();

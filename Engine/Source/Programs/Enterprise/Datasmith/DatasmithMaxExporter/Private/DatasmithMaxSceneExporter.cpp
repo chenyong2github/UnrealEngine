@@ -480,7 +480,7 @@ void FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Mtl* Material, TShare
 		}
 		else
 		{
-			int ActualSubObj = 0;
+			int ActualSubObj = 1;
 			SupportedChannels.Sort([](const uint16& A, const uint16& B) { return (A < B); });
 			for (const uint16 Mid : SupportedChannels)
 			{
@@ -505,11 +505,12 @@ void FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Mtl* Material, TShare
 					{
 						if (FDatasmithMaxMatHelper::GetMaterialClass(SubMaterial) != EDSMaterialType::TheaRandom)
 						{
-							MeshActor->AddMaterialOverride(SubMaterial->GetName().data(), Mid);
+							//Material slots in Max are not zero-based, so we serialize our SlotID starting from 1 for better visual consistency.
+							MeshActor->AddMaterialOverride(SubMaterial->GetName().data(), Mid + 1);
 						}
 						else
 						{
-							MeshActor->AddMaterialOverride( *GetRandomSubMaterial(SubMaterial, RandomSeed), MaterialIndex );
+							MeshActor->AddMaterialOverride( *GetRandomSubMaterial(SubMaterial, RandomSeed), MaterialIndex + 1 );
 						}
 					}
 				}

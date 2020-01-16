@@ -3,6 +3,8 @@
 #pragma once
 
 #include "GameFramework/Pawn.h"
+#include "IVirtualCameraOptions.h"
+#include "IVirtualCameraPresetContainer.h"
 #include "VirtualCameraSaveGame.h"
 #include "VirtualCameraCineCameraComponent.h"
 #include "VirtualCameraMovementComponent.h"
@@ -15,7 +17,7 @@ class USceneComponent;
  * A class to handle aspects of virtual Camera related to general settings, and communicating with components.
  */
 UCLASS(Abstract, Blueprintable, BlueprintType, HideCategories = ("Pawn", "Camera", "Rendering", "Replication", "Input", "Actor", "HLOD"))
-class VIRTUALCAMERA_API AVirtualCameraPawnBase : public APawn
+class VIRTUALCAMERA_API AVirtualCameraPawnBase : public APawn, public IVirtualCameraPresetContainer, public IVirtualCameraOptions
 {
 	GENERATED_UCLASS_BODY()
 
@@ -323,4 +325,17 @@ protected:
 	 * @return The input number padded to be at least MinNumberOfCharacters in length
 	 */
 	FString LeftPadWithZeros(int32 InNumber, int32 MinNumberOfCharacters) const;
+
+	//~ Begin IVirtualCameraPresetContainer Interface
+	virtual FString SavePreset_Implementation(const bool bSaveCameraSettings, const bool bSaveStabilization, const bool bSaveAxisLocking, const bool bSaveMotionScale) override;
+	virtual bool LoadPreset_Implementation(const FString& PresetName) override;
+	virtual int32 DeletePreset_Implementation(const FString& PresetName) override;
+	virtual TMap<FString, FVirtualCameraSettingsPreset> GetSettingsPresets_Implementation() override;
+	//~ End IVirtualCameraPresetContainer Interface
+
+	//~ Begin IVirtualCameraOptions Interface
+	virtual void SetDesiredDistanceUnits_Implementation(const EUnit DesiredUnits) override;
+	virtual EUnit GetDesiredDistanceUnits_Implementation() override;
+	virtual bool IsFocusVisualizationAllowed_Implementation() override;
+	//~ End IVirtualCameraOptions Interface
 };

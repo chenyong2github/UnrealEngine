@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -10,7 +12,6 @@ using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-
 
 namespace DatasmithRevitExporter
 {
@@ -22,111 +23,148 @@ namespace DatasmithRevitExporter
 
 		// Implement the interface to execute the command.
 		public Result Execute(
-			ExternalCommandData in_commandData,     // contains reference to Application and View
-			ref string          out_commandMessage, // error message to display in the failure dialog when the command returns "Failed"
-			ElementSet          out_elements        // set of problem elements to display in the failure dialog when the command returns "Failed"
+			ExternalCommandData InCommandData,     // contains reference to Application and View
+			ref string          OutCommandMessage, // error message to display in the failure dialog when the command returns "Failed"
+			ElementSet          OutElements        // set of problem elements to display in the failure dialog when the command returns "Failed"
 		)
 		{
-			Autodesk.Revit.ApplicationServices.Application application = in_commandData.Application.Application;
+			Autodesk.Revit.ApplicationServices.Application Application = InCommandData.Application.Application;
 
-			if (string.Compare(application.VersionNumber, "2018", StringComparison.Ordinal) == 0 && string.Compare(application.SubVersionNumber, "2018.3", StringComparison.Ordinal) < 0)
+			if (string.Compare(Application.VersionNumber, "2018", StringComparison.Ordinal) == 0 && string.Compare(Application.SubVersionNumber, "2018.3", StringComparison.Ordinal) < 0)
 			{
-				string message = string.Format("The running Revit is not supported.\nYou must use Revit 2018.3 or further updates to export.");
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				string Message = string.Format("The running Revit is not supported.\nYou must use Revit 2018.3 or further updates to export.");
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
 			if (!CustomExporter.IsRenderingSupported())
 			{
-				string message = "3D view rendering is not supported in the running Revit.";
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				string Message = "3D view rendering is not supported in the running Revit.";
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
-			UIDocument uiDocument = in_commandData.Application.ActiveUIDocument;
+			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 
-			if (uiDocument == null)
+			if (UIDoc == null)
 			{
-				string message = "You must be in a document to export.";
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				string Message = "You must be in a document to export.";
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
-			Document document = uiDocument.Document;
-	
-			View3D activeView = document.ActiveView as View3D;
+			Document Doc = UIDoc.Document;
 
-			if (activeView == null)
-			{
-				string message = "You must be in a 3D view to export.";
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return Result.Cancelled;
-			}
+			string DocumentPath = Doc.PathName;
 
-			if (activeView.IsTemplate || !activeView.CanBePrinted)
-			{
-				string message = "The active 3D view cannot be exported.";
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return Result.Cancelled;
-			}
-
-			string documentPath = document.PathName;
-
-			if (string.IsNullOrWhiteSpace(documentPath))
+			if (string.IsNullOrWhiteSpace(DocumentPath))
 			{
 				string message = "Your document must be saved on disk before exporting.";
 				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
-			string ViewFamilyName = activeView.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM).AsValueString().Replace(" ", "");
-			string FileName       = Regex.Replace($"{Path.GetFileNameWithoutExtension(documentPath)}-{ViewFamilyName}-{activeView.Name}.udatasmith", @"\s+", "_");
-
-			SaveFileDialog dialog = new SaveFileDialog();
-
-			dialog.Title            = DIALOG_CAPTION;
-			dialog.InitialDirectory = Path.GetDirectoryName(documentPath);
-			dialog.FileName         = FileName;
-			dialog.DefaultExt       = "udatasmith";
-			dialog.Filter           = "Unreal Datasmith|*.udatasmith";
-			dialog.CheckFileExists  = false;
-			dialog.CheckPathExists  = true;
-			dialog.AddExtension     = true;
-			dialog.OverwritePrompt  = true;
-
-			if (dialog.ShowDialog() != DialogResult.OK)
-			{
-				return Result.Cancelled;
-			}
-
-			string filePath = dialog.FileName;
-
-			if (string.IsNullOrWhiteSpace(filePath))
-			{
-				string message = "The given Unreal Datasmith file name is blank.";
-				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return Result.Cancelled;
-			}
+			bool ExportActiveViewOnly = true;
 
 			// Retrieve the Unreal Datasmith export options.
-			DatasmithRevitExportOptions exportOptions = new DatasmithRevitExportOptions();
+			DatasmithRevitExportOptions ExportOptions = new DatasmithRevitExportOptions(Doc);
 			if ((System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
 			{
-				if (exportOptions.ShowDialog() != DialogResult.OK)
+				if (ExportOptions.ShowDialog() != DialogResult.OK)
 				{
 					return Result.Cancelled;
+				}
+				ExportActiveViewOnly = false;
+			}
+
+			// Generate file path for each view.
+			Dictionary<ElementId, string> FilePaths = new Dictionary<ElementId, string>();
+			List<View3D> ViewsToExport = new List<View3D>();
+
+			if (ExportActiveViewOnly)
+			{
+				View3D ActiveView = Doc.ActiveView as View3D;
+
+				if (ActiveView == null)
+				{
+					string Message = "You must be in a 3D view to export.";
+					MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					return Result.Cancelled;
+				}
+
+				if (ActiveView.IsTemplate || !ActiveView.CanBePrinted)
+				{
+					string Message = "The active 3D view cannot be exported.";
+					MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					return Result.Cancelled;
+				}
+
+				string ViewFamilyName = ActiveView.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM).AsValueString().Replace(" ", "");
+				string FileName       = Regex.Replace($"{Path.GetFileNameWithoutExtension(DocumentPath)}-{ViewFamilyName}-{ActiveView.Name}.udatasmith", @"\s+", "_");
+
+				SaveFileDialog Dialog = new SaveFileDialog();
+
+				Dialog.Title            = DIALOG_CAPTION;
+				Dialog.InitialDirectory = Path.GetDirectoryName(DocumentPath);
+				Dialog.FileName         = FileName;
+				Dialog.DefaultExt       = "udatasmith";
+				Dialog.Filter           = "Unreal Datasmith|*.udatasmith";
+				Dialog.CheckFileExists  = false;
+				Dialog.CheckPathExists  = true;
+				Dialog.AddExtension     = true;
+				Dialog.OverwritePrompt  = true;
+
+				if (Dialog.ShowDialog() != DialogResult.OK)
+				{
+					return Result.Cancelled;
+				}
+
+				string FilePath = Dialog.FileName;
+
+				if (string.IsNullOrWhiteSpace(FilePath))
+				{
+					string message = "The given Unreal Datasmith file name is blank.";
+					MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					return Result.Cancelled;
+				}
+
+				FilePaths.Add(ActiveView.Id, FilePath);
+				ViewsToExport.Add(ActiveView);
+			}
+			else
+			{
+				string SavePath;
+				using (var FBD = new FolderBrowserDialog())
+				{
+					FBD.ShowNewFolderButton = true;
+					DialogResult result = FBD.ShowDialog();
+
+					if (result != DialogResult.OK || string.IsNullOrWhiteSpace(FBD.SelectedPath))
+					{
+						return Result.Cancelled;
+					}
+
+					SavePath = FBD.SelectedPath;
+				}
+
+				foreach (var View in ExportOptions.Selected3DViews)
+				{
+					string ViewFamilyName = View.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM).AsValueString().Replace(" ", "");
+					string FileName = Regex.Replace($"{Path.GetFileNameWithoutExtension(DocumentPath)}-{ViewFamilyName}-{View.Name}.udatasmith", @"\s+", "_");
+					FilePaths.Add(View.Id, Path.Combine(SavePath, FileName));
+					ViewsToExport.Add(View);
 				}
 			}
 
 			// Prevent user interaction with the active 3D view to avoid the termination of the custom export,
 			// without Revit providing any kind of internal or external feedback.
-			EnableViewWindow(in_commandData.Application, false);
+			EnableViewWindow(InCommandData.Application, false);
 
 			// Create a custom export context for command Export to Unreal Datasmith.
-			FDatasmithRevitExportContext exportContext = new FDatasmithRevitExportContext(in_commandData.Application.Application, document, filePath, exportOptions);
+			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(InCommandData.Application.Application, Doc, FilePaths, ExportOptions);
 
 			// Export the active 3D View to the given Unreal Datasmith file.
-			using( CustomExporter customExporter = new CustomExporter(document, exportContext) )
+			using( CustomExporter Exporter = new CustomExporter(Doc, ExportContext) )
 			{
 				// Add a progress bar callback.
 				// application.ProgressChanged += exportContext.HandleProgressChanged;
@@ -136,22 +174,25 @@ namespace DatasmithRevitExporter
 					// The export process will exclude output of geometric objects such as faces and curves,
 					// but the context needs to receive the calls related to Faces or Curves to gather data.
 					// The context always receive their tessellated geometry in form of polymeshes or lines.
-					customExporter.IncludeGeometricObjects = true;
+					Exporter.IncludeGeometricObjects = true;
 
 					// The export process should stop in case an error occurs during any of the exporting methods.
-					customExporter.ShouldStopOnError = true;
+					Exporter.ShouldStopOnError = true;
 
-					// Initiate the export process for the active 3D View.
-					#if REVIT_API_2020
-						customExporter.Export(activeView as Autodesk.Revit.DB.View);
-					#else
-						customExporter.Export(activeView);
-					#endif
+					// Initiate the export process for all 3D views.
+					foreach (var view in ViewsToExport)
+					{
+#if REVIT_API_2020
+						Exporter.Export(view as Autodesk.Revit.DB.View);
+#else
+						Exporter.Export(view);
+#endif
+					}
 				}
 				catch( System.Exception exception )
 				{
-					out_commandMessage = string.Format("Cannot export the active 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
-					MessageBox.Show(out_commandMessage, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
+					OutCommandMessage = string.Format("Cannot export the 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
+					MessageBox.Show(OutCommandMessage, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
 					return Result.Failed;
 				}
 				finally
@@ -160,11 +201,11 @@ namespace DatasmithRevitExporter
 					// application.ProgressChanged -= exportContext.HandleProgressChanged;
 
 					// Restore user interaction with the active 3D view.
-					EnableViewWindow(in_commandData.Application, true);
+					EnableViewWindow(InCommandData.Application, true);
 
-					if (exportContext.GetMessages().Count > 0)
+					if (ExportContext.GetMessages().Count > 0)
 					{
-						string Messages = string.Join($"{System.Environment.NewLine}", exportContext.GetMessages());
+						string Messages = string.Join($"{System.Environment.NewLine}", ExportContext.GetMessages());
 						DatasmithRevitApplication.ShowExportMessages(Messages);
 					}
 				}
@@ -185,44 +226,44 @@ namespace DatasmithRevitExporter
 			bool          in_enable
 		)
         {
-			#if REVIT_API_2018
-				IntPtr mainWindowHandle = Process.GetCurrentProcess().MainWindowHandle;
-			#else
-				IntPtr mainWindowHandle = in_application.MainWindowHandle;
-			#endif
+#if REVIT_API_2018
+				IntPtr MainWindowHandle = Process.GetCurrentProcess().MainWindowHandle;
+#else
+				IntPtr MainWindowHandle = in_application.MainWindowHandle;
+#endif
 
 			// "AfxFrameOrView140u" is the window class name of Revit active 3D view.
-			IntPtr viewWindowHandle = FindChildWindow(mainWindowHandle, "AfxFrameOrView140u");
+			IntPtr ViewWindowHandle = FindChildWindow(MainWindowHandle, "AfxFrameOrView140u");
 
-            if (viewWindowHandle != IntPtr.Zero)
+            if (ViewWindowHandle != IntPtr.Zero)
 			{
-                EnableWindow(viewWindowHandle, in_enable);
+                EnableWindow(ViewWindowHandle, in_enable);
 			}
         }
 
         private IntPtr FindChildWindow(
-			IntPtr in_parentWindowHandle,
-			string in_windowClassName
+			IntPtr InParentWindowHandle,
+			string InWindowClassName
 		)
         {
-            IntPtr windowHandle = FindWindowEx(in_parentWindowHandle, IntPtr.Zero, in_windowClassName, null);
+            IntPtr WindowHandle = FindWindowEx(InParentWindowHandle, IntPtr.Zero, InWindowClassName, null);
 			
-            if (windowHandle == IntPtr.Zero)
+            if (WindowHandle == IntPtr.Zero)
             {
-                IntPtr windowHandleChild = FindWindowEx(in_parentWindowHandle, IntPtr.Zero, null, null);
+                IntPtr WindowHandleChild = FindWindowEx(InParentWindowHandle, IntPtr.Zero, null, null);
 
-                while (windowHandleChild != IntPtr.Zero && windowHandle == IntPtr.Zero)
+                while (WindowHandleChild != IntPtr.Zero && WindowHandle == IntPtr.Zero)
                 {
-                    windowHandle = FindChildWindow(windowHandleChild, in_windowClassName);
+                    WindowHandle = FindChildWindow(WindowHandleChild, InWindowClassName);
 					
-                    if (windowHandle == IntPtr.Zero)
+                    if (WindowHandle == IntPtr.Zero)
                     {
-                        windowHandleChild = FindWindowEx(in_parentWindowHandle, windowHandleChild, null, null);
+                        WindowHandleChild = FindWindowEx(InParentWindowHandle, WindowHandleChild, null, null);
                     }
                 }
             }
 			
-            return windowHandle;
+            return WindowHandle;
         }
 	}
 }

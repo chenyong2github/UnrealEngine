@@ -41,6 +41,9 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual void SetDisplayName(const FText& NewDisplayName) override;
 	virtual bool IsSelectable() const override;
+	virtual bool CanDrag() const override { return true; }
+	virtual TOptional<EItemDropZone> CanDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) const override;
+	virtual void Drop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) override;
 	virtual TWeakPtr<FVariantManager> GetVariantManager() const override
 	{
 		return VariantManager;
@@ -48,6 +51,16 @@ public:
 	//~ End FVariantManagerDisplayNode interface
 
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow) override;
+
+	/**
+	 * Get the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	 */
+	virtual uint32 GetDisplayOrder() const;
+
+	/**
+	 * Set the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	 */
+	virtual void SetDisplayOrder(uint32 InDisplayOrder);
 
 protected:
 

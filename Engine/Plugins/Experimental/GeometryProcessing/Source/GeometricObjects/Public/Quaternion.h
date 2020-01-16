@@ -19,8 +19,10 @@ struct TQuaternion
 
 	TQuaternion();
 	TQuaternion(RealType X, RealType Y, RealType Z, RealType W);
-	TQuaternion(const RealType* Values);
+	explicit TQuaternion(const RealType* Values);
 	TQuaternion(const TQuaternion& Copy);
+	template<typename RealType2>
+	explicit TQuaternion(const TQuaternion<RealType2>& Copy);
 	TQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees);
 	TQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To);
 	TQuaternion(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT);
@@ -62,7 +64,7 @@ struct TQuaternion
 	//   SetFromRotationMatrix(FMatrix3f)
 
 
-	inline operator FQuat() const
+	explicit inline operator FQuat() const
 	{
 		FQuat Quat; 
 		Quat.X = (float)X;
@@ -71,7 +73,7 @@ struct TQuaternion
 		Quat.W = (float)W;
 		return Quat;
 	}
-	inline TQuaternion(const FQuat& Quat)
+	explicit inline TQuaternion(const FQuat& Quat)
 	{
 		X = (RealType)Quat.X;
 		Y = (RealType)Quat.Y;
@@ -111,6 +113,16 @@ TQuaternion<RealType>::TQuaternion(const RealType* Values)
 	Y = Values[1];
 	Z = Values[2];
 	W = Values[3];
+}
+
+template<typename RealType>
+template<typename RealType2>
+TQuaternion<RealType>::TQuaternion(const TQuaternion<RealType2>& Copy)
+{
+	X = (RealType)Copy.X;
+	Y = (RealType)Copy.Y;
+	Z = (RealType)Copy.Z;
+	W = (RealType)Copy.W;
 }
 
 template<typename RealType>

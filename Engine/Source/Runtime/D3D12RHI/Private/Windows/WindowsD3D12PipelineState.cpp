@@ -88,6 +88,7 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Graphics
 	D.RasterizerState = this->RasterizerState;
 	D.NumRenderTargets = this->RTFormatArray.NumRenderTargets;
 	FMemory::Memcpy(D.RTVFormats, this->RTFormatArray.RTFormats, sizeof(D.RTVFormats));
+	FMemory::Memzero(&D.StreamOutput, sizeof(D.StreamOutput));
 	D.SampleDesc = this->SampleDesc;
 	D.SampleMask = this->SampleMask;
 	D.CachedPSO = this->CachedPSO;

@@ -712,6 +712,23 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.MinDesiredWidth(this, &SSequencer::GetPlayTimeMinDesiredWidth)
 								]
 							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Right)
+							.Padding(FMargin(CommonPadding + 2.0, 0.f, 0.f, 0.f))
+							[
+								SNew(SBorder)
+								.BorderImage(nullptr)
+								[
+									// Current loop index, if any
+									SAssignNew(LoopIndexDisplay, STextBlock)
+									.Text_Lambda([this]() -> FText {
+										uint32 LoopIndex = SequencerPtr.Pin()->GetLocalLoopIndex();
+										return (LoopIndex != FMovieSceneTimeWarping::InvalidWarpCount) ? FText::AsNumber(LoopIndex + 1) : FText();
+									})
+								]
+							]
 						]
 					]
 

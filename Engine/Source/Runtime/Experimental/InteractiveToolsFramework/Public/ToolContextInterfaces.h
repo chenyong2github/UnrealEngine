@@ -81,8 +81,10 @@ enum class ESceneSnapQueryTargetType
 	MeshVertex = 1,
 	/** Consider any mesh edge */
 	MeshEdge = 2,
+	/** Grid Snapping */
+	Grid = 4,
 
-	All = MeshVertex | MeshEdge
+	All = MeshVertex | MeshEdge | Grid
 };
 ENUM_CLASS_FLAGS(ESceneSnapQueryTargetType);
 
@@ -92,9 +94,9 @@ ENUM_CLASS_FLAGS(ESceneSnapQueryTargetType);
 struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 {
 	/** What type of snap query geometry is this */
-	ESceneSnapQueryType RequestType;
+	ESceneSnapQueryType RequestType = ESceneSnapQueryType::Position;
 	/** What does caller want to try to snap to */
-	ESceneSnapQueryTargetType TargetTypes;
+	ESceneSnapQueryTargetType TargetTypes = ESceneSnapQueryTargetType::Grid;
 
 	/** Snap input position */
 	FVector Position;

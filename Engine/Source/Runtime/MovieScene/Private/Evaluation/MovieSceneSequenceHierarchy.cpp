@@ -29,22 +29,40 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	checkf(MovieScenePtr, TEXT("Attempting to construct sub sequence data with a null sequence."));
 
 	TickResolution = MovieScenePtr->GetTickResolution();
+	FullPlayRange.Value = MovieScenePtr->GetPlaybackRange();
 
-	TRange<FFrameNumber> SubRange = InSubSection.GetTrueRange();
-	checkf(SubRange.GetLowerBound().IsClosed() && SubRange.GetUpperBound().IsClosed(), TEXT("Use of open (infinite) bounds with sub sections is not supported."));
+	TRange<FFrameNumber> SubSectionRange = InSubSection.GetTrueRange();
+	checkf(SubSectionRange.GetLowerBound().IsClosed() && SubSectionRange.GetUpperBound().IsClosed(), TEXT("Use of open (infinite) bounds with sub sections is not supported."));
 
+	// Get the transform from the given section to its inner sequence.
+	// Note that FMovieSceneCompiler will accumulate RootToSequenceTransform for us a bit later so that it ends up
+	// being truly the full transform.
 	OuterToInnerTransform = RootToSequenceTransform = InSubSection.OuterToInnerTransform();
 
-	PlayRange.Value = SubRange * RootToSequenceTransform;
+	if (!InSubSection.Parameters.bCanLoop)
+	{
+		PlayRange.Value = SubSectionRange * RootToSequenceTransform.LinearTransform;
+		UnwarpedPlayRange.Value = PlayRange.Value;
+	}
+	else
+	{
+		// If we're looping, there's a good chance we need the entirety of the sub-sequence to be compiled.
+		PlayRange.Value = MovieScenePtr->GetPlaybackRange();
+		PlayRange.Value.SetLowerBoundValue(PlayRange.Value.GetLowerBoundValue() + InSubSection.Parameters.StartFrameOffset);
+		PlayRange.Value.SetUpperBoundValue(FMath::Max(
+			PlayRange.Value.GetUpperBoundValue() - InSubSection.Parameters.EndFrameOffset,
+			PlayRange.Value.GetLowerBoundValue() + 1));
+		UnwarpedPlayRange.Value = RootToSequenceTransform.TransformRangeUnwarped(SubSectionRange);
+	}
 
 	// Make sure pre/postroll *ranges* are in the inner sequence's time space. Pre/PostRollFrames are in the outer sequence space.
 	if (InSubSection.GetPreRollFrames() > 0)
 	{
-		PreRollRange = MovieScene::MakeDiscreteRangeFromUpper( TRangeBound<FFrameNumber>::FlipInclusion(SubRange.GetLowerBound()), InSubSection.GetPreRollFrames() ) * RootToSequenceTransform;
+		PreRollRange = MovieScene::MakeDiscreteRangeFromUpper( TRangeBound<FFrameNumber>::FlipInclusion(SubSectionRange.GetLowerBound()), InSubSection.GetPreRollFrames() ) * RootToSequenceTransform.LinearTransform;
 	}
 	if (InSubSection.GetPostRollFrames() > 0)
 	{
-		PostRollRange = MovieScene::MakeDiscreteRangeFromLower( TRangeBound<FFrameNumber>::FlipInclusion(SubRange.GetUpperBound()), InSubSection.GetPostRollFrames() ) * RootToSequenceTransform;
+		PostRollRange = MovieScene::MakeDiscreteRangeFromLower( TRangeBound<FFrameNumber>::FlipInclusion(SubSectionRange.GetUpperBound()), InSubSection.GetPostRollFrames() ) * RootToSequenceTransform.LinearTransform;
 	}
 }
 

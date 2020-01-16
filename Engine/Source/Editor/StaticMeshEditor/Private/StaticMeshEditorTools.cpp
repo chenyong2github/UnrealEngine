@@ -93,17 +93,9 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
-
-	/**
-	 * Hotfix 4.24.1 ( Continues the old and maybe invalid assumption that AssetImportData shouldn't be able to be null )
-	 * This will be removed in 4.25
-	 */
-	if( !StaticMeshEditor.GetStaticMesh()->AssetImportData )
-	{
-		StaticMeshEditor.GetStaticMesh()->AssetImportData = NewObject<UAssetImportData>(StaticMeshEditor.GetStaticMesh(), TEXT("AssetImportData"), RF_Transactional);
-	}
-
-	if (!StaticMeshEditor.GetStaticMesh() || !StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
+	if (!StaticMeshEditor.GetStaticMesh() || 
+		!StaticMeshEditor.GetStaticMesh()->AssetImportData ||
+		!StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
 	{
 		ImportSettings->MarkResetToDefaultCustomized();
 

@@ -11,7 +11,7 @@ static FPropertyNameAndIndex GetActorPropertyNameAndIndexForComponent(const AAct
 {
 	if (Actor != nullptr && Component != nullptr)
 	{
-			// Iterate over UObject* fields of this actor
+		// Iterate over UObject* fields of this actor
 		UClass* ActorClass = Actor->GetClass();
 		for (TFieldIterator<FObjectProperty> It(ActorClass); It; ++It)
 		{
@@ -120,6 +120,7 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 				int32 PropertyIndex = PropertyNameAndIndex.Index;
 
 				UClass* ActorClass = Actor->GetClass();
+				check(ActorClass);
 				FProperty* Prop = FindField<FProperty>(ActorClass, PropertyName);
 
 				if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(Prop))
@@ -152,6 +153,10 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 				}
 
 				Actor = ChildActorComponent->GetChildActor();
+				if (Actor == nullptr)
+				{
+					break;
+				}
 			}
 		}
 	}

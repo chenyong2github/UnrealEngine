@@ -4,7 +4,7 @@
 #include "HttpListener.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY(LogHttpServerModule); 
+DEFINE_LOG_CATEGORY(LogHttpServerModule);
 
 // FHttpServerModule 
 IMPLEMENT_MODULE(FHttpServerModule, HTTPServer);
@@ -14,18 +14,17 @@ FHttpServerModule* FHttpServerModule::Singleton = nullptr;
 void FHttpServerModule::StartupModule()
 {
 	Singleton = this;
-	bInitialized = true;
 }
 
 void FHttpServerModule::ShutdownModule()
 {
-	bInitialized = false;
-
 	// stop all listeners
 	StopAllListeners();
 
 	// destroy all listeners
 	Listeners.Empty();
+
+	Singleton = nullptr;
 }
 
 void FHttpServerModule::StartAllListeners()
@@ -48,7 +47,7 @@ void FHttpServerModule::StartAllListeners()
 
 void FHttpServerModule::StopAllListeners()
 {
-	UE_LOG(LogHttpServerModule, Log, 
+	UE_LOG(LogHttpServerModule, Log,
 		TEXT("Stopping all listeners..."));
 
 	for (const auto& Listener : Listeners)
@@ -64,7 +63,7 @@ void FHttpServerModule::StopAllListeners()
 
 }
 
-bool FHttpServerModule::HasPendingListeners() const 
+bool FHttpServerModule::HasPendingListeners() const
 {
 	for (const auto& Listener : Listeners)
 	{
@@ -74,6 +73,11 @@ bool FHttpServerModule::HasPendingListeners() const
 		}
 	}
 	return false;
+}
+
+bool FHttpServerModule::IsAvailable()
+{
+	return nullptr != Singleton;
 }
 
 FHttpServerModule& FHttpServerModule::Get()
@@ -89,7 +93,7 @@ FHttpServerModule& FHttpServerModule::Get()
 
 TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 {
-	check(bInitialized);
+	check(Singleton == this);
 
 	// We may already be listening on this port
 	TUniquePtr<FHttpListener>* ExistingListener = Listeners.Find(Port);
@@ -101,7 +105,7 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 	// Otherwise create a new one
 	TUniquePtr<FHttpListener> NewListener = MakeUnique<FHttpListener>(Port);
 
-    // Try to start this listener now
+	// Try to start this listener now
 	if (bHttpListenersEnabled)
 	{
 		NewListener->StartListening();
@@ -113,7 +117,6 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 bool FHttpServerModule::Tick(float DeltaTime)
 {
 	check(Singleton == this);
-	check(bInitialized);
 
 	if (bHttpListenersEnabled)
 	{

@@ -313,13 +313,20 @@ public:
 	FWordBulkData				LegacyRawPointIndices;
 
 	/** Imported raw mesh data. Optional, only the imported mesh LOD has this, generated LOD or old asset will be null. */
-	FRawSkeletalMeshBulkData	RawSkeletalMeshBulkData;
+	FRawSkeletalMeshBulkData	RawSkeletalMeshBulkData_DEPRECATED;
+	/** This ID is use to create the DDC key, it must be set when we save the FRawSkeletalMeshBulkData. */
+	FString						RawSkeletalMeshBulkDataID;
+	bool						bIsBuildDataAvailable;
+	bool						bIsRawSkeletalMeshBulkDataEmpty;
 
 	/** Constructor (default) */
 	FSkeletalMeshLODModel()
 		: NumVertices(0)
 		, NumTexCoords(0)
 		, MaxImportVertex(-1)
+		, RawSkeletalMeshBulkDataID(TEXT(""))
+		, bIsBuildDataAvailable(false)
+		, bIsRawSkeletalMeshBulkDataEmpty(true)
 		, BuildStringID(TEXT(""))
 	{
 	}

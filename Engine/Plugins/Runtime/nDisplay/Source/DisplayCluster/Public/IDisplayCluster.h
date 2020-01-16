@@ -110,11 +110,11 @@ public:
 
 	/** Called on DisplayCluster StartFrame **/
 	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterStartFrameEvent, uint64);
-	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame(uint64 FrameNum) = 0;
+	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame() = 0;
 
 	/** Called on DisplayCluster EndFrame **/
 	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterEndFrameEvent, uint64);
-	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame(uint64 FrameNum) = 0;
+	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame() = 0;
 
 	/** Called on DisplayCluster PreTick **/
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterPreTickEvent);

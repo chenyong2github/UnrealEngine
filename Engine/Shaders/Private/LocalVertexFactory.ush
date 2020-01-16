@@ -36,6 +36,7 @@
 	float4 InstancingWorldViewOriginOne;
 #endif
 
+float4 InstancingOffset;
 float4 InstancingFadeOutParams;
 
 #ifndef USE_INSTANCING_EMULATED
@@ -466,7 +467,7 @@ float GetInstanceRandom(FVertexFactoryIntermediates Intermediates)
 float3 GetInstanceOrigin(FVertexFactoryIntermediates Intermediates)
 {
 	#if !USE_INSTANCING_EMULATED
-		float3 Origin = Intermediates.InstanceOrigin.xyz;
+		float3 Origin = Intermediates.InstanceOrigin.xyz + InstancingOffset;
 	#else
 		float3 Origin = CPUInstanceOrigin.xyz;
 	#endif	// !USE_INSTANCING_EMULATED

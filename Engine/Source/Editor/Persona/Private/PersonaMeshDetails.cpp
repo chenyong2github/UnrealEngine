@@ -1421,11 +1421,189 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 		];
 	}
 
+	{
+		FDetailWidgetRow& PositionThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("PositionThreshold_Row", "ThresholdPositionRow"),
+			LOCTEXT("PositionThreshold", "Threshold Position"),
+			LOCTEXT("PositionThreshold_ToolTip", "Threshold to compare vertex position equality."),
+			0.0f,
+			10000.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdPosition),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdPosition));
+	}
+
+	{
+		FDetailWidgetRow& TangentNormalThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("TangentNormalThreshold_Row", "ThresholdTangentNormalRow"),
+			LOCTEXT("TangentNormalThreshold", "Threshold Tangent and Normal"),
+			LOCTEXT("TangentNormalThreshold_ToolTip", "Threshold to compare normal, tangent or bi-normal equality."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdTangentNormal),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdTangentNormal));
+	}
+
+	{
+		FDetailWidgetRow& UVThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("UVThreshold_Row", "ThresholdUVRow"),
+			LOCTEXT("UVThreshold", "Threshold UV"),
+			LOCTEXT("UVThreshold_ToolTip", "Threshold to compare vertex UV equality."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetThresholdUV),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetThresholdUV));
+	}
+
+	{
+		FDetailWidgetRow& MorphPositionThreshold = AddFloatRow(ChildrenBuilder,
+			LOCTEXT("MorphPositionThreshold_Row", "MorphThresholdPositionRow"),
+			LOCTEXT("MorphPositionThreshold", "Morph Threshold Position"),
+			LOCTEXT("MorphPositionThreshold_ToolTip", "Threshold to compare vertex position equality when computing morph target deltas."),
+			0.0f,
+			1.0f,
+			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetMorphThresholdPosition),
+			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition));
+	}
 }
 
 bool FSkeletalMeshBuildSettingsLayout::IsBuildEnabled() const
 {
 	return IsBuildSettingsEnabledDelegate.Execute(LODIndex);
+}
+
+FDetailWidgetRow& FSkeletalMeshBuildSettingsLayout::AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate)
+{
+	int32 SliderDataIndex = SliderStateDataArray.Num();
+	FSliderStateData& SliderData = SliderStateDataArray.AddDefaulted_GetRef();
+	SliderData.bSliderActiveMode = false;
+
+	auto BeginSliderMovementHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = true;
+		SliderStateDataArray[SliderDataIndex].MovementValueFloat = GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0.0f;
+	};
+
+	auto EndSliderMovementHelperFunc = [SetterDelegate, SliderDataIndex, this](float Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = false;
+		SliderStateDataArray[SliderDataIndex].MovementValueFloat = 0.0f;
+		SetterDelegate.ExecuteIfBound(Value);
+	};
+
+	auto SetValueHelperFunc = [SetterDelegate, SliderDataIndex, this](float Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			SliderStateDataArray[SliderDataIndex].MovementValueFloat = Value;
+		}
+		else
+		{
+			SetterDelegate.ExecuteIfBound(Value);
+		}
+	};
+
+	auto GetValueHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			return SliderStateDataArray[SliderDataIndex].MovementValueFloat;
+		}
+		return GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0.0f;
+	};
+
+	FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(RowTitleText)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(RowNameContentText)
+		.ToolTipText(RowNameContentTootlipText)
+	]
+	.ValueContent()
+	[
+		SNew(SSpinBox<float>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.MinValue(MinSliderValue)
+		.MaxValue(MaxSliderValue)
+		.Value_Lambda(GetValueHelperFunc)
+		.OnValueChanged_Lambda(SetValueHelperFunc)
+		.OnBeginSliderMovement_Lambda(BeginSliderMovementHelperFunc)
+		.OnEndSliderMovement_Lambda(EndSliderMovementHelperFunc)
+		.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+	];
+	return Row;
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdPosition() const
+{
+	return BuildSettings.ThresholdPosition;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdPosition(float Value)
+{
+	if (BuildSettings.ThresholdPosition != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdPositionLOD", "LOD{0} build settings: threshold for position changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdPosition = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdTangentNormal() const
+{
+	return BuildSettings.ThresholdTangentNormal;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdTangentNormal(float Value)
+{
+	if (BuildSettings.ThresholdTangentNormal != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdTangentNormalLOD", "LOD{0} build settings: threshold for tangent and normal changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdTangentNormal = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetThresholdUV() const
+{
+	return BuildSettings.ThresholdUV;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetThresholdUV(float Value)
+{
+	if (BuildSettings.ThresholdUV != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetThresholdUVLOD", "LOD{0} build settings: threshold for UVs changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.ThresholdUV = Value;
+	}
+}
+
+float FSkeletalMeshBuildSettingsLayout::GetMorphThresholdPosition() const
+{
+	return BuildSettings.MorphThresholdPosition;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition(float Value)
+{
+	if (BuildSettings.MorphThresholdPosition != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetMorphThresholdPositionLOD", "LOD{0} build settings: threshold for morph position changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.MorphThresholdPosition = Value;
+	}
 }
 
 ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldRecomputeNormals() const
@@ -2311,15 +2489,19 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			{
 				//Display the LODInfo settings
 				CustomizeLODInfoSetingsDetails(DetailLayout, LODInfoUILayout, LODInfoProperty, LODCategory);
+				
+				const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
+				
+				bool bIsbuildAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
 
-				bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) && SkelMesh->GetImportedModel()->LODModels[LODIndex].RawSkeletalMeshBulkData.IsBuildDataAvailable();
 				bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty());
+				
 				//Avoid offering re-generate if the LOD is reduce on himself and do not have the original data, the user in this case has to re-import the asset to generate the data 
 				bool LodCannotRegenerate = (SkelMesh->GetLODInfo(LODIndex) != nullptr
 					&& LODIndex == SkelMesh->GetLODInfo(LODIndex)->ReductionSettings.BaseLOD
 					&& SkelMesh->GetLODInfo(LODIndex)->bHasBeenSimplified
 					&& !bIsReductionDataPresent
-					&& !bIsLODModelbuildDataAvailable);
+					&& !bIsbuildAvailable);
 
 				bool bShowGenerateButtons = IsAutoMeshReductionAvailable() && !LodCannotRegenerate;
 				//LOD 0 never show Reimport and remove buttons
@@ -2331,7 +2513,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 				{
 					//Create the build setting UI Layout
 					ReductionSettingsWidgetsPerLOD.Add(LODIndex, MakeShareable(new FSkeletalMeshReductionSettingsLayout(SkelMesh->GetLODInfo(LODIndex)->ReductionSettings
-						, bIsLODModelbuildDataAvailable
+						, bIsbuildAvailable
 						, LODIndex
 						, FIsLODSettingsEnabledDelegate::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled)
 						, FModifyMeshLODSettingsDelegate::CreateSP(this, &FPersonaMeshDetails::ModifyMeshLODSettings))));
@@ -2341,8 +2523,6 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 
 				//Add build settings, we want those at the end of the LOD Info
 				//Show them if we are not simplified or if we use ourself as the simplification base
-				const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
-				bool bIsbuildAvailable = LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable();
 				if (bIsbuildAvailable && (!SkelMesh->GetLODInfo(LODIndex)->bHasBeenSimplified || SkelMesh->GetLODInfo(LODIndex)->ReductionSettings.BaseLOD == LODIndex))
 				{
 					//Create the build setting UI Layout
@@ -2935,9 +3115,8 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 		{
 			SourceLODIndex = LODInfo->ReductionSettings.BaseLOD;
 		}
-		FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[SourceLODIndex];
-
-		if (!LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+		bool bSrcBuildDataAvailable = SkelMesh->IsLODImportedDataBuildAvailable(SourceLODIndex);
+		if (!bSrcBuildDataAvailable)
 		{
 			SkelMesh->InvalidateDeriveDataCacheGUID();
 			RegenerateLOD(LODIndex);
@@ -2950,7 +3129,7 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 				UFbxSkeletalMeshImportData* SKImportData = Cast<UFbxSkeletalMeshImportData>(SkelMesh->AssetImportData);
 				if (SKImportData)
 				{
-					check(LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable());
+					check(bSrcBuildDataAvailable);
 					{
 						if (!LODInfo->BuildSettings.bRecomputeNormals && !LODInfo->BuildSettings.bRecomputeTangents)
 						{
@@ -2962,6 +3141,10 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 							SKImportData->NormalGenerationMethod = LODInfo->BuildSettings.bUseMikkTSpace ? EFBXNormalGenerationMethod::MikkTSpace : EFBXNormalGenerationMethod::BuiltIn;
 						}
 						SKImportData->bComputeWeightedNormals = LODInfo->BuildSettings.bComputeWeightedNormals;
+						SKImportData->ThresholdPosition = LODInfo->BuildSettings.ThresholdPosition;
+						SKImportData->ThresholdTangentNormal = LODInfo->BuildSettings.ThresholdTangentNormal;
+						SKImportData->ThresholdUV = LODInfo->BuildSettings.ThresholdUV;
+						SKImportData->MorphThresholdPosition = LODInfo->BuildSettings.MorphThresholdPosition;
 					}
 				}
 			}
@@ -2975,6 +3158,11 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 		SkelMesh->MarkPackageDirty();
 	}
 	MeshDetailLayout->ForceRefreshDetails();
+	if (SkelMesh->MorphTargets.Num() > 0)
+	{
+		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
+	}
+	
 	return FReply::Handled();
 }
 
@@ -2988,7 +3176,8 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
 		FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(LODIndex));
-		bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) && SkelMesh->GetImportedModel()->LODModels[LODIndex].RawSkeletalMeshBulkData.IsBuildDataAvailable();
+		
+		bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) && SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
 		bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty());
 		if (LODIndex == CurrentLODInfo.ReductionSettings.BaseLOD
 			&& CurrentLODInfo.bHasBeenSimplified
@@ -3184,7 +3373,7 @@ void FPersonaMeshDetails::ApplyChanges()
 			{
 				FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(LODIdx));
 				bool bIsReductionActive = SkelMesh->IsReductionActive(LODIdx);
-				bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIdx) && SkelMesh->GetImportedModel()->LODModels[LODIdx].RawSkeletalMeshBulkData.IsBuildDataAvailable();
+				bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIdx) && SkelMesh->IsLODImportedDataBuildAvailable(LODIdx);
 				bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIdx) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIdx]->IsEmpty());
 
 				if (CurrentLODInfo.bHasBeenSimplified == false && bIsReductionActive)
@@ -3226,6 +3415,12 @@ void FPersonaMeshDetails::ApplyChanges()
 
 		//PostEditChange will be call when going out of scope
 	}
+	//Update the morph target list since we have rebuild the asset
+	if (SkelMesh->MorphTargets.Num() > 0)
+	{
+		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
+	}
+
 	MeshDetailLayout->ForceRefreshDetails();
 }
 
@@ -3496,7 +3691,7 @@ FReply FPersonaMeshDetails::OnReimportLodClicked(EReimportButtonType InReimportT
 			//Avoid changing the settings if the skeletal mesh is using a LODSettings asset valid for this LOD
 			bool bUseLODSettingAsset = SkelMesh->LODSettings != nullptr && SkelMesh->LODSettings->GetNumberOfSettings() > InLODIndex;
 			//Make the reduction settings change according to the context
-			if (!bUseLODSettingAsset && SkelMesh->IsReductionActive(InLODIndex) && LODInfo->bHasBeenSimplified && SkelMesh->GetImportedModel()->LODModels[InLODIndex].RawSkeletalMeshBulkData.IsEmpty())
+			if (!bUseLODSettingAsset && SkelMesh->IsReductionActive(InLODIndex) && LODInfo->bHasBeenSimplified && SkelMesh->IsLODImportedDataEmpty(InLODIndex))
 			{
 				FSkeletalMeshOptimizationSettings& ReductionSettings = LODInfo->ReductionSettings;
 				//Backup the reduction settings

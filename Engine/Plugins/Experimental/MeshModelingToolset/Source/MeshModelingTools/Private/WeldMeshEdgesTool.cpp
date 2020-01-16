@@ -61,11 +61,12 @@ void UWeldMeshEdgesTool::Setup()
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
 
-	// copy material if there is one
-	auto Material = ComponentTarget->GetMaterial(0);
-	if (Material != nullptr)
+	// transfer materials
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
-		DynamicMeshComponent->SetMaterial(0, Material);
+		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
@@ -91,9 +92,9 @@ void UWeldMeshEdgesTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("WeldMeshEdgesToolTransactionName", "Remesh Mesh"));
-			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
-				DynamicMeshComponent->Bake(MeshDescription, true);
+				DynamicMeshComponent->Bake(CommitParams.MeshDescription, true);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -109,7 +110,6 @@ void UWeldMeshEdgesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UpdateResult();
 
-
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
 
@@ -122,7 +122,7 @@ void UWeldMeshEdgesTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			FVector3d A, B;
 			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
 				LineColor, 0, 1.0, 1.0f, true);
 		}
 	}
@@ -133,7 +133,7 @@ void UWeldMeshEdgesTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		FVector3d A, B;
 		TargetMesh->GetEdgeV(eid, A, B);
-		PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+		PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
 			LineColor2, 0, 2.0, 1.0f, true);
 	}
 

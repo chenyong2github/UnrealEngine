@@ -29,10 +29,25 @@ void FBasePositionSnapSolver3::ResetActiveSnap()
 	ClearActiveSnapData();
 }
 
-
-void FBasePositionSnapSolver3::AddPointTarget(const FVector3d& Position, int TargetID, int Priority, double OverrideMetric)
+void FBasePositionSnapSolver3::AddPointTarget(const FVector3d& Position, int TargetID, int Priority)
 {
-	FSnapTargetPoint Point = { Position, TargetID, Priority, OverrideMetric };
+	FSnapTargetPoint Point;
+	Point.Position = Position;
+	Point.TargetID = TargetID;
+	Point.Priority = Priority;
+	Point.bHaveCustomMetric = false;
+	TargetPoints.Add(Point);
+}
+
+
+void FBasePositionSnapSolver3::AddPointTarget(const FVector3d& Position, int TargetID, const FCustomMetric& CustomMetric, int Priority)
+{
+	FSnapTargetPoint Point;
+	Point.Position = Position;
+	Point.TargetID = TargetID;
+	Point.Priority = Priority;
+	Point.bHaveCustomMetric = true;
+	Point.CustomMetric = CustomMetric;
 	TargetPoints.Add(Point);
 }
 
@@ -138,9 +153,27 @@ const FBasePositionSnapSolver3::FSnapTargetPoint* FBasePositionSnapSolver3::Find
 			continue;
 		}
 
+		double TestMetric = SnapMetricTolerance;
+		if (TestTargets[k].bHaveCustomMetric)
+		{
+			switch (TestTargets[k].CustomMetric.Type)
+			{
+			case ECustomMetricType::MinValue:
+				TestMetric = FMathd::Min(SnapMetricTolerance, TestTargets[k].CustomMetric.Value);
+				break;
+			case ECustomMetricType::Multiplier:
+				TestMetric = TestTargets[k].CustomMetric.Value * SnapMetricTolerance;
+				break;
+			case ECustomMetricType::ReplaceValue:
+				TestMetric = TestTargets[k].CustomMetric.Value;
+				break;
+			}
+		}
+
 		FVector3d SnapPoint = GetSnapPointFromFunc(TestTargets[k].Position);
 		double Metric = SnapMetricFunc(SnapPoint, TestTargets[k].Position);
-		if (Metric < SnapMetricTolerance && Metric < TestTargets[k].OverrideMetric)
+
+		if (Metric < TestMetric)
 		{
 			if (Metric < MinMetric || TestTargets[k].Priority < MinPriority)
 			{

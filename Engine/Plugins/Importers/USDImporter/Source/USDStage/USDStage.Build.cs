@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
 					"MovieScene",
 					"MovieSceneTracks",
 					"PropertyEditor",
-					"PropertyEditor",
 					"PythonScriptPlugin",
 					"RHI",
 					"RenderCore",
@@ -39,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"USDImporter",
+					"USDSchemas",
 					"USDUtilities",
 					"UnrealEd",
 				}

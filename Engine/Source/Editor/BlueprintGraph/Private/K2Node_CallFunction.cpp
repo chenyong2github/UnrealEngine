@@ -36,6 +36,7 @@
 #include "BlueprintActionFilter.h"
 #include "FindInBlueprintManager.h"
 #include "ScopedTransaction.h"
+#include "ObjectEditorUtils.h"
 #include "SPinTypeSelector.h"
 #include "SourceCodeNavigation.h"
 #include "HAL/FileManager.h"
@@ -1659,7 +1660,7 @@ FText UK2Node_CallFunction::GetDefaultCategoryForFunction(const UFunction* Funct
 		else
 		{
 			// Look for localized metadata
-			FuncCategory = Function->GetMetaDataText(FBlueprintMetadata::MD_FunctionCategory, TEXT("UObjectCategory"), Function->GetFullGroupName(false));
+			FuncCategory = FObjectEditorUtils::GetCategoryText(Function);
 
 			// If the result is culture invariant, force it into a display string
 			if (FuncCategory.IsCultureInvariant())

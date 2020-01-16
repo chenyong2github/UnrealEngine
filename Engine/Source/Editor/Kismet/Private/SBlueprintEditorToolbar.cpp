@@ -33,6 +33,8 @@
 #include "FindInBlueprintManager.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #define LOCTEXT_NAMESPACE "KismetToolbar"
 

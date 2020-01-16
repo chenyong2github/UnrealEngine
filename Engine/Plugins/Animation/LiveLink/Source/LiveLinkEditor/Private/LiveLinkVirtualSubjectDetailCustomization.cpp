@@ -55,6 +55,15 @@ void FLiveLinkVirtualSubjectDetailCustomization::CustomizeDetails(IDetailLayoutB
 		SubjectsListItems.AddUnique(MakeShared<FName>(SubjectKey.SubjectName.Name));
 	}
 
+	// In case one of the associated subject linked to this virtual one doesn't exist anymore, add it to the list to display it red
+	for (const FLiveLinkSubjectName& SelectedSubject : Subject->GetSubjects())
+	{
+		if (false == SubjectsListItems.ContainsByPredicate([SelectedSubject](const FSubjectEntryPtr& Other) { return *Other == SelectedSubject.Name; }))
+		{
+			SubjectsListItems.AddUnique(MakeShared<FName>(SelectedSubject.Name));
+		}
+	}
+
 	IDetailCategoryBuilder& SubjectPropertyGroup = DetailBuilder.EditCategory(*SubjectsPropertyHandle->GetMetaData(TEXT("Category")));
 	SubjectPropertyGroup.AddCustomRow(LOCTEXT("SubjectsTitleLabel", "Subjects"))
 	.NameContent()
@@ -141,7 +150,44 @@ TSharedRef<ITableRow> FLiveLinkVirtualSubjectDetailCustomization::OnGenerateWidg
 			[
 				SNew(STextBlock)
 				.Text(FText::FromName(*InItem))
+				.ColorAndOpacity(this, &FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemColor, InItem)
+				.ToolTipText(this, &FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemToolTip, InItem)
 			]
 		];
 }
+
+FSlateColor FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemColor(FSubjectEntryPtr InItem) const
+{
+	FSlateColor Result = FLinearColor::White;
+
+	if (ULiveLinkVirtualSubject* Subject = SubjectPtr.Get())
+	{
+		const FName ThisItem = *InItem.Get();
+		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), false, false);
+		if (false == SubjectKeys.ContainsByPredicate([ThisItem](const FLiveLinkSubjectKey& Other) { return Other.SubjectName.Name == ThisItem; }))
+		{
+			Result = FLinearColor::Red;
+		}
+	}
+
+	return Result;
+}
+
+FText FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemToolTip(FSubjectEntryPtr InItem) const
+{
+	FText Result;
+
+	if (ULiveLinkVirtualSubject* Subject = SubjectPtr.Get())
+	{
+		const FName ThisItem = *InItem.Get();
+		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), false, false);
+		if (false == SubjectKeys.ContainsByPredicate([ThisItem](const FLiveLinkSubjectKey& Other) { return Other.SubjectName.Name == ThisItem; }))
+		{
+			Result = LOCTEXT("LinkedSubjectToolTip", "This subject was not found in the list of available LiveLink subjects. VirtualSubject might not work properly.");
+		}
+	}
+
+	return Result;
+}
+
 #undef LOCTEXT_NAMESPACE

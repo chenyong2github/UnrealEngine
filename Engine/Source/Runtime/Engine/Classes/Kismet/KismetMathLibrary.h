@@ -2049,6 +2049,13 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(ScriptMethod = "MirrorByVector3", Keywords = "Reflection"), Category = "Math|Vector4")
 	static FVector4 Vector4_MirrorByVector3(const FVector4& Direction, const FVector4& SurfaceNormal);
 
+	/**
+	 * Transform the input vector4 by a provided matrix4x4 and returns the resulting vector4.
+	 *
+	 * @return Transformed vector4.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Transform Vector4 by Matrix"), Category = "Math|Vector4")
+	static FVector4 TransformVector4(const FMatrix& Matrix, const FVector4& Vec4);
 
 	//
 	// Rotator functions.

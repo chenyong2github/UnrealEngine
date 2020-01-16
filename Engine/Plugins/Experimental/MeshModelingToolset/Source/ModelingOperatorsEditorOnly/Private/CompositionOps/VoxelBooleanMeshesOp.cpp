@@ -9,6 +9,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
+#include "CleaningOps/EditNormalsOp.h"
 
 void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
@@ -27,6 +28,20 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	// give this an absolute min since the user might scale both objects to zero..
 	VoxelSizeD = FMath::Max(VoxelSizeD, 0.001);
 
+	// world space units.
+	const double MaxNarrowBand = 3 * VoxelSizeD;
+	const double MaxIsoOffset = 2 * VoxelSizeD;
+
+	// IsoSurfaceD is in world units
+
+	const bool bShinkResult = (IsoSurfaceD < 0.);
+
+	// Note after the min/max operations of voxel-based CSG the interior distances or exterior 
+	// distances can be pretty f'd up so we need to do the initial post-CSG remesh with a "safe"
+	// value.
+	double CSGIsoSurface = 0.;
+
+	
 	// Create BooleanTool and Boolean the meshes.
 	TUniquePtr<IVoxelBasedCSG> VoxelCSGTool = IVoxelBasedCSG::CreateCSGTool(VoxelSizeD);
 	FVector MergedOrigin;
@@ -37,16 +52,20 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	switch (Operation)
 	{
 	case EBooleanOperation::DifferenceAB:
-		MergedOrigin = VoxelCSGTool->ComputeDifference(A, B, ResultMeshDescription, AdaptivityD, IsoSurfaceD);
+		CSGIsoSurface = 0.;
+		MergedOrigin = VoxelCSGTool->ComputeDifference(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::DifferenceBA:
-		MergedOrigin = VoxelCSGTool->ComputeDifference(B, A, ResultMeshDescription, AdaptivityD, IsoSurfaceD);
+		CSGIsoSurface = 0.;
+		MergedOrigin = VoxelCSGTool->ComputeDifference(B, A, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::Intersect:
-		MergedOrigin = VoxelCSGTool->ComputeIntersection(A, B, ResultMeshDescription, AdaptivityD, IsoSurfaceD);
+		CSGIsoSurface = FMath::Clamp(IsoSurfaceD, -MaxIsoOffset, MaxIsoOffset);
+		MergedOrigin = VoxelCSGTool->ComputeIntersection(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::Union:
-		MergedOrigin = VoxelCSGTool->ComputeUnion(A, B, ResultMeshDescription, AdaptivityD, IsoSurfaceD);
+		CSGIsoSurface = FMath::Clamp(IsoSurfaceD, 0., MaxIsoOffset);
+		MergedOrigin = VoxelCSGTool->ComputeUnion(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
 		break;
 	default:
 		check(0);
@@ -59,6 +78,38 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
+	const bool bNeedAdditionalRemeshing = (CSGIsoSurface != IsoSurfaceD);
+
+	// iteratively expand (or contract) the surface
+	if ( bNeedAdditionalRemeshing )
+	{
+		// how additional remeshes do we need?
+		int32 NumRemeshes = FMath::CeilToInt( FMath::Abs(IsoSurfaceD - CSGIsoSurface) / MaxIsoOffset );
+
+		double DeltaIsoSurface = (IsoSurfaceD - CSGIsoSurface) / NumRemeshes;
+
+		for (int32 i = 0; i < NumRemeshes; ++i)
+		{
+			if (Progress->Cancelled())
+			{
+				return;
+			}
+
+			IVoxelBasedCSG::FPlacedMesh PlacedMesh;
+			PlacedMesh.Mesh = &ResultMeshDescription;
+			PlacedMesh.Transform = static_cast<FTransform>(ResultTransform);
+
+			TArray< IVoxelBasedCSG::FPlacedMesh> SourceMeshes;
+			SourceMeshes.Add(PlacedMesh);
+
+			// union of only one mesh. we are using this to voxelize and remesh with and offset.
+			MergedOrigin = VoxelCSGTool->ComputeUnion(SourceMeshes, ResultMeshDescription, AdaptivityD, DeltaIsoSurface);
+
+			ResultTransform = FTransform3d(MergedOrigin);
+		}
+	}
+
+
 	// Convert to dynamic mesh
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.bPrintDebugMessages = true;
@@ -68,6 +119,9 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	{
 		return;
 	}
+
+	// for now we automatically fix up the normals if simplificaiton was requested.
+	bool bFixNormals = bAutoSimplify;
 
 	if (bAutoSimplify)
 	{
@@ -82,6 +136,31 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		Reducer.SimplifyToMaxError(MaxDisplacementSqr);
 
 	}
+
+
+	if (bFixNormals)
+	{
+
+		TSharedPtr<FDynamicMesh3> OpResultMesh(ExtractResult().Release()); // moved the unique pointer
+
+		// Recompute the normals
+		FEditNormalsOp EditNormalsOp;
+		EditNormalsOp.OriginalMesh = OpResultMesh; // the tool works on a deep copy of this mesh.
+		EditNormalsOp.bFixInconsistentNormals = true;
+		EditNormalsOp.bInvertNormals = false;
+		EditNormalsOp.bRecomputeNormals = true;
+		EditNormalsOp.NormalCalculationMethod = ENormalCalculationMethod::AreaAngleWeighting;
+		EditNormalsOp.SplitNormalMethod = ESplitNormalMethod::FaceNormalThreshold;
+		EditNormalsOp.bAllowSharpVertices = true;
+		EditNormalsOp.NormalSplitThreshold = 60.f;
+
+		EditNormalsOp.SetTransform(FTransform(ResultTransform));
+
+		EditNormalsOp.CalculateResult(Progress);
+
+		ResultMesh = EditNormalsOp.ExtractResult(); // return the edit normals operator copy to this tool.
+	}
+
 }
 
 float FVoxelBooleanMeshesOp::ComputeVoxelSize() const 

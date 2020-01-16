@@ -266,7 +266,7 @@ private:
 		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
 	}
 	
-	/** Returns the number of session to keep around in the history for a given project. */
+	/** Returns the number of sessions to keep around in the history for a given project. */
 	int32 GetMaxSessionHistorySize() const
 	{
 		return FMath::Max(0, GetDefault<UDisasterRecoverClientConfig>()->SessionHistorySize);
@@ -548,6 +548,7 @@ private:
 		ClientConfig->DefaultSaveSessionAs = DisasterRecoverySessionName;
 		//ClientConfig->ClientSettings.DiscoveryTimeoutSeconds = 0;
 		ClientConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 0;
+		ClientConfig->ClientSettings.ClientAuthenticationKey = DisasterRecoveryServerName; // The discovery server adds its own server name to the list of authorized client keys, use that key to discover the server.
 
 		// Create the recovery session and auto-join it if there is nothing to recover.
 		DisasterRecoveryClient = IConcertSyncClientModule::Get().CreateClient(Role);

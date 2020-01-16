@@ -1019,44 +1019,46 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 	}
 }
 
-/** Release the RenderInfo (if its there) and safely clean up any resources. Call on the game thread. */
+/** Release the RenderInfo (if its there) and safely clean up any resources. Not thread safe, but can be called from any thread (conditionally safe). */
 void FKAggregateGeom::FreeRenderInfo()
 {
 	// See if we have rendering resources to free
-	if(RenderInfo)
+	if (RenderInfo)
 	{
 		// Should always have these if RenderInfo exists
 		check(RenderInfo->VertexBuffers);
 		check(RenderInfo->IndexBuffer);
 
-		// Fire off commands to free these resources
-		BeginReleaseResource(&RenderInfo->VertexBuffers->ColorVertexBuffer);
-		BeginReleaseResource(&RenderInfo->VertexBuffers->StaticMeshVertexBuffer);
-		BeginReleaseResource(&RenderInfo->VertexBuffers->PositionVertexBuffer);
-		BeginReleaseResource(RenderInfo->IndexBuffer);
+		// Fire off a render command to free these resources
+		ENQUEUE_RENDER_COMMAND(FKAggregateGeomFreeRenderInfo)(
+			[RenderInfoToRelease = RenderInfo](FRHICommandList& RHICmdList)
+			{
+				RenderInfoToRelease->VertexBuffers->ColorVertexBuffer.ReleaseResource();
+				RenderInfoToRelease->VertexBuffers->StaticMeshVertexBuffer.ReleaseResource();
+				RenderInfoToRelease->VertexBuffers->PositionVertexBuffer.ReleaseResource();
+				RenderInfoToRelease->IndexBuffer->ReleaseResource();
 
-		// May not exist if no geometry was available
-		if(RenderInfo->CollisionVertexFactory != NULL)
-		{
-			BeginReleaseResource(RenderInfo->CollisionVertexFactory);
-		}
+				// May not exist if no geometry was available
+				if (RenderInfoToRelease->CollisionVertexFactory != nullptr)
+				{
+					RenderInfoToRelease->CollisionVertexFactory->ReleaseResource();
+				}
 
-		// Wait until those commands have been processed
-		FRenderCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
+				// Free memory.
+				delete RenderInfoToRelease->VertexBuffers;
+				delete RenderInfoToRelease->IndexBuffer;
 
-		// Release memory.
-		delete RenderInfo->VertexBuffers;
-		delete RenderInfo->IndexBuffer;
+				if (RenderInfoToRelease->CollisionVertexFactory != nullptr)
+				{
+					delete RenderInfoToRelease->CollisionVertexFactory;
+				}
 
-		if (RenderInfo->CollisionVertexFactory != NULL)
-		{
-			delete RenderInfo->CollisionVertexFactory;
-		}
+				delete RenderInfoToRelease;
+			}
+		);
 
-		delete RenderInfo;
-		RenderInfo = NULL;
+		// Reset the pointer as it's been given to the render thread
+		RenderInfo = nullptr;
 	}
 }
 

@@ -10,10 +10,10 @@
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DatasmithTranslatableSource.h"
+#include "DatasmithTranslatorManager.h"
 #include "IDatasmithSceneElements.h"
 #include "LayoutUV.h"
-#include "Translators/DatasmithTranslatableSource.h"
-#include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithImportFactoryHelper.h"
 
@@ -29,10 +29,18 @@
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PackageTools.h"
-#include "Subsystems/ImportSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Subsystems/ImportSubsystem.h"
+#include "Templates/UniquePtr.h"
 
 #include "Editor/EditorEngine.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+	#include <psapi.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 extern UNREALED_API UEditorEngine* GEditor;
 
 #define LOCTEXT_NAMESPACE "DatasmithImportFactory"
@@ -168,15 +176,24 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		FScopedSlowTask Progress(100.0f, LOCTEXT("StartWork", "Unreal Datasmith ..."), true, *InContext.Warn);
-		Progress.MakeDialog(true);
+		TUniquePtr<FScopedSlowTask> ProgressPtr;
+		FScopedSlowTask* Progress = nullptr;
+		if ( InContext.FeedbackContext )
+		{
+			ProgressPtr = MakeUnique<FScopedSlowTask>(100.0f, LOCTEXT("StartWork", "Unreal Datasmith ..."), true, *InContext.FeedbackContext);
+			Progress = ProgressPtr.Get();
+			Progress->MakeDialog(true);
+		}
 
 		// Filter element that need to be imported depending on dirty state (or eventually depending on options)
 		FDatasmithImporter::FilterElementsToImport(InContext);
 
 		// TEXTURES
 		// We need the textures before the materials
-		Progress.EnterProgressFrame( 20.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 20.f );
+		}
 		FDatasmithImporter::ImportTextures(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -187,7 +204,10 @@ namespace DatasmithImportFactoryImpl
 
 		// MATERIALS
 		// We need to import the materials before the static meshes to know about the meshes build requirements that are driven by the materials
-		Progress.EnterProgressFrame( 5.f );
+		if ( Progress )
+		{ 
+			Progress->EnterProgressFrame( 5.f );
+		}
 		FDatasmithImporter::ImportMaterials(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -203,7 +223,10 @@ namespace DatasmithImportFactoryImpl
 		}
 
 		// STATIC MESHES
-		Progress.EnterProgressFrame( 25.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 25.f );
+		}
 		FDatasmithImporter::ImportStaticMeshes( InContext );
 
 		if ( InContext.bUserCancelled )
@@ -212,7 +235,10 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		Progress.EnterProgressFrame( 10.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 10.f );
+		}
 		FDatasmithStaticMeshImporter::PreBuildStaticMeshes(InContext);
 
 		if ( InContext.bUserCancelled )
@@ -224,7 +250,10 @@ namespace DatasmithImportFactoryImpl
 		// ACTORS
 		if( InContext.ShouldImportActors() )
 		{
-			Progress.EnterProgressFrame( 10.f );
+			if ( Progress )
+			{
+				Progress->EnterProgressFrame( 10.f );
+			}
 
 			FDatasmithImporter::ImportActors( InContext );
 
@@ -247,7 +276,10 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
-		Progress.EnterProgressFrame( 30.f );
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame( 30.f );
+		}
 		FDatasmithImporter::FinalizeImport(InContext, TSet<UObject*>());
 
 		// THUMBNAIL
@@ -303,9 +335,23 @@ namespace DatasmithImportFactoryImpl
 
 		DatasmithImportFactoryImpl::SendAnalytics(ImportContext, FMath::RoundToInt(ElapsedSeconds), true);
 
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+		FString MemoryStats;
+#if PLATFORM_WINDOWS
+		PROCESS_MEMORY_COUNTERS_EX MemoryInfo;
+		GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&MemoryInfo, sizeof(MemoryInfo));
+
+		double PrivateBytesGB   = double(MemoryInfo.PrivateUsage) / (1024*1024*1024);
+		double WorkingSetGB     = double(MemoryInfo.WorkingSetSize) / (1024*1024*1024);
+		double PeakWorkingSetFB = double(MemoryInfo.PeakWorkingSetSize) / (1024*1024*1024);
+
+		MemoryStats = FString::Printf(TEXT(" [Private Bytes: %.02f GB, Working Set %.02f GB, Peak Working Set %.02f GB]"), PrivateBytesGB, WorkingSetGB, PeakWorkingSetFB);
+#endif
+
 		int ElapsedMin = int(ElapsedSeconds / 60.0);
 		ElapsedSeconds -= 60.0 * (double)ElapsedMin;
-		UE_LOG(LogDatasmithImport, Log, TEXT("%s %s in [%d min %.3f s]"), ImportContext.bIsAReimport ? TEXT("Reimported") : TEXT("Imported"), ImportContext.Scene->GetName(), ElapsedMin, ElapsedSeconds);
+		UE_LOG(LogDatasmithImport, Log, TEXT("%s %s in [%d min %.3f s]%s"), ImportContext.bIsAReimport ? TEXT("Reimported") : TEXT("Imported"), ImportContext.Scene->GetName(), ElapsedMin, ElapsedSeconds, *MemoryStats);
 	}
 
 } // ns DatasmithImportFactoryImpl

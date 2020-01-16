@@ -92,7 +92,8 @@
 xcopy "$(ProjectDir)$(TargetName).addin" "%25PUBLISH_DIR%25" /Y
 xcopy "$(ProjectDir)$(OutputPath)*.dll" "%25PUBLISH_DIR%25" /Y
 xcopy "$(ProjectDir)..\Resources\Windows\DatasmithIcon32.png" "%25PUBLISH_DIR%25" /Y
-</PostBuildEvent>
+xcopy "$(ProjectDir)..\Resources\Windows\DatasmithRevitDynamoExport.dyn" "%25PUBLISH_DIR%25" /Y
+	</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.

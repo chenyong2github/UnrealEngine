@@ -10,7 +10,7 @@
 /**
  * Converts the current system time to timecode, relative to a provided frame rate.
  */
-UCLASS(editinlinenew)
+UCLASS(config=Engine, Blueprintable, editinlinenew)
 class ENGINE_API USystemTimeTimecodeProvider : public UTimecodeProvider
 {
 	GENERATED_BODY()

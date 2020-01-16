@@ -24,9 +24,9 @@ namespace UnrealBuildTool.Rules
                     "CADLibrary",
 					"Engine",
 					"DatasmithCore",
-                    "DatasmithCoreTechExtension",
+                    "DatasmithCoreTechParametricSurfaceData",
 					"DatasmithContent",
-					"DatasmithImporter",
+					"DatasmithTranslator",
 					"MeshDescription",
 					"StaticMeshDescription"
 				}

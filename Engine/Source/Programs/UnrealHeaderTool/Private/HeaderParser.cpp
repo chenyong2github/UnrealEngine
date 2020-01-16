@@ -9437,6 +9437,20 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 		return bIsNull; // always return as null is the only the processing we can do for object defaults
 	}
 
+	auto ValidateEnumEntry = [Property, &CppForm](const UEnum* Enum, const FString& EnumValue)
+	{
+		const int32 EnumEntryIndex = Enum->GetIndexByName(*EnumValue);
+		if (EnumEntryIndex == INDEX_NONE)
+		{
+			return false;
+		}
+		if (Enum->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
+		{
+			FError::Throwf(TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *Property->GetName(), *CppForm);
+		}
+		return true;
+	};
+
 	if( !Property->IsA(FStructProperty::StaticClass()) )
 	{
 		if( Property->IsA(FIntProperty::StaticClass()) )
@@ -9461,7 +9475,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 			if( NULL != Enum )
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
-				return ( INDEX_NONE != Enum->GetIndexByName(*OutForm) );
+				return ValidateEnumEntry(Enum, OutForm);
 			}
 			int32 Value;
 			if( FDefaultValueHelper::ParseInt( CppForm, Value) )
@@ -9476,7 +9490,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 			if (const UEnum* Enum = CastFieldChecked<FEnumProperty>(const_cast<FProperty*>(Property))->GetEnum())
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
-				return Enum->GetIndexByName(*OutForm) != INDEX_NONE;
+				return ValidateEnumEntry(Enum, OutForm);
 			}
 
 			int64 Value;
@@ -9552,7 +9566,6 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 					if (ParsedTextNamespace.GetValue().Equals(UHTDummyNamespace))
 					{
 						FError::Throwf(TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *Property->GetName(), *CppForm);
-						return false;
 					}
 				}
 			}

@@ -3,6 +3,7 @@
 #include "TrackRecorders/MovieSceneAnimationTrackRecorder.h"
 #include "TrackRecorders/MovieSceneAnimationTrackRecorderSettings.h"
 #include "TakesUtils.h"
+#include "TakeMetaData.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "MovieScene.h"
@@ -36,6 +37,8 @@ UMovieSceneTrackRecorder* FMovieSceneAnimationTrackRecorderFactory::CreateTrackR
 
 void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AActor* Actor, const FDirectoryPath& AnimationDirectory)
 {
+	UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(Settings.Get());
+
 	SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
 	if (SkeletalMesh.IsValid())
 	{
@@ -44,8 +47,14 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 
 		if (ULevelSequence* MasterLevelSequence = OwningTakeRecorderSource->GetMasterLevelSequence())
 		{
-			const FString& MasterLevelSequenceName = MasterLevelSequence->GetName();
-			AnimationAssetName = AnimationAssetName + TEXT("_") + MasterLevelSequenceName;
+			UTakeMetaData* AssetMetaData = MasterLevelSequence->FindMetaData<UTakeMetaData>();
+
+			AnimationAssetName = AssetMetaData->GenerateAssetPath(AnimSettings->AnimationAssetName);
+
+			TMap<FString, FStringFormatArg> FormatArgs;
+			FormatArgs.Add(TEXT("actor"), Actor->GetActorLabel());
+
+			AnimationAssetName = FString::Format(*AnimationAssetName, FormatArgs);
 		}
 
 		AnimSequence = TakesUtils::MakeNewAsset<UAnimSequence>(AnimationDirectory.Path, AnimationAssetName);

@@ -25,6 +25,8 @@ public:
 	TSharedPtr<FUICommandInfo> ClearThumbnailVariantCommand;
 	TSharedPtr<FUICommandInfo> AddPropertyCaptures;
 	TSharedPtr<FUICommandInfo> AddFunction;
+	TSharedPtr<FUICommandInfo> RebindActorDisabled;
+	TSharedPtr<FUICommandInfo> RebindToSelected;
 	TSharedPtr<FUICommandInfo> RemoveActorBindings;
 	TSharedPtr<FUICommandInfo> ApplyProperty;
 	TSharedPtr<FUICommandInfo> RecordProperty;

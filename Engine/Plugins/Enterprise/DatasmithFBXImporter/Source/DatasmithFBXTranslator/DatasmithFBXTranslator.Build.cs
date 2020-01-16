@@ -28,7 +28,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"DatasmithContent",
-					"DatasmithImporter"
+					"DatasmithTranslator"
 				}
 			);
 		}

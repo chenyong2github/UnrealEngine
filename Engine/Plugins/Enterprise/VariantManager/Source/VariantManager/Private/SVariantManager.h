@@ -158,6 +158,9 @@ public:
 	void AddFunctionCaller();
 	bool CanAddFunctionCaller();
 
+	void RebindToSelectedActor();
+	bool CanRebindToSelectedActor();
+
 	void RemoveActorBindings();
 	bool CanRemoveActorBindings();
 
@@ -174,6 +177,8 @@ public:
 	bool CanRemoveDirectorFunctionCaller();
 
 	void SwitchOnVariant(UVariant* Variant);
+
+	void GetSelectedBindingAndEditorActor(UVariantObjectBinding*& OutSelectedBinding, UObject*& OutSelectedObject);
 
 	// Sorts display nodes based on their order on the screen
 	// Can be used to sort selected nodes
@@ -223,9 +228,11 @@ public:
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
 	void OnPieEvent(bool bIsSimulating);
+	void OnEditorSelectionChanged(UObject* NewSelection);
+
+	void ReorderPropertyNodes(const TArray<TSharedPtr<FVariantManagerPropertyNode>>& TheseNodes, TSharedPtr<FVariantManagerPropertyNode> Pivot, EItemDropZone RelativePosition);
 
 private:
-
 	TWeakPtr<FVariantManager> VariantManagerPtr;
 
 	TSharedPtr<SVariantManagerNodeTreeView> NodeTreeView;
@@ -261,10 +268,13 @@ private:
 	FDelegateHandle OnObjectPropertyChangedHandle;
 	FDelegateHandle OnBeginPieHandle;
 	FDelegateHandle OnEndPieHandle;
+	FDelegateHandle OnEditorSelectionChangedHandle;
 
 	// We keep track of this to remember splitter values between loads
 	TSharedPtr<SSplitter> MainSplitter;
-	
+
 	// TODO: Make separate VariantManagerStyle
 	TSharedPtr<FSlateImageBrush> RecordButtonBrush;
+
+	bool bRespondToEditorSelectionEvents = true;
 };

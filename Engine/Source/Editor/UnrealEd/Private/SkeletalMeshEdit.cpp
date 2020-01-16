@@ -1450,7 +1450,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 				FString FinalCurveName;
 				if (InNumChannels == 1)
 				{
-					FinalCurveName = InCurveName;
+					FinalCurveName = InChannelName;
 				}
 				else
 				{
@@ -1458,20 +1458,20 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 				}
 
 				FFormatNamedArguments Args;
-				Args.Add(TEXT("CurveName"), FText::FromString(InChannelName));
+				Args.Add(TEXT("CurveName"), FText::FromString(FinalCurveName));
 				const FText StatusUpate = FText::Format(LOCTEXT("ImportingCustomAttributeCurvesDetail", "Importing Custom Attribute [{CurveName}]"), Args);
 				GWarn->StatusUpdate(CurLinkIndex + 1, TotalLinks, StatusUpate);
 
 				int32 CurveFlags = AACF_DefaultCurve;
-				if (ImportCurveToAnimSequence(DestSeq, InChannelName, InCurve, CurveFlags, AnimTimeSpan))
+				if (ImportCurveToAnimSequence(DestSeq, FinalCurveName, InCurve, CurveFlags, AnimTimeSpan))
 				{
 					USkeleton* SeqSkeleton = DestSeq->GetSkeleton();
 
 					// first let them override material curve if required
 					if (ImportOptions->bSetMaterialDriveParameterOnCustomAttribute)
 					{
-						// now mark this curve as morphtarget
-						SeqSkeleton->AccumulateCurveMetaData(FName(*InChannelName), true, false);
+						// now mark this curve as material curve
+						SeqSkeleton->AccumulateCurveMetaData(FName(*FinalCurveName), true, false);
 					}
 					else
 					{
@@ -1479,15 +1479,15 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 						for (const auto& Suffix : ImportOptions->MaterialCurveSuffixes)
 						{
 							int32 TotalSuffix = Suffix.Len();
-							if (InChannelName.Right(TotalSuffix) == Suffix)
+							if (FinalCurveName.Right(TotalSuffix) == Suffix)
 							{
-								SeqSkeleton->AccumulateCurveMetaData(FName(*InChannelName), true, false);
+								SeqSkeleton->AccumulateCurveMetaData(FName(*FinalCurveName), true, false);
 								break;
 							}
 						}
 					}
 
-					ExistingCurveNames.Remove(InChannelName);
+					ExistingCurveNames.Remove(FinalCurveName);
 				}	
 			});
 

@@ -8,6 +8,7 @@ UInteractiveToolsContext::UInteractiveToolsContext()
 {
 	InputRouter = nullptr;
 	ToolManager = nullptr;
+	ToolManagerClass = UInteractiveToolManager::StaticClass();
 }
 
 void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI)
@@ -15,7 +16,8 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 	InputRouter = NewObject<UInputRouter>(this);
 	InputRouter->Initialize(TransactionsAPI);
 
-	ToolManager = NewObject<UInteractiveToolManager>(this);
+	ToolManager = NewObject<UInteractiveToolManager>(this, ToolManagerClass.Get());
+
 	ToolManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
 
 	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
@@ -105,4 +107,19 @@ bool UInteractiveToolsContext::StartTool(EToolSide WhichSide, const FString& Too
 void UInteractiveToolsContext::EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
 {
 	DeactivateActiveTool(WhichSide, ShutdownType);
+}
+
+bool UInteractiveToolsContext::IsToolBuilderActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder)
+{
+	return ToolManager->GetActiveToolBuilder(WhichSide) == Builder;
+}
+
+void UInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
+{
+	OnToolNotificationMessage.Broadcast(Message);
+}
+
+void UInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
+{
+	OnToolWarningMessage.Broadcast(Message);
 }

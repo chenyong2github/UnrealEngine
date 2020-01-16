@@ -85,6 +85,9 @@ struct FPyWrapperEnumMetaData : public FPyWrapperBaseMetaData
 	/** Check to see if the enum is finalized */
 	static bool IsEnumFinalized(FPyWrapperEnum* Instance);
 
+	/** Add object references from the given Python object to the given collector */
+	virtual void AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector) override;
+
 	/** Get the reflection meta data type object associated with this wrapper type if there is one or nullptr if not. */
 	virtual const UField* GetMetaType() const override
 	{
@@ -97,7 +100,7 @@ struct FPyWrapperEnumMetaData : public FPyWrapperBaseMetaData
 	/** True if this enum type has been finalized after having all of its entries added to it */
 	bool bFinalized;
 
-	/** Set if this struct is deprecated and using it should emit a deprecation warning */
+	/** Set if this enum is deprecated and using it should emit a deprecation warning */
 	TOptional<FString> DeprecationMessage;
 
 	/** Array of enum entries in the order they were added (enum entries are stored as borrowed references) */
@@ -127,8 +130,11 @@ private:
 	/** Definition data for an Unreal enum value generated from a Python type */
 	struct FEnumValueDef
 	{
+		/** Index of the enum value as it was registered with us from the Python */
+		int32 PyIndex = 0;
+
 		/** Numeric value of the enum value */
-		int64 Value;
+		int64 Value = 0;
 
 		/** Name of the enum value */
 		FString Name;

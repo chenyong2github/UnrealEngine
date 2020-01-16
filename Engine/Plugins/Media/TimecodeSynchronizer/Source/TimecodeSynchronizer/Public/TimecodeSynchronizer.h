@@ -393,6 +393,9 @@ private:
 		}
 	}
 
+	/** Callback when the engine's TimecodeProvider changed. */
+	void OnTimecodeProviderChanged();
+
 	/** Registers asset to MediaModule tick */
 	void SetTickEnabled(bool bEnabled);
 
@@ -530,7 +533,10 @@ private:
 	UFixedFrameRateCustomTimeStep* RegisteredCustomTimeStep;
 
 	UPROPERTY(Transient)
-	const UTimecodeProvider* CachedTimecodeProvider;
+	UTimecodeProvider* CachedPreviousTimecodeProvider;
+
+	UPROPERTY(Transient)
+	UTimecodeProvider* CachedProxiedTimecodeProvider;
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, Category = "Synchronization")
 	int32 ActualFrameOffset;
@@ -568,4 +574,5 @@ private:
 
 	bool bFailGuard;
 	bool bAddSourcesGuard;
+	bool bShouldResetTimecodeProvider;
 };

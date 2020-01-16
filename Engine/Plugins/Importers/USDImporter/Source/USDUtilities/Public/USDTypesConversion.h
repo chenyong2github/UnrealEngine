@@ -82,12 +82,11 @@ namespace UsdToUnreal
 		return FVector( InValue[0], InValue[1], InValue[2] );
 	}
 
-	static FVector ConvertVector( const pxr::UsdStageRefPtr& Stage, const pxr::GfVec3f& InValue )
+	static FVector ConvertVector( const pxr::TfToken& UpAxis, const pxr::GfVec3f& InValue )
 	{
 		FVector Value = ConvertVector( InValue );
 
-		pxr::TfToken UpAxisValue = UsdUtils::GetUsdStageAxis( Stage );
-		const bool bIsZUp = ( UpAxisValue == pxr::UsdGeomTokens->z );
+		const bool bIsZUp = ( UpAxis == pxr::UsdGeomTokens->z );
 
 		if ( bIsZUp )
 		{
@@ -163,13 +162,6 @@ namespace UsdToUnreal
 
 		return Transform;
 	}
-
-	static FTransform ConvertMatrix( const pxr::UsdStageRefPtr& Stage, const pxr::GfMatrix4d& InMatrix )
-	{
-		pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis(Stage);
-
-		return ConvertMatrix( UpAxis, InMatrix );
-	}
 }
 
 namespace UnrealToUsd
@@ -199,12 +191,11 @@ namespace UnrealToUsd
 		return pxr::GfVec3f( InValue[0], InValue[1], InValue[2] );
 	}
 
-	static pxr::GfVec3f ConvertVector( const pxr::UsdStageRefPtr& Stage, const FVector& InValue )
+	static pxr::GfVec3f ConvertVector( const pxr::TfToken& UpAxis, const FVector& InValue )
 	{
 		pxr::GfVec3f Value = ConvertVector( InValue );
 
-		pxr::TfToken UpAxisValue = UsdUtils::GetUsdStageAxis( Stage );
-		const bool bIsZUp = ( UpAxisValue == pxr::UsdGeomTokens->z );
+		const bool bIsZUp = ( UpAxis == pxr::UsdGeomTokens->z );
 
 		if ( bIsZUp )
 		{

@@ -12,6 +12,12 @@
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAsyncIODeleteTest, "System.Core.Misc.AsyncIODelete", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 bool FAsyncIODeleteTest::RunTest(const FString& Parameters)
 {
+#if ASYNCIODELETE_ASYNC_ENABLED
+	UE_LOG(LogCore, Display, TEXT("FAsyncIODeleteTest::RunTest, ASYNCIODELETE is ENABLED"));
+#else
+	UE_LOG(LogCore, Display, TEXT("FAsyncIODeleteTest::RunTest, ASYNCIODELETE is DISABLED"));
+#endif
+
 	FString TestRoot = FPaths::CreateTempFilename(FPlatformProcess::UserTempDir(), TEXT("AsyncIODelete"), TEXT(""));
 	IFileManager& FileManager = IFileManager::Get();
 	const bool bApplyToTreeTrue = true;
@@ -55,67 +61,98 @@ bool FAsyncIODeleteTest::RunTest(const FString& Parameters)
 
 	FileManager.MakeDirectory(*TestRoot);
 
+	const bool bVerbose = true;
+	auto StartSection = [bVerbose](const TCHAR* Section)
 	{
+		if (bVerbose)
+		{
+			UE_LOG(LogCore, Display, TEXT("%s"), Section);
+		}
+	};
+	const float MaxWaitTime = 5.0f;
+	auto WaitForAllTasksAndVerify = [this, MaxWaitTime](FAsyncIODelete& InAsyncIODelete)
+	{
+		bool WaitResult = InAsyncIODelete.WaitForAllTasks(MaxWaitTime);
+		TestTrue(TEXT("WaitForAllTasks timed out"), WaitResult);
+	};
+	{
+		StartSection(TEXT("Constructing first FAsyncIODelete"));
 		FAsyncIODelete AsyncIODelete(TempRoot);
 
-		// Waiting for tasks to complete when none have been launched should succeed
-		AsyncIODelete.WaitForAllTasks();
+		StartSection(TEXT("Waiting for tasks to complete when none have been launched should succeed"));
+		WaitForAllTasksAndVerify(AsyncIODelete);
 
-		// Moving file and directory from the source location should be finished by the time DeleteFile/DeleteDirectory returns
+		StartSection(TEXT("Moving file and directory from the source location should be finished by the time DeleteFile/DeleteDirectory returns"));
 		CreateTestPathsToDelete();
 		AsyncIODelete.DeleteFile(TestFile1);
 		AsyncIODelete.DeleteDirectory(TestDir1);
 		TestRequestedPathsDeleted(TEXT("AsyncIODelete::Delete should have moved the deleted paths before returning."));
 
-		// Deleting the temporary files/directories should be finished before WaitForAllTasks returns
-		AsyncIODelete.WaitForAllTasks();
+		StartSection(TEXT("Deleting the temporary files/directories should be finished before WaitForAllTasks returns"));
+		WaitForAllTasksAndVerify(AsyncIODelete);
 		TestTempRootCountsEqual(TempRoot, 0, 0, TEXT("AsyncIODelete should have deleted the moved paths before WaitForAllTasks returned."));
 
-		// Two FAsyncIODelete constructed at once should be legal, as long as they have different TempRoots
+		StartSection(TEXT("Two FAsyncIODelete constructed at once should be legal, as long as they have different TempRoots"));
 		FAsyncIODelete AsyncIODelete2(TempRoot2);
 
-		// Use the pause feature to verify that the paths are indeed moved into the TempRoot
+		StartSection(TEXT("Use the pause feature to verify that the paths are indeed moved into the TempRoot"));
 		AsyncIODelete2.SetDeletesPaused(true);
 		CreateTestPathsToDelete();
 		AsyncIODelete2.DeleteFile(TestFile1);
 		AsyncIODelete2.DeleteDirectory(TestDir1);
 		TestRequestedPathsDeleted(TEXT("AsyncIODelete::Delete should have moved the deleted paths before returning even when paused."));
-		AsyncIODelete2.WaitForAllTasks();
+		WaitForAllTasksAndVerify(AsyncIODelete2);
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTempRootCountsEqual(TempRoot2, 1, 1, TEXT("AsyncIODelete should not have deleted the moved paths because it is paused."));
+#endif
 		AsyncIODelete2.SetDeletesPaused(false);
-		AsyncIODelete2.WaitForAllTasks();
+		WaitForAllTasksAndVerify(AsyncIODelete2);
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTempRootCountsEqual(TempRoot2, 0, 0, TEXT("AsyncIODelete should have deleted the moved paths after unpausing."));
+#endif
 
-		// Verify Teardown() deletes the TempRoot and Setup() creates it
+		StartSection(TEXT("Verify Teardown() deletes the TempRoot and Setup() creates it"));
 		AsyncIODelete2.Teardown();
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTrue(TEXT("AsyncIODelete::Teardown should have deleted its TempRoot."), !FileManager.DirectoryExists(*TempRoot2));
+#endif
 		AsyncIODelete2.Setup();
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTrue(TEXT("AsyncIODelete::Setup should have created its TempRoot."), FileManager.DirectoryExists(*TempRoot2));
+#endif
 
-		// Manual setup works as long as you call SetTempRoot before Setup
+		StartSection(TEXT("Manual setup works as long as you call SetTempRoot before Setup"));
 		FAsyncIODelete AsyncIODelete3;
 		AsyncIODelete3.SetTempRoot(TempRoot3);
 		AsyncIODelete3.Setup();
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTrue(TEXT("Setup should have created the TempRoot."), FileManager.DirectoryExists(*TempRoot3));
+#endif
 
-		// Check that even after Setup, waiting for tasks to complete when none have been launched should succeed
-		AsyncIODelete.WaitForAllTasks();
+		StartSection(TEXT("Check that even after Setup, waiting for tasks to complete when none have been launched should succeed"));
+		WaitForAllTasksAndVerify(AsyncIODelete);
 
-		// Changing TempRoot and then deleting a file works
+		StartSection(TEXT("Changing TempRoot and then deleting a file works"));
 		CreateTestPathsToDelete();
 		AsyncIODelete3.DeleteFile(TestFile1);
 		AsyncIODelete3.DeleteDirectory(TestDir1);
 		AsyncIODelete3.SetTempRoot(TempRoot4);
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTrue(TEXT("SetTempRoot should have deleted the old TempRoot."), !FileManager.DirectoryExists(*TempRoot3));
+#endif
 		CreateTestPathsToDelete();
 		AsyncIODelete3.DeleteFile(TestFile1);
 		AsyncIODelete3.DeleteDirectory(TestDir1);
 		TestRequestedPathsDeleted(TEXT("AsyncIODelete::Delete should have worked after changing the TempRoot."));
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTrue(TEXT("Delete should have created the new TempRoot after SetTempRoot."), FileManager.DirectoryExists(*TempRoot4));
-		AsyncIODelete3.WaitForAllTasks();
+#endif
+		WaitForAllTasksAndVerify(AsyncIODelete3);
+#if ASYNCIODELETE_ASYNC_ENABLED
 		TestTempRootCountsEqual(TempRoot4, 0, 0, TEXT("AsyncIODelete::Delete should have created the tasks to delete moved files after changing the TempRoot."));
+#endif
 
-		// Attempting to delete a parent directory of the temproot, the temproot itself, or a child inside of it fails
+		StartSection(TEXT("Attempting to delete a parent directory of the temproot, the temproot itself, or a child inside of it fails"));
 		FString SubDirInTempRoot4 = FPaths::Combine(TempRoot4, TEXT("SubDir"));
 		FileManager.MakeDirectory(*SubDirInTempRoot4, bApplyToTreeTrue); // Note it's illegal to add files into TempRoot, but we're not currently checking for it and we're not colliding with the DeleteN paths AsyncIODelete uses, so this breaking of the rule will not cause problems
 		TestFalse(TEXT("AsyncIODelete should refuse to delete a parent of its TempRoot."), AsyncIODelete3.DeleteDirectory(TestRoot));
@@ -123,8 +160,10 @@ bool FAsyncIODeleteTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("AsyncIODelete should refuse to delete a child of its TempRoot."), AsyncIODelete3.DeleteDirectory(SubDirInTempRoot4));
 	}
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	TestTrue(TEXT("AsyncIODelete destructor should have deleted its TempRoot."),
 		!FileManager.DirectoryExists(*TempRoot) && !FileManager.DirectoryExists(*TempRoot2) && !FileManager.DirectoryExists(*TempRoot3) && !FileManager.DirectoryExists(*TempRoot4));
+#endif
 
 	return true;
 }

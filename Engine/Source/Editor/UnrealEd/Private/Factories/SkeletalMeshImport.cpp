@@ -31,6 +31,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/AssetUserData.h"
+#include "UObject/MetaData.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshImport, Log, All);
 
@@ -239,7 +240,10 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 
 	ExistingMeshDataPtr = new ExistingSkelMeshData();
-		
+
+	//Save the package UMetaData
+	ExistingMeshDataPtr->ExistingUMetaDataTagValues = UMetaData::GetMapForObject(ExistingSkelMesh);
+
 	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = SkeletalMeshIsUsingMaterialSlotNameWorkflow(ExistingSkelMesh->AssetImportData);
 	ExistingMeshDataPtr->MinLOD = ExistingSkelMesh->MinLod;
 	ExistingMeshDataPtr->DisableBelowMinLodStripping = ExistingSkelMesh->DisableBelowMinLodStripping;
@@ -355,7 +359,7 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 			FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[LODModelIndex];
 			LODModel.RawPointIndices.Lock( LOCK_READ_ONLY );
 			LODModel.LegacyRawPointIndices.Lock( LOCK_READ_ONLY );
-			LODModel.RawSkeletalMeshBulkData.GetBulkData().Lock( LOCK_READ_ONLY );
+			LODModel.RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock( LOCK_READ_ONLY );
 			int32 ReductionLODIndex = LODModelIndex + OffsetReductionLODIndex;
 			if (ImportedResource->OriginalReductionSourceMeshData.IsValidIndex(ReductionLODIndex) && !ImportedResource->OriginalReductionSourceMeshData[ReductionLODIndex]->IsEmpty())
 			{
@@ -379,7 +383,7 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 			FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[LODModelIndex];
 			LODModel.RawPointIndices.Unlock();
 			LODModel.LegacyRawPointIndices.Unlock();
-			LODModel.RawSkeletalMeshBulkData.GetBulkData().Unlock();
+			LODModel.RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
 		}
 
 		ExistingMeshDataPtr->ExistingLODInfo = ExistingSkelMesh->GetLODInfoArray();
@@ -678,6 +682,15 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 	{
 		return;
 	}
+
+	//Restore the package metadata
+	if (MeshData->ExistingUMetaDataTagValues)
+	{
+		UMetaData* PackageMetaData = SkeletalMesh->GetOutermost()->GetMetaData();
+		checkSlow(PackageMetaData);
+		PackageMetaData->SetObjectValues(SkeletalMesh, *MeshData->ExistingUMetaDataTagValues);
+	}
+
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 	SkeletalMesh->MinLod = MeshData->MinLOD;
 	SkeletalMesh->DisableBelowMinLodStripping = MeshData->DisableBelowMinLodStripping;

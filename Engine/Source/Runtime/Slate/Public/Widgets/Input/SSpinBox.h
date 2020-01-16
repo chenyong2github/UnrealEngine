@@ -703,7 +703,7 @@ public:
 	void SetValue(const TAttribute<NumericType>& InValueAttribute) 
 	{
 		ValueAttribute = InValueAttribute; 
-		CommitValue(InValueAttribute.Get(), ECommitMethod::CommittedViaTypeIn, ETextCommit::Default);
+		CommitValue(InValueAttribute.Get(), ECommitMethod::CommittedViaCode, ETextCommit::Default);
 	}
 
 	/** See the MinValue attribute */
@@ -839,7 +839,8 @@ protected:
 	{
 		CommittedViaSpin,
 		CommittedViaTypeIn,
-		CommittedViaArrowKey
+		CommittedViaArrowKey,
+		CommittedViaCode
 	};
 
 	/**

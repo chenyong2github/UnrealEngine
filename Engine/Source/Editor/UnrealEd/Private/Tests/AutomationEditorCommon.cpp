@@ -773,9 +773,15 @@ bool FCloseAllAssetEditorsCommand::Update()
 bool FStartPIECommand::Update()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	TSharedPtr<class IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
-	GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+	FRequestPlaySessionParams Params;
+	Params.DestinationSlateViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (bSimulateInEditor)
+	{
+		Params.WorldType = EPlaySessionWorldType::SimulateInEditor;
+	}
+
+	GUnrealEd->RequestPlaySession(Params);
 	return true;
 }
 
@@ -933,7 +939,18 @@ bool FSaveLevelCommand::Update()
 
 bool FLaunchOnCommand::Update()
 {
-	GUnrealEd->AutomationPlayUsingLauncher(InLauncherDeviceID);
+	FRequestPlaySessionParams::FLauncherDeviceInfo LaunchedDeviceInfo;
+	LaunchedDeviceInfo.DeviceId = InLauncherDeviceID;
+	LaunchedDeviceInfo.DeviceName = InLauncherDeviceID.Right(InLauncherDeviceID.Find(TEXT("@")));
+
+	FRequestPlaySessionParams Params;
+	Params.LauncherTargetDevice = LaunchedDeviceInfo;
+
+	GUnrealEd->RequestPlaySession(Params);
+
+	// Immediately start our requested play session
+	GUnrealEd->StartQueuedPlaySessionRequest();
+
 	return true;
 }
 

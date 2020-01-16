@@ -270,6 +270,7 @@ protected:
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void RewindForReplay() override;
 	//~ End AActor interface
 
 public:

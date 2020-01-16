@@ -199,6 +199,8 @@ static bool TestConnection(ClientApi& P4Client, const FString& ClientSpecName, b
 	// clean up args
 	delete [] ClientSpecUTF8Name;
 
+	FPerforceSourceControlModule::SetLastErrors(OutErrorMessages);
+
 	// If there are error messages, user name is most likely invalid. Otherwise, make sure workspace actually
 	// exists on server by checking if we have it's update date.
 	bool bConnectionOK = OutErrorMessages.Num() == 0 && Records.Num() > 0 && Records[0].Contains(TEXT("Update"));
@@ -638,6 +640,18 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 		delete [] ArgV[Index];
 	}
 	delete [] ArgV;
+
+	// Only report connection related errors to avoid clearing of connection related error messages
+	static TSet<FString> CommandsWithoutLoginErrors;
+	if (CommandsWithoutLoginErrors.Num() == 0)
+	{
+		CommandsWithoutLoginErrors.Add(TEXT("info"));
+	}
+
+	if (!CommandsWithoutLoginErrors.Contains(InCommand))
+	{
+		FPerforceSourceControlModule::SetLastErrors(OutErrorMessage);
+	}
 
 	if (bInStandardDebugOutput)
 	{

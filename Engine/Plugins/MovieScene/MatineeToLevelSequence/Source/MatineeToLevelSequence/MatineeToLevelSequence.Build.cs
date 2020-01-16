@@ -15,6 +15,7 @@ public class MatineeToLevelSequence : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "LevelSequence",
+                "ContentBrowser",
 				"Core",
 				"CoreUObject",
                 "EditorStyle",
@@ -25,8 +26,10 @@ public class MatineeToLevelSequence : ModuleRules
 				"MovieSceneTracks",
                 "Slate",
                 "SlateCore",
+                "ToolMenus",
                 "UnrealEd",
 				"TimeManagement",
+                "TemplateSequence",
 				"Analytics"
             }
         );

@@ -15,41 +15,66 @@ UEditConditionTestObject::UEditConditionTestObject(const FObjectInitializer& Obj
 struct FTestEditConditionContext : IEditConditionContext
 {
 	TMap<FString, bool> BoolValues;
+	TMap<FString, int64> IntegerValues;
 	TMap<FString, double> DoubleValues;
 	TMap<FString, FString> EnumValues;
+
 	FString EnumTypeName;
+	TMap<FString, int64> EnumTypeValues;
 
 	FTestEditConditionContext(){}
 	virtual ~FTestEditConditionContext() {}
 
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override
 	{
-		TOptional<bool> Result;
 		if (const bool* Value = BoolValues.Find(PropertyName))
 		{
-			Result = *Value;
+			return *Value;
 		}
-		return Result;
+		return TOptional<bool>();
+	}
+
+	virtual TOptional<int64> GetIntegerValue(const FString& PropertyName) const override
+	{
+		if (const int64* Value = IntegerValues.Find(PropertyName))
+		{
+			return *Value;
+		}
+		return TOptional<int64>();
 	}
 
 	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const override
 	{
-		TOptional<double> Result;
 		if (const double* Value = DoubleValues.Find(PropertyName))
 		{
-			Result = *Value;
+			return *Value;
 		}
-		return Result;
+		return TOptional<double>();
 	}
 
 	virtual TOptional<FString> GetEnumValue(const FString& PropertyName) const override
 	{
-		TOptional<FString> Result;
 		if (const FString* Value = EnumValues.Find(PropertyName))
 		{
-			Result = *Value;
+			return *Value;
 		}
-		return Result;
+		return TOptional<FString>();
+	}
+
+	virtual TOptional<int64> GetIntegerValueOfEnum(const FString& TypeName, const FString& ValueName) const override
+	{
+		check(TypeName == EnumTypeName);
+
+		if (const int64* Value = EnumTypeValues.Find(ValueName))
+		{
+			return *Value;
+		}
+		return TOptional<int64>();
+	}
+
+	virtual TOptional<UObject*> GetPointerValue(const FString& PropertyName) const override
+	{
+		return TOptional<UObject*>();
 	}
 
 	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const override
@@ -77,6 +102,11 @@ struct FTestEditConditionContext : IEditConditionContext
 		BoolValues.Add(PropertyName, Value);
 	}
 
+	void SetupInteger(const FString& PropertyName, int64 Value)
+	{
+		IntegerValues.Add(PropertyName, Value);
+	}
+
 	void SetupDouble(const FString& PropertyName, double Value)
 	{
 		DoubleValues.Add(PropertyName, Value);
@@ -90,6 +120,11 @@ struct FTestEditConditionContext : IEditConditionContext
 	void SetupEnumType(const FString& EnumType)
 	{
 		EnumTypeName = EnumType;
+	}
+
+	void SetupEnumTypeValue(const FString& Name, int64 Value)
+	{
+		EnumTypeValues.Add(Name, Value);
 	}
 };
 
@@ -114,8 +149,13 @@ static bool CanParse(const FEditConditionParser& Parser, const FString& Expressi
 		}
 	 }
 
-	 return Parsed->Tokens.Num() == ExpectedTokens &&
-		 PropertyCount == ExpectedProperties;
+	 if (Parsed->Tokens.Num() != ExpectedTokens || PropertyCount != ExpectedProperties)
+	 {
+		 ensureMsgf(false, TEXT("Parsing produced an invalid number of tokens or properties. Expression: %s"), *Expression);
+		 return false;
+	 }
+
+	 return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_Parse, "EditConditionParser.Parse", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -148,6 +188,10 @@ bool FEditConditionParser_Parse::RunTest(const FString& Parameters)
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value || BoolProperty == bFoo"), 7, 3);
 	bResult &= CanParse(Parser, TEXT("Enum == EType::Value && Foo != 5"), 7, 2);
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value && Foo == Bar"), 7, 3);
+	bResult &= CanParse(Parser, TEXT("PointerProperty == nullptr"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("PointerProperty != nullptr"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("Flags & EType::Value"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("Flags & EType::Value == false"), 5, 1);
 
 	return bResult;
 }
@@ -274,7 +318,6 @@ static bool RunNumericTests(const IEditConditionContext& Context)
 	return bResult;
 }
 
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateDouble, "EditConditionParser.EvaluateDouble", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_EvaluateDouble::RunTest(const FString& Parameters)
 {
@@ -321,6 +364,72 @@ bool FEditConditionParser_EvaluateEnum::RunTest(const FString& Parameters)
 	TestContext.SetupEnum(PropertyName, TEXT("First"));
 
 	return RunEnumTests(TestContext, EnumType, PropertyName);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateBitFlags, "EditConditionParser.EvaluateBitFlags", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEditConditionParser_EvaluateBitFlags::RunTest(const FString& Parameters)
+{
+	FTestEditConditionContext TestContext;
+
+	const FString EnumType = TEXT("TestEnum");
+	TestContext.SetupEnumType(EnumType);
+	TestContext.SetupEnumTypeValue(TEXT("Nil"), 0);
+	TestContext.SetupEnumTypeValue(TEXT("One"), 1 << 0);
+	TestContext.SetupEnumTypeValue(TEXT("Two"), 1 << 1);
+	TestContext.SetupEnumTypeValue(TEXT("Four"), 1 << 2);
+
+	const FString PropertyName = TEXT("FlagsProperty");
+
+	FEditConditionParser Parser;
+	bool bResult = true;
+
+	TestContext.SetupInteger(PropertyName, 0);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One == false"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two == false"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four == false"), true);
+
+	TestContext.SetupInteger(PropertyName, 1);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), false);
+
+	TestContext.SetupInteger(PropertyName, 2);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), false);
+
+	TestContext.SetupInteger(PropertyName, 3);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), false);
+
+	TestContext.SetupInteger(PropertyName, 5);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), true);
+
+	TestContext.SetupInteger(PropertyName, 7);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Nil"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four"), true);
+
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One == false"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two == false"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four == false"), false);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::One == true"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Two == true"), true);
+	bResult &= CanEvaluate(Parser, TestContext, TEXT("FlagsProperty & TestEnum::Four == true"), true);
+
+	return bResult;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateUObject, "EditConditionParser.EvaluateUObject", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -404,6 +513,85 @@ bool FEditConditionParser_EvaluateUObject::RunTest(const FString& Parameters)
 	return bAllResults;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluatePointers, "EditConditionParser.EvaluatePointers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEditConditionParser_EvaluatePointers::RunTest(const FString& Parameters)
+{
+	UEditConditionTestObject* TestObject = NewObject<UEditConditionTestObject>();
+	TestObject->AddToRoot();
+
+	TSharedPtr<FObjectPropertyNode> ObjectNode(new FObjectPropertyNode);
+	ObjectNode->AddObject(TestObject);
+
+	FPropertyNodeInitParams InitParams;
+	ObjectNode->InitNode(InitParams);
+
+	static const FName BoolPropertyName(TEXT("BoolProperty"));
+	TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(BoolPropertyName, true);
+	FEditConditionContext Context(*PropertyNode.Get());
+
+	bool bAllResults = true;
+
+	FEditConditionParser Parser;
+
+	{
+		TestObject->UObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == nullptr"), true);
+
+		TestObject->UObjectPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == nullptr"), false);
+	}
+
+	{
+		TestObject->SoftClassPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == nullptr"), true);
+
+		TestObject->SoftClassPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == nullptr"), false);
+	}
+
+	{
+		TestObject->WeakObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != nullptr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == nullptr"), true);
+
+		TestObject->WeakObjectPtr = TestObject;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != nullptr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == nullptr"), false);
+	}
+
+	{
+		// equality & inequality
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr == SoftClassPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == UObjectPtr"), true);
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != UObjectPtr"), false);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != WeakObjectPtr"), false);
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("SoftClassPtr == WeakObjectPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == UObjectPtr"), true);
+
+		TestObject->UObjectPtr = nullptr;
+
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("UObjectPtr != SoftClassPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr != UObjectPtr"), true);
+		bAllResults &= CanEvaluate(Parser, Context, TEXT("WeakObjectPtr == UObjectPtr"), false);
+	}
+
+	TestObject->RemoveFromRoot();
+
+	return bAllResults;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_SingleBool, "EditConditionParser.SingleBool", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
 {
@@ -433,6 +621,8 @@ bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
 		const FBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
 		TestNotNull(TEXT("Uint Bitfield"), Property);
 	}
+
+	TestObject->RemoveFromRoot();
 
 	return true;
 }

@@ -116,6 +116,9 @@ public:
 
 	/** Add a new live link source to the client */
 	virtual FGuid AddSource(TSharedPtr<ILiveLinkSource> Source) = 0;
+	
+	/** Add a new live link VirtualSubject source to the client */
+	virtual FGuid AddVirtualSubjectSource(FName SourceName) = 0;
 
 	/** Create from the factory a new live link source and add it to the client. The settings will be duplicated. */
 	virtual bool CreateSource(const FLiveLinkSourcePreset& SourcePreset) = 0;
@@ -132,6 +135,9 @@ public:
 	/** Get a list of all the sources */
 	virtual TArray<FGuid> GetSources() const = 0;
 
+	/** Get a list of all the VirtualSubjects sources */
+	virtual TArray<FGuid> GetVirtualSources() const = 0;
+
 	/** Get the source preset from the live link client. The settings will be duplicated into DuplicatedObjectOuter. */
 	virtual FLiveLinkSourcePreset GetSourcePreset(FGuid SourceGuid, UObject* DuplicatedObjectOuter) const = 0;
 
@@ -146,6 +152,12 @@ public:
 
 	/** Create and add a new live link subject to the client */
 	virtual bool CreateSubject(const FLiveLinkSubjectPreset& SubjectPreset) = 0;
+
+	/** Add a new virtual subject to the client */
+	virtual bool AddVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass) = 0;
+
+	/** Removes a virtual subject from the client */
+	virtual void RemoveVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey) = 0;
 
 	/** Clear the subject from the specific source */
 	virtual void RemoveSubject_AnyThread(const FLiveLinkSubjectKey& SubjectName) = 0;
@@ -227,6 +239,12 @@ public:
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const = 0;
 
 	/**
+	 * Get the Settings of this subject.
+	 * @note If subject is a VirtualSubject, the VirtualSubject itself is returned.
+	 */
+	virtual UObject* GetSubjectSettings(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
+	/**
 	 * Return the evaluated subject from a specific source snapshot for a specific role.
 	 * A subject could have to go through a translator to output in the desired role.
 	 * @note This will always return the same value for a specific frame.
@@ -262,6 +280,9 @@ public:
 	 * @see ULiveLinkSourceSettings
 	 */
 	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
+
+	/** Notify when the LiveLinkClient has ticked. */
+	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() = 0;
 
 	/** Notify when the list of sources has changed. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() = 0;

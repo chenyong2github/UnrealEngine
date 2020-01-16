@@ -13,14 +13,21 @@ public:
 	FFindPolygonsAlgorithm(FDynamicMesh3* MeshIn);
 
 	FDynamicMesh3* Mesh = nullptr;
-	TArray<int> PolygonGroupIDs;
 	TArray<TArray<int>> FoundPolygons;
 	TArray<int> PolygonTags;
-	TArray<FVector> PolygonNormals;
+	TArray<FVector3d> PolygonNormals;
 
 	TArray<int> PolygonEdges;
 
-	bool FindPolygons(double DotTolerance = 0.0001);
+	bool FindPolygonsFromFaceNormals(double DotTolerance = 0.0001);
+	bool FindPolygonsFromUVIslands();
 
 	bool FindPolygonEdges();
+
+
+protected:
+
+	TArray<int> PolygonGroupIDs;
+
+	void SetGroupsFromPolygons();
 };

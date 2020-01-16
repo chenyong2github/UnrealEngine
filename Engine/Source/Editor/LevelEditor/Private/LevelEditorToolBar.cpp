@@ -61,6 +61,7 @@
 #include "LevelEditorMenuContext.h"
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "LevelEditorModesActions.h"
 
 static TAutoConsoleVariable<int32> CVarAllowMatineeActors(
 	TEXT("Matinee.AllowMatineeActors"),
@@ -1174,7 +1175,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	RegisterSourceControlMenu();
 	RegisterCinematicsMenu();
 	RegisterBuildMenu();
-
+	RegisterEditorModesMenu();
 #if WITH_LIVE_CODING
 	RegisterCompileMenu();
 #endif
@@ -1281,6 +1282,56 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				false
 				));
 		}
+	}
+
+	{
+
+		struct FEditorModesStatus
+		{
+			static FSlateIcon GetEditorModesIcon()
+			{
+				for (const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo())
+				{
+					if (!Mode.bVisible)
+					{
+						continue;
+					}
+
+					if (GLevelEditorModeTools().IsModeActive(Mode.ID))
+					{
+						// if its a default mode, use the default tool icon
+						if (GLevelEditorModeTools().IsDefaultMode(Mode.ID))
+						{
+							return FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
+						}
+
+						FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
+						const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+						const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
+
+						TSharedPtr<FUICommandInfo> EditorModeCommand =
+							FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
+						if (EditorModeCommand.IsValid())
+						{
+							return EditorModeCommand->GetIcon();
+						}
+					}
+					
+				}
+				return FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
+
+			}
+		};
+
+		FToolMenuSection& Section = Toolbar->AddSection("Modes");
+		Section.AddEntry(FToolMenuEntry::InitComboButton(
+			"EditorModes",
+			FUIAction(),
+			FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateEditorModesMenu, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
+			LOCTEXT("EditorModes_Label", "Modes"),
+			LOCTEXT("EditorModes_Tooltip", "Displays a list of editing modes that can be toggled"),
+			TAttribute<FSlateIcon>::Create(&FEditorModesStatus::GetEditorModesIcon)
+		));
 	}
 
 	{
@@ -2099,6 +2150,19 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateSourceControlMenu(TSharedRef<
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.SourceControl", MenuContext);
 }
 
+TSharedRef< SWidget > FLevelEditorToolBar::GenerateEditorModesMenu(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor)
+{
+	// Get all menu extenders for this context menu from the level editor module
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+
+	FToolMenuContext MenuContext(InCommandList);
+	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
+	LevelEditorMenuContext->LevelEditor = InLevelEditor;
+	MenuContext.AddObject(LevelEditorMenuContext);
+
+	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.EditorModes", MenuContext);
+}
+
 void FLevelEditorToolBar::RegisterSourceControlMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarSourceControlMenu"
@@ -2408,6 +2472,77 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 
 #undef LOCTEXT_NAMESPACE
 }
+
+void FLevelEditorToolBar::RegisterEditorModesMenu()
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarEditorModesMenu"
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.EditorModes");
+
+	FToolMenuSection& Section = Menu->AddSection("EditorModes", LOCTEXT("EditorModesMenu_NewHeading", "Editor Modes"));
+
+	Section.AddDynamicEntry("ModesList", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+
+		const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
+
+		TArray<FEditorModeInfo, TInlineAllocator<1>> DefaultModes;
+
+		TArray<FEditorModeInfo, TInlineAllocator<10>> NonDefaultModes;
+
+		for (const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo())
+		{
+			// If the mode isn't visible don't create a menu option for it.
+			if (!Mode.bVisible)
+			{
+				continue;
+			}
+
+			if (GLevelEditorModeTools().IsDefaultMode(Mode.ID))
+			{
+				DefaultModes.Add(Mode.ID);
+			}
+			else
+			{
+				NonDefaultModes.Add(Mode.ID);
+			}
+			
+		}
+
+		auto BuildEditorModes = 
+			[&Commands, &InSection](const TArrayView<FEditorModeInfo>& Modes)
+			{
+				for (const FEditorModeInfo& Mode : Modes)
+				{
+					FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
+
+					TSharedPtr<FUICommandInfo> EditorModeCommand =
+						FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
+
+					// If a command isn't yet registered for this mode, we need to register one.
+					if (!EditorModeCommand.IsValid())
+					{
+						continue;
+					}
+
+					InSection.AddMenuEntry(EditorModeCommand);
+				}
+
+			};
+
+		// Build Default Modes first
+		BuildEditorModes(MakeArrayView(DefaultModes));
+
+		InSection.AddMenuSeparator(NAME_None);
+			
+		// Build non-default modes second
+		BuildEditorModes(MakeArrayView(NonDefaultModes));
+
+	}));
+
+#undef LOCTEXT_NAMESPACE
+}
+
 
 void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 {
