@@ -57,6 +57,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_RigidBody : public FAnimNode_SkeletalContr
 
 	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
 
+	// TEMP: Exposed for use in PhAt as a quick way to get drag handles working with Chaos
+	virtual ImmediatePhysics::FSimulation* GetSimulation() { return PhysicsSimulation; }
+
 public:
 	/** Physics asset to use. If empty use the skeletal mesh's default physics asset */
 	UPROPERTY(EditAnywhere, Category = Settings)

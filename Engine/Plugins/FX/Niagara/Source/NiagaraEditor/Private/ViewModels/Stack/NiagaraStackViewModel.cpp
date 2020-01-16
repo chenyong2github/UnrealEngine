@@ -780,22 +780,47 @@ UNiagaraStackEntry* UNiagaraStackViewModel::GetCurrentFocusedIssue() const
 {
 	if (CurrentIssueCycleIndex >= 0)
 	{
-		const TArray<UNiagaraStackEntry*>& Issues = RootEntry->GetAllChildrenWithIssues();
-		return Issues[CurrentIssueCycleIndex];
+		UNiagaraStackEntry* CyclingRootEntry = CyclingIssuesForTopLevel.Pin()->RootEntry.Get();
+		if (CyclingRootEntry != nullptr)
+		{
+			const TArray<UNiagaraStackEntry*>& Issues = CyclingRootEntry->GetAllChildrenWithIssues();
+			return Issues[CurrentIssueCycleIndex];
+		}
 	}
 	
 	return nullptr;
 }
 
-void UNiagaraStackViewModel::OnCycleThroughIssues()
+void UNiagaraStackViewModel::OnCycleThroughIssues(TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelToCycle)
 {
-	if (RootEntry == nullptr)
+	if (RootEntries.Num() == 0)
 	{
 		CurrentIssueCycleIndex = -1;
+		CyclingIssuesForTopLevel.Reset();
 		return;
 	}
 
-	const TArray<UNiagaraStackEntry*>& Issues = RootEntry->GetAllChildrenWithIssues();
+	if (CyclingIssuesForTopLevel.IsValid() && CyclingIssuesForTopLevel != TopLevelToCycle)
+	{
+		CurrentIssueCycleIndex = -1;
+	}
+
+	CyclingIssuesForTopLevel = TopLevelToCycle;
+
+	UNiagaraStackEntry* CyclingRootEntry = nullptr;
+	if (CyclingIssuesForTopLevel.IsValid())
+	{
+		CyclingRootEntry = CyclingIssuesForTopLevel.Pin()->RootEntry.Get();
+	}
+	
+	if (CyclingRootEntry == nullptr)
+	{
+		CurrentIssueCycleIndex = -1;
+		CyclingIssuesForTopLevel.Reset();
+		return;
+	}
+
+	const TArray<UNiagaraStackEntry*>& Issues = CyclingRootEntry->GetAllChildrenWithIssues();
 	if (Issues.Num() > 0)
 	{
 		++CurrentIssueCycleIndex;

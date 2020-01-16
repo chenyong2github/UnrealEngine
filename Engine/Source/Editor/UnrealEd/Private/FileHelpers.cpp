@@ -1727,7 +1727,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 				bResult = true;
 				bPerformedOperation = true;
 			}
-			else if (UserResponse == DRT_Cancel)
+			else if (UserResponse == DRT_Cancel || UserResponse == DRT_None)
 			{
 				// Handle the case of the user canceling out of the dialog
 				bResult = false;

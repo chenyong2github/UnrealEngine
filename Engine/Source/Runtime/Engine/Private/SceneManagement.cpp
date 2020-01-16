@@ -194,7 +194,6 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	Mesh(&InMesh),
 	PrimitiveSceneProxy(InPrimitiveSceneProxy)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMeshBatchAndRelevance);
 	const FMaterial* Material = InMesh.MaterialRenderProxy->GetMaterial(FeatureLevel);
 	EBlendMode BlendMode = Material->GetBlendMode();
 	bHasOpaqueMaterial = (BlendMode == BLEND_Opaque);

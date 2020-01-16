@@ -12,6 +12,49 @@
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 
+#if WITH_EDITOR
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStartRandomizeUserPresence, uint8 /*NumRandomUser*/, float /*TickerTimer*/);
+static FOnStartRandomizeUserPresence Debug_OnStartRandomizeUserPresenceEvent;
+static FAutoConsoleCommandWithWorldAndArgs CMD_OnStartRandomUserPresence
+(
+	TEXT("SocialUI.StartRandomizeUserPresence"),
+	TEXT("Randomize users' presence and fire off presence changed events to trigger friend list update/refresh etc. @param NumRandomUser uint8, @param TickerTimer float"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&Args, UWorld* World)
+{
+	uint8 NumRandomUser = 2;
+	float TickerTimer = 5.f;
+
+	if (Args.Num() > 0)
+	{
+		NumRandomUser = FCString::Atoi(*Args[0]);
+	}
+	if (Args.Num() > 1)
+	{
+		TickerTimer = FCString::Atof(*Args[1]);
+	}
+	Debug_OnStartRandomizeUserPresenceEvent.Broadcast(NumRandomUser, TickerTimer);
+})
+);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnStopRandomizeUserPresence, bool /*bClearGeneratedPresence*/)
+static FOnStopRandomizeUserPresence Debug_OnStopRandomizeUserPresenceEvent;
+static FAutoConsoleCommandWithWorldAndArgs CMD_OnStopRandomUserPresence
+(
+	TEXT("SocialUI.StopRandomizeUserPresence"),
+	TEXT("Stop randomizing users' presnece, with optional param to clear off already generated presence (default to false). @param bClearGeneratedPresence uint8"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&Args, UWorld* World)
+{
+	bool bClearGeneratedPresence = false;
+	if (Args.Num() > 0)
+	{
+		bClearGeneratedPresence = Args[0].ToBool();
+	}
+	Debug_OnStopRandomizeUserPresenceEvent.Broadcast(bClearGeneratedPresence);
+})
+);
+
+#endif
+
 bool NameToSocialSubsystem(FName SubsystemName, ESocialSubsystem& OutSocialSubsystem)
 {
 	for (uint8 SocialSubsystemIdx = 0; SocialSubsystemIdx < (uint8)ESocialSubsystem::MAX; ++SocialSubsystemIdx)
@@ -125,6 +168,11 @@ USocialToolkit::USocialToolkit()
 
 void USocialToolkit::InitializeToolkit(ULocalPlayer& InOwningLocalPlayer)
 {
+#if WITH_EDITOR
+	Debug_OnStartRandomizeUserPresenceEvent.AddUObject(this, &USocialToolkit::Debug_OnStartRandomizeUserPresence);
+	Debug_OnStopRandomizeUserPresenceEvent.AddUObject(this, &USocialToolkit::Debug_OnStopRandomizeUserPresence);
+#endif
+
 	LocalPlayerOwner = &InOwningLocalPlayer;
 
 	SocialChatManager = USocialChatManager::CreateChatManager(*this);
@@ -1030,3 +1078,60 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 		}
 	}
 }
+
+#if WITH_EDITOR
+void USocialToolkit::Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer)
+{
+	if (Debug_PresenceTickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		Debug_PresenceTickerHandle.Reset();
+	}
+
+	if (ensure(TickerTimer > 0.f))
+	{
+		bDebug_IsRandomlyChangingUserPresence = true;
+		Debug_PresenceTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USocialToolkit::Debug_HandleRandomizeUserPresenceTick, NumRandomUser), TickerTimer);
+	}
+}
+
+void USocialToolkit::Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPresence)
+{
+	bDebug_IsRandomlyChangingUserPresence = false;
+	if (Debug_PresenceTickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		Debug_PresenceTickerHandle.Reset();
+	}
+
+	if (bClearGeneratedPresence)
+	{
+		// Refresh all existing presence data to revert them back to normal
+		for (USocialUser* User : AllUsers)
+		{
+			User->bDebug_IsPresenceArtificial = false;
+			User->NotifyPresenceChanged(ESocialSubsystem::Primary);
+		}
+	}
+}
+
+bool USocialToolkit::Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser)
+{
+	Debug_ChangeRandomUserPresence(NumRandomUser);
+	return true;
+}
+
+void USocialToolkit::Debug_ChangeRandomUserPresence(uint8 NumRandomUser)
+{
+	const TArray<USocialUser*> SocialUsers = GetAllUsers();
+	for (int32 i = 0; i < NumRandomUser; i++)
+	{
+		int32 UserIndex = FMath::RandRange(0, SocialUsers.Num() - 1);
+		if (USocialUser* SocialUser = SocialUsers[UserIndex])
+		{
+			SocialUser->Debug_RandomizePresence();
+			SocialUser->NotifyPresenceChanged(ESocialSubsystem::Primary);
+		}
+	}
+}
+#endif

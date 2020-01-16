@@ -365,6 +365,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoCompileChaos", Value = "false")]
+		[CommandLine("-CompileChaos", Value = "true")]
 		public bool bCompileChaos = true;
 
 		/// <summary>
@@ -372,6 +373,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseChaos", Value = "false")]
+		[CommandLine("-UseChaos", Value = "true")]
 		public bool bUseChaos = true;
 
 		/// <summary>
@@ -588,6 +590,12 @@ namespace UnrealBuildTool
 			set { bWithServerCodeOverride = value; }
 		}
 		private bool? bWithServerCodeOverride;
+
+		/// <summary>
+		/// When enabled, Push Model Networking will be used on the server. This can help reduce CPU overhead of networking, at the cost of more memory.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithPushModel = false;
 
 		/// <summary>
 		/// Whether to include stats support even without the engine.
@@ -2056,6 +2064,11 @@ namespace UnrealBuildTool
 		public bool bWithServerCode
 		{
 			get { return Inner.bWithServerCode; }
+		}
+
+		public bool bWithPushModel
+		{
+			get { return Inner.bWithPushModel; }
 		}
 
 		public bool bCompileWithStatsWithoutEngine

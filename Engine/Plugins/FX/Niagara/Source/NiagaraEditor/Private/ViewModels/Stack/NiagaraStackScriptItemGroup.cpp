@@ -333,11 +333,26 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 	if (ClipboardContent->Functions.Num() > 0)
 	{
 		bool bValidUsage = false;
+		UNiagaraNodeOutput* OutputNode = GetScriptOutputNode();
 		for (const UNiagaraClipboardFunction* Function : ClipboardContent->Functions)
 		{
-			if (Function != nullptr && Function->Script->GetSupportedUsageContexts().Contains(ScriptUsage))
+			if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset)
 			{
-				bValidUsage = true;
+				if (Function != nullptr && Function->Script != nullptr && Function->Script->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				{
+					bValidUsage = true;
+				}
+			}
+			else if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::Assignment)
+			{
+				for (const FNiagaraVariable& AssignmentTarget : Function->AssignmentTargets)
+				{
+					if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(AssignmentTarget, OutputNode->GetUsage()))
+					{
+						bValidUsage = true;
+						continue;
+					}
+				}
 			}
 		}
 		if (bValidUsage)
@@ -360,14 +375,14 @@ FText UNiagaraStackScriptItemGroup::GetPasteTransactionText(const UNiagaraClipbo
 	return LOCTEXT("PasteModuleTransactionText", "Paste niagara modules");
 }
 
-void UNiagaraStackScriptItemGroup::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackScriptItemGroup::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
 	if (ClipboardContent->Functions.Num() > 0)
 	{
 		TArray<UNiagaraStackModuleItem*> ModuleItems;
 		GetUnfilteredChildrenOfType(ModuleItems);
 		int32 PasteIndex = ModuleItems.Num() > 0 ? ModuleItems.Last()->GetModuleIndex() + 1 : 0;
-		PasteModules(ClipboardContent, PasteIndex);
+		PasteModules(ClipboardContent, PasteIndex, OutPasteWarning);
 	}
 }
 
@@ -398,7 +413,8 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 				ModuleItem = NewObject<UNiagaraStackModuleItem>(this);
 				ModuleItem->Initialize(CreateDefaultChildRequiredData(), GetAddUtilities(), *ModuleNode);
 				ModuleItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildModifiedGroupItems);
-				ModuleItem->OnRequestPaste().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestPaste);
+				ModuleItem->SetOnRequestCanPaste(UNiagaraStackModuleItem::FOnRequestCanPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestCanPaste));
+				ModuleItem->SetOnRequestPaste(UNiagaraStackModuleItem::FOnRequestPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestPaste));
 			}
 
 			NewChildren.Add(ModuleItem);
@@ -800,9 +816,9 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	}
 	if (ParameterAction.IsValid())
 	{
-		if (FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(ParameterAction->GetParameter(), ScriptUsage) == false)
+		if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ParameterAction->GetParameter(), ScriptUsage) == false)
 		{
-			return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit's not valid for this usage context."));
+			return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit can't be written in this usage context."));
 		}
 
 		{
@@ -941,9 +957,14 @@ void UNiagaraStackScriptItemGroup::ChildModifiedGroupItems()
 	RefreshChildren();
 }
 
-void UNiagaraStackScriptItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex)
+bool UNiagaraStackScriptItemGroup::ChildRequestCanPaste(const UNiagaraClipboardContent* ClipboardContent, FText& OutCanPasteMessage)
 {
-	PasteModules(ClipboardContent, PasteIndex);
+	return TestCanPasteWithMessage(ClipboardContent, OutCanPasteMessage);
+}
+
+void UNiagaraStackScriptItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning)
+{
+	PasteModules(ClipboardContent, PasteIndex, OutPasteWarning);
 }
 
 void UNiagaraStackScriptItemGroup::OnScriptGraphChanged(const struct FEdGraphEditAction& InAction)
@@ -1020,13 +1041,15 @@ void RenameInputsFromClipboard(TMap<FName, FName> OldModuleOutputNameToNewModule
 	}
 }
 
-void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex)
+void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning)
 {
 	UNiagaraNodeOutput* OutputNode = GetScriptOutputNode();
 	
 	// Add the new function call nodes from the clipboard functions and collected the pairs.
 	TArray<TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>> ClipboardFunctionAndNodeFunctionPairs;
 	int32 CurrentPasteIndex = PasteIndex;
+	int32 ModulesSkippedForIncorrectUsage = 0;
+	int32 AssignmentTargetsSkippedForIncorrectUsage = 0;
 	for (const UNiagaraClipboardFunction* ClipboardFunction : ClipboardContent->Functions)
 	{
 		if (ClipboardFunction != nullptr)
@@ -1036,7 +1059,24 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			{
 			case ENiagaraClipboardFunctionScriptMode::Assignment:
 			{
-				NewFunctionCallNode = FNiagaraStackGraphUtilities::AddParameterModuleToStack(ClipboardFunction->AssignmentTargets, *OutputNode, CurrentPasteIndex, ClipboardFunction->AssignmentDefaults);
+				TArray<FNiagaraVariable> CompatibleAssignmentTargets;
+				TArray<FString> CompatibleAssignmentDefaults;
+				for (int32 AssignmentTargetIndex = 0; AssignmentTargetIndex < ClipboardFunction->AssignmentTargets.Num(); ++AssignmentTargetIndex)
+				{
+					if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ClipboardFunction->AssignmentTargets[AssignmentTargetIndex], OutputNode->GetUsage()))
+					{
+						CompatibleAssignmentTargets.Add(ClipboardFunction->AssignmentTargets[AssignmentTargetIndex]);
+						CompatibleAssignmentDefaults.Add(ClipboardFunction->AssignmentDefaults[AssignmentTargetIndex]);
+					}
+					else
+					{
+						AssignmentTargetsSkippedForIncorrectUsage++;
+					}
+				}
+				if (CompatibleAssignmentTargets.Num() > 0)
+				{
+					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddParameterModuleToStack(CompatibleAssignmentTargets, *OutputNode, CurrentPasteIndex, CompatibleAssignmentDefaults);
+				}
 				break;
 			}
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
@@ -1045,15 +1085,22 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 				{
 					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ClipboardFunction->Script, *OutputNode, CurrentPasteIndex);
 				}
+				else
+				{
+					ModulesSkippedForIncorrectUsage++;
+				}
 				break;
 			}
 			default:
 				checkf(false, TEXT("Unsupported clipboard function mode."));
 			}
 
-			NewFunctionCallNode->SuggestName(ClipboardFunction->FunctionName);
-			ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
-			CurrentPasteIndex++;
+			if (NewFunctionCallNode != nullptr)
+			{
+				NewFunctionCallNode->SuggestName(ClipboardFunction->FunctionName);
+				ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
+				CurrentPasteIndex++;
+			}
 		}
 	}
 	RefreshChildren();
@@ -1085,6 +1132,12 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			}
 			(*NewModuleItemPtr)->SetInputValuesFromClipboardFunctionInputs(FunctionInputs);
 		}
+	}
+
+	if (ModulesSkippedForIncorrectUsage > 0 || AssignmentTargetsSkippedForIncorrectUsage > 0)
+	{
+		OutPasteWarning = FText::Format(LOCTEXT("NonPastedModulesWarningFormat", "{0} modules not pasted due to incorrect usage.\n{1} inputs not pasted in Set Variables nodes due to incorrect usage."),
+			FText::AsNumber(ModulesSkippedForIncorrectUsage), FText::AsNumber(AssignmentTargetsSkippedForIncorrectUsage));
 	}
 }
 

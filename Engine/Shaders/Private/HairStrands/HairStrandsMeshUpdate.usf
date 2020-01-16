@@ -18,7 +18,7 @@ RWBuffer<float4> OutRootTrianglePosition0;
 RWBuffer<float4> OutRootTrianglePosition1;
 RWBuffer<float4> OutRootTrianglePosition2;
 
-[numthreads(32, 1, 1)]
+[numthreads(128, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 { 
 	const uint RootIndex = DispatchThreadId.x;

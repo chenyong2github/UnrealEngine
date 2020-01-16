@@ -64,7 +64,7 @@
 #include "SPhysicsAssetGraph.h"
 #include "PhysicsAssetEditorEditMode.h"
 #include "AssetEditorModeManager.h"
-#include "PhysicsEngine/PhysicsHandleComponent.h"
+#include "PhysicsAssetEditorPhysicsHandleComponent.h"
 #include "ISkeletonTreeItem.h"
 #include "Algo/Transform.h"
 #include "SkeletonTreeSelection.h"

@@ -1943,6 +1943,10 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 		LLM_SCOPE(ELLMTag::Niagara);
 
+		//Temporarily force FX to update their own LODDistance on frames where it is not provided by the scalability manager.
+		//TODO: Lots of FX wont need an accurate per frame value so implement a good way for FX to opt into this. FORT-248457
+		bLODDistanceIsValid = false;
+
 		bNeedsFinalize = false;
 		if (!HandleCompletion())
 		{

@@ -16,6 +16,11 @@ class UPhysicsAssetEditorAnimInstance : public UAnimPreviewInstance
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual void Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained);
+	virtual void Ungrab();
+	virtual void UpdateHandleTransform(const FTransform& NewTransform);
+	virtual void UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping);
+
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 };

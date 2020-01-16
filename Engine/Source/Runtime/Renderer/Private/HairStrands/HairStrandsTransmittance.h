@@ -29,4 +29,5 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const class FLightSceneInfo* LightSceneInfo,
-	const struct FHairStrandsDatas* Hairdatas);
+	const struct FHairStrandsDatas* Hairdatas,
+	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture);

@@ -6,6 +6,7 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
@@ -147,40 +148,38 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 
 FReply SNiagaraOverviewStackNode::OnCycleThroughIssues()
 {
-	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
-	if (EmitterHandleViewModel.IsValid())
+	const TArray<UNiagaraStackEntry*>& ChildrenWithIssues = StackViewModel->GetRootEntry()->GetAllChildrenWithIssues();
+	if (ChildrenWithIssues.Num() > 0)
 	{
-		const TArray<UNiagaraStackEntry*>& ChildrenWithIssues = StackViewModel->GetRootEntry()->GetAllChildrenWithIssues();
-		if (ChildrenWithIssues.Num() > 0)
+		++CurrentIssueIndex;
+
+		if (CurrentIssueIndex >= ChildrenWithIssues.Num())
 		{
-			++CurrentIssueIndex;
-
-			if (CurrentIssueIndex >= ChildrenWithIssues.Num())
-			{
-				CurrentIssueIndex = 0;
-			}
-
-			if (ChildrenWithIssues.IsValidIndex(CurrentIssueIndex))
-			{
-				UNiagaraStackEntry* ChildToSelect = ChildrenWithIssues[CurrentIssueIndex];
-				UNiagaraStackModuleItem* ModuleToSelect = Cast<UNiagaraStackModuleItem>(ChildToSelect);
-				if (ModuleToSelect == nullptr)
-				{
-					ModuleToSelect = ChildToSelect->GetTypedOuter<UNiagaraStackModuleItem>();
-				}
-
-				if (ModuleToSelect != nullptr)
-				{
-					OverviewSelectionViewModel->UpdateSelectedEntries(TArray<UNiagaraStackEntry*> { ModuleToSelect },
-						TArray<UNiagaraStackEntry*>(), true /* bClearCurrentSelection */ );
-				}
-			}
+			CurrentIssueIndex = 0;
 		}
 
-		return FReply::Handled();
+		if (ChildrenWithIssues.IsValidIndex(CurrentIssueIndex))
+		{
+			UNiagaraStackEntry* ChildIssue = ChildrenWithIssues[CurrentIssueIndex];
+			UNiagaraStackEntry* ChildToSelect = Cast<UNiagaraStackModuleItem>(ChildIssue);
+			if (ChildToSelect == nullptr)
+			{
+				ChildToSelect = ChildIssue->GetTypedOuter<UNiagaraStackModuleItem>();
+			}
+
+			if (ChildToSelect == nullptr)
+			{
+				ChildToSelect = Cast<UNiagaraStackItemGroup>(ChildIssue);
+			}
+			
+			if (ChildToSelect != nullptr)
+			{
+				OverviewSelectionViewModel->UpdateSelectedEntries(TArray<UNiagaraStackEntry*> { ChildToSelect }, TArray<UNiagaraStackEntry*>(), true /* bClearCurrentSelection */ );
+			}
+		}
 	}
 
-	return FReply::Unhandled();
+	return FReply::Handled();
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData)

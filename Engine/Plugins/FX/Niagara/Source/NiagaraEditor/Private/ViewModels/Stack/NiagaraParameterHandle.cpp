@@ -133,3 +133,24 @@ bool FNiagaraParameterHandle::IsParameterCollectionHandle() const
 {
 	return Namespace == ParameterCollectionNamespace;
 }
+
+bool FNiagaraParameterHandle::IsReadOnlyHandle() const
+{
+	return
+		Namespace == UserNamespace ||
+		Namespace == EngineNamespace ||
+		Namespace == ParameterCollectionNamespace ||
+		Namespace == ModuleNamespace;
+}
+
+bool FNiagaraParameterHandle::IsTransientHandle() const
+{
+	return
+		Namespace != UserNamespace &&
+		Namespace != EngineNamespace &&
+		Namespace != SystemNamespace &&
+		Namespace != EmitterNamespace &&
+		Namespace != ParticleAttributeNamespace &&
+		Namespace != ModuleNamespace &&
+		Namespace != ParameterCollectionNamespace;
+}

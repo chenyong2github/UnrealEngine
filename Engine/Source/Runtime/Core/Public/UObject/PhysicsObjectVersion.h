@@ -15,6 +15,11 @@ struct CORE_API FPhysicsObjectVersion
 		PerShapeData,
 		// Add serialization from handle back to particle
 		SerializeGTGeometryParticles,
+		// Groom serialization with hair description as bulk data
+		GroomWithDescription,
+		// Groom serialization with import option
+		GroomWithImportSettings,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

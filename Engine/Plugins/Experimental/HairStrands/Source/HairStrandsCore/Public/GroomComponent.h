@@ -8,34 +8,9 @@
 #include "Components/MeshComponent.h"
 #include "GroomAsset.h"
 #include "RHIDefinitions.h"
+#include "GroomDesc.h"
 
 #include "GroomComponent.generated.h"
-
-USTRUCT(BlueprintType)
-struct FHairGroupDesc
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Number of hairs within this hair group.  */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
-	int32 HairCount;
-
-	/** Number of simulation guides within this hair group. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
-	int32 GuideCount;
-
-	/** Override the hair width (in centimeters) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
-	float HairWidth;
-
-	/** Override the hair shadow density factor (unit less).  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
-	float HairShadowDensity;
-
-	/** Scale the hair geometry radius for ray tracing effects (e.g. shadow) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
-	float HairRaytracingRadiusScale;
-};
 
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
@@ -59,6 +34,9 @@ public:
 
 	/** Boolean to check when animation has been loaded */
 	bool bResetSimulation;
+
+	/** Previous bone matrix to compare the difference and decide to reset or not the simulation */
+	FMatrix	PrevBoneMatrix;
 
 	/** Listen for the animation event to trigger the sim */
 	UFUNCTION()
@@ -124,6 +102,9 @@ public:
 		FHairStrandsDeformedResource* RenderDeformedResources = nullptr;
 		FHairStrandsDeformedResource* SimDeformedResources = nullptr;
 
+		FHairStrandsClusterCullingResource* ClusterCullingResources = nullptr; // TODO merge into FHairGroupPublicData
+		FHairGroupPublicData* HairGroupPublicDatas = nullptr;
+
 		// Rest resources, owned by the asset
 		FHairStrandsRestResource* RenderRestResources = nullptr;
 		FHairStrandsRestResource* SimRestResources = nullptr;
@@ -146,30 +127,9 @@ protected:
 private:
 	void* InitializedResources;
 
-	enum class EMeshProjectionState
-	{
-		Invalid,
-		InProgressBinding,
-		WaitForRestPose,
-		Completed
-	};
 	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
 	FVector SkeletalPreviousPositionOffset;
-	int32 MeshProjectionLODIndex;
-	uint32 MeshProjectionTickDelay;
-	EMeshProjectionState MeshProjectionState;
-	bool bIsGroomAssetCallbackRegistered;
-	
-	struct FSkeletalMeshConfiguration
-	{
-		int32 ForceLOD = -1;
-		bool ForceRefPose = false;
-		static bool Equals(const FSkeletalMeshConfiguration& A, const FSkeletalMeshConfiguration& B)
-		{
-			return A.ForceLOD == B.ForceLOD && A.ForceRefPose == B.ForceRefPose;
-		}
-	};
-	FSkeletalMeshConfiguration SkeletalMeshConfiguration;
+	bool bIsGroomAssetCallbackRegistered;	
 
 	void InitResources();
 	void ReleaseResources();

@@ -63,9 +63,9 @@ public:
 	{
 		check(Buffer);
 
-		ensureMsgf(!bIsGenerateMips,
-			TEXT("Attempting to read from Buffer %s on Pass %s which is marked as 'GenerateMips'. Only textures are supported on this type of pass."),
-			Buffer->Name, Pass.GetName());
+//		ensureMsgf(!bIsGenerateMips,
+//			TEXT("Attempting to read from Buffer %s on Pass %s which is marked as 'GenerateMips'. Only textures are supported on this type of pass."),
+//			Buffer->Name, Pass.GetName());
 
 		FBufferAccess& BufferAccess = BufferAccessMap.FindOrAdd(Buffer);
 		BufferAccess.Bits.Read = 1;

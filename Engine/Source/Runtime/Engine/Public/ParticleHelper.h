@@ -259,7 +259,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Sort Time RT"),STAT_SortingTime,STATGROUP_Partic
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Sprite Render Time RT"),STAT_SpriteRenderingTime,STATGROUP_Particles, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Sprite Tick Time GT"),STAT_SpriteTickTime,STATGROUP_Particles, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Sprite Spawn Time GT"),STAT_SpriteSpawnTime,STATGROUP_Particles, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Sprite Update Time GT"),STAT_SpriteUpdateTime,STATGROUP_Particles, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PSys Comp Tick Time GT"),STAT_PSysCompTickTime,STATGROUP_Particles, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Particle Collision Time GT"),STAT_ParticleCollisionTime,STATGROUP_Particles, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Particle SkelMeshSurf Time GT"),STAT_ParticleSkelMeshSurfTime,STATGROUP_Particles, );
@@ -276,7 +275,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Async Work Time"),STAT_ParticleAsyncTime,STATGRO
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Wait For ASync Time"),STAT_ParticleAsyncWaitTime,STATGROUP_Particles, );   // can be either performed on this thread or a true wait
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Update Bounds Time GT"),STAT_ParticleUpdateBounds,STATGROUP_Particles, );
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Particle Memory Time"),STAT_ParticleMemTime,STATGROUP_ParticleMem, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Ptcls Data GT Mem"),STAT_GTParticleData,STATGROUP_ParticleMem, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Ptcls Data GT Mem MAX"),STAT_GTParticleData_MAX,STATGROUP_ParticleMem, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Ptcls Data RT Mem"),STAT_RTParticleData,STATGROUP_ParticleMem, );

@@ -167,6 +167,7 @@ struct FUserDefinedStructureCompilerInner
 			StructToClean->ScriptObjectReferences.Empty();
 			StructToClean->PropertyLink = nullptr;
 			StructToClean->ErrorMessage.Empty();
+			StructToClean->SetStructTrashed(true);
 		}
 
 		return TransientStruct;

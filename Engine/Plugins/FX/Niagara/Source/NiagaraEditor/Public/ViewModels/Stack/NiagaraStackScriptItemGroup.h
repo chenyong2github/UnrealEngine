@@ -34,7 +34,7 @@ public:
 	virtual bool SupportsPaste() const override { return true; }
 	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -54,7 +54,9 @@ private:
 
 	void ChildModifiedGroupItems();
 
-	void ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex);
+	bool ChildRequestCanPaste(const UNiagaraClipboardContent* ClipboardContent, FText& OutCanPasteMessage);
+
+	void ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning);
 
 	void OnScriptGraphChanged(const struct FEdGraphEditAction& InAction);
 
@@ -79,7 +81,7 @@ protected:
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
 
 private:
-	void PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex);
+	void PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning);
 
 private:
 	TSharedPtr<FScriptItemGroupAddUtilities> AddUtilities;

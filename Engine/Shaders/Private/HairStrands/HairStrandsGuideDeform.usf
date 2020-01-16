@@ -2,9 +2,11 @@
 
 #include "../Common.ush"
 
-float3 HairWorldOffset;
+float3 SimRestOffset;
+float3 SimDeformedOffset;
 uint VertexCount;
 uint IterationCount;
+uint DispatchCountX;
 
 Buffer<uint4> SimRestPosePositionBuffer;
 Buffer<uint>  SimRootIndexBuffer;
@@ -46,12 +48,16 @@ float3 Displacement(uint VertexIndex, float3 Pos, float Seed)
 	float Time = 0.5f * cos(Seed / 64.f) + 0.5f; // [0..1]
 	return lerp(0, Offset, Time);
 #endif
+
+#if PERMUTATION_DEFORMATION == 3
+	return SimRestOffset - SimDeformedOffset;
+#endif
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint VertexIndex = DispatchThreadId.x;
+	const uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
 	if (VertexIndex < VertexCount)
 	{
 		const uint4  Data 			= SimRestPosePositionBuffer[VertexIndex];

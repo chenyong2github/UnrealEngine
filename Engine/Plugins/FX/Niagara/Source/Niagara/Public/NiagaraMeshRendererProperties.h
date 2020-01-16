@@ -113,6 +113,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	TArray<FNiagaraMeshMaterialOverride> OverrideMaterials;
 
+	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
+	UPROPERTY(EditAnywhere, Category = "SubUV")
+	FVector2D SubImageSize;
+
+	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
+	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
+	uint32 bSubImageBlend : 1;
+
 	/** Determines how the mesh orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
 	ENiagaraMeshFacingMode FacingMode; 
@@ -137,6 +145,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding ScaleBinding;
 	
+	/** Which attribute should we use for sprite sub-image indexing when generating sprites?*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding SubImageIndexBinding;
+
 	/** Which attribute should we use for dynamic material parameters when generating instanced meshes?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterialBinding;

@@ -243,6 +243,7 @@ public:
 		GeometryParticles = InParticles;
 	}
 
+	EParticleType GetParticleType() const { return Type; }
 protected:
 	union
 	{

@@ -3,14 +3,17 @@
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
 #include "../SceneTextureParameters.ush"
+#include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsVoxelPageCommon.ush"
 
-
-#if PIXELSHADER
+#if SHADER_INJECTOPAQUE_VOXEL
 float3 VoxelMinAABB;
 uint   VoxelResolution;
 float3 VoxelMaxAABB;
+uint   VoxelBiasCount;
 float2 OutputResolution;
 float2 SceneDepthResolution;
+uint   VoxelMarkCount;
 
 Texture2D<float> SceneDepthTexture;
 RWTexture3D<uint> DensityTexture;
@@ -45,7 +48,7 @@ void MainPS(
 
 	float4 ClipPos = mul(float4(WorldPosition,1), View.WorldToClip);
 	ClipPos /= ClipPos.w;
-	const float DepthBias 			= 3 * VoxelSize;
+	const float DepthBias 			= VoxelBiasCount * VoxelSize;
 	const float  VoxelDepth 		= ConvertFromDeviceZ(ClipPos.z) - DepthBias;
 	float2 SceneUV 					= float2(0.5f*(ClipPos.x+1), 1-0.5f*(ClipPos.y+1));
 	SceneUV							= ViewportUVToBufferUV(SceneUV);
@@ -68,15 +71,109 @@ void MainPS(
 		return;
 
 	// Inject opaque depth on a thin layer (Dist < DistThreshold) for avoiding weird projection
-	if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < DepthBias)
+	if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < VoxelMarkCount * VoxelSize)
 	{
 		OutColor0 = float4(1,0,0,1);
-		InterlockedOr(DensityTexture[VoxelPos], 0x10000000);
+		InterlockedOr(DensityTexture[VoxelPos], VOXEL_OPAQUE_ADD);
 	}
 }
 #endif
 
-#if COMPUTESHADER
+#if SHADER_INJECTOPAQUE_VIRTUALVOXEL
+uint3 DispatchedPageIndexResolution;
+uint MacroGroupId;
+float2 SceneDepthResolution;
+uint VoxelBiasCount;
+uint VoxelMarkCount;
+Texture2D<float> SceneDepthTexture;
+RWTexture3D<uint> OutPageTexture;
+
+uint		 VirtualVoxel_PageIndexCount;
+uint		 VirtualVoxel_PageResolution;
+float		 VirtualVoxel_VoxelWorldSize;
+uint3		 VirtualVoxel_PageCountResolution;
+Buffer<uint> VirtualVoxel_PageIndexBuffer;
+Buffer<uint4>VirtualVoxel_PageIndexCoordBuffer;
+ 
+StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxel_NodeDescBuffer;
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+#define GROUP_SIZE 64
+[numthreads(1, 1, GROUP_SIZE)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint  MaxDispatchCountPerDim = 65535u;
+	const uint  AllocatedPageIndex  = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
+	const uint  LinearVoxelCoord = DispatchThreadId.z;
+	const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxel_PageResolution.xxx);
+
+	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel_NodeDescBuffer[MacroGroupId];
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel_PageResolution);
+
+	const uint4 PageIndexCoord = VirtualVoxel_PageIndexCoordBuffer[NodeDesc.PageIndexOffset + AllocatedPageIndex];
+	const uint  LinearPageIndexCoord = CoordToIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
+
+	const bool bIsValid = LinearPageIndexCoord < VirtualVoxel_PageIndexCount;
+	if (bIsValid)
+	{
+		const uint PageIndex = VirtualVoxel_PageIndexBuffer.Load(LinearPageIndexCoord);
+		if (PageIndex != INVALID_VOXEL_PAGE_INDEX)
+		{
+			const uint3 VoxelCoordBase = PageIndexCoord.xyz * VirtualVoxel_PageResolution;
+			const uint3 VoxelCoord = VoxelCoordBase + VoxelCoordOffset;
+			const float3 WorldPosition = VoxelCoord / float3(NodeDesc.VirtualResolution) * (NodeDesc.MaxAABB - NodeDesc.MinAABB) + NodeDesc.MinAABB;
+
+			float4 ClipPos = mul(float4(WorldPosition, 1), View.WorldToClip);
+			ClipPos /= ClipPos.w;
+			const float DepthBias = VoxelBiasCount * VirtualVoxel_VoxelWorldSize;
+			const float VoxelDepth = ConvertFromDeviceZ(ClipPos.z) - DepthBias;
+			float2 SceneUV = float2(0.5f*(ClipPos.x + 1), 1 - 0.5f*(ClipPos.y + 1));
+			SceneUV = ViewportUVToBufferUV(SceneUV);
+			const float2 ScenePixelCoord = SceneUV * SceneDepthResolution;
+
+			const bool bIsOnScreen = SceneUV.x >= 0 && SceneUV.x < 1 && SceneUV.y >= 0 && SceneUV.y < 1;
+			if (!bIsOnScreen)
+				return;
+
+			const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord, 0)));
+			const float3 SceneWorldPos = ReconstructWorldPositionFromDepth(SceneUV, ClosestDepth);
+
+			const bool bIsInVolume =
+				SceneWorldPos.x >= NodeDesc.MinAABB.x && SceneWorldPos.x < NodeDesc.MaxAABB.x &&
+				SceneWorldPos.y >= NodeDesc.MinAABB.y && SceneWorldPos.y < NodeDesc.MaxAABB.y &&
+				SceneWorldPos.z >= NodeDesc.MinAABB.z && SceneWorldPos.z < NodeDesc.MaxAABB.z;
+
+			if (!bIsInVolume)
+				return;
+
+			// Inject opaque depth on a thin layer (Dist < DistThreshold) for avoiding weird projection
+			if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < VoxelMarkCount * VirtualVoxel_VoxelWorldSize)
+			{
+				const uint3 VoxelPageIndexCoord = VoxelCoord / VirtualVoxel_PageResolution;
+				const uint3 VoxelIndexCoordBase = VoxelPageIndexCoord * VirtualVoxel_PageResolution;
+				const uint3 VoxelPageOffset = VoxelCoord - VoxelIndexCoordBase;
+
+				const uint3 PageCoord = IndexToCoord(PageIndex, VirtualVoxel_PageCountResolution);
+				const int3 VoxelPageBase = PageCoord * VirtualVoxel_PageResolution;
+				const int3 VoxelPageCoord = VoxelPageOffset + VoxelPageBase;
+
+				InterlockedOr(OutPageTexture[VoxelPageCoord], VOXEL_OPAQUE_ADD);
+			}
+		}
+	}
+}
+#endif
+
+
+#if SHADER_FILTERDEPTH_VOXEL
 
 uint				VoxelResolution;
 RWTexture3D<uint>	VoxelTexture;
@@ -84,11 +181,9 @@ RWTexture3D<uint>	VoxelTexture;
 [numthreads(4, 4, 4)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint  OpaqueMask	 =  0x10000000;
-	const uint  DensityMask	 = ~OpaqueMask;
-	const uint3 VoxelCoord   = DispatchThreadId;
-	const uint  VoxelDensity = VoxelTexture[VoxelCoord];
-	const bool  bHasOpaque	 = (OpaqueMask & VoxelDensity) > 0;
+	const uint3 VoxelCoord  = DispatchThreadId;
+	const uint  RawDensity	= VoxelTexture[VoxelCoord];
+	const bool  bHasOpaque	= GetInternalVoxelOpaqueVisibility(RawDensity) > 0;
 
 	// If the current voxel does not contains any opaque data, there is nothing to filter.
 	if (!bHasOpaque)
@@ -103,7 +198,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const int3 Offset = int3(x, y, z);
 		const int3 Sample = clamp(VoxelCoord + Offset, 0, VoxelResolution-1);
-		const uint Density = VoxelTexture[Sample] & DensityMask;
+		const uint Density = VoxelTexture[Sample] & VOXEL_HAIR_MASK;
 		if (Density > 0)
 		{
 			return;
@@ -111,6 +206,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 
 	// No hair density has been found, so this opaque voxel is a false positive
-	InterlockedAnd(VoxelTexture[VoxelCoord], DensityMask);
+	InterlockedAnd(VoxelTexture[VoxelCoord], VOXEL_HAIR_MASK);
 }
 #endif

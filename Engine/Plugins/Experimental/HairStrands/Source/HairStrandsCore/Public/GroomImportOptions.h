@@ -7,8 +7,8 @@
 #include "UObject/Object.h"
 #include "GroomImportOptions.generated.h"
 
-UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
-class HAIRSTRANDSEDITOR_API UGroomImportOptions : public UObject
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = ("Hidden"))
+class HAIRSTRANDSCORE_API UGroomImportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

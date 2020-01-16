@@ -1789,16 +1789,22 @@ bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* Ta
 	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
 	FMaterialShaderMapId NoStaticParametersId;
 	GetShaderMapId(Platform, NoStaticParametersId);
+	
+	if (FPlatformProperties::RequiresCookedData())
+	{ 
+		return CacheShaders(NoStaticParametersId, nullptr, Platform, TargetPlatform);
+	}
+
 	FStaticParameterSet StaticParameterSet;
 	GetStaticParameterSet(Platform, StaticParameterSet);
-	return CacheShaders(NoStaticParametersId, StaticParameterSet, Platform, TargetPlatform);
+	return CacheShaders(NoStaticParametersId, &StaticParameterSet, Platform, TargetPlatform);
 }
 
 /**
  * Caches the material shaders for the given static parameter set and platform.
  * This is used by material resources of UMaterialInstances.
  */
-bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, const FStaticParameterSet &StaticParameterSet, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
+bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, const FStaticParameterSet *StaticParameterSet, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
 {
 	bool bSucceeded = false;
 	UE_CLOG(!ShaderMapId.IsValid(), LogMaterial, Warning, TEXT("Invalid shader map ID caching shaders for '%s', will use default material."), *GetFriendlyName());
@@ -1923,7 +1929,8 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, const FSta
 
 			// If there's no cached shader map for this material, compile a new one.
 			// This is just kicking off the async compile, GameThreadShaderMap will not be complete yet
-			bSucceeded = BeginCompileShaderMap(ShaderMapId, StaticParameterSet, Platform, ShaderMap, TargetPlatform);
+			check(StaticParameterSet != nullptr);
+			bSucceeded = BeginCompileShaderMap(ShaderMapId, *StaticParameterSet, Platform, ShaderMap, TargetPlatform);
 
 			if (!bSucceeded)
 			{

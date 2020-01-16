@@ -1194,7 +1194,6 @@ FDynamicEmitterDataBase* FParticleBeam2EmitterInstance::GetDynamicData(bool bSel
 	// Allocate the dynamic data
 	FDynamicBeam2EmitterData* NewEmitterData = new FDynamicBeam2EmitterData(LODLevel->RequiredModule);
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ParticleMemTime);
 		INC_DWORD_STAT(STAT_DynamicEmitterCount);
 		INC_DWORD_STAT(STAT_DynamicBeamCount);
 		INC_DWORD_STAT_BY(STAT_DynamicEmitterMem, sizeof(FDynamicBeam2EmitterData));

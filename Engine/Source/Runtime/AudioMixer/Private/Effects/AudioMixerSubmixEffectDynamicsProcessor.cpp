@@ -12,10 +12,16 @@ FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 
 void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& InitData)
 {
-	DynamicsProcessor.Init(InitData.SampleRate, 8);
+	// Use a full multichannel frame as a scratch processing buffer
+	static const int32 NumChannels = 8;
+
+	DynamicsProcessor.Init(InitData.SampleRate, NumChannels);
+
+	AudioInputFrame.Reset();
+	AudioInputFrame.AddZeroed(NumChannels);
 
 	AudioOutputFrame.Reset();
-	AudioOutputFrame.AddZeroed(8);
+	AudioOutputFrame.AddZeroed(NumChannels);
 }
 
 
@@ -67,8 +73,19 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 	DynamicsProcessor.SetKneeBandwidth(Settings.KneeBandwidthDb);
 	DynamicsProcessor.SetInputGain(Settings.InputGainDb);
 	DynamicsProcessor.SetOutputGain(Settings.OutputGainDb);
-	DynamicsProcessor.SetChannelLinked(Settings.bChannelLinked);
 	DynamicsProcessor.SetAnalogMode(Settings.bAnalogMode);
+
+	DynamicsProcessor.SetKeyAudition(Settings.bKeyAudition);
+	DynamicsProcessor.SetKeyGain(Settings.KeyGainDb);
+	DynamicsProcessor.SetKeyHighshelfCutoffFrequency(Settings.KeyHighshelf.Cutoff);
+	DynamicsProcessor.SetKeyHighshelfEnabled(Settings.KeyHighshelf.bEnabled);
+	DynamicsProcessor.SetKeyHighshelfGain(Settings.KeyHighshelf.GainDb);
+	DynamicsProcessor.SetKeyLowshelfCutoffFrequency(Settings.KeyLowshelf.Cutoff);
+	DynamicsProcessor.SetKeyLowshelfEnabled(Settings.KeyLowshelf.bEnabled);
+	DynamicsProcessor.SetKeyLowshelfGain(Settings.KeyLowshelf.GainDb);
+
+	static_assert(static_cast<int32>(ESubmixEffectDynamicsChannelLinkMode::Count) == static_cast<int32>(Audio::EDynamicsProcessorChannelLinkMode::Count), "Enumerations must match");
+	DynamicsProcessor.SetChannelLinkMode(static_cast<Audio::EDynamicsProcessorChannelLinkMode>(Settings.LinkMode));
 }
 
 void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -77,10 +94,6 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 
 	const Audio::AlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
 	Audio::AlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
-
-	// Use a full multichannel frame as a scratch processing buffer
-	AudioInputFrame.Reset();
-	AudioInputFrame.AddZeroed(8);
 
 	for (int32 Frame = 0; Frame < InData.NumFrames; ++Frame)
 	{
@@ -102,6 +115,21 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 			OutBuffer[SampleIndex] = AudioOutputFrame[Channel];
 		}
 	}
+}
+
+void USubmixEffectDynamicsProcessorPreset::Serialize(FStructuredArchive::FRecord Record)
+{
+	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
+	if (UnderlyingArchive.IsLoading())
+	{
+		if (Settings.bChannelLinked_DEPRECATED)
+		{
+			Settings.LinkMode = ESubmixEffectDynamicsChannelLinkMode::Average;
+			Settings.bChannelLinked_DEPRECATED = 0;
+		}
+	}
+
+	Super::Serialize(Record);
 }
 
 void USubmixEffectDynamicsProcessorPreset::SetSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings)

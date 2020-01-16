@@ -8,11 +8,12 @@
 Texture2D<uint> CounterTexture;
 RWBuffer<uint> OutArgBuffer;
 uint ThreadGroupSize;
+uint ItemCountPerGroup;
 
 [numthreads(1, 1, 1)]
 void CopyCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint NodeCount  = CounterTexture.Load(uint3(0,0,0));
+	const uint NodeCount  = CounterTexture.Load(uint3(0,0,0)) * ItemCountPerGroup;
 	const uint TotalGroup = (NodeCount + ThreadGroupSize-1) / ThreadGroupSize;
 #if 0
 	// Minimize unused groups

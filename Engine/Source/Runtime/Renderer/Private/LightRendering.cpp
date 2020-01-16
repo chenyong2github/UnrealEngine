@@ -316,6 +316,7 @@ class FDeferredLightPS : public FGlobalShader
 		HairLUTSampler.Bind(Initializer.ParameterMap, TEXT("HairLUTSampler"));
 		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
 		HairShadowMaskValid.Bind(Initializer.ParameterMap, TEXT("HairShadowMaskValid"));
+		HairDualScatteringRoughnessOverride.Bind(Initializer.ParameterMap, TEXT("HairDualScatteringRoughnessOverride"));
 
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
@@ -374,6 +375,7 @@ public:
 		Ar << HairLUTSampler;
 		Ar << HairComponents;
 		Ar << HairShadowMaskValid;
+		Ar << HairDualScatteringRoughnessOverride;
 
 		return bShaderHasOutdatedParameters;
 	}
@@ -568,6 +570,17 @@ private:
 				HairComponents,
 				InHairComponents);
 		}
+
+		if (HairDualScatteringRoughnessOverride.IsBound())
+		{
+			const float DualScatteringRoughness = GetHairDualScatteringRoughnessOverride();
+			SetShaderValue(
+				RHICmdList,
+				ShaderRHI,
+				HairDualScatteringRoughnessOverride,
+				DualScatteringRoughness);
+		}
+		
 	}
 
 	FSceneTextureShaderParameters SceneTextureParameters;
@@ -595,6 +608,7 @@ private:
 	FShaderResourceParameter HairLUTSampler;
 	FShaderParameter HairComponents;
 	FShaderParameter HairShadowMaskValid;
+	FShaderParameter HairDualScatteringRoughnessOverride;
 	};
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
@@ -920,7 +934,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
 	auto HasHairStrandsClusters = [bUseHairLighting, HairDatas](int32 ViewIndex)
 	{
-		return HairDatas && ViewIndex < HairDatas->HairClusterPerViews.Views.Num() && HairDatas->HairClusterPerViews.Views[ViewIndex].Datas.Num() > 0;
+		return HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas.Num() > 0;
 	};
 
 	auto GetHairStrandsCategorizationTexture = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
@@ -1053,7 +1067,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
 
 					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
-					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, LightSceneInfo, HairDatas);
+					TRefCountPtr<IPooledRenderTarget> NullScreenShadowMaskSubPixelTexture = nullptr;
+					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, LightSceneInfo, HairDatas, NullScreenShadowMaskSubPixelTexture);
 
 					// Render the light to the scene color buffer, using a 1x1 white texture as input
 					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true, true);
@@ -1228,7 +1243,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskTexture);
 					bShadowMaskReadable = false;
 					if (bUseHairLighting)
-						SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskSubPixelTexture);
+					{
+						SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskSubPixelTexture, true);
+					}
 				}
 
 				FString LightNameWithLevel;
@@ -1809,7 +1826,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				FHairStrandsTransmittanceMaskData TransmittanceMaskData;
 				if (bDrawDeepShadow)
 				{
-					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, &LightSceneInfo, HairDatas);
+					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
 				}
 
 				if (ShouldRenderRayTracingStochasticRectLight(LightSceneInfo))
