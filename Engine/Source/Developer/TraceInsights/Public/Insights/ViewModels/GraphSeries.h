@@ -73,7 +73,7 @@ public:
 	 * @return The scale between Value units and viewport units; in pixels (Slate units) / Value unit.
 	 */
 	double GetScaleY() const { return ScaleY; }
-	void SetScaleY(const double InScaleY) { ScaleY = FMath::Max(InScaleY, (double)KINDA_SMALL_NUMBER); }
+	void SetScaleY(const double InScaleY) { ScaleY = FMath::Max(InScaleY, DBL_EPSILON); }
 
 	/**
 	 * @param Value a value; in Value units
