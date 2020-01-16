@@ -430,6 +430,12 @@ void FMainFrameModule::SetLevelNameForWindowTitle( const FString& InLevelFileNam
 		: NSLOCTEXT("UnrealEd", "Untitled", "Untitled" ).ToString();
 }
 
+void FMainFrameModule::SetApplicationTitleOverride(const FText& NewOverriddenApplicationTitle)
+{
+	OverriddenWindowTitle = NewOverriddenApplicationTitle;
+}
+
+
 
 /* IModuleInterface implementation
  *****************************************************************************/
