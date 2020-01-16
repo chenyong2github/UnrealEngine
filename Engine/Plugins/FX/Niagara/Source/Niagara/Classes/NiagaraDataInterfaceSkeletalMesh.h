@@ -365,7 +365,7 @@ struct FNDISkeletalMesh_InstanceData
 	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
 
 	//Always reset the DI when the attach parent changes.
-	USceneComponent* CachedAttachParent;
+	TWeakObjectPtr<USceneComponent> CachedAttachParent;
 
 	UObject* CachedUserParam;
 
