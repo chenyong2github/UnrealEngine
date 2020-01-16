@@ -79,9 +79,18 @@ void FAESHandlerComponent::Incoming(FBitReader& Packet)
 			}
 
 			// Copy remaining bits to a TArray so that they are byte-aligned.
-			Ciphertext.Reset();
-			Ciphertext.AddUninitialized(Packet.GetBytesLeft());
-			Ciphertext[Ciphertext.Num() - 1] = 0;
+			if (Packet.GetBytesLeft() > 0)
+			{
+				Ciphertext.Reset();
+				Ciphertext.AddUninitialized(Packet.GetBytesLeft());
+				Ciphertext[Ciphertext.Num() - 1] = 0;
+			}
+			else
+			{
+				UE_LOG(PacketHandlerLog, Log, TEXT("FAESHandlerComponent::Incoming: missing ciphertext"));
+				Packet.SetError();
+				return;
+			}
 
 			Packet.SerializeBits(Ciphertext.GetData(), Packet.GetBitsLeft());
 
