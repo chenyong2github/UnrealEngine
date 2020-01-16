@@ -94,9 +94,17 @@ namespace Chaos
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
 			if (OutMTD)
 			{
-				FVec3 ClosestA;
-				FVec3 ClosestB;
-				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM) { return GJKPenetration<FReal>(AConcrete, B, BToAFullTM, OutMTD->Penetration, ClosestA, ClosestB, OutMTD->Normal, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
+				{
+					FVec3 LocalA,LocalB,LocalNormal;
+					if(GJKPenetration<FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
+					{
+						OutMTD->Normal = ATM.TransformVectorNoScale(LocalNormal);
+						return true;
+					}
+
+					return false;
+				});
 			}
 			else
 			{
