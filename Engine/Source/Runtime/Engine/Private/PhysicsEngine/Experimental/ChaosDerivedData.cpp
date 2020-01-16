@@ -24,7 +24,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("6249C3BD908145F3B3AC3048F3BF1C01");
+	return TEXT("2C093F83EC7F49A382170F519868BBC6");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -152,7 +152,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 
 				if(bHasMaterials)
 				{
-					if (EnableMeshClean)				
+					if (EnableMeshClean)
 					{
 						if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
 						{
@@ -191,7 +191,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 			}
 		}
 
-		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(MakeUnique<TArray<int32>>(OutFaceRemap))));
 	};
 
 	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
