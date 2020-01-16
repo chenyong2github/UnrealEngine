@@ -19,5 +19,12 @@ public class Hotfix : ModuleRules
 				"OnlineSubsystemUtils"
 			}
 			);
+
+		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Plugins", "Online", "NotForLicensees", "OnlineTracing"));
+		if (bHasOnlineTracing)
+		{
+			PublicDefinitions.Add("WITH_ONLINETRACING=1");
+			PrivateDependencyModuleNames.Add("OnlineTracing");
+		}
 	}
 }
