@@ -46,7 +46,7 @@ namespace Chaos
 	{
 	public:
 		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX)
+			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -56,6 +56,10 @@ namespace Chaos
 		TVector<T, d> Normal;
 		TVector<T, d> Location;
 		T Phi;
+
+		T Friction;
+		T AngularFriction;
+		T Restitution;
 
 
 		FString ToString() const

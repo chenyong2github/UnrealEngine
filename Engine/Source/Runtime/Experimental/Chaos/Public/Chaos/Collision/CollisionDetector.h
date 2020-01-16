@@ -11,8 +11,7 @@
 
 namespace Chaos
 {
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("DetectCollisions"), STAT_DetectCollisions, STATGROUP_Chaos, CHAOS_API);
-
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Detect"), STAT_Collisions_Detect, STATGROUP_ChaosCollision, CHAOS_API);
 
 	template<typename T_BROADPHASE, typename T_NARROWPHASE, typename T_RECEIVER, typename T_CONTAINER>
 	class CHAOS_API TCollisionDetector
@@ -40,7 +39,7 @@ namespace Chaos
 
 		void DetectCollisions(const FReal Dt, CollisionStats::FStatData& StatData)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_DetectCollisions);
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
 			CHAOS_SCOPED_TIMER(DetectCollisions);
 
 			if (!GetCollisionContainer().GetCollisionsEnabled())

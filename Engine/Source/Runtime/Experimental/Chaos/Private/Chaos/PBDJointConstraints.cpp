@@ -20,8 +20,6 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("Joints::Apply"), STAT_Joints_Apply, STATGROUP_ChaosJoint);
 	DECLARE_CYCLE_STAT(TEXT("Joints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_ChaosJoint);
 
-	DECLARE_DWORD_COUNTER_STAT(TEXT("Joints::NumConstraints"), STAT_NumJointConstraints, STATGROUP_ChaosJoint);
-
 	//
 	// Constraint Handle
 	//
@@ -490,7 +488,6 @@ namespace Chaos
 	void FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
-		SET_DWORD_STAT(STAT_NumJointConstraints, NumConstraints());
 
 		if (PreApplyCallback != nullptr)
 		{
@@ -514,7 +511,6 @@ namespace Chaos
 	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyPushOut);
-		SET_DWORD_STAT(STAT_NumJointConstraints, NumConstraints());
 
 		// @todo(ccaulfield): track whether we are sufficiently solved
 		bool bNeedsAnotherIteration = true;
