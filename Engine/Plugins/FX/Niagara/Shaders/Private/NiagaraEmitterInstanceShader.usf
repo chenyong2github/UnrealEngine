@@ -90,20 +90,52 @@ float Reciprocal(float x){ return 1.0f/x; }
 	static float Emitter_InterpSpawnStartDt;
 	static int Emitter_SpawnGroup;
 
-	void GetEmitterSpawnInfoForParticle(int ParticleIndex)
+	static int Engine_ExecutionCount;
+	static int GGPUExecIndex;
+
+	static uint GSpawnStartInstance;
+	uint SpawnedInstances;
+	uint UpdateStartInstance;
+
+	void SetupExecIndexForGPU()
 	{
+		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x;
+		Engine_ExecutionCount = GSpawnStartInstance;
+	}
+
+	void SetupExecIndexAndSpawnInfoForGPU()
+	{
+		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+
 		int SpawnInfoIndex = 0;
 		UNROLL
 		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
 		{
-			SpawnInfoIndex += (int)dot(1.0f, ParticleIndex >= EmitterSpawnInfoOffsets[i]);
+			SpawnInfoIndex += (int)dot(1.0f, GGPUExecIndex >= EmitterSpawnInfoOffsets[i]);
 		}
 
 		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
 		Emitter_InterpSpawnStartDt	= EmitterSpawnInfoParams[SpawnInfoIndex].y;
 		Emitter_SpawnGroup			= asint(EmitterSpawnInfoParams[SpawnInfoIndex].z);
 
-		GInterpSpawnIndex		= ParticleIndex - asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
+		int GroupSpawnStartIndex    = asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
+		GGPUExecIndex		        = GGPUExecIndex - GroupSpawnStartIndex;
+		if ( SpawnInfoIndex == (NIAGARA_MAX_GPU_SPAWN_INFOS - 1) )
+		{
+			Engine_ExecutionCount   = int(SpawnedInstances) - GroupSpawnStartIndex;
+		}
+		else
+		{
+			int NextGroupSpawnStartIndex = asint(EmitterSpawnInfoParams[SpawnInfoIndex + 1].w);
+			Engine_ExecutionCount       = NextGroupSpawnStartIndex - GroupSpawnStartIndex;
+		}
+	}
+
+	/* Returns the current instance index relative to the operation (spawn/update)
+	 */
+	int ExecIndex()
+	{
+		return GGPUExecIndex;
 	}
 #endif
 
@@ -382,12 +414,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
  * -----------------------------------------------------------------
  */
 #if GPU_SIMULATION
-	static uint GSpawnStartInstance;
-		
-	/* Parameters for spawning and simulations
-	 */
-	uint UpdateStartInstance;
-	
 	/*
 	 * declared as int instead of uint to avoid compiler warnings because we can't expose uint on Niagara module parameters.  
 	 * This is still declared as a uint in the corresponding C++ classes
@@ -395,9 +421,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	int DefaultShaderStageIndex;
 	int ShaderStageIndex;
 
-
 	int IterationInterfaceCount;
-	uint SpawnedInstances;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
@@ -420,21 +444,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 	Buffer<int> FreeIDList;
 	RWBuffer<int> RWIDToIndexTable;
-
-
-	/* Returns the current instance index relative to the operation (spawn/update)
-	 */
-	int ExecIndex()
-	{
-		if (GCurrentPhase == 0)
-		{
-			return UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
-		}
-		else 
-		{
-			return UpdateStartInstance + GDispatchThreadId.x;
-		}
-	}
 
 	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
 	{
@@ -719,13 +728,15 @@ void SimulateMainComputeCS(
 	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID*16384, 0 * 8196, (bRunPhase1 ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed
 
 	FSimulationContext Context = (FSimulationContext)0;
-	InitConstants(Context);
 
 	BRANCH
 	if (bRunPhase1)
 	{
 		GCurrentPhase = 1;
 
+		SetupExecIndexForGPU();
+
+		InitConstants(Context);
 		LoadUpdateVariables(Context, InstanceID);
 		ReadDataSets(Context);
 
@@ -736,8 +747,9 @@ void SimulateMainComputeCS(
 	{
 		GCurrentPhase = 0;
 
-		GetEmitterSpawnInfoForParticle(ExecIndex());
+		SetupExecIndexAndSpawnInfoForGPU();
 
+		InitConstants(Context);
 		InitSpawnVariables(Context);
 		ReadDataSets(Context);
 
