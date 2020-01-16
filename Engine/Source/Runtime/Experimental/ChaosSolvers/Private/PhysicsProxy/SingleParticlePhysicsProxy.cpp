@@ -110,6 +110,17 @@ EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>
 	return EPhysicsProxyType::SingleGeometryParticleType;
 }
 
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const
+{
+	return false;
+}
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvents()
+{
+
+}
 //
 // TKinematicGeometryParticle template specialization 
 //
@@ -187,6 +198,17 @@ EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<
 	return EPhysicsProxyType::SingleKinematicParticleType;
 }
 
+template< >
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const
+{
+	return false;
+}
+
+template< >
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearEvents()
+{
+
+}
 
 //
 // TPBDRigidParticle template specialization 
@@ -217,15 +239,22 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetDebugName(Data->DebugName);
 #endif
 
+		//  DynamicProperties are anything that would wake up a sleeping
+		//  particle. For example, if we set position on a sleeping particle
+		//  we will need to wake it up
+		bool bDynamicPropertyUpdated = false;
+
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
 		{
 			RigidHandle->SetX(Data->X);
 			RigidHandle->SetP(Data->X);
+			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::R))
 		{
 			RigidHandle->SetR(Data->R);
 			RigidHandle->SetQ(Data->R);
+			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Geometry))
 		{
@@ -234,10 +263,12 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::V))
 		{
 			RigidHandle->SetV(Data->MV);
+			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::W))
 		{
 			RigidHandle->SetW(Data->MW);
+			bDynamicPropertyUpdated = true;
 		}
 
 		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
@@ -252,10 +283,12 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::F))
 		{
 			RigidHandle->SetF(Data->MF);
+			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Torque))
 		{
 			RigidHandle->SetTorque(Data->MTorque);
+			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
@@ -282,15 +315,29 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			}
 		}
 
-		if(Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
 		{
 			int32 CurrShape = 0;
-			for(const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
 				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
 			}
 		}
+
+		if (bDynamicPropertyUpdated)
+		{
+			if (bInitialized && RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping)
+			{
+				GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
+			}
+		}
+		else
+		{
+			// wait for the first pass with nothing updated to claim its initialized
+			bInitialized = true;
+		}
 	}
+
 }
 
 template< >
@@ -312,6 +359,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhys
 		Buffer->R = RigidHandle->R();
 		Buffer->MV = RigidHandle->V();
 		Buffer->MW = RigidHandle->W();
+		Buffer->MObjectState = RigidHandle->ObjectState();
 	}
 }
 
@@ -327,6 +375,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->SetV(Buffer->MV, false);
 		Particle->SetW(Buffer->MW, false);
 		Particle->UpdateShapeBounds();
+		Particle->SetObjectState(Buffer->MObjectState, true);
 	}
 }
 
@@ -334,6 +383,18 @@ template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty()
 {
 	return Particle->IsDirty();
+}
+
+template< >
+bool FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::HasAwakeEvent() const
+{
+	return Particle->HasAwakeEvent();
+}
+
+template< >
+void FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::ClearEvents()
+{
+	Particle->ClearEvents();
 }
 
 template< >

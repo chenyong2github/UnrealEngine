@@ -49,4 +49,18 @@ namespace Chaos
 		return Idx;
 	}
 
+	/*
+	template <>
+	void TPBDRigidParticle<float, 3>::SetObjectState(const EObjectStateType InState, bool bAllowEvents)
+	{
+		//todo: look at physics thread logic
+		if (bAllowEvents && MObjectState != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
+		{
+			MAwakeEvent |= true;
+		}
+		MObjectState = InState;
+		this->MarkDirty(EParticleFlags::ObjectState);
+	}
+	*/
+
 }

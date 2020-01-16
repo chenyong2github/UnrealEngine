@@ -1644,27 +1644,36 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 
 				if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(ActiveParticle->UserData()))
 				{
-					if (BodyInstance->InstanceBodyIndex == INDEX_NONE && BodyInstance->OwnerComponent.IsValid())
+					if (BodyInstance->OwnerComponent.IsValid())
 					{
 						UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
 						if (OwnerComponent != nullptr)
 						{
 							AActor* Owner = OwnerComponent->GetOwner();
 
-							Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
-
-							if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+							if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
 							{
-								const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-								const FQuat NewRotation = NewTransform.GetRotation();
+								Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
 
-								OwnerComponent->MoveComponent(MoveBy, NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
+								if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+								{
+									const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+									const FQuat NewRotation = NewTransform.GetRotation();
+
+									OwnerComponent->MoveComponent(MoveBy, NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
+								}
+
+								if (Owner != NULL && !Owner->IsPendingKill())
+								{
+									Owner->CheckStillInWorld();
+								}
 							}
 
-							if (Owner != NULL && !Owner->IsPendingKill())
+							if (Proxy->HasAwakeEvent())
 							{
-								Owner->CheckStillInWorld();
+								OwnerComponent->DispatchWakeEvents(ESleepEvent::SET_Wakeup, NAME_None);
 							}
+							Proxy->ClearEvents();
 						}
 					}
 				}
