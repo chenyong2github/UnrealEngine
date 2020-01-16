@@ -4,6 +4,7 @@
 #include "Containers/Map.h"
 #include "HAL/FileManager.h"
 #include "Templates/UniquePtr.h"
+#include "Misc/Paths.h"
 
 //////////////////////////////////////////////////////////////////////////
 
