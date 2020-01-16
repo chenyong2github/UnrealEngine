@@ -73,10 +73,10 @@ public:
 	inline const FVirtualTextureBuiltData* GetVTData() const { return Data; }
 
 	// gets the codec for the given chunk, data is not valid until returned OutCompletionEvents are complete
-	FVTCodecAndStatus GetCodecForChunk(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, EAsyncIOPriorityAndFlags Priority);
+	FVTCodecAndStatus GetCodecForChunk(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, EVTRequestPagePriority Priority);
 
 	// read a portion of a chunk
-	FVTDataAndStatus ReadData(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, size_t Offset, size_t Size, EAsyncIOPriorityAndFlags Priority);
+	FVTDataAndStatus ReadData(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, size_t Offset, size_t Size, EVTRequestPagePriority Priority);
 
 private:
 	friend class FVirtualTextureCodec;
