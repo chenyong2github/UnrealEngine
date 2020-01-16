@@ -8,12 +8,14 @@
 #define RENDER_MODE_MSAA_VISIBILITY 3
 #define RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT 4
 
+#define INVALID_TILE_OFFSET ~0
+
 struct FVisibilityData
 {
 	float3 Tangent;		// 24 bits
 	uint   Coverage8bit;//  8 bits
 	uint   PrimitiveId;	// 28 bits
-	uint   ClusterId;	//  4 bits
+	uint   MacroGroupId;//  4 bits
 };
 
 struct FNodeVis // 128 bit aligments. TODO: Move the coverage computation into the material evaluation for saving 64 bits? 
@@ -32,7 +34,7 @@ struct FNodeVis // 128 bit aligments. TODO: Move the coverage computation into t
 struct FNodeData
 {
 	float Depth;
-	uint  PrimitiveID_ClusterID;
+	uint  PrimitiveID_MacroGroupID;
 	uint  Tangent_Coverage8bit;
 	uint  BaseColor_Roughness;
 	float Specular;
@@ -76,12 +78,12 @@ uint4 EncodeVisibilityData(FVisibilityData Data)
 		(0xFF & uint(T.x * 255)) | ((0xFF & uint(T.y * 255)) << 8),
 		(0xFF & uint(T.z * 255)) | (min(0xFFu, Data.Coverage8bit) << 8));
 
-	// PrimitiveId and ClusterId
+	// PrimitiveId and MacroGroupId
 	// Encode into 2 x 16bits
-	// PrimitiveId is on 28bits | ClusterId is on 4bits
+	// PrimitiveId is on 28bits | MacroGroupId is on 4bits
 	Output.zw = uint2(
 		0xFFFF & Data.PrimitiveId,
-		((Data.ClusterId & 0x0F) << 12) | (0x0FFF & (uint(Data.PrimitiveId) >> 16)));
+		((Data.MacroGroupId & 0x0F) << 12) | (0x0FFF & (uint(Data.PrimitiveId) >> 16)));
 
 	return Output;
 }
@@ -96,7 +98,7 @@ FVisibilityData DecodeVisibilityData(uint4 EncodedData)
 	Output.Coverage8bit = (EncodedData.y >> 8) & 0xFF;
 
 	Output.PrimitiveId = EncodedData.z | ((EncodedData.w & 0x0FFF) << 16);
-	Output.ClusterId = (EncodedData.w & 0xF000) >> 12;
+	Output.MacroGroupId = (EncodedData.w & 0xF000) >> 12;
 
 	return Output;
 }
@@ -107,7 +109,7 @@ bool IsValidHairData(uint4 EncodedVisibilityData)
 	return EncodedVisibilityData.w != InvalidSample;
 }
 
-uint DecodeClusterId(uint4 EncodedVisibilityData)
+uint DecodeMacroGroupId(uint4 EncodedVisibilityData)
 {
 	return (EncodedVisibilityData.w >> 12) & 0xF;
 }
@@ -142,7 +144,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	FNodeData Out;
 	Out.Depth					= Depth;																			// 32bits float
 	Out.Tangent_Coverage8bit	= (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
-	Out.PrimitiveID_ClusterID	= (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
+	Out.PrimitiveID_MacroGroupID= (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
 	Out.BaseColor_Roughness		= float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
 	Out.Specular				= Specular;																			// 32bits float
 
@@ -162,8 +164,8 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	const uint4 EncodedVisibility = uint4(
 		(InNode.Tangent_Coverage8bit & 0xFFFF),
 		(InNode.Tangent_Coverage8bit >> 16) & 0xFFFF,
-		(InNode.PrimitiveID_ClusterID & 0xFFFF),
-		(InNode.PrimitiveID_ClusterID >> 16) & 0xFFFF);
+		(InNode.PrimitiveID_MacroGroupID & 0xFFFF),
+		(InNode.PrimitiveID_MacroGroupID >> 16) & 0xFFFF);
 	OutVisibilityData = DecodeVisibilityData(EncodedVisibility);
 
 	const float4 BaseColorAndRoughness = UintToFloat4(InNode.BaseColor_Roughness);
@@ -178,7 +180,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  struct FSampleDesc
  {
 	 uint   SampleId;
-	 uint   ClusterId;
+	 uint   MacroGroupId;
 	 float  Depths;
 	 float  Weights;
 	 float3 Tangents;
@@ -204,10 +206,14 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 return float(Coverage8bit) / 255.f;
  }
 
- float GetVoxelDensityFixPointScale()
+ uint To16bitCoverage(float Coverage)
  {
-	 // Constant for scaling the hair coverage during the voxelization (done with atomic integer)
-	 return 1000.f;
+	 return min(uint(Coverage * 0x10000u), 0xFFFFu);
+ }
+
+ float From16bitCoverage(uint Coverage16bit)
+ {
+	 return float(Coverage16bit) / float(0xFFFF);
  }
 
  struct FCategorizationData
@@ -271,8 +277,13 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  {
 	 float RadiusAtDepth1Primary;
 	 float RadiusAtDepth1Velocity;
-	 bool  bIsOrthoView;
 	 float VelocityMagnitudeScale;
+
+	 bool bIsOrthoView;
+	 bool bIsGPUDriven;
+
+	 float3 ViewForward;
+	 float3 TranslatedWorldCameraOrigin;
  };
 
  FHairRenderInfo GetHairRenderInfo(float4 ViewHairRenderInfo)
@@ -280,10 +291,22 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 FHairRenderInfo Info;
 	 Info.RadiusAtDepth1Primary = ViewHairRenderInfo.x;
 	 Info.RadiusAtDepth1Velocity = ViewHairRenderInfo.y;
-	 Info.bIsOrthoView = ViewHairRenderInfo.z > 0.0f ? true : false;
-	 Info.VelocityMagnitudeScale = ViewHairRenderInfo.w;
+	 Info.VelocityMagnitudeScale = ViewHairRenderInfo.z;
+
+	 const uint BitField = asuint(ViewHairRenderInfo.w);
+	 Info.bIsOrthoView = (BitField & 0x1) != 0;
+	 Info.bIsGPUDriven = (BitField & 0x2) != 0;
+
 	 return Info;
  }
+ 
+ struct FHairViewInfo
+ {
+	 float3 TranslatedWorldCameraOrigin;
+	 float3 ViewForward;
+	 float  RadiusAtDepth1;
+	 bool	bIsOrthoView;
+ };
 
  struct FHairAttributes
  {
@@ -313,10 +336,9 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 // Footprint: 224bits | 28bytes
  struct FPPLLNodeData
  {
-	 // (backloged)TODO try f16(depth) f16(Specular) and make sure depth does not lead to artefact
 	 float Depth;
-	 float Specular;
-	 uint PrimitiveID_ClusterID;
+	 uint Specular_Coverage16bit;
+	 uint PrimitiveID_MacroGroupID;
 	 uint Tangent_Coverage8bit;
 	 uint BaseColor_Roughness;
 	 uint NextNodeIndex;
@@ -333,31 +355,35 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 return float2(f16tof32(PackedVelocity >> 16), f16tof32(PackedVelocity));
  }
 
- FPPLLNodeData ConvertToPPLLNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, float2 Velocity, uint NextNodeIndex)
+ FPPLLNodeData ConvertToPPLLNodeData(float Depth, float CoverageFullPrecision, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, float2 Velocity, uint NextNodeIndex)
  {
 	 // 4x16bits
 	 const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
+	 const uint Coverage16bit = To16bitCoverage(CoverageFullPrecision);
 
 	 FPPLLNodeData Out;
 	 Out.Depth = Depth;
 	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);
-	 Out.PrimitiveID_ClusterID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);
+	 Out.PrimitiveID_MacroGroupID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);
 	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));
-	 Out.Specular = Specular;
+	 Out.Specular_Coverage16bit = clamp(uint(Specular * 0xFFFF), 0, 0xFFFF) | ((0xFFFF & Coverage16bit) << 16);
 	 Out.NextNodeIndex = NextNodeIndex;
 	 Out.PackedVelocity = PackVelocity(Velocity);
 
 	 return Out;
  }
 
- FNodeData ConvertToNodeData(FPPLLNodeData In)
+ FNodeData ConvertToNodeData(FPPLLNodeData In, inout uint OutCoverage16bit)
  {
 	 FNodeData Out;
 	 Out.Depth = In.Depth;
-	 Out.PrimitiveID_ClusterID = In.PrimitiveID_ClusterID;
+	 Out.PrimitiveID_MacroGroupID = In.PrimitiveID_MacroGroupID;
 	 Out.Tangent_Coverage8bit = In.Tangent_Coverage8bit;
 	 Out.BaseColor_Roughness = In.BaseColor_Roughness;
-	 Out.Specular = In.Specular;
+	 Out.Specular = float(In.Specular_Coverage16bit & 0xFFFF) / float(0xFFFF);
+
+	 OutCoverage16bit = (In.Specular_Coverage16bit >> 16) & 0xFFFF;
+
 	 return Out;
  }
 

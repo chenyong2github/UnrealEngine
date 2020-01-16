@@ -37,6 +37,7 @@
 #include "CompositionLighting/PostProcessPassThrough.h"
 #include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "ShaderPrint.h"
+#include "GpuDebugRendering.h"
 #include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -818,6 +819,10 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		AddTestImagePass(GraphBuilder, View, SceneColor);
 	}
 
+	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
+	{
+		ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+	}
 	if (ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View))
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);

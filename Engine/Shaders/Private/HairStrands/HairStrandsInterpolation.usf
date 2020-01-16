@@ -2,13 +2,29 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsAABBCommon.ush"
+
+#if PERMUTATION_DEBUG == 1
+#include "../ShaderDrawDebug.ush"
+#endif
 
 uint VertexCount;
 uint DispatchCountX;
+uint HairDebugMode;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
 float3 OutHairPositionOffset;
 int2 HairStrandsCullIndex;
+float4x4 LocalToWorldMatrix;
+
+float InHairLength;
+float InHairRadius;
+float OutHairRadius;
+float MaxOutHairRadius;
+float HairRadiusRootScale;
+float HairRadiusTipScale;
+float HairLengthClip;
 
 Buffer<uint4>  RenderRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
@@ -16,7 +32,11 @@ Buffer<uint4>  DeformedSimPositionBuffer;
 Buffer<uint4>  Interpolation0Buffer;
 Buffer<uint4>  Interpolation1Buffer;
 
-#if PERMUTATION_DYNAMIC_GEOMETRY == 1 || PERMUTATION_DEBUG == 2
+#if PERMUTATION_SCALE_AND_CLIP
+Buffer<uint4>  AttributeBuffer;
+#endif
+
+#if PERMUTATION_DYNAMIC_GEOMETRY == 1 || PERMUTATION_DEBUG == 1
 Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
 #endif
@@ -54,6 +74,7 @@ Buffer<uint>	SimRootToTriangleIndex;
 #endif
 
 #if PERMUTATION_DEBUG == 1
+Buffer<int>		 VertexToClusterIdBuffer;
 Buffer<float4>	 SimAttributeBuffer;
 RWBuffer<float4> OutRenderAttributeBuffer;
 #endif
@@ -90,6 +111,32 @@ float3 ComputeDynamicGeometryOffset(
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
 }
 
+// Compute the new hair width and return if the current vertex is valid (true), or if it needs to be clipped (false)
+bool ScaleAndClip(uint ControlPointId, inout uint InPackedAlpha)
+{
+#if PERMUTATION_SCALE_AND_CLIP
+	// Instead of doing the actual interpolation we could rely on dithering as an optimization
+	const FHairAttributes Attributes0 = DecodeHairAttribute(AttributeBuffer[ControlPointId]);
+	const float U = Attributes0.UCoord;
+
+	// todo: Move all these computations into shared function which can be shared with the hair VF
+	const float InNormVertexRadius = ((InPackedAlpha & 0x00FC) >> 2) / 63.f;
+	//const float InVertexRadius = InNormVertexRadius * InHairRadius;
+	const float InVertexLength = ((InPackedAlpha & 0xFF00) >> 8) / 255.f * InHairLength;
+
+	const float OutVertexRadius = OutHairRadius * InNormVertexRadius * lerp(HairRadiusRootScale, HairRadiusTipScale, U);
+	const uint PackedVertexRadius = (uint(saturate(OutVertexRadius / MaxOutHairRadius) * 63.f) & 0x3F) << 2;
+
+	InPackedAlpha = (InPackedAlpha & 0xFF03) | PackedVertexRadius;
+
+	const bool bIsValid = InVertexLength <= HairLengthClip;
+	return bIsValid;
+#else
+	return true;
+#endif
+}
+
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -117,13 +164,18 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 		#endif
 
+		float3 WorldVertexPosition = 0.0f;
+
 		// 1. Rigid transformation
 		// ControlPoint is in the local hair referential
 		// CurrOffset takes only translation component into account, and is done in object local space (vs. triangle/hair local space)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 0
 		{
 			float3 CurrOffset = 0;
-			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InRenderHairPositionOffset;
+			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			float3 ControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
+
+
 			#if PERMUTATION_SIMULATION == 1
 			[unroll]
 			for (uint K = 0; K < 3; ++K)
@@ -137,7 +189,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
 			}
 			#endif
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint + CurrOffset - OutHairPositionOffset), RenderRestPosePositionBuffer[VertexIndex].w);
+
+			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif	
 
@@ -145,7 +201,10 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// Apply dynamic mesh deformation (translation / rotation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 1
 		{
-			float3 ControlPoint = f16tof32(RenderRestPosePositionBuffer[VertexIndex].xyz) + InRenderHairPositionOffset;
+			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
+			float3 ControlPoint = RestControlPoint;
+
 			float3 CurrOffset = 0;
 
 			// Compute the simulation offset in hair local space (i.e., triangle)
@@ -177,32 +236,55 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle);
 			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(ControlPoint - OutHairPositionOffset), RenderRestPosePositionBuffer[VertexIndex].w);
+			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = bIsValid ? ControlPoint : float3(1.#INF, 1.#INF, 1.#INF);
 
-			// Debug
-			#if 0
+			#if PERMUTATION_DEBUG == 1
 			{
-				// Show the triangle normal use by hair fiber
-				//ControlPoint = VertexIndex % 2 == 0 ? RestTriangle.P0 : RestTriangle.P0 + RestTriangle.N;
+				const bool bDebugEnabled = HairDebugMode == 4;
+				const float4 RestColor = float4(0, 1, 0, 1);
+				const float4 DeformedColor = float4(1, 0, 0, 1);
+				if (bDebugEnabled && VertexIndex==0)
+				{	
+					AddCross(InRenderHairPositionOffset, 1.2, RestColor);
+					AddCross(OutHairPositionOffset, 1, DeformedColor);
+				}
+			
+				if (bDebugEnabled && VertexIndex >= 0 && VertexIndex < 64)
+				{
+					AddReferential(RestControlPoint, float3(0, 0, 1));
+					AddReferential(WorldVertexPosition, float3(0, 0, 1));
+				}
 
-				// Measure the stretch of the projection (to identify if there any local transform issue during the projeciton steps
-				ControlPoint = VertexIndex % 2 == 0 ? ControlPoint  : RestTriangle.P0;
+				if (bDebugEnabled)
+				{
+					const uint ControlPointType = asuint(PackedRestPosition.w) & 0x3;
+					const bool bIsRoot = ControlPointType == 1;
+					if (bIsRoot)
+					{
+						AddLineTriangle(RestTriangle.P0, RestTriangle.P1, RestTriangle.P2, RestColor);
+						AddLineTriangle(DeformedTriangle.P0, DeformedTriangle.P1, DeformedTriangle.P2, DeformedColor);
+					}
+				}
 			}
 			#endif
+
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), RenderRestPosePositionBuffer[VertexIndex].w);
 		}
 		#endif	
 
 		#if PERMUTATION_DEBUG == 1
+		if (HairDebugMode == 1)
 		{
 			const uint GuideIndex = GuideVertexIndices[0]; // Take the closest guide
 			const float4 GuideAttribute = SimAttributeBuffer[GuideIndex];
 			OutRenderAttributeBuffer[VertexIndex] = GuideAttribute;
 		}
-		#endif
 
 		// Cull hair strands or clusters which are not matching the provided index
-		#if PERMUTATION_DEBUG == 2
+		if (HairDebugMode == 2)
 		{
+		#if 0
 			bool bIsValid = false;
 			if (HairStrandsCullIndex.y >= 0)
 			{
@@ -211,7 +293,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				{
 					const uint GuideIndex = GuideVertexIndices[K];
 					const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex];
-					if (HairStrandsCullIndex.y == RootIndex)
+					if (uint(HairStrandsCullIndex.y) == RootIndex)
 					{
 						bIsValid = true;
 						break;
@@ -221,14 +303,159 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			else if (HairStrandsCullIndex.x >= 0)
 			{
 				const uint RootIndex = RenVertexToRootIndexBuffer[VertexIndex];
-				bIsValid = HairStrandsCullIndex.x == RootIndex;
+				bIsValid = uint(HairStrandsCullIndex.x) == RootIndex;
 			}
 
 			if (!bIsValid)
 			{
 				OutRenderDeformedPositionBuffer[VertexIndex] = float4(float3(1.#INF, 1.#INF, 1.#INF), 2);
 			}
+		#endif		
+		}
+
+		if (HairDebugMode == 3)
+		{
+			const uint ClusterId = VertexToClusterIdBuffer[VertexIndex];
+			const uint ClusterIdLo8bits = ClusterId & 0xFF;
+			const uint ClusterIdHi8btis = (ClusterId>>8) & 0xFF;
+			// Using FNV1 hash to break linearity of ClusterId (generated by linearly parsing cluster grid)
+			uint Hash = 0;
+			Hash = Hash * 17;
+			Hash = Hash ^ ClusterIdLo8bits;
+			Hash = Hash * 17;
+			Hash = Hash ^ ClusterIdHi8btis;
+			OutRenderAttributeBuffer[VertexIndex] = asfloat(uint4(0, (Hash & 0xFF) << 8, 0, 0));
 		}
 		#endif
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint ClusterCount;
+
+Buffer<uint4> RenderDeformedPositionBuffer;
+Buffer<uint> ClusterVertexIdBuffer;
+Buffer<uint4> ClusterInfoBuffer;		// Indices start and count
+
+RWBuffer<int> OutClusterAABBBuffer;		// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
+RWBuffer<int> OutGroupAABBBuffer;		// Group data packed as {uint3 AABBMin, uint3 AABBMax}
+
+#if GROUP_SIZE!=64 && GROUP_SIZE!=32
+#error Unhandled group size
+#endif
+
+groupshared float3 SharedClusterAABBMin[GROUP_SIZE];
+groupshared float3 SharedClusterAABBMax[GROUP_SIZE];
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
+{
+	const uint ClusterId = GroupId.x + GroupId.y * DispatchCountX;
+	if (ClusterId >= ClusterCount)
+	{
+		return;
+	}
+
+	int4 ClusterInfo = ClusterInfoBuffer[ClusterId];
+	const uint ClusterIndicesStart = ClusterInfo.x;
+	const uint ClusterIndicesCount = ClusterInfo.y;
+
+	int3 ClusterAABBMin = 9999999.0f;
+	int3 ClusterAABBMax =-9999999.0f;
+
+	uint LoopCount = (ClusterIndicesCount + GROUP_SIZE - 1) / GROUP_SIZE;
+	for (uint Loop = 0; Loop < LoopCount; ++Loop)
+	{
+		uint GroupReadOffset = Loop * GROUP_SIZE;
+		uint ThreadReadOffset = GroupReadOffset + GroupThreadId.x;
+
+		if (ThreadReadOffset < ClusterIndicesCount)
+		{
+			uint VertexIndex = ClusterVertexIdBuffer[ClusterIndicesStart + ThreadReadOffset];
+
+			uint4 PackedVertex = RenderDeformedPositionBuffer[VertexIndex];
+			float3 VertexWorldPosition = f16tof32(PackedVertex.xyz);
+			if (IsFinite(VertexWorldPosition.x))
+			{
+				const int3 WorldSpaceCentimeters = int3(mul(float4(VertexWorldPosition + OutHairPositionOffset, 1.0f), LocalToWorldMatrix).xyz);
+				const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
+				const int3 WorldSpaceCentimetersMax = WorldSpaceCentimeters + 1;
+
+				ClusterAABBMin = min(ClusterAABBMin, WorldSpaceCentimetersMin);
+				ClusterAABBMax = max(ClusterAABBMax, WorldSpaceCentimetersMax);
+			}
+		}
+	}
+
+	// Write each thread result to shared memory
+	const uint LocalIndex = GroupThreadId.x;
+	SharedClusterAABBMin[LocalIndex] = ClusterAABBMin;
+	SharedClusterAABBMax[LocalIndex] = ClusterAABBMax;
+
+	// Do a local reduction in shared memory. Assumes ClusterIndicesCount>64 to have all min&max values valid.
+#if GROUP_SIZE==64
+	GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 32)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 32]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 32]);
+	}
+#endif
+	GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 16)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 16]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 16]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 8)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 8]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 8]);
+	}
+	// No hardware has SIMD Vector unit operating in sync with less than 16 threads per group. So can skip sync now.
+	//GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 4)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 4]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 4]);
+	}
+	//GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 2)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 2]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 2]);
+	}
+	//GroupMemoryBarrierWithGroupSync();
+	if (LocalIndex < 1)
+	{
+		SharedClusterAABBMin[LocalIndex] = min(SharedClusterAABBMin[LocalIndex], SharedClusterAABBMin[LocalIndex + 1]);
+		SharedClusterAABBMax[LocalIndex] = max(SharedClusterAABBMax[LocalIndex], SharedClusterAABBMax[LocalIndex + 1]);
+	}
+
+	// Write out hair cluster AABB
+	if (LocalIndex == 0)
+	{
+		const uint ClusterIdx6 = ClusterId * 6;
+		OutClusterAABBBuffer[ClusterIdx6 + 0] = SharedClusterAABBMin[0].x;
+		OutClusterAABBBuffer[ClusterIdx6 + 1] = SharedClusterAABBMin[0].y;
+		OutClusterAABBBuffer[ClusterIdx6 + 2] = SharedClusterAABBMin[0].z;
+		OutClusterAABBBuffer[ClusterIdx6 + 3] = SharedClusterAABBMax[0].x;
+		OutClusterAABBBuffer[ClusterIdx6 + 4] = SharedClusterAABBMax[0].y;
+		OutClusterAABBBuffer[ClusterIdx6 + 5] = SharedClusterAABBMax[0].z;
+
+		// And contribute to the group full AABB
+		FHairAABB Bound;
+		Bound.Min.x = SharedClusterAABBMin[0].x;
+		Bound.Min.y = SharedClusterAABBMin[0].y;
+		Bound.Min.z = SharedClusterAABBMin[0].z;
+		Bound.Max.x = SharedClusterAABBMax[0].x;
+		Bound.Max.y = SharedClusterAABBMax[0].y;
+		Bound.Max.z = SharedClusterAABBMax[0].z;
+		InterlockHairAABB(0, Bound, OutGroupAABBBuffer);
+	}
+
+	// TODO Atomic Min/Max group AABB
+}
+

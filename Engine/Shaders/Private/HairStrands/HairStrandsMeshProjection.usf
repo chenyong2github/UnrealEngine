@@ -126,7 +126,7 @@ FTrianglePoint ComputeClosestPoint(const FHairMeshTriangle Tri, const float3 P)
 	return Out;
 }
 
-[numthreads(32, 1, 1)]
+[numthreads(128, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	// Shift root index with thread index to reduce/avoid collisions

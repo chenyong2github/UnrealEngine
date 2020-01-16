@@ -31,6 +31,7 @@ struct FNDIPhysicsAssetArrays
 	TArray<FVector4> CurrentTransform;
 	TArray<FVector4> InverseTransform;
 	TArray<FVector4> PreviousTransform;
+	TArray<FVector4> PreviousInverse;
 	TArray<FVector4> RestTransform;
 	TArray<FVector4> RestInverse;
 	TArray<FVector4> ElementExtent;
@@ -43,10 +44,10 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	bool IsValid() const;
 
 	/** Set the assets that will be used to affect the buffer */
-	void SetupArrays(const TWeakObjectPtr<class UPhysicsAsset>  PhysicsAsset, const TWeakObjectPtr<class USkeletalMeshComponent>  SkeletalMesh, const FTransform& InWorldTransform);
+	void Initialize(const TWeakObjectPtr<class UPhysicsAsset>  PhysicsAsset, const TWeakObjectPtr<class USkeletalMeshComponent>  SkeletalMesh, const FTransform& InWorldTransform);
 
 	/** Update the buffers */
-	void UpdateBuffers();
+	void Update();
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -62,6 +63,9 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 
 	/** Previous transform buffer */
 	FRWBuffer PreviousTransformBuffer;
+
+	/** Previous inverse buffer */
+	FRWBuffer PreviousInverseBuffer;
 
 	/** Inverse transform buffer*/
 	FRWBuffer InverseTransformBuffer;
@@ -91,8 +95,14 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 /** Data stored per physics asset instance*/
 struct FNDIPhysicsAssetData
 {
+	/** Initialize the buffers */
+	bool Init(class UNiagaraDataInterfacePhysicsAsset* Interface, FNiagaraSystemInstance* SystemInstance);
+
+	/** Release the buffers */
+	void Release();
+
 	/** Physics asset Gpu buffer */
-	FNDIPhysicsAssetBuffer* AssetBuffer;
+	FNDIPhysicsAssetBuffer* PhysicsAssetBuffer;
 
 	/** Bounding box center */
 	FVector BoxOrigin;
@@ -143,6 +153,9 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 
+	/** Extract the source component */
+	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance);
+
 	/** Get the number of boxes*/
 	void GetNumBoxes(FVectorVMContext& Context);
 
@@ -169,6 +182,9 @@ public:
 
 	/** Name of the previous transform buffer */
 	static const FString PreviousTransformBufferName;
+
+	/** Name of the previous inverse buffer */
+	static const FString PreviousInverseBufferName;
 
 	/** Name of the inverse transform buffer */
 	static const FString InverseTransformBufferName;
@@ -206,7 +222,7 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPhysicsAssetBuffer* AssetBuffer, const FVector& BoxOrigin, const FVector& BoxExtent);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

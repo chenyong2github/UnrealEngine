@@ -75,7 +75,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 	{
 		// Display import options and handle user cancellation
-		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayOptions(ImportOptions, Filename);
+		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, Filename);
 		if (!GroomOptionWindow->ShouldImport())
 		{
 			bOutOperationCanceled = true;

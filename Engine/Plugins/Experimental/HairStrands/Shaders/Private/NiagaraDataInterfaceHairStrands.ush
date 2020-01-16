@@ -143,7 +143,8 @@ void DIHairStrands_GetBoxExtent(in FDIHairStrandsContext DIContext, out float3 O
 	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[0],DIContext.NodeBoundBuffer[1],DIContext.NodeBoundBuffer[2]));
 	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.NodeBoundBuffer[3],DIContext.NodeBoundBuffer[4],DIContext.NodeBoundBuffer[5]));
 
-	OutBoxExtent =  (BoxMax-BoxMin);
+	//OutBoxExtent =  0.5 * (BoxMax-BoxMin);
+	OutBoxExtent =   (BoxMax-BoxMin);
 }
 
 /* -----------------------------------------------------------------
@@ -477,6 +478,32 @@ void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in
  * Edge delta position and delta orientation
  * -----------------------------------------------------------------
  */
+
+// Compute the edge volume value
+void DIHairStrands_ComputeEdgeVolume(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodePosition, out float OutEdgeVolume)
+{
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	GroupMemoryBarrier(); 
+
+	int StrandIndex = 0, LocalIndex = 0;
+	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
+
+	// L = ||P1-P0||
+	OutEdgeVolume = 0.0;
+	if(LocalIndex > 2)
+	{
+		const int NodeIndexA = GGroupThreadId.x;
+		const int NodeIndexB = GGroupThreadId.x-1;
+		const int NodeIndexC = GGroupThreadId.x-2;
+		const int NodeIndexD = GGroupThreadId.x-3;
+
+		const float3 EdgeVectorA = SharedNodePosition[NodeIndexB] - SharedNodePosition[NodeIndexA];
+		const float3 EdgeVectorB = SharedNodePosition[NodeIndexC] - SharedNodePosition[NodeIndexA];
+		const float3 EdgeVectorC = SharedNodePosition[NodeIndexD] - SharedNodePosition[NodeIndexA];
+
+		OutEdgeVolume = dot(cross(EdgeVectorB,EdgeVectorC),EdgeVectorA);
+	}
+}
 
 // Compute the edge length value
 void DIHairStrands_ComputeEdgeLength(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodePosition, in int NodeOffset, out float OutEdgeLength)

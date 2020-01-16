@@ -53,7 +53,7 @@ static FAutoConsoleVariableRef CVarGHairVisibilityPPLLMeanNodeCountPerPixel(TEXT
 static int32 GHairStrandsVisibilityMaterialPass = 0;
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityMaterialPass(TEXT("r.HairStrands.Visibility.MaterialPass"), GHairStrandsVisibilityMaterialPass, TEXT("Enable the deferred material pass evaluation after the hair visibility is resolved."));
 
-static int32 GHairStrandsViewHairCount = 0;
+static int32 GHairStrandsViewHairCount = 1;
 static float GHairStrandsViewHairCountDepthDistanceThreshold = 30.f;
 static FAutoConsoleVariableRef CVarHairStrandsViewHairCount(TEXT("r.HairStrands.Visibility.HairCount"), GHairStrandsViewHairCount, TEXT("Enable the computation of 'view-hair-count' during the transmission pass."));
 static FAutoConsoleVariableRef CVarHairStrandsViewHairCountDepthDistanceThreshold(TEXT("r.HairStrands.Visibility.HairCount.DistanceThreshold"), GHairStrandsViewHairCountDepthDistanceThreshold, TEXT("Distance threshold defining if opaque depth get injected into the 'view-hair-count' buffer."));
@@ -65,7 +65,7 @@ namespace HairStrandsVisibilityInternal
 	struct NodeData
 	{
 		uint32 Depth;
-		uint32 PrimitiveId_ClusterId;
+		uint32 PrimitiveId_MacroGroupId;
 		uint32 Tangent_Coverage;
 		uint32 BaseColor_Roughness;
 		uint32 Specular;
@@ -75,8 +75,8 @@ namespace HairStrandsVisibilityInternal
 	struct NodeVis
 	{
 		uint32 Depth;
-		uint32 PrimitiveId_ClusterId;
-		uint32 Coverage_ClusterID_Pad;
+		uint32 PrimitiveId_MacroGroupId;
+		uint32 Coverage_MacroGroupId_Pad;
 		uint32 Pad;
 	};
 }
@@ -148,11 +148,7 @@ void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVecto
 		FIntPoint(ViewInfo.UnconstrainedViewRect.Width(), ViewInfo.UnconstrainedViewRect.Height()), ViewInfo.FOV, HairVisibilitySampleCount, RasterizationScaleOverride);
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
-	// Update our view parameters
-	OutHairRenderInfo.X = MinHairRadius.Primary;
-	OutHairRenderInfo.Y = MinHairRadius.Velocity;
-	OutHairRenderInfo.Z = ViewInfo.IsPerspectiveProjection() ? 0.0f : 1.0f;
-	OutHairRenderInfo.W = VelocityMagnitudeScale;
+	OutHairRenderInfo = PackHairRenderInfo(MinHairRadius.Primary, MinHairRadius.Velocity, VelocityMagnitudeScale, !ViewInfo.IsPerspectiveProjection(), false);
 }
 
 static bool IsCompatibleWithHairVisibility(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -206,8 +202,8 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairMaterialVS, TEXT("/Engine/Private/HairStra
 class FHairMaterialShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
-	FHairMaterialShaderElementData(int32 ClusterId, int32 MaterialId, int32 PrimitiveId) : MaterialPass_ClusterId(ClusterId), MaterialPass_MaterialId(MaterialId), MaterialPass_PrimitiveId(PrimitiveId) { }
-	uint32 MaterialPass_ClusterId;
+	FHairMaterialShaderElementData(int32 MacroGroupId, int32 MaterialId, int32 PrimitiveId) : MaterialPass_MacroGroupId(MacroGroupId), MaterialPass_MaterialId(MaterialId), MaterialPass_PrimitiveId(PrimitiveId) { }
+	uint32 MaterialPass_MacroGroupId;
 	uint32 MaterialPass_MaterialId;
 	uint32 MaterialPass_PrimitiveId;
 };
@@ -223,7 +219,7 @@ public:
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FMaterialPassParameters::StaticStructMetadata.GetShaderVariableName());
-		MaterialPass_ClusterId.Bind(Initializer.ParameterMap, TEXT("MaterialPass_ClusterId"));
+		MaterialPass_MacroGroupId.Bind(Initializer.ParameterMap, TEXT("MaterialPass_MacroGroupId"));
 		MaterialPass_MaterialId.Bind(Initializer.ParameterMap, TEXT("MaterialPass_MaterialId"));
 		MaterialPass_PrimitiveId.Bind(Initializer.ParameterMap, TEXT("MaterialPass_PrimitiveId"));
 
@@ -249,7 +245,7 @@ public:
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << MaterialPass_ClusterId;
+		Ar << MaterialPass_MacroGroupId;
 		Ar << MaterialPass_MaterialId;
 		Ar << MaterialPass_PrimitiveId;
 		Ar << OutNodeData;
@@ -268,13 +264,13 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
-		ShaderBindings.Add(MaterialPass_ClusterId, ShaderElementData.MaterialPass_ClusterId);
+		ShaderBindings.Add(MaterialPass_MacroGroupId, ShaderElementData.MaterialPass_MacroGroupId);
 		ShaderBindings.Add(MaterialPass_MaterialId, ShaderElementData.MaterialPass_MaterialId);
 		ShaderBindings.Add(MaterialPass_PrimitiveId, ShaderElementData.MaterialPass_PrimitiveId);
 	}
 
 private:
-	FShaderParameter MaterialPass_ClusterId;
+	FShaderParameter MaterialPass_MacroGroupId;
 	FShaderParameter MaterialPass_MaterialId;
 	FShaderParameter MaterialPass_PrimitiveId;
 	FShaderParameter OutNodeData;
@@ -294,7 +290,7 @@ public:
 		FDynamicPassMeshDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
-	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, int32 HairClusterId, int32 HairMaterialId);
+	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, int32 MacroGroupId, int32 HairMaterialId);
 
 private:
 	void Process(
@@ -304,7 +300,7 @@ private:
 		int32 StaticMeshId,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		const int32 HairClusterId,
+		const int32 MacroGroupId,
 		const int32 HairMaterialId,
 		const int32 HairPrimitiveId);
 
@@ -316,7 +312,7 @@ void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 	AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, 0, 0);
 }
 
-void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, int32 HairClusterId, int32 HairMaterialId)
+void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, int32 MacroGroupId, int32 HairMaterialId)
 {
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
@@ -339,6 +335,8 @@ void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 			MeshBatchCopy.Elements[ElementIt].FirstIndex = 0;
 			MeshBatchCopy.Elements[ElementIt].NumPrimitives = 1;
 			MeshBatchCopy.Elements[ElementIt].NumInstances = 1;
+			MeshBatchCopy.Elements[ElementIt].IndirectArgsBuffer = nullptr;
+			MeshBatchCopy.Elements[ElementIt].IndirectArgsOffset = 0;
 		}
 
 		int32 PrimitiveId = 0;
@@ -347,7 +345,7 @@ void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		GetDrawCommandPrimitiveId(SceneInfo, MeshBatch.Elements[0], PrimitiveId, ScenePrimitiveId);
 
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-		Process(MeshBatchCopy, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, PrimitiveId);
+		Process(MeshBatchCopy, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MacroGroupId, HairMaterialId, PrimitiveId);
 	}
 }
 
@@ -358,7 +356,7 @@ void FHairMaterialProcessor::Process(
 	int32 StaticMeshId,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
-	const int32 HairClusterId,
+	const int32 MacroGroupId,
 	const int32 HairMaterialId,
 	const int32 HairPrimitiveId)
 {
@@ -376,7 +374,7 @@ void FHairMaterialProcessor::Process(
 	}
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
-	FHairMaterialShaderElementData ShaderElementData(HairClusterId, HairMaterialId, HairPrimitiveId);
+	FHairMaterialShaderElementData ShaderElementData(MacroGroupId, HairMaterialId, HairPrimitiveId);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
 	BuildMeshDrawCommands(
@@ -427,7 +425,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	FRDGTextureRef CompactNodeIndex,
 	FRDGBufferRef CompactNodeVis,
@@ -472,7 +470,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 		RDG_EVENT_NAME("HairStrandsMaterialPass"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &ClusterDatas, MaxNodeCount, Resolution, NodeGroupSize](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize](FRHICommandListImmediate& RHICmdList)
 	{
 		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
@@ -507,13 +505,13 @@ static FMaterialPassOutput AddHairMaterialPass(
 			FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet);
 			FHairMaterialProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, &ShadowContext);
 
-			for (const FHairStrandsClusterData& ClusterData : ClusterDatas.Datas)
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 			{
-				for (const FHairStrandsClusterData::PrimitiveInfo& PrimitiveInfo : ClusterData.PrimitivesInfos)
+				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
 					const FMeshBatch& MeshBatch = *PrimitiveInfo.MeshBatchAndRelevance.Mesh;
 					const uint64 BatchElementMask = ~0ull;
-					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy, -1, ClusterData.ClusterId, PrimitiveInfo.MaterialId);
+					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
 				}
 			}
 
@@ -562,7 +560,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairVelocityCS, "/Engine/Private/HairStrands/HairStrand
 static void AddHairVelocityPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FRDGTextureRef& NodeIndex,
 	FRDGBufferRef& NodeVis,
 	FRDGBufferRef& NodeVelocity,
@@ -590,7 +588,7 @@ static void AddHairVelocityPass(
 	PassParameters->NodeVelocity = GraphBuilder.CreateSRV(NodeVelocity, FMaterialPassOutput::VelocityFormat);
 	PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 
-	FIntRect TotalRect = ComputeVisibleHairStrandsClustersRect(View.ViewRect, ClusterDatas);
+	FIntRect TotalRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
 
 	// Snap the rect onto thread group boundary
 	const FIntPoint GroupSize = GetVendorOptimalGroupSize2D();
@@ -652,6 +650,7 @@ protected:
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		const uint32 RenderModeValue = uint32(RenderMode);
 		OutEnvironment.SetDefine(TEXT("HAIR_RENDER_MODE"), RenderModeValue);
+		OutEnvironment.SetDefine(TEXT("USE_CULLED_CLUSTER"), 1);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FHairVisibilityVS<HairVisibilityRenderMode_MSAA_Visibility>, TEXT("/Engine/Private/HairStrands/HairStrandsVisibilityVS.usf"), TEXT("Main"), SF_Vertex);
@@ -665,8 +664,8 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FHairVisibilityVS<HairVisibilityRende
 class FHairVisibilityShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
-	FHairVisibilityShaderElementData(uint32 InHairClusterId, uint32 InHairMaterialId, uint32 InMaxPPLLNodeCount) : HairClusterId(InHairClusterId), HairMaterialId(InHairMaterialId), MaxPPLLNodeCount(InMaxPPLLNodeCount) { }
-	uint32 HairClusterId;
+	FHairVisibilityShaderElementData(uint32 InHairMacroGroupId, uint32 InHairMaterialId, uint32 InMaxPPLLNodeCount) : HairMacroGroupId(InHairMacroGroupId), HairMaterialId(InHairMaterialId), MaxPPLLNodeCount(InMaxPPLLNodeCount) { }
+	uint32 HairMacroGroupId;
 	uint32 HairMaterialId;
 	uint32 MaxPPLLNodeCount;
 };
@@ -684,12 +683,15 @@ public:
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FVisibilityPassGlobalParameters::StaticStructMetadata.GetShaderVariableName());
-		HairVisibilityPass_HairClusterIndex.Bind(Initializer.ParameterMap, TEXT("HairVisibilityPass_HairClusterIndex"));
+		HairVisibilityPass_HairMacroGroupIndex.Bind(Initializer.ParameterMap, TEXT("HairVisibilityPass_HairMacroGroupIndex"));
 		HairVisibilityPass_HairMaterialId.Bind(Initializer.ParameterMap, TEXT("HairVisibilityPass_HairMaterialId"));
 		HairVisibilityPass_MaxPPLLNodeCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityPass_MaxPPLLNodeCount"));
-		PPLLCounter.Bind(Initializer.ParameterMap, TEXT("PPLLCounter"));
-		PPLLNodeIndex.Bind(Initializer.ParameterMap, TEXT("PPLLNodeIndex"));
-		PPLLNodes.Bind(Initializer.ParameterMap, TEXT("PPLLNodes"));
+		if (RenderMode == EHairVisibilityRenderMode::HairVisibilityRenderMode_PPLL)
+		{
+			PPLLCounter.Bind(Initializer.ParameterMap, TEXT("PPLLCounter"));
+			PPLLNodeIndex.Bind(Initializer.ParameterMap, TEXT("PPLLNodeIndex"));
+			PPLLNodes.Bind(Initializer.ParameterMap, TEXT("PPLLNodes"));
+		}
 	}
 
 	FHairVisibilityPS() {}
@@ -709,12 +711,15 @@ public:
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << HairVisibilityPass_HairClusterIndex;
+		Ar << HairVisibilityPass_HairMacroGroupIndex;
 		Ar << HairVisibilityPass_HairMaterialId;
 		Ar << HairVisibilityPass_MaxPPLLNodeCount;
-		Ar << PPLLCounter;
-		Ar << PPLLNodeIndex;
-		Ar << PPLLNodes;
+		if (RenderMode == EHairVisibilityRenderMode::HairVisibilityRenderMode_PPLL)
+		{
+			Ar << PPLLCounter;
+			Ar << PPLLNodeIndex;
+			Ar << PPLLNodes;
+		}
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -729,12 +734,12 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
-		ShaderBindings.Add(HairVisibilityPass_HairClusterIndex, ShaderElementData.HairClusterId);
+		ShaderBindings.Add(HairVisibilityPass_HairMacroGroupIndex, ShaderElementData.HairMacroGroupId);
 		ShaderBindings.Add(HairVisibilityPass_HairMaterialId, ShaderElementData.HairMaterialId);
 		ShaderBindings.Add(HairVisibilityPass_MaxPPLLNodeCount, ShaderElementData.MaxPPLLNodeCount);
 	}
 
-	FShaderParameter HairVisibilityPass_HairClusterIndex;
+	FShaderParameter HairVisibilityPass_HairMacroGroupIndex;
 	FShaderParameter HairVisibilityPass_HairMaterialId;
 	FShaderParameter HairVisibilityPass_MaxPPLLNodeCount;
 	// This is on FVisibilityPassParameters but needed to avoid the compiler to assert with unbound parameters 
@@ -761,7 +766,7 @@ public:
 		FDynamicPassMeshDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
-	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, uint32 HairClusterId, uint32 HairMaterialId);
+	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, uint32 HairMacroGroupId, uint32 HairMaterialId);
 
 	void SetMaxPPLLNodeCount(uint32 NewValue) { MaxPPLLNodeCount = NewValue; }
 
@@ -774,7 +779,7 @@ private:
 		int32 StaticMeshId,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		const uint32 HairClusterId,
+		const uint32 HairMacroGroupId,
 		const uint32 HairMaterialId,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
@@ -789,7 +794,7 @@ void FHairVisibilityProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, 0, 0);
 }
 
-void FHairVisibilityProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, uint32 HairClusterId, uint32 HairMaterialId)
+void FHairVisibilityProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, uint32 HairMacroGroupId, uint32 HairMaterialId)
 {
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
@@ -809,15 +814,15 @@ void FHairVisibilityProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
 		if (RenderMode == HairVisibilityRenderMode_MSAA_Visibility)
-			Process<HairVisibilityRenderMode_MSAA_Visibility>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, MeshFillMode, MeshCullMode);
+			Process<HairVisibilityRenderMode_MSAA_Visibility>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairMacroGroupId, HairMaterialId, MeshFillMode, MeshCullMode);
 		if (RenderMode == HairVisibilityRenderMode_MSAA)
-			Process<HairVisibilityRenderMode_MSAA>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, MeshFillMode, MeshCullMode);
+			Process<HairVisibilityRenderMode_MSAA>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairMacroGroupId, HairMaterialId, MeshFillMode, MeshCullMode);
 		if (RenderMode == HairVisibilityRenderMode_Transmittance)
-			Process<HairVisibilityRenderMode_Transmittance>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, MeshFillMode, MeshCullMode);
+			Process<HairVisibilityRenderMode_Transmittance>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairMacroGroupId, HairMaterialId, MeshFillMode, MeshCullMode);
 		if (RenderMode == HairVisibilityRenderMode_TransmittanceAndHairCount)
-			Process<HairVisibilityRenderMode_TransmittanceAndHairCount>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, MeshFillMode, MeshCullMode);
+			Process<HairVisibilityRenderMode_TransmittanceAndHairCount>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairMacroGroupId, HairMaterialId, MeshFillMode, MeshCullMode);
 		if (RenderMode == HairVisibilityRenderMode_PPLL)
-			Process<HairVisibilityRenderMode_PPLL>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, MeshFillMode, MeshCullMode);
+			Process<HairVisibilityRenderMode_PPLL>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairMacroGroupId, HairMaterialId, MeshFillMode, MeshCullMode);
 	}
 }
 
@@ -829,7 +834,7 @@ void FHairVisibilityProcessor::Process(
 	int32 StaticMeshId,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
-	const uint32 HairClusterId,
+	const uint32 HairMacroGroupId,
 	const uint32 HairMaterialId,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode)
@@ -848,7 +853,7 @@ void FHairVisibilityProcessor::Process(
 	}
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
-	FHairVisibilityShaderElementData ShaderElementData(HairClusterId, HairMaterialId, MaxPPLLNodeCount);
+	FHairVisibilityShaderElementData ShaderElementData(HairMacroGroupId, HairMaterialId, MaxPPLLNodeCount);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
 	BuildMeshDrawCommands(
@@ -985,6 +990,7 @@ class FCopyIndirectBufferCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, ThreadGroupSize)
+		SHADER_PARAMETER(uint32, ItemCountPerGroup)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CounterTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutArgBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -999,6 +1005,7 @@ static FRDGBufferRef AddCopyIndirectArgPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
 	const uint32 ThreadGroupSize,
+	const uint32 ItemCountPerGroup,
 	FRDGTextureRef CounterTexture)
 {
 	check(CounterTexture);
@@ -1006,7 +1013,8 @@ static FRDGBufferRef AddCopyIndirectArgPass(
 	FRDGBufferRef OutBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("HairVisibilityIndirectArgBuffer"));
 
 	FCopyIndirectBufferCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyIndirectBufferCS::FParameters>();
-	Parameters->ThreadGroupSize = 32;
+	Parameters->ThreadGroupSize = ThreadGroupSize;
+	Parameters->ItemCountPerGroup = ItemCountPerGroup;
 	Parameters->CounterTexture = CounterTexture;
 	Parameters->OutArgBuffer = GraphBuilder.CreateUAV(OutBuffer);
 
@@ -1102,7 +1110,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	const bool bUseVisibility,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters,
 	FRDGTextureRef& OutCompactNodeIndex,
@@ -1225,7 +1233,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 	}
  
-	FIntRect TotalRect = ComputeVisibleHairStrandsClustersRect(View.ViewRect, ClusterDatas);
+	FIntRect TotalRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
 
 	// Snap the rect onto thread group boundary
 	const FIntPoint GroupSize = GetVendorOptimalGroupSize2D();
@@ -1245,7 +1253,105 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(RectResolution, GroupSize));
 
-	OutIndirectArgsBuffer = AddCopyIndirectArgPass(GraphBuilder, &View, NodeGroupSize, CompactCounter);
+	OutIndirectArgsBuffer = AddCopyIndirectArgPass(GraphBuilder, &View, NodeGroupSize, 1, CompactCounter);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class FHairGenerateTileCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairGenerateTileCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairGenerateTileCS, FGlobalShader);
+
+	class FTileSize : SHADER_PERMUTATION_INT("PERMUTATION_TILESIZE", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FTileSize>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER(FIntPoint, TileResolution)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutTileCounter)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTileIndexTexture)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutTileBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairGenerateTileCS, "/Engine/Private/HairStrands/HairStrandsVisibilityTile.usf", "MainCS", SF_Compute);
+
+static void AddGenerateTilePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const uint32 ThreadGroupSize,
+	const uint32 TileSize,
+	const FRDGTextureRef& CategorizationTexture,
+	FRDGTextureRef& OutTileIndexTexture,
+	FRDGBufferRef& OutTileBuffer,
+	FRDGBufferRef& OutTileIndirectArgs)
+{
+	check(TileSize == 8); // only size supported for now
+	const FIntPoint Resolution = CategorizationTexture->Desc.Extent;
+	const FIntPoint TileResolution = FIntPoint(FMath::CeilToInt(Resolution.X / float(TileSize)), FMath::CeilToInt(Resolution.Y / float(TileSize)));
+	const uint32 TileCount = TileResolution.X * TileResolution.Y;
+
+	FRDGTextureRef TileCounter;
+	{
+		FRDGTextureDesc Desc;
+		Desc.Extent.X = 1;
+		Desc.Extent.Y = 1;
+		Desc.Depth = 0;
+		Desc.Format = PF_R32_UINT;
+		Desc.NumMips = 1;
+		Desc.NumSamples = 1;
+		Desc.Flags = TexCreate_None;
+		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
+		Desc.ClearValue = FClearValueBinding(0);
+		TileCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairTileCounter"));
+	}
+
+	{
+		FRDGTextureDesc Desc;
+		Desc.Extent = TileResolution;
+		Desc.Depth = 0;
+		Desc.Format = PF_R32_UINT;
+		Desc.NumMips = 1;
+		Desc.NumSamples = 1;
+		Desc.Flags = TexCreate_None;
+		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
+		Desc.ClearValue = FClearValueBinding(0);
+		OutTileIndexTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairTileIndexTexture"));
+	}
+	
+	OutTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileCount), TEXT("HairTileBuffer"));
+
+	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairTileCounter"), TileCounter, 0);
+
+	FHairGenerateTileCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairGenerateTileCS::FTileSize>(0);
+
+	FHairGenerateTileCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairGenerateTileCS::FParameters>();
+	PassParameters->Resolution = Resolution;
+	PassParameters->TileResolution = TileResolution;
+	PassParameters->CategorizationTexture = CategorizationTexture;	
+	PassParameters->OutTileCounter = GraphBuilder.CreateUAV(TileCounter);
+	PassParameters->OutTileIndexTexture = GraphBuilder.CreateUAV(OutTileIndexTexture);
+	PassParameters->OutTileBuffer = GraphBuilder.CreateUAV(OutTileBuffer, PF_R16G16_UINT);
+
+	TShaderMapRef<FHairGenerateTileCS> ComputeShader(View.ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairGenerateTile"),
+		*ComputeShader,
+		PassParameters,
+		FIntVector(TileResolution.X, TileResolution.Y, 1));
+
+	OutTileIndirectArgs = AddCopyIndirectArgPass(GraphBuilder, &View, ThreadGroupSize, TileSize*TileSize, TileCounter);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1273,7 +1379,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FIntPoint& Resolution,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FRDGTextureRef& SceneDepthTexture)
 {
 	FRDGTextureRef OutVisibilityDepthTexture;
@@ -1309,17 +1415,17 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	const FIntRect Viewport = View.ViewRect;
 	const FViewInfo* CapturedView = &View;
 
-	TArray<FIntRect> ClusterRects;
+	TArray<FIntRect> MacroGroupRects;
 	if (IsHairStrandsViewRectOptimEnable())
 	{
-		for (const FHairStrandsClusterData& ClusterData : ClusterDatas.Datas)
+		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 		{
-			ClusterRects.Add(ClusterData.ScreenRect);
+			MacroGroupRects.Add(MacroGroupData.ScreenRect);
 		}
 	}
 	else
 	{
-		ClusterRects.Add(Viewport);
+		MacroGroupRects.Add(Viewport);
 	}
 
 	{
@@ -1329,7 +1435,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 			RDG_EVENT_NAME("HairStrandsVisibilityFillOpaqueDepth"),
 			Parameters,
 			ERDGPassFlags::Raster,
-			[Parameters, VertexShader, PixelShader, ClusterRects, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
+			[Parameters, VertexShader, PixelShader, MacroGroupRects, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1346,7 +1452,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
 
-			for (const FIntRect& ViewRect : ClusterRects)
+			for (const FIntRect& ViewRect : MacroGroupRects)
 			{
 				RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 				DrawRectangle(
@@ -1374,7 +1480,7 @@ static void AddHairVisibilityCommonPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const EHairVisibilityRenderMode RenderMode,
 	TPassParameters* PassParameters)
 {
@@ -1396,7 +1502,7 @@ static void AddHairVisibilityCommonPass(
 		GetPassName(), 
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &ClusterDatas, RenderMode](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, RenderMode](FRHICommandListImmediate& RHICmdList)
 	{
 		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
@@ -1457,13 +1563,13 @@ static void AddHairVisibilityCommonPass(
 				MeshProcessor.SetMaxPPLLNodeCount(PassParameters->HairVisibilityPass_MaxPPLLNodeCount);
 			}
 
-			for (const FHairStrandsClusterData& ClusterData : ClusterDatas.Datas)
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 			{
-				for (const FHairStrandsClusterData::PrimitiveInfo& PrimitiveInfo : ClusterData.PrimitivesInfos)
+				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
 					const FMeshBatch& MeshBatch = *PrimitiveInfo.MeshBatchAndRelevance.Mesh;
 					const uint64 BatchElementMask = ~0ull;
-					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy, -1, ClusterData.ClusterId, PrimitiveInfo.MaterialId);
+					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
 				}
 			}
 
@@ -1482,7 +1588,7 @@ static void AddHairVisibilityMSAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
 	FRDGTextureRef& OutVisibilityIdTexture,
 	FRDGTextureRef& OutVisibilityMaterialTexture,
@@ -1520,7 +1626,7 @@ static void AddHairVisibilityMSAAPass(
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ENoAction,
 			FExclusiveDepthStencil::DepthWrite_StencilNop);
-		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, HairVisibilityRenderMode_MSAA_Visibility, PassParameters);
+		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA_Visibility, PassParameters);
 	}
 	else
 	{
@@ -1607,7 +1713,7 @@ static void AddHairVisibilityMSAAPass(
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ENoAction,
 			FExclusiveDepthStencil::DepthWrite_StencilNop);
-		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, HairVisibilityRenderMode_MSAA, PassParameters);
+		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA, PassParameters);
 	}
 }
 
@@ -1615,7 +1721,7 @@ static void AddHairVisibilityPPLLPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
 	FRDGTextureRef& InViewZDepthTexture,
 	FRDGTextureRef& OutVisibilityPPLLNodeCounter,
@@ -1656,7 +1762,7 @@ static void AddHairVisibilityPPLLPass(
 		struct PPLLNodeData
 		{
 			uint32 Depth;
-			uint32 PrimitiveId_ClusterId;
+			uint32 PrimitiveId_MacroGroupId;
 			uint32 Tangent_Coverage;
 			uint32 BaseColor_Roughness;
 			uint32 Specular;
@@ -1675,7 +1781,7 @@ static void AddHairVisibilityPPLLPass(
 	PassParameters->PPLLNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutVisibilityPPLLNodeData));
 	PassParameters->HairVisibilityPass_MaxPPLLNodeCount = PPLLMaxTotalListElementCount;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(InViewZDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
-	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, HairVisibilityRenderMode_PPLL, PassParameters);
+	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_PPLL, PassParameters);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1690,7 +1796,7 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterDatas& ClusterDatas,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
 	const bool bOutputHairCount,
 	FRDGTextureRef SceneDepthTexture)
@@ -1728,7 +1834,7 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ENoAction,
 		FExclusiveDepthStencil::DepthRead_StencilNop);
-	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, ClusterDatas, RenderMode, PassParameters);
+	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, RenderMode, PassParameters);
 
 	return Out;
 }
@@ -1918,7 +2024,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	TRefCountPtr<IPooledRenderTarget> InSceneColorTexture,
 	TRefCountPtr<IPooledRenderTarget> InSceneDepthTexture,
 	TRefCountPtr<IPooledRenderTarget> InSceneVelocityTexture,
-	const FHairStrandsClusterViews& ClusterViews)
+	const FHairStrandsMacroGroupViews& MacroGroupViews)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderHairStrandsVisibility);
 	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsVisibility);
@@ -1933,9 +2039,9 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 		{
 			FHairStrandsVisibilityData& VisibilityData = Output.HairDatas.AddDefaulted_GetRef();
 			VisibilityData.NodeGroupSize = GetVendorOptimalGroupSize1D();
-			const FHairStrandsClusterDatas& ClusterDatas = ClusterViews.Views[ViewIndex];
+			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
 
-			if (ClusterDatas.Datas.Num() == 0)
+			if (MacroGroupDatas.Datas.Num() == 0)
 				continue;
 
 			// Use the scene color for computing target resolution as the View.ViewRect, 
@@ -1962,12 +2068,13 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder,
 					Scene,
 					&View,
-					ClusterDatas,
+					MacroGroupDatas,
 					Resolution, 
 					bOutputHairCount,
 					SceneDepthTexture);
 			}
 
+			FRDGTextureRef CategorizationTexture = nullptr;
 			if (RenderMode == HairVisibilityRenderMode_MSAA)
 			{
 				const bool bIsVisiblityEnable = GHairStrandsVisibilityMaterialPass > 0;
@@ -1985,7 +2092,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder,
 					View,
 					Resolution,
-					ClusterDatas,
+					MacroGroupDatas,
 					SceneDepthTexture);
 
 				AddHairVisibilityMSAAPass(
@@ -1993,7 +2100,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder, 
 					Scene, 
 					&View, 
-					ClusterDatas, 
+					MacroGroupDatas,
 					Resolution,
 					MsaaVisibilityResources.IdTexture, 
 					MsaaVisibilityResources.MaterialTexture, 
@@ -2011,7 +2118,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder.QueueTextureExtraction(MsaaVisibilityResources.VelocityTexture, &VisibilityData.VelocityTexture);
 				}
 
-				FRDGTextureRef CategorizationTexture;
 				{
 					FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
 					PassParameters->MSAA_DepthTexture = MsaaVisibilityResources.DepthTexture;
@@ -2030,7 +2136,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						bIsVisiblityEnable,
 						GraphBuilder,
 						View,
-						ClusterDatas,
+						MacroGroupDatas,
 						VisibilityData.NodeGroupSize,
 						PassParameters,
 						CompactNodeIndex,
@@ -2048,7 +2154,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							GraphBuilder,
 							Scene,
 							&View,
-							ClusterDatas,
+							MacroGroupDatas,
 							VisibilityData.NodeGroupSize,
 							CompactNodeIndex,
 							CompactNodeData,
@@ -2059,7 +2165,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						AddHairVelocityPass(
 							GraphBuilder,
 							View,
-							ClusterDatas,
+							MacroGroupDatas,
 							CompactNodeIndex,
 							CompactNodeData,
 							PassOutput.NodeVelocity,
@@ -2075,6 +2181,18 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder.QueueBufferExtraction(IndirectArgsBuffer,		&VisibilityData.NodeIndirectArg,			FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
 				}
 
+				// View transmittance depth test needs to happen before the scene depth is patched with the hair depth (for fully-covered-by-hair pixels)
+				if (ViewTransmittance.HairCountTexture)
+				{
+					AddHairViewTransmittanceDepthPass(
+						GraphBuilder,
+						View,
+						CategorizationTexture,
+						SceneDepthTexture,
+						ViewTransmittance.HairCountTexture);
+					GraphBuilder.QueueTextureExtraction(ViewTransmittance.HairCountTexture, &VisibilityData.ViewHairCountTexture);
+				}
+
 				// For fully covered pixels, write: 
 				// * black color into the scene color
 				// * closest depth
@@ -2086,17 +2204,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					SceneGBufferBTexture,
 					SceneColorTexture,
 					SceneDepthTexture);
-
-				if (ViewTransmittance.HairCountTexture)
-				{
-					AddHairViewTransmittanceDepthPass(
-						GraphBuilder,
-						View,
-						CategorizationTexture,
-						SceneDepthTexture,
-						ViewTransmittance.HairCountTexture);
-					GraphBuilder.QueueTextureExtraction(ViewTransmittance.HairCountTexture, &VisibilityData.ViewHairCountTexture);
-				}
 			}
 			else if (RenderMode == HairVisibilityRenderMode_PPLL)
 			{
@@ -2111,10 +2218,9 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				FRDGTextureRef ViewZDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
 
 				// Linked list generation pass
-				AddHairVisibilityPPLLPass(GraphBuilder, Scene, &View, ClusterDatas, Resolution, ViewZDepthTexture, PPLLNodeCounterTexture, PPLLNodeIndexTexture, PPLLNodeDataBuffer);
+				AddHairVisibilityPPLLPass(GraphBuilder, Scene, &View, MacroGroupDatas, Resolution, ViewZDepthTexture, PPLLNodeCounterTexture, PPLLNodeIndexTexture, PPLLNodeDataBuffer);
 
 				// Linked list sorting pass and compaction into common representation
-				FRDGTextureRef CategorizationTexture;
 				{
 					FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
 					PassParameters->PPLLCounter  = PPLLNodeCounterTexture;
@@ -2131,7 +2237,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						false,
 						GraphBuilder,
 						View,
-						ClusterDatas,
+						MacroGroupDatas,
 						VisibilityData.NodeGroupSize,
 						PassParameters,
 						CompactNodeIndex,
@@ -2161,6 +2267,18 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				GraphBuilder.QueueTextureExtraction(PPLLNodeIndexTexture, &VisibilityData.PPLLNodeIndexTexture);
 				GraphBuilder.QueueBufferExtraction(PPLLNodeDataBuffer, &VisibilityData.PPLLNodeDataBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
 #endif
+			}
+
+			// Generate Tile data
+			{
+				FRDGTextureRef TileIndexTexture = nullptr;
+				FRDGBufferRef TileBuffer = nullptr;
+				FRDGBufferRef TileIndirectArgs = nullptr;
+				AddGenerateTilePass(GraphBuilder, View, VisibilityData.TileThreadGroupSize, VisibilityData.TileSize, CategorizationTexture, TileIndexTexture, TileBuffer, TileIndirectArgs);
+
+				GraphBuilder.QueueTextureExtraction(TileIndexTexture, &VisibilityData.TileIndexTexture);
+				GraphBuilder.QueueBufferExtraction(TileBuffer, &VisibilityData.TileBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+				GraphBuilder.QueueBufferExtraction(TileIndirectArgs, &VisibilityData.TileIndirectArgs, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
 			}
 
 			GraphBuilder.Execute();

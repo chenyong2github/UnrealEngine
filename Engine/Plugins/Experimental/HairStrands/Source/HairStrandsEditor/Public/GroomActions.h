@@ -6,9 +6,10 @@
 #include "Templates/SharedPointer.h"
 
 class ISlateStyle;
+class UGroomAsset;
 
 /**
- * Implements an action for UHairStrands assets.
+ * Implements an action for groom assets.
  */
 class FGroomActions : public FAssetTypeActions_Base
 {
@@ -26,7 +27,7 @@ public:
 	//~ FAssetTypeActions_Base overrides
 
 	virtual bool CanFilter() override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
 	virtual uint32 GetCategories() override;
 	virtual FText GetName() const override;
 	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
@@ -35,4 +36,10 @@ public:
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
 	virtual bool IsImportedAsset() const override { return true; }
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
+
+private:
+
+	/** Callback for Rebuild groom action */
+	bool CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+	void ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 };

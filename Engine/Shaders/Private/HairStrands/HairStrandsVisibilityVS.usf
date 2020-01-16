@@ -25,7 +25,7 @@ struct FHairVisibilityAccumulateVSToPS
 
 #define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToPS
 
-#if VERTEXSHADER
+#if VERTEXSHADER 
 
 /** transform mesh as normal */
 void Main(
@@ -51,6 +51,7 @@ void Main(
 	// The velocity is used to adapt/increase the minimum rasterization size in order to avoid aliasing under heavy-motion.
 	// The higher the velocity, the larger a strand becomes.
 	float VelocityScale = 0;
+	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 	#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
 	{
 		const float4 ScreenPos			= mul(float4(WorldPositionRaw.xyz, 1), ResolvedView.TranslatedWorldToClip);
@@ -59,13 +60,18 @@ void Main(
 		Output.PackedVelocityC			= INVARIANT(PrevScreenPosObj);
 
 		const float2 ScreenVelocity = Calculate2DVelocity(Output.PackedVelocityA, Output.PackedVelocityC);
-		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
 		VelocityScale = saturate(max(abs(ScreenVelocity.x), abs(ScreenVelocity.y)) / HairRenderInfo.VelocityMagnitudeScale);
 	}
 	#endif
 
 #if VF_STRAND_HAIR
-	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, VelocityScale);
+	FHairViewInfo HairViewInfo;
+	HairViewInfo.TranslatedWorldCameraOrigin = ResolvedView.TranslatedWorldCameraOrigin;
+	HairViewInfo.ViewForward = ResolvedView.ViewForward;
+	HairViewInfo.RadiusAtDepth1 = lerp(HairRenderInfo.RadiusAtDepth1Primary, HairRenderInfo.RadiusAtDepth1Velocity, VelocityScale);
+	HairViewInfo.bIsOrthoView = HairRenderInfo.bIsOrthoView;
+
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, HairViewInfo);
 #else
 	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 #endif

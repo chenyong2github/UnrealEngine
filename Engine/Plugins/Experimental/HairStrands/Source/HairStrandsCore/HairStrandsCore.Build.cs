@@ -23,6 +23,15 @@ namespace UnrealBuildTool.Rules
 					"ChaosCore",
 					"Chaos"
 				});
+
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+					"DerivedDataCache",
+					});
+			}
 		}
 	}
 }

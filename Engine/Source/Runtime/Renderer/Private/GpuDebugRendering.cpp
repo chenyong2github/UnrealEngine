@@ -1,145 +1,399 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GpuDebugRendering.h"
-#include "DynamicPrimitiveDrawing.h"
+#include "SceneRendering.h"
+#include "GlobalShader.h"
+#include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-#include "RenderTargetPool.h"
+#include "Containers/ResourceArray.h"
+#include "CommonRenderResources.h"
 
-FGpuDebugPrimitiveBuffers AllocateGpuDebugPrimitiveBuffers(FRHICommandListImmediate& RHICmdList)
+namespace ShaderDrawDebug 
 {
-	FGpuDebugPrimitiveBuffers Output;
+	// Console variables
+	static TAutoConsoleVariable<int32> CVarShaderDrawEnable(
+		TEXT("r.ShaderDrawDebug"),
+		1,
+		TEXT("ShaderDrawDebug debugging toggle.\n"),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
+
+	static TAutoConsoleVariable<int32> CVarShaderDrawMaxElementCount(
+		TEXT("r.ShaderDrawDebug.MaxElementCount"),
+		10000,
+		TEXT("ShaderDraw output buffer size in element.\n"),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
+
+	static TAutoConsoleVariable<int32> CVarShaderDrawLock(
+		TEXT("r.ShaderDrawDebug.Lock"),
+		0,
+		TEXT("Lock the shader draw buffer.\n"),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
+
+	bool IsShaderDrawDebugEnabled()
 	{
-		FIntPoint Resolution(1, 1);
-		EPixelFormat Format = PF_R32_UINT;
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Resolution, Format, FClearValueBinding::Black, TexCreate_None, TexCreate_UAV, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Output.DebugPrimitiveCountTexture, TEXT("DebugPrimitiveCountTexture"));
-		}
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Resolution, Format, FClearValueBinding::None, TexCreate_CPUReadback, TexCreate_None, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Output.DebugPrimitiveCountStagingTexture, TEXT("DebugPrimitiveCountStagingTexture"));
-		}
+#if WITH_EDITOR
+		return CVarShaderDrawEnable.GetValueOnAnyThread() > 0;
+#else
+		return false;
+#endif
 	}
 
+	bool IsShaderDrawLocked()
 	{
-		FIntPoint Resolution(1024, 1);
-		EPixelFormat Format = PF_A32B32G32R32F;
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Resolution, Format, FClearValueBinding::Black, TexCreate_None, TexCreate_UAV, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Output.DebugPrimitiveTexture, TEXT("DebugPrimitiveTexture"));
-		}
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Resolution, Format, FClearValueBinding::None, TexCreate_CPUReadback, TexCreate_None, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Output.DebugPrimitiveStagingTexture, TEXT("DebugPrimitiveStagingTexture"));
-		}
+#if WITH_EDITOR
+		return CVarShaderDrawLock.GetValueOnAnyThread() > 0;
+#else
+		return false;
+#endif
 	}
 
-	uint32 ClearValues[4] = { 0, 0, 0, 0 };
-	RHICmdList.ClearTinyUAV(Output.DebugPrimitiveCountTexture->GetRenderTargetItem().UAV, ClearValues);
-	RHICmdList.ClearTinyUAV(Output.DebugPrimitiveTexture->GetRenderTargetItem().UAV, ClearValues);
-
-	return Output;
-}
-
-class FGpuDebugLine { public: FVector Start; FVector End; FLinearColor Color; };
-typedef TArray<FGpuDebugLine> FGpuDebugLineArray;
-static FGpuDebugLineArray ReadGPUDebugPrimitives(FRHICommandListImmediate& RHICmdList, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer)
-{
-	// Count
-	uint32 PointCount = 0;
+	static bool IsShaderDrawDebugEnabled(const EShaderPlatform Platform)
 	{
-		FTextureRHIRef SourceTexture = DebugPrimitiveBuffer.DebugPrimitiveCountTexture->GetRenderTargetItem().TargetableTexture;
-		FTextureRHIRef StagingTexture = DebugPrimitiveBuffer.DebugPrimitiveCountStagingTexture->GetRenderTargetItem().ShaderResourceTexture;
+		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform);
+	}
 
-		// Transfer memory GPU -> CPU
-		RHICmdList.CopyToResolveTarget(SourceTexture, StagingTexture, FResolveParams());
-		if (StagingTexture.IsValid())
+	bool IsShaderDrawDebugEnabled(const FViewInfo& View)
+	{
+		return IsShaderDrawDebugEnabled() && IsShaderDrawDebugEnabled(View.GetShaderPlatform());
+	}
+
+	static uint32 GetMaxShaderDrawElementCount()
+	{
+		return uint32(FMath::Max(1, CVarShaderDrawMaxElementCount.GetValueOnRenderThread()));
+	}
+
+	struct ShaderDrawDebugElement
+	{
+		uint32 Pos[3];
+		uint32 Color[2];
+	};
+
+	// This needs to be allocated per view, or move into a more persistent place
+	struct FLockedData
+	{
+		FRWBufferStructured Buffer;
+		FRWBuffer IndirectBuffer;
+		bool bIsLocked = false;
+	};
+
+	static FLockedData LockedData = {};
+
+	//////////////////////////////////////////////////////////////////////////
+
+	class FShaderDrawDebugClearCS : public FGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FShaderDrawDebugClearCS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugClearCS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, DataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, IndirectBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			const uint32* CountData = nullptr;
-			int32 BufferWidth = 0, BufferHeight = 0;
-			RHICmdList.MapStagingSurface(StagingTexture, *(void**)&CountData, BufferWidth, BufferHeight);
+			return IsShaderDrawDebugEnabled(Parameters.Platform);
+		}
 
-			if (CountData)
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_CLEAR_CS"), 1);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugClearCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugClearCS", SF_Compute);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	class FShaderDrawDebugCopyCS : public FGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FShaderDrawDebugCopyCS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugCopyCS, FGlobalShader);
+
+		class FBufferType : SHADER_PERMUTATION_INT("PERMUTATION_BUFFER_TYPE", 2);
+		using FPermutationDomain = TShaderPermutationDomain<FBufferType>;
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER(uint32, NumElements)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InBuffer)
+			SHADER_PARAMETER_UAV(RWBuffer, OutBuffer)
+
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InStructuredBuffer)
+			SHADER_PARAMETER_UAV(RWStructuredBuffer, OutStructuredBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsShaderDrawDebugEnabled(Parameters.Platform);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_COPY_CS"), 1);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugCopyCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugCopyCS", SF_Compute);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	class FShaderDrawDebugVS : public FGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FShaderDrawDebugVS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugVS, FGlobalShader);
+
+		class FInputType : SHADER_PERMUTATION_INT("PERMUTATION_INPUT_TYPE", 2);
+		using FPermutationDomain = TShaderPermutationDomain<FInputType>;
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+			SHADER_PARAMETER_SRV(StructuredBuffer, LockedShaderDrawDebugPrimitive)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ShaderDrawDebugPrimitive)
+			SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer, IndirectBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsShaderDrawDebugEnabled(Parameters.Platform);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_VS"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_PS"), 0);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugVS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugVS", SF_Vertex);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	class FShaderDrawDebugPS : public FGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FShaderDrawDebugPS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugPS, FGlobalShader);
+		
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER(float, ColorScale)
+			RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		using FPermutationDomain = TShaderPermutationDomain<>;
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsShaderDrawDebugEnabled(Parameters.Platform);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_VS"), 0);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_PS"), 1);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugPS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugPS", SF_Pixel);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(ShaderDrawVSPSParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FShaderDrawDebugVS::FParameters, ShaderDrawVSParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FShaderDrawDebugPS::FParameters, ShaderDrawPSParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+	//////////////////////////////////////////////////////////////////////////
+
+	void BeginView(FRHICommandListImmediate& InRHICmdList, FViewInfo& View)
+	{
+		if (!IsShaderDrawDebugEnabled(View))
+		{
+			return;
+		}
+
+		FRDGBuilder GraphBuilder(InRHICmdList);
+		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderDrawDebugElement), GetMaxShaderDrawElementCount()), TEXT("ShaderDrawDataBuffer"));
+		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDrawDataIndirectBuffer"));
+
+		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
+		Parameters->DataBuffer = GraphBuilder.CreateUAV(DataBuffer);
+		Parameters->IndirectBuffer = GraphBuilder.CreateUAV(IndirectBuffer);
+
+		TShaderMapRef<FShaderDrawDebugClearCS> ComputeShader(View.ShaderMap);
+
+		// Note: we do not call ClearUnusedGraphResources here as we want to for the allocation of DataBuffer
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("ShaderDrawClear"),
+			Parameters,
+			ERDGPassFlags::Compute,
+			[Parameters, ComputeShader](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *Parameters, FIntVector(1,1,1));
+		});
+
+		GraphBuilder.QueueBufferExtraction(DataBuffer, &View.ShaderDrawData.Buffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
+		GraphBuilder.QueueBufferExtraction(IndirectBuffer, &View.ShaderDrawData.IndirectBuffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
+
+		GraphBuilder.Execute();
+
+		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
+		{
+			LockedData.Buffer.Initialize(sizeof(ShaderDrawDebugElement), GetMaxShaderDrawElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
+			LockedData.IndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("ShaderDrawDataIndirectBuffer"));
+		}
+
+		View.ShaderDrawData.CursorPosition = View.CursorPos;
+	}
+
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture, FRDGTextureRef DepthTexture)
+	{
+		if (!IsShaderDrawDebugEnabled(View))
+		{
+			return;
+		}
+
+		auto RunPass = [&](
+			bool bIsBehindDepth, 
+			bool bUseRdgInput,
+			FRDGBufferRef DataBuffer, 
+			FRDGBufferRef IndirectBuffer, 
+			FShaderResourceViewRHIRef LockedDataBuffer,
+			FRHIVertexBuffer* LockedIndirectBuffer)
+		{
+			FShaderDrawDebugVS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FShaderDrawDebugVS::FInputType>(bUseRdgInput ? 0 : 1);
+			TShaderMapRef<FShaderDrawDebugVS> VertexShader(View.ShaderMap, PermutationVector);
+			TShaderMapRef<FShaderDrawDebugPS> PixelShader(View.ShaderMap);
+
+			ShaderDrawVSPSParameters* PassParameters = GraphBuilder.AllocParameters<ShaderDrawVSPSParameters>();
+			PassParameters->ShaderDrawPSParameters.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->ShaderDrawPSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+			PassParameters->ShaderDrawPSParameters.ColorScale = bIsBehindDepth ? 0.4f : 1.0f;	// When debug primitive are behind the depth buffer, make them look darker.
+			PassParameters->ShaderDrawVSParameters.View = View.ViewUniformBuffer;
+			if (bUseRdgInput)
 			{
-				PointCount = CountData[0];
-				PointCount = FMath::Min(PointCount, 1024u);
+				PassParameters->ShaderDrawVSParameters.ShaderDrawDebugPrimitive = GraphBuilder.CreateSRV(DataBuffer);
+				PassParameters->ShaderDrawVSParameters.IndirectBuffer = IndirectBuffer;
 			}
-			RHICmdList.UnmapStagingSurface(StagingTexture);
-		}
-
-	}
-
-	// Primitives
-	FGpuDebugLineArray Output;
-	if (PointCount > 0)
-	{
-		auto ToColor = [](uint32 ColorIndex)
-		{
-			FLinearColor Color;
-			switch (ColorIndex)
+			else
 			{
-			case 0:		return FLinearColor::Red;
-			case 1:		return FLinearColor::Green;
-			case 2:		return FLinearColor::Blue;
-			case 3:		return FLinearColor::Yellow;
-			default:	return FLinearColor::White;
+				PassParameters->ShaderDrawVSParameters.LockedShaderDrawDebugPrimitive = LockedDataBuffer;
 			}
+
+			ValidateShaderParameters(*PixelShader, PassParameters->ShaderDrawPSParameters);
+			ClearUnusedGraphResources(*PixelShader, &PassParameters->ShaderDrawPSParameters);
+			ValidateShaderParameters(*VertexShader, PassParameters->ShaderDrawVSParameters);
+			ClearUnusedGraphResources(*VertexShader, &PassParameters->ShaderDrawVSParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ShaderDrawDebug"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bIsBehindDepth, bUseRdgInput](FRHICommandListImmediate& RHICmdListImmediate)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.DepthStencilState = bIsBehindDepth ? TStaticDepthStencilState<false, CF_DepthFarther>::GetRHI() : TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
+				GraphicsPSOInit.PrimitiveType = PT_LineList;
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				SetGraphicsPipelineState(RHICmdListImmediate, GraphicsPSOInit);
+
+				SetShaderParameters(RHICmdListImmediate, *VertexShader, VertexShader->GetVertexShader(), PassParameters->ShaderDrawVSParameters);
+				SetShaderParameters(RHICmdListImmediate, *PixelShader, PixelShader->GetPixelShader(), PassParameters->ShaderDrawPSParameters);
+
+
+				if (bUseRdgInput)
+				{
+					RHICmdListImmediate.DrawPrimitiveIndirect(IndirectBuffer->GetIndirectRHICallBuffer(), 0);
+				}
+				else
+				{
+					RHICmdListImmediate.DrawPrimitiveIndirect(LockedIndirectBuffer, 0);
+				}
+			});
 		};
 
-		FTextureRHIRef SourceTexture = DebugPrimitiveBuffer.DebugPrimitiveTexture->GetRenderTargetItem().TargetableTexture;
-		FTextureRHIRef StagingTexture = DebugPrimitiveBuffer.DebugPrimitiveStagingTexture->GetRenderTargetItem().ShaderResourceTexture;
-
-		// Transfer memory GPU -> CPU
-		RHICmdList.CopyToResolveTarget(SourceTexture, StagingTexture, FResolveParams());
-		if (StagingTexture.IsValid())
-		{	
-			const FVector4* PrimitiveData = nullptr;
-			int32 BufferWidth = 0, BufferHeight = 0;
-			RHICmdList.MapStagingSurface(StagingTexture, *(void**)&PrimitiveData, BufferWidth, BufferHeight);
-			
-			if (PrimitiveData)
-			{
-				for (uint32 i = 0; i < PointCount; i += 2)
-				{
-					const FVector P0 = PrimitiveData[i+0];
-					const FVector P1 = PrimitiveData[i+1];
-					const FLinearColor Color = ToColor(uint32(PrimitiveData[i + 0].W));
-					Output.Add({ P0, P1, Color });
-				}
-			}
-			RHICmdList.UnmapStagingSurface(StagingTexture);
-		}
-
-	}
-	return Output;
-}
-
-void BindGpuDebugPrimitiveBuffers(FRHIRenderPassInfo& RPInfo, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer, uint32 UAVIndex)
-{
-	// Currently this value is hardcoded into the shader. Once the index is configurable in the shader, this check should be remove
-	check(UAVIndex == 0); 
-
-	RPInfo.UAVIndex = UAVIndex;
-	RPInfo.NumUAVs = 2;
-	RPInfo.UAVs[UAVIndex+0] = DebugPrimitiveBuffer.DebugPrimitiveCountTexture->GetRenderTargetItem().UAV;
-	RPInfo.UAVs[UAVIndex+1] = DebugPrimitiveBuffer.DebugPrimitiveTexture->GetRenderTargetItem().UAV;
-}
-
-void DrawGpuDebugPrimitives(FRHICommandListImmediate& RHICmdList, TArray<FViewInfo>& Views, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer)
-{
-	const FGpuDebugLineArray DebugLines = ReadGPUDebugPrimitives(RHICmdList, DebugPrimitiveBuffer);
-
-	uint32 ViewIndex = 0;
-	for (FViewInfo& View : Views)
-	{
-		FViewElementPDI PDI(&View, nullptr, nullptr);
-
-		for(int32 i=0; i < DebugLines.Num(); ++i)
+		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.Buffer, TEXT("ShaderDrawDebugDataBuffer"));
+		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.IndirectBuffer, TEXT("ShaderDrawDebugIndirectDataBuffer"));
 		{
-			const FGpuDebugLine& Line = DebugLines[i];
-			PDI.DrawLine(Line.Start, Line.End, Line.Color, 0);
+			RunPass(true,  true, DataBuffer, IndirectBuffer, nullptr, nullptr);	// Render what is behind the depth buffer
+			RunPass(false, true, DataBuffer, IndirectBuffer, nullptr, nullptr); // Render what is in front of the depth buffer
 		}
 
-		ViewIndex++;
+		if (LockedData.bIsLocked)
+		{
+			FShaderResourceViewRHIRef LockedDataBuffer = LockedData.Buffer.SRV;
+			FRHIVertexBuffer* LockedIndirectBuffer = LockedData.IndirectBuffer.Buffer;
+			RunPass(false, false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer); // Render what is in front of the depth buffer
+			RunPass(true,  false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer); // Render what is behind the depth buffer
+		}
+
+		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
+		{
+			{
+				const uint32 NumElements = LockedData.Buffer.NumBytes / sizeof(ShaderDrawDebugElement);
+
+				FShaderDrawDebugCopyCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FShaderDrawDebugCopyCS::FBufferType>(0);
+				TShaderMapRef<FShaderDrawDebugCopyCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+				FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
+				Parameters->NumElements = NumElements;
+				Parameters->InStructuredBuffer = GraphBuilder.CreateSRV(DataBuffer);
+				Parameters->OutStructuredBuffer = LockedData.Buffer.UAV;
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), *ComputeShader, Parameters, FIntVector(FMath::CeilToInt(NumElements / 1024.f), 1, 1));
+			}
+			{
+				FShaderDrawDebugCopyCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FShaderDrawDebugCopyCS::FBufferType>(1);
+				TShaderMapRef<FShaderDrawDebugCopyCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+				FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
+				Parameters->InBuffer = GraphBuilder.CreateSRV(IndirectBuffer);
+				Parameters->OutBuffer = LockedData.IndirectBuffer.UAV;
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), *ComputeShader, Parameters, FIntVector(1, 1, 1));
+			}
+		}
+	}
+
+	void EndView(FViewInfo& View)
+	{
+		if (!IsShaderDrawDebugEnabled(View))
+		{
+			return;
+		}
+
+		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
+		{
+			LockedData.bIsLocked = true;
+		}
+
+		if (!IsShaderDrawLocked() && LockedData.bIsLocked)
+		{
+			LockedData.Buffer.Release();
+			LockedData.IndirectBuffer.Release();
+			LockedData.bIsLocked = false;
+		}
+	}
+
+	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters)
+	{
+		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(Data.Buffer, TEXT("ShaderDrawDebugDataBuffer"));
+		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(Data.IndirectBuffer, TEXT("ShaderDrawDebugIndirectDataBuffer"));
+
+		OutParameters.ShaderDrawCursorPos = Data.CursorPosition;
+		OutParameters.ShaderDrawMaxElementCount = GetMaxShaderDrawElementCount();
+		OutParameters.OutShaderDrawPrimitive = GraphBuilder.CreateUAV(DataBuffer);
+		OutParameters.OutputShaderDrawIndirect = GraphBuilder.CreateUAV(IndirectBuffer);
 	}
 }

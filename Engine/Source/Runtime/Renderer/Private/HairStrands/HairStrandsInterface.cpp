@@ -10,11 +10,48 @@
 
 #include "SkeletalRenderPublic.h"
 #include "SceneRendering.h"
+#include "SystemTextures.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 
 static int32 GHairStrandsRenderingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsRenderingEnable(TEXT("r.HairStrands.Enable"), GHairStrandsRenderingEnable, TEXT("Enable/Disable hair strands rendering"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FHairGroupPublicData::FHairGroupPublicData(uint32 InGroupIndex, uint32 InGroupInstanceVertexCount, uint32 InClusterCount, uint32 InVertexCount)
+{
+	GroupIndex = InGroupIndex;
+	GroupInstanceVertexCount = InGroupInstanceVertexCount;
+	ClusterCount = InClusterCount;
+	VertexCount = InVertexCount;
+}
+
+void FHairGroupPublicData::InitRHI()
+{
+	DrawIndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect);
+	uint32* BufferData = (uint32*)RHILockVertexBuffer(DrawIndirectBuffer.Buffer, 0, sizeof(uint32) * 4, RLM_WriteOnly);
+	BufferData[0] = GroupInstanceVertexCount;
+	BufferData[1] = 1;
+	BufferData[2] = 0;
+	BufferData[3] = 0;
+	RHIUnlockVertexBuffer(DrawIndirectBuffer.Buffer);
+
+	ClusterAABBBuffer.Initialize(sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, BUF_Static);
+	GroupAABBBuffer.Initialize(sizeof(int32), 6, EPixelFormat::PF_R32_SINT, BUF_Static);
+
+	CulledVertexIdBuffer.Initialize(sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, BUF_Static);
+	CulledVertexRadiusScaleBuffer.Initialize(sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+}
+
+void FHairGroupPublicData::ReleaseRHI()
+{
+	DrawIndirectBuffer.Release();
+	ClusterAABBBuffer.Release();
+	GroupAABBBuffer.Release();
+	CulledVertexIdBuffer.Release();
+	CulledVertexRadiusScaleBuffer.Release();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,8 +76,6 @@ inline FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedG
 //  * Register
 //  * For each frame
 //		* Update
-//		* AddProjectionQuery (Opt)
-//		* Project (Opt)
 //		* Update triangles information for dynamic meshes
 //		* RunHairStrandsInterpolation (Interpolation callback)
 //  * UnRegister
@@ -53,6 +88,7 @@ struct FHairStrandsManager
 		uint64 Id = 0;
 		EWorldType::Type WorldType = EWorldType::None;
 		FHairStrandsDebugInfo DebugInfo;
+		FHairStrandsPrimitiveResources PrimitiveResources;
 		FHairStrandsInterpolationData InterpolationData;
 		FHairStrandsProjectionHairData RenProjectionHairDatas;
 		FHairStrandsProjectionHairData SimProjectionHairDatas;
@@ -63,29 +99,9 @@ struct FHairStrandsManager
 		int32 FrameLODIndex = -1;
 	};
 	TArray<Element> Elements;
-
-	struct ProjectionQuery
-	{
-		uint64 Id = 0;
-		EWorldType::Type WorldType = EWorldType::None;
-		int32 LODIndex = -1;
-		FVector RestPositionOffset = FVector::ZeroVector;
-		bool bProcessed = false;
-	};
-	TArray<ProjectionQuery> ProjectionsQueries;
 };
 
 FHairStrandsManager GHairManager;
-
-void AddHairStrandsProjectionQuery(
-	FRHICommandListImmediate& RHICmdList,
-	uint64 Id,
-	EWorldType::Type WorldType,
-	int32 LODIndex,
-	const FVector& RestPositionOffset)
-{
-	GHairManager.ProjectionsQueries.Add({ Id, WorldType, LODIndex, RestPositionOffset, false });
-}
 
 void RegisterHairStrands(
 	uint64 Id, 
@@ -93,6 +109,7 @@ void RegisterHairStrands(
 	const FHairStrandsInterpolationData& InterpolationData, 
 	const FHairStrandsProjectionHairData& RenProjectionDatas,
  	const FHairStrandsProjectionHairData& SimProjectionDatas,
+	const FHairStrandsPrimitiveResources& PrimitiveResources,
 	const FHairStrandsDebugInfo& DebugInfo)
 {
 	for (int32 Index = 0; Index < GHairManager.Elements.Num(); ++Index)
@@ -110,17 +127,10 @@ void RegisterHairStrands(
 	E.WorldType = WorldType;
 	E.InterpolationData = InterpolationData;
 	E.RenProjectionHairDatas = RenProjectionDatas;
-	for (FHairStrandsProjectionHairData::HairGroup& ProjectionData : E.RenProjectionHairDatas.HairGroups)
-	{
-		ProjectionData.LocalToWorld = FTransform::Identity;
-	}
 	E.SimProjectionHairDatas = SimProjectionDatas;
-	for (FHairStrandsProjectionHairData::HairGroup& ProjectionData : E.SimProjectionHairDatas.HairGroups)
-	{
-		ProjectionData.LocalToWorld = FTransform::Identity;
-	}
 	E.SkeletalLocalToWorld = FTransform::Identity;
 	E.SkeletalDeformedPositionOffset = FVector::ZeroVector;
+	E.PrimitiveResources = PrimitiveResources;
 	E.DebugInfo = DebugInfo;
 }
 
@@ -225,11 +235,43 @@ void UnregisterHairStrands(uint64 Id)
 	}
 }
 
+void RunProjection(
+	FRHICommandListImmediate& RHICmdList,
+	const FTransform& LocalToWorld,
+	const FVector& RestPositionOffset,
+	const FHairStrandsProjectionMeshData& MeshData,
+	FHairStrandsProjectionHairData& RenProjectionHairData,
+	FHairStrandsProjectionHairData& SimProjectionHairData)
+{
+	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+
+	auto Project = [&RHICmdList, ShaderMap, &MeshData, LocalToWorld, RestPositionOffset](FHairStrandsProjectionHairData& ProjectionHairData)
+	{
+		for (FHairStrandsProjectionHairData::HairGroup& HairGroup : ProjectionHairData.HairGroups)
+		{
+			for (FHairStrandsProjectionHairData::LODData& LODData : HairGroup.LODDatas)
+			{
+				const uint32 LODIndex = LODData.LODIndex;
+				*HairGroup.LODDatas[LODIndex].RestPositionOffset = RestPositionOffset;
+				HairGroup.LocalToWorld = LocalToWorld;
+				ProjectHairStrandsOntoMesh(RHICmdList, ShaderMap, LODIndex, MeshData, HairGroup);
+				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, LODIndex, HairStrandsTriangleType::RestPose, MeshData.LODs[LODIndex], HairGroup);
+			}
+		}
+	};
+
+	Project(RenProjectionHairData);
+	Project(SimProjectionHairData);
+}
+
 void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
+	const FShaderDrawDebugData* ShaderDrawData,
 	TShaderMap<FGlobalShaderType>* ShaderMap, 
-	EHairStrandsInterpolationType Type)
+	EHairStrandsInterpolationType Type,
+	FHairStrandClusterData* ClusterData)
 {
 	check(IsInRenderingThread());
 
@@ -241,39 +283,7 @@ void RunHairStrandsInterpolation(
 
 		E.CachedGeometry = E.MeshObject ? E.MeshObject->GetCachedGeometry() : FCachedGeometry();
 	}
-
-	// Process projection queries
-	for (FHairStrandsManager::ProjectionQuery& Q : GHairManager.ProjectionsQueries)
-	{	
-		for (FHairStrandsManager::Element& E : GHairManager.Elements)
-		{
-			if (E.Id != Q.Id || E.WorldType != Q.WorldType || E.CachedGeometry.Sections.Num() == 0 || Q.bProcessed)
-				continue;
 	
-			FHairStrandsProjectionMeshData MeshData;
-			for (FCachedGeometrySection Section : E. CachedGeometry.Sections)
-			{
-				check(Section.LODIndex == Q.LODIndex);
-				MeshData.Sections.Add(ConvertMeshSection(Section, E.SkeletalLocalToWorld));
-			}
-
-			for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
-			{
-				ProjectionHairData.LODDatas[Q.LODIndex].RestPositionOffset = Q.RestPositionOffset;
-				ProjectHairStrandsOntoMesh(RHICmdList, ShaderMap, Q.LODIndex, MeshData, ProjectionHairData);
-				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, Q.LODIndex, HairStrandsTriangleType::RestPose, MeshData, ProjectionHairData);
-			}
-
-			for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
-			{
-				ProjectionHairData.LODDatas[Q.LODIndex].RestPositionOffset = Q.RestPositionOffset;
-				ProjectHairStrandsOntoMesh(RHICmdList, ShaderMap, Q.LODIndex, MeshData, ProjectionHairData);
-				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, Q.LODIndex, HairStrandsTriangleType::RestPose, MeshData, ProjectionHairData);
-			}
-			Q.bProcessed = true;
-		}
-	}
-
 	// Update dynamic mesh triangles
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
@@ -281,22 +291,22 @@ void RunHairStrandsInterpolation(
 		if (E.WorldType != WorldType || E.CachedGeometry.Sections.Num() == 0)
 			continue;
 	
-		FHairStrandsProjectionMeshData MeshData;
+		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
 		for (FCachedGeometrySection Section : E.CachedGeometry.Sections)
 		{
 			// Ensure all mesh's sections have the same LOD index
 			if (E.FrameLODIndex < 0) E.FrameLODIndex = Section.LODIndex;
 			check(E.FrameLODIndex == Section.LODIndex);
-	
-			MeshData.Sections.Add(ConvertMeshSection(Section, E.SkeletalLocalToWorld));
+
+			MeshDataLOD.Sections.Add(ConvertMeshSection(Section, E.SkeletalLocalToWorld));
 		}
 
 		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
 		{
 			if (EHairStrandsInterpolationType::RenderStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
 			{
-				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
-				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshData, ProjectionHairData);
+				*ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
+				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
 			}
 		}
 
@@ -304,8 +314,23 @@ void RunHairStrandsInterpolation(
 		{
 			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
 			{
-				ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
-				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshData, ProjectionHairData);
+				*ProjectionHairData.LODDatas[E.FrameLODIndex].DeformedPositionOffset = E.SkeletalDeformedPositionOffset;
+				UpdateHairStrandsMeshTriangles(RHICmdList, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
+			}
+		}
+	}
+
+	// Reset deformation
+	if (EHairStrandsInterpolationType::SimulationStrands == Type)
+	{
+		for (FHairStrandsManager::Element& E : GHairManager.Elements)
+		{
+			if (E.WorldType != WorldType)
+				continue;
+
+			if (E.InterpolationData.Input && E.InterpolationData.Output && E.InterpolationData.ResetFunction)
+			{
+				E.InterpolationData.ResetFunction(RHICmdList, E.InterpolationData.Input, E.InterpolationData.Output);
 			}
 		}
 	}
@@ -320,13 +345,13 @@ void RunHairStrandsInterpolation(
 
 			if (E.InterpolationData.Input && E.InterpolationData.Output && E.InterpolationData.Function)
 			{
-				E.InterpolationData.Function(RHICmdList, E.InterpolationData.Input, E.InterpolationData.Output, E.RenProjectionHairDatas, E.SimProjectionHairDatas, E.FrameLODIndex);
+				E.InterpolationData.Function(RHICmdList, ShaderDrawData, E.InterpolationData.Input, E.InterpolationData.Output, E.RenProjectionHairDatas, E.SimProjectionHairDatas, E.FrameLODIndex, ClusterData);
 			}
 		}
 	}
 }
 
-void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData& OutGeometries)
+void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData::LOD& OutGeometries)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
@@ -401,10 +426,28 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 	return Infos;
 }
 
+FHairStrandsPrimitiveResources GetHairStandsPrimitiveResources(uint64 Id)
+{
+	for (FHairStrandsManager::Element& E : GHairManager.Elements)
+	{
+		if (E.Id != Id)
+			continue;
+
+		return E.PrimitiveResources;
+	}
+	return FHairStrandsPrimitiveResources();
+}
+
+
 bool IsHairStrandsEnable(EShaderPlatform Platform) 
 { 
 	return 
 		IsHairStrandsSupported(Platform) && 
 		GHairStrandsRenderingEnable == 1 && 
 		GHairManager.Elements.Num() > 0; 
+}
+
+bool IsHairRayTracingEnabled()
+{
+	return IsRayTracingEnabled();
 }
