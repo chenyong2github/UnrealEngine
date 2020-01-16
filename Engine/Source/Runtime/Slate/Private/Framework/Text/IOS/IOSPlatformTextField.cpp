@@ -127,14 +127,14 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 
 -(void)hide
 {
-    if(!TextWidget.IsValid())
-    {
-        return;
-    }
-    
     if(AlertController != nil)
     {
         [AlertController dismissViewControllerAnimated: YES completion: nil];
+    }
+
+    if(!TextWidget.IsValid())
+    {
+        return;
     }
     
     TextWidget = nullptr;
