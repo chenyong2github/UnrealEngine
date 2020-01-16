@@ -189,6 +189,8 @@ namespace Chaos
 		Chaos::FParticleData* ProxyData;
 		IPhysicsProxyBase* ProxyBase;
 
+		GTParticle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
 		if (InParticleType == EParticleType::Rigid)
@@ -232,23 +234,25 @@ namespace Chaos
 			//       Proxy should be able to map back to Particle.
 			//
 
+			const auto& GeomData = static_cast<const Chaos::TGeometryParticleData<FReal,3>*>(ProxyData);
+
 			if (InParticleType == EParticleType::Rigid)
 			{
-				Handle = Solver->Particles.CreateDynamicParticles(1)[0];
+				Handle = Solver->Particles.CreateDynamicParticles(1, &GeomData->UniqueIdx)[0];
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(ProxyBase);
 				Proxy->SetHandle(Handle->CastToRigidParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else if (InParticleType == EParticleType::Kinematic)
 			{
-				Handle = Solver->Particles.CreateKinematicParticles(1)[0];
+				Handle = Solver->Particles.CreateKinematicParticles(1, &GeomData->UniqueIdx)[0];
 				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(ProxyBase);
 				Proxy->SetHandle(Handle->CastToKinematicParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else // Assume it's a static (geometry) if it's not dynamic or kinematic
 			{
-				Handle = Solver->Particles.CreateStaticParticles(1)[0];
+				Handle = Solver->Particles.CreateStaticParticles(1, &GeomData->UniqueIdx)[0];
 
 				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(ProxyBase);
 				Proxy->SetHandle(Handle);

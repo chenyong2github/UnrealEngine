@@ -110,6 +110,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// TriangleMesh has map from internal face indices to external.
 		TriangleMeshHasFaceIndexMap,
+
+		// Acceleration structures use unique payload idx
+		UniquePayloadIdx,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

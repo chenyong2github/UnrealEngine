@@ -95,6 +95,7 @@ namespace Chaos
 		    : TParticles<T, d>()
 		{
 			MParticleType = EParticleType::Static;
+			TArrayCollection::AddArray(&MUniqueIdx);
 			TArrayCollection::AddArray(&MR);
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
@@ -106,7 +107,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
-			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_CHECKED
 			TArrayCollection::AddArray(&MDebugName);
 #endif
@@ -121,6 +121,7 @@ namespace Chaos
 		TGeometryParticlesImp(const TGeometryParticlesImp<T, d, SimType>& Other) = delete;
 		CHAOS_API TGeometryParticlesImp(TGeometryParticlesImp<T, d, SimType>&& Other)
 		    : TParticles<T, d>(MoveTemp(Other))
+			, MUniqueIdx(MoveTemp(Other.MUniqueIdx))
 			, MR(MoveTemp(Other.MR))
 			, MGeometry(MoveTemp(Other.MGeometry))
 			, MSharedGeometry(MoveTemp(Other.MSharedGeometry))
@@ -133,12 +134,12 @@ namespace Chaos
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
-			, MHashResult(MoveTemp(Other.MHashResult))
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
 		{
 			MParticleType = EParticleType::Static;
+			TArrayCollection::AddArray(&MUniqueIdx);
 			TArrayCollection::AddArray(&MR);
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
@@ -149,7 +150,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
-			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -170,6 +170,7 @@ namespace Chaos
 		    : TParticles<T, d>(MoveTemp(Other))
 		{
 			MParticleType = EParticleType::Static;
+			TArrayCollection::AddArray(&MUniqueIdx);
 			TArrayCollection::AddArray(&MR);
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
@@ -180,7 +181,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
-			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -200,7 +200,8 @@ namespace Chaos
 
 		CHAOS_API const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
 		CHAOS_API TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
-
+		FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
+		FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
 		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 
 		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
@@ -271,16 +272,6 @@ namespace Chaos
 			return MSpatialIdx[Index];
 		}
 
-		CHAOS_API uint32 HashResultLowLevel(const int32 Index) const
-		{
-			return MHashResult[Index];
-		}
-
-		CHAOS_API uint32& HashResultLowLevel(const int32 Index)
-		{
-			return MHashResult[Index];
-		}
-
 #if CHAOS_CHECKED
 		const FName& DebugName(const int32 Index) const
 		{
@@ -326,7 +317,7 @@ namespace Chaos
 		FString ToString(int32 index) const
 		{
 			FString BaseString = TParticles<T, d>::ToString(index);
-			return FString::Printf(TEXT("%s, MR:%s, MGeometry:%s, IsDynamic:%d"), *BaseString, *R(index).ToString(), (Geometry(index) ? *(Geometry(index)->ToString()) : TEXT("none")), (DynamicGeometry(index) != nullptr));
+			return FString::Printf(TEXT("%s, MUniqueIdx:%d MR:%s, MGeometry:%s, IsDynamic:%d"), *BaseString, UniqueIdx(index).Idx, *R(index).ToString(), (Geometry(index) ? *(Geometry(index)->ToString()) : TEXT("none")), (DynamicGeometry(index) != nullptr));
 		}
 
 		CHAOS_API virtual void Serialize(FChaosArchive& Ar)
@@ -391,14 +382,7 @@ namespace Chaos
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
 			{
-				for (const auto& Particle : MGeometryParticle)
-				{
-					SerializeHashResultHelper(Ar, Particle);
-				}
-			}
-			else
-			{
-				Ar << MHashResult;
+				//no longer care about hash so don't read it and don't do anything
 			}
 		}
 
@@ -423,6 +407,7 @@ namespace Chaos
 		EParticleType MParticleType;
 
 	private:
+		TArrayCollectionArray<FUniqueIdx> MUniqueIdx;
 		TArrayCollectionArray<TRotation<T, d>> MR;
 		// MGeometry contains raw ptrs to every entry in both MSharedGeometry and MDynamicGeometry.
 		// It may also contain raw ptrs to geometry which is managed outside of Chaos.
@@ -441,7 +426,6 @@ namespace Chaos
 		TArrayCollectionArray<TAABB<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
-		TArrayCollectionArray<uint32> MHashResult;
 
 		void UpdateShapesArray(const int32 Index)
 		{
@@ -478,7 +462,6 @@ namespace Chaos
 		friend class TGeometryParticlesImp;
 
 		CHAOS_API void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>* GeometryParticles);
-		CHAOS_API void SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle);
 		
 		void SerializeGeometryParticleHelper(FChaosArchive& Ar, TGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>* GeometryParticles)
 		{

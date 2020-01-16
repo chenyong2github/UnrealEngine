@@ -276,13 +276,13 @@ namespace ImmediatePhysics_Chaos
 			switch (ActorType)
 			{
 			case EActorType::StaticActor:
-				ParticleHandle = Particles.CreateStaticParticles(1, TGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateStaticParticles(1, nullptr, TGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::KinematicActor:
-				ParticleHandle = Particles.CreateKinematicParticles(1, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::DynamicActor:
-				ParticleHandle = Particles.CreateDynamicParticles(1, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
 				break;
 			}
 
