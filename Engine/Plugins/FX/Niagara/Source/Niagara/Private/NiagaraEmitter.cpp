@@ -170,6 +170,16 @@ void UNiagaraEmitter::PostInitProperties()
 	UniqueEmitterName = TEXT("Emitter");
 }
 
+void UNiagaraEmitter::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	if (!bDuplicateForPIE)
+	{
+		SetUniqueEmitterName(GetName());
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraEmitter::GetForceCompileOnLoad()
 {
@@ -1413,6 +1423,14 @@ void UNiagaraEmitter::RemoveParent()
 {
 	Parent = nullptr;
 	ParentAtLastMerge = nullptr;
+}
+
+void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
+{
+	Parent = &InParent;
+	ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParent, this));
+	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
 #endif
 
