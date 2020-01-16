@@ -1721,8 +1721,13 @@ bool FBulkDataIORequest::MakeReadRequest(int64 Offset, int64 BytesToRead, EAsync
 	check(ReadRequest == nullptr);
 
 	FBulkDataIORequestCallBack LocalCallback = *CompleteCallback;
-	FAsyncFileCallBack AsyncFileCallBack = [LocalCallback, BytesToRead, this](bool bWasCancelled, IAsyncReadRequest*)
+	FAsyncFileCallBack AsyncFileCallBack = [LocalCallback, BytesToRead, this](bool bWasCancelled, IAsyncReadRequest* InRequest)
 	{
+		// In some cases the call to ReadRequest can invoke the callback immediately (if the requested data is cached 
+		// in the pak file system for example) which means that FBulkDataIORequest::ReadRequest might not actually be
+		// set correctly, so we need to make sure it is assigned before we invoke LocalCallback!
+		ReadRequest = InRequest;
+
 		Size = BytesToRead;
 		LocalCallback(bWasCancelled, this);
 	};
