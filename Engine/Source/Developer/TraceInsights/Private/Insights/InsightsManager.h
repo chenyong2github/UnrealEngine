@@ -18,17 +18,6 @@
 class SStartPageWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FInsightsManagerTabs
-{
-	static const FName StartPageTabId;
-	static const FName SessionInfoTabId;
-	static const FName TimingProfilerTabId;
-	static const FName LoadingProfilerTabId;
-	static const FName NetworkingProfilerTabId;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages following areas:
  *     Connecting/disconnecting to source trace

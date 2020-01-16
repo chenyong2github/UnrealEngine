@@ -557,12 +557,6 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 			.Expose(OverlaySettingsSlot)
 		];
 
-#if WITH_EDITOR
-	// In the editor, attempt to connect to ourselves so we can choose our own session.
-	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-	SessionService->ConnectSession(TEXT("127.0.0.1"));
-#endif
-
 	RefreshTraceSessionList();
 
 	FSlateApplication::Get().SetKeyboardFocus(TraceSessionsListView);

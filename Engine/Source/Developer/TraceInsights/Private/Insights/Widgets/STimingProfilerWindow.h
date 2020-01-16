@@ -30,21 +30,6 @@ class SVerticalBox;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FTimingProfilerTabs
-{
-	// Tab identifiers
-	static const FName ToolbarID;
-	static const FName FramesTrackID;
-	static const FName TimingViewID;
-	static const FName TimersID;
-	static const FName CallersID;
-	static const FName CalleesID;
-	static const FName StatsCountersID;
-	static const FName LogViewID;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** Implements the timing profiler window. */
 class STimingProfilerWindow : public SCompoundWidget
 {

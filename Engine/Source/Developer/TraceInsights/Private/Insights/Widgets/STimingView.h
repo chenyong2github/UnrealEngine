@@ -228,6 +228,8 @@ public:
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 
+	virtual double GetTimeMarker() const override { return TimeMarker; }
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void UpdateScrollableTracksOrder();

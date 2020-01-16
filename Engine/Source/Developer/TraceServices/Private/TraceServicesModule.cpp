@@ -45,6 +45,7 @@ TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
 	if (!SessionService.IsValid())
 	{
 		GetModuleService();
+		GetAnalysisService();
 		SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), *AnalysisService.Get());
 	}
 	return SessionService;

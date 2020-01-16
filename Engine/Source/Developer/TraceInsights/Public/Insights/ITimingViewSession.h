@@ -79,6 +79,9 @@ public:
 
 	/** Gets the delegate to be invoked when the selected timing event has changed. */
 	virtual FSelectedEventChangedDelegate& OnSelectedEventChanged() = 0;
+
+	/** Get the current marker time */
+	virtual double GetTimeMarker() const = 0;
 };
 
 } // namespace Insights

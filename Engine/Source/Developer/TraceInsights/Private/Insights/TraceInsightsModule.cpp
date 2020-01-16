@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "TraceInsightsModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/ITraceServicesModule.h"
@@ -26,73 +26,6 @@
 #include "Insights/Widgets/SSessionInfoWindow.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/**
- * Implements the Trace Insights module.
- */
-class FTraceInsightsModule : public IUnrealInsightsModule
-{
-public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-	virtual bool SupportsDynamicReloading() override
-	{
-		return false;
-	}
-
-	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
-	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;
-	virtual void StartAnalysisForSession(const TCHAR* InSessionId) override;
-	virtual void ShutdownUserInterface() override;
-
-protected:
-	void AddAreaForSessionViewer(TSharedRef<FTabManager::FLayout> Layout);
-	void AddAreaForWidgetReflector(TSharedRef<FTabManager::FLayout> Layout, bool bAllowDebugTools);
-
-	/** Callback called when a major tab is closed. */
-	void OnTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Timing Profiler major tab is closed. */
-	void OnTimingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Loading Profiler major tab is closed. */
-	void OnLoadingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Networking Profiler major tab is closed. */
-	void OnNetworkingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Start Page */
-	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
-
-	/** Session Info */
-	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
-
-	/** Timing Profiler */
-	TSharedRef<SDockTab> SpawnTimingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Loading Profiler */
-	TSharedRef<SDockTab> SpawnLoadingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Networking Profiler */
-	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
-
-#if WITH_EDITOR
-	/** Handle exit */
-	void HandleExit();
-#endif
-
-protected:
-	TSharedPtr<FTabManager::FLayout> PersistentLayout;
-	bool bBrowserMode;
-	FString UnrealInsightsLayoutIni;
-
-	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
-	TSharedPtr<Trace::ISessionService> TraceSessionService;
-	TSharedPtr<Trace::IModuleService> TraceModuleService;
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -125,93 +58,11 @@ void FTraceInsightsModule::StartupModule()
 
 	//////////////////////////////////////////////////
 
-	// Register tab spawner for the Start Page.
-	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId,
-		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnStartPageTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Unreal Insights"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
-
-#if WITH_EDITOR
-	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
-#else
-	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
-
-	//////////////////////////////////////////////////
-
-	// Register tab spawner for the Session Info.
-	auto& SessionInfoTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId,
-		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnSessionInfoTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTabTitle", "Session Info"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTooltipText", "Open the Session Info tab."))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
-
-#if WITH_EDITOR
-	SessionInfoTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
-#else
-	SessionInfoTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
-
-	//////////////////////////////////////////////////
-
-	// Register tab spawner for the Timing Insights.
-	auto& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
-		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnTimingProfilerTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTabTitle", "Timing Insights"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Insights tab."))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingProfiler.Icon.Small"));
-
-#if WITH_EDITOR
-	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
-#else
-	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
-
-	//////////////////////////////////////////////////
-
-	// Register tab spawner for the Asset Loading Insights.
-	auto& LoadingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
-		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnLoadingProfilerTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "LoadingProfilerTabTitle", "Asset Loading Insights"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
-
-#if WITH_EDITOR
-	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
-#else
-	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
-
-	//////////////////////////////////////////////////
-
-	// Register tab spawner for the Networking Insights.
-	auto& NetworkingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId,
-		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnNetworkingProfilerTab))
-		.SetReuseTabMethod(FOnFindTabToReuse::CreateStatic(&NeverReuse))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTabTitle", "Networking Insights"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
-
-#if WITH_EDITOR
-	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
-#else
-	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
-
-	//////////////////////////////////////////////////
-
 #if WITH_EDITOR
 	if (TraceSessionService.IsValid())
 	{
 		TraceSessionService->StartRecorderServer();
 	}
-
-	// In editor, load the layout and display it here. In the standalone tool this is done through CreateSessionBrowser or CreateSessionViewer.
-	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
-	AddAreaForSessionViewer(DefaultLayout);
-	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
-	FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), TSharedPtr<SWindow>());
 
 	FCoreDelegates::OnExit.AddRaw(this, &FTraceInsightsModule::HandleExit);
 #endif
@@ -281,6 +132,79 @@ void FTraceInsightsModule::HandleExit()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTraceInsightsModule::RegisterTabSpawners()
+{
+	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory(); 
+
+	const FInsightsMajorTabConfig& StartPageConfig = FindMajorTabConfig(FInsightsManagerTabs::StartPageTabId);
+	if(StartPageConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Start Page.
+		FTabSpawnerEntry& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId,
+			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnStartPageTab))
+			.SetDisplayName(StartPageConfig.TabLabel.IsSet() ? StartPageConfig.TabLabel.GetValue() : NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Unreal Insights"))
+			.SetTooltipText(StartPageConfig.TabTooltip.IsSet() ? StartPageConfig.TabTooltip.GetValue() : NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
+			.SetIcon(StartPageConfig.TabIcon.IsSet() ? StartPageConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
+
+		StartPageTabSpawnerEntry.SetGroup(StartPageConfig.WorkspaceGroup.IsValid() ? StartPageConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
+	}
+
+	const FInsightsMajorTabConfig& SessionInfoConfig = FindMajorTabConfig(FInsightsManagerTabs::SessionInfoTabId);
+	if(SessionInfoConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Session Info.
+		FTabSpawnerEntry& SessionInfoTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId,
+			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnSessionInfoTab))
+			.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTabTitle", "Session Info"))
+			.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTooltipText", "Open the Session Info tab."))
+			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
+
+		SessionInfoTabSpawnerEntry.SetGroup(SessionInfoConfig.WorkspaceGroup.IsValid() ? SessionInfoConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
+	}
+
+	const FInsightsMajorTabConfig& TimingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
+	if(TimingProfilerConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Timing Insights.
+		FTabSpawnerEntry& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
+			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnTimingProfilerTab))
+			.SetDisplayName(TimingProfilerConfig.TabLabel.IsSet() ? TimingProfilerConfig.TabLabel.GetValue() : NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTabTitle", "Timing Insights"))
+			.SetTooltipText(TimingProfilerConfig.TabTooltip.IsSet() ? TimingProfilerConfig.TabTooltip.GetValue() : NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Insights tab."))
+			.SetIcon(TimingProfilerConfig.TabIcon.IsSet() ? TimingProfilerConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingProfiler.Icon.Small"));
+
+		TimingProfilerTabSpawnerEntry.SetGroup(TimingProfilerConfig.WorkspaceGroup.IsValid() ? TimingProfilerConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
+	}
+
+	const FInsightsMajorTabConfig& LoadingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId);
+	if(LoadingProfilerConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Asset Loading Insights.
+		FTabSpawnerEntry& LoadingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
+			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnLoadingProfilerTab))
+			.SetDisplayName(LoadingProfilerConfig.TabLabel.IsSet() ? LoadingProfilerConfig.TabLabel.GetValue() : NSLOCTEXT("FTraceInsightsModule", "LoadingProfilerTabTitle", "Asset Loading Insights"))
+			.SetTooltipText(LoadingProfilerConfig.TabTooltip.IsSet() ? LoadingProfilerConfig.TabTooltip.GetValue() : NSLOCTEXT("FTraceInsightsModule", "LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
+			.SetIcon(LoadingProfilerConfig.TabIcon.IsSet() ? LoadingProfilerConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
+
+		LoadingProfilerTabSpawnerEntry.SetGroup(LoadingProfilerConfig.WorkspaceGroup.IsValid() ? LoadingProfilerConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
+	}
+
+	const FInsightsMajorTabConfig& NetworkingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId);
+	if(NetworkingProfilerConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Networking Insights.
+		FTabSpawnerEntry& NetworkingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId,
+			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnNetworkingProfilerTab))
+			.SetReuseTabMethod(FOnFindTabToReuse::CreateStatic(&NeverReuse))
+			.SetDisplayName(NetworkingProfilerConfig.TabLabel.IsSet() ? NetworkingProfilerConfig.TabLabel.GetValue() : NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTabTitle", "Networking Insights"))
+			.SetTooltipText(NetworkingProfilerConfig.TabTooltip.IsSet() ? NetworkingProfilerConfig.TabTooltip.GetValue() : NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
+			.SetIcon(NetworkingProfilerConfig.TabIcon.IsSet() ? NetworkingProfilerConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
+
+		NetworkingProfilerTabSpawnerEntry.SetGroup(NetworkingProfilerConfig.WorkspaceGroup.IsValid() ? NetworkingProfilerConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess)
 {
 	bBrowserMode = true;
@@ -290,6 +214,10 @@ void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSin
 	{
 		TraceSessionService->StartRecorderServer();
 	}
+
+	RegisterTabSpawners();
+
+	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory(); 
 
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
 
@@ -328,10 +256,14 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 {
 	bBrowserMode = false;
 
+	RegisterTabSpawners();
+
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
 
 	AddAreaForSessionViewer(DefaultLayout);
+#if !WITH_EDITOR
 	AddAreaForWidgetReflector(DefaultLayout, bAllowDebugTools);
+#endif
 
 	// Restore application layout.
 	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
@@ -399,6 +331,34 @@ void FTraceInsightsModule::ShutdownUserInterface()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTraceInsightsModule::RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig)
+{
+	TabConfigs.Add(InMajorTabId, InConfig);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::UnregisterMajorTabConfig(const FName& InMajorTabId)
+{
+	TabConfigs.Remove(InMajorTabId);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FName& InMajorTabId) const
+{
+	const FInsightsMajorTabConfig* FoundConfig = TabConfigs.Find(InMajorTabId);
+	if(FoundConfig != nullptr)
+	{
+		return *FoundConfig;
+	}
+
+	static FInsightsMajorTabConfig DefaultConfig;
+	return DefaultConfig;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTraceInsightsModule::StartAnalysisForTraceFile(const TCHAR* InTraceFile)
 {
 	if (InTraceFile != nullptr)
@@ -415,6 +375,13 @@ void FTraceInsightsModule::StartAnalysisForSession(const TCHAR* InSessionId)
 	{
 		//TODO: FInsightsManager::Get()->LoadSession(FString(InSessionId));
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::StartAnalysisForLastLiveSession()
+{
+	FInsightsManager::Get()->LoadLastLiveSession();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
