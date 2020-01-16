@@ -1500,7 +1500,10 @@ void FNDISkeletalMesh_InstanceData::UpdateSpecificSocketTransforms()
 	{
 		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
 		{
-			WriteBuffer[i] = SkelComp->GetSocketTransform(SpecificSockets[i], RTS_Component);
+			FTransform SocketTransform;
+			int32 BoneIdx;
+			SkelComp->GetSocketInfoByName(SpecificSockets[i], SocketTransform, BoneIdx);
+			WriteBuffer[i] = SocketTransform * SkelComp->GetBoneTransform(BoneIdx, FTransform::Identity);
 		}
 	}
 	else if ( Mesh != nullptr )

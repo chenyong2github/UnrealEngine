@@ -526,10 +526,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 			if (Output.bNeedsRotation)
 			{
 				FQuat Rotation = CurrSocketTransform.GetRotation();
+				TransformHandler.TransformRotation(Rotation, Transform);
 				if (bInterpolated::Value)
 				{
 					FQuat PrevRotation = PrevSocketTransform.GetRotation();
-					Rotation = FMath::Lerp(PrevRotation, Rotation, Interp);
+					TransformHandler.TransformRotation(PrevRotation, Transform);
+					Rotation = FQuat::Slerp(PrevRotation, Rotation, Interp);
 				}
 
 				Output.SetRotation(Rotation);
@@ -550,10 +552,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 			if (Output.bNeedsRotation)
 			{
 				FQuat Rotation = SkinningHandler.GetSkinnedBoneRotation(Accessor, Bone);
+				TransformHandler.TransformRotation(Rotation, Transform);
 				if (bInterpolated::Value)
 				{
 					FQuat PrevRotation = SkinningHandler.GetSkinnedBonePreviousRotation(Accessor, Bone);
-					Rotation = FMath::Lerp(PrevRotation, Rotation, Interp);
+					TransformHandler.TransformRotation(PrevRotation, Transform);
+					Rotation = FQuat::Slerp(PrevRotation, Rotation, Interp);
 				}
 
 				Output.SetRotation(Rotation);
