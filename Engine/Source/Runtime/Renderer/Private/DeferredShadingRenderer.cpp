@@ -552,10 +552,17 @@ static int32 GetCustomDepthPassLocation()
 
 void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
+	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
+
+	if (ShouldPrepareHeightFieldScene())
+	{
+		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
+		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
+	}
+
 	if (ShouldPrepareDistanceFieldScene())
 	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
 		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
 		UpdateGlobalDistanceFieldObjectBuffers(RHICmdList);
 		if (bSplitDispatch)

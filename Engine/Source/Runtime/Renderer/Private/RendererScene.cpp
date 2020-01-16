@@ -370,13 +370,17 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
+	, NumHeightFieldObjectsInBuffer(0)
 	, ObjectBufferIndex(0)
 	, SurfelBuffers(NULL)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
+	, HeightFieldAtlasGeneration(0)
 {
 	ObjectBuffers[0] = nullptr;
 	ObjectBuffers[1] = nullptr;
+
+	HeightFieldObjectBuffers = nullptr;
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
@@ -393,7 +397,7 @@ FDistanceFieldSceneData::~FDistanceFieldSceneData()
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
+	FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
 	if ((bTrackAllPrimitives || Proxy->CastsDynamicIndirectShadow())
 		&& Proxy->CastsDynamicShadow()
@@ -401,10 +405,17 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	{
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			HeightfieldPrimitives.Add(InPrimitive);
-			FBoxSphereBounds PrimitiveBounds = Proxy->GetBounds();
-			FGlobalDFCacheType CacheType = Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-			PrimitiveModifiedBounds[CacheType].Add(FVector4(PrimitiveBounds.Origin, PrimitiveBounds.SphereRadius));
+			// Theoretically, we may need to wait for high-res mips to be streamed in.
+			// In practice, however, those mips are usually resident at this point.
+			UTexture2D* HeightAndNormal;
+			UTexture2D* Unused0, *Unused1;
+			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
+
+			checkSlow(!PendingHeightFieldAddOps.Contains(InPrimitive));
+			checkSlow(!PendingHeightFieldUpdateOps.Contains(InPrimitive));
+			PendingHeightFieldAddOps.Add(InPrimitive);
 		}
 
 		if (Proxy->SupportsDistanceFieldRepresentation())
@@ -436,7 +447,7 @@ void FDistanceFieldSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
+	FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
 	if ((bTrackAllPrimitives || Proxy->CastsDynamicIndirectShadow()) 
 		&& Proxy->AffectsDistanceFieldLighting())
@@ -457,11 +468,21 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			HeightfieldPrimitives.Remove(InPrimitive);
+			UTexture2D* HeightAndNormal;
+			UTexture2D* Unused0, *Unused1;
+			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
 
-			FBoxSphereBounds PrimitiveBounds = Proxy->GetBounds();
-			FGlobalDFCacheType CacheType = Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-			PrimitiveModifiedBounds[CacheType].Add(FVector4(PrimitiveBounds.Origin, PrimitiveBounds.SphereRadius));
+			PendingHeightFieldAddOps.Remove(InPrimitive);
+			PendingHeightFieldUpdateOps.Remove(InPrimitive);
+
+			if (InPrimitive->DistanceFieldInstanceIndices.Num() > 0)
+			{
+				PendingHeightFieldRemoveOps.Add(FHeightFieldPrimitiveRemoveInfo(InPrimitive));
+			}
+
+			InPrimitive->DistanceFieldInstanceIndices.Empty();
 		}
 	}
 }

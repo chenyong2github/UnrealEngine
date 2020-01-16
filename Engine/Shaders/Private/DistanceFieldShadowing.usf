@@ -13,7 +13,15 @@ uint ObjectBoundingGeometryIndexCount;
 
 void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 {
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 	RWCulledObjectBounds[DestIndex] = LoadFloat4(SceneObjectBounds, SourceIndex);
+#else
+	float4 BoxOriginAndSphereRadius = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE);
+	float4 BoxExtent = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE + 1);
+
+	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE] = BoxOriginAndSphereRadius;
+	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE + 1] = BoxExtent;
+#endif
 
 	UNROLL
 	for (uint VectorIndex = 0; VectorIndex < CULLED_OBJECT_DATA_STRIDE; VectorIndex++)
@@ -24,10 +32,11 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 
 	float3 MinViewSpacePosition = float3(2000000, 2000000, 2000000);
 	float3 MaxViewSpacePosition = float3(-2000000, -2000000, -2000000);
-
-	float4x4 ObjectOBBToWorld = LoadGlobalObjectOBBToWorld(SourceIndex);
-
 	float3 ViewSpaceBoundsVertices[8];
+
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
+	float4x4 ObjectOBBToWorld = LoadGlobalObjectOBBToWorld(SourceIndex);
+#endif
 
 	for (uint i = 0; i < 8; i++)
 	{
@@ -36,9 +45,13 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 		UnitBoxVertex.y = i & 0x2 ? 1.0f : -1.0f;
 		UnitBoxVertex.z = i & 0x4 ? 1.0f : -1.0f;
 
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		UnitBoxVertex *= SDF_APPROX_MARGIN;
-
 		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), ObjectOBBToWorld).xyz;
+#else
+		float3 WorldBoundsPosition = UnitBoxVertex * BoxExtent.xyz + BoxOriginAndSphereRadius.xyz;
+#endif
+
 		float3 ViewSpacePosition = mul(float4(WorldBoundsPosition, 1.0f), WorldToShadow).xyz;
 		MinViewSpacePosition = min(MinViewSpacePosition, ViewSpacePosition);
 		MaxViewSpacePosition = max(MaxViewSpacePosition, ViewSpacePosition);
@@ -78,6 +91,23 @@ bool ShadowConvexHullIntersectSphere(float3 SphereOrigin, float SphereRadius)
 	return true;
 }
 
+bool ShadowConvexHullIntersectBox(float3 BoxOrigin, float3 BoxExtent)
+{
+	for (uint PlaneIndex = 0; PlaneIndex < NumShadowHullPlanes; ++PlaneIndex)
+	{
+		float4 PlaneData = ShadowConvexHull[PlaneIndex];
+		float PlaneDistance = dot(PlaneData.xyz, BoxOrigin) - PlaneData.w;
+		float PushOut = dot(abs(PlaneData.xyz), BoxExtent);
+
+		if (PlaneDistance > PushOut)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 [numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
 void CullObjectsForShadowCS(
 	uint3 GroupId : SV_GroupID,
@@ -102,6 +132,7 @@ void CullObjectsForShadowCS(
 
 	if (ObjectIndex < NumSceneObjects)
 	{
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		float4 ObjectBoundingSphere = LoadFloat4(SceneObjectBounds, SourceIndex);
         
         if (ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(ObjectBoundingSphere.xyz, ObjectBoundingSphere.w)
@@ -119,6 +150,17 @@ void CullObjectsForShadowCS(
                 CopyCulledObjectData(DestIndex, SourceIndex);
             }
         }
+#else
+		float3 BoxOrigin = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE).xyz;
+		float3 BoxExtent = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE + 1).xyz;
+
+		if (ShadowConvexHullIntersectBox(BoxOrigin, BoxExtent))
+		{
+			uint DestIndex;
+			InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
+			CopyCulledObjectData(DestIndex, SourceIndex);
+		}
+#endif
 	}
 
 #else
@@ -143,23 +185,50 @@ void CullObjectsForShadowCS(
 RWBuffer<uint> RWNextStartOffset;
 RWBuffer<uint> RWShadowTileStartOffsets;
 
+groupshared uint GroupNumIntersectingObjects;
+groupshared uint GroupStartOffset;
+
 #ifndef COMPUTE_START_OFFSET_GROUP_SIZE
 #define COMPUTE_START_OFFSET_GROUP_SIZE 1
 #endif
 
 [numthreads(COMPUTE_START_OFFSET_GROUP_SIZE, COMPUTE_START_OFFSET_GROUP_SIZE, 1)]
 void ComputeCulledTilesStartOffsetCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID)
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 TileCoordinate = DispatchThreadId.xy;
+	bool bFirstThreadInGroup = all(GroupThreadId.xy == 0);
 
-	if (all(TileCoordinate < ShadowTileListGroupSize))
+	if (bFirstThreadInGroup)
 	{
-		uint TileIndex = DispatchThreadId.y * ShadowTileListGroupSize.x + DispatchThreadId.x;
-		uint NumIntersectingObjects = ShadowTileNumCulledObjects[TileIndex];
+		GroupNumIntersectingObjects = 0;
+	}
+	
+	GroupMemoryBarrierWithGroupSync();
 
-		uint TileStartOffset;
-		InterlockedAdd(RWNextStartOffset[0], NumIntersectingObjects, TileStartOffset);
+	uint2 TileCoordinate = DispatchThreadId.xy;
+	bool bValidTile = all(TileCoordinate < ShadowTileListGroupSize);
+	uint TileIndex = TileCoordinate.y * ShadowTileListGroupSize.x + TileCoordinate.x;
+	uint TileStartOffset;
+
+	if (bValidTile)
+	{
+		uint NumIntersectingObjects = ShadowTileNumCulledObjects[TileIndex];
+		InterlockedAdd(GroupNumIntersectingObjects, NumIntersectingObjects, TileStartOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (bFirstThreadInGroup)
+	{
+		InterlockedAdd(RWNextStartOffset[0], GroupNumIntersectingObjects, GroupStartOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+	
+	if (bValidTile)
+	{
+		TileStartOffset += GroupStartOffset;
 		RWShadowTileStartOffsets[TileIndex] = TileStartOffset;
 	}
 }
@@ -182,6 +251,7 @@ void ShadowObjectCullVS(
 	out float4 OutPosition : SV_POSITION
 )
 {
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 	float4x4 ObjectOBBToWorld = LoadObjectOBBToWorld(ObjectIndex);
 
 	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
@@ -193,7 +263,17 @@ void ShadowObjectCullVS(
 	ObjectOBBToWorld[2].xyz *= (SDF_APPROX_MARGIN + MinExpandRadius / ObjectScaleZ);
 
 	float3 WorldPosition = mul(float4(InPosition.xyz, 1.0f), ObjectOBBToWorld).xyz;
-	OutPosition = mul(float4(WorldPosition, 1.0f), WorldToShadow);
+#else
+	float3 BoxOrigin;
+	float3 BoxExtent;
+	LoadHeightFieldObjectBoxBounds(ObjectIndex, BoxOrigin, BoxExtent);
+
+	BoxExtent += MinExpandRadius;
+
+	float3 WorldPosition = InPosition.xyz * BoxExtent + BoxOrigin;
+#endif
+
+	OutPosition = mul(float4(WorldPosition, 1.0), WorldToShadow);
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
 	if (OutPosition.z < 0)
@@ -479,6 +559,10 @@ float MinDepth;
 float MaxDepth;
 uint DownsampleFactor;
 
+float2 InvOutputBufferSize;
+Texture2D ShadowFactorsTexture;
+SamplerState ShadowFactorsSampler;
+
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void DistanceFieldShadowingCS(
 	uint3 GroupId : SV_GroupID,
@@ -526,46 +610,86 @@ void DistanceFieldShadowingCS(
 	BRANCH
 	if (bTileShouldComputeShadowing)
 	{
+		// Keeps result from going all the way sharp
+		float MinSphereRadius = .4f;
+		// Maintain reasonable culling bounds
+		float MaxSphereRadius = 100;
+
+		// Reduce shadowing when we are close the ray origin (only used for heightfield)
+		float SelfShadowFadeDistance = 100;
+		// Mitigate self-shadow caused by discontinuity on heightfield borders (only used for heightfield)
+		float SelfShadowVerticalBias = 100;
+
+#if HAS_PREVIOUS_OUTPUT
+	#if PLATFORM_SUPPORTS_TYPED_UAV_LOAD
+		float PrevResult = RWShadowFactors[DispatchThreadId.xy].x;
+	#else
+		float2 PrevResultUV = (DispatchThreadId.xy + 0.5) * InvOutputBufferSize;
+		float PrevResult = Texture2DSampleLevel(ShadowFactorsTexture, ShadowFactorsSampler, PrevResultUV, 0).x;
+	#endif
+#endif
+		bool bIsHeightField = DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField;
+
+		if (bIsHeightField)
 		{
-			// World space offset along the start of the ray to avoid incorrect self-shadowing
-			float RayStartOffset = 2 + RayStartOffsetDepthScale * SceneDepth;
-			// Keeps result from going all the way sharp
-			float MinSphereRadius = .4f;
-			// Maintain reasonable culling bounds
-			float MaxSphereRadius = 100;
+			MaxSphereRadius = 1000;
+			OpaqueWorldPosition.z += SelfShadowVerticalBias;
+		}
 
-			#if POINT_LIGHT
+		// World space offset along the start of the ray to avoid incorrect self-shadowing
+		float RayStartOffset = 2 + RayStartOffsetDepthScale * SceneDepth;
 
-				float3 LightVector = LightPositionAndInvRadius.xyz - OpaqueWorldPosition;
-				float LightVectorLength = length(LightVector);
-				float3 WorldRayStart = OpaqueWorldPosition + LightVector / LightVectorLength * RayStartOffset;
-				float3 WorldRayEnd = LightPositionAndInvRadius.xyz;
-				float MaxRayTime = LightVectorLength;
-				float MaxAngle = tan(10 * PI / 180.0f);
-				// Comparing tangents instead of angles, but tangent is always increasing in this range
-				float TanLightAngle = min(LightSourceRadius / LightVectorLength, MaxAngle);
+		#if POINT_LIGHT
 
-			#else
+			float3 LightVector = LightPositionAndInvRadius.xyz - OpaqueWorldPosition;
+			float LightVectorLength = length(LightVector);
+			float3 WorldRayStart = OpaqueWorldPosition + LightVector / LightVectorLength * RayStartOffset;
+			float3 WorldRayEnd = LightPositionAndInvRadius.xyz;
+			float MaxRayTime = LightVectorLength;
+			float MaxAngle = tan(10 * PI / 180.0f);
+			// Comparing tangents instead of angles, but tangent is always increasing in this range
+			float TanLightAngle = min(LightSourceRadius / LightVectorLength, MaxAngle);
 
-				float3 WorldRayStart = OpaqueWorldPosition + LightDirection * RayStartOffset;
-				float3 WorldRayEnd = OpaqueWorldPosition + LightDirection * TraceDistance;
-				float MaxRayTime = TraceDistance;
-				float TanLightAngle = TanLightAngleAndNormalThreshold.x;
+		#else
 
-			#endif
+			float3 WorldRayStart = OpaqueWorldPosition + LightDirection * RayStartOffset;
+			float3 WorldRayEnd = OpaqueWorldPosition + LightDirection * TraceDistance;
+			float MaxRayTime = TraceDistance;
+			float TanLightAngle = TanLightAngleAndNormalThreshold.x;
 
-			#if SCATTER_TILE_CULLING
-				bool bUseScatterTileCulling = true;
-			#else
-				bool bUseScatterTileCulling = false;
-			#endif
+		#endif
+
+		#if SCATTER_TILE_CULLING
+			bool bUseScatterTileCulling = true;
+		#else
+			bool bUseScatterTileCulling = false;
+		#endif
 		
-			#if USE_CULLING
-				bool bUseCulling = true;
-			#else
-				bool bUseCulling = false;
-			#endif
+		#if USE_CULLING
+			bool bUseCulling = true;
+		#else
+			bool bUseCulling = false;
+		#endif
 
+		if (bIsHeightField)
+		{
+			Result = ShadowRayTraceThroughCulledHeightFieldObjects(
+				WorldRayStart,
+				WorldRayEnd,
+				TanLightAngle,
+				MaxSphereRadius,
+				SelfShadowFadeDistance,
+				CulledDataParameter,
+				NumIntersectingObjects,
+				bUseCulling,
+				bUseScatterTileCulling);
+
+#if HAS_PREVIOUS_OUTPUT
+			Result = min(Result, PrevResult);
+#endif
+		}
+		else
+		{
 			float SubsurfaceDensity = 0;
 			bool bUseSubsurfaceTransmission = false;
 
@@ -597,7 +721,6 @@ void DistanceFieldShadowingCS(
 				bUseSubsurfaceTransmission);
 		}
 	}
-
 #else
 	//Result = bTileShouldComputeShadowing;
 	Result = NumIntersectingObjects / 500.0f;
@@ -605,9 +728,6 @@ void DistanceFieldShadowingCS(
 
 	RWShadowFactors[DispatchThreadId.xy] = float2(Result, SceneDepth);
 }
-
-Texture2D ShadowFactorsTexture;
-SamplerState ShadowFactorsSampler;
 
 float FadePlaneOffset;
 float InvFadePlaneLength;
