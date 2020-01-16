@@ -126,7 +126,9 @@ namespace Audio
 		if (GainDB != InGainDB)
 		{
 			GainDB = InGainDB;
-			if (FilterType == EBiquadFilter::ParametricEQ)
+			if (FilterType == EBiquadFilter::ParametricEQ
+				|| FilterType == EBiquadFilter::HighShelf
+				|| FilterType == EBiquadFilter::LowShelf)
 			{
 				CalculateBiquadCoefficients();
 			}
@@ -205,7 +207,6 @@ namespace Audio
 			case EBiquadFilter::ParametricEQ:
 			{
 				const float Amp = FMath::Pow(10.0f, GainDB / 40.0f);
-				const float Beta = FMath::Sqrt(2.0f * Amp);
 
 				a0 = 1.0f + (Alpha * Amp);
 				a1 = -2.0f * Cs;
@@ -213,6 +214,34 @@ namespace Audio
 				b0 = 1.0f + (Alpha / Amp);
 				b1 = -2.0f * Cs;
 				b2 = 1.0f - (Alpha / Amp);
+			}
+			break;
+
+			case EBiquadFilter::HighShelf:
+			{
+				const float Amp = FMath::Pow(10.0f, GainDB / 40.0f);
+				const float BetaSn = Sn * FMath::Sqrt(2.0f * Amp);
+
+				a0 = Amp * ((Amp + 1) + (Amp - 1) * Cs + BetaSn);
+				a1 = -2 * Amp * ((Amp - 1) + (Amp + 1) * Cs);
+				a2 = Amp * ((Amp + 1) + (Amp - 1) * Cs - BetaSn);
+				b0 = (Amp + 1) - (Amp - 1) * Cs + BetaSn;
+				b1 = 2 * ((Amp - 1) - (Amp + 1) * Cs);
+				b2 = (Amp + 1) - (Amp - 1) * Cs - BetaSn;
+			}
+			break;
+
+			case EBiquadFilter::LowShelf:
+			{
+				const float Amp = FMath::Pow(10.0f, GainDB / 40.0f);
+				const float BetaSn = Sn * FMath::Sqrt(2.0f * Amp);
+
+				a0 = Amp * ((Amp + 1) - (Amp - 1) * Cs + BetaSn);
+				a1 = 2 * Amp * ((Amp - 1) - (Amp + 1) * Cs);
+				a2 = Amp * ((Amp + 1) - (Amp - 1) * Cs - BetaSn);
+				b0 = (Amp + 1) + (Amp - 1) * Cs + BetaSn;
+				b1 = -2 * ((Amp - 1) + (Amp + 1) * Cs);
+				b2 = (Amp + 1) + (Amp - 1) * Cs - BetaSn;
 			}
 			break;
 
