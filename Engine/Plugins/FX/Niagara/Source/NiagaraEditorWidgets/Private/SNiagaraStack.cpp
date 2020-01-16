@@ -69,6 +69,7 @@ public:
 		EmitterHandleViewModel = InEmitterHandleViewModel;
 		OnCycleThroughIssues = InArgs._OnCycleThroughIssues;
 		StackViewModel = InStackViewModel;
+		TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*InRootEntry);
 
 		ChildSlot
 		[
@@ -227,13 +228,14 @@ private:
 
 	FReply OnIssueIconClicked() const
 	{
-		StackViewModel->OnCycleThroughIssues();
+		StackViewModel->OnCycleThroughIssues(TopLevelViewModel);
 		OnCycleThroughIssues.ExecuteIfBound();
 		return FReply::Handled();
 	}
 
 private:
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
+	TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel;
 
 	TSharedPtr<SInlineEditableTextBlock> EmitterNameTextBlock;
 	FSimpleDelegate OnCycleThroughIssues;
@@ -695,11 +697,12 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 			.VAlign(VAlign_Center)
 			.Padding(4, 0, 2, 0)
 			[
-				SNew(SNiagaraStackIssueIcon, Item->SystemViewModel->GetSystemStackViewModel(), Item->RootEntry.Get())
+				SNew(SNiagaraStackIssueIcon, StackViewModel, Item->RootEntry.Get())
 				.Visibility(this, &SNiagaraStack::GetIssueIconVisibility)
+				.OnClicked(this, &SNiagaraStack::OnCycleThroughSystemIssues, Item->SystemViewModel)
 			];
 	}
-	else if(Item->EmitterHandleViewModel.IsValid())
+	else if (Item->EmitterHandleViewModel.IsValid())
 	{
 		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef(), Item->RootEntry.Get(), StackViewModel)
 			.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility)
@@ -1054,6 +1057,19 @@ void SNiagaraStack::StackStructureChanged()
 EVisibility SNiagaraStack::GetIssueIconVisibility() const
 {
 	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SNiagaraStack::OnCycleThroughSystemIssues(TSharedPtr<FNiagaraSystemViewModel> SystemViewModel)
+{
+	UNiagaraStackEntry* RootEntry = SystemViewModel->GetSystemStackViewModel()->GetRootEntry();
+	if (RootEntry != nullptr)
+	{
+		TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*RootEntry);
+		StackViewModel->OnCycleThroughIssues(TopLevelViewModel);
+		OnCycleThroughIssues();
+	}
+
+	return FReply::Handled();
 }
 
 void SNiagaraStack::OnCycleThroughIssues()
