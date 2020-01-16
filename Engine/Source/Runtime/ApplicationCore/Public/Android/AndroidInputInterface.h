@@ -267,6 +267,8 @@ public:
 	virtual void ResetLightColor(int32 ControllerId) override;
 
 	void SetGamepadsAllowed(bool bAllowed) { bAllowControllers = bAllowed; }
+	void SetGamepadsBlockDeviceFeedback(bool bBlock) { bControllersBlockDeviceFeedback = bBlock; }
+
 	virtual bool IsGamepadAttached() const;
 
 
@@ -331,6 +333,9 @@ private:
 
 	// should we allow controllers to send input
 	static bool bAllowControllers;
+
+	// bluetooth connected controllers will block force feedback.
+	static bool bControllersBlockDeviceFeedback;
 
 	// should we allow controllers to send Android_Back and Android_Menu events
 	static bool bBlockAndroidKeysOnControllers;

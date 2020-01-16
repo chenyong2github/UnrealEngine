@@ -191,6 +191,14 @@ void FIOSPlatformApplicationMisc::SetGamepadsAllowed(bool bAllowed)
 	}
 }
 
+void FIOSPlatformApplicationMisc::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	if (FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface())
+	{
+		InputInterface->SetGamepadsBlockDeviceFeedback(bBlock);
+	}
+}
+
 void FIOSPlatformApplicationMisc::ResetGamepadAssignments()
 {
 	UE_LOG(LogIOS, Warning, TEXT("Restting gamepad assignments is not allowed in IOS"))

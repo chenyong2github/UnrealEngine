@@ -86,6 +86,15 @@ void FAndroidApplicationMisc::SetGamepadsAllowed(bool bAllowed)
 	}
 }
 
+
+void FAndroidApplicationMisc::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	if (FAndroidInputInterface* InputInterface = (FAndroidInputInterface*)FAndroidApplication::Get()->GetInputInterface())
+	{
+		InputInterface->SetGamepadsBlockDeviceFeedback(bBlock);
+	}
+}
+
 void FAndroidApplicationMisc::ResetGamepadAssignments()
 {
 	FAndroidInputInterface::ResetGamepadAssignments();
