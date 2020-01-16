@@ -285,31 +285,28 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 	];
 
-	if (GetVariableTypeChangeEnabled())
-	{
-		TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
+	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
-		Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("VariableTypeLabel", "Variable Type"))
+	Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("VariableTypeLabel", "Variable Type"))
 			.ToolTip(VarTypeTooltip)
 			.Font(DetailFontInfo)
-			]
+		]
 		.ValueContent()
-			.MaxDesiredWidth(980.f)
-			[
-				SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
-				.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
+		.MaxDesiredWidth(980.f)
+		[
+			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+			.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
 			.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
 			.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)
 			.Schema(Schema)
 			.TypeTreeFilter(ETypeTreeFilter::None)
 			.Font(DetailFontInfo)
 			.ToolTip(VarTypeTooltip)
-			];
-	}
+		];
 
 	TSharedPtr<SToolTip> EditableTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarEditableTooltip", "Whether this variable is publicly editable on instances of this Blueprint."), NULL, DocLink, TEXT("Editable"));
 
