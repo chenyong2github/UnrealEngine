@@ -15,12 +15,20 @@ class ENGINE_API USystemTimeTimecodeProvider : public UTimecodeProvider
 
 private:
 
+	/** The frame rate at which the timecode value will be generated. */
 	UPROPERTY(EditAnywhere, Category = Timecode)
 	FFrameRate FrameRate;
 
 	/** When generating frame time, should we generate full frame without subframe value.*/
 	UPROPERTY(EditAnywhere, Category = Timecode)
 	bool bGenerateFullFrame;
+
+	/**
+	 * Use the high performance clock instead of the system time to generate the timecode value.
+	 * Using the high performance clock is faster but will make the value drift over time.
+	 */
+	UPROPERTY(AdvancedDisplay, EditAnywhere, Category = Timecode)
+	bool bUseHighPerformanceClock;
 
 	ETimecodeProviderSynchronizationState State;
 

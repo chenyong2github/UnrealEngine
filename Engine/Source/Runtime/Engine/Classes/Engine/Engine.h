@@ -1373,7 +1373,7 @@ public:
 
 	/** Number of frames to subtract from generated default timecode. */
 	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
-	int32 GenerateDefaultTimecodeFrameDelay;
+	float GenerateDefaultTimecodeFrameDelay;
 
 public:
 	/** 

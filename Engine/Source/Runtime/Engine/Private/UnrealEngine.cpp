@@ -2253,7 +2253,7 @@ void UEngine::UpdateTimecode()
 		//If a user wish to have an accurate TC value on console, he should set an accurate TC provider in his project settings.
 		FQualifiedFrameTime NewFrameTime = FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateFrameTimeFromHighPerformanceClock(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate);
 #endif
-		NewFrameTime.Time.FrameNumber -= GenerateDefaultTimecodeFrameDelay;
+		NewFrameTime.Time -= FFrameTime::FromDecimal(GenerateDefaultTimecodeFrameDelay);
 		FApp::SetCurrentFrameTime(NewFrameTime);
 	}
 }

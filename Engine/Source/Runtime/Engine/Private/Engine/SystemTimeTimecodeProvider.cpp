@@ -22,6 +22,7 @@ namespace
 USystemTimeTimecodeProvider::USystemTimeTimecodeProvider()
 	: FrameRate(60, 1)
 	, bGenerateFullFrame(true)
+	, bUseHighPerformanceClock(false)
 	, State(ETimecodeProviderSynchronizationState::Closed)
 {
 }
@@ -61,6 +62,6 @@ FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(
 FQualifiedFrameTime USystemTimeTimecodeProvider::GetQualifiedFrameTime() const
 {
 	return bGenerateFullFrame ? 
-		FQualifiedFrameTime(GenerateTimecodeFromSystemTime(FrameRate), FrameRate)
-		: FQualifiedFrameTime(GenerateFrameTimeFromSystemTime(FrameRate), FrameRate);
+		FQualifiedFrameTime(bUseHighPerformanceClock ? GenerateTimecodeFromHighPerformanceClock(FrameRate) : GenerateTimecodeFromSystemTime(FrameRate), FrameRate)
+		: FQualifiedFrameTime(bUseHighPerformanceClock ? GenerateFrameTimeFromHighPerformanceClock(FrameRate) : GenerateFrameTimeFromSystemTime(FrameRate), FrameRate);
 }
