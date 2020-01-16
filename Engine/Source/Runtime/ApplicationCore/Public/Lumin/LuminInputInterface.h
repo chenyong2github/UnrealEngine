@@ -38,6 +38,7 @@ public:
 	virtual void ResetLightColor(int32 ControllerId) override {};
 
 	void SetGamepadsAllowed(bool bAllowed) {}
+	void SetGamepadsBlockDeviceFeedback(bool bBlock) { }
 	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice>& InputDevice);
 	virtual bool IsGamepadAttached() const;
 
