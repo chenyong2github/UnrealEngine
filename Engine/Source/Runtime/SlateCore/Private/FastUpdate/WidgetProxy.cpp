@@ -11,8 +11,8 @@
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
 
-FWidgetProxy::FWidgetProxy(SWidget& InWidget)
-	: Widget(&InWidget)
+FWidgetProxy::FWidgetProxy(SWidget* InWidget)
+	: Widget(InWidget)
 	, Index(INDEX_NONE)
 	, ParentIndex(INDEX_NONE)
 	, NumChildren(0)
@@ -26,6 +26,7 @@ FWidgetProxy::FWidgetProxy(SWidget& InWidget)
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bChildOrderInvalid(false)
 {
+	check(Widget != nullptr);
 }
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements)
