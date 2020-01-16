@@ -129,6 +129,13 @@ public:
 	virtual void SetLevelNameForWindowTitle(const FString& InLevelFileName) = 0;
 
 	/**
+	 * Overrides the title of the application that's displayed in the title bar area and other locations
+	 *
+	 * @param	NewOverriddenApplicationTitle	The text to be displayed in the window title, or empty to use the application's default text
+	 */
+	virtual void SetApplicationTitleOverride(const FText& NewOverriddenApplicationTitle) = 0;
+
+	/**
 	 * Returns a friendly string name for the currently loaded persistent level.
 	 *
 	 * @return Name of the loaded level.
