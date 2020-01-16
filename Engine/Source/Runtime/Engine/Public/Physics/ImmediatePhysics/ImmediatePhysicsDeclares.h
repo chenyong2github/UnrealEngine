@@ -28,9 +28,11 @@ namespace ImmediatePhysics
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	using FSimulation = ImmediatePhysics_PhysX::FSimulation;
 	using FActorHandle = ImmediatePhysics_PhysX::FActorHandle;
+	using FJointHandle = ImmediatePhysics_PhysX::FJointHandle;
 #elif WITH_CHAOS
 	using FSimulation = ImmediatePhysics_Chaos::FSimulation;
 	using FActorHandle = ImmediatePhysics_Chaos::FActorHandle;
+	using FJointHandle = ImmediatePhysics_Chaos::FJointHandle;
 #else
 #error Global ImmediatePhysics is not defined
 #endif
