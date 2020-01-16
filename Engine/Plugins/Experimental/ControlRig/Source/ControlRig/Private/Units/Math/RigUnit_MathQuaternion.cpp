@@ -32,14 +32,6 @@ FRigUnit_MathQuaternionFromTwoVectors_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
 	{
-		if (A.IsNearlyZero())
-		{
-			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("A is nearly zero"));
-		}
-		if (B.IsNearlyZero())
-		{
-			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B is nearly zero"));
-		}
 		Result = FQuat::Identity;
 		return;
 	}
