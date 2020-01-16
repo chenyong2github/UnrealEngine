@@ -69,6 +69,7 @@
 #include "Serialization/ArchiveStackTrace.h"
 #include "DistanceFieldAtlas.h"
 #include "Cooker/AsyncIODelete.h"
+#include "Serialization/BulkDataManifest.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"

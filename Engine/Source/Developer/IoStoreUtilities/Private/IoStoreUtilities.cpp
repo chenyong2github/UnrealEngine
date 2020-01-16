@@ -16,6 +16,7 @@
 #include "Misc/Base64.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/Archive.h"
+#include "Serialization/BulkDataManifest.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/BufferWriter.h"
@@ -25,7 +26,6 @@
 #include "UObject/PackageFileSummary.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Package.h"
-#include "UObject/SavePackage.h"
 #include "Algo/Find.h"
 #include "Misc/FileHelper.h"
 
