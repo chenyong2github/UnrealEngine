@@ -2200,9 +2200,11 @@ DECLARE_STATS_GROUP(TEXT("MapBuildData"),STATGROUP_MapBuildData, STATCAT_Advance
 DECLARE_STATS_GROUP(TEXT("Shader Compiling"),STATGROUP_ShaderCompiling, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Shader Compression"),STATGROUP_Shaders, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Shadow Rendering"),STATGROUP_ShadowRendering, STATCAT_Advanced);
+DECLARE_STATS_GROUP_VERBOSE(TEXT("Shadow Rendering Verbose"), STATGROUP_ShadowRenderingVerbose, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Stat System"),STATGROUP_StatSystem, STATCAT_Advanced);
 DECLARE_STATS_GROUP_SORTBYNAME(TEXT("Streaming Overview"),STATGROUP_StreamingOverview, STATCAT_Advanced);
 DECLARE_STATS_GROUP_SORTBYNAME(TEXT("Streaming Details"),STATGROUP_StreamingDetails, STATCAT_Advanced);
+DECLARE_STATS_GROUP_VERBOSE(TEXT("Streaming Details Verbose"), STATGROUP_StreamingDetailsVerbose, STATCAT_Advanced);
 DECLARE_STATS_GROUP_SORTBYNAME(TEXT("Streaming"),STATGROUP_Streaming, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Target Platform"),STATGROUP_TargetPlatform, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Text"),STATGROUP_Text, STATCAT_Advanced);
