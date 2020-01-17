@@ -3657,15 +3657,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// Finds the asset object within a package
 					auto FindAssetInPackage = [](UPackage* Package) -> UObject*
 					{
-						for (UObject* Object : TObjectRange<UObject>())
-						{
-							if (Object->GetOuter() == Package && Object->IsAsset())
+						UObject* Asset = nullptr;
+						ForEachObjectWithOuter(Package, [&Asset](UObject* Object)
 							{
-								return Object;
-							}
-						}
-
-						return nullptr;
+								if (!Asset && Object->IsAsset())
+								{
+									Asset = Object;
+								}
+							}, /*bIncludeNestedObjects*/ false);
+						return Asset;
 					};
 
 					if (TargetPlatform != nullptr && (SaveFlags & SAVE_DiffCallstack))
