@@ -296,6 +296,12 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 				{
 					PackageActivity.EventData.Package.Info.PackageFileExtension = HeadPackageInfo.PackageFileExtension;
 				}
+
+				// Without Live Sync, the clients don't track the ongoing transactions in their 'local' database and can't provide the current transaction event ID when unsaved modifications to a package are discarded (to discard corresponding live transactions on this package).
+				if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableLiveSync))
+				{
+					LiveSession->GetSessionDatabase().GetTransactionMaxEventId(PackageActivity.EventData.Package.Info.TransactionEventIdAtSave); // Get the last transaction event from the server db.
+				}
 			}
 			PackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(PackageActivity.EventData));
 			PackageActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(Context.SourceEndpointId);
