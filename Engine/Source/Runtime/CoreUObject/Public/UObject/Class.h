@@ -503,6 +503,9 @@ public:
 		return false;
 	}
 
+	/** Destroys all properties owned by this struct */
+	void DestroyChildPropertiesAndResetPropertyLinks();
+
 #if WITH_EDITORONLY_DATA
 	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
 	bool GetBoolMetaDataHierarchical(const FName& Key) const;
