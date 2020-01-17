@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	MallocBinned.cpp: Binned memory allocator
-=============================================================================*/
-
 #include "HAL/MallocBinnedGPU.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Logging/LogMacros.h"
@@ -1040,8 +1038,8 @@ void FMallocBinnedGPU::FlushCurrentThreadCache()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinnedGPU_FlushCurrentThreadCache);
 	FPerThreadFreeBlockLists* Lists = FPerThreadFreeBlockLists::Get(BinnedGPUTlsSlot);
 
-	float WaitForMutexTime = 0.0f;
-	float WaitForMutexAndTrimTime = 0.0f;
+	double WaitForMutexTime = 0.0;
+	double WaitForMutexAndTrimTime = 0.0;
 
 	if (Lists)
 	{
@@ -1296,3 +1294,5 @@ void FMallocBinnedGPU::DumpAllocatorStats(class FOutputDevice& Ar)
 	}
 }
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

@@ -1031,7 +1031,7 @@ struct FCsvStatBase
 		static const uint8 IsExclusiveInsertedMarker = 0x20;
 	};
 
-	CSV_PROFILER_INLINE void Init(uint64 InStatID, int32 InCategoryIndex, uint32 InFlags, uint64 InTimestamp)
+	CSV_PROFILER_INLINE void Init(uint64 InStatID, int32 InCategoryIndex, uint8 InFlags, uint64 InTimestamp)
 	{
 		Timestamp = InTimestamp;
 		Flags = InFlags;
@@ -1220,7 +1220,7 @@ public:
 		int32 StrLen;
 		ANSICHAR StringBuffer[256];
 
-		if (FMath::Frac(Value) == 0.0)
+		if (FMath::Frac((float)Value) == 0.0f)
 		{
 			StrLen = FCStringAnsi::Snprintf(StringBuffer, 256, "%d", int(Value));
 		}
@@ -1611,7 +1611,7 @@ void FCsvStatSeries::FlushIfDirty()
 		switch (SeriesType)
 		{
 		case EType::TimerData:
-			Value.Value.AsFloat = FPlatformTime::ToMilliseconds64(CurrentValue.AsTimerCycles);
+			Value.Value.AsFloat = (float)FPlatformTime::ToMilliseconds64(CurrentValue.AsTimerCycles);
 			break;
 		case EType::CustomStatInt:
 			Value.Value.AsInt = CurrentValue.AsIntValue;
@@ -2619,7 +2619,7 @@ void FCsvProfiler::BeginFrame()
 					SetMetadata(TEXT("TargetFramerate"), *FString::FromInt(TargetFPS));
 
 #if !UE_BUILD_SHIPPING
-					uint64 ExtraDevelopmentMemoryMB = FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull;
+					int32 ExtraDevelopmentMemoryMB = (int32)(FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull);
 					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
 #endif
 
@@ -2671,7 +2671,7 @@ void FCsvProfiler::EndFrame()
 		// Record the frametime (measured since the last EndFrame)
 		uint64 CurrentTimeStamp = FPlatformTime::Cycles64();
 		uint64 ElapsedCycles = CurrentTimeStamp - LastEndFrameTimestamp;
-		float ElapsedMs = FPlatformTime::ToMilliseconds64(ElapsedCycles);
+		float ElapsedMs = (float)FPlatformTime::ToMilliseconds64(ElapsedCycles);
 		CSV_CUSTOM_STAT_DEFINED(FrameTime, ElapsedMs, ECsvCustomStatOp::Set);
 
 		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();

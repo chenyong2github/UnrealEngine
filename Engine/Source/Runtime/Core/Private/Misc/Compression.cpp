@@ -23,6 +23,8 @@ DEFINE_LOG_CATEGORY(LogCompression);
 
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
 FCriticalSection FCompression::CompressionFormatsCriticalSection;
 
@@ -793,3 +795,4 @@ bool FCompression::VerifyCompressionFlagsValid(int32 InCompressionFlags)
 /***********************
   Deprecated functions
 ***********************/
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

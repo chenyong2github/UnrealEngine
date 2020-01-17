@@ -72,7 +72,7 @@ void FAndroidStats::UpdateAndroidStats()
 	{
 		return;
 	}
-	bool bUpdateStats = ((FPlatformTime::ToSeconds(CurrentTime - LastCollectionTime) >= GAndroidCPUStatsUpdateRate));
+	bool bUpdateStats = ((FPlatformTime::ToSeconds64(CurrentTime - LastCollectionTime) >= GAndroidCPUStatsUpdateRate));
 	
 	if( bUpdateStats )
 	{

@@ -83,7 +83,7 @@ void FArchiveFromStructuredArchiveImpl::Seek(int64 InPos)
 	if (InnerArchive.IsTextFormat())
 	{
 		check(Pimpl->Pos >= 0 && Pimpl->Pos <= Pimpl->Buffer.Num());
-		Pimpl->Pos = InPos;
+		Pimpl->Pos = (int32)InPos;
 	}
 	else
 	{
@@ -211,16 +211,16 @@ void FArchiveFromStructuredArchiveImpl::Serialize(void* V, int64 Length)
 				checkf(false, TEXT("Attempt to read past end of archive"));
 			}
 			FMemory::Memcpy(V, Pimpl->Buffer.GetData() + Pimpl->Pos, Length);
-			Pimpl->Pos += Length;
+			Pimpl->Pos += (int32)Length;
 		}
 		else
 		{
 			if (Pimpl->Pos + Length > Pimpl->Buffer.Num())
 			{
-				Pimpl->Buffer.AddUninitialized(Pimpl->Pos + Length - Pimpl->Buffer.Num());
+				Pimpl->Buffer.AddUninitialized((int32)(Pimpl->Pos + Length - Pimpl->Buffer.Num()));
 			}
 			FMemory::Memcpy(Pimpl->Buffer.GetData() + Pimpl->Pos, V, Length);
-			Pimpl->Pos += Length;
+			Pimpl->Pos += (int32)Length;
 		}
 	}
 	else

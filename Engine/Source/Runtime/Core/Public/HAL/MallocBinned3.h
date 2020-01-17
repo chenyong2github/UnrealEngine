@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "HAL/MallocBinnedCommon.h"
 #include "Misc/AssertionMacros.h"
@@ -112,7 +114,7 @@ class CORE_API FMallocBinned3 final : public FMalloc
 			CANARY_VALUE = 0xe7
 		};
 
-		FORCEINLINE FFreeBlock(uint32 InPageSize, uint32 InBlockSize, uint32 InPoolIndex)
+		FORCEINLINE FFreeBlock(uint32 InPageSize, uint32 InBlockSize, uint8 InPoolIndex)
 			: BlockSizeShifted(InBlockSize >> BINNED3_MINIMUM_ALIGNMENT_SHIFT)
 			, PoolIndex(InPoolIndex)
 			, Canary(CANARY_VALUE)
@@ -470,7 +472,7 @@ class CORE_API FMallocBinned3 final : public FMalloc
 	{
 		uint64 Result = PoolIndexFromPtr(Ptr);
 		check(Result < BINNED3_SMALL_POOL_COUNT);
-		return Result;
+		return (uint32)Result;
 	}
 
 	FORCEINLINE bool IsOSAllocation(const void* Ptr)
@@ -717,3 +719,5 @@ public:
 	#endif
 #endif
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

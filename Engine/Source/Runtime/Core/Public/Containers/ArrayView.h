@@ -121,8 +121,10 @@ public:
 	>
 	FORCEINLINE TArrayView(OtherRangeType&& Other)
 		: DataPtr(ArrayViewPrivate::GetDataHelper(Forward<OtherRangeType>(Other)))
-		, ArrayNum(GetNum(Forward<OtherRangeType>(Other)))
 	{
+		const auto InCount = GetNum(Forward<OtherRangeType>(Other));
+		check((InCount >= 0) && (InCount <= TNumericLimits<int32>::Max()));
+		ArrayNum = (int32)InCount;
 	}
 
 	/**

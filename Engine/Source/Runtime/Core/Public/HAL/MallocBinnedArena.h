@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
@@ -350,26 +352,26 @@ class CORE_API FMallocBinnedArena final : public FMalloc
 			{
 				PoolIndex = ArenaParams.PoolCount - 1;
 			}
-			if ((uint8*)Ptr < PoolBaseVMPtr[PoolIndex])
+			if ((uint8*)Ptr < PoolBaseVMPtr[(int32)PoolIndex])
 			{
 				do
 				{
 					PoolIndex--;
 					check(PoolIndex < ArenaParams.PoolCount);
-				} while ((uint8*)Ptr < PoolBaseVMPtr[PoolIndex]);
-				if ((uint8*)Ptr >= PoolBaseVMPtr[PoolIndex] + ArenaParams.MaxMemoryPerBlockSize)
+				} while ((uint8*)Ptr < PoolBaseVMPtr[(int32)PoolIndex]);
+				if ((uint8*)Ptr >= PoolBaseVMPtr[(int32)PoolIndex] + ArenaParams.MaxMemoryPerBlockSize)
 				{
 					PoolIndex = ArenaParams.PoolCount; // was in the gap
 				}
 			}
-			else if ((uint8*)Ptr >= PoolBaseVMPtr[PoolIndex] + ArenaParams.MaxMemoryPerBlockSize)
+			else if ((uint8*)Ptr >= PoolBaseVMPtr[(int32)PoolIndex] + ArenaParams.MaxMemoryPerBlockSize)
 			{
 				do
 				{
 					PoolIndex++;
 					check(PoolIndex < ArenaParams.PoolCount);
-				} while ((uint8*)Ptr >= PoolBaseVMPtr[PoolIndex] + ArenaParams.MaxMemoryPerBlockSize);
-				if ((uint8*)Ptr < PoolBaseVMPtr[PoolIndex])
+				} while ((uint8*)Ptr >= PoolBaseVMPtr[(int32)PoolIndex] + ArenaParams.MaxMemoryPerBlockSize);
+				if ((uint8*)Ptr < PoolBaseVMPtr[(int32)PoolIndex])
 				{
 					PoolIndex = ArenaParams.PoolCount; // was in the gap
 				}
@@ -382,7 +384,7 @@ class CORE_API FMallocBinnedArena final : public FMalloc
 	{
 		return PoolBaseVMPtr[InPoolIndex];
 	}
-	FORCEINLINE uint32 PoolIndexFromPtrChecked(const void* Ptr)
+	FORCEINLINE uint64 PoolIndexFromPtrChecked(const void* Ptr)
 	{
 		uint64 Result = PoolIndexFromPtr(Ptr);
 		check(Result < ArenaParams.PoolCount);
@@ -690,3 +692,5 @@ public:
 };
 
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

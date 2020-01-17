@@ -608,7 +608,7 @@ FText FText::AsCurrencyBase(int64 BaseVal, const FString& CurrencyCode, const FC
 
 	const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(CurrencyCode);
 	const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-	double Val = static_cast<double>(BaseVal) / FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits);
+	double Val = static_cast<double>(BaseVal) / FMath::Pow(10.0f, (float)FormattingOptions.MaximumFractionalDigits);
 	FString NativeString = FastDecimalFormat::NumberToString(Val, FormattingRules, FormattingOptions);
 
 	FText Result = FText(MakeShared<TGeneratedTextData<FTextHistory_AsCurrency>, ESPMode::ThreadSafe>(MoveTemp(NativeString), FTextHistory_AsCurrency(Val, CurrencyCode, nullptr, TargetCulture)));
@@ -1192,7 +1192,7 @@ bool FText::IdenticalTo( const FText& Other ) const
 void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	int8 TypeAsInt8 = Value.GetType();
+	int8 TypeAsInt8 = (int8)Value.GetType();
 	Record << SA_VALUE(TEXT("Type"), TypeAsInt8);
 	Value.Type = (EFormatArgumentType::Type)TypeAsInt8;
 
@@ -1413,7 +1413,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 		Record << SA_VALUE(TEXT("ArgumentName"), Value.ArgumentName);
 	}
 
-	uint8 TypeAsByte = Value.ArgumentValueType;
+	uint8 TypeAsByte = (uint8)Value.ArgumentValueType;
 	if (UnderlyingArchive.IsLoading())
 	{
 		Value.ResetValue();
@@ -1710,7 +1710,7 @@ bool FTextStringHelper::ReadFromString(const TCHAR* Buffer, FText& OutValue, con
 	{
 		if (OutNumCharsRead)
 		{
-			*OutNumCharsRead = (Buffer - Start);
+			*OutNumCharsRead = UE_PTRDIFF_TO_INT32(Buffer - Start);
 		}
 		return true;
 	}

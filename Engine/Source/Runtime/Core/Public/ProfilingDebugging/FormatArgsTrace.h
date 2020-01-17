@@ -41,7 +41,7 @@ struct FFormatArgsTrace
 		uint8* PayloadBufferPtr = TypeCodesBufferPtr + FormatArgsCount;
 		EncodeArgumentsInternal(TypeCodesBufferPtr, PayloadBufferPtr, FormatArgs...);
 		check(PayloadBufferPtr - Buffer == FormatArgsSize);
-		return FormatArgsSize;
+		return (uint16)FormatArgsSize;
 	}
 
 private:

@@ -348,7 +348,7 @@ public:
 				Carry = Product >> BitsPerWord;
 				ResultBits[WordIndexA + WordIndexB] = (uint32)(Product & (Base - 1));
 			}
-			ResultBits[WordIndexA + NumWordsB] += Carry;
+			ResultBits[WordIndexA + NumWordsB] += (uint32)Carry;
 		}
 
 		for (int32 WordIndex = 0; WordIndex < NumWords; ++WordIndex)
@@ -1246,10 +1246,12 @@ TEncryptionInt FEncryption::ModularPow(TEncryptionInt Base, TEncryptionInt Expon
 
 /// @endcond
 
-template <class TYPE>
+template <class InDataType>
 struct FSignatureBase
 {
-	TYPE Data;
+	typedef InDataType DataType;
+
+	DataType Data;
 
 	FSignatureBase()
 	{
@@ -1298,7 +1300,6 @@ struct FEncryptedSignature : public FSignatureBase<TEncryptionInt>
 
 struct FDecryptedSignature : public FSignatureBase<uint32>
 {
-
 };
 
 namespace FEncryption
@@ -1310,7 +1311,7 @@ namespace FEncryption
 
 	static void DecryptSignature(const FEncryptedSignature& InEncryptedSignature, FDecryptedSignature& OutUnencryptedSignature, const FEncryptionKey& EncryptionKey)
 	{
-		OutUnencryptedSignature.Data = FEncryption::ModularPow(TEncryptionInt(InEncryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus).ToInt();
+		OutUnencryptedSignature.Data = (FDecryptedSignature::DataType)FEncryption::ModularPow(TEncryptionInt(InEncryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus).ToInt();
 	}
 }
 

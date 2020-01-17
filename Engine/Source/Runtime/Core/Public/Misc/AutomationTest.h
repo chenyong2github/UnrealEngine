@@ -118,7 +118,7 @@ public:
 	/** Constructor */
 	FAutomationTestExecutionInfo() 
 		: bSuccessful( false )
-		, Duration(0.0f)
+		, Duration(0.0)
 		, Errors(0)
 		, Warnings(0)
 	{}
@@ -175,7 +175,7 @@ public:
 	TArray<FString> AnalyticsItems;
 
 	/** Time to complete the task */
-	float Duration;
+	double Duration;
 
 private:
 	/** Any errors that occurred during execution */
@@ -3258,7 +3258,7 @@ public:
 	{
 		if ( !Callback() )
 		{
-			float NewTime = FPlatformTime::Seconds();
+			const double NewTime = FPlatformTime::Seconds();
 			if ( NewTime - StartTime >= Timeout )
 			{
 				TimeoutCallback();

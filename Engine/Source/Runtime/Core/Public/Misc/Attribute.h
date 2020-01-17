@@ -40,7 +40,7 @@ public:
 	 */
 	template< typename OtherType >
 	TAttribute( const OtherType& InInitialValue )
-		: Value( InInitialValue )		
+		: Value( (ObjectType)InInitialValue )
 		, bIsSet(true)
 		, Getter()
 	{ }

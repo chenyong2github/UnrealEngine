@@ -48,7 +48,7 @@ void LockFreeLinksExhausted(uint32 TotalNum)
 	UE_LOG(LogTemp, Fatal, TEXT("Consumed %d lock free links; there are no more."), TotalNum);
 }
 
-static void ChangeMem(int32 Delta)
+static void ChangeMem(int64 Delta)
 {
 #if 0   // this is not safe; we cannot change stats in the middle of a lock free operation
 	static FThreadSafeCounter LockFreeListMem;

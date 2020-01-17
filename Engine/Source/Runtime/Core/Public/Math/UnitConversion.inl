@@ -93,15 +93,15 @@ T FUnitConversion::Convert(T InValue, EUnit From, EUnit To)
 			// Put it into kelvin
 			switch (From)
 			{
-				case EUnit::Celsius:			NewValue = NewValue + 273.15;					break;
-				case EUnit::Farenheit:			NewValue = (NewValue + 459.67) * 5.f/9.f;		break;
+				case EUnit::Celsius:			NewValue = NewValue + 273.15f;					break;
+				case EUnit::Farenheit:			NewValue = (NewValue + 459.67f) * 5.f/9.f;		break;
 				default: 																		break;
 			}
 			// And out again
 			switch (To)
 			{
-				case EUnit::Celsius:			return NewValue - 273.15;
-				case EUnit::Farenheit:			return NewValue * 9.f/5.f - 459.67;
+				case EUnit::Celsius:			return NewValue - 273.15f;
+				case EUnit::Farenheit:			return NewValue * 9.f/5.f - 459.67f;
 				default: 						return NewValue;
 			}
 		}

@@ -19,17 +19,17 @@ protected:
 		}
 	};
 
-	void* AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, uint32& CachedTotal);
-	void FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, uint32& CachedTotal);
-	void FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, uint32& CachedTotal);
+	void* AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
+	void FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
+	void FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
 };
 
 template <uint32 NumCacheBlocks, uint32 CachedByteLimit>
 struct TCachedOSPageAllocator : private FCachedOSPageAllocator
 {
 	TCachedOSPageAllocator()
-		: FreedPageBlocksNum(0)
-		, CachedTotal       (0)
+		: CachedTotal(0)
+		, FreedPageBlocksNum(0)
 	{
 	}
 
@@ -49,11 +49,11 @@ struct TCachedOSPageAllocator : private FCachedOSPageAllocator
 
 	uint64 GetCachedFreeTotal()
 	{
-		return static_cast<uint64>(CachedTotal);
+		return CachedTotal;
 	}
 
 private:
 	FFreePageBlock FreedPageBlocks[NumCacheBlocks];
+	SIZE_T         CachedTotal;
 	uint32         FreedPageBlocksNum;
-	uint32         CachedTotal;
 };

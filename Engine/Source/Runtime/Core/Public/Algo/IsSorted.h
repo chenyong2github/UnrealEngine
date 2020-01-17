@@ -11,8 +11,8 @@
 
 namespace AlgoImpl
 {
-	template <typename T, typename ProjectionType, typename PredType>
-	bool IsSortedBy(const T* Range, int32 RangeSize, ProjectionType Proj, PredType Pred)
+	template <typename T, typename IndexType, typename ProjectionType, typename PredType>
+	bool IsSortedBy(const T* Range, IndexType RangeSize, ProjectionType Proj, PredType Pred)
 	{
 		if (RangeSize == 0)
 		{

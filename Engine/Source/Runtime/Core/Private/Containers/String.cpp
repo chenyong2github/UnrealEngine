@@ -187,7 +187,7 @@ int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDi
 			? FCString::Stristr(Start, SubStr)
 			: FCString::Strstr(Start, SubStr);
 
-		return Tmp ? (Tmp-**this) : INDEX_NONE;
+		return Tmp ? UE_PTRDIFF_TO_INT32(Tmp-**this) : INDEX_NONE;
 	}
 	else
 	{
@@ -730,7 +730,7 @@ bool FString::ToBlob(const FString& Source,uint8* DestBuffer,const uint32 DestSi
 			ConvBuffer[0] = Source[Index];
 			ConvBuffer[1] = Source[Index + 1];
 			ConvBuffer[2] = Source[Index + 2];
-			DestBuffer[WriteIndex] = FCString::Atoi(ConvBuffer);
+			DestBuffer[WriteIndex] = (uint8)FCString::Atoi(ConvBuffer);
 		}
 		return true;
 	}
@@ -765,7 +765,7 @@ bool FString::ToHexBlob( const FString& Source, uint8* DestBuffer, const uint32 
 		{
 			ConvBuffer[0] = Source[Index];
 			ConvBuffer[1] = Source[Index + 1];
-			DestBuffer[WriteIndex] = FCString::Strtoi( ConvBuffer, &End, 16 );
+			DestBuffer[WriteIndex] = (uint8)FCString::Strtoi( ConvBuffer, &End, 16 );
 		}
 		return true;
 	}
@@ -912,7 +912,7 @@ int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim,
 		{
 			if (!InCullEmpty || At-Start)
 			{
-				OutArray.Emplace(At-Start,Start);
+				OutArray.Emplace(UE_PTRDIFF_TO_INT32(At-Start),Start);
 			}
 			Start = At + DelimLength;
 		}
@@ -1068,10 +1068,12 @@ FString FString::Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type S
 		// look for From in the remaining string
 		const TCHAR* FromLocation = SearchCase == ESearchCase::IgnoreCase ? FCString::Stristr(Travel, From) : FCString::Strstr(Travel, From);
 		if (!FromLocation)
+		{
 			break;
+		}
 
 		// copy everything up to FromLocation
-		Result.AppendChars(Travel, FromLocation - Travel);
+		Result.AppendChars(Travel, UE_PTRDIFF_TO_INT32(FromLocation - Travel));
 
 		// copy over the To
 		Result.AppendChars(To, ToLength);
@@ -1384,7 +1386,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 			SaveNum = -SaveNum;
 		}
 
-		int32 MaxSerializeSize = Ar.GetMaxSerializeSize();
+		int64 MaxSerializeSize = Ar.GetMaxSerializeSize();
 		// Protect against network packets allocating too much memory
 		if ((MaxSerializeSize > 0) && (SaveNum > MaxSerializeSize))
 		{
@@ -1508,7 +1510,7 @@ int32 FindMatchingClosingParenthesis(const FString& TargetString, const int32 St
 		// Did we find the matching close parenthesis
 		if (ParenthesisCount == 0 && *(CurrPosition - 1) == TEXT(')'))
 		{
-			return StartSearch + ((CurrPosition - 1) - StartPosition);
+			return StartSearch + UE_PTRDIFF_TO_INT32((CurrPosition - 1) - StartPosition);
 		}
 	}
 
@@ -1544,7 +1546,7 @@ void FTextRange::CalculateLineRangesFromString(const FString& Input, TArray<FTex
 		const bool bIsWindowsNewLine = (*CurrentChar == '\r' && *(CurrentChar + 1) == '\n');
 		if (bIsWindowsNewLine || FChar::IsLinebreak(*CurrentChar))
 		{
-			const int32 LineEndIndex = (CurrentChar - InputStart);
+			const int32 LineEndIndex = UE_PTRDIFF_TO_INT32(CurrentChar - InputStart);
 			check(LineEndIndex >= LineBeginIndex);
 			LineRanges.Emplace(FTextRange(LineBeginIndex, LineEndIndex));
 
@@ -1552,7 +1554,7 @@ void FTextRange::CalculateLineRangesFromString(const FString& Input, TArray<FTex
 			{
 				++CurrentChar; // skip the \n of the \r\n chain
 			}
-			LineBeginIndex = (CurrentChar - InputStart) + 1; // The next line begins after the end of the current line
+			LineBeginIndex = UE_PTRDIFF_TO_INT32(CurrentChar - InputStart) + 1; // The next line begins after the end of the current line
 		}
 	}
 

@@ -224,7 +224,7 @@ FORCEINLINE FHashTable::FHashTable( uint32 InHashSize, uint32 InIndexSize )
 	
 	if( IndexSize )
 	{
-		HashMask = HashSize - 1;
+		HashMask = (uint16)(HashSize - 1);
 		
 		Hash = new uint32[ HashSize ];
 		NextIndex = new uint32[ IndexSize ];

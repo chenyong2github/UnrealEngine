@@ -142,7 +142,7 @@ bool FConfigValue::ExpandValue(const FString& InCollapsedValue, FString& OutExpa
 		const TCHAR* Begin;
 		const TCHAR* End;
 
-		int32 Len() const { return End - Begin; }
+		int32 Len() const { return UE_PTRDIFF_TO_INT32(End - Begin); }
 	};
 
 	// Find substrings of input and expansions to concatenate to final output string
@@ -358,7 +358,7 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 		}
 
 		// pull out the token
-		Out.AppendChars(*FullStructValue + MatchLoc, Travel - Start);
+		Out.AppendChars(*FullStructValue + MatchLoc, UE_PTRDIFF_TO_INT32(Travel - Start));
 	}
 }
 
@@ -3100,8 +3100,8 @@ struct FConfigMemoryData
 		SIZE_T MaxMem = MemAr.GetMax();
 
 		NameIndent = FMath::Max(NameIndent, ConfigFilename.Len());
-		SizeIndent = FMath::Max(SizeIndent, FString::FromInt(TotalMem).Len());
-		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt(MaxMem).Len());
+		SizeIndent = FMath::Max(SizeIndent, FString::FromInt((int32)TotalMem).Len());
+		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt((int32)MaxMem).Len());
 		
 		new(MemoryData) FConfigFileMemoryData( ConfigFilename, TotalMem, MaxMem );
 	}

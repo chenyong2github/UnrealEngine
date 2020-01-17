@@ -4,6 +4,8 @@
 
 #include "ProfilingDebugging/PlatformFileTrace.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 class FWindowsReadRequest;
 class FWindowsAsyncReadFileHandle;
 
@@ -489,3 +491,5 @@ const TCHAR* FWindowsReadRequest::GetFileNameForErrorMessagesAndPanicRetry()
 {
 	return *Owner->FileNameForErrorMessagesAndPanicRetry;
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

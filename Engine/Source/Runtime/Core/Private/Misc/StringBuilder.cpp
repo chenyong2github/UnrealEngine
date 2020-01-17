@@ -24,12 +24,14 @@ template<typename C>
 TStringBuilderImpl<C>::~TStringBuilderImpl()
 {
 	if (bIsDynamic)
-		FreeBuffer(Base, End - Base);
+	{
+		FreeBuffer(Base, UE_PTRDIFF_TO_INT32(End - Base));
+	}
 }
 
 template<typename C>
 void
-TStringBuilderImpl<C>::Extend(int32 ExtraCapacity)
+TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
 {
 	check(bIsExtendable);
 
@@ -54,14 +56,14 @@ TStringBuilderImpl<C>::Extend(int32 ExtraCapacity)
 
 template<typename C>
 void*
-TStringBuilderImpl<C>::AllocBuffer(int32 ByteCount)
+TStringBuilderImpl<C>::AllocBuffer(SIZE_T ByteCount)
 {
 	return FMemory::Malloc(ByteCount * sizeof(C));
 }
 
 template<typename C>
 void
-TStringBuilderImpl<C>::FreeBuffer(void* Buffer, int32 ByteCount)
+TStringBuilderImpl<C>::FreeBuffer(void* Buffer, SIZE_T ByteCount)
 {
 	FMemory::Free(Buffer);
 }

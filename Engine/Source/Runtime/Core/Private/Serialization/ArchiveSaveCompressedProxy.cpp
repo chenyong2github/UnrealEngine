@@ -6,6 +6,8 @@
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 /*----------------------------------------------------------------------------
 	FArchiveSaveCompressedProxy
 ----------------------------------------------------------------------------*/
@@ -144,3 +146,4 @@ int64 FArchiveSaveCompressedProxy::Tell()
 	}
 }
 
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

@@ -21,12 +21,12 @@ namespace AlgoImpl
 	 *
 	 * @return	returns		true if the range is a min-heap
 	 */
-	template <typename RangeValueType, typename ProjectionType, typename PredicateType>
-	bool IsHeapInternal(RangeValueType* Heap, SIZE_T Num, ProjectionType Projection, PredicateType Predicate)
+	template <typename RangeValueType, typename IndexType, typename ProjectionType, typename PredicateType>
+	bool IsHeapInternal(RangeValueType* Heap, IndexType Num, ProjectionType Projection, PredicateType Predicate)
 	{
-		for (SIZE_T Index = 1; Index < Num; Index++)
+		for (IndexType Index = 1; Index < Num; Index++)
 		{
-			int32 ParentIndex = HeapGetParentIndex(Index);
+			IndexType ParentIndex = HeapGetParentIndex(Index);
 			if (Predicate( Invoke(Projection, Heap[Index]), Invoke(Projection, Heap[ParentIndex]) ))
 			{
 				return false;

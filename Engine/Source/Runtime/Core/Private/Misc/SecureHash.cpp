@@ -478,15 +478,15 @@ void LexFromString(FMD5Hash& Hash, const TCHAR* Buffer)
 		TCHAR Base = 0;
 		if (InHexChar >= '0' && InHexChar <= '9')
 		{
-			OutDecValue = InHexChar - '0';
+			OutDecValue = (uint8)(InHexChar - '0');
 		}
 		else if (InHexChar >= 'A' && InHexChar <= 'F')
 		{
-			OutDecValue = (InHexChar - 'A') + 10;
+			OutDecValue = (uint8)((InHexChar - 'A') + 10);
 		}
 		else if (InHexChar >= 'a' && InHexChar <= 'f')
 		{
-			OutDecValue = (InHexChar - 'a') + 10;
+			OutDecValue = (uint8)((InHexChar - 'a') + 10);
 		}
 		else
 		{

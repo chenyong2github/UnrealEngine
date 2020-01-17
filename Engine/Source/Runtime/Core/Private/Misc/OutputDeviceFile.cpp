@@ -201,7 +201,7 @@ void FAsyncWriter::Serialize(void* InData, int64 Length)
 			if (Length >= Buffer.Num())
 			{
 				// Keep the buffer bigger than we require so that % Buffer.Num() does not return 0 for Lengths = Buffer.Num()
-				Buffer.SetNumUninitialized(Length + 1);
+				Buffer.SetNumUninitialized((int32)(Length + 1));
 			}
 		}
 	}

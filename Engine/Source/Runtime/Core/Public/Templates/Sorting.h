@@ -251,14 +251,14 @@ public:
 		while (AStart < BStart && BStart < Num)
 		{
 			// Index after the last value == First[BStart]
-			int32 NewAOffset = AlgoImpl::UpperBoundInternal(First + AStart, BStart - AStart, First[BStart], FIdentityFunctor(), Predicate);
+			int32 NewAOffset = (int32)AlgoImpl::UpperBoundInternal(First + AStart, BStart - AStart, First[BStart], FIdentityFunctor(), Predicate);
 			AStart += NewAOffset;
 
 			if (AStart >= BStart) // done
 				break;
 
 			// Index of the first value == First[AStart]
-			int32 NewBOffset = AlgoImpl::LowerBoundInternal(First + BStart, Num - BStart, First[AStart], FIdentityFunctor(), Predicate);
+			int32 NewBOffset = (int32)AlgoImpl::LowerBoundInternal(First + BStart, Num - BStart, First[AStart], FIdentityFunctor(), Predicate);
 			TRotationPolicy::Rotate(First, AStart, BStart + NewBOffset, NewBOffset);
 			BStart += NewBOffset;
 			AStart += NewBOffset + 1;

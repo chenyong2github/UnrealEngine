@@ -219,7 +219,7 @@ struct CORE_API FMemory
 	* This memory is allocated like a stack, it's never really freed
 	*/
 	static void RegisterPersistentAuxiliary(void* InMemory, SIZE_T InSize);
-	static void* MallocPersistentAuxiliary(SIZE_T InSize, SIZE_T InAlignment = 0);
+	static void* MallocPersistentAuxiliary(SIZE_T InSize, uint32 InAlignment = 0);
 	static void FreePersistentAuxiliary(void* InPtr);
 	static bool IsPersistentAuxiliaryActive();
 	static void DisablePersistentAuxiliary();

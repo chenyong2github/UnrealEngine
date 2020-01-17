@@ -38,7 +38,7 @@ public:
 			// Only serialize if we have the requested amount of data
 			if (Offset + Num <= TotalSize())
 			{
-				FMemory::Memcpy( Data, &Bytes[Offset], Num );
+				FMemory::Memcpy( Data, &Bytes[(int32)Offset], Num );
 				Offset += Num;
 			}
 			else
@@ -96,7 +96,7 @@ public:
 			// Only serialize if we have the requested amount of data
 			if (Offset + Num <= TotalSize())
 			{
-				FMemory::Memcpy( Data, &Bytes[Offset], Num );
+				FMemory::Memcpy( Data, &Bytes[(int32)Offset], Num );
 				Offset += Num;
 			}
 			else

@@ -143,7 +143,7 @@ void FStackTracker::DumpStackTraces(int32 StackThreshold, FOutputDevice& Ar, flo
 	}
 
 	// Calculate the number of frames we captured.
-	int32 FramesCaptured = 0;
+	uint64 FramesCaptured = 0;
 	if( bIsEnabled )
 	{
 		FramesCaptured = GFrameCounter - StartFrameCounter;

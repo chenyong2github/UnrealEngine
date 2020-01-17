@@ -282,7 +282,7 @@ int32 FMemStackBase::GetByteCount() const
 		}
 		else
 		{
-			Count += Top - Chunk->Data();
+			Count += UE_PTRDIFF_TO_INT32(Top - Chunk->Data());
 		}
 	}
 	return Count;

@@ -253,7 +253,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TRACELOG_API FWriteBuffer* Writer_NextBuffer(uint16 Size)
+TRACELOG_API FWriteBuffer* Writer_NextBuffer(int32 Size)
 {
 	if (Size >= GPoolBlockSize - sizeof(FWriteBuffer))
 	{
@@ -1153,7 +1153,7 @@ void Writer_EventCreate(
 	Target->bInitialized = true;
 
 	// Calculate the number of fields and size of name data.
-	int NamesSize = LoggerName.Length + EventName.Length;
+	uint16 NamesSize = LoggerName.Length + EventName.Length;
 	for (uint32 i = 0; i < FieldCount; ++i)
 	{
 		NamesSize += FieldDescs[i].NameSize;

@@ -164,7 +164,7 @@ bool FAutomationTestFramework::RunSmokeTests()
 			TMap<FString, FAutomationTestExecutionInfo> OutExecutionInfoMap;
 
 			// Run each valid test
-			FScopedSlowTask SlowTask(TestInfo.Num());
+			FScopedSlowTask SlowTask((float)TestInfo.Num());
 
 			// We disable capturing the stack when running smoke tests, it adds too much overhead to do it at startup.
 			FAutomationTestFramework::Get().SetCaptureStack(false);

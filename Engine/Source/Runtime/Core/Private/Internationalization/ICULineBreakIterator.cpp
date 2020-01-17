@@ -38,7 +38,7 @@ EHangulTextWrappingMethod GetHangulTextWrappingMethod()
 	return EHangulTextWrappingMethod::PerWord;
 }
 
-FORCEINLINE bool IsHangul(const TCHAR InChar)
+FORCEINLINE bool IsHangul(const UChar32 InChar)
 {
 	return InChar >= 0xAC00 && InChar <= 0xD7A3;
 }
@@ -177,7 +177,7 @@ int32 FICULineBreakIterator::MoveToPreviousImpl()
 		if (IsHangul(CharIt.current32()))
 		{
 			// Walk to the start of the Hangul characters
-			while (CharIt.hasPrevious() && IsHangul(static_cast<TCHAR>(CharIt.previous32())))
+			while (CharIt.hasPrevious() && IsHangul(CharIt.previous32()))
 			{
 				InternalPosition = CharIt.getIndex();
 			}
@@ -206,7 +206,7 @@ int32 FICULineBreakIterator::MoveToNextImpl()
 		if (IsHangul(CharIt.current32()))
 		{
 			// Walk to the end of the Hangul characters
-			while (CharIt.hasNext() && IsHangul(static_cast<TCHAR>(CharIt.next32())))
+			while (CharIt.hasNext() && IsHangul(CharIt.next32()))
 			{
 				InternalPosition = CharIt.getIndex();
 			}

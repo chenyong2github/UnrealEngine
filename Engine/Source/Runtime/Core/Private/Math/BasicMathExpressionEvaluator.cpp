@@ -40,11 +40,11 @@ namespace ExpressionParser
 		// This call will return false if there is some other data after the number, which is why we check the parsed length instead
 		double PrimaryValue = 0.0;
 		int32 PrimaryParsedLen = 0;
-		FastDecimalFormat::StringToNumber(InStream.GetRead(), InStream.GetEnd() - InStream.GetRead(), InPrimaryFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), PrimaryValue, &PrimaryParsedLen);
+		FastDecimalFormat::StringToNumber(InStream.GetRead(), UE_PTRDIFF_TO_INT32(InStream.GetEnd() - InStream.GetRead()), InPrimaryFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), PrimaryValue, &PrimaryParsedLen);
 
 		double FallbackValue = 0.0;
 		int32 FallbackParsedLen = 0;
-		FastDecimalFormat::StringToNumber(InStream.GetRead(), InStream.GetEnd() - InStream.GetRead(), InFallbackFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), FallbackValue, &FallbackParsedLen);
+		FastDecimalFormat::StringToNumber(InStream.GetRead(), UE_PTRDIFF_TO_INT32(InStream.GetEnd() - InStream.GetRead()), InFallbackFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), FallbackValue, &FallbackParsedLen);
 
 		// We take whichever value parsed the most text from the string
 		if (FallbackParsedLen <= PrimaryParsedLen)
@@ -73,7 +73,7 @@ namespace ExpressionParser
 		// This call will return false if there is some other data after the number, which is why we check the parsed length instead
 		double Value = 0.0;
 		int32 ParsedLen = 0;
-		FastDecimalFormat::StringToNumber(InStream.GetRead(), InStream.GetEnd() - InStream.GetRead(), InFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), Value, &ParsedLen);
+		FastDecimalFormat::StringToNumber(InStream.GetRead(), UE_PTRDIFF_TO_INT32(InStream.GetEnd() - InStream.GetRead()), InFormattingRules, FNumberParsingOptions::DefaultNoGrouping(), Value, &ParsedLen);
 
 		if (OutValue)
 		{
@@ -172,12 +172,12 @@ FBasicMathExpressionEvaluator::FBasicMathExpressionEvaluator()
 
 	JumpTable.MapPreUnary<FPlus>([](double N)			{ return N; });
 	JumpTable.MapPreUnary<FMinus>([](double N)			{ return -N; });
-	JumpTable.MapPreUnary<FSquareRoot>([](double A)		{ return double(FMath::Sqrt(A)); });
+	JumpTable.MapPreUnary<FSquareRoot>([](double A)		{ return double(FMath::Sqrt((float)A)); }); //@TODO: FLOATPRECISION: Needs a double version of Sqrt
 
 	JumpTable.MapBinary<FPlus>([](double A, double B)	{ return A + B; });
 	JumpTable.MapBinary<FMinus>([](double A, double B)	{ return A - B; });
 	JumpTable.MapBinary<FStar>([](double A, double B)	{ return A * B; });
-	JumpTable.MapBinary<FPower>([](double A, double B)	{ return double(FMath::Pow(A, B)); });
+	JumpTable.MapBinary<FPower>([](double A, double B)	{ return double(FMath::Pow((float)A, (float)B)); }); //@TODO: FLOATPRECISION: Needs a double version of Pow
 
 	JumpTable.MapBinary<FForwardSlash>([](double A, double B) -> FExpressionResult {
 		if (B == 0)
@@ -193,7 +193,7 @@ FBasicMathExpressionEvaluator::FBasicMathExpressionEvaluator()
 			return MakeError(LOCTEXT("ModZero", "Modulo zero"));
 		}
 
-		return MakeValue(double(FMath::Fmod(A, B)));
+		return MakeValue(double(FMath::Fmod((float)A, (float)B))); //@TODO: FLOATPRECISION: Needs a double version of FMod
 	});
 }
 

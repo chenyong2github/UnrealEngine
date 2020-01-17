@@ -399,7 +399,7 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 {
 	SanitizeNumberFormattingOptions(InFormattingOptions);
 
-	if (FMath::IsNaN(InVal))
+	if (FMath::IsNaN((float)InVal)) //@TODO: FLOATPRECISION: Need a double version?
 	{
 		OutString.Append(InFormattingRules.NaNString);
 		return;
@@ -644,7 +644,7 @@ bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNu
 	// Only fill in the length if we actually parsed some digits
 	if (IntegralPartDigitCount > 0 && OutParsedLen)
 	{
-		*OutParsedLen = Buffer - InStr;
+		*OutParsedLen = UE_PTRDIFF_TO_INT32(Buffer - InStr);
 	}
 
 	return bResult;
@@ -684,7 +684,7 @@ bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimal
 	// Only fill in the length if we actually parsed some digits
 	if (TotalDigitCount > 0 && OutParsedLen)
 	{
-		*OutParsedLen = Buffer - InStr;
+		*OutParsedLen = UE_PTRDIFF_TO_INT32(Buffer - InStr);
 	}
 
 	return bResult;

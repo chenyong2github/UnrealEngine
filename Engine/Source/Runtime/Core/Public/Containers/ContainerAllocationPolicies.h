@@ -45,7 +45,7 @@ FORCEINLINE SizeType DefaultCalculateSlackShrink(SizeType NumElements, SizeType 
 		{
 			if (bAllowQuantize)
 			{
-				Retval = FMemory::QuantizeSize(Retval * BytesPerElement, Alignment) / BytesPerElement;
+				Retval = (SizeType)(FMemory::QuantizeSize(Retval * BytesPerElement, Alignment) / BytesPerElement);
 			}
 		}
 	}
@@ -82,11 +82,11 @@ FORCEINLINE SizeType DefaultCalculateSlackGrow(SizeType NumElements, SizeType Nu
 	}
 	if (bAllowQuantize)
 	{
-		Retval = FMemory::QuantizeSize(Grow * BytesPerElement, Alignment) / BytesPerElement;
+		Retval = (SizeType)(FMemory::QuantizeSize(Grow * BytesPerElement, Alignment) / BytesPerElement);
 	}
 	else
 	{
-		Retval = Grow;
+		Retval = (SizeType)Grow;
 	}
 	// NumElements and MaxElements are stored in 32 bit signed integers so we must be careful not to overflow here.
 	if (NumElements > Retval)
@@ -104,7 +104,7 @@ FORCEINLINE SizeType DefaultCalculateSlackReserve(SizeType NumElements, SIZE_T B
 	checkSlow(NumElements > 0);
 	if (bAllowQuantize)
 	{
-		Retval = FMemory::QuantizeSize(SIZE_T(Retval) * SIZE_T(BytesPerElement), Alignment) / BytesPerElement;
+		Retval = (SizeType)(FMemory::QuantizeSize(SIZE_T(Retval) * SIZE_T(BytesPerElement), Alignment) / BytesPerElement);
 		// NumElements and MaxElements are stored in 32 bit signed integers so we must be careful not to overflow here.
 		if (NumElements > Retval)
 		{
@@ -462,11 +462,11 @@ public:
 		{
 			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true);
 		}
-		FORCEINLINE SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SizeType NumBytesPerElement) const
+		FORCEINLINE SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true);
 		}
-		FORCEINLINE SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SizeType NumBytesPerElement) const
+		FORCEINLINE SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true);
 		}

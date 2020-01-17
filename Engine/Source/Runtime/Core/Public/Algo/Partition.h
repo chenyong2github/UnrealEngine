@@ -12,8 +12,8 @@ namespace Algo
 	 * @param	Predicate	unary predicate class
 	 * @return	index of the first element in the second group
 	 */
-	template<class T, class UnaryPredicate>
-	int32 Partition(T* Elements, const int32 Num, const UnaryPredicate& Predicate)
+	template<class T, typename IndexType, class UnaryPredicate>
+	IndexType Partition(T* Elements, const IndexType Num, const UnaryPredicate& Predicate)
 	{
 		T* First = Elements;
 		T* Last = Elements + Num;
@@ -25,7 +25,7 @@ namespace Algo
 				++First;
 				if (First == Last) 
 				{	
-					return First - Elements;
+					return (IndexType)(First - Elements);
 				}
 			}
 		
@@ -34,7 +34,7 @@ namespace Algo
 				--Last;
 				if (First == Last)
 				{
-					return First - Elements;
+					return (IndexType)(First - Elements);
 				}
 			} while (!Predicate(*Last));
 		
@@ -42,6 +42,6 @@ namespace Algo
 			++First;
 		}
 	
-		return First - Elements;
+		return (IndexType)(First - Elements);
 	}
 } //namespace Algo

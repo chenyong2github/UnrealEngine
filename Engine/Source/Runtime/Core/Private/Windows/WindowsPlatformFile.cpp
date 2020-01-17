@@ -95,13 +95,13 @@ namespace
 		// This roundabout conversion clamps the precision of the returned time value to match that of time_t (1 second precision)
 		// This avoids issues when sending files over the network via cook-on-the-fly
 		SYSTEMTIME SysTime;
-		SysTime.wYear = InDateTime.GetYear();
-		SysTime.wMonth = InDateTime.GetMonth();
-		SysTime.wDay = InDateTime.GetDay();
-		SysTime.wDayOfWeek = UEDayOfWeekToWindowsSystemTimeDayOfWeek(InDateTime.GetDayOfWeek());
-		SysTime.wHour = InDateTime.GetHour();
-		SysTime.wMinute = InDateTime.GetMinute();
-		SysTime.wSecond = InDateTime.GetSecond();
+		SysTime.wYear = (WORD)InDateTime.GetYear();
+		SysTime.wMonth = (WORD)InDateTime.GetMonth();
+		SysTime.wDay = (WORD)InDateTime.GetDay();
+		SysTime.wDayOfWeek = (WORD)UEDayOfWeekToWindowsSystemTimeDayOfWeek(InDateTime.GetDayOfWeek());
+		SysTime.wHour = (WORD)InDateTime.GetHour();
+		SysTime.wMinute = (WORD)InDateTime.GetMinute();
+		SysTime.wSecond = (WORD)InDateTime.GetSecond();
 		SysTime.wMilliseconds = 0;
 
 		FILETIME FileTime;
@@ -348,7 +348,7 @@ public:
 		if (bWithinSerializeBuffer)
 		{
 			// Still within the serialize buffer so just update the position
-			SerializePos += PosDelta;
+			SerializePos += (int32)PosDelta;
 		}
 		else
 		{
@@ -421,7 +421,7 @@ public:
 				FMemory::Memcpy(Dest, &Buffers[SerializeBuffer][SerializePos], NumToCopy);
 
 				// Update the internal positions
-				SerializePos += NumToCopy;
+				SerializePos += (int32)NumToCopy;
 				check(SerializePos <= BufferSize);
 				FilePos += NumToCopy;
 				check(FilePos <= FileSize);
@@ -562,7 +562,7 @@ public:
 		int64 TotalNumRead = 0;
 		do
 		{
-			uint32 BytesToRead32 = FMath::Min(BytesToRead, int64(UINT32_MAX));
+			uint32 BytesToRead32 = (uint32)FMath::Min<int64>(BytesToRead, int64(UINT32_MAX));
 			uint32 NumRead = 0;
 
 			if (!ReadFile(FileHandle, Destination, BytesToRead32, (::DWORD*)&NumRead, &OverlappedIO))
@@ -610,7 +610,7 @@ public:
 		int64 TotalNumWritten = 0;
 		do
 		{
-			uint32 BytesToWrite32 = FMath::Min(BytesToWrite - TotalNumWritten, int64(UINT32_MAX));
+			uint32 BytesToWrite32 = (uint32)FMath::Min<int64>(BytesToWrite - TotalNumWritten, int64(UINT32_MAX));
 			uint32 NumWritten = 0;
 			// Now kick off an async write
 			if (!WriteFile(FileHandle, Source, BytesToWrite32, (::DWORD*)&NumWritten, &OverlappedIO))

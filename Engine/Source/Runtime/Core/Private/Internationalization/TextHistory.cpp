@@ -550,10 +550,10 @@ const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMar
 			OutDateTime = FDateTime::FromUnixTimestamp(UnixTimestampValue.GetUIntValue());
 			break;
 		case EFormatArgumentType::Float:
-			OutDateTime = FDateTime::FromUnixTimestamp(UnixTimestampValue.GetFloatValue());
+			OutDateTime = FDateTime::FromUnixTimestamp((int64)UnixTimestampValue.GetFloatValue());
 			break;
 		case EFormatArgumentType::Double:
-			OutDateTime = FDateTime::FromUnixTimestamp(UnixTimestampValue.GetDoubleValue());
+			OutDateTime = FDateTime::FromUnixTimestamp((int64)UnixTimestampValue.GetDoubleValue());
 			break;
 		default:
 			return nullptr;
@@ -1831,10 +1831,10 @@ const TCHAR* FTextHistory_AsCurrency::ReadFromBuffer(const TCHAR* Buffer, const 
 		switch (SourceValue.GetType())
 		{
 		case EFormatArgumentType::Int:
-			BaseValue = SourceValue.GetIntValue();
+			BaseValue = (double)SourceValue.GetIntValue();
 			break;
 		case EFormatArgumentType::UInt:
-			BaseValue = SourceValue.GetUIntValue();
+			BaseValue = (double)SourceValue.GetUIntValue();
 			break;
 		case EFormatArgumentType::Float:
 			BaseValue = SourceValue.GetFloatValue();
@@ -1849,7 +1849,7 @@ const TCHAR* FTextHistory_AsCurrency::ReadFromBuffer(const TCHAR* Buffer, const 
 		// We need to convert the "base" value back to its pre-divided version
 		const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(CurrencyCode);
 		const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-		SourceValue = BaseValue / FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits);
+		SourceValue = BaseValue / FMath::Pow(10.0f, (float)FormattingOptions.MaximumFractionalDigits);
 
 		PrepareDisplayStringForRebuild(OutDisplayString);
 		return Buffer;
@@ -1869,10 +1869,10 @@ bool FTextHistory_AsCurrency::WriteToBuffer(FString& Buffer, FTextDisplayStringP
 	switch (SourceValue.GetType())
 	{
 	case EFormatArgumentType::Int:
-		DividedValue = SourceValue.GetIntValue();
+		DividedValue = (double)SourceValue.GetIntValue();
 		break;
 	case EFormatArgumentType::UInt:
-		DividedValue = SourceValue.GetUIntValue();
+		DividedValue = (double)SourceValue.GetUIntValue();
 		break;
 	case EFormatArgumentType::Float:
 		DividedValue = SourceValue.GetFloatValue();
@@ -1887,7 +1887,7 @@ bool FTextHistory_AsCurrency::WriteToBuffer(FString& Buffer, FTextDisplayStringP
 	// We need to convert the value back to its "base" version
 	const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(CurrencyCode);
 	const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-	const int64 BaseVal = static_cast<int64>(DividedValue * FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
+	const int64 BaseVal = static_cast<int64>(DividedValue * FMath::Pow(10.0f, (float)FormattingOptions.MaximumFractionalDigits));
 
 	// Produces LOCGEN_CURRENCY(..., "...", "...")
 	Buffer += TEXT("LOCGEN_CURRENCY(");

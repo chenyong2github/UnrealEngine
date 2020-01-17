@@ -19,22 +19,22 @@ namespace AlgoImpl
 	 *
 	 * @returns Position of the first element >= Value, may be == Num
 	 */
-	template <typename RangeValueType, typename PredicateValueType, typename ProjectionType, typename SortPredicateType>
-	FORCEINLINE SIZE_T LowerBoundInternal(RangeValueType* First, const SIZE_T Num, const PredicateValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
+	template <typename RangeValueType, typename SizeType, typename PredicateValueType, typename ProjectionType, typename SortPredicateType>
+	FORCEINLINE SizeType LowerBoundInternal(RangeValueType* First, const SizeType Num, const PredicateValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
 	{
 		// Current start of sequence to check
-		SIZE_T Start = 0;
+		SizeType Start = 0;
 		// Size of sequence to check
-		SIZE_T Size = Num;
+		SizeType Size = Num;
 
 		// With this method, if Size is even it will do one more comparison than necessary, but because Size can be predicted by the CPU it is faster in practice
 		while (Size > 0)
 		{
-			const SIZE_T LeftoverSize = Size % 2;
+			const SizeType LeftoverSize = Size % 2;
 			Size = Size / 2;
 
-			const SIZE_T CheckIndex = Start + Size;
-			const SIZE_T StartIfLess = CheckIndex + LeftoverSize;
+			const SizeType CheckIndex = Start + Size;
+			const SizeType StartIfLess = CheckIndex + LeftoverSize;
 
 			auto&& CheckValue = Invoke(Projection, First[CheckIndex]);
 			Start = SortPredicate(CheckValue, Value) ? StartIfLess : Start;
@@ -52,22 +52,22 @@ namespace AlgoImpl
 	 *
 	 * @returns Position of the first element > Value, may be == Num
 	 */
-	template <typename RangeValueType, typename PredicateValueType, typename ProjectionType, typename SortPredicateType>
-	FORCEINLINE SIZE_T UpperBoundInternal(RangeValueType* First, const SIZE_T Num, const PredicateValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
+	template <typename RangeValueType, typename SizeType, typename PredicateValueType, typename ProjectionType, typename SortPredicateType>
+	FORCEINLINE SizeType UpperBoundInternal(RangeValueType* First, const SizeType Num, const PredicateValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
 	{
 		// Current start of sequence to check
-		SIZE_T Start = 0;
+		SizeType Start = 0;
 		// Size of sequence to check
-		SIZE_T Size = Num;
+		SizeType Size = Num;
 
 		// With this method, if Size is even it will do one more comparison than necessary, but because Size can be predicted by the CPU it is faster in practice
 		while (Size > 0)
 		{
-			const SIZE_T LeftoverSize = Size % 2;
+			const SizeType LeftoverSize = Size % 2;
 			Size = Size / 2;
 
-			const SIZE_T CheckIndex = Start + Size;
-			const SIZE_T StartIfLess = CheckIndex + LeftoverSize;
+			const SizeType CheckIndex = Start + Size;
+			const SizeType StartIfLess = CheckIndex + LeftoverSize;
 
 			auto&& CheckValue = Invoke(Projection, First[CheckIndex]);
 			Start = !SortPredicate(Value, CheckValue) ? StartIfLess : Start;
@@ -89,12 +89,12 @@ namespace Algo
 	 * @returns Position of the first element >= Value, may be position after last element in range
 	 */
 	template <typename RangeType, typename ValueType, typename SortPredicateType>
-	FORCEINLINE int32 LowerBound(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate)
+	FORCEINLINE auto LowerBound(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::LowerBoundInternal(GetData(Range), GetNum(Range), Value, FIdentityFunctor(), SortPredicate);
 	}
 	template <typename RangeType, typename ValueType>
-	FORCEINLINE int32 LowerBound(RangeType& Range, const ValueType& Value)
+	FORCEINLINE auto LowerBound(RangeType& Range, const ValueType& Value) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::LowerBoundInternal(GetData(Range), GetNum(Range), Value, FIdentityFunctor(), TLess<>());
 	}
@@ -110,12 +110,12 @@ namespace Algo
 	 * @returns Position of the first element >= Value, may be position after last element in range
 	 */
 	template <typename RangeType, typename ValueType, typename ProjectionType, typename SortPredicateType>
-	FORCEINLINE int32 LowerBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
+	FORCEINLINE auto LowerBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::LowerBoundInternal(GetData(Range), GetNum(Range), Value, Projection, SortPredicate);
 	}
 	template <typename RangeType, typename ValueType, typename ProjectionType>
-	FORCEINLINE int32 LowerBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection)
+	FORCEINLINE auto LowerBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::LowerBoundInternal(GetData(Range), GetNum(Range), Value, Projection, TLess<>());
 	}
@@ -130,12 +130,12 @@ namespace Algo
 	 * @returns Position of the first element > Value, may be past end of range
 	 */
 	template <typename RangeType, typename ValueType, typename SortPredicateType>
-	FORCEINLINE int32 UpperBound(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate)
+	FORCEINLINE auto UpperBound(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::UpperBoundInternal(GetData(Range), GetNum(Range), Value, FIdentityFunctor(), SortPredicate);
 	}
 	template <typename RangeType, typename ValueType>
-	FORCEINLINE int32 UpperBound(RangeType& Range, const ValueType& Value)
+	FORCEINLINE auto UpperBound(RangeType& Range, const ValueType& Value) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::UpperBoundInternal(GetData(Range), GetNum(Range), Value, FIdentityFunctor(), TLess<>());
 	}
@@ -151,12 +151,12 @@ namespace Algo
 	 * @returns Position of the first element > Value, may be past end of range
 	 */
 	template <typename RangeType, typename ValueType, typename ProjectionType, typename SortPredicateType>
-	FORCEINLINE int32 UpperBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
+	FORCEINLINE auto UpperBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::UpperBoundInternal(GetData(Range), GetNum(Range), Value, Projection, SortPredicate);
 	}
 	template <typename RangeType, typename ValueType, typename ProjectionType>
-	FORCEINLINE int32 UpperBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection)
+	FORCEINLINE auto UpperBoundBy(RangeType& Range, const ValueType& Value, ProjectionType Projection) -> decltype(GetNum(Range))
 	{
 		return AlgoImpl::UpperBoundInternal(GetData(Range), GetNum(Range), Value, Projection, TLess<>());
 	}
@@ -170,9 +170,9 @@ namespace Algo
 	 * @return Index of found element, or INDEX_NONE
 	 */
 	template <typename RangeType, typename ValueType, typename SortPredicateType>
-	FORCEINLINE int32 BinarySearch(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate)
+	FORCEINLINE auto BinarySearch(RangeType& Range, const ValueType& Value, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
-		SIZE_T CheckIndex = LowerBound(Range, Value, SortPredicate);
+		auto CheckIndex = LowerBound(Range, Value, SortPredicate);
 		if (CheckIndex < GetNum(Range))
 		{
 			auto&& CheckValue = GetData(Range)[CheckIndex];
@@ -185,7 +185,7 @@ namespace Algo
 		return INDEX_NONE;
 	}
 	template <typename RangeType, typename ValueType>
-	FORCEINLINE int32 BinarySearch(RangeType& Range, const ValueType& Value)
+	FORCEINLINE auto BinarySearch(RangeType& Range, const ValueType& Value)
 	{
 		return BinarySearch(Range, Value, TLess<>());
 	}
@@ -200,9 +200,9 @@ namespace Algo
 	 * @return Index of found element, or INDEX_NONE
 	 */
 	template <typename RangeType, typename ValueType, typename ProjectionType, typename SortPredicateType>
-	FORCEINLINE int32 BinarySearchBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
+	FORCEINLINE auto BinarySearchBy(RangeType& Range, const ValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate) -> decltype(GetNum(Range))
 	{
-		SIZE_T CheckIndex = LowerBoundBy(Range, Value, Projection, SortPredicate);
+		auto CheckIndex = LowerBoundBy(Range, Value, Projection, SortPredicate);
 		if (CheckIndex < GetNum(Range))
 		{
 			auto&& CheckValue = Invoke(Projection, GetData(Range)[CheckIndex]);
@@ -215,7 +215,7 @@ namespace Algo
 		return INDEX_NONE;
 	}
 	template <typename RangeType, typename ValueType, typename ProjectionType>
-	FORCEINLINE int32 BinarySearchBy(RangeType& Range, const ValueType& Value, ProjectionType Projection)
+	FORCEINLINE auto BinarySearchBy(RangeType& Range, const ValueType& Value, ProjectionType Projection)
 	{
 		return BinarySearchBy(Range, Value, Projection, TLess<>());
 	}

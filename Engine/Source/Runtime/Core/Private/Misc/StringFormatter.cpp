@@ -42,7 +42,7 @@ void AppendToString(const FStringFormatArg& Arg, FString& StringToAppendTo)
 /** Token representing a literal string inside the string */
 struct FStringLiteral
 {
-	FStringLiteral(const FStringToken& InString) : String(InString), Len(InString.GetTokenEndPos() - InString.GetTokenStartPos()) {}
+	FStringLiteral(const FStringToken& InString) : String(InString), Len(UE_PTRDIFF_TO_INT32(InString.GetTokenEndPos() - InString.GetTokenStartPos())) {}
 	/** The string literal token */
 	FStringToken String;
 	/** Cached length of the string */
@@ -52,7 +52,7 @@ struct FStringLiteral
 /** Token representing a user-defined token, such as {Argument} */
 struct FFormatSpecifier
 {
-	FFormatSpecifier(const FStringToken& InIdentifier, const FStringToken& InEntireToken) : Identifier(InIdentifier), EntireToken(InEntireToken), Len(Identifier.GetTokenEndPos() - Identifier.GetTokenStartPos()) {}
+	FFormatSpecifier(const FStringToken& InIdentifier, const FStringToken& InEntireToken) : Identifier(InIdentifier), EntireToken(InEntireToken), Len(UE_PTRDIFF_TO_INT32(Identifier.GetTokenEndPos() - Identifier.GetTokenStartPos())) {}
 
 	/** The identifier part of the token */
 	FStringToken Identifier;
@@ -340,7 +340,7 @@ TValueOrError<FString, FExpressionError> FStringFormatter::FormatInternal(const 
 	
 	// This code deliberately tries to reallocate as little as possible
 	FString Formatted;
-	Formatted.Reserve(Tokens.Last().Context.GetTokenEndPos() - InExpression);
+	Formatted.Reserve(UE_PTRDIFF_TO_INT32(Tokens.Last().Context.GetTokenEndPos() - InExpression));
 	for (auto& Token : Tokens)
 	{
 		if (const auto* Literal = Token.Node.Cast<FStringLiteral>())
@@ -374,7 +374,7 @@ TValueOrError<FString, FExpressionError> FStringFormatter::FormatInternal(const 
 			else
 			{
 				// No replacement found, so just add the original token string
-				const int32 Length = FormatToken->EntireToken.GetTokenEndPos() - FormatToken->EntireToken.GetTokenStartPos();
+				const int32 Length = UE_PTRDIFF_TO_INT32(FormatToken->EntireToken.GetTokenEndPos() - FormatToken->EntireToken.GetTokenStartPos());
 				Formatted.AppendChars(FormatToken->EntireToken.GetTokenStartPos(), Length);
 			}
 		}
@@ -399,7 +399,7 @@ TValueOrError<FString, FExpressionError> FStringFormatter::FormatInternal(const 
 	
 	// This code deliberately tries to reallocate as little as possible
 	FString Formatted;
-	Formatted.Reserve(Tokens.Last().Context.GetTokenEndPos() - InExpression);
+	Formatted.Reserve(UE_PTRDIFF_TO_INT32(Tokens.Last().Context.GetTokenEndPos() - InExpression));
 	for (auto& Token : Tokens)
 	{
 		if (const auto* Literal = Token.Node.Cast<FStringLiteral>())
@@ -423,7 +423,7 @@ TValueOrError<FString, FExpressionError> FStringFormatter::FormatInternal(const 
 			else
 			{
 				// No replacement found, so just add the original token string
-				const int32 Length = IndexToken->EntireToken.GetTokenEndPos() - IndexToken->EntireToken.GetTokenStartPos();
+				const int32 Length = UE_PTRDIFF_TO_INT32(IndexToken->EntireToken.GetTokenEndPos() - IndexToken->EntireToken.GetTokenStartPos());
 				Formatted.AppendChars(IndexToken->EntireToken.GetTokenStartPos(), Length);
 			}
 		}

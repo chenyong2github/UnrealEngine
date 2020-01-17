@@ -275,7 +275,7 @@ void FFrameProProfiler::FrameStart()
 		uint64 CurrentTime = FPlatformTime::Cycles64();
 		if (GFrameProCPUStatsUpdateRate > 0.0f)
 		{
-			bool bUpdateStats = ((FPlatformTime::ToSeconds(CurrentTime - LastCollectionTime) >= GFrameProCPUStatsUpdateRate));
+			bool bUpdateStats = ((FPlatformTime::ToSeconds64(CurrentTime - LastCollectionTime) >= GFrameProCPUStatsUpdateRate));
 			if (bUpdateStats)
 			{
 				LastCollectionTime = CurrentTime;

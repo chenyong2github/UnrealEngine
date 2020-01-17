@@ -313,7 +313,7 @@ void FRawStatStackNode::AddSelf()
 			{
 				Self.GetValue_int64() = ToPackedCallCountDuration(
 					FromPackedCallCountDuration_CallCount(Self.GetValue_int64()),
-					MyTime);
+					(uint32)MyTime);
 				Self.NameAndInfo.SetRawName(NAME_Self);
 				Children.Add(NAME_Self, new FRawStatStackNode(Self));
 			}
@@ -1839,7 +1839,7 @@ FString FStatsUtils::DebugPrint(FStatMessage const& Item)
 		}
 		else if (Item.NameAndInfo.GetFlag(EStatMetaFlags::IsCycle))
 		{
-			Result = FString::Printf(TEXT("%.3fms"), FPlatformTime::ToMilliseconds(Item.GetValue_int64()));
+			Result = FString::Printf(TEXT("%.3fms"), FPlatformTime::ToMilliseconds64(Item.GetValue_int64()));
 		}
 		else
 		{

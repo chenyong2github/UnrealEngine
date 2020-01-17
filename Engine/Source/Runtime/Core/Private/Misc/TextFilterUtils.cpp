@@ -214,7 +214,7 @@ namespace FastToUpper
 	{
 		if (InChar < ToUpperAdjustmentTableCount)
 		{
-			return InChar + ToUpperAdjustmentTable[(int32)InChar];
+			return (TCHAR)(InChar + ToUpperAdjustmentTable[(int32)InChar]);
 		}
 		return FChar::ToUpper(InChar);
 	}

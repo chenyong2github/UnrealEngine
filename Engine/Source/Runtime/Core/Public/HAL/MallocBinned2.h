@@ -108,7 +108,7 @@ class CORE_API FMallocBinned2 final : public FMalloc
 			CANARY_VALUE = 0xe3
 		};
 
-		FORCEINLINE FFreeBlock(uint32 InPageSize, uint32 InBlockSize, uint32 InPoolIndex)
+		FORCEINLINE FFreeBlock(uint32 InPageSize, uint16 InBlockSize, uint8 InPoolIndex)
 			: BlockSize(InBlockSize)
 			, PoolIndex(InPoolIndex)
 			, Canary(CANARY_VALUE)
@@ -205,7 +205,7 @@ class CORE_API FMallocBinned2 final : public FMalloc
 
 		void Init(uint32 InPageSize, uint64 InNumPoolsPerPage, uint64 AddressLimit)
 		{
-			uint64 PoolPageToPoolBitShift = FPlatformMath::CeilLogTwo(InNumPoolsPerPage);
+			uint64 PoolPageToPoolBitShift = FPlatformMath::CeilLogTwo64(InNumPoolsPerPage);
 
 			PtrToPoolPageBitShift = FPlatformMath::CeilLogTwo(InPageSize);
 			HashKeyShift          = PtrToPoolPageBitShift + PoolPageToPoolBitShift;
@@ -217,7 +217,7 @@ class CORE_API FMallocBinned2 final : public FMalloc
 		{
 			OutBucketCollision = (UPTRINT)InPtr >> HashKeyShift;
 			OutBucketIndex = uint32(OutBucketCollision & (MaxHashBuckets - 1));
-			OutPoolIndex   = ((UPTRINT)InPtr >> PtrToPoolPageBitShift) & PoolMask;
+			OutPoolIndex   = (uint32)(((UPTRINT)InPtr >> PtrToPoolPageBitShift) & PoolMask);
 		}
 
 		FORCEINLINE uint64 GetMaxHashBuckets() const

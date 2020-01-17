@@ -5,6 +5,8 @@
 #include "HAL/UnrealMemory.h"
 #include "Containers/Array.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 /*----------------------------------------------------------------------------
 	FArchiveLoadCompressedProxy
 ----------------------------------------------------------------------------*/
@@ -119,3 +121,4 @@ int64 FArchiveLoadCompressedProxy::Tell()
 	return RawBytesSerialized;
 }
 
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

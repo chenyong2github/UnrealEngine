@@ -609,7 +609,7 @@ public:
 	 */
 	static FTimespan FromDays(double Days)
 	{
-		return FTimespan(FMath::FloorToDouble(Days * ETimespan::TicksPerDay + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Days * ETimespan::TicksPerDay + 0.5));
 	}
 
 	/**
@@ -621,7 +621,7 @@ public:
 	 */
 	static FTimespan FromHours(double Hours)
 	{
-		return FTimespan(FMath::FloorToDouble(Hours * ETimespan::TicksPerHour + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Hours * ETimespan::TicksPerHour + 0.5));
 	}
 
 	/**
@@ -633,7 +633,7 @@ public:
 	 */
 	static FTimespan FromMicroseconds(double Microseconds)
 	{
-		return FTimespan(FMath::FloorToDouble(Microseconds * ETimespan::TicksPerMicrosecond + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Microseconds * ETimespan::TicksPerMicrosecond + 0.5));
 	}
 
 	/**
@@ -645,7 +645,7 @@ public:
 	 */
 	static FTimespan FromMilliseconds(double Milliseconds)
 	{
-		return FTimespan(FMath::FloorToDouble(Milliseconds * ETimespan::TicksPerMillisecond + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Milliseconds * ETimespan::TicksPerMillisecond + 0.5));
 	}
 
 	/**
@@ -657,7 +657,7 @@ public:
 	 */
 	static FTimespan FromMinutes(double Minutes)
 	{
-		return FTimespan(FMath::FloorToDouble(Minutes * ETimespan::TicksPerMinute + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Minutes * ETimespan::TicksPerMinute + 0.5));
 	}
 
 	/**
@@ -669,7 +669,7 @@ public:
 	 */
 	static FTimespan FromSeconds(double Seconds)
 	{
-		return FTimespan(FMath::FloorToDouble(Seconds * ETimespan::TicksPerSecond + 0.5));
+		return FTimespan((int64)FMath::FloorToDouble(Seconds * ETimespan::TicksPerSecond + 0.5));
 	}
 
 	/**

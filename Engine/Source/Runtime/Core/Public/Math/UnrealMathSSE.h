@@ -1262,8 +1262,8 @@ FORCEINLINE VectorRegister VectorLog2(const VectorRegister& X)
 namespace VectorSinConstantsSSE
 {
 	static const float p = 0.225f;
-	static const float a = (16 * sqrt(p));
-	static const float b = ((1 - p) / sqrt(p));
+	static const float a = (16 * sqrtf(p));
+	static const float b = ((1 - p) / sqrtf(p));
 	static const VectorRegister A = MakeVectorRegister(a, a, a, a);
 	static const VectorRegister B = MakeVectorRegister(b, b, b, b);
 }

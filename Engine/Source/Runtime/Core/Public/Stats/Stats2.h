@@ -171,7 +171,7 @@ struct TStatId
 #if CPUPROFILERTRACE_ENABLED
 	FORCEINLINE uint16 GetTraceCpuProfilerSpecId() const
 	{
-		return StatIdPtr->TraceCpuProfilerSpecId;
+		return (uint16)(StatIdPtr->TraceCpuProfilerSpecId);
 	}
 #endif
 
@@ -1298,7 +1298,7 @@ public:
 		if( Packet.ThreadType == EThreadType::Other )
 		{
 			FPlatformMisc::MemoryBarrier();
-			uint64 Frame = FStats::GameThreadStatsFrame;
+			int32 Frame = FStats::GameThreadStatsFrame;
 			const bool bFrameHasChanged = Frame > CurrentGameFrame;
 			if( bFrameHasChanged )
 			{

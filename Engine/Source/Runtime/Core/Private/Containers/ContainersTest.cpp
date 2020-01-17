@@ -47,7 +47,7 @@ namespace
 
 		int32 Num() const
 		{
-			return End - ConstructedIDs;
+			return UE_PTRDIFF_TO_INT32(End - ConstructedIDs);
 		}
 
 		int32 Add()

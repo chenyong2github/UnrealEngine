@@ -88,7 +88,7 @@ TCHAR* FGenericPlatformTime::StrDate( TCHAR* Dest, SIZE_T DestSize )
 	int32 MSec;
 
 	FPlatformTime::SystemTime(Year, Month, DayOfWeek, Day, Hour, Min, Sec, MSec );
-	FCString::Snprintf(Dest, DestSize, TEXT("%02d/%02d/%02d"), Month, Day, Year % 100);
+	FCString::Snprintf(Dest, (int32)DestSize, TEXT("%02d/%02d/%02d"), Month, Day, Year % 100);
 	return Dest;
 }
 
@@ -104,7 +104,7 @@ TCHAR* FGenericPlatformTime::StrTime( TCHAR* Dest, SIZE_T DestSize )
 	int32 MSec;
 
 	FPlatformTime::SystemTime(Year, Month, DayOfWeek, Day, Hour, Min, Sec, MSec );
-	FCString::Snprintf( Dest, DestSize, TEXT("%02d:%02d:%02d"), Hour, Min, Sec);
+	FCString::Snprintf( Dest, (int32)DestSize, TEXT("%02d:%02d:%02d"), Hour, Min, Sec);
 	return Dest;
 }
 
@@ -127,31 +127,31 @@ FString FGenericPlatformTime::PrettyTime( double Seconds )
 {
 	if ( Seconds < 1.0 )
 	{
-		return FString::Printf( TEXT("%d ms"), FMath::TruncToInt(Seconds*1000) );
+		return FString::Printf( TEXT("%d ms"), FMath::TruncToInt((float)(Seconds*1000)) );
 	}
 	else if ( Seconds < 10.0 )
 	{
-		int32 Sec = FMath::TruncToInt(Seconds);
-		int32 Ms = FMath::TruncToInt(Seconds*1000) - Sec*1000;
+		int32 Sec = FMath::TruncToInt((float)Seconds);
+		int32 Ms = FMath::TruncToInt((float)(Seconds*1000)) - Sec*1000;
 		return FString::Printf( TEXT("%d.%02d sec"), Sec, Ms/10 );
 	}
 	else if ( Seconds < 60.0 )
 	{
-		int32 Sec = FMath::TruncToInt(Seconds);
-		int32 Ms = FMath::TruncToInt(Seconds*1000) - Sec*1000;
+		int32 Sec = FMath::TruncToInt((float)Seconds);
+		int32 Ms = FMath::TruncToInt((float)(Seconds*1000)) - Sec*1000;
 		return FString::Printf( TEXT("%d.%d sec"), Sec, Ms/100 );
 	}
 	else if ( Seconds < 60.0*60.0 )
 	{
-		int32 Min = FMath::TruncToInt(Seconds/60.0);
-		int32 Sec = FMath::TruncToInt(Seconds) - Min*60;
+		int32 Min = FMath::TruncToInt((float)(Seconds/60.0));
+		int32 Sec = FMath::TruncToInt((float)Seconds) - Min*60;
 		return FString::Printf( TEXT("%d:%02d min"), Min, Sec );
 	}
 	else
 	{
-		int32 Hr = FMath::TruncToInt(Seconds/3600.0);
-		int32 Min = FMath::TruncToInt((Seconds - Hr*3600)/60.0);
-		int32 Sec = FMath::TruncToInt(Seconds - Hr*3600 - Min*60);
+		int32 Hr = FMath::TruncToInt((float)(Seconds/3600.0));
+		int32 Min = FMath::TruncToInt((float)((Seconds - Hr*3600)/60.0));
+		int32 Sec = FMath::TruncToInt((float)(Seconds - Hr*3600 - Min*60));
 		return FString::Printf( TEXT("%d:%02d:%02d hours"), Hr, Min, Sec );
 	}
 }
@@ -200,7 +200,7 @@ struct FCPUTimeDump
 			UE_LOG(LogGenericPlatformTime, Log, TEXT("Delay set to %i second(s), started printing the CPU usage"), Delay);
 
 			GetCPUTimeDelegateHandle   = FTicker::GetCoreTicker().AddTicker( GetCPUTimeDelegate );
-			CPUTimeDumpDelegateHandle  = FTicker::GetCoreTicker().AddTicker( CPUTimeDumpDelegate, Delay );
+			CPUTimeDumpDelegateHandle  = FTicker::GetCoreTicker().AddTicker( CPUTimeDumpDelegate, (float)Delay );
 		}
 	}
 

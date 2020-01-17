@@ -5,6 +5,8 @@
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 // Table.
 extern const uint8 GShift[8]={0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
 extern const uint8 GMask [8]={0x00,0x01,0x03,0x07,0x0f,0x1f,0x3f,0x7f};
@@ -224,7 +226,7 @@ void FBitReader::CountMemory(FArchive& Ar) const
 	Ar.CountBytes(sizeof(*this), sizeof(*this));
 }
 
-void FBitReader::SetOverflowed(int32 LengthBits)
+void FBitReader::SetOverflowed(int64 LengthBits)
 {
 	UE_LOG(LogNetSerialization, Error, TEXT("FBitReader::SetOverflowed() called! (ReadLen: %i, Remaining: %i, Max: %i)"),
 			LengthBits, (Num - Pos), Num);
@@ -245,7 +247,7 @@ void FBitReader::SerializeBitsWithOffset( void* Dest, int32 DestBit, int64 Lengt
 
 	if (LengthBits != 0)
 	{
-		appBitsCpy((uint8*)Dest, DestBit, Buffer.GetData(), Pos, LengthBits);
+		appBitsCpy((uint8*)Dest, DestBit, Buffer.GetData(), (int32)Pos, (int32)LengthBits);
 		Pos += LengthBits;
 	}
 }
@@ -308,3 +310,5 @@ void FBitReaderMark::Copy( FBitReader& Reader, TArray<uint8> &Buffer )
 		appBitsCpy(Buffer.GetData(), 0, Reader.Buffer.GetData(), Pos, Reader.Pos - Pos);
 	}
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
