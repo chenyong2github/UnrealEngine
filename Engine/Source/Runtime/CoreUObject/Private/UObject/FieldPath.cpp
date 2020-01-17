@@ -11,6 +11,7 @@
 
 #if WITH_EDITORONLY_DATA
 FFieldPath::FFieldPath(UField* InField, const FName& InPropertyTypeName)
+	: InitialFieldClass(nullptr)
 {
 	if (InField)
 	{
@@ -34,6 +35,9 @@ void FFieldPath::Generate(FField* InField)
 		}
 		ResolvedFieldOwner = GUObjectArray.ObjectToIndex(InField->GetOwnerUObject());
 		SerialNumber = GlobalSerialNumber;
+#if WITH_EDITORONLY_DATA
+		InitialFieldClass = InField->GetClass();
+#endif // WITH_EDITORONLY_DATA
 	}
 	else
 	{
