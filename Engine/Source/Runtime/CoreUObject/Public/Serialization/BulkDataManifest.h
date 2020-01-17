@@ -8,30 +8,37 @@
 class FPackageStoreBulkDataManifest
 {
 public:
+	enum class EBulkdataType : uint8
+	{
+		Normal = 0,
+		Optional
+	};
+
 	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& ProjectPath);
-	COREUOBJECT_API ~FPackageStoreBulkDataManifest();
+	~FPackageStoreBulkDataManifest() = default;
 
 	COREUOBJECT_API bool Load();
 	COREUOBJECT_API void Save();
 
-	void AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize);
+	void AddFileAccess(const FString& PackageFilename, EBulkdataType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize);
 
 	const FString& GetFilename() const { return Filename; }
-
 	class FPackageDesc
+
 	{
 	public:
+
 		struct FBulkDataDesc
 		{
-			uint64 ChunkId;	// Note this is the Offset before the linker BulkDataStartOffset is
-							// applied, to make it easier to compute at runtime.
-			uint64 Offset;
-			uint64 Size;
-			EIoChunkType Type;
+			uint64			ChunkId;	// Note this is the Offset before the linker BulkDataStartOffset is
+										// applied, to make it easier to compute at runtime.
+			uint64			Offset;
+			uint64			Size;
+			EBulkdataType	Type;
 		};
 
-		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
-		void AddZeroByteData(EIoChunkType InType);
+		void AddData(EBulkdataType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
+		void AddZeroByteData(EBulkdataType InType);
 
 		const TArray<FBulkDataDesc>& GetDataArray() const { return Data; }
 	private:

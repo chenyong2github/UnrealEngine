@@ -795,14 +795,30 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 	}
 }
 
-static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPackage& Package, const FPackageStoreBulkDataManifest& BulkDataManifest,
-							FIoStoreWriter* IoStoreWriter)
+static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType Type)
+{
+	switch (Type)
+	{
+	case FPackageStoreBulkDataManifest::EBulkdataType::Normal:
+		return EIoChunkType::BulkData;
+	case FPackageStoreBulkDataManifest::EBulkdataType::Optional:
+		return EIoChunkType::OptionalBulkData;
+	default:
+		UE_LOG(LogIoStore, Error, TEXT("Invalid EBulkdataType (%d) found!"), Type);
+		return EIoChunkType::Invalid;
+	}
+}
+
+static bool WriteBulkData(	const FString& Filename, FPackageStoreBulkDataManifest::EBulkdataType Type, const FPackage& Package, 
+							const FPackageStoreBulkDataManifest& BulkDataManifest, FIoStoreWriter* IoStoreWriter)
 {
 
 	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
 	if (PackageDesc != nullptr)
 	{
-		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, TNumericLimits<uint64>::Max()-1, Type, *Package.FileName);
+		const EIoChunkType ChunkIdType = BulkdataTypeToChunkIdType(Type);
+
+		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, TNumericLimits<uint64>::Max()-1, ChunkIdType, *Package.FileName);
 
 #if !SKIP_WRITE_CONTAINER		
 		FIoBuffer IoBuffer;
@@ -830,7 +846,7 @@ static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPa
 		{
 			if (BulkDataDesc.Type == Type)
 			{
-				const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, Type, *Package.FileName);
+				const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, ChunkIdType, *Package.FileName);
 #if !SKIP_WRITE_CONTAINER	
 				const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
 				if (!PartialResult.IsOk())
@@ -1840,11 +1856,11 @@ int32 CreateTarget(const TCHAR* OutputDir, const TCHAR* CookedDir, const TArray<
 					FString Extension = FPaths::GetExtension(NormalizedSourcePath);
 					if (Extension == TEXT("uptnl"))
 					{
-						WriteBulkData(NormalizedSourcePath, EIoChunkType::OptionalBulkData, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
+						WriteBulkData(NormalizedSourcePath, FPackageStoreBulkDataManifest::EBulkdataType::Optional, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
 					}
 					else
 					{
-						WriteBulkData(NormalizedSourcePath, EIoChunkType::BulkData, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
+						WriteBulkData(NormalizedSourcePath, FPackageStoreBulkDataManifest::EBulkdataType::Normal, *TargetFile.Package, BulkDataManifest, ContainerTarget.IoStoreWriter);
 					}
 				}
 			}

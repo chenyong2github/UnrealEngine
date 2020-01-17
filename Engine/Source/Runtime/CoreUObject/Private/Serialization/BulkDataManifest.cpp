@@ -4,9 +4,32 @@
 
 #include "CoreGlobals.h"
 #include "HAL/FileManager.h"
+#include "Misc/Guid.h"
 #include "Misc/Paths.h"
+#include "Serialization/CustomVersion.h"
 
-void FPackageStoreBulkDataManifest::FPackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
+struct FBulkDataManifestVersion
+{
+	FBulkDataManifestVersion() = delete;
+
+	enum Type
+	{
+		// Before any version changes were made
+		BeforeCustomVersionWasAdded = 0,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+};
+
+const FGuid FBulkDataManifestVersion::GUID(0x54683250, 0x809948AF, 0x8BC89896, 0xFBADF9B7);
+FCustomVersionRegistration GRegisterBulkDataManifestVersion(FBulkDataManifestVersion::GUID, FBulkDataManifestVersion::LatestVersion, TEXT("BulkDataManifestVersion"));
+
+void FPackageStoreBulkDataManifest::FPackageDesc::AddData(EBulkdataType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
 {
 	// The ChunkId is supposed to be unique for each type
 	auto func = [=](const FBulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
@@ -36,7 +59,7 @@ void FPackageStoreBulkDataManifest::FPackageDesc::AddData(EIoChunkType InType, u
 	}
 }
 
-void FPackageStoreBulkDataManifest::FPackageDesc::AddZeroByteData(EIoChunkType InType)
+void FPackageStoreBulkDataManifest::FPackageDesc::AddZeroByteData(EBulkdataType InType)
 {
 	// Make sure we only add one empty read per Bulkdata type!
 	auto func = [=](const FBulkDataDesc& Entry) { return Entry.Type == InType && Entry.Size == 0; };
@@ -73,10 +96,6 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::FPackageDesc& 
 	return Ar;
 }
 
-FPackageStoreBulkDataManifest::~FPackageStoreBulkDataManifest()
-{
-}
-
 bool FPackageStoreBulkDataManifest::Load()
 {
 	Data.Empty();
@@ -84,6 +103,11 @@ bool FPackageStoreBulkDataManifest::Load()
 	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileReader(*Filename));
 	if (BinArchive != nullptr)
 	{
+		// Load and apply the custom versions before we load any data
+		FCustomVersionContainer CustomVersions;
+		CustomVersions.Serialize(*BinArchive);
+		BinArchive->SetCustomVersions(CustomVersions);
+		
 		*BinArchive << Data;
 		return true;
 	}
@@ -96,6 +120,14 @@ bool FPackageStoreBulkDataManifest::Load()
 void FPackageStoreBulkDataManifest::Save()
 {
 	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
+	BinArchive->UsingCustomVersion(FBulkDataManifestVersion::GUID);
+
+	// Take the versions from the archive and serialize them out
+	// NOTE: Serializing out now means we cannot add additional versions while serializing
+	// it is assumed that we are only using FBulkDataManifestVersion::GUID
+	FCustomVersionContainer CustomVersions = BinArchive->GetCustomVersions();
+	CustomVersions.Serialize(*BinArchive);
+
 	*BinArchive << Data;
 }
 
@@ -105,7 +137,7 @@ const FPackageStoreBulkDataManifest::FPackageDesc* FPackageStoreBulkDataManifest
 	return Data.Find(NormalizedFilename);
 }
 
-void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
+void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, EBulkdataType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
 {
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 
@@ -119,7 +151,6 @@ void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename
 	{
 		Entry.AddZeroByteData(InType);
 	}
-
 }
 
 FPackageStoreBulkDataManifest::FPackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
