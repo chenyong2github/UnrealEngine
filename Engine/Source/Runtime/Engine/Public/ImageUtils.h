@@ -32,6 +32,12 @@ struct FCreateTexture2DParameters
 	/** If texture should be set as SRGB */
 	bool						bSRGB;
 
+	/** Mip-map generation settings */
+	TextureMipGenSettings		MipGenSettings;
+
+	/** Group this texture belongs to */
+	TextureGroup				TextureGroup;
+
 	/* The Guid hash to use part of the texture source's DDC key */
 	FGuid						SourceGuidHash;
 
@@ -39,7 +45,9 @@ struct FCreateTexture2DParameters
 		:	bUseAlpha(false),
 			CompressionSettings(TC_Default),
 			bDeferCompression(false),
-			bSRGB(true)
+			bSRGB(true),
+			MipGenSettings(TMGS_FromTextureGroup),
+			TextureGroup(TEXTUREGROUP_MAX)
 	{
 	}
 };
