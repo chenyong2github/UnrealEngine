@@ -497,6 +497,15 @@ public:
 	/** Returns a human readable string for a given field, overridden for user defined structs */
 	virtual FString GetAuthoredNameForField(const FField* Field) const;
 
+	/** If true, this class has been cleaned and sanitized (trashed) and should not be used */
+	virtual bool IsStructTrashed() const
+	{
+		return false;
+	}
+
+	/** Destroys all properties owned by this struct */
+	void DestroyChildPropertiesAndResetPropertyLinks();
+
 #if WITH_EDITORONLY_DATA
 	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
 	bool GetBoolMetaDataHierarchical(const FName& Key) const;
@@ -616,6 +625,9 @@ enum EStructFlags
 
 	/** If set, this struct can share net serialization state across connections */
 	STRUCT_NetSharedSerialization = 0x00400000,
+
+	/** If set, this struct has been cleaned and sanitized (trashed) and should not be used */
+	STRUCT_Trashed = 0x00800000,
 
 	/** Struct flags that are automatically inherited */
 	STRUCT_Inherit				= STRUCT_HasInstancedReference|STRUCT_Atomic,
@@ -1476,7 +1488,11 @@ public:
 	virtual COREUOBJECT_API void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
 	virtual COREUOBJECT_API void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;
 	virtual COREUOBJECT_API void DestroyStruct(void* Dest, int32 ArrayDim = 1) const override;
+	virtual COREUOBJECT_API bool IsStructTrashed() const override;
 	// End of UStruct interface.
+
+	/** Sets or unsets the trashed flag on this struct */
+	void COREUOBJECT_API SetStructTrashed(bool bIsTrash);
 
 	/** 
 	 * Stash a CppStructOps for future use 
@@ -2751,6 +2767,7 @@ public:
 	// UStruct interface.
 	virtual void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
 	virtual void SetSuperStruct(UStruct* NewSuperStruct) override;
+	virtual bool IsStructTrashed() const override;
 	// End of UStruct interface.
 
 #if WITH_EDITOR

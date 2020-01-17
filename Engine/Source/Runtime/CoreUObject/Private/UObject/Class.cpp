@@ -1367,10 +1367,11 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 					if (BreakRecursionIfFullyLoad && BreakRecursionIfFullyLoad->HasAllFlags(RF_LoadCompleted))
 					{
 					}
+					else
 #endif // WITH_EDITOR
 					// editoronly properties should be skipped if we are NOT the editor, or we are 
 					// the editor but are cooking for console (editoronly implies notforconsole)
-					else if ((Property->PropertyFlags & CPF_EditorOnly) && !FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly)
+					if ((Property->PropertyFlags & CPF_EditorOnly) && !FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly)
 					{
 					}
 					// check for valid array index
@@ -1570,6 +1571,15 @@ inline void DestroyPropertyLinkedList(FField*& PropertiesToDestroy)
 		FieldToDestroy = NextField;
 	}
 	PropertiesToDestroy = nullptr;
+}
+
+void UStruct::DestroyChildPropertiesAndResetPropertyLinks()
+{
+	DestroyPropertyLinkedList(ChildProperties);
+	PropertyLink = nullptr;
+	RefLink = nullptr;
+	DestructorLink = nullptr;
+	PostConstructLink = nullptr;
 }
 
 UStruct::~UStruct()
@@ -2871,6 +2881,7 @@ void UScriptStruct::ExportText(FString& ValueStr, const void* Value, const void*
 void UScriptStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {
 	Super::Link(Ar, bRelinkExistingProperties);
+	SetStructTrashed(false);
 	if (!HasDefaults()) // if you have CppStructOps, then that is authoritative, otherwise we look at the properties
 	{
 		StructFlags = EStructFlags(StructFlags | STRUCT_ZeroConstructor | STRUCT_NoDestructor | STRUCT_IsPlainOldData);
@@ -3145,6 +3156,23 @@ void UScriptStruct::DestroyStruct(void* Dest, int32 ArrayDim) const
 				bHitBase = true;
 			}
 		}
+	}
+}
+
+bool UScriptStruct::IsStructTrashed() const
+{
+	return !!(StructFlags & STRUCT_Trashed);
+}
+ 
+void UScriptStruct::SetStructTrashed(bool bIsTrash)
+{
+	if (bIsTrash)
+	{
+		StructFlags = EStructFlags(StructFlags | STRUCT_Trashed);
+	}
+	else
+	{
+		StructFlags = EStructFlags(StructFlags & ~STRUCT_Trashed);
 	}
 }
 
@@ -4196,6 +4224,11 @@ void UClass::SetSuperStruct(UStruct* NewSuperStruct)
 	}
 
 	HashObject(this);
+}
+
+bool UClass::IsStructTrashed() const
+{
+	return Children == nullptr && ChildProperties == nullptr && ClassDefaultObject == nullptr;
 }
 
 void UClass::Serialize( FArchive& Ar )
