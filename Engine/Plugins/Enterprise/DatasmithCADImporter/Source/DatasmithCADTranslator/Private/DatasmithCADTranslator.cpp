@@ -8,6 +8,7 @@
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
+#include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
 
 

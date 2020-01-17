@@ -14,14 +14,10 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "Analytics",
-                    "Core",
                     "CoreUObject",
                     "DatasmithCore",
 					"Engine",
 					"Json",
-                    "MainFrame",
-					"MaterialEditor",
-					"MeshUtilities",
                     "MeshDescription",
                     "MessageLog",
 					"Projects",
@@ -29,7 +25,6 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
 					"StaticMeshDescription",
-                    "UnrealEd",
                     "XmlParser",
                 }
             );
@@ -48,14 +43,16 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
                 new string[]
                 {
+                    "Core",
                     "DatasmithContent",
-                    "DatasmithImporter"
+                    "DatasmithTranslator"
                 }
             );
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				RuntimeDependencies.Add("$(EngineDir)/Plugins/Enterprise/DatasmithIFCImporter/Binaries/Win64/ifcengine.dll");
+				PublicDelayLoadDLLs.Add("ifcengine.dll");
 			}
 		}
 	}

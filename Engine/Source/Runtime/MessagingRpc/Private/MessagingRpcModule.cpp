@@ -18,14 +18,24 @@ public:
 
 	virtual TSharedRef<IMessageRpcClient> CreateRpcClient() override
 	{
-		return MakeShareable(new FMessageRpcClient);
+		return MakeShared<FMessageRpcClient>();
+	}
+
+	virtual TSharedRef<IMessageRpcClient> CreateRpcClient(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) override
+	{
+		return MakeShared<FMessageRpcClient>(DebugName, MessageBus);
 	}
 
 	virtual TSharedRef<IMessageRpcServer> CreateRpcServer() override
 	{
-		return MakeShareable(new FMessageRpcServer);
+		return MakeShared<FMessageRpcServer>();
 	}
 
+	virtual TSharedRef<IMessageRpcServer> CreateRpcServer(const FString& DebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& MessageBus) override
+	{
+		return MakeShared<FMessageRpcServer>(DebugName, MessageBus);
+	}
+	
 public:
 
 	//~ IModuleInterface interface

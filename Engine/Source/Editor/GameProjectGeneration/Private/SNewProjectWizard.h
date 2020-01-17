@@ -205,6 +205,9 @@ private:
 
 	TSharedRef<SWidget> MakeProjectSettingsOptionsBox();
 
+	/** Create a project information struct from the currently selected settings. */
+	struct FProjectInformation CreateProjectInfo() const;
+
 private:
 
 	FString LastBrowsePath;

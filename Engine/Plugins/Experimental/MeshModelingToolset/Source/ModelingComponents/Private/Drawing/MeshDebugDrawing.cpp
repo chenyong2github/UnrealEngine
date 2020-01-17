@@ -19,7 +19,7 @@ void MeshDebugDraw::DrawNormals(
 		int ParentVID = Overlay->GetParentVertex(ElementID);
 		FVector3f ParentPos = (FVector3f)Mesh->GetVertex(ParentVID);
 
-		FVector A = ParentPos, B = ParentPos + Length * Normal;
+		FVector A = (FVector)ParentPos, B = (FVector)(ParentPos + Length * Normal);
 		PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
 			Color, 0, Thickness, 0, bScreenSpace);
 	}
@@ -37,7 +37,7 @@ void MeshDebugDraw::DrawVertices(
 	for (int VertID : Indices)
 	{
 		FVector3d Pos = Mesh->GetVertex(VertID);
-		PDI->DrawPoint(Transform.TransformPosition(Pos), Color, PointSize, SDPG_World);
+		PDI->DrawPoint(Transform.TransformPosition((FVector)Pos), Color, PointSize, SDPG_World);
 	}
 }
 
@@ -49,7 +49,7 @@ void MeshDebugDraw::DrawVertices(
 	for (int VertID : Indices)
 	{
 		FVector3d Pos = Mesh->GetVertex(VertID);
-		PDI->DrawPoint(Transform.TransformPosition(Pos), Color, PointSize, SDPG_World);
+		PDI->DrawPoint(Transform.TransformPosition((FVector)Pos), Color, PointSize, SDPG_World);
 	}
 }
 
@@ -63,7 +63,7 @@ void MeshDebugDraw::DrawTriCentroids(
 	for (int TriID : Indices)
 	{
 		FVector3d Pos = Mesh->GetTriCentroid(TriID);
-		PDI->DrawPoint(Transform.TransformPosition(Pos), Color, PointSize, SDPG_World);
+		PDI->DrawPoint(Transform.TransformPosition((FVector)Pos), Color, PointSize, SDPG_World);
 	}
 }
 
@@ -85,7 +85,7 @@ void MeshDebugDraw::DrawSimpleGrid(
 	FVector3f Origin = WorldFrame.Origin;
 	FVector3f X = WorldFrame.X();
 	FVector3f Y = WorldFrame.Y();
-	FVector A, B;
+	FVector3f A, B;
 
 	int LineSteps = GridLines / 2;
 	for (int i = 0; i < LineSteps; i++)
@@ -93,17 +93,17 @@ void MeshDebugDraw::DrawSimpleGrid(
 		float dx = (float)i * GridLineSpacing;
 		A = Origin - Extent * Y - dx * X;
 		B = Origin + Extent * Y - dx * X;
-		PDI->DrawLine(A, B, Color, DepthPriority, LineWidth, 0, true);
+		PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriority, LineWidth, 0, true);
 		A = Origin - Extent * Y + dx * X;
 		B = Origin + Extent * Y + dx * X;
-		PDI->DrawLine(A, B, Color, DepthPriority, LineWidth, 0, true);
+		PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriority, LineWidth, 0, true);
 
 		A = Origin - Extent * X - dx * Y;
 		B = Origin + Extent * X - dx * Y;
-		PDI->DrawLine(A, B, Color, DepthPriority, LineWidth, 0, true);
+		PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriority, LineWidth, 0, true);
 		A = Origin - Extent * X + dx * Y;
 		B = Origin + Extent * X + dx * Y;
-		PDI->DrawLine(A, B, Color, DepthPriority, LineWidth, 0, true);
+		PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriority, LineWidth, 0, true);
 	}
 
 }

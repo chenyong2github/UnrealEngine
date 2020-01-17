@@ -26,8 +26,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogUdpMessaging, Log, All);
 /** Define the desired size for the message segments */
 #define UDP_MESSAGING_SEGMENT_SIZE 1024
 
-/** Defines the protocol version of the UDP message transport. */
-#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 12
+/**
+ * Defines the protocol version of the UDP message transport.
+ * @note When changing the version, ensure to update the serialization/deserialization code in UdpSerializeMessageTask.cpp/UdpDeserializedMessage.cpp and the supported versions in FUdpMessageProcessor::Init().
+ */
+#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 13 
 
 /** Supported message serialization format */
 enum class EUdpMessageFormat : uint8

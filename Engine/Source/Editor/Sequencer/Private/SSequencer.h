@@ -15,6 +15,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Sequencer.h"
 
 class FActorDragDropGraphEdOp;
@@ -599,8 +600,11 @@ private:
 	/** The search widget for filtering curves in the Curve Editor tree. */
 	TSharedPtr<SWidget> CurveEditorSearchBox;
 
-	/** The current playback time display.*/
+	/** The current playback time display. */
 	TSharedPtr<STemporarilyFocusedSpinBox<double>> PlayTimeDisplay;
+
+	/** The current loop display for when editing a looping sub-sequence. */
+	TSharedPtr<STextBlock> LoopIndexDisplay;
 
 	/** The sequencer tree view responsible for the outliner and track areas */
 	TSharedPtr<SSequencerTreeView> TreeView;

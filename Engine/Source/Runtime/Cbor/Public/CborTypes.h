@@ -262,6 +262,13 @@ struct FCborContext
 		return RawTextValue.GetData();
 	}
 
+	/** @return the context as a raw byte array. */
+	TArrayView<const uint8> AsByteArray() const
+	{
+		check(MajorType() == ECborCode::ByteString);
+		return MakeArrayView(reinterpret_cast<const uint8*>(RawTextValue.GetData()), RawTextValue.Num() - 1); // -1 to exclude the null terminated added by the reader.
+	}
+
 private:
 	friend class FCborReader;
 	friend class FCborWriter;

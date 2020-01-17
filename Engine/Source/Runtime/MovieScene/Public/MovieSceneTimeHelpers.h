@@ -196,7 +196,7 @@ inline FString LexToString(const TRange<FFrameNumber>& InRange)
 	TRangeBound<FFrameNumber> SourceLower = InRange.GetLowerBound();
 	TRangeBound<FFrameNumber> SourceUpper = InRange.GetUpperBound();
 
-	return *FString::Printf(TEXT("%s-%s"),
+	return *FString::Printf(TEXT("%s,%s"),
 		SourceLower.IsOpen() ?
 		TEXT("[-inf") :
 		SourceLower.IsInclusive() ?

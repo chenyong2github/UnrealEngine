@@ -18,13 +18,20 @@
  *****************************************************************************/
 
 FMessageRpcServer::FMessageRpcServer()
+	: FMessageRpcServer(FMessageEndpoint::Builder(TEXT("FMessageRpcServer")))
 {
-	MessageEndpoint = FMessageEndpoint::Builder("FMessageRpcServer")
-		.WithCatchall(this, &FMessageRpcServer::HandleMessage);
-
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FMessageRpcServer::HandleTicker), 0.1f);
 }
 
+FMessageRpcServer::FMessageRpcServer(const FString& InDebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus)
+	: FMessageRpcServer(FMessageEndpoint::Builder(*InDebugName, InMessageBus))
+{
+}
+
+FMessageRpcServer::FMessageRpcServer(FMessageEndpointBuilder&& InEndpointBuilder)
+{
+	MessageEndpoint = InEndpointBuilder.WithCatchall(this, &FMessageRpcServer::HandleMessage);
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FMessageRpcServer::HandleTicker), MESSAGE_RPC_TICK_DELAY);
+}
 
 FMessageRpcServer::~FMessageRpcServer()
 {
@@ -57,6 +64,11 @@ FOnMessageRpcNoHandler& FMessageRpcServer::OnNoHandler()
 	return NoHandlerDelegate;
 }
 
+
+void FMessageRpcServer::SetSendProgressUpdate(bool InSendProgress)
+{
+	bSendProgress = InSendProgress;
+}
 
 /* FMessageRpcServer implementation
  *****************************************************************************/
@@ -179,7 +191,8 @@ bool FMessageRpcServer::HandleTicker(float DeltaTime)
 			SendResult(It.Key(), ReturnInfo);
 			It.RemoveCurrent();
 		}
-		else if (UtcNow - ReturnInfo.LastProgressSent > FTimespan::FromSeconds(MESSAGE_RPC_RETRY_INTERVAL * 0.25))
+		else if (bSendProgress &&
+			(UtcNow - ReturnInfo.LastProgressSent > FTimespan::FromSeconds(MESSAGE_RPC_PROGRESS_INTERVAL)))
 		{
 			SendProgress(It.Key(), ReturnInfo);
 			ReturnInfo.LastProgressSent = UtcNow;

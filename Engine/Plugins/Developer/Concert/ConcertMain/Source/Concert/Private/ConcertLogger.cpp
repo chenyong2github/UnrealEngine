@@ -194,7 +194,7 @@ void FConcertLogger::FlushLog()
 
 void FConcertLogger::LogTimeOut(const TSharedRef<IConcertMessage>& Message, const FGuid& EndpointId, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, Warning, TEXT("%s: Message %s timed-out sending to '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message), *EndpointId.ToString());
+	UE_LOG(LogConcertDebug, Warning, TEXT("%s: Message %s timed-out sending to '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message), *EndpointId.ToString());
 
 	if (!IsLogging())
 	{
@@ -206,7 +206,7 @@ void FConcertLogger::LogTimeOut(const TSharedRef<IConcertMessage>& Message, cons
 
 void FConcertLogger::LogSendAck(const FConcertAckData& AckData, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Acknowledgement '%s' sent to '%s' for message '%s'."), *OwnerContext.ToString(), *AckData.MessageId.ToString(), *DestEndpoint.ToString(), *AckData.SourceMessageId.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Acknowledgement '%s' sent to '%s' for message '%s'."), *OwnerContext.ToString(), *AckData.MessageId.ToString(), *DestEndpoint.ToString(), *AckData.SourceMessageId.ToString());
 
 	if (!IsLogging())
 	{
@@ -232,7 +232,7 @@ void FConcertLogger::LogSendAck(const FConcertAckData& AckData, const FGuid& Des
 
 void FConcertLogger::LogSendEndpointClosed(const FConcertEndpointClosedData& EndpointClosedData, const FGuid& DestEndpoint, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Endpoint closure '%s' sent to '%s'."), *OwnerContext.ToString(), *EndpointClosedData.MessageId.ToString(), *DestEndpoint.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Endpoint closure '%s' sent to '%s'."), *OwnerContext.ToString(), *EndpointClosedData.MessageId.ToString(), *DestEndpoint.ToString());
 
 	if (!IsLogging())
 	{
@@ -258,7 +258,7 @@ void FConcertLogger::LogSendEndpointClosed(const FConcertEndpointClosedData& End
 
 void FConcertLogger::LogSendReliableHandshake(const FConcertReliableHandshakeData& ReliableHandshakeData, const FGuid& DestEndpoint, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Handshake sent to '%s' (state: %s, channel: %d, index: %d)."), 
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Handshake sent to '%s' (state: %s, channel: %d, index: %d)."), 
 		*OwnerContext.ToString(),
 		*DestEndpoint.ToString(), 
 		ConcertLoggerUtil::ReliableHandshakeStateToString(ReliableHandshakeData.HandshakeState),
@@ -290,7 +290,7 @@ void FConcertLogger::LogSendReliableHandshake(const FConcertReliableHandshakeDat
 
 void FConcertLogger::LogReceiveReliableHandshake(const FConcertReliableHandshakeData& ReliableHandshakeData, const FGuid& DestEndpoint, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Handshake received from '%s' (state: %s, channel: %d, index: %d)."), 
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Handshake received from '%s' (state: %s, channel: %d, index: %d)."), 
 		*OwnerContext.ToString(),
 		*ReliableHandshakeData.ConcertEndpointId.ToString(), 
 		ConcertLoggerUtil::ReliableHandshakeStateToString(ReliableHandshakeData.HandshakeState),
@@ -322,7 +322,7 @@ void FConcertLogger::LogReceiveReliableHandshake(const FConcertReliableHandshake
 
 void FConcertLogger::LogPublish(const TSharedRef<IConcertMessage>& Message)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s published."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message));
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s published."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message));
 
 	if (!IsLogging())
 	{
@@ -334,7 +334,7 @@ void FConcertLogger::LogPublish(const TSharedRef<IConcertMessage>& Message)
 
 void FConcertLogger::LogSend(const TSharedRef<IConcertMessage>& Message, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s sent to '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message), *DestEndpoint.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s sent to '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(Message), *DestEndpoint.ToString());
 
 	if (!IsLogging())
 	{
@@ -346,7 +346,7 @@ void FConcertLogger::LogSend(const TSharedRef<IConcertMessage>& Message, const F
 
 void FConcertLogger::LogMessageReceived(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s received from '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ConcertContext.SenderConcertEndpointId.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s received from '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ConcertContext.SenderConcertEndpointId.ToString());
 
 	if (!IsLogging())
 	{
@@ -358,7 +358,7 @@ void FConcertLogger::LogMessageReceived(const FConcertMessageContext& ConcertCon
 
 void FConcertLogger::LogMessageQueued(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s queued."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s queued."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
 
 	if (!IsLogging())
 	{
@@ -373,15 +373,15 @@ void FConcertLogger::LogMessageDiscarded(const FConcertMessageContext& ConcertCo
 	switch (Reason)
 	{
 	case EMessageDiscardedReason::NotRequired:
-		UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s discarded. Message was not required."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
+		UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s discarded. Message was not required."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
 		break;
 
 	case EMessageDiscardedReason::AlreadyProcessed:
-		UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Message %s discarded. Message was already processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
+		UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Message %s discarded. Message was already processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
 		break;
 
 	case EMessageDiscardedReason::UnknownEndpoint:
-		UE_LOG(LogConcert, Warning, TEXT("%s: Message %s discarded. Unknown remote endpoint '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ConcertContext.Message->ConcertEndpointId.ToString());
+		UE_LOG(LogConcertDebug, Warning, TEXT("%s: Message %s discarded. Unknown remote endpoint '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ConcertContext.Message->ConcertEndpointId.ToString());
 		break;
 
 	default:
@@ -399,7 +399,7 @@ void FConcertLogger::LogMessageDiscarded(const FConcertMessageContext& ConcertCo
 
 void FConcertLogger::LogProcessEvent(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Event %s processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Event %s processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
 
 	if (!IsLogging())
 	{
@@ -411,7 +411,7 @@ void FConcertLogger::LogProcessEvent(const FConcertMessageContext& ConcertContex
 
 void FConcertLogger::LogProcessRequest(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Request %s processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Request %s processed."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext));
 
 	if (!IsLogging())
 	{
@@ -424,7 +424,7 @@ void FConcertLogger::LogProcessRequest(const FConcertMessageContext& ConcertCont
 void FConcertLogger::LogProcessResponse(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint) 
 {
 	const FConcertResponseData* ResponseMessage = ConcertContext.GetMessage<FConcertResponseData>();
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Response %s processed for request '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ResponseMessage->RequestMessageId.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Response %s processed for request '%s'."), *OwnerContext.ToString(), *ConcertLoggerUtil::GetMessageString(ConcertContext), *ResponseMessage->RequestMessageId.ToString());
 
 	if (!IsLogging())
 	{
@@ -437,7 +437,7 @@ void FConcertLogger::LogProcessResponse(const FConcertMessageContext& ConcertCon
 void FConcertLogger::LogProcessAck(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
 	const FConcertAckData* AckMessage = ConcertContext.GetMessage<FConcertAckData>();
-	UE_LOG(LogConcert, VeryVerbose, TEXT("%s: Acknowledgement '%s' processed for message '%s'."), *OwnerContext.ToString(), *AckMessage->MessageId.ToString(), *AckMessage->SourceMessageId.ToString());
+	UE_LOG(LogConcertDebug, VeryVerbose, TEXT("%s: Acknowledgement '%s' processed for message '%s'."), *OwnerContext.ToString(), *AckMessage->MessageId.ToString(), *AckMessage->SourceMessageId.ToString());
 
 	if (!IsLogging())
 	{
@@ -449,7 +449,7 @@ void FConcertLogger::LogProcessAck(const FConcertMessageContext& ConcertContext,
 
 void FConcertLogger::LogRemoteEndpointDiscovery(const FConcertMessageContext& ConcertContext, const FGuid& DestEndpoint)
 {
-	UE_LOG(LogConcert, Display, TEXT("%s: Remote endpoint '%s' discovered."), *OwnerContext.ToString(), *ConcertContext.SenderConcertEndpointId.ToString());
+	UE_LOG(LogConcertDebug, Display, TEXT("%s: Remote endpoint '%s' discovered."), *OwnerContext.ToString(), *ConcertContext.SenderConcertEndpointId.ToString());
 
 	if (!IsLogging())
 	{
@@ -461,7 +461,7 @@ void FConcertLogger::LogRemoteEndpointDiscovery(const FConcertMessageContext& Co
 
 void FConcertLogger::LogRemoteEndpointTimeOut(const FGuid& EndpointId, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, Display, TEXT("%s: Remote endpoint '%s' timed-out."), *OwnerContext.ToString(), *EndpointId.ToString());
+	UE_LOG(LogConcertDebug, Display, TEXT("%s: Remote endpoint '%s' timed-out."), *OwnerContext.ToString(), *EndpointId.ToString());
 
 	if (!IsLogging())
 	{
@@ -487,7 +487,7 @@ void FConcertLogger::LogRemoteEndpointTimeOut(const FGuid& EndpointId, const FDa
 
 void FConcertLogger::LogRemoteEndpointClosure(const FGuid& EndpointId, const FDateTime& UtcNow)
 {
-	UE_LOG(LogConcert, Display, TEXT("%s: Remote endpoint '%s' closed by remote peer."), *OwnerContext.ToString(), *EndpointId.ToString());
+	UE_LOG(LogConcertDebug, Display, TEXT("%s: Remote endpoint '%s' closed by remote peer."), *OwnerContext.ToString(), *EndpointId.ToString());
 
 	if (!IsLogging())
 	{

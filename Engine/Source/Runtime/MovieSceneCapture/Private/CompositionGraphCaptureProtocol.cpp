@@ -32,6 +32,11 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 		CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
 		CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 
+		RestoreDumpHDR = CVarDumpFramesAsHDR->GetInt();
+		RestoreHDRCompressionQuality = CVarHDRCompressionQuality->GetInt();
+		RestoreDumpGamut = CVarDumpGamut->GetInt();
+		RestoreDumpDevice = CVarDumpDevice->GetInt();
+
 		if (CaptureGamut == HCGM_Linear)
 		{
 			CVarDumpGamut->Set(1);
@@ -41,11 +46,6 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 		{
 			CVarDumpGamut->Set(CaptureGamut);
 		}
-
-		RestoreDumpHDR = CVarDumpFramesAsHDR->GetInt();
-		RestoreHDRCompressionQuality = CVarHDRCompressionQuality->GetInt();
-		RestoreDumpGamut = CVarDumpGamut->GetInt();
-		RestoreDumpDevice = CVarDumpDevice->GetInt();
 
 		Disable();
 	}

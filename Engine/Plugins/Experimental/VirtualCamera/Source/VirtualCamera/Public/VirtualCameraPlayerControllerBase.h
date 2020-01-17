@@ -7,6 +7,7 @@
 #include "CineCameraActor.h"
 #include "ILiveLinkClient.h"
 #include "InputCore.h"
+#include "IVirtualCameraController.h"
 #include "LevelSequencePlaybackController.h"
 #include "Math/UnitConversion.h"
 #include "Misc/FrameNumber.h"
@@ -30,54 +31,8 @@ enum class ETrackerInputSource : uint8
 	LiveLink
 };
 
-UENUM(BlueprintType)
-enum class ETouchInputState : uint8
-{
-	/* Allows user to select an actor to always be in focus */
-	ActorFocusTargeting,
-
-	/* Allows user to select a point on the screen to auto-focus through */
-	AutoFocusTargeting,
-
-	/* Allows the touch input to be handled in the blueprint event. This should be the default */
-	BlueprintDefined,
-
-	/* Allows for the user to focus on target on touch without exiting manual focus */
-	ManualTouchFocus,
-
-	/* Touch support for scrubbing through a sequence */
-	Scrubbing,
-
-	/* Touch and hold for attach targeting */
-	TouchAndHold,
-};
-
-USTRUCT(BlueprintType)
-struct FTrackingOffset
-{
-public:
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Settings")
-	FVector Translation;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Settings")
-	FRotator Rotation;
-	
-	FTransform AsTransform() const
-	{
-		return FTransform(Rotation, Translation);
-	}
-	
-	FTrackingOffset()
-		: Translation(EForceInit::ForceInitToZero), Rotation(EForceInit::ForceInitToZero)
-	{
-		
-	};
-};
-
 UCLASS(Abstract)
-class VIRTUALCAMERA_API AVirtualCameraPlayerControllerBase : public APlayerController
+class VIRTUALCAMERA_API AVirtualCameraPlayerControllerBase : public APlayerController, public IVirtualCameraController
 {
 	GENERATED_UCLASS_BODY()
 
@@ -492,8 +447,8 @@ public:
 	FFrameRate GetCurrentSequenceFrameRate();
 
 	/**
-	 * Set the matte aspect ratio to a new value.
-	 * @return DesiredUnits - The new unit to use for distance measures like focus distance
+	 * Returns previously set unit of distance.
+	 * @return DesiredUnits - The unit that is used for distance measures like focus distance
 	 */
 	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Settings")
 	EUnit GetDesiredDistanceUnits();
@@ -777,7 +732,7 @@ public:
 	void SetCurrentFocusDistance(const float NewFocusDistance);
 
 	/**
-	 * Set the matte aspect ratio to a new value.
+	 * Sets unit of distance.
 	 * @param DesiredUnits - The new unit to use for distance measures like focus distance
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Camera|Settings")
@@ -948,4 +903,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Camera")
 	void ActivateGameViewport();
+
+private:
+	//~ Begin IVirtualCameraController Interface
+	virtual UCineCameraComponent* GetStreamedCameraComponent_Implementation() const override;
+	virtual UCineCameraComponent* GetRecordingCameraComponent_Implementation() const override;
+	virtual ULevelSequencePlaybackController* GetSequenceController_Implementation() const override;
+	virtual TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer_Implementation() const override;
+	virtual TScriptInterface<IVirtualCameraOptions> GetOptions_Implementation() const override;
+	//~ End  IVirtualCameraController Interface
 };

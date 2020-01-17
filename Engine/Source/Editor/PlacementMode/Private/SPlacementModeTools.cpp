@@ -298,7 +298,10 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 	bNeedsUpdate = true;
 
 	FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
-	PlacementEditMode->AddValidFocusTargetForPlacement( SharedThis( this ) );
+	if (PlacementEditMode)
+	{
+		PlacementEditMode->AddValidFocusTargetForPlacement(SharedThis(this));
+	}
 
 	SearchTextFilter = MakeShareable(new FPlacementAssetEntryTextFilter(
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)

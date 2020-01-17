@@ -37,13 +37,13 @@ bool HasParameter(int32 Argc, TCHAR* Argv[], const FString& InParam)
 
 int32 Main(int32 Argc, TCHAR * Argv[])
 {
-	FString ServerPID, ServerPort, CacheDirectory, KernelIOPath;
+	FString ServerPID, ServerPort, CacheDirectory, EnginePluginsPath;
 	GetParameter(Argc, Argv, "-ServerPID", ServerPID);
 	GetParameter(Argc, Argv, "-ServerPort", ServerPort);
 	GetParameter(Argc, Argv, "-CacheDir", CacheDirectory);
-	GetParameter(Argc, Argv, "-KernelIOPath", KernelIOPath);
+	GetParameter(Argc, Argv, "-EnginePluginsDir", EnginePluginsPath);
 
-	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), KernelIOPath, CacheDirectory);
+	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), EnginePluginsPath, CacheDirectory);
 	Worker.Run();
 
 	return 0;

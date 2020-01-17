@@ -11,7 +11,7 @@
 #include "MaterialBakingStructures.h"
 #include "MaterialOptions.h"
 #include "MaterialOptionsCustomization.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "SMaterialOptions"
 
@@ -82,7 +82,8 @@ FReply SMaterialOptions::OnConfirm()
 	// Ensure the user has selected at least one LOD index
 	if (GetMutableDefault<UMaterialOptions>()->LODIndices.Num() == 0)
 	{
-		OpenMsgDlgInt(EAppMsgType::Ok, LOCTEXT("MaterialBake_SelectLODError", "Ensure that atleast one LOD index is selected."), LOCTEXT("MaterialBake_SelectLODErrorTitle", "Invalid options"));
+		FText Title = LOCTEXT("MaterialBake_SelectLODErrorTitle", "Invalid options");
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MaterialBake_SelectLODError", "Ensure that atleast one LOD index is selected."), &Title);
 	}
 	else
 	{

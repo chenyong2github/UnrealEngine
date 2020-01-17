@@ -30,7 +30,7 @@ public:
 	EUVProjectionMethod ProjectionMethod;
 	float CylinderProjectToTopOrBottomAngleThreshold;
 	FTransform ProjectionTransform;
-	FVector2D UVScale, UVOffset;
+	FVector2f UVScale, UVOffset;
 	bool bWorldSpaceUVScale;
 
 	void SetTransform(const FTransform& Transform);

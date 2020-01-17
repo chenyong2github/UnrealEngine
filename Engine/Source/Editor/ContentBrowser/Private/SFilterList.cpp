@@ -109,6 +109,7 @@ class SFilter : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam( FOnRequestRemove, const TSharedRef<SFilter>& /*FilterToRemove*/ );
+	DECLARE_DELEGATE_OneParam( FOnRequestRemoveAllButThis, const TSharedRef<SFilter>& /*FilterToKeep*/ );
 	DECLARE_DELEGATE_OneParam( FOnRequestEnableOnly, const TSharedRef<SFilter>& /*FilterToEnable*/ );
 	DECLARE_DELEGATE( FOnRequestEnableAll );
 	DECLARE_DELEGATE( FOnRequestDisableAll );
@@ -140,6 +141,9 @@ public:
 		/** Invoked when a request to remove all filters originated from within this filter */
 		SLATE_EVENT( FOnRequestRemoveAll, OnRequestRemoveAll )
 
+		/** Invoked when a request to remove all filters originated from within this filter */
+		SLATE_EVENT( FOnRequestRemoveAllButThis, OnRequestRemoveAllButThis )
+
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
@@ -153,6 +157,7 @@ public:
 		OnRequestEnableAll = InArgs._OnRequestEnableAll;
 		OnRequestDisableAll = InArgs._OnRequestDisableAll;
 		OnRequestRemoveAll = InArgs._OnRequestRemoveAll;
+		OnRequestRemoveAllButThis = InArgs._OnRequestRemoveAllButThis;
 		FrontendFilter = InArgs._FrontendFilter;
 
 		// Get the tooltip and color of the type represented by this filter
@@ -304,7 +309,7 @@ private:
 				);
 
 			MenuBuilder.AddMenuEntry(
-				FText::Format( LOCTEXT("EnableOnlyThisFilter", "Enable this only: {0}"), GetFilterName() ),
+				FText::Format( LOCTEXT("EnableOnlyThisFilter", "Enable Only This: {0}"), GetFilterName() ),
 				LOCTEXT("EnableOnlyThisFilterTooltip", "Enable only this filter from the list."),
 				FSlateIcon(),
 				FUIAction( FExecuteAction::CreateSP(this, &SFilter::EnableOnly) )
@@ -335,6 +340,13 @@ private:
 				FSlateIcon(),
 				FUIAction( FExecuteAction::CreateSP(this, &SFilter::RemoveAllFilters) )
 				);
+
+			MenuBuilder.AddMenuEntry(
+				FText::Format( LOCTEXT("RemoveAllButThisFilter", "Remove All But This: {0}"), GetFilterName() ),
+				LOCTEXT("RemoveAllButThisFilterTooltip", "Remove all other filters except this one from the list."),
+				FSlateIcon(),
+				FUIAction( FExecuteAction::CreateSP(this, &SFilter::RemoveAllButThis) )
+				);
 		}
 		MenuBuilder.EndSection();
 
@@ -351,6 +363,13 @@ private:
 	{
 		TSharedRef<SFilter> Self = SharedThis(this);
 		OnRequestRemove.ExecuteIfBound( Self );
+	}
+
+	/** Remove all but this filter from the filter list. */
+	void RemoveAllButThis()
+	{
+		TSharedRef<SFilter> Self = SharedThis(this);
+		OnRequestRemoveAllButThis.ExecuteIfBound(Self);
 	}
 
 	/** Enables only this filter from the filter list */
@@ -443,6 +462,9 @@ private:
 
 	/** Invoked when a request to remove all filters originated from within this filter */
 	FOnRequestDisableAll OnRequestRemoveAll;
+
+	/** Invoked when a request to remove all filters except this one originated from within this filter */
+	FOnRequestRemoveAllButThis OnRequestRemoveAllButThis;
 
 	/** true when this filter should be applied to the search */
 	bool bEnabled;
@@ -683,6 +705,29 @@ void SFilterList::RemoveAllFilters()
 		// Notify that a filter has changed
 		OnFilterChanged.ExecuteIfBound();
 	}
+}
+
+void SFilterList::RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep)
+{
+	for (const TSharedRef<SFilter>& Filter : Filters)
+	{
+		if (Filter == FilterToKeep)
+		{
+			continue;
+		}
+
+		if (const TSharedPtr<FFrontendFilter>& FrontendFilter = Filter->GetFrontendFilter())
+		{
+			SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false);
+		}
+	}
+
+	FilterBox->ClearChildren();
+	Filters.Empty();
+
+	AddFilter(FilterToKeep);
+
+	OnFilterChanged.ExecuteIfBound();
 }
 
 void SFilterList::DisableFiltersThatHideAssets(const TArray<FAssetData>& AssetDataList)
@@ -952,7 +997,8 @@ TSharedRef<SFilter> SFilterList::AddFilter(const TWeakPtr<IAssetTypeActions>& As
 		.OnRequestEnableOnly(this, &SFilterList::EnableOnlyThisFilter)
 		.OnRequestEnableAll(this, &SFilterList::EnableAllFilters)
 		.OnRequestDisableAll(this, &SFilterList::DisableAllFilters)
-		.OnRequestRemoveAll(this, &SFilterList::RemoveAllFilters);
+		.OnRequestRemoveAll(this, &SFilterList::RemoveAllFilters)
+		.OnRequestRemoveAllButThis(this, &SFilterList::RemoveAllButThis);
 
 	AddFilter( NewFilter );
 
@@ -968,7 +1014,8 @@ TSharedRef<SFilter> SFilterList::AddFilter(const TSharedRef<FFrontendFilter>& Fr
 		.OnRequestRemove(this, &SFilterList::RemoveFilterAndUpdate)
 		.OnRequestEnableAll(this, &SFilterList::EnableAllFilters)
 		.OnRequestDisableAll(this, &SFilterList::DisableAllFilters)
-		.OnRequestRemoveAll(this, &SFilterList::RemoveAllFilters);
+		.OnRequestRemoveAll(this, &SFilterList::RemoveAllFilters)
+		.OnRequestRemoveAllButThis(this, &SFilterList::RemoveAllButThis);
 
 	AddFilter( NewFilter );
 

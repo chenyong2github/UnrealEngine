@@ -314,7 +314,9 @@ static bool ConfirmPackageBranchCheckOutStatus(const TArray<UPackage*>& Packages
 			const FText Message = SourceControlState->IsModifiedInOtherBranch() ? FText::Format(LOCTEXT("WarningModifiedOtherBranch", "WARNING: Package {3} modified in {0} CL {1}\n\n{2}\n\nCheck out packages anyway?"), FText::FromString(HeadBranch), FText::AsNumber(HeadCL, &NoCommas), InfoText, PackageNameText)
 				: FText::Format(LOCTEXT("WarningCheckedOutOtherBranch", "WARNING: Package {2} checked out in {0}\n\n{1}\n\nCheck out packages anyway?"), FText::FromString(SourceControlState->GetOtherUserBranchCheckedOuts()), InfoText, PackageNameText);
 
-			return OpenMsgDlgInt(EAppMsgType::YesNo, Message, SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts")) == EAppReturnType::Yes;
+			const FText Title = SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts");
+
+			return FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes;
 		}
 	}
 
@@ -560,6 +562,8 @@ static bool SaveWorld(UWorld* World,
 		FinalFilename = LOCTEXT("FilenameUnavailableNotDirty", "Filename Not available. Package not dirty.").ToString();
 		return false;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(SaveWorld);
 
 	FString PackageName = Package->GetName();
 
@@ -1712,8 +1716,8 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 					FText MessageFormatting = NSLOCTEXT("FileHelper", "FailedMakingWritableDlgMessageFormatting", "The following assets could not be made writable:{Packages}");
 					FText Message = FText::Format( MessageFormatting, Arguments );
 
-					FText Tile = NSLOCTEXT("FileHelper", "FailedMakingWritableDlg_Title", "Unable to make assets writable");
-					FMessageDialog::Open(EAppMsgType::Ok, Message, &Tile);
+					FText Title = NSLOCTEXT("FileHelper", "FailedMakingWritableDlg_Title", "Unable to make assets writable");
+					FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 				}
 
 				bPerformedOperation = true;
@@ -1855,8 +1859,8 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from source control:{Packages}");
 		FText Message = FText::Format( MessageFormat, Arguments );
 
-		FText Tile = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Tile);
+		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 	}
 
 	return CheckOutResult;
@@ -2799,6 +2803,8 @@ enum class InternalSavePackageResult : int8
  */
 static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bool bUseDialog, bool& bOutPackageLocallyWritable, FOutputDevice &SaveOutput)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackage);
+
 	// What we will be returning. Assume for now that everything will go fine
 	InternalSavePackageResult ReturnCode = InternalSavePackageResult::Success;
 
@@ -3148,6 +3154,8 @@ static void InternalNotifyNoPackagesSaved(const bool bUseDialog)
  */
 static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bool bUseDialog, TArray<UPackage*>& OutFailedPackages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackagesFast);
+
 	bool bReturnCode = true;
 
 	FSaveErrorOutputDevice SaveErrors;
@@ -3346,6 +3354,8 @@ bool FEditorFileUtils::SaveLevel(ULevel* Level, const FString& DefaultFilename, 
 
 bool FEditorFileUtils::SaveDirtyPackages(const bool bPromptUserToSave, const bool bSaveMapPackages, const bool bSaveContentPackages, const bool bFastSave, const bool bNotifyNoPackagesSaved, const bool bCanBeDeclined, bool* bOutPackagesNeededSaving )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils::SaveDirtyPackages);
+
 	bool bReturnCode = true;
 
 	if (bOutPackagesNeededSaving != NULL)

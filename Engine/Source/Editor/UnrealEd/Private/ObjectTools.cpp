@@ -662,9 +662,10 @@ namespace ObjectTools
 				Arguments.Add(TEXT("Objects"), FText::FromString( RootSetObjectNames ));
 				FText MessageFormatting = NSLOCTEXT("ObjectTools", "ConsolidateAssetsRootSetDlgMsgFormatting", "The assets below were in the root set and we must remove that flag in order to proceed.  Being in the root set means that this was loaded at startup and is meant to remain in memory during gameplay.  For most assets this should be fine.  If, for some reason, there is an error, you will be notified.  Would you like to remove this flag?\n\n{Objects}");
 				FText Message = FText::Format( MessageFormatting, Arguments );
+				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsRootSetDlg_Title", "Failed to Consolidate Assets");
 
 				// Prompt the user to see if they'd like to remove the root set flag from the assets and attempt to replace them
-				EAppReturnType::Type UserResponse = OpenMsgDlgInt( EAppMsgType::YesNo, EAppReturnType::No, Message, NSLOCTEXT("ObjectTools", "ConsolidateAssetsRootSetDlg_Title", "Failed to Consolidate Assets") );
+				EAppReturnType::Type UserResponse = FMessageDialog::Open( EAppMsgType::YesNo, EAppReturnType::No, Message, &Title );
 
 				// The user elected to not remove the root set flag, so cancel the replacement
 				if (UserResponse == EAppReturnType::No )
@@ -1277,8 +1278,9 @@ namespace ObjectTools
 				Arguments.Add(TEXT("Objects"), FText::FromString( FailedObjectNames ));
 				FText MessageFormatting = NSLOCTEXT("ObjectTools", "ConsolidateAssetsFailureDlgMFormattings", "The assets below were unable to be consolidated. This is likely because they are referenced by the object to consolidate to.\n\n{Objects}");
 				FText Message = FText::Format( MessageFormatting, Arguments );
+				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsFailureDlg_Title", "Failed to Consolidate Assets");
 
-				OpenMsgDlgInt( EAppMsgType::Ok, Message, NSLOCTEXT("ObjectTools", "ConsolidateAssetsFailureDlg_Title", "Failed to Consolidate Assets") );
+				FMessageDialog::Open( EAppMsgType::Ok, Message, &Title );
 			}
 
 			// Alert the user to critical object failure
@@ -1303,8 +1305,9 @@ namespace ObjectTools
 				Arguments.Add(TEXT("Packages"), FText::FromString( DirtiedPackageNames ));
 				FText MessageFormatting = NSLOCTEXT("ObjectTools", "ConsolidateAssetsCriticalFailureDlgMsgFormatting", "CRITICAL FAILURE:\nOne or more assets were partially consolidated, yet still cannot be deleted for some reason. It is highly recommended that you restart the editor without saving any of the assets or packages.\n\nAffected Assets:\n{Assets}\n\nPotentially Affected Packages:\n{Packages}");
 				FText Message = FText::Format( MessageFormatting, Arguments );
+				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsCriticalFailureDlg_Title", "Critical Failure to Consolidate Assets");
 
-				OpenMsgDlgInt( EAppMsgType::Ok, Message, NSLOCTEXT("ObjectTools", "ConsolidateAssetsCriticalFailureDlg_Title", "Critical Failure to Consolidate Assets") );
+				FMessageDialog::Open( EAppMsgType::Ok, Message, &Title );
 			}
 		}
 
@@ -2150,10 +2153,11 @@ namespace ObjectTools
 
 		if (ContainsWorldInUse(ObjectsToDelete))
 		{
-			OpenMsgDlgInt(
+			FText Title = NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUseTitle", "Unable to delete level");
+			FMessageDialog::Open(
 				EAppMsgType::Ok,
 				NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUse", "Unable to delete level while it is open"),
-				NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUseTitle", "Unable to delete level")
+				&Title
 			);
 
 			return 0;
@@ -2831,17 +2835,20 @@ namespace ObjectTools
 			}
 		}
 
+		TArray<UClass*> DeletedObjectClasses;
 		TArray<UPackage*> PotentialPackagesToDelete;
 		for(TWeakObjectPtr<UObject>& Object : ObjectsToDelete)
 		{
 			if(Object.IsValid())
 			{
+				DeletedObjectClasses.AddUnique(Object->GetClass());
 				PotentialPackagesToDelete.AddUnique(Object->GetOutermost());
 			}
 		}
 
 		if (PotentialPackagesToDelete.Num() > 0)
 		{
+			FEditorDelegates::OnAssetsDeleted.Broadcast(DeletedObjectClasses);
 			CleanupAfterSuccessfulDelete(PotentialPackagesToDelete);
 		}
 		ObjectsToDelete.Empty();
@@ -3317,6 +3324,11 @@ namespace ObjectTools
 					if (Object->GetOutermost()->HasAnyPackageFlags(PKG_DisallowExport))
 					{
 						NewPackage->SetPackageFlags(PKG_DisallowExport);
+					}
+
+					if (Object->GetOutermost()->WorldTileInfo.IsValid())
+					{
+						NewPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
 					}
 
 					UObjectRedirector* Redirector = Cast<UObjectRedirector>( StaticFindObject(UObjectRedirector::StaticClass(), NewPackage, *NewObjectName) );
@@ -4628,6 +4640,8 @@ namespace ThumbnailTools
 	/** Loads thumbnails for the specified objects (or copies them from a cache, if they're already loaded.) */
 	bool ConditionallyLoadThumbnailsForObjects( const TArray< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConditionallyLoadThumbnailsForObjects);
+
 		// Create a list of unique package file names that we'll need to interrogate
 		struct FObjectFullNamesForPackage
 		{

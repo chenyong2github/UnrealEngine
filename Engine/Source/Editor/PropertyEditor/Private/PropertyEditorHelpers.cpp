@@ -82,7 +82,7 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 
 	if ( !ValueEditorWidget->GetToolTip().IsValid() )
 	{
-		ValueEditorWidget->SetToolTipText( PropertyEditor->GetToolTipText() );
+		ValueEditorWidget->SetToolTipText(TAttribute<FText>(PropertyEditor.ToSharedRef(), &FPropertyEditor::GetValueAsText));
 	}
 
 
@@ -334,7 +334,6 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 			.Font( FontStyle );
 
 		BasePropertyEditorWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
-
 	}
 
 	return PropertyWidget.ToSharedRef();
@@ -345,43 +344,43 @@ void SEditConditionWidget::Construct( const FArguments& Args, TSharedPtr<FProper
 	PropertyEditor = InPropertyEditor;
 	CustomEditCondition = Args._CustomEditCondition;
 
-	SetVisibility( HasEditCondition() ? EVisibility::Visible : EVisibility::Collapsed );
+	SetVisibility(HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed);
 
 	ChildSlot
 	[
 		// Some properties become irrelevant depending on the value of other properties.
 		// We prevent the user from editing those properties by disabling their widgets.
 		// This is a shortcut for toggling the property that disables us.
-		SNew( SCheckBox )
-			.OnCheckStateChanged( this, &SEditConditionWidget::OnEditConditionCheckChanged )
-			.IsChecked( this, &SEditConditionWidget::OnGetEditConditionCheckState )
+		SNew(SCheckBox)
+		.OnCheckStateChanged(this, &SEditConditionWidget::OnEditConditionCheckChanged)
+		.IsChecked(this, &SEditConditionWidget::OnGetEditConditionCheckState)
 	];
 }
 
-bool SEditConditionWidget::HasEditCondition() const
-{	
-	return
-			( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle() )
-		||	( CustomEditCondition.OnEditConditionValueChanged.IsBound() );
+bool SEditConditionWidget::HasEditConditionToggle() const
+{
+	return (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle())
+		|| (CustomEditCondition.OnEditConditionValueChanged.IsBound());
 }
 
 void SEditConditionWidget::OnEditConditionCheckChanged( ECheckBoxState CheckState )
 {
 	FScopedTransaction EditConditionChangedTransaction(FText::Format(LOCTEXT("UpdatedEditConditionFmt", "{0} Edit Condition Changed"), PropertyEditor->GetDisplayName()));
 
-	if( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle() )
+	if (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle())
 	{
 		PropertyEditor->ToggleEditConditionState();
 	}
 	else
 	{
-		CustomEditCondition.OnEditConditionValueChanged.ExecuteIfBound( CheckState == ECheckBoxState::Checked );
+		CustomEditCondition.OnEditConditionValueChanged.ExecuteIfBound(CheckState == ECheckBoxState::Checked);
 	}
 }
 
 ECheckBoxState SEditConditionWidget::OnGetEditConditionCheckState() const
 {
-	bool bEditConditionMet = ( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->IsEditConditionMet() ) || CustomEditCondition.EditConditionValue.Get();
+	bool bEditConditionMet = (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->IsEditConditionMet())
+		|| CustomEditCondition.EditConditionValue.Get();
 	return bEditConditionMet ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 

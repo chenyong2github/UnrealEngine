@@ -5,10 +5,10 @@
 #include "DatasmithActorImporter.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
 #include "UI/DatasmithImportOptionsWindow.h"
 #include "Utility/DatasmithImporterUtils.h"
-#include "Translators/DatasmithTranslator.h"
 
 #include "Misc/FeedbackContext.h"
 #include "PackageTools.h"
@@ -136,7 +136,7 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	, bUserCancelled(false)
 	, bIsAReimport(false)
 	, bImportedViaScript(false)
-	, Warn(nullptr)
+	, FeedbackContext(nullptr)
 	, AssetsContext(*this)
 	, ContextExtension(nullptr)
 	, Logger(LoggerName, LoggerLabel)
@@ -303,7 +303,7 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 		}
 	}
 
-	Warn = InWarn;
+	FeedbackContext = InWarn;
 	Scene = InScene;
 
 	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.

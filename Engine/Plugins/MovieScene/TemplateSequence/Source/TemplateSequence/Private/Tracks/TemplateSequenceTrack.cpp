@@ -44,6 +44,16 @@ void UTemplateSequenceTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, c
 	// Make sure out evaluation template runs before the spawn tracks because it will have to setup the overrides.
 	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
 	OutTrack.SetEvaluationPriority(GetEvaluationPriority());
+
+	// Cache our parent binding ID onto our templates.
+	for (FMovieSceneEvalTemplatePtr& BaseTemplate : OutTrack.GetChildTemplates())
+	{
+		if (BaseTemplate.IsValid())
+		{
+			FTemplateSequenceSectionTemplate* Template = static_cast<FTemplateSequenceSectionTemplate*>(BaseTemplate.GetPtr());
+			Template->OuterBindingId = Args.ObjectBindingId;
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA

@@ -7,7 +7,7 @@
 #include "DatasmithImporter.h"
 #include "DatasmithScene.h"
 
-#include "DataPrepContentConsumer.h"
+#include "DataprepContentConsumer.h"
 
 #include "UObject/SoftObjectPath.h"
 

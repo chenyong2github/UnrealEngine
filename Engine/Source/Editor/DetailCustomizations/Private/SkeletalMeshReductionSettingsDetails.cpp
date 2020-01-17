@@ -88,8 +88,7 @@ void FSkeletalMeshReductionSettingsDetails::CustomizeChildren(TSharedRef<IProper
 		// Only able to do this for LOD1 and above, so only show the property if this is the case
 		if (LODIndex > 0)
 		{
-			const FSkeletalMeshModel* ImportedModel = SkeletalMesh != nullptr ? SkeletalMesh->GetImportedModel() : nullptr;
-			bool AllowInline = ImportedModel != nullptr && ImportedModel->LODModels.IsValidIndex(LODIndex) && !ImportedModel->LODModels[LODIndex].RawSkeletalMeshBulkData.IsEmpty();
+			bool AllowInline = !SkeletalMesh->IsLODImportedDataEmpty(LODIndex);
 			// Add and retrieve the default widgets
 			IDetailPropertyRow& Row = StructBuilder.AddProperty(BaseLODPropertyHandle->AsShared());
 

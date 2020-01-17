@@ -15,14 +15,16 @@ DEFINE_LOG_CATEGORY(LogImageWriteQueue);
 
 static TAutoConsoleVariable<int32> CVarImageWriteQueueMaxConcurrency(
 	TEXT("ImageWriteQueue.MaxConcurrency"),
-	6,
-	TEXT("The maximum number of aysnc image writes allowable at any given time."),
+	-1,
+	TEXT("The maximum number of async image writes allowable at any given time.")
+	TEXT("Default is to use the number of cores available."),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarImageWriteQueueMaxQueueSize(
 	TEXT("ImageWriteQueue.MaxQueueSize"),
-	25,
-	TEXT("The maximum number of queued image write tasks allowable before the queue will block when adding more."),
+	-1,
+	TEXT("The maximum number of queued image write tasks allowable before the queue will block when adding more.")
+	TEXT("Default is to use 4 times the number of cores available or 16 when multithreading is disabled on the command line."),
 	ECVF_Default);
 
 /**
@@ -227,7 +229,8 @@ FImageWriteQueue::~FImageWriteQueue()
 void FImageWriteQueue::OnCVarsChanged()
 {
 	RecreateThreadPool();
-	MaxQueueSize = CVarImageWriteQueueMaxQueueSize.GetValueOnAnyThread();
+	const int32 ConfiguredMaxQueueSize = CVarImageWriteQueueMaxQueueSize.GetValueOnAnyThread();
+	MaxQueueSize = ConfiguredMaxQueueSize == -1 ? (ThreadPool ? ThreadPool->GetNumThreads() * 4 : 16) : ConfiguredMaxQueueSize;
 }
 
 void FImageWriteQueue::RecreateThreadPool()
@@ -240,7 +243,8 @@ void FImageWriteQueue::RecreateThreadPool()
 	// Prevent any other tasks being dispatched
 	FScopeLock ScopeLock(&ThreadPoolMutex);
 
-	const int32 MaxConcurrency = CVarImageWriteQueueMaxConcurrency.GetValueOnAnyThread();
+	const int32 ConfiguredMaxConcurrency = CVarImageWriteQueueMaxConcurrency.GetValueOnAnyThread();
+	const int32 MaxConcurrency = ConfiguredMaxConcurrency == -1 ? FPlatformMisc::NumberOfCores() : ConfiguredMaxConcurrency;
 	if (ThreadPool && MaxConcurrency != ThreadPool->GetNumThreads())
 	{
 		CreateFence().Wait();
@@ -394,6 +398,7 @@ TFuture<bool> FImageWriteQueue::Enqueue(TUniquePtr<IImageWriteTaskBase>&& InTask
 	{
 		while (NumPendingTasks >= MaxQueueSize)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FImageWriteQueue::EnqueueWait)
 			OnTaskCompletedEvent->Wait();
 		}
 	}
@@ -416,7 +421,7 @@ TFuture<bool> FImageWriteQueue::Enqueue(TUniquePtr<IImageWriteTaskBase>&& InTask
 
 	FQueuedImageWrite* NewTask = new FQueuedImageWrite(ThisTaskFenceID, this, MoveTemp(InTask), MoveTemp(Promise));
 
-	// The thread pool will be nullptr where the platform does not support multithreding,
+	// The thread pool will be nullptr where the platform does not support multi-threading,
 	// If so, dispatch and execute the task immediately
 	if (!ThreadPool)
 	{

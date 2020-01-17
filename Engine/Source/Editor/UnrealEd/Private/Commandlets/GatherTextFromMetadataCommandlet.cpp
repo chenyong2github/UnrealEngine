@@ -2,6 +2,7 @@
 
 #include "Commandlets/GatherTextFromMetadataCommandlet.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -107,6 +108,96 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 		ShouldGatherFromEditorOnlyData = false;
 	}
 
+	// FieldTypesToInclude/FieldTypesToExclude
+	{
+		auto GetFieldTypesArrayFromConfig = [this, &SectionName, &GatherTextConfigPath](const TCHAR* InConfigKey, TArray<const UClass*>& OutFieldTypes)
+		{
+			TArray<FString> FieldTypeStrs;
+			GetStringArrayFromConfig(*SectionName, InConfigKey, FieldTypeStrs, GatherTextConfigPath);
+
+			TArray<const UClass*> AllFieldTypes;
+			AllFieldTypes.Add(UField::StaticClass());
+			GetDerivedClasses(UField::StaticClass(), (TArray<UClass*>&)AllFieldTypes);
+
+			for (const FString& FieldTypeStr : FieldTypeStrs)
+			{
+				const bool bIsWildcard = FieldTypeStr.GetCharArray().Contains(TEXT('*')) || FieldTypeStr.GetCharArray().Contains(TEXT('?'));
+				if (bIsWildcard)
+				{
+					for (const UClass* FieldType : AllFieldTypes)
+					{
+						if (FieldType->GetName().MatchesWildcard(FieldTypeStr))
+						{
+							OutFieldTypes.Add(FieldType);
+						}
+					}
+				}
+				else
+				{
+					const UClass* FieldType = FindObject<UClass>(ANY_PACKAGE, *FieldTypeStr);
+					if (!FieldType)
+					{
+						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldTypeStr, InConfigKey, *SectionName);
+						continue;
+					}
+
+					check(FieldType->IsChildOf<UField>());
+					OutFieldTypes.Add(FieldType);
+					GetDerivedClasses(FieldType, (TArray<UClass*>&)OutFieldTypes);
+				}
+			}
+		};
+
+		GetFieldTypesArrayFromConfig(TEXT("FieldTypesToInclude"), FieldTypesToInclude);
+		GetFieldTypesArrayFromConfig(TEXT("FieldTypesToExclude"), FieldTypesToExclude);
+	}
+
+	// FieldOwnerTypesToInclude/FieldOwnerTypesToExclude
+	{
+		auto GetFieldOwnerTypesArrayFromConfig = [this, &SectionName, &GatherTextConfigPath](const TCHAR* InConfigKey, TArray<const UStruct*>& OutFieldOwnerTypes)
+		{
+			TArray<FString> FieldOwnerTypeStrs;
+			GetStringArrayFromConfig(*SectionName, InConfigKey, FieldOwnerTypeStrs, GatherTextConfigPath);
+
+			TArray<const UStruct*> AllFieldOwnerTypes;
+			GetObjectsOfClass(UClass::StaticClass(), (TArray<UObject*>&)AllFieldOwnerTypes, false);
+			GetObjectsOfClass(UScriptStruct::StaticClass(), (TArray<UObject*>&)AllFieldOwnerTypes, false);
+
+			for (const FString& FieldOwnerTypeStr : FieldOwnerTypeStrs)
+			{
+				const bool bIsWildcard = FieldOwnerTypeStr.GetCharArray().Contains(TEXT('*')) || FieldOwnerTypeStr.GetCharArray().Contains(TEXT('?'));
+				if (bIsWildcard)
+				{
+					for (const UStruct* FieldOwnerType : AllFieldOwnerTypes)
+					{
+						if (FieldOwnerType->GetName().MatchesWildcard(FieldOwnerTypeStr))
+						{
+							OutFieldOwnerTypes.Add(FieldOwnerType);
+						}
+					}
+				}
+				else
+				{
+					const UStruct* FieldOwnerType = FindObject<UStruct>(ANY_PACKAGE, *FieldOwnerTypeStr);
+					if (!FieldOwnerType)
+					{
+						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Owner Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldOwnerTypeStr, InConfigKey, *SectionName);
+						continue;
+					}
+
+					OutFieldOwnerTypes.Add(FieldOwnerType);
+					if (const UClass* FieldOwnerClass = Cast<UClass>(FieldOwnerType))
+					{
+						GetDerivedClasses(FieldOwnerClass, (TArray<UClass*>&)OutFieldOwnerTypes);
+					}
+				}
+			}
+		};
+
+		GetFieldOwnerTypesArrayFromConfig(TEXT("FieldOwnerTypesToInclude"), FieldOwnerTypesToInclude);
+		GetFieldOwnerTypesArrayFromConfig(TEXT("FieldOwnerTypesToExclude"), FieldOwnerTypesToExclude);
+	}
+
 	FGatherParameters Arguments;
 	GetStringArrayFromConfig(*SectionName, TEXT("InputKeys"), Arguments.InputKeys, GatherTextConfigPath);
 	GetStringArrayFromConfig(*SectionName, TEXT("OutputNamespaces"), Arguments.OutputNamespaces, GatherTextConfigPath);
@@ -143,7 +234,13 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObjects(const TArray<FStr
 
 	for(TObjectIterator<UField> It; It; ++It)
 	{
-		FString SourceFilePath;		
+		// Skip fields excluded by our filter
+		if (!ShouldGatherFromField(*It))
+		{
+			continue;
+		}
+
+		FString SourceFilePath;
 		FSourceCodeNavigation::FindClassHeaderPath(*It, SourceFilePath);
 		SourceFilePath = FPaths::ConvertRelativePathToFull(SourceFilePath);
 		check(!SourceFilePath.IsEmpty());
@@ -190,11 +287,12 @@ void GatherTextFromFieldImplementation(TFieldType* const Field, const UGatherTex
 			{
 				PatternArguments.Add(TEXT("MetaDataValue"), FText::FromString(MetaDataValue));
 
+				const UStruct* FieldOwnerType = Field->GetOwnerStruct();
 				const FString Namespace = Arguments.OutputNamespaces[i];
 				FLocItem LocItem(MetaDataValue);
 				FManifestContext Context;
 				Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
-				Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true));
+				Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s (type: %s, owner: %s)"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true), *Field->GetClass()->GetName(), FieldOwnerType ? *FieldOwnerType->GetName() : TEXT("<null>"));
 				Context.PlatformName = InPlatformName;
 				GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
 			}
@@ -253,6 +351,41 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObject(UField* const Fiel
 			}
 		}
 	}
+}
+
+bool UGatherTextFromMetaDataCommandlet::ShouldGatherFromField(const UField* Field)
+{
+	auto ShouldGatherFieldByType = [this, Field]()
+	{
+		if (FieldTypesToInclude.Num() == 0 && FieldTypesToExclude.Num() == 0)
+		{
+			return true;
+		}
+
+		const UClass* FieldClass = Field->GetClass();
+		return (FieldTypesToInclude.Num() == 0 || FieldTypesToInclude.Contains(FieldClass))
+			&& (FieldTypesToExclude.Num() == 0 || !FieldTypesToExclude.Contains(FieldClass));
+	};
+
+	auto ShouldGatherFieldByOwnerType = [this, Field]()
+	{
+		if (FieldOwnerTypesToInclude.Num() == 0 && FieldOwnerTypesToExclude.Num() == 0)
+		{
+			return true;
+		}
+
+		const UStruct* FieldOwnerType = Field->GetOwnerStruct();
+		if (FieldOwnerType)
+		{
+			// Only properties and functions will have an owner struct type
+			return (FieldOwnerTypesToInclude.Num() == 0 || FieldOwnerTypesToInclude.Contains(FieldOwnerType))
+				&& (FieldOwnerTypesToExclude.Num() == 0 || !FieldOwnerTypesToExclude.Contains(FieldOwnerType));
+		}
+
+		return true;
+	};
+
+	return ShouldGatherFieldByType() && ShouldGatherFieldByOwnerType();
 }
 
 void UGatherTextFromMetaDataCommandlet::GatherTextFromField(FField* const Field, const FGatherParameters& Arguments, const FName InPlatformName)

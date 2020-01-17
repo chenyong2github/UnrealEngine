@@ -39,11 +39,9 @@ public:
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const override;
 	virtual bool UsesToolkits() const override;
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
-	virtual void Initialize() override;
-	/** End FEdMode interface */
-
-	/** End the mode */
+	virtual void Enter() override;
 	virtual void Exit() override;
+	/** End FEdMode interface */
 
 	/** Delegate used to display information about picking near the cursor */
 	FText GetCursorDecoratorText() const;

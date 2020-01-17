@@ -12,6 +12,7 @@
 
 class FDynamicMesh3;
 struct FMeshDescription;
+class FTangentsf;
 
 
 
@@ -52,7 +53,7 @@ public:
  * 
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
+class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
 
@@ -96,9 +97,73 @@ public:
 	void SetMaterial(UMaterialInterface* Material);
 
 	/**
+	 * Set material on the preview mesh
+	 */
+	void SetMaterial(int MaterialIndex, UMaterialInterface* Material);
+
+	/**
+	 * Set the entire material set on the preview mesh
+	 */
+	void SetMaterials(const TArray<UMaterialInterface*>& Materials);
+
+	/**
 	* Get material from the preview mesh
 	*/
-	UMaterialInterface* GetMaterial() const;
+	UMaterialInterface* GetMaterial(int MaterialIndex = 0) const;
+
+	/**
+	 * Set an override material for the preview mesh. This material will override all the given materials.
+	 */
+	void SetOverrideRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear the override material for the preview mesh.
+	 */
+	void ClearOverrideRenderMaterial();
+
+	/**
+	 * @return the actual material that will be used for rendering for the given MaterialIndex. Will return override material if set.
+	 * 
+	 */
+	UMaterialInterface* GetActiveMaterial(int MaterialIndex = 0) const;
+
+
+	/**
+	 * Set an secondary material for the preview mesh. This material will be applied to secondary triangle buffer if enabled.
+	 */
+	void SetSecondaryRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear the secondary material for the preview mesh.
+	 */
+	void ClearSecondaryRenderMaterial();
+
+
+	/**
+	 * Enable secondary triangle buffers. The Secondary material will be applied to any triangles that pass TriangleFilterFunc.
+	 * @param TriangleFilterFunc predicate used to identify secondary triangles
+	 */
+	void EnableSecondaryTriangleBuffers(TUniqueFunction<bool(const FDynamicMesh3*, int32)> TriangleFilterFunc);
+
+	/**
+	 * Disable secondary triangle buffers
+	 */
+	void DisableSecondaryTriangleBuffers();
+
+
+
+	/**
+	 * Set the tangents mode for the underlying component, if available. 
+	 * Note that this function may need to be called before the mesh is initialized.
+	 */
+	void SetTangentsMode(EDynamicMeshTangentCalcType TangentsType);
+
+	/**
+	 * @return a MeshTangents data structure for the underlying component, if available, otherwise nullptr
+	 */
+	FMeshTangentsf* GetTangents() const;
+
+
 	/**
 	 * Get the current transform on the preview mesh
 	 */
@@ -134,7 +199,7 @@ public:
 	/**
 	 * Set the triangle color function for rendering / render data construction
 	 */
-	void SetTriangleColorFunction(TFunction<FColor(int)> TriangleColorFunc, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate);
+	void SetTriangleColorFunction(TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate);
 
 	/**
 	 * Clear the triangle color function for rendering / render data construction
@@ -190,9 +255,14 @@ public:
 	void InitializeMesh(FMeshDescription* MeshDescription);
 
 	/**
+	* @return pointer to the current FDynamicMesh used for preview  @todo deprecate this function, use GetMesh() instead
+	*/
+	const FDynamicMesh3* GetPreviewDynamicMesh() const { return GetMesh(); }
+
+	/**
 	* @return pointer to the current FDynamicMesh used for preview
 	*/
-	const FDynamicMesh3* GetPreviewDynamicMesh() const;
+	const FDynamicMesh3* GetMesh() const;
 
 	/**
 	 * @return the current preview FDynamicMesh, and replace with a new empty mesh
@@ -218,6 +288,24 @@ public:
 	void EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc);
 
 	/**
+	 * Apply EditFunc to the internal mesh, and update spatial data structure if requested,
+	 * but do not update/rebuild rendering data structures. NotifyDeferredEditOcurred() must be
+	 * called to complete a deferred edit, this will update the rendering mesh.
+	 * DeferredEditMesh can be called multiple times before NotifyDeferredEditCompleted() is called.
+	 * @param EditFunc function that is applied to the internal mes
+	 * @param bRebuildSpatial if true, and internal spatial data structure is enabled, rebuild it for updated mesh
+	 */
+	void DeferredEditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc, bool bRebuildSpatial);
+
+	/**
+	 * Notify that a DeferredEditMesh sequence is complete and cause update of rendering data structures.
+	 * @param UpdateMode type of rendering update required for the applied mesh edits
+	 * @param bRebuildSpatial if true, and internal spatial data structure is enabled, rebuild it for updated mesh
+	 */
+	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, bool bRebuildSpatial);
+
+
+	/**
 	 * Apply EditFunc to the internal mesh and update internal data structures as necessary.
 	 * EditFunc is required to notify the given FDynamicMeshChangeTracker about all mesh changes
 	 * @return FMeshChange extracted from FDynamicMeshChangeTracker that represents mesh edit
@@ -234,8 +322,20 @@ public:
 	 */
 	virtual void ApplyChange(const FMeshChange* Change, bool bRevert) override;
 
+	/**
+	* Apply/Revert a general mesh change to the internal mesh   (implements IMeshReplacementCommandChangeTarget)
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override;
+
 	/** @return delegate that is broadcast whenever the internal mesh component is changed */
 	FSimpleMulticastDelegate& GetOnMeshChanged();
+
+
+	/**
+	 * Force rebuild of internal spatial data structure. Can be used in context of DeferredEditMesh to rebuild spatial data
+	 * structure w/o rebuilding render data
+	 */
+	void ForceRebuildSpatial();
 
 
 

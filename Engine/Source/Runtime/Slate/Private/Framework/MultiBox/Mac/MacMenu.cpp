@@ -34,6 +34,12 @@ struct FMacMenuItemState
 static TMap<FMacMenu*, TSharedPtr<TArray<FMacMenuItemState>>> GCachedMenuState;
 static FCriticalSection GCachedMenuStateCS;
 
+// The FMenuEntryBlock in FMacMenuItem will be deallocated when menu items
+// are removed from the NSMenu in FMacMenu::UpdateWithMultiBox() via the Main Thread. But SWidgets should only be destroyed in the Game Thread.
+// We save the FMenuEntryBlock ptrs in this queue and release them in the Game Thread
+static TArray<TSharedPtr<const FMenuEntryBlock>> GMacMenuEntryBlockDeletionQueue;
+static FCriticalSection GMacMenuEntryBlockCS;;
+
 @interface FMacMenuItem : NSMenuItem
 @property (assign) TSharedPtr<const FMenuEntryBlock> MenuEntryBlock;
 - (void)performAction;
@@ -46,6 +52,17 @@ static FCriticalSection GCachedMenuStateCS;
 	self = [super initWithTitle:@"" action:nil keyEquivalent:@""];
 	self.MenuEntryBlock = Block;
 	return self;
+}
+
+- (void) dealloc
+{
+	{
+		FScopeLock MacMenuEntryBlockLock(&GMacMenuEntryBlockCS);
+		// we save the block to prevent it from being released in the main thread
+		// releasing the block in Main Thread will trigger an assertion in FSlateApplicationBase::Get()
+		GMacMenuEntryBlockDeletionQueue.Add(self.MenuEntryBlock);
+	}
+	[super dealloc];
 }
 
 - (void)performAction
@@ -67,7 +84,7 @@ static FCriticalSection GCachedMenuStateCS;
 	self = [super initWithTitle:@""];
 	[self setDelegate:self];
 	self.MenuEntryBlock = Block;
-	FScopeLock Lock(&GCachedMenuStateCS);
+	FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
 	GCachedMenuState.Add(self, TSharedPtr<TArray<FMacMenuItemState>>(new TArray<FMacMenuItemState>()));
 	return self;
 }
@@ -89,7 +106,7 @@ static FCriticalSection GCachedMenuStateCS;
 
 - (void)dealloc
 {
-	FScopeLock Lock(&GCachedMenuStateCS);
+	FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
 	GCachedMenuState.Remove(self);
 	[super dealloc];
 }
@@ -289,8 +306,20 @@ static FStartupApplicationToMacMenuBinder StaticInitializer;
 
 void FSlateMacMenu::CleanupOnShutdown()
 {
-	FScopeLock Lock(&GCachedMenuStateCS);
-	GCachedMenuState.Reset();
+	{
+		FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
+		GCachedMenuState.Reset();
+	}
+	{
+		GameThreadCall(^{
+			FScopeLock MacMenuEntryBlockLock(&GMacMenuEntryBlockCS);
+			for(auto& Block : GMacMenuEntryBlockDeletionQueue)
+			{
+				Block.Reset();
+			}
+			GMacMenuEntryBlockDeletionQueue.Empty();
+		}, @[ NSDefaultRunLoopMode ], true);
+	}
 }
 
 void FSlateMacMenu::PostInitStartup()
@@ -500,7 +529,7 @@ void FSlateMacMenu::UpdateWithMultiBox(const TSharedPtr< FMultiBox > MultiBox)
 	FSafeMultiBoxPass* SafeMultiBoxPtr = new FSafeMultiBoxPass;
 	SafeMultiBoxPtr->MultiBox = MultiBox;
 
-	FScopeLock Lock(&GCachedMenuStateCS);
+	FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
 	GCachedMenuState.Reset();
 
 	MainThreadCall(^{
@@ -556,12 +585,21 @@ void FSlateMacMenu::UpdateWithMultiBox(const TSharedPtr< FMultiBox > MultiBox)
 
 		FPlatformApplicationMisc::bChachedMacMenuStateNeedsUpdate = true;
 	}, NSDefaultRunLoopMode, false);
+	// Now we destroy all the menu blocks in the game thread to ensure ~SWidget() is only called in Game Thread
+	GameThreadCall(^{
+		FScopeLock MacMenuEntryBlockLock(&GMacMenuEntryBlockCS);
+		for(auto& Block : GMacMenuEntryBlockDeletionQueue)
+		{
+			Block.Reset();
+		}
+		GMacMenuEntryBlockDeletionQueue.Empty();
+	}, @[NSDefaultRunLoopMode], false);
 }
 
 void FSlateMacMenu::UpdateMenu(FMacMenu* Menu)
 {
 	MainThreadCall(^{
-		FScopeLock Lock(&GCachedMenuStateCS);
+		FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
 
 		FText WindowLabel = NSLOCTEXT("MainMenu", "WindowMenu", "Window");
 		const bool bIsWindowMenu = (WindowLabel.ToString().Compare(FString([Menu title])) == 0);
@@ -717,7 +755,7 @@ void FSlateMacMenu::UpdateCachedState()
 
 	if (bShouldUpdate)
 	{
-		FScopeLock Lock(&GCachedMenuStateCS);
+		FScopeLock CachedMenuStateLock(&GCachedMenuStateCS);
 
 		for (TMap<FMacMenu*, TSharedPtr<TArray<FMacMenuItemState>>>::TIterator It(GCachedMenuState); It; ++It)
 		{
@@ -742,7 +780,10 @@ void FSlateMacMenu::UpdateCachedState()
 							// Have the menu fill its contents
 							MenuEntryBlock->EntryBuilder.ExecuteIfBound(MenuBuilder);
 						}
-						Widget = MenuBuilder.MakeWidget();
+ 
+                        // Use INT_MAX for MaxHeight to so that SMultiBoxWidget is returned by MakeWidget instead of SVerticalBox
+                        const int32 MaxHeight = INT_MAX;
+						Widget = MenuBuilder.MakeWidget(/*InMakeMultiBoxBuilderOverride=*/ nullptr, MaxHeight);
 					}
 
 					if (Widget->GetType() == FName(TEXT("SMultiBoxWidget")))
@@ -751,7 +792,9 @@ void FSlateMacMenu::UpdateCachedState()
 					}
 					else
 					{
-						UE_LOG(LogMac, Warning, TEXT("Unsupported type of menu widget in FSlateMacMenu::UpdateCachedState(): %s"), *Widget->GetType().ToString());
+                        const FName ActionName = MenuEntryBlock->GetAction().IsValid() ? MenuEntryBlock->GetAction()->GetCommandName() : NAME_None;
+						UE_LOG(LogMac, Warning, TEXT("Unsupported type of menu widget in FSlateMacMenu::UpdateCachedState(): %s, %s, %s"),
+                               *Widget->GetType().ToString(), *MenuEntryBlock->GetExtensionHook().ToString(), *ActionName.ToString());
 					}
 				}
 			}

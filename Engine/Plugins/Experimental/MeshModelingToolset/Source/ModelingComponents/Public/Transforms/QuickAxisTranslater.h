@@ -56,9 +56,13 @@ public:
 
 	/**
 	 * Try to find the best snap point for the given Ray, and store in SnapPointOut if found
+	 * @param Ray 3D ray in space of snap points
+	 * @param SnapPointOut found snap point
+	 * @param PositionConstraintFunc Function that projects potential snap points onto constraint surfaces (eg grid points)
 	 * @return true if found
 	 */
-	virtual bool UpdateSnap(const FRay3d& Ray, FVector3d& SnapPointOut);
+	virtual bool UpdateSnap(const FRay3d& Ray, FVector3d& SnapPointOut,
+		TFunction<FVector3d(const FVector3d&)> PositionConstraintFunc = nullptr);
 
 	/** @return true if there is an active snap */
 	virtual bool HaveActiveSnap() const;

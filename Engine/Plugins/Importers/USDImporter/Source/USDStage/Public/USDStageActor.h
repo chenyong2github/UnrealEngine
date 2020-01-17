@@ -26,9 +26,14 @@
 #include "USDStageActor.generated.h"
 
 class ALevelSequenceActor;
+struct FMeshDescription;
+struct FUsdSchemaTranslationContext;
+class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+
+DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
 
 UENUM()
 enum class EUsdInitialLoadSet
@@ -42,12 +47,20 @@ class AUsdStageActor : public AActor
 {
 	GENERATED_BODY()
 
+	friend struct UsdStageActorImpl;
+
 public:
 	UPROPERTY(EditAnywhere, Category = "USD", meta = (FilePathFilter = "usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"))
 	FFilePath RootLayer;
 
 	UPROPERTY(EditAnywhere, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	float GetTime() const { return Time; }
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	void SetTime(float InTime);
 
 private:
 	UPROPERTY(Category = UsdStageActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
@@ -57,13 +70,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "USD")
 	float Time;
 
-	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetTime(float InTime);
-
-	UPROPERTY(VisibleAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, Category = "USD")
 	float StartTimeCode;
 
-	UPROPERTY(VisibleAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, Category = "USD")
 	float EndTimeCode;
 
 	UPROPERTY(VisibleAnywhere, Category = "USD")
@@ -107,6 +117,7 @@ private:
 	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
+	bool HasAutorithyOverStage() const;
 
 private:
 	FUsdPrimTwin RootUsdTwin;
@@ -115,16 +126,16 @@ private:
 
 	TMultiMap< FString, FDelegateHandle > PrimDelegates;
 
-	TArray< FString > PrimsToAnimate;
+	TSet< FString > PrimsToAnimate;
 
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
 	UPROPERTY( NonPIEDuplicateTransient )
-	TMap< FString, UStaticMesh* > MeshCache;
+	TMap< FString, UObject* > AssetsCache;
 
 	UPROPERTY( NonPIEDuplicateTransient )
-	TMap< FString, UMaterial* > MaterialsCache;
+	TMap< FString, UObject* > PrimPathsToAssets;
 
 #if USE_USD_SDK
 public:
@@ -133,12 +144,13 @@ public:
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
 
-	FUsdPrimTwin* SpawnPrim( const pxr::SdfPath& UsdPrimPath );
-	FUsdPrimTwin* LoadPrim( const pxr::SdfPath& Path );
-	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim );
-	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync );
-	bool LoadStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent );
-	bool ProcessSkeletonRoot( const pxr::UsdPrim& Prim, USkinnedMeshComponent& SkinnedMeshComponent );
+	FUsdPrimTwin* GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath );
+	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
+	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext );
+
+protected:
+	void LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim );
+	void AnimatePrims();
 
 private:
 	TUsdStore< pxr::UsdStageRefPtr > UsdStageStore;

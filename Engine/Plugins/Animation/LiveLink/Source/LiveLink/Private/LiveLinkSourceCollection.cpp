@@ -5,24 +5,23 @@
 #include "ILiveLinkSource.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
+#include "LiveLinkVirtualSource.h"
 
-
-// Completely empty "source" that virtual subjects can hang off
-struct FLiveLinkVirtualSubjectSource : public ILiveLinkSource
+/**
+ * Default VirtualSubject Source.
+ */ 
+struct FLiveLinkDefaultVirtualSubjectSource : public FLiveLinkVirtualSubjectSource
 {
-	virtual bool CanBeDisplayedInUI() const override { return false; }
-	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override {}
-	virtual bool IsSourceStillValid() const override { return true; }
-	virtual bool RequestSourceShutdown() override { return true; }
+	FLiveLinkDefaultVirtualSubjectSource() = default;
+	virtual ~FLiveLinkDefaultVirtualSubjectSource() = default;
 
-	virtual FText GetSourceType() const override { return NSLOCTEXT("TempLocTextLiveLink", "LiveLinkVirtualSubjectName", "Virtual Subjects"); }
-	virtual FText GetSourceMachineName() const override { return FText(); }
-	virtual FText GetSourceStatus() const override { return FText(); }
+	virtual bool CanBeDisplayedInUI() const override { return false; }
 };
+
 
 bool FLiveLinkCollectionSourceItem::IsVirtualSource() const
 {
-	return Guid == FLiveLinkSourceCollection::VirtualSubjectGuid;
+	return bIsVirtualSource;
 }
 
 FLiveLinkCollectionSubjectItem::FLiveLinkCollectionSubjectItem(FLiveLinkSubjectKey InKey, TUniquePtr<FLiveLinkSubject> InLiveSubject, ULiveLinkSubjectSettings* InSettings, bool bInEnabled)
@@ -35,26 +34,29 @@ FLiveLinkCollectionSubjectItem::FLiveLinkCollectionSubjectItem(FLiveLinkSubjectK
 {
 }
 
-FLiveLinkCollectionSubjectItem::FLiveLinkCollectionSubjectItem(FLiveLinkSubjectName InSubjectName, ULiveLinkVirtualSubject* InVirtualSubject, bool bInEnabled)
-	: bEnabled(bInEnabled)
+FLiveLinkCollectionSubjectItem::FLiveLinkCollectionSubjectItem(FLiveLinkSubjectKey InKey, ULiveLinkVirtualSubject* InVirtualSubject, bool bInEnabled)
+	: Key(InKey)
+	, bEnabled(bInEnabled)
 	, bPendingKill(false)
 	, Setting(nullptr)
 	, VirtualSubject(InVirtualSubject)
 {
-	Key.Source = FLiveLinkSourceCollection::VirtualSubjectGuid;
-	Key.SubjectName = InSubjectName;
 }
 
 
-const FGuid FLiveLinkSourceCollection::VirtualSubjectGuid{ 0x4ed2dc4e, 0xcc5911ce, 0x4af0635d, 0xa8b24a5a };
+const FGuid FLiveLinkSourceCollection::DefaultVirtualSubjectGuid{ 0x4ed2dc4e, 0xcc5911ce, 0x4af0635d, 0xa8b24a5a };
 
 
 FLiveLinkSourceCollection::FLiveLinkSourceCollection()
 {
 	FLiveLinkCollectionSourceItem Data;
-	Data.Source = MakeShared<FLiveLinkVirtualSubjectSource>();
-	Data.Guid = VirtualSubjectGuid;
-	Data.Setting = nullptr;
+	Data.Source = MakeShared<FLiveLinkDefaultVirtualSubjectSource>();
+	Data.Guid = DefaultVirtualSubjectGuid;
+	ULiveLinkVirtualSubjectSourceSettings* NewSettings = NewObject<ULiveLinkVirtualSubjectSourceSettings>(GetTransientPackage(), ULiveLinkVirtualSubjectSourceSettings::StaticClass());
+	NewSettings->SourceName = TEXT("DefaultVirtualSource");
+	Data.Setting = NewSettings;
+	Data.bIsVirtualSource = true;
+	Data.Source->InitializeSettings(NewSettings);
 
 	Sources.Add(Data);
 }
@@ -83,7 +85,7 @@ void FLiveLinkSourceCollection::AddSource(FLiveLinkCollectionSourceItem InSource
 
 void FLiveLinkSourceCollection::RemoveSource(FGuid InSourceGuid)
 {
-	if (InSourceGuid != FLiveLinkSourceCollection::VirtualSubjectGuid)
+	if (InSourceGuid != FLiveLinkSourceCollection::DefaultVirtualSubjectGuid)
 	{
 		int32 SourceIndex = Sources.IndexOfByPredicate([InSourceGuid](const FLiveLinkCollectionSourceItem& Other) { return Other.Guid == InSourceGuid; });
 		if (SourceIndex != INDEX_NONE)
@@ -131,7 +133,7 @@ void FLiveLinkSourceCollection::RemoveAllSources()
 	bool bHasRemovedSource = false;
 	for (int32 Index = Sources.Num() - 1; Index >= 0; --Index)
 	{
-		if (Sources[Index].Guid != FLiveLinkSourceCollection::VirtualSubjectGuid)
+		if (Sources[Index].Guid != FLiveLinkSourceCollection::DefaultVirtualSubjectGuid)
 		{
 			bHasRemovedSource = true;
 			FGuid Key = Sources[Index].Guid;
@@ -169,6 +171,26 @@ const FLiveLinkCollectionSourceItem* FLiveLinkSourceCollection::FindSource(FGuid
 	return const_cast<FLiveLinkSourceCollection*>(this)->FindSource(InSourceGuid);
 }
 
+
+FLiveLinkCollectionSourceItem* FLiveLinkSourceCollection::FindVirtualSource(FName VirtualSourceName)
+{
+	return Sources.FindByPredicate([VirtualSourceName](const FLiveLinkCollectionSourceItem& Other)
+	{
+		if (Other.IsVirtualSource())
+		{
+			if (ULiveLinkVirtualSubjectSourceSettings* VirtualSubjectSettings = Cast<ULiveLinkVirtualSubjectSourceSettings>(Other.Setting))
+			{
+				return VirtualSubjectSettings->SourceName == VirtualSourceName;
+			}
+		}
+		return false; 
+	});
+}
+
+const FLiveLinkCollectionSourceItem* FLiveLinkSourceCollection::FindVirtualSource(FName VirtualSourceName) const
+{
+	return const_cast<FLiveLinkSourceCollection*>(this)->FindVirtualSource(VirtualSourceName);
+}
 
 void FLiveLinkSourceCollection::AddSubject(FLiveLinkCollectionSubjectItem InSubject)
 {
@@ -256,12 +278,12 @@ void FLiveLinkSourceCollection::RemovePendingKill()
 		FLiveLinkCollectionSourceItem& SourceItem = Sources[SourceIndex];
 		if (SourceItem.bPendingKill)
 		{
-			if (SourceItem.IsVirtualSource())
+			if (SourceItem.Guid == FLiveLinkSourceCollection::DefaultVirtualSubjectGuid)
 			{
-				// Keep the source but mark the subject as pending kill
+				// Keep the default virtual subject source but mark the subject as pending kill
 				for (FLiveLinkCollectionSubjectItem& SubjectItem : Subjects)
 				{
-					if (SubjectItem.Key.Source == FLiveLinkSourceCollection::VirtualSubjectGuid)
+					if (SubjectItem.Key.Source == FLiveLinkSourceCollection::DefaultVirtualSubjectGuid)
 					{
 						SubjectItem.bPendingKill = true;
 					}

@@ -2,6 +2,7 @@
 
 
 #include "Dialogs/Dialogs.h"
+#include "Dialogs/DialogsPrivate.h"
 #include "Misc/App.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/MessageDialog.h"
@@ -296,7 +297,29 @@ void CreateMsgDlgWindow(TSharedPtr<SWindow>& OutWindow, TSharedPtr<SChoiceDialog
 	OutWindow->SetContent(OutDialog.ToSharedRef());
 }
 
-EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
+EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
+{
+	EAppReturnType::Type Response = InDefaultValue;
+	if (FApp::IsUnattended() == true || GIsRunningUnattendedScript)
+	{
+		UE_LOG(LogDialogs, Log, TEXT("Message Dialog was triggered in unattended script mode without a default value. %d will be used."), (int32)InDefaultValue);
+	}
+	else
+	{
+		TSharedPtr<SWindow> MsgWindow = NULL;
+		TSharedPtr<SChoiceDialog> MsgDialog = NULL;
+
+		CreateMsgDlgWindow(MsgWindow, MsgDialog, InMessageType, InMessage, InTitle);
+
+		GEditor->EditorAddModalWindow(MsgWindow.ToSharedRef());
+
+		Response = MsgDialog->GetResponse();
+	}
+
+	return Response;
+}
+
+EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
 {
 	EAppReturnType::Type DefaultValue = EAppReturnType::Yes;
 	switch (InMessageType)
@@ -338,29 +361,17 @@ EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, const FText&
 		}
 	}
 
-	return OpenMsgDlgInt(InMessageType, DefaultValue, InMessage, InTitle);
+	return OpenMessageDialog_Internal(InMessageType, DefaultValue, InMessage, InTitle);
+}
+
+EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
+{
+	return OpenMessageDialog_Internal(InMessageType, InMessage, InTitle);
 }
 
 EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
 {
-	if (FApp::IsUnattended() == true || GIsRunningUnattendedScript)
-	{
-		UE_LOG(LogDialogs, Log, TEXT("Message Dialog was triggered in unattended script mode without a default value. %d will be used."), (int32)InDefaultValue);
-		return InDefaultValue;
-	}
-	else
-	{
-		TSharedPtr<SWindow> MsgWindow = NULL;
-		TSharedPtr<SChoiceDialog> MsgDialog = NULL;
-
-		CreateMsgDlgWindow(MsgWindow, MsgDialog, InMessageType, InMessage, InTitle);
-
-		GEditor->EditorAddModalWindow(MsgWindow.ToSharedRef());
-
-		EAppReturnType::Type Response = MsgDialog->GetResponse();
-
-		return Response;
-	}
+	return OpenMessageDialog_Internal(InMessageType, InDefaultValue, InMessage, InTitle);
 }
 
 TSharedRef<SWindow> OpenMsgDlgInt_NonModal(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle,

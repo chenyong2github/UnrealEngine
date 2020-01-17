@@ -36,7 +36,7 @@ struct FShapedGlyphLine
 	}
 };
 
-class FTextShaper
+class FTextShaper final
 {
 public:
 	static FTextShaper * Get()							{ return Instance; }

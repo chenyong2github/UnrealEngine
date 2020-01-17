@@ -43,6 +43,8 @@
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
 
+#define LOCTEXT_NAMESPACE "MaterialShared"
+
 DEFINE_LOG_CATEGORY(LogMaterial);
 
 int32 GDeferUniformExpressionCaching = 1;
@@ -3180,6 +3182,8 @@ void FMaterialUpdateContext::AddMaterialInterface(UMaterialInterface* Interface)
 
 FMaterialUpdateContext::~FMaterialUpdateContext()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialUpdateContext::~FMaterialUpdateContext);
+
 	double StartTime = FPlatformTime::Seconds();
 	bool bProcess = false;
 
@@ -3571,11 +3575,11 @@ bool FMaterialShaderMapId::ContainsVertexFactoryType(const FVertexFactoryType* V
 //////////////////////////////////////////////////////////////////////////
 
 FMaterialAttributeDefintion::FMaterialAttributeDefintion(
-		const FGuid& InAttributeID, const FString& InDisplayName, EMaterialProperty InProperty,
+		const FGuid& InAttributeID, const FString& InAttributeName, EMaterialProperty InProperty,
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex /*= INDEX_NONE*/, bool bInIsHidden /*= false*/, MaterialAttributeBlendFunction InBlendFunction /*= nullptr*/)
 	: AttributeID(InAttributeID)
-	, DisplayName(InDisplayName)
+	, AttributeName(InAttributeName)
 	, Property(InProperty)
 	, ValueType(InValueType)
 	, DefaultValue(InDefaultValue)
@@ -3629,9 +3633,9 @@ int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compil
 //////////////////////////////////////////////////////////////////////////
 
 FMaterialCustomOutputAttributeDefintion::FMaterialCustomOutputAttributeDefintion(
-		const FGuid& InAttributeID, const FString& InDisplayName, const FString& InFunctionName, EMaterialProperty InProperty,
+		const FGuid& InAttributeID, const FString& InAttributeName, const FString& InFunctionName, EMaterialProperty InProperty,
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency, MaterialAttributeBlendFunction InBlendFunction /*= nullptr*/)
-	: FMaterialAttributeDefintion(InAttributeID, InDisplayName, InProperty, InValueType, InDefaultValue, InShaderFrequency, INDEX_NONE, false, InBlendFunction)
+	: FMaterialAttributeDefintion(InAttributeID, InAttributeName, InProperty, InValueType, InDefaultValue, InShaderFrequency, INDEX_NONE, false, InBlendFunction)
 	, FunctionName(InFunctionName)
 {
 }
@@ -3693,12 +3697,13 @@ void FMaterialAttributeDefinitionMap::InitializeAttributeMap()
 	AddCustomAttribute(FGuid(0x8EAB2CB2, 0x73634A24, 0x8CD14F47, 0x3F9C8E55), "CustomEyeTangent", "GetTangentOutput", MCT_Float3, FVector4(0, 0, 0, 0));
 }
 
-void FMaterialAttributeDefinitionMap::Add(const FGuid& AttributeID, const FString& DisplayName, EMaterialProperty Property,
+
+void FMaterialAttributeDefinitionMap::Add(const FGuid& AttributeID, const FString& AttributeName, EMaterialProperty Property,
 	EMaterialValueType ValueType, const FVector4& DefaultValue, EShaderFrequency ShaderFrequency,
 	int32 TexCoordIndex /*= INDEX_NONE*/, bool bIsHidden /*= false*/, MaterialAttributeBlendFunction BlendFunction /*= nullptr*/)
 {
 	checkf(!AttributeMap.Contains(Property), TEXT("Tried to add duplicate material property."));
-	AttributeMap.Add(Property, FMaterialAttributeDefintion(AttributeID, DisplayName, Property, ValueType, DefaultValue, ShaderFrequency, TexCoordIndex, bIsHidden, BlendFunction));
+	AttributeMap.Add(Property, FMaterialAttributeDefintion(AttributeID, AttributeName, Property, ValueType, DefaultValue, ShaderFrequency, TexCoordIndex, bIsHidden, BlendFunction));
 	if (!bIsHidden)
 	{
 		OrderedVisibleAttributeList.Add(AttributeID);
@@ -3738,6 +3743,120 @@ FMaterialAttributeDefintion* FMaterialAttributeDefinitionMap::Find(EMaterialProp
 	return Find(MP_MAX);
 }
 
+FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGuid& AttributeID, UMaterial* Material)
+{
+	TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames;
+	EMaterialProperty Property = GMaterialPropertyAttributesMap.Find(AttributeID)->Property;
+
+	switch (Property)
+	{
+	case MP_EmissiveColor:
+		return Material->IsUIMaterial() ? LOCTEXT("UIOutputColor", "Final Color") : LOCTEXT("EmissiveColor", "Emissive Color");
+	case MP_Opacity:
+		return Material->MaterialDomain == MD_Volume ? LOCTEXT("Extinction", "Extinction") : LOCTEXT("Opacity", "Opacity");
+	case MP_OpacityMask:
+		return LOCTEXT("OpacityMask", "Opacity Mask");
+	case MP_DiffuseColor:
+		return LOCTEXT("DiffuseColor", "Diffuse Color");
+	case MP_SpecularColor:
+		return LOCTEXT("SpecularColor", "Specular Color");
+	case MP_BaseColor:
+		return Material->MaterialDomain == MD_Volume ? LOCTEXT("Albedo", "Albedo") : LOCTEXT("BaseColor", "Base Color");
+	case MP_Metallic:
+		CustomPinNames.Add({MSM_Hair, "Scatter"});
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Metallic"));
+	case MP_Specular:
+		return LOCTEXT("Specular", "Specular");
+	case MP_Roughness:
+		return LOCTEXT("Roughness", "Roughness");
+	case MP_Normal:
+		CustomPinNames.Add({MSM_Hair, "Tangent"});
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Normal"));
+	case MP_WorldPositionOffset:
+		return Material->IsUIMaterial() ? LOCTEXT("ScreenPosition", "Screen Position") : LOCTEXT("WorldPositionOffset", "World Position Offset");
+	case MP_WorldDisplacement:
+		return LOCTEXT("WorldDisplacement", "World Displacement");
+	case MP_TessellationMultiplier:
+		return LOCTEXT("TessellationMultiplier", "Tessellation Multiplier");
+	case MP_SubsurfaceColor:
+		CustomPinNames.Add({MSM_Cloth, "Fuzz Color"});
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Subsurface Color"));
+	case MP_CustomData0:	
+		CustomPinNames.Add({ MSM_ClearCoat, "Clear Coat" });
+		CustomPinNames.Add({MSM_Hair, "Backlit"});
+		CustomPinNames.Add({MSM_Cloth, "Cloth"});
+		CustomPinNames.Add({MSM_Eye, "Iris Mask"});
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Custom Data 0"));
+	case MP_CustomData1:
+		CustomPinNames.Add({ MSM_ClearCoat, "Clear Coat Roughness" });
+		CustomPinNames.Add({MSM_Eye, "Iris Distance"});
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Custom Data 1"));
+	case MP_AmbientOcclusion:
+		return LOCTEXT("AmbientOcclusion", "Ambient Occlusion");
+	case MP_Refraction:
+		return LOCTEXT("Refraction", "Refraction");
+	case MP_CustomizedUVs0:
+		return LOCTEXT("CustomizedUV0", "Customized UV 0");
+	case MP_CustomizedUVs1:
+		return LOCTEXT("CustomizedUV1", "Customized UV 1");
+	case MP_CustomizedUVs2:
+		return LOCTEXT("CustomizedUV2", "Customized UV 2");
+	case MP_CustomizedUVs3:
+		return LOCTEXT("CustomizedUV3", "Customized UV 3");
+	case MP_CustomizedUVs4:
+		return LOCTEXT("CustomizedUV4", "Customized UV 4");
+	case MP_CustomizedUVs5:
+		return LOCTEXT("CustomizedUV5", "Customized UV 5");
+	case MP_CustomizedUVs6:
+		return LOCTEXT("CustomizedUV6", "Customized UV 6");
+	case MP_CustomizedUVs7:
+		return LOCTEXT("CustomizedUV7", "Customized UV 7");
+	case MP_PixelDepthOffset:
+		return LOCTEXT("PixelDepthOffset", "Pixel Depth Offset");
+	case MP_ShadingModel:
+		return LOCTEXT("ShadingModel", "Shading Model");
+	case MP_CustomOutput:
+		return FText::FromString(GetAttributeName(AttributeID));
+		
+	}
+	return  LOCTEXT("Missing", "Missing");
+}
+
+FString FMaterialAttributeDefinitionMap::GetPinNameFromShadingModelField(FMaterialShadingModelField InShadingModels, const TArray<TKeyValuePair<EMaterialShadingModel, FString>>& InCustomShadingModelPinNames, const FString& InDefaultPinName) 
+{
+	FString OutPinName;
+	for (const TKeyValuePair<EMaterialShadingModel, FString>& CustomShadingModelPinName : InCustomShadingModelPinNames)
+	{
+		if (InShadingModels.HasShadingModel(CustomShadingModelPinName.Key))
+		{
+			// Add delimiter
+			if (!OutPinName.IsEmpty())
+			{
+				OutPinName.Append(" or ");
+			}
+
+			// Append the name and remove the shading model from the temp field
+			OutPinName.Append(CustomShadingModelPinName.Value);
+			InShadingModels.RemoveShadingModel(CustomShadingModelPinName.Key);
+		}
+	}
+
+	// There are other shading models present, these don't have their own specific name for this pin, so use a default one
+	if (InShadingModels.CountShadingModels() != 0)
+	{
+		// Add delimiter
+		if (!OutPinName.IsEmpty())
+		{
+			OutPinName.Append(" or ");
+		}
+
+		OutPinName.Append(InDefaultPinName);
+	}
+
+	ensure(!OutPinName.IsEmpty());
+	return OutPinName;
+}
+
 void FMaterialAttributeDefinitionMap::AppendDDCKeyString(FString& String)
 {
 	FString& DDCString = GMaterialPropertyAttributesMap.AttributeDDCString;
@@ -3772,18 +3891,18 @@ void FMaterialAttributeDefinitionMap::AppendDDCKeyString(FString& String)
 	String.Append(DDCString);
 }
 
-void FMaterialAttributeDefinitionMap::AddCustomAttribute(const FGuid& AttributeID, const FString& DisplayName, const FString& FunctionName, EMaterialValueType ValueType, const FVector4& DefaultValue, MaterialAttributeBlendFunction BlendFunction /*= nullptr*/)
+void FMaterialAttributeDefinitionMap::AddCustomAttribute(const FGuid& AttributeID, const FString& AttributeName, const FString& FunctionName, EMaterialValueType ValueType, const FVector4& DefaultValue, MaterialAttributeBlendFunction BlendFunction /*= nullptr*/)
 {
 	// Make sure that we init CustomAttributes before DDCString is initialized (before first shader load)
 	check(GMaterialPropertyAttributesMap.AttributeDDCString.Len() == 0);
 
-	FMaterialCustomOutputAttributeDefintion UserAttribute(AttributeID, DisplayName, FunctionName, MP_CustomOutput, ValueType, DefaultValue, SF_Pixel, BlendFunction);
+	FMaterialCustomOutputAttributeDefintion UserAttribute(AttributeID, AttributeName, FunctionName, MP_CustomOutput, ValueType, DefaultValue, SF_Pixel, BlendFunction);
 #if DO_CHECK
 	for (auto& Attribute : GMaterialPropertyAttributesMap.AttributeMap)
 	{
-		checkf(Attribute.Value.AttributeID != AttributeID, TEXT("Tried to add duplicate custom output attribute (%s) already in base attributes (%s)."), *DisplayName, *(Attribute.Value.DisplayName));
+		checkf(Attribute.Value.AttributeID != AttributeID, TEXT("Tried to add duplicate custom output attribute (%s) already in base attributes (%s)."), *AttributeName, *(Attribute.Value.AttributeName));
 	}
-	checkf(!GMaterialPropertyAttributesMap.CustomAttributes.Contains(UserAttribute), TEXT("Tried to add duplicate custom output attribute (%s)."), *DisplayName);
+	checkf(!GMaterialPropertyAttributesMap.CustomAttributes.Contains(UserAttribute), TEXT("Tried to add duplicate custom output attribute (%s)."), *AttributeName);
 #endif
 	GMaterialPropertyAttributesMap.CustomAttributes.Add(UserAttribute);
 
@@ -3802,13 +3921,13 @@ void FMaterialAttributeDefinitionMap::GetCustomAttributeList(TArray<FMaterialCus
 	}
 }
 
-void FMaterialAttributeDefinitionMap::GetDisplayNameToIDList(TArray<TPair<FString, FGuid>>& NameToIDList)
+void FMaterialAttributeDefinitionMap::GetAttributeNameToIDList(TArray<TPair<FString, FGuid>>& NameToIDList)
 {
 	NameToIDList.Empty(GMaterialPropertyAttributesMap.OrderedVisibleAttributeList.Num());
 	for (const FGuid& AttributeID : GMaterialPropertyAttributesMap.OrderedVisibleAttributeList)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
-		NameToIDList.Emplace(Attribute->DisplayName, AttributeID);
+		NameToIDList.Emplace(Attribute->AttributeName, AttributeID);
 	}
 }
 
@@ -4037,3 +4156,5 @@ void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*
 		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
 	});
 }
+
+#undef LOCTEXT_NAMESPACE

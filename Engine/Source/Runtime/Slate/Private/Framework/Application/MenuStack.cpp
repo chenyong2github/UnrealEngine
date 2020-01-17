@@ -802,13 +802,6 @@ bool FMenuStack::GetToolTipForceFieldRect(const TSharedRef<IMenu>& InMenu, const
 	return bWasSolutionFound;
 }
 
-FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const
-{
-	FSlateRect ForceFieldRect(0, 0, 0, 0);
-	GetToolTipForceFieldRect(InMenu, PathContainingMenu, ForceFieldRect);
-	return ForceFieldRect;
-}
-
 bool FMenuStack::HasMenus() const
 {
 	return Stack.Num() > 0;

@@ -85,6 +85,8 @@ struct CORE_API FEditorObjectVersion
 		ComputeWeightedNormals,
 		// SkeletalMesh now can be rebuild in editor, no more need to re-import
 		SkeletalMeshBuildRefactor,
+		// Move all SkeletalMesh source data into a private uasset in the same package has the skeletalmesh
+		SkeletalMeshMoveEditorSourceDataToPrivateAsset,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

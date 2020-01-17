@@ -80,4 +80,5 @@ private:
 	const TWeakObjectPtr<UObject> RootObject;
 	FName NodeName;
 	bool bShouldBeVisible;
+	bool bShouldShowOnlyChildren;
 };

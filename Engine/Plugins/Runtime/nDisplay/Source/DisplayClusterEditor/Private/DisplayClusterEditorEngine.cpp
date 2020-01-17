@@ -66,18 +66,20 @@ ADisplayClusterRootActor* UDisplayClusterEditorEngine::FindDisplayClusterRootAct
 	return nullptr;
 }
 
-void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides)
+void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams)
 {
-	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::PlayInEditor"));
+	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
+
+	UWorld* EditorWorldPreDup = GetEditorWorldContext().World();
 
 	if (DisplayClusterModule)
 	{
 		// Find nDisplay root actor
-		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(InWorld);
+		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(EditorWorldPreDup);
 		if (!RootActor)
 		{
 			// Also search inside streamed levels
-			const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
+			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorld->GetStreamingLevels();
 			for (ULevelStreaming* StreamingLevel : StreamingLevels)
 			{
 				switch (StreamingLevel->GetCurrentState())
@@ -113,11 +115,11 @@ void UDisplayClusterEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulate
 				return;
 			}
 
-			DisplayClusterModule->StartScene(InWorld);
+			DisplayClusterModule->StartScene(EditorWorldPreDup);
 		}
 	}
 
-	Super::PlayInEditor(InWorld, bInSimulateInEditor, Overrides);
+	Super::StartPlayInEditorSession(InRequestParams);
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)

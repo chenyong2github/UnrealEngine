@@ -4,10 +4,10 @@
 
 #include "DatasmithFBXHashUtils.h"
 #include "DatasmithFBXImporterLog.h"
-#include "DatasmithMeshHelper.h"
+#include "Utility/DatasmithMeshHelper.h"
 
-#include "StaticMeshAttributes.h"
 #include "Misc/EnumClassFlags.h"
+#include "StaticMeshAttributes.h"
 
 int32 FDatasmithFBXSceneNode::NodeCounter = 1;
 
@@ -74,39 +74,6 @@ FDatasmithFBXSceneNode::FDatasmithFBXSceneNode()
 
 FDatasmithFBXSceneNode::~FDatasmithFBXSceneNode()
 {
-	if (SharedContent.IsValid())
-	{
-		// When removing a node which is one of SharedContent owners, remove it from content's parents
-		for (int32 i = SharedContent->SharedParent.Num() - 1; i >= 0; i--)
-		{
-			TWeakPtr<FDatasmithFBXSceneNode>& SharedContentParent = SharedContent->SharedParent[i];
-			FDatasmithFBXSceneNode* CheckedNode = SharedContentParent.Pin().Get();
-			// Current node is being removed, so all TSharedPtr to it will be null.
-			if (CheckedNode == this || CheckedNode == nullptr)
-			{
-				SharedContent->SharedParent.RemoveAt(i);
-			}
-		}
-		if (Children.Num())
-		{
-			// This node owns SharedContent - now we should reattach it to a different shared parent to keep content alive
-			check(Children.Num() == 1);
-			//check(Children[0] == SharedContent);
-			if (this == SharedContent->Parent.Pin().Get())
-			{
-				if (SharedContent->SharedParent.Num())
-				{
-					// SharedContent has another valid parent
-					TSharedPtr<FDatasmithFBXSceneNode> NewParent = SharedContent->SharedParent[0].Pin();
-					check(NewParent.IsValid());
-					check(NewParent->Children.Num() == 0);
-					NewParent->Children.Add(SharedContent);
-					SharedContent->Parent = NewParent;
-				}
-				// else - SharedContent is not used anywhere else, it will be automatically destroyed
-			}
-		}
-	}
 }
 
 FTransform FDatasmithFBXSceneNode::GetTransformRelativeToParent(TSharedPtr<FDatasmithFBXSceneNode>& InParent) const
@@ -161,30 +128,18 @@ void FDatasmithFBXSceneNode::RemoveNode()
 	UE_LOG(LogDatasmithFBXImport, Fatal, TEXT("Unexpected behavior"));
 }
 
-int32 FDatasmithFBXSceneNode::GetChildrenCountRecursive(bool bIncludeSharedContent) const
+int32 FDatasmithFBXSceneNode::GetChildrenCountRecursive() const
 {
-	if (EnumHasAnyFlags(NodeType, ENodeType::SharedNode) && !bIncludeSharedContent)
-	{
-		// Do not recurse into shared node children, count only self.
-		return 1;
-	}
 	int32 Result = Children.Num();
 	for (const TSharedPtr<FDatasmithFBXSceneNode>& Child : Children)
 	{
-		Result += Child->GetChildrenCountRecursive(bIncludeSharedContent);
+		Result += Child->GetChildrenCountRecursive();
 	}
 	return Result;
 }
 
-void FDatasmithFBXSceneNode::MarkLightNode()
+void FDatasmithFBXSceneNode::KeepNode()
 {
-	NodeType |= ENodeType::Movable;  // Force creation of a BP_SceneNode
-	bShouldKeepThisNode = true;
-}
-
-void FDatasmithFBXSceneNode::MarkCameraNode()
-{
-	NodeType |= ENodeType::Movable;  // Force creation of a BP_SceneNode
 	bShouldKeepThisNode = true;
 }
 
@@ -193,29 +148,14 @@ void FDatasmithFBXSceneNode::MarkSwitchNode()
 	NodeType |= ENodeType::Switch;
 	bShouldKeepThisNode = true;
 
-	// For switch, we should also keep all its children persistent because they are representing variants
+	// Prevent the targets of SwitchObjects from being removed. This shouldn't be necessary,
+	// but some scenes seem to have all mesh nodes named exactly the same (e.g shell_0).
+	// In those cases, when we convert them to Switch variants, we will search for actors named
+	// 'shell_0' for our switch options and likely end up picking the wrong actor
 	for (int32 NodeIndex = 0; NodeIndex < Children.Num(); NodeIndex++)
 	{
 		Children[NodeIndex]->bShouldKeepThisNode = true;
 	}
-}
-
-void FDatasmithFBXSceneNode::MarkAnimatedNode()
-{
-	NodeType |= ENodeType::Animated | ENodeType::Movable;
-	bShouldKeepThisNode = true;
-}
-
-void FDatasmithFBXSceneNode::MarkSwitchMaterialNode()
-{
-	NodeType |= ENodeType::Material;
-	bShouldKeepThisNode = true;
-}
-
-void FDatasmithFBXSceneNode::MarkMovableNode()
-{
-	NodeType |= ENodeType::Movable;
-	bShouldKeepThisNode = true;
 }
 
 void FDatasmithFBXSceneNode::MarkToggleNode()
@@ -224,22 +164,11 @@ void FDatasmithFBXSceneNode::MarkToggleNode()
 	bShouldKeepThisNode = true;
 }
 
-void FDatasmithFBXSceneNode::MarkSharedNode(TSharedPtr<FDatasmithFBXSceneNode> Content)
-{
-	NodeType |= ENodeType::SharedNode;
-	bShouldKeepThisNode = true;
-
-	SharedContent = Content;
-	Content->SharedParent.Add(AsShared());
-	SharedContent->bShouldKeepThisNode = true;
-}
-
 void FDatasmithFBXSceneNode::ResetNodeType()
 {
 	if (NodeType != ENodeType::Node)
 	{
 		check(Children.Num() == 0);
-		check(!SharedContent.IsValid());
 		NodeType = ENodeType::Node;
 	}
 }
@@ -270,30 +199,17 @@ const FMD5Hash& FDatasmithFBXSceneNode::GetHash()
 			}
 		}
 
-		if (NodeType != ENodeType::SharedNode)
-		{
-			// Hash children
-			FDatasmithFBXHashUtils::UpdateHash(Md5, Children.Num());
-			// Sort children by hash to make hash invariant to children order
-			TArray< TSharedPtr<FDatasmithFBXSceneNode> > SortedChildren = Children;
-			SortedChildren.StableSort([](const TSharedPtr<FDatasmithFBXSceneNode>& A, const TSharedPtr<FDatasmithFBXSceneNode>& B)
-				{
-					return A->GetHash() < B->GetHash();
-				});
-			for (int32 ChildIndex = 0; ChildIndex < SortedChildren.Num(); ChildIndex++)
+		// Hash children
+		FDatasmithFBXHashUtils::UpdateHash(Md5, Children.Num());
+		// Sort children by hash to make hash invariant to children order
+		TArray< TSharedPtr<FDatasmithFBXSceneNode> > SortedChildren = Children;
+		SortedChildren.StableSort([](const TSharedPtr<FDatasmithFBXSceneNode>& A, const TSharedPtr<FDatasmithFBXSceneNode>& B)
 			{
-				TSharedPtr<FDatasmithFBXSceneNode>& Node = SortedChildren[ChildIndex];
-				// Use child hash
-				FDatasmithFBXHashUtils::UpdateHash(Md5, Node->GetHash());
-				// and its local transform related to this node
-				FDatasmithFBXHashUtils::UpdateHash(Md5, Node->LocalTransform);
-			}
-		}
-		else
+				return A->GetHash() < B->GetHash();
+			});
+		for (int32 ChildIndex = 0; ChildIndex < SortedChildren.Num(); ChildIndex++)
 		{
-			FDatasmithFBXHashUtils::UpdateHash(Md5, int32(0));
-			// For shared node should hash its content instead of Children
-			TSharedPtr<FDatasmithFBXSceneNode>& Node = SharedContent;
+			TSharedPtr<FDatasmithFBXSceneNode>& Node = SortedChildren[ChildIndex];
 			// Use child hash
 			FDatasmithFBXHashUtils::UpdateHash(Md5, Node->GetHash());
 			// and its local transform related to this node
@@ -313,11 +229,6 @@ FDatasmithFBXScene::FDatasmithFBXScene()
 
 FDatasmithFBXScene::~FDatasmithFBXScene()
 {
-}
-
-void FDatasmithFBXScene::CollectAllObjects(MeshUseCountType* Meshes, MaterialUseCountType* InMaterials)
-{
-	RecursiveCollectAllObjects(Meshes, InMaterials, nullptr, RootNode);
 }
 
 TArray<TSharedPtr<FDatasmithFBXSceneNode>> FDatasmithFBXScene::GetAllNodes()
@@ -393,264 +304,3 @@ void FDatasmithFBXScene::RecursiveCollectAllObjects(MeshUseCountType* Meshes, Ma
 	});
 }
 
-static FArchive& operator << (FArchive& Ar, FDatasmithFBXSceneMaterial::FTextureParams& Data)
-{
-	Ar << Data.Path;
-	Ar << Data.Translation;
-	Ar << Data.Rotation;
-	Ar << Data.Scale;
-	return Ar;
-}
-
-static FArchive& operator << (FArchive& Ar, FDatasmithFBXSceneAnimPoint& Pt)
-{
-	Ar << Pt.InterpolationMode;
-	Ar << Pt.TangentMode;
-	Ar << Pt.Time;
-	Ar << Pt.Value;
-	Ar << Pt.ArriveTangent;
-	Ar << Pt.LeaveTangent;
-	return Ar;
-}
-
-static FArchive& operator << (FArchive& Ar, FDatasmithFBXSceneAnimCurve& Curve)
-{
-	Ar << Curve.DSID;
-	Ar << Curve.Type;
-	Ar << Curve.Component;
-	Ar << Curve.Points;
-	Ar << Curve.StartTimeSeconds;
-	return Ar;
-}
-
-static FArchive& operator << (FArchive& Ar, FDatasmithFBXSceneAnimBlock& Block)
-{
-	Ar << Block.Name;
-	Ar << Block.Curves;
-	return Ar;
-}
-
-static FArchive& operator << (FArchive& Ar, FDatasmithFBXSceneAnimNode& Node)
-{
-	Ar << Node.Name;
-	Ar << Node.Blocks;
-	return Ar;
-}
-
-class FDatasmithFBXSceneSerializer
-{
-	FArchive& Ar;
-	FDatasmithFBXScene& Scene;
-	TArray<TSharedPtr<FDatasmithFBXSceneNode>> Nodes;
-	TArray<TSharedPtr<FDatasmithFBXSceneMesh>> Meshes;
-	TArray<TSharedPtr<FDatasmithFBXSceneMaterial>> Materials;
-
-	enum { FormatVersion = 21 };
-
-public:
-	FDatasmithFBXSceneSerializer(FArchive& InAr, FDatasmithFBXScene& InDeltaGenScene)
-		: Ar(InAr)
-		, Scene(InDeltaGenScene)
-	{
-	}
-
-	template<typename T>
-	void SerializeArrayOfSmartPointer(TArray<TSharedPtr<T>>& ArrayToSerialize, const TArray<TSharedPtr<T>>& ArrayToIndex)
-	{
-		int32 MaterialCount;
-
-		if (Ar.IsSaving())
-		{
-			MaterialCount = ArrayToSerialize.Num();
-		}
-
-		Ar << MaterialCount;
-		if (Ar.IsSaving())
-		{
-			for (int MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-			{
-				int32 Index = ArrayToIndex.Find(ArrayToSerialize[MaterialIndex]);
-				Ar << Index;
-			}
-		}
-		else
-		{
-			ArrayToSerialize.Reserve(MaterialCount);
-			for (int MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-			{
-				int32 Index;
-				Ar << Index;
-				ArrayToSerialize.Add((Index < 0) ? nullptr : ArrayToIndex[Index]);
-			}
-		}
-	}
-
-	void SerializeNode(FDatasmithFBXSceneNode& Node)
-	{
-		Ar << Node.Name;
-		Ar << Node.OriginalName;
-		Ar << Node.Visibility;
-		Ar << Node.bVisibilityInheritance;
-		Ar << Node.LocalTransform;
-		Ar << Node.RotationPivot;
-		Ar << Node.ScalingPivot;
-		Ar << Node.RotationOffset;
-		Ar << Node.ScalingOffset;
-
-		// Parent
-		int32 ParentIndex;
-		if (Ar.IsSaving())
-		{
-			ParentIndex = Nodes.Find(Node.Parent.Pin());
-		}
-		Ar << ParentIndex;
-		if (!Ar.IsSaving())
-		{
-			if (ParentIndex >= 0)
-			{
-				Node.Parent = Nodes[ParentIndex];
-			}
-		}
-
-		SerializeArrayOfSmartPointer(Node.Materials, Materials);
-
-		int32 MeshIndex;
-		int32 ChildCount;
-
-		if (Ar.IsSaving())
-		{
-			MeshIndex = Meshes.Find(Node.Mesh);
-			ChildCount = Node.Children.Num();
-		}
-
-		Ar << MeshIndex;
-		if (!Ar.IsSaving())
-		{
-			if (MeshIndex >= 0)
-			{
-				Node.Mesh = Meshes[MeshIndex];
-			}
-		}
-
-		SerializeArrayOfSmartPointer(Node.Children, Nodes);
-	}
-
-	void SerializeMesh(FDatasmithFBXSceneMesh& Mesh)
-	{
-		Ar << Mesh.Name;
-		Ar << Mesh.MeshDescription;
-	}
-
-	void SerializeMaterial(FDatasmithFBXSceneMaterial& Material)
-	{
-		Ar << Material.Name;
-
-		Ar << Material.BoolParams;
-		Ar << Material.ScalarParams;
-		Ar << Material.VectorParams;
-		Ar << Material.TextureParams;
-	}
-
-	bool SerializeScene()
-	{
-		int32 Version = FormatVersion;
-		Ar << Version;
-		if (!Ar.IsSaving())
-		{
-			if (Version != FormatVersion)
-			{
-				UE_LOG(LogDatasmithFBXImport, Log, TEXT("Different version than the importer code, skipping loading of intermediate file"));
-				return false;
-			}
-		}
-
-		int32 NodeCount = 0;
-		int32 MeshCount;
-		int32 MaterialCount;
-
-		int32 RootNodeIndex;
-
-		if (Ar.IsSaving())
-		{
-			FDatasmithFBXScene::MeshUseCountType MeshesCounts;
-			FDatasmithFBXScene::MaterialUseCountType MaterialsCounts;
-			Scene.RecursiveCollectAllObjects(&MeshesCounts, &MaterialsCounts, &NodeCount, Scene.RootNode);
-
-			Nodes.Reserve(NodeCount);
-			FDatasmithFBXSceneNode::Traverse(Scene.RootNode, [&](TSharedPtr<FDatasmithFBXSceneNode> Node)
-			{
-				Nodes.Add(Node);
-			});
-
-			MeshesCounts.GetKeys(Meshes);
-			//MaterialsCounts.GetKeys(Materials);
-			Materials = Scene.Materials;
-
-			MeshCount = Meshes.Num();
-			MaterialCount = Materials.Num();
-
-			RootNodeIndex = Nodes.Find(Scene.RootNode);
-		}
-
-		Ar << MaterialCount;
-		Ar << MeshCount;
-		Ar << NodeCount;
-
-		if (!Ar.IsSaving())
-		{
-			for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-			{
-				Materials.Add(MakeShareable<FDatasmithFBXSceneMaterial>(new FDatasmithFBXSceneMaterial));
-			}
-			for (int32 MeshIndex = 0; MeshIndex < MeshCount; ++MeshIndex)
-			{
-				Meshes.Add(MakeShareable<FDatasmithFBXSceneMesh>(new FDatasmithFBXSceneMesh));
-			}
-			for (int32 NodeIndex = 0; NodeIndex < NodeCount; ++NodeIndex)
-			{
-				Nodes.Add(MakeShareable<FDatasmithFBXSceneNode>(new FDatasmithFBXSceneNode));
-			}
-		}
-
-		for (auto& Node : Nodes)
-		{
-			SerializeNode(*Node);
-		}
-
-		for (auto& Mesh : Meshes)
-		{
-			SerializeMesh(*Mesh);
-		}
-
-		for (auto& Material : Materials)
-		{
-			SerializeMaterial(*Material);
-		}
-		Scene.Materials = Materials;
-
-		Ar << Scene.AnimNodes;
-
-		Ar << RootNodeIndex;
-
-		if (!Ar.IsSaving())
-		{
-			if (RootNodeIndex >= 0)
-			{
-				Scene.RootNode = Nodes[RootNodeIndex];
-			}
-		}
-
-		Ar << Scene.ScaleFactor;
-		Ar << Scene.TagTime;
-		Ar << Scene.BaseTime;
-		Ar << Scene.PlaybackSpeed;
-
-		return true;
-	}
-};
-
-bool FDatasmithFBXScene::Serialize(FArchive& Ar)
-{
-	FDatasmithFBXSceneSerializer SceneSerializer(Ar, *this);
-	return SceneSerializer.SerializeScene();
-}

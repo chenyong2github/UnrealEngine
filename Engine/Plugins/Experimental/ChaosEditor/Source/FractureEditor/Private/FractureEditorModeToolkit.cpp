@@ -306,7 +306,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 
 const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Fracture")), FName(TEXT("Cluster")) };
 
-FText FFractureEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
+FText FFractureEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
 	return FText::FromName(Palette);
 }

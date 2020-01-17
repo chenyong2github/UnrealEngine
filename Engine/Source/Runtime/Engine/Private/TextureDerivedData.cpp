@@ -853,6 +853,7 @@ void FTexturePlatformData::FinishCache()
 {
 	if (AsyncTask)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::FinishCache)
 		{
 			COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeAsyncWait());
 			AsyncTask->EnsureCompletion();

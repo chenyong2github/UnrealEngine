@@ -188,12 +188,4 @@ private:
 	 */
 	int32 GetValidOutputIndex(FExpressionInput* Input) const;
 
-	FText GetEmissivePinName() const;
-	FText GetBaseColorPinName() const;
-	FText GetOpacityPinName() const;
-	FText GetMetallicPinName() const;
-	FText GetNormalPinName() const;
-	FText GetWorldPositionOffsetPinName() const;
-	FText GetSubsurfacePinName() const;
-	FText GetCustomDataPinName( uint32 Index ) const;
 };

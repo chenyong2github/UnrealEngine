@@ -937,6 +937,9 @@ public:
 	FVector4 NormalOverrideParameter;
 	FVector2D RoughnessOverrideParameter;
 
+	/** Mip bias to apply in material's samplers. */
+	float MaterialTextureMipBias;
+
 	/** The primitives which are hidden for this view. */
 	TSet<FPrimitiveComponentId> HiddenPrimitives;
 
@@ -990,6 +993,9 @@ public:
 	/** Whether this view is being used to render a planar reflection. */
 	bool bIsPlanarReflection;
 
+	/** Whether this view is being used to render a high quality offline render */
+	bool bIsOfflineRender;
+
 	/** Whether to force two sided rendering for this view. */
 	bool bRenderSceneTwoSided;
 
@@ -1020,6 +1026,11 @@ public:
 	/** How far below the water surface this view is. -1 means the view is out of water. */
 	float UnderwaterDepth;
 
+	/** True if we need to force the camera to discard previous frames occlusion. Necessary for overlapped tile rendering
+	 * where we discard previous frame occlusion because the projection matrix changes.
+	 */
+	bool bForceCameraVisibilityReset;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 
@@ -1035,6 +1046,16 @@ public:
 	/** Translucent sort mode */
 	TEnumAsByte<ETranslucentSortPolicy::Type> TranslucentSortPolicy;
 	
+	/** The frame index to override, useful for keeping determinism when rendering sequences. **/
+	TOptional<uint32> OverrideFrameIndexValue;
+
+	/** In some cases, the principal point of the lens is not at the center of the screen, especially for overlapped tile
+	 *  rendering. So given a UV in [-1,1] viewport space, convert it to the [-1,1] viewport space of the lens using
+	 *  LensUV = LensPrincipalPointOffsetScale.xy ScreenUV * LensPrincipalPointOffsetScale.zw;
+	 *  This value is FVector4(0,0,1,1) unless overridden.
+	 */
+	FVector4 LensPrincipalPointOffsetScale;
+
 #if WITH_EDITOR
 	/** The set of (the first 64) groups' visibility info for this view */
 	uint64 EditorViewBitflag;

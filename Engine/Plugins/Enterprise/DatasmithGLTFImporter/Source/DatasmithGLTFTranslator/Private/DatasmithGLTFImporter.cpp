@@ -10,18 +10,20 @@
 #include "GLTFAsset.h"
 #include "GLTFMaterialFactory.h"
 #include "GLTFReader.h"
-#include "GLTFStaticMeshFactory.h"
+#include "GLTFMesh.h"
+#include "GLTFMeshFactory.h"
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Utility/DatasmithImporterUtils.h"
-#include "DatasmithMeshHelper.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
+#include "Misc/SecureHash.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithGLTFImport);
 
@@ -52,7 +54,7 @@ FDatasmithGLTFImporter::FDatasmithGLTFImporter(TSharedRef<IDatasmithScene>& OutS
     : DatasmithScene(OutScene)
 	, GLTFReader(new GLTF::FFileReader())
     , GLTFAsset(new GLTF::FAsset())
-    , StaticMeshFactory(new GLTF::FStaticMeshFactory())
+    , MeshFactory(new GLTF::FMeshFactory())
     , MaterialFactory(new GLTF::FMaterialFactory(new FGLTFMaterialElementFactory(), new FDatasmithGLTFTextureFactory()))
     , AnimationImporter(new FDatasmithGLTFAnimationImporter(LogMessages))
 	, ImportOptions(InOptions)
@@ -69,7 +71,7 @@ void FDatasmithGLTFImporter::SetImportOptions(UDatasmithGLTFImportOptions* InOpt
 const TArray<GLTF::FLogMessage>& FDatasmithGLTFImporter::GetLogMessages() const
 {
 	LogMessages.Append(GLTFReader->GetLogMessages());
-	LogMessages.Append(StaticMeshFactory->GetLogMessages());
+	LogMessages.Append(MeshFactory->GetLogMessages());
 	return LogMessages;
 }
 
@@ -188,13 +190,23 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 	{
 		ImportedMeshes.Add(MeshIndex);
 
-		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*GLTFAsset->Meshes[MeshIndex].Name);
+		const GLTF::FMesh& Mesh = GLTFAsset->Meshes[MeshIndex];
+
+		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*Mesh.Name);
+
+		FMD5 MD5;
+
+		FMD5Hash MeshHash = Mesh.GetHash();
+		MD5.Update(MeshHash.GetBytes(), MeshHash.GetSize());
 
 		const TArray<GLTF::FMaterialElement*>& Materials = MaterialFactory->GetMaterials();
 		for (int32 MaterialID = 0; MaterialID < Materials.Num(); ++MaterialID)
 		{
 			GLTF::FMaterialElement* Material = Materials[MaterialID];
 			MeshElement->SetMaterial(*Material->GetName(), MaterialID);
+
+			FMD5Hash MaterialHash = Material->GetGLTFMaterialHash();
+			MD5.Update(MaterialHash.GetBytes(), MaterialHash.GetSize());
 		}
 
 		if (ImportOptions->bGenerateLightmapUVs)
@@ -206,6 +218,13 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 		{
 			MeshElement->SetLightmapCoordinateIndex(0);
 		}
+
+		uint8 GenerateLightmapUVs = static_cast<uint8>(ImportOptions->bGenerateLightmapUVs);
+		MD5.Update(&GenerateLightmapUVs, 1);
+
+		FMD5Hash Result;
+		Result.Set(MD5);
+		MeshElement->SetFileHash(Result);
 
 		MeshElementToGLTFMeshIndex.Add(&MeshElement.Get(), MeshIndex);
 		GLTFMeshIndexToMeshElement.Add(MeshIndex, MeshElement);
@@ -286,8 +305,7 @@ bool FDatasmithGLTFImporter::SendSceneToDatasmith()
 
 	// Setup importer
 	AnimationImporter->SetUniformScale(ImportOptions->ImportScale);
-	StaticMeshFactory->SetUniformScale(ImportOptions->ImportScale);
-	StaticMeshFactory->SetGenerateLightmapUVs(ImportOptions->bGenerateLightmapUVs);
+	MeshFactory->SetUniformScale(ImportOptions->ImportScale);
 
 	FDatasmithGLTFTextureFactory& TextureFactory     = static_cast<FDatasmithGLTFTextureFactory&>(MaterialFactory->GetTextureFactory());
 	FGLTFMaterialElementFactory&  ElementFactory     = static_cast<FGLTFMaterialElementFactory&>(MaterialFactory->GetMaterialElementFactory());
@@ -327,7 +345,7 @@ void FDatasmithGLTFImporter::GetGeometriesForMeshElementAndRelease(const TShared
 		FMeshDescription MeshDescription;
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-		StaticMeshFactory->FillMeshDescription(GLTFAsset->Meshes[MeshIndex], &MeshDescription);
+		MeshFactory->FillMeshDescription(GLTFAsset->Meshes[MeshIndex], &MeshDescription);
 
 		OutMeshDescriptions.Add(MoveTemp(MeshDescription));
 	}
@@ -340,13 +358,13 @@ const TArray<TSharedRef<IDatasmithLevelSequenceElement>>& FDatasmithGLTFImporter
 
 void FDatasmithGLTFImporter::UnloadScene()
 {
-	StaticMeshFactory->CleanUp();
+	MeshFactory->CleanUp();
 	MaterialFactory->CleanUp();
 	GLTFAsset->Clear(8 * 1024, 512);
 
 	GLTFReader.Reset(new GLTF::FFileReader());
 	GLTFAsset.Reset(new GLTF::FAsset());
-	StaticMeshFactory.Reset(new GLTF::FStaticMeshFactory());
+	MeshFactory.Reset(new GLTF::FMeshFactory());
 	MaterialFactory.Reset(new GLTF::FMaterialFactory(new FGLTFMaterialElementFactory(), new FDatasmithGLTFTextureFactory()));
 }
 
@@ -368,7 +386,7 @@ void FDatasmithGLTFImporter::SetActorElementTransform(TSharedPtr<IDatasmithActor
 	}
 	ActorElement->SetScale(Transform.GetScale3D());
 
-	ActorElement->SetTranslation(Transform.GetTranslation() * StaticMeshFactory->GetUniformScale());
+	ActorElement->SetTranslation(Transform.GetTranslation() * MeshFactory->GetUniformScale());
 	ActorElement->SetUseParentTransform(TransformIsLocal);
 }
 

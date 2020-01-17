@@ -5,6 +5,7 @@ using System.IO;
 
 public class zlib : ModuleRules
 {
+	protected string LatestZlibVersion;
 	protected string CurrentZlibVersion;
 	protected string OldZlibVersion;
 
@@ -12,20 +13,35 @@ public class zlib : ModuleRules
 	{
 		Type = ModuleType.External;
 
+		LatestZlibVersion = "zlib-1.2.11";
 		CurrentZlibVersion = "v1.2.8";
 		OldZlibVersion = "zlib-1.2.5";
 
+		string LatestzlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + LatestZlibVersion;
 		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + CurrentZlibVersion;
 		// TODO: recompile for consoles and mobile platforms
 		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + OldZlibVersion;
 
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32) ||
-            (Target.Platform == UnrealTargetPlatform.HoloLens))
-        {
-            string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
-            PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
-            string LibDir;
+		// On Windows x64, use the llvm compiled version which is quite a bit faster than the MSVC compiled version.
+		if (Target.Platform == UnrealTargetPlatform.Win64 &&
+		    Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+		{
+			string LibDir  = System.String.Format("{0}/lib/Win64-llvm/{1}/", LatestzlibPath, Target.Configuration != UnrealTargetConfiguration.Debug ? "Release" : "Debug");
+			string LibName = System.String.Format("zlibstatic{0}.lib", Target.Configuration != UnrealTargetConfiguration.Debug ? "" : "d");
+			PublicAdditionalLibraries.Add(LibDir + LibName);
+
+			// continue to include the same include as before, still valid as the new zlib is ABI compatible
+			string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+			PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win64 ||
+				 Target.Platform == UnrealTargetPlatform.Win32 ||
+				 Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+			PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+			string LibDir;
+
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
                 LibDir = System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());

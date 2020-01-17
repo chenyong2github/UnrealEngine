@@ -28,6 +28,7 @@ class UCurveEditorSettings;
 class FUICommandList;
 class FCurveEditor;
 class SCurveEditorPanel;
+class UCurveEditorCopyBuffer;
 
 struct FGeometry;
 struct FCurveEditorSnapMetrics;
@@ -346,6 +347,32 @@ public:
 	void ToggleOutputSnapping();
 
 public:
+
+	/**
+	 * Cut the currently selected keys
+	 */
+	void CutSelection();
+	
+	/**
+	 * Copy the currently selected keys
+	 */
+	void CopySelection() const;
+
+	/**
+	 * Returns whether the current clipboard contains objects which CurveEditor can paste
+	 */
+	bool CanPaste(const FString& TextToImport) const;
+
+protected:
+	void ImportCopyBufferFromText(const FString& TextToImport, /*out*/ TArray<UCurveEditorCopyBuffer*>& ImportedCopyBuffers) const;
+
+	void GetChildCurveModelIDs(const FCurveEditorTreeItemID TreeItemID, TSet<FCurveModelID>& CurveModelIDs) const;
+
+public:
+	/**
+	 * Paste keys
+	 */
+	void PasteKeys();
 
 	/**
 	 * Delete the currently selected keys

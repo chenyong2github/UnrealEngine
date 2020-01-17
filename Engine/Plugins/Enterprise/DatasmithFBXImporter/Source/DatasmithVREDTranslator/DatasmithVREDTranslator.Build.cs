@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"DatasmithContent",
 					"DatasmithFBXTranslator",
-					"DatasmithImporter",
+					"DatasmithTranslator",
 				}
 			);
 

@@ -6,6 +6,7 @@
 #include "Input/Reply.h"
 #include "Layout/Margin.h"
 #include "Sections/ThumbnailSection.h"
+#include "TrackEditors/SubTrackEditorBase.h"
 
 class FCinematicShotTrackEditor;
 class FMenuBuilder;
@@ -17,12 +18,12 @@ class UMovieSceneCinematicShotSection;
  * CinematicShot section, which paints and ticks the appropriate section.
  */
 class FCinematicShotSection
-	: public FViewportThumbnailSection
+	: public TSubSectionMixin<FViewportThumbnailSection>
 {
 public:
 
 	/** Create and initialize a new instance. */
-	FCinematicShotSection(TSharedPtr<ISequencer> InSequencer, TSharedPtr<FTrackEditorThumbnailPool> InThumbnailPool, UMovieSceneSection& InSection, TSharedPtr<FCinematicShotTrackEditor> InCinematicShotTrackEditor);
+	FCinematicShotSection(TSharedPtr<ISequencer> InSequencer, UMovieSceneCinematicShotSection& InSection, TSharedPtr<FCinematicShotTrackEditor> InCinematicShotTrackEditor, TSharedPtr<FTrackEditorThumbnailPool> InThumbnailPool);
 
 	/** Virtual destructor. */
 	virtual ~FCinematicShotSection();
@@ -34,14 +35,9 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const FGeometry& ClippedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual int32 OnPaintSection( FSequencerSectionPainter& Painter ) const override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
-	virtual FReply OnSectionDoubleClicked(const FGeometry& SectionGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FText GetSectionTitle() const override;
 	virtual float GetSectionHeight() const override;
 	virtual FMargin GetContentPadding() const override;
-	virtual void BeginResizeSection() override;
-	virtual void ResizeSection(ESequencerSectionResizeMode ResizeMode, FFrameNumber ResizeTime) override;
-	virtual void BeginSlipSection() override;
-	virtual void SlipSection(FFrameNumber SlipTime) override;
 	virtual bool IsReadOnly() const override;
 
 	// FThumbnail interface
@@ -57,17 +53,8 @@ private:
 
 private:
 
-	/** The section we are visualizing */
-	UMovieSceneCinematicShotSection& SectionObject;
-
 	/** The cinematic shot track editor that contains this section */
 	TWeakPtr<FCinematicShotTrackEditor> CinematicShotTrackEditor;
-
-	/** Cached start offset value valid only during resize */
-	FFrameNumber InitialStartOffsetDuringResize;
-
-	/** Cached start time valid only during resize */
-	FFrameNumber InitialStartTimeDuringResize;
 
 	struct FCinematicSectionCache
 	{

@@ -55,7 +55,13 @@ enum class EDrawPolygonDrawMode : uint8
 	Square UMETA(DisplayName = "Square"),
 
 	/** Rectangle */
-	Rectangle UMETA(DisplayName = "Rectangle")
+	Rectangle UMETA(DisplayName = "Rectangle"),
+
+	/** Rounded Rectangle */
+	RoundedRectangle UMETA(DisplayName = "Rounded Rectangle"),
+
+	/** Circle w/ Hole */
+	HoleyCircle UMETA(DisplayName = "Circle w/ Hole")
 
 };
 
@@ -92,6 +98,11 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	EDrawPolygonOutputMode OutputMode = EDrawPolygonOutputMode::ExtrudedInteractive;
 
+	/** Feature size as fraction of overall shape size, for shapes with secondary features like the rounded corners of a Rounded Rectangle */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", 
+									EditCondition = "PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
+	float FeatureSizeRatio = .25;
+
 	/** Extrusion Distance in non-interactive mode */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
 	float ExtrudeHeight = 100.0f;
@@ -124,6 +135,9 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractive
 public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bEnableSnapping = true;
+
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	bool bSnapToWorldGrid = false;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToVertices = true;
@@ -176,6 +190,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return false; }
@@ -239,6 +254,9 @@ protected:
 	UPROPERTY()
 	TArray<FVector> PolygonVertices;
 
+	/** Vertices of holes in current preview polygon */
+	TArray<TArray<FVector>> PolygonHolesVertices;
+
 	/** last vertex of polygon that is actively being updated as input device is moved */
 	UPROPERTY()
 	FVector PreviewVertex;
@@ -295,8 +313,10 @@ protected:
 	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
 	FPointPlanarSnapSolver SnapEngine;
 	ToolSceneQueriesUtil::FSnapGeometry LastSnapGeometry;
+	FVector3d LastGridSnapPoint;
 
-	void GenerateFixedPolygon(TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut);
+	void GetPolygonParametersFromFixedPoints(const TArray<FVector>& FixedPoints, FVector2f& FirstReferencePt, FVector2f& BoxSize, float& YSign, float& AngleRad);
+	void GenerateFixedPolygon(const TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut, TArray<TArray<FVector>>& HolesVerticesOut);
 
 
 	// extrusion control
@@ -314,8 +334,8 @@ protected:
 
 	FFrame3f HitPosFrameWorld;
 
-	// we use this to generate extruded meshes
-	void GeneratePolygonMesh(const TArray<FVector>& Polygon, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
+	/** Generate extruded meshes.  Returns true on success. */
+	bool GeneratePolygonMesh(const TArray<FVector>& Polygon, const TArray<TArray<FVector>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
 
 
 	// user feedback messages

@@ -923,91 +923,108 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 
 	bool bPasssedAnyFilters = false;
 
-	if (StartNode->GetType() == ESequencerNode::Track)
+	switch(StartNode->GetType())
 	{
-		UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
-		if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
+		case ESequencerNode::Track:
 		{
-			bPasssedAnyFilters = true;
-
-			// Track nodes do not belong to a level, but might be a child of an objectbinding node that does
-			if (LevelTrackFilter->IsActive())
-			{
-				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
-				while (ParentNode.IsValid())
-				{
-					if (ParentNode->GetType() == ESequencerNode::Object)
-					{
-						// The track belongs to an objectbinding node, start by assuming it doesn't match the level filter
-						bPasssedAnyFilters = false;
-
-						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
-						for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode->GetObjectBinding()))
-						{
-							if (Object.IsValid() && LevelTrackFilter->PassesFilter(Object.Get()))
-							{
-								// If at least one of the objects on the objectbinding node pass the level filter, show the track
-								bPasssedAnyFilters = true;
-								break;
-							}
-						}
-
-						break;
-					}
-					ParentNode = ParentNode->GetParent();
-				}
-			}
-
-			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
-			{
-				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
-				while (ParentNode.IsValid())
-				{
-					// Pinned tracks should be visible whether selected or not
-					if (ParentNode->IsPinned())
-					{
-						break;
-					}
-
-					if (ParentNode->GetType() == ESequencerNode::Object)
-					{
-						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
-						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
-						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
-						{
-							bPasssedAnyFilters = false;
-						}
-
-						break;
-					}
-					ParentNode = ParentNode->GetParent();
-				}
-			}
-		}
-	}
-	else if (StartNode->GetType() == ESequencerNode::Object)
-	{
-		const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
-		for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
-		{
-			if (Object.IsValid() && (Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get()))
-				&& LevelTrackFilter->PassesFilter(Object.Get()))
+			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
+			if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
 			{
 				bPasssedAnyFilters = true;
-				break;
-			}
-		}
 
-		if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !StartNode->IsPinned())
-		{
-			UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
-			const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());
-			if (Binding && !Sequencer.IsBindingVisible(*Binding))
-			{
-				bPasssedAnyFilters = false;
+				// Track nodes do not belong to a level, but might be a child of an objectbinding node that does
+				if (LevelTrackFilter->IsActive())
+				{
+					TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+					while (ParentNode.IsValid())
+					{
+						if (ParentNode->GetType() == ESequencerNode::Object)
+						{
+							// The track belongs to an objectbinding node, start by assuming it doesn't match the level filter
+							bPasssedAnyFilters = false;
+
+							const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+							for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode->GetObjectBinding()))
+							{
+								if (Object.IsValid() && LevelTrackFilter->PassesFilter(Object.Get()))
+								{
+									// If at least one of the objects on the objectbinding node pass the level filter, show the track
+									bPasssedAnyFilters = true;
+									break;
+								}
+							}
+
+							break;
+						}
+						ParentNode = ParentNode->GetParent();
+					}
+				}
+
+				if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+				{
+					TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+					while (ParentNode.IsValid())
+					{
+						// Pinned tracks should be visible whether selected or not
+						if (ParentNode->IsPinned())
+						{
+							break;
+						}
+
+						if (ParentNode->GetType() == ESequencerNode::Object)
+						{
+							const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+							const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
+							if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
+							{
+								bPasssedAnyFilters = false;
+							}
+
+							break;
+						}
+						ParentNode = ParentNode->GetParent();
+					}
+				}
 			}
+			break;
+		}
+		case ESequencerNode::Object:
+		{
+			const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
+			for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
+			{
+				if (Object.IsValid() && (Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get()))
+					&& LevelTrackFilter->PassesFilter(Object.Get()))
+				{
+					bPasssedAnyFilters = true;
+					break;
+				}
+			}
+
+			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !StartNode->IsPinned())
+			{
+				UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+				const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());
+				if (Binding && !Sequencer.IsBindingVisible(*Binding))
+				{
+					bPasssedAnyFilters = false;
+				}
+			}
+			break;
+		}
+		case ESequencerNode::Category:
+		case ESequencerNode::Folder:
+		case ESequencerNode::KeyArea:
+		{
+			// If no active filters, pass organizational nodes to be text filtered
+			if (Filters->Num() == 0)
+			{
+				bPasssedAnyFilters = true;
+			}
+			break;
 		}
 	}
+
 
 	if (bPasssedAnyFilters)
 	{

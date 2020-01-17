@@ -8,7 +8,6 @@ UTakeRecorderUserSettings::UTakeRecorderUserSettings()
 	Settings.bMaximizeViewport  = false;
 	Settings.CountdownSeconds   = 3.f;
 	Settings.EngineTimeDilation = 1.f;
-	Settings.SampleClock        = nullptr;
 	Settings.bRemoveRedundantTracks = true;
 	Settings.bSaveRecordedAssets = true;
 	Settings.bAutoSerialize     = false;

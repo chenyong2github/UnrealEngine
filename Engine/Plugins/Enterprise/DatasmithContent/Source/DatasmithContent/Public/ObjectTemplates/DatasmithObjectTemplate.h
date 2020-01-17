@@ -63,6 +63,21 @@ public:
 	 * @param SourceTemplate	The object template to compare to.
 	 */
 	static UDatasmithObjectTemplate* GetDifference(UObject* Destination, UDatasmithObjectTemplate* Source);
+
+protected:
+	/**
+	 * Fills this template properties with the values from the Source object after rebasing (changing its parent) with the base object defined in BaseTemplate.
+	 *
+	 * @param Source			The object to get the template from.
+	 * @param BaseTemplate		The template which is using a different base object. Its base will be used to rebase the template.
+	 * @param bMergeTemplate	If True, the loaded template will merge the changes contained in the BaseTemplate as well.
+	 */
+	virtual void LoadRebase(const UObject* Source, const UDatasmithObjectTemplate* BaseTemplate, bool bLoadDiff = false) { Load(Source); }
+
+	/**
+	 * Returns if this template has the same base as another template of the same type, this indicates if their diffs can be safely compared.
+	 */
+	virtual bool HasSameBase(const UDatasmithObjectTemplate* Other) const { return true; }
 };
 
 // Sets Destination->MemberName with the value of MemberName only if PreviousTemplate is null or has the same value for MemberName as the Destination.

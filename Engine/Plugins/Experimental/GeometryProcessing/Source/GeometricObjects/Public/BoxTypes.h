@@ -199,6 +199,23 @@ struct TAxisAlignedBox3
 		this->Min = Min;
 		this->Max = Max;
 	}
+
+	TAxisAlignedBox3(const TAxisAlignedBox3& OtherBox) = default;
+
+	template<typename OtherRealType>
+	explicit TAxisAlignedBox3(const TAxisAlignedBox3<OtherRealType>& OtherBox)
+	{
+		this->Min = FVector3<RealType>(OtherBox.Min);
+		this->Max = FVector3<RealType>(OtherBox.Max);
+	}
+
+	TAxisAlignedBox3(const FVector3<RealType>& Center, RealType HalfWidth)
+	{
+		this->Min = FVector3<RealType>(Center.X-HalfWidth, Center.Y-HalfWidth, Center.Z-HalfWidth);
+		this->Max = FVector3<RealType>(Center.X+HalfWidth, Center.Y+HalfWidth, Center.Z+HalfWidth);
+	}
+
+
 	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const TFunction<FVector3<RealType>(const FVector3<RealType>&)> TransformF)
 	{
 		if (TransformF == nullptr)
@@ -217,7 +234,7 @@ struct TAxisAlignedBox3
 		}
 	}
 
-	operator FBox() const
+	explicit operator FBox() const
 	{
 		FVector MinV((float)Min.X, (float)Min.Y, (float)Min.Z);
 		FVector MaxV((float)Max.X, (float)Max.Y, (float)Max.Z);
@@ -236,9 +253,9 @@ struct TAxisAlignedBox3
 	FVector3<RealType> GetCorner(int Index) const
 	{
 		check(Index >= 0 && Index <= 7);
-		double X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
-		double Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
-		double Z = (Index < 4) ? (Min.Z) : (Max.Z);
+		RealType X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
+		RealType Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
+		RealType Z = (Index < 4) ? (Min.Z) : (Max.Z);
 		return FVector3<RealType>(X, Y, Z);
 	}
 
@@ -408,6 +425,16 @@ struct TAxisAlignedBox2
 		: Min(Min), Max(Max)
 	{
 	}
+
+	TAxisAlignedBox2(const TAxisAlignedBox2& OtherBox) = default;
+
+	template<typename OtherRealType>
+	explicit TAxisAlignedBox2(const TAxisAlignedBox2<OtherRealType>& OtherBox)
+	{
+		this->Min = FVector2<RealType>(OtherBox.Min);
+		this->Max = FVector2<RealType>(OtherBox.Max);
+	}
+
 	TAxisAlignedBox2(RealType SquareSize)
 		: Min((RealType)0, (RealType)0), Max(SquareSize, SquareSize)
 	{
@@ -417,7 +444,19 @@ struct TAxisAlignedBox2
 	{
 	}
 
-	operator FBox2D() const
+	TAxisAlignedBox2(const TArray<FVector2<RealType>>& Pts)
+	{
+		*this = Empty();
+		Contain(Pts);
+	}
+
+	TAxisAlignedBox2(const FVector2<RealType>& Center, RealType HalfWidth)
+	{
+		this->Min = FVector2<RealType>(Center.X - HalfWidth, Center.Y - HalfWidth);
+		this->Max = FVector2<RealType>(Center.X + HalfWidth, Center.Y + HalfWidth);
+	}
+
+	explicit operator FBox2D() const
 	{
 		FVector2D MinV((float)Min.X, (float)Min.Y);
 		FVector2D MaxV((float)Max.X, (float)Max.Y);

@@ -30,8 +30,8 @@ namespace DatasmithRevitExporter
 		// Active Revit document being exported.
 		private Document RevitDocument = null;
 
-		// Datasmith output file path.
-		private string DatasmithFilePath = null;
+		// Datasmith file paths for each 3D view to be exported.
+		private Dictionary<ElementId, string> DatasmithFilePaths = null;
 
 		// Multi-line debug log.
 		private FDatasmithFacadeLog DebugLog = null;
@@ -54,16 +54,19 @@ namespace DatasmithRevitExporter
 		// List of messages generated during the export process.
 		private List<string> MessageList = new List<string>();
 
+		// The file path for the view that is currently being exported.
+		private string CurrentDatasmithFilePath = null;
+
 		public FDatasmithRevitExportContext(
-			Application                 InApplication,       // running Revit application
-			Document                    InDocument,          // active Revit document
-			string                      InDatasmithFilePath, // Datasmith output file path
-			DatasmithRevitExportOptions InExportOptions      // Unreal Datasmith export options
+			Application						InApplication,        // running Revit application
+			Document						InDocument,           // active Revit document
+			Dictionary<ElementId, string>	InDatasmithFilePaths, // Datasmith output file path
+			DatasmithRevitExportOptions		InExportOptions       // Unreal Datasmith export options
 		)
 		{
-			ProductVersion    = InApplication.VersionNumber;
-			RevitDocument     = InDocument;
-			DatasmithFilePath = InDatasmithFilePath;
+			ProductVersion     = InApplication.VersionNumber;
+			RevitDocument      = InDocument;
+			DatasmithFilePaths = InDatasmithFilePaths;
 
 			// Get the Unreal Datasmith export options.
 			DebugLog            = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
@@ -111,7 +114,7 @@ namespace DatasmithRevitExporter
 		{
 			if (DebugLog != null)
 			{
-				DebugLog.WriteFile(DatasmithFilePath.Replace(".udatasmith", ".log"));
+				DebugLog.WriteFile(CurrentDatasmithFilePath.Replace(".udatasmith", ".log"));
 			}
 		}
 
@@ -136,8 +139,14 @@ namespace DatasmithRevitExporter
 			// Create an empty Datasmith scene.
 			DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
 
+			View3D ViewToExport = RevitDocument.GetElement(InViewNode.ViewId) as View3D;
+			if (!DatasmithFilePaths.TryGetValue(ViewToExport.Id, out CurrentDatasmithFilePath))
+			{
+				return RenderNodeAction.Skip; // TODO log error?
+			}
+
 			// Add a new camera actor to the Datasmith scene for the 3D view camera.
-			AddCameraActor(RevitDocument.GetElement(InViewNode.ViewId) as View3D, InViewNode.GetCameraInfo());
+			AddCameraActor(ViewToExport, InViewNode.GetCameraInfo());
 
 			// Keep track of the active Revit document being exported.
 			PushDocument(RevitDocument);
@@ -159,7 +168,7 @@ namespace DatasmithRevitExporter
 			DatasmithScene.Optimize();
 
 			// Build and export the Datasmith scene instance and its scene element assets.
-			DatasmithScene.ExportScene(DatasmithFilePath);
+			DatasmithScene.ExportScene(CurrentDatasmithFilePath);
 
 			// Dispose of the Datasmith scene.
 			DatasmithScene = null;
@@ -184,7 +193,7 @@ namespace DatasmithRevitExporter
 				return RenderNodeAction.Proceed;
 			}
 
-			return RenderNodeAction.Skip;
+            return RenderNodeAction.Skip;
 		}
 
 		// OnElementEnd marks the end of an element being exported.
@@ -228,7 +237,7 @@ namespace DatasmithRevitExporter
 				return RenderNodeAction.Proceed;
 			}
 
-			return RenderNodeAction.Skip;
+            return RenderNodeAction.Skip;
 		}
 
 		// OnInstanceEnd marks the end of a family instance being exported.
@@ -715,11 +724,11 @@ namespace DatasmithRevitExporter
 
 				CreateMeshActor(InWorldTransform, out InstanceData.InstanceMesh, out InstanceData.InstanceActor);
 
-				// The Datasmith instance actor is a component in the hierarchy.
-				InstanceData.InstanceActor.SetIsComponent(true);
-			}
+                // The Datasmith instance actor is a component in the hierarchy.
+                //InstanceData.InstanceActor.SetIsComponent(true);
+            }
 
-			public FDatasmithFacadeMesh PopInstance()
+            public FDatasmithFacadeMesh PopInstance()
 			{
 				FInstanceData InstanceData = InstanceDataStack.Pop();
 
@@ -755,6 +764,10 @@ namespace DatasmithRevitExporter
 				// Set the base properties of the Datasmith light actor.
 				string LayerName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
 				SetActorProperties(LayerName, LightActor);
+
+				// Set the Datasmith light actor layer to its predefined name.
+				string CategoryName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
+				LightActor.SetLayer(CategoryName);
 
 				// Set the specific properties of the Datasmith light actor.
 				FDatasmithRevitLight.SetLightProperties(InLightAsset, CurrentElement, LightActor);
@@ -1041,12 +1054,19 @@ namespace DatasmithRevitExporter
 				IOActor.AddTag($"Revit.Element.Id.{CurrentElement.Id.IntegerValue}");
 				IOActor.AddTag($"Revit.Element.UniqueId.{CurrentElement.UniqueId}");
 
-				// For an hosted Revit family instance, add the host ID and Unique ID tags to the Datasmith actor.
+				// For an hosted Revit family instance, add the host ID, Unique ID and Mirrored/Flipped flags as tags to the Datasmith actor.
 				FamilyInstance CurrentFamilyInstance = CurrentElement as FamilyInstance;
-				if (CurrentFamilyInstance?.Host != null)
+				if (CurrentFamilyInstance != null)
 				{
-					IOActor.AddTag($"Revit.Host.Id.{CurrentFamilyInstance.Host.Id.IntegerValue}");
-					IOActor.AddTag($"Revit.Host.UniqueId.{CurrentFamilyInstance.Host.UniqueId}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.Mirrored.{CurrentFamilyInstance.Mirrored}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.HandFlipped.{CurrentFamilyInstance.HandFlipped}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.FaceFlipped.{CurrentFamilyInstance.FacingFlipped}");
+
+					if (CurrentFamilyInstance.Host != null)
+					{
+						IOActor.AddTag($"Revit.Host.Id.{CurrentFamilyInstance.Host.Id.IntegerValue}");
+						IOActor.AddTag($"Revit.Host.UniqueId.{CurrentFamilyInstance.Host.UniqueId}");
+					}
 				}
 
 				// Add the Revit element category name metadata to the Datasmith actor.
@@ -1511,6 +1531,10 @@ namespace DatasmithRevitExporter
 			else if (SourceElement as ContinuousRail != null)
 			{
 				return CurrentDocument.GetElement((SourceElement as ContinuousRail).HostRailingId);
+			}
+			else if (SourceElement.GetType().IsSubclassOf(typeof(InsulationLiningBase)))
+			{
+				return CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
 			}
 
 			return null;

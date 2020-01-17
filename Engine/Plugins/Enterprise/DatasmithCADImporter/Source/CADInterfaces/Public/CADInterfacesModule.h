@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-#define CADINTERFACES_MODULE_NAME TEXT("WorkerDataManagement")
+#define CADINTERFACES_MODULE_NAME TEXT("CADInterfaces")
 
-class FCADInterfacesModule : public IModuleInterface
+DECLARE_LOG_CATEGORY_EXTERN(CADInterfaces, Log, All);
+
+class ICADInterfacesModule : public IModuleInterface
 {
 public:
-	static FCADInterfacesModule& Get();
+	static ICADInterfacesModule& Get();
 	static bool IsAvailable();
-
-private:
-	virtual void StartupModule() override;
 };

@@ -6,6 +6,7 @@
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "GraphEditor.h"
 #include "AssetData.h"
@@ -104,6 +105,7 @@ private:
 	void OnEnableCollectionFilterChanged(ECheckBoxState NewState);
 	ECheckBoxState IsEnableCollectionFilterChecked() const;
 	TSharedRef<SWidget> GenerateCollectionFilterItem(TSharedPtr<FName> InItem);
+	void UpdateCollectionsComboList();
 	void HandleCollectionFilterChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 	FText GetCollectionFilterText() const;
 
@@ -172,6 +174,9 @@ private:
 
 	/** The temporary copy of the path text when it is actively being edited. */
 	FText TemporaryPathBeingEdited;
+
+	/** Combo box for collections filter options */
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> CollectionsCombo;
 
 	/** List of collection filter options */
 	TArray<TSharedPtr<FName>> CollectionsComboList;

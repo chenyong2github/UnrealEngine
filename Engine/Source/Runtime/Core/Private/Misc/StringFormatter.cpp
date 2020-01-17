@@ -439,13 +439,13 @@ FStringFormatter& GetDefaultFormatter()
 	return DefaultFormatter;
 }
 
-FString FString::Format(const TCHAR* InFormatString, const TMap<FString, FStringFormatArg>& InNamedArguments)
+FString FString::Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments)
 {
 	FStringFormatter& DefaultFormatter = GetDefaultFormatter();
 	return DefaultFormatter.Format(InFormatString, InNamedArguments);
 }
 
-FString FString::Format(const TCHAR* InFormatString, const TArray<FStringFormatArg>& InOrderedArguments)
+FString FString::Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments)
 {
 	FStringFormatter& DefaultFormatter = GetDefaultFormatter();
 	return DefaultFormatter.Format(InFormatString, InOrderedArguments);

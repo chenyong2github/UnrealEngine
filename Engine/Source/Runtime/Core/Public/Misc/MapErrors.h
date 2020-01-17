@@ -202,7 +202,7 @@ struct CORE_API FMapErrors
 
     /**  Uncategorized */
 
-	/** Filename {Filename} is too long - this may interfere with cooking for consoles.  Unreal filenames should be no longer than {Length} characters.: Please rename the file to be within the length specified. */
+	/** Filename is too long ({FilenameLength} characters) - this may interfere with cooking for consoles. Unreal filenames should be no longer than {Length} characters. Filename value: {Filename}: Please rename the file to be within the length specified. */
     static FLazyName FilenameIsTooLongForCooking;
     
 	/** {ObjectName} : Externally referenced */

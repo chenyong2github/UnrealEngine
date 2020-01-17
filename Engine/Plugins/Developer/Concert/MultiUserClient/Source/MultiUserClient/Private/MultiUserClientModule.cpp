@@ -30,6 +30,9 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 
+#include "MessageLogModule.h"
+#include "Logging/MessageLog.h"
+
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
@@ -39,7 +42,6 @@
 #include "EditorStyleSet.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Interfaces/IEditorStyleModule.h"
-#include "MessageLogModule.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -88,6 +90,9 @@ void KillProcess(uint32 ProcessID)
 }
 
 }
+
+// Disable dirty package check 
+static TAutoConsoleVariable<int32> CVarDisableDirtyPackageCheck(TEXT("Concert.DisableDirtyPackageCheck"), 1, TEXT("Disable dirty package check when joining a session."));
 
 /**
  * Connection task used to validate that the workspace has no local changes (according to source control) or in-memory changes (dirty packages).
@@ -176,6 +181,13 @@ private:
 	/** Common function to query for in-memory changes to packages */
 	static void HandleDirtyPackages(TSharedRef<FSharedAsyncState, ESPMode::ThreadSafe> InSharedState)
 	{
+		//@todo FH: Temporary cvar to disable the dirty package check until it can be reworked as a skippable warning.
+		if (CVarDisableDirtyPackageCheck.GetValueOnAnyThread() > 0)
+		{
+			InSharedState->Result = EConcertResponseCode::Success;
+			return;
+		}
+		
 		TArray<UPackage*> DirtyPackages;
 #if WITH_EDITOR
 		{
@@ -189,8 +201,15 @@ private:
 
 		if (DirtyPackages.Num() > 0)
 		{
+			// Print which package are dirty to the message log
+			FMessageLog MessageLog("Concert");
+			for (UPackage* Package : DirtyPackages)
+			{
+				MessageLog.Warning(FText::Format(LOCTEXT("ValidatingWorkspace_InMemoryChanges_Log", "Workspace validation failed: '{0}' contains in-memory changes before joining a multi-user session."), FText::FromName(Package->GetFName())));
+			}
+
 			InSharedState->Result = EConcertResponseCode::Failed;
-			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Please save or discard these changes before attempting to connect.");
+			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Please save or discard these changes before attempting to connect. See Muti-User message log for details.");
 		}
 		else
 		{
@@ -210,9 +229,10 @@ private:
 			if (ensure(SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable()))
 			{
 				bool bHasLocalChanges = false;
+				FMessageLog MessageLog("Concert");
 				for (const FString& ContentPath : InSharedState->ContentPaths)
 				{
-					IFileManager::Get().IterateDirectoryRecursively(*ContentPath, [&bHasLocalChanges, &SourceControlProvider](const TCHAR* InFilename, bool InIsDirectory) -> bool
+					IFileManager::Get().IterateDirectoryRecursively(*ContentPath, [&bHasLocalChanges, &SourceControlProvider, &MessageLog](const TCHAR* InFilename, bool InIsDirectory) -> bool
 					{
 						const FString FilenameStr = InFilename;
 						if (!InIsDirectory && FPackageName::IsPackageFilename(FilenameStr))
@@ -221,7 +241,7 @@ private:
 							if (FileState.IsValid() && (FileState->IsAdded() || FileState->IsDeleted() || FileState->IsModified() || (SourceControlProvider.UsesCheckout() && FileState->IsCheckedOut()))) // TODO: Include unversioned files?
 							{
 								bHasLocalChanges = true;
-								UE_LOG(LogConcert, Warning, TEXT("%s has local changes before joining a multi-user session."), *FileState->GetFilename());
+								MessageLog.Warning(FText::Format(LOCTEXT("ValidatingWorkspace_LocalChanges_Log", "Workspace validation failed: '{0}' contains local changes before joining a multi-user session."), FText::FromString(FileState->GetFilename())));
 								return false; // end iteration
 							}
 						}
@@ -236,7 +256,7 @@ private:
 				if (bHasLocalChanges)
 				{
 					InSharedState->Result = EConcertResponseCode::Failed;
-					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect. See output log for details.");
+					InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_LocalChanges", "This workspace has local changes. Please submit or revert these changes before attempting to connect. See Muti-User message log for details.");
 				}
 				else
 				{
@@ -284,7 +304,6 @@ private:
 	TSharedPtr<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation;
 	TSharedPtr<FSharedAsyncState, ESPMode::ThreadSafe> SharedState;
 };
-
 
 /**
  * Customize the multi-user settings to add validation and visual feedback when a user enter something invalid.

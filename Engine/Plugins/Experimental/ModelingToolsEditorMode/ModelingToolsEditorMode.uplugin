@@ -25,6 +25,10 @@
 		{
 			"Name": "MeshModelingToolset",
 			"Enabled": true
+		},
+		{
+			"Name": "StylusInput",
+			"Enabled": true
 		}
 	]
 }

@@ -616,7 +616,26 @@ void FDetailCategoryImpl::SetDisplayName(FName InCategoryName, const FText& Loca
 	}
 	else if (InCategoryName != NAME_None)
 	{
-		DisplayName = FText::AsCultureInvariant(FName::NameToDisplayString(InCategoryName.ToString(), false));
+		static const FTextKey CategoryLocalizationNamespace = TEXT("UObjectCategory");
+		static const FName CategoryMetaDataKey = TEXT("Category");
+
+		DisplayName = FText();
+
+		const FString NativeCategory = InCategoryName.ToString();
+		if (FText::FindText(CategoryLocalizationNamespace, NativeCategory, /*OUT*/DisplayName, &NativeCategory))
+		{
+			// Category names in English are typically gathered in their non-pretty form (eg "UserInterface" rather than "User Interface"), so skip 
+			// applying the localized variant if the text matches the raw category name, as in this case the pretty printer will do a better job
+			if (NativeCategory.Equals(DisplayName.ToString(), ESearchCase::CaseSensitive))
+			{
+				DisplayName = FText();
+			}
+		}
+		
+		if (DisplayName.IsEmpty())
+		{
+			DisplayName = FText::AsCultureInvariant(FName::NameToDisplayString(NativeCategory, false));
+		}
 	}
 	else
 	{

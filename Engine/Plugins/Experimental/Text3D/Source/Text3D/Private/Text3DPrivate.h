@@ -10,13 +10,12 @@ THIRD_PARTY_INCLUDES_START
 #include FT_ADVANCES_H
 THIRD_PARTY_INCLUDES_END
 
-const int32 FontPower = 6;					// Font Size 64
-const int32 FontSize = 1 << FontPower;
+const int32 FontSize = 64;
 const float FontInverseScale = 1.0f / FontSize;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogText3D, Log, All);
 
-class FText3DModule : public IModuleInterface
+class FText3DModule final : public IModuleInterface
 {
 public:
 	FText3DModule();
