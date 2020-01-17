@@ -904,7 +904,7 @@ void FWindowsPlatformMisc::EndNamedEvent()
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::OutputEndEvent();
+	FCpuProfilerTrace::OutputEndEvent(NamedEventsChannel);
 #endif
 }
 #endif // STATS || ENABLE_STATNAMEDEVENTS

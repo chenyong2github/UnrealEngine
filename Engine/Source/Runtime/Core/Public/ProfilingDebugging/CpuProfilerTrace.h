@@ -31,37 +31,44 @@ struct FCpuProfilerTrace
 	CORE_API static void OutputBeginEvent(uint32 SpecId, const Trace::FChannel& Channel);
 	CORE_API static void OutputBeginDynamicEvent(const ANSICHAR* Name, const Trace::FChannel& Channel);
 	CORE_API static void OutputBeginDynamicEvent(const TCHAR* Name, const Trace::FChannel& Channel);
-	CORE_API static void OutputEndEvent();
+	CORE_API static void OutputEndEvent(const Trace::FChannel& Channel);
 
 	struct FEventScope
 	{
 		FEventScope(uint32 InSpecId, const Trace::FChannel& Channel)
+			: Channel(Channel)
 		{
 			OutputBeginEvent(InSpecId, Channel); 
 		}
 
 		~FEventScope()
 		{
-			OutputEndEvent();
+			OutputEndEvent(Channel);
 		}
+
+		const Trace::FChannel& Channel;
 	};
 
 	struct FDynamicEventScope
 	{
 		FDynamicEventScope(const ANSICHAR* InEventName, const Trace::FChannel& Channel)
+			: Channel(Channel)
 		{
 			OutputBeginDynamicEvent(InEventName, Channel);
 		}
 
 		FDynamicEventScope(const TCHAR* InEventName, const Trace::FChannel& Channel)
+			: Channel(Channel)
 		{
 			OutputBeginDynamicEvent(InEventName, Channel);
 		}
 
 		~FDynamicEventScope()
 		{
-			OutputEndEvent();
+			OutputEndEvent(Channel);
 		}
+
+		const Trace::FChannel& Channel;
 	};
 };
 

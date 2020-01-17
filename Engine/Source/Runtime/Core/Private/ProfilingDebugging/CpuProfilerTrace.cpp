@@ -84,12 +84,10 @@ struct FCpuProfilerTraceInternal
 	FORCENOINLINE static void EndCapture(FThreadBuffer* ThreadBuffer);
 
 	static thread_local uint32 ThreadDepth;
-	static thread_local bool bThreadEnabled;
 	static thread_local FThreadBuffer* ThreadBuffer;
 };
 
 thread_local uint32 FCpuProfilerTraceInternal::ThreadDepth = 0;
-thread_local bool FCpuProfilerTraceInternal::bThreadEnabled = false;
 thread_local FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::ThreadBuffer = nullptr;
 
 FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThreadBuffer()
@@ -107,33 +105,18 @@ void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 	InThreadBuffer->BufferSize = 0;
 }
 
-void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
-{
-	UE_TRACE_LOG(CpuProfiler, EndCapture, CpuProfilerChannel, InThreadBuffer->BufferSize)
-		<< EndCapture.ThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< EndCapture.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
-	InThreadBuffer->BufferSize = 0;
-}
-
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE() \
 	++FCpuProfilerTraceInternal::ThreadDepth; \
-	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel); \
-	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled)) \
+	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuProfilerChannel); \
+	if (!bEventEnabled) \
 	{ \
 		return; \
 	} \
-	check(FCpuProfilerTraceInternal::ThreadDepth < 1024); \
-	FCpuProfilerTraceInternal::bThreadEnabled = bEventEnabled; \
 	FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer; \
 	if (!ThreadBuffer) \
 	{ \
 		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer(); \
 	} \
-	if (!bEventEnabled) \
-	{ \
-		FCpuProfilerTraceInternal::EndCapture(ThreadBuffer); \
-		return; \
-	}
 
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE() \
 	uint64 Cycle = FPlatformTime::Cycles64(); \
@@ -187,24 +170,18 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, const Trace::
 #undef CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE
 #undef CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE
 
-void FCpuProfilerTrace::OutputEndEvent()
+void FCpuProfilerTrace::OutputEndEvent(const Trace::FChannel& Channel)
 {
 	--FCpuProfilerTraceInternal::ThreadDepth;
-	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuProfilerChannel);
-	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled))
+	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuProfilerChannel);
+	if (!bEventEnabled)
 	{
 		return;
 	}
-	FCpuProfilerTraceInternal::bThreadEnabled = bEventEnabled;
 	FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
 	if (!ThreadBuffer)
 	{
 		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
-	}
-	if (!bEventEnabled)
-	{
-		FCpuProfilerTraceInternal::EndCapture(ThreadBuffer);
-		return;
 	}
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - ThreadBuffer->LastCycle;
