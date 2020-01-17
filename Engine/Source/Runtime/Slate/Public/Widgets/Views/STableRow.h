@@ -424,7 +424,7 @@ public:
 	{
 		TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
 
-		// Requires #include "Widgets/Views/STableViewBase.h"
+		// Requires #include "Widgets/Views/SListView.h" in your header (not done in STableRow.h to avoid circular reference).
 		TSharedRef< STableViewBase > OwnerTableViewBase = StaticCastSharedRef< SListView<ItemType> >(OwnerTable);
 
 		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )

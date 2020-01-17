@@ -46,13 +46,36 @@ UInteractiveTool* UParameterizeMeshToolBuilder::BuildTool(const FToolBuilderStat
 }
 
 
+
+
+
+void UParameterizeMeshToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
+	PropertyCache->ChartStretch = this->ChartStretch;
+	PropertyCache->bRespectPolygroups = this->bRespectPolygroups;
+	PropertyCache->UVScaleMode = this->UVScaleMode;
+	PropertyCache->UVScale = this->UVScale;
+}
+
+void UParameterizeMeshToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
+	this->ChartStretch = PropertyCache->ChartStretch;
+	this->bRespectPolygroups = PropertyCache->bRespectPolygroups;
+	this->UVScaleMode = PropertyCache->UVScaleMode;
+	this->UVScale = PropertyCache->UVScale;
+}
+
+
+
+
 /*
  * Tool
  */
 
 UParameterizeMeshTool::UParameterizeMeshTool()
 {
-	ChartStretch = 0.11f;
 }
 
 void UParameterizeMeshTool::SetWorld(UWorld* World)
@@ -80,14 +103,13 @@ void UParameterizeMeshTool::Setup()
 		DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EngineMaterials/DefaultMaterial"));  
 	}
 
-	
-
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
 
 	// initialize our properties
-	ToolPropertyObjects.Add(this);
-
+	Settings = NewObject<UParameterizeMeshToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
 	
 	// Construct the preview object and set the material on it
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
@@ -100,18 +122,24 @@ void UParameterizeMeshTool::Setup()
 		Converter.bPrintDebugMessages = false;
 		Converter.Convert(InputMesh.Get(), Mesh);
 
+		FComponentMaterialSet MaterialSet;
+		ComponentTarget->GetMaterialSet(MaterialSet);
+		Preview->ConfigureMaterials(MaterialSet.Materials,
+			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+		);
+
 		Preview->PreviewMesh->UpdatePreview(&Mesh);
 		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 	}
-	Preview->ConfigureMaterials(
-		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), DefaultMaterial),
-		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-	);
 
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->Setup();
+	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
 	AddToolPropertySource(MaterialSettings);
+	// force update
+	MaterialSettings->UpdateMaterials();
+	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 
 
 	Preview->SetVisibility(true);
@@ -123,28 +151,31 @@ void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 	if (PropertySet == MaterialSettings)
 	{
 		MaterialSettings->UpdateMaterials();
-		MaterialSettings->SetMaterialIfChanged(ComponentTarget->GetMaterial(0), Preview->StandardMaterial, [this](UMaterialInterface* Material)
-		{
-			Preview->ConfigureMaterials(ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material), Preview->WorkingMaterial);
-		});
+		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+	}
+	if (PropertySet == Settings)
+	{
+		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
+		Preview->InvalidateResult();
 	}
 }
 
 
 void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	Settings->SaveProperties(this);
 
-	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		FDynamicMesh3* DynamicMeshResult = Result->Mesh.Get();
+		FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 		check(DynamicMeshResult != nullptr);
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("ParameterizeMesh", "Parameterize Mesh"));
 
-		ComponentTarget->CommitMesh([DynamicMeshResult](FMeshDescription* MeshDescription)
+		ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(DynamicMeshResult, *MeshDescription);
+			Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -173,18 +204,30 @@ bool UParameterizeMeshTool::CanAccept() const
 	return Preview->HaveValidResult();
 }
 
-void UParameterizeMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 {
-		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
-		Preview->InvalidateResult();
-}
-
-TSharedPtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
-{
-	TSharedPtr<FParameterizeMeshOp> ParamertizeMeshOp = MakeShared<FParameterizeMeshOp>();
-	ParamertizeMeshOp->Stretch   = ChartStretch;
+	FAxisAlignedBox3d MeshBounds = Preview->PreviewMesh->GetMesh()->GetBounds();
+	TUniquePtr<FParameterizeMeshOp> ParamertizeMeshOp = MakeUnique<FParameterizeMeshOp>();
+	ParamertizeMeshOp->Stretch   = Settings->ChartStretch;
 	ParamertizeMeshOp->NumCharts = 0;
 	ParamertizeMeshOp->InputMesh = InputMesh;
+	ParamertizeMeshOp->bRespectPolygroups = Settings->bRespectPolygroups;
+
+	switch (Settings->UVScaleMode)
+	{
+		case EParameterizeMeshToolUVScaleMode::NoScaling:
+			ParamertizeMeshOp->bNormalizeAreas = false;
+			ParamertizeMeshOp->AreaScaling = 1.0;
+			break;
+		case EParameterizeMeshToolUVScaleMode::NormalizeToBounds:
+			ParamertizeMeshOp->bNormalizeAreas = true;
+			ParamertizeMeshOp->AreaScaling = Settings->UVScale / MeshBounds.MaxDim();
+			break;
+		case EParameterizeMeshToolUVScaleMode::NormalizeToWorld:
+			ParamertizeMeshOp->bNormalizeAreas = true;
+			ParamertizeMeshOp->AreaScaling = Settings->UVScale;
+			break;
+	}
 
 	const FTransform XForm = ComponentTarget->GetWorldTransform();
 	FTransform3d XForm3d(XForm);

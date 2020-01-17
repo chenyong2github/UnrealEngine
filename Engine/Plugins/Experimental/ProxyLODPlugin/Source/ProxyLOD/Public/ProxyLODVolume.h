@@ -74,6 +74,10 @@ public :
 			: Mesh(nullptr)
 		{}
 
+		explicit FPlacedMesh(const FMeshDescription* MeshIn, const FTransform& TransformIn = FTransform::Identity)
+			: Mesh(MeshIn), Transform(TransformIn)
+		{}
+
 		FPlacedMesh(const FPlacedMesh& other)
 			: Mesh(other.Mesh)
 			, Transform(other.Transform)

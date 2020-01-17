@@ -70,7 +70,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 		for (uint32 Index = 0; Index < UsdBoneTransforms.size(); ++Index)
 		{
 			const GfMatrix4d& UsdMatrix = UsdBoneTransforms[Index];
-			FTransform BoneTransform = UsdToUnreal::ConvertMatrix(Stage, UsdMatrix);
+			FTransform BoneTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( Stage ), UsdMatrix );
 			BoneTransforms.Add(BoneTransform);
 		}
 	}
@@ -126,7 +126,9 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 		GeomBindingAttribute.Get(&GeomBindingTransform, UsdTimeCode::Default());
 	}
 
-	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(SkinningPrim.GetStage(), GeomBindingTransform);
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( SkinningPrim.GetStage() );
+
+	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(StageUpAxis, GeomBindingTransform);
 
 	// Ref. FFbxImporter::FillSkelMeshImporterFromFbx
 	UsdGeomMesh UsdMesh = UsdGeomMesh(SkinningPrim);
@@ -149,7 +151,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			const GfVec3f& Point = UsdPoints[PointIndex];
 
 			// Convert the USD vertex to Unreal and apply the GeomBindTransform to it
-			FVector Pos = UsdToUnreal::ConvertVector(UsdMesh.GetPrim().GetStage(), Point);
+			FVector Pos = UsdToUnreal::ConvertVector(StageUpAxis, Point);
 			Pos = GeomTransform.TransformPosition(Pos);
 
 			SkelMeshImportData.Points[PointIndex + NumExistingPoints] = Pos;
@@ -228,6 +230,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 		if(/*USDInterpType == pxr::UsdGeomTokens->vertex &&*/ NumColors >= NumFaces)
 		{
+			FaceColors.Reserve( NumColors );
 			for (uint32 Index = 0; Index < NumColors; ++Index)
 			{
 				FaceColors.Add(ConvertToColor(UsdColors[Index]));
@@ -239,6 +242,39 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			bIsConstantColor = true;
 		}
 		SkelMeshImportData.bHasVertexColors = true;
+	}
+
+	// Retrieve vertex opacity
+	UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar();
+	if ( OpacityPrimvar )
+	{
+		pxr::VtArray< float > UsdOpacities;
+		OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+
+		const uint32 NumOpacities = UsdOpacities.size();
+
+		pxr::TfToken UsdInterpType = OpacityPrimvar.GetInterpolation();
+		if ( /*UsdInterpType == pxr::UsdGeomTokens->vertex &&*/ NumOpacities >= NumFaces )
+		{
+			for (uint32 Index = 0; Index < NumOpacities; ++Index)
+			{
+				if ( !FaceColors.IsValidIndex( Index ) )
+				{
+					FaceColors.Add( FColor::White );
+				}
+
+				FaceColors[ Index ].A = UsdOpacities[ Index ];
+			}
+		}
+		else if ( /*UsdInterpType == pxr::UsdGeomTokens->constant &&*/ NumOpacities == 1 )
+		{
+			if ( FaceColors.Num() < 1 )
+			{
+				FaceColors.Add( FColor::White );
+			}
+
+			FaceColors[ 0 ].A = UsdOpacities[ 0 ];
+		}
 	}
 
 	SkelMeshImportData.NumTexCoords = 0;

@@ -234,7 +234,7 @@ namespace PyConversion
 	 * This function should be called when you know the value will actually change (or know you want to emit the notifications for it changing) and will do 
 	 * the pre-change notify, invoke the passed delegate to perform the change, then do the post-change notify
 	 */
-	void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const TFunctionRef<void()>& InDoChangeFunc);
+	void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const bool bIdenticalValue, const TFunctionRef<void()>& InDoChangeFunc);
 }
 
 #endif	// WITH_PYTHON

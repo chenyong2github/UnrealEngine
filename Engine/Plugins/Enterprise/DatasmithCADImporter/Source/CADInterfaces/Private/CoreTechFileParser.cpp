@@ -152,8 +152,10 @@ namespace {
 	}
 }
 
-uint32 GetFileHash(const FString& FileName, const FFileStatData& FileStatData, const FString& Config, const FImportParameters& ImportParam)
+uint32 GetFileHash(const FString& FullPath, const FString& FileName, const FString& Config, const FImportParameters& ImportParam)
 {
+	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FullPath);
+
 	int64 FileSize = FileStatData.FileSize;
 	FDateTime ModificationTime = FileStatData.ModificationTime;
 
@@ -426,7 +428,7 @@ uint32 GetStaticMeshUuid(const TCHAR* OutSgFile, const int32 BodyId)
 
 void FCoreTechFileParser::ExportSceneGraphFile()
 {
-	SerializeMockUp(MockUpDescription, *FPaths::Combine(CachePath, TEXT("scene"), MockUpDescription.SceneGraphArchive + TEXT(".sg")));
+	MockUpDescription.SerializeMockUp(*FPaths::Combine(CachePath, TEXT("scene"), MockUpDescription.SceneGraphArchive + TEXT(".sg")));
 }
 
 void FCoreTechFileParser::ExportMeshArchiveFile()
@@ -436,7 +438,7 @@ void FCoreTechFileParser::ExportMeshArchiveFile()
 
 void FCoreTechFileParser::LoadSceneGraphArchive(const FString& SGFile)
 {
-	DeserializeMockUpFile(*SGFile, MockUpDescription);
+	MockUpDescription.DeserializeMockUpFile(*SGFile);
 }
 
 uint32 FCoreTechFileParser::GetMaterialNum()
@@ -490,20 +492,20 @@ void FCoreTechFileParser::ReadMaterials()
 	}
 }
 
-FCoreTechFileParser::FCoreTechFileParser(const FString& InCADFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath)
+FCoreTechFileParser::FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath, const FString& InCachePath)
 	: CachePath(InCachePath)
-	, FullPath(InCADFullPath)
 	, bNeedSaveCTFile(false)
 	, ImportParameters(ImportParams)
 {
-	CTKIO_InitializeKernel(ImportParameters.MetricUnit, KernelIOPath);
+	CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
 }
 
-FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
+FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FString& InFullPath)
 {
-	FileConfiguration.Empty();
-
+	FString FullPath = InFullPath;
 	CADFile = FPaths::GetCleanFilename(*FullPath);
+
+	FileConfiguration.Empty();
 
 	// Check if configuration is passed with file name
 	FString NewCADFile;
@@ -518,8 +520,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 		return EProcessResult::FileNotFound;
 	}
 
-	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FullPath);
-	uint32 FileHash = GetFileHash(CADFile, FileStatData, FileConfiguration, ImportParameters);
+	uint32 FileHash = GetFileHash(FullPath, CADFile, FileConfiguration, ImportParameters);
 
 	MockUpDescription.SceneGraphArchive = FString::Printf(TEXT("UEx%08x"), FileHash);
 
@@ -556,17 +557,17 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile()
 	}
 #endif
 	// Process the file
-	return ReadFileWithKernelIO();
+	return ReadFileWithKernelIO(FullPath);
 }
 
-FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
+FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO(const FString& FullPath)
 {
 	CT_IO_ERROR Result = IO_OK;
 	CT_OBJECT_ID MainId = 0;
 
 	Result = CT_KERNEL_IO::UnloadModel();
 
-	CT_FLAGS CTImportOption = SetCoreTechImportOption(FPaths::GetExtension(CADFile));
+	CT_FLAGS CTImportOption = SetCoreTechImportOption(FPaths::GetExtension(FullPath));
 
 	FString LoadOption;
 	CT_UINT32 NumberOfIds = 1;
@@ -924,7 +925,7 @@ uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet)
 	return size;
 }
 
-void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, const FImportParameters& ImportParams, uint32 DefaultMaterialHash)
+void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash)
 {
 	CT_LIST_IO FaceList;
 	CT_BODY_IO::AskFaces(BodyId, FaceList);
@@ -950,7 +951,7 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& Ou
 	CT_OBJECT_ID FaceID;
 	while ((FaceID = FaceList.IteratorIter()) != 0)
 	{
-		uint32 TriangleNum = GetFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParams);
+		uint32 TriangleNum = GetFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
 
 		if (TriangleNum == 0)
 		{
@@ -998,7 +999,7 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, uint32 DefaultMaterialHa
 	MockUpDescription.BodySet[Index].MeshActorName = GetStaticMeshUuid(*MockUpDescription.SceneGraphArchive, BodyId);
 	BodyMeshes[BodyMeshIndex].MeshActorName = MockUpDescription.BodySet[Index].MeshActorName;
 
-	GetBodyTessellation(BodyId, BodyMeshes[BodyMeshIndex], ImportParameters, DefaultMaterialHash);
+	GetBodyTessellation(BodyId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash);
 
 	MockUpDescription.BodySet[Index].ColorFaceSet = BodyMeshes[BodyMeshIndex].ColorSet;
 	MockUpDescription.BodySet[Index].MaterialFaceSet = BodyMeshes[BodyMeshIndex].MaterialSet;
@@ -1019,7 +1020,10 @@ void FCoreTechFileParser::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int Ith
 
 	Value = "";
 
-	if (CT_ATTRIB_DEFINITION_IO::AskFieldDefinition(AttributType, IthField, FieldType, FieldName) != IO_OK) return;
+	if (CT_ATTRIB_DEFINITION_IO::AskFieldDefinition(AttributType, IthField, FieldType, FieldName) != IO_OK) 
+	{
+		return;
+	}
 
 	switch (FieldType) {
 		case CT_ATTRIB_FIELD_UNKNOWN:
@@ -1029,21 +1033,30 @@ void FCoreTechFileParser::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int Ith
 		case CT_ATTRIB_FIELD_INTEGER:
 		{
 			int IValue;
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(IthField, IValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(IthField, IValue) != IO_OK) 
+			{
+				break;
+			}
 			Value = FString::FromInt(IValue);
 			break;
 		}
 		case CT_ATTRIB_FIELD_DOUBLE:
 		{
 			double DValue;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(IthField, DValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(IthField, DValue) != IO_OK)
+			{
+				break;
+			}
 			Value = FString::Printf(TEXT("%lf"), DValue);
 			break;
 		}
 		case CT_ATTRIB_FIELD_STRING:
 		{
 			CT_STR StrValue;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(IthField, StrValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(IthField, StrValue) != IO_OK)
+			{
+				break;
+			}
 			Value = StrValue.toUnicode();
 			break;
 		}
@@ -1060,11 +1073,17 @@ void FCoreTechFileParser::GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHA
 	CT_UINT32 IthAttrib = 0;
 	while (CT_OBJECT_IO::SearchAttribute(NodeId, CT_ATTRIB_STRING_METADATA, IthAttrib++) == IO_OK)
 	{
-		if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK) break;
+		if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK)
+		{
+			break;
+		}
 		if (!FCString::Strcmp(InMetaDataName, FieldName.toUnicode()))
 		{
 			CT_STR FieldStrValue;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
 			if (FieldStrValue.IsEmpty())
 			{
 				return;
@@ -1120,45 +1139,85 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 		FString              FieldValue;
 
 
-		if (CT_CURRENT_ATTRIB_IO::AskAttributeType(AttributeType) != IO_OK) continue;;
+		if (CT_CURRENT_ATTRIB_IO::AskAttributeType(AttributeType) != IO_OK) 
+		{
+			continue;
+		}
+
 		switch (AttributeType) {
 
 		case CT_ATTRIB_SPLT:
 			break;
 
 		case CT_ATTRIB_NAME:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("CTName"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_ORIGINAL_NAME:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Name"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_ORIGINAL_FILENAME:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_FILENAME_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_FILENAME_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("FileName"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_UUID:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_UUID_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_UUID_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("UUID"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_INPUT_FORMAT_AND_EMETTOR:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INPUT_FORMAT_AND_EMETTOR, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INPUT_FORMAT_AND_EMETTOR, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Input_Format_and_Emitter"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_CONFIGURATION_NAME:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("ConfigurationName"), FieldStrValue.toUnicode());
 			break;
 
@@ -1173,7 +1232,10 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 
 		case CT_ATTRIB_COLORID:
 			{
-				if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_COLORID_VALUE, FieldIntValue) != IO_OK) break;
+				if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_COLORID_VALUE, FieldIntValue) != IO_OK)
+				{
+					break;
+				}
 				uint32 ColorId = FieldIntValue;
 
 				uint8 Alpha = 255;
@@ -1196,7 +1258,10 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 
 		case CT_ATTRIB_MATERIALID:
 		{
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_MATERIALID_VALUE, FieldIntValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_MATERIALID_VALUE, FieldIntValue) != IO_OK)
+			{
+				break;
+			}
 			if (FArchiveMaterial* Material = MockUpDescription.MaterialHIdToMaterial.Find(FieldIntValue))
 			{
 				OutMetaData.Add(TEXT("MaterialName"), FString::FromInt(Material->UEMaterialName));
@@ -1205,7 +1270,10 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 		}
 
 		case CT_ATTRIB_TRANSPARENCY:
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_TRANSPARENCY_VALUE, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_TRANSPARENCY_VALUE, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			FieldIntValue = FMath::Max((1. - FieldDoubleValue0), FieldDoubleValue0) * 255.;
 			OutMetaData.Add(TEXT("Transparency"), FString::FromInt(FieldIntValue));
 			break;
@@ -1215,7 +1283,10 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_REFCOUNT:
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_REFCOUNT_VALUE, FieldIntValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_REFCOUNT_VALUE, FieldIntValue) != IO_OK)
+			{
+				break;
+			}
 			//OutMetaData.Add(TEXT("RefCount"), FString::FromInt(FieldIntValue));
 			break;
 
@@ -1228,13 +1299,25 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_MASS_PROPERTIES:
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_AREA, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_AREA, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Area"), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_VOLUME, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_VOLUME, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Volume"), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_MASS, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_MASS, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Mass"), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_LENGTH, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_MASS_PROPERTIES_LENGTH, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("Length"), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 			//ITH_MASS_PROPERTIES_COGX, ITH_MASS_PROPERTIES_COGY, ITH_MASS_PROPERTIES_COGZ
 			//ITH_MASS_PROPERTIES_M1, ITH_MASS_PROPERTIES_M2, ITH_MASS_PROPERTIES_M3
@@ -1248,20 +1331,38 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_INTEGER_METADATA:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_METADATA_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_METADATA_VALUE, FieldIntValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_METADATA_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_METADATA_VALUE, FieldIntValue) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::FromInt(FieldIntValue));
 			break;
 
 		case CT_ATTRIB_DOUBLE_METADATA:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_METADATA_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_METADATA_VALUE, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_METADATA_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_METADATA_VALUE, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 			break;
 
 		case CT_ATTRIB_STRING_METADATA:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
 			if (FieldStrValue.IsEmpty()) break;
 			if(ConfigName== FieldName.toUnicode())
 			{
@@ -1271,9 +1372,18 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_ORIGINAL_UNITS:
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_MASS, FieldDoubleValue0) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_LENGTH, FieldDoubleValue1) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_DURATION, FieldDoubleValue2) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_MASS, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_LENGTH, FieldDoubleValue1) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ORIGINAL_UNITS_DURATION, FieldDoubleValue2) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("OriginalUnitsMass"), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 			OutMetaData.Add(TEXT("OriginalUnitsLength"), FString::Printf(TEXT("%lf"), FieldDoubleValue1));
 			OutMetaData.Add(TEXT("OriginalUnitsDuration"), FString::Printf(TEXT("%lf"), FieldDoubleValue2));
@@ -1285,20 +1395,50 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_PRODUCT:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_REVISION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_REVISION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			} 
 			OutMetaData.Add(TEXT("ProductRevision"), FieldStrValue.toUnicode());
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DEFINITION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DEFINITION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("ProductDefinition"), FieldStrValue.toUnicode());
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_NOMENCLATURE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_NOMENCLATURE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("ProductNomenclature"), FieldStrValue.toUnicode());
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_SOURCE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_SOURCE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("ProductSource"), FieldStrValue.toUnicode());
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DESCRIPTION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DESCRIPTION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("ProductDescription"), FieldStrValue.toUnicode());
 			break;
 
@@ -1329,21 +1469,42 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_INTEGER_PARAMETER:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_PARAMETER_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_PARAMETER_VALUE, FieldIntValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_PARAMETER_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_PARAMETER_VALUE, FieldIntValue) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::FromInt(FieldIntValue));
 			break;
 
 		case CT_ATTRIB_DOUBLE_PARAMETER:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_PARAMETER_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_PARAMETER_VALUE, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_PARAMETER_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_PARAMETER_VALUE, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 			break;
 
 		case CT_ATTRIB_STRING_PARAMETER:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_PARAMETER_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_PARAMETER_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_PARAMETER_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_PARAMETER_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FieldStrValue.toUnicode());
 			break;
 
@@ -1354,24 +1515,54 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_SAVE_OPTION:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHOR, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHOR, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("SaveOptionAuthor"), FieldStrValue.toUnicode());
 
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_ORGANIZATION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_ORGANIZATION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("SaveOptionOrganization"), FieldStrValue.toUnicode());
 	
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_FILE_DESCRIPTION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_FILE_DESCRIPTION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("SaveOptionFileDescription"), FieldStrValue.toUnicode());
 
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHORISATION, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHORISATION, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("SaveOptionAuthorisation"), FieldStrValue.toUnicode());
 
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_PREPROCESSOR, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_PREPROCESSOR, FieldStrValue) != IO_OK) 
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("SaveOptionPreprocessor"), FieldStrValue.toUnicode());
 			break;
 
@@ -1381,15 +1572,30 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_ORIGINAL_ID_STRING:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_ORIGINAL_ID_VALUE_STRING, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_ORIGINAL_ID_VALUE_STRING, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("OriginalIdStr"), FieldStrValue.toUnicode());
 			break;
 
 		case CT_ATTRIB_COLOR_RGB_DOUBLE:
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_R_DOUBLE, FieldDoubleValue0) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_G_DOUBLE, FieldDoubleValue1) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_B_DOUBLE, FieldDoubleValue2) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_R_DOUBLE, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_G_DOUBLE, FieldDoubleValue1) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_ATTRIB_COLOR_B_DOUBLE, FieldDoubleValue2) != IO_OK)
+			{
+				break;
+			}
 			FieldValue = FString::Printf(TEXT("%lf"), FieldDoubleValue0) + TEXT(", ") + FString::Printf(TEXT("%lf"), FieldDoubleValue1) + TEXT(", ") + FString::Printf(TEXT("%lf"), FieldDoubleValue2);
 			//OutMetaData.Add(TEXT("ColorRGBDouble"), FieldValue);
 			break;
@@ -1404,21 +1610,42 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_INTEGER_VALIDATION_ATTRIBUTE:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_VALIDATION_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_VALIDATION_VALUE, FieldIntValue) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_VALIDATION_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_VALIDATION_VALUE, FieldIntValue) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::FromInt(FieldIntValue));
 			break;
 
 		case CT_ATTRIB_DOUBLE_VALIDATION_ATTRIBUTE:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_VALIDATION_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_VALIDATION_VALUE, FieldDoubleValue0) != IO_OK) break;
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_DOUBLE_VALIDATION_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskDblField(ITH_DOUBLE_VALIDATION_VALUE, FieldDoubleValue0) != IO_OK)
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 			break;
 
 		case CT_ATTRIB_STRING_VALIDATION_ATTRIBUTE:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_VALIDATION_NAME, FieldName) != IO_OK) break;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_VALIDATION_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_VALIDATION_NAME, FieldName) != IO_OK)
+			{
+				break;
+			}
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_VALIDATION_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(FieldName.toUnicode(), FieldStrValue.toUnicode());
 			break;
 
@@ -1437,8 +1664,14 @@ void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FS
 			break;
 
 		case CT_ATTRIB_GROUPNAME:
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_GROUPNAME_VALUE, FieldStrValue) != IO_OK) break;
-			if (FieldStrValue.IsEmpty()) { break; }
+			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_GROUPNAME_VALUE, FieldStrValue) != IO_OK)
+			{
+				break;
+			}
+			if (FieldStrValue.IsEmpty())
+			{
+				break;
+			}
 			OutMetaData.Add(TEXT("GroupName"), FieldStrValue.toUnicode());
 			break;
 

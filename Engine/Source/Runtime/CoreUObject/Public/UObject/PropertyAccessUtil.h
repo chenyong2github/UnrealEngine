@@ -36,6 +36,20 @@ enum class EPropertyAccessResultFlags : uint8
 ENUM_CLASS_FLAGS(EPropertyAccessResultFlags);
 
 /**
+ * Enum controlling when to emit property change notifications when setting a property value.
+ * @note Mirrored in NoExportTypes.h for UHT.
+ */
+enum class EPropertyAccessChangeNotifyMode : uint8
+{
+	/** Notify only when a value change has actually occurred */
+	Default,
+	/** Never notify that a value change has occurred */
+	Never,
+	/** Always notify that a value change has occurred, even if the value is unchanged */
+	Always,
+};
+
+/**
  * Information needed to emit property change notifications when setting a property value.
  */
 struct FPropertyAccessChangeNotify
@@ -46,6 +60,8 @@ struct FPropertyAccessChangeNotify
 	UObject* ChangedObject = nullptr;
 	/** The chain of properties that are being changed */
 	FEditPropertyChain ChangedPropertyChain;
+	/** When to emit property change notifications */
+	EPropertyAccessChangeNotifyMode NotifyMode = EPropertyAccessChangeNotifyMode::Default;
 };
 
 /**
@@ -154,10 +170,11 @@ namespace PropertyAccessUtil
 	 * @param InSrcValue The value to set on the property.
 	 * @param InArrayIndex For fixed-size array properties denotes which index of the array to set, or INDEX_NONE to set the entire property.
 	 * @param InReadOnlyFlags Flags controlling which properties are considered read-only.
+	 * @param InNotifyMode When to emit property change notifications.
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InObjectProp, UObject* InObject, const FProperty* InSrcProp, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InObjectProp, UObject* InObject, const FProperty* InSrcProp, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const EPropertyAccessChangeNotifyMode InNotifyMode);
 
 	/**
 	 * High-level function for setting the value of a property on a property container (object or struct).
@@ -232,15 +249,17 @@ namespace PropertyAccessUtil
 	 * Low-level function called before modifying an object to notify that its value is about to change.
 	 *
 	 * @param InChangeNotify Information needed to emit property change notifications, or nullptr if no notifications are needed or possible.
+	 * @param InIdenticalValue True if the value being set was identical to the current value, false otherwise.
 	 */
-	COREUOBJECT_API void EmitPreChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify);
+	COREUOBJECT_API void EmitPreChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify, const bool InIdenticalValue);
 
 	/**
 	 * Low-level function called after modifying an object to notify that its value has changed.
 	 *
 	 * @param InChangeNotify Information needed to emit property change notifications, or nullptr if no notifications are needed or possible.
+	 * @param InIdenticalValue True if the value being set was identical to the current value, false otherwise.
 	 */
-	COREUOBJECT_API void EmitPostChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify);
+	COREUOBJECT_API void EmitPostChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify, const bool InIdenticalValue);
 
 	/**
 	 * Low-level function to build the basic information needed to emit property change notifications.
@@ -248,10 +267,11 @@ namespace PropertyAccessUtil
 	 *
 	 * @param InProp Property being modified.
 	 * @param InObject Object being modified.
+	 * @param InNotifyMode When to emit property change notifications.
 	 *
 	 * @return The information needed to emit property change notifications.
 	 */
-	COREUOBJECT_API TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const FProperty* InProp, const UObject* InObject);
+	COREUOBJECT_API TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const FProperty* InProp, const UObject* InObject, const EPropertyAccessChangeNotifyMode InNotifyMode);
 
 	/**
 	 * Low-level function for checking whether the given object instance is considered a template for property access.

@@ -221,25 +221,24 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy()
-		: FMaterial()
-	{
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
-	}
-
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile)
+	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, bool bInSynchronousCompilation = true)
 		: FMaterial()
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
+		, bSynchronousCompilation(bInSynchronousCompilation)
 	{
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
 		InMaterialInterface->AppendReferencedTextures(ReferencedTextures);
-		FPlatformMisc::CreateGuid(Id);
 
 		const FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
+
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
+
+		// Our Id must be the same as BaseMaterialId for the shader compiler
+		// to be able to set back GameThreadShaderMap after async compilation.
+		Id = ResourceId.BaseMaterialId;
 
 		FStaticParameterSet StaticParamSet;
 		Resource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
@@ -277,7 +276,7 @@ public:
 	}
 
 	/** This override is required otherwise the shaders aren't ready for use when the surface is rendered resulting in a blank image */
-	virtual bool RequiresSynchronousCompilation() const override { return true; };
+	virtual bool RequiresSynchronousCompilation() const override { return bSynchronousCompilation; };
 
 	/**
 	* Should the shader for this material with the given platform, shader type and vertex
@@ -605,4 +604,5 @@ private:
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	FGuid Id;
+	bool bSynchronousCompilation;
 };

@@ -40,9 +40,9 @@ void USingleClickTool::Setup()
 }
 
 
-bool USingleClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+FInputRayHit USingleClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	return true;
+	return FInputRayHit(0.0f);
 }
 
 

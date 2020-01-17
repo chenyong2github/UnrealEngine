@@ -6,36 +6,61 @@
 #include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
+class FField;
 class FProperty;
 
 namespace FObjectEditorUtils
 {
 
 	/**
-	 * Gets the category this property belongs to.
+	 * Gets the category this field belongs to.
 	 *
-	 * @param	InProperty	Property we want the category name of.
-	 * @return	Category name of the given property.
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
 	 */
-	ENGINE_API FText GetCategoryText( const class FProperty* InProperty );	
+	ENGINE_API FText GetCategoryText( const FField* InField );	
 
 	/**
-	 * Gets the category this property belongs to.
+	 * Gets the category this field belongs to.
 	 *
-	 * @param	InProperty	Property we want the category name of.
-	 * @return	Category name of the given property.
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
 	 */
-	ENGINE_API FString GetCategory( const class FProperty* InProperty );	
+	ENGINE_API FText GetCategoryText( const UField* InField );	
 
 	/**
-	 * Gets the FName of the category this property belongs to.  
+	 * Gets the category this field belongs to.
+	 *
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
+	 */
+	ENGINE_API FString GetCategory( const FField* InField );
+
+	/**
+	 * Gets the category this field belongs to.
+	 *
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
+	 */
+	ENGINE_API FString GetCategory( const UField* InField );
+
+	/**
+	 * Gets the FName of the category this field belongs to.  
 	 * Note, this value is suitable for comparison against other categories but NOT suitable as a display name since it is not localized
 	 *
-	 * @param	InProperty	Property we want the category name of.
-	 * @return	Category name of the given property.
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
 	 */
-	ENGINE_API FName GetCategoryFName( const class FProperty* InProperty );
+	ENGINE_API FName GetCategoryFName( const FField* InField );
 
+	/**
+	 * Gets the FName of the category this field belongs to.  
+	 * Note, this value is suitable for comparison against other categories but NOT suitable as a display name since it is not localized
+	 *
+	 * @param	InField	Field we want the category name of.
+	 * @return	Category name of the given field.
+	 */
+	ENGINE_API FName GetCategoryFName( const UField* InField );
 
 	/**
 	 * Query if a function is flagged as hidden from the given class either by category or by function name

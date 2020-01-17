@@ -9,6 +9,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
+#include "SourceControlWindows.h"
 #include "Editor.h"
 #include "AssetToolsModule.h"
 #include "ICollectionManager.h"
@@ -853,9 +854,7 @@ void FFrontendFilter_NotSourceControlled::RequestStatus()
 		// Request the state of files at filter construction time to make sure files have the correct state for the filter
 		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 
-		TArray<FString> Filenames;
-		Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::EngineContentDir()));
-		Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+		TArray<FString> Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
 		UpdateStatusOperation->SetCheckingAllFiles(false);
 		SourceControlProvider.Execute(UpdateStatusOperation, Filenames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FFrontendFilter_NotSourceControlled::SourceControlOperationComplete));
 	}

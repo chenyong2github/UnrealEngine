@@ -10,6 +10,8 @@
 #include "RenderResource.h"
 #include "GroomSettings.h"
 #include "HairStrandsInterface.h"
+#include "Interfaces/Interface_AssetUserData.h"
+
 #include "GroomAsset.generated.h"
 
 class UMaterialInterface;
@@ -270,7 +272,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
  * Implements an asset that can be used to store hair strands
  */
 UCLASS(BlueprintType, hidecategories = (Object))
-class HAIRSTRANDSCORE_API UGroomAsset : public UObject
+class HAIRSTRANDSCORE_API UGroomAsset : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_BODY()
 
@@ -338,6 +340,13 @@ public:
 	/** Returns true if the asset has the HairDescription needed to recompute its groom data */
 	bool CanRebuildFromDescription() const;
 
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
+
 //private :
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;
@@ -356,6 +365,10 @@ private:
 
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
+
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = HairLab)
+	TArray<UAssetUserData*> AssetUserData;
 
 	UPROPERTY()
 	bool bIsCacheable = true;

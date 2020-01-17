@@ -38,4 +38,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Python|Execution", meta=(DisplayName="Execute Python Command (Advanced)", AdvancedDisplay="ExecutionMode,FileExecutionScope"))
 	static bool ExecutePythonCommandEx(UPARAM(meta=(MultiLine=True)) const FString& PythonCommand, FString& CommandResult, TArray<FPythonLogOutputEntry>& LogOutput, const EPythonCommandExecutionMode ExecutionMode = EPythonCommandExecutionMode::ExecuteFile, const EPythonFileExecutionScope FileExecutionScope = EPythonFileExecutionScope::Private);
+
+	/**
+	 * Execute a Python script with argument marshaling.
+	 * @param PythonScript This literal Python code to run.
+	 * @param PythonInputs The variadic input argument names (internal; set by UK2Node_ExecutePythonScript).
+	 * @param PythonInputs The variadic output argument names (internal; set by UK2Node_ExecutePythonScript).
+	 * @return true if the script ran successfully, false if there were errors.
+	 */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Python|Execution", meta=(Variadic, BlueprintInternalUseOnly="true"))
+    static bool ExecutePythonScript(UPARAM(meta=(MultiLine=True)) const FString& PythonScript, const TArray<FString>& PythonInputs, const TArray<FString>& PythonOutputs);
+	DECLARE_FUNCTION(execExecutePythonScript);
 };

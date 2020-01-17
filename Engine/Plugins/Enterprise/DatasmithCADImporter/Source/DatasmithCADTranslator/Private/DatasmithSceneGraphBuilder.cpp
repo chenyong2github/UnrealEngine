@@ -124,7 +124,7 @@ void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 
 		CADFileToArchiveMockUp.Add(FilePair.Key, &MockUpDescription);
 	
-		CADLibrary::DeserializeMockUpFile(*MockUpDescriptionFile, MockUpDescription);
+		MockUpDescription.DeserializeMockUpFile(*MockUpDescriptionFile);
 
 		for(const auto& ColorPair : MockUpDescription.ColorHIdToColor)
 		{
@@ -206,6 +206,30 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildInstance
 
 	CurrentMockUp = InstanceMockUp;
 	return Actor;
+}
+
+void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithActorElement>& ActorElement, const FString& CleanFilenameOfCADFile)
+{
+	CurrentMockUp = CADFileToArchiveMockUp.FindRef(CleanFilenameOfCADFile);
+	CadId RootId = 1;
+	int32* Index = CurrentMockUp->CADIdToComponentIndex.Find(RootId);
+	ActorData Data(TEXT(""));
+
+	// TODO: check ParentData and Index validity?
+	ActorData ParentData(ActorElement->GetName());
+	CADLibrary::FArchiveComponent& Component = CurrentMockUp->ComponentSet[*Index];
+
+	TMap<FString, FString> InstanceNodeMetaDataMap;
+	FString ActorUUID;
+	FString ActorLabel;
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, ParentData.Uuid, ActorUUID, ActorLabel);
+
+	AddMetaData(ActorElement, InstanceNodeMetaDataMap, Component.MetaData);
+
+	ActorData ComponentData(*ActorUUID, ParentData);
+	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+
+	AddChildren(ActorElement, Component, ComponentData);
 }
 
 TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::CreateActor(const TCHAR* InEUUID, const TCHAR* InLabel)

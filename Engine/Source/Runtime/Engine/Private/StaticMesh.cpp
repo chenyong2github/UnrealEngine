@@ -1409,7 +1409,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-					check(LOD.DistanceFieldData != nullptr);
+						check(LOD.DistanceFieldData != nullptr);
 
 						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
 
@@ -1423,19 +1423,19 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 							Ar << DownSampledDFVolumeData;
 						}
 						else
-					{
-						Ar << *(LOD.DistanceFieldData);
-					}
+						{
+							Ar << *(LOD.DistanceFieldData);
+						}
 					}
 					else
 #endif
 					{
-					if (LOD.DistanceFieldData == nullptr)
-					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-					}
+						if (LOD.DistanceFieldData == nullptr)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
 
-					Ar << *(LOD.DistanceFieldData);
+						Ar << *(LOD.DistanceFieldData);
 					}
 				}
 			}
@@ -3929,7 +3929,7 @@ FMeshDescription* UStaticMesh::CreateMeshDescription(int32 LodIndex, FMeshDescri
 }
 
 
-void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams & Params)
+void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CommitMeshDescription);
 
@@ -3948,47 +3948,25 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 			SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
 		}
 
-		// Handle ConvertToRawMesh and SaveMeshDescription in parallel
-		// Something like ParallelInvoke would be cleaner here, but we need the ParallelFor ability to join work on the current thread
-		ParallelFor(2,
-			[this, &SourceModel, &Params](int32 Num)
-			{
-				if (Num == 0)
-				{
-		TMap<FName, int32> MaterialMap;
-		for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
+		SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
+		if (Params.bUseHashAsGuid)
 		{
-			MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+			SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
 		}
-
-					FRawMesh TempRawMesh;
-		FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-		SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
-				}
-				else
-				{
-					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
-
-					if (Params.bUseHashAsGuid)
-		{
-						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
-					}
-				}
-		}
-		);
 	}
 	else
 	{
 		SourceModel.MeshDescriptionBulkData.Reset();
-
-		// Mesh description is null, remove the rawmesh data
-		SourceModel.RawMeshBulkData->Empty();
 	}
+
+	// Clear RawMeshBulkData and mark as invalid.
+	// If any legacy tool needs the RawMesh at this point, it will do a conversion from MD at that moment.
+	SourceModel.RawMeshBulkData->Empty();
 
 	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
 	if (Params.bMarkPackageDirty)
 	{
-	MarkPackageDirty();
+		MarkPackageDirty();
 	}
 }
 
@@ -5021,6 +4999,12 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill vertex buffers
 
 	int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
+	int32 NumTriangles = MeshDescription.Triangles().Num();
+
+	if (NumVertexInstances == 0 || NumTriangles == 0)
+	{
+		return;
+	}
 
 	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
 	StaticMeshBuildVertices.SetNum(NumVertexInstances);
@@ -5080,7 +5064,6 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill index buffer and sections array
 
 	int32 NumPolygonGroups = MeshDescription.PolygonGroups().Num();
-	int32 NumTriangles = MeshDescription.Triangles().Num();
 
 	TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 

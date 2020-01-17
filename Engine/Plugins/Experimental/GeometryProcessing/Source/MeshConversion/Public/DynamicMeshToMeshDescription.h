@@ -38,7 +38,7 @@ public:
 	 * Update existing MeshDescription based on DynamicMesh. Assumes mesh topology has not changed.
 	 * Copies positions and normals; does not update UVs
 	 */
-	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals = true, bool bUpdateUVs = false);
 
 
 	/**

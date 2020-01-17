@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ToolContextInterfaces.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 #include "FrameTypes.h"
 
 

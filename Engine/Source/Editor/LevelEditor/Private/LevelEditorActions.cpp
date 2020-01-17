@@ -1065,7 +1065,7 @@ bool FLevelEditorActionCallbacks::Recompile_CanExecute()
 #endif
 
 	// We can't recompile while in PIE
-	if (GEditor->bIsPlayWorldQueued || GEditor->PlayWorld)
+	if (GEditor->IsPlaySessionInProgress())
 	{
 		return false;
 	}
@@ -1363,27 +1363,9 @@ bool FLevelEditorActionCallbacks::LockActorMovement_IsChecked()
 	return GEditor->HasLockedActors();
 }
 
-void FLevelEditorActionCallbacks::AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData, bool bUsePlacement )
+void FLevelEditorActionCallbacks::AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData)
 {
-	UObject* Object = AssetData.GetAsset();
-	if(bUsePlacement && IPlacementModeModule::IsAvailable() && Object != NULL)
-	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.FocusViewport();
-
-		// Make sure we're in actor placement mode
-		GLevelEditorModeTools().ActivateMode(FBuiltinEditorModes::EM_Placement);
-
-		TArray<UObject*> AssetsToPlace;
-		AssetsToPlace.Add(Object);
-
-		auto* PlacementMode = GLevelEditorModeTools().GetActiveModeTyped<IPlacementMode>(FBuiltinEditorModes::EM_Placement);
-		PlacementMode->StartPlacing(AssetsToPlace, ActorFactory);
-	}
-	else
-	{
-		FLevelEditorActionCallbacks::AddActor(ActorFactory, AssetData, NULL);
-	}
+	FLevelEditorActionCallbacks::AddActor(ActorFactory, AssetData, NULL);
 }
 
 AActor* FLevelEditorActionCallbacks::AddActor( UActorFactory* ActorFactory, const FAssetData& AssetData, const FTransform* ActorTransform )
@@ -3204,6 +3186,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( AttachActorIteractive, "Attach Actor Interactive", "Start an interactive actor picker to let you choose a parent for the currently selected actor", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::A) );
 	UI_COMMAND( CreateNewOutlinerFolder, "Create Folder", "Place the selected actors in a new folder", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( HoldToEnableVertexSnapping, "Hold to Enable Vertex Snapping", "When the key binding is pressed and held vertex snapping will be enabled", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::V) );
+	UI_COMMAND( HoldToEnablePivotVertexSnapping, "Hold to Enable Pivot Vertex Snapping", "Hold to enable vertex snapping while dragging a pivot. Alt must be a modifier in this command or it will not work.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::V) );
 
 	//@ todo Slate better tooltips for pivot options
 	UI_COMMAND( SavePivotToPrePivot, "Set as Pivot Offset", "Sets the current pivot location as the pivot offset for this actor", EUserInterfaceActionType::Button, FInputChord() );
@@ -3319,7 +3302,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( OpenContentBrowser, "Open Content Browser", "Opens the Content Browser", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::F) );
 	UI_COMMAND( OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord() );
 
-	UI_COMMAND( ToggleVR, "Toggle VR", "Toggles VR (Virtual Reality) mode", EUserInterfaceActionType::ToggleButton, FInputChord( EModifierKey::Alt, EKeys::V ) );
+	UI_COMMAND( ToggleVR, "Toggle VR", "Toggles VR (Virtual Reality) mode", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::V ) );
 
 	UI_COMMAND( OpenLevelBlueprint, "Open Level Blueprint", "Edit the Level Blueprint for the current level", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( CheckOutProjectSettingsConfig, "Check Out", "Checks out the project settings config file so the game mode can be set.", EUserInterfaceActionType::Button, FInputChord() );

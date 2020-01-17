@@ -47,6 +47,10 @@ class FSkeletalMeshLODRenderData;
 class FSkinWeightVertexBuffer;
 struct FSkinWeightProfileInfo;
 class FSkeletalMeshUpdate;
+class USkeletalMeshEditorData;
+class FSkeletalMeshImportData;
+enum class ESkeletalMeshGeoImportVersions : uint8;
+enum class ESkeletalMeshSkinningImportVersions : uint8;
 
 #if WITH_APEX_CLOTHING
 
@@ -492,11 +496,76 @@ private:
 	/** Rendering resources used at runtime */
 	TUniquePtr<FSkeletalMeshRenderData> SkeletalMeshRenderData;
 
-public:
 #if WITH_EDITORONLY_DATA
+	/*
+	 * This editor data asset is save in the same package has the skeletalmesh, the editor data asset is always loaded.
+	 * If the skeletal mesh is rename the editor data asset will also be rename: the name is SkeletalMeshName_USkeletalMeshEditorData
+	 * If the skeletal mesh is duplicate the editor data asset will also be duplicate
+	 * There is only one editor data asset possible per skeletalmesh.
+	 * The reason we store the editor data in a separate asset is because the size of it can be very big and affect the editor performance. (undo/redo transactions)
+	 */
+	UPROPERTY()
+	mutable USkeletalMeshEditorData* MeshEditorDataObject;
+
+	/*
+	 * Return a valid USkeletalMeshEditorData, if the MeshEditorDataPath is invalid it will create the USkeletalMeshEditorData and set the MeshEditorDataPath to point on it.
+	 */
+	USkeletalMeshEditorData& GetMeshEditorData() const;
+
+#endif //WITH_EDITORONLY_DATA
+
+public:
+
+#if WITH_EDITORONLY_DATA
+
+	//////////////////////////////////////////////////////////////////////////
+	// USkeletalMeshEditorData public skeletalmesh API
+	// We do not want skeletal mesh client to use directly the asset(function GetMeshEditorData)
+	// We have to maintain some sync between the LODModels and the asset to avoid loading the asset when
+	// building the DDC key. That is why the asset accessor are private. the data we keep in sync in the LODModels is:
+	// IsLODImportedDataBuildAvailable
+	// IsLODImportedDataEmpty
+	// Raw mesh data DDC string ID, there is no API to retrieve it, since only the LODModels need this value
+	
+
+	/* Fill the OutMesh with the imported data */
+	void LoadLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& OutMesh) const;
+	
+	/* Fill the asset LOD entry with the InMesh. */
+	void SaveLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& InMesh);
+	
+	/* Return true if the imported data has all the necessary data to use the skeletalmesh builder. Return False otherwise.
+	 * Old asset before the refactor will not be able to be build until it get fully re-import.
+	 * This value is cache in the LODModel and update when we call SaveLODImportedData.
+	 */
+	bool IsLODImportedDataBuildAvailable(const int32 LODIndex) const;
+	
+	/* Return true if the imported data is present. Return false otherwise.
+	 * Old asset before the split workflow will not have this data and will not support import geo only or skinning only.
+	 * This value is cache in the LODModel and update when we call SaveLODImportedData.
+	 */
+	bool IsLODImportedDataEmpty(const int32 LODIndex) const;
+
+	/* Get the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
+	void GetLODImportedDataVersions(const int32 LODIndex, ESkeletalMeshGeoImportVersions& OutGeoImportVersion, ESkeletalMeshSkinningImportVersions& OutSkinningImportVersion) const;
+
+	/* Set the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
+	void SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion);
+
+	/* Static function that copy the LOD import data from a source skeletal mesh to a destination skeletal mesh*/
+	static void CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh);
+
+	/* Allocate the space we need. Use this before calling this API in multithreaded. */
+	void ReserveLODImportData(int32 MaxLODIndex);
+	
+	void ForceBulkDataResident(const int32 LODIndex);
+
+	// End USkeletalMeshEditorData public skeletalmesh API
+	//////////////////////////////////////////////////////////////////////////
+
 	/** Get the imported data for this skeletal mesh. */
 	FORCEINLINE FSkeletalMeshModel* GetImportedModel() const { return ImportedModel.Get(); }
-#endif
+#endif //WITH_EDITORONLY_DATA
 
 	/** Get the data to use for rendering. */
 	FORCEINLINE FSkeletalMeshRenderData* GetResourceForRendering() const { return SkeletalMeshRenderData.Get(); }
@@ -990,6 +1059,8 @@ public:
 	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface.

@@ -35,6 +35,21 @@ bool FCborStructDeserializerBackend::GetNextToken(EStructDeserializerBackendToke
 {
 	LastMapKey.Reset();
 
+	if (bDeserializingByteArray) // Deserializing the content of a TArray<uint8>/TArray<int8> property?
+	{
+		if (DeserializingByteArrayIndex < LastContext.AsByteArray().Num())
+		{
+			OutToken = EStructDeserializerBackendTokens::Property; // Need to consume a byte from the CBOR ByteString as a UByteProperty/UInt8Property.
+		}
+		else
+		{
+			bDeserializingByteArray = false;
+			OutToken = EStructDeserializerBackendTokens::ArrayEnd; // All bytes from the byte string were deserialized into the TArray<uint8>/TArray<int8>.
+		}
+
+		return true;
+	}
+
 	if (!CborReader.ReadNext(LastContext))
 	{
 		OutToken = LastContext.IsError() ? EStructDeserializerBackendTokens::Error : EStructDeserializerBackendTokens::None;
@@ -72,6 +87,11 @@ bool FCborStructDeserializerBackend::GetNextToken(EStructDeserializerBackendToke
 		break;
 	case ECborCode::Map:
 		OutToken = EStructDeserializerBackendTokens::StructureStart;
+		break;
+	case ECborCode::ByteString: // Used for size optimization on TArray<uint8>/TArray<int8>. Might be replaced if https://datatracker.ietf.org/doc/draft-ietf-cbor-array-tags/ is adopted.
+		OutToken = EStructDeserializerBackendTokens::ArrayStart;
+		DeserializingByteArrayIndex = 0;
+		bDeserializingByteArray = true;
 		break;
 	case ECborCode::Int:
 		// fall through
@@ -140,7 +160,6 @@ bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(Int64Property, Outer, Data, ArrayIndex, (int64)LastContext.AsInt());
 		}
-
 
 		UE_LOG(LogSerialization, Verbose, TEXT("Integer field %s with value '%d' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsUInt(), *Property->GetClass()->GetName(), *GetDebugString());
 
@@ -237,6 +256,30 @@ bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty
 	}
 	break;
 
+	// Stream of bytes: Used for TArray<uint8>/TArray<int8>
+	case ECborCode::ByteString:
+	{
+		check(bDeserializingByteArray);
+
+		// Consume one byte from the byte string.
+		TArrayView<const uint8> DeserializedByteArray = LastContext.AsByteArray();
+		check(DeserializingByteArrayIndex < DeserializedByteArray.Num());
+		uint8 ByteValue = DeserializedByteArray[DeserializingByteArrayIndex++];
+
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(ByteProperty, Outer, Data, ArrayIndex, ByteValue);
+		}
+		else if (FInt8Property* Int8Property = CastField<FInt8Property>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(Int8Property, Outer, Data, ArrayIndex, (int8)ByteValue);
+		}
+
+		UE_LOG(LogSerialization, Verbose, TEXT("Error while deserializing field %s. Unexpected UProperty type %s. Expected a UByteProperty/UInt8Property to deserialize a TArray<uint8>/TArray<int8>"), *Property->GetFName().ToString(), *Property->GetClass()->GetName());
+		return false;
+	}
+	break;
+
 	// Prim
 	case ECborCode::Prim:
 	{
@@ -283,12 +326,19 @@ bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty
 	}
 
 	return true;
-
 }
 
 void FCborStructDeserializerBackend::SkipArray()
 {
-	CborReader.SkipContainer(ECborCode::Array);
+	if (bDeserializingByteArray) // Deserializing a TArray<uint8>/TArray<int8> property as byte string?
+	{
+		check(DeserializingByteArrayIndex == 0);
+		bDeserializingByteArray = false;
+	}
+	else
+	{
+		CborReader.SkipContainer(ECborCode::Array);
+	}
 }
 
 void FCborStructDeserializerBackend::SkipStructure()

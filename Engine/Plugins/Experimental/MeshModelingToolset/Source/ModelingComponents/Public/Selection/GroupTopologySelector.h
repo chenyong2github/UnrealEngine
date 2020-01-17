@@ -10,19 +10,6 @@
 class FToolDataVisualizer;
 struct FViewCameraState;
 
-/**
- * FGroupTopologySelection represents a set of selected elements of a FGroupTopology
- */
-struct MODELINGCOMPONENTS_API FGroupTopologySelection
-{
-	TArray<int> SelectedGroupIDs;
-	TArray<int> SelectedCornerIDs;
-	TArray<int> SelectedEdgeIDs;
-
-	FGroupTopologySelection() { Clear(); }
-	void Clear();
-};
-
 
 /**
  * FGroupTopologySelector implements selection behavior for a FGroupTopology mesh.

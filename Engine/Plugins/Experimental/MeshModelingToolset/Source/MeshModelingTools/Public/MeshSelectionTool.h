@@ -39,7 +39,11 @@ enum class EMeshSelectionToolActions
 	ExpandToConnected,
 
 	DeleteSelected,
-	SeparateSelected
+	DisconnectSelected,
+	SeparateSelected,
+	FlipSelected,
+	CreateGroup,
+	AssignMaterial
 };
 
 
@@ -66,32 +70,32 @@ class MESHMODELINGTOOLS_API UMeshSelectionEditActions : public UMeshSelectionToo
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Clear", DisplayPriority = 1))
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Clear", DisplayPriority = 1))
 	void Clear()
 	{
 		PostAction(EMeshSelectionToolActions::ClearSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Invert", DisplayPriority = 2))
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Invert", DisplayPriority = 2))
 	void Invert()
 	{
 		PostAction(EMeshSelectionToolActions::InvertSelection);
 	}
 
 
-	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Grow", DisplayPriority = 3))
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Grow", DisplayPriority = 3))
 	void Grow()
 	{
 		PostAction(EMeshSelectionToolActions::GrowSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Shrink", DisplayPriority = 4))
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Shrink", DisplayPriority = 4))
 	void Shrink()
 	{
 		PostAction(EMeshSelectionToolActions::ShrinkSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "ExpandToConnected", DisplayPriority = 5))
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "ExpandToConnected", DisplayPriority = 5))
 	void ExpandToConnected()
 	{
 		PostAction(EMeshSelectionToolActions::ExpandToConnected);
@@ -108,16 +112,34 @@ class MESHMODELINGTOOLS_API UMeshSelectionMeshEditActions : public UMeshSelectio
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Delete"))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Delete", DisplayPriority = 1))
 	void DeleteTriangles()
 	{
 		PostAction(EMeshSelectionToolActions::DeleteSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate"))
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate", DisplayPriority = 2))
 	void SeparateTriangles() 
 	{
 		PostAction(EMeshSelectionToolActions::SeparateSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Disconnect", DisplayPriority = 3))
+	void DisconnectTriangles() 
+	{
+		PostAction(EMeshSelectionToolActions::DisconnectSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Normals", DisplayPriority = 4))
+	void FlipNormals() 
+	{
+		PostAction(EMeshSelectionToolActions::FlipSelected);
+	}
+
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Create Polygroup", DisplayPriority = 5))
+	void CreatePolygroup()
+	{
+		PostAction(EMeshSelectionToolActions::CreateGroup);
 	}
 };
 
@@ -144,10 +166,30 @@ enum class EMeshSelectionToolPrimaryMode
 	/** Select all triangles in groups connected to any triangle inside the brush */
 	AllInGroup,
 
+	/** Select all triangles with same material as hit triangle */
+	ByMaterial,
+
+	/** Select all triangles in same UV island as hit triangle */
+	ByUVIsland,
+
 	/** Select all triangles with normal within angular tolerance of hit triangle */
 	AllWithinAngle
 };
 
+
+
+UENUM()
+enum class EMeshFacesColorMode
+{
+	/** Display original mesh materials */
+	None,
+	/** Color mesh triangles by PolyGroup Color */
+	ByGroup,
+	/** Color mesh triangles by Material ID */
+	ByMaterialID,
+	/** Color mesh triangles by UV Island */
+	ByUVIsland
+};
 
 
 UCLASS()
@@ -175,6 +217,9 @@ public:
 	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowWireframe = true;
+
+	UPROPERTY(EditAnywhere, Category = Selection)
+	EMeshFacesColorMode FaceColorMode = EMeshFacesColorMode::None;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -225,7 +270,12 @@ public:
 	UMeshSelectionEditActions* SelectionActions;
 
 	UPROPERTY()
-	UMeshSelectionMeshEditActions* EditActions;
+	UMeshSelectionToolActionPropertySet* EditActions;
+
+
+protected:
+	virtual UMeshSelectionToolActionPropertySet* CreateEditActions();
+	virtual void AddSubclassPropertySets() {}
 
 protected:
 
@@ -248,6 +298,7 @@ protected:
 	EMeshSelectionElementType SelectionType = EMeshSelectionElementType::Face;
 
 	TValueWatcher<bool> ShowWireframeWatcher;
+	TValueWatcher<EMeshFacesColorMode> ColorModeWatcher;
 
 
 	bool bInRemoveStroke = false;
@@ -270,7 +321,12 @@ protected:
 	void OnExternalSelectionChange();
 
 	void OnSelectionUpdated();
-	void UpdateVisualization();
+	void UpdateVisualization(bool bSelectionModified);
+	bool bFullMeshInvalidationPending = false;
+	bool bColorsUpdatePending = false;
+	FColor GetCurrentFaceColor(const FDynamicMesh3* Mesh, int TriangleID);
+	void CacheUVIslandIDs();
+	TArray<int> TriangleToUVIsland;
 
 	// selection change
 	FMeshSelectionChangeBuilder* ActiveSelectionChange = nullptr;
@@ -291,8 +347,12 @@ protected:
 	void ExpandToConnected();
 
 	void DeleteSelectedTriangles();
-	void SeparateSelectedTriangles();
+	void DisconnectSelectedTriangles(); // disconnects edges between selected and not-selected triangles; keeps all triangles in the same mesh
+	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
+	void FlipSelectedTriangles();
+	void AssignNewGroupToSelectedTriangles();
 
+	// if true, mesh has been edited
 	bool bHaveModifiedMesh = false;
 };
 

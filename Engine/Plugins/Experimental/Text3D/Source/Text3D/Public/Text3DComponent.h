@@ -3,8 +3,8 @@
 #pragma once
 
 
-#include "Bevel/Mesh.h"
-#include "Bevel/BevelType.h"
+#include "Mesh.h"
+#include "BevelType.h"
 
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
@@ -35,39 +35,8 @@ enum class EText3DHorizontalTextAlignment : uint8
 	Right			UMETA(DisplayName = "Right"),
 };
 
-USTRUCT()
-struct FText3DDebug
-{
-public:
-	GENERATED_BODY()
-
-	FText3DDebug()
-	{
-		Iterations = 1;
-		bHidePrevious = false;
-		MarkedVertex = -1;
-		Segments = 12;
-		VisibleFace = -1;
-	}
-
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	int32 Iterations;
-
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	bool bHidePrevious;
-
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	int32 MarkedVertex;
-
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	int32 Segments;
-
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	int32 VisibleFace;
-};
-
 UCLASS(HideCategories=(Object, Physics, Activation, "Components|Activation"), EditInlineNew, meta=(BlueprintSpawnableComponent))
-class TEXT3D_API UText3DComponent : public UPrimitiveComponent
+class TEXT3D_API UText3DComponent final : public UPrimitiveComponent
 {
 	GENERATED_BODY()
 
@@ -103,7 +72,7 @@ public:
 	EText3DBevelType BevelType;
 
 	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetHalfCircleSegments, Category="Text3D", Meta=(ClampMin=1, ClampMax=10))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetHalfCircleSegments, Category="Text3D", Meta=(ClampMin=1, ClampMax=15))
 	int32 HalfCircleSegments;
 
 	/** Material for the front part */
@@ -250,16 +219,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetFreeze(const bool bFreeze);
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = "Text3D Debug")
-	FText3DDebug DebugVariables;
-#endif
-
 private:
-	bool PendingBuild;
-	bool FreezeBuild;
+	bool bPendingBuild;
+	bool bFreezeBuild;
 
-	TSharedPtr<TText3DMeshList> Meshes;
+	TSharedRef<TText3DMeshList> Meshes;
 	FTransform CharacterTransform;
 
 	friend class FText3DSceneProxy;
@@ -268,5 +232,4 @@ private:
 	void BuildTextMesh();
 	void CheckBevel();
 	float MaxBevel() const;
-	void MirrorMesh(const EText3DMeshType TypeIn, const EText3DMeshType TypeOut, const float ScaleX);
 };

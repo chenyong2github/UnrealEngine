@@ -12,7 +12,7 @@ class ILevelEditor;
  * Represents the content in a viewport tab in the level editor.
  * Each SDockTab holding viewports in the level editor contains and owns one of these.
  */
-class LEVELEDITOR_API FLevelViewportTabContent : public FViewportTabContent
+class LEVELEDITOR_API FLevelViewportTabContent : public FViewportTabContent, public TSharedFromThis<FLevelViewportTabContent>
 {
 public:
 	/** Starts the tab content object and creates the initial layout based on the layout string */
@@ -22,7 +22,7 @@ public:
 	bool IsVisible() const;
 
 	/** Returns an array of viewports inside this tab */
-	const TMap< FName, TSharedPtr< IAssetViewportLayoutEntity > >* GetViewports() const;
+	const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* GetViewports() const;
 
 	/**
 	 * Sets the current layout by changing the contained layout object

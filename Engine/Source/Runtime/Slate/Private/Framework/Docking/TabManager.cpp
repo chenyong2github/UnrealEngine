@@ -1677,10 +1677,10 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 		{
 			StringToDisplay = FString("Unknown");
 		}
-		// If an output must be generated, create an "unrecognized tab"
+		// If an output must be generated, create an "unrecognized tab" and log it
 		if (!bCanOutputBeNullptr)
 		{
-			UE_LOG(LogSlate, Warning,
+			UE_LOG(LogSlate, Log,
 				TEXT("The tab \"%s\" attempted to spawn but failed for some reason. An \"unrecognized tab\" will be returned instead."), *StringToDisplay
 			);
 
@@ -1699,10 +1699,10 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 
 			NewTabWidget->SetLayoutIdentifier(TabId);
 		}
-		// If we can return nullptr, report it in the log
+		// If we can return nullptr, log it
 		else
 		{
-			UE_LOG(LogSlate, Warning,
+			UE_LOG(LogSlate, Log,
 				TEXT("The tab \"%s\" attempted to spawn but failed for some reason. It will not be displayed but it will still be saved in the layout settings file."), *StringToDisplay
 			);
 		}

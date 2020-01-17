@@ -6,11 +6,11 @@
 #include "CoreTechHelper.h"
 #include "CoreTechMeshLoader.h"
 #endif
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechRetessellateAction.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
-#include "Translators/DatasmithTranslator.h"
 #include "UI/DatasmithDisplayHelper.h"
 
 #include "Algo/AnyOf.h"

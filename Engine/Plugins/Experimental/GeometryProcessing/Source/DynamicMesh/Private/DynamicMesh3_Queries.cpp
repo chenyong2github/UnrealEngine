@@ -284,8 +284,6 @@ EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& 
 	return EMeshResult::Ok;
 }
 
-
-
 bool FDynamicMesh3::IsBoundaryVertex(int vID) const 
 {
 	check(IsVertex(vID));
@@ -299,17 +297,12 @@ bool FDynamicMesh3::IsBoundaryVertex(int vID) const
 	return false;
 }
 
-
-
 bool FDynamicMesh3::IsBoundaryTriangle(int tID) const
 {
 	check(IsTriangle(tID));
 	int i = 3 * tID;
 	return IsBoundaryEdge(TriangleEdges[i]) || IsBoundaryEdge(TriangleEdges[i + 1]) || IsBoundaryEdge(TriangleEdges[i + 2]);
 }
-
-
-
 
 FIndex2i FDynamicMesh3::GetOrientedBoundaryEdgeV(int eID) const
 {
@@ -326,7 +319,7 @@ FIndex2i FDynamicMesh3::GetOrientedBoundaryEdgeV(int eID) const
 		}
 	}
 	check(false);
-	return InvalidEdge();
+	return InvalidEdge;
 }
 
 
@@ -340,13 +333,11 @@ bool FDynamicMesh3::IsGroupBoundaryEdge(int eID) const
 	{
 		return false;
 	}
-	int g1 = (*TriangleGroups)[et1];
+	int g1 = TriangleGroups.GetValue()[et1];
 	int et0 = Edges[4 * eID + 2];
-	int g0 = (*TriangleGroups)[et0];
+	int g0 = TriangleGroups.GetValue()[et0];
 	return g1 != g0;
 }
-
-
 
 bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 {
@@ -357,7 +348,7 @@ bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 	for (int eID : VertexEdgeLists.Values(vID)) 
 	{
 		int et0 = Edges[4 * eID + 2];
-		int g0 = (*TriangleGroups)[et0];
+		int g0 = TriangleGroups.GetValue()[et0];
 		if (group_id != g0) 
 		{
 			if (group_id == InvalidGroupID)
@@ -372,7 +363,7 @@ bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 		int et1 = Edges[4 * eID + 3];
 		if (et1 != InvalidID) 
 		{
-			int g1 = (*TriangleGroups)[et1];
+			int g1 = TriangleGroups.GetValue()[et1];
 			if (group_id != g1)
 			{
 				return true;        // saw multiple group IDs
@@ -399,7 +390,7 @@ bool FDynamicMesh3::IsGroupJunctionVertex(int vID) const
 			{
 				continue;
 			}
-			int g0 = (*TriangleGroups)[et[k]];
+			int g0 = TriangleGroups.GetValue()[et[k]];
 			if (g0 != groups[0] && g0 != groups[1]) 
 			{
 				if (groups[0] != InvalidGroupID && groups[1] != InvalidGroupID)
@@ -432,7 +423,7 @@ bool FDynamicMesh3::GetVertexGroups(int vID, FIndex4i& groups) const
 	for (int eID : VertexEdgeLists.Values(vID)) 
 	{
 		int et0 = Edges[4 * eID + 2];
-		int g0 = (*TriangleGroups)[et0];
+		int g0 = TriangleGroups.GetValue()[et0];
 		if (groups.Contains(g0) == false)
 		{
 			groups[ng++] = g0;
@@ -444,7 +435,7 @@ bool FDynamicMesh3::GetVertexGroups(int vID, FIndex4i& groups) const
 		int et1 = Edges[4 * eID + 3];
 		if (et1 != InvalidID) 
 		{
-			int g1 = (*TriangleGroups)[et1];
+			int g1 = TriangleGroups.GetValue()[et1];
 			if (groups.Contains(g1) == false)
 			{
 				groups[ng++] = g1;
@@ -468,13 +459,13 @@ bool FDynamicMesh3::GetAllVertexGroups(int vID, TArray<int>& GroupsOut) const
 	for (int eID : VertexEdgeLists.Values(vID)) 
 	{
 		int et0 = Edges[4 * eID + 2];
-		int g0 = (*TriangleGroups)[et0];
+		int g0 = TriangleGroups.GetValue()[et0];
 		GroupsOut.AddUnique(g0);
 
 		int et1 = Edges[4 * eID + 3];
 		if (et1 != InvalidID) 
 		{
-			int g1 = (*TriangleGroups)[et1];
+			int g1 = TriangleGroups.GetValue()[et1];
 			GroupsOut.AddUnique(g1);
 		}
 	}
@@ -722,7 +713,8 @@ FFrame3d FDynamicMesh3::GetVertexFrame(int vID, bool bFrameNormalY) const
 
 	int vi = 3 * vID;
 	FVector3d v(Vertices[vi], Vertices[vi + 1], Vertices[vi + 2]);
-	FVector3d normal((*VertexNormals)[vi], (*VertexNormals)[vi + 1], (*VertexNormals)[vi + 2]);
+	const TDynamicVector<float>& Normals = VertexNormals.GetValue();
+	FVector3d normal(Normals[vi], Normals[vi + 1], Normals[vi + 2]);
 	int eid = VertexEdgeLists.First(vID);
 	int ovi = 3 * GetOtherEdgeVertex(eid, vID);
 	FVector3d ov(Vertices[ovi], Vertices[ovi + 1], Vertices[ovi + 2]);
@@ -786,7 +778,7 @@ FVector3d FDynamicMesh3::GetTriBaryNormal(int tID, double bary0, double bary1, d
 	int ai = 3 * Triangles[3 * tID],
 		bi = 3 * Triangles[3 * tID + 1],
 		ci = 3 * Triangles[3 * tID + 2];
-	const TDynamicVector<float>& normalsR = *(this->VertexNormals);
+	const TDynamicVector<float>& normalsR = VertexNormals.GetValue();
 	FVector3d n = FVector3d(
 		(bary0*normalsR[ai] + bary1 * normalsR[bi] + bary2 * normalsR[ci]),
 		(bary0*normalsR[ai + 1] + bary1 * normalsR[bi + 1] + bary2 * normalsR[ci + 1]),
@@ -819,9 +811,9 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 		(bary0 * Vertices[ai + 1] + bary1 * Vertices[bi + 1] + bary2 * Vertices[ci + 1]),
 		(bary0 * Vertices[ai + 2] + bary1 * Vertices[bi + 2] + bary2 * Vertices[ci + 2]));
 	vinfo.bHaveN = HasVertexNormals();
-	if (vinfo.bHaveN) 
+	if (vinfo.bHaveN)
 	{
-		TDynamicVector<float>& normalsR = *(this->VertexNormals);
+		const TDynamicVector<float>& normalsR = this->VertexNormals.GetValue();
 		vinfo.Normal = FVector3f(
 			(float)(bary0 * normalsR[ai] + bary1 * normalsR[bi] + bary2 * normalsR[ci]),
 			(float)(bary0 * normalsR[ai + 1] + bary1 * normalsR[bi + 1] + bary2 * normalsR[ci + 1]),
@@ -831,7 +823,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	vinfo.bHaveC = HasVertexColors();
 	if (vinfo.bHaveC) 
 	{
-		TDynamicVector<float>& colorsR = *(this->VertexColors);
+		const TDynamicVector<float>& colorsR = this->VertexColors.GetValue();
 		vinfo.Color = FVector3f(
 			(float)(bary0 * colorsR[ai] + bary1 * colorsR[bi] + bary2 * colorsR[ci]),
 			(float)(bary0 * colorsR[ai + 1] + bary1 * colorsR[bi + 1] + bary2 * colorsR[ci + 1]),
@@ -840,7 +832,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	vinfo.bHaveUV = HasVertexUVs();
 	if (vinfo.bHaveUV) 
 	{
-		TDynamicVector<float>& uvR = *(this->VertexUVs);
+		const TDynamicVector<float>& uvR = this->VertexUVs.GetValue();
 		ai = 2 * Triangles[3 * tID];
 		bi = 2 * Triangles[3 * tID + 1];
 		ci = 2 * Triangles[3 * tID + 2];

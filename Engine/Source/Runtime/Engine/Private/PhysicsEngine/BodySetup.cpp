@@ -698,7 +698,6 @@ bool UBodySetup::RuntimeCookPhysics_Chaos()
 
 void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float, 3>& InReader)
 {
-	check(IsInGameThread());
 	ClearPhysicsMeshes();
 
 	const FString FullName = GetFullName();

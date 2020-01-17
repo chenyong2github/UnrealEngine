@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseBrushTool.h"
+#include "BaseTools/BaseBrushTool.h"
 #include "DynamicMeshAABBTree3.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "PreviewMesh.h"

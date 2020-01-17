@@ -52,7 +52,9 @@ public class ModelingToolsEditorMode : ModuleRules
 				"MeshModelingTools",
 				"MeshModelingToolsEditorOnly",
 
-                "ViewportInteraction"
+                "ViewportInteraction",
+
+				"StylusInput"
 
 				// ... add private dependencies that you statically link with here ...	
 			}

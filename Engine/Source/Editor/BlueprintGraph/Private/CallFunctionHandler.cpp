@@ -80,13 +80,14 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 		// Make sure the pin mapping is sound (all pins wire up to a matching function parameter, and all function parameters match a pin)
 
 		// Remaining unmatched pins
+		// Note: Should maintain a stable order for variadic arguments
 		TArray<UEdGraphPin*> RemainingPins;
 		RemainingPins.Append(Node->Pins);
 
 		const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
 		// Remove expected exec and self pins
-		RemainingPins.RemoveAllSwap([Schema](UEdGraphPin* Pin) { return (Pin->bOrphanedPin || Schema->IsMetaPin(*Pin)); }, false);
+		RemainingPins.RemoveAll([Schema](UEdGraphPin* Pin) { return (Pin->bOrphanedPin || Schema->IsMetaPin(*Pin)); });
 
 		// Check for magic pins
 		const bool bIsLatent = Function->HasMetaData(FBlueprintMetadata::MD_Latent);
@@ -280,7 +281,7 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 					}
 
 					bFoundParam = true;
-					RemainingPins.RemoveAtSwap(i);
+					RemainingPins.RemoveAt(i);
 				}
 			}
 
@@ -291,10 +292,43 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 			}
 		}
 
-		// At this point, we should have consumed all pins.  If not, there are extras that need to be removed.
-		for (int32 i = 0; i < RemainingPins.Num(); ++i)
+		// If we have pins remaining then it's either an error, or extra variadic terms that need to be emitted
+		if (RemainingPins.Num() > 0)
 		{
-			CompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("PinMismatchParameter_ErrorFmt", "Pin @@ named {0} doesn't match any parameters of function {1}"), FText::FromName(RemainingPins[i]->PinName), FText::FromString(Function->GetName())).ToString(), RemainingPins[i]);
+			const bool bIsVariadic = Function->HasMetaData(FBlueprintMetadata::MD_Variadic);
+			if (bIsVariadic)
+			{
+				// Add a RHS term for every remaining pin
+				for (UEdGraphPin* RemainingPin : RemainingPins)
+				{
+					// Variadic pins are assumed to be wildcard pins that have been connected to something else
+					if (RemainingPin->LinkedTo.Num() == 0)
+					{
+						CompilerContext.MessageLog.Error(*LOCTEXT("UnlinkedVariadicPin_Error", "The variadic pin @@ must be connected. Connect something to @@.").ToString(), RemainingPin, RemainingPin->GetOwningNodeUnchecked());
+						continue;
+					}
+
+					UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(RemainingPin);
+					if (FBPTerminal** Term = Context.NetMap.Find(PinToTry))
+					{
+						FBPTerminal* RHSTerm = *Term;
+						RHSTerms.Add(RHSTerm);
+					}
+					else
+					{
+						CompilerContext.MessageLog.Error(*LOCTEXT("ResolveTermVariadic_Error", "Failed to resolve variadic term passed into @@").ToString(), RemainingPin);
+						bMatchedAllParams = false;
+					}
+				}
+			}
+			else
+			{
+				// At this point, we should have consumed all pins.  If not, there are extras that need to be removed.
+				for (const UEdGraphPin* RemainingPin : RemainingPins)
+				{
+					CompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("PinMismatchParameter_ErrorFmt", "Pin @@ named {0} doesn't match any parameters of function {1}"), FText::FromName(RemainingPin->PinName), FText::FromString(Function->GetName())).ToString(), RemainingPin);
+				}
+			}
 		}
 
 		if (NumErrorsAtStart == CompilerContext.MessageLog.NumErrors)

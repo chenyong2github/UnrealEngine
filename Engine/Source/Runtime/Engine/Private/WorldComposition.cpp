@@ -825,7 +825,7 @@ bool UWorldComposition::IsDistanceDependentLevel(FName PackageName) const
 	return IsDistanceDependentLevel(TileIdx);
 }
 
-bool UWorldComposition::CommitTileStreamingState(UWorld* PersistenWorld, int32 TileIdx, bool bShouldBeLoaded, bool bShouldBeVisible, bool bShouldBlock, int32 LODIdx)
+bool UWorldComposition::CommitTileStreamingState(UWorld* PersistentWorld, int32 TileIdx, bool bShouldBeLoaded, bool bShouldBeVisible, bool bShouldBlock, int32 LODIdx)
 {
 	if (!Tiles.IsValidIndex(TileIdx))
 	{
@@ -846,7 +846,7 @@ bool UWorldComposition::CommitTileStreamingState(UWorld* PersistenWorld, int32 T
 	}
 
 	// Quit early in case we have cooldown on streaming state changes
-	const bool bUseStreamingStateCooldown = (PersistenWorld->IsGameWorld() && PersistenWorld->FlushLevelStreamingType == EFlushLevelStreamingType::None);
+	const bool bUseStreamingStateCooldown = (PersistentWorld->IsGameWorld() && PersistentWorld->FlushLevelStreamingType == EFlushLevelStreamingType::None);
 	if (bUseStreamingStateCooldown && TilesStreamingTimeThreshold > 0.0)
 	{
 		const double CurrentTime = FPlatformTime::Seconds();

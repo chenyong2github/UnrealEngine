@@ -761,16 +761,16 @@ void FSCSEditorViewportClient::ResetCamera()
 
 	// For now, loosely base default camera positioning on thumbnail preview settings
 	USceneThumbnailInfo* ThumbnailInfo = Cast<USceneThumbnailInfo>(Blueprint->ThumbnailInfo);
-	if(ThumbnailInfo)
-	{
-		if(PreviewActorBounds.SphereRadius + ThumbnailInfo->OrbitZoom < 0)
-		{
-			ThumbnailInfo->OrbitZoom = -PreviewActorBounds.SphereRadius;
-		}
-	}
-	else
+	if(ThumbnailInfo == nullptr)
 	{
 		ThumbnailInfo = USceneThumbnailInfo::StaticClass()->GetDefaultObject<USceneThumbnailInfo>();
+	}
+
+	// Clamp zoom to the actor's bounding sphere radius
+	float OrbitZoom = ThumbnailInfo->OrbitZoom;
+	if (PreviewActorBounds.SphereRadius + OrbitZoom < 0)
+	{
+		OrbitZoom = -PreviewActorBounds.SphereRadius;
 	}
 
 	ToggleOrbitCamera(true);
@@ -784,9 +784,8 @@ void FSCSEditorViewportClient::ResetCamera()
 		FRotator ThumbnailAngle(ThumbnailInfo->OrbitPitch, ThumbnailInfo->OrbitYaw, 0.0f);
 
 		SetViewLocationForOrbiting(PreviewActorBounds.Origin);
-		SetViewLocation( GetViewLocation() + FVector(0.0f, TargetDistance * 1.5f + ThumbnailInfo->OrbitZoom - AutoViewportOrbitCameraTranslate, 0.0f) );
+		SetViewLocation( GetViewLocation() + FVector(0.0f, TargetDistance * 1.5f + OrbitZoom - AutoViewportOrbitCameraTranslate, 0.0f) );
 		SetViewRotation( ThumbnailAngle );
-	
 	}
 
 	Invalidate();

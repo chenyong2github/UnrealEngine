@@ -2,7 +2,7 @@
 
 #include "DatasmithCoreTechExtensionModule.h"
 
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechRetessellateAction.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IStaticMeshEditor.h"

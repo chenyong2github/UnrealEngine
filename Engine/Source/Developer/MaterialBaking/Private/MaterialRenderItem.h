@@ -17,7 +17,7 @@ struct FMeshPassProcessorRenderState;
 class FMeshMaterialRenderItem : public FCanvasBaseRenderItem
 {
 public:
-	FMeshMaterialRenderItem(const FMaterialData* InMaterialSettings, const FMeshData* InMeshSettings, EMaterialProperty InMaterialProperty);
+	FMeshMaterialRenderItem(const FMaterialData* InMaterialSettings, const FMeshData* InMeshSettings, EMaterialProperty InMaterialProperty, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
 
 	/** Begin FCanvasBaseRenderItem overrides */
 	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) final;
@@ -48,4 +48,6 @@ public:
 	FLightCacheInterface* LCI;
 	/** View family to use while baking */
 	FSceneViewFamily* ViewFamily;
+private:
+	FDynamicMeshBufferAllocator* DynamicMeshBufferAllocator;
 };

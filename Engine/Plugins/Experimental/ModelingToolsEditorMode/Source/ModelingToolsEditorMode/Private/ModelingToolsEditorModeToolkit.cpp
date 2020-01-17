@@ -22,7 +22,7 @@
 // if set to 1, then on mode initialization we include buttons for prototype modeling tools
 static TAutoConsoleVariable<int32> CVarEnablePrototypeModelingTools(
 	TEXT("modeling.EnablePrototypes"),
-	0,
+	1,
 	TEXT("Enable unsupported Experimental prototype Modeling Tools"));
 
 
@@ -227,7 +227,7 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { FName(TEXT("Modeling")), FName(TEXT("Utilities")) };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")) };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")), FName(TEXT("Prototypes")) };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -237,7 +237,7 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPalet
 }
 
 
-FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
+FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
 	return FText::FromName(Palette);
 }
@@ -298,6 +298,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 	else if (PaletteIndex == FName(TEXT("Utilities")))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
@@ -337,6 +338,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddSeparator();
 
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
@@ -351,6 +353,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginParameterizeMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
 	}
 	else if (PaletteIndex == FName(TEXT("Utilities")))
@@ -359,8 +362,16 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSimplifyMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRemoveOccludedTrianglesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditPivotTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeTransformTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
+	else if (PaletteIndex == FName(TEXT("Prototypes")))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
 	}
 }
 

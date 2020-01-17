@@ -22,7 +22,6 @@ class IDatasmithLightActorElement;
 class IDatasmithMasterMaterialElement;
 class IDatasmithMeshActorElement;
 class IDatasmithMeshElement;
-class IDatasmithMetaDataElement;
 class IDatasmithScene;
 class IDatasmithTextureElement;
 class UDatasmithC4DImportOptions;
@@ -58,7 +57,7 @@ public:
 	melange::BaseObject* GetBestMelangeCache(melange::BaseObject* Object);
 
 	/** Generates a unique identifier string for a melange object based on the object's name and its position in the hierarchy */
-	FString MelangeObjectID(melange::BaseObject* Object);
+	TOptional<FString> MelangeObjectID(melange::BaseObject* Object);
 
 	/** Searches the melange object hierarchy for a melange::BaseObject that has a MelangeObjectID equal to SearchObjectID */
 	melange::BaseObject* FindMelangeObject(const FString& SearchObjectID, melange::BaseObject* Object);
@@ -78,20 +77,22 @@ public:
 	/**
 	 * Import melange objects into Datasmith elements. Assets like meshes, materials and textures are added to the Datasmith scene directly,
 	 * while actors are merely returned and must be added as children to scene actors or added to the scene manually.
+	 *
+	 * Returns a null TSharedPtr if an error occurred during the import process.
 	 */
 	TSharedPtr<IDatasmithActorElement> ImportNullActor(melange::BaseObject* Object, const FString& DatasmithName, const FString& DatasmithLabel);
 	TSharedPtr<IDatasmithLightActorElement> ImportLight(melange::BaseObject* LightObject, const FString& DatasmithName, const FString& DatasmithLabel);
 	TSharedPtr<IDatasmithCameraActorElement> ImportCamera(melange::BaseObject* CameraObject, const FString& DatasmithName, const FString& DatasmithLabel);
-	TSharedPtr<IDatasmithMeshActorElement> ImportPolygon(melange::PolygonObject* PolyObject, TMap<FString, melange::PolygonObject*>* ClonerBaseChildrenHash, const FString& DatasmithName, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
+	TSharedPtr<IDatasmithMeshActorElement> ImportPolygon(melange::PolygonObject* PolyObject, const FString& DatasmithName, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 	TSharedPtr<IDatasmithMasterMaterialElement> ImportMaterial(melange::Material* InC4DMaterialPtr);
 	TSharedPtr<IDatasmithTextureElement> ImportTexture(const FString& TexturePath, EDatasmithTextureMode TextureMode);
-	TSharedPtr<IDatasmithMeshElement> ImportMesh(melange::PolygonObject* PolyObject, const FString& DatasmithMeshName, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
+	TSharedPtr<IDatasmithMeshElement> ImportMesh(melange::PolygonObject* PolyObject, const FString& DatasmithMeshName, const FString& DatasmithLabel);
 
 	/** Parses the spline and its cache into SplineCurves so that it can be used as paths for animation later */
 	void ImportSpline(melange::SplineObject* ActorObject);
 
 	/** Traverse the melange material hierarchy contained in the c4d file and import each into IDatasmithMasterMaterialElements */
-	void ImportMaterialHierarchy(melange::BaseMaterial* InC4DMaterialPtr);
+	bool ImportMaterialHierarchy(melange::BaseMaterial* InC4DMaterialPtr);
 
 	/** Uses ActorElementToC4DObject to find the corresponding melange object for ActorElement and adds all of its animations to LevelSequence */
 	void ImportAnimations(TSharedPtr<IDatasmithActorElement> ActorElement);
@@ -109,20 +110,22 @@ public:
 	 */
 	FString CustomizeMaterial(const FString& InMaterialID, const FString& InMeshID, melange::TextureTag* InTextureTag);
 
+	/**
+	 * Creates customized materials if necessary, and returns a map from material slot indices to material names
+	 */
+	TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
+
 	/** Imports a melange actor, which might involve parsing another small hierarchy of subnodes and deformers*/
-	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, TMap<FString, melange::PolygonObject*>* ClonerBaseChildrenHash, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, TArray<melange::TextureTag*> TextureTags, const FString& DatasmithLabel);
+	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel);
 
 	/** Traverse the melange actor hierarchy importing all nodes */
-	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, TMap<FString, melange::PolygonObject*>* ClonerBaseChildrenHash, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const TArray<melange::TextureTag*>& TextureTags);
+	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects);
 
 	/**
 	 * Adds Actor as a child of ParentActor using the corresponding WorldTransformMatrix. Object is the corresponding melange Object to Actor.
 	 * This will also do the necessary coordinate system conversions between melange and Unreal.
 	 */
-	void AddChildActor(melange::BaseObject* Object, TSharedPtr<IDatasmithActorElement> ParentActor, melange::Matrix WorldTransformMatrix, const TSharedPtr<IDatasmithActorElement>& Actor);
-
-	/** Creates a new IDatasmithMetaDataElement for the IDatasmithActorElement, adds it to the scene and returns it */
-	TSharedPtr<IDatasmithMetaDataElement> CreateMetadataForActor(const IDatasmithActorElement& Actor);
+	bool AddChildActor(melange::BaseObject* Object, TSharedPtr<IDatasmithActorElement> ParentActor, melange::Matrix WorldTransformMatrix, const TSharedPtr<IDatasmithActorElement>& Actor);
 
 	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
 	TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() { return LevelSequence; }
@@ -131,6 +134,9 @@ public:
 	FString C4dDocumentFilename;
 
 private:
+	/** Returns the TextureTags that should affect this object. May check parent objects, so relies on CachesOriginalObject */
+	TArray<melange::TextureTag*> GetActiveTextureTags(const melange::BaseObject* Object);
+
 	/** Removes from Context->Scene all empty actors that have a single child */
 	void RemoveEmptyActors();
 
@@ -143,8 +149,8 @@ private:
 	/** Storage of created materials used by CustomizeMaterial to create new "material instances" */
 	TMap<FString, TSharedPtr<IDatasmithMasterMaterialElement>> MaterialNameToMaterialElement;
 
-	/** Cache to prevent us from importing the mesh from a melange::PolygonObject more than once */
-	TMap<melange::PolygonObject*, TSharedRef<IDatasmithMeshElement>> PolygonObjectToMeshElement;
+	/** Cache meshes by hash to promote reusing StaticMeshes */
+	TMap<FString, TSharedRef<IDatasmithMeshElement>> PolygonHashToMeshElement;
 
 	/** Cache to prevent us from importing the same texture in the same mode more than once (mode is encoded in the FString as well) */
 	TMap<FString, TSharedPtr<IDatasmithTextureElement>> ImportedTextures;
@@ -157,9 +163,6 @@ private:
 
 	/** Keeps track of the owners of every melange cache object so we can climb the hierarchy upwards */
 	TMap<melange::BaseObject*, melange::BaseObject*> CachesOriginalObject;
-
-	/** Caches all the existing actor metadata elements we created for each IDatasmithActorElement in our Datasmith scene */
-	TMap<const IDatasmithActorElement*, TSharedPtr<IDatasmithMetaDataElement>> ActorMetadata;
 
 	/** Stores all FCraneCameraAttributes for each camera */
 	TMap<melange::BaseObject*, TSharedRef<FCraneCameraAttributes>> CraneCameraToAttributes;

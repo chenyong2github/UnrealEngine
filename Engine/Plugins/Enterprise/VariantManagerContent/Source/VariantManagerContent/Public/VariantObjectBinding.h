@@ -18,10 +18,13 @@ class VARIANTMANAGERCONTENT_API UVariantObjectBinding : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	void Init(UObject* InObject);
+	void SetObject(UObject* InObject);
 
 	class UVariant* GetParent();
+
+	// UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
 
 	FText GetDisplayText() const;
 
@@ -44,6 +47,13 @@ public:
 #endif
 
 private:
+	/**
+	 * Whenever we resolve, we cache the actor label here so that if we can't
+	 * resolve anymore we can better indicate which actor is missing, instead of just
+	 * saying 'Unloaded binding'
+	 */
+	UPROPERTY()
+	mutable FString CachedActorLabel;
 
 	UPROPERTY()
 	mutable FSoftObjectPath ObjectPtr;

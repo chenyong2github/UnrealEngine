@@ -892,7 +892,7 @@ public:
 	}
 
 	// FRunnable interface.
-	virtual bool Init() { bIsRunning = true; return true; }
+	virtual bool Init() { return true; }
 	virtual void Exit() { bIsRunning = false; }
 	virtual void Stop() { bForceFinish = true; }
 	virtual uint32 Run();
@@ -901,8 +901,15 @@ public:
 	{
 		check(!bIsRunning);
 
+		// Calling Reset will call Kill which in turn will call Stop and set bForceFinish to true.
+		Thread.Reset();
+
+		// Now we can set bForceFinish to false without being overwritten by the old thread shutting down.
 		bForceFinish = false;
 		Thread.Reset(FRunnableThread::Create(this, *FString::Printf(TEXT("BuildDistanceFieldThread%u"), NextThreadIndex), 0, TPri_Normal, FPlatformAffinity::GetPoolThreadMask()));
+
+		// Set this now before exiting so that IsRunning() returns true without having to wait on the thread to be completely started.
+		bIsRunning = true;
 		NextThreadIndex++;
 	}
 
@@ -925,6 +932,7 @@ private:
 
 FQueuedThreadPool* CreateWorkerThreadPool()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateWorkerThreadPool)
 	const int32 NumThreads = FMath::Max<int32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 1);
 	FQueuedThreadPool* WorkerThreadPool = FQueuedThreadPool::Allocate();
 	WorkerThreadPool->Create(NumThreads, 32 * 1024, TPri_BelowNormal);
@@ -933,9 +941,16 @@ FQueuedThreadPool* CreateWorkerThreadPool()
 
 uint32 FBuildDistanceFieldThreadRunnable::Run()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildDistanceFieldThreadRunnable::Run)
+
 	bool bHasWork = true;
 
-	while (!bForceFinish && bHasWork)
+	// Do not exit right away if no work to do as it often leads to stop and go problems
+	// when tasks are being queued at a slower rate than the processor capability to process them.
+	const uint64 ExitAfterIdleCycle = static_cast<uint64>(10.0 / FPlatformTime::GetSecondsPerCycle64()); // 10s
+
+	uint64 LastWorkCycle = FPlatformTime::Cycles64();
+	while (!bForceFinish &&  (bHasWork || (FPlatformTime::Cycles64() - LastWorkCycle) < ExitAfterIdleCycle))
 	{
 		// LIFO build order, since meshes actually visible in a map are typically loaded last
 		FAsyncDistanceFieldTask* Task = AsyncQueue.TaskQueue.Pop();
@@ -948,11 +963,13 @@ uint32 FBuildDistanceFieldThreadRunnable::Run()
 			}
 
 			AsyncQueue.Build(Task, *WorkerThreadPool);
+			LastWorkCycle = FPlatformTime::Cycles64();
 			bHasWork = true;
 		}
 		else
 		{
 			bHasWork = false;
+			FPlatformProcess::Sleep(.01f);
 		}
 	}
 
@@ -1024,6 +1041,8 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 
 void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, bool bWarnIfBlocked)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::BlockUntilBuildComplete)
+
 	// We will track the wait time here, but only the cycles used.
 	// This function is called whether or not an async task is pending, 
 	// so we have to look elsewhere to properly count how many resources have actually finished building.
@@ -1073,6 +1092,7 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 
 void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete)
 	do 
 	{
 		ProcessAsyncTasks();
@@ -1084,10 +1104,11 @@ void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThreadPool& ThreadPool)
 {
 #if WITH_EDITOR
-
 	// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg FProperty or serialized)
 	if (Task->StaticMesh && Task->GenerateSource)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::Build)
+
 		const FStaticMeshLODResources& LODModel = Task->GenerateSource->RenderData->LODResources[0];
 
 		MeshUtilities->GenerateSignedDistanceFieldVolumeData(
@@ -1123,6 +1144,7 @@ FString FDistanceFieldAsyncQueue::GetReferencerName() const
 
 void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::ProcessAsyncTasks)
 #if WITH_EDITOR
 	TArray<FAsyncDistanceFieldTask*> LocalCompletedTasks;
 	CompletedTasks.PopAll(LocalCompletedTasks);

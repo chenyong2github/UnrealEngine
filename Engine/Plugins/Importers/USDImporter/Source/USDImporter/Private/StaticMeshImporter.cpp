@@ -179,7 +179,9 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 {
 	const pxr::UsdPrim& Prim = *PrimToImport.Prim;
 
-	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(ImportContext.Stage.Get(), IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( ImportContext.Stage.Get() );
+
+	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(StageUpAxis, IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
 
 	FTransform FinalTransform = PrimToWorld;
 	if (ImportContext.ImportOptions->Scale != 1.0f)

@@ -4,27 +4,22 @@
 
 #include "DatasmithFBXHashUtils.h"
 #include "DatasmithFBXImporterLog.h"
-#include "DatasmithMeshHelper.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "FbxImporter.h"
 #include "FileHelpers.h"
-#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 #include "MeshUtilities.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
+#include "StaticMeshAttributes.h"
 
 #define ANIMNODE_SUFFIX						TEXT("_AnimNode")
-#define MERGED_SUFFIX						TEXT("_Merged")
-#define SHARED_CONTENT_SUFFIX				TEXT("_SharedContent")
 #define LIGHT_SUFFIX						TEXT("_Light")
 #define MESH_SUFFIX							TEXT("_Mesh")
 #define CAMERA_SUFFIX						TEXT("_Camera")
 #define MIN_TOTAL_NODES_TO_OPTIMIZE			30
 #define MIN_NODES_IN_SUBTREE_TO_OPTIMIZE	5
-
-#define MAX_MERGE_VERTEX_COUNT   10000000
-#define MAX_MERGE_TRIANGLE_COUNT  3000000
 
 FDatasmithFBXSceneProcessor::FDatasmithFBXSceneProcessor(FDatasmithFBXScene* InScene)
 	: Scene(InScene)
@@ -186,7 +181,6 @@ struct FNodeMarkHelper
 
 	void Recurse(TSharedPtr<FDatasmithFBXSceneNode>& Node)
 	{
-		//todo: change this logic, perhaps use UI controls to specify nodes etc, store settings as class fields
 		const FName NodeName = FName(*Node->OriginalName);
 		if (NodeName != NAME_None)
 		{
@@ -198,39 +192,14 @@ struct FNodeMarkHelper
 			{
 				Node->MarkToggleNode();
 			}
-			if (ObjectSetObjectNames.Contains(NodeName))
+			if (ObjectSetObjectNames.Contains(NodeName) ||
+				AnimatedObjectNames.Contains(NodeName) ||
+				SwitchMaterialObjectNames.Contains(NodeName) ||
+				TransformVariantObjectNames.Contains(NodeName) ||
+				Node->Light.IsValid() ||
+				Node->Camera.IsValid())
 			{
-				Node->MarkMovableNode();
-			}
-			if (AnimatedObjectNames.Contains(NodeName))
-			{
-				Node->MarkAnimatedNode();
-			}
-			if (SwitchMaterialObjectNames.Contains(NodeName))
-			{
-				Node->MarkSwitchMaterialNode();
-			}
-			if (TransformVariantObjectNames.Contains(NodeName))
-			{
-				Node->MarkMovableNode();
-			}
-			if (Node->Light.IsValid())
-			{
-				Node->MarkLightNode();
-			}
-			if (Node->Camera.IsValid())
-			{
-				Node->MarkCameraNode();
-			}
-
-			// mark switch object options as toggle
-			auto Parent = Node->Parent.Pin();
-			if (Parent.IsValid())
-			{
-				if (Parent->GetNodeType() == ENodeType::Switch)
-				{
-					Node->MarkToggleNode();
-				}
+				Node->KeepNode();
 			}
 		}
 
@@ -244,7 +213,7 @@ struct FNodeMarkHelper
 void FDatasmithFBXSceneProcessor::FindPersistentNodes()
 {
 	FNodeMarkHelper Helper;
-	Helper.SwitchMaterialObjectNames.Append(Scene->SwitchObjects);
+	Helper.SwitchObjectNames.Append(Scene->SwitchObjects);
 	Helper.AnimatedObjectNames.Append(Scene->AnimatedObjects);
 	Helper.SwitchMaterialObjectNames.Append(Scene->SwitchMaterialObjects);
 	Helper.TransformVariantObjectNames.Append(Scene->TransformVariantObjects);
@@ -341,10 +310,6 @@ void FDatasmithFBXSceneProcessor::SplitLightNodesRecursive(TSharedPtr<FDatasmith
 		SeparatedChild->LocalTransform.SetIdentity();
 		SeparatedChild->LocalTransform.ConcatenateRotation(FRotator(-90, 0, 0).Quaternion());
 
-		//TODO: Test SharedContent mechanism when splitting nodes
-		SeparatedChild->SharedContent = Node->SharedContent;
-		SeparatedChild->SharedParent = Node->SharedParent;
-
 		/** Fix hierarchy
 
 			P							P
@@ -384,10 +349,6 @@ void FDatasmithFBXSceneProcessor::SplitCameraNodesRecursive(TSharedPtr<FDatasmit
 		SeparatedChild->LocalTransform.SetIdentity();
 		SeparatedChild->LocalTransform.ConcatenateRotation(FRotator(-90, -90, -Node->Camera->Roll).Quaternion());
 
-		//TODO: Test SharedContent mechanism when splitting nodes
-		SeparatedChild->SharedContent = Node->SharedContent;
-		SeparatedChild->SharedParent = Node->SharedParent;
-
 		/** Fix hierarchy
 
 		    P							P
@@ -403,300 +364,6 @@ void FDatasmithFBXSceneProcessor::SplitCameraNodesRecursive(TSharedPtr<FDatasmit
 
 		//Clean this Node
 		Node->Camera.Reset();
-	}
-}
-
-struct FSwitchState
-{
-	FSwitchState(TSharedPtr<FDatasmithFBXSceneNode> Node)
-	{
-		while (true)
-		{
-			TSharedPtr<FDatasmithFBXSceneNode> Parent = Node->Parent.Pin();
-			if (!Parent.IsValid())
-			{
-				break;
-			}
-			if (EnumHasAnyFlags(Parent->GetNodeType(), ENodeType::Switch))
-			{
-				// Parent is a switch, Node is switch value
-				check(SwitchValues.Find(Parent->Name) == nullptr);
-				SwitchValues.Add(Parent->Name, Node->Name);
-			}
-			Node = Parent;
-		}
-	}
-
-	/** Function compares two switch states and returns true if they doesn't have a possibility to be visible together */
-	bool AreNodesMutuallyInvisible(const FSwitchState& Other)
-	{
-		for (auto& It : SwitchValues)
-		{
-			// Find this switch in Other's switch list
-			auto* Found = Other.SwitchValues.Find(It.Key);
-			if (Found != nullptr)
-			{
-				if (It.Value != *Found)
-				{
-					// At least one of switches has different values
-					return true;
-				}
-			}
-		}
-		// No identical switches found
-		return false;
-	}
-
-	/** Mapping switch name to its value */
-	TMap<FString, FString> SwitchValues;
-};
-
-// An idea behind this optimization is to locate scene subtrees which are the same and which are used
-// in different switch combinations. Such subtrees will never be visible at the same time. These subtrees
-// will be replaced with a "shared node" blueprint, which will use the single instance of subtree, and
-// this subtree will be reattached to "shared node" as child nodes when "shared node" will became visible.
-struct FDuplicatedNodeFinder
-{
-	FDuplicatedNodeFinder(FDatasmithFBXScene* InScene)
-	: Scene(InScene)
-	{
-	}
-
-	void PrepareNodeHashMap()
-	{
-		PrepareNodeHashMapRecursive(Scene->RootNode);
-	}
-
-	void PrepareNodeHashMapRecursive(const TSharedPtr<FDatasmithFBXSceneNode>& Node)
-	{
-		// Register node's hash
-		const FMD5Hash& NodeHash = Node->GetHash();
-		TArray< TSharedPtr<FDatasmithFBXSceneNode> >* HashMap = HashToNodes.Find(NodeHash);
-		if (HashMap == nullptr)
-		{
-			// This hash didn't appear in scene yet
-			TArray< TSharedPtr<FDatasmithFBXSceneNode> > NewHashMap;
-			HashMap = &HashToNodes.Add(NodeHash, NewHashMap);
-		}
-		HashMap->Add(Node);
-
-		// Recurse
-		for (TSharedPtr<FDatasmithFBXSceneNode>& Child : Node->Children)
-		{
-			PrepareNodeHashMapRecursive(Child);
-		}
-	}
-
-	void ExclideFromHashMap(TSharedPtr<FDatasmithFBXSceneNode>& Node)
-	{
-		TArray< TSharedPtr<FDatasmithFBXSceneNode> >* NodesWithSameHash = HashToNodes.Find(Node->GetHash());
-		check(NodesWithSameHash != nullptr);
-		NodesWithSameHash->Remove(Node);
-	}
-
-	TArray< TSharedPtr<FDatasmithFBXSceneNode> > FindNodesForSharing(TSharedPtr<FDatasmithFBXSceneNode> Node)
-	{
-		TArray< TSharedPtr<FDatasmithFBXSceneNode> > FoundNodes;
-
-		TArray< TSharedPtr<FDatasmithFBXSceneNode> >* NodesWithSameHash = HashToNodes.Find(Node->GetHash());
-		// We always have 'Node' in this list, so result will never be null
-		check(NodesWithSameHash != nullptr);
-		int32 InstanceCount = NodesWithSameHash->Num();
-		if (InstanceCount < 2)
-		{
-			// We have just this node, and nothing else, return empty list
-			return FoundNodes;
-		}
-
-		// This technique is intended to optimize number of nodes for very complex scenes. Check if we're going to
-		// optimize a too simple subtree.
-		int32 NodesInSubtree = Node->GetChildrenCountRecursive();
-		if (NodesInSubtree < MIN_NODES_IN_SUBTREE_TO_OPTIMIZE)
-		{
-			// It is not worth replacing (say) 2 nodes with 1 node
-			return FoundNodes;
-		}
-
-		// Verify number of nodes we could release if all instances are suitable for optimization
-		int32 NumReleasedNodes = (InstanceCount - 1) * NodesInSubtree;
-		if (NumReleasedNodes < MIN_TOTAL_NODES_TO_OPTIMIZE)
-		{
-			// Too simple optimization, not worth doing.
-			return FoundNodes;
-		}
-
-		// Verify all nodes with same hash. Check their switch combinations, and find nodes
-		// which could be safely reused - in a case if they don't share the same configuration.
-		// An example of node which could share configuration: a car have 4 wheels which are
-		// usually same, but we can't use shared node for them because all 4 wheels are always
-		// visible simultaneously.
-
-		// Build switch configuration for current node
-		FSwitchState NodeState(Node);
-
-		// This array will hold all configurations which we will verify. If node A is "compatible"
-		// with node B, and node A compatible with node C, this doesn't mean that B is compatible
-		// with C, so we'll accumulate verified states here.
-		TArray<FSwitchState> States;
-		States.Add(NodeState);
-
-		for (TSharedPtr<FDatasmithFBXSceneNode>& NodeToCheck : *NodesWithSameHash)
-		{
-			if (NodeToCheck == Node)
-			{
-				continue;
-			}
-
-			bool bCompatible = true;
-			FSwitchState CheckState(NodeToCheck);
-			for (FSwitchState& ExistingState : States)
-			{
-				if (ExistingState.AreNodesMutuallyInvisible(CheckState) == false)
-				{
-					bCompatible = false;
-					break;
-				}
-			}
-
-			if (bCompatible)
-			{
-				FoundNodes.Add(NodeToCheck);
-				States.Add(CheckState);
-			}
-		}
-
-		// Now check optimization effectiveness again
-		if (FoundNodes.Num() * NodesInSubtree < MIN_TOTAL_NODES_TO_OPTIMIZE)
-		{
-			FoundNodes.Empty();
-		}
-
-		return FoundNodes;
-	}
-
-	void ProcessTreeRecursive(TSharedPtr<FDatasmithFBXSceneNode> Node)
-	{
-		TArray< TSharedPtr<FDatasmithFBXSceneNode> > Instances = FindNodesForSharing(Node);
-		if (Instances.Num())
-		{
-			// Replace nodes with instances
-			//
-			// Node
-			//   + Child_1
-			//   + Child_2
-			// Other_Node
-			//   + Child_1
-			//   + Child_2
-			//
-			// ... will become
-			//
-			// SharedNode(Node) -> Node
-			//   + Node
-			//     + Child_1
-			//     + Child_2
-			// SharedNode(OtherNode) -> Node
-
-			// Create a shared node (a kind of proxy) which will replace 'Node' and use this 'Node' as SharedContent
-			TSharedPtr<FDatasmithFBXSceneNode> SharedContent = Node;
-			TSharedPtr<FDatasmithFBXSceneNode> SharedNode(new FDatasmithFBXSceneNode());
-			SharedNode->Name = Node->Name;
-			SharedNode->OriginalName = Node->Name;
-			Node->Name += SHARED_CONTENT_SUFFIX;
-			// Insert SharedNode into hierarchy between Node->Parent and Node
-			TSharedPtr<FDatasmithFBXSceneNode> Parent = Node->Parent.Pin();
-			for (TSharedPtr<FDatasmithFBXSceneNode>& Sibling : Parent->Children)
-			{
-				if (Sibling == Node)
-				{
-					// this parent's child is 'Node', replace it with SharedNode
-					Sibling = SharedNode;
-					SharedNode->Parent = Parent;
-					Node->Parent = SharedNode;
-					SharedNode->Children.Add(Node);
-					break;
-				}
-			}
-			// Finalize creation of SharedNode
-			SharedNode->MarkSharedNode(SharedContent);
-			// SharedNode (proxy) should have transform of node which we're sharing, so 'Node' will have identity transform
-			// and could be correctly reattached to another parent.
-			SharedNode->LocalTransform = Node->LocalTransform;
-			Node->LocalTransform = FTransform::Identity;
-			ExclideFromHashMap(Node);
-
-			// Process instances
-			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); InstanceIndex++)
-			{
-				TSharedPtr<FDatasmithFBXSceneNode>& InstanceNode = Instances[InstanceIndex];
-				// Remove instance's children
-				UnhashNodesRecursive(InstanceNode);
-				InstanceNode->Children.Empty();
-				// In a case if this node is a switch, the switch functionality will be in SharedContent
-				// node, and InstanceNode should became a SharedNode.
-				InstanceNode->ResetNodeType();
-				InstanceNode->MarkSharedNode(SharedContent);
-			}
-		}
-		else
-		{
-			// Recurse to children
-			for (TSharedPtr<FDatasmithFBXSceneNode>& Child : Node->Children)
-			{
-				ProcessTreeRecursive(Child);
-			}
-		}
-	}
-
-	void UnhashNodesRecursive(TSharedPtr<FDatasmithFBXSceneNode>& Node)
-	{
-		ExclideFromHashMap(Node);
-
-		// Recurse to children
-		for (TSharedPtr<FDatasmithFBXSceneNode>& Child : Node->Children)
-		{
-			UnhashNodesRecursive(Child);
-		}
-	}
-
-	void InvalidateHashesRecursive(TSharedPtr<FDatasmithFBXSceneNode>& Node)
-	{
-		Node->InvalidateHash();
-		for (TSharedPtr<FDatasmithFBXSceneNode>& Child : Node->Children)
-		{
-			InvalidateHashesRecursive(Child);
-		}
-	}
-
-	FDatasmithFBXScene* Scene;
-	TMap< FMD5Hash, TArray< TSharedPtr<FDatasmithFBXSceneNode> > > HashToNodes;
-};
-
-void FDatasmithFBXSceneProcessor::OptimizeDuplicatedNodes()
-{
-	// FDuplicatedNodeFinder performs optimization of top-level nodes. When it finds a node which could be
-	// shared between different parents, it won't optimize content of that node. To perform optimization
-	// better, we're doing multiple passes. Doing optimization in a single pass (for example, recursing
-	// into shared content nodes immediately after it has been found) would require too complex code
-	// because we're using node hash maps there to optimize search - we'd need to modify these structures
-	// too often. So, it's easier to do multiple passes instead.
-
-	for (int32 Pass = 1; Pass <= 4; Pass++)
-	{
-		int32 TotalNodeCount = Scene->RootNode->GetChildrenCountRecursive(true);
-		FDuplicatedNodeFinder Finder(Scene);
-		Finder.PrepareNodeHashMap();
-		Finder.ProcessTreeRecursive(Scene->RootNode);
-		int32 NewTotalNodeCount = Scene->RootNode->GetChildrenCountRecursive(true);
-
-		if (NewTotalNodeCount == TotalNodeCount)
-		{
-			// Nothing has been optimized
-			UE_LOG(LogDatasmithFBXImport, Log, TEXT("Optimized duplicated nodes (pass %d): nothing has been done"), Pass);
-			break;
-		}
-
-		UE_LOG(LogDatasmithFBXImport, Log, TEXT("Optimized duplicated nodes (pass %d): reduced node count from %d to %d"), Pass, TotalNodeCount, NewTotalNodeCount);
-		Finder.InvalidateHashesRecursive(Scene->RootNode);
 	}
 }
 

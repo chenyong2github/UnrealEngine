@@ -20,9 +20,9 @@ void FDatasmithMeshBuildSettingsTemplate::Apply( FMeshBuildSettings* Destination
 
 	// The settings for RecomputeNormals and RecomputeTangents when True must be honored irrespective of the previous template settings
 	// because their values are determined by ShouldRecomputeNormals/ShouldRecomputeTangents which determine if they are needed by the renderer
-	Destination->bRecomputeNormals = PreviousTemplate ? Destination->bRecomputeNormals | bRecomputeNormals : bRecomputeNormals;
+	Destination->bRecomputeNormals = PreviousTemplate ? PreviousTemplate->bRecomputeNormals | bRecomputeNormals : bRecomputeNormals;
 
-	Destination->bRecomputeTangents = PreviousTemplate ? Destination->bRecomputeTangents | bRecomputeTangents : bRecomputeTangents;
+	Destination->bRecomputeTangents = PreviousTemplate ? PreviousTemplate->bRecomputeTangents | bRecomputeTangents : bRecomputeTangents;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bRemoveDegenerates, Destination, PreviousTemplate );
 

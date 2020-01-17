@@ -13,6 +13,9 @@
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
 #include "LevelEditorModesActions.h"
+#include "Classes/EditorStyleSettings.h"
+#include "EdMode.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
@@ -26,6 +29,7 @@ SLevelEditorToolBox::~SLevelEditorToolBox()
 
 void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef< class ILevelEditor >& OwningLevelEditor )
 {
+	TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
 	LevelEditor = OwningLevelEditor;
 
 	// Important: We use a raw binding here because we are releasing our binding in our destructor (where a weak pointer would be invalid)
@@ -36,7 +40,6 @@ void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef<
 	ChildSlot
 	[
 		SNew( SVerticalBox )
-
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign( HAlign_Left )
@@ -73,20 +76,27 @@ void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef<
 		]
 	];
 
-	UpdateModeToolBar();
+	UpdateModeLegacyToolBar();
 }
 
 void SLevelEditorToolBox::HandleUserSettingsChange( FName PropertyName )
 {
-	UpdateModeToolBar();
+	UpdateModeLegacyToolBar();
 }
 
 void SLevelEditorToolBox::OnEditorModeCommandsChanged()
 {
-	UpdateModeToolBar();
+	UpdateModeLegacyToolBar();
 }
 
-void SLevelEditorToolBox::UpdateModeToolBar()
+void SLevelEditorToolBox::SetParentTab(TSharedRef<SDockTab>& InDockTab)
+{
+	ParentTab = InDockTab;
+	InDockTab->SetLabel(TabName);
+	InDockTab->SetTabIcon(TabIcon);
+}
+
+void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor");
 	const TSharedPtr< const FUICommandList > CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
@@ -126,12 +136,19 @@ void SLevelEditorToolBox::UpdateModeToolBar()
 		}
 	}
 
-	ModeToolBarContainer->SetContent( EditorModeTools.MakeWidget() );
-
-	const TArray< TSharedPtr< IToolkit > >& HostedToolkits = LevelEditor.Pin()->GetHostedToolkits();
-	for( auto HostedToolkitIt = HostedToolkits.CreateConstIterator(); HostedToolkitIt; ++HostedToolkitIt )
+	if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
-		UpdateInlineContent( ( *HostedToolkitIt )->GetInlineContent() );
+		ModeToolBarContainer->SetContent(EditorModeTools.MakeWidget());
+	}
+	else
+	{
+		ModeToolBarContainer->SetVisibility(EVisibility::Collapsed);
+	}
+
+	const TArray<TSharedPtr<IToolkit>>& HostedToolkits = LevelEditor.Pin()->GetHostedToolkits();
+	for(const TSharedPtr<IToolkit>& HostedToolkitIt : HostedToolkits)
+	{
+		UpdateInlineContent(HostedToolkitIt, HostedToolkitIt->GetInlineContent());
 		break;
 	}
 }
@@ -146,50 +163,53 @@ EVisibility SLevelEditorToolBox::GetNoToolSelectedTextVisibility() const
 	return InlineContentHolder->GetContent() == SNullWidget::NullWidget ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-void SLevelEditorToolBox::UpdateInlineContent(TSharedPtr<SWidget> InlineContent) const
+void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent) 
 {
+	TabName = NSLOCTEXT("LevelEditor", "ToolsTabTitle", "Toolbox");
+	TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
+
+	if (Toolkit.IsValid())
+	{
+		TabName = Toolkit->GetEditorModeDisplayName();
+		TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
+	}
+
+	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();
 	if (InlineContent.IsValid() && InlineContentHolder.IsValid())
 	{
 		InlineContentHolder->SetContent(InlineContent.ToSharedRef());
 	}
+
+	if (ParentTabPinned.IsValid())
+	{
+		ParentTabPinned->SetLabel(TabName);
+		ParentTabPinned->SetTabIcon(TabIcon);
+	}
 }
 
-void SLevelEditorToolBox::OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit )
+void SLevelEditorToolBox::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
 {
-	UpdateInlineContent( Toolkit->GetInlineContent() );
+	UpdateInlineContent(Toolkit, Toolkit->GetInlineContent());
 }
 
-void SLevelEditorToolBox::OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit )
+void SLevelEditorToolBox::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
 {
 	bool FoundAnotherToolkit = false;
-	const TArray< TSharedPtr< IToolkit > >& HostedToolkits = LevelEditor.Pin()->GetHostedToolkits();
-	for( auto HostedToolkitIt = HostedToolkits.CreateConstIterator(); HostedToolkitIt; ++HostedToolkitIt )
+	const TArray<TSharedPtr<IToolkit>>& HostedToolkits = LevelEditor.Pin()->GetHostedToolkits();
+	for (const TSharedPtr<IToolkit>& HostedToolkitIt : HostedToolkits)
 	{
-		if ( ( *HostedToolkitIt ) != Toolkit )
+		if (HostedToolkitIt != Toolkit)
 		{
-			UpdateInlineContent( ( *HostedToolkitIt )->GetInlineContent() );
+			UpdateInlineContent(HostedToolkitIt, HostedToolkitIt->GetInlineContent());
 			FoundAnotherToolkit = true;
 			break;
 		}
 	}
 
-	if ( !FoundAnotherToolkit )
+	if (!FoundAnotherToolkit)
 	{
-		UpdateInlineContent( SNullWidget::NullWidget );
+		UpdateInlineContent(nullptr, SNullWidget::NullWidget );
 	}
-}
-
-FSlateIcon SLevelEditorToolBox::GetEditorModeIcon(TSharedPtr< FUICommandInfo > EditorModeUICommand, FEditorModeID EditorMode )
-{
-	const FSlateIcon& Icon = EditorModeUICommand->GetIcon();
-
-	FName IconName = Icon.GetStyleName();
-	if( FLevelEditorActionCallbacks::IsEditorModeActive(EditorMode) )
-	{
-		IconName = FEditorStyle::Join(IconName, ".Selected");
-	}
-
-	return FSlateIcon(Icon.GetStyleSetName(), IconName);
 }
 
 #undef LOCTEXT_NAMESPACE

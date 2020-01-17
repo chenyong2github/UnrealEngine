@@ -3,17 +3,9 @@
 
 #include "Selection/GroupTopologySelector.h"
 #include "MeshQueries.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
 
-
-
-void FGroupTopologySelection::Clear()
-{
-	SelectedGroupIDs.Reset();
-	SelectedCornerIDs.Reset();
-	SelectedEdgeIDs.Reset();
-}
 
 
 

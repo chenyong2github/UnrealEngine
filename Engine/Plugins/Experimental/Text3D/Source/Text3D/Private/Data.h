@@ -3,7 +3,7 @@
 #pragma once
 
 
-#include "Bevel/Mesh.h"
+#include "Mesh.h"
 #include "CoreMinimal.h"
 #include "DynamicMeshBuilder.h"
 
@@ -18,10 +18,10 @@ public:
 	 * Contructor.
 	 * @param MeshesIn - Vertices and indices to which bevel should be added (contains front cap).
 	 * @param ExpandTotalIn - Total expand value (for all ArcSegments from Bevel.cpp).
-	 * @param FontInverseScaleIn - Documented in Bevel.h.
-	 * @param ScaleIn - Documented in Bevel.h.
+	 * @param FontInverseScaleIn - Documented in ContourList.h.
+	 * @param ScaleIn - Documented in ContourList.h.
 	 */
-	FData(TSharedPtr<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
+	FData(TSharedRef<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
 
 
 	void SetHorizontalOffset(const float HorizontalOffsetIn);
@@ -53,8 +53,6 @@ public:
 
 	float GetFontInverseScale() const;
 
-	float GetExpandTarget() const;
-
 	void ResetDoneExtrude();
 	void IncreaseDoneExtrude();
 
@@ -62,8 +60,28 @@ public:
 	FVector ComputeTangentZ(const FPart* const Edge, const float DoneExpand);
 	void SetCurrentMesh(EText3DMeshType Type);
 
+
+	/**
+	 * FPart::Expanded for total expand value Data::ExpandTarget.
+	 * @param Point - Point for which position should be computed.
+	 * @return Computed position.
+	 */
+	FVector2D Expanded(const FPart* const Point) const;
+	/**
+	 * Similar to FData::Expanded but actually creates vertices and writes indices to paths.
+	 * @param Point - Point that should be expanded.
+	 * @param Count - Amount of edges to which result point will belong. 2 for case without intersections, (n + 1) for case when (n) normals intersect in result point.
+	 */
+	void ExpandPoint(FPart* const Point, const int32 Count);
+	/**
+	 * Make triangulation of edge along paths of it's vertices (from end of previous triangulation to result of points' expansion). Removes covered points' indices from paths.
+	 * @param Edge - Edge that has to be filled.
+	 * @param bSkipLastTriangle - Do not create last triangle (furthest from end of previous triangulation).
+	 */
+	void FillEdge(FPart* const Edge, const bool bSkipLastTriangle);
+
 private:
-	TSharedPtr<TText3DMeshList> Meshes;
+	TSharedRef<TText3DMeshList> Meshes;
 	FText3DDynamicData* CurrentMesh;
 
 	const float ExpandTotal;
@@ -98,4 +116,12 @@ private:
 	 * @return 3d coordinate.
 	 */
 	FVector GetVector(const FVector2D Position, const float Height) const;
+	/**
+	 * Make triangle fan, called from FData::FillEdge.
+	 * @param Cap - Cap of triangle fan.
+	 * @param Normal - Point, fan will be created along it's normal.
+	 * @param bNormalIsCapNext - Normal is next point after cap or vice versa.
+	 * @param bSkipLastTriangle - See FData::FillEdge.
+	 */
+	void MakeTriangleFanAlongNormal(const FPart* const Cap, FPart* const Normal, const bool bNormalIsCapNext, const bool bSkipLastTriangle);
 };

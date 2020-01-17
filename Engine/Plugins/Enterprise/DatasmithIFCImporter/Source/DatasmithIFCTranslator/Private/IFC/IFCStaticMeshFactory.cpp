@@ -3,11 +3,10 @@
 #include "IFCStaticMeshFactory.h"
 
 #include "AssetRegistryModule.h"
-#include "DatasmithMeshHelper.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
-#include "PackageTools.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithIFCMeshFactory);
 
@@ -42,32 +41,26 @@ namespace IFC
 
 	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription) const
 	{
-		const int32 NumUVs = 1;
-
 		TVertexAttributesRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-
-		TEdgeAttributesRef<bool>  EdgeHardnesses = MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-		TEdgeAttributesRef<float> EdgeCreaseSharpnesses = MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+
+		const int32 NumUVs = 1;
 		VertexInstanceUVs.SetNumIndices(NumUVs);
 
 		FIndexVertexIdMap PositionIndexToVertexId;
 		PositionIndexToVertexId.Empty(InObject->facesVerticesCount);
 
-		for (int64 I = 0; I < InObject->facesVerticesCount; I++)
+		for (int64 IFCVertexIndex = 0; IFCVertexIndex < InObject->facesVerticesCount; IFCVertexIndex++)
 		{
 			const FVertexID& VertexID = MeshDescription->CreateVertex();
-			VertexPositions[VertexID].X = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 0];
+			VertexPositions[VertexID].X = InObject->facesVertices[(IFCVertexIndex * (InObject->vertexElementSize / sizeof(float))) + 0];
 			// Flip Y to keep mesh looking the same as the coordinate system changes from RH -> LH
-			VertexPositions[VertexID].Y = - InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 1];
-			VertexPositions[VertexID].Z = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 2];
+			VertexPositions[VertexID].Y = - InObject->facesVertices[(IFCVertexIndex * (InObject->vertexElementSize / sizeof(float))) + 1];
+			VertexPositions[VertexID].Z = InObject->facesVertices[(IFCVertexIndex * (InObject->vertexElementSize / sizeof(float))) + 2];
 			VertexPositions[VertexID] *= ImportUniformScale;
-			PositionIndexToVertexId.Add(I, VertexID);
+			PositionIndexToVertexId.Add(IFCVertexIndex, VertexID);
 		}
 
 		// Add the PolygonGroups.
@@ -81,54 +74,56 @@ namespace IFC
 			PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = ImportedSlotName;
 		}
 
-		bool bMeshUsesEmptyMaterial = false;
-		bool bDidGenerateTexCoords = false;
-
 		FTransform WorldToObject = InObject->Transform.Inverse();
 
-		for (int32 Index = 0; Index < InObject->TrianglesArray.Num(); ++Index)
+		for (const IFC::FPolygon& IFCPolygon : InObject->TrianglesArray)
 		{
-			const IFC::FPolygon* IFCPolygon = &InObject->TrianglesArray[Index];
+			bool bInvalidTriangle = false;
 
-			TArray<FVertexInstanceID> VertexInstanceIDs;
 			TArray<FVertexID> VertexIDs;
+			TArray<FVertexInstanceID> VertexInstanceIDs;
 
-			// flip polygon to fix its orientation
-			for (int32 P = IFCPolygon->Points.Num() - 1; P > -1; --P)
+			// Flip polygon to fix its orientation
+			for (int32 IndexInPolygon = IFCPolygon.Points.Num() - 1; IndexInPolygon > -1; --IndexInPolygon)
 			{
-				const int32 VertexIndex = IFCPolygon->Points[P];
-				const FVertexID VertexID = PositionIndexToVertexId[VertexIndex];
+				const int32 IFCVertexIndex = IFCPolygon.Points[IndexInPolygon];
+				const FVertexID& VertexID = PositionIndexToVertexId[IFCVertexIndex];
+
+				if (VertexIDs.Num() > 0 && VertexID == VertexIDs.Last())
+				{
+					bInvalidTriangle = true;
+					break;
+				}
+
+				VertexIDs.Add(VertexID);
+			}
+
+			if (bInvalidTriangle)
+			{
+				continue;
+			}
+
+			for(int32 IndexInPolygon = 0; IndexInPolygon < IFCPolygon.Points.Num(); ++IndexInPolygon)
+			{
+				const int32 IFCVertexIndex = IFCPolygon.Points[IndexInPolygon];
+				const FVertexID& VertexID = VertexIDs[IndexInPolygon];
+
 				const FVertexInstanceID& VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
+				VertexInstanceIDs.Add(VertexInstanceID);
 
 				for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
 				{
 					VertexInstanceUVs.Set(VertexInstanceID, UVIndex, FVector2D::ZeroVector);
 				}
 
-				VertexInstanceIDs.Add(VertexInstanceID);
-				VertexIDs.Add(VertexID);
-
-				const float* Vertex = &(InObject->facesVertices[(VertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
+				const float* Vertex = &(InObject->facesVertices[(IFCVertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
 
 				// Flip Y to go from RH -> LH
 				FVector Normal = WorldToObject.TransformVector(FVector(Vertex[3], -Vertex[4], Vertex[5]));
 				VertexInstanceNormals.Set(VertexInstanceID, Normal.GetSafeNormal());
 			}
 
-			bool bIsWrong = false;
-			for (int32 T = 1; T < VertexIDs.Num(); T++)
-			{
-				if (VertexIDs[T - 1] == VertexIDs[T])
-				{
-					bIsWrong = true;
-				}
-			}
-			if (bIsWrong)
-			{
-				continue;	// Skip this data.
-			}
-
-			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon->MaterialIndex], VertexInstanceIDs);
+			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon.MaterialIndex], VertexInstanceIDs);
 		}
 
 		DatasmithMeshHelper::RemoveEmptyPolygonGroups(*MeshDescription);

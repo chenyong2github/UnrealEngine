@@ -14,6 +14,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorPlaySettings.h"
+#endif 
+
 #include "GameInstance.generated.h"
 
 class AGameModeBase;
@@ -24,6 +28,7 @@ class FUniqueNetId;
 class ULocalPlayer;
 class UOnlineSession;
 struct FLatentActionManager;
+class ULevelEditorPlaySettings;
 
 // 
 // 	EWelcomeScreen, 	//initial screen.  Used for platforms where we may not have a signed in user yet.
@@ -90,6 +95,16 @@ private:
 //@TODO: Some of these are really mutually exclusive and should be refactored (put into a struct to make this easier in the future)
 struct FGameInstancePIEParameters
 {
+	FGameInstancePIEParameters()
+		: bSimulateInEditor(false)
+		, bAnyBlueprintErrors(false)
+		, bStartInSpectatorMode(false)
+		, bRunAsDedicated(false)
+		, WorldFeatureLevel(ERHIFeatureLevel::Num)
+		, EditorPlaySettings(nullptr)
+		, NetMode(EPlayNetMode::PIE_Standalone)
+	{}
+
 	// Are we doing SIE instead of PIE?
 	bool bSimulateInEditor;
 
@@ -103,7 +118,16 @@ struct FGameInstancePIEParameters
 	bool bRunAsDedicated;
 
 	// The feature level that PIE world should use
-	ERHIFeatureLevel::Type WorldFeatureLevel = ERHIFeatureLevel::Num;
+	ERHIFeatureLevel::Type WorldFeatureLevel;
+
+	// Kept alive externally.
+	ULevelEditorPlaySettings* EditorPlaySettings;
+
+	// Which net mode should this PIE instance start in? Affects which maps are loaded.
+	EPlayNetMode NetMode;
+
+	// The map we should force the game to load instead of the one currently running in the editor. Blank for no override
+	FString OverrideMapURL;
 };
 
 #endif

@@ -2410,7 +2410,7 @@ extern void AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregate
 extern void AddSphereGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
 extern void AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
 extern void AddBoxGeomFromTris(const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
+extern bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
 
 bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& InNodeName)
 {
@@ -2523,7 +2523,10 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			if( !ImportOptions->bOneConvexHullPerUCX )
 			{
-				DecomposeUCXMesh( CollisionVertices, CollisionFaceIdx, StaticMesh->BodySetup );
+				if (!DecomposeUCXMesh(CollisionVertices, CollisionFaceIdx, StaticMesh->BodySetup)) {
+					FString CollisionModelName = UTF8_TO_TCHAR(ModelName.Buffer());
+					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_DecomposingCollisionMesh", "Could not decompose collision mesh [{0}]."), FText::FromString(CollisionModelName))), FFbxErrors::StaticMesh_BuildError);
+				}
 			}
 			else
 			{

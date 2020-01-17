@@ -7,8 +7,6 @@
 #include "LiveLinkMessageBusSourceFactory.generated.h"
 
 
-class SLiveLinkMessageBusSourceEditor;
-
 UCLASS()
 class ULiveLinkMessageBusSourceFactory : public ULiveLinkSourceFactory
 {

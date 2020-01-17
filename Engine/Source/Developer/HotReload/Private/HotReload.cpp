@@ -1442,7 +1442,7 @@ bool FHotReloadModule::Tick(float DeltaTime)
 	if (GEditor)
 	{
 		// Don't try to do an IDE reload yet if we're PIE - wait until we leave
-		if (GEditor->bIsPlayWorldQueued || GEditor->PlayWorld)
+		if (GEditor->IsPlaySessionInProgress())
 		{
 			return true;
 		}

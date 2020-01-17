@@ -245,7 +245,7 @@ void FMenuBuilder::AddSubMenu( const TAttribute<FText>& InMenuLabel, const TAttr
 	ApplySectionBeginning();
 
 	const bool bIsSubMenu = true;
-	TSharedRef< FMenuEntryBlock > NewMenuEntryBlock( new FMenuEntryBlock( InExtensionHook, InMenuLabel, InToolTip, InSubMenu, ExtenderStack.Top(), bIsSubMenu, bInOpenSubMenuOnClick, InIcon, InUIAction, InUserInterfaceActionType, bCloseSelfOnly, bInShouldCloseWindowAfterMenuSelection ) );
+	TSharedRef< FMenuEntryBlock > NewMenuEntryBlock( new FMenuEntryBlock( InExtensionHook, InMenuLabel, InToolTip, InSubMenu, ExtenderStack.Top(), bIsSubMenu, bInOpenSubMenuOnClick, InIcon, InUIAction, InUserInterfaceActionType, bCloseSelfOnly, bInShouldCloseWindowAfterMenuSelection, CommandListStack.Last() ) );
 
 	MultiBox->AddMultiBlock( NewMenuEntryBlock );
 }
@@ -321,16 +321,13 @@ void FMenuBuilder::AddSearchWidget()
 
 void FMenuBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition)
 {
-	if (ExtendersEnabled())
+	// this is a virtual function to get a properly typed "this" pointer
+	auto& Extender = ExtenderStack.Top();
+	if (InExtensionHook != NAME_None && Extender.IsValid())
 	{
-		// this is a virtual function to get a properly typed "this" pointer
-		auto& Extender = ExtenderStack.Top();
-		if (InExtensionHook != NAME_None && Extender.IsValid())
+		if (!MultiBox->IsInEditMode())
 		{
-			if (!MultiBox->IsInEditMode())
-			{
-				Extender->Apply(InExtensionHook, HookPosition, *this);
-			}
+			Extender->Apply(InExtensionHook, HookPosition, *this);
 		}
 	}
 }
@@ -373,14 +370,11 @@ void FMenuBarBuilder::AddPullDownMenu(const FText& InMenuLabel, const FText& InT
 
 void FMenuBarBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition)
 {
-	if (ExtendersEnabled())
+	// this is a virtual function to get a properly typed "this" pointer
+	auto& Extender = ExtenderStack.Top();
+	if (InExtensionHook != NAME_None && Extender.IsValid())
 	{
-		// this is a virtual function to get a properly typed "this" pointer
-		auto& Extender = ExtenderStack.Top();
-		if (InExtensionHook != NAME_None && Extender.IsValid())
-		{
-			Extender->Apply(InExtensionHook, HookPosition, *this);
-		}
+		Extender->Apply(InExtensionHook, HookPosition, *this);
 	}
 }
 
@@ -466,11 +460,17 @@ void FToolBarBuilder::AddToolBarWidget( TSharedRef<SWidget> InWidget, const TAtt
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(GetStyleSet()->GetMargin(ISlateStyle::Join( GetStyleName(), ".Label.Padding" )))
 		.HAlign( HAlign_Center )
 		[
 			SNew( STextBlock )
-			// .Visibility_Lambda( [this] () -> EVisibility { return /*LabelVisibility.IsSet() ? LabelVisibility.GetValue() :*/ (bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ? EVisibility::Collapsed : EVisibility::Visible; } ) 
-			.Visibility_Lambda( [] () -> EVisibility { return FMultiBoxSettings::UseSmallToolBarIcons.Get() ? EVisibility::Collapsed : EVisibility::Visible; } ) 
+			.Visibility_Lambda( [ChildWidget] () -> EVisibility {
+				if (FMultiBoxSettings::UseSmallToolBarIcons.Get())
+					return EVisibility::Collapsed;
+
+				return ChildWidget->GetVisibility();
+			})
+			.IsEnabled_Lambda( [ChildWidget] () -> bool { return ChildWidget->IsEnabled(); } )
 			.Text( InLabel )
 			.TextStyle( GetStyleSet(), ISlateStyle::Join( GetStyleName(), ".Label" ) )	// Smaller font for tool tip labels
 			.ShadowOffset( FVector2D::UnitVector )
@@ -547,14 +547,11 @@ void FToolBarBuilder::EndSection()
 
 void FToolBarBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition)
 {
-	if (ExtendersEnabled())
+	// this is a virtual function to get a properly typed "this" pointer
+	auto& Extender = ExtenderStack.Top();
+	if (InExtensionHook != NAME_None && Extender.IsValid())
 	{
-		// this is a virtual function to get a properly typed "this" pointer
-		auto& Extender = ExtenderStack.Top();
-		if (InExtensionHook != NAME_None && Extender.IsValid())
-		{
-			Extender->Apply(InExtensionHook, HookPosition, *this);
-		}
+		Extender->Apply(InExtensionHook, HookPosition, *this);
 	}
 }
 

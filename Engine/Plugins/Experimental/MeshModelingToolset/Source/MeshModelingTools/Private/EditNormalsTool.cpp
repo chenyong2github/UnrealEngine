@@ -68,7 +68,7 @@ UEditNormalsToolProperties::UEditNormalsToolProperties()
 	bInvertNormals = false;
 	bRecomputeNormals = true;
 	NormalCalculationMethod = ENormalCalculationMethod::AreaAngleWeighting;
-	bRecomputeNormalTopologyAndEdgeSharpness = false;
+	SplitNormalMethod = ESplitNormalMethod::UseExistingTopology;
 	SharpEdgeAngleThreshold = 60;
 	bAllowSharpVertices = false;
 }
@@ -144,10 +144,13 @@ void UEditNormalsTool::UpdateNumPreviews()
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[PreviewIdx]->GetMaterial(0)),
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+
 			Preview->SetVisibility(true);
 		}
 	}
@@ -162,10 +165,10 @@ void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->SetOwnerVisibility(true);
 	}
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
-		Results.Emplace(Preview->Shutdown());
+		Results.Add(Preview->Shutdown());
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -178,13 +181,13 @@ void UEditNormalsTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FEditNormalsOp> NormalsOp = MakeShared<FEditNormalsOp>();
+	TUniquePtr<FEditNormalsOp> NormalsOp = MakeUnique<FEditNormalsOp>();
 	NormalsOp->bFixInconsistentNormals = Tool->BasicProperties->bFixInconsistentNormals;
 	NormalsOp->bInvertNormals = Tool->BasicProperties->bInvertNormals;
 	NormalsOp->bRecomputeNormals = Tool->BasicProperties->bRecomputeNormals;
-	NormalsOp->bSplitNormals = Tool->BasicProperties->bRecomputeNormalTopologyAndEdgeSharpness;
+	NormalsOp->SplitNormalMethod = Tool->BasicProperties->SplitNormalMethod;
 	NormalsOp->bAllowSharpVertices = Tool->BasicProperties->bAllowSharpVertices;
 	NormalsOp->NormalCalculationMethod = Tool->BasicProperties->NormalCalculationMethod;
 	NormalsOp->NormalSplitThreshold = Tool->BasicProperties->SharpEdgeAngleThreshold;
@@ -253,7 +256,7 @@ bool UEditNormalsTool::CanAccept() const
 }
 
 
-void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EditNormalsToolTransactionName", "Edit Normals Tool"));
 
@@ -261,20 +264,20 @@ void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResul
 	
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		check(Results[ComponentIdx]->Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
+		check(Results[ComponentIdx].Mesh.Get() != nullptr);
+		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			
 			if (BasicProperties->WillTopologyChange())
 			{
 				// full conversion if normal topology changed or faces were inverted
-				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);
+				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
 			}
 			else
 			{
 				// otherwise just copy attributes
-				Converter.UpdateAttributes(Results[ComponentIdx]->Mesh.Get(), *MeshDescription, true, false);
+				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, true, false);
 			}
 		});
 	}

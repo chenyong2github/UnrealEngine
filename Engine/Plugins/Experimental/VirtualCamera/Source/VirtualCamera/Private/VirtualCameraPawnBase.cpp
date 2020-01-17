@@ -413,7 +413,7 @@ void AVirtualCameraPawnBase::SaveSettings()
 	// Save waypoints
 	SaveGameInstance->Waypoints = Waypoints;
 	SaveGameInstance->HomeWaypointName = HomeWaypointName;
-	
+
 	// Save screenshots
 	SaveGameInstance->Screenshots = Screenshots;
 
@@ -541,3 +541,46 @@ FString AVirtualCameraPawnBase::LeftPadWithZeros(int32 InNumber, int32 MinNumber
 
 	return ReturnString;
 }
+
+//~ Begin IVirtualCameraPresetContainer Interface
+
+FString AVirtualCameraPawnBase::SavePreset_Implementation(const bool bSaveCameraSettings, const bool bSaveStabilization, const bool bSaveAxisLocking, const bool bSaveMotionScale)
+{
+	return SavePreset(bSaveCameraSettings, bSaveStabilization, bSaveAxisLocking, bSaveMotionScale);
+}
+
+bool AVirtualCameraPawnBase::LoadPreset_Implementation(const FString& PresetName)
+{
+	return LoadPreset(PresetName);
+}
+
+int32 AVirtualCameraPawnBase::DeletePreset_Implementation(const FString& PresetName)
+{
+	return DeletePreset(PresetName);
+}
+
+TMap<FString, FVirtualCameraSettingsPreset> AVirtualCameraPawnBase::GetSettingsPresets_Implementation()
+{
+	return GetSettingsPresets();
+}
+
+//~ End IVirtualCameraPresetContainer Interface
+
+//~ Begin IVirtualCameraOptions Interface
+
+void AVirtualCameraPawnBase::SetDesiredDistanceUnits_Implementation(const EUnit DesiredUnits)
+{
+	SetDesiredDistanceUnits(DesiredUnits);
+}
+
+EUnit AVirtualCameraPawnBase::GetDesiredDistanceUnits_Implementation()
+{
+	return GetDesiredDistanceUnits();
+}
+
+bool AVirtualCameraPawnBase::IsFocusVisualizationAllowed_Implementation()
+{
+	return IsFocusVisualizationAllowed();
+}
+
+//~ End IVirtualCameraOptions Interface

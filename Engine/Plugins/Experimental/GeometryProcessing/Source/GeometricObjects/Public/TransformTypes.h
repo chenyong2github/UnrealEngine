@@ -146,7 +146,6 @@ public:
 		return Rotation * V;
 	}
 
-
 	/**
 	 * Surface Normals are special, their transform is Rotate( Normalize( (1/Scale) * Normal) ) ).
 	 * However 1/Scale requires special handling in case any component is near-zero.
@@ -252,6 +251,53 @@ public:
 	}
 
 
+
+
+	// vector-type-conversion variants. This allows applying a float transform to double vector and vice-versa.
+	// Whether this should be allowed is debatable. However in practice it is extremely rare to convert an
+	// entire float transform to a double transform in order to apply to a double vector, which is the only
+	// case where this conversion is an issue
+
+	template<typename RealType2>
+	FVector3<RealType2> TransformPosition(const FVector3<RealType2>& P) const
+	{
+		return FVector3<RealType2>(TransformPosition(FVector3<RealType>(P)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> TransformVector(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(TransformVector(FVector3<RealType>(V)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> TransformVectorNoScale(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(TransformVectorNoScale(FVector3<RealType>(V)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> TransformNormal(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(TransformNormal(FVector3<RealType>(V)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> InverseTransformPosition(const FVector3<RealType2>& P) const
+	{
+		return FVector3<RealType2>(InverseTransformPosition(FVector3<RealType>(P)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> InverseTransformVector(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(InverseTransformVector(FVector3<RealType>(V)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> InverseTransformVectorNoScale(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(InverseTransformVectorNoScale(FVector3<RealType>(V)));
+	}
+	template<typename RealType2>
+	FVector3<RealType2> InverseTransformNormal(const FVector3<RealType2>& V) const
+	{
+		return FVector3<RealType2>(InverseTransformNormal(FVector3<RealType>(V)));
+	}
 
 };
 typedef TTransform3<float> FTransform3f;

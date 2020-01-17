@@ -91,6 +91,8 @@ struct ExistingSkelMeshData
 	TMap<UAssetUserData*, bool>				ExistingAssetUserData;
 
 	USkeletalMesh::FOnMeshChanged			ExistingOnMeshChanged;
+
+	TMap<FName, FString>* ExistingUMetaDataTagValues;
 };
 
 /** 
