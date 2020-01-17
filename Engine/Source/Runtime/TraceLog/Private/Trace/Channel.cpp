@@ -8,15 +8,15 @@
 
 #if UE_TRACE_ENABLED
 
+// General trace channel. Used by all built in events.
+Trace::FTraceChannel TraceLogChannel;
+
 namespace Trace
 {
 
 ///////////////////////////////////////////////////////////////////////////////
 static FChannel* volatile GHeadChannel; // = nullptr;
 static const size_t ChannelNameMaxLength = 64u;
-
-// General trace channel. Used by all built in events.
-static Trace::FTraceChannel TraceLogChannel;
 
 ///////////////////////////////////////////////////////////////////////////////
 template <int DestSize>
