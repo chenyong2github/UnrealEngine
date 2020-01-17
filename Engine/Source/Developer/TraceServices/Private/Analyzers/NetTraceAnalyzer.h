@@ -104,7 +104,7 @@ private:
 	TSharedRef<FNetTraceGameInstanceState> GetOrCreateActiveGameInstanceState(uint32 GameInstanceId);
 	void DestroyActiveGameInstanceState(uint32 GameInstanceId);
 
-	TSharedRef<FNetTraceConnectionState> GetActiveConnectionState(uint32 GameInstanceId, uint32 ConnectionId);
+	FNetTraceConnectionState* GetActiveConnectionState(uint32 GameInstanceId, uint32 ConnectionId);
 	Trace::FNetProfilerTimeStamp GetLastTimestamp() const { return LastTimeStamp; }
 
 	void FlushPacketEvents(FNetTraceConnectionState& ConnectionState, Trace::FNetProfilerConnectionData& ConnectionData, const Trace::ENetProfilerConnectionMode ConnectionMode);
