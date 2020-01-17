@@ -40,9 +40,6 @@ namespace Audio
 		// from a sound source to the listener's ears. 
 		FLateReflectionsFastSettings LateReflections;
 
-		// Mix amount between dry and wet signals.
-		float Wetness;
-
 		// Set how reverb module generates reverb when there are 5 or more output channels. 
 		EQuadBehavior QuadBehavior;
 	};
@@ -52,8 +49,6 @@ namespace Audio
 	// class aims to support a flexible and pleasant sounding reverb balanced with computational efficiency. 
 	class SIGNALPROCESSING_API FPlateReverbFast {
 		public:
-			static const float MaxWetness;
-			static const float MinWetness;
 			static const FPlateReverbFastSettings DefaultSettings;
 			
 			// InMaxInternalBufferSamples sets the maximum number of samples used in internal buffers.
@@ -81,21 +76,13 @@ namespace Audio
 			static void ClampSettings(FPlateReverbFastSettings& InOutSettings);
 
 		private:
-			// Copy input samples to output samples. Remap channels if necessary.
-			void PassThroughAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
-
-			
 			// Copy reverberated samples to interleaved output samples. Map channels according to internal settings.
 			void InterleaveAndMixOutput(const AlignedFloatBuffer& InFrontLeftSamples, const AlignedFloatBuffer& InFrontRightSamples, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
 
 			void ApplySettings();
 
 
-
-
 			float SampleRate;
-			float LastWetness;
-			bool bProcessCallSinceWetnessChanged;
 
 			FPlateReverbFastSettings Settings;
 			FEarlyReflectionsFast EarlyReflections;
