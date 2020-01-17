@@ -2099,8 +2099,8 @@ struct TStructOpsTypeTraits< FVector_NetQuantizeNormal > : public TStructOpsType
  *	
  */
 
-template<int32 MaxNum, typename T>
-int32 SafeNetSerializeTArray_HeaderOnly(FArchive& Ar, TArray<T>& Array, bool& bOutSuccess)
+template<int32 MaxNum, typename T, typename A>
+int32 SafeNetSerializeTArray_HeaderOnly(FArchive& Ar, TArray<T, A>& Array, bool& bOutSuccess)
 {
 	const uint32 NumBits = FMath::CeilLogTwo(MaxNum)+1;
 	
@@ -2124,6 +2124,12 @@ int32 SafeNetSerializeTArray_HeaderOnly(FArchive& Ar, TArray<T>& Array, bool& bO
 	// Preallocate new items on loading side
 	if (Ar.IsLoading())
 	{
+		if (ArrayNum > MaxNum)
+		{
+			// If MaxNum doesn't fully utilize all bits that are needed to send the array size we can receive a larger value.
+			bOutSuccess = false;
+			ArrayNum = MaxNum;
+		}
 		Array.Reset();
 		Array.AddDefaulted(ArrayNum);
 	}
@@ -2131,11 +2137,11 @@ int32 SafeNetSerializeTArray_HeaderOnly(FArchive& Ar, TArray<T>& Array, bool& bO
 	return ArrayNum;
 }
 
-template<int32 MaxNum, typename T>
-bool SafeNetSerializeTArray_Default(FArchive& Ar, TArray<T>& Array)
+template<int32 MaxNum, typename T, typename A>
+bool SafeNetSerializeTArray_Default(FArchive& Ar, TArray<T, A>& Array)
 {
 	bool bOutSuccess = true;
-	int32 ArrayNum = SafeNetSerializeTArray_HeaderOnly<MaxNum, T>(Ar, Array, bOutSuccess);
+	int32 ArrayNum = SafeNetSerializeTArray_HeaderOnly<MaxNum, T, A>(Ar, Array, bOutSuccess);
 
 	// Serialize each element in the array with the << operator
 	for (int32 idx=0; idx < ArrayNum && Ar.IsError() == false; ++idx)
@@ -2144,15 +2150,15 @@ bool SafeNetSerializeTArray_Default(FArchive& Ar, TArray<T>& Array)
 	}
 
 	// Return
-	bOutSuccess |= Ar.IsError();
+	bOutSuccess &= !Ar.IsError();
 	return bOutSuccess;
 }
 
-template<int32 MaxNum, typename T >
-bool SafeNetSerializeTArray_WithNetSerialize(FArchive& Ar, TArray<T>& Array, class UPackageMap* PackageMap)
+template<int32 MaxNum, typename T, typename A>
+bool SafeNetSerializeTArray_WithNetSerialize(FArchive& Ar, TArray<T, A>& Array, class UPackageMap* PackageMap)
 {
 	bool bOutSuccess = true;
-	int32 ArrayNum = SafeNetSerializeTArray_HeaderOnly<MaxNum, T>(Ar, Array, bOutSuccess);
+	int32 ArrayNum = SafeNetSerializeTArray_HeaderOnly<MaxNum, T, A>(Ar, Array, bOutSuccess);
 
 	// Serialize each element in the array with the << operator
 	for (int32 idx=0; idx < ArrayNum && Ar.IsError() == false; ++idx)
@@ -2161,6 +2167,6 @@ bool SafeNetSerializeTArray_WithNetSerialize(FArchive& Ar, TArray<T>& Array, cla
 	}
 
 	// Return
-	bOutSuccess |= Ar.IsError();
+	bOutSuccess &= !Ar.IsError();
 	return bOutSuccess;
 }
