@@ -347,7 +347,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 			[
 				SNew(STextBlock)
 				// .Style(FTakeRecorderStyle::Get(), "TakeRecorder.Source.Switch")
-				.Text(LOCTEXT("PendingJobStatus_Label", "Ready"))
+				.Text(LOCTEXT("PendingJobStatusReady_Label", "Ready"))
 			]
 
 			// Progress Bar
@@ -365,7 +365,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PendingJobStatus_Label", "Completed!"))
+				.Text(LOCTEXT("PendingJobStatusCompleted_Label", "Completed!"))
 			];
 	}
 

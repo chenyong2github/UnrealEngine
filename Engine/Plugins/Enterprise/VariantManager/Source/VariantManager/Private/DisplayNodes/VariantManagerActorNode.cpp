@@ -69,7 +69,7 @@ void FVariantManagerActorNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	{
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("RebindActorName", "Rebind to other Actor"),
-			LOCTEXT("RebindActorName", "Connect this binding to a different actor and try reusing the captured properties"),
+			LOCTEXT("RebindActorName_Tooltip", "Connect this binding to a different actor and try reusing the captured properties"),
 			FNewMenuDelegate::CreateSP(this, &FVariantManagerActorNode::AddAssignActorSubMenu));
 	}
 

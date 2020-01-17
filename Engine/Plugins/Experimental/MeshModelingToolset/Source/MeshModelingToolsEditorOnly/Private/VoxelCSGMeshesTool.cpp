@@ -117,7 +117,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		// Generate the result
 		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelCSGMeshes", "Boolean Meshes"));
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("BooleanMeshes", "Boolean Meshes"));
 
 			GenerateAsset(Result);
 
@@ -128,7 +128,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			
 			if (CSGProps->bDeleteInputActors) 
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelCSGMeshes", "Remove Sources"));
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
 			
 			for (auto& ComponentTarget : ComponentTargets)
 			{

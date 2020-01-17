@@ -141,7 +141,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("BrushSize", "Brush Size"))
+							.Text(LOCTEXT("BrushSize_Legacy", "Brush Size"))
 							.Font(StandardFont)
 						]
 						+ SHorizontalBox::Slot()
@@ -214,7 +214,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("EraseDensity", "Erase Density"))
+							.Text(LOCTEXT("EraseDensity_Legacy", "Erase Density"))
 							.Font(StandardFont)
 						]
 						+ SHorizontalBox::Slot()
