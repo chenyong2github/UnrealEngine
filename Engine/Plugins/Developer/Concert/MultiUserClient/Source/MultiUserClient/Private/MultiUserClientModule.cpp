@@ -92,7 +92,7 @@ void KillProcess(uint32 ProcessID)
 }
 
 /**
- * Common connection task used to validate that the workspace
+ * Common connection task used to validate the workspace
  */
 class FConcertClientConnectionValidationTask : public IConcertClientConnectionTask
 {
