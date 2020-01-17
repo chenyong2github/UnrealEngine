@@ -228,8 +228,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
-#include "ObjectTrace.h"
-#include "Animation/AnimTrace.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -265,14 +263,6 @@ void FEngineModule::StartupModule()
 
 #if WITH_EDITOR
 	USkinnedMeshComponent::BindWorldDelegates();
-#endif
-
-#if OBJECT_TRACE_ENABLED
-	FObjectTrace::Init();
-#endif
-
-#if ANIM_TRACE_ENABLED
-	FAnimTrace::Init();
 #endif
 }
 

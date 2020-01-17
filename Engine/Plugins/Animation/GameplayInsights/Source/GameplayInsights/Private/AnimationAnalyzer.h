@@ -21,7 +21,9 @@ private:
 	{
 		RouteId_TickRecord,
 		RouteId_SkeletalMesh,
+		RouteId_SkeletalMesh2,
 		RouteId_SkeletalMeshComponent,
+		RouteId_SkeletalMeshComponent2,
 		RouteId_SkeletalMeshFrame,
 		RouteId_AnimGraph,
 		RouteId_AnimNodeStart,

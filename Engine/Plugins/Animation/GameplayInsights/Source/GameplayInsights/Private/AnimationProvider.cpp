@@ -447,6 +447,61 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	Session.UpdateDurationSeconds(InTime);
 }
 
+void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const FTransform& InComponentToworld, const TArrayView<const FTransform>& InPose, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
+{
+	Session.WriteAccessCheck();
+
+	TSharedPtr<FSkeletalMeshTimelineStorage> TimelineStorage;
+	uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		TimelineStorage = SkeletalMeshPoseTimelineStorage[*IndexPtr];
+	}
+	else
+	{
+		TimelineStorage = MakeShared<FSkeletalMeshTimelineStorage>();
+		TimelineStorage->Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
+		ObjectIdToSkeletalMeshPoseTimelines.Add(InObjectId, SkeletalMeshPoseTimelineStorage.Num());
+		SkeletalMeshPoseTimelineStorage.Add(TimelineStorage.ToSharedRef());
+	}
+
+	// terminate existing scopes
+	uint64 NumEvents = TimelineStorage->Timeline->GetEventCount();
+	if(NumEvents > 0)
+	{
+		// Add end event at current time
+		TimelineStorage->Timeline->EndEvent(NumEvents - 1, InTime);
+	}
+
+	const int32 NumCurves = InCurveIds.Num();
+
+	FSkeletalMeshPoseMessage Message;
+	Message.ComponentToWorld = InComponentToworld;
+	Message.TransformStartIndex = SkeletalMeshPoseTransforms.Num();
+	Message.CurveStartIndex = SkeletalMeshCurves.Num();
+	Message.ComponentId = InObjectId;
+	Message.MeshId = InMeshId;
+	Message.NumTransforms = (uint16)InPose.Num();
+	Message.NumCurves = (uint16)NumCurves;
+	Message.LodIndex = InLodIndex;
+	Message.FrameCounter = InFrameCounter;
+
+	TimelineStorage->Timeline->AppendBeginEvent(InTime, Message);
+
+	for(const FTransform& Transform : InPose)
+	{
+		SkeletalMeshPoseTransforms.PushBack() = Transform;
+	}
+
+	for(int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
+	{
+		SkeletalMeshCurves.PushBack() = { InCurveIds[CurveIndex], InCurveValues[CurveIndex] };
+		TimelineStorage->AllCurveIds.Add(InCurveIds[CurveIndex]);
+	}
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
 void FAnimationProvider::AppendName(uint32 InId, const TCHAR* InName)
 {
 	Session.WriteAccessCheck();

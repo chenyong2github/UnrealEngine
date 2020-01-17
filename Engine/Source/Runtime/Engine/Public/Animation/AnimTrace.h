@@ -99,9 +99,6 @@ struct FAnimTrace
 		bool bPersistentLines;
 	};
 
-	/** Initialize animation tracing */
-	ENGINE_API static void Init();
-
 	/** Helper function to output a tick record */
 	ENGINE_API static void OutputAnimTickRecord(const FAnimationBaseContext& InContext, const FAnimTickRecord& InTickRecord);
 

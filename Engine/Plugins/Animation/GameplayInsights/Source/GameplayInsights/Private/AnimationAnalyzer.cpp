@@ -17,7 +17,9 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_TickRecord, "Animation", "TickRecord");
 	Builder.RouteEvent(RouteId_SkeletalMesh, "Animation", "SkeletalMesh");
+	Builder.RouteEvent(RouteId_SkeletalMesh2, "Animation", "SkeletalMesh2");
 	Builder.RouteEvent(RouteId_SkeletalMeshComponent, "Animation", "SkeletalMeshComponent");
+	Builder.RouteEvent(RouteId_SkeletalMeshComponent2, "Animation", "SkeletalMeshComponent2");
 	Builder.RouteEvent(RouteId_SkeletalMeshFrame, "Animation", "SkeletalMeshFrame");
 	Builder.RouteEvent(RouteId_AnimGraph, "Animation", "AnimGraph");
 	Builder.RouteEvent(RouteId_AnimNodeStart, "Animation", "AnimNodeStart");
@@ -67,6 +69,14 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		AnimationProvider.AppendSkeletalMesh(Id, ParentIndices);
 		break;
 	}
+	case RouteId_SkeletalMesh2:
+	{
+		uint64 Id = EventData.GetValue<uint64>("Id");
+		uint32 BoneCount = EventData.GetValue<uint32>("BoneCount");
+		TArrayView<const int32> ParentIndices = EventData.GetArrayView<int32>("ParentIndices");
+		AnimationProvider.AppendSkeletalMesh(Id, ParentIndices);
+		break;
+	}
 	case RouteId_SkeletalMeshComponent:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -79,6 +89,26 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		TArrayView<const FTransform> Pose(reinterpret_cast<const FTransform*>(EventData.GetAttachment()), BoneCount);
 		TArrayView<const FSkeletalMeshNamedCurve> Curves(reinterpret_cast<const FSkeletalMeshNamedCurve*>(EventData.GetAttachment() + (sizeof(FTransform) * BoneCount)), CurveCount);
 		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.SessionContext.TimestampFromCycle(Cycle), LodIndex, FrameCounter, Pose, Curves);
+		break;
+	}
+	case RouteId_SkeletalMeshComponent2:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 ComponentId = EventData.GetValue<uint64>("ComponentId");
+		uint64 MeshId = EventData.GetValue<uint64>("MeshId");
+		uint32 BoneCount = EventData.GetValue<uint32>("BoneCount");
+		uint32 CurveCount = EventData.GetValue<uint32>("CurveCount");
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		uint16 LodIndex = EventData.GetValue<uint16>("LodIndex");
+		TArrayView<const float> ComponentToWorldFloatArray = EventData.GetArrayView<float>("ComponentToWorld");
+		check(ComponentToWorldFloatArray.Num() == sizeof(FTransform) / sizeof(float));
+		const FTransform& ComponentToWorld = *reinterpret_cast<const FTransform*>(ComponentToWorldFloatArray.GetData());
+		TArrayView<const float> PoseFloatArray = EventData.GetArrayView<float>("Pose");
+		TArrayView<const FTransform> Pose(reinterpret_cast<const FTransform*>(PoseFloatArray.GetData()), PoseFloatArray.Num() / (sizeof(FTransform) / sizeof(float)));
+		TArrayView<const uint32> CurveIds = EventData.GetArrayView<uint32>("CurveIds");
+		TArrayView<const float> CurveValues = EventData.GetArrayView<float>("CurveValues");
+		check(CurveIds.Num() == CurveValues.Num());
+		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.SessionContext.TimestampFromCycle(Cycle), LodIndex, FrameCounter, ComponentToWorld, Pose, CurveIds, CurveValues);
 		break;
 	}
 	case RouteId_Name:
