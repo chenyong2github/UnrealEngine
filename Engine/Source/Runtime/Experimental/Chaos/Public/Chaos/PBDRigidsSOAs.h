@@ -6,6 +6,89 @@
 
 namespace Chaos
 {
+class FParticleUniqueIndices
+{
+public:
+	FParticleUniqueIndices()
+		: Block(0)
+	{
+		//Note: tune this so that all allocation is done at initialization
+		AddPageAndAcquireNextId(/*bAcquireNextId = */ false);
+	}
+
+	FUniqueIdx GenerateUniqueIdx()
+	{
+		while(true)
+		{
+			if(FUniqueIdx* Idx = FreeIndices.Pop())
+			{
+				return *Idx;
+			}
+
+			//nothing available so try to add some
+
+			if(FPlatformAtomics::InterlockedCompareExchange(&Block,1,0) == 0)
+			{
+				//we got here first so add a new page
+				FUniqueIdx RetIdx = FUniqueIdx(AddPageAndAcquireNextId(/*bAcquireNextId =*/ true));
+
+				//release blocker. Note: I don't think this can ever fail, but no real harm in the while loop
+				while(FPlatformAtomics::InterlockedCompareExchange(&Block,0,1) != 1)
+				{
+				}
+
+				return RetIdx;
+			}
+		}
+	}
+
+	void ReleaseIdx(FUniqueIdx Unique)
+	{
+		ensure(Unique.IsValid());
+		int32 PageIdx = Unique.Idx / IndicesPerPage;
+		int32 Entry = Unique.Idx % IndicesPerPage;
+		FUniqueIdxPage& Page = *Pages[PageIdx];
+		FreeIndices.Push(&Page.Indices[Entry]);
+	}
+
+	~FParticleUniqueIndices()
+	{
+		//Make sure queue is empty, memory management of actual pages is handled automatically by TUniquePtr
+		while(FreeIndices.Pop())
+		{
+		}
+	}
+
+private:
+
+	int32 AddPageAndAcquireNextId(bool bAcquireNextIdx)
+	{
+		//Note: this should never really be called post initialization
+		TUniquePtr<FUniqueIdxPage> Page = MakeUnique<FUniqueIdxPage>();
+		const int32 PageIdx = Pages.Num();
+		int32 FirstIdxInPage = PageIdx * IndicesPerPage;
+		Page->Indices[0] = FUniqueIdx(FirstIdxInPage);
+
+		//If we acquire next id we avoid pushing it into the queue
+		for(int32 Count = bAcquireNextIdx ? 1 : 0; Count < IndicesPerPage; Count++)
+		{
+			Page->Indices[Count] = FUniqueIdx(FirstIdxInPage + Count);
+			FreeIndices.Push(&Page->Indices[Count]);
+		}
+
+		Pages.Emplace(MoveTemp(Page));
+		return bAcquireNextIdx ? FirstIdxInPage : INDEX_NONE;
+	}
+
+	static constexpr int32 IndicesPerPage = 1024;
+	struct FUniqueIdxPage
+	{
+		FUniqueIdx Indices[IndicesPerPage];
+	};
+	TArray<TUniquePtr<FUniqueIdxPage>> Pages;
+	TLockFreePointerListFIFO<FUniqueIdx,0> FreeIndices;
+	volatile int8 Block;
+};
 
 template <typename T, int d>
 class TPBDRigidsSOAs
@@ -44,21 +127,21 @@ public:
 		check(0);
 	}
 	
-	TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
+	TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
 	{
-		auto Results =  CreateParticlesHelper<TGeometryParticleHandle<T, d>>(NumParticles, Params.bDisabled ? StaticDisabledParticles : StaticParticles, Params);
+		auto Results =  CreateParticlesHelper<TGeometryParticleHandle<T, d>>(NumParticles, ExistingIndices, Params.bDisabled ? StaticDisabledParticles : StaticParticles, Params);
 		UpdateViews();
 		return Results;
 	}
-	TArray<TKinematicGeometryParticleHandle<T, d>*> CreateKinematicParticles(int32 NumParticles, const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
+	TArray<TKinematicGeometryParticleHandle<T, d>*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr,  const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
 	{
-		auto Results = CreateParticlesHelper<TKinematicGeometryParticleHandle<T, d>>(NumParticles, Params.bDisabled ? KinematicDisabledParticles : KinematicParticles, Params);
+		auto Results = CreateParticlesHelper<TKinematicGeometryParticleHandle<T, d>>(NumParticles, ExistingIndices, Params.bDisabled ? KinematicDisabledParticles : KinematicParticles, Params);
 		UpdateViews();
 		return Results;
 	}
-	TArray<TPBDRigidParticleHandle<T, d>*> CreateDynamicParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	TArray<TPBDRigidParticleHandle<T, d>*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr,  const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
-		auto Results = CreateParticlesHelper<TPBDRigidParticleHandle<T, d>>(NumParticles, Params.bDisabled ? DynamicDisabledParticles : DynamicParticles, Params);
+		auto Results = CreateParticlesHelper<TPBDRigidParticleHandle<T, d>>(NumParticles, ExistingIndices, Params.bDisabled ? DynamicDisabledParticles : DynamicParticles, Params);;
 
 		if (!Params.bStartSleeping)
 		{
@@ -67,10 +150,10 @@ public:
 		UpdateViews();
 		return Results;
 	}
-	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> CreateGeometryCollectionParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> CreateGeometryCollectionParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
 		TArray<TPBDGeometryCollectionParticleHandle<T, d>*> Results = CreateParticlesHelper<TPBDGeometryCollectionParticleHandle<T, d>>(
-			NumParticles, GeometryCollectionParticles, Params);
+			NumParticles, ExistingIndices, GeometryCollectionParticles, Params);
 		//TArray<TPBDRigidParticleHandle<T, d>*>& RigidHandles = (TArray<TPBDRigidParticleHandle<T, d>*>*)&Results;//*static_cast<TArray<TPBDRigidParticleHandle<T, d>*>*>(&Results);
 		if (!Params.bStartSleeping)
 		{
@@ -82,9 +165,9 @@ public:
 	}
 
 	/** Used specifically by PBDRigidClustering. These have special properties for maintaining relative order, efficiently switching from kinematic to dynamic, disable to enable, etc... */
-	TArray<TPBDRigidClusteredParticleHandle<T, d>*> CreateClusteredParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	TArray<TPBDRigidClusteredParticleHandle<T, d>*> CreateClusteredParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr,  const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
-		auto NewClustered = CreateParticlesHelper<TPBDRigidClusteredParticleHandle<T, d>>(NumParticles, ClusteredParticles, Params);
+		auto NewClustered = CreateParticlesHelper<TPBDRigidClusteredParticleHandle<T, d>>(NumParticles, ExistingIndices, ClusteredParticles, Params);
 		
 		if (!Params.bDisabled)
 		{
@@ -128,8 +211,12 @@ public:
 			}
 		}
 
+		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
+		//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
+		//If we want to support that, the UniqueIndex must be kept around until GT goes away
+		//This is hard to do, but would probably mean the ownership of the index is in the proxy
+		UniqueIndices.ReleaseIdx(Particle->UniqueIdx());
 		ParticleHandles.DestroyHandleSwap(Particle);
-
 		
 		UpdateViews();
 	}
@@ -303,6 +390,26 @@ public:
 			Ar << DynamicKinematicParticles;
 		}
 
+		{
+			//need to assign indices to everything
+			auto AssignIdxHelper = [&](const auto& Particles)
+			{
+				for(uint32 ParticleIdx = 0; ParticleIdx < Particles->Size(); ++ParticleIdx)
+				{
+					FUniqueIdx Unique = UniqueIndices.GenerateUniqueIdx();
+					Particles->UniqueIdx(ParticleIdx) = Unique;
+					Particles->GTGeometryParticle(ParticleIdx)->SetUniqueIdx(Unique);
+				}
+			};
+
+			AssignIdxHelper(StaticParticles);
+			AssignIdxHelper(StaticDisabledParticles);
+			AssignIdxHelper(KinematicParticles);
+			AssignIdxHelper(DynamicParticles);
+			AssignIdxHelper(DynamicParticles);
+			AssignIdxHelper(DynamicDisabledParticles);
+		}
+
 		ensure(ClusteredParticles->Size() == 0);	//not supported yet
 		//Ar << ClusteredParticles;
 		Ar << GeometryCollectionParticles;
@@ -460,9 +567,11 @@ public:
 	const auto& GetClusteredParticles() const { return *ClusteredParticles; }
 	auto& GetClusteredParticles() { return *ClusteredParticles; }
 
+	auto& GetUniqueIndices() { return UniqueIndices; }
+
 private:
 	template <typename TParticleHandleType, typename TParticles>
-	TArray<TParticleHandleType*> CreateParticlesHelper(int32 NumParticles, TUniquePtr<TParticles>& Particles, const TGeometryParticleParameters<T, d>& Params)
+	TArray<TParticleHandleType*> CreateParticlesHelper(int32 NumParticles, const FUniqueIdx* ExistingIndices,  TUniquePtr<TParticles>& Particles, const TGeometryParticleParameters<T, d>& Params)
 	{
 		const int32 ParticlesStartIdx = Particles->Size();
 		Particles->AddParticles(NumParticles);
@@ -482,6 +591,15 @@ private:
 			NewParticleHandle->ParticleID() = BiggestParticleID++;
 #endif
 			ReturnHandles[Count] = NewParticleHandle.Get();
+			//If unique indices are null it means there is no GT particle that already registered an ID, so create one
+			if(ExistingIndices)
+			{
+				ReturnHandles[Count]->SetUniqueIdx(ExistingIndices[Count]);
+			}
+			else
+			{
+				ReturnHandles[Count]->SetUniqueIdx(UniqueIndices.GenerateUniqueIdx());
+			}
 			ParticleHandles.Handle(HandleIdx) = MoveTemp(NewParticleHandle);
 		}
 
@@ -636,6 +754,8 @@ private:
 
 	//Auxiliary data synced with particle handles
 	TGeometryParticleHandles<T, d> ParticleHandles;
+
+	FParticleUniqueIndices UniqueIndices;
 
 #if CHAOS_DETERMINISTIC
 	int32 BiggestParticleID;

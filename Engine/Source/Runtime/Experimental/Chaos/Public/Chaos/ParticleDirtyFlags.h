@@ -35,8 +35,8 @@ namespace Chaos
 		AngularImpulse			= 1 << 23,
 		GravityEnabled			= 1 << 24,
 		SpatialIdx				= 1 << 25,
-		HashResult				= 1 << 26,
-		ShapeDisableCollision	= 1 << 27
+		UniqueIdx				= 1 << 26,
+		ShapeDisableCollision	= 1 << 27,
 #if CHAOS_CHECKED
 		, DebugName				= 1 << 28
 #endif

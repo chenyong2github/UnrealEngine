@@ -168,19 +168,6 @@ namespace Chaos
 		Ar << SerializableGeometryParticles;
 	}
 
-	template <typename T, int d, EGeometryParticlesSimType SimType>
-	void TGeometryParticlesImp<T, d, SimType>::SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle)
-	{
-		if (Particle)
-		{
-			MHashResult.Add(Particle->GetHashResultLowLevel());
-		}
-		else
-		{
-			MHashResult.Add(FMath::RandHelper(TNumericLimits<uint32>::Max()));
-		}
-	}
-
 	
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;

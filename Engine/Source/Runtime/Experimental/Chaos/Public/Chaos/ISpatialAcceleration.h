@@ -172,6 +172,28 @@ enum ESpatialAcceleration
 
 using SpatialAccelerationType = uint8;	//see ESpatialAcceleration. Projects can add their own custom types by using enum values higher than ESpatialAcceleration::Unknown
 
+template <typename TPayload>
+typename TEnableIf<!TIsPointer<TPayload>::Value, FUniqueIdx>::Type GetUniqueIdx(const TPayload& Payload)
+{
+	const FUniqueIdx Idx = Payload.UniqueIdx();
+	ensure(Idx.IsValid());
+	return Idx;
+}
+
+template <typename TPayload>
+typename TEnableIf<TIsPointer<TPayload>::Value,FUniqueIdx>::Type GetUniqueIdx(const TPayload& Payload)
+{
+	const FUniqueIdx Idx = Payload->UniqueIdx();
+	ensure(Idx.IsValid());
+	return Idx;
+}
+
+FORCEINLINE FUniqueIdx GetUniqueIdx(const int32 Payload)
+{
+	ensure(Payload >=0);	//-1 idx implies it was never set
+	return FUniqueIdx(Payload);
+}
+
 
 template <typename TPayloadType, typename T>
 struct TPayloadBoundsElement
@@ -191,6 +213,11 @@ struct TPayloadBoundsElement
 	bool HasBoundingBox() const { return true; }
 
 	const TAABB<T, 3>& BoundingBox() const { return Bounds; }
+
+	FUniqueIdx UniqueIdx() const
+	{
+		return ::Chaos::GetUniqueIdx(Payload);
+	}
 };
 
 template <typename TPayloadType, typename T>
@@ -336,5 +363,147 @@ public:
 private:
 	ISpatialVisitor<TPayloadType, T>& Visitor;
 };
+
+#ifndef CHAOS_SERIALIZE_OUT
+#define CHAOS_SERIALIZE_OUT WITH_EDITOR
+#endif
+
+//Provides a TMap like API but backed by a dense array. The keys provided must implement GetUniqueIdx
+template <typename TKey, typename TValue>
+class TArrayAsMap
+{
+public:
+	TValue* Find(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		if(Idx < Entries.Num() && Entries[Idx].bSet)
+		{
+			return &Entries[Idx].Value;
+		}
+		return nullptr;
+	}
+
+	TValue& FindChecked(const TKey& Key)
+	{
+		return Entries[GetUniqueIdx(Key).Idx].Value;
+	}
+
+	TValue& FindOrAdd(const TKey& Key)
+	{
+		if(TValue* Elem = Find(Key))
+		{
+			return *Elem;
+		}
+
+		return Add(Key);
+	}
+
+	void Empty()
+	{
+		Entries.Empty();
+	}
+
+	TValue& Add(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		if(Idx >= Entries.Num())
+		{
+			const int32 NumToAdd = Idx + 1 - Entries.Num();
+			Entries.AddDefaulted(NumToAdd);
+#if CHAOS_SERIALIZE_OUT
+			KeysToSerializeOut.AddDefaulted(NumToAdd);
+#endif
+		}
+
+		ensure(Entries[Idx].bSet == false);	//element already added
+		Entries[Idx].bSet = true;
+
+#if CHAOS_SERIALIZE_OUT
+		KeysToSerializeOut[Idx] = Key;
+#endif
+
+		return Entries[Idx].Value;
+	}
+
+	void Add(const TKey& Key, const TValue& Value)
+	{
+		Add(Key) = Value;
+	}
+
+	void Remove(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		Entries[Idx].bSet = false;
+#if CHAOS_SERIALIZE_OUT
+		KeysToSerializeOut[Idx] = TKey();
+#endif
+	}
+
+	void Reset()
+	{
+		Entries.Reset();
+#if CHAOS_SERIALIZE_OUT 
+		KeysToSerializeOut.Reset();
+#endif
+	}
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		bool bCanSerialize = Ar.IsLoading();
+#if CHAOS_SERIALIZE_OUT 
+		bCanSerialize = true;
+#endif
+
+		if(bCanSerialize)
+		{
+			TArray<TKey> DirectKeys;
+			Ar << DirectKeys;
+
+			for(auto& Key : DirectKeys)
+			{
+				TValue& Value = Add(Key);
+				Ar << Value;
+			}
+		}
+		else
+		{
+			ensure(false);	//can't serialize out, if you are trying to serialize for perf/debug set CHAOS_SERIALIZE_OUT to 1 
+		}
+	}
+
+private:
+
+	struct FEntry
+	{
+#if CHAOS_SERIALIZE_OUT
+		//The indices are generated at runtime, so there's no way to serialize them directly
+		//Because of that we serialize the actual key which we can find, and then at runtime we use its transient index
+		TKey KeyToSerializeOut;
+#endif
+		TValue Value;
+		bool bSet;
+
+		FEntry()
+			: bSet(false)
+		{
+
+		}
+	};
+
+	TArray<FEntry> Entries;
+
+#if CHAOS_SERIALIZE_OUT
+	//The indices are generated at runtime, so there's no way to serialize them directly
+	//Because of that we serialize the actual key which we can find, and then at runtime we use its transient index
+	TArray<TKey> KeysToSerializeOut;
+#endif
+};
+
+template <typename TKey, typename TValue>
+FChaosArchive& operator<< (FChaosArchive& Ar, TArrayAsMap<TKey, TValue>& Map)
+{
+	Map.Serialize(Ar);
+	return Ar;
+}
 
 }
