@@ -2204,13 +2204,6 @@ public partial class Project : CommandUtils
 							{
 								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 							}
-
-							// TODO: Remove when file enumeration has been fixed
-							if (Path.GetExtension(Entry.Key).Contains(".uasset") ||
-								Path.GetExtension(Entry.Key).Contains(".umap"))
-							{
-								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
-							}
 						}
 						IoStoreCommands.Add(GetIoStoreCommand(IoStoreResponseFile, OutputLocation, PrimaryOrderFile, PakParams.bCompressed, CryptoSettings, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
 					}

@@ -464,6 +464,11 @@ public:
 
 			ScriptArcs = reinterpret_cast<int32*>(Data);
 		}
+
+		FPackageName::DoesPackageExistOverride().BindLambda([this](FName InPackageName)
+		{
+			return PackageNameToPackageId.Contains(InPackageName);
+		});
 	}
 
 	void FinalizeInitialLoad()

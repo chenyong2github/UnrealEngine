@@ -463,6 +463,13 @@ public:
 	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertFilenameToLongPackageName instead")
 	static FString PackageFromPath(const TCHAR* InPathName);
 
+	/** Override whether a package exist or not. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesPackageExistOverride, FName);
+	static FDoesPackageExistOverride& DoesPackageExistOverride()
+	{
+		return DoesPackageExistOverrideDelegate;
+	}
+
 private:
 
 	static FString AssetPackageExtension;
@@ -483,5 +490,8 @@ private:
 
 	/** Event that is triggered when a new content path is removed */
 	static FOnContentPathDismountedEvent OnContentPathDismountedEvent;
+
+	/** Delegate used to check whether a package exist without using the filesystem. */
+	static FDoesPackageExistOverride DoesPackageExistOverrideDelegate;
 };
 

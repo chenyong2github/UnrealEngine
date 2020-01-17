@@ -24,6 +24,7 @@
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/StringBuilder.h"
+#include "IO/IoDispatcher.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPackageName, Log, All);
 
@@ -38,6 +39,9 @@ FPackageName::FOnContentPathMountedEvent FPackageName::OnContentPathMountedEvent
 
 /** Event that is triggered when a content path is dismounted */
 FPackageName::FOnContentPathDismountedEvent FPackageName::OnContentPathDismountedEvent;
+
+/** Delegate used to check whether a package exist without using the filesystem. */
+FPackageName::FDoesPackageExistOverride FPackageName::DoesPackageExistOverrideDelegate;
 
 namespace PackageNameConstants
 {
@@ -938,6 +942,22 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		return false;
 	}
 
+	// Used when I/O dispatcher is enabled
+	if (DoesPackageExistOverrideDelegate.IsBound())
+	{
+		if (DoesPackageExistOverrideDelegate.Execute(FName(*PackageName)))
+		{
+			if (OutFilename)
+			{
+				*OutFilename = LongPackageNameToFilename(PackageName, TEXT(""));
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	// Convert to filename (no extension yet).
 	FString Filename = LongPackageNameToFilename(PackageName, TEXT(""));
 	// Find the filename (with extension).
@@ -1269,6 +1289,8 @@ bool FPackageName::IsPackageExtension( const TCHAR* Ext )
 
 bool FPackageName::FindPackagesInDirectory( TArray<FString>& OutPackages, const FString& RootDir )
 {
+	UE_CLOG(FIoDispatcher::IsInitialized(), LogPackageName, Error, TEXT("Can't search for packages using the filesystem when I/O dispatcher is enabled"));
+
 	// Find all files in RootDir, then filter by extension (we have two package extensions so they can't
 	// be included in the search wildcard.
 	TArray<FString> AllFiles;
