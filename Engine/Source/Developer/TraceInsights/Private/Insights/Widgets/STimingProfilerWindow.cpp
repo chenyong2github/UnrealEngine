@@ -14,6 +14,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
