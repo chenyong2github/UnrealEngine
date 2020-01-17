@@ -765,7 +765,7 @@ namespace AutomationTool
 			// if the user specified -deploy but no folder, set the default
 			if (this.Deploy && string.IsNullOrEmpty(this.DeployFolder))
 			{
-				this.DeployFolder = this.ShortProjectName;
+				this.DeployFolder = UnrealBuildTool.DeployExports.GetDefaultDeployFolder(this.ShortProjectName);
 			}
 			else if (string.IsNullOrEmpty(this.DeployFolder) == false)
 			{

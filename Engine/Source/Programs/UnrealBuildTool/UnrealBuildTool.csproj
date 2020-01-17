@@ -229,6 +229,7 @@
     <Compile Include="System\ConfigFileAttribute.cs" />
     <Compile Include="System\ConfigHierarchy.cs" />
     <Compile Include="System\CustomBuildSteps.cs" />
+    <Compile Include="System\DeployExports.cs" />
     <Compile Include="System\InstalledPlatformInfo.cs" />
     <Compile Include="System\LocalizationDescriptor.cs" />
     <Compile Include="System\ObsoleteOverrideAttribute.cs" />
