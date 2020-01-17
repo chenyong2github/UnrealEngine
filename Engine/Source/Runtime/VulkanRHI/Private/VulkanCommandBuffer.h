@@ -39,6 +39,11 @@ public:
 		return CommandBufferPool;
 	}
 
+	bool IsUniformBufferBarrierAdded() const
+	{
+		return bIsUniformBufferBarrierAdded;
+	}
+
 	inline bool IsInsideRenderPass() const
 	{
 		return State == EState::IsInsideRenderPass;
@@ -154,22 +159,21 @@ public:
 	VkRect2D CurrentScissor;
 	uint32 CurrentStencilRef;
 	EState State;
-	uint8 bNeedsDynamicStateSet	: 1;
-	uint8 bHasPipeline			: 1;
-	uint8 bHasViewport			: 1;
-	uint8 bHasScissor			: 1;
-	uint8 bHasStencilRef		: 1;
-	uint8 bIsUploadOnly			: 1;
+	uint8 bNeedsDynamicStateSet			: 1;
+	uint8 bHasPipeline					: 1;
+	uint8 bHasViewport					: 1;
+	uint8 bHasScissor					: 1;
+	uint8 bHasStencilRef				: 1;
+	uint8 bIsUploadOnly					: 1;
+	uint8 bIsUniformBufferBarrierAdded	: 1;
 
 	// You never want to call Begin/EndRenderPass directly as it will mess up with the FTransitionAndLayoutManager
 	void BeginRenderPass(const FVulkanRenderTargetLayout& Layout, class FVulkanRenderPass* RenderPass, class FVulkanFramebuffer* Framebuffer, const VkClearValue* AttachmentClearValues);
-	void EndRenderPass()
-	{
-		checkf(IsInsideRenderPass(), TEXT("Can't EndRP as we're NOT inside one! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
-		VulkanRHI::vkCmdEndRenderPass(CommandBufferHandle);
-		State = EState::IsInsideBegin;
-	}
+	void EndRenderPass();
 
+
+	void BeginUniformUpdateBarrier();
+	void EndUniformUpdateBarrier();
 	//#todo-rco: Hide this
 	FVulkanDescriptorPoolSetContainer* CurrentDescriptorPoolSetContainer = nullptr;
 
