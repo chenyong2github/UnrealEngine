@@ -307,7 +307,7 @@ namespace
  */
 const TCHAR* FindIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Identifier)
 {
-	int32 StringLen = StringEnd - StringBegin;
+	int32 StringLen = UE_PTRDIFF_TO_INT32(StringEnd - StringBegin);
 
 	// Check for exact match first.
 	if (FCString::Strncmp(StringBegin, *Identifier, StringLen) == 0)
@@ -375,7 +375,7 @@ int32 FindIdentifierExactMatch(const FString& String, const FString& Identifier)
 		return INDEX_NONE;
 	}
 
-	return IdentifierPtr - *String;
+	return UE_PTRDIFF_TO_INT32(IdentifierPtr - *String);
 }
 
 /**
@@ -4999,7 +4999,7 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	const TCHAR* ClassEnd   = ClassRange.End;
 	FString      ClassName  = Function->GetOwnerClass()->GetName();
 
-	FString ClassDefinition(ClassEnd - ClassStart, ClassStart);
+	FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
 
 	bool bHasImplementation = HasIdentifierExactMatch(ClassDefinition, FunctionData.CppImplName);
 	bool bHasValidate = HasIdentifierExactMatch(ClassDefinition, FunctionData.CppValidationImplName);
@@ -5209,10 +5209,10 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		{
 			const TCHAR* ClassStart = ClassRange.Start;
 			const TCHAR* ClassEnd   = ClassRange.End;
-			FString ClassDefinition(ClassEnd - ClassStart, ClassStart);
+			FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
 
 			FString FunctionName = Function->GetName();
-			int32 ClassDefinitionStartPosition = ClassStart - *SourceFile.GetContent();
+			int32 ClassDefinitionStartPosition = UE_PTRDIFF_TO_INT32(ClassStart - *SourceFile.GetContent());
 
 			int32 ImplementationPosition = FindIdentifierExactMatch(ClassDefinition, FunctionData.CppImplName);
 			bool bHasImplementation = ImplementationPosition != INDEX_NONE;

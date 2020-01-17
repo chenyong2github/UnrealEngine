@@ -107,7 +107,7 @@ FORCEINLINE uint64 GenerateTextHash64(const TCHAR* Str)
 	{
 		const TCHAR* End = FindCrOrNul(Str);
 		
-		if (int32 Len = End - Str)
+		if (int32 Len = UE_PTRDIFF_TO_INT32(End - Str))
 		{
 			Hash = CityHash64WithSeed(reinterpret_cast<const char*>(Str), Len * sizeof(TCHAR), Hash);
 		}

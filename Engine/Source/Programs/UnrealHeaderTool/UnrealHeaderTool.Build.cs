@@ -27,5 +27,7 @@ public class UnrealHeaderTool : ModuleRules
 			});
 		
 		bEnableExceptions = true;
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
 }
