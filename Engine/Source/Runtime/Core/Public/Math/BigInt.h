@@ -1265,7 +1265,7 @@ struct FSignatureBase
 
 	static int64 Size()
 	{
-		return sizeof(TYPE);
+		return sizeof(InDataType);
 	}
 
 	bool IsValid() const
@@ -1300,6 +1300,7 @@ struct FEncryptedSignature : public FSignatureBase<TEncryptionInt>
 
 struct FDecryptedSignature : public FSignatureBase<uint32>
 {
+
 };
 
 namespace FEncryption

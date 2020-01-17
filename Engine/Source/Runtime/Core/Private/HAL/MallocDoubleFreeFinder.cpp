@@ -117,7 +117,7 @@ void FMallocDoubleFreeFinder::Free(void* Ptr)
 	SIZE_T OldSize = 0;
 	UsedMalloc->GetAllocationSize(Ptr, OldSize);
 	UsedMalloc->Free(Ptr);
-	TrackFree(Ptr, OldSize, CallStackIndex);
+	TrackFree(Ptr, (uint32)OldSize, CallStackIndex);
 }
 
 void FMallocDoubleFreeFinder::TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex)
