@@ -16,6 +16,7 @@ class FMenuBuilder;
 class UWorld;
 class IAnimationBlueprintEditor;
 struct FCustomDebugObject;
+class SDockTab;
 
 class FAnimationSharedData
 {

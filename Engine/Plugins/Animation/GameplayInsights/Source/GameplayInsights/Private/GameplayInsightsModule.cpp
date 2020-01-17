@@ -13,6 +13,7 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "TraceServices/SessionService.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
