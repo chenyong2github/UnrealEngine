@@ -277,6 +277,8 @@ struct FLegacyAudioStreamingManager : public IAudioStreamingManager
 	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
+	virtual FString GenerateMemoryReport() override;
+	virtual void SetProfilingMode(bool bEnabled) override {};
 	// End IAudioStreamingManager interface
 
 	/** Called when an async callback is made on an async loading audio chunk request. */
@@ -317,4 +319,5 @@ protected:
 
 	/** Compressed audio info objects which are used to avoid deleting chunks with in-fligth decodes. */
 	TArray<ICompressedAudioInfo*> CompressedAudioInfos;
+
 };

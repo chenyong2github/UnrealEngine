@@ -1667,6 +1667,13 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 		ReportAr->Log(TEXT("Sound Wave Memory Report"));
 		ReportAr->Log(TEXT(""));
 
+		FString StreamingMemoryReport = IStreamingManager::Get().GetAudioStreamingManager().GenerateMemoryReport();
+
+		ReportAr->Log(TEXT("\n/*******************/\n"));
+		ReportAr->Log(TEXT("Streaming Audio Info:"));
+		ReportAr->Log(*StreamingMemoryReport);
+		ReportAr->Log(TEXT("\n/*******************/\n"));
+
 		if (SoundWaveObjects.Num())
 		{
 			// Alpha sort the sound wave objects

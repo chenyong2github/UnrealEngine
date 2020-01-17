@@ -943,6 +943,11 @@ FWaveRequest& FLegacyAudioStreamingManager::GetWaveRequest(USoundWave* SoundWave
 	return *WaveRequest;
 }
 
+FString FLegacyAudioStreamingManager::GenerateMemoryReport()
+{
+	return FString(TEXT("Only supported when stream caching is enabled.\n"));
+}
+
 uint64 FLegacyAudioStreamingManager::TrimMemory(uint64 NumBytesToFree)
 {
 	UE_LOG(LogAudio, Warning, TEXT("IAudioStreamingManager::TrimMemory is only supported when Stream Caching is enabled."));
