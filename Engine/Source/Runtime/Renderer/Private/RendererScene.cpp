@@ -1148,7 +1148,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
 	PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
 
-	// Cache the primitive's initial transform.
+	// Cache the primitives initial transform.
 	FMatrix RenderMatrix = Primitive->GetRenderMatrix();
 	FVector AttachmentRootPosition(0);
 
@@ -1628,7 +1628,7 @@ void FScene::AddLight(ULightComponent* Light)
 		Light->SceneProxy = Proxy;
 
 		// Update the light's transform and position.
-		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(),Light->GetLightPosition());
+		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(), Light->GetLightPosition());
 
 		// Create the light scene info.
 		Proxy->LightSceneInfo = new FLightSceneInfo(Proxy, true);

@@ -2920,7 +2920,7 @@ bool USceneComponent::ShouldRender() const
 
 #if !UE_BUILD_SHIPPING
 	// If we want to create render state even for hidden components, return true here
-	if (World && World->bCreateRenderStateForHiddenComponents)
+	if (World && World->bCreateRenderStateForHiddenComponentsWithCollsion && IsCollisionEnabled())
 	{
 		return true;
 	}

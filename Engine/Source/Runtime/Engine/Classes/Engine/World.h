@@ -1064,7 +1064,7 @@ public:
 
 #if !UE_BUILD_SHIPPING
 	/** If TRUE, 'hidden' components will still create render proxy, so can draw info (see USceneComponent::ShouldRender) */
-	uint8 bCreateRenderStateForHiddenComponents:1;
+	uint8 bCreateRenderStateForHiddenComponentsWithCollsion:1;
 #endif // !UE_BUILD_SHIPPING
 
 #if WITH_EDITOR
