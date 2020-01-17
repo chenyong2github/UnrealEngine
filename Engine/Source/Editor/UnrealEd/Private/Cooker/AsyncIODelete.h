@@ -7,6 +7,7 @@
 #include "Async/Future.h"
 #include "Containers/Array.h"
 #include "Containers/StringView.h"
+#include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 
 #ifndef WITH_ASYNCIODELETE_DEBUG
@@ -15,6 +16,13 @@
 	#else
 		#define WITH_ASYNCIODELETE_DEBUG 0
 	#endif
+#endif
+
+// Temporarily disable AsyncIODelete on Mac until we can diagnose why it's failing
+#if PLATFORM_MAC
+#define ASYNCIODELETE_ASYNC_ENABLED 0
+#else
+#define ASYNCIODELETE_ASYNC_ENABLED 1
 #endif
 
 class FEvent;
@@ -90,11 +98,13 @@ public:
 	}
 
 	/** Synchronously wait for all deletes to complete.  */
-	void WaitForAllTasks();
+	bool WaitForAllTasks(float TimeLimitSeconds = 0.0f);
 
 private:
+#if ASYNCIODELETE_ASYNC_ENABLED
 	/** Update the ActiveTaskCount and events for a task completing */
 	void OnTaskComplete();
+#endif
 
 	enum class EPathType
 	{
@@ -104,20 +114,26 @@ private:
 	/** Asynchronously delete a file or directory.  We handle both in the same function, but we want the interface to be explicit. */
 	bool Delete(const FStringView& PathToDelete, EPathType ExpectedType);
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	/** Create and store the task to delete the given Directory or File */
 	void CreateDeleteTask(const FStringView& InDeletePath, EPathType PathType);
+#endif
 
 	/** Delete the given path synchronously; called from a task or in error fallback cases from the public thread */
 	bool SynchronousDelete(const TCHAR* InDeletePath, EPathType PathType);
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	bool DeleteTempRootDirectory(uint32& OutErrorCode);
+#endif
 
 	FString	TempRoot;
+#if ASYNCIODELETE_ASYNC_ENABLED
 	TArray<FString> PausedDeletes;
 	FCriticalSection CriticalSection; // We use a CriticalSection instead of a TAtomic ActiveTaskCount so that we can atomically { trigger TasksComplete if ActiveTaskCount == 0 }
 	FEvent* TasksComplete = nullptr;
 	uint32 ActiveTaskCount = 0;
 	uint32 DeleteCounter = 0;
+#endif
 	bool bInitialized = false;
 	bool bPaused = false;
 
