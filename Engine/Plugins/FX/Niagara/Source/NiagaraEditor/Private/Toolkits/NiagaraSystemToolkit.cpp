@@ -52,6 +52,7 @@
 #include "NiagaraMessageLogViewModel.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "NiagaraScriptSourceBase.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -86,6 +87,9 @@ static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
 	TEXT("If > 0 the niagara system and emitter editors will show additional developer windows.\nThese windows are for niagara tool development and debugging and editing the data\n directly in these windows can cause instability.\n"),
 	ECVF_Default
 );
+
+bool FNiagaraSystemToolkit::bShowLibraryOnly = false;
+bool FNiagaraSystemToolkit::bShowTemplateOnly = false;
 
 void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -880,17 +884,123 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
+		AssetPickerConfig.OnShouldFilterAsset.BindSP(this, &FNiagaraSystemToolkit::ShouldFilterEmitter);
+		AssetPickerConfig.RefreshAssetViewDelegates.Add(&RefreshAssetView);
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
-	return SNew(SBox)
-		.WidthOverride(300.0f)
-		.HeightOverride(300.f)
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(3)
+		.AutoHeight()
 		[
-			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FNiagaraSystemToolkit::TemplateCheckBoxStateChanged)
+				.IsChecked(this, &FNiagaraSystemToolkit::GetTemplateCheckBoxState)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("TemplateOnly", "Template Only"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			[
+				SNew(SCheckBox)
+		 		.OnCheckStateChanged(this, &FNiagaraSystemToolkit::LibraryCheckBoxStateChanged)
+				.IsChecked(this, &FNiagaraSystemToolkit::GetLibraryCheckBoxState)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("LibraryOnly", "Library Only"))
+				]
+			]
+		]
+		+SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		[
+			SNew(SBox)
+			.HeightOverride(300.f)
+			.WidthOverride(300.f)
+			[
+				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			]
 		];
 }
+
+void FNiagaraSystemToolkit::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
+{
+	FNiagaraSystemToolkit::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
+	RefreshAssetView.ExecuteIfBound(true);
+}
+
+ECheckBoxState FNiagaraSystemToolkit::GetLibraryCheckBoxState() const
+{
+	return FNiagaraSystemToolkit::bShowLibraryOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FNiagaraSystemToolkit::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
+{
+	FNiagaraSystemToolkit::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
+	RefreshAssetView.ExecuteIfBound(true);
+}
+
+ECheckBoxState FNiagaraSystemToolkit::GetTemplateCheckBoxState() const
+{
+	return FNiagaraSystemToolkit::bShowTemplateOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool FNiagaraSystemToolkit::ShouldFilterEmitter(const FAssetData& AssetData)
+{
+	// Check if library script
+	bool bScriptAllowed = true;
+	bool bInLibrary = false;
+	bool bIsTemplate = false;
+	if (FNiagaraSystemToolkit::bShowLibraryOnly == true)
+	{
+		bool bFoundLibraryTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
+
+		if (bFoundLibraryTag == false)
+		{
+			if (AssetData.IsAssetLoaded())
+			{
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bInLibrary = EmitterAsset->bExposeToLibrary;
+				}
+			}
+		}
+		bScriptAllowed &= bFoundLibraryTag;
+	}
+	if (FNiagaraSystemToolkit::bShowTemplateOnly == true)
+	{
+		bool bFoundTemplateTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
+
+		if (bFoundTemplateTag == false)
+		{
+			if (AssetData.IsAssetLoaded())
+			{
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bIsTemplate = EmitterAsset->bIsTemplateAsset;
+				}
+			}
+		}
+		bScriptAllowed &= bIsTemplate;
+	}
+
+	return !bScriptAllowed;
+}
+
 
 TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateCompileMenuContent()
 {

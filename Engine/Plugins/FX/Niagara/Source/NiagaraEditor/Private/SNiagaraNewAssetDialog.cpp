@@ -3,7 +3,7 @@
 #include "SNiagaraNewAssetDialog.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorStyle.h"
-#include "SNiagaraTemplateAssetPicker.h"
+#include "SNiagaraAssetPickerList.h"
 #include "NiagaraEditorSettings.h"
 
 #include "AssetData.h"
@@ -12,7 +12,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "EditorStyleSet.h"
-
+#include "Widgets/Workflow/SWizard.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 
@@ -38,21 +38,7 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 	TSharedRef<SVerticalBox> RootBox =
 		SNew(SVerticalBox)
 
-		// Options label
-		+ SVerticalBox::Slot()
-		.Padding(0, 7, 0, 0)
-		.AutoHeight()
-		[
-			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			[
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.NewAssetDialog.HeaderText")
-				.Text(LOCTEXT("OptionsLabel", "Select an Option"))
-			]
-		]
-
-		// Creation mode radio buttons.
+		// Creation mode toggle buttons.
 		+ SVerticalBox::Slot()
 		.Padding(0, 5, 0, 5)
 		.AutoHeight()
@@ -68,66 +54,8 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 					SAssignNew(OptionsBox, SVerticalBox)
 				]
 			]
-		]
-
-		// Asset pickers label
-		+ SVerticalBox::Slot()
-		.Padding(0, 5, 0, 0)
-		.AutoHeight()
-		[
-			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			[
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.NewAssetDialog.HeaderText")
-				.Text(this, &SNiagaraNewAssetDialog::GetAssetPickersLabelText)
-			]
-		]
-
-		// Asset pickers
-		+ SVerticalBox::Slot()
-		.Padding(0, 5, 0, 5)
-		[
-			SNew(SBox)
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				.Padding(FMargin(7))
-				[
-					SAssignNew(AssetPickerOverlay, SOverlay)
-				]
-			]
-		]
-
-		// OK/Cancel buttons
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Right)
-		.Padding(0, 5, 0, 5)
-		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-			.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-			+SUniformGridPanel::Slot(0, 0)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-				.Text(LOCTEXT("OK", "OK"))
-				.OnClicked(this, &SNiagaraNewAssetDialog::OnOkButtonClicked)
-				.IsEnabled(this, &SNiagaraNewAssetDialog::IsOkButtonEnabled)
-			]
-			+SUniformGridPanel::Slot(1, 0)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-				.Text(LOCTEXT("Cancel", "Cancel"))
-				.OnClicked(this, &SNiagaraNewAssetDialog::OnCancelButtonClicked)
-			]
 		];
+
 
 	int32 OptionIndex = 0;
 	for (FNiagaraNewAssetDialogOption& Option : Options)
@@ -140,28 +68,35 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 				.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.NewAssetDialog.SubBorder"))
 				.BorderBackgroundColor(this, &SNiagaraNewAssetDialog::GetOptionBorderColor, OptionIndex)
 				[
-					SNew(SCheckBox)
-					.Style(FCoreStyle::Get(), "RadioButton")
-					.CheckBoxContentUsesAutoWidth(false)
-					.IsChecked(this, &SNiagaraNewAssetDialog::GetOptionCheckBoxState, OptionIndex)
-					.OnCheckStateChanged(this, &SNiagaraNewAssetDialog::OptionCheckBoxStateChanged, OptionIndex)
-					.Content()
-					[
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.NewAssetDialog.OptionText")
-						.ColorAndOpacity(this, &SNiagaraNewAssetDialog::GetOptionTextColor, OptionIndex)
-						.Text(Option.OptionText)
-						.AutoWrapText(true)
-					]
-				]
-			];
-
-		AssetPickerOverlay->AddSlot()
-			[
-				SNew(SBox)
-				.Visibility(this, &SNiagaraNewAssetDialog::GetAssetPickerVisibility, OptionIndex)
-				[
-					Option.AssetPicker
+						SNew(SCheckBox)
+						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.CheckBoxContentUsesAutoWidth(false)
+						.IsChecked(this, &SNiagaraNewAssetDialog::GetOptionCheckBoxState, OptionIndex)
+						.OnCheckStateChanged(this, &SNiagaraNewAssetDialog::OptionCheckBoxStateChanged, OptionIndex)
+						.Content()
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(5, 2)
+							[		
+								SNew(STextBlock)
+								.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.NewAssetDialog.OptionText")
+								.ColorAndOpacity(this, &SNiagaraNewAssetDialog::GetOptionTextColor, OptionIndex)
+								.Text(Option.OptionText)
+								.AutoWrapText(true)
+							]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(5, 2, 5, 7)
+							[
+								SNew(STextBlock)
+								.ColorAndOpacity(this, &SNiagaraNewAssetDialog::GetOptionTextColor, OptionIndex)
+								.Text(Option.OptionDescription)
+								.AutoWrapText(true)
+							]
+						]
+					
 				]
 			];
 
@@ -175,8 +110,38 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 		.SupportsMaximize(false)
 		.SupportsMinimize(false)
 		[
-			RootBox
+			SNew(SWizard)
+			.OnCanceled(this, &SNiagaraNewAssetDialog::OnCancelButtonClicked)
+			.OnFinished(this, &SNiagaraNewAssetDialog::OnOkButtonClicked)
+			.CanFinish(this, &SNiagaraNewAssetDialog::IsOkButtonEnabled)
+			.ShowPageList(false)
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+			.CancelButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+			.FinishButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			+SWizard::Page()
+			.CanShow(true)
+			.OnEnter(this, &SNiagaraNewAssetDialog::ResetStage)
+			[
+				RootBox
+			]
+			+ SWizard::Page()
+			.CanShow(this, &SNiagaraNewAssetDialog::HasAssetPage)
+			.OnEnter(this, &SNiagaraNewAssetDialog::GetAssetPicker)
+			[
+				SAssignNew(AssetSettingsPage, SBox)
+			]
 		]);
+}
+
+void SNiagaraNewAssetDialog::GetAssetPicker()
+{
+	bOnAssetStage = true;
+	AssetSettingsPage->SetContent(Options[SelectedOptionIndex].AssetPicker);
+}
+
+void SNiagaraNewAssetDialog::ResetStage()
+{
+	bOnAssetStage = false;
 }
 
 bool SNiagaraNewAssetDialog::GetUserConfirmedSelection() const
@@ -239,11 +204,6 @@ FText SNiagaraNewAssetDialog::GetAssetPickersLabelText() const
 	return Options[SelectedOptionIndex].AssetPickerHeader;
 }
 
-EVisibility SNiagaraNewAssetDialog::GetAssetPickerVisibility(int32 OptionIndex) const
-{
-	return  SelectedOptionIndex == OptionIndex ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 bool SNiagaraNewAssetDialog::IsOkButtonEnabled() const
 {
 	const FNiagaraNewAssetDialogOption& SelectedOption = Options[SelectedOptionIndex];
@@ -251,7 +211,7 @@ bool SNiagaraNewAssetDialog::IsOkButtonEnabled() const
 	{
 		TArray<FAssetData> TempSelectedAssets;
 		SelectedOption.OnGetSelectedAssetsFromPicker.Execute(TempSelectedAssets);
-		return TempSelectedAssets.Num() != 0;
+		return bOnAssetStage && TempSelectedAssets.Num() != 0;
 	}
 	else
 	{
@@ -259,19 +219,22 @@ bool SNiagaraNewAssetDialog::IsOkButtonEnabled() const
 	}
 }
 
-FReply SNiagaraNewAssetDialog::OnOkButtonClicked()
+void SNiagaraNewAssetDialog::OnOkButtonClicked()
 {
 	ConfirmSelection();
-	return FReply::Handled();
 }
 
-FReply SNiagaraNewAssetDialog::OnCancelButtonClicked()
+void SNiagaraNewAssetDialog::OnCancelButtonClicked()
 {
 	bUserConfirmedSelection = false;
 	SelectedAssets.Empty();
 
 	RequestDestroyWindow();
-	return FReply::Handled();
+}
+
+bool SNiagaraNewAssetDialog::HasAssetPage() const
+{
+	return !IsOkButtonEnabled();
 }
 
 void SNiagaraNewAssetDialog::SaveConfig()

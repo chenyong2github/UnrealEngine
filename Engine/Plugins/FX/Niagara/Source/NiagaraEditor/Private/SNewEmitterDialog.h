@@ -9,7 +9,7 @@
 #include "AssetData.h"
 #include "ContentBrowserDelegates.h"
 
-class SNiagaraTemplateAssetPicker;
+class SNiagaraAssetPickerList;
 
 /** A modal dialog to collect information needed to create a new niagara system. */
 class SNewEmitterDialog : public SNiagaraNewAssetDialog
@@ -32,14 +32,12 @@ private:
 
 	void OnTemplateAssetActivated(const FAssetData& InActivatedTemplateAsset);
 
-	void OnEmitterAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod);
+	void OnEmitterAssetsActivated(const FAssetData& InActivatedTemplateAsset);
 
 	void InheritanceOptionConfirmed();
 
 private:
-	TSharedPtr<SNiagaraTemplateAssetPicker> TemplateAssetPicker;
-
-	FGetCurrentSelectionDelegate GetSelectedEmitterAssetsFromPicker;
+	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
 
 	FAssetData ActivatedTemplateAsset;
 

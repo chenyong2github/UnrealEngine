@@ -9,14 +9,19 @@ typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 
 class FAssetThumbnailPool;
 
-class SNiagaraTemplateAssetPicker : public SCompoundWidget
+class SNiagaraAssetPickerList : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnTemplateAssetActivated, const FAssetData&);
 
 public:
-	SLATE_BEGIN_ARGS(SNiagaraTemplateAssetPicker) {}
+	SLATE_BEGIN_ARGS(SNiagaraAssetPickerList) 
+		: _bTemplateOnly(true)
+		, _bAllowMultiSelect(false)
+	{}
 		SLATE_EVENT(FOnTemplateAssetActivated, OnTemplateAssetActivated);
+		SLATE_ARGUMENT(bool, bTemplateOnly)
+		SLATE_ARGUMENT(bool, bAllowMultiSelect);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UClass* AssetClass);
@@ -46,6 +51,10 @@ private:
 	TSharedPtr<SNiagaraAssetItemSelector> ItemSelector;
 	FText NiagaraPluginCategory;
 	FText ProjectCategory;
+	FText TemplateCategory;
+	FText LibraryCategory;
+	FText NonLibraryCategory;
 	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
 	FOnTemplateAssetActivated OnTemplateAssetActivated;
+	bool bTemplateOnly;
 };

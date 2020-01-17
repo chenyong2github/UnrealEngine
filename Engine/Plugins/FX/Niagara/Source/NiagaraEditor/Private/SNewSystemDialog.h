@@ -9,7 +9,7 @@
 #include "ContentBrowserDelegates.h"
 #include "SNiagaraNewAssetDialog.h"
 
-class SNiagaraTemplateAssetPicker;
+class SNiagaraAssetPickerList;
 class SWrapBox;
 
 /** A modal dialog to collect information needed to create a new niagara system. */
@@ -35,9 +35,7 @@ private:
 
 	void OnTemplateAssetActivated(const FAssetData& ActivatedTemplateAsset);
 
-	void OnSystemAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod);
-
-	void OnEmitterAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod);
+	void OnSystemAssetsActivated(const FAssetData& ActivatedTemplateAsset);
 
 	bool IsAddEmittersToSelectionButtonEnabled() const;
 	
@@ -48,10 +46,6 @@ private:
 	FReply RemoveEmitterFromSelectionButtonClicked(FAssetData EmitterAsset);
 
 private:
-	FGetCurrentSelectionDelegate GetSelectedSystemAssetsFromPicker;
-
-	FGetCurrentSelectionDelegate GetSelectedEmitterAssetsFromPicker;
-
 	FAssetData ActivatedTemplateSystemAsset;
 
 	FAssetData ActivatedProjectSystemAsset;
@@ -62,5 +56,9 @@ private:
 
 	TSharedPtr<SWrapBox> SelectedEmitterBox;
 
-	TSharedPtr<SNiagaraTemplateAssetPicker> TemplateAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
+
+	TSharedPtr<SNiagaraAssetPickerList> EmitterAssetPicker;
+
+	TSharedPtr<SNiagaraAssetPickerList> SystemAssetPicker;
 };
