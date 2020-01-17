@@ -233,6 +233,34 @@ struct FConcertClientSettings
 	FString ClientAuthenticationKey;
 };
 
+UENUM()
+enum class EConcertSourceValidationMode
+{
+	/** Source control validation will fail on any changes when connecting to a Multi-User Session. */
+	Hard,
+	/** 
+	 * Source control validation will warn and prompt on any changes when connecting to a Multi-User session. 
+	 * In Memory changes will be hot-reloaded.
+	 * Source control changes aren't affected but will be stashed/shelved in the future.
+	 */
+	Soft,
+	/** Soft validation mode with auto proceed on prompts. */
+	SoftAutoProceed
+};
+
+USTRUCT()
+struct FConcertSourceControlSettings
+{
+	GENERATED_BODY()
+
+	FConcertSourceControlSettings()
+		: ValidationMode(EConcertSourceValidationMode::Hard)
+	{}
+
+	UPROPERTY(config, EditAnywhere, Category="Source Control Settings")
+	EConcertSourceValidationMode ValidationMode;
+};
+
 UCLASS(config=Engine)
 class CONCERT_API UConcertClientConfig : public UObject
 {
@@ -244,7 +272,7 @@ public:
 	 * Mark this setting object as editor only.
 	 * This so soft object path reference made by this setting object won't be automatically grabbed by the cooker.
 	 * @see UPackage::Save, FSoftObjectPathThreadContext::GetSerializationOptions, FSoftObjectPath::ImportTextItem
-	 * @todo: cooker should have a better way to filter editor only objects for 'unsollicited' references.
+	 * @todo: cooker should have a better way to filter editor only objects for 'unsolicited' references.
 	 */
 	virtual bool IsEditorOnly() const
 	{
@@ -312,6 +340,9 @@ public:
 	/** Client & client session settings */
 	UPROPERTY(config, EditAnywhere, Category="Client Settings", meta=(ShowOnlyInnerProperties))
 	FConcertClientSettings ClientSettings;
+
+	UPROPERTY(config, EditAnywhere, Category = "Source Control Settings", meta=(ShowOnlyInnerProperties))
+	FConcertSourceControlSettings SourceControlSettings;
 
 	/** Endpoint settings passed down to endpoints on creation */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="Endpoint Settings", meta=(ShowOnlyInnerProperties))

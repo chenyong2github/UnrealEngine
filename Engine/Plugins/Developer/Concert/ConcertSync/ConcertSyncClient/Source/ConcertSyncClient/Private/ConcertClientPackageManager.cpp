@@ -22,6 +22,7 @@
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "Editor/EditorEngine.h"
+	#include "FileHelpers.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ConcertClientPackageManager"
@@ -160,6 +161,23 @@ void FConcertClientPackageManager::SynchronizePersistedFiles(const TMap<FString,
 		SandboxPlatformFile->AddFilesAsPersisted(PersistedFilePaths);
 	}
 #endif
+}
+
+void FConcertClientPackageManager::QueueDirtyPackagesForReload()
+{
+	TArray<UPackage*> DirtyPkgs;
+#if WITH_EDITOR
+	{
+		UEditorLoadingAndSavingUtils::GetDirtyMapPackages(DirtyPkgs);
+		UEditorLoadingAndSavingUtils::GetDirtyContentPackages(DirtyPkgs);
+	}
+#endif
+	for (UPackage* DirtyPkg : DirtyPkgs)
+	{
+		FName PackageName = DirtyPkg->GetFName();
+		PackagesPendingHotReload.Add(PackageName);
+		PackagesPendingPurge.Remove(PackageName);
+	}
 }
 
 void FConcertClientPackageManager::SynchronizeInMemoryPackages()

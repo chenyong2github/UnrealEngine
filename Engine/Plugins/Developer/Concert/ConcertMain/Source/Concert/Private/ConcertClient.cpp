@@ -110,7 +110,7 @@ private:
 		}
 
 		// Should cancel request?
-		if (AutoConnectionNotification.IsValid() && AutoConnectionNotification->ShouldCancel())
+		if (AutoConnectionNotification.IsValid() && AutoConnectionNotification->GetPromptAction() == EAsyncTaskNotificationPromptAction::Cancel)
 		{
 			SetAsyncNotificationComplete(GetAutoConnectionCanceledMessage(), false);
 			Client->StopAutoConnect(); // Indirect self-destruct.
@@ -312,7 +312,7 @@ public:
 			ConnectionTasks[0]->Abort();
 
 			// Clear the tasks, set the notification text and fulfill the 'Execute()' promise.
-			SetResult(EConcertResponseCode::Failed, /*bWasCanceled*/true, GetCanceledErrorMessage());
+			SetResult(EConcertResponseCode::Failed, GetCanceledErrorMessage());
 		}
 	}
 
@@ -360,15 +360,34 @@ private:
 
 	void Tick()
 	{
+		auto GetTaskAction = [](EAsyncTaskNotificationPromptAction InPromptAction) ->EConcertConnectionTaskAction
+		{
+			switch (InPromptAction)
+			{
+			case EAsyncTaskNotificationPromptAction::None:
+				return EConcertConnectionTaskAction::None;
+			case EAsyncTaskNotificationPromptAction::Cancel:
+				return EConcertConnectionTaskAction::Cancel;
+			case EAsyncTaskNotificationPromptAction::Continue:
+				return EConcertConnectionTaskAction::Continue;
+			// unattended case resolve as a continue
+			default:
+				return EConcertConnectionTaskAction::Continue;
+			}
+		};
+
 		// We should only Tick while we have tasks to process
 		check(ConnectionTasks.Num() > 0);
 
-		const bool bCanceled = Notification->ShouldCancel();
+		EAsyncTaskNotificationPromptAction PromptAction = Notification->GetPromptAction();
+		EConcertConnectionTaskAction TaskAction = GetTaskAction(PromptAction);
+		const bool bCanceled = TaskAction == EConcertConnectionTaskAction::Cancel;
+		EConcertResponseCode TaskStatus = ConnectionTasks[0]->GetStatus();
 		if (bCanceled)
 		{
-			if (ConnectionTasks[0]->GetStatus() == EConcertResponseCode::Pending)
+			if (TaskStatus == EConcertResponseCode::Pending)
 			{
-				ConnectionTasks[0]->Tick(bCanceled); // Give it a last tick to give it a chance to cancel cleanly.
+				ConnectionTasks[0]->Tick(TaskAction); // Give it a last tick to give it a chance to cancel cleanly.
 			}
 
 			SetResultAndDelete(EConcertResponseCode::Failed, bCanceled, GetCanceledErrorMessage()); // Cancellation has priority over other possible errors (it could hide some failure)
@@ -376,19 +395,29 @@ private:
 		}
 
 		// Update the current task
-		switch (ConnectionTasks[0]->GetStatus())
+		switch (TaskStatus)
 		{
 			// Pending state - update the task
 		case EConcertResponseCode::Pending:
-			ConnectionTasks[0]->Tick(bCanceled);
+			ConnectionTasks[0]->Tick(TaskAction);
 			return;
-
+			// Prompt state - wait for user action to either proceed (success) or stop (fail)
+		case EConcertResponseCode::InvalidRequest:
+			{
+				FAsyncNotificationStateData StateData(Config.PendingTitleText.Get(FText::GetEmpty()), ConnectionTasks[0]->GetError(), EAsyncTaskNotificationState::Prompt);
+				StateData.PromptText = ConnectionTasks[0]->GetPrompt();
+				StateData.HyperlinkText = LOCTEXT("PendingConnectionFailureDetails", "See Details...");
+				StateData.Hyperlink = ConnectionTasks[0]->GetErrorDelegate();
+				Notification->SetNotificationState(StateData);
+				ConnectionTasks[0]->Tick(TaskAction);
+				return;
+			}
 			// Success state - move on to the next task
 		case EConcertResponseCode::Success:
 			ConnectionTasks.RemoveAt(0, 1, /*bAllowShrinking*/false);
 			if (ConnectionTasks.Num() > 0)
 			{
-				Notification->SetProgressText(ConnectionTasks[0]->GetDescription());
+				Notification->SetNotificationState(FAsyncNotificationStateData(Config.PendingTitleText.Get(FText::GetEmpty()), ConnectionTasks[0]->GetDescription(), EAsyncTaskNotificationState::Pending));
 				ConnectionTasks[0]->Execute();
 			}
 			else
@@ -397,16 +426,15 @@ private:
 				SetResultAndDelete(EConcertResponseCode::Success, bCanceled); // do not use 'this' after this call!
 			}
 			return;
-
 			// Error state - fail the connection
 		default:
-			SetResultAndDelete(ConnectionTasks[0]->GetStatus(), bCanceled, ConnectionTasks[0]->GetError()); // do not use 'this' after this call!
+			SetResultAndDelete(TaskStatus, bCanceled, ConnectionTasks[0]->GetError(), ConnectionTasks[0]->GetErrorDelegate()); // do not use 'this' after this call!
 			return;
 		}
 	}
 
 	/** Set the result */
-	void SetResult(const EConcertResponseCode InResult, bool bWasCanceled, const FText InFailureReason = FText())
+	void SetResult(const EConcertResponseCode InResult, const FText InFailureReason = FText(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
 	{
 		if (InResult == EConcertResponseCode::Success)
 		{
@@ -414,23 +442,12 @@ private:
 		}
 		else
 		{
-			// Disconnect the session -> Prevent the user from successfully connecting if he was just about to connect (in case the 'join session' event was in-flight but the connection was canceled/aborted).
-			if (bWasCanceled)
+			Client->InternalDisconnectSession();
+			if (InResult == EConcertResponseCode::Failed)
 			{
-				// Don't keep the notification open if canceled
-				Notification->SetKeepOpenOnFailure(false);
-				Client->DisconnectSession(); // This also stops auto-connect (it the client was auto-connecting, this will also prevent auto-connect to retry)
+				Notification->SetKeepOpenOnFailure(Config.KeepNotificationOpenOnError);
 			}
-			else
-			{
-				Client->InternalDisconnectSession(); // This doesn't stop auto-connect, so if it was auto-connecting, it will retry on error.
-
-				if (InResult == EConcertResponseCode::Failed)
-				{
-					Notification->SetKeepOpenOnFailure(Config.KeepNotificationOpenOnError);
-				}
-			}
-
+			Notification->SetHyperlink(InErrorDelegate, LOCTEXT("PendingConnectionFailureDetails", "See Details..."));
 			Notification->SetComplete(Config.FailureTitleText.Get(FText::GetEmpty()), InFailureReason, /*bSuccess*/false);
 		}
 
@@ -439,11 +456,16 @@ private:
 	}
 
 	/** Set the result and delete ourself - 'this' will be garbage after calling this function! */
-	void SetResultAndDelete(const EConcertResponseCode InResult, bool bWasCanceled, const FText InFailureReason = FText())
+	void SetResultAndDelete(const EConcertResponseCode InResult, bool bWasCanceled, const FText InFailureReason = FText(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
 	{
 		// Set the result and delete ourself
-		SetResult(InResult, bWasCanceled, InFailureReason);
+		SetResult(InResult, InFailureReason, InErrorDelegate);
 		check(Client->PendingConnection.Get() == this);
+		// if the connection was canceled, also cancel the auto connection, so it won't retry on failure		
+		if (bWasCanceled)
+		{
+			Client->AutoConnection.Reset();
+		}
 		Client->PendingConnection.Reset();
 	}
 
@@ -472,7 +494,7 @@ public:
 		Result.Reset();
 	}
 
-	virtual void Tick(const bool bShouldCancel) override
+	virtual void Tick(EConcertConnectionTaskAction TaskAction) override
 	{
 	}
 
@@ -500,9 +522,20 @@ public:
 		return EConcertResponseCode::Failed;
 	}
 
+	virtual FText GetPrompt() const override
+	{
+		// client connection task have no prompt
+		return FText::GetEmpty();
+	}
+
 	virtual FText GetError() const override
 	{
 		return Result.IsValid() ? ErrorText : LOCTEXT("RemoteConnectionAttemptAborted", "Remote Connection Attempt Aborted.");
+	}
+
+	virtual FSimpleDelegate GetErrorDelegate() const override
+	{
+		return FSimpleDelegate();
 	}
 
 	virtual FText GetDescription() const override

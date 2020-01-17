@@ -16,6 +16,16 @@ class IConcertClientConnectionTask;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientSessionStartupOrShutdown, TSharedRef<IConcertClientSession>);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientSessionGetPreConnectionTasks, const IConcertClient&, TArray<TUniquePtr<IConcertClientConnectionTask>>&);
 
+/**
+ * Enum to indicate if any action were taken for the connection task
+ */
+enum class EConcertConnectionTaskAction : uint8
+{
+	None = 0,
+	Cancel,
+	Continue
+};
+
 /** Interface for tasks executed during the Concert client connection flow (eg, validation, creation, connection) */
 class IConcertClientConnectionTask
 {
@@ -37,7 +47,7 @@ public:
 	/**
 	 * Tick this task, optionally requesting that it should gracefully cancel.
 	 */
-	virtual void Tick(const bool bShouldCancel) = 0;
+	virtual void Tick(EConcertConnectionTaskAction TaskAction) = 0;
 
 	/**
 	 * Get whether this task can be gracefully cancelled.
@@ -51,9 +61,19 @@ public:
 	virtual EConcertResponseCode GetStatus() const = 0;
 
 	/**
+	 * Get the prompt message of this task to be displayed on prompt button if the task require action.
+	 */
+	virtual FText GetPrompt() const = 0;
+
+	/**
 	 * Get the extended error status of this task that can be used in the error notification (if any).
 	 */
 	virtual FText GetError() const = 0;
+
+	/**
+	 * Get the delegate to gather more error details for this task error notification (if any).
+	 */
+	virtual FSimpleDelegate GetErrorDelegate() const = 0;
 
 	/**
 	 * Get a description of this task that can be used in the progress notification (if any).
