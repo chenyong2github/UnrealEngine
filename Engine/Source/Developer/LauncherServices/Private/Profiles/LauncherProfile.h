@@ -2332,6 +2332,16 @@ public:
 		return EditorExe;
 	}
 
+	virtual void SetUseIoStore(bool bInUseIoStore) override
+	{
+		bUseIoStore = bInUseIoStore;
+	}
+
+	virtual bool IsUsingIoStore() const override
+	{
+		return bUseIoStore;
+	}
+
 	//~ End ILauncherProfile Interface
 
 protected:
@@ -2779,6 +2789,9 @@ private:
 
 	// Additional command line parameters to set for the application when it launches
 	FString AdditionalCommandLineParameters;
+
+	// Use I/O store.
+	bool bUseIoStore;
 
 private:
 

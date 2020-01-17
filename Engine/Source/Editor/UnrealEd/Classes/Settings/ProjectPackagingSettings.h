@@ -173,6 +173,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging)
 	bool UsePakFile;
 
+	/** If enabled, all packages will be put into one or more container files. */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	bool bUseIoStore;
+
 	/** 
 	 * If enabled, will generate pak file chunks.  Assets can be assigned to chunks in the editor or via a delegate (See ShooterGameDelegates.cpp). 
 	 * Can be used for streaming installs (PS4 Playgo, XboxOne Streaming Install, etc)

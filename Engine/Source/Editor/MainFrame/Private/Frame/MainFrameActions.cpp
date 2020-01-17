@@ -737,6 +737,11 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -pak");
 	}
 
+	if (PackagingSettings->bUseIoStore)
+	{
+		OptionalParams += TEXT(" -iostore");
+	}
+
 	if (PackagingSettings->IncludePrerequisites)
 	{
 		OptionalParams += TEXT(" -prereqs");
