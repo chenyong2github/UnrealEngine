@@ -49,6 +49,61 @@ struct FAsyncTaskNotificationConfig
 	const FLogCategoryBase* LogCategory = nullptr;
 };
 
+enum class EAsyncTaskNotificationState : uint8
+{
+	None = 0,
+	Pending,
+	Success,
+	Failure,
+	Prompt,
+};
+
+enum class EAsyncTaskNotificationPromptAction : uint8
+{
+	/** No action taken for the ongoing task. */
+	None = 0,
+	/** Continue ongoing task after a prompt. */
+	Continue,
+	/** Cancel ongoing task. */
+	Cancel,
+	/** No action can be taken, task is unattended. */
+	Unattended
+};
+
+/**
+ * Async Notification State data
+ */
+struct FAsyncNotificationStateData
+{
+	FAsyncNotificationStateData()
+		: State(EAsyncTaskNotificationState::Pending)
+	{}
+
+	FAsyncNotificationStateData(const FText& InTitleText, const FText& InProgressText, EAsyncTaskNotificationState InState)
+		: State(InState)
+		, TitleText(InTitleText)
+		, ProgressText(InProgressText)
+	{}
+
+	/** The notification state. */
+	EAsyncTaskNotificationState State;
+
+	/** The title text displayed in the notification */
+	FText TitleText;
+
+	/** The progress text displayed in the notification (if any) */
+	FText ProgressText;
+
+	/** The prompt text displayed in the notification, follow the progress text in console notification, used on button for UI notification (if any) */
+	FText PromptText;
+
+	/** Text to display for the hyperlink message. */
+	FText HyperlinkText;
+
+	/** Hyperlink callback. If not bound the hyperlink text won't be displayed. */
+	FSimpleDelegate Hyperlink;
+};
+
 /**
  * Provides notifications for an on-going asynchronous task.
  */
@@ -88,6 +143,16 @@ public:
 	void SetProgressText(const FText& InProgressText);
 
 	/**
+	 * Set the prompt text of this notification, if needed.
+	 */
+	void SetPromptText(const FText& InPromptText);
+
+	/**
+	 * Set the Hyperlink for this notification.
+	 */
+	void SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText = FText());
+
+	/**
 	 * Set the task as complete.
 	 */
 	void SetComplete(const bool bSuccess = true);
@@ -96,6 +161,11 @@ public:
 	 * Update the text and set the task as complete.
 	 */
 	void SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess = true);
+
+	/**
+	 * Set the notification state. Provide finer control than SetComplete by setting every field of the state.
+	 */
+	void SetNotificationState(const FAsyncNotificationStateData& InState);
 
 	/**
 	 * Set whether this task be canceled.
@@ -113,9 +183,10 @@ public:
 	void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure);
 
 	/**
-	 * True if the user has requested that the task be canceled.
+	 * Return the notification prompt action.
+	 * The action resets to `None` when the notification state changes.
 	 */
-	bool ShouldCancel() const;
+	EAsyncTaskNotificationPromptAction GetPromptAction() const;
 
 private:
 	/** Pointer to the real notification implementation */

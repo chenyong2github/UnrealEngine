@@ -42,6 +42,16 @@ void FAsyncTaskNotification::SetProgressText(const FText& InProgressText)
 	NotificationImpl->SetProgressText(InProgressText);
 }
 
+void FAsyncTaskNotification::SetPromptText(const FText& InPromptText)
+{
+	NotificationImpl->SetPromptText(InPromptText);
+}
+
+void FAsyncTaskNotification::SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText)
+{
+	NotificationImpl->SetHyperlink(InHyperlink, InHyperlinkText);
+}
+
 void FAsyncTaskNotification::SetComplete(const bool bSuccess)
 {
 	NotificationImpl->SetComplete(bSuccess);
@@ -50,6 +60,11 @@ void FAsyncTaskNotification::SetComplete(const bool bSuccess)
 void FAsyncTaskNotification::SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess)
 {
 	NotificationImpl->SetComplete(InTitleText, InProgressText, bSuccess);
+}
+
+void FAsyncTaskNotification::SetNotificationState(const FAsyncNotificationStateData& InState)
+{
+	NotificationImpl->SetNotificationState(InState);
 }
 
 void FAsyncTaskNotification::SetCanCancel(const TAttribute<bool>& InCanCancel)
@@ -67,7 +82,7 @@ void FAsyncTaskNotification::SetKeepOpenOnFailure(const TAttribute<bool>& InKeep
 	NotificationImpl->SetKeepOpenOnFailure(InKeepOpenOnFailure);
 }
 
-bool FAsyncTaskNotification::ShouldCancel() const
+EAsyncTaskNotificationPromptAction FAsyncTaskNotification::GetPromptAction() const
 {
-	return NotificationImpl->ShouldCancel();
+	return NotificationImpl->GetPromptAction();
 }

@@ -29,7 +29,7 @@ public:
 		CS_None,
 		CS_Pending,
 		CS_Success,
-		CS_Fail
+		CS_Fail,
 	};
 
 	/** Sets the text for message element */
@@ -58,6 +58,9 @@ public:
 
 	/** Begin the fade out */
 	virtual void Fadeout() = 0;
+
+	/** Pulse the notification with a certain outline glow color while it is still pending. */
+	virtual void Pulse(const FLinearColor& GlowColor) = 0;
 };
 
 
