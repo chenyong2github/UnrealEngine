@@ -186,12 +186,12 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 
 				if (!UnderlyingArchive.IsTextFormat())
 				{
-				// Skip the property
+					// Skip the property
 					const int64 StartOfProperty = UnderlyingArchive.Tell();
 					const int64 RemainingSize = InnerTag.Size - (UnderlyingArchive.Tell() - StartOfProperty);
-				uint8 B;
-				for (int64 i = 0; i < RemainingSize; i++)
-				{
+					uint8 B;
+					for (int64 i = 0; i < RemainingSize; i++)
+					{
 						UnderlyingArchive << B;
 					}
 				}
