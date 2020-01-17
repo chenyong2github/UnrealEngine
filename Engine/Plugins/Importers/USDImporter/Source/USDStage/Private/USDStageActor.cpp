@@ -22,10 +22,11 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
+#include "LevelSequence.h"
 #include "MaterialEditingLibrary.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInterface.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionOperations.h"
 #include "Misc/Paths.h"
@@ -33,15 +34,9 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "StaticMeshAttributes.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
-#include "Channels/MovieSceneChannelProxy.h"
-#include "LevelSequence.h"
-#include "LevelSequenceActor.h"
-#include "Misc/FrameNumber.h"
 #include "Modules/ModuleManager.h"
-#include "MovieScene.h"
-#include "Sections/MovieSceneFloatSection.h"
-#include "Tracks/MovieSceneFloatTrack.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -71,7 +66,7 @@ AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded{};
 
 #if USE_USD_SDK
 
-struct UsdStageActorImpl
+struct FUsdStageActorImpl
 {
 	static TSharedRef< FUsdSchemaTranslationContext > CreateUsdSchemaTranslationContext( AUsdStageActor* StageActor, const FString& PrimPath )
 	{
@@ -107,6 +102,7 @@ AUsdStageActor::AUsdStageActor()
 	, StartTimeCode( 0.f )
 	, EndTimeCode( 100.f )
 	, TimeCodesPerSecond( 24.f )
+	, LevelSequenceHelper(this)
 {
 	SceneComponent = CreateDefaultSubobject< USceneComponent >( TEXT("SceneComponent0") );
 	SceneComponent->Mobility = EComponentMobility::Static;
@@ -121,7 +117,7 @@ AUsdStageActor::AUsdStageActor()
 			{
 				TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 
-				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = UsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimPath );
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimPath );
 
 				this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() ) );
 
@@ -134,10 +130,29 @@ AUsdStageActor::AUsdStageActor()
 				}
 			}
 		);
-#endif // #if USE_USD_SDK
 
-	InitLevelSequence(TimeCodesPerSecond);
-	SetupLevelSequence();
+	UsdListener.OnLayersChanged.AddLambda(
+		[&](const pxr::SdfLayerChangeListMap& ChangeMap)
+		{
+			// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
+			// might propagate timecodes through all level sequences
+			for (const std::pair<pxr::SdfLayerHandle, pxr::SdfChangeList>& ChangeMapItem : ChangeMap)
+			{
+				const pxr::SdfChangeList::EntryList& ChangeList = ChangeMapItem.second.GetEntryList();
+				for (const std::pair<pxr::SdfPath, pxr::SdfChangeList::Entry>& Change : ChangeList)
+				{
+					const pxr::SdfChangeList::Entry::_Flags& Flags = Change.second.flags;
+					if (Flags.didReloadContent)
+					{
+						UE_LOG(LogUsdStage, Verbose, TEXT("Reloading animations because layer '%s' reloaded"), *UsdToUnreal::ConvertPath(Change.first));
+						ReloadAnimations();
+						return;
+					}
+				}
+			}
+		}
+	);
+#endif // #if USE_USD_SDK
 
 	if ( HasAutorithyOverStage() )
 	{
@@ -310,7 +325,7 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
-	
+
 #if USE_USD_SDK
 	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
 	{
@@ -325,12 +340,12 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, StartTimeCode ) || PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, EndTimeCode ) )
 	{
-		if ( UsdStageStore.Get() )
+		if ( const pxr::UsdStageRefPtr& UsdStage = GetUsdStage() )
 		{
-			UsdStageStore.Get()->SetStartTimeCode( StartTimeCode );
-			UsdStageStore.Get()->SetEndTimeCode( EndTimeCode );
+			UsdStage->SetStartTimeCode( StartTimeCode );
+			UsdStage->SetEndTimeCode( EndTimeCode );
 
-			SetupLevelSequence();
+			LevelSequenceHelper.UpdateLevelSequence( UsdStage );
 		}
 	}
 	else
@@ -379,87 +394,6 @@ void AUsdStageActor::OpenUsdStage()
 #endif // #if USE_USD_SDK
 }
 
-void AUsdStageActor::InitLevelSequence(float FramesPerSecond)
-{
-	if ( LevelSequence || !HasAutorithyOverStage() )
-	{
-		return;
-	}
-
-	// Create LevelSequence
-	LevelSequence = NewObject<ULevelSequence>(GetTransientPackage(), NAME_None, DefaultObjFlag | EObjectFlags::RF_Public);
-	LevelSequence->Initialize();
-
-	UMovieScene* MovieScene = LevelSequence->MovieScene;
-
-	FFrameRate FrameRate(FramesPerSecond, 1);
-	MovieScene->SetDisplayRate(FrameRate);
-
-	// Populate the Sequence
-	FGuid ObjectBinding = MovieScene->AddPossessable(GetActorLabel(), this->GetClass());
-	LevelSequence->BindPossessableObject(ObjectBinding, *this, GetWorld());
-
-	// Add the Time track
-	UMovieSceneFloatTrack* TimeTrack = MovieScene->AddTrack<UMovieSceneFloatTrack>(ObjectBinding);
-	TimeTrack->SetPropertyNameAndPath(FName(TEXT("Time")), "Time");
-
-	FFrameRate DestFrameRate = LevelSequence->MovieScene->GetTickResolution();
-	FFrameNumber StartFrame = DestFrameRate.AsFrameNumber(StartTimeCode / TimeCodesPerSecond);
-
-	bool bSectionAdded = false;
-	UMovieSceneFloatSection* TimeSection = Cast<UMovieSceneFloatSection>(TimeTrack->FindOrAddSection(StartFrame, bSectionAdded));
-
-	TimeSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
-	MovieScene->SetEvaluationType(EMovieSceneEvaluationType::FrameLocked);
-}
-
-void AUsdStageActor::SetupLevelSequence()
-{
-	if (!LevelSequence)
-	{
-		return;
-	}
-
-	UMovieScene* MovieScene = LevelSequence->MovieScene;
-	if (!MovieScene)
-	{
-		return;
-	}
-
-	FFrameRate DestFrameRate = MovieScene->GetTickResolution();
-
-	TArray<UMovieSceneSection*> Sections = MovieScene->GetAllSections();
-	if (Sections.Num() > 0)
-	{
-		UMovieSceneSection* TimeSection = Sections[0];
-		FMovieSceneFloatChannel* TimeChannel = TimeSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0);
-
-		FFrameNumber StartFrame = DestFrameRate.AsFrameNumber(StartTimeCode / TimeCodesPerSecond);
-		FFrameNumber EndFrame = DestFrameRate.AsFrameNumber(EndTimeCode / TimeCodesPerSecond);
-
-		TArray<FFrameNumber> FrameNumbers;
-		FrameNumbers.Add(StartFrame);
-		FrameNumbers.Add(EndFrame);
-
-		TArray<FMovieSceneFloatValue> FrameValues;
-		FrameValues.Add_GetRef(FMovieSceneFloatValue(StartTimeCode)).InterpMode = ERichCurveInterpMode::RCIM_Linear;
-		FrameValues.Add_GetRef(FMovieSceneFloatValue(EndTimeCode)).InterpMode = ERichCurveInterpMode::RCIM_Linear;
-
-		TimeChannel->Set(FrameNumbers, FrameValues);
-
-		TimeSection->SetRange(TRange<FFrameNumber>::All());
-
-		float StartTime = StartTimeCode / TimeCodesPerSecond;
-		float EndTime = EndTimeCode / TimeCodesPerSecond;
-
-		TRange<FFrameNumber> TimeRange = TRange<FFrameNumber>::Inclusive(StartFrame, EndFrame);
-
-		LevelSequence->MovieScene->SetPlaybackRange(TimeRange);
-		LevelSequence->MovieScene->SetViewRange((StartTimeCode - 5.f) / TimeCodesPerSecond, (EndTimeCode + 5.f) / TimeCodesPerSecond);
-		LevelSequence->MovieScene->SetWorkingRange((StartTimeCode - 5.f) / TimeCodesPerSecond, (EndTimeCode + 5.f) / TimeCodesPerSecond);
-	}
-}
-
 void AUsdStageActor::LoadUsdStage()
 {
 #if USE_USD_SDK
@@ -482,13 +416,9 @@ void AUsdStageActor::LoadUsdStage()
 		return;
 	}
 
-	StartTimeCode = UsdStage->GetStartTimeCode();
-	EndTimeCode = UsdStage->GetEndTimeCode();
-	TimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	ReloadAnimations();
 
-	SetupLevelSequence();
-
-	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = UsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
+	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
 
 	LoadAssets( *TranslationContext, UsdStage->GetPseudoRoot() );
 
@@ -521,6 +451,25 @@ void AUsdStageActor::Refresh() const
 	}
 }
 
+void AUsdStageActor::ReloadAnimations()
+{
+#if USE_USD_SDK
+	const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
+	if ( !UsdStage )
+	{
+		return;
+	}
+
+	if ( HasAutorithyOverStage() )
+	{
+		LevelSequenceHelper.InitLevelSequence(UsdStage);
+
+		// The sequencer won't update on its own, so let's at least force it closed
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+	}
+#endif // #if USE_USD_SDK
+}
+
 void AUsdStageActor::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
@@ -536,7 +485,7 @@ void AUsdStageActor::PostRegisterAllComponents()
 
 		if ( UsdStage )
 		{
-			TSharedRef< FUsdSchemaTranslationContext > TranslationContext = UsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
+			TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
 
 			LoadAssets( *TranslationContext, UsdStage->GetPseudoRoot() );
 			UpdatePrim( UsdStage->GetPseudoRoot().GetPrimPath(), true, *TranslationContext );
@@ -600,7 +549,7 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 			return;
 		}
 	}
-	
+
 	FString PrimPath = ObjectsToWatch[ PrimObject ];
 
 	if ( FUsdPrimTwin* UsdPrimTwin = RootUsdTwin.Find( PrimPath ) )
@@ -662,19 +611,19 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 	// Load materials first since meshes are referencing them
 	TArray< TUsdStore< pxr::UsdPrim > > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdShadeMaterial >() );
-	
+
 	CreateAssetsForPrims( AllPrimAssets );
 
 	// Load meshes
 	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdGeomMesh >(), { pxr::TfType::Find< pxr::UsdSkelRoot >() } );
 	AllPrimAssets.Append( UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdSkelRoot >() ) );
-	
+
 	CreateAssetsForPrims( AllPrimAssets );
 }
 
 void AUsdStageActor::AnimatePrims()
 {
-	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = UsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
+	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
 
 	for ( const FString& PrimToAnimate : PrimsToAnimate )
 	{
@@ -691,7 +640,7 @@ void AUsdStageActor::AnimatePrims()
 	}
 
 	TranslationContext->CompleteTasks();
-		
+
 	GEditor->BroadcastLevelActorListChanged();
 	GEditor->RedrawLevelEditingViewports();
 }

@@ -6,6 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "Templates/Function.h"
 
+#include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDMemory.h"
 #include "USDPrimTwin.h"
@@ -47,7 +48,8 @@ class AUsdStageActor : public AActor
 {
 	GENERATED_BODY()
 
-	friend struct UsdStageActorImpl;
+	friend struct FUsdStageActorImpl;
+	friend class FUsdLevelSequenceHelperImpl;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "USD", meta = (FilePathFilter = "usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"))
@@ -82,6 +84,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
 
+	UPROPERTY(Transient)
+	TMap<FString, ULevelSequence*> SubLayerLevelSequencesByIdentifier;
+
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
@@ -100,6 +105,7 @@ public:
 	virtual ~AUsdStageActor();
 
 	void Refresh() const;
+	void ReloadAnimations();
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
@@ -110,9 +116,6 @@ private:
 	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
-
-	void InitLevelSequence( float FramesPerSecond );
-	void SetupLevelSequence();
 
 	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
 
@@ -155,7 +158,7 @@ protected:
 private:
 	TUsdStore< pxr::UsdStageRefPtr > UsdStageStore;
 	FUsdListener UsdListener;
-
 #endif // #if USE_USD_SDK
 
+	FUsdLevelSequenceHelper LevelSequenceHelper;
 };

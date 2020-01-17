@@ -29,6 +29,13 @@ void FUsdListener::Register( const pxr::UsdStageRefPtr& Stage )
 	}
 
 	RegisteredStageEditTargetChangedKey = pxr::TfNotice::Register( pxr::TfWeakPtr< FUsdListener >( this ), &FUsdListener::HandleStageEditTargetChangedNotice, Stage );
+
+	if (RegisteredLayersChangedKey.IsValid())
+	{
+		pxr::TfNotice::Revoke(RegisteredLayersChangedKey);
+	}
+
+	RegisteredLayersChangedKey = pxr::TfNotice::Register(pxr::TfWeakPtr< FUsdListener >( this ), &FUsdListener::HandleLayersChangedNotice );
 }
 
 FUsdListener::~FUsdListener()
@@ -36,6 +43,7 @@ FUsdListener::~FUsdListener()
 	FScopedUsdAllocs UsdAllocs;
 	pxr::TfNotice::Revoke( RegisteredObjectsChangedKey );
 	pxr::TfNotice::Revoke( RegisteredStageEditTargetChangedKey );
+	pxr::TfNotice::Revoke( RegisteredLayersChangedKey );
 }
 
 void FUsdListener::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& Notice, const pxr::UsdStageWeakPtr& Sender )
@@ -79,6 +87,16 @@ void FUsdListener::HandleStageEditTargetChangedNotice( const pxr::UsdNotice::Sta
 {
 	FScopedUnrealAllocs UnrealAllocs;
 	OnStageEditTargetChanged.Broadcast();
+}
+
+void FUsdListener::HandleLayersChangedNotice(const pxr::SdfNotice::LayersDidChange& Notice)
+{
+	if ( !OnLayersChanged.IsBound() || IsBlocked.GetValue() > 0 )
+	{
+		return;
+	}
+
+	OnLayersChanged.Broadcast(Notice.GetChangeListMap());
 }
 
 #endif // #if USE_USD_SDK
