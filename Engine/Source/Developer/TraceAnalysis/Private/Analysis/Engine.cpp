@@ -332,7 +332,7 @@ uint32 IAnalyzer::FArrayReader::Num() const
 	const auto* Inner = (const FAuxData*)this;
 	int32 SizeAndType = Inner->FieldSizeAndType;
 	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
-	return Inner->DataSize / SizeAndType;
+	return (SizeAndType == 0) ? SizeAndType : (Inner->DataSize / SizeAndType);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
