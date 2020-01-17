@@ -243,7 +243,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 	if (StackViewModel != nullptr && OverviewSelectionViewModel != nullptr)
 	{
 		ContentWidget = SNew(SBox)
-			.WidthOverride(210)
+			.MaxDesiredWidth(300)
 			[
 				SNew(SNiagaraOverviewStack, *StackViewModel, *OverviewSelectionViewModel)
 			];
