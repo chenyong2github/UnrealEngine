@@ -37,36 +37,21 @@ FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue&
 bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize)
 {
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
-	IAsyncReadFileHandle* FileHandle = Ipf.OpenAsyncRead(ContainerFilePath);
-	if (!FileHandle)
+	{
+		TUniquePtr<IFileHandle> FileHandle(Ipf.OpenRead(ContainerFilePath));
+		if (!FileHandle)
+		{
+			return false;
+		}
+		ContainerFileSize = FileHandle->Size();
+	}
+	IAsyncReadFileHandle* AsyncFileHandle = Ipf.OpenAsyncRead(ContainerFilePath);
+	if (!AsyncFileHandle)
 	{
 		return false;
 	}
-	FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
-	FAsyncFileCallBack SizeCallback = [Event](bool bWasCancelled, IAsyncReadRequest*)
-	{
-		check(!bWasCancelled);
-		Event->Trigger();
-	};
-	TUniquePtr<IAsyncReadRequest> SizeRequest(FileHandle->SizeRequest(&SizeCallback));
-	if (!SizeRequest.IsValid())
-	{
-		return false;
-	}
-	Event->Wait();
-	FPlatformProcess::ReturnSynchEventToPool(Event);
-	int64 SizeResult = SizeRequest->GetSizeResults();
-	if (SizeResult > 0)
-	{
-		ContainerFileHandle = reinterpret_cast<UPTRINT>(FileHandle);
-		ContainerFileSize = SizeResult;
-		return true;
-	}
-	else
-	{
-		delete FileHandle;
-		return false;
-	}
+	ContainerFileHandle = reinterpret_cast<UPTRINT>(AsyncFileHandle);
+	return true;
 }
 
 void FGenericFileIoStoreImpl::BeginReadsForRequest(FFileIoStoreResolvedRequest& ResolvedRequest)

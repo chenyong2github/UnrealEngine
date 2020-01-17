@@ -1587,15 +1587,28 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 	// Initialize I/O dispatcher if available
-	if (!FParse::Param(CmdLine, TEXT("noiodispatcher")))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-
 		FIoStoreEnvironment IoStoreEnvironment;
 		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
+		bool bEnableIoDispatcher = false;
 		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
 		{
-			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			bEnableIoDispatcher = true;
+		}
+#if !UE_BUILD_SHIPPING
+		if (FParse::Param(CmdLine, TEXT("forceiodispatcher")))
+		{
+			bEnableIoDispatcher = true;
+		}
+		else if (FParse::Param(CmdLine, TEXT("noiodispatcher")))
+		{
+			bEnableIoDispatcher = false;
+		}
+#endif
+		if (bEnableIoDispatcher)
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
 			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
 		}
 	}

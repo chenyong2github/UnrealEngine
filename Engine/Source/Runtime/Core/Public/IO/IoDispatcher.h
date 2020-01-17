@@ -747,7 +747,7 @@ public:
 
 	static CORE_API bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 	static CORE_API bool IsInitialized();
-	static CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment);
+	static CORE_API FIoStatus Initialize();
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();
 

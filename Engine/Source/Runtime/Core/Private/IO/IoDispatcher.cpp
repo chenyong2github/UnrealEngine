@@ -149,13 +149,8 @@ public:
 		delete Thread;
 	}
 
-	FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment)
+	FIoStatus Initialize()
 	{
-		FIoStatus IoStatus = Mount(InitialEnvironment);
-		if (!IoStatus.IsOk())
-		{
-			return IoStatus;
-		}
 		return FIoStatus::Ok;
 	}
 
@@ -474,11 +469,11 @@ FIoDispatcher::IsValidEnvironment(const FIoStoreEnvironment& Environment)
 }
 
 FIoStatus
-FIoDispatcher::Initialize(const FIoStoreEnvironment& InitialEnvironment)
+FIoDispatcher::Initialize()
 {
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
 
-	return GIoDispatcher->Impl->Initialize(InitialEnvironment);
+	return GIoDispatcher->Impl->Initialize();
 }
 
 void
