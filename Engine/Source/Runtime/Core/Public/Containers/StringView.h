@@ -259,7 +259,7 @@ struct TIsContiguousContainer<TStringViewImpl<CharType>>
 };
 
 template <typename CharType>
-constexpr inline SIZE_T GetNum(const TStringViewImpl<CharType>& String)
+constexpr inline auto GetNum(const TStringViewImpl<CharType>& String)
 {
 	return String.Len();
 }
