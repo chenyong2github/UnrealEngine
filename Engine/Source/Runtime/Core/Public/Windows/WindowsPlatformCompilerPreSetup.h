@@ -74,6 +74,17 @@
 			__pragma(warning(pop))
 	#endif // PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
+	#ifndef PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+		#define PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS \
+			__pragma (warning(push)) \
+			__pragma (warning(disable: 4244)) /* 'argument': conversion from 'type1' to 'type2', possible loss of data */
+	#endif // PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
+	#ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+		#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
+			__pragma(warning(pop))
+	#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+
 	#ifndef PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS
 		#define PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS \
 			__pragma(warning(push)) \
