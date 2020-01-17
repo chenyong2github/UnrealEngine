@@ -119,13 +119,13 @@ struct FBuildPatchUtils
 	static bool GetGUIDFromFilename(const FString& DataFilename, FGuid& DataGUID);
 
 	/**
-	 * Generates a new BuildId for a manifest. This should be used only when created new builds.
+	 * Generates a new BuildId for a manifest. This should be used only when creating new builds, and thus saving out brand new manifests rather than copies of manifests.
 	 * @return the generated id.
 	 */
 	static FString GenerateNewBuildId();
 
 	/**
-	 * Creates a deterministic BuildId for a manifest that is older than EFeatureLevel::StoresUniqueBuildId.
+	 * Creates a deterministic BuildId for use with a manifest that is at EFeatureLevel::UsesRuntimeGeneratedBuildId or older.
 	 * The id is created based on the meta data, which itself should be unique per build created.
 	 * @param ManifestMeta     The meta for the old manifest.
 	 * @return the id for this manifest.

@@ -44,7 +44,9 @@ namespace BuildPatchServices
 	namespace DownloadErrorCodes
 	{
 		static const TCHAR* OutOfChunkRetries = TEXT("01");
-		static const TCHAR* MissingDestinationManifest = TEXT("02");
+		static const TCHAR* MissingDeltaFile = TEXT("02");
+		static const TCHAR* UnserialisableDeltaFile = TEXT("03");
+		static const TCHAR* RejectedDeltaFile = TEXT("04");
 	}
 
 	/**
@@ -58,6 +60,7 @@ namespace BuildPatchServices
 		static const TCHAR* MissingFileInfo = TEXT("04");
 		static const TCHAR* OutboundCorrupt = TEXT("05");
 		static const TCHAR* SerializationError = TEXT("06");
+		static const TCHAR* TrackingError = TEXT("07");
 	}
 
 	/**

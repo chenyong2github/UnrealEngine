@@ -66,7 +66,7 @@ namespace BuildPatchServices
 		 * MUST be called only after IsEndOfData returns true.
 		 * @return the number of bytes in the streamed build.
 		 */
-		virtual uint64 GetBuildSize() const = 0;
+		virtual uint64 GetBuildSize() const = 0; 
 
 		/**
 		 * Get the list of file spans for each file in the build, including empty files.
@@ -74,6 +74,12 @@ namespace BuildPatchServices
 		 * @return the list of files in the build and their details.
 		 */
 		virtual TArray<FFileSpan> GetAllFiles() const = 0;
+
+		/**
+		 * Gets if the streamer has aborted and is no longer streaming data
+		 * @return True if it has aborted
+		 */
+		virtual bool HasAborted() const = 0;
 	};
 
 	class IManifestBuildStreamer

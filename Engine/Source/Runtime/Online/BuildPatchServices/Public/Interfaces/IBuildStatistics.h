@@ -209,9 +209,14 @@ namespace BuildPatchServices
 		 * @return the current disk write speed in bytes per second.
 		 */
 		virtual double GetDiskWriteByteSpeed() const = 0;
+
+		/**
+		 * @return the total number of verify errors experienced during this installation.
+		 */
+		virtual int32 GetNumVerifyErrors() const = 0;
 		
 		/**
-		 * @return the verify errors experienced during this installation.
+		 * @return the verify error counts per error type experienced during this installation.
 		 */
 		virtual TMap<EVerifyError, int32> GetVerifyErrorCounts() const = 0;
 

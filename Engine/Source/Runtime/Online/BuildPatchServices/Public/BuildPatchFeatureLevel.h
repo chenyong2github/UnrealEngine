@@ -43,8 +43,10 @@ namespace BuildPatchServices
 		VariableSizeChunksWithoutWindowSizeChunkInfo,
 		// Manifest can reference chunks with dynamic window size, and also serializes them.
 		VariableSizeChunks,
-		// Manifest stores a unique build id for exact matching of build data.
-		StoresUniqueBuildId,
+		// Manifest uses a build id generated from its metadata.
+		UsesRuntimeGeneratedBuildId,
+		// Manifest uses a build id generated unique at build time, and stored in manifest.
+		UsesBuildTimeGeneratedBuildId,
 
 		// !! Always after the latest version entry, signifies the latest version plus 1 to allow the following Latest alias.
 		LatestPlusOne,
@@ -55,7 +57,10 @@ namespace BuildPatchServices
 		// An alias to provide the latest version of a manifest supported by a json serialized format.
 		LatestJson = StoresPrerequisiteIds,
 		// An alias to provide the first available version of optimised delta manifest saving.
-		FirstOptimisedDelta = StoresUniqueBuildId,
+		FirstOptimisedDelta = UsesRuntimeGeneratedBuildId,
+
+		// More aliases, but this time for values that have been renamed
+		StoresUniqueBuildId = UsesRuntimeGeneratedBuildId,
 
 		// JSON manifests were stored with a version of 255 during a certain CL range due to a bug.
 		// We will treat this as being StoresChunkFileSizes in code.

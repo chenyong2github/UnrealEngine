@@ -133,14 +133,15 @@ namespace BuildPatchServices
 				case BuildPatchServices::EFeatureLevel::StoredAsBinaryData:
 				case BuildPatchServices::EFeatureLevel::VariableSizeChunksWithoutWindowSizeChunkInfo:
 				case BuildPatchServices::EFeatureLevel::VariableSizeChunks:
-				case BuildPatchServices::EFeatureLevel::StoresUniqueBuildId:
+				case BuildPatchServices::EFeatureLevel::UsesRuntimeGeneratedBuildId:
+				case BuildPatchServices::EFeatureLevel::UsesBuildTimeGeneratedBuildId:
 					return EChunkVersion::StoresDataSizeUncompressed;
 			}
 			checkf(false, TEXT("Unhandled FeatureLevel %s"), FeatureLevelToString(FeatureLevel));
 			return EChunkVersion::Invalid;
 		}
 	}
-	static_assert((uint32)EFeatureLevel::Latest == 17, "Please adjust HeaderHelpers::FeatureLevelToChunkVersion for new feature levels.");
+	static_assert((uint32)EFeatureLevel::Latest == 18, "Please adjust HeaderHelpers::FeatureLevelToChunkVersion for new feature levels.");
 
 	FChunkHeader::FChunkHeader()
 		: Version((uint32)EChunkVersion::Latest)

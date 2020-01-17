@@ -190,7 +190,10 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	while (CloudEnumeration->IsComplete() == false)
 	{
 		// Log collected stats.
-		GLog->FlushThreadedLogs();
+		if (bIsGameThread)
+		{
+			GLog->FlushThreadedLogs();
+		}
 		FStatsCollector::Set(StatTotalTime, FStatsCollector::GetCycles() - StartTime);
 		StatsCollector->LogStats(StatsLoggerTimeSeconds);
 
@@ -251,7 +254,7 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	uint32 ReadLen = 0;
 	TArray<TUniquePtr<FScannerDetails>> Scanners;
 	bool bHasUnknownData = true;
-	while (!BuildStream->IsEndOfData() || Scanners.Num() > 0 || bHasUnknownData)
+	while (!BuildStream->HasAborted() && (!BuildStream->IsEndOfData() || Scanners.Num() > 0 || bHasUnknownData))
 	{
 		// Grab a scanner result.
 		if (Scanners.Num() > 0 && Scanners[0]->Scanner->IsComplete())
@@ -692,6 +695,12 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 
 		// Sleep to allow other threads.
 		FPlatformProcess::Sleep(0.01f);
+	}
+
+	if (BuildStream->HasAborted())
+	{
+		UE_LOG(LogPatchGeneration, Error, TEXT("Directory Build Streamer aborted"));
+		return false;
 	}
 
 	// Complete chunk writer.
