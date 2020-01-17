@@ -183,39 +183,78 @@ FUObjectAnnotationSparseBool GSkeletalMeshTraceAnnotations;
 // Map used for unique name output
 TMap<FName, uint32> GAnimTraceNames;
 
+class FSuspendCounter : public TThreadSingleton<FSuspendCounter>
+{
+public:
+	FSuspendCounter()
+		: SuspendCount(0)
+	{}
+
+	int32 SuspendCount;
+};
+
+FAnimTrace::FScopedAnimNodeTraceSuspend::FScopedAnimNodeTraceSuspend()
+{
+	FSuspendCounter::Get().SuspendCount++;
+}
+
+FAnimTrace::FScopedAnimNodeTraceSuspend::~FScopedAnimNodeTraceSuspend()
+{
+	FSuspendCounter::Get().SuspendCount--;
+	check(FSuspendCounter::Get().SuspendCount >= 0);
+}
+
 FAnimTrace::FScopedAnimNodeTrace::FScopedAnimNodeTrace(const FAnimationInitializeContext& InContext)
 	: Context(InContext)
 {
-	OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Initialize);
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Initialize);
+	}
 }
 
 FAnimTrace::FScopedAnimNodeTrace::FScopedAnimNodeTrace(const FAnimationUpdateContext& InContext)
 	: Context(InContext)
 {
-	OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), InContext.GetFinalBlendWeight(), InContext.GetRootMotionWeightModifier(), (__underlying_type(EPhase))EPhase::Update);
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), InContext.GetFinalBlendWeight(), InContext.GetRootMotionWeightModifier(), (__underlying_type(EPhase))EPhase::Update);
+	}
 }
 
 FAnimTrace::FScopedAnimNodeTrace::FScopedAnimNodeTrace(const FAnimationCacheBonesContext& InContext)
 	: Context(InContext)
 {
-	OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::CacheBones);
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::CacheBones);
+	}
 }
 
 FAnimTrace::FScopedAnimNodeTrace::FScopedAnimNodeTrace(const FPoseContext& InContext)
 	: Context(InContext)
 {
-	OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Evaluate);
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Evaluate);
+	}
 }
 
 FAnimTrace::FScopedAnimNodeTrace::FScopedAnimNodeTrace(const FComponentSpacePoseContext& InContext)
 	: Context(InContext)
 {
-	OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Evaluate);
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeStart(InContext, FPlatformTime::Cycles64(), InContext.GetPreviousNodeId(), InContext.GetCurrentNodeId(), 0.0f, 0.0f, (__underlying_type(EPhase))EPhase::Evaluate);
+	}
 }
 
 FAnimTrace::FScopedAnimNodeTrace::~FScopedAnimNodeTrace()
 {
-	OutputAnimNodeEnd(Context, FPlatformTime::Cycles64());
+	if(FSuspendCounter::Get().SuspendCount == 0)
+	{
+		OutputAnimNodeEnd(Context, FPlatformTime::Cycles64());
+	}
 }
 
 FAnimTrace::FScopedAnimGraphTrace::FScopedAnimGraphTrace(const FAnimationInitializeContext& InContext)
@@ -269,6 +308,8 @@ void FAnimTrace::Init()
 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueFloat);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueVector);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueString);
+		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueObject);
+		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimNodeValueClass);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, AnimSequencePlayer);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, StateMachineState);
 		UE_TRACE_EVENT_IS_ENABLED(Animation, Name);
@@ -492,24 +533,38 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 		return;
 	}
 
+	if(InNodeId == INDEX_NONE)
+	{
+		return;
+	}
+
 	check(InContext.AnimInstanceProxy);
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
+	FString DisplayNameString;
 	IAnimClassInterface* AnimBlueprintClass = InContext.GetAnimClass();
-	check(AnimBlueprintClass);
-	const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
-	check(AnimNodeProperties.IsValidIndex(InNodeId));
-	FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
-	check(LinkedProperty->Struct);
+	if(AnimBlueprintClass)
+	{
+		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+		check(AnimNodeProperties.IsValidIndex(InNodeId));
+		FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
+		check(LinkedProperty->Struct);
 
 #if WITH_EDITOR
-	FString DisplayNameString = LinkedProperty->Struct->GetDisplayNameText().ToString();
+		DisplayNameString = LinkedProperty->Struct->GetDisplayNameText().ToString();
 #else
-	FString DisplayNameString = LinkedProperty->Struct->GetName();
+		DisplayNameString = LinkedProperty->Struct->GetName();
 #endif
 
-	DisplayNameString.RemoveFromStart(TEXT("Anim Node "));
+		DisplayNameString.RemoveFromStart(TEXT("Anim Node "));
+	}
+	else
+	{
+		DisplayNameString = TEXT("Anim Node");
+	}
+
+	check(InPreviousNodeId != InNodeId);
 
 	UE_TRACE_LOG(Animation, AnimNodeStart, AnimationChannel, (DisplayNameString.Len() + 1) * sizeof(TCHAR))
 		<< AnimNodeStart.StartCycle(InStartCycle)

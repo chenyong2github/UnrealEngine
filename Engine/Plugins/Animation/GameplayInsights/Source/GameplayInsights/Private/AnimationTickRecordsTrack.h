@@ -74,7 +74,7 @@ private:
 
 #if WITH_EDITOR
 	/** The class that output this tick record */
-	UAnimBlueprintGeneratedClass* InstanceClass;
+	TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
 #endif
 
 	/** Colors for line drawing */

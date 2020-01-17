@@ -19,6 +19,8 @@
 #include "EditorViewportClient.h"
 #include "Editor/EditorEngine.h"
 #endif
+#include "SAnimGraphSchematicView.h"
+#include "GameplayInsightsModule.h"
 
 #define LOCTEXT_NAMESPACE "AnimationSharedData"
 
@@ -34,8 +36,21 @@ FAnimationSharedData::FAnimationSharedData(FGameplaySharedData& InGameplayShared
 {
 }
 
+FAnimationSharedData::~FAnimationSharedData()
+{
+	for(TWeakPtr<SDockTab> DocumentTab : OpenDocumentTabs)
+	{
+		if(DocumentTab.IsValid())
+		{
+			DocumentTab.Pin()->RequestCloseTab();
+		}
+	}
+}
+
 void FAnimationSharedData::OnBeginSession(Insights::ITimingViewSession& InTimingViewSession)
 {
+	TimingViewSession = &InTimingViewSession;
+
 	SkeletalMeshPoseTracks.Reset();
 	AnimationTickRecordsTracks.Reset();
 
@@ -48,6 +63,8 @@ void FAnimationSharedData::OnEndSession(Insights::ITimingViewSession& InTimingVi
 	AnimationTickRecordsTracks.Reset();
 
 	InTimingViewSession.OnTimeMarkerChanged().Remove(TimeMarkerChangedHandle);
+
+	TimingViewSession = nullptr;
 }
 
 void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
@@ -438,5 +455,49 @@ void FAnimationSharedData::GetCustomDebugObjects(const IAnimationBlueprintEditor
 }
 
 #endif
+
+/** Search predicate for an open anim graph document */
+struct FSearchForAnimInstanceTab : public FTabManager::FSearchPreference
+{
+	FSearchForAnimInstanceTab(uint64 InAnimInstanceId)
+		: AnimInstanceId(InAnimInstanceId)
+	{
+	}
+
+	virtual TSharedPtr<SDockTab> Search(const FTabManager& Manager, FName PlaceholderId, const TSharedRef<SDockTab>& UnmanagedTab) const override
+	{
+		TSharedRef<SAnimGraphSchematicView> Content = StaticCastSharedRef<SAnimGraphSchematicView>(UnmanagedTab->GetContent());
+		if(Content->GetAnimInstanceId() == AnimInstanceId)
+		{
+			return UnmanagedTab;
+		}
+
+		return TSharedPtr<SDockTab>();
+	}
+
+	uint64 AnimInstanceId;
+};
+
+void FAnimationSharedData::OpenAnimGraphTab(uint64 InAnimInstanceId) const
+{
+	if(TimingViewSession && AnalysisSession)
+	{
+		FGameplayInsightsModule& GameplayInsightsModule = FModuleManager::GetModuleChecked<FGameplayInsightsModule>("GameplayInsights");
+		TSharedRef<SDockTab> Tab = GameplayInsightsModule.SpawnTimingProfilerDocumentTab(FSearchForAnimInstanceTab(InAnimInstanceId));
+
+		Tab->SetContent(SNew(SAnimGraphSchematicView, InAnimInstanceId, *TimingViewSession, *AnalysisSession));
+
+		const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+		if(GameplayProvider)
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InAnimInstanceId);
+			Tab->SetLabel(FText::FromString(ObjectInfo.Name));
+		}
+
+		OpenDocumentTabs.Add(Tab);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

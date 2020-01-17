@@ -38,6 +38,7 @@ const FName NAME_AnimGraph(TEXT("AnimGraph"));
 void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
 	TRACE_SCOPED_ANIM_GRAPH(InContext);
+	TRACE_SCOPED_ANIM_NODE(InContext);
 
 	UpdateAnimationNode_WithRoot(InContext, RootNode, NAME_AnimGraph);
 }

@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 				"TraceServices",
 				"TraceInsights",
 				"AssetRegistry",
+				"ApplicationCore",
 			});
 
 			if (Target.bCompileAgainstEngine)

@@ -24,9 +24,14 @@ void FAnimNode_UseCachedPose::CacheBones_AnyThread(const FAnimationCacheBonesCon
 
 void FAnimNode_UseCachedPose::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	LinkToCachingNode.Update(Context);
+	{
+		// This makes sure we dont see a 'save cached pose' entry in the debug data.
+		// This will be handled later on when the cached pose branch gets taken.
+		TRACE_SCOPED_ANIM_NODE_SUSPEND;	
+		LinkToCachingNode.Update(Context);
+	}
 
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Pose Name"), CachePoseName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), CachePoseName);
 }
 
 void FAnimNode_UseCachedPose::Evaluate_AnyThread(FPoseContext& Output)

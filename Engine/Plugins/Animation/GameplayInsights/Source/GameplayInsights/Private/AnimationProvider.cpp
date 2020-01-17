@@ -259,6 +259,49 @@ const TCHAR* FAnimationProvider::GetName(uint32 InId) const
 	return *UnknownText.ToString();
 }
 
+FText FAnimationProvider::FormatNodeKeyValue(const FAnimNodeValueMessage& InMessage) const
+{
+	return FText::Format(LOCTEXT("KeyValueFormat", "{0} = {1}"), FText::FromString(InMessage.Key), FormatNodeValue(InMessage));
+}
+
+FText FAnimationProvider::FormatNodeValue(const FAnimNodeValueMessage& InMessage) const
+{
+	FText Text;
+
+	switch(InMessage.Type)
+	{
+	case EAnimNodeValueType::Bool:
+		Text = InMessage.Bool.bValue ? LOCTEXT("True", "true") : LOCTEXT("False", "false");
+		break;
+	case EAnimNodeValueType::Int32:
+		Text =  FText::AsNumber(InMessage.Int32.Value);
+		break;
+	case EAnimNodeValueType::Float:
+		Text = FText::AsNumber(InMessage.Float.Value);
+		break;
+	case EAnimNodeValueType::Vector:
+		Text = FText::Format(LOCTEXT("VectorFormat", "({0}, {1}, {2})"), FText::AsNumber(InMessage.Vector.Value.X), FText::AsNumber(InMessage.Vector.Value.Y), FText::AsNumber(InMessage.Vector.Value.Z));
+		break;
+	case EAnimNodeValueType::String:
+		Text = FText::FromString(InMessage.String.Value);
+		break;
+	case EAnimNodeValueType::Object:
+	{
+		const FObjectInfo& ObjectInfo = GameplayProvider.GetObjectInfo(InMessage.Object.Value);
+		Text = FText::FromString(ObjectInfo.PathName);
+		break;
+	}
+	case EAnimNodeValueType::Class:
+	{
+		const FClassInfo& ClassInfo = GameplayProvider.GetClassInfo(InMessage.Class.Value);
+		Text = FText::FromString(ClassInfo.PathName);
+		break;
+	}
+	}
+
+	return Text;
+}
+
 void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, int32 InNodeId, float InBlendWeight, float InPlaybackTime, float InRootMotionWeight, float InPlayRate, float InBlendSpacePositionX, float InBlendSpacePositionY, uint16 InFrameCounter, bool bInLooping, bool bInIsBlendSpace)
 {
 	Session.WriteAccessCheck();

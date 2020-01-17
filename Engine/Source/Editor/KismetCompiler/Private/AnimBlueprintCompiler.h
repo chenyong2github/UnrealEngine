@@ -329,6 +329,9 @@ private:
 	// Compiles one root node
 	void ProcessRoot(UAnimGraphNode_Root* Root);
 
+	// Compiles one state result node
+	void ProcessStateResult(UAnimGraphNode_StateResult* StateResult);
+
 	// Traverses linked anim graph links looking for slot names and state machine names, returning their count in a name map
 	typedef TMap<FName, int32> NameToCountMap;
 	void GetDuplicatedSlotAndStateNames(UAnimGraphNode_LinkedAnimGraphBase* InLinkedAnimGraph, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap);

@@ -46,8 +46,8 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 	}
 
 #if ANIM_TRACE_ENABLED
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Slot Name"), SlotName);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Weight"), WeightData.SlotNodeWeight);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), SlotName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Slot Weight"), WeightData.SlotNodeWeight);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Pose Source"), (WeightData.SourceWeight <= ZERO_ANIMWEIGHT_THRESH));
 
 	Context.AnimInstanceProxy->TraceMontageEvaluationData(Context, SlotName);

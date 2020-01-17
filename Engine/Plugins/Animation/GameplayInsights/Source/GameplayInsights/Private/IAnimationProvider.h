@@ -204,4 +204,6 @@ public:
 	virtual bool ReadStateMachinesTimeline(uint64 InObjectId, TFunctionRef<void(const StateMachinesTimeline&)> Callback) const = 0;
 	virtual const FSkeletalMeshInfo* FindSkeletalMeshInfo(uint64 InObjectId) const = 0;
 	virtual const TCHAR* GetName(uint32 InId) const = 0;
+	virtual FText FormatNodeKeyValue(const FAnimNodeValueMessage& InMessage) const = 0;
+	virtual FText FormatNodeValue(const FAnimNodeValueMessage& InMessage) const = 0;
 };

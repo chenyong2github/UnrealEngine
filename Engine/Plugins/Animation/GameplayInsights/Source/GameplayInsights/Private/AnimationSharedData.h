@@ -22,6 +22,8 @@ class FAnimationSharedData
 public:
 	FAnimationSharedData(FGameplaySharedData& InGameplaySharedData);
 
+	~FAnimationSharedData();
+
 	void OnBeginSession(Insights::ITimingViewSession& InTimingViewSession);
 	void OnEndSession(Insights::ITimingViewSession& InTimingViewSession);
 	void Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
@@ -63,6 +65,9 @@ public:
 	// Find an anim nodes track with the specified anim instance ID
 	TSharedPtr<FAnimNodesTrack> FindAnimNodesTrack(uint64 InAnimInstanceId) const;
 
+	/** Open an anim graph tab to see its schematic view */
+	void OpenAnimGraphTab(uint64 InAnimInstanceId) const;
+
 private:
 	// UI handlers
 	void ToggleAnimationTracks();
@@ -79,6 +84,9 @@ private:
 	// Cached analysis session, set in Tick()
 	const Trace::IAnalysisSession* AnalysisSession;
 
+	// Cached timing view session, set in OnBeginSession/OnEndSession
+	Insights::ITimingViewSession* TimingViewSession;
+
 	// All the tracks we manage
 	TArray<TSharedRef<FSkeletalMeshPoseTrack>> SkeletalMeshPoseTracks;
 	TArray<TSharedRef<FSkeletalMeshCurvesTrack>> SkeletalMeshCurvesTracks;
@@ -90,6 +98,9 @@ private:
 
 	/** Various times and ranges */
 	double MarkerTime;
+
+	/** The open document tabs we reference */
+	mutable TArray<TWeakPtr<SDockTab>> OpenDocumentTabs;
 
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;

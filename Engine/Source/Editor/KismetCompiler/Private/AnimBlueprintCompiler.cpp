@@ -556,6 +556,11 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 		// Process root nodes
 		ProcessRoot(RootNode);
 	}
+	else if(UAnimGraphNode_StateResult* StateResultNode = Cast<UAnimGraphNode_StateResult>(VisualAnimNode))
+	{
+		// Process state result nodes
+		ProcessStateResult(StateResultNode);
+	}
 	else if (UAnimGraphNode_AssetPlayerBase* AssetPlayerBase = Cast<UAnimGraphNode_AssetPlayerBase>(VisualAnimNode))
 	{			
 		// Process Asset Player nodes to, if necessary cache off their node index for retrieval at runtime (used for evaluating Automatic Rule Transitions when using Layer nodes)
@@ -746,6 +751,13 @@ void FAnimBlueprintCompilerContext::ProcessRoot(UAnimGraphNode_Root* Root)
 	UAnimGraphNode_Root* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Root>(Root);
 
 	Root->Node.Name = TrueNode->GetGraph()->GetFName();
+}
+
+void FAnimBlueprintCompilerContext::ProcessStateResult(UAnimGraphNode_StateResult* StateResult)
+{
+	UAnimGraphNode_StateResult* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_StateResult>(StateResult);
+
+	StateResult->Node.Name = TrueNode->GetGraph()->GetFName();
 }
 
 void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCachedPose* UseCachedPose)

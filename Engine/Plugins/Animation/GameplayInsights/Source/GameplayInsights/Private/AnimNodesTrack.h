@@ -19,6 +19,9 @@ class USkeletalMeshComponent;
 class UAnimInstance;
 
 class FAnimNodesTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+#if WITH_ENGINE
+	, public FGCObject
+#endif
 {
 public:
 	static const FName TypeName;
@@ -40,6 +43,12 @@ public:
 	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
 #endif
 
+#if WITH_ENGINE
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("InsightsAnimNodesTrack"); }
+#endif
+
 private:
 	// Helper function used to find an anim graph message
 	void FindAnimGraphMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FAnimGraphMessage&)> InFoundPredicate) const;
@@ -54,7 +63,7 @@ private:
 
 #if WITH_EDITOR
 	/** Instance class, if any, used for instantiating debug info */
-	TWeakObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
+	TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
 
 	/** Data used for anim BP debugging */
 	UAnimInstance* AnimInstance;

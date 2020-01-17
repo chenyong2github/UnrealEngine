@@ -261,6 +261,11 @@ public:
 		FAnimationUpdateContext Result(*this);
 		Result.SharedContext = InSharedContext;
 
+#if ANIM_TRACE_ENABLED
+		// This is currently only used in the case of cached poses, where we dont want to preserve the previous node, so clear it here
+		Result.PreviousNodeId = INDEX_NONE;
+#endif
+
 		return Result;
 	}
 

@@ -72,6 +72,13 @@ struct FAnimTrace
 		EPhase Phase;
 	};
 
+	/** Helper for suspending anim node tracing */
+	struct FScopedAnimNodeTraceSuspend
+	{
+		FScopedAnimNodeTraceSuspend();
+		~FScopedAnimNodeTraceSuspend();
+	};
+
 	/** Describes a debug line output to the world */
 	struct FDebugLine
 	{
@@ -156,6 +163,9 @@ struct FAnimTrace
 #define TRACE_SCOPED_ANIM_NODE(Context) \
 	FAnimTrace::FScopedAnimNodeTrace _ScopedAnimNodeTrace(Context);
 
+#define TRACE_SCOPED_ANIM_NODE_SUSPEND \
+	FAnimTrace::FScopedAnimNodeTraceSuspend _ScopedAnimNodeTraceSuspend;
+
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value) \
 	FAnimTrace::OutputAnimNodeValue(Context, Key, Value);
 
@@ -173,6 +183,7 @@ struct FAnimTrace
 #define TRACE_SKELETALMESH_FRAME(Component)
 #define TRACE_SCOPED_ANIM_GRAPH(Context)
 #define TRACE_SCOPED_ANIM_NODE(Context)
+#define TRACE_SCOPED_ANIM_NODE_SUSPEND
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node)
 #define TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime)

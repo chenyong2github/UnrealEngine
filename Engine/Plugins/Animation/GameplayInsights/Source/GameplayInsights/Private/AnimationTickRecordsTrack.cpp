@@ -78,7 +78,7 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 			const FClassInfo* AnimInstanceClassInfo = GameplayProvider->FindClassInfo(AnimInstanceInfo->ClassId);
 			if(AnimInstanceClassInfo)
 			{
-				InstanceClass = FindObject<UAnimBlueprintGeneratedClass>(ANY_PACKAGE, AnimInstanceClassInfo->PathName);
+				InstanceClass = FSoftObjectPath(AnimInstanceClassInfo->PathName);
 			}
 		}
 	}
@@ -367,16 +367,16 @@ void FAnimationTickRecordsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
-					if(InstanceClass)
+					if(InstanceClass.LoadSynchronous())
 					{
-						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
+						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
 						{
 							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
 
 							if(IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
 							{
-								int32 AnimNodeIndex = InstanceClass->AnimNodeProperties.Num() - NodeId - 1;
-								TWeakObjectPtr<const UEdGraphNode> GraphNode = InstanceClass->AnimBlueprintDebugData.NodePropertyIndexToNodeMap[AnimNodeIndex];
+								int32 AnimNodeIndex = InstanceClass.Get()->AnimNodeProperties.Num() - NodeId - 1;
+								TWeakObjectPtr<const UEdGraphNode> GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap[AnimNodeIndex];
 								if(GraphNode.Get())
 								{
 									AnimBlueprintEditor->JumpToHyperlink(GraphNode.Get());

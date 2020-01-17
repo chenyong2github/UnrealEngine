@@ -467,10 +467,13 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 
 	if (LinkedNode != NULL)
 	{
+		{
 #if ANIM_TRACE_ENABLED
-		Output.SetNodeId(LinkID);
+			Output.SetNodeId(LinkID);
+			TRACE_SCOPED_ANIM_NODE(Output);
 #endif
-		LinkedNode->EvaluateComponentSpace_AnyThread(Output);
+			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
+		}
 
 #if WITH_EDITOR
 		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, LinkID);
