@@ -1205,6 +1205,7 @@ public partial class Project : CommandUtils
 			case "input.ini":
 			case "scalability.ini":
 			case "runtimeoptions.ini":
+			case "installbundle.ini":
 				return true;
 			case "crypto.ini":
 			case "editor.ini":

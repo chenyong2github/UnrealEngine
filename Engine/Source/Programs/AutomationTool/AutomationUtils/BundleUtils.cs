@@ -28,27 +28,40 @@ namespace AutomationUtils.Automation
 			public List<string> FileRegex { get; set; }
 			public bool bFoundParent { get; set; }
 			public bool bContainsShaderLibrary { get; set; }
-			public int Priority { get; set; }
+			public int Order { get; set; }
 			public string ExecFileName { get; set; }
 		};
-		public static bool LoadBundleConfig(string BundleIniFile, ref Dictionary<string, BundleSettings> Bundles)
+		public static bool LoadBundleConfig(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, out List<BundleSettings> Bundles)
 		{
-			if ( System.IO.File.Exists(BundleIniFile) == false )
+			Bundles = new List<BundleSettings>();
+
+			ConfigHierarchy BundleConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.InstallBundle, ProjectDir, Platform);
+			if (BundleConfig == null)
 			{
-				CommandUtils.LogWarning("Unable to find bundle config ini file  {0}", BundleIniFile);
+				CommandUtils.LogWarning("Unable to find bundle config ini file {0}", ConfigHierarchyType.InstallBundle.ToString());
 				return false;
 			}
 
-			FileReference BundleFileReference = new FileReference(BundleIniFile);
+			const string BundleDefinitionPrefix = "InstallBundleDefinition ";
 
-			ConfigHierarchy BundleConfig = new ConfigHierarchy(new ConfigFile[] { new ConfigFile(BundleFileReference) });
-			int PriorityCounter = 0;
 			foreach (string SectionName in BundleConfig.SectionNames)
 			{
+				if (!SectionName.StartsWith(BundleDefinitionPrefix))
+					continue;
+
 				BundleSettings Bundle = new BundleSettings();
-				Bundle.Name = SectionName;
-				Bundle.Priority = PriorityCounter;
-				++PriorityCounter;
+				Bundle.Name = SectionName.Substring(BundleDefinitionPrefix.Length);
+				{
+					int Order;
+					if(BundleConfig.GetInt32(SectionName, "Order", out Order))
+					{
+						Bundle.Order = Order;
+					}
+					else
+					{
+						Bundle.Order = int.MaxValue;
+					}
+				}
 				{
 					string ExecFileName;
 					BundleConfig.GetString(SectionName, "ExecFileName", out ExecFileName);
@@ -74,8 +87,11 @@ namespace AutomationUtils.Automation
 					Bundle.Tags = new List<string>();
 				}
 
-				Bundles.Add(SectionName, Bundle);
+				Bundles.Add(Bundle);
 			}
+
+			// Use OrderBy and not Sort because OrderBy is stable
+			Bundles = Bundles.OrderBy(Bundle => Bundle.Order).ToList();
 
 			return true;
 		}

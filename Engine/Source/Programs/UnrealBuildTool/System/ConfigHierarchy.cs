@@ -44,6 +44,11 @@ namespace UnrealBuildTool
 		/// BaseEditorSettings.ini, DefaultEditorSettings.ini, etc...
 		/// </summary>
 		EditorSettings,
+
+		/// <summary>
+		/// BaseInstallBundle.ini, DefaultInstallBundle.ini, etc...
+		/// </summary>
+		InstallBundle,
 	}
 
 	/// <summary>

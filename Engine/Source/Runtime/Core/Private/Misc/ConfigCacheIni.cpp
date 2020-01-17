@@ -2591,8 +2591,7 @@ bool FConfigCacheIni::GetSectionNames( const FString& Filename, TArray<FString>&
 		out_SectionNames.Empty(Num());
 		for ( FConfigFile::TIterator It(*File); It; ++It )
 		{
-			// insert each item at the beginning of the array because TIterators return results in reverse order from which they were added
-			out_SectionNames.Insert(It.Key(),0);
+			out_SectionNames.Add(It.Key());
 
 			FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, *It.Key());
 		}
@@ -3822,6 +3821,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GHardwareIni, TEXT("Hardware"));	
 	// Load runtime options
 	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
+	// Load install bundle config
+	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
 	
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
 #if PLATFORM_PS4
