@@ -297,11 +297,6 @@ namespace Chaos
 			{
 				return Idx;
 			}
-
-			FUniqueIdx UniqueIdx() const
-			{
-				return FUniqueIdx(Index);
-			}
 		};
 
 		BVHType BVH;

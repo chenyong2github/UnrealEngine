@@ -49,7 +49,6 @@ namespace Chaos
 		using Base::ParticleUpdatePosition;
 		using Base::SetParticleUpdatePositionFunction;
 		using Base::SetParticleUpdateVelocityFunction;
-		using Base::GenerateUniqueIdx;
 		using typename Base::FForceRule;
 		using FGravityForces = TPerParticleGravity<T, d>;
 		using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
