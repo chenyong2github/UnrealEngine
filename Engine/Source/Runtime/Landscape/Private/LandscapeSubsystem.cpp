@@ -3,6 +3,7 @@
 #include "LandscapeSubsystem.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/World.h"
 #include "LandscapeInfoMap.h"
 #include "LandscapeInfo.h"
 
