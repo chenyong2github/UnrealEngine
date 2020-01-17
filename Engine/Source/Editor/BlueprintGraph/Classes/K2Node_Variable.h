@@ -30,7 +30,7 @@ class BLUEPRINTGRAPH_API UK2Node_Variable : public UK2Node
 	GENERATED_UCLASS_BODY()
 
 	/** Reference to variable we want to set/get */
-	UPROPERTY(meta=(BlueprintSearchable="true", BlueprintSearchableHiddenExplicit="true"))
+	UPROPERTY(meta=(BlueprintSearchable="true", BlueprintSearchableHiddenExplicit="true", BlueprintSearchableFormatVersion="FIB_VER_VARIABLE_REFERENCE"))
 	FMemberReference	VariableReference;
 
 	UPROPERTY()
