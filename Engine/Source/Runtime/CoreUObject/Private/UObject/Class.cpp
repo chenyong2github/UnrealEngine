@@ -1573,6 +1573,15 @@ inline void DestroyPropertyLinkedList(FField*& PropertiesToDestroy)
 	PropertiesToDestroy = nullptr;
 }
 
+void UStruct::DestroyChildPropertiesAndResetPropertyLinks()
+{
+	DestroyPropertyLinkedList(ChildProperties);
+	PropertyLink = nullptr;
+	RefLink = nullptr;
+	DestructorLink = nullptr;
+	PostConstructLink = nullptr;
+}
+
 UStruct::~UStruct()
 {
 	// Destroy all properties owned by this struct
