@@ -231,16 +231,20 @@ inline void FVulkanDynamicRHI::UpdateUniformBuffer(FVulkanUniformBuffer* Uniform
 		Region.srcOffset = LockInfo.GetBindOffset();
 		Region.dstOffset = VulkanUniformBuffer->GetOffset();
 		VkBuffer UBBuffer = VulkanUniformBuffer->GetBufferAllocation()->GetHandle();
-		if(Context.bUniformBufferUploadRenderPassDirty)
+
+		bool bIsInRenderPass = CmdBuffer->IsInsideRenderPass();
+		bool bIsUniformBarrierAdded = CmdBuffer->IsUniformBufferBarrierAdded();
+		if(bIsInRenderPass || !bIsUniformBarrierAdded)
 		{
-			Context.bUniformBufferUploadRenderPassDirty = false;
-			VkMemoryBarrier Barrier;
-			ZeroVulkanStruct(Barrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER);
-			Barrier.srcAccessMask = VK_ACCESS_UNIFORM_READ_BIT; 
-			Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &Barrier, 0, nullptr, 0, nullptr);
+			CmdBuffer->BeginUniformUpdateBarrier();
 		}
+
 		VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), LockInfo.GetHandle(), UBBuffer, 1, &Region);
+
+		if(bIsInRenderPass) //when updating outside render passes, the EndUniformUpdateBarrier will be called from EndRenderPass
+		{
+			CmdBuffer->EndUniformUpdateBarrier();
+		}
 	};
 
 	bool bRHIBypass = RHICmdList.Bypass();
