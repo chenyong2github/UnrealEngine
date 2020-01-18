@@ -9,6 +9,14 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldShadowingShared.ush"
 
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
+#define MAX_TRACE_SPHERE_RADIUS 100
+#define SELF_SHADOW_VERTICAL_BIAS 0
+#else
+#define MAX_TRACE_SPHERE_RADIUS 500
+#define SELF_SHADOW_VERTICAL_BIAS 100
+#endif
+
 uint ObjectBoundingGeometryIndexCount;
 
 void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
@@ -18,6 +26,7 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 #else
 	float4 BoxOriginAndSphereRadius = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE);
 	float4 BoxExtent = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE + 1);
+	BoxExtent.z += MAX_TRACE_SPHERE_RADIUS;
 
 	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE] = BoxOriginAndSphereRadius;
 	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE + 1] = BoxExtent;
@@ -613,12 +622,12 @@ void DistanceFieldShadowingCS(
 		// Keeps result from going all the way sharp
 		float MinSphereRadius = .4f;
 		// Maintain reasonable culling bounds
-		float MaxSphereRadius = 100;
+		float MaxSphereRadius = MAX_TRACE_SPHERE_RADIUS;
 
 		// Reduce shadowing when we are close the ray origin (only used for heightfield)
 		float SelfShadowFadeDistance = 100;
 		// Mitigate self-shadow caused by discontinuity on heightfield borders (only used for heightfield)
-		float SelfShadowVerticalBias = 100;
+		float SelfShadowVerticalBias = SELF_SHADOW_VERTICAL_BIAS;
 
 #if HAS_PREVIOUS_OUTPUT
 	#if PLATFORM_SUPPORTS_TYPED_UAV_LOAD
@@ -628,13 +637,8 @@ void DistanceFieldShadowingCS(
 		float PrevResult = Texture2DSampleLevel(ShadowFactorsTexture, ShadowFactorsSampler, PrevResultUV, 0).x;
 	#endif
 #endif
-		bool bIsHeightField = DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField;
 
-		if (bIsHeightField)
-		{
-			MaxSphereRadius = 1000;
-			OpaqueWorldPosition.z += SelfShadowVerticalBias;
-		}
+		OpaqueWorldPosition.z += SelfShadowVerticalBias;
 
 		// World space offset along the start of the ray to avoid incorrect self-shadowing
 		float RayStartOffset = 2 + RayStartOffsetDepthScale * SceneDepth;
@@ -670,6 +674,8 @@ void DistanceFieldShadowingCS(
 		#else
 			bool bUseCulling = false;
 		#endif
+
+		bool bIsHeightField = DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField;
 
 		if (bIsHeightField)
 		{

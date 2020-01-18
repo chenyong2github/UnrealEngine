@@ -299,7 +299,7 @@ float4x4 LoadHeightFieldObjectWorldToLocalFromBuffer(uint ObjectIndex, Structure
 	return transpose(float4x4(M0, M1, M2, float4(0, 0, 0, 1)));
 }
 
-float4 LoadHeightFieldObjectRectFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
+float4 LoadHeightFieldObjectSizeScaleFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
 {
 	return InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 3];
 }
@@ -384,9 +384,9 @@ float4 LoadHeightFieldObjectAtlasUVScaleBias(uint ObjectIndex)
 	return LoadHeightFieldObjectAtlasUVScaleBiasFromBuffer(ObjectIndex, CulledObjectData);
 }
 
-float4 LoadHeightFieldObjectRect(uint ObjectIndex)
+float4 LoadHeightFieldObjectSizeScale(uint ObjectIndex)
 {
-	return LoadHeightFieldObjectRectFromBuffer(ObjectIndex, CulledObjectData);
+	return LoadHeightFieldObjectSizeScaleFromBuffer(ObjectIndex, CulledObjectData);
 }
 
 // x = Offset in global buffer, y = NumLOD0, z = NumSurfels (all LODs), W = instance index

@@ -133,14 +133,21 @@ static int32 GHeightFieldAtlasTileSize = 64;
 static FAutoConsoleVariableRef CVarHeightFieldAtlasTileSize(
 	TEXT("r.HeightFields.AtlasTileSize"),
 	GHeightFieldAtlasTileSize,
-	TEXT(""),
+	TEXT("Suballocation granularity"),
 	ECVF_RenderThreadSafe);
 
 static int32 GHeightFieldAtlasDimInTiles = 16;
 static FAutoConsoleVariableRef CVarHeightFieldAtlasDimInTiles(
 	TEXT("r.HeightFields.AtlasDimInTiles"),
 	GHeightFieldAtlasDimInTiles,
-	TEXT(""),
+	TEXT("Number of tiles the atlas has in one dimension"),
+	ECVF_RenderThreadSafe);
+
+static int32 GHeightFieldAtlasDownSampleLevel = 2;
+static FAutoConsoleVariableRef CVarHeightFieldAtlasDownSampleLevel(
+	TEXT("r.HeightFields.AtlasDownSampleLevel"),
+	GHeightFieldAtlasDownSampleLevel,
+	TEXT("Max number of times a suballocation can be down-sampled"),
 	ECVF_RenderThreadSafe);
 
 TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas = TGlobalResource<FDistanceFieldVolumeTextureAtlas>();
@@ -1216,12 +1223,21 @@ void FHeightFieldTextureAtlas::InitializeIfNeeded()
 {
 	const uint32 LocalTileSize = (uint32)GHeightFieldAtlasTileSize;
 	const uint32 LocalDimInTiles = (uint32)GHeightFieldAtlasDimInTiles;
+	const uint32 LocalDownSampleLevel = (uint32)GHeightFieldAtlasDownSampleLevel;
 
 	if (!AtlasTextureRHI
-		|| TileAllocator.TileSize != LocalTileSize
-		|| TileAllocator.DimInTiles != LocalDimInTiles)
+		|| AddrSpaceAllocator.TileSize != LocalTileSize
+		|| AddrSpaceAllocator.DimInTiles != LocalDimInTiles
+		|| MaxDownSampleLevel != LocalDownSampleLevel)
 	{
-		TileAllocator.Init(LocalTileSize, 1, LocalDimInTiles);
+		AddrSpaceAllocator.Init(LocalTileSize, 1, LocalDimInTiles);
+
+		for (int32 Idx = 0; Idx < PendingStreamingTextures.Num(); ++Idx)
+		{
+			UTexture2D* Texture = PendingStreamingTextures[Idx];
+			Texture->bForceMiplevelsToBeResident = false;
+		}
+		PendingStreamingTextures.Empty();
 
 		for (TSet<FAllocation>::TConstIterator It(CurrentAllocations); It; ++It)
 		{
@@ -1231,19 +1247,20 @@ void FHeightFieldTextureAtlas::InitializeIfNeeded()
 
 		CurrentAllocations.Reset();
 
-		const uint32 SizeX = TileAllocator.DimInTexels;
-		const uint32 SizeY = TileAllocator.DimInTexels;
+		const uint32 SizeX = AddrSpaceAllocator.DimInTexels;
+		const uint32 SizeY = AddrSpaceAllocator.DimInTexels;
 		const uint32 Flags = TexCreate_ShaderResource | TexCreate_UAV;
 		FRHIResourceCreateInfo CreateInfo(TEXT("HeightFieldAtlas"));
 
 		AtlasTextureRHI = RHICreateTexture2D(SizeX, SizeY, PF_R8G8, 1, 1, Flags, CreateInfo);
 		AtlasUAVRHI = RHICreateUnorderedAccessView(AtlasTextureRHI, 0);
 
+		MaxDownSampleLevel = LocalDownSampleLevel;
 		++Generation;
 	}
 }
 
-void FHeightFieldTextureAtlas::AddAllocation(const UTexture2D* Texture)
+void FHeightFieldTextureAtlas::AddAllocation(UTexture2D* Texture)
 {
 	check(Texture);
 
@@ -1272,7 +1289,7 @@ void FHeightFieldTextureAtlas::AddAllocation(const UTexture2D* Texture)
 	}
 }
 
-void FHeightFieldTextureAtlas::RemoveAllocation(const UTexture2D* Texture)
+void FHeightFieldTextureAtlas::RemoveAllocation(UTexture2D* Texture)
 {
 	FSetElementId Id = PendingAllocations.FindId(Texture);
 	if (Id.IsValidId())
@@ -1280,6 +1297,7 @@ void FHeightFieldTextureAtlas::RemoveAllocation(const UTexture2D* Texture)
 		check(PendingAllocations[Id].RefCount);
 		if (!--PendingAllocations[Id].RefCount)
 		{
+			check(!PendingStreamingTextures.Contains(Texture));
 			PendingAllocations.Remove(Id);
 		}
 		return;
@@ -1291,6 +1309,7 @@ void FHeightFieldTextureAtlas::RemoveAllocation(const UTexture2D* Texture)
 		check(FailedAllocations[Id].RefCount);
 		if (!--FailedAllocations[Id].RefCount)
 		{
+			check(!PendingStreamingTextures.Contains(Texture));
 			FailedAllocations.Remove(Id);
 		}
 		return;
@@ -1300,10 +1319,11 @@ void FHeightFieldTextureAtlas::RemoveAllocation(const UTexture2D* Texture)
 	if (Id.IsValidId())
 	{
 		FAllocation& Allocation = CurrentAllocations[Id];
-		check(Allocation.RefCount && Allocation.TileIdx != INDEX_NONE);
+		check(Allocation.RefCount && Allocation.Handle != INDEX_NONE);
 		if (!--Allocation.RefCount)
 		{
-			TileAllocator.FreeTile(Allocation.TileIdx);
+			AddrSpaceAllocator.Free(Allocation.Handle);
+			PendingStreamingTextures.Remove(Texture);
 			CurrentAllocations.Remove(Id);
 		}
 	}
@@ -1343,100 +1363,186 @@ class FUploadHeightFieldToAtlasCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FUploadHeightFieldToAtlasCS, "/Engine/Private/HeightFieldAtlasManagement.usf", "UploadHeightFieldToAtlasCS", SF_Compute);
 
+uint32 FHeightFieldTextureAtlas::CalculateDownSampleLevel(uint32 SizeX, uint32 SizeY) const
+{
+	const uint32 TileSize = AddrSpaceAllocator.TileSize;
+
+	for (uint32 CurLevel = 0; CurLevel <= MaxDownSampleLevel; ++CurLevel)
+	{
+		const uint32 DownSampledSizeX = SizeX >> CurLevel;
+		const uint32 DownSampledSizeY = SizeY >> CurLevel;
+
+		if (DownSampledSizeX <= TileSize && DownSampledSizeY <= TileSize)
+		{
+			return CurLevel;
+		}
+	}
+
+	return MaxDownSampleLevel;
+}
+
 void FHeightFieldTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	InitializeIfNeeded();
 
-	TArray<uint32, TInlineAllocator<8>> UploadTileIndices;
+	TArray<uint32, TInlineAllocator<8>> UploadHandles;
+	TArray<FIntVector, TInlineAllocator<8>> UploadSizesAndMipBias;
 	TArray<FRHITexture*, TInlineAllocator<8>> UploadSourceTextures;
+
+	auto AllocSortPred = [](const FAllocation& A, const FAllocation& B)
+	{
+		const int32 SizeA = FMath::Max(A.SourceTexture->GetSizeX(), A.SourceTexture->GetSizeY());
+		const int32 SizeB = FMath::Max(B.SourceTexture->GetSizeX(), B.SourceTexture->GetSizeY());
+		return SizeA < SizeB;
+	};
+
+	for (int32 Idx = 0; Idx < PendingStreamingTextures.Num(); ++Idx)
+	{
+		UTexture2D* SourceTexture = PendingStreamingTextures[Idx];
+		const uint32 SizeX = SourceTexture->GetSizeX();
+		const uint32 SizeY = SourceTexture->GetSizeY();
+		const uint32 DownSampleLevel = CalculateDownSampleLevel(SizeX, SizeY);
+		const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+
+		if (NumMissingMips <= DownSampleLevel)
+		{
+			SourceTexture->bForceMiplevelsToBeResident = false;
+			const uint32 SourceMipBias = DownSampleLevel - NumMissingMips;
+			const FAllocation* Allocation = CurrentAllocations.Find(SourceTexture);
+			check(Allocation && Allocation->Handle != INDEX_NONE);
+			UploadHandles.Add(Allocation->Handle);
+			UploadSizesAndMipBias.Add(FIntVector(SizeX >> DownSampleLevel, SizeY >> DownSampleLevel, SourceMipBias));
+			UploadSourceTextures.Add(SourceTexture->Resource->TextureRHI);
+			PendingStreamingTextures.RemoveAtSwap(Idx--);
+		}
+	}
 
 	if (PendingAllocations.Num())
 	{
+		PendingAllocations.Sort(AllocSortPred);
 		bool bAllocFailed = false;
 
 		for (TSet<FAllocation>::TConstIterator It(PendingAllocations); It; ++It)
 		{
+			FAllocation TmpAllocation = *It;
+
 			if (!bAllocFailed)
 			{
-				const uint32 TileIdx = TileAllocator.AllocTile();
-				bAllocFailed = TileIdx == INDEX_NONE;
-				if (!bAllocFailed)
+				UTexture2D* SourceTexture = TmpAllocation.SourceTexture;
+				const uint32 SizeX = SourceTexture->GetSizeX();
+				const uint32 SizeY = SourceTexture->GetSizeY();
+				const uint32 DownSampleLevel = CalculateDownSampleLevel(SizeX, SizeY);
+				const uint32 DownSampledSizeX = SizeX >> DownSampleLevel;
+				const uint32 DownSampledSizeY = SizeY >> DownSampleLevel;
+				const uint32 Handle = AddrSpaceAllocator.Alloc(DownSampledSizeX, DownSampledSizeY);
+
+				if (Handle == INDEX_NONE)
 				{
-					FAllocation TmpAllocation = *It;
-					TmpAllocation.TileIdx = TileIdx;
-					CurrentAllocations.Add(TmpAllocation);
-					UploadTileIndices.Add(TileIdx);
-					UploadSourceTextures.Add(TmpAllocation.SourceTexture->Resource->TextureRHI);
+					FailedAllocations.Add(TmpAllocation);
+					bAllocFailed = true;
+					continue;
 				}
+
+				const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+				const uint32 SourceMipBias = NumMissingMips > DownSampleLevel ? 0 : DownSampleLevel - NumMissingMips;
+
+				if (NumMissingMips > DownSampleLevel)
+				{
+					SourceTexture->bForceMiplevelsToBeResident = true;
+					check(!PendingStreamingTextures.Contains(SourceTexture));
+					PendingStreamingTextures.Add(SourceTexture);
+				}
+
+				TmpAllocation.Handle = Handle;
+				CurrentAllocations.Add(TmpAllocation);
+				UploadHandles.Add(Handle);
+				UploadSizesAndMipBias.Add(FIntVector(DownSampledSizeX, DownSampledSizeY, SourceMipBias));
+				UploadSourceTextures.Add(SourceTexture->Resource->TextureRHI);
 			}
 			else
 			{
-				FailedAllocations.Add(*It);
+				FailedAllocations.Add(TmpAllocation);
 			}
 		}
 
+		if (bAllocFailed)
+		{
+			FailedAllocations.Sort(AllocSortPred);
+		}
 		PendingAllocations.Empty();
 	}
 
-	if (FailedAllocations.Num() && TileAllocator.CanAlloc())
+	if (FailedAllocations.Num())
 	{
 		for (TSet<FAllocation>::TIterator It(FailedAllocations); It; ++It)
 		{
-			const uint32 TileIdx = TileAllocator.AllocTile();
-			if (TileIdx != INDEX_NONE)
-			{
-				FAllocation TmpAllocation = *It;
-				TmpAllocation.TileIdx = TileIdx;
-				CurrentAllocations.Add(TmpAllocation);
-				UploadTileIndices.Add(TileIdx);
-				UploadSourceTextures.Add(TmpAllocation.SourceTexture->Resource->TextureRHI);
-				It.RemoveCurrent();
-			}
-			else
+			FAllocation TmpAllocation = *It;
+			UTexture2D* SourceTexture = TmpAllocation.SourceTexture;
+			const uint32 SizeX = SourceTexture->GetSizeX();
+			const uint32 SizeY = SourceTexture->GetSizeY();
+			const uint32 DownSampleLevel = CalculateDownSampleLevel(SizeX, SizeY);
+			const uint32 DownSampledSizeX = SizeX >> DownSampleLevel;
+			const uint32 DownSampledSizeY = SizeY >> DownSampleLevel;
+			const uint32 Handle = AddrSpaceAllocator.Alloc(DownSampledSizeX, DownSampledSizeY);
+
+			if (Handle == INDEX_NONE)
 			{
 				break;
 			}
+
+			const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+			const uint32 SourceMipBias = NumMissingMips > DownSampleLevel ? 0 : DownSampleLevel - NumMissingMips;
+
+			if (NumMissingMips > DownSampleLevel)
+			{
+				SourceTexture->bForceMiplevelsToBeResident = true;
+				check(!PendingStreamingTextures.Contains(SourceTexture));
+				PendingStreamingTextures.Add(SourceTexture);
+			}
+
+			TmpAllocation.Handle = Handle;
+			CurrentAllocations.Add(TmpAllocation);
+			UploadHandles.Add(Handle);
+			UploadSizesAndMipBias.Add(FIntVector(DownSampledSizeX, DownSampledSizeY, SourceMipBias));
+			UploadSourceTextures.Add(SourceTexture->Resource->TextureRHI);
+			It.RemoveCurrent();
 		}
 	}
 
-	if (UploadTileIndices.Num())
+	if (UploadHandles.Num())
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
-
-		const uint32 TileSize = TileAllocator.TileSize;
-		const uint32 BorderSize = TileAllocator.BorderSize;
-		const uint32 TileSizeWithBorder = TileSize + BorderSize * 2;
-
-		const float SourceScale = 1.f / TileSize;
-		const float SourceBias = (.5f - BorderSize) * SourceScale;
-
-		check(TileSize && !(TileSize & (TileSize - 1)));
-		const uint32 TileLevels = FMath::CountBits(TileSize - 1) + 1;
-
-		const uint32 NumGroupsX = FMath::DivideAndRoundUp(TileSizeWithBorder, FUploadHeightFieldToAtlasCS::ThreadGroupSizeX);
-		const uint32 NumGroupsY = FMath::DivideAndRoundUp(TileSizeWithBorder, FUploadHeightFieldToAtlasCS::ThreadGroupSizeY);
 
 		TShaderMapRef<FUploadHeightFieldToAtlasCS> ComputeShader(GetGlobalShaderMap(InFeatureLevel));
 		FUploadHeightFieldToAtlasCS* ComputeShaderPtr = *ComputeShader;
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AtlasUAVRHI);
 
-		for (int32 Idx = 0; Idx < UploadTileIndices.Num(); ++Idx)
+		for (int32 Idx = 0; Idx < UploadHandles.Num(); ++Idx)
 		{
-			const uint32 TileIdx = UploadTileIndices[Idx];
-			const FIntPoint TileCoord = TileAllocator.GetTileCoord(TileIdx);
-
+			const uint32 Handle = UploadHandles[Idx];
 			FRHITexture2D* SourceTexture = (FRHITexture2D*)UploadSourceTextures[Idx];
-			const uint32 SourceLevels = SourceTexture->GetNumMips();
-			const uint32 SourceMipBias = SourceLevels > TileLevels ? SourceLevels - TileLevels : 0;
+			const FIntVector& SizesAndLevel = UploadSizesAndMipBias[Idx];
+			const uint32 DownSampledSizeX = SizesAndLevel.X;
+			const uint32 DownSampledSizeY = SizesAndLevel.Y;
+			const uint32 SourceMipBias = SizesAndLevel.Z;
+			const float InvDownSampledSizeX = 1.f / DownSampledSizeX;
+			const float InvDownSampledSizeY = 1.f / DownSampledSizeY;
+			const uint32 BorderSize = AddrSpaceAllocator.BorderSize;
+			const uint32 UpdateRegionSizeX = DownSampledSizeX + 2 * BorderSize;
+			const uint32 UpdateRegionSizeY = DownSampledSizeY + 2 * BorderSize;
+			const FIntPoint StartOffset = AddrSpaceAllocator.GetStartOffset(Handle);
 
 			FUploadHeightFieldToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<FUploadHeightFieldToAtlasCS::FParameters>();
-			Parameters->UpdateRegionOffsetAndSize = FUintVector4(TileCoord.X * TileSizeWithBorder, TileCoord.Y * TileSizeWithBorder, TileSizeWithBorder, TileSizeWithBorder);
-			Parameters->SourceScaleBias = FVector4(SourceScale, SourceScale, SourceBias, SourceBias);
+			Parameters->UpdateRegionOffsetAndSize = FUintVector4(StartOffset.X, StartOffset.Y, UpdateRegionSizeX, UpdateRegionSizeY);
+			Parameters->SourceScaleBias = FVector4(InvDownSampledSizeX, InvDownSampledSizeY, (.5f - BorderSize) * InvDownSampledSizeX, (.5f - BorderSize) * InvDownSampledSizeY);
 			Parameters->SourceMipBias = SourceMipBias;
 			Parameters->SourceTexture = SourceTexture;
 			Parameters->SourceTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 			Parameters->RWHeightFieldAtlas = AtlasUAVRHI;
+
+			const uint32 NumGroupsX = FMath::DivideAndRoundUp(UpdateRegionSizeX, FUploadHeightFieldToAtlasCS::ThreadGroupSizeX);
+			const uint32 NumGroupsY = FMath::DivideAndRoundUp(UpdateRegionSizeY, FUploadHeightFieldToAtlasCS::ThreadGroupSizeY);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("UploadHeightFieldToAtlas"),
@@ -1453,18 +1559,15 @@ void FHeightFieldTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICm
 	}
 }
 
-uint32 FHeightFieldTextureAtlas::GetAllocationHandle(const UTexture2D* Texture) const
+uint32 FHeightFieldTextureAtlas::GetAllocationHandle(UTexture2D* Texture) const
 {
 	const FAllocation* Allocation = CurrentAllocations.Find(Texture);
-	return Allocation ? Allocation->TileIdx : INDEX_NONE;
+	return Allocation ? Allocation->Handle : INDEX_NONE;
 }
 
-FVector4 FHeightFieldTextureAtlas::GetTileScaleBias(uint32 TileHandle) const
+FVector4 FHeightFieldTextureAtlas::GetAllocationScaleBias(uint32 Handle) const
 {
-	const FIntPoint TileCoord = TileAllocator.GetTileCoord(TileHandle);
-	const float BiasX = (TileCoord.X * TileAllocator.TileSizeWithBorder + TileAllocator.BorderSize) * TileAllocator.TexelSize;
-	const float BiasY = (TileCoord.Y * TileAllocator.TileSizeWithBorder + TileAllocator.BorderSize) * TileAllocator.TexelSize;
-	return FVector4(TileAllocator.TileScale, TileAllocator.TileScale, BiasX, BiasY);
+	return AddrSpaceAllocator.GetScaleBias(Handle);
 }
 
 void FHeightFieldTextureAtlas::FSubAllocator::Init(uint32 InTileSize, uint32 InBorderSize, uint32 InDimInTiles)
@@ -1479,50 +1582,136 @@ void FHeightFieldTextureAtlas::FSubAllocator::Init(uint32 InTileSize, uint32 InB
 	DimInTilesMask = InDimInTiles - 1;
 	DimInTexels = InDimInTiles * TileSizeWithBorder;
 	MaxNumTiles = InDimInTiles * InDimInTiles;
+	
 	TexelSize = 1.f / DimInTexels;
 	TileScale = TileSize * TexelSize;
-	NextFreeTileIdx = 0;
-	FreeTileIndices.Empty();
-}
 
-uint32 FHeightFieldTextureAtlas::FSubAllocator::AllocTile()
-{
-	uint32 Ret = INDEX_NONE;
-	if (FreeTileIndices.Num())
+	LevelOffsets.Empty();
+	MarkerQuadTree.Empty();
+	SubAllocInfos.Empty();
+
+	uint32 NumBits = 0;
+	for (uint32 Level = 1; Level <= DimInTiles; Level <<= 1)
 	{
-		Ret = FreeTileIndices.Pop();
+		const uint32 NumQuadsInLevel = Level * Level;
+		LevelOffsets.Add(NumBits);
+		NumBits += NumQuadsInLevel;
 	}
-	else if (NextFreeTileIdx < MaxNumTiles)
+	MarkerQuadTree.Add(false, NumBits);
+}
+
+uint32 FHeightFieldTextureAtlas::FSubAllocator::Alloc(uint32 SizeX, uint32 SizeY)
+{
+	const uint32 NumTiles1D = FMath::DivideAndRoundUp(FMath::Max(SizeX, SizeY), TileSize);
+	check(NumTiles1D <= DimInTiles);
+	const uint32 NumLevels = LevelOffsets.Num();
+	const uint32 Level = NumLevels - FMath::CeilLogTwo(NumTiles1D) - 1;
+	const uint32 LevelOffset = LevelOffsets[Level];
+	const uint32 QuadsInLevel1D = 1u << Level;
+	const uint32 SearchEnd = LevelOffset + QuadsInLevel1D * QuadsInLevel1D;
+
+	uint32 QuadIdx = LevelOffset;
+	for (; QuadIdx < SearchEnd; ++QuadIdx)
 	{
-		Ret = NextFreeTileIdx++;
+		if (!MarkerQuadTree[QuadIdx])
+		{
+			break;
+		}
 	}
-	return Ret;
+
+	if (QuadIdx != SearchEnd)
+	{
+		const uint32 QuadIdxInLevel = QuadIdx - LevelOffset;
+		
+		uint32 ParentLevel = Level;
+		uint32 ParentQuadIdxInLevel = QuadIdxInLevel;
+		for (; ParentLevel != (uint32)-1; --ParentLevel)
+		{
+			const uint32 ParentLevelOffset = LevelOffsets[ParentLevel];
+			const uint32 ParentQuadIdx = ParentLevelOffset + ParentQuadIdxInLevel;
+			FBitReference Marker = MarkerQuadTree[ParentQuadIdx];
+			if (Marker)
+			{
+				break;
+			}
+			Marker = true;
+			ParentQuadIdxInLevel >>= 2;
+		}
+		
+		const uint32 QuadX = FMath::ReverseMortonCode2(QuadIdxInLevel);
+		const uint32 QuadY = FMath::ReverseMortonCode2(QuadIdxInLevel >> 1);
+		const uint32 QuadSizeInTiles1D = DimInTiles >> Level;
+		const uint32 TileX = QuadX * QuadSizeInTiles1D;
+		const uint32 TileY = QuadY * QuadSizeInTiles1D;
+
+		FSubAllocInfo SubAllocInfo;
+		SubAllocInfo.Level = Level;
+		SubAllocInfo.QuadIdx = QuadIdx;
+		SubAllocInfo.UVScaleBias.X = SizeX * TexelSize;
+		SubAllocInfo.UVScaleBias.Y = SizeY * TexelSize;
+		SubAllocInfo.UVScaleBias.Z = TileX / (float)DimInTiles + BorderSize * TexelSize;
+		SubAllocInfo.UVScaleBias.W = TileY / (float)DimInTiles + BorderSize * TexelSize;
+
+		return SubAllocInfos.Add(SubAllocInfo);
+	}
+
+	return INDEX_NONE;
 }
 
-void FHeightFieldTextureAtlas::FSubAllocator::FreeTile(uint32 TileIdx)
+void FHeightFieldTextureAtlas::FSubAllocator::Free(uint32 Handle)
 {
-	check(TileIdx < NextFreeTileIdx);
-	FreeTileIndices.Add(TileIdx);
+	check(SubAllocInfos.IsValidIndex(Handle));
+
+	const FSubAllocInfo SubAllocInfo = SubAllocInfos[Handle];
+	SubAllocInfos.RemoveAt(Handle);
+
+	const uint32 Level = SubAllocInfo.Level;
+	const uint32 QuadIdx = SubAllocInfo.QuadIdx;
+	check(MarkerQuadTree[QuadIdx]);
+	MarkerQuadTree[QuadIdx] = false;
+
+	uint32 TestIdxInLevel = (QuadIdx - LevelOffsets[Level]) & ~3u;
+	uint32 ParentLevel = Level - 1;
+	for (; ParentLevel != (uint32)-1; --ParentLevel)
+	{
+		const uint32 TestIdx = TestIdxInLevel + LevelOffsets[ParentLevel + 1];
+		const bool bParentFree = !MarkerQuadTree[TestIdx] && !MarkerQuadTree[TestIdx + 1] && !MarkerQuadTree[TestIdx + 2] && !MarkerQuadTree[TestIdx + 3];
+		if (!bParentFree)
+		{
+			break;
+		}
+		const uint32 ParentIdxInLevel = TestIdxInLevel >> 2;
+		const uint32 ParentIdx = ParentIdxInLevel + LevelOffsets[ParentLevel];
+		MarkerQuadTree[ParentIdx] = false;
+		TestIdxInLevel = ParentIdxInLevel & ~3u;
+	}
 }
 
-bool FHeightFieldTextureAtlas::FSubAllocator::CanAlloc() const
+FVector4 FHeightFieldTextureAtlas::FSubAllocator::GetScaleBias(uint32 Handle) const
 {
-	return FreeTileIndices.Num() || NextFreeTileIdx < MaxNumTiles;
+	check(SubAllocInfos.IsValidIndex(Handle));
+	return SubAllocInfos[Handle].UVScaleBias;
 }
 
-FIntPoint FHeightFieldTextureAtlas::FSubAllocator::GetTileCoord(uint32 TileIdx) const
+FIntPoint FHeightFieldTextureAtlas::FSubAllocator::GetStartOffset(uint32 Handle) const
 {
-	return FIntPoint(TileIdx & DimInTilesMask, TileIdx >> DimInTilesShift);
+	check(SubAllocInfos.IsValidIndex(Handle));
+	const FSubAllocInfo& Info = SubAllocInfos[Handle];
+	const uint32 QuadIdxInLevel = Info.QuadIdx - LevelOffsets[Info.Level];
+	const uint32 QuadX = FMath::ReverseMortonCode2(QuadIdxInLevel);
+	const uint32 QuadY = FMath::ReverseMortonCode2(QuadIdxInLevel >> 1);
+	const uint32 QuadSizeInTexels1D = (DimInTiles >> Info.Level) * TileSizeWithBorder;	
+	return FIntPoint(QuadX * QuadSizeInTexels1D, QuadY * QuadSizeInTexels1D);
 }
 
 FHeightFieldTextureAtlas::FAllocation::FAllocation()
 	: SourceTexture(nullptr)
 	, RefCount(0)
-	, TileIdx(INDEX_NONE)
+	, Handle(INDEX_NONE)
 {}
 
-FHeightFieldTextureAtlas::FAllocation::FAllocation(const UTexture2D* InTexture)
+FHeightFieldTextureAtlas::FAllocation::FAllocation(UTexture2D* InTexture)
 	: SourceTexture(InTexture)
 	, RefCount(1)
-	, TileIdx(INDEX_NONE)
+	, Handle(INDEX_NONE)
 {}

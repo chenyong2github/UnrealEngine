@@ -277,7 +277,9 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 		}
 
 		float4x4 WorldToLocal = LoadHeightFieldObjectWorldToLocal(ObjectIndex);
-		float2 HeightFieldSize = LoadHeightFieldObjectRect(ObjectIndex).zw;
+		float4 SizeScale = LoadHeightFieldObjectSizeScale(ObjectIndex);
+		float2 HeightFieldSize = SizeScale.xy;
+		float WorldToLocalScale = SizeScale.z;
 
 		float3 LocalRayStart = mul(float4(WorldRayStart, 1.0), WorldToLocal).xyz;
 		float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), WorldToLocal).xyz;
@@ -298,7 +300,6 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 			float StartRayTime = LocalRayLength * IntersectionNearFar.x;
 			float EndRayTime = LocalRayLength * IntersectionNearFar.y;
 
-			float WorldToLocalScale = length(WorldToLocal[0].xyz);
 			float LocalSelfShadowScale = 1.0 / (SelfShadowFadeDistance * WorldToLocalScale);
 			float LocalMaxSphereRadius = MaxSphereRadius * WorldToLocalScale;
 
