@@ -253,6 +253,9 @@ bool FDisplayClusterClusterNodeCtrlMaster::InitializeServers()
 		return false;
 	}
 
+	// Allow children to override master's address
+	OverrideMasterAddr(masterCfg.Addr);
+
 	// Instantiate node servers
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Servers: addr %s, port_cs %d, port_ss %d, port_ce %d"), *masterCfg.Addr, masterCfg.Port_CS, masterCfg.Port_SS, masterCfg.Port_CE);
 	ClusterSyncServer.Reset(new FDisplayClusterClusterSyncService(masterCfg.Addr, masterCfg.Port_CS));
