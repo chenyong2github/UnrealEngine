@@ -198,6 +198,11 @@ void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 			}
 		}
 	}
+
+	if (RenderDevicePtr)
+	{
+		RenderDevicePtr->PreTick(DeltaSeconds);
+	}
 }
 
 
@@ -750,7 +755,7 @@ void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
 		UDisplayClusterViewportClient* const GameViewport = Cast<UDisplayClusterViewportClient>(GEngine->GameViewport);
 		if (!GameViewport)
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as default GameViewport class"));
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as a default GameViewport class"));
 		}
 	}
 }

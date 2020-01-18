@@ -166,6 +166,28 @@ void FDisplayClusterDeviceBase::EndScene()
 	bIsSceneOpen = false;
 }
 
+void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
+{
+	if (!bIsCustomPresentSet)
+	{
+		// Set up our new present handler
+		if (MainViewport)
+		{
+			// Current sync policy
+			TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
+			check(SyncPolicy.IsValid());
+
+			// Create present handler
+			FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
+			check(CustomPresentHandler);
+
+			MainViewport->GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
+		}
+
+		bIsCustomPresentSet = true;
+	}
+}
+
 void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* = FString() */, const FString& InViewportId /* = FString() */)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
@@ -584,15 +606,6 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	{
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
-		// Current sync policy
-		TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
-
-		// Create present handler
-		FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
-		check(CustomPresentHandler);
-
-		// Set up our new present handler
-		Viewport.GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
 	}
 }
 
