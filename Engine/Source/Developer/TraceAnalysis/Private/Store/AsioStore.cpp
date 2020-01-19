@@ -90,6 +90,20 @@ const FAsioStore::FTrace* FAsioStore::GetTraceInfo(uint32 Index) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+const FAsioStore::FTrace* FAsioStore::GetTraceInfoById(uint32 Id) const
+{
+	for (FTrace* Trace : Traces)
+	{
+		if (Trace->GetId() == Id)
+		{
+			return Trace;
+		}
+	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 FAsioStore::FTrace* FAsioStore::GetTrace(uint32 Id)
 {
 	for (FTrace* Trace : Traces)

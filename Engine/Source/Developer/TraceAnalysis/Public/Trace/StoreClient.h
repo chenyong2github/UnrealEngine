@@ -41,6 +41,7 @@ public:
 	const FStatus*		GetStatus();
 	uint32				GetTraceCount();
 	const FTraceInfo*	GetTraceInfo(uint32 Index);
+	const FTraceInfo*	GetTraceInfoById(uint32 Id);
 	FTraceData			ReadTrace(uint32 Id);
 
 #if 0

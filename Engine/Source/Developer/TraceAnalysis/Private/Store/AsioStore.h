@@ -53,6 +53,7 @@ public:
 						~FAsioStore();
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
+	const FTrace*		GetTraceInfoById(uint32 Id) const;
 	int32				ReadTrace(uint32 Id);
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);

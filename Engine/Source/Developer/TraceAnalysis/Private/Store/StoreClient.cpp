@@ -74,6 +74,7 @@ public:
 	bool					GetStatus();
 	bool					GetTraceCount();
 	bool					GetTraceInfo(uint32 Index);
+	bool					GetTraceInfoById(uint32 Id);
 	FTraceDataStream*		ReadTrace(uint32 Id);
 
 private:
@@ -197,6 +198,15 @@ bool FStoreCborClient::GetTraceInfo(uint32 Index)
 {
 	TPayloadBuilder<> Builder("trace/info");
 	Builder.AddInteger("index", Index);
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetTraceInfoById(uint32 Id)
+{
+	TPayloadBuilder<> Builder("trace/info");
+	Builder.AddInteger("id", int32(Id));
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
 }
@@ -356,6 +366,22 @@ const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfo(uint32 Index)
 {
 #if TRACE_WITH_ASIO
 	if (!Impl->GetTraceInfo(Index))
+	{
+		return nullptr;
+	}
+
+	const FResponse& Response = Impl->GetResponse();
+	return (FTraceInfo*)(&Response);
+#else
+	return nullptr;
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfoById(uint32 Id)
+{
+#if TRACE_WITH_ASIO
+	if (!Impl->GetTraceInfoById(Id))
 	{
 		return nullptr;
 	}

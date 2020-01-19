@@ -113,13 +113,27 @@ void FAsioStoreCborPeer::OnTraceCount()
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnTraceInfo()
 {
+	const FAsioStore::FTrace* Trace = nullptr;
+
 	int32 Index = int32(Response.GetInteger("index", -1));
-	if (Index < 0)
+	if (Index >= 0)
+	{
+		Trace = Store.GetTraceInfo(Index);
+	}
+	else
+	{
+		uint32 Id = uint32(Response.GetInteger("id", 0));
+		if (Id != 0)
+		{
+			Trace = Store.GetTraceInfoById(Id);
+		}
+	}
+
+	if (Trace == nullptr)
 	{
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	const FAsioStore::FTrace* Trace = Store.GetTraceInfo(Index);
 	if (Trace == nullptr)
 	{
 		return SendError(EStatusCode::BadRequest);
