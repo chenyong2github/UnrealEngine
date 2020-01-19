@@ -38,10 +38,10 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
 
-			const FReal BoundsThickness = 1.0f;
-			const FReal BoundsThicknessVelocityInflation = 2.0f;
+			const FReal AABBExpansion = 1.0f;		// WRONG!!!!
 
-			for (const FParticlePair& ParticlePair : ParticlePairs)	
+			FCollisionConstraintsArray NewConstraints;
+			for (const FParticlePair& ParticlePair : ParticlePairs)
 			{
 				// Array is const, things in it are not...
 				TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
@@ -56,7 +56,9 @@ namespace Chaos
 					const TAABB<FReal, 3>& Box1 = Particle1->WorldSpaceInflatedBounds();
 					if (Box0.Intersects(Box1))
 					{
-						NarrowPhase.GenerateCollisions(Dt, Receiver, Particle0, Particle1, BoundsThickness, StatData);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt,Particle0, Particle1, AABBExpansion, StatData);
+						Receiver.ReceiveCollisions(NewConstraints);
+						NewConstraints.Empty();
 					}
 				}
 			}

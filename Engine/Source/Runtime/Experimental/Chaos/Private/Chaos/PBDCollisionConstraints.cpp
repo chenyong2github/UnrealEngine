@@ -144,38 +144,31 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::AddConstraint(FConstraintBase* ConstraintBase)
+	void TPBDCollisionConstraints<T, d>::AddConstraint(const TRigidBodyPointContactConstraint<FReal, 3>& InConstraint)
 	{
-		// WARNING : ConstraintBase is about to be deleted!
-
-		FConstraintContainerHandle* Handle = nullptr;
-
-		UpdateConstraintMaterialProperties(*ConstraintBase);
-
-		if (ConstraintBase->GetType() == TRigidBodyPointContactConstraint<T, 3>::StaticType())
-		{
-			TRigidBodyPointContactConstraint<T, d>* PointConstraint = ConstraintBase->template As< TRigidBodyPointContactConstraint<T, d> >();
-
-			int32 Idx = PointConstraints.Add(*PointConstraint);
-			Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
-			Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
-
-			delete PointConstraint;
-		}
-		else if (ConstraintBase->GetType() == TRigidBodyMultiPointContactConstraint<T, 3>::StaticType())
-		{
-			TRigidBodyMultiPointContactConstraint<T, d>* IterativeConstraint = ConstraintBase->template As< TRigidBodyMultiPointContactConstraint<T, d> >();
-
-			int32 Idx = IterativeConstraints.Add(*IterativeConstraint);
-			Handle = HandleAllocator.template AllocHandle< TRigidBodyMultiPointContactConstraint<T, d> >(this, Idx);
-			Handle->GetContact().Timestamp = LifespanCounter;
-
-			delete IterativeConstraint;
-		}
+		int32 Idx = PointConstraints.Add(InConstraint);
+		FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
+		Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
 
 		check(Handle != nullptr);
 		Handles.Add(Handle);
 		Manifolds.Add(Handle->GetKey(), Handle);
+
+		UpdateConstraintMaterialProperties(PointConstraints[Idx]);
+	}
+
+	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint)
+	{
+		int32 Idx = IterativeConstraints.Add(InConstraint);
+		FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyMultiPointContactConstraint<T, d> >(this, Idx);
+		Handle->GetContact().Timestamp = LifespanCounter;
+
+		check(Handle != nullptr);
+		Handles.Add(Handle);
+		Manifolds.Add(Handle->GetKey(), Handle);
+
+		UpdateConstraintMaterialProperties(IterativeConstraints[Idx]);
 	}
 
 	template<typename T, int d>
