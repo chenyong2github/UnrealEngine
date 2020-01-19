@@ -149,6 +149,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
+	/**
+	 * Solver iteration settings overrides (defaults are set in the Physics Asset).
+	 * These can be varied in the runtime and set through blueprint (e.g., to increase
+	 * iterations during difficult movements).
+	 * Set to -1 to leave an individual iteration value at its Physics Asset value.
+	 */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
+	FSolverIterations OverrideSolverIterations;
+
 private:
 	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
@@ -183,6 +192,7 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent> SkelMeshCompWeakPtr;
 
 	ImmediatePhysics::FSimulation* PhysicsSimulation;
+	FSolverIterations SolverIterations;
 
 	struct FOutputBoneData
 	{

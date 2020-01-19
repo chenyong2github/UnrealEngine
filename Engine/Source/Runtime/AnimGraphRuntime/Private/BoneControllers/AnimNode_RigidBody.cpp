@@ -61,6 +61,13 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
 
+	OverrideSolverIterations.SolverIterations = -1;
+	OverrideSolverIterations.JointIterations = -1;
+	OverrideSolverIterations.CollisionIterations = -1;
+	OverrideSolverIterations.SolverPushOutIterations = -1;
+	OverrideSolverIterations.JointPushOutIterations = -1;
+	OverrideSolverIterations.CollisionPushOutIterations = -1;
+
 	PreviousTransform = CurrentTransform = FTransform::Identity;
 	PreviousComponentLinearVelocity = FVector::ZeroVector;	
 
@@ -496,6 +503,22 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				PhysicsSimulation->Simulate_AssumesLocked(StepDeltaTime, SimSpaceGravity);
 			}
 #else
+			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.SolverIterations,
+				SolverIterations.JointIterations,
+				SolverIterations.CollisionIterations,
+				SolverIterations.SolverPushOutIterations,
+				SolverIterations.JointPushOutIterations,
+				SolverIterations.CollisionPushOutIterations
+			);
+			PhysicsSimulation->SetSolverIterations(
+				OverrideSolverIterations.SolverIterations, 
+				OverrideSolverIterations.JointIterations, 
+				OverrideSolverIterations.CollisionIterations, 
+				OverrideSolverIterations.SolverPushOutIterations, 
+				OverrideSolverIterations.JointPushOutIterations, 
+				OverrideSolverIterations.CollisionPushOutIterations);
+
 			PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
 #endif
 		}
@@ -840,6 +863,18 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
+
+#if WITH_CHAOS
+		SolverIterations = UsePhysicsAsset->SolverIterations;
+		PhysicsSimulation->SetSolverIterations(
+			SolverIterations.SolverIterations,
+			SolverIterations.JointIterations,
+			SolverIterations.CollisionIterations,
+			SolverIterations.SolverPushOutIterations,
+			SolverIterations.JointPushOutIterations,
+			SolverIterations.CollisionPushOutIterations
+		);
+#endif
 	}
 }
 

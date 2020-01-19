@@ -16,6 +16,60 @@ class FMeshElementCollector;
 class USkeletalBodySetup;
 
 /**
+ * [Chaos Only]
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSolverIterations
+{
+	GENERATED_USTRUCT_BODY()
+
+		FSolverIterations();
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of solver iterations. Increase this if collision and joints are fighting, or joint chains are stretching.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 SolverIterations;
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of joint sub-iterations. Increasing this can help with chains of long-thin bodies.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 JointIterations;
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of collision sub-iterations. Increasing this can help with collision jitter.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 CollisionIterations;
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of solver push-out iterations. Increasing this can help with collision penetration problems.
+	 */
+	 /** Increase this if bodies remain penetrating */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 SolverPushOutIterations;
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of joint sub-push-out iterations.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 JointPushOutIterations;
+
+	/**
+	 * [Chaos Only]
+	 * The recommended number of joint sub-push-out iterations. Increasing this can help with collision penetration problems.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
+		int32 CollisionPushOutIterations;
+};
+
+/**
  * PhysicsAsset contains a set of rigid bodies and constraints that make up a single ragdoll.
  * The asset is not limited to human ragdolls, and can be used for any physical simulation using bodies and constraints.
  * A SkeletalMesh has a single PhysicsAsset, which allows for easily turning ragdoll physics on or off for many SkeletalMeshComponents
@@ -74,6 +128,10 @@ class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 	TArray<class UPhysicsConstraintTemplate*> ConstraintSetup;
 
 public:
+
+	/** Recommended solver iterations (may be overridden depending on how the Physics Asset is used). E.g., Rigid Body Anim Nodes support overrides. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SolverSettings)
+	FSolverIterations SolverIterations;
 
 	/** If true, we skip instancing bodies for this PhysicsAsset on dedicated servers */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Physics)

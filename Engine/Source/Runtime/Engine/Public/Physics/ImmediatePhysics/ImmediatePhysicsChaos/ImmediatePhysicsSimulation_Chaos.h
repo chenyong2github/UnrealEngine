@@ -69,6 +69,9 @@ namespace ImmediatePhysics_Chaos
 
 		void SetSimulationSpaceTransform(const FTransform& Transform) { SimulationSpaceTransform = Transform; }
 
+		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
+		void SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
+
 	private:
 		void ConditionConstraints();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);

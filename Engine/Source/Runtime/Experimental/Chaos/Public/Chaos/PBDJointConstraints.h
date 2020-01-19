@@ -70,6 +70,9 @@ namespace Chaos
 		const FPBDJointSolverSettings& GetSettings() const;
 		void SetSettings(const FPBDJointSolverSettings& InSettings);
 
+		void SetNumPairIterations(const int32 NumPairIterationss) { Settings.ApplyPairIterations = NumPairIterationss; }
+		void SetNumPushOutPairIterations(const int32 NumPairIterationss) { Settings.ApplyPushOutPairIterations = NumPairIterationss; }
+
 		//
 		// Constraint Container API
 		//
