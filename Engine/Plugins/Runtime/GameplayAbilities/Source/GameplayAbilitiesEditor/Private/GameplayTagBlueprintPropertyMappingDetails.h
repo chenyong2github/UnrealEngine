@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/FieldPath.h"
 #include "IPropertyTypeCustomization.h"
 
 
@@ -22,12 +23,12 @@ public:
 
 protected:
 
-	void OnChangeProperty(FProperty* ItemSelected, ESelectInfo::Type SelectInfo);
+	void OnChangeProperty(TFieldPath<FProperty> ItemSelected, ESelectInfo::Type SelectInfo);
 
-	FGuid GetPropertyGuid(FProperty* Property) const;
-	FString GetPropertyName(FProperty* Property) const;
+	FGuid GetPropertyGuid(TFieldPath<FProperty> Property) const;
+	FString GetPropertyName(TFieldPath<FProperty> Property) const;
 
-	TSharedRef<SWidget> GeneratePropertyWidget(FProperty* Property);
+	TSharedRef<SWidget> GeneratePropertyWidget(TFieldPath<FProperty> Property);
 
 	FText GetSelectedValueText() const;
 
@@ -36,7 +37,7 @@ protected:
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
 	TSharedPtr<IPropertyHandle> GuidPropertyHandle;
 
-	TArray<FProperty*> PropertyOptions;
+	TArray<TFieldPath<FProperty>> PropertyOptions;
 
-	FProperty* SelectedProperty;
+	TFieldPath<FProperty> SelectedProperty;
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/UObjectBase.h"
 #include "UObject/GCObject.h"
+#include "UObject/FieldPath.h"
 
 class ITableRow;
 struct FSparseItemInfo;
@@ -79,7 +80,7 @@ struct TIsValidListItem<TWeakObjectPtr<T>>
 	};
 };
 template <typename T>
-struct TIsValidListItem<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, FField>::Value>::Type>
+struct TIsValidListItem<TFieldPath<T>>
 {
 	enum
 	{
@@ -94,7 +95,7 @@ struct TIsValidListItem<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, FF
  */
 template <typename T, typename Enable=void> struct TListTypeTraits
 {
-	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, FField pointer, TSharedRef, or TSharedPtr.");
+	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, TFieldPath, TSharedRef, or TSharedPtr.");
 };
 
 
@@ -434,30 +435,26 @@ public:
 
 
 /**
- * Lists of pointer types only work if the pointers are deriving from UObject*.
- * In addition to testing and setting the pointers to null, Lists of UObjects
- * will serialize the objects they are holding onto.
+ * Pointer-related functionality (e.g. setting to null, testing for null) specialized for TFieldPaths.
  */
-template <typename T>
-struct TListTypeTraits<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, FField>::Value>::Type>
+template <typename T> struct TListTypeTraits< TFieldPath<T> >
 {
 public:
-	typedef T* NullableType;
+	typedef TFieldPath<T> NullableType;
 
-	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<T*, TSharedRef<ITableRow>, false>;
-	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<T*, FSparseItemInfo, false>;
-	using SetKeyFuncs = DefaultKeyFuncs<T*>;
+	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<TFieldPath<T>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TFieldPath<T>, FSparseItemInfo, false>;
+	using SetKeyFuncs = DefaultKeyFuncs< TFieldPath<T> >;
 
 	template<typename U>
 	static void AddReferencedObjects(FReferenceCollector& Collector,
-		TArray<T*>& ItemsWithGeneratedWidgets,
-		TSet<T*>& SelectedItems,
-		TMap< const U*, T* >& WidgetToItemMap)
+		TArray< TFieldPath<T> >& ItemsWithGeneratedWidgets,
+		TSet< TFieldPath<T> >& SelectedItems,
+		TMap< const U*, TFieldPath<T> >& WidgetToItemMap)
 	{
-		// Serialize generated items
-		for (T* Item : ItemsWithGeneratedWidgets)
+		for (TFieldPath<T>& Item : ItemsWithGeneratedWidgets)
 		{
-			if (Item)
+			if (Item != nullptr)
 			{
 				Item->AddReferencedObjects(Collector);
 			}
@@ -467,34 +464,47 @@ public:
 		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
 		for (auto& It : WidgetToItemMap)
 		{
-			if (It.Value)
+			if (It.Value != nullptr)
 			{
 				It.Value->AddReferencedObjects(Collector);
 			}
 		}
 
 		// Serialize the selected items
-		for (T* Item : SelectedItems)
+		for (TFieldPath<T>& Item : SelectedItems)
 		{
-			if (Item)
+			if (Item != nullptr)
 			{
 				Item->AddReferencedObjects(Collector);
 			}
 		}
 	}
 
-	static bool IsPtrValid(T* InPtr) { return InPtr != nullptr; }
-
-	static void ResetPtr(T*& InPtr) { InPtr = nullptr; }
-
-	static T* MakeNullPtr() { return nullptr; }
-
-	static T* NullableItemTypeConvertToItemType(T* InPtr) { return InPtr; }
-
-	static FString DebugDump(T* InPtr)
+	static bool IsPtrValid(const TFieldPath<T>& InPtr)
 	{
-		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+		return !!InPtr.Get();
 	}
 
-	typedef FGCObject SerializerType;
+	static void ResetPtr(TFieldPath<T>& InPtr)
+	{
+		InPtr.Reset();
+	}
+
+	static TFieldPath<T> MakeNullPtr()
+	{
+		return nullptr;
+	}
+
+	static TFieldPath<T> NullableItemTypeConvertToItemType(const TFieldPath<T>& InPtr)
+	{
+		return InPtr;
+	}
+
+	static FString DebugDump(TFieldPath<T> InPtr)
+	{
+		T* ObjPtr = InPtr.Get();
+		return ObjPtr ? FString::Printf(TEXT("0x%08x [%s]"), ObjPtr, *ObjPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
+	class SerializerType {};
 };
