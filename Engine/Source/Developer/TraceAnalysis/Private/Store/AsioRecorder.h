@@ -26,6 +26,7 @@ public:
 	{
 	public:
 		uint32					GetTraceId() const;
+		uint32					GetIpAddress() const;
 
 	private:
 		friend					FAsioRecorder;

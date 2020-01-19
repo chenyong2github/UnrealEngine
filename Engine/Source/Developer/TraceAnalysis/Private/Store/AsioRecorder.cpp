@@ -19,6 +19,8 @@ public:
 						FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWriteable* InOutput);
 	virtual				~FAsioRecorderRelay();
 	void				Close();
+	uint32				GetIpAddress() const;
+
 
 private:
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
@@ -51,6 +53,12 @@ void FAsioRecorderRelay::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioRecorderRelay::GetIpAddress() const
+{
+	return Input.GetRemoteAddress();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
@@ -78,6 +86,12 @@ void FAsioRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 uint32 FAsioRecorder::FSession::GetTraceId() const
 {
 	return TraceId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioRecorder::FSession::GetIpAddress() const
+{
+	return Relay->GetIpAddress();
 }
 
 
