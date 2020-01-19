@@ -60,15 +60,15 @@ template <int Size=128>
 class TPayloadBuilder
 {
 public:
-									TPayloadBuilder(int32 StatusCode);
-	template <int N>				TPayloadBuilder(const char (&MethodName)[N]);
-	template <int N> void			AddParam(const char (&Name)[N], int64 Value);
-	template <int N, int M> void	AddParam(const char (&Name)[N], const char (&Value)[M]);
-	FPayload						Done();
+								TPayloadBuilder(int32 StatusCode);
+	template <int N>			TPayloadBuilder(const char (&MethodName)[N]);
+	template <int N> void		AddInteger(const char (&Name)[N], int64 Value);
+	template <int N> void		AddString(const char (&Name)[N], const char* Value, int32 Length=-1);
+	FPayload					Done();
 
 private:
-	TInlineMemoryWriter<Size>		MemoryWriter;
-	FCborWriter						CborWriter = &MemoryWriter;
+	TInlineMemoryWriter<Size>	MemoryWriter;
+	FCborWriter					CborWriter = &MemoryWriter;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +76,7 @@ template <int Size>
 inline TPayloadBuilder<Size>::TPayloadBuilder(int32 StatusCode)
 {
 	CborWriter.WriteContainerStart(ECborCode::Map, -1);
-	AddParam("$status", StatusCode);
+	AddInteger("$status", StatusCode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,13 +85,13 @@ template <int N>
 inline TPayloadBuilder<Size>::TPayloadBuilder(const char (&MethodName)[N])
 {
 	CborWriter.WriteContainerStart(ECborCode::Map, -1);
-	AddParam("$method", MethodName);
+	AddString("$method", MethodName, N);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int Size>
 template <int N>
-inline void TPayloadBuilder<Size>::AddParam(const char (&Name)[N], int64 Value)
+inline void TPayloadBuilder<Size>::AddInteger(const char (&Name)[N], int64 Value)
 {
 	CborWriter.WriteValue(Name, N);
 	CborWriter.WriteValue(Value);
@@ -99,11 +99,15 @@ inline void TPayloadBuilder<Size>::AddParam(const char (&Name)[N], int64 Value)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int Size>
-template <int N, int M>
-inline void TPayloadBuilder<Size>::AddParam(const char (&Name)[N], const char (&Value)[M])
+template <int N>
+inline void TPayloadBuilder<Size>::AddString(
+	const char (&Name)[N],
+	const char* Value,
+	int Length)
 {
+	Length = (Length < 0) ? int32(strlen(Value)) : Length;
 	CborWriter.WriteValue(Name, N);
-	CborWriter.WriteValue(Value, M);
+	CborWriter.WriteValue(Value, Length);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

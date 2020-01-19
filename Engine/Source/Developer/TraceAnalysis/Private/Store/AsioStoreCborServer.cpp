@@ -90,7 +90,7 @@ void FAsioStoreCborPeer::Close()
 void FAsioStoreCborPeer::OnConnect()
 {
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddParam("version", int32(EStoreVersion::Value));
+	Builder.AddInteger("version", int32(EStoreVersion::Value));
 	SendResponse(Builder.Done());
 }
 
@@ -98,7 +98,7 @@ void FAsioStoreCborPeer::OnConnect()
 void FAsioStoreCborPeer::OnStatus()
 {
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddParam("recorder_port", Recorder.GetPort());
+	Builder.AddInteger("recorder_port", Recorder.GetPort());
 	SendResponse(Builder.Done());
 }
 
@@ -106,7 +106,7 @@ void FAsioStoreCborPeer::OnStatus()
 void FAsioStoreCborPeer::OnTraceCount()
 {
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddParam("count", Store.GetTraceCount());
+	Builder.AddInteger("count", Store.GetTraceCount());
 	SendResponse(Builder.Done());
 }
 
@@ -126,8 +126,8 @@ void FAsioStoreCborPeer::OnTraceInfo()
 	}
 
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddParam("id", Trace->GetId());
-	Builder.AddParam("size", Trace->GetSize());
+	Builder.AddInteger("id", Trace->GetId());
+	Builder.AddInteger("size", Trace->GetSize());
 	SendResponse(Builder.Done());
 }
 
@@ -155,7 +155,7 @@ void FAsioStoreCborPeer::OnTraceRead()
 	}
 
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddParam("port", Port);
+	Builder.AddInteger("port", Port);
 	SendResponse(Builder.Done());
 }
 

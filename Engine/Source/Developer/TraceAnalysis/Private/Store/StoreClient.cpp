@@ -118,7 +118,7 @@ bool FStoreCborClient::Connect(const TCHAR* Host, uint16 Port)
 	}
 
 	TPayloadBuilder<> Builder("connect");
-	Builder.AddParam("version", int32(EStoreVersion::Value));
+	Builder.AddInteger("version", int32(EStoreVersion::Value));
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
 }
@@ -189,7 +189,7 @@ bool FStoreCborClient::GetTraceCount()
 bool FStoreCborClient::GetTraceInfo(uint32 Index)
 {
 	TPayloadBuilder<> Builder("trace_info");
-	Builder.AddParam("index", Index);
+	Builder.AddInteger("index", Index);
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
 }
@@ -198,7 +198,7 @@ bool FStoreCborClient::GetTraceInfo(uint32 Index)
 FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 {
 	TPayloadBuilder<> Builder("trace_read");
-	Builder.AddParam("id", Id);
+	Builder.AddInteger("id", Id);
 	FPayload Payload = Builder.Done();
 	if (!Communicate(Payload))
 	{
