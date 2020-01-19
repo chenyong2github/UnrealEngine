@@ -8,7 +8,6 @@
 #include "AsioStore.h"
 #include "CborPayload.h"
 #include "Templates/UnrealTemplate.h"
-#include "Trace/DataStream.h"
 
 namespace Trace
 {
@@ -400,7 +399,11 @@ const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfoById(uint32 Id)
 ////////////////////////////////////////////////////////////////////////////////
 FStoreClient::FTraceData FStoreClient::ReadTrace(uint32 Id)
 {
+#if TRACE_WITH_ASIO
 	return FTraceData(Impl->ReadTrace(Id));
+#else
+	return nullptr;
+#endif // TRACE_WITH_ASIO
 }
 
 } // namespace Trace
