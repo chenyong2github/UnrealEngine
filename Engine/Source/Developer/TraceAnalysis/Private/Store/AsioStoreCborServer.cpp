@@ -199,11 +199,6 @@ void FAsioStoreCborPeer::OnTraceInfo()
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	if (Trace == nullptr)
-	{
-		return SendError(EStatusCode::BadRequest);
-	}
-
 	const TCHAR* Name = Trace->GetName();
 	char OutName[128];
 	for (char& Out : OutName)
