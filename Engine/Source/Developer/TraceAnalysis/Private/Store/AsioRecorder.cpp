@@ -86,10 +86,10 @@ FAsioRecorder::FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioRecorder::~FAsioRecorder()
 {
-	for (FAsioRecorderRelay* Relay : Relays)
+	for (FSession& Session : Sessions)
 	{
-		Relay->Close();
-		delete Relay;
+		Session.Relay->Close();
+		delete Session.Relay;
 	}
 }
 
@@ -103,7 +103,7 @@ bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 	}
 
 	FAsioRecorderRelay* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
-	Relays.Add(Relay);
+	Sessions.Add({Relay, Trace.Id});
 	return true;
 }
 

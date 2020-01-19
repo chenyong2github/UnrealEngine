@@ -26,9 +26,15 @@ public:
 								~FAsioRecorder();
 
 private:
+	struct FSession
+	{
+		FAsioRecorderRelay*		Relay;
+		uint32					TraceId;
+	};
+
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
 	virtual void				OnTick() override;
-	TArray<FAsioRecorderRelay*>	Relays;
+	TArray<FSession>			Sessions;
 	FAsioStore&					Store;
 };
 
