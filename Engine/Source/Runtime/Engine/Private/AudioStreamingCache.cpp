@@ -754,7 +754,7 @@ FString FAudioChunkCache::FlushCacheMissLog()
 			CacheMissInfo.SoundWaveName, 
 			CacheMissInfo.ChunkIndex,
 #if WITH_EDITOR
-			INDEX_NONE
+			0
 #endif
 		};
 
