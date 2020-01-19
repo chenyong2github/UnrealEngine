@@ -32,9 +32,9 @@ public:
 	class FTrace
 	{
 	public:
-		const TCHAR*	GetName() const		{ return *Name; }
-		uint32			GetId() const		{ return QuickStoreHash(GetName()); }
-		uint64			GetSize() const		{ return 3; }
+		const TCHAR*	GetName() const;
+		uint32			GetId() const;
+		uint64			GetSize() const;
 
 	private:
 		friend			FAsioStore;
