@@ -7,6 +7,8 @@
 namespace Trace
 {
 
+class IInDataStream;
+
 ////////////////////////////////////////////////////////////////////////////////
 class TRACEANALYSIS_API FStoreClient
 {
@@ -24,15 +26,10 @@ public:
 		//template <typename Lambda> uint32 ReadMetadata(Lambda&& Callback) const;
 	};
 
-	struct TRACEANALYSIS_API FTraceData
+	struct FTraceData
+		: public TUniquePtr<IInDataStream>
 	{
-						~FTraceData();
-		int32			Read(void* Dest, uint32 DestSize);
-		bool			IsValid() const;
-
-	private:
-		friend			FStoreClient;
-		UPTRINT			Handle = 0;
+		using TUniquePtr<IInDataStream>::TUniquePtr;
 	};
 	
 						~FStoreClient();
@@ -41,7 +38,7 @@ public:
 	const FStatus*		GetStatus();
 	uint32				GetTraceCount();
 	const FTraceInfo*	GetTraceInfo(uint32 Index);
-	bool				ReadTrace(uint32 Id, FTraceData& Out);
+	FTraceData			ReadTrace(uint32 Id);
 
 #if 0
 	template <typename Lambda> uint32 GetTraceInfos(uint32 StartIndex, uint32 Count, Lambda&& Callback) const;

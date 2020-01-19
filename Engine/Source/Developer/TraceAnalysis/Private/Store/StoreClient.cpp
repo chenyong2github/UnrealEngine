@@ -7,9 +7,60 @@
 
 #include "AsioStore.h"
 #include "CborPayload.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/DataStream.h"
 
 namespace Trace
 {
+
+////////////////////////////////////////////////////////////////////////////////
+class FTraceDataStream
+	: public IInDataStream
+{
+public:
+							FTraceDataStream(asio::ip::tcp::socket& InSocket);
+	virtual					~FTraceDataStream();
+	virtual int32			Read(void* Dest, uint32 DestSize) override;
+
+private:
+#if TRACE_WITH_ASIO
+	asio::ip::tcp::socket	Socket;
+#endif // TRACE_WITH_ASIO
+};
+
+////////////////////////////////////////////////////////////////////////////////
+FTraceDataStream::FTraceDataStream(asio::ip::tcp::socket& InSocket)
+: Socket(MoveTemp(InSocket))
+{
+};
+
+////////////////////////////////////////////////////////////////////////////////
+FTraceDataStream::~FTraceDataStream()
+{
+#if TRACE_WITH_ASIO
+	Socket.close();
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
+{
+#if TRACE_WITH_ASIO
+	asio::error_code ErrorCode;
+	size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
+	if (ErrorCode)
+	{
+		Socket.close();
+		return -1;
+	}
+
+	return int32(BytesRead);
+#else
+	return -1;
+#endif // TRACE_WITH_ASIO
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 class FStoreCborClient
@@ -22,7 +73,7 @@ public:
 	bool					GetStatus();
 	bool					GetTraceCount();
 	bool					GetTraceInfo(uint32 Index);
-	asio::ip::tcp::socket*	ReadTrace(uint32 Id);
+	FTraceDataStream*		ReadTrace(uint32 Id);
 
 private:
 	bool					Communicate(const FPayload& Payload);
@@ -144,7 +195,7 @@ bool FStoreCborClient::GetTraceInfo(uint32 Index)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-asio::ip::tcp::socket* FStoreCborClient::ReadTrace(uint32 Id)
+FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 {
 	TPayloadBuilder<> Builder("trace_read");
 	Builder.AddParam("id", Id);
@@ -171,7 +222,7 @@ asio::ip::tcp::socket* FStoreCborClient::ReadTrace(uint32 Id)
 		return nullptr;
 	}
 
-	return new asio::ip::tcp::socket(MoveTemp(SenderSocket));
+	return new FTraceDataStream(SenderSocket);
 }
 
 } // namespace Trace
@@ -214,50 +265,6 @@ uint64 FStoreClient::FTraceInfo::GetSize() const
 {
 	const auto* Response = (const FResponse*)this;
 	return Response->GetInteger("size", 0);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-FStoreClient::FTraceData::~FTraceData()
-{
-#if TRACE_WITH_ASIO
-	if (auto* Inner = (asio::ip::tcp::socket*)Handle)
-	{
-		Inner->close();
-		delete Inner;
-	}
-#endif // TRACE_WITH_ASIO
-}
-
-////////////////////////////////////////////////////////////////////////////////
-int32 FStoreClient::FTraceData::Read(void* Dest, uint32 DestSize)
-{
-#if TRACE_WITH_ASIO
-	auto* Inner = (asio::ip::tcp::socket*)Handle;
-	if (Inner == nullptr)
-	{
-		return -1;
-	}
-
-	asio::error_code ErrorCode;
-	size_t BytesRead = Inner->read_some(asio::buffer(Dest, DestSize), ErrorCode);
-	if (ErrorCode)
-	{
-		Inner->close();
-		return -1;
-	}
-
-	return int32(BytesRead);
-#else
-	return -1;
-#endif // TRACE_WITH_ASIO
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FStoreClient::FTraceData::IsValid() const
-{
-	return (Handle != 0);
 }
 
 
@@ -347,14 +354,9 @@ const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfo(uint32 Index)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FStoreClient::ReadTrace(uint32 Id, FTraceData& Out)
+FStoreClient::FTraceData FStoreClient::ReadTrace(uint32 Id)
 {
-#if TRACE_WITH_ASIO
-	Out.Handle = UPTRINT(Impl->ReadTrace(Id));
-	return (Out.Handle != 0);
-#else
-	return false;
-#endif // TRACE_WITH_ASIO
+	return FTraceData(Impl->ReadTrace(Id));
 }
 
 } // namespace Trace
