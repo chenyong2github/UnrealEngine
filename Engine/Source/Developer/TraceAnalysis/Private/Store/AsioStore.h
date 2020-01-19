@@ -39,6 +39,13 @@ public:
 	private:
 		friend			FAsioStore;
 		FString			Name;
+		uint32			Id;
+	};
+
+	struct FNewTrace
+	{
+		uint32			Id;
+		FAsioWriteable* Writeable;
 	};
 
 						FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir);
@@ -46,11 +53,12 @@ public:
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
 	int32				ReadTrace(uint32 Id);
-	FAsioWriteable*		CreateTrace();
+	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
 
 private:
 	FTrace*				GetTrace(uint32 Id);
+	FTrace*				AddTrace(const TCHAR* Path);
 	FString				StoreDir;
 	TArray<FTrace*>		Traces;
 #if 0

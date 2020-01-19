@@ -96,13 +96,13 @@ FAsioRecorder::~FAsioRecorder()
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 {
-	FAsioWriteable* Output = Store.CreateTrace();
-	if (Output == nullptr)
+	FAsioStore::FNewTrace Trace = Store.CreateTrace();
+	if (Trace.Writeable == nullptr)
 	{
 		return true;
 	}
 
-	FAsioRecorderRelay* Relay = new FAsioRecorderRelay(Socket, Output);
+	FAsioRecorderRelay* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
 	Relays.Add(Relay);
 	return true;
 }
