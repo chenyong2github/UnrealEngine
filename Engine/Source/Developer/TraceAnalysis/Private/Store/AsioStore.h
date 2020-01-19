@@ -39,6 +39,7 @@ public:
 	private:
 		friend			FAsioStore;
 		FString			Name;
+		UPTRINT			Handle;
 		uint32			Id;
 	};
 
