@@ -35,6 +35,7 @@ public:
 		const TCHAR*	GetName() const;
 		uint32			GetId() const;
 		uint64			GetSize() const;
+		uint64			GetTimestamp() const;
 
 	private:
 		friend			FAsioStore;

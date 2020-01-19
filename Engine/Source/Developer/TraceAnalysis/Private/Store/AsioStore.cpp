@@ -33,6 +33,18 @@ uint64 FAsioStore::FTrace::GetSize() const
 	return FileSize.QuadPart;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint64 FAsioStore::FTrace::GetTimestamp() const
+{
+	HANDLE Inner = HANDLE(Handle);
+	FILETIME Time;
+	if (!GetFileTime(Inner, &Time, nullptr, nullptr))
+	{
+		return 0;
+	}
+	return (uint64(Time.dwHighDateTime) << 32ull) | uint64(Time.dwLowDateTime);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

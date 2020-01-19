@@ -26,6 +26,7 @@ public:
 		FAnsiStringView	GetName() const;
 		uint32			GetId() const;
 		uint64			GetSize() const;
+		uint64			GetTimestamp() const;
 		//const TCHAR*	GetMetadata(const TCHAR* Key) const;
 		//template <typename Lambda> uint32 ReadMetadata(Lambda&& Callback) const;
 	};

@@ -323,6 +323,13 @@ uint64 FStoreClient::FTraceInfo::GetSize() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint64 FStoreClient::FTraceInfo::GetTimestamp() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("timestamp", 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 FAnsiStringView FStoreClient::FTraceInfo::GetName() const
 {
 	const auto* Response = (const FResponse*)this;

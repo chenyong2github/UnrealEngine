@@ -214,6 +214,7 @@ void FAsioStoreCborPeer::OnTraceInfo()
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
+	Builder.AddInteger("timestamp", Trace->GetTimestamp());
 	Builder.AddString("name", OutName);
 	SendResponse(Builder.Done());
 }
