@@ -125,7 +125,15 @@ void FAsioStoreCborPeer::OnTraceInfo()
 		uint32 Id = uint32(Response.GetInteger("id", 0));
 		if (Id != 0)
 		{
-			Trace = Store.GetTraceInfoById(Id);
+			for (int i = 0, n = Store.GetTraceCount(); i < n; ++i)
+			{
+				const FAsioStore::FTrace* Candidate = Store.GetTraceInfo(i);
+				if (Candidate->GetId() == Id)
+				{
+					Trace = Candidate;
+					break;
+				}
+			}
 		}
 	}
 
