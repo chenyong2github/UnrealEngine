@@ -180,7 +180,7 @@ bool FStoreCborClient::GetStatus()
 ////////////////////////////////////////////////////////////////////////////////
 bool FStoreCborClient::GetTraceCount()
 {
-	TPayloadBuilder<32> Builder("trace_count");
+	TPayloadBuilder<32> Builder("trace/count");
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
 }
@@ -188,7 +188,7 @@ bool FStoreCborClient::GetTraceCount()
 ////////////////////////////////////////////////////////////////////////////////
 bool FStoreCborClient::GetTraceInfo(uint32 Index)
 {
-	TPayloadBuilder<> Builder("trace_info");
+	TPayloadBuilder<> Builder("trace/info");
 	Builder.AddInteger("index", Index);
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
@@ -197,7 +197,7 @@ bool FStoreCborClient::GetTraceInfo(uint32 Index)
 ////////////////////////////////////////////////////////////////////////////////
 FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 {
-	TPayloadBuilder<> Builder("trace_read");
+	TPayloadBuilder<> Builder("trace/read");
 	Builder.AddInteger("id", Id);
 	FPayload Payload = Builder.Done();
 	if (!Communicate(Payload))

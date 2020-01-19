@@ -169,15 +169,15 @@ void FAsioStoreCborPeer::OnPayload()
 		return;
 	}
 
-	struct {
+	static struct {
 		uint32	Hash;
 		void	(FAsioStoreCborPeer::*Func)();
 	} const DispatchTable[] = {
 		{ QuickStoreHash("connect"),	&FAsioStoreCborPeer::OnConnect },
 		{ QuickStoreHash("status"),		&FAsioStoreCborPeer::OnStatus },
-		{ QuickStoreHash("trace_count"),&FAsioStoreCborPeer::OnTraceCount },
-		{ QuickStoreHash("trace_info"),	&FAsioStoreCborPeer::OnTraceInfo },
-		{ QuickStoreHash("trace_read"),	&FAsioStoreCborPeer::OnTraceRead },
+		{ QuickStoreHash("trace/count"),&FAsioStoreCborPeer::OnTraceCount },
+		{ QuickStoreHash("trace/info"),	&FAsioStoreCborPeer::OnTraceInfo },
+		{ QuickStoreHash("trace/read"),	&FAsioStoreCborPeer::OnTraceRead },
 	};
 
 	uint32 MethodHash = QuickStoreHash(Method);
