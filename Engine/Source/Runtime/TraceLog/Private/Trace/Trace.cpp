@@ -33,6 +33,7 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 			break;
 		}
 	}
+	Dest[DestSize - 1] = '\0';
 };
 
 ////////////////////////////////////////////////////////////////////////////////
