@@ -736,6 +736,9 @@ protected:
 	/** Thread-safe access to the active search query that's mapped to the given stream search */
 	FActiveSearchQueryPtr FindSearchQuery(const class FStreamSearch* InSearchOriginator) const;
 
+	/** Returns the next pending search data for the given query and advances the index to the next entry */
+	FSearchData GetNextSearchDataForQuery(FActiveSearchQueryPtr InSearchQueryPtr, bool bCheckDeferredList);
+
 private:
 	/** Maps the Blueprint paths to their index in the SearchArray */
 	TMap<FName, int32> SearchMap;
