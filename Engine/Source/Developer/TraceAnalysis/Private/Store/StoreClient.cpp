@@ -267,6 +267,13 @@ uint64 FStoreClient::FTraceInfo::GetSize() const
 	return Response->GetInteger("size", 0);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+FAnsiStringView FStoreClient::FTraceInfo::GetName() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetString("name", "nameless");
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

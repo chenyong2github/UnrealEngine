@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StringView.h"
 #include "HAL/Platform.h"
 
 namespace Trace
@@ -20,6 +21,7 @@ public:
 
 	struct TRACEANALYSIS_API FTraceInfo
 	{
+		FAnsiStringView	GetName() const;
 		uint32			GetId() const;
 		uint64			GetSize() const;
 		//const TCHAR*	GetMetadata(const TCHAR* Key) const;

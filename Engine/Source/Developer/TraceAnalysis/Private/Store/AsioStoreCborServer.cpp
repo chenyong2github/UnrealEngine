@@ -125,9 +125,22 @@ void FAsioStoreCborPeer::OnTraceInfo()
 		return SendError(EStatusCode::BadRequest);
 	}
 
+	const TCHAR* Name = Trace->GetName();
+	char OutName[128];
+	for (char& Out : OutName)
+	{
+		Out = char(*Name++);
+		if (Out == '\0')
+		{
+			break;
+		}
+	}
+	OutName[sizeof(OutName) - 1] = '\0';
+
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
+	Builder.AddString("name", OutName);
 	SendResponse(Builder.Done());
 }
 
