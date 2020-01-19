@@ -14,7 +14,7 @@ namespace Trace
 {
 
 class FAsioStore;
-class FAsioRecorderPeer;
+class FAsioRecorderRelay;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioRecorder
@@ -28,7 +28,7 @@ public:
 private:
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
 	virtual void				OnTick() override;
-	TArray<FAsioRecorderPeer*>	Peers;
+	TArray<FAsioRecorderRelay*>	Relays;
 	FAsioStore&					Store;
 };
 
