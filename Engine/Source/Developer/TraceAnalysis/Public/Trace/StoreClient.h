@@ -4,6 +4,7 @@
 
 #include "Containers/StringView.h"
 #include "HAL/Platform.h"
+#include "Templates/UniquePtr.h"
 
 namespace Trace
 {
