@@ -162,8 +162,8 @@ void FAsioStoreCborPeer::OnTraceRead()
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnPayload()
 {
-	const char* Method = Response.GetString("$method");
-	if (Method[0] == '\0')
+	FAnsiStringView Method = Response.GetString("$method", "");
+	if (!Method.Len())
 	{
 		SendError(EStatusCode::BadRequest);
 		return;

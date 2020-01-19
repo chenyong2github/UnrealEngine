@@ -8,6 +8,7 @@
 
 #include "CborReader.h"
 #include "CborWriter.h"
+#include "Containers/StringView.h"
 #include "Serialization/MemoryArchive.h"
 #include "Serialization/MemoryReader.h"
 
@@ -124,8 +125,9 @@ inline FPayload TPayloadBuilder<Size>::Done()
 class FResponse
 {
 public:
-	int64			GetInteger(const char* Key, int64 Default=0) const;
-	const char*		GetString(const char* Key, const char* Default="") const;
+	int64			GetInteger(const char* Key, int64 Default) const;
+	template <int N>
+	FAnsiStringView	GetString(const char* Key, const char (&Default)[N]) const;
 	const uint8*	GetData() const;
 	uint32			GetSize() const;
 	uint8*			Reserve(uint32 Size);
@@ -206,19 +208,23 @@ inline int64 FResponse::GetInteger(const char* Key, int64 Default) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline const char* FResponse::GetString(const char* Key, const char* Default) const
+template <int N>
+inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Default)[N]) const
 {
+	FAnsiStringView DefaultView(Default, N);
 	return GetValue(
 		Key,
-		Default,
-		[this, Default] (const FCborContext& Context, uint32 Offset)
+		DefaultView,
+		[this, DefaultView] (const FCborContext& Context, uint32 Offset)
 		{
 			if (Context.IsString())
 			{
-				return (const char*)(Buffer.GetData() + Offset - Context.AsLength());
+				int32 Length = Context.AsLength();
+				const char* Data = (const char*)(Buffer.GetData() + Offset - Length);
+				return FAnsiStringView(Data, Length - 1);
 			}
 
-			return Default;
+			return DefaultView;
 		}
 	);
 }
