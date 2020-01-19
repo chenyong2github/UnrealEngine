@@ -27,6 +27,43 @@ bool FAsioSocket::IsOpen() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioSocket::GetRemoteAddress() const
+{
+	if (!IsOpen())
+	{
+		return 0;
+	}
+
+	const asio::ip::tcp::endpoint Endpoint = Socket.remote_endpoint();
+	asio::ip::address Address = Endpoint.address();
+	return Address.is_v4() ? Address.to_v4().to_uint() : 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioSocket::GetRemotePort() const
+{
+	if (!IsOpen())
+	{
+		return 0;
+	}
+
+	const asio::ip::tcp::endpoint Endpoint = Socket.remote_endpoint();
+	return Endpoint.port();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioSocket::GetLocalPort() const
+{
+	if (!IsOpen())
+	{
+		return 0;
+	}
+
+	const asio::ip::tcp::endpoint Endpoint = Socket.local_endpoint();
+	return Endpoint.port();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioSocket::Close()
 {
 	Socket.close();

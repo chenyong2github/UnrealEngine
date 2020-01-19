@@ -20,6 +20,9 @@ public:
 							FAsioSocket(asio::ip::tcp::socket& InSocket);
 	virtual					~FAsioSocket();
 	bool					IsOpen() const;
+	uint32					GetRemoteAddress() const;
+	uint32					GetRemotePort() const;
+	uint32					GetLocalPort() const;
 	virtual void			Close() override;
 	virtual bool			Read(void* Dest, uint32 Size, FAsioIoSink* Sink, uint32 Id) override;
 	virtual bool			ReadSome(void* Dest, uint32 DestSize, FAsioIoSink* Sink, uint32 Id) override;
