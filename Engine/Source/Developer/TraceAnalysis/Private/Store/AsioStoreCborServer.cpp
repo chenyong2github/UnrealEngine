@@ -37,6 +37,8 @@ protected:
 
 	void			OnPayload();
 	void			OnConnect();
+	void			OnSessionCount();
+	void			OnSessionInfo();
 	void			OnStatus();
 	void			OnTraceCount();
 	void			OnTraceInfo();
@@ -91,6 +93,61 @@ void FAsioStoreCborPeer::OnConnect()
 {
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
 	Builder.AddInteger("version", int32(EStoreVersion::Value));
+	SendResponse(Builder.Done());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStoreCborPeer::OnSessionCount()
+{
+	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
+	Builder.AddInteger("count", Recorder.GetSessionCount());
+	SendResponse(Builder.Done());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStoreCborPeer::OnSessionInfo()
+{
+	const FAsioRecorder::FSession* Session = nullptr;
+
+	int32 Index = int32(Response.GetInteger("index", -1));
+	if (Index >= 0)
+	{
+		Session = Recorder.GetSessionInfo(Index);
+	}
+	else if (uint32 Id = uint32(Response.GetInteger("id", 0)))
+	{
+		for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
+		{
+			const FAsioRecorder::FSession* Candidate = Recorder.GetSessionInfo(i);
+			if (Candidate->GetId() == Id)
+			{
+				Session = Candidate;
+				break;
+			}
+		}
+	}
+	else if (uint32 TraceId = uint32(Response.GetInteger("trace_id", 0)))
+	{
+		for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
+		{
+			const FAsioRecorder::FSession* Candidate = Recorder.GetSessionInfo(i);
+			if (Candidate->GetTraceId() == TraceId)
+			{
+				Session = Candidate;
+				break;
+			}
+		}
+	}
+
+	if (Session == nullptr)
+	{
+		return SendError(EStatusCode::BadRequest);
+	}
+
+	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
+	Builder.AddInteger("id", Session->GetId());
+	Builder.AddInteger("trace_id", Session->GetTraceId());
+	Builder.AddInteger("ip_address", Session->GetIpAddress());
 	SendResponse(Builder.Done());
 }
 
@@ -208,11 +265,13 @@ void FAsioStoreCborPeer::OnPayload()
 		uint32	Hash;
 		void	(FAsioStoreCborPeer::*Func)();
 	} const DispatchTable[] = {
-		{ QuickStoreHash("connect"),	&FAsioStoreCborPeer::OnConnect },
-		{ QuickStoreHash("status"),		&FAsioStoreCborPeer::OnStatus },
-		{ QuickStoreHash("trace/count"),&FAsioStoreCborPeer::OnTraceCount },
-		{ QuickStoreHash("trace/info"),	&FAsioStoreCborPeer::OnTraceInfo },
-		{ QuickStoreHash("trace/read"),	&FAsioStoreCborPeer::OnTraceRead },
+		{ QuickStoreHash("connect"),		&FAsioStoreCborPeer::OnConnect },
+		{ QuickStoreHash("session/count"),	&FAsioStoreCborPeer::OnSessionCount },
+		{ QuickStoreHash("session/info"),	&FAsioStoreCborPeer::OnSessionInfo },
+		{ QuickStoreHash("status"),			&FAsioStoreCborPeer::OnStatus },
+		{ QuickStoreHash("trace/count"),	&FAsioStoreCborPeer::OnTraceCount },
+		{ QuickStoreHash("trace/info"),		&FAsioStoreCborPeer::OnTraceInfo },
+		{ QuickStoreHash("trace/read"),		&FAsioStoreCborPeer::OnTraceRead },
 	};
 
 	uint32 MethodHash = QuickStoreHash(Method);

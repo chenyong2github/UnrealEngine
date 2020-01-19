@@ -44,12 +44,10 @@ public:
 	const FTraceInfo*	GetTraceInfo(uint32 Index);
 	const FTraceInfo*	GetTraceInfoById(uint32 Id);
 	FTraceData			ReadTrace(uint32 Id);
-
 #if 0
 	template <typename Lambda> uint32 GetTraceInfos(uint32 StartIndex, uint32 Count, Lambda&& Callback) const;
 #endif // 0
 
-#if 0
 	struct TRACEANALYSIS_API FSessionInfo
 	{
 		uint32			GetId() const;
@@ -57,8 +55,9 @@ public:
 		uint32			GetIpAddress() const;
 	};
 	uint32				GetSessionCount() const;
-	const FSessionInfo* GetSessionInfo(uint32 Index, Lambda&& Callback) const;
-#endif // 0
+	const FSessionInfo* GetSessionInfo(uint32 Index) const;
+	const FSessionInfo* GetSessionInfoById(uint32 Id) const;
+	const FSessionInfo* GetSessionInfoByTraceId(uint32 TraceId) const;
 #if 0
 	template <typename Lambda> uint32	GetSessionInfos(uint32 StartIndex, uint32 Count, Lambda&& Callback) const;
 #endif // 0

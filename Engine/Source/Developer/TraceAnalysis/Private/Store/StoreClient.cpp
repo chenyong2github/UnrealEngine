@@ -75,6 +75,10 @@ public:
 	bool					GetTraceInfo(uint32 Index);
 	bool					GetTraceInfoById(uint32 Id);
 	FTraceDataStream*		ReadTrace(uint32 Id);
+	bool					GetSessionCount();
+	bool					GetSessionInfo(uint32 Index);
+	bool					GetSessionInfoById(uint32 Id);
+	bool					GetSessionInfoByTraceId(uint32 TraceId);
 
 private:
 	bool					Communicate(const FPayload& Payload);
@@ -241,6 +245,41 @@ FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 	return new FTraceDataStream(SenderSocket);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetSessionCount()
+{
+	TPayloadBuilder<> Builder("session/count");
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetSessionInfo(uint32 Index)
+{
+	TPayloadBuilder<> Builder("session/info");
+	Builder.AddInteger("index", int32(Index));
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetSessionInfoById(uint32 Id)
+{
+	TPayloadBuilder<> Builder("session/info");
+	Builder.AddInteger("id", int32(Id));
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetSessionInfoByTraceId(uint32 TraceId)
+{
+	TPayloadBuilder<> Builder("session/info");
+	Builder.AddInteger("trace_id", int32(TraceId));
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
 } // namespace Trace
 
 #endif // TRACE_WITH_ASIO
@@ -288,6 +327,29 @@ FAnsiStringView FStoreClient::FTraceInfo::GetName() const
 {
 	const auto* Response = (const FResponse*)this;
 	return Response->GetString("name", "nameless");
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FSessionInfo::GetId() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("id", 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FSessionInfo::GetTraceId() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("trace_id", 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FSessionInfo::GetIpAddress() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("ip_address", 0);
 }
 
 
@@ -401,6 +463,69 @@ FStoreClient::FTraceData FStoreClient::ReadTrace(uint32 Id)
 {
 #if TRACE_WITH_ASIO
 	return FTraceData(Impl->ReadTrace(Id));
+#else
+	return nullptr;
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::GetSessionCount() const
+{
+#if TRACE_WITH_ASIO
+	if (!Impl->GetSessionCount())
+	{
+		return 0;
+	}
+
+	return Impl->GetResponse().GetInteger("count", 0);
+#else
+	return 0;
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfo(uint32 Index) const
+{
+#if TRACE_WITH_ASIO
+	if (!Impl->GetSessionInfo(Index))
+	{
+		return nullptr;
+	}
+
+	const FResponse& Response = Impl->GetResponse();
+	return (FSessionInfo*)(&Response);
+#else
+	return nullptr;
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoById(uint32 Id) const
+{
+#if TRACE_WITH_ASIO
+	if (!Impl->GetSessionInfoById(Id))
+	{
+		return nullptr;
+	}
+
+	const FResponse& Response = Impl->GetResponse();
+	return (FSessionInfo*)(&Response);
+#else
+	return nullptr;
+#endif // TRACE_WITH_ASIO
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByTraceId(uint32 TraceId) const
+{
+#if TRACE_WITH_ASIO
+	if (!Impl->GetSessionInfoByTraceId(TraceId))
+	{
+		return nullptr;
+	}
+
+	const FResponse& Response = Impl->GetResponse();
+	return (FSessionInfo*)(&Response);
 #else
 	return nullptr;
 #endif // TRACE_WITH_ASIO
