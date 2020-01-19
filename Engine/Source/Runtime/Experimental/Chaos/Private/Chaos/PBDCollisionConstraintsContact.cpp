@@ -12,22 +12,22 @@ namespace Chaos
 	namespace Collisions
 	{
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void Update(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
+		void Update(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint)
 		{
-			Constraint.ResetPhi(Thickness);
+			Constraint.ResetPhi(CullDistance);
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
 			const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
 
-			UpdateConstraint<UpdateType>(Constraint, ParticleTM, LevelsetTM, Thickness);
+			UpdateConstraint<UpdateType>(Constraint, ParticleTM, LevelsetTM, CullDistance);
 		}
 
 		template<typename T, int d>
-		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
+		void UpdateManifold(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint)
 		{
 			const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
 			const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-			UpdateManifold(Constraint, Transform0, Transform1, Thickness);
+			UpdateManifold(Constraint, Transform0, Transform1, CullDistance);
 		}
 
 
@@ -209,10 +209,10 @@ namespace Chaos
 				const bool bNeedCollisionUpdate = (PairIt > 0) || (IterationParameters.Iteration > 0);
 				if (bNeedCollisionUpdate)
 				{
-					Collisions::Update<ECollisionUpdateType::Deepest>(ParticleParameters.Thickness, Constraint);
+					Collisions::Update<ECollisionUpdateType::Deepest>(ParticleParameters.CullDistance, Constraint);
 				}
 
-				if (Constraint.GetPhi() >= ParticleParameters.Thickness)
+				if (Constraint.GetPhi() >= ParticleParameters.ShapePadding)
 				{
 					return;
 				}
@@ -260,7 +260,7 @@ namespace Chaos
 			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
 			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
 
-			if (Contact.Phi >= ParticleParameters.Thickness)
+			if (Contact.Phi >= ParticleParameters.ShapePadding)
 			{
 				return AccumulatedImpulse;
 			}
@@ -324,7 +324,7 @@ namespace Chaos
 			}
 
 
-			TVector<T, d> Impulse = PMatrix<T, d, d>(Factor.Inverse()) * ((-Contact.Phi + ParticleParameters.Thickness) * ScalingFactor * Contact.Normal);
+			TVector<T, d> Impulse = PMatrix<T, d, d>(Factor.Inverse()) * ((-Contact.Phi + ParticleParameters.ShapePadding) * ScalingFactor * Contact.Normal);
 			TVector<T, d> AngularImpulse1 = TVector<T, d>::CrossProduct(VectorToPoint1, Impulse);
 			TVector<T, d> AngularImpulse2 = TVector<T, d>::CrossProduct(VectorToPoint2, -Impulse);
 			if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
@@ -355,7 +355,7 @@ namespace Chaos
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Update<ECollisionUpdateType::Deepest>(ParticleParameters.Thickness, Constraint);
+				Update<ECollisionUpdateType::Deepest>(ParticleParameters.CullDistance, Constraint);
 
 				Constraint.AccumulatedImpulse += 
 					ApplyPushOutContact(Constraint.Manifold, Particle0, Particle1, IsTemporarilyStatic, IterationParameters, ParticleParameters);

@@ -37,7 +37,7 @@ namespace Chaos
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 
-		FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector);
+		FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
 
 		void AddConstraintRule(FSimpleConstraintRule* Rule);
 
@@ -57,6 +57,11 @@ namespace Chaos
 		void SetGravity(const FVec3& G)
 		{
 			Gravity = G;
+		}
+
+		void SetBoundsExtension(const FReal InBoundsExtension)
+		{
+			BoundsExtension = InBoundsExtension;
 		}
 
 		void SetPostIntegrateCallback(const FEvolutionCallback& Cb)
@@ -98,6 +103,7 @@ namespace Chaos
 
 		int32 NumApplyIterations;
 		int32 NumApplyPushOutIterations;
+		FReal BoundsExtension;
 		FVec3 Gravity;
 
 		FEvolutionCallback PostIntegrateCallback;

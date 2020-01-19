@@ -11,7 +11,8 @@ namespace Chaos
 	{
 		template<class T = float>
 		struct TContactParticleParameters {
-			T Thickness;
+			T CullDistance;
+			T ShapePadding;
 			TArrayCollectionArray<bool>* Collided;
 		};
 
@@ -25,10 +26,10 @@ namespace Chaos
 		};
 
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void Update(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
+		void Update(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint);
 
 		template<typename T, int d>
-		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
+		void UpdateManifold(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint);
 
 		template<typename T, int d>
 		void Apply(TCollisionConstraintBase<T, d>& Constraint, const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters);

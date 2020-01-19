@@ -23,9 +23,15 @@ namespace Chaos
 		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
 		using FAABB = TAABB<FReal, 3>;
 
-		FParticlePairBroadPhase(const TArray<FParticlePair>& InParticlePairs)
+		FParticlePairBroadPhase(const TArray<FParticlePair>& InParticlePairs, const FReal InCullDistance)
 			: ParticlePairs(InParticlePairs)
+			, CullDistance(InCullDistance)
 		{
+		}
+
+		void SetCullDustance(const FReal InCullDistance)
+		{
+			CullDistance = InCullDistance;
 		}
 
 		/**
@@ -38,11 +44,13 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
 
-			const FReal AABBExpansion = 1.0f;		// WRONG!!!!
+			OverlappingIndices.Reserve(ParticlePairs.Num());
 
-			FCollisionConstraintsArray NewConstraints;
-			for (const FParticlePair& ParticlePair : ParticlePairs)
+			const int32 NumPairs = ParticlePairs.Num();
+			for (int32 PairIndex = 0; PairIndex < NumPairs; ++PairIndex)
 			{
+				const FParticlePair& ParticlePair = ParticlePairs[PairIndex];
+
 				// Array is const, things in it are not...
 				TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
 				TGeometryParticleHandle<FReal, 3>* Particle1 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[1]);
@@ -56,15 +64,29 @@ namespace Chaos
 					const TAABB<FReal, 3>& Box1 = Particle1->WorldSpaceInflatedBounds();
 					if (Box0.Intersects(Box1))
 					{
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt,Particle0, Particle1, AABBExpansion, StatData);
-						Receiver.ReceiveCollisions(NewConstraints);
-						NewConstraints.Empty();
+						OverlappingIndices.Add(PairIndex);
 					}
 				}
 			}
+
+			for (int32 PairIndex : OverlappingIndices)
+			{
+				const FParticlePair& ParticlePair = ParticlePairs[PairIndex];
+				TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
+				TGeometryParticleHandle<FReal, 3>* Particle1 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[1]);
+
+				NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle0, Particle1, CullDistance, StatData);
+				Receiver.ReceiveCollisions(NewConstraints);
+				NewConstraints.Empty();
+			}
+
+			OverlappingIndices.Reset();
 		}
 
 	private:
 		const TArray<FParticlePair>& ParticlePairs;
+		TArray<int32> OverlappingIndices;
+		FReal CullDistance;
+		FCollisionConstraintsArray NewConstraints;
 	};
 }

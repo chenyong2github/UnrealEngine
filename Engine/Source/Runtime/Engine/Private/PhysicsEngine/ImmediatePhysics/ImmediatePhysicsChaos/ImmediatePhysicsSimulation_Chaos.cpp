@@ -31,23 +31,27 @@ float ChaosImmediate_Evolution_InitialStepTime = 0.033f;
 int32 ChaosImmediate_Evolution_DeltaTimeCount = 100;
 int32 ChaosImmediate_Evolution_Iterations = -1;
 int32 ChaosImmediate_Evolution_PushOutIterations = -1;
+float ChaosImmediate_Evolution_BoundsExtension = 0.0f;
 FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.ImmPhys.StepTime"), ChaosImmediate_Evolution_StepTime, TEXT("Override step time (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysNumSteps(TEXT("p.Chaos.ImmPhys.NumSteps"), ChaosImmediate_Evolution_NumSteps, TEXT("Override num steps (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysInitialStepTime(TEXT("p.Chaos.ImmPhys.InitialStepTime"), ChaosImmediate_Evolution_InitialStepTime, TEXT("Initial step time (then calculated from rolling average)"));
 FAutoConsoleVariableRef CVarChaosImmPhysDeltaTimeCount(TEXT("p.Chaos.ImmPhys.DeltaTimeCount"), ChaosImmediate_Evolution_DeltaTimeCount, TEXT("The number of ticks over which the moving average is calculated"));
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("Override number of constraint solver loops in immediate physics (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Override number of solver push-out loops (if >= 0)"));
+FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
 
 int32 ChaosImmediate_Collision_Enabled = 1;
 int32 ChaosImmediate_Collision_PairIterations = -1;
 int32 ChaosImmediate_Collision_PushOutPairIterations = -1;
 int32 ChaosImmediate_Collision_Priority = 1;
-float ChaosImmediate_Collision_Thickness = 0;
+float ChaosImmediate_Collision_CullDistance = 1.0f;
+float ChaosImmediate_Collision_ShapePadding = 0;
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionDisable(TEXT("p.Chaos.ImmPhys.Collision.Enabled"), ChaosImmediate_Collision_Enabled, TEXT("Enable/Disable collisions in Immediate Physics."));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPairIterations(TEXT("p.Chaos.ImmPhys.Collision.PairIterations"), ChaosImmediate_Collision_PairIterations, TEXT("Override collision pair iterations (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPushOutPairIterations(TEXT("p.Chaos.ImmPhys.Collision.PushOutPairIterations"), ChaosImmediate_Collision_PushOutPairIterations, TEXT("Override collision push-out pair iterations (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPriority(TEXT("p.Chaos.ImmPhys.Collision.Priority"), ChaosImmediate_Collision_Priority, TEXT("Set the Collision constraint sort order (Joints have priority 0)"));
-FAutoConsoleVariableRef CVarChaosImmPhysCollisionThickness(TEXT("p.Chaos.ImmPhys.Collision.Thickness"), ChaosImmediate_Collision_Thickness, TEXT("ChaosImmediateThickness"));
+FAutoConsoleVariableRef CVarChaosImmPhysCollisionCullDistance(TEXT("p.Chaos.ImmPhys.Collision.CullDistance"), ChaosImmediate_Collision_CullDistance, TEXT("CullDistance"));
+FAutoConsoleVariableRef CVarChaosImmPhysCollisionShapePadding(TEXT("p.Chaos.ImmPhys.Collision.ShapePadding"), ChaosImmediate_Collision_ShapePadding, TEXT("ShapePadding"));
 
 int32 ChaosImmediate_Joint_PairIterations = -1;
 int32 ChaosImmediate_Joint_PushOutPairIterations = -1;
@@ -162,12 +166,12 @@ namespace ImmediatePhysics_Chaos
 		, PerParticleMaterials()
 		, Particles()
 		, Joints()
-		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0)
-		, BroadPhase(PotentiallyCollidingPairs)
+		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
+		, BroadPhase(PotentiallyCollidingPairs, ChaosImmediate_Collision_CullDistance)
 		, CollisionDetector(BroadPhase, Collisions)
 		, JointsRule(0, Joints)
 		, CollisionsRule(1, Collisions)
-		, Evolution(Particles, CollisionDetector)
+		, Evolution(Particles, CollisionDetector, ChaosImmediate_Evolution_BoundsExtension)
 		, NumActiveDynamicActorHandles(0)
 		, SimulationSpaceTransform(FTransform::Identity)
 		, RollingAverageStepTime(ChaosImmediate_Evolution_InitialStepTime)
@@ -535,9 +539,13 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.AngularDriveDamping = ChaosImmediate_Joint_AngularDriveDamping;
 			Joints.SetSettings(JointsSettings);
 
-			Collisions.SetThickness(ChaosImmediate_Collision_Thickness);
+			Collisions.SetShapePadding(ChaosImmediate_Collision_ShapePadding);
 			Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
 			CollisionsRule.SetPriority(ChaosImmediate_Collision_Priority);
+
+			Collisions.SetCullDistance(ChaosImmediate_Collision_CullDistance);
+			BroadPhase.SetCullDustance(ChaosImmediate_Collision_CullDistance);
+			Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
 
 			SetSolverIterations(
 				ChaosImmediate_Evolution_Iterations,

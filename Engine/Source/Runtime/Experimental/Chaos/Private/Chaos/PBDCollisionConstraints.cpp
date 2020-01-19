@@ -66,13 +66,15 @@ namespace Chaos
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials,
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
-		const T Thickness /*= (T)0*/)
+		const T CullDistance /*= (T)0*/,
+		const T ShapePadding /*= (T)0*/)
 		: Particles(InParticles)
 		, MCollided(Collided)
 		, MPhysicsMaterials(InPerParticleMaterials)
 		, MApplyPairIterations(InApplyPairIterations)
 		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
-		, MThickness(Thickness)
+		, MCullDistance(CullDistance)
+		, MShapePadding(ShapePadding)
 		, MAngularFriction(0)
 		, bUseCCD(false)
 		, bEnableCollisions(true)
@@ -294,9 +296,9 @@ namespace Chaos
 		//{
 		//	FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
 		//	check(ConstraintHandle != nullptr);
-		//	Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MThickness, ConstraintHandle->GetContact());
+		//	Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 
-		//	if (ConstraintHandle->GetContact().GetPhi() < MThickness) 
+		//	if (ConstraintHandle->GetContact().GetPhi() < MCullDistance) 
 		//	{
 		//		ConstraintHandle->GetContact().Timestamp = LifespanCounter;
 		//	}
@@ -304,8 +306,8 @@ namespace Chaos
 
 		for (FPointContactConstraint& Contact : PointConstraints)
 		{
-			Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MThickness, Contact);
-			if (Contact.GetPhi() < MThickness)
+			Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MCullDistance, Contact);
+			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
 			}
@@ -321,13 +323,13 @@ namespace Chaos
 		//{
 		//	FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
 		//	check(ConstraintHandle != nullptr);
-		//	Collisions::UpdateManifold<float, 3>(MThickness, ConstraintHandle->GetContact());
+		//	Collisions::UpdateManifold<float, 3>(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
 		for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 		{
-			Collisions::UpdateManifold<float, 3>(MThickness, Contact);
-			if (Contact.GetPhi() < MThickness)
+			Collisions::UpdateManifold<float, 3>(MCullDistance, Contact);
+			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
 			}
@@ -341,7 +343,7 @@ namespace Chaos
 
 		if (MApplyPairIterations > 0)
 		{
-			const Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided };
+			const Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
 			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
 
 			for (FPointContactConstraint& Contact : PointConstraints)
@@ -370,7 +372,7 @@ namespace Chaos
 		bool bNeedsAnotherIteration = false;
 		if (MApplyPushOutPairIterations > 0)
 		{
-			const Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided };
+			const Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
 			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
 
 			for (FPointContactConstraint& Contact : PointConstraints)
@@ -404,7 +406,7 @@ namespace Chaos
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
-				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided };
+				Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
 				Collisions::Apply(ConstraintHandle->GetContact(), IterationParameters, ParticleParameters);
 
@@ -431,7 +433,7 @@ namespace Chaos
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
-				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided };
+				Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
 				Collisions::ApplyPushOut(ConstraintHandle->GetContact(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
 
