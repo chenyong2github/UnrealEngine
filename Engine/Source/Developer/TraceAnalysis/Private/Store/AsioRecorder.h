@@ -22,16 +22,23 @@ class FAsioRecorder
 	, public FAsioTickable
 {
 public:
-								FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore);
-								~FAsioRecorder();
-
-private:
-	struct FSession
+	class FSession
 	{
+	public:
+		uint32					GetTraceId() const;
+
+	private:
+		friend					FAsioRecorder;
 		FAsioRecorderRelay*		Relay;
 		uint32					TraceId;
 	};
 
+								FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore);
+								~FAsioRecorder();
+	uint32						GetSessionCount() const;
+	const FSession*				GetSessionInfo(uint32 Index) const;
+
+private:
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
 	virtual void				OnTick() override;
 	TArray<FSession>			Sessions;

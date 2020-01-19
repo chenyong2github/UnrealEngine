@@ -75,6 +75,14 @@ void FAsioRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioRecorder::FSession::GetTraceId() const
+{
+	return TraceId;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 FAsioRecorder::FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore)
 : FAsioTcpServer(IoContext)
 , FAsioTickable(IoContext)
@@ -94,6 +102,23 @@ FAsioRecorder::~FAsioRecorder()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioRecorder::GetSessionCount() const
+{
+	return uint32(Sessions.Num());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FAsioRecorder::FSession* FAsioRecorder::GetSessionInfo(uint32 Index) const
+{
+	if (Index >= uint32(Sessions.Num()))
+	{
+		return nullptr;
+	}
+
+	return Sessions.GetData() + Index;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 {
 	FAsioStore::FNewTrace Trace = Store.CreateTrace();
@@ -102,8 +127,13 @@ bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 		return true;
 	}
 
-	FAsioRecorderRelay* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
-	Sessions.Add({Relay, Trace.Id});
+	auto* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
+
+	FSession Session;
+	Session.Relay = Relay;
+	Session.TraceId = Trace.Id;
+	Sessions.Add(Session);
+
 	return true;
 }
 
