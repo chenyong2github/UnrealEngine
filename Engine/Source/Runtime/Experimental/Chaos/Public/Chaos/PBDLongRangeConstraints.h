@@ -17,8 +17,14 @@ class TPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, publ
 	using Base::MConstraints;
 
   public:
-	TPBDLongRangeConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1)
-	    : TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness) {}
+	TPBDLongRangeConstraints(
+		const TDynamicParticles<T, d>& InParticles,
+		const TMap<int32, TSet<uint32>>& PointToNeighbors,
+		const int32 NumberOfAttachments = 1,
+		const T Stiffness = (T)1,
+		const T LimitScale = (T)1,
+		const bool bUseGeodesicDistance = false)
+		: TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness, LimitScale, bUseGeodesicDistance) {}
 	virtual ~TPBDLongRangeConstraints() {}
 
 

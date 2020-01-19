@@ -146,6 +146,7 @@ void ClothingSimulation::Shutdown()
 	Evolution.Reset();
 	ExternalCollisionsOffset = 0;
 	ClothSharedSimConfig = nullptr;
+	LongRangeConstraints.Reset();
 }
 
 void ClothingSimulation::DestroyActors()
@@ -560,33 +561,35 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		// There might be a cross-over point where the PerParticle version is faster: To be determined
 		if (bUseXPBDConstraints)
 		{
-			const TSharedPtr<Chaos::TXPBDLongRangeConstraints<float, 3>> LongRangeConstraints = MakeShared<Chaos::TXPBDLongRangeConstraints<float, 3>>(
+			LongRangeConstraints = MakeShared<Chaos::TXPBDLongRangeConstraints<float, 3>>(
 				Evolution->Particles(),
 				Mesh.GetPointToNeighborsMap(),
 				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-				ChaosClothSimConfig->StrainLimitingStiffness);
+				ChaosClothSimConfig->StrainLimitingStiffness);  // TODO(Kriss.Gossart): Add LimitScale and Geodesic mode if ever of use
 
 			Evolution->AddXPBDConstraintFunctions(
-				[LongRangeConstraints]()
+				[this]()
 				{
-					LongRangeConstraints->Init();
+					static_cast<Chaos::TXPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints).Init();
 				},
-				[LongRangeConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+				[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
-					LongRangeConstraints->Apply(InParticles, Dt);
+					static_cast<Chaos::TXPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints).Apply(InParticles, Dt);
 				});
 		}
 		else
 		{
-			Chaos::TPBDLongRangeConstraints<float, 3> LongRangeConstraints(
+			LongRangeConstraints = MakeShared<Chaos::TPBDLongRangeConstraints<float, 3>>(
 				Evolution->Particles(),
 				Mesh.GetPointToNeighborsMap(),
 				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-				ChaosClothSimConfig->StrainLimitingStiffness);
+				ChaosClothSimConfig->StrainLimitingStiffness,
+				ChaosClothSimConfig->LimitScale,
+				ChaosClothSimConfig->bUseGeodesicDistance);
 
-			Evolution->AddPBDConstraintFunction([LongRangeConstraints = MoveTemp(LongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			Evolution->AddPBDConstraintFunction([this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
-				LongRangeConstraints.Apply(InParticles, Dt);
+				static_cast<Chaos::TPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints).Apply(InParticles, Dt);
 			});
 		}
 	}
@@ -1851,6 +1854,31 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* OwnerCompone
 			const float Multiplier = AnimDriveMultipliers[WeightMapIndex];
 			PDI->DrawLine(AnimationPositions[ParticleIndex], Particles.X(ParticleIndex), Multiplier * AnimDriveSpringStiffness[i] * FColor::Cyan, SDPG_World, 0.0f, 0.001f);
 		}
+	}
+}
+
+void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	const TArray<TArray<uint32>>& Constraints = LongRangeConstraints->GetConstraints();
+	const TArray<float>& Dists = LongRangeConstraints->GetDists();
+
+	for (int32 i = 0; i < Constraints.Num(); ++i)
+	{
+		const TArray<uint32>& Path = Constraints[i];
+		const float RefDist = Dists[i];
+		const float CurDist = TPBDLongRangeConstraintsBase<float, 3>::ComputeGeodesicDistance(Particles, Path);
+		const float Offset = CurDist - RefDist;
+
+		const Chaos::TVector<float, 3> P0 = Particles.X(Path[0]);  // Kinematic particle
+		const Chaos::TVector<float, 3> P1 = Particles.X(Path[Path.Num() - 1]);  // Target particle
+
+		const Chaos::TVector<float, 3> Direction = (Particles.X(Path[Path.Num() - 2]) - P1).GetSafeNormal();
+		const Chaos::TVector<float, 3> P2 = P1 + Direction * Offset;
+
+		PDI->DrawLine(P0, P1, FColor::Purple, SDPG_World, 0.0f, 0.001f);
+		PDI->DrawLine(P1, P2, FColor::Black, SDPG_World, 0.0f, 0.001f);
 	}
 }
 #endif  // #if WITH_EDITOR
