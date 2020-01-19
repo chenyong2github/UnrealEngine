@@ -34,8 +34,9 @@ public:
 		friend			FStoreClient;
 		UPTRINT			Handle = 0;
 	};
-						FStoreClient(const TCHAR* Host, uint16 Port);
+	
 						~FStoreClient();
+	static FStoreClient*Connect(const TCHAR* Host, uint32 Port);
 	bool				IsValid() const;
 	const FStatus*		GetStatus();
 	uint32				GetTraceCount();
@@ -71,8 +72,9 @@ public:
 #endif // 0
 
 private:
+						FStoreClient() = default;
 	struct				FImpl;
-	FImpl*				Impl;
+	FImpl*				Impl = nullptr;
 
 private:
 						FStoreClient(const FStoreClient&) = delete;
