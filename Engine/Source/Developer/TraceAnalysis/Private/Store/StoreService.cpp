@@ -65,6 +65,9 @@ FStoreService* FStoreService::Create(const FDesc& InDesc)
 		Desc.ThreadCount = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
 	}
 
+	// TODO: not thread safe yet
+	Desc.ThreadCount = 1;
+
 	FStoreService::FImpl* Impl = new FStoreService::FImpl(Desc);
 	if (Desc.RecorderPort >= 0)
 	{
