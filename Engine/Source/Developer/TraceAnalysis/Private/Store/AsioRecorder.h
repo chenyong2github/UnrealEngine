@@ -25,12 +25,14 @@ public:
 	class FSession
 	{
 	public:
+		uint32					GetId() const;
 		uint32					GetTraceId() const;
 		uint32					GetIpAddress() const;
 
 	private:
 		friend					FAsioRecorder;
 		FAsioRecorderRelay*		Relay;
+		uint32					Id;
 		uint32					TraceId;
 	};
 

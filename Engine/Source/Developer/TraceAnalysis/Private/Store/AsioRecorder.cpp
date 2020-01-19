@@ -83,6 +83,12 @@ void FAsioRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioRecorder::FSession::GetId() const
+{
+	return Id;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 uint32 FAsioRecorder::FSession::GetTraceId() const
 {
 	return TraceId;
@@ -143,8 +149,16 @@ bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 
 	auto* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
 
+	uint32 IdPieces[] = {
+		Relay->GetIpAddress(),
+		Socket.remote_endpoint().port(),
+		Socket.local_endpoint().port(),
+		0,
+	};
+
 	FSession Session;
 	Session.Relay = Relay;
+	Session.Id = QuickStoreHash(IdPieces);
 	Session.TraceId = Trace.Id;
 	Sessions.Add(Session);
 
