@@ -26,12 +26,12 @@ int32 Encode(const void*, int32, void*, int32);
 ////////////////////////////////////////////////////////////////////////////////
 #define TRACE_PRIVATE_PERF 0
 #if TRACE_PRIVATE_PERF
-UE_TRACE_EVENT_BEGIN($Trace, WorkerThread, Always)
+UE_TRACE_EVENT_BEGIN($Trace, WorkerThread)
 	UE_TRACE_EVENT_FIELD(uint32, Cycles)
 	UE_TRACE_EVENT_FIELD(uint32, BytesSent)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, Memory, Always)
+UE_TRACE_EVENT_BEGIN($Trace, Memory)
 	UE_TRACE_EVENT_FIELD(uint32, AllocSize)
 UE_TRACE_EVENT_END()
 #endif // TRACE_PRIVATE_PERF

@@ -10,7 +10,7 @@
 
 UE_TRACE_CHANNEL(GpuProfilerChannel)
 
-UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, Always)
+UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, Important)
 	UE_TRACE_EVENT_FIELD(const void*, EventType)
 	UE_TRACE_EVENT_FIELD(uint16, NameLength)
 UE_TRACE_EVENT_END()

@@ -12,14 +12,14 @@
 
 UE_TRACE_CHANNEL(StatsChannel)
 
-UE_TRACE_EVENT_BEGIN(Stats, Spec, Always)
+UE_TRACE_EVENT_BEGIN(Stats, Spec, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsFloatingPoint)
 	UE_TRACE_EVENT_FIELD(bool, IsMemory)
 	UE_TRACE_EVENT_FIELD(bool, ShouldClearEveryFrame)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Stats, EventBatch, Always)
+UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
