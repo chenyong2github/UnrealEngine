@@ -9,6 +9,7 @@ const FName FChannelProvider::ProviderName("ChannelProvider");
 ///////////////////////////////////////////////////////////////////////////////
 FChannelProvider::FChannelProvider()
 {
+	TimeStamp = FDateTime::Now();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,6 +22,8 @@ void FChannelProvider::AnnounceChannel(const ANSICHAR* InChannelName, uint32 Id)
 		ChannelName,
 		true
 	});
+
+	TimeStamp = FDateTime::Now();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,6 +37,8 @@ void FChannelProvider::UpdateChannel(uint32 Id, bool bEnabled)
 	{
 		FoundEntry->bIsEnabled = bEnabled;
 	}
+
+	TimeStamp = FDateTime::Now();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -46,6 +51,11 @@ uint64 FChannelProvider::GetChannelCount() const
 const TArray<FChannelEntry>& FChannelProvider::GetChannels() const
 {
 	return Channels;
+}
+
+FDateTime FChannelProvider::GetTimeStamp() const
+{
+	return TimeStamp;
 }
 
 }

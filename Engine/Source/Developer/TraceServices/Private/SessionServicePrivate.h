@@ -32,6 +32,7 @@ public:
 	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const override;
 	virtual bool ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState) override;
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) override;
+	virtual FSessionHandle GetSessionHandleByName(const FString& SessionName) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(FSessionHandle SessionHandle) override;
 
 private:

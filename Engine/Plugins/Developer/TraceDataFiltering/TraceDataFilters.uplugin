@@ -1,0 +1,24 @@
+{
+	"FileVersion" : 1,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "Trace Data Filtering",
+	"Description" : "Allows for turning on/off individual or sets of Trace Channels.",
+	"Category" : "Editor",
+	"CreatedBy" : "Epic Games, Inc.",
+	"CreatedByURL" : "http://epicgames.com",
+	"DocsURL" : "",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : false,
+	"CanContainContent" : false,
+	"IsBetaVersion" : false,
+	"Installed" : false,
+	"Modules": [
+		{
+			"Name": "TraceDataFiltering",
+			"Type": "Editor",
+			"LoadingPhase": "PreDefault"
+		}
+	]
+}

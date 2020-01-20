@@ -159,6 +159,19 @@ void FSessionService::GetLiveSessions(TArray<FSessionHandle>& OutSessions) const
 	}
 }
 
+FSessionHandle FSessionService::GetSessionHandleByName(const FString& SessionName)
+{
+	for (const TPair<FStoreSessionHandle, FSessionInfoInternal>& Pair : Sessions)
+	{
+		if (FString(Pair.Value.Name) == SessionName)
+		{
+			return static_cast<FSessionHandle>(Pair.Key);
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo& OutSessionInfo) const
 {
 	FScopeLock Lock(&SessionsCS);

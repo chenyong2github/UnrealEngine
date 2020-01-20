@@ -18,8 +18,11 @@ public:
 	virtual uint64	GetChannelCount() const override;
 	virtual const TArray<FChannelEntry>& GetChannels() const override;
 
+	virtual FDateTime GetTimeStamp() const override;
+
 private:
 	TArray<FChannelEntry> Channels;
+	FDateTime TimeStamp;
 };
 
 } // namespace Trace

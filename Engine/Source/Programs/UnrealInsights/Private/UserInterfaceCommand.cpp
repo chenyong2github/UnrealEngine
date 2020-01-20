@@ -168,6 +168,7 @@ void FUserInterfaceCommand::Run()
 
 		FStats::AdvanceFrame(false);
 
+		FCoreDelegates::OnEndFrame.Broadcast();
 		GLog->FlushThreadedLogs(); //im: ???
 	}
 

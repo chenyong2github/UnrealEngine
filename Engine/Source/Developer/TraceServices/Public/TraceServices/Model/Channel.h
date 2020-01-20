@@ -21,6 +21,7 @@ public:
 	virtual ~IChannelProvider() = default;
 	virtual uint64	GetChannelCount() const = 0;
 	virtual const TArray<FChannelEntry>& GetChannels() const = 0;
+	virtual FDateTime GetTimeStamp() const = 0;
 };
 
 } // namespace Trace
