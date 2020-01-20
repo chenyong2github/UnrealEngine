@@ -90,7 +90,7 @@ public:
 	}
 
 	/** Synchronously wait for all deletes to complete.  */
-	void WaitForAllTasks();
+	bool WaitForAllTasks(float TimeLimitSeconds = 0.0f);
 
 private:
 	/** Update the ActiveTaskCount and events for a task completing */
