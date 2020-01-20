@@ -353,9 +353,9 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 			FString MapFullName;
 			FText MapNameError;
 			bool bFoundMap = false;
-			if (FPaths::FileExists(URL))
+			if (FPaths::FileExists(URL) && FPackageName::TryConvertFilenameToLongPackageName(URL, MapFullName))
 			{
-				Map = FPackageName::FilenameToLongPackageName(URL);
+				Map = MapFullName;
 				bFoundMap = true;
 			}
 			else if (!FPackageName::DoesPackageNameContainInvalidCharacters(URL, &MapNameError))
