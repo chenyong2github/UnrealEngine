@@ -2422,7 +2422,11 @@ static void LoadTimecodeProvider(UEngine* Engine)
 	}
 	else
 	{
-		Engine->SetTimecodeProvider(nullptr);
+#if PLATFORM_DESKTOP
+		//HACK until Dev-VP comes in!!!
+		UTimecodeProvider* NewTimecodeProvider = NewObject<USystemTimeTimecodeProvider>(Engine, TEXT("SystemTimeTimecodeProvider"));
+		Engine->SetTimecodeProvider(NewTimecodeProvider);
+#endif
 	}
 }
 
