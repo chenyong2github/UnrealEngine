@@ -23,8 +23,6 @@ class FAnimationSharedData
 public:
 	FAnimationSharedData(FGameplaySharedData& InGameplaySharedData);
 
-	~FAnimationSharedData();
-
 	void OnBeginSession(Insights::ITimingViewSession& InTimingViewSession);
 	void OnEndSession(Insights::ITimingViewSession& InTimingViewSession);
 	void Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
@@ -99,9 +97,6 @@ private:
 
 	/** Various times and ranges */
 	double MarkerTime;
-
-	/** The open document tabs we reference */
-	mutable TArray<TWeakPtr<SDockTab>> OpenDocumentTabs;
 
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;

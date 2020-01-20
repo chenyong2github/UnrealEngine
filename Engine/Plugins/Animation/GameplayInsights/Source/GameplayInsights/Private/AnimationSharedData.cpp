@@ -38,17 +38,6 @@ FAnimationSharedData::FAnimationSharedData(FGameplaySharedData& InGameplayShared
 {
 }
 
-FAnimationSharedData::~FAnimationSharedData()
-{
-	for(TWeakPtr<SDockTab> DocumentTab : OpenDocumentTabs)
-	{
-		if(DocumentTab.IsValid())
-		{
-			DocumentTab.Pin()->RequestCloseTab();
-		}
-	}
-}
-
 void FAnimationSharedData::OnBeginSession(Insights::ITimingViewSession& InTimingViewSession)
 {
 	TimingViewSession = &InTimingViewSession;
@@ -497,8 +486,6 @@ void FAnimationSharedData::OpenAnimGraphTab(uint64 InAnimInstanceId) const
 			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InAnimInstanceId);
 			Tab->SetLabel(FText::FromString(ObjectInfo.Name));
 		}
-
-		OpenDocumentTabs.Add(Tab);
 	}
 }
 
