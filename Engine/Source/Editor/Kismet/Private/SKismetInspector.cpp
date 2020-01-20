@@ -475,19 +475,6 @@ void SKismetInspector::ShowDetailsForSingleObject(UObject* Object, const FShowDe
 
 void SKismetInspector::ShowDetailsForObjects(const TArray<UObject*>& PropertyObjects, const FShowDetailsOptions& Options)
 {
-	static bool bIsReentrant = false;
-	if ( !bIsReentrant )
-	{
-		bIsReentrant = true;
-		// When the selection is changed, we may be potentially actively editing a property,
-		// if this occurs we need need to immediately clear keyboard focus
-		if ( FSlateApplication::Get().HasFocusedDescendants(AsShared()) )
-		{
-			FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Mouse);
-		}
-		bIsReentrant = false;
-	}
-
 	// Refresh is being deferred until the next tick, this prevents batch operations from bombarding the details view with calls to refresh
 	RefreshPropertyObjects = PropertyObjects;
 	RefreshOptions = Options;
