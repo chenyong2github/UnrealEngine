@@ -5132,7 +5132,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
 	{
-		bool bPluginEnabled = false;
+		boolean bPluginEnabled = false;
 //$${gameActivityAllowedRemoteNotificationsAdditions}$$
 		return bPluginEnabled && NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
 	}
