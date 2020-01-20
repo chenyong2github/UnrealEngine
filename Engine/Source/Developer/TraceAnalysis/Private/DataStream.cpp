@@ -2,6 +2,7 @@
 
 #include "DataStream.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformProcess.h"
 
 namespace Trace
 {
