@@ -1116,6 +1116,10 @@ UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, U
 		SourceMesh->ClearFlags(RF_ArchetypeObject);
 		DuplicateMesh->ClearFlags(RF_ArchetypeObject);
 
+		// The source mesh is stripped from it's source model, it is not buildable anymore.
+		// -> MarkPendingKill to avoid use-after-move crash in the StaticMesh::Build()
+		SourceMesh->MarkPendingKill();
+
 		for (FStaticMeshSourceModel& SourceModel : SourceModels)
 		{
 			// Fixup the new SourceModels owner
