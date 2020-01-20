@@ -23,7 +23,6 @@ class SHorizontalBox;
 class SMultiLineEditableTextBox;
 class STextBlock;
 
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnVerifyTextChanged, const FText&, FText&)
 DECLARE_DELEGATE_OneParam(FOnBeginTextEdit, const FText&)
 
 /**
