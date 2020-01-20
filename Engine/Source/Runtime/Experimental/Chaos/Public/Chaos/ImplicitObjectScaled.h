@@ -332,6 +332,7 @@ public:
 				{
 					OutPosition = MScale * UnscaledPosition;
 					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+					OutTime = NewTime;
 					return true;
 				}
 			}
