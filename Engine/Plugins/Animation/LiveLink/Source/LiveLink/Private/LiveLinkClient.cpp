@@ -1257,14 +1257,11 @@ void FLiveLinkClient::OnPropertyChanged(FGuid InEntryGuid, const FPropertyChange
 	}
 }
 
-ULiveLinkSourceSettings* FLiveLinkClient::GetSourceSettings(FGuid InEntryGuid) const
+ULiveLinkSourceSettings* FLiveLinkClient::GetSourceSettings(const FGuid& InEntryGuid) const
 {
 	if (const FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InEntryGuid))
 	{
-		if (!SourceItem->IsVirtualSource())
-		{
-			return SourceItem->Setting;
-		}
+		return SourceItem->Setting;
 	}
 	return nullptr;
 }
