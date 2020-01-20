@@ -133,13 +133,13 @@ void FNetTraceReporter::ReportPacketContent(FNetTracePacketContentEvent* Events,
 	
 	uint64 LastOffset = 0u;
 
-	auto FlushPacketContentBuffer = [](const FNetTracePacketInfo& PacketInfo, const uint8* Buffer, uint32 Count)
+	auto FlushPacketContentBuffer = [](const FNetTracePacketInfo& InPacketInfo, const uint8* InBuffer, uint32 Count)
 	{
 		UE_TRACE_LOG(NetTrace, PacketContentEvent, Count)
-			<< PacketContentEvent.ConnectionId(PacketInfo.ConnectionId)
-			<< PacketContentEvent.GameInstanceId(PacketInfo.GameInstanceId)
-			<< PacketContentEvent.PacketType((uint8)PacketInfo.PacketType)
-			<< PacketContentEvent.Attachment(Buffer, Count);
+			<< PacketContentEvent.ConnectionId(InPacketInfo.ConnectionId)
+			<< PacketContentEvent.GameInstanceId(InPacketInfo.GameInstanceId)
+			<< PacketContentEvent.PacketType((uint8)InPacketInfo.PacketType)
+			<< PacketContentEvent.Attachment(InBuffer, Count);
 	};
 
 	for (const FNetTracePacketContentEvent& CurrentEvent : MakeArrayView(Events, EventCount))
