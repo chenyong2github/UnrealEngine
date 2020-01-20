@@ -27,15 +27,14 @@ public:
 	TArray<FAssetData> GetSelectedEmitterAssets() const;
 
 private:
+
+	void OnEmitterAssetsActivated(const FAssetData& ActivatedTemplateAsset);
+
 	void GetSelectedSystemTemplateAssets(TArray<FAssetData>& OutSelectedAssets);
 
 	void GetSelectedProjectSystemAssets(TArray<FAssetData>& OutSelectedAssets);
 
 	void GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets);
-
-	void OnTemplateAssetActivated(const FAssetData& ActivatedTemplateAsset);
-
-	void OnSystemAssetsActivated(const FAssetData& ActivatedTemplateAsset);
 
 	bool IsAddEmittersToSelectionButtonEnabled() const;
 	
@@ -46,9 +45,6 @@ private:
 	FReply RemoveEmitterFromSelectionButtonClicked(FAssetData EmitterAsset);
 
 private:
-	FAssetData ActivatedTemplateSystemAsset;
-
-	FAssetData ActivatedProjectSystemAsset;
 
 	TArray<FAssetData> SelectedEmitterAssets;
 

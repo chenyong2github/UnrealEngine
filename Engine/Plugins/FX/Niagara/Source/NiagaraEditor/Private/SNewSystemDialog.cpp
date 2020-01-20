@@ -37,6 +37,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				.Padding(0, 0, 0, 10)
 				[
 					SAssignNew(EmitterAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+					.OnTemplateAssetActivated(this, &SNewSystemDialog::OnEmitterAssetsActivated)
 					.bTemplateOnly(false)
 					.bAllowMultiSelect(true)
 				]
@@ -91,7 +92,6 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedSystemTemplateAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(TemplateAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.OnTemplateAssetActivated(this, &SNewSystemDialog::OnTemplateAssetActivated)
 				.bTemplateOnly(true)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherSystemLabel", "Copy existing system"),
@@ -100,7 +100,6 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectSystemAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.OnTemplateAssetActivated(this, &SNewSystemDialog::OnSystemAssetsActivated)
 				.bTemplateOnly(false)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create empty system"),
@@ -150,43 +149,26 @@ TArray<FAssetData> SNewSystemDialog::GetSelectedEmitterAssets() const
 	return ConfirmedSelectedEmitterAssets;
 }
 
+void SNewSystemDialog::OnEmitterAssetsActivated(const FAssetData& ActivatedTemplateAsset)
+{
+	TArray<FAssetData> ActivatedTemplateAssets;
+	ActivatedTemplateAssets.Add(ActivatedTemplateAsset);
+	AddEmitterAssetsToSelection(ActivatedTemplateAssets);
+}
+
 void SNewSystemDialog::GetSelectedSystemTemplateAssets(TArray<FAssetData>& OutSelectedAssets)
 {
 	OutSelectedAssets.Append(TemplateAssetPicker->GetSelectedAssets());
-	if (ActivatedTemplateSystemAsset.IsValid())
-	{
-		OutSelectedAssets.AddUnique(ActivatedTemplateSystemAsset);
-	}
 }
 
 void SNewSystemDialog::GetSelectedProjectSystemAssets(TArray<FAssetData>& OutSelectedAssets)
 {
 	OutSelectedAssets.Append(SystemAssetPicker->GetSelectedAssets());
-	if (ActivatedProjectSystemAsset.IsValid())
-	{
-		OutSelectedAssets.AddUnique(ActivatedProjectSystemAsset);
-	}
 }
 
 void SNewSystemDialog::GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets)
 {
 	OutSelectedAssets.Append(SelectedEmitterAssets);
-}
-
-void SNewSystemDialog::OnTemplateAssetActivated(const FAssetData& ActivatedTemplateAsset)
-{
-	// Input handling issues with the list view widget can allow items to be activated but not added to the selection so cache this here
-	// so it can be included in the selection set.
-	ActivatedTemplateSystemAsset = ActivatedTemplateAsset;
-	ConfirmSelection();
-}
-
-void SNewSystemDialog::OnSystemAssetsActivated(const FAssetData& ActivatedTemplateAsset)
-{
-	// Input handling issues with the list view widget can allow items to be activated but not added to the selection so cache this here
-	// so it can be included in the selection set.
-	ActivatedProjectSystemAsset = ActivatedTemplateAsset;
-	ConfirmSelection();
 }
 
 bool SNewSystemDialog::IsAddEmittersToSelectionButtonEnabled() const

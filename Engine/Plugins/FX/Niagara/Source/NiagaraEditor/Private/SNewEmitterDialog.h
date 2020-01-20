@@ -28,20 +28,16 @@ public:
 private:
 	void GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets);
 
+	void GetSelectedParentEmitterAssets(TArray<FAssetData>& OutSelectedAssets);
+
 	void GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets);
-
-	void OnTemplateAssetActivated(const FAssetData& InActivatedTemplateAsset);
-
-	void OnEmitterAssetsActivated(const FAssetData& InActivatedTemplateAsset);
 
 	void InheritanceOptionConfirmed();
 
 private:
 	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
-
-	FAssetData ActivatedTemplateAsset;
-
-	FAssetData ActivatedProjectAsset;
+	TSharedPtr<SNiagaraAssetPickerList> InheritAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> CopyAssetPicker;
 
 	bool bUseInheritance;
 };
