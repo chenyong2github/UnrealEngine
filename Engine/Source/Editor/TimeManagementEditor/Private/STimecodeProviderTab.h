@@ -26,8 +26,8 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	int32 GetFrameDelay() const;
-	void SetFrameDelay(int32, ETextCommit::Type);
+	float GetFrameDelay() const;
+	void SetFrameDelay(float, ETextCommit::Type);
 
 private:
 	TSharedRef<SWidget> OnGetMenuContent();

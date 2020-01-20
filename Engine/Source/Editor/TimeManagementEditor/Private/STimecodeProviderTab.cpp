@@ -152,7 +152,7 @@ TSharedRef<SWidget> STimecodeProviderTab::OnGetMenuContent()
 	{
 		MenuBuilder.BeginSection("Settings", LOCTEXT("Settings", "Settings"));
 		{
-			TSharedRef<SWidget> RefreshDelay = SNew(SSpinBox<int32>)
+			TSharedRef<SWidget> RefreshDelay = SNew(SSpinBox<float>)
 				.ToolTipText(LOCTEXT("FrameDelay_ToolTip", "Number of frames to subtract from the original timecode."))
 				.Value(this, &STimecodeProviderTab::GetFrameDelay)
 				.OnValueCommitted(this, &STimecodeProviderTab::SetFrameDelay);
@@ -165,7 +165,7 @@ TSharedRef<SWidget> STimecodeProviderTab::OnGetMenuContent()
 	return MenuBuilder.MakeWidget();
 }
 
-int32 STimecodeProviderTab::GetFrameDelay() const
+float STimecodeProviderTab::GetFrameDelay() const
 {
 	if (GEngine->GetTimecodeProvider())
 	{
@@ -175,10 +175,10 @@ int32 STimecodeProviderTab::GetFrameDelay() const
 	{
 		return GEngine->GenerateDefaultTimecodeFrameDelay;
 	}
-	return 0;
+	return 0.f;
 }
 
-void STimecodeProviderTab::SetFrameDelay(int32 InNewValue, ETextCommit::Type)
+void STimecodeProviderTab::SetFrameDelay(float InNewValue, ETextCommit::Type)
 {
 	if (GetFrameDelay() != InNewValue)
 	{
