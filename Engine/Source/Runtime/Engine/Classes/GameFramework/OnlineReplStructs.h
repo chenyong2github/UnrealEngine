@@ -39,11 +39,6 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 	{
 	}
 
-	FUniqueNetIdRepl(const FUniqueNetId& InUniqueNetId)
-		: FUniqueNetIdWrapper(InUniqueNetId)
-	{
-	}
-
 	FUniqueNetIdRepl(const TSharedRef<const FUniqueNetId>& InUniqueNetId)
 		: FUniqueNetIdWrapper(InUniqueNetId)
 	{

@@ -1681,12 +1681,12 @@ void UMaterialEditorInstanceConstant::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	if (bIsFunctionPreviewMaterial)
+	if (bIsFunctionPreviewMaterial && SourceFunction)
 	{
 		bIsFunctionInstanceDirty = true;
 		ApplySourceFunctionChanges();
 	}
-	else
+	else if (SourceInstance)
 	{
 		FMaterialUpdateContext Context;
 

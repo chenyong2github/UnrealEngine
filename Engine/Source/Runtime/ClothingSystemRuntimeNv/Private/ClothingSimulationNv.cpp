@@ -34,12 +34,6 @@ DECLARE_CYCLE_STAT(TEXT("Update Collisions"), STAT_NvClothUpdateCollisions, STAT
 DECLARE_CYCLE_STAT(TEXT("Fill Context"), STAT_NvClothFillContext, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Update Anim Drive"), STAT_NvClothUpdateAnimDrive, STATGROUP_Physics);
 
-static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
-	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
-	1.5f,
-	TEXT("A multiplier of the MaxPhysicsDelta time at which we will automatically just teleport cloth to its new location\n")
-	TEXT(" default: 1.5"));
-
 //=============================================================================
 // FClothingSimulationContextNv
 //=============================================================================
@@ -47,7 +41,6 @@ static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 FClothingSimulationContextNv::FClothingSimulationContextNv()
 	: PredictedLod(0)
 	, WindAdaption(0.0f)
-	, TeleportMode(EClothingTeleportMode::None)
 	, MaxDistanceScale(1.f)
 {
 }
@@ -64,10 +57,6 @@ void FClothingSimulationContextNv::Fill(const USkeletalMeshComponent* InComponen
 	FClothingSimulationContextCommon::Fill(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 
 	PredictedLod = InComponent->PredictedLODLevel;
-
-	TeleportMode = (InDeltaSeconds > InMaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()) ?
-		EClothingTeleportMode::Teleport :
-		InComponent->ClothTeleportMode;
 
 	MaxDistanceScale = InComponent->GetClothMaxDistanceScale();
 }

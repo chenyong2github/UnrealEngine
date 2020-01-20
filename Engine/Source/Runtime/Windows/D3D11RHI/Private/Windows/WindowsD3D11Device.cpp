@@ -1753,17 +1753,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		SetupAfterDeviceCreation();
 
-		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->InitRHI();
-		}
-		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->InitDynamicRHI();
-		}
-
 #if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 		// Add some filter outs for known debug spew messages (that we don't care about)
 		if(DeviceFlags & D3D11_CREATE_DEVICE_DEBUG)
@@ -1843,7 +1832,10 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHISupportsTextureStreaming = true;
 		GRHISupportsFirstInstance = true;
 		GRHINeedsExtraDeletionLatency = false;
-		// Set the RHI initialized flag.
+
+		GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
+		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+		FRenderResource::InitPreRHIResources();
 		GIsRHIInitialized = true;
 	}
 }

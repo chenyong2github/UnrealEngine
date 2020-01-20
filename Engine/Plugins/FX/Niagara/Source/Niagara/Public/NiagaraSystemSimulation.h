@@ -211,6 +211,9 @@ public:
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 
 protected:
+	/** Sets constant parameter values */
+	void SetupParameters_GameThread(float DeltaSeconds);
+
 	/** Does any prep work for system simulation such as pulling instance parameters into a dataset. */
 	void PrepareForSystemSimulate(FNiagaraSystemSimulationTickContext& Context);
 	/** Runs the system spawn script for new system instances. */
@@ -313,7 +316,6 @@ protected:
 	uint32 bBindingsInitialized : 1;
 	uint32 bInSpawnPhase : 1;
 	uint32 bIsSolo : 1;
-	uint32 bHasEverTicked : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

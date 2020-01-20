@@ -59,7 +59,7 @@ namespace ClothingSimulationDefault
 	static const float CollisionThickness = 1.2f;
 	static const float CoefficientOfFriction = 0.f;
 	static const float Damping = 0.01f;
-	static const float SolverFrequency = 60.f;
+	static const float WindDrag = 0.f;
 }
 
 ClothingSimulation::ClothingSimulation()
@@ -92,6 +92,7 @@ void ClothingSimulation::Initialize()
 			ClothingSimulationDefault::Damping));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
+	Evolution->GetVelocityField().SetDrag(ClothingSimulationDefault::WindDrag);  // TODO: Per particle drag
     Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
@@ -138,6 +139,7 @@ void ClothingSimulation::Shutdown()
 	AnimationPositions.Reset();
 	AnimationNormals.Reset();
 	IndexToRangeMap.Reset();
+	RootBoneWorldTransforms.Reset();
 	Meshes.Reset();
 	FaceNormals.Reset();
 	PointNormals.Reset();
@@ -199,8 +201,10 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	if (IndexToRangeMap.Num() <= InSimDataIndex)
 	{
 		IndexToRangeMap.SetNum(InSimDataIndex + 1);
+		RootBoneWorldTransforms.SetNum(InSimDataIndex + 1);
 	}
 	IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
+	RootBoneWorldTransforms[InSimDataIndex] = Context.BoneTransforms[Asset->ReferenceBoneIndex] * Context.ComponentToWorld;
 
 	// ClothSharedSimConfig should either be a nullptr, or point to an object common to the whole skeletal mesh
 	if (ClothSharedSimConfig == nullptr)
@@ -261,6 +265,9 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		ExternalCollisions.Convexes.Num() == 0 &&
 		ExternalCollisions.Boxes.Num() == 0, TEXT("There cannot be any external collisions added before all the cloth assets collisions are processed."));
 	ExtractCollisions(Asset);
+
+	// Update collision transforms, including initial state for particles' X & R
+	UpdateCollisionTransforms(Context, /*bReinit =*/ false);  // Reinit is false, since we only need to update the new collision particles
 }
 
 void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset)
@@ -289,6 +296,7 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
+		Evolution->GetVelocityField().SetDrag(ClothSharedSimConfig->WindDrag);  // TODO: Per particle drag
 		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
@@ -323,7 +331,7 @@ void ClothingSimulation::ResetParticles(int32 InSimDataIndex)
 
 	for (uint32 i = Offset; i < Range; ++i)
 	{
-		Evolution->Particles().X(i) = AnimationPositions[i];
+		Evolution->Particles().P(i) = Evolution->Particles().X(i) = AnimationPositions[i];
 		Evolution->Particles().V(i) = Chaos::TVector<float, 3>(0.f);
 		Evolution->Particles().M(i) = 0.f;
 	}
@@ -647,7 +655,7 @@ void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex)
 	}
 }
 
-void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context)
+void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothUpdateCollisionTransforms);
 
@@ -683,13 +691,28 @@ void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationConte
 		}
 	}
 
-	// Set the new collision particles and transforms initial state
-	for (int32 Index = PrevNumCollisions; Index < NumCollisions; ++Index)
-	{
-		CollisionParticles.X(Index) = CollisionTransforms[Index].GetTranslation();
-		CollisionParticles.R(Index) = CollisionTransforms[Index].GetRotation();
+	// External collisions are reinitialized at every frame, but don't affect the size of the arrays if the same amount has been added/removed
+	const int32 Offset = FMath::Min((int32)ExternalCollisionsOffset, PrevNumCollisions);
 
-		OldCollisionTransforms[Index] = CollisionTransforms[Index];
+	// Reinit old collisions particles and transforms
+	if (bReinit)
+	{
+		for (int32 Index = 0; Index < Offset; ++Index)
+		{
+			const Chaos::TRigidTransform<float, 3>& CollisionTransform = CollisionTransforms[Index];
+			CollisionParticles.X(Index) = CollisionTransform.GetTranslation();
+			CollisionParticles.R(Index) = CollisionTransform.GetRotation();
+			OldCollisionTransforms[Index] = CollisionTransform;
+		}
+	}
+
+	// Set the new collision particles and transforms initial state
+	for (int32 Index = Offset; Index < NumCollisions; ++Index)
+	{
+		const Chaos::TRigidTransform<float, 3>& CollisionTransform = CollisionTransforms[Index];
+		CollisionParticles.X(Index) = CollisionTransform.GetTranslation();
+		CollisionParticles.R(Index) = CollisionTransform.GetRotation();
+		OldCollisionTransforms[Index] = CollisionTransform;
 	}
 }
 
@@ -1091,8 +1114,6 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 		for (uint32 i = Offset; i < CollisionParticles.Size(); ++i)
 		{
 			const FClothCollisionPrim_Box& Box = ClothCollisionData.Boxes[i - Offset];
-			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
-			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
 			
 			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Box.LocalPosition, Box.LocalRotation);
 			
@@ -1121,13 +1142,24 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
 			Gravity));
 
-	// Get New Animation Positions and Normals
+	// Set wind velocity
+	static const float UnitConversionScale = 100.f;  // It would seem that in game wind velocity is in m/s and not cm/s as seen in NvClothSupport::Constants::UnitConversionScale
+	Evolution->GetVelocityField().SetVelocity(Context->WindVelocity * UnitConversionScale);
+
+	// Check teleport modes
+	const bool bTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+	const bool bTeleportAndReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+	UE_CLOG(bTeleport, LogChaosCloth, Verbose, TEXT("Teleport, reset: %d"), bTeleportAndReset);
+
+	// Get New Animation Positions and Normals + deal with teleportation
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetAnimationData);
 
 		Swap(OldAnimationPositions, AnimationPositions);
 		check(OldAnimationPositions.Num() == AnimationPositions.Num());
-		
+
+		TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
 		for (int32 Index = 0; Index < IndexToRangeMap.Num(); ++Index)
 		{
 			const UClothingAssetCommon* const Asset = Assets[Index];
@@ -1155,29 +1187,48 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 				Context->RefToLocals.Num(),
 				reinterpret_cast<TArray<FVector>&>(AnimationPositions),
 				reinterpret_cast<TArray<FVector>&>(AnimationNormals), Offset);
+
+			// Teleport
+			const FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
+			const FTransform RootBoneWorldTransform = RootBoneTransform * Context->ComponentToWorld;
+
+			if (bTeleport)
+			{
+				UE_LOG(LogChaosCloth, Verbose, TEXT("Teleport before: %s, after: %s"), *RootBoneWorldTransforms[Index].ToString(), *RootBoneWorldTransform.ToString());
+				const uint32 Range = IndexToRangeMap[Index][1];
+				if (bTeleportAndReset)
+				{
+					// Teleport & reset
+					for (uint32 i = Offset; i < Range; ++i)
+					{
+						Particles.P(i) = Particles.X(i) = AnimationPositions[i];
+						Particles.V(i) = Chaos::TVector<float, 3>(0.f);
+					}
+				}
+				else
+				{
+					// Teleport only
+					const FTransform Delta = RootBoneWorldTransforms[Index].GetRelativeTransformReverse(RootBoneWorldTransform);
+					for (uint32 i = Offset; i < Range; ++i)
+					{
+						Particles.X(i) = Delta.TransformPositionNoScale(Particles.X(i));
+						Particles.V(i) = Delta.TransformVectorNoScale(Particles.V(i));
+					}
+				}
+			}
+
+			RootBoneWorldTransforms[Index] = RootBoneWorldTransform;
 		}
 	}
 
 	// Update collision transforms
-	UpdateCollisionTransforms(*Context);
+	UpdateCollisionTransforms(*Context, bTeleport);
 
 	// Advance Sim
 	DeltaTime = Context->DeltaSeconds;
-
-	const float SolverFrequency = ClothSharedSimConfig ?
-		ClothSharedSimConfig->SolverFrequency :
-		ClothingSimulationDefault::SolverFrequency;
-
-	const int32 NumSubSteps = FMath::Max(1, FMath::RoundToInt(DeltaTime * SolverFrequency));  // Start substepping once deltatime is more than 50% above the expected simulation deltatime
-	const float SubDeltaTime = DeltaTime / float(NumSubSteps);
-
-	for (int32 i = 0; i < NumSubSteps; ++i)
-	{
-		Evolution->AdvanceOneTimeStep(SubDeltaTime);
-	}
-	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, SubDeltaTime: %.6f, NumSubSteps = %d"), DeltaTime, SubDeltaTime, NumSubSteps);
-
+	Evolution->AdvanceOneTimeStep(DeltaTime);
 	Time += DeltaTime;
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
 }
 
 void ClothingSimulation::GetSimulationData(

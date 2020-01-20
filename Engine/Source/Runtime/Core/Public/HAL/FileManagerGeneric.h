@@ -268,6 +268,7 @@ protected:
 	int64 BufferBase;
 	TUniquePtr<IFileHandle> Handle;
 	TArray64<uint8> BufferArray;
+	int64 BufferSize;
 };
 
 
@@ -342,5 +343,6 @@ protected:
 	int64 Pos;
 	TUniquePtr<IFileHandle> Handle;
 	TArray64<uint8> BufferArray;
+	int64 BufferSize;
 	bool bLoggingError;
 };

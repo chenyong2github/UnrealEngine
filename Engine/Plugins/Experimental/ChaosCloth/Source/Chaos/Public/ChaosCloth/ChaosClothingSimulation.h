@@ -94,8 +94,8 @@ namespace Chaos
 		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset);
 		// Add collisions from a ClothCollisionData structure
 		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
-		// Update the collision transforms using the specified context
-		void UpdateCollisionTransforms(const ClothingSimulationContext& Context);
+		// Update the collision transforms using the specified context, also update old collision if bReinit is true
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit);
 		// Return the correct bone index based on the asset used bone index array
 		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
 		{
@@ -126,6 +126,7 @@ namespace Chaos
 
 		// Sim Data
 		TArray<Chaos::TVector<uint32, 2>> IndexToRangeMap;
+		TArray<FTransform> RootBoneWorldTransforms;  // Used for teleportation
 
 		TArray<TUniquePtr<Chaos::TTriangleMesh<float>>> Meshes;
 		mutable TArray<TArray<Chaos::TVector<float, 3>>> FaceNormals;

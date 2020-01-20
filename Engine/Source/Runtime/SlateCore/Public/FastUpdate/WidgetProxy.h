@@ -45,7 +45,7 @@ enum class EInvalidateWidgetReason : uint8;
 class FWidgetProxy
 {
 public:
-	FWidgetProxy(SWidget* InWidget);
+	FWidgetProxy(SWidget& InWidget);
 
 	int32 Update(
 		const FPaintArgs& PaintArgs,
@@ -58,6 +58,7 @@ public:
 
 private:
 	int32 Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements) const;
+
 public:
 	SWidget* Widget;
 	int32 Index;
@@ -163,7 +164,6 @@ struct FSlateWidgetPersistentState
 
 	static const FSlateWidgetPersistentState NoState;
 };
-template <> struct TIsPODType<FSlateWidgetPersistentState> { enum { Value = true }; };
 
 struct FWidgetStackData
 {

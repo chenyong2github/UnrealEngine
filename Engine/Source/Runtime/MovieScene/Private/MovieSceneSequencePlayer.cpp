@@ -665,6 +665,11 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		StartTimeWithOffset = StartTime + StartingTimeOffset;
 
 		ClockToUse = MovieScene->GetClockSource();
+
+		if (ClockToUse == EUpdateClockSource::Custom)
+		{
+			TimeController = MovieScene->MakeCustomTimeController(GetPlaybackContext());
+		}
 	}
 
 	if (!TimeController.IsValid())
@@ -675,6 +680,11 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
 		case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
 		default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
+		}
+
+		if (!ensureMsgf(TimeController.IsValid(), TEXT("No time controller specified for sequence playback. Falling back to Engine Tick clock source.")))
+		{
+			TimeController = MakeShared<FMovieSceneTimeController_Tick>();
 		}
 	}
 

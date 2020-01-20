@@ -124,7 +124,7 @@ void MainCS(
 
 				float4 SampleColor = float4(
 					HigherMipTexture.SampleLevel(HigherMipTextureSampler, SampleUV, 0).rgb,
-					HigherAlphaMipTexture.SampleLevel(HigherAlphaMipTextureSampler, SampleUV, 0).a);
+					Texture2DSample_A8(HigherAlphaMipTexture,HigherAlphaMipTextureSampler, SampleUV));
 
 				PrevColor += SampleColor * SampleWeight;
 			}

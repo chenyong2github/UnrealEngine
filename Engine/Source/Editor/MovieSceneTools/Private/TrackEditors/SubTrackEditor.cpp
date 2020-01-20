@@ -29,6 +29,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Algo/Accumulate.h"
 
 #include "CommonMovieSceneTools.h"
 

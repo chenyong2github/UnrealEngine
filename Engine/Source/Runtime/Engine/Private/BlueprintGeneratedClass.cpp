@@ -205,7 +205,7 @@ UClass* UBlueprintGeneratedClass::GetAuthoritativeClass()
 
 struct FConditionalRecompileClassHepler
 {
-	enum ENeededAction
+	enum class ENeededAction : uint8
 	{
 		None,
 		StaticLink,

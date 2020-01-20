@@ -36,6 +36,7 @@
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/copyUtils.h"
 #include "pxr/usd/sdf/schema.h"
+#include "pxr/usd/usd/editTarget.h"
 #include "pxr/usd/usd/modelAPI.h"
 #include "pxr/usd/usd/stageCache.h"
 #include "pxr/usd/usd/stageCacheContext.h"

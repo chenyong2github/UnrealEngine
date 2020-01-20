@@ -320,7 +320,7 @@ private:
 		if (FoundIndex >= 0)
 		{
 			uint32 TypeByteIndex = FoundIndex / 8;
-			uint32 TypeBitIndex = FoundIndex - TypeByteIndex;
+			uint32 TypeBitIndex = FoundIndex % 8;
 			GetSRVTypeStart()[TypeByteIndex] |= 1 << TypeBitIndex;
 			GetSRVStart()[FoundIndex] = Value;
 		}

@@ -3370,7 +3370,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMContext& Co
 //----------------------------------------------------------------------------
 // GPU sim functionality
 //
-void UNiagaraDataInterfaceChaosDestruction::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceChaosDestruction::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 
 	// This will get indented in the generated HLSL, which won't look good. 
@@ -3424,9 +3424,9 @@ void UNiagaraDataInterfaceChaosDestruction::GetParameterDefinitionHLSL(FNiagaraD
 	*/
 }
 
-bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	if (DefinitionFunctionName == GetPositionName)
+	if (FunctionInfo.DefinitionName == GetPositionName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Position) 
@@ -3437,13 +3437,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetNormalName)
+	else if (FunctionInfo.DefinitionName == GetNormalName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Normal) 
@@ -3454,13 +3454,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetVelocityName)
+	else if (FunctionInfo.DefinitionName == GetVelocityName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Velocity) 
@@ -3471,13 +3471,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetAngularVelocityName)
+	else if (FunctionInfo.DefinitionName == GetAngularVelocityName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_AngularVelocity) 
@@ -3488,13 +3488,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetExtentMinName)
+	else if (FunctionInfo.DefinitionName == GetExtentMinName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_ExtentMin) 
@@ -3505,13 +3505,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetExtentMaxName)
+	else if (FunctionInfo.DefinitionName == GetExtentMaxName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_ExtentMax) 
@@ -3522,13 +3522,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetVolumeName)
+	else if (FunctionInfo.DefinitionName == GetVolumeName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_Volume) 
@@ -3539,13 +3539,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetParticleIdsToSpawnAtTimeName)
+	else if (FunctionInfo.DefinitionName == GetParticleIdsToSpawnAtTimeName)
 	{
 
 		static const TCHAR *Format = TEXT(R"(
@@ -3562,13 +3562,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetPointTypeName)
+	else if (FunctionInfo.DefinitionName == GetPointTypeName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out int Out_PointType) 
@@ -3579,12 +3579,12 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetColorName)
+	else if (FunctionInfo.DefinitionName == GetColorName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float4 Out_Color) 
@@ -3595,13 +3595,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetSolverTimeName)
+	else if (FunctionInfo.DefinitionName == GetSolverTimeName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(out float Out_SolverTime) 
@@ -3611,13 +3611,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetDensityName)
+	else if (FunctionInfo.DefinitionName == GetDensityName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_Density) 
@@ -3628,13 +3628,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetFrictionName)
+	else if (FunctionInfo.DefinitionName == GetFrictionName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_Friction) 
@@ -3645,13 +3645,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetRestitutionName)
+	else if (FunctionInfo.DefinitionName == GetRestitutionName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float Out_Restitution) 
@@ -3662,13 +3662,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetTransformName)
+	else if (FunctionInfo.DefinitionName == GetTransformName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Translation, out float4 Out_Rotation, out float3 Out_Scale) 
@@ -3681,13 +3681,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetSizeName)
+	else if (FunctionInfo.DefinitionName == GetSizeName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Size) 
@@ -3698,13 +3698,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetSurfaceTypeName)
+	else if (FunctionInfo.DefinitionName == GetSurfaceTypeName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out int Out_SurfaceType) 
@@ -3715,13 +3715,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetCollisionDataName)
+	else if (FunctionInfo.DefinitionName == GetCollisionDataName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Location, 
@@ -3750,13 +3750,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetBreakingDataName)
+	else if (FunctionInfo.DefinitionName == GetBreakingDataName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Location,
@@ -3775,13 +3775,13 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetTrailingDataName)
+	else if (FunctionInfo.DefinitionName == GetTrailingDataName)
 	{
 		static const TCHAR *Format = TEXT(R"(
 			void {FunctionName}(in int ParticleID, out float3 Out_Location,
@@ -3800,7 +3800,7 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FName& Definit
 		)");
 
 		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), InstanceFunctionName },
+			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
 			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
 		};
 		OutHLSL += FString::Format(Format, Args);

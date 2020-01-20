@@ -1260,7 +1260,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 				}
 
 				// Move to the next property to be serialized
-				if (bAdvanceProperty && --RemainingArrayDim <= 0)
+				if( bAdvanceProperty && --RemainingArrayDim <= 0 )
 				{
 					Property = Property->PropertyLinkNext;
 					// Skip over properties that don't need to be serialized.
@@ -1390,31 +1390,31 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 						switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
 						{
-						case EConvertFromTypeResult::Converted:
-							bAdvanceProperty = true;
-							break;
+							case EConvertFromTypeResult::Converted:
+								bAdvanceProperty = true;
+								break;
 
-						case EConvertFromTypeResult::UseSerializeItem:
-							if (Tag.Type != PropID)
-							{
-								UE_LOG(LogClass, Warning, TEXT("Type mismatch in %s of %s - Previous (%s) Current(%s) for package:  %s"), *Tag.Name.ToString(), *GetName(), *Tag.Type.ToString(), *PropID.ToString(), *UnderlyingArchive.GetArchiveName());
-							}
-							else
-							{
-								uint8* DestAddress = Property->ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
-								uint8* DefaultsFromParent = Property->ContainerPtrToValuePtrForDefaults<uint8>(DefaultsStruct, Defaults, Tag.ArrayIndex);
+							case EConvertFromTypeResult::UseSerializeItem:
+								if (Tag.Type != PropID)
+								{
+									UE_LOG(LogClass, Warning, TEXT("Type mismatch in %s of %s - Previous (%s) Current(%s) for package:  %s"), *Tag.Name.ToString(), *GetName(), *Tag.Type.ToString(), *PropID.ToString(), *UnderlyingArchive.GetArchiveName());
+								}
+								else
+								{
+									uint8* DestAddress = Property->ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
+									uint8* DefaultsFromParent = Property->ContainerPtrToValuePtrForDefaults<uint8>(DefaultsStruct, Defaults, Tag.ArrayIndex);
 
-								// This property is ok.
-								Tag.SerializeTaggedProperty(ValueSlot, Property, DestAddress, DefaultsFromParent);
-								bAdvanceProperty = !UnderlyingArchive.IsCriticalError();
-							}
-							break;
+									// This property is ok.
+									Tag.SerializeTaggedProperty(ValueSlot, Property, DestAddress, DefaultsFromParent);
+									bAdvanceProperty = !UnderlyingArchive.IsCriticalError();
+								}
+								break;
 
-						case EConvertFromTypeResult::CannotConvert:
-							break;
+							case EConvertFromTypeResult::CannotConvert:
+								break;
 
-						default:
-							check(false);
+							default:
+								check(false);
 						}
 					}
 				}
@@ -4631,7 +4631,7 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	DestructorLink = NULL;
 	ClassAddReferencedObjects = NULL;
 
-	ScriptObjectReferences.Empty();	
+	ScriptObjectReferences.Empty();
 	PropertyObjectReferences.Empty();
 	UnresolvedScriptProperties.Empty();
 

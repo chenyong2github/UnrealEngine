@@ -87,8 +87,8 @@ NIAGARASHADER_API void FNiagaraShaderScript::LegacySerialize(FArchive& Ar)
 bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 {
 	return
-		InId.FeatureLevel == FeatureLevel &&
-		InId.BaseScriptID == BaseScriptId &&
+		InId.FeatureLevel == FeatureLevel &&/*
+		InId.BaseScriptID == BaseScriptId &&*/
 		InId.AdditionalDefines == AdditionalDefines &&
 		InId.DetailLevelMask == DetailLevelMask &&
 		InId.bUsesRapidIterationParams == bUsesRapidIterationParams &&
@@ -123,8 +123,8 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 	{
 		TArray<FShaderType*> ShaderTypes;
 		GetDependentShaderTypes(Platform, ShaderTypes);
-		OutId.FeatureLevel = GetFeatureLevel();
-		OutId.BaseScriptID = BaseScriptId;
+		OutId.FeatureLevel = GetFeatureLevel();/*
+		OutId.BaseScriptID = BaseScriptId;*/
 		OutId.AdditionalDefines = AdditionalDefines;
 		OutId.DetailLevelMask = DetailLevelMask;
 		OutId.bUsesRapidIterationParams = bUsesRapidIterationParams;		
@@ -233,15 +233,14 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
+void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, uint32 InDetailLevelMask, FString InFriendlyName)
 {
-	checkf(InBaseScriptID.IsValid(), TEXT("Invalid base script id.  Script caching will fail."));
 	checkf(InBaseCompileHash.IsValid(), TEXT("Invalid base compile hash.  Script caching will fail."))
 	BaseVMScript = InScript;
 	CompilerVersionId = InCompilerVersionID;
-	BaseScriptId = InBaseScriptID;
+	//BaseScriptId = InBaseScriptID;
 	AdditionalDefines = InAdditionalDefines;
 	bUsesRapidIterationParams = bInUsesRapidIterationParams;
 	DetailLevelMask = InDetailLevelMask;

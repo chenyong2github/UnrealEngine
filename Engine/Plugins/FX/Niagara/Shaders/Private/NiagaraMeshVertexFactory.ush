@@ -13,6 +13,20 @@
 #define USE_PARTICLE_RANDOM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_TRANSFORM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_TRANSFORM)
 
+#if NIAGARA_LOOSEPARAM_BINDING
+	Buffer<float> NiagaraParticleDataPosition;
+	Buffer<float> NiagaraParticleDataVelocity;
+	Buffer<float> NiagaraParticleDataColor;
+	Buffer<float> NiagaraParticleDataScale;
+	Buffer<float> NiagaraParticleDataTransform;
+	Buffer<float> NiagaraParticleDataNormalizedAge;
+	Buffer<float> NiagaraParticleDataMaterialRandom;
+	Buffer<float> NiagaraParticleDataMaterialParam0;
+	Buffer<float> NiagaraParticleDataMaterialParam1;
+	Buffer<float> NiagaraParticleDataMaterialParam2;
+	Buffer<float> NiagaraParticleDataMaterialParam3;
+#endif
+
 float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraMeshVF.bLocalSpace)
@@ -510,7 +524,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticlePosition = float4(GetVec3(NiagaraMeshVF.PositionDataOffset, Input.InstanceId), 1);
+		Intermediates.ParticlePosition = float4(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraMeshVF.PositionDataOffset, Input.InstanceId), 1);
 	}
 
 	if (NiagaraMeshVF.ColorDataOffset == -1)
@@ -519,7 +533,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleColor = GetVec4(NiagaraMeshVF.ColorDataOffset, Input.InstanceId);
+		Intermediates.ParticleColor = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataColor), NiagaraMeshVF.ColorDataOffset, Input.InstanceId);
 	}
 
 	float3 ParticleVelocity;
@@ -529,7 +543,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		ParticleVelocity = float3(GetVec3(NiagaraMeshVF.VelocityDataOffset, Input.InstanceId));
+		ParticleVelocity = float3(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataVelocity), NiagaraMeshVF.VelocityDataOffset, Input.InstanceId));
 	}
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
@@ -539,7 +553,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter = GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam0), NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
@@ -549,7 +563,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}	
 	else
 	{
-		Intermediates.DynamicParameter1 = GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter1 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam1), NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
@@ -559,7 +573,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter2 = GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter2 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam2), NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
@@ -569,7 +583,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter3 = GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter3 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam3), NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId);
 	}
 #endif
 
@@ -580,7 +594,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.RelativeTime = GetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Input.InstanceId);
+		Intermediates.RelativeTime = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataNormalizedAge), NiagaraMeshVF.NormalizedAgeDataOffset, Input.InstanceId);
 	}
 #endif
 
@@ -591,7 +605,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleRandom = GetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Input.InstanceId);
+		Intermediates.ParticleRandom = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialRandom), NiagaraMeshVF.MaterialRandomDataOffset, Input.InstanceId);
 	}
 #endif
 
@@ -608,7 +622,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	if(NiagaraMeshVF.TransformDataOffset != -1)
 	{
-		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
+		float4 Quat = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataTransform), NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
 
 		//Transform axis to handle local space.
 		//AxisAngle.xyz = TransformVector(AxisAngle.xyz);
@@ -622,7 +636,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float4x4 ScaleMatrix = float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
 	if(NiagaraMeshVF.ScaleDataOffset != -1)
 	{
-		float3 Scale = GetVec3(NiagaraMeshVF.ScaleDataOffset, Input.InstanceId);
+		float3 Scale = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataScale), NiagaraMeshVF.ScaleDataOffset, Input.InstanceId);
 		ScaleMatrix[0][0] *= Scale.x;
 		ScaleMatrix[1][1] *= Scale.y;
 		ScaleMatrix[2][2] *= Scale.z;

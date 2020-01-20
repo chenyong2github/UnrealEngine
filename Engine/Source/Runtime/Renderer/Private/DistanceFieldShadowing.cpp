@@ -792,8 +792,7 @@ void CullDistanceFieldObjectsForLight(
 		if (TileIntersectionResources)
 		{
 			FIntPoint AlignedLightDimensions = FLightTileIntersectionResources::GetAlignedDimensions(LightTileDimensions);
-			FIntPoint CurrentAlignedLightDimensions = FLightTileIntersectionResources::GetAlignedDimensions(TileIntersectionResources->TileDimensions);
-			bLightDimensionsDirty = AlignedLightDimensions.X > CurrentAlignedLightDimensions.X || AlignedLightDimensions.Y > CurrentAlignedLightDimensions.Y;
+			bLightDimensionsDirty = AlignedLightDimensions.X > TileIntersectionResources->GetTileAlignedDimensions().X;
 		}
 		
 		if (!TileIntersectionResources || bLightDimensionsDirty || TileIntersectionResources->b16BitIndices != b16BitObjectIndices)
@@ -807,11 +806,13 @@ void CullDistanceFieldObjectsForLight(
 				TileIntersectionResources = MakeUnique<FLightTileIntersectionResources>();
 			}
 
-			TileIntersectionResources->TileDimensions = LightTileDimensions;
 			TileIntersectionResources->b16BitIndices = b16BitObjectIndices;
-
+			TileIntersectionResources->TileDimensions = LightTileDimensions;
 			TileIntersectionResources->Initialize();
 		}
+
+		check(TileIntersectionResources);
+		TileIntersectionResources->TileDimensions = LightTileDimensions;
 
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, ComputeTileStartOffsets);

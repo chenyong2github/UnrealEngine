@@ -228,7 +228,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 	return OtherTyped != nullptr;		
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
@@ -248,14 +248,14 @@ void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(FNiagaraD
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	bool ParentRet = Super::GetFunctionHLSL(DefinitionFunctionName, InstanceFunctionName, ParamInfo, OutHLSL);
+	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
 	if (ParentRet)
 	{
 		return true;
 	} 
-	else if (DefinitionFunctionName == GetValueFunctionName)
+	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_AttributeIndex, out float Out_Val)
@@ -267,7 +267,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
@@ -275,7 +275,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetValueFunctionName)
+	else if (FunctionInfo.DefinitionName == SetValueFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_AttributeIndex, float In_Value, out int val)
@@ -288,7 +288,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputGrid"), OutputGridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
@@ -297,7 +297,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SampleGridFunctionName)
+	else if (FunctionInfo.DefinitionName == SampleGridFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(float In_UnitX, float In_UnitY, int In_AttributeIndex, out float Out_Val)
@@ -309,7 +309,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FName& Definit
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
 			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},

@@ -286,5 +286,20 @@ namespace Chaos
 			return OutTA >= 0 && OutTA <= 1 && OutTB > 0 && OutTB < 1;
 		}
 
+		/**
+		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
+		 */
+		inline FVec3 ScaleInertia(const FVec3& Inertia, const FVec3& Scale, const bool bScaleMass)
+		{
+			FVec3 XYZSq = (FVec3(0.5f * (Inertia.X + Inertia.Y + Inertia.Z)) - Inertia) * Scale * Scale;
+			FReal XX = XYZSq.Y + XYZSq.Z;
+			FReal YY = XYZSq.X + XYZSq.Z;
+			FReal ZZ = XYZSq.X + XYZSq.Y;
+			FVec3 ScaledInertia = FVec3(XX, YY, ZZ);
+			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
+			return MassScale * ScaledInertia;
+		}
+
 	} // namespace Utilities
 } // namespace Chaos

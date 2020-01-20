@@ -1,6 +1,6 @@
 /*
 Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
-This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+This code includes modifications by Epic Games.  Modifications (c) Epic Games, Inc.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -30,35 +30,51 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/Commands.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandInfo.h"
+#include "CoreMinimal.h"
 
-/**  */
-class FSteamVREditorStyle
+/**
+ * Enum for each bone in the UE4 hand skeleton
+*/
+enum EUE4HandBone : int8
 {
-public:
-	static void Initialize();
+	EUE4HandBone_Wrist = 0,
+	EUE4HandBone_Index_01,
+	EUE4HandBone_Index_02,
+	EUE4HandBone_Index_03,
+	EUE4HandBone_Middle_01,
+	EUE4HandBone_Middle_02,
+	EUE4HandBone_Middle_03,
+	EUE4HandBone_Pinky_01,
+	EUE4HandBone_Pinky_02,
+	EUE4HandBone_Pinky_03,
+	EUE4HandBone_Ring_01,
+	EUE4HandBone_Ring_02,
+	EUE4HandBone_Ring_03,
+	EUE4HandBone_Thumb_01,
+	EUE4HandBone_Thumb_02,
+	EUE4HandBone_Thumb_03,
+	EUE4HandBone_Count
+};
 
-	static void Shutdown();
 
-	/** reloads textures used by slate renderer */
-	static void ReloadTextures();
+/**
+ * Convenience functions to access static data as defined 
+ * by the UE4 VR reference hand skeleton
+*/
+namespace UE4HandSkeleton
+{
+	/** Returns the number of bones in the skeleton */
+	inline int32	GetBoneCount() { return EUE4HandBone_Count; }
 
-	/** @return The Slate style set */
-	static const ISlateStyle& Get();
+	/** Returns the name of the bone at the given index */
+	const FName&	GetBoneName(int32 nBoneIndex);
 
-	static FName GetStyleSetName();
+	/** Returns the index of the parent bone of the given bone.  Returns -1 if the bone does not have a parent */
+	int32			GetParentIndex(int32 nBoneIndex);
 
-private:
+	/** Returns the number of children of the given bone */
+	int32			GetChildCount(int32 nBoneIndex);
 
-	static TSharedRef< class FSlateStyleSet > Create();
-
-private:
-
-	static TSharedPtr< class FSlateStyleSet > StyleInstance;
+	/** Returns the index of the nth child of the given bone */
+	int32			GetChildIndex(int32 nBoneIndex, int32 nChildIndex);
 };

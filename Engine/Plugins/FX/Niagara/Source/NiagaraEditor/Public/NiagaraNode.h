@@ -9,6 +9,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraParameterMapHistory.h"
 #include "Misc/Guid.h"
+#include "UObject/UnrealType.h"
 #include "NiagaraNode.generated.h"
 
 class UEdGraphPin;
@@ -101,7 +102,7 @@ public:
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const;
 	
 	/** Go through all the external dependencies of this node in isolation and add them to the reference id list.*/
-	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const {};
+	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const {};
 
 	/** Traces one of this node's output pins to its source output pin if it is a reroute node output pin.*/
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const {return LocallyOwnedOutputPin;}
@@ -126,9 +127,28 @@ public:
 
 	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias) { };
 
+	/** Old style compile hash code. To be removed in the future.*/
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const;
 
+	/** Entry point for generating the compile hash.*/
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+
 protected:
+	/** Go through all class members for a given UClass on this object and hash them into the visitor.*/
+	virtual bool GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const;
+
+	/** Write out the specific entries for UNiagaraNode into the visitor hash. */
+	bool NiagaraNodeAppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+
+	/** Write out the specific entries of this pin to the visitor hash.*/
+	virtual bool PinAppendCompileHash(const UEdGraphPin* InPin, FNiagaraCompileHashVisitor* InVisitor) const;
+	
+	/** Helper function to hash arbitrary UProperty entries (Arrays, Maps, Structs, etc).*/
+	virtual bool NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, const FString& BaseName, FNiagaraCompileHashVisitor* InVisitor) const;
+	
+	/** For a simple Plain old data type UProperty, hash the data.*/
+	virtual bool PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const;
+
 	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin);
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const { return true; }; 
 

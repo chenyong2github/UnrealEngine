@@ -34,14 +34,37 @@ class FNiagaraRibbonVertexFactoryShaderParametersVS : public FNiagaraRibbonVerte
 public:
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
-		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
+		NiagaraParticleDataPosition.Bind(ParameterMap, TEXT("NiagaraParticleDataPosition"));
+		NiagaraParticleDataVelocity.Bind(ParameterMap, TEXT("NiagaraParticleDataVelocity"));
+		NiagaraParticleDataColor.Bind(ParameterMap, TEXT("NiagaraParticleDataColor"));
+		NiagaraParticleDataWidth.Bind(ParameterMap, TEXT("NiagaraParticleDataWidth"));
+		NiagaraParticleDataTwist.Bind(ParameterMap, TEXT("NiagaraParticleDataTwist"));
+		NiagaraParticleDataFacing.Bind(ParameterMap, TEXT("NiagaraParticleDataFacing"));
+		NiagaraParticleDataNormalizedAge.Bind(ParameterMap, TEXT("NiagaraParticleDataNormalizedAge"));
+		NiagaraParticleDataMaterialRandom.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialRandom"));
+		NiagaraParticleDataMaterialParam0.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam0"));
+		NiagaraParticleDataMaterialParam1.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam1"));
+		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
+		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
+
 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 	}
 
 	virtual void Serialize(FArchive& Ar) override
 	{
-		Ar << NiagaraParticleDataFloat;
+		Ar << NiagaraParticleDataPosition;
+		Ar << NiagaraParticleDataVelocity;
+		Ar << NiagaraParticleDataColor;
+		Ar << NiagaraParticleDataWidth;
+		Ar << NiagaraParticleDataTwist;
+		Ar << NiagaraParticleDataFacing;
+		Ar << NiagaraParticleDataNormalizedAge;
+		Ar << NiagaraParticleDataMaterialRandom;
+		Ar << NiagaraParticleDataMaterialParam0;
+		Ar << NiagaraParticleDataMaterialParam1;
+		Ar << NiagaraParticleDataMaterialParam2;
+		Ar << NiagaraParticleDataMaterialParam3;
 		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
 	}
@@ -60,13 +83,36 @@ public:
 		FNiagaraRibbonVertexFactory* RibbonVF = (FNiagaraRibbonVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonVFLooseParameters>(), RibbonVF->LooseParameterUniformBuffer);
-		ShaderBindings.Add(NiagaraParticleDataFloat, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataPosition, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataVelocity, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataColor, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataWidth, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataTwist, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataFacing, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataNormalizedAge, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialRandom, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam0, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, RibbonVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, RibbonVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(FloatDataOffset, RibbonVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
 	}
 
 private:
-	FShaderResourceParameter NiagaraParticleDataFloat;
+	FShaderResourceParameter NiagaraParticleDataPosition;
+	FShaderResourceParameter NiagaraParticleDataVelocity;
+	FShaderResourceParameter NiagaraParticleDataColor;
+	FShaderResourceParameter NiagaraParticleDataWidth;
+	FShaderResourceParameter NiagaraParticleDataTwist;
+	FShaderResourceParameter NiagaraParticleDataFacing;
+	FShaderResourceParameter NiagaraParticleDataNormalizedAge;
+	FShaderResourceParameter NiagaraParticleDataMaterialRandom;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam0;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
+
 	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 };

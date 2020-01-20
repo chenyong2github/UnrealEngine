@@ -1633,7 +1633,7 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 	// Reverse the path.
 	dtNode* prev = 0;
 	dtNode* node = lastBestNode;
-	int n = 0;
+	int n = 1;
 	do
 	{
 		dtNode* next = m_nodePool->getNodeAtIdx(node->pidx);
@@ -1661,7 +1661,7 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 
 		node = m_nodePool->getNodeAtIdx(node->pidx);
 	}
-	while (node);
+	while (node && --n > 0);
 
 	if (totalCost)
 	{

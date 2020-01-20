@@ -10,6 +10,7 @@
 
 class FAssetContextMenu;
 class IAssetTypeActions;
+class SAssetView;
 
 UCLASS()
 class CONTENTBROWSER_API UContentBrowserAssetContextMenuContext : public UObject
@@ -39,5 +40,15 @@ public:
 		}
 		return Result;
 	}
+};
+
+UCLASS()
+class CONTENTBROWSER_API UContentBrowserAssetViewContextMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	TWeakPtr<SAssetView> AssetView;
 };
 

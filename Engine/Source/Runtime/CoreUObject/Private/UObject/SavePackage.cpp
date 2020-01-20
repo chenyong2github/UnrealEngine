@@ -85,7 +85,8 @@ namespace SavePackageStats
 	static double SavePackageTimeSec = 0.0;
 	static double TagPackageExportsPresaveTimeSec = 0.0;
 	static double TagPackageExportsTimeSec = 0.0;
-	static double ResetLoadersForSaveTimeSec = 0.0;
+	static double FullyLoadLoadersTimeSec = 0.0;
+	static double ResetLoadersTimeSec = 0.0;
 	static double TagPackageExportsGetObjectsWithOuter = 0.0;
 	static double TagPackageExportsGetObjectsWithMarks = 0.0;
 	static double SerializeImportsTimeSec = 0.0;
@@ -106,7 +107,8 @@ namespace SavePackageStats
 		ADD_COOK_STAT(SavePackageTimeSec);
 		ADD_COOK_STAT(TagPackageExportsPresaveTimeSec);
 		ADD_COOK_STAT(TagPackageExportsTimeSec);
-		ADD_COOK_STAT(ResetLoadersForSaveTimeSec);
+		ADD_COOK_STAT(FullyLoadLoadersTimeSec);
+		ADD_COOK_STAT(ResetLoadersTimeSec);
 		ADD_COOK_STAT(TagPackageExportsGetObjectsWithOuter);
 		ADD_COOK_STAT(TagPackageExportsGetObjectsWithMarks);
 		ADD_COOK_STAT(SerializeImportsTimeSec);
@@ -3629,8 +3631,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		bool Success = true;
 		bool bRequestStub = false;
 		{
-			COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::ResetLoadersForSaveTimeSec));
-			ResetLoadersForSave(InOuter, Filename);
+			// FullyLoad the package's Loader, so that anything we need to serialize (bulkdata, thumbnails) is available
+			COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::FullyLoadLoadersTimeSec));
+			EnsureLoadingComplete(InOuter);
 		}
 		SlowTask.EnterProgressFrame();
 
@@ -5702,6 +5705,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				if( Success == true )
 				{
+					{
+						// If we're writing to the existing file call ResetLoaders on the Package so that we drop the handle to the file on disk and can write to it
+						COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::ResetLoadersTimeSec));
+						ResetLoadersForSave(InOuter, Filename);
+					}
+
 					// Compress the temporarily file to destination.
 					if (bSaveAsync)
 					{						

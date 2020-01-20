@@ -57,11 +57,11 @@ void UAISystem::PostInitProperties()
 	{
 		UWorld* WorldOuter = GetOuterWorld();
 
-		BehaviorTreeManager = NewObject<UBehaviorTreeManager>(this, TEXT("BehaviorTreeManager"));
+		BehaviorTreeManager = NewObject<UBehaviorTreeManager>(this);
 		ensure(BehaviorTreeManager != nullptr);
-		EnvironmentQueryManager = NewObject<UEnvQueryManager>(this, TEXT("EQSManager"));
+		EnvironmentQueryManager = NewObject<UEnvQueryManager>(this);
 		ensure(EnvironmentQueryManager != nullptr);
-		NavLocalGrids = NewObject<UNavLocalGridManager>(this, TEXT("NavLocalGrids"));
+		NavLocalGrids = NewObject<UNavLocalGridManager>(this);
 		ensure(NavLocalGrids != nullptr);
 
 		TSubclassOf<UAIHotSpotManager> HotSpotManagerClass = HotSpotManagerClassName.IsValid() ? LoadClass<UAIHotSpotManager>(NULL, *HotSpotManagerClassName.ToString(), NULL, LOAD_None, NULL) : nullptr;

@@ -272,7 +272,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::Equals(const UNiagaraDataInterface* Ot
 	return OtherTyped->MaxNeighborsPerVoxel == MaxNeighborsPerVoxel;
 }
 
-void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
@@ -293,13 +293,13 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(FNiagaraDat
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	bool ParentRet = Super::GetFunctionHLSL(DefinitionFunctionName, InstanceFunctionName, ParamInfo, OutHLSL);
+	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
 	if (ParentRet)
 	{
 		return true;
-	} else if (DefinitionFunctionName == MaxNeighborsPerVoxelFunctionName)
+	} else if (FunctionInfo.DefinitionName == MaxNeighborsPerVoxelFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_MaxNeighborsPerVoxel)
@@ -308,14 +308,14 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsSample = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("MaxNeighborsPerVoxelName"), MaxNeighborsPerVoxelName + ParamInfo.DataInterfaceHLSLSymbol},
 
 		};
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == NeighborGridIndexToLinearFunctionName)
+	else if (FunctionInfo.DefinitionName == NeighborGridIndexToLinearFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_Neighbor, out int Out_Linear)
@@ -324,14 +324,14 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("MaxNeighborsPerVoxelName"), MaxNeighborsPerVoxelName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumVoxelsName"), NumVoxelsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetParticleNeighborFunctionName)
+	else if (FunctionInfo.DefinitionName == GetParticleNeighborFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, out int Out_ParticleNeighborIndex)
@@ -340,13 +340,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("ParticleNeighbors"), ParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetParticleNeighborFunctionName)
+	else if (FunctionInfo.DefinitionName == SetParticleNeighborFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, int In_ParticleNeighborIndex, out int Out_Ignore)
@@ -356,13 +356,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputParticleNeighbors"), OutputParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetParticleNeighborCountFunctionName)
+	else if (FunctionInfo.DefinitionName == GetParticleNeighborCountFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, out int Out_ParticleNeighborIndex)
@@ -371,13 +371,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("ParticleNeighborCount"), ParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetParticleNeighborCountFunctionName)
+	else if (FunctionInfo.DefinitionName == SetParticleNeighborCountFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, int In_Increment, out int PreviousNeighborCount)
@@ -386,7 +386,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputParticleNeighborCount"), OutputParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);

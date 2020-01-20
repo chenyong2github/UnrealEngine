@@ -173,6 +173,10 @@ namespace Chaos
 		// Island Rule API
 		//
 
+		void PrepareConstraints(FReal Dt) {}
+
+		void UnprepareConstraints(FReal Dt) {}
+
 		void UpdatePositionBasedState(const T Dt);
 
 		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)

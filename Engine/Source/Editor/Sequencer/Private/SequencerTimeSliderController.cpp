@@ -1350,19 +1350,19 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 		else 
 		{
 			MenuBuilder.AddMenuEntry( 
-				LOCTEXT("ClearMark", "Clear Mark"),
+				LOCTEXT("DeleteMark", "Delete Mark"),
 				FText(),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([=]{ ClearMarkAtFrame(FrameNumber); }))
+				FUIAction(FExecuteAction::CreateLambda([=]{ DeleteMarkAtIndex(MarkedIndex); }))
 			);
 		}
 
 		MenuBuilder.AddMenuEntry( 
-			LOCTEXT("Clear All Marks", "Clear All Marks"),
+			LOCTEXT("Delete All Marks", "Delete All Marks"),
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ ClearAllMarks(); }),
+				FExecuteAction::CreateLambda([=]{ DeleteAllMarks(); }),
 				FCanExecuteAction::CreateLambda([=]{ return bHasMarks; })
 			)
 		);
@@ -1632,17 +1632,17 @@ void FSequencerTimeSliderController::SetMark(int32 InMarkIndex, FFrameNumber Fra
 
 void FSequencerTimeSliderController::AddMarkAtFrame(FFrameNumber FrameNumber)
 {
-	TimeSliderArgs.OnMarkedFrameChanged.ExecuteIfBound(FrameNumber, true);
+	TimeSliderArgs.OnAddMarkedFrame.ExecuteIfBound(FrameNumber);
 }
 
-void FSequencerTimeSliderController::ClearMarkAtFrame(FFrameNumber FrameNumber)
+void FSequencerTimeSliderController::DeleteMarkAtIndex(int32 InMarkIndex)
 {
-	TimeSliderArgs.OnMarkedFrameChanged.ExecuteIfBound(FrameNumber, false);
+	TimeSliderArgs.OnDeleteMarkedFrame.ExecuteIfBound(InMarkIndex);
 }
 
-void FSequencerTimeSliderController::ClearAllMarks()
+void FSequencerTimeSliderController::DeleteAllMarks()
 {
-	TimeSliderArgs.OnClearAllMarkedFrames.ExecuteIfBound();
+	TimeSliderArgs.OnDeleteAllMarkedFrames.ExecuteIfBound();
 }
 	
 

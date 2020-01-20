@@ -8,11 +8,18 @@
 // FClothingSimulationContextCommon
 //==============================================================================
 
+static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
+	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
+	1.5f,
+	TEXT("A multiplier of the MaxPhysicsDelta time at which we will automatically just teleport cloth to its new location\n")
+	TEXT(" default: 1.5"));
+
 FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	: ComponentToWorld(FTransform::Identity)
 	, WorldGravity(FVector::ZeroVector)
 	, WindVelocity(FVector::ZeroVector)
 	, DeltaSeconds(0.f)
+	, TeleportMode(EClothingTeleportMode::None)
 {}
 
 FClothingSimulationContextCommon::~FClothingSimulationContextCommon()
@@ -27,6 +34,7 @@ void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComp
 	FillWorldGravity(InComponent);
 	FillWindVelocity(InComponent);
 	FillDeltaSeconds(InDeltaSeconds, InMaxPhysicsDelta);
+	FillTeleportMode(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 }
 
 void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshComponent* InComponent)
@@ -112,6 +120,13 @@ void FClothingSimulationContextCommon::FillWindVelocity(const USkeletalMeshCompo
 void FClothingSimulationContextCommon::FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta)
 {
 	DeltaSeconds = FMath::Min(InDeltaSeconds, InMaxPhysicsDelta);
+}
+
+void FClothingSimulationContextCommon::FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta)
+{
+	TeleportMode = (InDeltaSeconds > InMaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()) ?
+		EClothingTeleportMode::Teleport :
+		InComponent->ClothTeleportMode;
 }
 
 float FClothingSimulationContextCommon::SetWindFromComponent(const USkeletalMeshComponent* Component)

@@ -358,6 +358,8 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 		ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 		FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
 	}
+
+	SoundWaveDecoder.Reset();
 }
 
 void UTimeSynthComponent::OnEndGenerate() 

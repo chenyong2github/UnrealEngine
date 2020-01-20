@@ -347,7 +347,8 @@ struct FSlateCachedElementList
 		: OwningWidget(InWidget)
 		, ParentData(InParentData)
 		, CachedRenderingData(nullptr)
-	{}
+	{
+	}
 
 	void Initialize()
 	{
@@ -401,7 +402,9 @@ struct FSlateCachedElementsHandle
 private:
 	FSlateCachedElementsHandle(TSharedRef<FSlateCachedElementList>& DataPtr)
 		: Ptr(DataPtr)
-	{}
+	{
+	}
+
 private:
 	TWeakPtr<FSlateCachedElementList> Ptr;
 };
@@ -409,16 +412,9 @@ private:
 struct FSlateCachedElementData
 {
 	friend class FSlateElementBatcher;
+	friend struct FSlateCachedElementsHandle;
 
 	void Empty();
-
-	/** Removes a cache node completely from the cache */
-	void RemoveList(FSlateCachedElementsHandle& CacheHandle)
-	{
-		TSharedPtr<FSlateCachedElementList> Data = CacheHandle.Ptr.Pin();
-		CachedElementLists.RemoveSingleSwap(Data);
-		Data->ClearCachedElements();
-	}
 
 	FSlateCachedElementsHandle AddCache(const SWidget* Widget);
 
@@ -435,13 +431,22 @@ struct FSlateCachedElementData
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
+	/** Removes a cache node completely from the cache */
+	void RemoveList(FSlateCachedElementsHandle& CacheHandle)
+	{
+		TSharedPtr<FSlateCachedElementList> Data = CacheHandle.Ptr.Pin();
+		CachedElementLists.RemoveSingleSwap(Data);
+		Data->ClearCachedElements();
+	}
+
+private:
 
 	/** List of cached batches to submit for drawing */
 	TSparseArray<FSlateRenderBatch> CachedBatches;
 
 	TArray<TSharedPtr<FSlateCachedElementList>> CachedElementLists;
 
-	TArray<FSlateCachedElementList*, TMemStackAllocator<>> ListsWithNewData;
+	TArray<FSlateCachedElementList*, TInlineAllocator<50>> ListsWithNewData;
 
 	TArray<FSlateCachedClipState> CachedClipStates;
 };
@@ -605,7 +610,7 @@ public:
 	 * Pops the current painted widget off the stack
 	 * @return true if an element was added while the widget was pushed
 	 */
-	SLATECORE_API FSlateCachedElementsHandle PopPaintingWidget();
+	SLATECORE_API FSlateCachedElementsHandle PopPaintingWidget(const SWidget& CurrentWidget);
 
 	/** Pushes cached element data onto the stack.  Any draw elements cached after will use this cached element data until popped */
 	void PushCachedElementData(FSlateCachedElementData& CachedElementData);
@@ -680,16 +685,14 @@ private:
 		FSlateCachedElementsHandle CacheHandle;
 		const SWidget* Widget;
 		bool bIsVolatile;
-	
 	};
-
 
 	/** The uncached draw elements to be processed */
 	FSlateDrawElementArray UncachedDrawElements;
 
-	TArray<FWidgetDrawElementState, TMemStackAllocator<>> WidgetDrawStack;
-	TArray<FSlateCachedElementData*, TMemStackAllocator<>> CachedElementDataList;
-	TArray<int32, TMemStackAllocator<>> CachedElementDataListStack;
+	TArray<FWidgetDrawElementState, TInlineAllocator<50>> WidgetDrawStack;
+	TArray<FSlateCachedElementData*, TInlineAllocator<4>> CachedElementDataList;
+	TArray<int32, TInlineAllocator<4>> CachedElementDataListStack;
 	// End Fast Path
 
 	/** Store the size of the window being used to paint */

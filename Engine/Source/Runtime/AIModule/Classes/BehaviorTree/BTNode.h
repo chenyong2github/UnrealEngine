@@ -34,7 +34,7 @@ struct FBTInstancedNodeMemory
 };
 
 UCLASS(Abstract,config=Game)
-class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface, public IBlackboardAssetProvider
+class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -133,10 +133,8 @@ class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface,
 	/** @return tree asset */
 	UBehaviorTree* GetTreeAsset() const;
 
-	// BEGIN IBlackboardAssetProvider
 	/** @return blackboard asset */
-	virtual UBlackboardData* GetBlackboardAsset() const override;
-	// END IBlackboardAssetProvider
+	UBlackboardData* GetBlackboardAsset() const;
 
 	/** @return node instance if bCreateNodeInstance was set */
 	UBTNode* GetNodeInstance(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;

@@ -325,6 +325,11 @@
 
 #endif
 
+#if COMPILER_METAL
+	// Metal does not allow writes to A8 textures so we are faking it by making them all R8.
+	// WARNING: If this changes or the type in MetalRHI changes both must be updated!
+	#define A8_SAMPLE_MASK .r
+#endif
 
 // ---------------------------------------------------- Swizzle defaults
 

@@ -2129,7 +2129,7 @@ UClass* FBlueprintEditorUtils::GetSkeletonClass(UClass* FromClass)
 
 UClass* FBlueprintEditorUtils::GetMostUpToDateClass(UClass* FromClass)
 {
-	if(!FromClass || FromClass->HasAnyClassFlags(CLASS_Native))
+	if(!FromClass || FromClass->HasAnyClassFlags(CLASS_Native) || FromClass->bCooked)
 	{
 		return FromClass;
 	}

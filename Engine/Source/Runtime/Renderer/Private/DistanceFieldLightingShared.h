@@ -495,20 +495,22 @@ class FLightTileIntersectionResources
 {
 public:
 
-	FLightTileIntersectionResources() :
-		b16BitIndices(false)
+	FLightTileIntersectionResources() 
+		: TileDimensions(FIntPoint::ZeroValue)
+		, TileAlignedDimensions(FIntPoint::ZeroValue)
+		, b16BitIndices(false)
 	{}
 
 	void Initialize()
 	{
-		FIntPoint AlignedDimensions = FIntPoint(Align(TileDimensions.X, 64), Align(TileDimensions.Y, 64));
-	
-		TileNumCulledObjects.Initialize(sizeof(uint32), AlignedDimensions.X * AlignedDimensions.Y, PF_R32_UINT, BUF_Static);
-		TileStartOffsets.Initialize(sizeof(uint32), AlignedDimensions.X * AlignedDimensions.Y, PF_R32_UINT, BUF_Static);
+		TileAlignedDimensions = FIntPoint(Align(TileDimensions.X, 64), Align(TileDimensions.Y, 64));
+			
+		TileNumCulledObjects.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static);
+		TileStartOffsets.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static);
 		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static);
 
 		//@todo - handle max exceeded
-		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * AlignedDimensions.X * AlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static);
+		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * TileAlignedDimensions.X * TileAlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static);
 	}
 
 	void Release()
@@ -524,12 +526,18 @@ public:
 		return TileNumCulledObjects.NumBytes + NextStartOffset.NumBytes + TileStartOffsets.NumBytes + TileArrayData.NumBytes;
 	}
 
+	FIntPoint GetTileAlignedDimensions() const 
+	{
+		return TileAlignedDimensions;
+	}
+	
 	static FIntPoint GetAlignedDimensions(FIntPoint InTileDimensions)
 	{
 		return FIntPoint(Align(InTileDimensions.X, 64), Align(InTileDimensions.Y, 64));
 	}
 
 	FIntPoint TileDimensions;
+	FIntPoint TileAlignedDimensions;
 
 	FRWBuffer TileNumCulledObjects;
 	FRWBuffer NextStartOffset;

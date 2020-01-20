@@ -129,7 +129,7 @@ ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 }
 
 // Generate a new guid to force a recache of landscape collison derived data
-#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("2265A519785B402D90EF2E726E6D8759")
+#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("CC58B9FA08AD47E3BF06976E60B693C3")
 
 static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const FGuid& StateId, const TArray<UPhysicalMaterial*>& PhysicalMaterials)
 {
@@ -550,6 +550,9 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
 #if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::ChaosLandscape);
+#else
+	//NOTE: this currently gets ignored because of low level allocator
+	LLM_SCOPE(ELLMTag::PhysXLandscape);
 #endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))
@@ -895,7 +898,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	{
 		for(int32 ColIndex = 0; ColIndex < CollisionSizeVerts; ColIndex++)
 		{
-			const int32 SrcSampleIndex = (ColIndex * CollisionSizeVerts) + (bIsMirrored ? RowIndex : (CollisionSizeVerts - RowIndex - 1));
+			const int32 SrcSampleIndex = (RowIndex * CollisionSizeVerts) + (bIsMirrored ? (CollisionSizeVerts - ColIndex - 1) : ColIndex);
 
 			// Materials are not relevant on the last row/column because they are per-triangle and the last row/column don't own any
 			if(RowIndex < CollisionSizeVerts - 1 &&

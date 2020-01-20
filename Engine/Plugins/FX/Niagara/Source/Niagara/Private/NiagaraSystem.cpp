@@ -48,7 +48,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bFixedBounds(false)
 , FastPathMode(ENiagaraFastPathMode::ScriptVMOnly)
-, ExposedParameters(this)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
 #endif
@@ -59,6 +58,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
 {
+	ExposedParameters.SetOwner(this);
 	MaxPoolSize = 32;
 }
 
@@ -412,7 +412,7 @@ void UNiagaraSystem::PostLoad()
 
 		if (UNiagaraEmitter::GetForceCompileOnLoad())
 		{
-			InvalidateCachedCompileIds();
+			ForceGraphToRecompileOnNextCheck();
 			UE_LOG(LogNiagara, Log, TEXT("System %s being rebuilt because UNiagaraEmitter::GetForceCompileOnLoad() == true."), *GetPathName());
 		}
 
@@ -761,17 +761,17 @@ UNiagaraSystem::FOnSystemCompiled& UNiagaraSystem::OnSystemCompiled()
 	return OnSystemCompiledDelegate;
 }
 
-void UNiagaraSystem::InvalidateCachedCompileIds()
+void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
 {
 	check(SystemSpawnScript->GetSource() == SystemUpdateScript->GetSource());
-	SystemSpawnScript->GetSource()->InvalidateCachedCompileIds();
+	SystemSpawnScript->GetSource()->ForceGraphToRecompileOnNextCheck();
 
 	for (FNiagaraEmitterHandle Handle : EmitterHandles)
 	{
 		if (Handle.GetInstance())
 		{
 			UNiagaraScriptSourceBase* GraphSource = Handle.GetInstance()->GraphSource;
-			GraphSource->InvalidateCachedCompileIds();
+			GraphSource->ForceGraphToRecompileOnNextCheck();
 		}
 	}
 }
@@ -829,9 +829,16 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 				bool bBuiltLocally = false;
 				if (GetDerivedDataCacheRef().GetAsynchronousResults(EmitterCompiledScriptPair.PendingDDCID, OutData, &bBuiltLocally))
 				{
-					if (bBuiltLocally)
+					if (GEnableVerboseNiagaraChangeIdLogging)
 					{
-						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was built locally.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
+						if (bBuiltLocally)
+						{
+							UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was built locally.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
+						}
+						else
+						{
+							UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was pulled from DDC.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
+						}
 					}
 
 					TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
@@ -1046,7 +1053,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 {
 	if (bForce)
 	{
-		InvalidateCachedCompileIds();
+		ForceGraphToRecompileOnNextCheck();
 		bForce = false;
 	}
 

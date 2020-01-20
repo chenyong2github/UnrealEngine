@@ -363,7 +363,7 @@ void UBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 	if (!TargetPlatform || TargetPlatform->HasEditorOnlyData())
 	{
 		// Cache the BP for use (immediate, since we're about to save)
-		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, true);
+		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, EAddOrUpdateBlueprintSearchMetadataFlags::ForceRecache);
 	}
 }
 #endif // WITH_EDITORONLY_DATA
@@ -1000,9 +1000,10 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	{
 		FString Value;
 		const bool bRebuildSearchData = false;
-		if (const FSearchData* SearchData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, bRebuildSearchData))
+		FSearchData SearchData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, bRebuildSearchData);
+		if (SearchData.IsValid())
 		{
-			Value = SearchData->Value;
+			Value = SearchData.Value;
 		}
 		
 		OutTags.Add( FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, Value, FAssetRegistryTag::TT_Hidden) );

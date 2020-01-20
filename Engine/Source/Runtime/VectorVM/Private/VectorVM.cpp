@@ -292,6 +292,11 @@ struct FConstantHandlerBase
 	{
 		Context.Write(Context.DecodeU16());
 	}
+
+	static void OptimizeSkip(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.DecodeU16();
+	}
 };
 
 template<typename T>
@@ -1070,7 +1075,7 @@ struct FVectorKernelEnterStatScope
 		FConstantHandler<int32>::Optimize(Context);
 #else
 		// just skip the op if we don't have stats enabled
-		FConstantHandler<int32>(Context.BaseContext);
+		FConstantHandler<int32>::OptimizeSkip(Context);
 #endif
 	}
 

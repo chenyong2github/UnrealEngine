@@ -60,7 +60,7 @@ void FDisplayClusterClusterNodeCtrlMaster::GetDeltaTime(float& DeltaSeconds)
 {
 	if (IsInGameThread())
 	{
-	// Cache data so it will be the same for all requests within current frame
+		// Cache data so it will be the same for all requests within current frame
 		CachedDeltaTime = FApp::GetDeltaTime();
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetDeltaTime cached values: DeltaSeconds %f"), CachedDeltaTime);
 		CachedDeltaTimeEvent->Trigger();
@@ -104,7 +104,7 @@ void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::D
 
 	if (IsInGameThread())
 	{
-	// Cache data so it will be the same for all requests within current frame
+		// Cache data so it will be the same for all requests within current frame
 		FDisplayClusterMessage::DataType SyncDataToCache;
 		ClusterMgr->ExportSyncData(SyncDataToCache, SyncGroup);
 		CachedSyncData.Emplace(SyncGroup, SyncDataToCache);
@@ -136,7 +136,7 @@ void FDisplayClusterClusterNodeCtrlMaster::GetInputData(FDisplayClusterMessage::
 
 	if (IsInGameThread())
 	{
-	// Cache data so it will be the same for all requests within current frame
+		// Cache data so it will be the same for all requests within current frame
 		InputMgr->ExportInputData(CachedInputData);
 
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetInputData cached values amount: %d"), CachedInputData.Num());
@@ -166,7 +166,7 @@ void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(FDisplayClusterMessage:
 
 	if (IsInGameThread())
 	{
-	// Cache data so it will be the same for all requests within current frame
+		// Cache data so it will be the same for all requests within current frame
 		ClusterMgr->ExportEventsData(CachedEventsData);
 
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached values amount: %d"), CachedEventsData.Num());

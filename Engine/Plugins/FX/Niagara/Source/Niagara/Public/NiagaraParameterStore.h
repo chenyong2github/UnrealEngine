@@ -185,7 +185,6 @@ private:
 
 public:
 	FNiagaraParameterStore();
-	FNiagaraParameterStore(UObject* InOwner);
 	FNiagaraParameterStore(const FNiagaraParameterStore& Other);
 	FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
 
@@ -196,6 +195,7 @@ public:
 	FString DebugName;
 #endif
 
+	void SetOwner(UObject* InOwner);
 	UObject* GetOwner()const { return Owner; }
 
 	void Dump();

@@ -1830,7 +1830,7 @@ void UEdGraphPin::SerializePinArray(FArchive& Ar, TArray<UEdGraphPin*>& ArrayRef
 				{
 					// PeerNode will be null if the pin we were linked to was already thrown away:
 					UEdGraphNode* PeerNode = Peer->GetOwningNodeUnchecked();
-					if (PeerNode && !GEditor->Trans->IsObjectTransacting(PeerNode))
+					if (PeerNode && (!GEditor || !GEditor->Trans->IsObjectTransacting(PeerNode)))
 					{
 						Pin->BreakLinkTo(Peer);
 						--I;

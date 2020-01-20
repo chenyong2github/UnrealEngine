@@ -61,9 +61,15 @@ class SyncProject : BuildCommand
 
 		IEnumerable<string> ExplicitPaths = PathArg.Split(new char[] { ',',';' }, StringSplitOptions.RemoveEmptyEntries).Select(S => S.Trim());
 
-		if (CL == 0 && !ForceSync)
+		if (CL == 0)
 		{
-			throw new AutomationException("If using 0 CL to remove files -force must also be specified (and you may also want -projectonly)");
+			if (!ForceSync)
+			{
+				throw new AutomationException("If using 0 CL to remove files -force must also be specified");
+			}
+
+			// Cannot unsync the engine folder
+			ProjectOnly = true;
 		}
 		else if (CL == -1)
 		{

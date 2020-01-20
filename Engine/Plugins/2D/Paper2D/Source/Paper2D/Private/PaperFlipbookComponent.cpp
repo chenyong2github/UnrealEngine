@@ -98,7 +98,13 @@ FPrimitiveSceneProxy* UPaperFlipbookComponent::CreateSceneProxy()
 	FSpriteDrawCallRecord DrawCall;
 	DrawCall.BuildFromSprite(SpriteToSend);
 	DrawCall.Color = SpriteColor.ToFColor(/*bSRGB=*/ false);
-	NewProxy->SetSprite_RenderThread(DrawCall, SplitIndex);
+
+	FPaperFlipbookSceneProxy* InSceneProxy = (FPaperFlipbookSceneProxy*)NewProxy;
+	ENQUEUE_RENDER_COMMAND(FCreatePaperFlipbookProxy_SetSprite)(
+		[InSceneProxy, DrawCall, SplitIndex](FRHICommandListImmediate& RHICmdList)
+	{
+		InSceneProxy->SetSprite_RenderThread(DrawCall, SplitIndex);
+	});
 	return NewProxy;
 }
 

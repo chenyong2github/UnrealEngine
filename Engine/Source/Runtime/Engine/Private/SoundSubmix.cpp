@@ -384,15 +384,19 @@ void USoundSubmix::SetParentSubmix(USoundSubmix* InParentSubmix)
 {
 	if (ParentSubmix != InParentSubmix)
 	{
-		if (ParentSubmix != nullptr)
+		if (ParentSubmix)
 		{
 			ParentSubmix->Modify();
 			ParentSubmix->ChildSubmixes.Remove(this);
 		}
 
 		Modify();
+
 		ParentSubmix = InParentSubmix;
-		ParentSubmix->ChildSubmixes.AddUnique(this);
+		if (ParentSubmix)
+		{
+			ParentSubmix->ChildSubmixes.AddUnique(this);
+		}
 	}
 }
 

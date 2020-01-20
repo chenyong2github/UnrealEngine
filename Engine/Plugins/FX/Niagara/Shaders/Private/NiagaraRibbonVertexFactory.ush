@@ -14,6 +14,21 @@
 #define USE_PARTICLE_RANDOM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_INTERPOLATION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 
+#if NIAGARA_LOOSEPARAM_BINDING
+	Buffer<float> NiagaraParticleDataPosition;
+	Buffer<float> NiagaraParticleDataVelocity;
+	Buffer<float> NiagaraParticleDataColor;
+	Buffer<float> NiagaraParticleDataWidth;
+	Buffer<float> NiagaraParticleDataTwist;
+	Buffer<float> NiagaraParticleDataFacing;
+	Buffer<float> NiagaraParticleDataNormalizedAge;
+	Buffer<float> NiagaraParticleDataMaterialRandom;
+	Buffer<float> NiagaraParticleDataMaterialParam0;
+	Buffer<float> NiagaraParticleDataMaterialParam1;
+	Buffer<float> NiagaraParticleDataMaterialParam2;
+	Buffer<float> NiagaraParticleDataMaterialParam3;
+#endif
+
 float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraRibbonVF.bLocalSpace)
@@ -144,8 +159,8 @@ void GetNiagaraParticlePositionAndDirection(in FInterpVtxData InterpVtxData, in 
 	BRANCH // Also acts as ISOLATE
 	if (NiagaraRibbonVF.PositionDataOffset != -1)
 	{
-		const float3 Pos0 = GetVec3(NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId0);
-		const float3 Pos1 = GetVec3(NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId1);
+		const float3 Pos0 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId0);
+		const float3 Pos1 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId1);
 		const float4 TangentAndDist0 = NiagaraRibbonVFLooseParameters.TangentsAndDistances[InterpVtxData.RawParticleId0];
 		const float4 TangentAndDist1 = NiagaraRibbonVFLooseParameters.TangentsAndDistances[InterpVtxData.RawParticleId1];
 		
@@ -161,8 +176,8 @@ void GetNiagaraParticleVelocity(in FInterpVtxData InterpVtxData, in out FVertexF
 	BRANCH
 	if(NiagaraRibbonVF.VelocityDataOffset != -1)
 	{
-		const float3 Velocity0 = GetVec3(NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId0);
-		const float3 Velocity1 = GetVec3(NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId1);
+		const float3 Velocity0 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataVelocity), NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId0);
+		const float3 Velocity1 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataVelocity), NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId1);
 		const float3 Velocity = TransformVector(lerp(Velocity0, Velocity1, InterpVtxData.Alpha));
 
 		Intermediates.ParticleVelocity = float4(normalize(Velocity), length(Velocity));
@@ -176,8 +191,8 @@ void GetNiagaraParticleColor(in FInterpVtxData InterpVtxData, in out FVertexFact
 
 	if (NiagaraRibbonVF.ColorDataOffset != -1)
 	{
-		const float4 Color0 = GetVec4(NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId0);
-		const float4 Color1 = GetVec4(NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId1);
+		const float4 Color0 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataColor), NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId0);
+		const float4 Color1 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataColor), NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId1);
 		Intermediates.Color = lerp(Color0, Color1, InterpVtxData.Alpha);
 	}
 }
@@ -191,7 +206,12 @@ void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out
 	FLATTEN
 	if (NiagaraRibbonVF.MaterialParamDataOffset != -1)
 	{
-		Intermediates.DynamicParameter = lerp(GetVec4(NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.DynamicParameter = lerp
+		(
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam0), NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId0), 
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam0), NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
@@ -201,7 +221,12 @@ void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out
 	FLATTEN
 	if (NiagaraRibbonVF.MaterialParam1DataOffset != -1)
 	{
-		Intermediates.DynamicParameter1 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.DynamicParameter1 = lerp
+		(
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam1), NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId0), 
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam1), NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
@@ -211,7 +236,12 @@ void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out
 	FLATTEN
 	if (NiagaraRibbonVF.MaterialParam2DataOffset != -1)
 	{
-		Intermediates.DynamicParameter2 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.DynamicParameter2 = lerp
+		(
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam2), NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId0), 
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam2), NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
@@ -221,7 +251,12 @@ void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out
 	FLATTEN
 	if (NiagaraRibbonVF.MaterialParam3DataOffset != -1)
 	{
-		Intermediates.DynamicParameter3 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.DynamicParameter3 = lerp
+		(
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam3), NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId0), 
+			GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam3), NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 #endif
 }
@@ -267,7 +302,12 @@ void GetNiagaraParticleRibbonWidth(in FInterpVtxData InterpVtxData, in out FVert
 	FLATTEN
 	if (NiagaraRibbonVF.WidthDataOffset != -1)
 	{
-		Intermediates.RibbonWidth = lerp(GetFloat(NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.RibbonWidth = lerp
+		(
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataWidth), NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId0), 
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataWidth), NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 }
 
@@ -277,7 +317,12 @@ void GetNiagaraNormalizedAge(in FInterpVtxData InterpVtxData, in out FVertexFact
 	FLATTEN
 	if (NiagaraRibbonVF.NormalizedAgeDataOffset != -1)
 	{
-		Intermediates.RelativeTime = lerp(GetFloat(NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.RelativeTime = lerp
+		(
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataNormalizedAge), NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId0), 
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataNormalizedAge), NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 }
 #endif
@@ -288,7 +333,12 @@ void GetNiagaraMaterialRandom(in FInterpVtxData InterpVtxData, in out FVertexFac
 	FLATTEN
 	if (NiagaraRibbonVF.MaterialRandomDataOffset != -1)
 	{
-		Intermediates.ParticleRandom = lerp(GetFloat(NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		Intermediates.ParticleRandom = lerp
+		(
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialRandom), NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId0), 
+			GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialRandom), NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId1), 
+			InterpVtxData.Alpha
+		);
 	}
 }
 #endif
@@ -578,8 +628,8 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 	BRANCH
 	if(NiagaraRibbonVF.FacingDataOffset != -1)
 	{
-		const float3 Facing0 = GetVec3(NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId0);
-		const float3 Facing1 = GetVec3(NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId1);
+		const float3 Facing0 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFacing), NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId0);
+		const float3 Facing1 = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFacing), NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId1);
 		Intermediates.Facing = normalize(TransformVector(lerp(Facing0, Facing1, InterpVtxData.Alpha)));
 	}
 	else
@@ -605,8 +655,8 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 	BRANCH
 	if (NiagaraRibbonVF.TwistDataOffset != -1)
 	{
-		const float Twist0 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId0);
-		const float Twist1 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId1);
+		const float Twist0 = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataTwist), NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId0);
+		const float Twist1 = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataTwist), NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId1);
 		float SinTwist, CosTwist;
 		sincos(lerp(Twist0, Twist1, InterpVtxData.Alpha) /* + ResolvedView.RealTime * .5 */, SinTwist, CosTwist);
 

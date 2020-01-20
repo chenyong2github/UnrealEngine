@@ -694,6 +694,7 @@ protected:
 				// that returns multiple TargetPlatforms. we try single first, then full platform
 				FName FullPlatformModuleName = *(PlatInfo.IniPlatformName + TEXT("TargetPlatform"));
 				FName SingleTargetPlatformModuleName = *(PlatInfo.TargetPlatformName.ToString() + TEXT("TargetPlatform"));
+				bool bFullPlatformModuleNameIsValid = !PlatInfo.IniPlatformName.IsEmpty();
 
 				ITargetPlatformModule* Module = nullptr;
 				
@@ -701,7 +702,7 @@ protected:
 				{
 					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(SingleTargetPlatformModuleName);
 				}
-				else if (FModuleManager::Get().ModuleExists(*FullPlatformModuleName.ToString()))
+				else if (bFullPlatformModuleNameIsValid && FModuleManager::Get().ModuleExists(*FullPlatformModuleName.ToString()))
 				{
 					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(FullPlatformModuleName);
 				}

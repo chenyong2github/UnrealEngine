@@ -16,6 +16,7 @@ public class Hotfix : ModuleRules
                 "HTTP",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
+				"OnlineTracing"
 			}
 			);
     }

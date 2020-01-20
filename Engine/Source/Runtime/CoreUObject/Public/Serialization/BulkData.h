@@ -154,21 +154,7 @@ private:
 class FBulkDataIORequest : public IBulkDataIORequest
 {
 public:
-	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle, IAsyncReadRequest* InReadRequest, int64 BytesToRead)
-		: FileHandle(InFileHandle)
-		, ReadRequest(InReadRequest)
-		, Size(BytesToRead)
-	{
-
-	}
-
-	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
-		: FileHandle(InFileHandle)
-		, ReadRequest(nullptr)
-		, Size(0)
-	{
-	}
-
+	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle);
 	virtual ~FBulkDataIORequest();
 
 	bool MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory);

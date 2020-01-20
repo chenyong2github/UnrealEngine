@@ -149,11 +149,12 @@ void UNiagaraStackRenderItemGroup::Paste(const UNiagaraClipboardContent* Clipboa
 {
 	if (EmitterWeak.IsValid())
 	{
+		UNiagaraEmitter* Emitter = EmitterWeak.Get();
 		for (const UNiagaraRendererProperties* ClipboardRenderer : ClipboardContent->Renderers)
 		{
 			if (ClipboardRenderer != nullptr)
 			{
-				EmitterWeak->AddRenderer(CastChecked<UNiagaraRendererProperties>(StaticDuplicateObject(ClipboardRenderer, EmitterWeak.Get())));
+				EmitterWeak->AddRenderer(ClipboardRenderer->StaticDuplicateWithNewMergeId(Emitter));
 			}
 		}
 	}
