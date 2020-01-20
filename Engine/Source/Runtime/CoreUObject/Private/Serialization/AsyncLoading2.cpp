@@ -3354,8 +3354,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				{
 					PackagesToDelete.RemoveAtSwap(PackageIndex--);
 					Package->ClearImportedPackages();
-					Package->ReleaseRef();
 					Package->AsyncLoadingThread.WaitingForPostLoadCounter.Decrement();
+					Package->ReleaseRef();
 				}
 			}
 
