@@ -289,3 +289,13 @@ bool ANavLinkProxy::HasMovingAgents() const
 {
 	return SmartLinkComp->HasMovingAgents();
 }
+
+#if WITH_EDITOR
+void ANavLinkProxy::CopyEndPointsFromSimpleLinkToSmartLink()
+{
+	if (PointLinks.Num() && SmartLinkComp)
+	{
+		SmartLinkComp->SetLinkData(PointLinks[0].Left, PointLinks[0].Right, PointLinks[0].Direction);
+	}
+}
+#endif // WITH_EDITOR
