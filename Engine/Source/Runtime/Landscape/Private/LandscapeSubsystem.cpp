@@ -39,6 +39,9 @@ void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamed
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeSubsystemTick);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeSubsystem::Tick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
+	LLM_SCOPE(ELLMTag::Landscape);
+
 	UWorld* World = GetWorld();
 	if (!LandscapeInfoMap)
 	{
