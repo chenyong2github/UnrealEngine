@@ -6,6 +6,7 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Templates/Tuple.h"
+#include "UObject/ObjectMacros.h"
 #include "USDMemory.h"
 
 #include <string>
@@ -72,6 +73,16 @@ enum class EUsdUpAxis
 	ZAxis,
 };
 
+UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EUsdPurpose : int32
+{
+	None = 0 UMETA(Hidden),
+	Default = 1,
+	Proxy = 2,
+	Render = 4,
+	Guide = 8
+};
+ENUM_CLASS_FLAGS(EUsdPurpose);
 
 
 struct FUsdVector2Data
@@ -192,7 +203,9 @@ class IUsdPrim
 {
 public:
 #if USE_USD_SDK
-	static UNREALUSDWRAPPER_API bool IsProxyOrGuide(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
+
 	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API int GetNumLODs(const pxr::UsdPrim& Prim);

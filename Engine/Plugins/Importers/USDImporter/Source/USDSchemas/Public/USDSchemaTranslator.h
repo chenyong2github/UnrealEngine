@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "USDMemory.h"
+#include "UnrealUSDWrapper.h"
 
 #include "Async/Future.h"
 #include "HAL/ThreadSafeBool.h"
@@ -124,6 +125,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	/** The time at which we are translating */
 	float Time = 0.f;
+
+	/** We're only allowed to load prims with purposes that match these flags */
+	EUsdPurpose PurposesToLoad;
 
 	/** Map of translated UsdPrims to UAssets */
 	TMap< FString, UObject* >& PrimPathsToAssets;

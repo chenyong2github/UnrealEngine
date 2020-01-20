@@ -27,12 +27,13 @@
 #include "USDStageActor.generated.h"
 
 class ALevelSequenceActor;
-struct FMeshDescription;
-struct FUsdSchemaTranslationContext;
 class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+enum class EUsdPurpose : int32;
+struct FMeshDescription;
+struct FUsdSchemaTranslationContext;
 
 DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
 
@@ -57,6 +58,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
+
+	/* Only load prims with these specific purposes from the USD file */
+	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	int32 PurposesToLoad;
+
+	/* Quickly toggle visibility of prims with specific purposes in the level based on component tags */
+	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	int32 PurposeVisibility;
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	float GetTime() const { return Time; }
@@ -116,6 +125,8 @@ private:
 	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
+
+	void RefreshVisibilityBasedOnPurpose();
 
 	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
 

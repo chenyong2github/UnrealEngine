@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
+
+#include "UnrealUSDWrapper.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
 #include "Factories/MaterialImportHelpers.h"
-#include "USDImportOptions.generated.h"
+#include "UObject/ObjectMacros.h"
 
+#include "USDImportOptions.generated.h"
 
 UENUM(BlueprintType)
 enum class EExistingActorPolicy : uint8
@@ -38,7 +40,7 @@ enum class EUsdMeshImportType : uint8
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
-class UUSDImportOptions : public UObject
+class USDIMPORTER_API UUSDImportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -47,7 +49,7 @@ public:
 	EUsdMeshImportType MeshImportType;
 
 	/**
-	 * If checked, To enforce unique asset paths, all assets will be created in directories that match with their prim path 
+	 * If checked, To enforce unique asset paths, all assets will be created in directories that match with their prim path
 	 * e.g a USD path /root/myassets/myprim_mesh will generate the path in the game directory "/Game/myassets/" with a mesh asset called "myprim_mesh" within that path.
 	 */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh)
@@ -67,7 +69,7 @@ public:
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
-class UUSDSceneImportOptions : public UUSDImportOptions
+class USDIMPORTER_API UUSDSceneImportOptions : public UUSDImportOptions
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -76,6 +78,10 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 public:
+	/* Only import prims with these specific purposes from the USD file */
+	UPROPERTY(EditAnywhere, Category = General, meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	int32 PurposesToImport;
+
 	/** If checked, all actors generated will have a world space transform and will not have any attachment hierarchy */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=General)
 	bool bFlattenHierarchy;
@@ -95,13 +101,13 @@ public:
 	/** The path where new assets are imported */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta=(ContentDir, EditCondition = bImportMeshes))
 	FDirectoryPath PathForAssets;
-	 
+
 	/** What should happen with existing assets */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta = (EditCondition=bImportMeshes))
 	EExistingAssetPolicy ExistingAssetPolicy;
 
-	/** 
-	 * This setting determines what to do if more than one USD prim is found with the same name.  If this setting is true a unique name will be generated and a unique asset will be imported 
+	/**
+	 * This setting determines what to do if more than one USD prim is found with the same name.  If this setting is true a unique name will be generated and a unique asset will be imported
 	 * If this is false, the first asset found is generated. Assets will be reused when spawning actors into the world.
 	 */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta=(EditCondition=bImportMeshes))
@@ -109,7 +115,7 @@ public:
 };
 
 UCLASS()
-class UUSDBatchImportOptionsSubTask : public UObject
+class USDIMPORTER_API UUSDBatchImportOptionsSubTask : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -127,7 +133,7 @@ public:
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
-class UUSDBatchImportOptions : public UUSDImportOptions
+class USDIMPORTER_API UUSDBatchImportOptions : public UUSDImportOptions
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -136,7 +142,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 public:
-		
+
 	/** Whether or not to import mesh geometry or to just spawn actors using existing meshes */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh)
 	bool bImportMeshes;
@@ -144,13 +150,13 @@ public:
 	/** The path where new assets are imported */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta=(ContentDir, EditCondition = bImportMeshes))
 	FDirectoryPath PathForAssets;
-	 
+
 	/** What should happen with existing assets */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta = (EditCondition=bImportMeshes))
 	EExistingAssetPolicy ExistingAssetPolicy;
 
-	/** 
-	 * This setting determines what to do if more than one USD prim is found with the same name.  If this setting is true a unique name will be generated and a unique asset will be imported 
+	/**
+	 * This setting determines what to do if more than one USD prim is found with the same name.  If this setting is true a unique name will be generated and a unique asset will be imported
 	 * If this is false, the first asset found is generated. Assets will be reused when spawning actors into the world.
 	 */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta=(EditCondition=bImportMeshes))

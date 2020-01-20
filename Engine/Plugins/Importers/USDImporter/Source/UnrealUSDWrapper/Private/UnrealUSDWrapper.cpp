@@ -34,6 +34,7 @@
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/metrics.h"
 #include "pxr/usd/usdGeom/modelAPI.h"
+#include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "pxr/usd/usdUtils/stageCache.h"
@@ -70,10 +71,6 @@ namespace UnrealIdentifiers
 	static const TfToken ActorClass("unrealActorClass");
 
 	static const TfToken PropertyPath("unrealPropertyPath");
-
-	static const TfToken ProxyPurpose("proxy");
-
-	static const TfToken GuidePurpose("guide");
 
 	static const TfToken MaterialRelationship("material:binding");
 
@@ -441,20 +438,51 @@ int FUsdAttribute::GetArraySize( const pxr::UsdAttribute& Attribute )
 	return Value.IsArrayValued() ? (int)Value.GetArraySize() : -1;
 
 }
-bool IUsdPrim::IsProxyOrGuide( const UsdPrim& Prim )
+EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim )
 {
 	UsdGeomImageable Geom(Prim);
 	if (Geom)
 	{
-		UsdAttribute PurposeAttr = Geom.GetPurposeAttr();
-
-		TfToken Purpose;
-		PurposeAttr.Get(&Purpose);
-
-		return Purpose == UnrealIdentifiers::ProxyPurpose || Purpose == UnrealIdentifiers::GuidePurpose;
+		// Use compute purpose because it depends on the hierarchy:
+		// "If the purpose of </RootPrim> is set to "render", then the effective purpose
+		// of </RootPrim/ChildPrim> will be "render" even if that prim has a different
+		// authored value for purpose."
+		const TfToken Purpose = Geom.ComputePurpose();
+		if (Purpose == pxr::UsdGeomTokens->proxy)
+		{
+			return EUsdPurpose::Proxy;
+		}
+		else if (Purpose == pxr::UsdGeomTokens->render)
+		{
+			return EUsdPurpose::Render;
+		}
+		else if (Purpose == pxr::UsdGeomTokens->guide)
+		{
+			return EUsdPurpose::Guide;
+		}
 	}
 
-	return false;
+	return EUsdPurpose::Default;
+}
+
+UNREALUSDWRAPPER_API FName IUsdPrim::GetPurposeName(EUsdPurpose Purpose)
+{
+	switch (Purpose)
+	{
+	case EUsdPurpose::Proxy:
+		return TEXT("ProxyPurpose");
+		break;
+	case EUsdPurpose::Render:
+		return TEXT("RenderPurpose");
+		break;
+	case EUsdPurpose::Guide:
+		return TEXT("GuidePurpose");
+		break;
+	default:
+		break;
+	}
+
+	return TEXT("DefaultPurpose");
 }
 
 bool IUsdPrim::HasGeometryData(const UsdPrim& Prim)

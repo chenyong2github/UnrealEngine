@@ -8,6 +8,7 @@
 #include "SUSDStageInfo.h"
 #include "SUSDStageTreeView.h"
 #include "USDErrorUtils.h"
+#include "USDImportOptions.h"
 #include "USDImporter.h"
 #include "USDLayerUtils.h"
 #include "USDStageActor.h"
@@ -422,12 +423,13 @@ void SUsdStage::OnReloadStage()
 
 void SUsdStage::OnImport()
 {
-	if ( !UsdStageActor.IsValid() )
+	AUsdStageActor* StageActor = UsdStageActor.Get();
+	if ( !StageActor )
 	{
 		return;
 	}
 
-	const pxr::UsdStageRefPtr& UsdStage = UsdStageActor->GetUsdStage();
+	const pxr::UsdStageRefPtr& UsdStage = StageActor->GetUsdStage();
 
 	if ( !UsdStage )
 	{
@@ -474,6 +476,11 @@ void SUsdStage::OnImport()
 		ImportContextContainer->ImportContext.Init( DestinationFolder, StageName, UsdStage );
 		ImportContextContainer->ImportContext.bIsAutomated = false;
 		ImportContextContainer->ImportContext.bApplyWorldTransformToGeometry = false;
+
+		if (UUSDSceneImportOptions* SceneOptions = Cast<UUSDSceneImportOptions>(ImportContextContainer->ImportContext.ImportOptions))
+		{
+			SceneOptions->PurposesToImport = StageActor->PurposesToLoad;
+		}
 
 		UUSDImporter* UsdImporter = IUSDImporterModule::Get().GetImporter();
 

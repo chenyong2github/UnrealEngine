@@ -53,15 +53,12 @@ namespace UsdGeomMeshTranslatorImpl
 			{
 				const pxr::UsdAttribute& Attribute = GeomMesh.GetPrim().GetAttribute( AttributeName );
 
-				//bHasAttributesTimeSamples = Attribute.ValueMightBeTimeVarying();
-
 				double DesiredTime = TimeCode.GetValue();
 				double MinTime = 0.0;
 				double MaxTime = 0.0;
 				bool bHasTimeSamples = false;
 
-				Attribute.GetBracketingTimeSamples( DesiredTime, &MinTime, &MaxTime, &bHasTimeSamples );
-				if ( bHasTimeSamples && DesiredTime >= MinTime && DesiredTime <= MaxTime )
+				if ( bHasTimeSamples && DesiredTime >= MinTime && DesiredTime <= MaxTime && Attribute.ValueMightBeTimeVarying())
 				{
 					bHasAttributesTimeSamples = true;
 					break;
@@ -253,7 +250,7 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			StaticMesh.RenderData->Bounds = MeshDescription->GetBounds();
 		}
-	
+
 		StaticMesh.CalculateExtendedBounds();
 	}
 }
@@ -262,16 +259,22 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
+	// Ignore meshes from disabled purposes
+	if (!EnumHasAnyFlags(Context->PurposesToLoad, IUsdPrim::GetPurpose(GeomMesh.Get().GetPrim())))
+	{
+		return;
+	}
+
 	// Create mesh description (Async)
 	constexpr bool bIsAsyncTask = true;
-	Do( bIsAsyncTask, 
+	Do( bIsAsyncTask,
 		[ this ]() -> bool
 		{
 			MeshDescription = UsdGeomMeshTranslatorImpl::LoadMeshDescription( GeomMesh.Get(), pxr::UsdTimeCode( Context->Time ) );
 
 			return !MeshDescription.IsEmpty();
 		} );
-		
+
 	if ( !UsdGeomMeshTranslatorImpl::IsGeometryAnimated( GeomMesh.Get(), pxr::UsdTimeCode( Context->Time ) ) )
 	{
 		IMeshBuilderModule* MeshBuilderModule = &FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );

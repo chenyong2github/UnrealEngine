@@ -74,6 +74,7 @@ struct FUsdStageActorImpl
 		TranslationContext->Level = StageActor->GetLevel();
 		TranslationContext->ObjectFlags = DefaultObjFlag;
 		TranslationContext->Time = StageActor->GetTime();
+		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
 
 		TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
 		FUsdPrimTwin* ParentUsdPrimTwin = StageActor->RootUsdTwin.Find( UsdToUnreal::ConvertPath( UsdPrimPath.Get().GetParentPath() ) );
@@ -92,12 +93,42 @@ struct FUsdStageActorImpl
 
 		return TranslationContext;
 	}
+
+	/**
+	 * Will recursively scan down the attach children of Parent and toggle each component's
+	 * Visibility based on whether they have the correct tag
+	 */
+	static void RecursivelyToggleVisibility(USceneComponent* Parent, const TSet<FName>& VisiblePurposeNames)
+	{
+		if (!Parent)
+		{
+			return;
+		}
+
+		bool bVisible = false;
+		for (const FName& Tag : Parent->ComponentTags)
+		{
+			if (VisiblePurposeNames.Contains(Tag))
+			{
+				bVisible = true;
+				break;
+			}
+		}
+		Parent->SetVisibility(bVisible, false);
+
+		for (USceneComponent* Child : Parent->GetAttachChildren())
+		{
+			RecursivelyToggleVisibility(Child, VisiblePurposeNames);
+		}
+	}
 };
 
 #endif // #if USE_USD_SDK
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
+	, PurposesToLoad((int32)(EUsdPurpose::Default | EUsdPurpose::Proxy))
+	, PurposeVisibility((int32)(EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide))
 	, Time( 0.0f )
 	, StartTimeCode( 0.f )
 	, EndTimeCode( 100.f )
@@ -123,6 +154,8 @@ AUsdStageActor::AUsdStageActor()
 
 				this->UpdatePrim( UsdPrimPath.Get(), bResync, *TranslationContext );
 				TranslationContext->CompleteTasks();
+
+				this->RefreshVisibilityBasedOnPurpose();
 
 				if ( this->HasAutorithyOverStage() )
 				{
@@ -348,6 +381,10 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			LevelSequenceHelper.UpdateLevelSequence( UsdStage );
 		}
 	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, PurposeVisibility) )
+	{
+		RefreshVisibilityBasedOnPurpose();
+	}
 	else
 #endif // #if USE_USD_SDK
 	{
@@ -394,6 +431,35 @@ void AUsdStageActor::OpenUsdStage()
 #endif // #if USE_USD_SDK
 }
 
+void AUsdStageActor::RefreshVisibilityBasedOnPurpose()
+{
+#if USE_USD_SDK
+	USceneComponent* Root = GetRootComponent();
+
+	TSet<FName> VisiblePurposeNames;
+	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Default))
+	{
+		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Default));
+	}
+	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Proxy))
+	{
+		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Proxy));
+	}
+	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Render))
+	{
+		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Render));
+	}
+	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Guide))
+	{
+		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Guide));
+	}
+
+	FUsdStageActorImpl::RecursivelyToggleVisibility(Root, VisiblePurposeNames);
+
+	GEditor->RedrawLevelEditingViewports();
+#endif // #if USE_USD_SDK
+}
+
 void AUsdStageActor::LoadUsdStage()
 {
 #if USE_USD_SDK
@@ -429,7 +495,8 @@ void AUsdStageActor::LoadUsdStage()
 	SetTime( StartTimeCode );
 
 	GEditor->BroadcastLevelActorListChanged();
-	GEditor->RedrawLevelEditingViewports();
+
+	this->RefreshVisibilityBasedOnPurpose();
 
 	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
 

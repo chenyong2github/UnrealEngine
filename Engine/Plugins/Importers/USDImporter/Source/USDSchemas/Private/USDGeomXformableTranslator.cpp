@@ -55,7 +55,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 	}
 
 	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
-	
+
 	if ( !Prim.Get() )
 	{
 		return nullptr;
@@ -90,7 +90,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 	{
 		ComponentOuter = Context->ParentComponent;
 	}
-	
+
 	if ( !SceneComponent )
 	{
 		SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType, FName( Prim.Get().GetName().GetText() ), Context->ObjectFlags );
@@ -121,6 +121,9 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 		{
 			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
 		}
+
+		// Set purpose as a tag so its visibility can be toggled later
+		SceneComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(Prim.Get())));
 	}
 
 	return SceneComponent;
