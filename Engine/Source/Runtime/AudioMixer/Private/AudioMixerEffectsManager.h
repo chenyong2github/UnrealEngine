@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-AudioMixerEffectsManager.h: Implementation of backwarwds compatible effects manager
-for the multiplatform audio mixer
+AudioMixerEffectsManager.h: Implementation of backwards compatible effects
+manager for the multi-platform audio mixer device.
 =============================================================================*/
 
 #pragma once
 
 #include "AudioEffect.h"
+#include "Curves/CurveFloat.h"
 #include "Sound/SoundEffectSubmix.h"
+
 
 namespace Audio
 {
@@ -33,4 +35,4 @@ namespace Audio
 		FSoundEffectSubmixPtr InvalidReverbEffect;
 		FSoundEffectSubmixPtr InvalidEQEffect;
 	};
-}
+} // namespace Audio
