@@ -305,7 +305,7 @@ namespace ChaosInterface
 
 		if (bMakeComplexGeometry)
 		{
-			for (const auto& ChaosTriMesh : InParams.ChaosTriMeshes)
+			for (auto& ChaosTriMesh : InParams.ChaosTriMeshes)
 			{
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
 				if (Scale == FVector(1))
@@ -316,6 +316,8 @@ namespace ChaosInterface
 				{
 					Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>(ChaosTriMesh, Scale));
 				}
+
+				ChaosTriMesh->SetCullsBackFaceRaycast(!InParams.bDoubleSided);
 
 				auto NewShape = NewShapeHelper(MakeSerializable(Implicit), nullptr, true);
 				Shapes.Emplace(MoveTemp(NewShape));
