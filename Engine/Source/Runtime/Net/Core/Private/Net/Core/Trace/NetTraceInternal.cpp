@@ -444,7 +444,7 @@ void FNetTrace::TraceConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId
 
 FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 {
-	if (!GNetTraceRuntimeVerbosity | !Name)
+	if ((GNetTraceRuntimeVerbosity == 0U) | (Name == nullptr))
 	{
 		return 0U;
 	}
@@ -476,7 +476,7 @@ FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 
 FNetDebugNameId FNetTrace::TraceName(FName Name)
 {
-	if (!GNetTraceRuntimeVerbosity | Name.IsNone())
+	if ((GNetTraceRuntimeVerbosity == 0U) | Name.IsNone())
 	{
 		return 0U;
 	}
@@ -509,7 +509,7 @@ FNetDebugNameId FNetTrace::TraceName(FName Name)
 
 FNetDebugNameId FNetTrace::TraceName(const FNetDebugName* DebugName)
 {
-	if (!GNetTraceRuntimeVerbosity | !DebugName)
+	if ((GNetTraceRuntimeVerbosity == 0U) | (DebugName == nullptr))
 	{
 		return 0U;
 	}
