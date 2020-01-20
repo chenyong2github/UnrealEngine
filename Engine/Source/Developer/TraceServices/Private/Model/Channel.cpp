@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Channel.h"
 #include "UObject/NameTypes.h"
+#include "Misc/DateTime.h"
 
 namespace Trace {
 

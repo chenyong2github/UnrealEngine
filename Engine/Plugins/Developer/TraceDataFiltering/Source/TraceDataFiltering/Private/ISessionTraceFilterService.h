@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "IFilterPreset.h"
 
 struct FTraceObjectInfo
 {
@@ -12,8 +13,6 @@ struct FTraceObjectInfo
 	uint32 Hash;
 	uint32 OwnerHash;
 };
-
-struct IFilterPreset;
 
 /** Filtering service, representing the state and data for a specific Trace::IAnalysisSession */
 class ISessionTraceFilterService : public TSharedFromThis<ISessionTraceFilterService>
