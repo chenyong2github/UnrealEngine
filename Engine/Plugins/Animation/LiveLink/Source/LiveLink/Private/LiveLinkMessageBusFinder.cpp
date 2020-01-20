@@ -4,7 +4,7 @@
 
 #include "Engine/Engine.h"
 #include "Features/IModularFeatures.h"
-#include "LiveLinkClient.h"
+#include "ILiveLinkClient.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkMessageBusSource.h"
 #include "LiveLinkMessageBusSourceFactory.h"
@@ -90,7 +90,7 @@ void ULiveLinkMessageBusFinder::ConnectToProvider(UPARAM(ref) FProviderPollResul
 
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
-		FLiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<FLiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 		TSharedPtr<FLiveLinkMessageBusSource> NewSource = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Provider.Name), FText::FromString(Provider.MachineName), Provider.Address, Provider.MachineTimeOffset);
 		FGuid NewSourceGuid = LiveLinkClient->AddSource(NewSource);
 		if (NewSourceGuid.IsValid())
