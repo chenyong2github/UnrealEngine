@@ -210,17 +210,15 @@ void USceneCaptureComponent::HideComponent(UPrimitiveComponent* InComponent)
 	}
 }
 
-void USceneCaptureComponent::HideActorComponents(AActor* InActor)
+void USceneCaptureComponent::HideActorComponents(AActor* InActor, const bool bIncludeFromChildActors)
 {
 	if (InActor)
 	{
-		for (UActorComponent* Component : InActor->GetComponents())
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(InActor, bIncludeFromChildActors);
+		for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 		{
-			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
-			{
-				TWeakObjectPtr<UPrimitiveComponent> WeakComponent(PrimComp);
-				HiddenComponents.AddUnique(WeakComponent);
-			}
+			TWeakObjectPtr<UPrimitiveComponent> WeakComponent(PrimComp);
+			HiddenComponents.AddUnique(WeakComponent);
 		}
 	}
 }
@@ -235,19 +233,17 @@ void USceneCaptureComponent::ShowOnlyComponent(UPrimitiveComponent* InComponent)
 	}
 }
 
-void USceneCaptureComponent::ShowOnlyActorComponents(AActor* InActor)
+void USceneCaptureComponent::ShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors)
 {
 	if (InActor)
 	{
 		// Backward compatibility - set PrimitiveRenderMode to PRM_UseShowOnlyList if BP / game code tries to add a ShowOnlyComponent
 		PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 
-		for (UActorComponent* Component : InActor->GetComponents())
-			{
-			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
-			{
-				ShowOnlyComponents.Add(PrimComp);
-			}
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(InActor, bIncludeFromChildActors);
+		for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+		{
+			ShowOnlyComponents.Add(PrimComp);
 		}
 	}
 }
@@ -258,17 +254,15 @@ void USceneCaptureComponent::RemoveShowOnlyComponent(UPrimitiveComponent* InComp
 	ShowOnlyComponents.Remove(WeakComponent);
 }
 
-void USceneCaptureComponent::RemoveShowOnlyActorComponents(AActor* InActor)
+void USceneCaptureComponent::RemoveShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors)
 {
 	if (InActor)
 	{
-		for (UActorComponent* Component : InActor->GetComponents())
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(InActor, bIncludeFromChildActors);
+		for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 		{
-			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
-			{
-				TWeakObjectPtr<UPrimitiveComponent> WeakComponent(PrimComp);
-				ShowOnlyComponents.Remove(WeakComponent);
-			}
+			TWeakObjectPtr<UPrimitiveComponent> WeakComponent(PrimComp);
+			ShowOnlyComponents.Remove(WeakComponent);
 		}
 	}
 }
