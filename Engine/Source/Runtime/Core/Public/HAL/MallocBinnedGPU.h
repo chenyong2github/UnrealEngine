@@ -4,8 +4,6 @@
 
 #include "CoreTypes.h"
 
-PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
@@ -33,6 +31,7 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 	#define MBG_STAT(x)
 #endif
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 class CORE_API FMallocBinnedGPU final : public FMalloc
 {
@@ -663,6 +662,6 @@ public:
 	TArray<void*> MallocedPointers;
 };
 
-#endif
-
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+
+#endif

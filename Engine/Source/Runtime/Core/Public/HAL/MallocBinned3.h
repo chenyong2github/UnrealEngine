@@ -4,8 +4,6 @@
 
 #include "CoreTypes.h"
 
-PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "HAL/MallocBinnedCommon.h"
 #include "Misc/AssertionMacros.h"
@@ -91,6 +89,8 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 #else
 	#define BINNED3_ALLOCATOR_PER_BIN_STATS 0
 #endif
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 //
 // Optimized virtual memory allocator.
@@ -710,6 +710,8 @@ public:
 	static void* AllocateMetaDataMemory(SIZE_T Size);
 };
 
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+
 #define BINNED3_INLINE (1)
 #if BINNED3_INLINE // during development, it helps with iteration time to not include these here, but rather in the .cpp
 	#if PLATFORM_USES_FIXED_GMalloc_CLASS && !FORCE_ANSI_ALLOCATOR && 0/*USE_MALLOC_BINNED3*/
@@ -720,4 +722,3 @@ public:
 #endif
 #endif
 
-PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
