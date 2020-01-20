@@ -561,10 +561,12 @@ FXAudio2EffectsManager::~FXAudio2EffectsManager( void )
 /**
  * Applies the generic reverb parameters to the XAudio2 hardware
  */
-void FXAudio2EffectsManager::SetReverbEffectParameters( const FAudioReverbEffect& ReverbEffectParameters )
+void FXAudio2EffectsManager::SetReverbEffectParameters(const FAudioEffectParameters& InEffectParameters)
 {
 	if( ReverbEffectVoice != NULL )
 	{
+		const FAudioReverbEffect& ReverbEffectParameters = static_cast<const FAudioReverbEffect&>(InEffectParameters);
+
 		XAUDIO2FX_REVERB_I3DL2_PARAMETERS ReverbParameters;
 		XAUDIO2FX_REVERB_PARAMETERS NativeParameters;
 
@@ -592,10 +594,12 @@ void FXAudio2EffectsManager::SetReverbEffectParameters( const FAudioReverbEffect
 /**
  * Applies the generic EQ parameters to the XAudio2 hardware
  */
-void FXAudio2EffectsManager::SetEQEffectParameters( const FAudioEQEffect& EQEffectParameters )
+void FXAudio2EffectsManager::SetEQEffectParameters(const FAudioEffectParameters& InEffectParameters)
 {
 	if (EQPremasterVoice != NULL)
 	{
+		const FAudioEQEffect& EQEffectParameters = static_cast<const FAudioEQEffect&>(InEffectParameters);
+
 		FXEQ_PARAMETERS NativeParameters;
 
 		NativeParameters.FrequencyCenter0 = EQEffectParameters.FrequencyCenter0;
@@ -624,8 +628,10 @@ void FXAudio2EffectsManager::SetEQEffectParameters( const FAudioEQEffect& EQEffe
  * 
  * @param	RadioEffectParameters	The new parameters for the radio distortion effect. 
  */
-void FXAudio2EffectsManager::SetRadioEffectParameters( const FAudioRadioEffect& RadioEffectParameters ) 
+void FXAudio2EffectsManager::SetRadioEffectParameters(const FAudioEffectParameters& InEffectParameters)
 {
+	const FAudioRadioEffect& RadioEffectParameters = static_cast<const FAudioRadioEffect&>(InEffectParameters);
+
 	XAudio2Device->ValidateAPICall( TEXT( "SetEffectParameters (Radio)" ), 
 		RadioEffectVoice->SetEffectParameters(0, &RadioEffectParameters, sizeof(RadioEffectParameters)));
 }

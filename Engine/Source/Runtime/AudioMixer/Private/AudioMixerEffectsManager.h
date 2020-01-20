@@ -8,6 +8,7 @@ for the multiplatform audio mixer
 #pragma once
 
 #include "AudioEffect.h"
+#include "Sound/SoundEffectSubmix.h"
 
 namespace Audio
 {
@@ -20,14 +21,16 @@ namespace Audio
 		~FAudioMixerEffectsManager() override;
 
 		//~ Begin FAudioEffectsManager
-		virtual void SetReverbEffectParameters(const FAudioReverbEffect& ReverbEffectParameters) override;
-		virtual void SetEQEffectParameters(const FAudioEQEffect& ReverbEffectParameters) override;
-		virtual void SetRadioEffectParameters(const FAudioRadioEffect& ReverbEffectParameters) override;
+		virtual void SetReverbEffectParameters(const FAudioEffectParameters& InEffectParameters) override;
+		virtual void SetEQEffectParameters(const FAudioEffectParameters& InEffectParameters) override;
+		virtual void SetRadioEffectParameters(const FAudioEffectParameters& InEffectParameters) override;
 		//~ End FAudioEffectsManager
 
 	protected:
-
 		FRuntimeFloatCurve MasterReverbWetLevelCurve;
+
+	private:
+		FSoundEffectSubmixPtr InvalidReverbEffect;
+		FSoundEffectSubmixPtr InvalidEQEffect;
 	};
 }
-
