@@ -15,6 +15,23 @@ FLiveLinkClientReference::FLiveLinkClientReference()
 	InitClient();
 }
 
+FLiveLinkClientReference::FLiveLinkClientReference(const FLiveLinkClientReference& Other)
+	: LiveLinkClient(Other.LiveLinkClient)
+{
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+
+	ModularFeatures.OnModularFeatureRegistered().AddRaw(this, &FLiveLinkClientReference::OnLiveLinkClientRegistered);
+	ModularFeatures.OnModularFeatureUnregistered().AddRaw(this, &FLiveLinkClientReference::OnLiveLinkClientUnregistered);
+
+	InitClient();
+}
+
+FLiveLinkClientReference& FLiveLinkClientReference::operator=(const FLiveLinkClientReference& Other)
+{
+	LiveLinkClient = Other.LiveLinkClient;
+	return *this;
+}
+
 FLiveLinkClientReference::~FLiveLinkClientReference()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
