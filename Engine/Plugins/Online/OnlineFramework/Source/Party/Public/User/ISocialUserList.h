@@ -44,6 +44,8 @@ public:
 
 	// Whether or not the list should be polled regularly for updates (as opposed to manually having UpdateNow triggered)
 	bool bAutoUpdate = false;
+
+	bool bSortDuringUpdate = true;
 };
 
 class ISocialUserList
@@ -70,4 +72,6 @@ public:
 
 	/** Give external overwrite to disable list auto update for perf */
 	virtual void SetAllowAutoUpdate(bool bIsEnabled) = 0;
+
+	virtual void SetAllowSortDuringUpdate(bool bIsEnabled) = 0;
 };
