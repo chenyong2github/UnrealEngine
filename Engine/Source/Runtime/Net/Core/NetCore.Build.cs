@@ -12,7 +12,8 @@ public class NetCore : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject"
+				"CoreUObject",
+				"TraceLog"
 			}
 		);
 	}
