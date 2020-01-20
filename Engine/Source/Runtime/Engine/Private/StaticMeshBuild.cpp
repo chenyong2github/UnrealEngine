@@ -154,6 +154,16 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
 		check(RunningPlatform);
 
+		for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
+		{
+			if (StaticMesh->RenderData)
+			{
+				// Finish any previous async builds before modifying RenderData
+				// This can happen during import as the mesh is rebuilt redundantly
+				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
+			}
+		}
+
 		// Detach all instances of those static meshes from the scene.
 		FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(StaticMeshesToProcess, false);
 
@@ -251,13 +261,6 @@ void UStaticMesh::PreBuildInternal()
 	// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
 	// allocated, and potentially accessing the UStaticMesh.
 	ReleaseResourcesFence.Wait();
-
-	if (RenderData)
-	{
-		// Finish any previous async builds before modifying RenderData
-		// This can happen during import as the mesh is rebuilt redundantly
-		GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
-	}
 }
 
 bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
