@@ -4,14 +4,15 @@
 
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysXPublicCore.h"
 
 namespace ChaosInterface
 {
-	ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry)
+	FORCEINLINE ECollisionShapeType ImplicitTypeToCollisionType(int32 ImplicitObjectType)
 	{
-		switch (Chaos::GetInnerType(InGeometry.GetType()))
+		switch (ImplicitObjectType)
 		{
 		case Chaos::ImplicitObjectType::Sphere: return ECollisionShapeType::Sphere;
 		case Chaos::ImplicitObjectType::Box: return ECollisionShapeType::Box;
@@ -23,6 +24,20 @@ namespace ChaosInterface
 		}
 
 		return ECollisionShapeType::None;
+	}
+
+
+	ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry)
+	{
+		using namespace Chaos;
+		int32 ImplicitObjectType = GetInnerType(InGeometry.GetType());
+
+		if (ImplicitObjectType == ImplicitObjectType::Transformed)
+		{
+			ImplicitObjectType = static_cast<const TImplicitObjectTransformed<FReal, 3>*>(&InGeometry)->Object()->GetType();
+		}
+
+		return ImplicitTypeToCollisionType(ImplicitObjectType);
 	}
 
 	float GetRadius(const Chaos::TCapsule<float>& InCapsule)
