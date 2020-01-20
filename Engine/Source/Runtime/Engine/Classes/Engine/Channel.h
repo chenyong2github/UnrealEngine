@@ -115,6 +115,9 @@ public:
 	/** Handle an incoming bunch. */
 	virtual void ReceivedBunch( FInBunch& Bunch ) PURE_VIRTUAL(UChannel::ReceivedBunch,);
 	
+	/** Positive acknowledgment processing. */
+	virtual void ReceivedAck( int32 AckPacketId );
+
 	/** Negative acknowledgment processing. */
 	virtual void ReceivedNak( int32 NakPacketId );
 	
@@ -191,7 +194,7 @@ protected:
 private:
 
 	/** Just sends the bunch out on the connection */
-	int32 SendRawBunch(FOutBunch* Bunch, bool Merge);
+	int32 SendRawBunch(FOutBunch* Bunch, bool Merge, const FNetTraceCollector* Collector = nullptr);
 
 	/** Final step to prepare bunch to be sent. If reliable, adds to acknowldege list. */
 	FOutBunch* PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge);

@@ -228,6 +228,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Net/Core/Trace/NetTrace.h"
 #include "ObjectTrace.h"
 #include "Animation/AnimTrace.h"
 
@@ -1716,6 +1717,14 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		GCycleStatsShouldEmitNamedEvents = 1;
 	}
 
+#if UE_NET_TRACE_ENABLED
+	uint32 NetTraceVerbosity;
+	if(FParse::Value(FCommandLine::Get(), TEXT("NetTrace="), NetTraceVerbosity))
+	{
+		FNetTrace::SetTraceVerbosity(NetTraceVerbosity);
+	}
+#endif
+
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
 
@@ -1764,6 +1773,10 @@ void UEngine::ShutdownAudioDeviceManager()
 
 void UEngine::PreExit()
 {
+#if UE_NET_TRACE_ENABLED
+	FNetTrace::SetTraceVerbosity(0);
+#endif
+
 	if (IMovieSceneCaptureModule* Module = FModuleManager::GetModulePtr<IMovieSceneCaptureModule>( "MovieSceneCapture" ))
 	{
 		Module->DestroyAllActiveCaptures();

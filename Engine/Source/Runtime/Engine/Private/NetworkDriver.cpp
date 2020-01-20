@@ -57,6 +57,8 @@
 #include "Net/OnlineEngineInterface.h"
 #include "NetworkingDistanceConstants.h"
 #include "Engine/ChildConnection.h"
+#include "Net/Core/Trace/NetTrace.h"
+#include "Misc/ScopeExit.h"
 #include "Net/DataChannel.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/PerfCountersHelpers.h"
@@ -68,7 +70,6 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
-
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
 #endif
@@ -76,7 +77,6 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
-
 
 // Default net driver stats
 DEFINE_STAT(STAT_Ping);
@@ -351,6 +351,12 @@ void UNetDriver::PostInitProperties()
 
 	if ( !HasAnyFlags(RF_ClassDefaultObject) )
 	{
+		// Init ConnectionIdHandler
+		{
+			constexpr uint32 IdCount = 1024;
+			ConnectionIdHandler.Init(IdCount);
+		}
+
 		InitPacketSimulationSettings();
 
 		
@@ -1462,6 +1468,9 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 
 	Notify = InNotify;
 
+	// If we are not using Iris, we use the UniqueId to identify the NetDriver.
+	NetTraceId = GetUniqueID();
+
 	return bSuccess;
 }
 
@@ -1612,6 +1621,9 @@ void UNetDriver::Shutdown()
 	ConnectionlessHandler.Reset(nullptr);
 
 	SetReplicationDriver(nullptr);
+
+	// End NetTrace session for this instance
+	UE_NET_TRACE_END_SESSION(GetNetTraceId());
 
 	if (AnalyticsAggregator.IsValid())
 	{
@@ -2007,6 +2019,10 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 	}
 #endif
 
+#if UE_NET_TRACE_ENABLED
+	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+#endif
+
 	TArray< FProperty * > LocalOutParms;
 
 	if( Stack == nullptr )
@@ -2057,6 +2073,12 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 
 	FNetBitWriter TempWriter( Bunch.PackageMap, 0 );
 
+#if UE_NET_TRACE_ENABLED
+	// Create trace collector if tracing is enabled for the target bunch
+	SetTraceCollector(TempWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+    ON_SCOPE_EXIT { UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempWriter)); };
+#endif // UE_NET_TRACE_ENABLED
+
 	// Use the replication layout to send the rpc parameter values
 	TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
 	RepLayout->SendPropertiesForRPC( Function, Ch, TempWriter, Parms );
@@ -2104,9 +2126,20 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 			Ch->PrepareForRemoteFunction(TargetObj);
 
 			FNetBitWriter TempBlockWriter( Bunch.PackageMap, 0 );
+
+#if UE_NET_TRACE_ENABLED
+			UE_NET_TRACE_OBJECT_SCOPE(Ch->ActorNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+
+			// Ugliness to get data reported correctly, we basically fold the data from TempWriter into TempBlockWriter and then to Bunch
+			// Create trace collector if tracing is enabled for the target bunch			
+			SetTraceCollector(TempBlockWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+#endif
+			
 			Ch->WriteFieldHeaderAndPayload( TempBlockWriter, ClassCache, FieldCache, NetFieldExportGroup, TempWriter );
 			ParameterBits = TempBlockWriter.GetNumBits();
 			HeaderBits = Ch->WriteContentBlockPayload( TargetObj, Bunch, false, TempBlockWriter );
+
+			UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBlockWriter));
 		}
 
 		// Destroy the memory used for the copied out parameters
@@ -5228,6 +5261,24 @@ void UNetDriver::SetReplicationDriver(UReplicationDriver* NewReplicationDriver)
 		ReplicationDriver->InitForNetDriver(this);
 		ReplicationDriver->InitializeActorsInWorld( GetWorld() );
 	}
+}
+
+UNetConnection* UNetDriver::GetConnectionById(uint32 ConnectionId) const
+{
+	if (ServerConnection != nullptr && ServerConnection->GetConnectionId() == ConnectionId)
+	{
+		return ServerConnection;
+	}
+
+	for (UNetConnection* Connection : ClientConnections)
+	{
+		if (Connection && Connection->GetConnectionId() == ConnectionId)
+		{
+			return Connection;
+		}
+	}
+
+	return nullptr;
 }
 
 static void	DumpRelevantActors( UWorld* InWorld )

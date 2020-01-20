@@ -20,6 +20,7 @@
 #include "ProfilingDebugging/Histogram.h"
 #include "Containers/ArrayView.h"
 #include "Containers/CircularBuffer.h"
+#include "Net/Core/Trace/Config.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
 #include "Net/Core/Misc/PacketTraits.h"
@@ -532,6 +533,15 @@ public:
 	int32			LogCallCount;
 	int32			LogSustainedCount;
 
+	uint32 GetConnectionId() const { return ConnectionId; }
+	void SetConnectionId(uint32 InConnectionId) { ConnectionId = InConnectionId; }
+
+	/** If this is a child connection it will return the topmost parent coonnection ID, otherwise it will return its own ID. */
+	ENGINE_API uint32 GetParentConnectionId() const;
+
+	FNetTraceCollector* GetInTraceCollector() const;
+	FNetTraceCollector* GetOutTraceCollector() const;
+
 	// ----------------------------------------------
 	// Actor Channel Accessors
 	// ----------------------------------------------
@@ -1029,8 +1039,9 @@ public:
 	 */
 	ENGINE_API virtual void ReceivedRawPacket(void* Data,int32 Count);
 
-	/** Send a raw bunch. */
-	ENGINE_API int32 SendRawBunch( FOutBunch& Bunch, bool InAllowMerge );
+	/** Send a raw bunch */
+	ENGINE_API int32 SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FNetTraceCollector* BunchCollector);
+	inline int32 SendRawBunch( FOutBunch& Bunch, bool InAllowMerge ) { return SendRawBunch(Bunch, InAllowMerge, nullptr); }
 
 	/** The maximum number of bits allowed within a single bunch. */
 	FORCEINLINE int32 GetMaxSingleBunchSizeBits() const
@@ -1308,6 +1319,18 @@ private:
 	/** Calculate the average jitter while adding the new packet's jitter value */
 	void ProcessJitter(uint32 PacketJitterClockTimeMS);
 
+	/** Flush outgoing packet if needed before we write data to it */
+	void PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const int32 ExtraSizeInBits);
+	
+	/** Write data to outgoing send buffer, PrepareWriteBitsToSendBuffer should be called before to make sure that
+		data will fit in packet. */
+	int32 WriteBitsToSendBufferInternal( 
+		const uint8 *	Bits, 
+		const int32		SizeInBits, 
+		const uint8 *	ExtraBits, 
+		const int32		ExtraSizeInBits,
+		EWriteBitsDataType DataType =  EWriteBitsDataType::Unknown);
+
 	/**
 	 * on the server, the world the client has told us it has loaded
 	 * used to make sure the client has traveled correctly, prevent replicating actors before level transitions are done, etc
@@ -1374,6 +1397,16 @@ private:
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
+
+	/** Unique ID that can be used instead of passing around a pointer to the connection */
+	uint32 ConnectionId;
+
+#if UE_NET_TRACE_ENABLED
+	FNetTraceCollector* InTraceCollector = nullptr;
+	FNetTraceCollector* OutTraceCollector = nullptr;
+	/** Cached NetTrace id from the NetDriver */
+	uint32 NetTraceId = 0;
+#endif
 
 	/** 
 	* Set to true after a packet is flushed (sent) and reset at the end of the connection's Tick. 
@@ -1451,4 +1484,13 @@ public:
 
 	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
 };
+
+#if UE_NET_TRACE_ENABLED
+	inline FNetTraceCollector* UNetConnection::GetInTraceCollector() const { return InTraceCollector; }
+	inline FNetTraceCollector* UNetConnection::GetOutTraceCollector() const { return OutTraceCollector; }
+#else
+	inline FNetTraceCollector* UNetConnection::GetInTraceCollector() const { return nullptr; }
+	inline FNetTraceCollector* UNetConnection::GetOutTraceCollector() const { return nullptr; }
+#endif
+
 

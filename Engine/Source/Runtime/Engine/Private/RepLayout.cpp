@@ -22,6 +22,7 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Templates/AndOrNot.h"
 #include "PushModelPerNetDriverState.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -137,6 +138,12 @@ FConsoleVariableSinkHandle CreateMaxArrayMemoryCVarAndRegisterSink()
 // This just forces the above to get called.
 FConsoleVariableSinkHandle MaxRepArraySizeHandle = CreateMaxArraySizeCVarAndRegisterSink();
 FConsoleVariableSinkHandle MaxRepArrayMemorySink = CreateMaxArrayMemoryCVarAndRegisterSink();
+
+/** 
+* Helper method to allow us to instrument FBitArchive using FNetTraceCollector
+* The rationale behind this variant being declared here is that it makes ugly assumption about FBitArchive when being used to collect stats either is a BitWriter or a BitReader
+*/
+inline uint32 GetBitStreamPositionForNetTrace(const FBitArchive& Stream) { return (uint32(Stream.IsError()) - 1U) & (Stream.IsSaving() ? (uint32)(static_cast<const FBitWriter*>(&Stream))->GetNumBits() : (uint32)(static_cast<const FBitReader*>(&Stream))->GetPosBits()); }
 
 namespace UE4_RepLayout_Private
 {
@@ -1364,8 +1371,13 @@ static void CompareProperties_Array_r(
 
 	if (ChangedLocal.Num())
 	{
+		const int32 ChangedLocalNum = ChangedLocal.Num();
+
+		// We do not support nested properties with more than 65k entries
+		check(ChangedLocalNum <= UINT16_MAX);
+
 		StackParams.Changed.Add(Handle);
-		StackParams.Changed.Add(ChangedLocal.Num());		// This is so we can jump over the array if we need to
+		StackParams.Changed.Add(ChangedLocalNum);		// This is so we can jump over the array if we need to
 		StackParams.Changed.Append(ChangedLocal);
 		StackParams.Changed.Add(0);
 	}
@@ -1472,6 +1484,8 @@ static FORCEINLINE void WritePropertyHandle(
 	bool bDoChecksum)
 {
 	const int NumStartingBits = Writer.GetNumBits();
+
+	UE_NET_TRACE_SCOPE(PropertyHandle, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
 	uint32 LocalHandle = Handle;
 	Writer.SerializeIntPacked(LocalHandle);
@@ -2253,6 +2267,8 @@ void FRepLayout::SendProperties_r(
 		{
 			WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
 
+			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
 			const FScriptArray* Array = (FScriptArray *)Data.Data;
 			const FConstRepObjectDataBuffer ArrayData(Array->GetData());
 
@@ -2309,6 +2325,9 @@ void FRepLayout::SendProperties_r(
 		// Use shared serialization if was found
 		if (SharedPropInfo)
 		{
+			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+			UE_NET_TRACE_SCOPE(Shared, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
 			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SerializeProperties_r: SharedSerialization - Handle=%d, Guid=%s"), HandleIterator.Handle, *SharedPropInfo->Guid.ToString());
 			GNumSharedSerializationHit++;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2353,6 +2372,8 @@ void FRepLayout::SendProperties_r(
 		{
 			GNumSharedSerializationMiss++;
 			WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
+
+			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
 			const int32 NumStartBits = Writer.GetNumBits();
 
@@ -2403,6 +2424,8 @@ void FRepLayout::SendProperties(
 	const bool bDoChecksum = false;
 #endif
 
+	
+	UE_NET_TRACE_SCOPE(Properties, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 	FBitWriterMark Mark(Writer);
 
 #ifdef ENABLE_PROPERTY_CHECKSUMS
@@ -2955,6 +2978,7 @@ struct FReceivePropertiesSharedParams
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
 	UObject* OwningObject;
+	FNetTraceCollector* TraceCollector = nullptr;
 	uint16 ReadHandle = 0;
 	
 #if WITH_PUSH_MODEL	
@@ -2976,6 +3000,8 @@ struct FReceivePropertiesStackParams
 
 static FORCEINLINE void ReadPropertyHandle(FReceivePropertiesSharedParams& Params)
 {
+	UE_NET_TRACE_SCOPE(PropertyHandle, Params.Bunch, Params.TraceCollector, ENetTraceVerbosity::Trace);
+
 	uint32 Handle = 0;
 	Params.Bunch.SerializeIntPacked(Handle);
 
@@ -3036,6 +3062,8 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 
 			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
 			{
+				UE_NET_TRACE_SCOPE(DynamicArray, Params.Bunch, Params.TraceCollector,  ENetTraceVerbosity::Trace);
+
 				// Don't worry about checking the ShadowData for nullptr here.
 				// We're either:
 				//	1. At the top level and it's valid
@@ -3115,6 +3143,8 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 			}
 			else
 			{
+				UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Params.Bunch, Params.TraceCollector, ENetTraceVerbosity::Trace);
+
 				// Go ahead and receive the property.
 				if (ReceivePropertyHelper(
 					Params.Bunch,
@@ -3165,6 +3195,8 @@ bool FRepLayout::ReceiveProperties(
 	FRepObjectDataBuffer Data(Object);
 	const bool bEnableRepNotifies = EnumHasAnyFlags(ReceiveFlags, EReceivePropertiesFlags::RepNotifies);
 
+	UE_NET_TRACE_SCOPE(Properties, InBunch, OwningChannel->Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
 	if (OwningChannel->Connection->InternalAck)
 	{
 		return ReceiveProperties_BackwardsCompatible(OwningChannel->Connection, RepState, Data, InBunch, bOutHasUnmapped, bEnableRepNotifies, bOutGuidsChanged);
@@ -3195,7 +3227,8 @@ bool FRepLayout::ReceiveProperties(
 		bOutGuidsChanged,
 		Parents,
 		Cmds,
-		Object
+		Object,
+		OwningChannel->Connection->GetInTraceCollector()
 	};
 
 	FReceivePropertiesStackParams StackParams{
@@ -5594,7 +5627,8 @@ void FRepLayout::SerializeProperties_DynamicArray_r(
 	FRepObjectDataBuffer Data,
 	bool& bHasUnmapped,
 	const int32 ArrayDepth,
-	const FRepSerializationSharedInfo& SharedInfo) const
+	const FRepSerializationSharedInfo& SharedInfo,
+	FNetTraceCollector* Collector) const
 {
 	const FRepLayoutCmd& Cmd = Cmds[ CmdIndex ];
 
@@ -5639,7 +5673,7 @@ void FRepLayout::SerializeProperties_DynamicArray_r(
 		for (int32 i = 0; i < Array->Num() && !Ar.IsError(); i++)
 		{
 			const int32 ArrayElementOffset = i * Cmd.ElementSize;
-			SerializeProperties_r(Ar, Map, CmdIndex + 1, Cmd.EndCmd - 1, ArrayData + ArrayElementOffset, bHasUnmapped, i, ArrayDepth, SharedInfo);
+			SerializeProperties_r(Ar, Map, CmdIndex + 1, Cmd.EndCmd - 1, ArrayData + ArrayElementOffset, bHasUnmapped, i, ArrayDepth, SharedInfo, Collector);
 		}
 	}	
 }
@@ -5653,7 +5687,8 @@ void FRepLayout::SerializeProperties_r(
 	bool& bHasUnmapped,
 	const int32 ArrayIndex,
 	const int32 ArrayDepth,
-	const FRepSerializationSharedInfo& SharedInfo) const
+	const FRepSerializationSharedInfo& SharedInfo,
+	FNetTraceCollector* Collector) const
 {
 	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd && !Ar.IsError(); CmdIndex++)
 	{
@@ -5663,7 +5698,9 @@ void FRepLayout::SerializeProperties_r(
 
 		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
 		{
-			SerializeProperties_DynamicArray_r(Ar, Map, CmdIndex, Data + Cmd, bHasUnmapped, ArrayDepth + 1, SharedInfo);
+			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Ar, Collector, ENetTraceVerbosity::Trace);
+
+			SerializeProperties_DynamicArray_r(Ar, Map, CmdIndex, Data + Cmd, bHasUnmapped, ArrayDepth + 1, SharedInfo, Collector);
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
@@ -5723,6 +5760,8 @@ void FRepLayout::SerializeProperties_r(
 		}
 		else
 		{
+			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Ar, Collector, ENetTraceVerbosity::Trace);
+
 			GNumSharedSerializationMiss++;
 			if (!Cmd.Property->NetSerializeItem(Ar, Map, (Data + Cmd).Data))
 			{
@@ -6022,7 +6061,7 @@ void FRepLayout::SendPropertiesForRPC(
 				if (Send)
 				{
 					bool bHasUnmapped = false;
-					SerializeProperties_r(Writer, Writer.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, const_cast<uint8*>(Data.Data), bHasUnmapped, 0, 0, SharedInfoRPC);
+					SerializeProperties_r(Writer, Writer.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, const_cast<uint8*>(Data.Data), bHasUnmapped, 0, 0, SharedInfoRPC, GetTraceCollector(Writer));
 				}
 			}
 		}	
@@ -6080,14 +6119,15 @@ void FRepLayout::ReceivePropertiesForRPC(
 			Reader.PackageMap->ResetTrackedGuids(true);
 
 			static FRepSerializationSharedInfo Empty;
-
+			FNetTraceCollector* Collector = Channel->Connection->GetInTraceCollector();
+	
 			for (int32 i = 0; i < Parents.Num(); i++)
 			{
 				if (CastField<FBoolProperty>(Parents[i].Property) || Reader.ReadBit())
 				{
 					bool bHasUnmapped = false;
 
-					SerializeProperties_r(Reader, Reader.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty);
+					SerializeProperties_r(Reader, Reader.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty, Collector);
 
 					if (Reader.IsError())
 					{

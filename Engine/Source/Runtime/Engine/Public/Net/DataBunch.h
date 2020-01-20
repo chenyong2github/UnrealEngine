@@ -9,6 +9,7 @@
 #include "Misc/NetworkGuid.h"
 #include "UObject/CoreNet.h"
 #include "EngineLogs.h"
+#include "Net/Core/Trace/Config.h"
 
 class UChannel;
 class UNetConnection;
@@ -75,6 +76,8 @@ public:
 	FOutBunch();
 	FOutBunch( class UChannel* InChannel, bool bClose );
 	FOutBunch( UPackageMap * PackageMap, int64 InMaxBits = 1024 );
+
+	virtual ~FOutBunch();
 
 	FString	ToString()
 	{
@@ -190,3 +193,17 @@ struct FControlChannelOutBunch : public FOutBunch
 		return *this;
 	}
 };
+
+/** Helper methods to allow us to instrument different type of BitStreams */
+inline uint32 GetBitStreamPositionForNetTrace(const FBitWriter& Stream) { return (uint32(Stream.IsError()) - 1U) & (uint32)Stream.GetNumBits(); }
+inline uint32 GetBitStreamPositionForNetTrace(const FBitReader& Stream) { return (uint32(Stream.IsError()) - 1U) & (uint32)Stream.GetPosBits(); }
+
+#if UE_NET_TRACE_ENABLED
+inline FNetTraceCollector* GetTraceCollector(FNetBitWriter& BitWriter) { return BitWriter.TraceCollector.Get(); }
+inline void SetTraceCollector(FNetBitWriter& BitWriter, FNetTraceCollector* Collector) { BitWriter.TraceCollector.Set(Collector); }
+#else
+inline FNetTraceCollector* GetTraceCollector(FNetBitWriter& BitWriter) { return nullptr; }
+inline void SetTraceCollector(FNetBitWriter& BitWriter, FNetTraceCollector* Collector) {}
+#endif
+
+

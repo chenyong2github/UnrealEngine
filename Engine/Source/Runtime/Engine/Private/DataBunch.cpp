@@ -7,6 +7,7 @@
 #include "Net/DataBunch.h"
 #include "Engine/NetConnection.h"
 #include "Engine/ControlChannel.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 const int32 MAX_BUNCH_SIZE = 1024 * 1024; 
 
@@ -188,6 +189,11 @@ void FOutBunch::CountMemory(FArchive& Ar) const
 		const SIZE_T MemberSize = sizeof(*this) - sizeof(FNetBitWriter);
 		Ar.CountBytes(MemberSize, MemberSize);
 	}
+}
+
+FOutBunch::~FOutBunch()
+{
+	UE_NET_TRACE_DESTROY_COLLECTOR(TraceCollector.Get());
 }
 
 FControlChannelOutBunch::FControlChannelOutBunch(UChannel* InChannel, bool bClose)

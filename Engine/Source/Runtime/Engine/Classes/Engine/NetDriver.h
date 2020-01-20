@@ -17,6 +17,7 @@
 #include "Net/Core/Misc/DDoSDetection.h"
 #include "IPAddress.h"
 #include "Net/NetAnalyticsTypes.h"
+#include "Net/NetConnectionIdHandler.h"
 
 #include "NetDriver.generated.h"
 
@@ -1526,6 +1527,15 @@ public:
 	/** Resets the current delinquency analytics. */
 	ENGINE_API void ResetAsyncLoadDelinquencyAnalytics();
 
+	inline uint32 AllocateConnectionId() { return ConnectionIdHandler.Allocate(); }
+	inline void FreeConnectionId(uint32 Id) { return ConnectionIdHandler.Free(Id); };
+
+	/** Returns the NetConnection associated with the ConnectionId. Slow. */
+	ENGINE_API UNetConnection* GetConnectionById(uint32 ConnectionId) const;
+
+	/** Returns identifier used for NetTrace */
+	inline uint32 GetNetTraceId() const { return NetTraceId; }
+
 protected:
 
 	/** Register all TickDispatch, TickFlush, PostTickFlush to tick in World */
@@ -1623,6 +1633,12 @@ private:
 
 	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
 	uint32 OutTotalNotifiedPackets;
+
+	/** Assigns driver unique IDs to client connections */
+	FNetConnectionIdHandler ConnectionIdHandler;
+
+	/** Unique id used by NetTrace to identify driver */
+	uint32 NetTraceId = 0;
 
 #if DO_ENABLE_NET_TEST
 	/** Dont load packet settings from config or cmdline when true*/

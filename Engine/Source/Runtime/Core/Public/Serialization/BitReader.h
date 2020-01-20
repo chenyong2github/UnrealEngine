@@ -199,6 +199,9 @@ public:
 	 */
 	void SetOverflowed(int32 LengthBits);
 
+	/** Set the stream at the end */
+	void SetAtEnd() { Pos = Num; }
+
 	void AppendDataFromChecked( FBitReader& Src );
 	void AppendDataFromChecked( uint8* Src, uint32 NumBits );
 	void AppendTo( TArray<uint8> &Buffer );

@@ -1664,7 +1664,8 @@ private:
 		FRepObjectDataBuffer Data,
 		bool& bHasUnmapped,
 		const int32 ArrayDepth,
-		const FRepSerializationSharedInfo& SharedInfo) const;
+		const FRepSerializationSharedInfo& SharedInfo,
+		FNetTraceCollector* Collector = nullptr) const;
 
 	void SerializeProperties_r(
 		FBitArchive& Ar, 
@@ -1675,7 +1676,8 @@ private:
 		bool& bHasUnmapped,
 		const int32 ArrayIndex,
 		const int32 ArrayDepth,
-		const FRepSerializationSharedInfo& SharedInfo) const;
+		const FRepSerializationSharedInfo& SharedInfo,
+		FNetTraceCollector* Collector = nullptr) const;
 
 	void MergeChangeList_r(
 		FRepHandleIterator& RepHandleIterator1,
