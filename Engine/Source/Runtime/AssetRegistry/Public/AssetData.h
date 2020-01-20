@@ -80,7 +80,7 @@ public:
 	FName AssetClass;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
-	/** The IDs of the chunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
+	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32> ChunkIDs;
 	/** Asset package flags */
 	uint32 PackageFlags;

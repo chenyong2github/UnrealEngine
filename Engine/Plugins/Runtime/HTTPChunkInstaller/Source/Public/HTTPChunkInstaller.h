@@ -18,8 +18,6 @@ public:
 	FHTTPChunkInstall();
 	~FHTTPChunkInstall();
 
-	virtual EChunkLocation::Type GetChunkLocation( uint32 ChunkID ) override;
-
 	virtual bool GetProgressReportingTypeSupported(EChunkProgressReportingType::Type ReportType) override
 	{
 		if (ReportType == EChunkProgressReportingType::PercentageComplete)
@@ -81,6 +79,8 @@ private:
 	void OSSEnumerateFilesComplete(bool bSuccess);
 	void OSSReadFileComplete(bool bSuccess, const FString& Filename);
 	void OSSInstallComplete(const IBuildInstallerRef& Installer);
+
+	virtual EChunkLocation::Type GetChunkLocation(uint32 ChunkID) override;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPlatformChunkInstallCompleteMultiDelegate, uint32);
 

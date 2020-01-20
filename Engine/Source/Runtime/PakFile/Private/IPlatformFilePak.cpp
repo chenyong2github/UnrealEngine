@@ -56,7 +56,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 
 static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 
-int32 ParseChunkIDFromFilename(const FString& InFilename)
+int32 GetPakchunkIDFromPakFile(const FString& InFilename)
 {
 	FString ChunkIdentifier(TEXT("pakchunk"));
 	FString BaseFilename = FPaths::GetBaseFilename(InFilename);
@@ -4748,7 +4748,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, ChunkID(GetPakchunkIDFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
  	, MappedFileHandle(nullptr)
@@ -4778,7 +4778,7 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, ChunkID(GetPakchunkIDFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
 	, MappedFileHandle(nullptr)
@@ -6067,10 +6067,10 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 					// if a platform supports chunk style installs, make sure that the chunk a pak file resides in is actually fully installed before accepting pak files from it
 					if (ChunkInstall)
 					{
-						int32 ChunkID = ParseChunkIDFromFilename(Filename);
-						if (ChunkID != INDEX_NONE)
+						int32 PakchunkID = GetPakchunkIDFromPakFile(Filename);
+						if (PakchunkID != INDEX_NONE)
 						{
-							if (ChunkInstall->GetChunkLocation(ChunkID) == EChunkLocation::NotAvailable)
+							if (ChunkInstall->GetPakchunkLocation(PakchunkID) == EChunkLocation::NotAvailable)
 							{
 								return true;
 							}
@@ -6574,7 +6574,7 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 				UE_LOG(LogPakFile, Log, TEXT("Successfully mounted deferred pak file '%s'"), *Entry.Filename);
 				NumMounted++;
 
-				int32 ChunkID = ParseChunkIDFromFilename(Entry.Filename);
+				int32 ChunkID = GetPakchunkIDFromPakFile(Entry.Filename);
 				if (ChunkID != INDEX_NONE)
 				{
 					ChunksToNotify.Add(ChunkID);

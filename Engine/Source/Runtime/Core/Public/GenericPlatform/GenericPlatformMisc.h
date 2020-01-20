@@ -1405,6 +1405,11 @@ public:
 	{
 	}
 
+	FORCEINLINE static int32 GetChunkIDFromPakchunkIndex(int32 PakchunkIndex)
+	{
+		return PakchunkIndex;
+	}
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen
