@@ -1387,6 +1387,16 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 		{
 			EvaluationCounter.Increment();
 		}
+
+#if ANIM_NODE_IDS_AVAILABLE
+		if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
+		{
+			Output.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
+		}
+#endif
+
+		TRACE_SCOPED_ANIM_NODE(Output);
+
 		InRootNode->Evaluate_AnyThread(Output);
 	}
 	else
