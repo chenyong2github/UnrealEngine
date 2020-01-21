@@ -13,6 +13,7 @@
 #include "UObject/PropertyPortFlags.h"
 
 #if WITH_EDITOR
+#include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "MeshUtilities.h"
 #endif // WITH_EDITOR

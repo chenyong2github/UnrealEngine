@@ -55,6 +55,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "EditorLevelUtils.h"
 #include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 

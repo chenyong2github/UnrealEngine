@@ -16,6 +16,7 @@
 
 #include "Algo/Transform.h"
 #include "EditorLevelUtils.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"

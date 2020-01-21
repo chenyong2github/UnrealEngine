@@ -40,6 +40,8 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Animation/AnimStreamable.h"
+#include "Modules/ModuleManager.h"
+
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 

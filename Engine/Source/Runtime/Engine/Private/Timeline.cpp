@@ -11,6 +11,7 @@
 #include "UObject/UnrealType.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
+#include "Curves/CurveFloat.h"
 #include "UObject/Package.h"
 #include "GameFramework/WorldSettings.h"
 #include "Net/UnrealNetwork.h"
