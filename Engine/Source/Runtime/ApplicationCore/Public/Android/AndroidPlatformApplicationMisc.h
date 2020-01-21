@@ -14,6 +14,7 @@ struct APPLICATIONCORE_API FAndroidApplicationMisc : public FGenericPlatformAppl
 	static bool IsScreensaverEnabled();
 	static bool ControlScreensaver(EScreenSaverAction Action);
 	static void SetGamepadsAllowed(bool bAllowed);
+	static void SetGamepadsBlockDeviceFeedback(bool bBlock);
 	static void ResetGamepadAssignments();
 	static void ResetGamepadAssignmentToController(int32 ControllerId);
 	static bool IsControllerAssignedToGamepad(int32 ControllerId);

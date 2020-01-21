@@ -41,17 +41,17 @@ UUserWidget* UWidgetBlueprintLibrary::Create(UObject* WorldContextObject, TSubcl
 		return nullptr;
 	}
 
-	if(GIsEditor)
-	{
-		if (UUserWidget* OwningWidget = Cast<UUserWidget>(WorldContextObject))
-		{
-			return CreateWidget(OwningWidget, WidgetType);
-		}
-	}
-
 	if (OwningPlayer)
 	{
 		return CreateWidget(OwningPlayer, WidgetType);
+	}
+	else if (APlayerController* ImpliedOwningPlayer = Cast<APlayerController>(WorldContextObject))
+	{
+		return CreateWidget(ImpliedOwningPlayer, WidgetType);
+	}
+	else if (UUserWidget* OwningWidget = Cast<UUserWidget>(WorldContextObject))
+	{
+		return CreateWidget(OwningWidget, WidgetType);
 	}
 	else if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{

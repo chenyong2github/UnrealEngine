@@ -43,10 +43,10 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraVariable> OutputVars;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<FPinGuidsForPath> PathAssociatedPinGuids;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid ConditionPinGuid;
 
 	//~ Begin UObject Interface

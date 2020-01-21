@@ -27,32 +27,21 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(x1, x2)
 		    , MRadius(Radius)
-		    , MLocalBoundingBox(x1, x1)
-		    , MUnionedObjects(nullptr)
 		{
-			MLocalBoundingBox.GrowToInclude(x2);
-			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
-			InitUnionedObjects();
 		}
 
 		TCapsule(const TCapsule<T>& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(Other.MSegment)
 		    , MRadius(Other.MRadius)
-		    , MLocalBoundingBox(Other.MLocalBoundingBox)
-		    , MUnionedObjects(nullptr)
 		{
-			InitUnionedObjects();
 		}
 
 		TCapsule(TCapsule<T>&& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(MoveTemp(Other.MSegment))
 		    , MRadius(Other.MRadius)
-		    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
-		    , MUnionedObjects(MoveTemp(Other.MUnionedObjects))
 		{
-			InitUnionedObjects();
 		}
 
 		TCapsule& operator=(TCapsule<T>&& InSteal)
@@ -64,10 +53,6 @@ namespace Chaos
 
 			MSegment = MoveTemp(InSteal.MSegment);
 			MRadius = InSteal.MRadius;
-			MLocalBoundingBox = MoveTemp(InSteal.MLocalBoundingBox);
-			MUnionedObjects = MoveTemp(InSteal.MUnionedObjects);
-
-			InitUnionedObjects();
 
 			return *this;
 		}
@@ -131,7 +116,12 @@ namespace Chaos
 			return Normal.SafeNormalize() - MRadius;
 		}
 
-		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3> BoundingBox() const override
+		{
+			TAABB<T,3> Box = MSegment.BoundingBox();
+			Box.Thicken(MRadius);
+			return Box;
+		}
 
 		static bool RaycastFast(T MRadius, T MHeight, const TVector<T,3>& MVector, const TVector<T,3>& X1, const TVector<T,3>& X2, const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex)
 		{
@@ -301,17 +291,30 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 			MSegment.Serialize(Ar);
 			Ar << MRadius;
-			TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
+
+			
+			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::CapsulesNoUnionOrAABBs)
+			{
+				TAABB<T,3> DummyBox;	//no longer store this, computed on demand
+				TBox<FReal,3>::SerializeAsAABB(Ar,DummyBox);
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
 		{
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
 			SerializeImp(Ar);
-			Ar << MUnionedObjects;
+
+			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::CapsulesNoUnionOrAABBs)
+			{
+				TUniquePtr<FImplicitObjectUnion> TmpUnion;
+				Ar << TmpUnion;
+			}
 		}
 
 		virtual TUniquePtr<FImplicitObject> Copy() const override
@@ -367,28 +370,9 @@ namespace Chaos
 		}
 
 	private:
-		void InitUnionedObjects()
-		{
-			TArray<TUniquePtr<FImplicitObject>> Objects;
-
-			const TVector<T, 3>& X1 = GetX1();
-			const TVector<T, 3>& X2 = GetX2();
-			Objects.Add(MakeUnique<Chaos::TCylinder<float>>(X1, X2, MRadius));
-			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X1, MRadius));
-			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X2, MRadius));
-
-			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
-		}
-
-		virtual Pair<TVector<T, 3>, bool> FindClosestIntersectionImp(const TVector<T, 3>& StartPoint, const TVector<T, 3>& EndPoint, const T Thickness) const override
-		{
-			return MUnionedObjects->FindClosestIntersection(StartPoint, EndPoint, Thickness);
-		}
 
 		TSegment<T> MSegment;
 		T MRadius;
-		TAABB<T, 3> MLocalBoundingBox;
-		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 	};
 
 	template<typename T>

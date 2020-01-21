@@ -247,7 +247,7 @@ struct FBehaviorTreeDebuggerInstance
 /** debugger data about current execution step */
 struct FBehaviorTreeExecutionStep
 {
-	FBehaviorTreeExecutionStep() : TimeStamp(0.f), StepIndex(INDEX_NONE) {}
+	FBehaviorTreeExecutionStep() : TimeStamp(0.f), ExecutionStepId(InvalidExecutionId) {}
 
 	/** subtree instance stack */
 	TArray<FBehaviorTreeDebuggerInstance> InstanceStack;
@@ -258,8 +258,10 @@ struct FBehaviorTreeExecutionStep
 	/** Game world's time stamp of this step */
 	float TimeStamp;
 
-	/** index of execution step */
-	int32 StepIndex;
+	static constexpr int32 InvalidExecutionId = -1;
+
+	/** Id of execution step */
+	int32 ExecutionStepId;
 };
 
 /** identifier of subtree instance */

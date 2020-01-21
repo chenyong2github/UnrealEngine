@@ -778,6 +778,15 @@ void USkinnedMeshComponent::TickUpdateRate(float DeltaTime, bool bNeedsValidRoot
 	}
 }
 
+void USkinnedMeshComponent::SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& InData)
+{
+	MeshObjectCallbackData = InData;
+	if (MeshObject)
+	{
+		MeshObject->SetCallbackData(InData);
+	}
+}
+
 void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	SCOPED_NAMED_EVENT(USkinnedMeshComponent_TickComponent, FColor::Yellow);
@@ -1360,7 +1369,9 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 {
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
 	const int32 BoneIndex = GetBoneIndex(BoneName);
-	if (BoneIndex != INDEX_NONE)
+	const TArray<FTransform>& Transforms = GetComponentSpaceTransforms();
+
+	if (BoneIndex != INDEX_NONE && ensureMsgf(BoneIndex < Transforms.Num(), TEXT("Invalid transform access in %s. Index=%d, Num=%d"), *GetPathName(), BoneIndex, Transforms.Num()))
 	{
 		FTransform LocalTransform = GetComponentSpaceTransforms()[BoneIndex];
 		FTransform ReferenceTransform = RefSkeleton.GetRefBonePose()[BoneIndex];

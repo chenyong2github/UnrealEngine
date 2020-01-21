@@ -126,7 +126,7 @@ bool UProceduralFoliageComponent::ExecuteSimulation(TArray<FDesiredFoliageInstan
 		FTileLayout TileLayout;
 		GetTileLayout(TileLayout);
 
-		FoliageSpawner->SimulateIfNeeded();
+		FoliageSpawner->Simulate();
 
 		TArray<TFuture< TArray<FDesiredFoliageInstance>* >> Futures;
 		for (int32 X = 0; X < TileLayout.NumTilesX; ++X)

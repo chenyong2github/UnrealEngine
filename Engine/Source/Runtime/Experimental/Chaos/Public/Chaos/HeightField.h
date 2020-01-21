@@ -109,7 +109,7 @@ namespace Chaos
 			return 0;
 		}
 
-		virtual const TAABB<T, 3>& BoundingBox() const
+		virtual const TAABB<T, 3> BoundingBox() const
 		{
 			CachedBounds = TAABB<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
 			return CachedBounds;
@@ -201,7 +201,6 @@ namespace Chaos
 			uint16 NumCols;
 			RealType Range;
 			RealType HeightPerUnit;
-			TArray<RealType> CellHeights; //todo: remove this and use heights directly
 
 			constexpr float GetCellWidth() const
 			{
@@ -290,14 +289,11 @@ namespace Chaos
 					{
 						TArray<TBox<RealType, 3>> CellBounds;
 						Ar << CellBounds;
-						for (const TBox<RealType, 3>& Box : CellBounds)
-						{
-							CellHeights.Add(Box.Extents().Z);
-						}
 					}
-					else
+					else if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::HeightfieldUsesHeightsDirectly)
 					{
-						Ar << CellHeights;
+						TArray<RealType> OldHeights;
+						Ar << OldHeights;
 					}
 				}
 

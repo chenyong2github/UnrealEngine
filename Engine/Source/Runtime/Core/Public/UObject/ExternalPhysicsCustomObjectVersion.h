@@ -98,6 +98,18 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Union objects can avoid allocating a full hierarchy
 		UnionObjectsCanAvoidHierarchy,
+
+		// Capsules no longer have a union inside them or stored aabbs
+		CapsulesNoUnionOrAABBs,
+
+		// Convexes use concrete planes
+		ConvexUsesTPlaneConcrete,
+
+		// Heightfield uses uint16 heights directly
+		HeightfieldUsesHeightsDirectly,
+
+		// TriangleMesh has map from internal face indices to external.
+		TriangleMeshHasFaceIndexMap,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -71,7 +71,7 @@ struct FModulatorContinuousParams
 /**
  * Allows named parameter based manipulation of pitch and volume
  */
-UCLASS(hidecategories=Object, editinlinenew, meta=( DisplayName="Continuous Modulator" ))
+UCLASS(hidecategories=Object, editinlinenew, MinimalAPI, meta=( DisplayName="Continuous Modulator" ))
 class USoundNodeModulatorContinuous : public USoundNode
 {
 	GENERATED_UCLASS_BODY()

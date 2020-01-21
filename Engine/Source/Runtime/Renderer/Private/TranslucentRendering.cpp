@@ -860,7 +860,7 @@ void UpsampleTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, bo
 void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, bool bDrawUnderwaterViews)
 {
 	// For now there is only one resolve for all translucency passes. This can be changed by enabling the resolve in RenderTranslucencyInner()
-	TRefCountPtr<IPooledRenderTarget> SceneColorCopy = GSystemTextures.BlackDummy;
+	TRefCountPtr<IPooledRenderTarget> SceneColorCopy;
 	if (!bDrawUnderwaterViews)
 	{
 		ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);

@@ -714,6 +714,31 @@ void FGenericPlatformMisc::CreateGuid(FGuid& Guid)
 	Guid = FGuid(RandBits | (SequentialBits << 16), EstimatedCurrentDateTime.GetTicks() >> 32, EstimatedCurrentDateTime.GetTicks() & 0xffffffff, FPlatformTime::Cycles());
 }
 
+const TCHAR* LexToString( EAppReturnType::Type Value )
+{
+	switch (Value)
+	{
+	case EAppReturnType::No:
+		return TEXT("No");
+	case EAppReturnType::Yes:
+		return TEXT("Yes");
+	case EAppReturnType::YesAll:
+		return TEXT("YesAll");
+	case EAppReturnType::NoAll:
+		return TEXT("NoAll");
+	case EAppReturnType::Cancel:
+		return TEXT("Cancel");
+	case EAppReturnType::Ok:
+		return TEXT("Ok");
+	case EAppReturnType::Retry:
+		return TEXT("Retry");
+	case EAppReturnType::Continue:
+		return TEXT("Continue");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
 EAppReturnType::Type FGenericPlatformMisc::MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption )
 {
 	if (GWarn)
@@ -831,7 +856,7 @@ const TCHAR* FGenericPlatformMisc::EngineDir()
 		{
 			EngineDirectory = DefaultEngineDir;
 		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / FString(GForeignEngineDir) / TEXT("Binaries"))))
+		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
 		{
 			EngineDirectory = GForeignEngineDir;
 		}

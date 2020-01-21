@@ -175,9 +175,10 @@ bool FUdpMessageProcessor::Init()
 	Beacon = new FUdpMessageBeacon(Socket, LocalNodeId, MulticastEndpoint);
 	SocketSender = new FUdpSocketSender(Socket, TEXT("FUdpMessageProcessor.Sender"));
 
-	// Current protocol version 12
+	// Current protocol version 13
 	SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
-	// Support Protocol version 10-11
+	// Support Protocol version 10, 11, 12
+	SupportedProtocolVersions.Add(12);
 	SupportedProtocolVersions.Add(11);
 	SupportedProtocolVersions.Add(10);
 

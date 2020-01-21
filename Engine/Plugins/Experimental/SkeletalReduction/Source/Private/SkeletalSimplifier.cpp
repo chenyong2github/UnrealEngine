@@ -75,6 +75,28 @@ void SkeletalSimplifier::FMeshSimplifier::SetBoundaryLocked()
 
 }
 
+void SkeletalSimplifier::FMeshSimplifier::SetColorEdgeLocked(float ColorDistThreshold)
+{
+
+	auto IsDifferntColor = [ColorDistThreshold](const SimpVertType* ASimpVert, const SimpVertType* BSimpVert)->bool
+	{
+		bool Result = true;
+		if (ASimpVert!=nullptr && BSimpVert != nullptr)
+		{ 
+			const FLinearColor& AColor = ASimpVert->vert.BasicAttributes.Color;
+			const FLinearColor& BColor = BSimpVert->vert.BasicAttributes.Color;
+
+		
+			Result = (FLinearColor::Dist(AColor, BColor) > ColorDistThreshold);
+		}
+		return Result;
+	};
+
+	MeshManager.FlagEdges(IsDifferntColor, ESimpElementFlags::SIMP_LOCKED);
+
+
+}
+
 void SkeletalSimplifier::FMeshSimplifier::SetBoxCornersLocked()
 {
 

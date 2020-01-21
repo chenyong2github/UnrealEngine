@@ -20,7 +20,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "Editor.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "PackageTools.h"
 #include "AutoSaveUtils.h"
 
@@ -656,8 +656,9 @@ FEditorFileUtils::EPromptReturnCode PackageRestore::PromptToRestorePackages(cons
 		Args.Add(TEXT("FailedPackages"), FText::FromString(FailedPackagesStr));
 
 		const FText Message = FText::Format(FText::FromString("{FailedRestoreMessage}:\n{FailedPackages}"), Args);
+		const FText Title = LOCTEXT("FailedRestoreDlgTitle", "Failed to restore packages!");
 
-		OpenMsgDlgInt(EAppMsgType::Ok, Message, LOCTEXT("FailedRestoreDlgTitle", "Failed to restore packages!"));
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 
 		return FEditorFileUtils::PR_Failure;
 	}

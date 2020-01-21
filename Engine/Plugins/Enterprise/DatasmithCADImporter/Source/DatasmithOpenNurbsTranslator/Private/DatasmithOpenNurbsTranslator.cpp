@@ -10,10 +10,10 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
 #include "DatasmithMesh.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
@@ -82,13 +82,20 @@ TSharedPtr<IDatasmithActorElement> DuplicateActorElement(TSharedPtr<IDatasmithAc
 	DuplicatedElement->SetTranslation(ActorElement->GetTranslation());
 	DuplicatedElement->SetScale(ActorElement->GetScale());
 	DuplicatedElement->SetRotation(ActorElement->GetRotation());
-
+	
 	int32 NumChildren = ActorElement->GetChildrenCount();
 	for (int32 Index = 0; Index < NumChildren; ++Index)
 	{
 		TSharedPtr<IDatasmithActorElement> Child = ActorElement->GetChild(Index);
 		DuplicatedElement->AddChild(DuplicateActorElement(Child, DuplicateName));
 	}
+
+	int NumTags = ActorElement->GetTagsCount();
+	for (int32 TagIndex = 0; TagIndex < NumTags; ++TagIndex)
+	{
+		DuplicatedElement->AddTag(ActorElement->GetTag(TagIndex));
+	}
+
 	return DuplicatedElement;
 }
 
@@ -653,7 +660,9 @@ private:
 	const ON_UUID& GetInstanceForObject(const ON_UUID& objectUUID);
 	bool HasUnprocessedChildren(const ON_UUID& instanceDefUuid);
 
+	TSharedPtr<IDatasmithActorElement> GetActorElement(const FOpenNurbsObjectWrapper& Object);
 	TSharedPtr<IDatasmithMeshActorElement> GetMeshActorElement(const FOpenNurbsObjectWrapper& Object);
+	TSharedPtr<IDatasmithActorElement> GetPointActorElement(const FOpenNurbsObjectWrapper& Object);
 	TSharedPtr<IDatasmithMeshElement> GetMeshElement(const FOpenNurbsObjectWrapper& Object, const FString& Uuid, const FString& Label);
 
 	TSharedPtr<IDatasmithBaseMaterialElement> FindMaterial(const FOpenNurbsObjectWrapper& Object);
@@ -664,7 +673,8 @@ private:
 	TSharedPtr<IDatasmithActorElement> GetParentElement(const FOpenNurbsObjectWrapper & Object);
 	FString GetLayerName(const TSharedPtr<IDatasmithActorElement>& LayerElement);
 	void SetLayers(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
-
+	void SetTags(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
+	
 	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
 
 private:
@@ -1517,6 +1527,62 @@ void FOpenNurbsTranslatorImpl::SetLayers(const TSharedPtr<IDatasmithActorElement
 	DatasmithOpenNurbsTranslatorUtils::PropagateLayers(ActorElement, *Layers);
 }
 
+void FOpenNurbsTranslatorImpl::SetTags(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object)
+{
+	ON_wString UUIDString;
+	ON_UuidToString(Object.Attributes.m_uuid, UUIDString);
+	FString UUID(UUIDString.Array());
+
+	ON::object_type objType = Object.ObjectPtr->ObjectType();
+	FString StrObjectType;
+	switch (objType)
+	{
+		case ON::instance_definition: 
+			StrObjectType = "block definition"; 
+			break;
+		case ON::instance_reference: 
+			StrObjectType = "block instance"; 
+			break;
+		case ON::point_object: 
+			StrObjectType = "point"; 
+			break;
+		case ON::curve_object: 
+			StrObjectType = "curve"; 
+			break;
+		case ON::surface_object: 
+			StrObjectType = "surface"; 
+			break;
+		case ON::brep_object: 
+			StrObjectType = "brep"; 
+			break;
+		case ON::mesh_object: 
+			StrObjectType = "mesh"; 
+			break;
+		case ON::text_dot: 
+			StrObjectType = "textdot"; 
+			break;
+		case ON::subd_object: 
+			StrObjectType = "subd"; 
+			break;
+		case ON::loop_object: 
+			StrObjectType = "loop"; 
+			break;
+		case ON::cage_object: 
+			StrObjectType = "cage"; 
+			break;
+		case ON::clipplane_object: 
+			StrObjectType = "clip plane"; 
+			break;
+		case ON::extrusion_object: 
+			StrObjectType = "extrusion"; 
+			break;
+		default: "unknown"; break;
+	}
+
+	ActorElement->AddTag(*FString::Printf(TEXT("Rhino.ID: %s"), *UUID));
+	ActorElement->AddTag(*FString::Printf(TEXT("Rhino.Entity.Type: %s"), *StrObjectType));
+}
+
 void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObjectWrapper& Object)
 {
 	// Ref. visitNonInstanceObject
@@ -1528,29 +1594,24 @@ void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObject
 	// Get UUID of possible instance definition referring to this object
 	ON_UUID instanceUuid = GetInstanceForObject(Object.Attributes.m_uuid);
 
-	TSharedPtr<IDatasmithMeshActorElement> PartElement;
+	TSharedPtr<IDatasmithActorElement> PartElement = GetActorElement(Object);
+	if (!PartElement.IsValid())
+	{
+		return;
+	}
+
 	if (ON_UuidIsNotNil(instanceUuid))
 	{
-		PartElement = GetMeshActorElement(Object);
-		if (!PartElement.IsValid())
-		{
-			return;
-		}
-
 		TSharedPtr<IDatasmithActorElement> ContainerElement = uuidToInstanceContainer[instanceUuid];
 		if (ContainerElement.IsValid())
 		{
 			ContainerElement->AddChild(PartElement);
 		}
+
+		SetTags(PartElement, Object);
 	}
 	else
 	{
-		PartElement = GetMeshActorElement(Object);
-		if (!PartElement.IsValid())
-		{
-			return;
-		}
-
 		TSharedPtr<IDatasmithActorElement> Parent = GetParentElement(Object);
 
 		if (Parent.IsValid())
@@ -1563,6 +1624,7 @@ void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObject
 		}
 
 		SetLayers(PartElement, Object);
+		SetTags(PartElement, Object);
 	}
 
 	// Register UUID of fully processed object
@@ -1586,6 +1648,7 @@ bool FOpenNurbsTranslatorImpl::IsValidObject(const FOpenNurbsObjectWrapper& Obje
 		Object.ObjectPtr->IsKindOf(&ON_Brep::m_ON_Brep_class_rtti) ||
 		Object.ObjectPtr->IsKindOf(&ON_PlaneSurface::m_ON_PlaneSurface_class_rtti) ||
 		Object.ObjectPtr->IsKindOf(&ON_InstanceRef::m_ON_InstanceRef_class_rtti) ||
+		Object.ObjectPtr->IsKindOf(&ON_Point::m_ON_Point_class_rtti) ||
 		//object.ObjectPtr->IsKindOf(&ON_LineCurve::m_ON_LineCurve_class_rtti) ||
 		Object.ObjectPtr->IsKindOf(&ON_Extrusion::m_ON_Extrusion_class_rtti) ||
 		Object.ObjectPtr->IsKindOf(&ON_Hatch::m_ON_Hatch_class_rtti) ||
@@ -1720,9 +1783,26 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 	}
 
 	SetLayers(ContainerElement, Object);
+	SetTags(ContainerElement, Object);
 
 	// TODO: Apply material override
 	return true;
+}
+
+TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetActorElement(const FOpenNurbsObjectWrapper& Object)
+{
+	TSharedPtr<IDatasmithActorElement> ActorElement;
+
+	if (Object.ObjectPtr->ObjectType() == ON::object_type::point_object)
+	{
+		ActorElement = GetPointActorElement(Object);
+	}
+	else
+	{
+		ActorElement = GetMeshActorElement(Object);
+	}
+
+	return ActorElement;
 }
 
 TSharedPtr<IDatasmithMeshActorElement> FOpenNurbsTranslatorImpl::GetMeshActorElement(const FOpenNurbsObjectWrapper& Object)
@@ -1773,6 +1853,52 @@ TSharedPtr<IDatasmithMeshActorElement> FOpenNurbsTranslatorImpl::GetMeshActorEle
 
 	// TODO: TBD if need to set Material Override
 
+	return ActorElement;
+}
+
+TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetPointActorElement(const FOpenNurbsObjectWrapper& Object)
+{
+	TSharedPtr<IDatasmithActorElement> ActorElement;
+
+	ON_Point* pointObj = ON_Point::Cast(Object.ObjectPtr);
+	if (pointObj == nullptr)
+	{
+		return ActorElement;
+	}
+
+	ON_wString uuidString;
+	ON_UuidToString(Object.Attributes.m_uuid, uuidString);
+
+	FString ActorName = uuidString.Array();
+	FString ActorLabel;
+	if (Object.Attributes.m_name.Length() > 0)
+	{
+		ActorLabel = Object.Attributes.m_name.Array();
+	} 
+	else
+	{
+		const ON_ClassId* classId = Object.ObjectPtr->ClassId();
+		ActorLabel = classId->ClassName();
+	}
+
+	if (ActorName.IsEmpty())
+	{
+		ActorName = ActorLabel;
+	}
+
+	ActorElement = FDatasmithSceneFactory::CreateActor(*ActorName);
+	if (!ActorElement.IsValid())
+	{
+		return ActorElement;
+	}
+
+	FVector Location(pointObj->point.x, pointObj->point.y, pointObj->point.z);
+	Location *= ScalingFactor;
+	Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Location);
+	
+	ActorElement->SetTranslation(Location);
+	ActorElement->SetLabel(*ActorLabel);
+	
 	return ActorElement;
 }
 
@@ -2576,6 +2702,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			ON_Object* pObject = nullptr;
 			ON_3dmObjectAttributes attributes;
 			ReturnCode = Archive.Read3dmObject(&pObject, &attributes, object_filter);
+
 			if (ReturnCode == 0)
 			{
 				break; // end of object table

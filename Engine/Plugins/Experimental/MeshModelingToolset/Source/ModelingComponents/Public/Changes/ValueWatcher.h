@@ -41,4 +41,12 @@ public:
 			OnValueChangedFunc(CachedValue);
 		}
 	}
+
+	/**
+	 * Update known value without calling OnValueChangedFunc. Sometimes necessary during undo/redo.
+	 */
+	void SilentUpdate()
+	{
+		CachedValue = GetValueFunc();
+	}
 };

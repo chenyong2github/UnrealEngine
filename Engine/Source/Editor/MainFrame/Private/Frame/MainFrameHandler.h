@@ -11,7 +11,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EngineGlobals.h"
-
+#include "Interfaces/IMainFrameModule.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
@@ -185,8 +185,10 @@ public:
 		// Persistent layouts should get stored using the specified method.
 		GlobalTabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateRaw(this, &FMainFrameHandler::HandleTabManagerPersistLayout));
 		
+		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+
 		const bool bIncludeGameName = true;
-		GlobalTabManager->SetApplicationTitle( StaticGetApplicationTitle( bIncludeGameName ) );
+		GlobalTabManager->SetApplicationTitle( MainFrameModule.GetApplicationTitle( bIncludeGameName ) );
 		
 		InRootWindow->SetRequestDestroyWindowOverride( FRequestDestroyWindowOverride::CreateRaw( this, &FMainFrameHandler::CloseRootWindowOverride ) );
 

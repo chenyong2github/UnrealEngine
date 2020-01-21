@@ -4,8 +4,19 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "SFoliageEdit.h"
+#include "Classes/EditorStyleSettings.h"
+
+#include "FoliageEditActions.h"
+#include "FoliagePaletteCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "FoliageEditMode"
+
+namespace 
+{
+	static const FName FoliageName(TEXT("Foliage")); 
+	const TArray<FName> FoliagePaletteNames = { FoliageName };
+}
 
 void FFoliageEdModeToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
 {
@@ -31,7 +42,7 @@ FName FFoliageEdModeToolkit::GetToolkitFName() const
 
 FText FFoliageEdModeToolkit::GetBaseToolkitName() const
 {
-	return LOCTEXT( "ToolkitName", "Foliage Edit Mode" );
+	return LOCTEXT( "ToolkitName", "Foliage" );
 }
 
 class FEdMode* FFoliageEdModeToolkit::GetEditorMode() const
@@ -53,5 +64,38 @@ void FFoliageEdModeToolkit::NotifyFoliageTypeMeshChanged(class UFoliageType* Fol
 {
 	FoliageEdWidget->NotifyFoliageTypeMeshChanged(FoliageType);
 }
+
+void FFoliageEdModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
+{
+	if (!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+	{
+		InPaletteName = FoliagePaletteNames;
+	}
+}
+
+FText FFoliageEdModeToolkit::GetToolPaletteDisplayName(FName PaletteName) const
+{
+	if (PaletteName == FoliageName)
+	{
+		return LOCTEXT("Foliage", "Foliage");
+	}
+	return FText();
+}
+
+void FFoliageEdModeToolkit::BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolBarBuilder)
+{
+	if (PaletteName == FoliageName)
+	{
+		FoliageEdWidget->CustomizeToolBarPalette(ToolBarBuilder);
+	}
+}
+
+void FFoliageEdModeToolkit::OnToolPaletteChanged(FName PaletteName) 
+{
+
+}
+
+
+
 
 #undef LOCTEXT_NAMESPACE

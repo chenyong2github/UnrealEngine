@@ -41,7 +41,8 @@ SGenerateUV::~SGenerateUV()
 	SetPreviewModeActivated(false);
 	SettingObjectUIHolder->OnUVSettingsRefreshNeeded().RemoveAll(this);
 	SettingObjectUIHolder->RemoveFromRoot();
-
+	SetPreviewModeActivated(false);
+	
 	if (StaticMeshEditorPtr.IsValid())
 	{
 		StaticMeshEditorPtr.Pin()->UnRegisterOnSelectedLODChanged(this);
@@ -416,6 +417,12 @@ void SGenerateUV::FitSettings()
 		
 		const int32 CurrentLOD = FMath::Max(0, GetSelectedLOD(EditorPtr));
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(CurrentLOD);
+
+		if ( !MeshDescription )
+		{
+			return;
+		}
+
 		FStaticMeshConstAttributes Attributes(*MeshDescription);
 		TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = Attributes.GetVertexPositions();
 		TArray<FVector> RotatedVertexPositions;

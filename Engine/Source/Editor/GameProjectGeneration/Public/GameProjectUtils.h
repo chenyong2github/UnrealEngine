@@ -36,6 +36,9 @@ struct FProjectInformation
 
 	TOptional<EHardwareClass::Type> TargetedHardware;
 	TOptional<EGraphicsPreset::Type> DefaultGraphicsPerformance;
+
+	/** The name of the feature pack to use as starter content. Must be located under FeaturePacks\. */
+	FString StarterContent;
 };
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FProjectDescriptorModifier, FProjectDescriptor&);
@@ -162,6 +165,7 @@ public:
 
 	/** Returns true if there are starter content files available for instancing into new projects. */
 	static bool IsStarterContentAvailableForNewProjects();
+	static bool IsStarterContentAvailableForProject(const FProjectInformation& ProjectInfo);
 
 	/**
 	 * Get the information about any modules referenced in the .uproject file of the currently loaded project
@@ -281,8 +285,12 @@ public:
 	static const TCHAR* GetDefaultBuildSettingsVersion();
 
 private:
-
+	
+	/** Add hardware-specific config values such as the target platform and RHI. */
 	static void AddHardwareConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues);
+	
+	/** Get the name of the starter content pack to use for the given project. */
+	static FString GetStarterContentName(const FProjectInformation& InProjectInfo);
 
 	/** Generates a new project without using a template project */
 	static bool GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);
@@ -488,7 +496,6 @@ private:
 	 */
 	static bool UpdateRequiredAdditionalDependencies(FProjectDescriptor& Descriptor, TArray<FString>& RequiredDependencies, const FString& ModuleName);
 
-private:
 	/**
 	 * Updates the projects and modifies FProjectDescriptor accordingly to given modifier.
 	 *
@@ -507,6 +514,8 @@ private:
 	 * @return true, if successful
 	 */
 	static bool UpdateGameProjectFile_Impl(const FString& ProjectFilename, const FString& EngineIdentifier, const FProjectDescriptorModifier* Modifier, FText& OutFailReason);
+
+private:
 
 	static TWeakPtr<SNotificationItem> UpdateGameProjectNotification;
 	static TWeakPtr<SNotificationItem> WarningProjectNameNotification;

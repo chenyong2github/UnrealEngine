@@ -358,6 +358,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 {
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
+	SetPlayInEditorInitialNetMode(ENetMode::NM_Standalone);
 	bBroadcastSelectionChange = true; //Ed Only
 	EditorViews.SetNum(ELevelViewportType::LVT_MAX);
 #endif // WITH_EDITOR
@@ -1899,25 +1900,33 @@ bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 
 		TArray<ACullDistanceVolume*> CullDistanceVolumes;
 
+		auto EvaluateComponent = [&bUpdatedDrawDistances, &CompToNewMaxDrawMap](UPrimitiveComponent* PrimitiveComponent)
+		{
+			if (ACullDistanceVolume::CanBeAffectedByVolumes(PrimitiveComponent))
+			{
+				CompToNewMaxDrawMap.Add(PrimitiveComponent, PrimitiveComponent->LDMaxDrawDistance);
+				if (!bUpdatedDrawDistances && !FMath::IsNearlyEqual(PrimitiveComponent->LDMaxDrawDistance, PrimitiveComponent->CachedMaxDrawDistance))
+				{
+					bUpdatedDrawDistances = true;
+				}
+			}
+		};
+
 		// Establish base line of LD specified cull distances.
 		if (ActorToUpdate || ComponentToUpdate)
 		{
 			if (ComponentToUpdate)
 			{
 				check((ActorToUpdate == nullptr) || (ActorToUpdate == ComponentToUpdate->GetOwner()));
-				if (ACullDistanceVolume::CanBeAffectedByVolumes(ComponentToUpdate))
-				{
-					CompToNewMaxDrawMap.Add(ComponentToUpdate, ComponentToUpdate->LDMaxDrawDistance);
-				}
+				EvaluateComponent(ComponentToUpdate);
 			}
 			else
 			{
-				TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(ActorToUpdate);
-				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+				for (UActorComponent* ActorComponent : ActorToUpdate->GetComponents())
 				{
-					if (ACullDistanceVolume::CanBeAffectedByVolumes(PrimitiveComponent))
+					if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ActorComponent))
 					{
-						CompToNewMaxDrawMap.Add(PrimitiveComponent, PrimitiveComponent->LDMaxDrawDistance);
+						EvaluateComponent(PrimitiveComponent);
 					}
 				}
 			}
@@ -1934,12 +1943,11 @@ bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 		{
 			for( AActor* Actor : FActorRange(this) )
 			{
-				TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor);
-				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+				for (UActorComponent* ActorComponent : Actor->GetComponents())
 				{
-					if (ACullDistanceVolume::CanBeAffectedByVolumes(PrimitiveComponent))
+					if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ActorComponent))
 					{
-						CompToNewMaxDrawMap.Add(PrimitiveComponent, PrimitiveComponent->LDMaxDrawDistance);
+						EvaluateComponent(PrimitiveComponent);
 					}
 				}
 
@@ -1951,22 +1959,23 @@ bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 			}
 		}
 
-		// Only perform the update if we actually have cull distance volumes
-		if (CullDistanceVolumes.Num() > 0)
+		if (CullDistanceVolumes.Num() > 0 && CompToNewMaxDrawMap.Num() > 0)
 		{
 			// Iterate over all cull distance volumes and get new cull distances.
-			if (CompToNewMaxDrawMap.Num() > 0)
+			for (ACullDistanceVolume* CullDistanceVolume : CullDistanceVolumes)
 			{
-				for (ACullDistanceVolume* CullDistanceVolume : CullDistanceVolumes)
-				{
-					CullDistanceVolume->GetPrimitiveMaxDrawDistances(CompToNewMaxDrawMap);
-				}
-
-				bUpdatedDrawDistances = true;
+				CullDistanceVolume->GetPrimitiveMaxDrawDistances(CompToNewMaxDrawMap);
 			}
 
+			bUpdatedDrawDistances = true;
+		}
+
+		// Only perform the update if we actually have cull distance volumes 
+		// or we found a component that had a cached value different than the LD set value
+		if (bUpdatedDrawDistances)
+		{
 			// Finally, go over all primitives, and see if they need to change.
-			// Only if they do do we reregister them, as thats slow.
+			// Only if they do do we reregister them, as that's slow.
 			for (TMap<UPrimitiveComponent*, float>::TIterator It(CompToNewMaxDrawMap); It; ++It)
 			{
 				UPrimitiveComponent* PrimComp = It.Key();
@@ -1984,7 +1993,6 @@ bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 
 	return bUpdatedDrawDistances;
 }
-
 
 void UWorld::ModifyLevel(ULevel* Level) const
 {
@@ -5852,11 +5860,7 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 				PackageFlags |= PKG_PlayInEditor;
 			}
 			PIEInstanceID = WorldContext.PIEInstance;
-			UPackage* EditorLevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), NULL, URLMapFName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
-			if (EditorLevelPackage)
-			{
-				URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
-			}
+			URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
 		}
 #endif
 
@@ -6861,12 +6865,10 @@ ENetMode UWorld::InternalGetNetMode() const
 #if WITH_EDITOR
 	if (WorldType == EWorldType::PIE)
 	{
-		// PIE: NetDriver is not initialized so use PlayInSettings
-		// to determine the Net Mode
-
-		// This function only works for PIE, do not use for -game/-server standalone editor builds
-		// otherwise it will always return NM_Standalone which is wrong once we have a PendingNetGame
-		return AttemptDeriveFromPlayInSettings();
+		// Return the cached NetMode that we were started with. We can't derive this from the Play Settings,
+		// because those can be modified during PIE startup, plus it is not easy for us to tell if we are
+		// a listen server or a client.
+		return PlayInEditorNetMode;
 	}
 #endif
 	return AttemptDeriveFromURL();
@@ -6889,58 +6891,6 @@ bool UWorld::IsPlayingClientReplay() const
 {
 	return (DemoNetDriver != nullptr && DemoNetDriver->IsPlayingClientReplay());
 }
-
-#if WITH_EDITOR
-ENetMode UWorld::AttemptDeriveFromPlayInSettings() const
-{
-	if (ensure(WorldType == EWorldType::PIE))
-	{
-		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-		if (PlayInSettings)
-		{
-			EPlayNetMode PlayNetMode;
-			PlayInSettings->GetPlayNetMode(PlayNetMode);
-
-			switch (PlayNetMode)
-			{
-			case EPlayNetMode::PIE_Client:
-			{
-				int32 NumberOfClients = 0;
-				PlayInSettings->GetPlayNumberOfClients(NumberOfClients);
-
-				bool bAutoConnectToServer = false;
-				PlayInSettings->GetAutoConnectToServer(bAutoConnectToServer);
-
-				// Playing as client without listen server in single process,
-				// or as a client not going to connect to a server
-				if(NumberOfClients == 1 || bAutoConnectToServer == false)
-				{
-					return NM_Standalone;
-				}
-				return NM_Client;
-			}
-			case EPlayNetMode::PIE_ListenServer:
-			{
-				bool bDedicatedServer = false;
-				PlayInSettings->GetPlayNetDedicated(bDedicatedServer);
-
-				if(bDedicatedServer == true)
-				{
-					return NM_DedicatedServer;
-				}
-
-				return NM_ListenServer;
-			}
-			case EPlayNetMode::PIE_Standalone:
-				return NM_Standalone;
-			default:
-				break;
-			}
-		}
-	}
-	return NM_Standalone;
-}
-#endif
 
 ENetMode UWorld::AttemptDeriveFromURL() const
 {

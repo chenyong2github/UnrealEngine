@@ -83,8 +83,23 @@ struct TFrame3
 	/** Construct a Frame from an FTransform */
 	explicit TFrame3(const FTransform& Transform)
 	{
-		Origin = Transform.GetTranslation();
-		Rotation = Transform.GetRotation();
+		Origin = FVector3<RealType>(Transform.GetTranslation());
+		Rotation = TQuaternion<RealType>(Transform.GetRotation());
+	}
+
+	/** Construct a Frame from an FVector and FQuat */
+	explicit TFrame3(const FVector& OriginIn, const FQuat& RotationIn)
+	{
+		Origin = FVector3<RealType>(OriginIn);
+		Rotation = TQuaternion<RealType>(RotationIn);
+	}
+
+	/** Convert between TFrame of different types */
+	template<typename RealType2>
+	explicit TFrame3(const TFrame3<RealType2>& OtherFrame)
+	{
+		Origin = static_cast<FVector3<RealType>>(OtherFrame.Origin);
+		Rotation = static_cast<TQuaternion<RealType>>(OtherFrame.Rotation);
 	}
 
 	
@@ -129,7 +144,7 @@ struct TFrame3
 	/** @return conversion of this Frame to FTransform */
 	FTransform ToFTransform() const
 	{
-		return FTransform(Rotation, Origin);
+		return FTransform((FQuat)Rotation, (FVector)Origin);
 	}
 
 	/** @return conversion of this Frame to TTransform */
@@ -290,8 +305,18 @@ struct TFrame3
 	 */
 	void Transform(const FTransform& XForm)
 	{
-		Origin = (FVector3<RealType>)XForm.TransformPosition((FVector3f)Origin);
+		Origin = FVector3<RealType>(XForm.TransformPosition((FVector)Origin));
 		Rotation = TQuaternion<RealType>(XForm.GetRotation()) * Rotation;
+	}
+
+
+	/**
+	 * transform this frame by the given transform
+	 */
+	void Transform(const TTransform3<RealType>& XForm)
+	{
+		Origin = XForm.TransformPosition(Origin);
+		Rotation = XForm.GetRotation() * Rotation;
 	}
 
 

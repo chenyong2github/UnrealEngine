@@ -8,6 +8,7 @@
 #include "UnrealWidget.h"
 #include "Editor.h"
 #include "EditorUndoClient.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EdMode.h"
 
 class FCanvas;
@@ -54,6 +55,11 @@ public:
 	void RemoveDefaultMode( const FEditorModeID DefaultModeID );
 
 	/**
+	 * Returns whether or not the provided mode ID is a default mode
+	 */
+	bool IsDefaultMode(const FEditorModeID ModeID) const { return DefaultModeIDs.Contains(ModeID); }
+
+	/**
 	 * Activates the default modes defined by this class.  Note that there can be more than one default mode, and this call will activate them all in sequence.
 	 */
 	void ActivateDefaultMode();
@@ -91,8 +97,12 @@ public:
 	/**
 	 * Whether or not the mode toolbar should be shown.  If any active modes generated a toolbar this method will return true
 	 */
-	bool ShouldShowModeToolbar();
+	bool ShouldShowModeToolbar() const;
 
+	/**
+	 * Whether or not the mode toolbox (where mode details panels and some tools are) should be shown.
+	 */
+	bool ShouldShowModeToolbox() const;
 protected:
 	
 	/** Deactivates the editor mode at the specified index */
@@ -116,7 +126,7 @@ public:
 	UE_DEPRECATED(4.24, "Use GetActiveMode instead.")
 	FEdMode* FindMode( FEditorModeID InID );
 
-	UEdMode* GetActiveScriptableMode(FEditorModeID InID);
+	UEdMode* GetActiveScriptableMode(FEditorModeID InID) const;
 
 	/**
 	 * Returns true if the current mode is not the specified ModeID.  Also optionally warns the user.
@@ -545,6 +555,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** returns true if all active EdModes are OK with an AutoSave happening now  */
 	bool CanAutoSave() const;
 
+	/*
+	* Sets the active Modes ToolBar Palette Tab to the named Palette
+	*/
+	void  InvokeToolPaletteTab(FEditorModeID InMode, FName InPaletteName);
+
 protected:
 	/** 
 	 * Delegate handlers
@@ -619,6 +634,9 @@ private:
 
 	/** The actual toolbar rows will be placed in this vertical box */
 	TWeakPtr<SVerticalBox> ModeToolbarBox;
+
+	/** The modes palette toolbar **/	
+	TWeakPtr<SWidgetSwitcher> ModeToolbarPaletteSwitcher;
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;

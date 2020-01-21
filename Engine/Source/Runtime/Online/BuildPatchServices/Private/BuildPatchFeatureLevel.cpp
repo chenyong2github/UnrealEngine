@@ -2,7 +2,7 @@
 
 #include "BuildPatchFeatureLevel.h"
 
-static_assert((int32)BuildPatchServices::EFeatureLevel::Latest == 17, "Please add support for the extra values to the two functions below.");
+static_assert((int32)BuildPatchServices::EFeatureLevel::Latest == 18, "Please add support for the extra values to the two functions below.");
 
 BUILDPATCHSERVICES_API const TCHAR* BuildPatchServices::FeatureLevelToString(const BuildPatchServices::EFeatureLevel& FeatureLevel)
 {
@@ -23,7 +23,8 @@ BUILDPATCHSERVICES_API const TCHAR* BuildPatchServices::FeatureLevelToString(con
 		CASE_ENUM_TO_STR(StoresPrerequisiteIds);
 		CASE_ENUM_TO_STR(StoredAsBinaryData);
 		CASE_ENUM_TO_STR(VariableSizeChunks);
-		CASE_ENUM_TO_STR(StoresUniqueBuildId);
+		CASE_ENUM_TO_STR(UsesRuntimeGeneratedBuildId);
+		CASE_ENUM_TO_STR(UsesBuildTimeGeneratedBuildId);
 		default: return TEXT("Invalid");
 	}
 #undef CASE_ENUM_TO_STR
@@ -50,11 +51,13 @@ BUILDPATCHSERVICES_API bool BuildPatchServices::FeatureLevelFromString(const TCH
 	RETURN_IF_EQUAL(StoresPrerequisiteIds);
 	RETURN_IF_EQUAL(StoredAsBinaryData);
 	RETURN_IF_EQUAL(VariableSizeChunks);
-	RETURN_IF_EQUAL(StoresUniqueBuildId);
+	RETURN_IF_EQUAL(UsesRuntimeGeneratedBuildId);
+	RETURN_IF_EQUAL(UsesBuildTimeGeneratedBuildId);
 	RETURN_IF_EQUAL(Latest);
 	RETURN_IF_EQUAL(LatestNoChunks);
 	RETURN_IF_EQUAL(LatestJson);
 	RETURN_IF_EQUAL(FirstOptimisedDelta);
+	RETURN_IF_EQUAL(StoresUniqueBuildId);
 	return false;
 #undef RETURN_IF_EQUAL
 }

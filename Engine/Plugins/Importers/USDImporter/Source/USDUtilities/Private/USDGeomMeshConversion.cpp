@@ -15,6 +15,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant4Vector.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
@@ -28,6 +29,28 @@
 
 #include "USDIncludesEnd.h"
 
+namespace UsdToUnrealImpl
+{
+	int32 GetPrimValueIndex( const pxr::TfToken& InterpType, const int32 VertexIndex, const int32 VertexInstanceIndex, const int32 PolygonIndex )
+	{
+		if ( InterpType == pxr::UsdGeomTokens->vertex )
+		{
+			return VertexIndex;
+		}
+		else if ( InterpType == pxr::UsdGeomTokens->faceVarying )
+		{
+			return VertexInstanceIndex;
+		}
+		else if ( InterpType == pxr::UsdGeomTokens->uniform )
+		{
+			return PolygonIndex;
+		}
+		else /* if ( InterpType == pxr::UsdGeomTokens->constant ) */
+		{
+			return 0; // return index 0 for constant or any other unsupported cases
+		}
+	}
+}
 
 bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode )
 {
@@ -36,6 +59,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr Stage = UsdMesh.GetPrim().GetStage();
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
+
 	const double TimeCodeValue = TimeCode.GetValue();
 
 	TTuple< TArray< FString >, TArray< int32 > > GeometryMaterials = IUsdPrim::GetGeometryMaterials( TimeCodeValue, UsdMesh.GetPrim() );
@@ -64,7 +89,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			{
 				const GfVec3f& Point = PointsArray[ LocalPointIndex ];
 
-				FVector Pos = UsdToUnreal::ConvertVector( Stage, Point );
+				FVector Pos = UsdToUnreal::ConvertVector( StageUpAxis, Point );
 
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
 				MeshDescriptionVertexPositions[ AddedVertexId ] = Pos;
@@ -121,7 +146,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
 			VtVec2fArray UVs;
 
-			EUsdInterpolationMethod InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
+			pxr::TfToken InterpType = UsdGeomTokens->faceVarying;
 		};
 
 		TArray< FUVSet > UVSets;
@@ -135,23 +160,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			if ( PrimvarST )
 			{
 				FUVSet UVSet;
-
-				if ( PrimvarST.GetInterpolation() == UsdGeomTokens->vertex )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Vertex;
-				}
-				else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->faceVarying )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
-				}
-				else if (  PrimvarST.GetInterpolation() == UsdGeomTokens->uniform )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Uniform;
-				}
-				else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->constant )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Constant;
-				}
+				UVSet.InterpType = PrimvarST.GetInterpolation();
 
 				if ( PrimvarST.IsIndexed() )
 				{
@@ -203,6 +212,26 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 		MeshDescription.ReserveNewPolygons( FaceCounts.size() );
 		MeshDescription.ReserveNewEdges( FaceCounts.size() * 2 );
 
+		// Vertex color
+		TVertexInstanceAttributesRef< FVector4 > MeshDescriptionColors = StaticMeshAttributes.GetVertexInstanceColors();
+
+		UsdGeomPrimvar ColorPrimvar = UsdMesh.GetDisplayColorPrimvar();
+		pxr::VtArray< pxr::GfVec3f > UsdColors;
+
+		if ( ColorPrimvar )
+		{	
+			ColorPrimvar.ComputeFlattened( &UsdColors, TimeCode );
+		}
+
+		// Vertex opacity
+		UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar();
+		pxr::VtArray< float > UsdOpacities;
+
+		if ( OpacityPrimvar )
+		{
+			OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+		}
+
 		for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
 		{
 			int32 PolygonVertexCount = FaceCounts[PolygonIndex];
@@ -233,7 +262,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 					const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
 					check(NormalIndex < Normals.size());
 					const GfVec3f& Normal = Normals[NormalIndex];
-					FVector TransformedNormal = UsdToUnreal::ConvertVector( Stage, Normal );
+					FVector TransformedNormal = UsdToUnreal::ConvertVector( StageUpAxis, Normal );
 
 					ensure( !TransformedNormal.IsNearlyZero() );
 					MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
@@ -242,24 +271,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				int32 UVLayerIndex = 0;
 				for ( const FUVSet& UVSet : UVSets )
 				{
-					int32 ValueIndex = 0;
-
-					if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Vertex )
-					{
-						ValueIndex = VertexID.GetValue();
-					}
-					else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::FaceVarying )
-					{
-						ValueIndex = CurrentVertexInstanceIndex;
-					}
-					else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Uniform )
-					{
-						ValueIndex = PolygonIndex;
-					}
-					else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Constant )
-					{
-						ValueIndex = 0;
-					}
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( UVSet.InterpType, VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec2f UV( 0.f, 0.f );
 
@@ -280,6 +292,35 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 					MeshDescriptionUVs.Set( AddedVertexInstanceId, UVLayerIndex, FinalUVVector );
 
 					++UVLayerIndex;
+				}
+
+				// Vertex color
+				{
+					auto ConvertToLinear = []( const pxr::GfVec3f& UsdColor ) -> FLinearColor
+					{
+						return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
+					};
+
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorPrimvar.GetInterpolation(), VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
+
+					GfVec3f UsdColor( 1.f, 1.f, 1.f );
+
+					if ( !UsdColors.empty() && ensure( UsdColors.size() > ValueIndex ) )
+					{
+						UsdColor = UsdColors[ ValueIndex ];
+					}
+
+					MeshDescriptionColors[ AddedVertexInstanceId ] = ConvertToLinear( UsdColor );
+				}
+
+				// Vertex opacity
+				{
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityPrimvar.GetInterpolation(), VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
+
+					if ( !UsdOpacities.empty() && ensure( UsdOpacities.size() > ValueIndex ) )
+					{
+						MeshDescriptionColors[ AddedVertexInstanceId ][3] = UsdOpacities[ ValueIndex ];
+					}
 				}
 			}
 
@@ -329,47 +370,6 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				MeshDescription.ReversePolygonFacing( NewPolygonID );
 			}
 		}
-
-		// Vertex color
-		TVertexInstanceAttributesRef< FVector4 > MeshDescriptionColors = StaticMeshAttributes.GetVertexInstanceColors();
-
-		UsdGeomPrimvar ColorPrimvar = UsdMesh.GetDisplayColorPrimvar();
-		if ( ColorPrimvar )
-		{
-			pxr::VtArray<pxr::GfVec3f> UsdColors;
-			ColorPrimvar.ComputeFlattened(&UsdColors);
-
-			int32 NumColors = UsdColors.size();
-
-			auto ConvertToLinear = []( const pxr::GfVec3f& UsdColor ) -> FLinearColor
-			{
-				return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
-			};
-
-			pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
-			if ( USDInterpType == pxr::UsdGeomTokens->faceVarying && NumColors >= MeshDescriptionColors.GetNumElements() )
-			{
-				for(int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index)
-				{
-					MeshDescriptionColors[FVertexInstanceID(Index)] = ConvertToLinear(UsdColors[Index]);
-				}
-			}
-			else if ( USDInterpType == pxr::UsdGeomTokens->vertex && NumColors >= MeshDescription.Vertices().Num() )
-			{
-				for( auto VertexInstID : MeshDescription.VertexInstances().GetElementIDs() )
-				{
-					FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstID);
-					MeshDescriptionColors[VertexInstID] = ConvertToLinear(UsdColors[VertexID.GetValue()]);
-				}
-			}
-			else if ( USDInterpType == pxr::UsdGeomTokens->constant && NumColors == 1 )
-			{
-				for( int Index = 0; Index < MeshDescriptionColors.GetNumElements(); ++Index )
-				{
-					MeshDescriptionColors[FVertexInstanceID(Index)] = ConvertToLinear(UsdColors[0]);
-				}
-			}
-		}
 	}
 
 	return true;
@@ -380,6 +380,8 @@ namespace UsdGeomMeshConversionImpl
 	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material )
 	{
 		UMaterialExpression* Result = nullptr;
+
+		FScopedUsdAllocs UsdAllocs;
 
 		pxr::UsdShadeConnectableAPI Source;
 		pxr::TfToken SourceName;
@@ -396,6 +398,8 @@ namespace UsdGeomMeshConversionImpl
 					pxr::SdfAssetPath TexturePath;
 					FileInput.Get< pxr::SdfAssetPath >( &TexturePath );
 
+					FScopedUnrealAllocs UnrealAllocs;
+
 					FString TextureFileName = UsdToUnreal::ConvertString( TexturePath.GetResolvedPath() );
 					TextureFileName.RemoveFromStart( TEXT("\\\\?\\") );
 
@@ -411,6 +415,7 @@ namespace UsdGeomMeshConversionImpl
 					{
 						UMaterialExpressionTextureSample* TextureSample = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
 						TextureSample->Texture = Texture2D;
+						TextureSample->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture2D );
 
 						Result = TextureSample;
 					}
@@ -532,6 +537,60 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	return bHasMaterialInfo;
 }
 
+bool UsdToUnreal::ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMaterialInstanceConstant& MaterialInstance, const pxr::UsdTimeCode TimeCode )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::VtArray< pxr::GfVec3f > UsdDisplayColors = UsdUtils::GetUsdValue< pxr::VtArray< pxr::GfVec3f > >( UsdMesh.GetDisplayColorAttr(), TimeCode );
+
+	if ( !UsdDisplayColors.empty() )
+	{
+		pxr::VtArray< float > UsdOpacities = UsdUtils::GetUsdValue< pxr::VtArray< float > >( UsdMesh.GetDisplayOpacityAttr(), TimeCode );
+
+		bool bHasTransparency = false;
+
+		for ( float Opacity : UsdOpacities )
+		{
+			bHasTransparency = !FMath::IsNearlyEqual( Opacity, 1.f );
+
+			if ( bHasTransparency )
+			{
+				break;
+			}
+		}
+
+		{
+			FScopedUnrealAllocs UnrealAllocs;
+
+			FSoftObjectPath MaterialPath;
+
+			if ( bHasTransparency )
+			{
+				MaterialPath = FSoftObjectPath( TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'") );
+			}
+			else
+			{
+				MaterialPath = FSoftObjectPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
+			}
+
+			UMaterialInterface* DisplayColorAndOpacityMaterial = Cast< UMaterialInterface >( MaterialPath.TryLoad() );
+			UMaterialEditingLibrary::SetMaterialInstanceParent( &MaterialInstance, DisplayColorAndOpacityMaterial );
+
+			/*if ( UsdMesh.GetDoubleSidedAttr().IsDefined() )
+			{
+				MaterialInstance.BasePropertyOverrides.bOverride_TwoSided = true;
+				MaterialInstance.BasePropertyOverrides.TwoSided = UsdUtils::GetUsdValue< bool >( UsdMesh.GetDoubleSidedAttr(), TimeCode );
+			}*/
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
 {
 	FScopedUsdAllocs UsdAllocs;
@@ -542,6 +601,8 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 	{
 		return false;
 	}
+
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
 
 	const FStaticMeshLODResources& RenderMesh = StaticMesh->GetLODForExport( 0 /*ExportLOD*/ );
 
@@ -571,7 +632,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexPosition = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
-					PointsArray.push_back( UnrealToUsd::ConvertVector( Stage, VertexPosition ) );
+					PointsArray.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexPosition ) );
 				}
 
 				Points.Set( PointsArray, TimeCode );
@@ -589,7 +650,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexNormal = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
-					Normals.push_back( UnrealToUsd::ConvertVector( Stage, VertexNormal ) );
+					Normals.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexNormal ) );
 				}
 
 				NormalsAttribute.Set( Normals, TimeCode );

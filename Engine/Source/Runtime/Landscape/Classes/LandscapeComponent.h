@@ -765,10 +765,17 @@ public:
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
 
 	/** @return Component section base as FIntPoint */
-	LANDSCAPE_API FIntPoint GetSectionBase() const; 
+	LANDSCAPE_API FIntPoint GetSectionBase() const
+	{
+		return FIntPoint(SectionBaseX, SectionBaseY);
+	}
 
 	/** @param InSectionBase new section base for a component */
-	LANDSCAPE_API void SetSectionBase(FIntPoint InSectionBase);
+	LANDSCAPE_API void SetSectionBase(FIntPoint InSectionBase)
+	{
+		SectionBaseX = InSectionBase.X;
+		SectionBaseY = InSectionBase.Y;
+	}
 
 	/** @todo document */
 	const FGuid& GetLightingGuid() const

@@ -134,6 +134,7 @@ void UNiagaraStackFunctionInput::Initialize(
 	Super::Initialize(InRequiredEntryData, bInputIsAdvanced, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
 	OwningModuleNode = &InModuleNode;
 	OwningFunctionCallNode = &InInputFunctionCallNode;
+	OwningFunctionCallInitialScript = OwningFunctionCallNode->FunctionScript;
 	OwningAssignmentNode = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get());
 
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
@@ -229,6 +230,11 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 const UNiagaraNodeFunctionCall& UNiagaraStackFunctionInput::GetInputFunctionCallNode() const
 {
 	return *OwningFunctionCallNode.Get();
+}
+
+UNiagaraScript* UNiagaraStackFunctionInput::GetInputFunctionCallInitialScript() const
+{
+	return OwningFunctionCallInitialScript.Get();
 }
 
 UNiagaraStackFunctionInput::EValueMode UNiagaraStackFunctionInput::GetValueMode()
@@ -347,7 +353,7 @@ FText UNiagaraStackFunctionInput::GetPasteTransactionText(const UNiagaraClipboar
 	return LOCTEXT("PasteInputTransactionText", "Paste niagara inputs");
 }
 
-void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
 	checkf(ClipboardContent != nullptr && ClipboardContent->FunctionInputs.Num() == 1, TEXT("Clipboard must not be null, and must contain a single input.  Call TestCanPasteWithMessage to validate"));
 

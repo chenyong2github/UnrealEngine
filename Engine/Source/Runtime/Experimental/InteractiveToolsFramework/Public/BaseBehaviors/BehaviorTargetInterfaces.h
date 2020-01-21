@@ -38,9 +38,9 @@ public:
 	/**
 	 * Test if target is hit by a click
 	 * @param ClickPos device position/ray at click point
-	 * @return true if target was hit by click ray/point
+	 * @return hit information at this point
 	 */
-	virtual bool IsHitByClick(const FInputDeviceRay& ClickPos) = 0;
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) = 0;
 
 
 	/**

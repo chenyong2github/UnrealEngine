@@ -510,9 +510,16 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		}
 		else if (Owner->GetLocalRole() == ROLE_SimulatedProxy)
 		{
-			FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastConfirmed, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
-			int32 HeadFrame = NetworkSim->Buffers.Sync.HeadFrame();
-			NetworkSim->Driver->InvokeVisualLog(NetworkSim->Buffers.Input[HeadFrame], NetworkSim->Buffers.Sync[HeadFrame], NetworkSim->Buffers.Aux[HeadFrame], VLogParams);
+			{
+				FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
+				int32 HeadFrame = NetworkSim->Buffers.Sync.HeadFrame();
+				NetworkSim->Driver->InvokeVisualLog(NetworkSim->Buffers.Input[HeadFrame], NetworkSim->Buffers.Sync[HeadFrame], NetworkSim->Buffers.Aux[HeadFrame], VLogParams);
+			}
+
+			{
+				FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastConfirmed, NetworkSim->Buffers.Sync.HeadFrame(), EVisualLoggingLifetime::Transient);
+				NetworkSim->Driver->InvokeVisualLog(&NetworkSim->RepProxy_Simulated.GetLastSerializedInputCmd(), &NetworkSim->RepProxy_Simulated.GetLastSerializedSyncState(), &NetworkSim->RepProxy_Simulated.GetLastSerializedAuxState(), VLogParams);
+			}
 			
 			if (NetworkSim->GetSimulatedUpdateMode() != ESimulatedUpdateMode::Interpolate)
 			{

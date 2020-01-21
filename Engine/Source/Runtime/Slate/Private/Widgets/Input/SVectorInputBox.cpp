@@ -39,6 +39,8 @@ void SVectorInputBox::ConstructX( const FArguments& InArgs, TSharedRef<SHorizont
 		MarginAttribute = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SVectorInputBox::GetTextMargin));
 	}
 
+	TAttribute<TOptional<float>> Value = InArgs._X;
+
 	HorizontalBox->AddSlot()
 	.VAlign( VAlign_Center )
 	.FillWidth( 1.0f )
@@ -49,8 +51,15 @@ void SVectorInputBox::ConstructX( const FArguments& InArgs, TSharedRef<SHorizont
 		.Font( InArgs._Font )
 		.Value( InArgs._X )
 		.OnValueChanged( InArgs._OnXChanged )
-		.OnValueCommitted( InArgs._OnXCommitted )		
-		.ToolTipText( LOCTEXT("X_ToolTip", "X Value") )
+		.OnValueCommitted( InArgs._OnXCommitted )
+		.ToolTipText(MakeAttributeLambda([Value]
+		{
+			if (Value.Get().IsSet())
+			{
+				return FText::Format(LOCTEXT("X_ToolTip", "X Value = {0}"), Value.Get().GetValue());
+			}
+			return LOCTEXT("MultipleValues", "Multiple Values");
+		}))
 		.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
 		.LabelPadding(0)
 		.OverrideTextMargin(MarginAttribute)
@@ -82,6 +91,8 @@ void SVectorInputBox::ConstructY( const FArguments& InArgs, TSharedRef<SHorizont
 		MarginAttribute = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SVectorInputBox::GetTextMargin));
 	}
 
+	TAttribute<TOptional<float>> Value = InArgs._Y;
+
 	HorizontalBox->AddSlot()
 	.VAlign( VAlign_Center )
 	.FillWidth( 1.0f )
@@ -93,7 +104,14 @@ void SVectorInputBox::ConstructY( const FArguments& InArgs, TSharedRef<SHorizont
 		.Value( InArgs._Y )
 		.OnValueChanged( InArgs._OnYChanged )
 		.OnValueCommitted( InArgs._OnYCommitted )
-		.ToolTipText( LOCTEXT("Y_ToolTip", "Y Value") )
+		.ToolTipText(MakeAttributeLambda([Value]
+		{
+			if (Value.Get().IsSet())
+			{
+				return FText::Format(LOCTEXT("Y_ToolTip", "Y Value = {0}"), Value.Get().GetValue());
+			}
+			return LOCTEXT("MultipleValues", "Multiple Values");
+		}))
 		.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
 		.LabelPadding(0)
 		.OverrideTextMargin(MarginAttribute)
@@ -125,6 +143,8 @@ void SVectorInputBox::ConstructZ( const FArguments& InArgs, TSharedRef<SHorizont
 		MarginAttribute = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SVectorInputBox::GetTextMargin));
 	}
 
+	TAttribute<TOptional<float>> Value = InArgs._Z;
+
 	HorizontalBox->AddSlot()
 	.VAlign( VAlign_Center )
 	.FillWidth( 1.0f )
@@ -136,7 +156,14 @@ void SVectorInputBox::ConstructZ( const FArguments& InArgs, TSharedRef<SHorizont
 		.Value( InArgs._Z )
 		.OnValueChanged( InArgs._OnZChanged )
 		.OnValueCommitted( InArgs._OnZCommitted )
-		.ToolTipText( LOCTEXT("Z_ToolTip", "Z Value") )
+		.ToolTipText(MakeAttributeLambda([Value]
+		{	
+			if (Value.Get().IsSet())
+			{
+				return FText::Format(LOCTEXT("Z_ToolTip", "Z Value = {0}"), Value.Get().GetValue());
+			}
+			return LOCTEXT("MultipleValues", "Multiple Values");
+		}))
 		.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
 		.LabelPadding(0)
 		.OverrideTextMargin(MarginAttribute)

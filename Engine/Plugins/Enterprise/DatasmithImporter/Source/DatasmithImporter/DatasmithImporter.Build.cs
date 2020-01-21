@@ -55,6 +55,7 @@ namespace UnrealBuildTool.Rules
 					"DataprepCore",
 					"DatasmithContent",
                     "DatasmithCore",
+					"DatasmithTranslator",
                     "DatasmithContentEditor",
 				}
 			);

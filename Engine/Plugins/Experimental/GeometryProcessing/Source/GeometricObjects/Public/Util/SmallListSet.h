@@ -32,36 +32,31 @@ protected:
 	static constexpr int32 BLOCK_LIST_OFFSET = BLOCKSIZE + 1;
 
 	/** mapping from list index to offset into block_store that contains list data */
-	TDynamicVector<int32> ListHeads;
+	TDynamicVector<int32> ListHeads{};
 
 	/** 
 	 * flat buffer used to store per-list linear-memory blocks. 
 	 * blocks are BLOCKSIZE+2 long, elements are [CurrentCount, item0...itemN, LinkedListPtr]
 	 */
-	TDynamicVector<int32> ListBlocks; 
+	TDynamicVector<int32> ListBlocks{};
 
 	/** list of free blocks as indices/offsets into block_store */
-	TDynamicVector<int32> FreeBlocks;
+	TDynamicVector<int32> FreeBlocks{};
 
 	/** number of allocated lists */
-	int32 AllocatedCount = 0;
+	int32 AllocatedCount{0};
 
 	/**
 	 * flat buffer used to store linked-list "spill" elements
 	 * each element is [value, next_ptr]
 	 */
-	TDynamicVector<int32> LinkedListElements;
+	TDynamicVector<int32> LinkedListElements{};
 
 	/** index of first free element in linked_store */
-	int32 FreeHeadIndex;
+	int32 FreeHeadIndex{NullValue};
 
 
 public:
-	FSmallListSet();
-
-	FSmallListSet(const FSmallListSet& copy);
-
-
 	/**
 	 * @return largest current list index
 	 */

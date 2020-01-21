@@ -14,8 +14,10 @@
 #include "EditorViewportCommands.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "SEditorViewportViewMenu.h"
+#include "AssetEditorViewportLayout.h"
+#include "SAssetEditorViewport.h"
 
-#define LOCTEXT_NAMESPACE "LevelViewportToolBar"
+#define LOCTEXT_NAMESPACE "SCommonEditorViewportToolbarBase"
 
 //////////////////////////////////////////////////////////////////////////
 // SCommonEditorViewportToolbarBase
@@ -181,6 +183,20 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateOptionsMenu() cons
 			OptionsMenuBuilder.AddWidget(GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage"));
 		}
 		OptionsMenuBuilder.EndSection();
+
+ 		TSharedPtr<SAssetEditorViewport> AssetEditorViewportPtr = StaticCastSharedRef<SAssetEditorViewport>(ViewportRef);
+ 		if (AssetEditorViewportPtr.IsValid())
+		{
+			OptionsMenuBuilder.BeginSection("EditorViewportLayouts");
+			{
+				OptionsMenuBuilder.AddSubMenu(
+					LOCTEXT("ConfigsSubMenu", "Layouts"),
+					FText::GetEmpty(),
+					FNewMenuDelegate::CreateSP(AssetEditorViewportPtr.Get(), &SAssetEditorViewport::GenerateLayoutMenu));
+			}
+			OptionsMenuBuilder.EndSection();
+		}
+
 		ExtendOptionsMenu(OptionsMenuBuilder);
 	}
 

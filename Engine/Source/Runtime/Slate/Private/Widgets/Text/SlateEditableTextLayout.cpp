@@ -963,7 +963,7 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 	else if (Key == EKeys::Enter && !OwnerWidget->IsTextReadOnly())
 	{
 		FScopedEditableTextTransaction TextTransaction(*this);
-		HandleCarriageReturn();
+		HandleCarriageReturn(InKeyEvent.IsRepeat());
 		Reply = FReply::Handled();
 	}
 	else if (Key == EKeys::Tab && OwnerWidget->CanTypeCharacter(TEXT('\t')))
@@ -1488,7 +1488,7 @@ bool FSlateEditableTextLayout::HandleTypeChar(const TCHAR InChar)
 	return false;
 }
 
-bool FSlateEditableTextLayout::HandleCarriageReturn()
+bool FSlateEditableTextLayout::HandleCarriageReturn(bool isRepeat)
 {
 	if (OwnerWidget->IsTextReadOnly())
 	{
@@ -1498,6 +1498,11 @@ bool FSlateEditableTextLayout::HandleCarriageReturn()
 	if (OwnerWidget->IsMultiLineTextEdit() && OwnerWidget->CanInsertCarriageReturn())
 	{
 		InsertNewLineAtCursorImpl();
+	}
+	else if (isRepeat)
+	{
+		// Skip committing text on a repeat enter key
+		return false;
 	}
 	else
 	{

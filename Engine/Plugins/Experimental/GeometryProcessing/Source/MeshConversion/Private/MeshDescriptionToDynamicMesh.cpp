@@ -36,7 +36,7 @@ public:
 		UVOverlay = UVOverlayIn;
 	}
 
-	int FindOrAddUnique(const FVector2D & UV, int VertexID)
+	int FindOrAddUnique(const FVector2D& UV, int VertexID)
 	{
 		FVertexUV VertUV = { VertexID, UV.X, UV.Y };
 
@@ -47,7 +47,7 @@ public:
 		}
 		else
 		{
-			NewIndex = UVOverlay->AppendElement(UV, VertexID);
+			NewIndex = UVOverlay->AppendElement(FVector2f(UV), VertexID);
 			UniqueVertexUVs.Add(VertUV, NewIndex);
 		}
 		return NewIndex;
@@ -173,8 +173,9 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	}
 	FNormalWelder NormalWelder(NormalOverlay);
 
-	// only enable material ID if we have more than one material
-	FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
+	// always enable material ID
+	MeshOut.Attributes()->EnableMaterialID();
+	FDynamicMeshMaterialAttribute* MaterialIDAttrib = MeshOut.Attributes()->GetMaterialID();
 
 	// NOTE: If you change the iteration order here, please update the corresponding iteration in FDynamicMeshToMeshDescription::UpdateAttributes, 
 	//	which assumes the iteration order here is polygons -> triangles, to correspond the triangles when writing updated attributes back!
@@ -182,11 +183,6 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
 	{
 		int32 PolygonGroupID = MeshIn->GetPolygonPolygonGroup(PolygonID).GetValue();
-		if (MaterialIDAttrib == nullptr && PolygonGroupID != 0)
-		{
-			MeshOut.Attributes()->EnableMaterialID();		// initializes all existing values to 0, which is fine since this is first non-zero
-			MaterialIDAttrib = MeshOut.Attributes()->GetMaterialID();
-		}
 
 		const TArray<FTriangleID>& TriangleIDs = MeshIn->GetPolygonTriangleIDs(PolygonID);
 		int NumTriangles = TriangleIDs.Num();

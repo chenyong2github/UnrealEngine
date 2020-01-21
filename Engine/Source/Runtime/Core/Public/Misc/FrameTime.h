@@ -102,6 +102,7 @@ private:
 	friend FFrameTime& operator+=(FFrameTime& LHS, FFrameTime RHS);
 	friend FFrameTime  operator+(FFrameTime A, FFrameTime B);
 	friend FFrameTime  operator-(FFrameTime A, FFrameTime B);
+	friend FFrameTime  operator%(FFrameTime A, FFrameTime B);
 
 	friend FFrameTime  operator-(FFrameTime A);
 
@@ -217,6 +218,26 @@ FORCEINLINE_DEBUGGABLE FFrameTime operator-(FFrameTime A, FFrameTime B)
 	const FFrameNumber NewFrameNumber  = A.FrameNumber - B.FrameNumber + FFrameNumber(FlooredSubFrame);
 
 	return FFrameTime(NewFrameNumber, NewSubFrame - FlooredSubFrame);
+}
+
+
+FORCEINLINE_DEBUGGABLE FFrameTime operator%(FFrameTime A, FFrameTime B)
+{
+	check(B.FrameNumber.Value != 0 || B.GetSubFrame() != 0.f);
+
+	if (A.SubFrame == 0.f && B.SubFrame == 0.f)
+	{
+		return FFrameTime(A.FrameNumber % B.FrameNumber);
+	}
+	else
+	{
+		FFrameTime Result = A;
+		while (Result >= B)
+		{
+			Result = Result - B;
+		}
+		return Result;
+	}
 }
 
 

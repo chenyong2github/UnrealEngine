@@ -425,13 +425,6 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		// Temporary workaround for FORT-245343
-		// TODO: find a more elegant solution
-		while (!IORequest->PollCompletion())
-		{
-			FPlatformProcess::Sleep(0.000001f);
-		}
-		
 		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
 

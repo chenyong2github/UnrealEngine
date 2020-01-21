@@ -121,7 +121,6 @@
 #include "VectorStructCustomization.h"
 #include "Vector4StructCustomization.h"
 #include "AssetViewerSettingsCustomization.h"
-#include "EngineCustomization.h"
 #include "MeshMergingSettingsCustomization.h"
 #include "MaterialAttributePropertyDetails.h"
 #include "CollectionReferenceStructCustomization.h"
@@ -369,7 +368,6 @@ void FDetailCustomizationsModule::RegisterObjectCustomizations()
 	RegisterCustomClassLayout("CrashReportsPrivacySettings", FOnGetDetailCustomizationInstance::CreateStatic(&FImportantToggleSettingCustomization::MakeInstance));
 
 	RegisterCustomClassLayout("AssetViewerSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FAssetViewerSettingsCustomization::MakeInstance));
-	RegisterCustomClassLayout("Engine", FOnGetDetailCustomizationInstance::CreateStatic(&FEngineCustomization::MakeInstance));
 
 	RegisterCustomClassLayout("MeshMergingSettingsObject", FOnGetDetailCustomizationInstance::CreateStatic(&FMeshMergingSettingsObjectCustomization::MakeInstance));
 

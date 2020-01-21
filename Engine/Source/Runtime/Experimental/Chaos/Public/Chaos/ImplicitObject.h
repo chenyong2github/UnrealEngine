@@ -79,6 +79,7 @@ namespace EImplicitObject
 	{
 		IsConvex = 1,
 		HasBoundingBox = 1 << 1,
+		DisableCollisions = 1 << 2
 	};
 
 	const int32 FiniteConvex = IsConvex | HasBoundingBox;
@@ -174,12 +175,14 @@ public:
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
 	FVec3 Normal(const FVec3& x) const;
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
-	virtual const class TAABB<FReal, 3>& BoundingBox() const;
+	virtual const class TAABB<FReal, 3> BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
+
 	bool IsConvex() const { return bIsConvex; }
+	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
+
 	void SetDoCollide(const bool Collide ) { bDoCollide = Collide; }
 	bool GetDoCollide() const { return bDoCollide; }
-	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
 	
 #if TRACK_CHAOS_GEOMETRY
 	//Turn on memory tracking. Must pass object itself as a serializable ptr so we can save it out
@@ -270,7 +273,7 @@ public:
 
 	virtual FString ToString() const
 	{
-		return FString::Printf(TEXT("ImplicitObject bIsConvex:%d, bIgnoreAnalyticCollision:%d, bHasBoundingBox:%d"), bIsConvex, bDoCollide, bHasBoundingBox);
+		return FString::Printf(TEXT("ImplicitObject bIsConvex:%d, bDoCollide:%d, bHasBoundingBox:%d"), bIsConvex, bDoCollide, bHasBoundingBox);
 	}
 
 	void SerializeImp(FArchive& Ar);

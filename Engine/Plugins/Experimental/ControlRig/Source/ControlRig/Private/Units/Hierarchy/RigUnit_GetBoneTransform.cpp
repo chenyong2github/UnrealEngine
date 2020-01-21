@@ -19,7 +19,6 @@ FRigUnit_GetBoneTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				break;
 			}
 			case EControlRigState::Update:
 			{

@@ -30,6 +30,7 @@ namespace Chaos
 		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
 		CHAOS_API int32 GetConstraintLevel() const;
 		CHAOS_API const FPBDJointSettings& GetSettings() const;
+		CHAOS_API void SetSettings(const FPBDJointSettings& Settings);
 		CHAOS_API TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
 
 	protected:
@@ -123,6 +124,7 @@ namespace Chaos
 		const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
+		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
 
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
 		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
@@ -130,6 +132,9 @@ namespace Chaos
 		//
 		// General Rule API
 		//
+
+		void PrepareConstraints(FReal Dt);
+		void UnprepareConstraints(FReal Dt);
 
 		void UpdatePositionBasedState(const FReal Dt);
 
@@ -155,8 +160,6 @@ namespace Chaos
 	private:
 		friend class FPBDJointConstraintHandle;
 
-		void PrepareConstraints(FReal Dt);
-
 		void GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const;
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const;
 		void UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity = true);
@@ -176,6 +179,7 @@ namespace Chaos
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
+		bool bRequiresSort;
 
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
@@ -183,8 +187,6 @@ namespace Chaos
 
 		// @todo(ccaulfield): optimize storage for joint solver
 		TArray<FJointSolverGaussSeidel> ConstraintSolvers;
-
-		bool bRequiresSort;
 	};
 
 }

@@ -49,6 +49,7 @@ struct FLocalFileReplayDataInfo
 		Time1(0),
 		Time2(0),
 		SizeInBytes(0),
+		MemorySizeInBytes(0),
 		ReplayDataOffset(0),
 		StreamOffset(0)
 	{}
@@ -57,6 +58,7 @@ struct FLocalFileReplayDataInfo
 	uint32 Time1;
 	uint32 Time2;
 	int32 SizeInBytes;
+	int32 MemorySizeInBytes;
 	int64 ReplayDataOffset;
 	int64 StreamOffset;
 };
@@ -96,6 +98,7 @@ struct FLocalFileReplayInfo
 		bIsLive(false),
 		bIsValid(false),
 		bCompressed(false),
+		bEncrypted(false),
 		HeaderChunkIndex(INDEX_NONE)
 	{}
 
@@ -108,6 +111,9 @@ struct FLocalFileReplayInfo
 	bool bIsLive;
 	bool bIsValid;
 	bool bCompressed;
+
+	bool bEncrypted;
+	TArray<uint8> EncryptionKey;
 
 	int32 HeaderChunkIndex;
 
@@ -450,9 +456,17 @@ public:
 	virtual const int32 GetUserIndexFromUserString(const FString& UserString) override;
 
 	virtual bool SupportsCompression() const { return false; }
-	virtual int32 GetDecompressedSize(FArchive& InCompressed) const { return 0; }
-	virtual bool DecompressBuffer(const TArray<uint8>& InCompressed, TArray< uint8 >& OutBuffer) const { return false; }
-	virtual bool CompressBuffer(const TArray< uint8 >& InBuffer, TArray< uint8 >& OutCompressed) const { return false; }
+
+	UE_DEPRECATED(4.25, "No longer used")
+	virtual int32 GetDecompressedSize(FArchive& InCompressed) const;
+
+	virtual bool DecompressBuffer(const TArray<uint8>& InCompressed, TArray<uint8>& OutBuffer) const { return false; }
+	virtual bool CompressBuffer(const TArray<uint8>& InBuffer, TArray<uint8>& OutCompressed) const { return false; }
+
+	virtual bool SupportsEncryption() const { return false; }
+	virtual void GenerateEncryptionKey(TArray<uint8>& EncryptionKey) {}
+	virtual bool EncryptBuffer(TArrayView<const uint8> Plaintext, TArray<uint8>& Ciphertext, TArrayView<const uint8> EncryptionKey) const { return false; }
+	virtual bool DecryptBuffer(TArrayView<const uint8> Ciphertext, TArray<uint8>& Plaintext, TArrayView<const uint8> EncryptionKey) const { return false; }
 
 	void Tick(float DeltaSeconds);
 
@@ -629,6 +643,8 @@ protected:
 	bool bCacheFileReadsInMemory;
 	mutable TMap<FString, TArray<uint8>> FileContentsCache;
 	const TArray<uint8>& GetCachedFileContents(const FString& Filename) const;
+
+	void UpdateCurrentReplayInfo(FLocalFileReplayInfo& ReplayInfo);
 
 public:
 	static const FString& GetDefaultDemoSavePath();

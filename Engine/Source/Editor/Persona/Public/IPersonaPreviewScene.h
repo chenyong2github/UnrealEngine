@@ -156,6 +156,15 @@ public:
 	/** Unregisters a delegate to be called when the preview mesh's LOD has changed */
 	virtual void UnregisterOnLODChanged(void* Thing) = 0;
 
+	/** Registers a delegate to be called when the preview mesh's morph targets has changed */
+	virtual void RegisterOnMorphTargetsChanged(const FSimpleDelegate& Delegate) = 0;
+
+	/** Unregisters a delegate to be called when the preview mesh's morph targets has changed */
+	virtual void UnregisterOnMorphTargetsChanged(void* Thing) = 0;
+
+	/** Broadcasts that the preview mesh morph targets has changed */
+	virtual void BroadcastOnMorphTargetsChanged() = 0;
+
 	/** Registers a delegate to be called when the view is invalidated */
 	virtual void RegisterOnInvalidateViews(const FSimpleDelegate& Delegate) = 0;
 

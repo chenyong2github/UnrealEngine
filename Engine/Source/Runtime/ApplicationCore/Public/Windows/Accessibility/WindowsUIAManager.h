@@ -5,7 +5,7 @@
 #if WITH_ACCESSIBILITY
 
 #include "Templates/SharedPointer.h"
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 class FWindowsApplication;
 class FWindowsWindow;
@@ -68,6 +68,14 @@ public:
 	void OnAccessibleMessageHandlerChanged();
 
 	uint32 GetCachedCurrentLocaleLCID() const { return CachedCurrentLocaleLCID; }
+
+	/**
+	* Runs the passed in function in the game thread. 
+	* Blocks until the function completes execution in the game thread.
+
+	* @param Function The function to run in the game thread 
+	*/
+	void RunInGameThreadBlocking(const TFunction<void()>& Function) const;
 
 	static TMap<EAccessibleWidgetType, ULONG> WidgetTypeToWindowsTypeMap;
 	static TMap<EAccessibleWidgetType, FText> WidgetTypeToTextMap;

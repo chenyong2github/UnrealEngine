@@ -311,7 +311,7 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 	DynamicsProcessor.SetKneeBandwidth(10.0f);
 	DynamicsProcessor.SetInputGain(0.0f);
 	DynamicsProcessor.SetOutputGain(0.0f);
-	DynamicsProcessor.SetChannelLinked(true);
+	DynamicsProcessor.SetChannelLinkMode(Audio::EDynamicsProcessorChannelLinkMode::Average);
 	DynamicsProcessor.SetAnalogMode(true);
 	DynamicsProcessor.SetPeakMode(Audio::EPeakMode::Peak);
 	DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::Compressor);
@@ -358,6 +358,8 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 		ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 		FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
 	}
+
+	SoundWaveDecoder.Reset();
 }
 
 void UTimeSynthComponent::OnEndGenerate() 

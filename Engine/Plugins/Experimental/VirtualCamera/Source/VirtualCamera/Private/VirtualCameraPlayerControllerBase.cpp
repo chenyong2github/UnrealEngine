@@ -18,6 +18,7 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 #include "VirtualCamera.h"
+#include "VirtualCameraSubsystem.h"
 #include "VPGameMode.h"
 #include "VPRootActor.h"
 
@@ -79,6 +80,12 @@ void AVirtualCameraPlayerControllerBase::BeginPlay()
 	if (RootActor == nullptr)
 	{
 		UE_LOG(LogVirtualCamera, Warning, TEXT("There is no VP Root Actor in the scene. A CineCameraActor will be spawned. Multi user functionalities may suffer."));
+	}
+
+	// set controller implementation (aka this) onto camera subsystem
+	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
+	{
+		SubSystem->SetVirtualCameraController(this);
 	}
 
 	// Make a default sequence playback controller
@@ -1417,4 +1424,29 @@ bool AVirtualCameraPlayerControllerBase::ToggleAxisLock(const EVirtualCameraAxis
 void AVirtualCameraPlayerControllerBase::ActivateGameViewport()
 {
 	FSlateApplication::Get().ActivateGameViewport();
+}
+
+UCineCameraComponent* AVirtualCameraPlayerControllerBase::GetStreamedCameraComponent_Implementation() const
+{
+	return GetVirtualCameraCineCameraComponent();
+}
+
+UCineCameraComponent* AVirtualCameraPlayerControllerBase::GetRecordingCameraComponent_Implementation() const
+{
+	return TargetCameraActor ? TargetCameraActor->GetCineCameraComponent() : nullptr;
+}
+
+ULevelSequencePlaybackController* AVirtualCameraPlayerControllerBase::GetSequenceController_Implementation() const
+{
+	return LevelSequencePlaybackController;
+}
+
+TScriptInterface<IVirtualCameraPresetContainer> AVirtualCameraPlayerControllerBase::GetPresetContainer_Implementation() const
+{
+	return GetVirtualCameraPawn();
+}
+
+TScriptInterface<IVirtualCameraOptions> AVirtualCameraPlayerControllerBase::GetOptions_Implementation() const
+{
+	return GetVirtualCameraPawn();
 }

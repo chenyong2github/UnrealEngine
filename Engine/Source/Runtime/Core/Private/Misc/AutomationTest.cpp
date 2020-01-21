@@ -1199,93 +1199,115 @@ void FAutomationTestBase::GenerateTestNames(TArray<FAutomationTestInfo>& TestInf
 
 // --------------------------------------------------------------------------------------
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const int32 Expected)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const int32 Expected)
 {
 	if (Actual != Expected)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %d, but it was %d."), What, Expected, Actual), 1);
+		return false;
 	}
+	return true;
 }
 
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
 {
 	if (Actual != Expected)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRId64 ", but it was %" PRId64 "."), What, Expected, Actual), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
 {
 	if (!FMath::IsNearlyEqual(Actual, Expected, Tolerance))
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %f, but it was %f within tolerance %f."), What, Expected, Actual, Tolerance), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance)
 {
 	if (!FMath::IsNearlyEqual(Actual, Expected, Tolerance))
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %f, but it was %f within tolerance %f."), What, Expected, Actual, Tolerance), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance)
 {
 	if (!Expected.Equals(Actual, Tolerance))
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s within tolerance %f."), What, *Expected.ToString(), *Actual.ToString(), Tolerance), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const FColor Actual, const FColor Expected)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const FColor Actual, const FColor Expected)
 {
 	if (Expected != Actual)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s."), What, *Expected.ToString(), *Actual.ToString()), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected)
 {
 	if (FCString::Strcmp(Actual, Expected) != 0)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s."), What, Expected, Actual), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected)
+bool FAutomationTestBase::TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected)
 {
 	if (FCString::Stricmp(Actual, Expected) != 0)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s."), What, Expected, Actual), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestFalse(const TCHAR* What, bool Value)
+bool FAutomationTestBase::TestFalse(const TCHAR* What, bool Value)
 {
 	if (Value)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be false."), What), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestTrue(const TCHAR* What, bool Value)
+bool FAutomationTestBase::TestTrue(const TCHAR* What, bool Value)
 {
 	if (!Value)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be true."), What), 1);
+		return false;
 	}
+	return true;
 }
 
-void FAutomationTestBase::TestNull(const TCHAR* What, const void* Pointer)
+bool FAutomationTestBase::TestNull(const TCHAR* What, const void* Pointer)
 {
 	if ( Pointer != nullptr )
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be null."), *What), 1);
+		return false;
 	}
+	return true;
 }
 
 bool FAutomationTestBase::IsExpectedError(const FString& Error)

@@ -115,6 +115,13 @@ struct TPyWrapperDelegateMetaData : public FPyWrapperBaseMetaData
 		return GetPythonCallableForDelegateClass(Py_TYPE(Instance));
 	}
 
+	/** Add object references from the given Python object to the given collector */
+	virtual void AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector) override
+	{
+		Collector.AddReferencedObject(DelegateSignature.Func);
+		Collector.AddReferencedObject(PythonCallableForDelegateClass);
+	}
+
 	/** Get the reflection meta data type object associated with this wrapper type if there is one or nullptr if not. */
 	virtual const UField* GetMetaType() const override
 	{

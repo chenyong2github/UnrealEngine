@@ -18,6 +18,7 @@
 
 class FDistanceFieldVolumeData;
 class UStaticMesh;
+class UTexture2D;
 
 template <class T> class TLockFreePointerListLIFO;
 
@@ -152,6 +153,109 @@ private:
 };
 
 extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
+
+class ENGINE_API FHeightFieldTextureAtlas : public FRenderResource
+{
+public:
+	void InitializeIfNeeded();
+
+	void AddAllocation(const UTexture2D* Texture);
+
+	void RemoveAllocation(const UTexture2D* Texture);
+
+	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
+
+	uint32 GetAllocationHandle(const UTexture2D* Texture) const;
+
+	FVector4 GetTileScaleBias(uint32 TileHandle) const;
+
+	FRHITexture2D* GetAtlasTexture() const
+	{
+		return AtlasTextureRHI;
+	}
+
+	uint32 GetSizeX() const
+	{
+		return TileAllocator.DimInTexels;
+	}
+
+	uint32 GetSizeY() const
+	{
+		return TileAllocator.DimInTexels;
+	}
+
+	uint32 GetGeneration() const
+	{
+		return Generation;
+	}
+
+private:
+	class FSubAllocator
+	{
+	public:
+		void Init(uint32 InTileSize, uint32 InBorderSize, uint32 InDimInTiles);
+
+		uint32 AllocTile();
+
+		void FreeTile(uint32 TileIdx);
+
+		bool CanAlloc() const;
+
+		FIntPoint GetTileCoord(uint32 TileIdx) const;
+
+	private:
+		uint32 TileSize;
+		uint32 BorderSize;
+		uint32 TileSizeWithBorder;
+		uint32 DimInTiles;
+		uint32 DimInTilesShift;
+		uint32 DimInTilesMask;
+		uint32 DimInTexels;
+		uint32 MaxNumTiles;
+
+		float TexelSize;
+		float TileScale;
+
+		uint32 NextFreeTileIdx;
+		TArray<uint32> FreeTileIndices;
+
+		friend class FHeightFieldTextureAtlas;
+	};
+
+	struct FAllocation
+	{
+		const UTexture2D* SourceTexture;
+		uint32 RefCount;
+		uint32 TileIdx;
+
+		FAllocation();
+
+		FAllocation(const UTexture2D* InTexture);
+
+		bool operator==(const FAllocation& Other) const
+		{
+			return SourceTexture == Other.SourceTexture;
+		}
+
+		friend uint32 GetTypeHash(const FAllocation& Key)
+		{
+			return GetTypeHash(Key.SourceTexture);
+		}
+	};
+
+	FSubAllocator TileAllocator;
+
+	TSet<FAllocation> PendingAllocations;
+	TSet<FAllocation> FailedAllocations;
+	TSet<FAllocation> CurrentAllocations;
+
+	FTexture2DRHIRef AtlasTextureRHI;
+	FUnorderedAccessViewRHIRef AtlasUAVRHI;
+
+	uint32 Generation;
+};
+
+extern ENGINE_API TGlobalResource<FHeightFieldTextureAtlas> GHeightFieldTextureAtlas;
 
 /** Distance field data payload and output of the mesh build process. */
 class ENGINE_API FDistanceFieldVolumeData : public FDeferredCleanupInterface

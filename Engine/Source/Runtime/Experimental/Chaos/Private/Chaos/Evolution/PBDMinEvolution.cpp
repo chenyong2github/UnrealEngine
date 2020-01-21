@@ -22,6 +22,8 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::PrepareConstraints"), STAT_MinEvolution_PrepareConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UnprepareConstraints"), STAT_MinEvolution_UnprepareConstraints, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_Chaos);
@@ -44,6 +46,14 @@ namespace Chaos
 
 	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps)
 	{
+		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+		{
+			if (Particle.ObjectState() == EObjectStateType::Dynamic)
+			{
+				Particle.F() += Particle.M() * Gravity;
+			}
+		}
+
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
@@ -53,6 +63,15 @@ namespace Chaos
 			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
 			AdvanceOneTimeStep(StepDt, StepFraction);
+		}
+
+		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+		{
+			if (Particle.ObjectState() == EObjectStateType::Dynamic)
+			{
+				Particle.F() = FVec3(0);
+				Particle.Torque() = FVec3(0);
+			}
 		}
 	}
 
@@ -78,6 +97,8 @@ namespace Chaos
 
 		if (Dt > 0)
 		{
+			PrepareConstraints(Dt);
+
 			ApplyConstraints(Dt);
 
 			if (PostApplyCallback != nullptr)
@@ -93,6 +114,8 @@ namespace Chaos
 			{
 				PostApplyPushOutCallback();
 			}
+
+			UnprepareConstraints(Dt);
 
 			UpdatePositions(Dt);
 		}
@@ -115,18 +138,16 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				Particle.F() += Particle.M() * Gravity;
-
 				EulerStepVelocityRule.Apply(Particle, Dt);
+
 				AddImpulsesRule.Apply(Particle, Dt);
+				Particle.LinearImpulse() = FVec3(0);
+				Particle.AngularImpulse() = FVec3(0);
+
 				EtherDragRule.Apply(Particle, Dt);
 
 				EulerStepPositionRule.Apply(Particle, Dt);
 
-				Particle.F() = FVec3(0);
-				Particle.Torque() = FVec3(0);
-				Particle.LinearImpulse() = FVec3(0);
-				Particle.AngularImpulse() = FVec3(0);
 
 				if (Particle.HasBounds())
 				{
@@ -236,6 +257,26 @@ namespace Chaos
 		}
 
 		CollisionDetector.DetectCollisions(Dt);
+	}
+
+	void FPBDMinEvolution::PrepareConstraints(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+
+		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		{
+			ConstraintRule->PrepareConstraints(Dt);
+		}
+	}
+
+	void FPBDMinEvolution::UnprepareConstraints(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+
+		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		{
+			ConstraintRule->UnprepareConstraints(Dt);
+		}
 	}
 
 	void FPBDMinEvolution::ApplyConstraints(FReal Dt)

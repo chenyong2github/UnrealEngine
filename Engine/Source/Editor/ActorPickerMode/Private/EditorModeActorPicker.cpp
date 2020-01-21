@@ -11,12 +11,13 @@
 
 FEdModeActorPicker::FEdModeActorPicker()
 {
-	PickState = EPickState::NotOverViewport;
-	HoveredActor.Reset();
 }
 
-void FEdModeActorPicker::Initialize()
+void FEdModeActorPicker::Enter()
 {
+	FEdMode::Enter();
+	PickState = EPickState::NotOverViewport;
+	HoveredActor.Reset();
 	CursorDecoratorWindow = SWindow::MakeCursorDecorator();
 	FSlateApplication::Get().AddWindow(CursorDecoratorWindow.ToSharedRef(), true);
 	CursorDecoratorWindow->SetContent(

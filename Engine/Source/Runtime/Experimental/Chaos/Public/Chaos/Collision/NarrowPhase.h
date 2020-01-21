@@ -7,9 +7,12 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "ChaosStats.h"
 
 namespace Chaos
 {
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::NarrowPhase"), STAT_Collisions_NarrowPhase, STATGROUP_ChaosCollision, CHAOS_API);
+
 	/**
 	 * Generate contact manifolds for particle pairs and pass them on to the consumer. Can be composed with a
 	 * multi-threaded BroadPhase as long as the collisions receiver type can handle multi-threaded calls to ReceiveCollisions.
@@ -26,6 +29,8 @@ namespace Chaos
 		template<typename T_RECEIVER>
 		void GenerateCollisions(FReal Dt, T_RECEIVER& Receiver, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* Particle2, const FReal BoundsThickness, CollisionStats::FStatData& StatData)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_NarrowPhase);
+
 			// @todo(ccaulfield): COLLISION - Thickness: add shape padding (BoundsThickness is the distance within which we speculatively create constraints)
 
 			FCollisionConstraintsArray NewConstraints;

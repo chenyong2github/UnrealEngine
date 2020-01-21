@@ -833,7 +833,7 @@ public:
 class FLandscapeBrushDummy : public FLandscapeBrush
 {
 public:
-	const TCHAR* GetBrushName() override { return TEXT("None"); }
+	const TCHAR* GetBrushName() override { return TEXT("Circle_Dummy"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Brush_None", "None"); };
 
 	FEdModeLandscape* EdMode;

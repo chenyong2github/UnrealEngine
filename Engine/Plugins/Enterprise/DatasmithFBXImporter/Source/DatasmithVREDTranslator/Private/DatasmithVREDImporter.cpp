@@ -45,9 +45,6 @@ DEFINE_LOG_CATEGORY(LogDatasmithVREDImport);
 // these actors in reverse order (3,2,1). We're using logic which prevents this by iterating children in reverse order.
 #define REVERSE_ATTACH_ORDER 1
 
-// Asset paths of blueprints used here
-#define SHARED_NODE_BLUEPRINT_ASSET	TEXT("/DatasmithContent/Blueprints/FBXImporter/BP_SharedNode")
-
 #define MATCHING_EXPORTER_VERSION TEXT("3")
 
 struct FImportedAnim
@@ -163,24 +160,7 @@ bool FDatasmithVREDImporter::OpenFile(const FString& FilePath)
 	// identify the FBX animation curves
 	ParseAuxFiles(FilePath);
 
-	FString Extension = FPaths::GetExtension(FilePath);
-	bool bIsFromIntermediate = Extension.Compare(TEXT(DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT), ESearchCase::IgnoreCase) == 0;
-	if (bIsFromIntermediate)
-	{
-		if (!ParseIntermediateFile(FilePath))
-		{
-			return false;
-		}
-	}
-	else
-	{
-		if (!ParseFbxFile(FilePath))
-		{
-			return false;
-		}
-	}
-
-	if (!SerializeScene(FilePath))
+	if (!ParseFbxFile(FilePath))
 	{
 		return false;
 	}
@@ -548,34 +528,6 @@ bool FDatasmithVREDImporter::ParseFbxFile(const FString& FBXPath)
 	return true;
 }
 
-bool FDatasmithVREDImporter::ParseIntermediateFile(const FString& FBXPath)
-{
-	TUniquePtr<FArchive> SceneReader(IFileManager::Get().CreateFileReader(*FBXPath));
-	if (!SceneReader)
-	{
-		return false;
-	}
-
-	if (SceneReader && IntermediateScene->Serialize(*SceneReader))
-	{
-		// ok
-	}
-	else
-	{
-		UE_LOG(LogDatasmithVREDImport, Log, TEXT("Failed deserializing scene from intermediate file %s"), *FBXPath);
-		return false;
-	}
-
-#if WITH_VRED_DEBUG_CODE
-	if (ImportOptions->IntermediateSerialization == EDatasmithFBXIntermediateSerializationType::SaveLoadSkipFurtherImport)
-	{
-		// signal to stop further import
-		return false;
-	}
-#endif
-	return true;
-}
-
 void FDatasmithVREDImporter::UnloadScene()
 {
 }
@@ -770,53 +722,12 @@ void FDatasmithVREDImporter::ProcessScene()
 
 	Processor.RemoveTempNodes();
 
-	if (ImportOptions->bOptimizeDuplicatedNodes)
-	{
-		Processor.OptimizeDuplicatedNodes();
-	}
-
 	Processor.FixMeshNames();
-}
-
-bool FDatasmithVREDImporter::SerializeScene(const FString& FBXPath)
-{
-#if WITH_VRED_DEBUG_CODE
-	if (ImportOptions->IntermediateSerialization != EDatasmithFBXIntermediateSerializationType::Disabled)
-	{
-		FString FilePath = FBXPath;
-		if (FPaths::GetExtension(FilePath, false) != TEXT(DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT))
-		{
-			FilePath = FilePath + "." + DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT;
-		}
-
-		TUniquePtr<FArchive> SceneWriter(IFileManager::Get().CreateFileWriter(*FilePath));
-		if (SceneWriter && IntermediateScene->Serialize(*SceneWriter))
-		{
-			UE_LOG(LogDatasmithVREDImport, Log, TEXT("Serialized scene to intermediate file %s"), *FilePath);
-		}
-		else
-		{
-			UE_LOG(LogDatasmithVREDImport, Warning, TEXT("Failed serializing scene to intermediate file %s"), *FilePath);
-		}
-	}
-	if (ImportOptions->IntermediateSerialization == EDatasmithFBXIntermediateSerializationType::SaveLoadSkipFurtherImport)
-	{
-		// signal to stop further import
-		return false;
-	}
-#endif
-
-	return true;
 }
 
 bool FDatasmithVREDImporter::CheckNodeType(const TSharedPtr<FDatasmithFBXSceneNode>& Node)
 {
-	if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::SharedNode) && (Node->Mesh.IsValid() || Node->Camera.IsValid() || Node->Light.IsValid()))
-	{
-		UE_LOG(LogDatasmithVREDImport, Error, TEXT("Node '%s' can't be a SharedNode and have a mesh, camera or light!"), *Node->Name);
-		return false;
-	}
-	else if (Node->Mesh.IsValid() && Node->Camera.IsValid())
+	if (Node->Mesh.IsValid() && Node->Camera.IsValid())
 	{
 		UE_LOG(LogDatasmithVREDImport, Error, TEXT("Node '%s' can't have a mesh and a camera at the same time!"), *Node->Name);
 		return false;
@@ -996,17 +907,8 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 	}
 	else
 	{
-		if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::SharedNode))
-		{
-			TSharedPtr<IDatasmithCustomActorElement> SharedNodeBlueprint = FDatasmithSceneFactory::CreateCustomActor(*Node->Name);
-			SharedNodeBlueprint->SetClassOrPathName(SHARED_NODE_BLUEPRINT_ASSET);
-			ActorElement = SharedNodeBlueprint;
-		}
-		else
-		{
-			// Create regular actor
-			ActorElement = FDatasmithSceneFactory::CreateActor(*Node->Name);
-		}
+		// Create regular actor
+		ActorElement = FDatasmithSceneFactory::CreateActor(*Node->Name);
 	}
 
 	ActorElement->AddTag(*Node->OriginalName);
@@ -1255,190 +1157,170 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 		MetalColorEntry(20, FVector4(0.560f, 0.570f, 0.580f, 1.000f))  // Iron
 	});
 
-	if (ImportOptions->bColorizeMaterials)
+	IDatasmithMasterMaterialElement* El = MaterialElement.Get();
+
+	if (Material->Type.Equals(TEXT("UGlassMaterial")))
 	{
-		// Compute some color based on material's name hash, so they'll appear differently
-		FMD5 Md5;
-		Md5.Update((const uint8*)*Material->Name, Material->Name.Len() * sizeof(TCHAR));
-		FMD5Hash NameHash;
-		NameHash.Set(Md5);
-		int32 ColorIndex = NameHash.GetBytes()[15];
+		if (FVector4* FoundInteriorColor = Material->VectorParams.Find(TEXT("InteriorColor")))
+		{
+			// If it has a non-default interior color it means the backface of the mesh is visible with
+			// this color in VRED, so let's turn on two-sided mode so that we can see it
+			if (!FoundInteriorColor->Equals(FVector4(1.0f, 1.0f, 1.0f, 1.0f)))
+			{
+				Material->BoolParams.Add(TEXT("UseTwoSided"), true);
+			}
+		}
 
-		static const uint8 Colors[] = { 0, 32, 128, 255 };
-
-		uint8 R = Colors[ColorIndex & 3];
-		uint8 G = Colors[(ColorIndex >> 2) & 3];
-		uint8 B = Colors[(ColorIndex >> 4) & 3];
-
-		Material->VectorParams.Add(TEXT("DiffuseColor"), FVector4(R / 255.0f, G / 255.0f, B / 255.0f, 1.0f));
+		// We do this so that all glass materials are transparent by default, while also allowing the
+		// UE4 user to move the opacity back to 1.0f and have it not be transparent. This also helps to match
+		// VRED's multiply blend mode behaviour for translucent materials
+		if (float* OldOpacity = Material->ScalarParams.Find(TEXT("Opacity")))
+		{
+			Material->ScalarParams[TEXT("Opacity")] = (*OldOpacity)/2.0f;
+		}
 	}
-	else
+	else if (Material->Type.Equals(TEXT("UReflectivePlasticMaterial")))
 	{
-		IDatasmithMasterMaterialElement* El = MaterialElement.Get();
+		// A reflective plastic is almost exactly the same as a regular plastic with roughness 0
+		// The only difference in VRED is that it seems as though reflective plastics display accurate
+		// reflections, but all of our materials can handle reflection probes just the same
+		Material->Type = TEXT("UPlasticMaterial");
+		Material->ScalarParams.Add(TEXT("Roughness"), 0.0f);
+	}
+	else if (Material->Type.Equals(TEXT("UChromeMaterial")))
+	{
+		FVector4 BaseColor(0.950f, 0.950f, 0.950f, 1.000f);
 
-		if (Material->Type.Equals(TEXT("UGlassMaterial")))
+		if (float* MetalTypeFloat = Material->ScalarParams.Find(TEXT("MetalType")))
 		{
-			if (FVector4* FoundInteriorColor = Material->VectorParams.Find(TEXT("InteriorColor")))
+			const int32 MetalType = (int32)(*MetalTypeFloat + 0.5f);
+			if (const FVector4* FoundColor = MetalColors.Find(MetalType))
 			{
-				// If it has a non-default interior color it means the backface of the mesh is visible with
-				// this color in VRED, so let's turn on two-sided mode so that we can see it
-				if (!FoundInteriorColor->Equals(FVector4(1.0f, 1.0f, 1.0f, 1.0f)))
+				BaseColor = *FoundColor;
+			}
+		}
+
+		Material->VectorParams.Add(TEXT("BaseColor"), BaseColor);
+	}
+	else if (Material->Type.Equals(TEXT("UBrushedMetalMaterial")))
+	{
+		// This material type has a special type of planar/triplanar mapping.
+		// We will force all textures to triplanar mapping for now (the default),
+		// as the planar mapping modes don't even match regular planar mapping
+		FVector4 TriplanarRotate(0.0f, 0.0f, 0.0f, 1.0f);
+		if (const FVector4* FoundRotate = Material->VectorParams.Find(TEXT("TriplanarRotate")))
+		{
+			TriplanarRotate = *FoundRotate;
+		}
+		for (auto& Pair : Material->TextureParams)
+		{
+			FString& TexName = Pair.Key;
+			FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
+
+			Tex.ProjectionType = ETextureMapType::Triplanar;
+			Tex.TriplanarRotation = TriplanarRotate;
+		}
+
+		// For raytracing, VRED allows different roughness directions. We don't support
+		// that in UE4, so let's just combine the roughness values like VRED does in its
+		// viewport so that it's easier to manipulate in the material instance
+		const float* RoughnessU = Material->ScalarParams.Find(TEXT("RoughnessU"));
+		const float* RoughnessV = Material->ScalarParams.Find(TEXT("RoughnessV"));
+		if (RoughnessU != nullptr && RoughnessV != nullptr)
+		{
+			Material->ScalarParams.Add(TEXT("Roughness"), FMath::Min(*RoughnessU, *RoughnessV));
+			Material->ScalarParams.Remove(TEXT("RoughnessU"));
+			Material->ScalarParams.Remove(TEXT("RoughnessV"));
+		}
+		else if (RoughnessU != nullptr)
+		{
+			Material->ScalarParams.Add(TEXT("Roughness"), *RoughnessU);
+			Material->ScalarParams.Remove(TEXT("RoughnessU"));
+		}
+		else if (RoughnessV != nullptr)
+		{
+			Material->ScalarParams.Add(TEXT("Roughness"), *RoughnessV);
+			Material->ScalarParams.Remove(TEXT("RoughnessV"));
+		}
+
+		// MetalType 0 allows a custom diffuse color, so we'll let it pass unaltered
+		// For all other cases we want to place a color according to the metal type
+		if (float* MetalTypeFloat = Material->ScalarParams.Find(TEXT("MetalType")))
+		{
+			const int32 MetalType = (int32)(*MetalTypeFloat + 0.5f);
+
+			if (MetalType != 0)
+			{
+				// VRED disables the diffuse texture if we have a pre-set metal selected
+				if (FDatasmithFBXSceneMaterial::FTextureParams* DiffuseTex = Material->TextureParams.Find(TEXT("TexDiffuse")))
 				{
-					Material->BoolParams.Add(TEXT("UseTwoSided"), true);
+					DiffuseTex->bEnabled = false;
 				}
-			}
 
-			// We do this so that all glass materials are transparent by default, while also allowing the
-			// UE4 user to move the opacity back to 1.0f and have it not be transparent. This also helps to match
-			// VRED's multiply blend mode behaviour for translucent materials
-			if (float* OldOpacity = Material->ScalarParams.Find(TEXT("Opacity")))
-			{
-				Material->ScalarParams[TEXT("Opacity")] = (*OldOpacity)/2.0f;
-			}
-		}
-		else if (Material->Type.Equals(TEXT("UReflectivePlasticMaterial")))
-		{
-			// A reflective plastic is almost exactly the same as a regular plastic with roughness 0
-			// The only difference in VRED is that it seems as though reflective plastics display accurate
-			// reflections, but all of our materials can handle reflection probes just the same
-			Material->Type = TEXT("UPlasticMaterial");
-			Material->ScalarParams.Add(TEXT("Roughness"), 0.0f);
-		}
-		else if (Material->Type.Equals(TEXT("UChromeMaterial")))
-		{
-			FVector4 BaseColor(0.950f, 0.950f, 0.950f, 1.000f);
-
-			if (float* MetalTypeFloat = Material->ScalarParams.Find(TEXT("MetalType")))
-			{
-				const int32 MetalType = (int32)(*MetalTypeFloat + 0.5f);
 				if (const FVector4* FoundColor = MetalColors.Find(MetalType))
 				{
-					BaseColor = *FoundColor;
-				}
-			}
-
-			Material->VectorParams.Add(TEXT("BaseColor"), BaseColor);
-		}
-		else if (Material->Type.Equals(TEXT("UBrushedMetalMaterial")))
-		{
-			// This material type has a special type of planar/triplanar mapping.
-			// We will force all textures to triplanar mapping for now (the default),
-			// as the planar mapping modes don't even match regular planar mapping
-			FVector4 TriplanarRotate(0.0f, 0.0f, 0.0f, 1.0f);
-			if (const FVector4* FoundRotate = Material->VectorParams.Find(TEXT("TriplanarRotate")))
-			{
-				TriplanarRotate = *FoundRotate;
-			}
-			for (auto& Pair : Material->TextureParams)
-			{
-				FString& TexName = Pair.Key;
-				FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
-
-				Tex.ProjectionType = ETextureMapType::Triplanar;
-				Tex.TriplanarRotation = TriplanarRotate;
-			}
-
-			// For raytracing, VRED allows different roughness directions. We don't support
-			// that in UE4, so let's just combine the roughness values like VRED does in its
-			// viewport so that it's easier to manipulate in the material instance
-			const float* RoughnessU = Material->ScalarParams.Find(TEXT("RoughnessU"));
-			const float* RoughnessV = Material->ScalarParams.Find(TEXT("RoughnessV"));
-			if (RoughnessU != nullptr && RoughnessV != nullptr)
-			{
-				Material->ScalarParams.Add(TEXT("Roughness"), FMath::Min(*RoughnessU, *RoughnessV));
-				Material->ScalarParams.Remove(TEXT("RoughnessU"));
-				Material->ScalarParams.Remove(TEXT("RoughnessV"));
-			}
-			else if (RoughnessU != nullptr)
-			{
-				Material->ScalarParams.Add(TEXT("Roughness"), *RoughnessU);
-				Material->ScalarParams.Remove(TEXT("RoughnessU"));
-			}
-			else if (RoughnessV != nullptr)
-			{
-				Material->ScalarParams.Add(TEXT("Roughness"), *RoughnessV);
-				Material->ScalarParams.Remove(TEXT("RoughnessV"));
-			}
-
-			// MetalType 0 allows a custom diffuse color, so we'll let it pass unaltered
-			// For all other cases we want to place a color according to the metal type
-			if (float* MetalTypeFloat = Material->ScalarParams.Find(TEXT("MetalType")))
-			{
-				const int32 MetalType = (int32)(*MetalTypeFloat + 0.5f);
-
-				if (MetalType != 0)
-				{
-					// VRED disables the diffuse texture if we have a pre-set metal selected
-					if (FDatasmithFBXSceneMaterial::FTextureParams* DiffuseTex = Material->TextureParams.Find(TEXT("TexDiffuse")))
-					{
-						DiffuseTex->bEnabled = false;
-					}
-
-					if (const FVector4* FoundColor = MetalColors.Find(MetalType))
-					{
-						Material->VectorParams.Add(TEXT("DiffuseColor"), *FoundColor);
-					}
+					Material->VectorParams.Add(TEXT("DiffuseColor"), *FoundColor);
 				}
 			}
 		}
+	}
 
-		// Add properties
-		AddStringProperty(MaterialElement.Get(), TEXT("Type"), Material->Type);
+	// Add properties
+	AddStringProperty(MaterialElement.Get(), TEXT("Type"), Material->Type);
 
-		for (const auto& Pair : Material->TextureParams)
+	for (const auto& Pair : Material->TextureParams)
+	{
+		const FString& TexName = Pair.Key;
+		const FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
+
+		// Change first character to upper case
+		FString TexHandle = TexName;
+		TexHandle[0] = TexHandle.Left(1).ToUpper()[0];
+
+		AddTextureMappingProperties(El, TexHandle, Tex);
+
+		FString FoundTexturePath = VREDImporterImpl::SearchForFile(Tex.Path, ImportOptions->TextureDirs);
+		if (FoundTexturePath.IsEmpty())
 		{
-			const FString& TexName = Pair.Key;
-			const FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
+			continue;
+		}
 
-			// Change first character to upper case
-			FString TexHandle = TexName;
-			TexHandle[0] = TexHandle.Left(1).ToUpper()[0];
-
-			AddTextureMappingProperties(El, TexHandle, Tex);
-
-			FString FoundTexturePath = VREDImporterImpl::SearchForFile(Tex.Path, ImportOptions->TextureDirs);
-			if (FoundTexturePath.IsEmpty())
+		if (!CreatedTextureElementPaths.Contains(FoundTexturePath))
+		{
+			TSharedPtr<IDatasmithTextureElement> CreatedTexture = CreateTextureElement(El, TexHandle, FoundTexturePath);
+			if (CreatedTexture.IsValid())
 			{
-				continue;
-			}
-
-			if (!CreatedTextureElementPaths.Contains(FoundTexturePath))
-			{
-				TSharedPtr<IDatasmithTextureElement> CreatedTexture = CreateTextureElement(El, TexHandle, FoundTexturePath);
-				if (CreatedTexture.IsValid())
-				{
-					DatasmithScene->AddTexture(CreatedTexture);
-					CreatedTextureElementPaths.Add(FoundTexturePath);
-				}
+				DatasmithScene->AddTexture(CreatedTexture);
+				CreatedTextureElementPaths.Add(FoundTexturePath);
 			}
 		}
-		for (const auto& Pair : Material->BoolParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const bool bValue = Pair.Value;
+	}
+	for (const auto& Pair : Material->BoolParams)
+	{
+		const FString& ParamName = Pair.Key;
+		const bool bValue = Pair.Value;
 
-			AddBoolProperty(El, ParamName, bValue);
-		}
-		for (const auto& Pair : Material->ScalarParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const float Value = Pair.Value;
+		AddBoolProperty(El, ParamName, bValue);
+	}
+	for (const auto& Pair : Material->ScalarParams)
+	{
+		const FString& ParamName = Pair.Key;
+		const float Value = Pair.Value;
 
-			AddFloatProperty(El, ParamName, Value);
-		}
-		for (const auto& Pair : Material->VectorParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const FVector4& Value = Pair.Value;
+		AddFloatProperty(El, ParamName, Value);
+	}
+	for (const auto& Pair : Material->VectorParams)
+	{
+		const FString& ParamName = Pair.Key;
+		const FVector4& Value = Pair.Value;
 
-			AddColorProperty(El, ParamName, Value);
-		}
+		AddColorProperty(El, ParamName, Value);
 	}
 
 	return MaterialElement;
 }
 
-void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, EDatasmithTransformType AnimationType, const FDatasmithFBXSceneAnimCurve* CurveX, const FDatasmithFBXSceneAnimCurve* CurveY, const FDatasmithFBXSceneAnimCurve* CurveZ, double ScaleFactor)
+void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, EDatasmithTransformType AnimationType, const FDatasmithFBXSceneAnimCurve* CurveX, const FDatasmithFBXSceneAnimCurve* CurveY, const FDatasmithFBXSceneAnimCurve* CurveZ, double ScaleFactor, float Framerate)
 {
 	if (!CurveX && !CurveY && !CurveZ)
 	{
@@ -1543,7 +1425,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 
 	TransformAnimation.SetEnabledTransformChannels(Channels | FDatasmithAnimationUtils::SetChannelTypeComponents(Components, AnimationType));
 
-	FFrameRate FrameRate = FFrameRate(30, 1); // The default for LevelSequenceElements
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 	FFrameNumber EndFrame = FrameRate.AsFrameTime(MaxKey).CeilToFrame();
 
@@ -1582,7 +1464,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 	}
 }
 
-void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& VisibilityAnimation, const FDatasmithFBXSceneAnimCurve* Curve)
+void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& VisibilityAnimation, const FDatasmithFBXSceneAnimCurve* Curve, float Framerate)
 {
 	if (Curve == nullptr || Curve->Points.Num() == 0)
 	{
@@ -1609,7 +1491,7 @@ void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& Visibilit
 		MaxKey = FMath::Max(MaxKey, CurvePoint->Time);
 	}
 
-	FFrameRate FrameRate = FFrameRate(30, 1);
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 	FFrameNumber EndFrame = FrameRate.AsFrameTime(MaxKey).CeilToFrame();
 
@@ -1670,6 +1552,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 	FString BlockName = CombinedBlock.NodeNameToBlock.CreateConstIterator().Value()->Name;
 
 	TSharedRef<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*BlockName);
+	SequenceElement->SetFrameRate(IntermediateScene->BaseTime);
 
 	for (const auto& Pair : CombinedBlock.NodeNameToBlock)
 	{
@@ -1704,7 +1587,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Translation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Translation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1726,7 +1609,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Scale, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Scale, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1748,7 +1631,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 
 				if (TransformAnimation.IsValid())
 				{
-					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Rotation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor);
+					PopulateTransformAnimation(TransformAnimation.ToSharedRef().Get(), EDatasmithTransformType::Rotation, CurveX, CurveY, CurveZ, IntermediateScene->ScaleFactor, IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1771,7 +1654,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 				if (VisibilityAnimation.IsValid())
 				{
 					VisibilityAnimation->SetPropagateToChildren(true);
-					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0]);
+					PopulateVisibilityAnimation(VisibilityAnimation.ToSharedRef().Get(), Curves[0], IntermediateScene->BaseTime);
 				}
 			}
 		}
@@ -1792,7 +1675,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithVREDImporter::ConvertAnimBl
 	return SequenceElement;
 }
 
-void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FString, FImportedAnim>& ImportedAnims, TArray<TSharedPtr<IDatasmithLevelSequenceElement>>& OutCreatedClips)
+void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FString, FImportedAnim>& ImportedAnims, TArray<TSharedPtr<IDatasmithLevelSequenceElement>>& OutCreatedClips, float Framerate)
 {
 	TArray<FDatasmithFBXSceneAnimClip> ClipsRemaining = AnimClips;
 
@@ -1835,8 +1718,9 @@ void ConvertAnimClips(TArray<FDatasmithFBXSceneAnimClip>& AnimClips, TMap<FStrin
 
 			// Create a IDatasmithLevelSequenceElement and populate it with pointers to the target subsequence elements
 			TSharedPtr<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*Clip.Name);
+			SequenceElement->SetFrameRate(Framerate);
 
-			FFrameRate FrameRate = FFrameRate(FMath::RoundToInt(SequenceElement->GetFrameRate()), 1);
+			FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 
 			float MinStartTime = FLT_MAX;
 			float MaxEndTime = -FLT_MAX;
@@ -2082,7 +1966,7 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 		}
 
 		TArray<TSharedPtr<IDatasmithLevelSequenceElement>> CreatedClips;
-		ConvertAnimClips(ParsedAnimClips, ImportedAnimElements, CreatedClips);
+		ConvertAnimClips(ParsedAnimClips, ImportedAnimElements, CreatedClips, IntermediateScene->BaseTime);
 
 		for (const TSharedPtr<IDatasmithLevelSequenceElement>& CreatedClip : CreatedClips)
 		{

@@ -5,8 +5,10 @@
 #pragma once
 
 #include "BoxTypes.h"
+#include "InfoTypes.h"
 #include "FrameTypes.h"
 #include "GeometryTypes.h"
+#include "HAL/Platform.h"
 #include "MathUtil.h"
 #include "Quaternion.h"
 #include "Util/DynamicVector.h"
@@ -14,73 +16,21 @@
 #include "Util/IteratorUtil.h"
 #include "Util/RefCountVector.h"
 #include "Util/SmallListSet.h"
+#include "Util/CompactMaps.h"
 #include "VectorTypes.h"
 #include "VectorUtil.h"
-
 
 class FDynamicMeshAttributeSet;
 class FMeshShapeGenerator;
 
-enum class EMeshComponents
+enum class EMeshComponents : uint8
 {
 	None = 0,
 	VertexNormals = 1,
 	VertexColors = 2,
 	VertexUVs = 4,
-	FaceGroups = 8
-};
-
-/**
- * FVertexInfo stores information about vertex attributes - position, normal, color, UV
- */
-struct FVertexInfo
-{
-	FVector3d Position;
-	FVector3f Normal;
-	FVector3f Color;
-	FVector2f UV;
-	bool bHaveN, bHaveUV, bHaveC;
-
-	FVertexInfo()
-	{
-		Position = FVector3d::Zero();
-		Normal = Color = FVector3f::Zero();
-		UV = FVector2f::Zero();
-		bHaveN = bHaveC = bHaveUV = false;
-	}
-	FVertexInfo(const FVector3d& PositionIn)
-	{
-		Position = PositionIn;
-		Normal = Color = FVector3f::Zero();
-		UV = FVector2f::Zero();
-		bHaveN = bHaveC = bHaveUV = false;
-	}
-	FVertexInfo(const FVector3d& PositionIn, const FVector3f& NormalIn)
-	{
-		Position = PositionIn;
-		Normal = NormalIn;
-		Color = FVector3f::Zero();
-		UV = FVector2f::Zero();
-		bHaveN = true;
-		bHaveC = bHaveUV = false;
-	}
-	FVertexInfo(const FVector3d& PositionIn, const FVector3f& NormalIn, const FVector3f& ColorIn)
-	{
-		Position = PositionIn;
-		Normal = NormalIn;
-		Color = ColorIn;
-		UV = FVector2f::Zero();
-		bHaveN = bHaveC = true;
-		bHaveUV = false;
-	}
-	FVertexInfo(const FVector3d& PositionIn, const FVector3f& NormalIn, const FVector3f& ColorIn, const FVector2f& UVIn)
-	{
-		Position = PositionIn;
-		Normal = NormalIn;
-		Color = ColorIn;
-		UV = UVIn;
-		bHaveN = bHaveC = bHaveUV = true;
-	}
+	FaceGroups = 8,
+	All = 15
 };
 
 /**
@@ -129,63 +79,61 @@ struct FVertexInfo
 *  - efficient TriTrianglesItr() implementation?
 *  - additional Topology timestamp?
 *  - CompactInPlace() does not compact VertexEdgeLists
-*  - CompactCopy does not support per-vertex or extended attributes
 *  ? TDynamicVector w/ 'stride' option, so that we can guarantee that tuples are in single block.
 *    The can have custom accessor that looks up entire tuple
 */
 class DYNAMICMESH_API FDynamicMesh3
 {
 public:
-	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
-	static const int InvalidID; // = IndexConstants::InvalidID = -1
-	/** NonManifoldID is returned by AppendTriangle() to indicate that the added triangle would result in nonmanifold geometry and hence was ignored */
-	static const int NonManifoldID; // = -2
-	/** InvalidGroupID indicates that a group ID is invalid */
-	static const int InvalidGroupID; // = IndexConstants::InvalidID = -1
+using FEdgeFlipInfo = DynamicMeshInfo::FEdgeFlipInfo;
+using FEdgeSplitInfo = DynamicMeshInfo::FEdgeSplitInfo;
+using FEdgeCollapseInfo = DynamicMeshInfo::FEdgeCollapseInfo;
+using FMergeEdgesInfo = DynamicMeshInfo::FMergeEdgesInfo;
+using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
+using FVertexSplitInfo = DynamicMeshInfo::FVertexSplitInfo;
 
-	static FVector3d InvalidVertex()
-	{
-		return FVector3d(TNumericLimits<double>::Max(), 0, 0);
-	}
-	static FIndex3i InvalidTriangle()
-	{
-		return FIndex3i(InvalidID, InvalidID, InvalidID);
-	}
-	static FIndex2i InvalidEdge()
-	{
-		return FIndex2i(InvalidID, InvalidID);
-	}
+	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
+	constexpr static int InvalidID = IndexConstants::InvalidID;
+	/** NonManifoldID is returned by AppendTriangle() to indicate that the added triangle would result in nonmanifold geometry and hence was ignored */
+	constexpr static int NonManifoldID = -2;
+	/** InvalidGroupID indicates that a group ID is invalid */
+	constexpr static int InvalidGroupID = IndexConstants::InvalidID;
+
+	constexpr static FVector3d InvalidVertex{ TNumericLimits<double>::Max(), 0.0, 0.0 };
+	constexpr static FIndex3i  InvalidTriangle{ InvalidID, InvalidID, InvalidID };
+	constexpr static FIndex2i  InvalidEdge{ InvalidID, InvalidID };
 
 protected:
-	/** Reference counts of vertex indices. Iterate over this to find out which vertex indices are valid. */
-	FRefCountVector VertexRefCounts;
 	/** List of vertex positions */
-	TDynamicVector<double> Vertices;
+	TDynamicVector<double> Vertices{};
+	/** Reference counts of vertex indices. For vertices that exist, the count is 1 + num_triangle_using_vertex. Iterate over this to find out which vertex indices are valid. */
+	FRefCountVector VertexRefCounts{};
 	/** (optional) List of per-vertex normals */
-	TDynamicVector<float>* VertexNormals = nullptr;
+	TOptional<TDynamicVector<float>> VertexNormals{};
 	/** (optional) List of per-vertex colors */
-	TDynamicVector<float>* VertexColors = nullptr;
-	/** (optional) List of per-vertex uvs */
-	TDynamicVector<float>* VertexUVs = nullptr;
-
+	TOptional<TDynamicVector<float>> VertexColors{};
+	/** (optional) List of per-vertex uv's */
+	TOptional<TDynamicVector<float>> VertexUVs{};
 	/** List of per-vertex edge one-rings */
 	FSmallListSet VertexEdgeLists;
 
-	/** Reference counts of triangle indices. Iterate over this to find out which triangle indices are valid. */
-	FRefCountVector TriangleRefCounts;
 	/** List of triangle vertex-index triplets [Vert0 Vert1 Vert2]*/
 	TDynamicVector<int> Triangles;
+	/** Reference counts of triangle indices. Ref count is always 1 if the triangle exists. Iterate over this to find out which triangle indices are valid. */
+	FRefCountVector TriangleRefCounts;
 	/** List of triangle edge triplets [Edge0 Edge1 Edge2] */
 	TDynamicVector<int> TriangleEdges;
 	/** (optional) List of per-triangle group identifiers */
-	TDynamicVector<int>* TriangleGroups = nullptr;
+	TOptional<TDynamicVector<int>> TriangleGroups{};
+	/** Upper bound on the triangle group IDs used in the mesh (may be larger than the actual maximum if triangles have been deleted) */
+	int GroupIDCounter = 0;
 
-	/** Reference counts of edge indices. Iterate over this to find out which edge indices are valid. */
-	FRefCountVector EdgeRefCounts;
 	/** List of edge elements. An edge is four elements [VertA, VertB, Tri0, Tri1], where VertA < VertB, and Tri1 may be InvalidID (if the edge is a boundary edge) */
 	TDynamicVector<int> Edges;
+	/** Reference counts of edge indices. Ref count is always 1 if the edge exists. Iterate over this to find out which edge indices are valid. */
+	FRefCountVector EdgeRefCounts;
 
-	FDynamicMeshAttributeSet* AttributeSet = nullptr;
+	TUniquePtr<FDynamicMeshAttributeSet> AttributeSet{};
 
 	/** The mesh timestamp is incremented any time a function that modifies the mesh is called */
 	int Timestamp = 0;
@@ -194,10 +142,8 @@ protected:
 	/** The topology timestamp is incremented any time a function that modifies the mesh topology is called */
 	int TopologyTimestamp = 0;
 
-	/** Upper bound on the triangle group IDs used in the mesh (may be larger than the actual maximum if triangles have been deleted) */
-	int GroupIDCounter = 0;
 
-	/** Cached vertex bounding box (includes un-referenced vertices) */
+	/** Cached vertex bounding box (includes unreferenced vertices) */
 	FAxisAlignedBox3d CachedBoundingBox;
 	/** timestamp for CachedBoundingBox, if less than current timestamp, cache is invalid */
 	int CachedBoundingBoxTimestamp = -1;
@@ -207,55 +153,42 @@ protected:
 	int CachedIsClosedTimestamp = -1;
 
 public:
+	/** Default constructor */
+	FDynamicMesh3() 
+		: FDynamicMesh3(true, false, false, false)
+	{
+	}
+
+	/** Copy/Move construction */
+	FDynamicMesh3(const FDynamicMesh3& CopyMesh );
+	FDynamicMesh3(FDynamicMesh3&& MoveMesh);
+
+	/** Copy and move assignment */
+	const FDynamicMesh3& operator=(const FDynamicMesh3& CopyMesh);
+	const FDynamicMesh3& operator=(FDynamicMesh3&& MoveMesh);
+
+	/** Destructor */
 	virtual ~FDynamicMesh3();
 
-	explicit FDynamicMesh3(bool bWantNormals = true, bool bWantColors = false, bool bWantUVs = false, bool bWantTriGroups = false);
 
-	FDynamicMesh3(EMeshComponents flags)
+	/** Construct an empty mesh with specified attributes */
+	explicit FDynamicMesh3(bool bWantNormals, bool bWantColors, bool bWantUVs, bool bWantTriGroups);
+	explicit FDynamicMesh3(EMeshComponents flags)
 		: FDynamicMesh3(((int)flags & (int)EMeshComponents::VertexNormals) != 0, ((int)flags & (int)EMeshComponents::VertexColors) != 0,
 						((int)flags & (int)EMeshComponents::VertexUVs) != 0, ((int)flags & (int)EMeshComponents::FaceGroups) != 0)
 	{
 	}
 
-	/**
-	 * @param CopyMesh mesh to copy
-	 * @param bCompact if true, compact CopyMesh on the fly
-	 * @param bWantNormals should we copy per-vertex normals, if they exist
-	 * @param bWantColors should we copy per-vertex colors, if they exist
-	 * @param bWantUVs should we copy per-vertex uvs, if they exist
-	 */
-	FDynamicMesh3(const FDynamicMesh3& CopyMesh, bool bCompact = false, bool bWantNormals = true, bool bWantColors = true, bool bWantUVs = true, bool bWantAttributes = true);
-
-	/**
-	 * @param CopyMesh mesh to copy
-	 * @param bCompact if true, compact CopyMesh on the fly
-	 * @param Flags which components of CopyMesh to copy, if they exist
-	 */
-	FDynamicMesh3(const FDynamicMesh3& CopyMesh, bool bCompact, EMeshComponents Flags);
-
-	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
+	/** Construction from Mesh Generator */
 	FDynamicMesh3(const FMeshShapeGenerator* Generator);
 
-	/** copy assignment operator */
-	const FDynamicMesh3& operator=(const FDynamicMesh3& CopyMesh);
-
-	//
-	// Copy functions to construct a mesh from an input mesh
-	//
-public:
-	/** Set internal data structures to be a copy of input mesh */
+	/** Set internal data structures to be a copy of input mesh using the specified attributes*/
 	void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true, bool bAttributes = true);
 
 	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
 	void Copy(const FMeshShapeGenerator* Generator);
 
-	// @todo make this work
-	struct FCompactMaps
-	{
-		TMap<int, int> MapV;
-	};
-
-	/** Copy input mesh while compacting, ie removing unused vertices/triangles/edges */
+	/** Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges */
 	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true, bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
 
 	/** Discard all data */
@@ -280,22 +213,22 @@ public:
 		return (int)EdgeRefCounts.GetCount();
 	}
 
-	/** @return upper bound on vertex IDs used in the mesh, ie all vertex IDs in use are < MaxVertexID */
+	/** @return upper bound on vertex IDs used in the mesh, i.e. all vertex IDs in use are < MaxVertexID */
 	int MaxVertexID() const
 	{
 		return (int)VertexRefCounts.GetMaxIndex();
 	}
-	/** @return upper bound on triangle IDs used in the mesh, ie all triangle IDs in use are < MaxTriangleID */
+	/** @return upper bound on triangle IDs used in the mesh, i.e. all triangle IDs in use are < MaxTriangleID */
 	int MaxTriangleID() const
 	{
 		return (int)TriangleRefCounts.GetMaxIndex();
 	}
-	/** @return upper bound on edge IDs used in the mesh, ie all edge IDs in use are < MaxEdgeID */
+	/** @return upper bound on edge IDs used in the mesh, i.e. all edge IDs in use are < MaxEdgeID */
 	int MaxEdgeID() const
 	{
 		return (int)EdgeRefCounts.GetMaxIndex();
 	}
-	/** @return upper bound on group IDs used in the mesh, ie all group IDs in use are < MaxGroupID */
+	/** @return upper bound on group IDs used in the mesh, i.e. all group IDs in use are < MaxGroupID */
 	int MaxGroupID() const
 	{
 		return GroupIDCounter;
@@ -305,29 +238,27 @@ public:
 	/** @return true if this mesh has per-vertex normals */
 	bool HasVertexNormals() const
 	{
-		return VertexNormals != nullptr;
+		return VertexNormals.IsSet();
 	}
 	/** @return true if this mesh has per-vertex colors */
 	bool HasVertexColors() const
 	{
-		return VertexColors != nullptr;
+		return VertexColors.IsSet();
 	}
 	/** @return true if this mesh has per-vertex UVs */
 	bool HasVertexUVs() const
 	{
-		return VertexUVs != nullptr;
+		return VertexUVs.IsSet();
 	}
 	/** @return true if this mesh has per-triangle groups */
 	bool HasTriangleGroups() const
 	{
-		return TriangleGroups != nullptr;
+		return TriangleGroups.IsSet();
 	}
-
-
 	/** @return true if this mesh has attribute layers */
 	bool HasAttributes() const
 	{
-		return AttributeSet != nullptr;
+		return AttributeSet.IsValid();
 	}
 
 	/** @return bitwise-or of EMeshComponents flags specifying which extra data this mesh has */
@@ -338,6 +269,11 @@ public:
 	inline bool IsVertex(int VertexID) const
 	{
 		return VertexRefCounts.IsValid(VertexID);
+	}
+	/** @return true if VertexID is a valid vertex in this mesh AND is used by at least one triangle */
+	inline bool IsReferencedVertex(int VertexID) const
+	{
+		return VertexID >= 0 && VertexID < (int)VertexRefCounts.GetMaxIndex() && VertexRefCounts.GetRawRefCount(VertexID) > 1;
 	}
 	/** @return true if TriangleID is a valid triangle in this mesh */
 	inline bool IsTriangle(int TriangleID) const
@@ -660,7 +596,8 @@ public:
 		}
 		check(IsVertex(vID));
 		int i = 3 * vID;
-		return FVector3f((*VertexNormals)[i], (*VertexNormals)[i + 1], (*VertexNormals)[i + 2]);
+		const TDynamicVector<float>& Normals = VertexNormals.GetValue();
+		return FVector3f( Normals[i], Normals[i + 1], Normals[i + 2] );
 	}
 
 	void SetVertexNormal(int vID, const FVector3f& vNewNormal)
@@ -669,9 +606,10 @@ public:
 		{
 			check(IsVertex(vID));
 			int i = 3 * vID;
-			(*VertexNormals)[i] = vNewNormal.X;
-			(*VertexNormals)[i + 1] = vNewNormal.Y;
-			(*VertexNormals)[i + 2] = vNewNormal.Z;
+			TDynamicVector<float>& Normals = VertexNormals.GetValue();
+			Normals[i]     = vNewNormal.X;
+			Normals[i + 1] = vNewNormal.Y;
+			Normals[i + 2] = vNewNormal.Z;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -688,7 +626,9 @@ public:
 		}
 		check(IsVertex(vID));
 		int i = 3 * vID;
-		return FVector3f((*VertexColors)[i], (*VertexColors)[i + 1], (*VertexColors)[i + 2]);
+
+		const TDynamicVector<float>& Colors = VertexColors.GetValue();
+		return FVector3f(Colors[i], Colors[i + 1], Colors[i + 2]);
 	}
 
 	void SetVertexColor(int vID, const FVector3f& vNewColor)
@@ -697,9 +637,10 @@ public:
 		{
 			check(IsVertex(vID));
 			int i = 3 * vID;
-			(*VertexColors)[i] = vNewColor.X;
-			(*VertexColors)[i + 1] = vNewColor.Y;
-			(*VertexColors)[i + 2] = vNewColor.Z;
+			TDynamicVector<float>& Colors = VertexColors.GetValue();
+			Colors[i] = vNewColor.X;
+			Colors[i + 1] = vNewColor.Y;
+			Colors[i + 2] = vNewColor.Z;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -715,7 +656,8 @@ public:
 		}
 		check(IsVertex(vID));
 		int i = 2 * vID;
-		return FVector2f((*VertexUVs)[i], (*VertexUVs)[i + 1]);
+		const TDynamicVector<float> UVs = VertexUVs.GetValue();
+		return FVector2f(UVs[i], UVs[i + 1]);
 	}
 
 	void SetVertexUV(int vID, const FVector2f& vNewUV)
@@ -724,8 +666,9 @@ public:
 		{
 			check(IsVertex(vID));
 			int i = 2 * vID;
-			(*VertexUVs)[i] = vNewUV.X;
-			(*VertexUVs)[i + 1] = vNewUV.Y;
+			TDynamicVector<float> UVs = VertexUVs.GetValue();
+			UVs[i] = vNewUV.X;
+			UVs[i + 1] = vNewUV.Y;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -738,7 +681,7 @@ public:
 	int GetTriangleGroup(int tID) const
 	{
 		return (HasTriangleGroups() == false) ? -1
-			: (TriangleRefCounts.IsValid(tID) ? (*TriangleGroups)[tID] : 0);
+			: (TriangleRefCounts.IsValid(tID) ? TriangleGroups.GetValue()[tID] : 0);
 	}
 
 	void SetTriangleGroup(int tid, int group_id)
@@ -746,7 +689,7 @@ public:
 		if (HasTriangleGroups())
 		{
 			check(IsTriangle(tid));
-			(*TriangleGroups)[tid] = group_id;
+			TriangleGroups.GetValue()[tid] = group_id;
 			GroupIDCounter = FMath::Max(GroupIDCounter, group_id + 1);
 			UpdateTimeStamp(false, false);
 		}
@@ -754,15 +697,14 @@ public:
 
 	FDynamicMeshAttributeSet* Attributes()
 	{
-		return AttributeSet;
+		return HasAttributes() ? AttributeSet.Get() : nullptr;
 	}
 	const FDynamicMeshAttributeSet* Attributes() const
 	{
-		return AttributeSet;
+		return HasAttributes() ? AttributeSet.Get() : nullptr;
 	}
 
 	void EnableAttributes();
-
 	void DiscardAttributes();
 
 
@@ -788,6 +730,9 @@ public:
 
 	/** Find edgeid for edge [a,b] from triangle that contains the edge. Faster than FindEdge() because it is constant-time. */
 	int FindEdgeFromTri(int VertexA, int VertexB, int TriangleID) const;
+
+	/** Find edgeid for edge connecting two triangles */
+	int FindEdgeFromTriPair(int TriangleA, int TriangleB) const;
 
 	/** Find triangle made up of any permutation of vertices [a,b,c] */
 	int FindTriangle(int A, int B, int C) const;
@@ -978,7 +923,7 @@ public:
 	void GetVtxOneRingCentroid(int VertexID, FVector3d& CentroidOut) const;
 
 	/**
-	 * Compute mesh winding number, from Jacobson et al, Robust Inside-Outside Segmentation using Generalized Winding Numbers
+	 * Compute mesh winding number, from Jacobson et. al., Robust Inside-Outside Segmentation using Generalized Winding Numbers
 	 * http://igl.ethz.ch/projects/winding-number/
 	 * returns ~0 for points outside a closed, consistently oriented mesh, and a positive or negative integer
 	 * for points inside, with value > 1 depending on how many "times" the point inside the mesh (like in 2D polygon winding)
@@ -999,17 +944,16 @@ public:
 	}
 	const TDynamicVector<float>* GetNormalsBuffer()
 	{
-		return VertexNormals;
+		return HasVertexNormals() ? &VertexNormals.GetValue() : nullptr;
 	}
 	const TDynamicVector<float>* GetColorsBuffer()
 	{
-		return VertexColors;
+		return HasVertexColors() ? &VertexColors.GetValue() : nullptr;
 	}
 	const TDynamicVector<float>* GetUVBuffer()
 	{
-		return VertexUVs;
+		return HasVertexUVs() ? &VertexUVs.GetValue() : nullptr;
 	}
-
 	const TDynamicVector<int>& GetTrianglesBuffer()
 	{
 		return Triangles;
@@ -1020,9 +964,8 @@ public:
 	}
 	const TDynamicVector<int>* GetTriangleGroupsBuffer()
 	{
-		return TriangleGroups;
+		return HasTriangleGroups() ? &TriangleGroups.GetValue() : nullptr;
 	}
-
 	const TDynamicVector<int>& GetEdgesBuffer()
 	{
 		return Edges;
@@ -1044,9 +987,8 @@ public:
 	 * Compact mesh in-place, by moving vertices around and rewriting indices.
 	 * Should be faster if the amount of compacting is not too significant, and is useful in some places.
 	 *
-	 * @param bComputeCompactInfo if false, then returned CompactMaps is not initialized
+	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and (optionally) triangle IDs were changed during compaction
 	 * @todo VertexEdgeLists is not compacted. does not affect indices, but does keep memory.
-	 * @todo returned CompactMaps is currently not valid
 	 */
 	void CompactInPlace(FCompactMaps* CompactInfo = nullptr);
 
@@ -1064,16 +1006,16 @@ public:
 	/**
 	 * Remove vertex vID, and all connected triangles if bRemoveAllTriangles = true
 	 * Returns Failed_VertexStillReferenced if vertex is still referenced by triangles.
-	 * if bPreserveManifold, checks that we will not create a bowtie vertex first
+	 * if bPreserveManifold, checks that we will not create a bow tie vertex first
 	 */
 	EMeshResult RemoveVertex(int VertexID, bool bRemoveAllTriangles = true, bool bPreserveManifold = false);
 
 	/**
 	* Remove a triangle from the mesh. Also removes any unreferenced edges after tri is removed.
 	* If bRemoveIsolatedVertices is false, then if you remove all tris from a vert, that vert is also removed.
-	* If bPreserveManifold, we check that you will not create a bowtie vertex (and return false).
-	* If this check is not done, you have to make sure you don't create a bowtie, because other
-	* code assumes we don't have bowties, and will not handle it properly
+	* If bPreserveManifold, we check that you will not create a bow tie vertex (and return false).
+	* If this check is not done, you have to make sure you don't create a bow tie, because other
+	* code assumes we don't have bow ties, and will not handle it properly
 	*/
 	EMeshResult RemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices = true, bool bPreserveManifold = false);
 
@@ -1083,24 +1025,6 @@ public:
 	 * @todo this function currently does not guarantee that the returned mesh is well-formed. Only call if you know it's OK.
 	 */
 	virtual EMeshResult SetTriangle(int TriangleID, const FIndex3i& NewVertices, bool bRemoveIsolatedVertices = true);
-
-
-
-	/** Information about the mesh elements created by a call to SplitEdge() */
-	struct FEdgeSplitInfo
-	{
-		int OriginalEdge;					// the edge that was split
-		FIndex2i OriginalVertices;			// original edge vertices [a,b]
-		FIndex2i OtherVertices;				// original opposing vertices [c,d] - d is InvalidID for boundary edges
-		FIndex2i OriginalTriangles;			// original edge triangles [t0,t1]
-		bool bIsBoundary;					// was the split edge a boundary edge?  (redundant)
-
-		int NewVertex;						// new vertex f that was created
-		FIndex2i NewTriangles;				// new triangles [t2,t3], oriented as explained below
-		FIndex3i NewEdges;					// new edges are [f,b], [f,c] and [f,d] if this is not a boundary edge
-		
-		double SplitT;						// parameter value for NewVertex along original edge
-	};
 
 	/**
 	 * Split an edge of the mesh by inserting a vertex. This creates a new triangle on either side of the edge (ie a 2-4 split).
@@ -1123,19 +1047,7 @@ public:
 	 */
 	EMeshResult SplitEdge(int EdgeVertA, int EdgeVertB, FEdgeSplitInfo& SplitInfo);
 
-
-
-	/** Information about the mesh elements modified by a call to FlipEdge() */
-	struct FEdgeFlipInfo
-	{
-		int EdgeID;						// the edge that was flipped
-		FIndex2i OriginalVerts;			// original verts of the flipped edge, that are no longer connected
-		FIndex2i OpposingVerts;			// the opposing verts of the flipped edge, that are now connected
-		FIndex2i Triangles;				// the two triangle IDs. Original tris vert [Vert0,Vert1,OtherVert0] and [Vert1,Vert0,OtherVert1].
-										// New triangles are [OtherVert0, OtherVert1, Vert1] and [OtherVert1, OtherVert0, Vert0]
-	};
-
-	/** 
+	/**
 	 * Flip/Rotate an edge of the mesh. This does not change the number of edges, vertices, or triangles.
 	 * Boundary edges of the mesh cannot be flipped.
 	 * @param EdgeAB index of edge to be flipped
@@ -1153,22 +1065,24 @@ public:
 	virtual EMeshResult FlipEdge(int EdgeVertA, int EdgeVertB, FEdgeFlipInfo& FlipInfo);
 
 
+	/**
+	 * Clones the given vertex and updates any provided triangles to use the new vertex if/where they used the old one.
+	 * @param VertexID the vertex to split
+	 * @param TrianglesToUpdate triangles that should be updated to use the new vertex anywhere they previously had the old one
+	 * @param SplitInfo returned info about the new and modified mesh elements
+	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
+	 */
+	virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate, FVertexSplitInfo& SplitInfo);
 
-	/** Information about mesh elements modified/removed by CollapseEdge() */
-	struct FEdgeCollapseInfo
-	{
-		int KeptVertex;					// the vertex that was kept (ie collapsed "to")
-		int RemovedVertex;				// the vertex that was removed
-		FIndex2i OpposingVerts;			// the opposing vertices [c,d]. If the edge was a boundary edge, d is InvalidID
-		bool bIsBoundary;				// was the edge a boundary edge
+	/**
+	 * Tests whether splitting the given vertex with the given triangles would leave no triangles attached to the original vertex (creating an isolated vertex)
+	 * @param VertexID the vertex to split
+	 * @param TrianglesToUpdate triangles that should be updated to use the new vertex anywhere they previously had the old one
+	 * @return true if calling SplitVertex with these arguments would leave an isolated vertex at the original VertexID
+	 */
+	virtual bool SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate);
 
-		int CollapsedEdge;				// the edge that was collapsed/removed
-		FIndex2i RemovedTris;			// the triangles that were removed in the collapse (second is InvalidID for boundary edge)
-		FIndex2i RemovedEdges;			// the edges that were removed (second is InvalidID for boundary edge)
-		FIndex2i KeptEdges;				// the edges that were kept (second is InvalidID for boundary edge)
 
-		double CollapseT;				// interpolation parameter along edge for new vertex in range [0,1]
-	};
 
 	/**
 	 * Collapse the edge between the two vertices, if topologically possible.
@@ -1186,19 +1100,6 @@ public:
 
 
 
-	/** Information about mesh elements modified by MergeEdges() */
-	struct FMergeEdgesInfo
-	{
-		int KeptEdge;				// the edge that was kept
-		int RemovedEdge;			// the edge that was removed
-
-		FIndex2i KeptVerts;			// The two vertices that were kept (redundant w/ KeptEdge?)
-		FIndex2i RemovedVerts;		// The removed vertices of RemovedEdge. Either may be InvalidID if it was same as the paired KeptVert
-
-		FIndex2i ExtraRemovedEdges; // extra removed edges, see description below. Either may be or InvalidID
-		FIndex2i ExtraKeptEdges;	// extra kept edges, paired with ExtraRemovedEdges
-	};
-
 	/**
 	 * Given two edges of the mesh, weld both their vertices, so that one edge is removed.
 	 * This could result in one neighbour edge-pair attached to each vertex also collapsing,
@@ -1215,19 +1116,6 @@ public:
 	virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo);
 
 
-
-	/** Information about mesh elements modified/created by PokeTriangle() */
-	struct FPokeTriangleInfo
-	{
-		int OriginalTriangle;				// the triangle that was poked
-		FIndex3i TriVertices;				// vertices of the original triangle
-			
-		int NewVertex;						// the new vertex that was inserted
-		FIndex2i NewTriangles;				// the two new triangles that were added (OriginalTriangle is re-used, see code for vertex orders)
-		FIndex3i NewEdges;					// the three new edges connected to NewVertex
-
-		FVector3d BaryCoords;				// barycentric coords that NewVertex was inserted at
-	};
 
 	/**
 	 * Insert a new vertex inside a triangle, ie do a 1 to 3 triangle split

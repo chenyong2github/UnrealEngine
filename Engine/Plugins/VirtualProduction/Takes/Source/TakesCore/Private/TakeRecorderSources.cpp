@@ -128,6 +128,9 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InMasterSequence->GetMovieScene()->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
 				}
 
+				// Track should not be transactional during the recording process
+				SubsceneTrack->ClearFlags(RF_Transactional);
+
 				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
 				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InMasterSequence)));
 				SubsceneTrack->SetColorTint(Source->TrackTint);
@@ -144,6 +147,9 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 				// tracks do as we record into them.
 				FFrameNumber RecordStartTime = FFrameNumber(0);
 				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartTime, 0);
+
+				// Section should not be transactional during the recording process
+				NewSubSection->ClearFlags(RF_Transactional);
 
 				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
 				SubsceneTrack->FixRowIndices();
@@ -294,6 +300,9 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InMasterSequence->GetMovieScene()->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
 				}
 
+				// Track should not be transactional during the recording process
+				SubsceneTrack->ClearFlags(RF_Transactional);
+
 				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
 				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InMasterSequence)));
 				SubsceneTrack->SetColorTint(Source->TrackTint);
@@ -310,6 +319,9 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 				// tracks do as we record into them.
 				FFrameNumber RecordStartTime = FFrameNumber(0);
 				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartTime, 0);
+
+				// Section should not be transactional during the recording process
+				NewSubSection->ClearFlags(RF_Transactional);
 
 				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
 				SubsceneTrack->FixRowIndices();
@@ -652,6 +664,14 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 
 			// Re-enable transactional after recording
 			SubSequence->GetMovieScene()->SetFlags(RF_Transactional);
+		}
+
+		// Re-enable transactional after recording
+		SubSection->SetFlags(RF_Transactional);
+
+		if (UMovieSceneTrack* SubTrack = Cast<UMovieSceneTrack>(SubSection->GetOuter()))
+		{
+			SubTrack->SetFlags(RF_Transactional);
 		}
 	}
 

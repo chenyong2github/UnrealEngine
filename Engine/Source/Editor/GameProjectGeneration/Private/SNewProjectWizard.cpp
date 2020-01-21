@@ -290,7 +290,7 @@ private:
 	/** Get this item's thumbnail or return the default */
 	const FSlateBrush* GetThumbnail() const
 	{
-		auto ItemPtr = Item.Pin();
+		TSharedPtr<FTemplateItem> ItemPtr = Item.Pin();
 		if (ItemPtr.IsValid() && ItemPtr->Thumbnail.IsValid())
 		{
 			return ItemPtr->Thumbnail.Get();
@@ -325,8 +325,6 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 	.ItemWidth(NewProjectWizardDefs::ItemWidth)
 	.OnMouseButtonDoubleClick(this, &SNewProjectWizard::HandleTemplateListViewDoubleClick)
 	.OnSelectionChanged(this, &SNewProjectWizard::HandleTemplateListViewSelectionChanged);
-
-	const EVisibility StarterContentVisiblity = GameProjectUtils::IsStarterContentAvailableForNewProjects() ? EVisibility::Visible : EVisibility::Collapsed;
 
 	TSharedRef<SSeparator> Separator = SNew(SSeparator).Orientation(EOrientation::Orient_Vertical);
 	Separator->SetBorderBackgroundColor(FLinearColor::White.CopyWithNewOpacity(0.25f));
@@ -565,13 +563,13 @@ EVisibility SNewProjectWizard::GetSelectedTemplateAssetVisibility() const
 
 const FSlateBrush* SNewProjectWizard::GetSelectedTemplatePreviewImage() const
 {
-	auto PreviewImage = GetSelectedTemplateProperty(&FTemplateItem::PreviewImage);
+	TSharedPtr<FSlateBrush> PreviewImage = GetSelectedTemplateProperty(&FTemplateItem::PreviewImage);
 	return PreviewImage.IsValid() ? PreviewImage.Get() : nullptr;
 }
 
 EVisibility SNewProjectWizard::GetSelectedTemplatePreviewVisibility() const
 {
-	auto PreviewImage = GetSelectedTemplateProperty(&FTemplateItem::PreviewImage);
+	TSharedPtr<FSlateBrush> PreviewImage = GetSelectedTemplateProperty(&FTemplateItem::PreviewImage);
 	return PreviewImage.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -743,7 +741,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 	// Add the Enterprise templates
 	TemplateRootFolders.Add(FPaths::EnterpriseDir() + TEXT("Templates"));
 
-	// allow plugins to define templates
+	// Allow plugins to define templates
 	TArray<TSharedRef<IPlugin>> Plugins = IPluginManager::Get().GetEnabledPlugins();
 	for (const TSharedRef<IPlugin>& Plugin : Plugins)
 	{
@@ -761,136 +759,132 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 
 	// Form a list of all folders that could contain template projects
 	TArray<FString> AllTemplateFolders;
-	for ( auto TemplateRootFolderIt = TemplateRootFolders.CreateConstIterator(); TemplateRootFolderIt; ++TemplateRootFolderIt )
+	for (const FString& Root : TemplateRootFolders)
 	{
-		const FString Root = *TemplateRootFolderIt;
-		
 		const FString SearchString = Root / TEXT("*");
 		TArray<FString> TemplateFolders;
 		IFileManager::Get().FindFiles(TemplateFolders, *SearchString, /*Files=*/false, /*Directories=*/true);
-		for ( auto TemplateFolderIt = TemplateFolders.CreateConstIterator(); TemplateFolderIt; ++TemplateFolderIt )
+
+		for (const FString& Folder : TemplateFolders)
 		{
-			AllTemplateFolders.Add( Root / (*TemplateFolderIt) );
+			AllTemplateFolders.Add(Root / Folder);
 		}
 	}
 
 	TArray<TSharedPtr<FTemplateItem>> FoundTemplates;
 
 	// Add a template item for every discovered project
-	for ( auto TemplateFolderIt = AllTemplateFolders.CreateConstIterator(); TemplateFolderIt; ++TemplateFolderIt )
+	for (const FString& Root : AllTemplateFolders)
 	{
-		const FString SearchString = (*TemplateFolderIt) / TEXT("*.") + FProjectDescriptor::GetExtension();
+		const FString SearchString = Root / TEXT("*.") + FProjectDescriptor::GetExtension();
 		TArray<FString> FoundProjectFiles;
 		IFileManager::Get().FindFiles(FoundProjectFiles, *SearchString, /*Files=*/true, /*Directories=*/false);
-		if ( FoundProjectFiles.Num() > 0 )
+
+		if (FoundProjectFiles.Num() == 0 || !ensure(FoundProjectFiles.Num() == 1))
 		{
-			if ( ensure(FoundProjectFiles.Num() == 1) )
-			{
-				// Make sure a TemplateDefs ini file exists
-				const FString Root = *TemplateFolderIt;
-				UTemplateProjectDefs* TemplateDefs = GameProjectUtils::LoadTemplateDefs(Root);
-				if (TemplateDefs)
-				{
-					// Ignore any templates whose definition says we cannot use to create a project
-					if( TemplateDefs->bAllowProjectCreation == false )
-						continue;
-
-					FString ProjectFile = Root / FoundProjectFiles[0];
-
-					// If no template name was specified for the current culture, just use the project name
-					TArray<FName> TemplateCategories = TemplateDefs->Categories;
-					if (TemplateCategories.Num() == 0)
-					{
-						TemplateCategories.Add(NewProjectWizardDefs::DefaultCategoryName);
-					}
-
-					FString TemplateKey = Root;
-					TemplateKey.RemoveFromEnd("BP");
-
-					TSharedPtr<FTemplateItem>* ExistingTemplate = FoundTemplates.FindByPredicate([&TemplateKey](TSharedPtr<FTemplateItem> Item)
-					{
-						return Item->Key == TemplateKey;
-					});
-
-					if (ExistingTemplate != nullptr)
-					{
-						if (TemplateDefs->GeneratesCode(Root))
-						{
-							(*ExistingTemplate)->CodeProjectFile = ProjectFile;
-						}
-						else
-						{
-							(*ExistingTemplate)->BlueprintProjectFile = ProjectFile;
-						}
-
-						continue;
-					}
-					
-					// Did not find an existing template. Create a new one to add to the template list.
-					TSharedPtr<FTemplateItem> Template = MakeShareable(new FTemplateItem());
-					Template->Key = TemplateKey;
-					Template->Categories = TemplateCategories;
-					Template->Description = TemplateDefs->GetLocalizedDescription();
-					Template->ClassTypes = TemplateDefs->ClassTypes;
-					Template->AssetTypes = TemplateDefs->AssetTypes;
-					Template->HiddenSettings = TemplateDefs->HiddenSettings;
-					Template->bIsEnterprise = TemplateDefs->bIsEnterprise;
-					Template->bIsBlankTemplate = TemplateDefs->bIsBlank;
-
-					Template->Name = TemplateDefs->GetDisplayNameText();
-					if (Template->Name.IsEmpty())
-					{
-						Template->Name = FText::FromString(FPaths::GetBaseFilename(ProjectFile));
-					}
-
-					// Only generate code if the template has a source folder
-					if (TemplateDefs->GeneratesCode(Root))
-					{
-						Template->CodeProjectFile = ProjectFile;
-					}
-					else
-					{
-						Template->BlueprintProjectFile = ProjectFile;
-					}
-
-					const FString ThumbnailPNGFile = (Root + TEXT("/Media/") + FoundProjectFiles[0]).Replace(TEXT(".uproject"), TEXT(".png"));
-					if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*ThumbnailPNGFile) )
-					{
-						const FName BrushName = FName(*ThumbnailPNGFile);
-						Template->Thumbnail = MakeShareable( new FSlateDynamicImageBrush(BrushName, FVector2D(128,128) ) );
-					}
-
-					TSharedPtr<FSlateDynamicImageBrush> PreviewBrush;
-					const FString PreviewPNGFile = (Root + TEXT("/Media/") + FoundProjectFiles[0]).Replace(TEXT(".uproject"), TEXT("_Preview.png"));
-					if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*PreviewPNGFile) )
-					{
-						const FName BrushName = FName(*PreviewPNGFile);
-						Template->PreviewImage = MakeShareable( new FSlateDynamicImageBrush(BrushName, FVector2D(512,256) ) );
-					}
-
-					// Get the sort key
-					FString SortKey = TemplateDefs->SortKey;
-					const FString CleanFilename = FPaths::GetCleanFilename(ProjectFile);
-					if(SortKey.Len() == 0)
-					{
-						SortKey = CleanFilename;
-					}
-
-					if (CleanFilename == GameProjectUtils::GetDefaultProjectTemplateFilename())
-					{
-						SortKey = TEXT("_0");
-					}
-					Template->SortKey = SortKey;
-
-					FoundTemplates.Add(Template);
-				}
-			}
-			else
-			{
-				// More than one project file in this template? This is not legal, skip it.
-				continue;
-			}
+			continue;
 		}
+
+		// Make sure a TemplateDefs.ini file exists
+		UTemplateProjectDefs* TemplateDefs = GameProjectUtils::LoadTemplateDefs(Root);
+		if (TemplateDefs == nullptr)
+		{
+			continue;
+		}
+
+		// Ignore any templates whose definition says we cannot use to create a project
+		if (TemplateDefs->bAllowProjectCreation == false)
+		{
+			continue;
+		}
+
+		const FString ProjectFile = Root / FoundProjectFiles[0];
+
+		// If no template category was specified, use the default category
+		TArray<FName> TemplateCategories = TemplateDefs->Categories;
+		if (TemplateCategories.Num() == 0)
+		{
+			TemplateCategories.Add(NewProjectWizardDefs::DefaultCategoryName);
+		}
+
+		// Find a duplicate project, eg. "Foo" and "FooBP"
+		FString TemplateKey = Root;
+		TemplateKey.RemoveFromEnd("BP");
+
+		TSharedPtr<FTemplateItem>* ExistingTemplate = FoundTemplates.FindByPredicate([&TemplateKey](TSharedPtr<FTemplateItem> Item)
+		{
+			return Item->Key == TemplateKey;
+		});
+
+		TSharedPtr<FTemplateItem> Template;
+
+		// Create a new template if none was found
+		if (ExistingTemplate != nullptr)
+		{
+			Template = *ExistingTemplate;
+		}
+		else
+		{
+			Template = MakeShareable(new FTemplateItem());
+		}
+
+		if (TemplateDefs->GeneratesCode(Root))
+		{
+			Template->CodeProjectFile = ProjectFile;
+			Template->CodeTemplateDefs = TemplateDefs;
+		}
+		else
+		{
+			Template->BlueprintProjectFile = ProjectFile;
+			Template->BlueprintTemplateDefs = TemplateDefs;
+		}
+
+		// The rest has already been set by the existing template, so skip it.
+		if (ExistingTemplate != nullptr)
+		{
+			continue;
+		}
+					
+		// Did not find an existing template. Create a new one to add to the template list.
+		Template->Key = TemplateKey;
+					
+		// @todo: These are all basically just copies of what's in UTemplateProjectDefs, but ignore differences between code and BP 
+		Template->Categories = TemplateCategories;
+		Template->Description = TemplateDefs->GetLocalizedDescription();
+		Template->ClassTypes = TemplateDefs->ClassTypes;
+		Template->AssetTypes = TemplateDefs->AssetTypes;
+		Template->HiddenSettings = TemplateDefs->HiddenSettings;
+		Template->bIsEnterprise = TemplateDefs->bIsEnterprise;
+		Template->bIsBlankTemplate = TemplateDefs->bIsBlank;
+
+		Template->Name = TemplateDefs->GetDisplayNameText();
+		if (Template->Name.IsEmpty())
+		{
+			Template->Name = FText::FromString(TemplateKey);
+		}
+
+		const FString ThumbnailPNGFile = (Root + TEXT("/Media/") + FoundProjectFiles[0]).Replace(TEXT(".uproject"), TEXT(".png"));
+		if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*ThumbnailPNGFile) )
+		{
+			const FName BrushName = FName(*ThumbnailPNGFile);
+			Template->Thumbnail = MakeShareable( new FSlateDynamicImageBrush(BrushName, FVector2D(128,128) ) );
+		}
+
+		TSharedPtr<FSlateDynamicImageBrush> PreviewBrush;
+		const FString PreviewPNGFile = (Root + TEXT("/Media/") + FoundProjectFiles[0]).Replace(TEXT(".uproject"), TEXT("_Preview.png"));
+		if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*PreviewPNGFile) )
+		{
+			const FName BrushName = FName(*PreviewPNGFile);
+			Template->PreviewImage = MakeShareable( new FSlateDynamicImageBrush(BrushName, FVector2D(512,256) ) );
+		}
+
+		Template->SortKey = TemplateDefs->SortKey;
+		if(Template->SortKey.IsEmpty())
+		{
+			Template->SortKey = TemplateKey;
+		}
+
+		FoundTemplates.Add(Template);
 	}
 
 	for (const TSharedPtr<FTemplateItem>& Template : FoundTemplates)
@@ -920,7 +914,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		}
 	}
 
-	// add blank template to empty categories
+	// Add blank template to empty categories
 	{
 		TSharedPtr<FTemplateItem> BlankTemplate = MakeShareable(new FTemplateItem());
 		BlankTemplate->Name = LOCTEXT("BlankProjectName", "Blank");
@@ -1088,23 +1082,15 @@ bool SNewProjectWizard::IsCompilerRequired() const
 	return false;
 }
 
-bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
+FProjectInformation SNewProjectWizard::CreateProjectInfo() const
 {
-	// Get the selected template
 	TSharedPtr<FTemplateItem> SelectedTemplate = GetSelectedTemplateItem();
-
-	if (!ensure(SelectedTemplate.IsValid()))
+	if (!SelectedTemplate.IsValid())
 	{
-		// A template must be selected.
-		return false;
+		return FProjectInformation();
 	}
 
-	FText FailReason, FailLog;
-
-	const TArray<ETemplateSetting>& HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
-
 	FProjectInformation ProjectInfo;
-	ProjectInfo.ProjectFilename = ProjectFile;
 	ProjectInfo.bShouldGenerateCode = bShouldGenerateCode;
 	ProjectInfo.bCopyStarterContent = bCopyStarterContent;
 	ProjectInfo.TemplateFile = bShouldGenerateCode ? SelectedTemplate->CodeProjectFile : SelectedTemplate->BlueprintProjectFile;
@@ -1112,6 +1098,26 @@ bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
 	ProjectInfo.bIsBlankTemplate = SelectedTemplate->bIsBlankTemplate;
 	ProjectInfo.bForceExtendedLuminanceRange = SelectedTemplate->bIsBlankTemplate;
+
+	if (bCopyStarterContent)
+	{
+		if (bShouldGenerateCode)
+		{
+			if (SelectedTemplate->CodeTemplateDefs != nullptr)
+			{
+				ProjectInfo.StarterContent = SelectedTemplate->CodeTemplateDefs->StarterContent;
+			}
+		}
+		else
+		{
+			if (SelectedTemplate->BlueprintTemplateDefs != nullptr)
+			{
+				ProjectInfo.StarterContent = SelectedTemplate->BlueprintTemplateDefs->StarterContent;
+			}
+		}
+	}
+
+	const TArray<ETemplateSetting>& HiddenSettings = SelectedTemplate->HiddenSettings;
 
 	if (!HiddenSettings.Contains(ETemplateSetting::All))
 	{
@@ -1136,6 +1142,25 @@ bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 		}
 	}
 
+	return MoveTemp(ProjectInfo);
+}
+
+bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
+{
+	// Get the selected template
+	TSharedPtr<FTemplateItem> SelectedTemplate = GetSelectedTemplateItem();
+
+	if (!ensure(SelectedTemplate.IsValid()))
+	{
+		// A template must be selected.
+		return false;
+	}
+
+	FText FailReason, FailLog;
+
+	FProjectInformation ProjectInfo = CreateProjectInfo();
+	ProjectInfo.ProjectFilename = ProjectFile;
+
 	if (!GameProjectUtils::CreateProject(ProjectInfo, FailReason, FailLog))
 	{
 		SOutputLogDialog::Open(LOCTEXT("CreateProject", "Create Project"), FailReason, FailLog, FText::GetEmpty());
@@ -1145,7 +1170,7 @@ bool SNewProjectWizard::CreateProject(const FString& ProjectFile)
 	// Successfully created the project. Update the last created location string.
 	FString CreatedProjectPath = FPaths::GetPath(FPaths::GetPath(ProjectFile)); 
 
-	// if the original path was the drives root (ie: C:/) the double path call strips the last /
+	// If the original path was the drives root (ie: C:/) the double path call strips the last /
 	if (CreatedProjectPath.EndsWith(":"))
 	{
 		CreatedProjectPath.AppendChar('/');
@@ -1588,8 +1613,10 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.NoStarterContent"),
 			LOCTEXT("NoStarterContent", "No Starter Content")));
 
-		// Only add the option to add starter content if its there to add !
-		bool bIsStarterAvailable = GameProjectUtils::IsStarterContentAvailableForNewProjects();
+		// Only add the option to add starter content if its there to add!
+		FProjectInformation ProjectInfo = CreateProjectInfo();
+		bool bIsStarterAvailable = GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo);
+
 		StarterContentOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
 			1,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"),

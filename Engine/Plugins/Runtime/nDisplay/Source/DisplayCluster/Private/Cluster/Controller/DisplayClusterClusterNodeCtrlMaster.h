@@ -62,25 +62,25 @@ private:
 
 private:
 	// GetDeltaTime internals
-	bool  bIsDataCached_GetDeltaTime = false;
-	float CachedDeltaTime_GetDeltaTime = 0.f;
+	FEvent* CachedDeltaTimeEvent = nullptr;
+	float   CachedDeltaTime = 0.f;
 
 	// GetTimecode internals
-	bool       bIsDataCached_GetTimecode = false;
-	FTimecode  CachedTimecode_GetTimecode;
-	FFrameRate CachedFramerate_GetTimecode;
+	FEvent* CachedTimeCodeFrameRateEvent = nullptr;
+	FTimecode  CachedTimecode;
+	FFrameRate CachedFramerate;
 
 	// GetSyncData internals
-	TMap<EDisplayClusterSyncGroup, bool> IsDataCached_GetSyncData;
-	TMap<EDisplayClusterSyncGroup, FDisplayClusterMessage::DataType> CachedSyncData_GetSyncData;
+	TMap<EDisplayClusterSyncGroup, FEvent*> CachedSyncDataEvents;
+	TMap<EDisplayClusterSyncGroup, FDisplayClusterMessage::DataType> CachedSyncData;
 
 	// GetInputData internals
-	bool bIsDataCached_GetInputData = false;
-	FDisplayClusterMessage::DataType CachedInputData_GetInputData;
+	FEvent* CachedInputDataEvent = nullptr;
+	FDisplayClusterMessage::DataType CachedInputData;
 
 	// GetEventsData internals
-	bool bIsDataCached_GetEventsData = false;
-	FDisplayClusterMessage::DataType CachedEventsData_GetEventsData;
+	FEvent* CachedEventsDataEvent = nullptr;
+	FDisplayClusterMessage::DataType CachedEventsData;
 
 private:
 	mutable FCriticalSection InternalsSyncScope;

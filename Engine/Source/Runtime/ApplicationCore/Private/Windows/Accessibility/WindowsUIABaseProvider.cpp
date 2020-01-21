@@ -6,7 +6,7 @@
 
 #include "Misc/AssertionMacros.h"
 #include "Windows/Accessibility/WindowsUIAManager.h"
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 FWindowsUIABaseProvider::FWindowsUIABaseProvider(FWindowsUIAManager& InManager, TSharedRef<IAccessibleWidget> InWidget)
 	: UIAManager(&InManager)

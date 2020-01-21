@@ -609,6 +609,7 @@ FReply SNodePanel::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointe
 		SoftwareCursorPosition = PanelCoordToGraphCoord(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 
 		DeferredMovementTargetObject = nullptr; // clear any interpolation when you manually pan
+		CancelZoomToFit();
 
 		// MIDDLE BUTTON is for dragging only.
 		return ReplyState;

@@ -113,7 +113,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.EyeAdaptationTexture);
-	check(Inputs.Threshold > 0.0f);
+	check(Inputs.Threshold > -1.0f);
 
 	const bool bIsComputePass = View.bUseComputePasses;
 

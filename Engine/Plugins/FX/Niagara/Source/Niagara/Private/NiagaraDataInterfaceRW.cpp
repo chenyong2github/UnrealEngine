@@ -172,7 +172,7 @@ bool UNiagaraDataInterfaceGrid3D::Equals(const UNiagaraDataInterface* Other) con
 		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize);
 }
 
-void UNiagaraDataInterfaceGrid3D::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceGrid3D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	static const TCHAR *FormatDeclarations = TEXT(R"(
 		int3 {NumVoxelsName};
@@ -187,16 +187,16 @@ void UNiagaraDataInterfaceGrid3D::GetParameterDefinitionHLSL(FNiagaraDataInterfa
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("FunctionName"), InstanceFunctionName},
+		{ TEXT("FunctionName"), FunctionInfo.InstanceName},
 		{ TEXT("NumVoxelsName"), NumVoxelsName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("VoxelSizeName"), VoxelSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("WorldBBoxSizeName"),    WorldBBoxSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 
-	if (DefinitionFunctionName == WorldBBoxSizeFunctionName)
+	if (FunctionInfo.DefinitionName == WorldBBoxSizeFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_WorldBBox)
@@ -208,7 +208,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == NumVoxelsFunctionName)
+	else if (FunctionInfo.DefinitionName == NumVoxelsFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_NumVoxelsX, out int Out_NumVoxelsY, out int Out_NumVoxelsZ)
@@ -222,7 +222,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == SimulationToUnitFunctionName)
+	else if (FunctionInfo.DefinitionName == SimulationToUnitFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float3 In_Simulation, float4x4 In_SimulationToUnitTransform, out float3 Out_Unit)
@@ -234,7 +234,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == UnitToIndexFunctionName)
+	else if (FunctionInfo.DefinitionName == UnitToIndexFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float3 In_Unit, out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
@@ -249,7 +249,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == IndexToLinearFunctionName)
+	else if (FunctionInfo.DefinitionName == IndexToLinearFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, out int Out_Linear)
@@ -261,7 +261,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == VoxelSizeFunctionName)
+	else if (FunctionInfo.DefinitionName == VoxelSizeFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_VoxelSize)
@@ -511,7 +511,7 @@ bool UNiagaraDataInterfaceGrid2D::Equals(const UNiagaraDataInterface* Other) con
 		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize);
 }
 
-void UNiagaraDataInterfaceGrid2D::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceGrid2D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	static const TCHAR *FormatDeclarations = TEXT(R"(
 		int2 {NumCellsName};
@@ -526,16 +526,16 @@ void UNiagaraDataInterfaceGrid2D::GetParameterDefinitionHLSL(FNiagaraDataInterfa
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("FunctionName"), InstanceFunctionName},
+		{ TEXT("FunctionName"), FunctionInfo.InstanceName},
 		{ TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("CellSizeName"), CellSizeName + ParamInfo.DataInterfaceHLSLSymbol },		
 		{ TEXT("WorldBBoxSizeName"),    WorldBBoxSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 
-	if (DefinitionFunctionName == WorldBBoxSizeFunctionName)
+	if (FunctionInfo.DefinitionName == WorldBBoxSizeFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float2 Out_WorldBBox)
@@ -547,7 +547,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == NumCellsFunctionName)
+	else if (FunctionInfo.DefinitionName == NumCellsFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_NumCellsX, out int Out_NumCellsY)
@@ -560,7 +560,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == SimulationToUnitFunctionName)
+	else if (FunctionInfo.DefinitionName == SimulationToUnitFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float3 In_Simulation, float4x4 In_SimulationToUnitTransform, out float3 Out_Unit)
@@ -572,7 +572,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == UnitToSimulationFunctionName)
+	else if (FunctionInfo.DefinitionName == UnitToSimulationFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float3 In_Unit, float4x4 In_UnitToSimulationTransform, out float3 Out_Simulation)
@@ -584,7 +584,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == UnitToIndexFunctionName)
+	else if (FunctionInfo.DefinitionName == UnitToIndexFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float2 In_Unit, out int Out_IndexX, out int Out_IndexY)
@@ -598,7 +598,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == IndexToUnitFunctionName)
+	else if (FunctionInfo.DefinitionName == IndexToUnitFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float In_IndexX, float In_IndexY, out float3 Out_Unit)
@@ -610,7 +610,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == IndexToUnitStaggeredXFunctionName)
+	else if (FunctionInfo.DefinitionName == IndexToUnitStaggeredXFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float In_IndexX, float In_IndexY, out float3 Out_Unit)
@@ -622,7 +622,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == IndexToUnitStaggeredYFunctionName)
+	else if (FunctionInfo.DefinitionName == IndexToUnitStaggeredYFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float In_IndexX, float In_IndexY, out float3 Out_Unit)
@@ -634,7 +634,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == IndexToLinearFunctionName)
+	else if (FunctionInfo.DefinitionName == IndexToLinearFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, out int Out_Linear)
@@ -646,7 +646,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == LinearToIndexFunctionName)
+	else if (FunctionInfo.DefinitionName == LinearToIndexFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(int In_Linear, out int Out_IndexX, out int Out_IndexY)
@@ -659,7 +659,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FName& DefinitionFunctio
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (DefinitionFunctionName == CellSizeFunctionName)
+	else if (FunctionInfo.DefinitionName == CellSizeFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float2 Out_CellSize)

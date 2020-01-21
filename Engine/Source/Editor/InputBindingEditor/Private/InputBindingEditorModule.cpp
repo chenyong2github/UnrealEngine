@@ -7,7 +7,7 @@
 #include "Misc/Paths.h"
 #include "UnrealEdMisc.h"
 #include "Logging/MessageLog.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "IDetailCustomization.h"
 #include "ISettingsModule.h"
 #include "PropertyEditorModule.h"
@@ -282,7 +282,7 @@ private:
 	// Show a warning that the editor will require a restart and return its result
 	EAppReturnType::Type ShowRestartWarning(const FText& Title) const
 	{
-		return OpenMsgDlgInt(EAppMsgType::OkCancel, LOCTEXT("ActionRestartMsg", "Imported settings won't be applied until the editor is restarted. Do you wish to restart now (you will be prompted to save any changes)?"), Title);
+		return FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("ActionRestartMsg", "Imported settings won't be applied until the editor is restarted. Do you wish to restart now (you will be prompted to save any changes)?"), &Title);
 	}
 
 	// Backup a file

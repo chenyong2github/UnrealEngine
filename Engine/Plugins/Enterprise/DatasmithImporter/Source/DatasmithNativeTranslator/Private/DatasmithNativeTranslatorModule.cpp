@@ -2,7 +2,7 @@
 #include "DatasmithNativeTranslatorModule.h"
 
 #include "DatasmithNativeTranslator.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"

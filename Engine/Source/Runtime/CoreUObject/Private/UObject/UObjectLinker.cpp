@@ -82,10 +82,16 @@ template <> struct TIsPODType<FLinkerIndexPair> { enum { Value = false }; };
  * A: It does not need to be. This is GC-Safe.
  * Objects are detached from their linkers prior to destruction of either the linker or the object
  *
- * NOTE: We're currently using dense annotations for linkers to emphasize speed over memory
+ * NOTE: We're currently using chunked annotations for linkers to emphasize memory
  * usage, but might want to revisit this decision on platforms that are memory limited.
+ *
+ * LINUX SERVER NOTE: For servers we are using Sparse to emphasize speed over memory usage
  */
+#if PLATFORM_LINUX && UE_SERVER
+static FUObjectAnnotationSparse<FLinkerIndexPair, false> LinkerAnnotation;
+#else
 static FUObjectAnnotationChunked<FLinkerIndexPair, false> LinkerAnnotation;
+#endif
 
 /** Remove all annotations on exit. This is to prevent issues with the order of static destruction of singletons. */
 void CleanupLinkerAnnotations()

@@ -147,6 +147,15 @@ UDatasmithObjectTemplate* UDatasmithObjectTemplate::GetDifference(UObject* Desti
 	TStrongObjectPtr< UDatasmithObjectTemplate > DestinationTemplate{ NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass()) };
 	DestinationTemplate->Load(Destination);
 
+	if ( !SourceTemplate->HasSameBase(DestinationTemplate.Get()) )
+	{
+		//The 2 templates don't have the same base object, we need to load the rebased template instead.
+		UDatasmithObjectTemplate* DiffTemplate = NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass());
+		DiffTemplate->LoadRebase(Destination, SourceTemplate, true);
+
+		return DiffTemplate;
+	}
+
 	// Update the Destination object with the new template
 	SourceTemplate->UpdateObject(Destination);
 

@@ -23,6 +23,13 @@ class FHttpServerModule :
 public:
 
 	/**
+	 * Checks to see if this module is loaded and ready.  It is only valid to call Get() if IsAvailable() returns true.
+	 *
+	 * @return True if the module is loaded and ready to use
+	 */
+	HTTPSERVER_API static bool IsAvailable();
+
+	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
 	 *
@@ -86,9 +93,6 @@ private:
 
 	/** The association of port bindings and respective HTTP listeners */
 	TMap<uint32, TUniquePtr<FHttpListener>> Listeners;
-
-	/** Whether this module has been initialized */
-	bool bInitialized = false;
 
 	/** Whether listeners can be started */
 	bool bHttpListenersEnabled = false;

@@ -16,10 +16,10 @@ static FAutoConsoleVariableRef CVarHairGlobalScattering(TEXT("r.HairStrands.Comp
 static FAutoConsoleVariableRef CVarHairLocalScattering(TEXT("r.HairStrands.Components.LocalScattering"), GHairLocalScattering, TEXT("Enable/disable hair BSDF component local scattering"));
 
 static float GStrandHairRasterizationScale = 0.5f; // For no AA without TAA, a good value is: 1.325f (Empirical)
-static FAutoConsoleVariableRef CVarStrandHairRasterizationScale(TEXT("r.HairStrands.RasterizationScale"), GStrandHairRasterizationScale, TEXT("Rasterization scale to snap strand to pixel"));
+static FAutoConsoleVariableRef CVarStrandHairRasterizationScale(TEXT("r.HairStrands.RasterizationScale"), GStrandHairRasterizationScale, TEXT("Rasterization scale to snap strand to pixel"), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static float GStrandHairVelocityRasterizationScale = 1.5f; // Tuned based on heavy motion example (e.g., head shaking)
-static FAutoConsoleVariableRef CVarStrandHairMaxRasterizationScale(TEXT("r.HairStrands.VelocityRasterizationScale"), GStrandHairVelocityRasterizationScale, TEXT("Rasterization scale to snap strand to pixel under high velocity"));
+static FAutoConsoleVariableRef CVarStrandHairMaxRasterizationScale(TEXT("r.HairStrands.VelocityRasterizationScale"), GStrandHairVelocityRasterizationScale, TEXT("Rasterization scale to snap strand to pixel under high velocity"), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static float GStrandHairShadowRasterizationScale = 1.0f;
 static FAutoConsoleVariableRef CVarStrandHairShadowRasterizationScale(TEXT("r.HairStrands.ShadowRasterizationScale"), GStrandHairShadowRasterizationScale, TEXT("Rasterization scale to snap strand to pixel in shadow view"));
@@ -29,6 +29,13 @@ static FAutoConsoleVariableRef CVarDeepShadowAABBScale(TEXT("r.HairStrands.DeepS
 
 static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
+
+static float GHairDualScatteringRoughnessOverride = 0;
+static FAutoConsoleVariableRef CVarHairDualScatteringRoughnessOverride(TEXT("r.HairStrands.DualScatteringRoughness"), GHairDualScatteringRoughnessOverride, TEXT("Override all roughness for the dual scattering evaluation. 0 means no override. Default:0"));
+float GetHairDualScatteringRoughnessOverride()
+{
+	return GHairDualScatteringRoughnessOverride;
+}
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
 {
@@ -180,14 +187,14 @@ FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View)
 }
 
 
-FIntRect ComputeVisibleHairStrandsClustersRect(const FIntRect& ViewRect, const FHairStrandsClusterDatas& ClusterDatas)
+FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, const FHairStrandsMacroGroupDatas& Datas)
 {
 	FIntRect TotalRect(INT_MAX, INT_MAX, -INT_MAX, -INT_MAX);
 	if (IsHairStrandsViewRectOptimEnable())
 	{
-		for (const FHairStrandsClusterData& ClusterData : ClusterDatas.Datas)
+		for (const FHairStrandsMacroGroupData& Data : Datas.Datas)
 		{
-			TotalRect.Union(ClusterData.ScreenRect);
+			TotalRect.Union(Data.ScreenRect);
 		}
 	}
 	else
@@ -233,4 +240,24 @@ FIntPoint GetVendorOptimalGroupSize2D()
 	case HairVisibilityVendor_INTEL:	return FIntPoint(8, 8);
 	default:							return FIntPoint(8, 8);
 	}
+}
+
+FVector4 PackHairRenderInfo(
+	float PrimaryRadiusAtDepth1,
+	float VelocityRadiusAtDepth1,
+	float VelocityMagnitudeScale,
+	bool bIsOrtho,
+	bool bIsGPUDriven)
+{
+	uint32 BitField = 0;
+	BitField |= bIsOrtho ? 0x1 : 0;
+	BitField |= bIsGPUDriven ? 0x2 : 0;
+
+	FVector4 Out;
+	Out.X = PrimaryRadiusAtDepth1;
+	Out.Y = VelocityRadiusAtDepth1;
+	Out.Z = VelocityMagnitudeScale;
+	Out.W = *((float*)(&BitField));
+
+	return Out;
 }

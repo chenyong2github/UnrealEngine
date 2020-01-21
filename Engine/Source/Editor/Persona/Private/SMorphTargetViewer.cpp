@@ -330,6 +330,7 @@ void SMorphTargetViewer::Construct(const FArguments& InArgs, const TSharedRef<IP
 
 	SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->SkeletalMesh;
 	InPreviewScene->RegisterOnPreviewMeshChanged( FOnPreviewMeshChanged::CreateSP( this, &SMorphTargetViewer::OnPreviewMeshChanged ) );
+	InPreviewScene->RegisterOnMorphTargetsChanged(FSimpleDelegate::CreateSP(this, &SMorphTargetViewer::OnMorphTargetsChanged));
 	OnPostUndo.Add(FSimpleDelegate::CreateSP(this, &SMorphTargetViewer::OnPostUndo));
 
 	const FText SkeletalMeshName = SkeletalMesh ? FText::FromString( SkeletalMesh->GetName() ) : LOCTEXT( "MorphTargetMeshNameLabel", "No Skeletal Mesh Present" );
@@ -395,6 +396,11 @@ void SMorphTargetViewer::OnPreviewMeshChanged(class USkeletalMesh* OldPreviewMes
 {
 	SkeletalMesh = NewPreviewMesh;
 	CreateMorphTargetList( NameFilterBox->GetText().ToString() );
+}
+
+void SMorphTargetViewer::OnMorphTargetsChanged()
+{
+	CreateMorphTargetList(NameFilterBox->GetText().ToString());
 }
 
 void SMorphTargetViewer::OnFilterTextChanged( const FText& SearchText )

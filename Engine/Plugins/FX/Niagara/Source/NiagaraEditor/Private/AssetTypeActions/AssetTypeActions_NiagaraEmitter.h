@@ -23,4 +23,5 @@ public:
 
 private:
 	void ExecuteNewNiagaraSystem(TArray<TWeakObjectPtr<UNiagaraEmitter>> Emitters);
+	void ExecuteCreateDuplicateParent(TArray<TWeakObjectPtr<UNiagaraEmitter>> Emitters);
 };

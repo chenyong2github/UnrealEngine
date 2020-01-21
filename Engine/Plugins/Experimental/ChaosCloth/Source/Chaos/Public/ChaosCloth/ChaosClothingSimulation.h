@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothingSimulationInterface.h"
-
+#include "ClothingSimulation.h"
 #include "ClothingAsset.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/PBDEvolution.h"
@@ -13,20 +12,9 @@
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Inherit from FClothingSimulationContextBase
-	{
-	public:
-		ClothingSimulationContext() {}
-		~ClothingSimulationContext() {}
+	typedef FClothingSimulationContextCommon ClothingSimulationContext;
 
-		float DeltaTime;
-		TArray<FMatrix> RefToLocals;
-		TArray<FTransform> BoneTransforms;
-		FTransform ComponentToWorld;
-		FVector WorldGravity;  // Gravity extracted from the world
-	};
-
-	class ClothingSimulation : public IClothingSimulation
+	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
@@ -70,7 +58,6 @@ namespace Chaos
 		virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
 		virtual void PostActorCreationInitialize() override;
 		virtual IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
-		virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 		virtual void Shutdown() override;
 		virtual bool ShouldSimulate() const override { return true; }
 		virtual void Simulate(IClothingSimulationContext* InContext) override;
@@ -107,8 +94,8 @@ namespace Chaos
 		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset);
 		// Add collisions from a ClothCollisionData structure
 		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
-		// Update the collision transforms using the specified context
-		void UpdateCollisionTransforms(const ClothingSimulationContext& Context);
+		// Update the collision transforms using the specified context, also update old collision if bReinit is true
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit);
 		// Return the correct bone index based on the asset used bone index array
 		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
 		{
@@ -139,6 +126,7 @@ namespace Chaos
 
 		// Sim Data
 		TArray<Chaos::TVector<uint32, 2>> IndexToRangeMap;
+		TArray<FTransform> RootBoneWorldTransforms;  // Used for teleportation
 
 		TArray<TUniquePtr<Chaos::TTriangleMesh<float>>> Meshes;
 		mutable TArray<TArray<Chaos::TVector<float, 3>>> FaceNormals;
@@ -150,7 +138,6 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
-		float ClampDeltaTime;
 
 		FVector Gravity;
 

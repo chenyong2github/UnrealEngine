@@ -47,7 +47,7 @@ void ALevelBounds::PostLoad()
 	}
 }
 
-FBox ALevelBounds::GetComponentsBoundingBox(bool bNonColliding) const
+FBox ALevelBounds::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	checkf(RootComponent != nullptr, TEXT("LevelBounds actor with null root component: %s"), *GetPathNameSafe(this));
 	FVector BoundsCenter = RootComponent->GetComponentLocation();

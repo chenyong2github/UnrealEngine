@@ -84,8 +84,10 @@ public:
 
 	virtual const FText GetApplicationTitle( const bool bIncludeGameName ) const override
 	{
-		return StaticGetApplicationTitle( bIncludeGameName );
+		return OverriddenWindowTitle.IsEmpty() ? StaticGetApplicationTitle( bIncludeGameName ) : OverriddenWindowTitle;
 	}
+
+	virtual void SetApplicationTitleOverride(const FText& NewOverriddenApplicationTitle) override;
 
 	virtual void ShowAboutWindow( ) const override
 	{
@@ -166,6 +168,9 @@ private:
 
 	// Friendly name for persistently level name currently loaded.  Used for window and tab titles.
 	FString LoadedLevelName;
+
+	// Override window title, or empty to not override
+	FText OverriddenWindowTitle;
 
 	/// Event to be called when the mainframe is fully created.
 	FMainFrameCreationFinishedEvent MainFrameCreationFinishedEvent;

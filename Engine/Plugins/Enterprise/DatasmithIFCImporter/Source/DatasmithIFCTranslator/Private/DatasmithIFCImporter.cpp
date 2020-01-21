@@ -7,19 +7,17 @@
 #include "IFC/IFCStaticMeshFactory.h"
 
 #include "DatasmithAssetImportData.h"
-#include "DatasmithImportContext.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Utility/DatasmithImporterUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "AnalyticsEventAttribute.h"
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
-#include "ObjectTools.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithIFCImport);
 
@@ -64,7 +62,7 @@ bool FDatasmithIFCImporter::OpenFile(const FString& InFileName)
 
 FString FDatasmithIFCImporter::GetFilteredName(const FString& Name)
 {
-	return ObjectTools::SanitizeObjectName(Name);
+	return FDatasmithUtils::SanitizeObjectName(Name);
 }
 
 FString FDatasmithIFCImporter::GetUniqueName(const FString& Name)
@@ -98,7 +96,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithIFCImporter::CreateStaticMeshAc
 	{
 		ActorName = GetUniqueName(ActorName);
 		LogMessages.Emplace(EMessageSeverity::Warning, TEXT("Non-unique Global ID: ") + InObject.GlobalId);
-	} 
+	}
 
 	FString ActorLabel = InObject.Type + TEXT("_") + InObject.Name; // duplication
 	FString MeshName = TEXT("DefaultName");
@@ -107,9 +105,9 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithIFCImporter::CreateStaticMeshAc
 	if (MeshNamePtr == nullptr)
 	{
 		MeshName = ActorName + TEXT("_Mesh");
-		
-		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*MeshName);
 
+		TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*MeshName);
+		MeshElement->SetLabel(*ActorLabel);
 		MeshElement->SetFileHash(IFCStaticMeshFactory->ComputeHash(InObject));
 
 		MeshName = MeshElement->GetName();
@@ -250,7 +248,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithIFCImporter::ConvertNode(const IFC:
 			Containment->AddChild(ConvertNode(IFCReader->GetObjects()[PartIndex]));
 		}
 	}
-	
+
 	ImportedIFCInstances.Add(InObject.IfcInstance);
 	return ActorElement;
 }
@@ -323,7 +321,7 @@ bool FDatasmithIFCImporter::SendSceneToDatasmith()
 	}
 
 	// Import all unreferenced objects
-	TSharedPtr<IDatasmithActorElement> UnreferencedRoot = FDatasmithSceneFactory::CreateActor(TEXT("Unreferenced objects"));	
+	TSharedPtr<IDatasmithActorElement> UnreferencedRoot = FDatasmithSceneFactory::CreateActor(TEXT("Unreferenced objects"));
 	for (const IFC::FObject& IFCObjectRef : IFCReader->GetObjects())
 	{
 		if (IFCObjectRef.bRootObject && !ImportedIFCInstances.Contains(IFCObjectRef.IfcInstance))

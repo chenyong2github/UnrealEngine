@@ -61,7 +61,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return Phi;
 	}
 
-	virtual const TAABB<FReal, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<FReal, 3> BoundingBox() const override { return MLocalBoundingBox; }
 
 	virtual void AccumulateAllImplicitObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FRigidTransform3& ParentTM) const
 	{

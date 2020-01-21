@@ -41,9 +41,6 @@ private:
 	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere)
 	TArray<FFoliageTypeObject> FoliageTypes;
 
-	UPROPERTY()
-	bool bNeedsSimulation;
-
 public:
 	UFUNCTION(BlueprintCallable, Category = ProceduralFoliageSimulation)
 	void Simulate(int32 NumSteps = -1);
@@ -56,14 +53,7 @@ public:
 	/** Returns the instances that need to spawn for a given min,max region */
 	void GetInstancesToSpawn(TArray<FProceduralFoliageInstance>& OutInstances, const FVector& Min = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX), const FVector& Max = FVector(FLT_MAX, FLT_MAX, FLT_MAX) ) const;
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
-#endif
-
 	virtual void Serialize(FArchive& Ar);
-
-	/** Simulates tiles if needed */
-	void SimulateIfNeeded();
 
 	/** Takes a tile index and returns a random tile associated with that index. */
 	const UProceduralFoliageTile* GetRandomTile(int32 X, int32 Y);
@@ -73,8 +63,6 @@ public:
 
 private:
 	void CreateProceduralFoliageInstances();
-
-	bool AnyDirty() const;
 
 	void SetClean();
 private:

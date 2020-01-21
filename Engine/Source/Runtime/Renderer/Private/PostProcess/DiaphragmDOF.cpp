@@ -2550,7 +2550,6 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FRDGTextureDesc Desc = InputSceneColor->Desc;
 			Desc.NumSamples = 1;
 			Desc.TargetableFlags |= TexCreate_UAV;
-			Desc.TargetableFlags &= ~TexCreate_RenderTargetable;
 			NewSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("DOFRecombine"));
 		}
 		

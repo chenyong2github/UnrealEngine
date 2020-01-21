@@ -138,7 +138,7 @@ namespace Chaos
 
 		FORCEINLINE static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
 
-		const TAABB<T, d>& BoundingBox() const { return AABB; }
+		const TAABB<T, d> BoundingBox() const { return AABB; }
 
 		virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override
 		{

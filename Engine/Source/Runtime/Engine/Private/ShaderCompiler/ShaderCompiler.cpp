@@ -1037,6 +1037,16 @@ FShaderCompileThreadRunnable::FShaderCompileThreadRunnable(FShaderCompilingManag
 	: FShaderCompileThreadRunnableBase(InManager)
 	, LastCheckForWorkersTime(0)
 {
+	if (GIsBuildMachine)
+	{
+		int32 MinSCWsToSpawnBeforeWarning = 8; // optional, default to 8
+		GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("MinSCWsToSpawnBeforeWarning"), MinSCWsToSpawnBeforeWarning, GEngineIni);
+		if (Manager->NumShaderCompilingThreads < static_cast<uint32>(MinSCWsToSpawnBeforeWarning))
+		{
+			UE_LOG(LogShaderCompilers, Warning, TEXT("Only %d SCWs will be spawned, which will result in longer shader compile times."), Manager->NumShaderCompilingThreads);
+		}
+	}
+
 	for (uint32 WorkerIndex = 0; WorkerIndex < Manager->NumShaderCompilingThreads; WorkerIndex++)
 	{
 		WorkerInfos.Add(new FShaderCompileWorkerInfo());
@@ -1864,12 +1874,10 @@ FShaderCompilingManager::FShaderCompilingManager() :
 		float CookerMemoryUsedInGB = 0.0f;
 		float MemoryToLeaveForTheOSInGB = 0.0f;
 		float MemoryUsedPerSCWProcessInGB = 0.0f;
-		int32 MinSCWsToSpawnBeforeWarning = 8; // optional, default to 8
 		bool bFoundEntries = true;
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("CookerMemoryUsedInGB"), CookerMemoryUsedInGB, GEngineIni);
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("MemoryToLeaveForTheOSInGB"), MemoryToLeaveForTheOSInGB, GEngineIni);
 		bFoundEntries = bFoundEntries && GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("MemoryUsedPerSCWProcessInGB"), MemoryUsedPerSCWProcessInGB, GEngineIni);
-		GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("MinSCWsToSpawnBeforeWarning"), MinSCWsToSpawnBeforeWarning, GEngineIni);
 		if (bFoundEntries)
 		{
 			uint32 PhysicalGBRam = FPlatformMemory::GetPhysicalGBRam();
@@ -1898,10 +1906,6 @@ FShaderCompilingManager::FShaderCompilingManager() :
 				GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bUseVirtualCores"), bUseVirtualCores, GEngineIni);
 				uint32 MaxNumCoresToUse = bUseVirtualCores ? NumVirtualCores : FPlatformMisc::NumberOfCores();
 				NumShaderCompilingThreads = FMath::Clamp<uint32>(NumShaderCompilingThreads, 1, MaxNumCoresToUse - 1);
-				if (NumShaderCompilingThreads < static_cast<uint32>(MinSCWsToSpawnBeforeWarning))
-				{
-					UE_LOG(LogShaderCompilers, Warning, TEXT("Only %d SCWs will be spawned, which will result in longer shader compile times."), NumShaderCompilingThreads);
-				}
 			}
 		}
 	}
@@ -3682,13 +3686,6 @@ void GlobalBeginCompileShader(
 	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseLegacyShadingModel"));
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_USE_LEGACY_SHADING"), CVar ? (CVar->GetInt() != 0) : 0);
-	}
-
-	{
-		const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Target.Platform);
-		const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(EShaderPlatform(Target.Platform)).ToString());
-		const bool bVirtualTextureEnabled = UseVirtualTexturing(FeatureLevel, TargetPlatform);
-		Input.Environment.SetDefine(TEXT("PROJECT_SUPPORT_VIRTUAL_TEXTURE"), bVirtualTextureEnabled ? 1 : 0);
 	}
 
 	{

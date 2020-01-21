@@ -14,6 +14,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "MovieSceneTranslator.h"
 #include "MovieSceneCaptureSettings.h"
+#include "SEnumCombobox.h"
 
 
 class ISequencer;
@@ -46,8 +47,6 @@ struct FFBXInOutParameters
 	bool bConvertSceneUnitBackup;
 	bool bForceFrontXAxisBackup;
 };
-
-DECLARE_DELEGATE_TwoParams(FOnEnumSelectionChanged, int32 /*Selection*/, ESelectInfo::Type /*SelectionType*/);
 
 class MOVIESCENETOOLS_API MovieSceneToolHelpers
 {
@@ -157,7 +156,7 @@ public:
 	 * @param OnSelectionChanged Delegate fired when selection is changed
 	 * @return The new widget
 	 */
-	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, FOnEnumSelectionChanged OnSelectionChanged);
+	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, SEnumCombobox::FOnEnumSelectionChanged OnSelectionChanged);
 
 
 	/**

@@ -2,16 +2,18 @@
 
 #include "VariantObjectBinding.h"
 
-#include "Engine/World.h"
-#include "UObject/LazyObjectPtr.h"
-#include "UObject/SoftObjectPath.h"
-#include "PropertyValue.h"
-#include "Variant.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsFunctionDirector.h"
-#include "GameFramework/Actor.h"
+#include "PropertyValue.h"
+#include "Variant.h"
+#include "VariantManagerObjectVersion.h"
+
 #include "Algo/Sort.h"
+#include "Engine/World.h"
 #include "FunctionCaller.h"
+#include "GameFramework/Actor.h"
+#include "UObject/LazyObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
 #if WITH_EDITORONLY_DATA
 #include "K2Node_FunctionEntry.h"
 #endif
@@ -23,8 +25,10 @@ UVariantObjectBinding::UVariantObjectBinding(const FObjectInitializer& ObjectIni
 {
 }
 
-void UVariantObjectBinding::Init(UObject* InObject)
+void UVariantObjectBinding::SetObject(UObject* InObject)
 {
+	Modify();
+
 	ObjectPtr = InObject;
 	LazyObjectPtr = InObject;
 }
@@ -32,6 +36,34 @@ void UVariantObjectBinding::Init(UObject* InObject)
 UVariant* UVariantObjectBinding::GetParent()
 {
 	return Cast<UVariant>(GetOuter());
+}
+
+void UVariantObjectBinding::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FVariantManagerObjectVersion::GUID);
+	int32 CustomVersion = Ar.CustomVer(FVariantManagerObjectVersion::GUID);
+
+	if(Ar.IsLoading())
+	{
+		if (CustomVersion < FVariantManagerObjectVersion::StoreDisplayOrder)
+		{
+#if WITH_EDITORONLY_DATA
+			// PropertyValue and FunctionCallers won't have any display order. Assign them
+			// increasing values with FunctionCallers at the bottom
+			uint32 DisplayOrder = 0;
+			for (UPropertyValue* Property : CapturedProperties)
+			{
+				Property->SetDisplayOrder(++DisplayOrder);
+			}
+			for (FFunctionCaller& FunctionCaller : FunctionCallers)
+			{
+				FunctionCaller.SetDisplayOrder(++DisplayOrder);
+			}
+#endif
+		}
+	}
 }
 
 FText UVariantObjectBinding::GetDisplayText() const
@@ -44,8 +76,13 @@ FText UVariantObjectBinding::GetDisplayText() const
 #else
 		const FString& Label = Actor->GetName();
 #endif
-
+		CachedActorLabel = Label;
 		return FText::FromString(Label);
+	}
+
+	if (!CachedActorLabel.IsEmpty())
+	{
+		return FText::FromString(CachedActorLabel);
 	}
 
 	return FText::FromString(TEXT("<Unloaded binding>"));
@@ -130,6 +167,14 @@ void UVariantObjectBinding::AddCapturedProperties(const TArray<UPropertyValue*>&
 		ExistingProperties.Add(Prop->GetFullDisplayString());
 	}
 
+#if WITH_EDITORONLY_DATA
+	uint32 MaxDisplayOrder = 0;
+	for (UPropertyValue* NewProp : CapturedProperties)
+	{
+		MaxDisplayOrder = FMath::Max(MaxDisplayOrder, NewProp->GetDisplayOrder());
+	}
+#endif
+
 	bool bIsMoveOperation = false;
 	TSet<UVariantObjectBinding*> ParentsModified;
 	for (UPropertyValue* NewProp : NewProperties)
@@ -148,6 +193,10 @@ void UVariantObjectBinding::AddCapturedProperties(const TArray<UPropertyValue*>&
 		NewProp->Rename(nullptr, this, REN_DontCreateRedirectors);  // Make us its Outer
 
 		CapturedProperties.Add(NewProp);
+
+#if WITH_EDITORONLY_DATA
+		NewProp->SetDisplayOrder(++MaxDisplayOrder);
+#endif
 	}
 
 	SortCapturedProperties();
@@ -172,10 +221,20 @@ void UVariantObjectBinding::RemoveCapturedProperties(const TArray<UPropertyValue
 
 void UVariantObjectBinding::SortCapturedProperties()
 {
+#if WITH_EDITORONLY_DATA
 	CapturedProperties.Sort([](const UPropertyValue& A, const UPropertyValue& B)
 	{
-		return A.GetFullDisplayString() < B.GetFullDisplayString();
+		uint32 OrderA = A.GetDisplayOrder();
+		uint32 OrderB = B.GetDisplayOrder();
+
+		if (OrderA == OrderB)
+		{
+			return A.GetFullDisplayString() < B.GetFullDisplayString();
+		}
+
+		return OrderA < OrderB;
 	});
+#endif
 }
 
 void UVariantObjectBinding::AddFunctionCallers(const TArray<FFunctionCaller>& InFunctionCallers)

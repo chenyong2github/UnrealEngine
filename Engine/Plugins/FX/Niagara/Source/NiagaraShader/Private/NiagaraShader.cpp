@@ -117,7 +117,7 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 		Ar << CompilerVersionID;
 	}
 
-	Ar << BaseScriptID;
+	Ar << BaseScriptID_DEPRECATED;
 	Ar << (int32&)FeatureLevel;
 
 	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
@@ -153,7 +153,7 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	FSHA1 HashState;
 
 	HashState.Update((const uint8*)&CompilerVersionID, sizeof(CompilerVersionID));
-	HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
+	//HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
 	HashState.Update(BaseCompileHash.GetData(), FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 		
@@ -181,8 +181,8 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 */
 bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) const
 {
-	if (BaseScriptID != ReferenceSet.BaseScriptID 
-		|| BaseCompileHash != ReferenceSet.BaseCompileHash
+	if (/*BaseScriptID != ReferenceSet.BaseScriptID 
+		|| */BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
 		|| DetailLevelMask != ReferenceSet.DetailLevelMask 
@@ -242,8 +242,8 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 
 void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 {
-	KeyString += BaseScriptID.ToString();
-	KeyString += TEXT("_");
+	//KeyString += BaseScriptID.ToString();
+	//KeyString += TEXT("_");
 
 	KeyString += BaseCompileHash.ToString();
 	KeyString += TEXT("_");
@@ -483,7 +483,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 */
 FNiagaraShaderMap* FNiagaraShaderMap::FindId(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform InPlatform)
 {
-	check(ShaderMapId.BaseScriptID != FGuid());
+	check(ShaderMapId.BaseCompileHash.IsValid());
 	return GIdToNiagaraShaderMap[InPlatform].FindRef(ShaderMapId);
 }
 
@@ -1484,7 +1484,7 @@ void FNiagaraDataInterfaceParamRef::Bind(const class FShaderParameterMap& Parame
 	}
 }
 
-bool operator<<(FArchive &Ar, FNiagaraDataInterfaceParamRef& ParamRef)
+bool operator<<(FArchive& Ar, FNiagaraDataInterfaceParamRef& ParamRef)
 {
 	ParamRef.ParameterInfo.Serialize(Ar);
 
@@ -1502,9 +1502,37 @@ bool operator<<(FArchive &Ar, FNiagaraDataInterfaceParamRef& ParamRef)
 	return true;
 }
 
+bool FNiagaraDataInterfaceGeneratedFunction::Serialize(FArchive& Ar)
+{
+	Ar << DefinitionName;
+	Ar << InstanceName;
+	Ar << Specifiers;
+	return true;
+}
+
+bool operator<<(FArchive& Ar, FNiagaraDataInterfaceGeneratedFunction& DIFunction)
+{
+	return DIFunction.Serialize(Ar);
+}
+
 bool FNiagaraDataInterfaceGPUParamInfo::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
 	Ar << DataInterfaceHLSLSymbol;
 	Ar << DIClassName;
+
+	// If FNiagaraDataInterfaceGPUParamInfo was only included in the DI parameters of FNiagaraShader, we wouldn't need to worry about
+	// custom versions, because bumping FNiagaraCustomVersion::LatestScriptCompileVersion is enough to cause all shaders to be
+	// rebuilt and things to be serialized correctly. However, there's a property of type FNiagaraVMExecutableData inside UNiagaraScript,
+	// which in turn contains an array of FNiagaraDataInterfaceGPUParamInfo, so we must check the version in order to be able to load
+	// UNiagaraScript objects saved before GeneratedFunctions was introduced.
+	const bool SkipGeneratedFunctions = Ar.IsLoading() && (NiagaraVer < FNiagaraCustomVersion::AddGeneratedFunctionsToGPUParamInfo);
+	if (!SkipGeneratedFunctions)
+	{
+		Ar << GeneratedFunctions;
+	}
+
 	return true;
 }

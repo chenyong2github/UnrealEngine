@@ -110,7 +110,7 @@ FReply SScrollBar::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointe
 	{
 		FGeometry ThumbGeometry = FindChildGeometry(MyGeometry, DragThumb.ToSharedRef());
 
-		if (DragThumb->IsHovered())
+		if (DragThumb->IsDirectlyHovered())
 		{
 			// Clicking on the scrollbar drag thumb
 			if( Orientation == Orient_Horizontal )
@@ -277,7 +277,7 @@ const FSlateBrush* SScrollBar::GetDragThumbImage() const
 	{
 		return DraggedThumbImage;
 	}
-	else if (DragThumb->IsHovered())
+	else if (DragThumb->IsDirectlyHovered())
 	{
 		return HoveredThumbImage;
 	}

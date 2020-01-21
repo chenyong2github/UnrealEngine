@@ -25,6 +25,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "AnimationRuntime.h"
+#include "ClothCollisionData.h"
 
 #include "Logging/MessageLog.h"
 #include "CollisionDebugDrawingPublic.h"
@@ -3336,7 +3337,7 @@ void USkeletalMeshComponent::SetAllUseCCD(bool InUseCCD)
 }
 
 // blueprint callable methods 
-float USkeletalMeshComponent::GetClothMaxDistanceScale()
+float USkeletalMeshComponent::GetClothMaxDistanceScale() const
 {
 	return ClothMaxDistanceScale;
 }

@@ -164,10 +164,13 @@ void UPolygonOnMeshTool::UpdateNumPreviews()
 			// TODO: give the OpFactory more info about what specifically it is doing differently vs the other previews
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)),
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTarget->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+
 			Preview->SetVisibility(true);
 		}
 	}
@@ -179,7 +182,7 @@ void UPolygonOnMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	ComponentTarget->SetOwnerVisibility(true);
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Results.Emplace(Preview->Shutdown());
@@ -202,9 +205,9 @@ void UPolygonOnMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UPolygonOnMeshOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FEmbedPolygonsOp> EmbedOp = MakeShared<FEmbedPolygonsOp>();
+	TUniquePtr<FEmbedPolygonsOp> EmbedOp = MakeUnique<FEmbedPolygonsOp>();
 	EmbedOp->bDiscardAttributes = Tool->BasicProperties->bDiscardAttributes;
 	EmbedOp->Operation = Tool->BasicProperties->PolygonOperation;
 	EmbedOp->PolygonScale = Tool->BasicProperties->PolygonScale;
@@ -280,7 +283,7 @@ void UPolygonOnMeshTool::SetPlaneFromWorldPos(const FVector& Position, const FVe
 	EmbedPolygonOrigin = Position;
 
 	FFrame3f CutPlane(Position, Normal);
-	EmbedPolygonOrientation = CutPlane.Rotation;
+	EmbedPolygonOrientation = (FQuat)CutPlane.Rotation;
 
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
 	PlaneTransformGizmo->SetNewGizmoTransform(CutPlane.ToFTransform());
@@ -305,7 +308,7 @@ bool UPolygonOnMeshTool::CanAccept() const
 }
 
 
-void UPolygonOnMeshTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolygonOnMeshToolTransactionName", "Polygon On Mesh Tool"));
 	
@@ -313,11 +316,11 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpRes
 	// first preview always replaces, and any subsequent previews can add new actors
 	// TODO: options to support other choices re what should be a new actor
 	check(Results.Num() > 0);
-	check(Results[0]->Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Results](FMeshDescription* MeshDescription)
+	check(Results[0].Mesh.Get() != nullptr);
+	ComponentTarget->CommitMesh([&Results](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Results[0]->Mesh.Get(), *MeshDescription);
+		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescription);
 	});
 
 	// currently nothing generates more than the single result for this tool

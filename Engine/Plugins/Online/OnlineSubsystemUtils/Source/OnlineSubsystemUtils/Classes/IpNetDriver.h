@@ -226,6 +226,9 @@ private:
 		TAtomic<bool> bIsRunning;
 
 	private:
+		bool DispatchPacket(FReceivedPacket&& IncomingPacket, int32 NbBytesRead);
+
+	private:
 		UIpNetDriver* OwningNetDriver;
 		ISocketSubsystem* SocketSubsystem;
 	};

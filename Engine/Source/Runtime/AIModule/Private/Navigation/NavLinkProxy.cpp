@@ -206,7 +206,7 @@ bool ANavLinkProxy::GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TA
 	return (PointLinks.Num() > 0) || (SegmentLinks.Num() > 0) || bIsSmartLinkActive;
 }
 
-FBox ANavLinkProxy::GetComponentsBoundingBox(bool bNonColliding) const
+FBox ANavLinkProxy::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox LinksBB(FVector(0.f, 0.f, -10.f), FVector(0.f,0.f,10.f));
 

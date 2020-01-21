@@ -75,6 +75,7 @@
 #include "FileHelpers.h"
 #include "EditorModeInterpolation.h"
 #include "Dialogs/Dialogs.h"
+#include "Dialogs/DialogsPrivate.h"
 #include "UnrealEdGlobals.h"
 #include "Matinee/MatineeActor.h"
 #include "InteractiveFoliageActor.h"
@@ -344,13 +345,10 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	}
 
 	DetailMode = DM_MAX;
-	PlayInEditorViewportIndex = -1;
 	CurrentPlayWorldDestination = -1;
 	bDisableDeltaModification = false;
-	bPlayOnLocalPcSession = false;
 	bAllowMultiplePIEWorlds = true;
 	bIsEndingPlay = false;
-	NumOnlinePIEInstances = 0;
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewPlatform = FPreviewPlatformInfo(DefaultWorldFeatureLevel);
 
@@ -954,12 +952,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	InitEditor(InEngineLoop);
 
 	LoadEditorFeatureLevel();
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// ILayers (GEditor->Layers) has been deprecated, use ULayersSubsystem (GEditor->GetEditorSubsystem<ULayersSubsystem>()) instead.
-	// We temporaily assign Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>(), but we will remove Layers in future releases.
-	Layers = MakeShareable(GetEditorSubsystem<ULayersSubsystem>(), [](ULayersSubsystem*) {});
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 	// Init transactioning.
@@ -1595,10 +1587,10 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 	}
 
-	// kick off a "Play From Here" if we got one
-	if (bIsPlayWorldQueued)
+	// Kick off a Play Session request if one was queued up during the last frame.
+	if (PlaySessionRequest.IsSet())
 	{
-		StartQueuedPlayMapRequest();
+		StartQueuedPlaySessionRequest();
 	}
 	else if( bIsToggleBetweenPIEandSIEQueued )
 	{
@@ -1970,7 +1962,7 @@ float UEditorEngine::GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmooth
 	if( !ShouldThrottleCPUUsage() )
 	{
 		// do not limit fps in VR Preview mode
-		if (bUseVRPreviewForPlayWorld)
+		if (IsVRPreviewActive())
 		{
 			return 0.0f;
 		}
@@ -4398,6 +4390,8 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 				 FSavePackageContext* SavePackageContext)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Save);
+
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
 	UObject* Base = InBase;
@@ -4498,6 +4492,8 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::SavePackage);
+
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
 	const FSavePackageResultStruct Result = Save(InOuter, InBase, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping,
 		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
@@ -4694,7 +4690,7 @@ EAppReturnType::Type UEditorEngine::OnModalMessageDialog(EAppMsgType::Type InMes
 {
 	if( IsInGameThread() && FSlateApplication::IsInitialized() && FSlateApplication::Get().CanAddModalWindow() )
 	{
-		return OpenMsgDlgInt(InMessage, InText, InTitle);
+		return OpenMessageDialog_Internal(InMessage, InText, InTitle);
 	}
 	else
 	{
@@ -6187,9 +6183,11 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 {
 	bool bShouldThrottle = false;
 
-	bool bIsForeground = FPlatformApplicationMisc::IsThisApplicationForeground();
+	const bool bRunningCommandlet = IsRunningCommandlet();
 
-	if( !bIsForeground )
+	const bool bIsForeground = FPlatformApplicationMisc::IsThisApplicationForeground();
+
+	if( !bIsForeground && !bRunningCommandlet )
 	{
 		const UEditorPerformanceSettings* Settings = GetDefault<UEditorPerformanceSettings>();
 		bShouldThrottle = Settings->bThrottleCPUWhenNotForeground;
@@ -6218,7 +6216,7 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 		}
 	}
 
-	return bShouldThrottle && !IsRunningCommandlet();
+	return bShouldThrottle;
 }
 
 bool UEditorEngine::AreAllWindowsHidden() const
@@ -7328,10 +7326,18 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 		UE_LOG(LogEditor, Log, TEXT("Starting PIE for the automation tests for world, %s"), *GWorld->GetMapName());
 
 		FFailedGameStartHandler FailHandler;
-		FPlayInEditorOverrides Overrides;
-		Overrides.bDedicatedServer = false;
-		Overrides.NumberOfClients = 1;
-		PlayInEditor(GWorld, /*bInSimulateInEditor=*/false, Overrides);
+
+		FRequestPlaySessionParams RequestParams;
+		ULevelEditorPlaySettings* EditorPlaySettings = NewObject<ULevelEditorPlaySettings>();
+		EditorPlaySettings->SetPlayNumberOfClients(1);
+		EditorPlaySettings->bLaunchSeparateServer = false;
+		RequestParams.EditorPlaySettings = EditorPlaySettings;
+
+		RequestPlaySession(RequestParams);
+
+		// Immediately launch the session 
+		StartQueuedPlaySessionRequest();
+
 		if (!FailHandler.CanProceed())
 		{
 			*OutError = TEXT("Error encountered.");
@@ -7348,7 +7354,7 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 bool UEditorEngine::IsHMDTrackingAllowed() const
 {
 	// @todo vreditor: Added GEnableVREditorHacks check below to allow head movement in non-PIE editor; needs revisit
-	return GEnableVREditorHacks || (PlayWorld && (bUseVRPreviewForPlayWorld || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
+	return GEnableVREditorHacks || (PlayWorld && (IsVRPreviewActive() || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
 }
 
 void UEditorEngine::OnModuleCompileStarted(bool bIsAsyncCompile)
@@ -7525,5 +7531,14 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();
 }
+
+void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (PlayInEditorSessionInfo.IsSet())
+	{
+		Collector.AddReferencedObject(PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, this);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE 

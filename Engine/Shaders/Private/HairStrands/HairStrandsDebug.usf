@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsDebugCommon.ush"
 
 float2 OutputResolution;
 uint FastResolveMask;
@@ -15,6 +16,9 @@ Texture2D<uint> NodeIndex;
 StructuredBuffer<FNodeData> NodeData;
 SamplerState LinearSampler;
 
+uint TileSize;
+Texture2D<uint2> TileIndexTexture;
+
 #define DEBUG_MODE_SAMPLE_COUNT 0 
 #define DEBUG_MODE_COVERAGE_TYPE 1
 #define DEBUG_MODE_TAA_RESOLVE_TYPE 2
@@ -24,26 +28,7 @@ SamplerState LinearSampler;
 #define DEBUG_MODE_ROUGHNESS 6
 #define DEBUG_MODE_SPECULAR 7
 #define DEBUG_MODE_TANGENT 8
-
-float3 HUEtoRGB(in float H)
-{
-	float R = abs(H * 6 - 3) - 1;
-	float G = 2 - abs(H * 6 - 2);
-	float B = 2 - abs(H * 6 - 4);
-	return saturate(float3(R, G, B));
-}
-
-float3 HSVtoRGB(in float3 HSV)
-{
-	float3 RGB = HUEtoRGB(HSV.x);
-	return ((RGB - 1) * HSV.y + 1) * HSV.z;
-}
-
-float3 GetColorCode(float x)
-{
-	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
-	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
-}
+#define DEBUG_MODE_TILE 9
 
 void MainPS(
 	in FScreenVertexOutput Input,
@@ -53,11 +38,12 @@ void MainPS(
 	const float2 PixelPos = UV * OutputResolution;
 
 	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	const bool bIsValid = CatData.PixelCoverage > 0;
+	const bool bIsValid = CatData.PixelCoverage > 0 || DebugMode == DEBUG_MODE_TILE;
 	if (!bIsValid)
 		discard;
 
 	float3 Color = 0;
+	float Alpha = 1;
 	if (DebugMode == DEBUG_MODE_SAMPLE_COUNT)
 	{
 		Color = GetColorCode(CatData.SampleCount/float(HAIR_VISIBILITY_MAXSAMPLECOUNT));
@@ -79,6 +65,14 @@ void MainPS(
 	if (DebugMode == DEBUG_MODE_COVERAGE)
 	{
 		Color = GetColorCode(saturate(CatData.PixelCoverage));
+	}
+
+	if (DebugMode == DEBUG_MODE_TILE)
+	{
+		const uint2 TileCoord = PixelPos / TileSize;
+		const uint TileOffset = TileIndexTexture[TileCoord];
+		Color = TileOffset != INVALID_TILE_OFFSET ? float3(0.25, 0.85, 0.25) : float3(0.85, 0.25, 0.25);
+		Alpha = 0.5f;
 	}
 
 	const bool bIsDebugModeMaterial =
@@ -164,5 +158,5 @@ void MainPS(
 		}
 	}
 
-	OutColor = float4(Color, 1);
+	OutColor = float4(Color, Alpha);
 }

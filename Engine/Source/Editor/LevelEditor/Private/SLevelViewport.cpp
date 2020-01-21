@@ -1212,7 +1212,7 @@ void FLevelViewportDropContextMenuImpl::FillDropAddReplaceActorMenu( bool bRepla
 				}
 				else
 				{
-					FUIAction Action( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::AddActor_Clicked, MenuItem.FactoryToUse, MenuItem.AssetData, false ) );
+					FUIAction Action( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::AddActor_Clicked, MenuItem.FactoryToUse, MenuItem.AssetData ) );
 				
 					FText MenuEntryName = FText::Format( NSLOCTEXT("SLevelViewport", "AddActorMenuFormat", "Add {0}"), MenuItem.FactoryToUse->GetDisplayName() );
 					if ( MenuItem.AssetData.IsValid() )

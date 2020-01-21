@@ -79,6 +79,7 @@ public:
 	virtual void ResetLightColor(int32 ControllerId) override {}
 
 	void SetGamepadsAllowed(bool bAllowed) { bAllowControllers = bAllowed; }
+	void SetGamepadsBlockDeviceFeedback(bool bBlock) { bControllersBlockDeviceFeedback = bBlock; }
 	bool IsControllerAssignedToGamepad(int32 ControllerId) const;
 	bool IsGamepadAttached() const;
 
@@ -149,6 +150,9 @@ private:
 	
 	// should we allow controllers to send input
 	bool bAllowControllers;
+
+	// bluetooth connected controllers will block force feedback.
+	bool bControllersBlockDeviceFeedback;
 	
 	/** Is motion paused or not? */
 	bool bPauseMotion;

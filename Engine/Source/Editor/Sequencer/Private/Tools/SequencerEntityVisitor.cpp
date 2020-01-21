@@ -79,9 +79,12 @@ void FSequencerEntityWalker::ConditionallyIntersectNode(const ISequencerEntityVi
 			}
 		}
 
-		if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
+		if (InNode->GetType() == ESequencerNode::Track || InNode->GetType() == ESequencerNode::KeyArea || InNode->GetType() == ESequencerNode::Category)
 		{
-			VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
+			if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
+			{
+				VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
+			}
 		}
 	}
 

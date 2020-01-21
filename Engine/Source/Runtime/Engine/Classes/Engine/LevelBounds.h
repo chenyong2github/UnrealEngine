@@ -47,7 +47,7 @@ class ENGINE_API ALevelBounds
 	//~ End UObject Interface
 	
 	//~ Begin AActor Interface.
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false) const override;
+	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface.
 

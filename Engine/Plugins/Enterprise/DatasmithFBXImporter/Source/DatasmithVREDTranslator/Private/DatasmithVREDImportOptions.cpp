@@ -13,7 +13,6 @@
 
 UDatasmithVREDImportOptions::UDatasmithVREDImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bOptimizeDuplicatedNodes(false)
 	, bImportMats(true)
 	, bImportVar(true)
 	, bCleanVar(true)
@@ -32,15 +31,6 @@ namespace VREDImportOptionsImpl
 		if (FPaths::FileExists(VarPathStr))
 		{
 			return VarPathStr;
-		}
-		else
-		{
-			TArray<FString> VarFiles;
-			IFileManager::Get().FindFiles(VarFiles, *FBXDirectory, *Extension);
-			if (VarFiles.Num() > 0)
-			{
-				return FBXDirectory / VarFiles[0];
-			}
 		}
 
 		return FString();
@@ -77,44 +67,6 @@ void UDatasmithVREDImportOptions::ResetPaths(const FString& InFBXFilename, bool 
 			TextureDirs.SetNum(1);
 			TextureDirs[0].Path = TexturesDirStr;
 		}
-	}
-}
-
-void UDatasmithVREDImportOptions::FromSceneImportData(UDatasmithFBXSceneImportData* InImportData)
-{
-	UDatasmithFBXImportOptions::ToSceneImportData(InImportData);
-
-	if (UDatasmithVREDSceneImportData* VREDImportData = Cast<UDatasmithVREDSceneImportData>(InImportData))
-	{
-		bOptimizeDuplicatedNodes	= VREDImportData->bOptimizeDuplicatedNodes;
-		bImportMats					= VREDImportData->bImportMats;
-		MatsPath.FilePath			= VREDImportData->MatsPath;
-		bImportVar					= VREDImportData->bImportVar;
-		bCleanVar					= VREDImportData->bCleanVar;
-		VarPath.FilePath			= VREDImportData->VarPath;
-		bImportLightInfo			= VREDImportData->bImportLightInfo;
-		LightInfoPath.FilePath		= VREDImportData->LightInfoPath;
-		bImportClipInfo				= VREDImportData->bImportClipInfo;
-		ClipInfoPath.FilePath		= VREDImportData->ClipInfoPath;
-	}
-}
-
-void UDatasmithVREDImportOptions::ToSceneImportData(UDatasmithFBXSceneImportData* OutImportData)
-{
-	UDatasmithFBXImportOptions::ToSceneImportData(OutImportData);
-
-	if (UDatasmithVREDSceneImportData* VREDImportData = Cast<UDatasmithVREDSceneImportData>(OutImportData))
-	{
-		VREDImportData->bOptimizeDuplicatedNodes	= bOptimizeDuplicatedNodes;
-		VREDImportData->bImportMats					= bImportMats;
-		VREDImportData->MatsPath					= MatsPath.FilePath;
-		VREDImportData->bImportVar					= bImportVar;
-		VREDImportData->bCleanVar					= bCleanVar;
-		VREDImportData->VarPath						= VarPath.FilePath;
-		VREDImportData->bImportLightInfo			= bImportLightInfo;
-		VREDImportData->LightInfoPath				= LightInfoPath.FilePath;
-		VREDImportData->bImportClipInfo				= bImportClipInfo;
-		VREDImportData->ClipInfoPath				= ClipInfoPath.FilePath;
 	}
 }
 

@@ -98,9 +98,9 @@ namespace StructSerializerTest
 		Test.TestEqual<FQuat>(TEXT("Builtins.Quat must be the same before and after de-/serialization"), TestStruct.Builtins.Quat, TestStruct2.Builtins.Quat);
 		Test.TestEqual<FColor>(TEXT("Builtins.Color must be the same before and after de-/serialization"), TestStruct.Builtins.Color, TestStruct2.Builtins.Color);
 
-
 		// test arrays
 		Test.TestEqual<TArray<int32>>(TEXT("Arrays.Int32Array must be the same before and after de-/serialization"), TestStruct.Arrays.Int32Array, TestStruct2.Arrays.Int32Array);
+		Test.TestEqual<TArray<uint8>>(TEXT("Arrays.ByteArray must be the same before and after de-/serialization"), TestStruct.Arrays.ByteArray, TestStruct2.Arrays.ByteArray);
 		Test.TestEqual<int32>(TEXT("Arrays.StaticSingleElement[0] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticSingleElement[0], TestStruct2.Arrays.StaticSingleElement[0]);
 		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[0] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticInt32Array[0], TestStruct2.Arrays.StaticInt32Array[0]);
 		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[1] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticInt32Array[1], TestStruct2.Arrays.StaticInt32Array[1]);
@@ -162,5 +162,130 @@ bool FStructSerializerTest::RunTest( const FString& Parameters )
 
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStructSerializerCborByteArrayTest, "System.Core.Serialization.StructSerializerCborByteArray", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStructSerializerCborByteArrayTest::RunTest( const FString& Parameters )
+{
+	// Ensure TArray<uint8>/TArray<int8> are written as CBOR byte string (~2x more compact) by default rather than a CBOR array.
+	{
+		static_assert((EStructSerializerBackendFlags::Default & EStructSerializerBackendFlags::WriteByteArrayAsByteStream) == EStructSerializerBackendFlags::WriteByteArrayAsByteStream, "Test below expects 'EStructSerializerBackendFlags::Default' to contain 'EStructSerializerBackendFlags::WriteByteArrayAsByteStream'");
+		
+		// Serialization
+		TArray<uint8> Buffer;
+		FMemoryWriter Writer(Buffer);
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FStructSerializerByteArray WrittenStruct;
+		FStructSerializer::Serialize(WrittenStruct, SerializerBackend);
+
+		TestTrue(TEXT("Arrays of int8/uint8 must be encoded in byte string (compact)"), Buffer.Num() == 54); // Copy the 54 bytes from VC++ Memory viewer to CBOR playground http://cbor.me/ to validate the count/content.
+
+		// Deserialization
+		FMemoryReader Reader(Buffer);
+		FCborStructDeserializerBackend DeserializerBackend(Reader);
+		FStructDeserializerPolicies Policies;
+		Policies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+		FStructSerializerByteArray ReadStruct(NoInit);
+		FStructDeserializer::Deserialize(ReadStruct, DeserializerBackend, Policies);
+
+		TestTrue(TEXT("Value before TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy1 == 1);
+		TestTrue(TEXT("Value after TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy2 == 2);
+		TestTrue(TEXT("Value after TArray<int8> must be the same before and after de-/serialization."), ReadStruct.Dummy3 == 3);
+		TestTrue(TEXT("Array uint8 must be the same before and after de-/serialization"), WrittenStruct.ByteArray == ReadStruct.ByteArray);
+		TestTrue(TEXT("Array int8 must be the same before and after de-/serialization"), WrittenStruct.Int8Array == ReadStruct.Int8Array);
+	}
+
+	// Ensure TArray<uint8>/TArray<int8> encoded in CBOR byte string are skipped on deserialization if required by the policy.
+	{
+		// Serialization
+		TArray<uint8> Buffer;
+		FMemoryWriter Writer(Buffer);
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FStructSerializerByteArray WrittenStruct;
+		FStructSerializer::Serialize(WrittenStruct, SerializerBackend);
+
+		// Deserialization
+		FMemoryReader Reader(Buffer);
+		FCborStructDeserializerBackend DeserializerBackend(Reader);
+
+		// Skip the array properties named "ByteArray" and "Int8Array".
+		FStructDeserializerPolicies Policies;
+		Policies.PropertyFilter = [](const FProperty* CurrentProp, const FProperty* ParentProp)
+		{
+			const bool bFilteredOut = (CurrentProp->GetFName() == FName(TEXT("ByteArray")) || CurrentProp->GetFName() == FName(TEXT("Int8Array")));
+			return !bFilteredOut;
+		};
+
+		Policies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+		FStructSerializerByteArray ReadStruct(NoInit);
+		FStructDeserializer::Deserialize(ReadStruct, DeserializerBackend, Policies);
+
+		TestTrue(TEXT("Per deserializer policy, value before TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy1 == 1);
+		TestTrue(TEXT("Per deserializer policy, value after TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy2 == 2);
+		TestTrue(TEXT("Per deserializer policy, value after TArray<int8> must be the same before and after de-/serialization."), ReadStruct.Dummy3 == 3);
+		TestTrue(TEXT("Per deserializer policy, TArray<uint8> must be skipped on deserialization"), ReadStruct.ByteArray.Num() == 0);
+		TestTrue(TEXT("Per deserializer policy, TArray<int8> must be skipped on deserialization"), ReadStruct.Int8Array.Num() == 0);
+	}
+
+	// Ensure empty TArray<uint8>/TArray<int8> are written as zero-length CBOR byte string.
+	{
+		// Serialization
+		TArray<uint8> Buffer;
+		FMemoryWriter Writer(Buffer);
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FStructSerializerByteArray WrittenStruct(NoInit); // Keep the TArray<> empty.
+		WrittenStruct.Dummy1 = 1;
+		WrittenStruct.Dummy2 = 2;
+		WrittenStruct.Dummy3 = 3;
+		FStructSerializer::Serialize(WrittenStruct, SerializerBackend);
+
+		TestTrue(TEXT("Arrays of int8/uint8 must be encoded in byte string (compact)"), Buffer.Num() == 48); // Copy the 48 bytes from VC++ Memory viewer to CBOR playground http://cbor.me/ to validate the count/content.
+
+		// Deserialization
+		FMemoryReader Reader(Buffer);
+		FCborStructDeserializerBackend DeserializerBackend(Reader);
+		FStructDeserializerPolicies Policies;
+		Policies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+		FStructSerializerByteArray ReadStruct(NoInit);
+		FStructDeserializer::Deserialize(ReadStruct, DeserializerBackend, Policies);
+
+		TestTrue(TEXT("Value before TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy1 == 1);
+		TestTrue(TEXT("Value after TArray<uint8> must be the same before and after de-/serialization."), ReadStruct.Dummy2 == 2);
+		TestTrue(TEXT("Value after TArray<int8> must be the same before and after de-/serialization."), ReadStruct.Dummy3 == 3);
+		TestTrue(TEXT("Array uint8 must be the same before and after de-/serialization"), WrittenStruct.ByteArray == ReadStruct.ByteArray);
+		TestTrue(TEXT("Array int8 must be the same before and after de-/serialization"), WrittenStruct.Int8Array == ReadStruct.Int8Array);
+	}
+
+	// Ensure TArray<uint8>/TArray<int8> CBOR serialization is backward compatible. (Serializer can write the old format and deserializer can read it)
+	{
+		static_assert((EStructSerializerBackendFlags::Legacy & EStructSerializerBackendFlags::WriteByteArrayAsByteStream) == EStructSerializerBackendFlags::None, "Test below expects 'EStructSerializerBackendFlags::Legacy' to not have 'EStructSerializerBackendFlags::WriteByteArrayAsByteStream'");
+		
+		// Serialize TArray<uint8>/TArray<int8> it they were prior 4.25. (CBOR array rather than CBOR byte string)
+		TArray<uint8> Buffer;
+		FMemoryWriter Writer(Buffer);
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Legacy); // Legacy mode doesn't enable EStructSerializerBackendFlags::WriteByteArrayAsByteStream.
+		FStructSerializerByteArray WrittenStruct;
+		FStructSerializer::Serialize(WrittenStruct, SerializerBackend);
+
+		TestTrue(TEXT("Backward compatibility: Serialized size check"), Buffer.Num() == 60); // Copy the 60 bytes from VC++ Memory viewer to CBOR playground http://cbor.me/ to validate the count/content.
+
+		// Deserialize TArray<uint8>/TArray<int8> as they were prior 4.25.
+		FMemoryReader Reader(Buffer);
+		FCborStructDeserializerBackend DeserializerBackend(Reader);
+		FStructDeserializerPolicies Policies;
+		Policies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+		FStructSerializerByteArray ReadStruct(NoInit);
+		FStructDeserializer::Deserialize(ReadStruct, DeserializerBackend, Policies);
+
+		TestTrue(TEXT("Backward compatibility: Integer must be the same before and after de-/serialization."), ReadStruct.Dummy1 == 1);
+		TestTrue(TEXT("Backward compatibility: Integer must be the same before and after de-/serialization."), ReadStruct.Dummy2 == 2);
+		TestTrue(TEXT("Backward compatibility: Integer must be the same before and after de-/serialization."), ReadStruct.Dummy3 == 3);
+		TestTrue(TEXT("Backward compatibility: TArray<uint8> must be readable as CBOR array of number."), WrittenStruct.ByteArray == ReadStruct.ByteArray);
+		TestTrue(TEXT("Backward compatibility: TArray<int8> must be readable as CBOR array of number."), WrittenStruct.Int8Array == ReadStruct.Int8Array);
+	}
+
+	return true;
+}
+
 
 #endif //WITH_DEV_AUTOMATION_TESTS

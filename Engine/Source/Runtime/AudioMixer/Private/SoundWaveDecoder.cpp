@@ -314,6 +314,7 @@ namespace Audio
 		else
 		{
 			static AlignedFloatBuffer ScratchBuffer;
+			ScratchBuffer.Reset();
 			ScratchBuffer.AddZeroed(InNumFrames * SourceInfo.NumSourceChannels);
 
 			GetAudioBufferInternal(InNumFrames, InNumChannels, ScratchBuffer);
@@ -411,7 +412,8 @@ namespace Audio
 			{
 				DecodingSources.Add(InitData.Handle.Id, DecodingSoundWaveDataPtr);
 
-				UE_LOG(LogTemp, Log, TEXT("Decoding sources size %d."), DecodingSources.Num());
+				UE_LOG(LogAudioMixer, Verbose, TEXT("Decoding SoundWave '%s' (Num Decoding: %d)"),
+					*InitData.Handle.SoundWaveName.ToString(), DecodingSources.Num());
 			});
 
 			return true;
@@ -477,6 +479,15 @@ namespace Audio
 	void FSoundSourceDecoder::RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle)
 	{
 		DecodingSources.Remove(Handle.Id);
+	}
+
+	void FSoundSourceDecoder::Reset()
+	{
+		PumpDecoderCommandQueue();
+
+		DecodingSources.Reset();
+		InitializingDecodingSources.Reset();
+		PrecachingSources.Reset();
 	}
 
 	void FSoundSourceDecoder::SetSourcePitchScale(const FDecodingSoundSourceHandle& Handle, float InPitchScale)

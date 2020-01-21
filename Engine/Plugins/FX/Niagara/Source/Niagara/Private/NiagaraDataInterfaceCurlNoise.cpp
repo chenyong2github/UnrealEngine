@@ -423,7 +423,7 @@ void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMContext& Context)
 	}
 }
 
-bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	static const TCHAR *FormatSample = TEXT(R"(
 		void {FunctionName}(float3 In_XYZ, out float3 Out_Value)
@@ -434,13 +434,13 @@ bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FName& DefinitionFunc
 		}
 	)");
 	TMap<FString, FStringFormatArg> ArgsSample;
-	ArgsSample.Add(TEXT("FunctionName"), InstanceFunctionName);
+	ArgsSample.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 	ArgsSample.Add(TEXT("OffsetFromSeedName"), OffsetFromSeedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	OutHLSL += FString::Format(FormatSample, ArgsSample);
 	return true;
 }
 
-void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	static const TCHAR *FormatDeclarations = TEXT(R"(
 		float3 {OffsetFromSeedName};

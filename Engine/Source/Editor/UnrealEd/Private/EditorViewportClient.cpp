@@ -56,6 +56,7 @@
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
+#include "BufferVisualizationData.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
@@ -2523,6 +2524,13 @@ bool FEditorViewportClient::IsBufferVisualizationModeSelected( FName InName ) co
 	return IsViewModeEnabled( VMI_VisualizeBuffer ) && CurrentBufferVisualizationMode == InName;
 }
 
+FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeBuffer), TEXT("In order to call GetCurrentBufferVisualizationMode(), first you must set ViewMode to VMI_VisualizeBuffer."));
+	return (CurrentBufferVisualizationMode.IsNone()
+		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
+}
+
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
 {
 	SetViewMode(VMI_RayTracingDebug);
@@ -3677,16 +3685,22 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	Canvas->SetScaledToRenderTarget(bStereoRendering);
 	Canvas->SetStereoRendering(bStereoRendering);
 
+	FEngineShowFlags UseEngineShowFlags = EngineShowFlags;
+	if (OverrideShowFlagsFunc)
+	{
+		OverrideShowFlagsFunc(UseEngineShowFlags);
+	}
+
 	// Setup a FSceneViewFamily/FSceneView for the viewport.
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		Canvas->GetRenderTarget(),
 		GetScene(),
-		EngineShowFlags)
+		UseEngineShowFlags)
 		.SetWorldTimes( TimeSeconds, DeltaTimeSeconds, RealTimeSeconds )
 		.SetRealtimeUpdate( IsRealtime() && FSlateThrottleManager::Get().IsAllowingExpensiveTasks() )
 		.SetViewModeParam( ViewModeParam, ViewModeParamName ) );
 
-	ViewFamily.EngineShowFlags = EngineShowFlags;
+	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
 
@@ -3694,7 +3708,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{
-		if( !EngineShowFlags.Game )
+		if( !UseEngineShowFlags.Game )
 		{
 			// in the editor, disable camera motion blur and other rendering features that rely on the former frame
 			// unless the view port is Matinee controlled
@@ -5360,13 +5374,16 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 
 	{
 		// Read the contents of the viewport into an array.
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY());
-		if( !InViewport->ReadPixels(PixelData->Pixels) )
+		TArray<FColor> RawPixels;
+		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
+		if( !InViewport->ReadPixels(RawPixels) )
 		{
 			// Failed to read the image from the viewport
 			SaveMessagePtr->SetText(NSLOCTEXT( "UnrealEd", "ScreenshotFailedViewport", "Screenshot failed, unable to read image from viewport" ));
 			return;
 		}
+
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);
@@ -5574,7 +5591,7 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			}
 
 			TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
-			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, MoveTemp(Bitmap));
+			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, TArray64<FColor>(MoveTemp(Bitmap)));
 
 			// Set full alpha on the bitmap
 			if (!bWriteAlpha)
@@ -5891,6 +5908,16 @@ FMatrix FEditorViewportClient::CalcViewRotationMatrix(const FRotator& InViewRota
 		// Create the view matrix
 		return FInverseRotationMatrix(InViewRotation);
 	}
+}
+
+void FEditorViewportClient::EnableOverrideEngineShowFlags(TUniqueFunction<void(FEngineShowFlags&)> OverrideFunc)
+{
+	OverrideShowFlagsFunc = MoveTemp(OverrideFunc);
+}
+
+void FEditorViewportClient::DisableOverrideEngineShowFlags()
+{
+	OverrideShowFlagsFunc = nullptr;
 }
 
 ////////////////

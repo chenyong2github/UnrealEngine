@@ -529,7 +529,7 @@ namespace ADPCM
 		}
 	};
 
-	int16 DecodeNibble(FAdaptationContext& Context, uint8 EncodedNibble)
+	FORCEINLINE int16 DecodeNibble(FAdaptationContext& Context, uint8 EncodedNibble)
 	{
 		int32 PredictedSample = (Context.Sample1 * Context.Coefficient1 + Context.Sample2 * Context.Coefficient2) / 256;
 		PredictedSample += SignExtend<int8, 4>(EncodedNibble) * Context.AdaptationDelta;

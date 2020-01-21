@@ -400,7 +400,17 @@ FText FAssetEditorToolkit::GetToolTipTextForObject(const UObject* InObject)
 
 class FEdMode* FAssetEditorToolkit::GetEditorMode() const
 {
-	return NULL;
+	return nullptr;
+}
+
+FText FAssetEditorToolkit::GetEditorModeDisplayName() const
+{
+	return FText::GetEmpty();
+}
+
+FSlateIcon FAssetEditorToolkit::GetEditorModeIcon() const
+{
+	return FSlateIcon();
 }
 
 const TArray< UObject* >* FAssetEditorToolkit::GetObjectsCurrentlyBeingEdited() const

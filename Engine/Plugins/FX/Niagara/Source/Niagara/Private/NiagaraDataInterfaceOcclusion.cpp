@@ -63,12 +63,12 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	OutFunctions.Add(Sig);
 }
 
-bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	TMap<FString, FStringFormatArg> ArgsSample;
-	ArgsSample.Add(TEXT("FunctionName"), InstanceFunctionName);
+	ArgsSample.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 
-	if (DefinitionFunctionName == GetCameraOcclusionRectangleName)
+	if (FunctionInfo.DefinitionName == GetCameraOcclusionRectangleName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
@@ -125,7 +125,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FName& DefinitionFunc
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	if (DefinitionFunctionName == GetCameraOcclusionCircleName)
+	if (FunctionInfo.DefinitionName == GetCameraOcclusionCircleName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)

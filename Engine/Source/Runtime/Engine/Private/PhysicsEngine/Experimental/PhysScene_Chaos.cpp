@@ -50,6 +50,8 @@ TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyDrawEmptyCells(TEXT("P.Chaos.
 
 #endif
 
+TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"), 1, TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -465,6 +467,8 @@ bool FPhysScene_Chaos::IsTickable() const
 
 void FPhysScene_Chaos::Tick(float DeltaTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 	LLM_SCOPE(ELLMTag::Chaos);
 
 #if WITH_EDITOR
@@ -1385,6 +1389,11 @@ void FPhysScene_ChaosInterface::StartFrame()
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_StartFrame);
 
+	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
 
@@ -1403,9 +1412,14 @@ void FPhysScene_ChaosInterface::StartFrame()
 	}
 #endif
 
+	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
+	{
+		PhysicsReplication->Tick(Dt);
+	}
+
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
-		for (auto * Solver : SolverModule->GetSolvers())
+		if (FPhysicsSolver* Solver = GetSolver())
 		{
 			Solver->PushPhysicsState(Dispatcher);
 		}
@@ -1434,7 +1448,7 @@ void FPhysScene_ChaosInterface::StartFrame()
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, Dt);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, GetSolver(), Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())
@@ -1457,11 +1471,6 @@ void FPhysScene_ChaosInterface::StartFrame()
 			break;
 		}
 	}
-
-	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
-	{
-		PhysicsReplication->Tick(Dt);
-	}
 }
 
 void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
@@ -1469,6 +1478,11 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 	using namespace Chaos;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_EndFrame);
+
+	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
 
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
@@ -1495,8 +1509,14 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
 
+		// Make a list of solvers to process. This is just our solver if we have one,
+		// and if not then it's all solvers in the solvers module.
+		const TArray<FPhysicsSolver*>& SolverList
+			= (GetSolver() == nullptr)
+			? SolverModule->GetSolvers()
+			: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(GetSolver(), 1); return Solvers; }();
+
 		// flush solver queues
-		const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
 		for (FPhysicsSolver* Solver : SolverList)
 		{
 			TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
@@ -1638,27 +1658,36 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 
 				if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(ActiveParticle->UserData()))
 				{
-					if (BodyInstance->InstanceBodyIndex == INDEX_NONE && BodyInstance->OwnerComponent.IsValid())
+					if (BodyInstance->OwnerComponent.IsValid())
 					{
 						UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
 						if (OwnerComponent != nullptr)
 						{
 							AActor* Owner = OwnerComponent->GetOwner();
 
-							Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
-
-							if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+							if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
 							{
-								const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-								const FQuat NewRotation = NewTransform.GetRotation();
+								Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
 
-								OwnerComponent->MoveComponent(MoveBy, NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
+								if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+								{
+									const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+									const FQuat NewRotation = NewTransform.GetRotation();
+
+									OwnerComponent->MoveComponent(MoveBy, NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
+								}
+
+								if (Owner != NULL && !Owner->IsPendingKill())
+								{
+									Owner->CheckStillInWorld();
+								}
 							}
 
-							if (Owner != NULL && !Owner->IsPendingKill())
+							if (Proxy->HasAwakeEvent())
 							{
-								Owner->CheckStillInWorld();
+								OwnerComponent->DispatchWakeEvents(ESleepEvent::SET_Wakeup, NAME_None);
 							}
+							Proxy->ClearEvents();
 						}
 					}
 				}

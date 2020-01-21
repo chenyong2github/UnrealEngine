@@ -53,6 +53,13 @@ namespace Chaos
 			Ar << MPoint << MAxis << MLength;
 		}
 
+		FORCEINLINE TAABB<T, 3> BoundingBox() const
+		{
+			TAABB<T,3> Box(MPoint,MPoint);
+			Box.GrowToInclude(GetX2());
+			return Box;
+		}
+
 	private:
 		TVector<T, 3> MPoint;
 		TVector<T, 3> MAxis;

@@ -659,6 +659,7 @@ public:
 	/** Object responsible for sending bone transforms, morph target state etc. to render thread. */
 	class FSkeletalMeshObject*	MeshObject;
 	FSkeletalMeshObjectCallbackData MeshObjectCallbackData;
+	void SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& MeshObjectCallbackData);
 
 	/** Gets the skeletal mesh resource used for rendering the component. */
 	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;

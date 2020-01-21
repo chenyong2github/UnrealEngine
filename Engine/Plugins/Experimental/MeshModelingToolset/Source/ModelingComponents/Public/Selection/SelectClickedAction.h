@@ -11,7 +11,7 @@
  */
 class FSelectClickedAction : public IClickBehaviorTarget
 {
-	bool DoRayCast(const FInputDeviceRay& ClickPos, bool callbackOnHit)
+	FInputRayHit DoRayCast(const FInputDeviceRay& ClickPos, bool callbackOnHit)
 	{
 		FVector RayStart = ClickPos.WorldRay.Origin;
 		FVector RayEnd = ClickPos.WorldRay.PointAt(999999);
@@ -22,14 +22,14 @@ class FSelectClickedAction : public IClickBehaviorTarget
 		{
 			OnClickedPositionFunc(Result);
 		}
-		return bHitWorld;
+		return (bHitWorld) ? FInputRayHit(Result.Distance) : FInputRayHit();
 	}
 
 public:
 	UWorld* World;
 	TFunction<void(const FHitResult&)> OnClickedPositionFunc = nullptr;
 
-	virtual bool IsHitByClick(const FInputDeviceRay& ClickPos) override
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override
 	{
 		return DoRayCast(ClickPos, false);
 	}

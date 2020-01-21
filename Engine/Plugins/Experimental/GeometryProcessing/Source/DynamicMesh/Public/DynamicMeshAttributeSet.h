@@ -5,6 +5,9 @@
 
 #include "DynamicMeshOverlay.h"
 #include "DynamicMeshTriangleAttribute.h"
+#include "DynamicAttribute.h"
+#include "GeometryTypes.h"
+#include "InfoTypes.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -12,7 +15,7 @@ typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 typedef TDynamicMeshVectorOverlay<float, 3, FVector3f> FDynamicMeshNormalOverlay;
 
 /** Standard per-triangle integer material ID */
-typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
+typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshMaterialAttribute;
 
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
@@ -22,11 +25,11 @@ typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
  * 
  * @todo current internal structure is a work-in-progress
  */
-class DYNAMICMESH_API FDynamicMeshAttributeSet
+class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicMeshAttributeSetBase
 {
 public:
 
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh) 
+	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh)
 		: ParentMesh(Mesh), Normals0(Mesh)
 	{
 		SetNumUVLayers(1);
@@ -49,10 +52,133 @@ public:
 		if (Copy.MaterialIDAttrib)
 		{
 			EnableMaterialID();
-			MaterialIDAttrib->Copy( *(Copy.MaterialIDAttrib) );
+			MaterialIDAttrib->Copy(*(Copy.MaterialIDAttrib));
+		}
+		else
+		{
+			DisableMaterialID();
+		}
+
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
+		{
+			const FDynamicMeshAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
+			AttachAttribute(SourceAttrib->MakeCopy(ParentMesh));
 		}
 
 		// parent mesh is *not* copied!
+	}
+
+	/** returns true if the attached overlays/attributes are compact */
+	bool IsCompact()
+	{
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			if (!UVLayers[UVIdx].IsCompact())
+			{
+				return false;
+			}
+		}
+		if (!Normals0.IsCompact())
+		{
+			return false;
+		}
+		// material ID and generic per-element attributes currently cannot be non-compact
+		return true;
+	}
+
+	/**
+	 * Performs a CompactCopy of the attached overlays/attributes.
+	 * Called by the parent mesh CompactCopy function.
+	 *
+	 * @param CompactMaps Maps indicating how vertices and triangles were changes in the parent
+	 * @param Copy The attribute set to be copied
+	 */
+	void CompactCopy(const FCompactMaps& CompactMaps, const FDynamicMeshAttributeSet& Copy)
+	{
+		SetNumUVLayers(Copy.NumUVLayers());
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].CompactCopy(CompactMaps, Copy.UVLayers[UVIdx]);
+		}
+		Normals0.CompactCopy(CompactMaps, Copy.Normals0);
+
+		if (Copy.MaterialIDAttrib)
+		{
+			EnableMaterialID();
+			MaterialIDAttrib->CompactCopy(CompactMaps, *(Copy.MaterialIDAttrib));
+		}
+		else
+		{
+			DisableMaterialID();
+		}
+
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
+		{
+			const FDynamicMeshAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
+			AttachAttribute(SourceAttrib->MakeCompactCopy(CompactMaps, ParentMesh));
+		}
+
+		// parent mesh is *not* copied!
+	}
+
+	/**
+	 * Compacts the attribute set in place
+	 * Called by the parent mesh CompactInPlace function
+	 *
+	 * @param CompactMaps Maps of how the vertices and triangles were compacted in the parent
+	 */
+	void CompactInPlace(const FCompactMaps& CompactMaps)
+	{
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].CompactInPlace(CompactMaps);
+		}
+		Normals0.CompactInPlace(CompactMaps);
+
+		if (MaterialIDAttrib.IsValid())
+		{
+			MaterialIDAttrib->CompactInPlace(CompactMaps);
+		}
+
+		for (int Idx = 0; Idx < GenericAttributes.Num(); Idx++)
+		{
+			GenericAttributes[Idx]->CompactInPlace(CompactMaps);
+		}
+	}
+
+
+	/**
+	 * Enable the matching attributes and overlay layers as the reference Copy set, but do not copy any data across
+	 */
+	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch)
+	{
+		SetNumUVLayers(ToMatch.NumUVLayers());
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].ClearElements();
+		}
+		Normals0.ClearElements();
+
+		if (ToMatch.MaterialIDAttrib)
+		{
+			EnableMaterialID();
+		}
+		else
+		{
+			DisableMaterialID();
+		}
+
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+		for (int Idx = 0; Idx < ToMatch.GenericAttributes.Num(); Idx++)
+		{
+			const FDynamicMeshAttributeBase* SourceAttrib = ToMatch.GenericAttributes[Idx].Get();
+			AttachAttribute(SourceAttrib->MakeNew(ParentMesh));
+		}
 	}
 
 	/** @return the parent mesh for this overlay */
@@ -60,9 +186,32 @@ public:
 	/** @return the parent mesh for this overlay */
 	FDynamicMesh3* GetParentMesh() { return ParentMesh; }
 
+private:
+	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
+	void Reparent(FDynamicMesh3* NewParent)
+	{
+		ParentMesh = NewParent;
 
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].Reparent( NewParent );
+		}
+		Normals0.Reparent( NewParent );
+
+		if (MaterialIDAttrib)
+		{
+			MaterialIDAttrib->Reparent( NewParent );
+		}
+
+		for (int Idx = 0; Idx < GenericAttributes.Num(); Idx++)
+		{
+			GenericAttributes[Idx]->Reparent( NewParent );
+		}
+	}
+
+public:
 	/** @return number of UV layers */
-	virtual int NumUVLayers() const 
+	virtual int NumUVLayers() const
 	{
 		return UVLayers.Num();
 	}
@@ -100,7 +249,7 @@ public:
 	/** @return true if the given vertex is a seam vertex in any overlay */
 	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
-	
+
 	//
 	// UV Layers 
 	//
@@ -118,7 +267,7 @@ public:
 	}
 
 	/** @return the primary UV layer (layer 0) */
-	FDynamicMeshUVOverlay* PrimaryUV() 
+	FDynamicMeshUVOverlay* PrimaryUV()
 	{
 		return &UVLayers[0];
 	}
@@ -176,6 +325,8 @@ public:
 
 	void EnableMaterialID();
 
+	void DisableMaterialID();
+
 	FDynamicMeshMaterialAttribute* GetMaterialID()
 	{
 		return MaterialIDAttrib.Get();
@@ -184,6 +335,24 @@ public:
 	const FDynamicMeshMaterialAttribute* GetMaterialID() const
 	{
 		return MaterialIDAttrib.Get();
+	}
+
+	// Attach a new attribute (and transfer ownership of it to the attribute set)
+	int AttachAttribute(FDynamicMeshAttributeBase* Attribute)
+	{
+		int AttributeID = GenericAttributes.Add(TUniquePtr<FDynamicMeshAttributeBase>(Attribute));
+		RegisterExternalAttribute(Attribute);
+		return AttributeID;
+	}
+
+	FDynamicMeshAttributeBase* GetAttachedAttribute(int AttributeID)
+	{
+		return GenericAttributes[AttributeID].Get();
+	}
+
+	int NumAttachedAttributes()
+	{
+		return GenericAttributes.Num();
 	}
 
 protected:
@@ -197,7 +366,8 @@ protected:
 	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
-	
+
+	TArray<TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
 
 protected:
 	friend class FDynamicMesh3;
@@ -216,13 +386,34 @@ protected:
 
 	// These functions are called by the FDynamicMesh3 to update the various
 	// attributes when the parent mesh topology has been modified.
+	// TODO: would it be better to register all the overlays and attributes with the base set and not overload these?  maybe!
 	virtual void OnNewTriangle(int TriangleID, bool bInserted);
+	virtual void OnNewVertex(int VertexID, bool bInserted);
 	virtual void OnRemoveTriangle(int TriangleID);
+	virtual void OnRemoveVertex(int VertexID);
 	virtual void OnReverseTriOrientation(int TriangleID);
-	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo);
-	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo);
-	virtual void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo & collapseInfo);
-	virtual void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo & pokeInfo);
-	virtual void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo & mergeInfo);
+	virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo & splitInfo);
+	virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo & flipInfo);
+	virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo & collapseInfo);
+	virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo & pokeInfo);
+	virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo & mergeInfo);
+	virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate);
+
+	/**
+	 * Check validity of attributes
+	 * 
+	 * @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
+	 * @param FailMode Desired behavior if mesh is found invalid
+	 */
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
+	{
+		bool bValid = FDynamicMeshAttributeSetBase::CheckValidity(bAllowNonmanifold, FailMode);
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers(); UVLayerIndex++)
+		{
+			bValid = GetUVLayer(UVLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		}
+		bValid = PrimaryNormals()->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		return bValid;
+	}
 };
 

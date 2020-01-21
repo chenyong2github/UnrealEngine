@@ -114,7 +114,7 @@ void UPositionPlaneGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 
 bool UPositionPlaneGizmo::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	if (CenterBallShape->TestRayIntersection(Ray))
+	if (CenterBallShape->TestRayIntersection(FRay3d(Ray)))
 	{
 		OutHit.Distance = 0.1;
 		return true;
@@ -136,7 +136,7 @@ void UPositionPlaneGizmo::OnUpdateDrag(const FRay& Ray)
 	if (bInTransformDrag)
 	{
 		FVector3d SnapPos;
-		if (QuickTransformer.UpdateSnap(Ray, SnapPos))
+		if (QuickTransformer.UpdateSnap(FRay3d(Ray), SnapPos))
 		{
 			FTransform CurTransform = CenterBallShape->GetTransform();
 			CurTransform.SetTranslation((FVector)SnapPos);

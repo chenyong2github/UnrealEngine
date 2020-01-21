@@ -10,6 +10,7 @@
 #include "PhysicsAssetEditorSharedData.h"
 #include "PhysicsAssetEditorHitProxies.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
+#include "PhysicsAssetEditorAnimInstance.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Chaos/Core.h"
@@ -510,4 +511,40 @@ void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impu
 		PreviewInstance->AddImpulseAtLocation(Impulse, Location, BoneName);
 	}
 #endif
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->Grab(InBoneName, Location, Rotation, bRotationConstrained);
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::Ungrab()
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->Ungrab();
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::UpdateHandleTransform(const FTransform& NewTransform)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->UpdateHandleTransform(NewTransform);
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->UpdateDriveSettings(bLinearSoft, LinearStiffness, LinearDamping);
+	}
 }

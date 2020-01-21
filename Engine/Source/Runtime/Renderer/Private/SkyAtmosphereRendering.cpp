@@ -192,7 +192,7 @@ static TAutoConsoleVariable<float> CVarSkyAtmosphereDistantSkyLightLUTAltitude(
 	TEXT("The altitude at which the sky samples are taken to integrate the sky lighting. Default to 6km, typicaly cirrus clouds altitude.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-////////////////////////////////////////////////////////////////////////// Debug / Visualisation
+////////////////////////////////////////////////////////////////////////// Debug / Visualization
 
 static TAutoConsoleVariable<int32> CVarSkyAtmosphereLUT32(
 	TEXT("r.SkyAtmosphere.LUT32"), 0,

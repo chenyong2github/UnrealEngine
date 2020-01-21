@@ -155,7 +155,7 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 		FVector3f WorldPt = WorldFrame.PointAt(PlanePt);
 		FVector3f SampleRayDir = WorldPt - (FVector3f)Ray.Origin; 
 		SampleRayDir.Normalize();
-		FRay WorldRay(Ray.Origin, SampleRayDir);
+		FRay WorldRay((FVector)Ray.Origin, (FVector)SampleRayDir);
 		FHitResult Hit;
 		if (HitTest(WorldRay, Hit))
 		{

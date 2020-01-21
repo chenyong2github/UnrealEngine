@@ -299,7 +299,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	LODModelDest.SkinWeightProfiles.Remove(ProfileName);
 
 	FSkeletalMeshImportData ImportDataDest;
-	LODModelDest.RawSkeletalMeshBulkData.LoadRawMesh(ImportDataDest);
+	SkeletalMesh->LoadLODImportedData(LODIndex, ImportDataDest);
 
 	//Rechunk the skeletal mesh since we remove it, we rebuild the skeletal mesh to achieve rechunking
 	UFbxSkeletalMeshImportData* OriginalSkeletalMeshImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, nullptr);
@@ -318,6 +318,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	BuildOptions.OverlappingThresholds.ThresholdPosition = OriginalSkeletalMeshImportData->ThresholdPosition;
 	BuildOptions.OverlappingThresholds.ThresholdTangentNormal = OriginalSkeletalMeshImportData->ThresholdTangentNormal;
 	BuildOptions.OverlappingThresholds.ThresholdUV = OriginalSkeletalMeshImportData->ThresholdUV;
+	BuildOptions.OverlappingThresholds.MorphThresholdPosition = OriginalSkeletalMeshImportData->MorphThresholdPosition;
 	BuildOptions.bComputeNormals = !bShouldImportNormals || !ImportDataDest.bHasNormals;
 	BuildOptions.bComputeTangents = !bShouldImportTangents || !ImportDataDest.bHasTangents;
 	BuildOptions.bUseMikkTSpace = (OriginalSkeletalMeshImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!bShouldImportNormals || !bShouldImportTangents);

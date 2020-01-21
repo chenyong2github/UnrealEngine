@@ -1753,9 +1753,20 @@ bool FNiagaraStackGraphUtilities::IsValidDefaultDynamicInput(UNiagaraScript& Own
 	return TryGetStackFunctionInputValue(OwningScript, nullptr, DefaultPin, NAME_None, FRapidIterationParameterContext(), InputValue) && InputValue.DynamicValue.IsSet();
 }
 
-bool FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage)
+bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage)
 {
 	const FNiagaraParameterHandle ParameterHandle(Parameter.GetName());
+
+	if (ParameterHandle.IsReadOnlyHandle())
+	{
+		return false;
+	}
+
+	if (ParameterHandle.IsTransientHandle())
+	{
+		return true;
+	}
+
 	switch (Usage)
 	{
 	case ENiagaraScriptUsage::SystemSpawnScript:
@@ -1768,6 +1779,7 @@ bool FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(FNiagaraV
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleShaderStageScript:
 		return ParameterHandle.IsParticleAttributeHandle();
 	default:
 		return false;

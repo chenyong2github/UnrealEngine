@@ -1120,7 +1120,7 @@ namespace UnrealBuildTool
 						TargetDescriptor TargetDescriptor = new TargetDescriptor(ScriptProjectFile, "UnrealHeaderTool", Platform, Configuration, Architecture, null);
 						TargetDescriptor.bQuiet = true;
 
-						using(Timeline.ScopeEvent("Buildng UnrealHeaderTool"))
+						using(Timeline.ScopeEvent("Building UnrealHeaderTool"))
 						{
 							BuildMode.Build(new List<TargetDescriptor>{ TargetDescriptor }, BuildConfiguration, WorkingSet, BuildOptions.None, null);
 						}
@@ -1143,6 +1143,16 @@ namespace UnrealBuildTool
 
 					string CmdLine = (ProjectFile != null) ? "\"" + ProjectFile.FullName + "\"" : TargetName;
 					CmdLine += " \"" + ModuleInfoFileName + "\" -LogCmds=\"loginit warning, logexit warning, logdatabase error\" -Unattended -WarningsAsErrors";
+
+					if (Log.OutputFile != null)
+					{
+						string LogFileName = Log.OutputFile.GetFileNameWithoutExtension();
+						LogFileName = (LogFileName.StartsWith("UBT") ? "UHT" + LogFileName.Substring(3) : LogFileName + "_UHT") + ".txt";
+						LogFileName = FileReference.Combine(Log.OutputFile.Directory, LogFileName).ToString();
+
+						CmdLine += " -abslog=\"" + LogFileName + "\"";
+					}
+
 					if (UnrealBuildTool.IsEngineInstalled())
 					{
 						CmdLine += " -installed";

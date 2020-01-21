@@ -123,7 +123,7 @@ public:
 	UNiagaraStackEntry* GetCurrentFocusedEntry();
 	void AddSearchScrollOffset(int NumberOfSteps);
 
-	void OnCycleThroughIssues();
+	void OnCycleThroughIssues(TSharedPtr<FTopLevelViewModel> TopLevelToCycle);
 	UNiagaraStackEntry* GetCurrentFocusedIssue() const;
 
 	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
@@ -201,6 +201,7 @@ private:
 	bool bRefreshPending;
 	bool bHasIssues;
 	int32 CurrentIssueCycleIndex;
+	TWeakPtr<FTopLevelViewModel> CyclingIssuesForTopLevel;
 
 	bool bUsesTopLevelViewModels;
 	TArray<TSharedRef<FTopLevelViewModel>> TopLevelViewModels;

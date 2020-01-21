@@ -161,10 +161,6 @@ public:
 	virtual void Update(TArrayView<const FTransform> Viewpoints);
 
 	// Overridable function used to register an object as managed by the significance manager
-	UE_DEPRECATED(4.21, "Override RegisterObject that uses ManagedObject significance functions")
-	virtual void RegisterObject(UObject* Object, FName Tag, FSignificanceFunction SignificanceFunction, EPostSignificanceType InPostSignificanceType = EPostSignificanceType::None, FPostSignificanceFunction InPostSignificanceFunction = nullptr);
-
-	// Overridable function used to register an object as managed by the significance manager
 	virtual void RegisterObject(UObject* Object, FName Tag, FManagedObjectSignificanceFunction SignificanceFunction, EPostSignificanceType InPostSignificanceType = EPostSignificanceType::None, FManagedObjectPostSignificanceFunction InPostSignificanceFunction = nullptr);
 
 	// Overridable function used to unregister an object as managed by the significance manager

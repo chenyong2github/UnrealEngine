@@ -2655,7 +2655,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Whether to look in the machine store for signing certificates, rather than the user store.
 		/// </summary>
-		static bool bUseMachineStoreForCertificates = false;
+		static bool bUseMachineStoreForCertificates = true;
 
 		public enum SignatureType
 		{

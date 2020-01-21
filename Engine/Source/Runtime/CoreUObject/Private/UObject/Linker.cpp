@@ -818,25 +818,32 @@ FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName
 void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename)
 {
 	UPackage* Package = dynamic_cast<UPackage*>(InOuter);
-	// If we have a loader for the package, unload it to prevent conflicts if we are resaving to the same filename
-	FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package);
-	// This is the loader corresponding to the package we're saving.
-	if( Loader )
-	{
-		if (!Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
-		{
-			// Before we save the package, make sure that we load up any thumbnails that aren't already
-			// in memory so that they won't be wiped out during this save
-			Loader->SerializeThumbnails();
-		}
+	ResetLoadersForSave(Package, Filename);
+}
 
+/**
+ *
+ * Reset the loader for the given package if it is using the given filename, so we can write to the file
+ *
+ * @param	Package			The package we are saving
+ * @param	Filename		The filename we are saving too
+ */
+void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename)
+{
+	if(FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package))
+	{
 		// Compare absolute filenames to see whether we're trying to save over an existing file.
 		if( FPaths::ConvertRelativePathToFull(Filename) == FPaths::ConvertRelativePathToFull( Loader->Filename ) )
 		{
 			// Detach all exports from the linker and dissociate the linker.
-			ResetLoaders( InOuter );
+			ResetLoaders(Package);
 		}
 	}
+}
+
+void EnsureLoadingComplete(UPackage* Package)
+{
+	FLinkerManager::Get().EnsureLoadingComplete(Package);
 }
 
 #undef LOCTEXT_NAMESPACE

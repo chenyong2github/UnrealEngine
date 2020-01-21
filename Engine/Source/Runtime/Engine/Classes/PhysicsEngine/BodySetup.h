@@ -394,7 +394,7 @@ public:
 	 * @param		bRemoveExisting			If true, clears any pre-existing collision
 	 * @return								true on success, false on failure because of vertex count overflow.
 	 */
-	ENGINE_API void CreateFromModel(class UModel* InModel, bool bRemoveExisting);
+	ENGINE_API bool CreateFromModel(class UModel* InModel, bool bRemoveExisting);
 
 	/**
 	 * Updates the tri mesh collision with new positions, and refits the BVH to match. 

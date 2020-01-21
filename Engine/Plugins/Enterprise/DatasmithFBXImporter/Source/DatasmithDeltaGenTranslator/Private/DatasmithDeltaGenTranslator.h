@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithDeltaGenImporter.h"
 #include "DatasmithDeltaGenImportOptions.h"
 #include "CoreMinimal.h"
@@ -12,7 +12,6 @@ class FDatasmithDeltaGenTranslator : public IDatasmithTranslator
 public:
 	virtual FName GetFName() const override { return "DatasmithDeltaGenTranslator"; };
 
-	// IDatasmithTranslator interface
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source);
 
@@ -24,7 +23,6 @@ public:
 
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
-	//~ End IDatasmithTranslator interface
 
 private:
     TStrongObjectPtr<UDatasmithDeltaGenImportOptions> ImportOptions;

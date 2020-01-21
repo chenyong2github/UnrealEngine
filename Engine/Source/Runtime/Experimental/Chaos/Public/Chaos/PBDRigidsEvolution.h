@@ -414,6 +414,22 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
+	void PrepareConstraints(const T Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->PrepareConstraints(Dt);
+		}
+	}
+
+	void UnprepareConstraints(const T Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UnprepareConstraints(Dt);
+		}
+	}
+
 	void UpdateAccelerationStructures(int32 Island)
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)

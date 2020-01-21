@@ -170,6 +170,16 @@ void UNiagaraEmitter::PostInitProperties()
 	UniqueEmitterName = TEXT("Emitter");
 }
 
+void UNiagaraEmitter::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	if (!bDuplicateForPIE)
+	{
+		SetUniqueEmitterName(GetName());
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraEmitter::GetForceCompileOnLoad()
 {
@@ -293,6 +303,22 @@ void UNiagaraEmitter::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
+	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
+	{
+		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
+		{
+			RendererProperties.RemoveAt(RendererIndex);
+		}
+	}
+
+	for (int32 ShaderStageIndex = ShaderStages.Num() - 1; ShaderStageIndex >= 0; --ShaderStageIndex)
+	{
+		if (ensureMsgf(ShaderStages[ShaderStageIndex] != nullptr && ShaderStages[ShaderStageIndex]->Script != nullptr, TEXT("Null shader stage, or shader stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), ShaderStageIndex) == false)
+		{
+			ShaderStages.RemoveAt(ShaderStageIndex);
+		}
+	}
+
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -388,7 +414,7 @@ void UNiagaraEmitter::PostLoad()
 			UObject* OuterObj = GetOuter();
 			if (OuterObj == GetOutermost())
 			{
-				GraphSource->InvalidateCachedCompileIds();
+				GraphSource->ForceGraphToRecompileOnNextCheck();
 				bGenerateNewChangeId = true;
 				GenerateNewChangeIdReason = TEXT("PostLoad - Force compile on load");
 				if (GEnableVerboseNiagaraChangeIdLogging)
@@ -700,6 +726,17 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 		}
 	}
 
+	if (!bCompilableOnly)
+	{
+		for (int32 i = 0; i < ShaderStages.Num(); i++)
+		{
+			if (ShaderStages[i] && ShaderStages[i]->Script)
+			{
+				OutScripts.Add(ShaderStages[i]->Script);
+			}
+		}
+	}
+
 	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		OutScripts.Add(GPUComputeScript);
@@ -767,6 +804,14 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 	{
 		if (EventHandlerScriptProps[i].Script && EventHandlerScriptProps[i].Script->IsCompilable() && !EventHandlerScriptProps[i].Script->AreScriptAndSourceSynchronized())
+		{
+			return false;
+		}
+	}
+
+	for (int32 i = 0; i < ShaderStages.Num(); i++)
+	{
+		if (ShaderStages[i] && ShaderStages[i]->Script  && ShaderStages[i]->Script->IsCompilable() && !ShaderStages[i]->Script->AreScriptAndSourceSynchronized())
 		{
 			return false;
 		}
@@ -1378,6 +1423,14 @@ void UNiagaraEmitter::RemoveParent()
 {
 	Parent = nullptr;
 	ParentAtLastMerge = nullptr;
+}
+
+void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
+{
+	Parent = &InParent;
+	ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParent, this));
+	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
 #endif
 

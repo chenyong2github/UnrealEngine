@@ -11,7 +11,7 @@ USocialGroupChannel::USocialGroupChannel()
 
 void USocialGroupChannel::Initialize(IOnlineGroupsPtr InGroupInterface, USocialUser& InSocialUser, const FUniqueNetId& InGroupId)
 {
-	GroupId = InGroupId;
+	GroupId = InGroupId.AsShared();
 	SocialUser = &InSocialUser;
 	GroupInterfacePtr = InGroupInterface;
 

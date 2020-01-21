@@ -76,7 +76,7 @@ namespace SkeletalSimplifier
 
 	};
 
-    /**
+	/**
 	* Class to allow a single weight value to be applied to all the sparse attributes.
 	*/
 	class UniformWeights
@@ -96,7 +96,7 @@ namespace SkeletalSimplifier
 			Weight = other.Weight;
 			return *this;
 		}
-		
+
 	private:
 		double Weight;
 
@@ -112,8 +112,8 @@ namespace SkeletalSimplifier
 		typedef Quadrics::TFaceQuadric<MeshVertType, UniformWeights>         WedgeQuadricType;
 		typedef TQuadricCache<WedgeQuadricType>                              QuadricCacheType;
 		typedef typename MeshVertType::BasicAttrContainerType                BasicAttrContainerType;
-		
-		
+
+
 
 		typedef typename MeshVertType::AttrContainerType                     AttrContainerType;
 
@@ -132,13 +132,13 @@ namespace SkeletalSimplifier
 
 
 	public:
-	
+
 		FMeshSimplifier(const MeshVertType* InSrcVerts, const uint32 InNumSrcVerts,
-			            const uint32* InSrcIndexes,     const uint32 InNumSrcIndexes,
-		            	const float CoAlignmentLimit,
-			            const float VolumeImportance,
-			            const bool bVolumePreservation,
-			            const bool bEnforceBoundaries);
+			const uint32* InSrcIndexes, const uint32 InNumSrcIndexes,
+			const float CoAlignmentLimit,
+			const float VolumeImportance,
+			const bool bVolumePreservation,
+			const bool bEnforceBoundaries);
 
 		~FMeshSimplifier();
 
@@ -152,19 +152,24 @@ namespace SkeletalSimplifier
 		* Set Quadric weights for the standard attributes ( the attributes that are stored in TBasicVertexAttrs<NumTexCoords> )
 		* The order of the weights corresponds to the order of the attributes :
 		*  Normal (3 weights), Tangent (3 weights ), BiTangent (3 weights), Color (3 weights), TextureCoords( 2 * NumTexCoords weights).
-		*/ 
+		*/
 		void				SetAttributeWeights(const DenseVecDType& Weights);
 
 		/**
-		* Set Quadric weights for sparse attributes 
+		* Set Quadric weights for sparse attributes
 		*/
 		void                SetSparseAttributeWeights(const SparseWeightContainerType& SparseWeights);
-		
+
 		/**
 		* Lock mesh boundary edges to prevent simplification by using the vertex tag ESimpElementFlags::SIMP_LOCKED
 		*/
 		void				SetBoundaryLocked();
-	
+
+		/**
+		* Lock edges that connect different colors to prevent simplification by using the vertex tag ESimpElementFlags::SIMP_LOCKED
+		*/
+		void                SetColorEdgeLocked(float Threshold = 1.e-3);
+
 		/**
 		* Lock vertices at corners of very simple 8-vert boxes.
 		*/
@@ -179,7 +184,7 @@ namespace SkeletalSimplifier
 		*                inline bool operator()(const int32 TriNum, const float SqrError);
 		*             };
 		*/
-		                    template <typename TerminationCriterionType>
+		template <typename TerminationCriterionType>
 		float				SimplifyMesh(TerminationCriterionType TerminationCriterion);
 
 		/**
@@ -193,7 +198,7 @@ namespace SkeletalSimplifier
 		int					GetNumTris() const { return MeshManager.ReducedNumTris; }
 
 		/**
-		* Export a copy of the simplified mesh. 
+		* Export a copy of the simplified mesh.
 		*
 		* @param Verts                 - pointer to an array to populate.  Should be least GetNumVerts() in size
 		* @param Indexes               - pointer to index buffer to populate.  Should be at least 3 * GetNumTris() in size
@@ -213,7 +218,7 @@ namespace SkeletalSimplifier
 		float               CalculateNormalShift(const SimpTriType& tri, const SimpVertType* vertToUpdate, const FVector& newPos) const;
 
 		void				ComputeEdgeCollapseVerts(SimpEdgeType* edge, EdgeUpdateTupleArray& newVerts);
-		void				ComputeEdgeCollapseVertsAndFixBones(SimpEdgeType* edge, EdgeUpdateTupleArray& newVerts); 
+		void				ComputeEdgeCollapseVertsAndFixBones(SimpEdgeType* edge, EdgeUpdateTupleArray& newVerts);
 
 
 		double				ComputeEdgeCollapseVertsAndCost(SimpEdgeType* edge, EdgeUpdateTupleArray& newVerts);
@@ -240,7 +245,13 @@ namespace SkeletalSimplifier
 		int32               CountDegenerates() const; // Included for testing.
 
 
-	
+		// Snap the interpolated vertex color in the third tuple element to the closest of the other two
+		void                SnapToClosestSourceVertexColor(EdgeUpdateTuple& UpdateTuple);
+
+		// Returns the closer (AColor or BColor) from the SampleColor
+		const FLinearColor& SnapToClosestColor(const FLinearColor& AColor, const FLinearColor& BColor, const FLinearColor& SampleColor) const;
+
+
 	protected:
 
 		// --- Weights for quadric simplification
@@ -252,9 +263,9 @@ namespace SkeletalSimplifier
 		SparseWeightContainerType AdditionalAttrWeights;
 
 
-	    // --- Magic numbers that penalize undesirable simplifications.
+		// --- Magic numbers that penalize undesirable simplifications.
 
-	    // prevent high valence verts.
+		// prevent high valence verts.
 		uint32               DegreeLimit = 24;
 		double               DegreePenalty = 100.0f;
 
@@ -262,7 +273,7 @@ namespace SkeletalSimplifier
 		double               invalidPenalty = 1.e6;
 
 		// critical angle by which the normal of a triangle is allowed to changed during a collapse.
-		double               coAlignmentLimit = .0871557f;  
+		double               coAlignmentLimit = .0871557f;
 
 		double               VolumeImportance;
 
@@ -273,10 +284,10 @@ namespace SkeletalSimplifier
 
 
 
-        // --- End Magic numbers
+		// --- End Magic numbers
 
 
-	    // Heap that maps edges to the cost of collapse
+		// Heap that maps edges to the cost of collapse
 		FBinaryHeap<double>		CollapseCostHeap;
 
 		// Manage the quadrics
@@ -286,7 +297,7 @@ namespace SkeletalSimplifier
 		// The mesh manager - holds a mesh that supports the topology queries we need and the collapse methods.
 		FSimplifierMeshManager   MeshManager;
 
-	
+
 	private:
 		FMeshSimplifier();
 
@@ -335,13 +346,13 @@ namespace SkeletalSimplifier
 		{
 			return Quadrics::FEdgeQuadric(Pos0, Pos1, Normal, Weight);
 		};
-	
+
 		Quadrics::FEdgeQuadric Quadric = QuadricCache.GetEdgeQuadric(v, EdgeQuadricFactory);
 
 		return Quadric;
 	}
 
-	
+
 
 	FORCEINLINE void FMeshSimplifier::ComputeEdgeCollapseVertsAndQuadrics(SimpEdgeType* edge,
 		EdgeUpdateTupleArray& EdgeAndNewVertArray,
@@ -369,6 +380,32 @@ namespace SkeletalSimplifier
 
 	}
 
+	FORCEINLINE const FLinearColor& FMeshSimplifier::SnapToClosestColor(const FLinearColor& AColor, const FLinearColor& BColor, const FLinearColor& SampleColor) const
+	{
+		// compute the squared distance in linear space - ignoring the alpha channel.
+		float ADistSqrd = (AColor.R - SampleColor.R)*(AColor.R - SampleColor.R) + (AColor.G - SampleColor.G)*(AColor.G - SampleColor.G) + (AColor.B - SampleColor.B)*(AColor.B - SampleColor.B);
+		float BDistSqrt = (BColor.R - SampleColor.R)*(BColor.R - SampleColor.R) + (BColor.G - SampleColor.G)*(BColor.G - SampleColor.G) + (BColor.B - SampleColor.B)*(BColor.B - SampleColor.B);
+
+		// select the closest
+		return (ADistSqrd > BDistSqrt) ? BColor : AColor;
+
+	}
+
+	FORCEINLINE void FMeshSimplifier::SnapToClosestSourceVertexColor(EdgeUpdateTuple& UpdateTuple)
+	{
+		MeshVertType&  VertAttributes = UpdateTuple.Get<2>();
+		FLinearColor& InterpolatedColor = VertAttributes.BasicAttributes.Color;
+
+		const SimpVertType* AVtxPtr = UpdateTuple.Get<0>();
+		const SimpVertType* BVtxPtr = UpdateTuple.Get<1>();
+
+		if (AVtxPtr != nullptr && BVtxPtr != nullptr)
+		{
+			// update to the closest source color.  
+			InterpolatedColor = SnapToClosestColor(AVtxPtr->vert.BasicAttributes.Color, BVtxPtr->vert.BasicAttributes.Color, InterpolatedColor);
+		}
+		
+	}
 
 	FORCEINLINE void FMeshSimplifier::UpdateEdgeCollapseCost(EdgePtrArray& DirtyEdges)
 	{
@@ -518,28 +555,29 @@ namespace SkeletalSimplifier
 
 				}
 
-
+				
 				// Update both verts in the mesh to have the new location and attribute values.
 
 				for (int32 i = 0, Imax = VertexUpdateArray.Num(); i < Imax; ++i)
 				{
 					EdgeUpdateTuple&  EdgeUpdate = VertexUpdateArray[i];
+					
 
-					// New vertex values 
-					const MeshVertType&  VertAttributes = EdgeUpdate.Get<2>();
+					// New vertex attribute values for the collapsed vertex 
+					const MeshVertType&  CollapsedAttributes = EdgeUpdate.Get<2>();
 
 					// update the first edge vertex
 					SimpVertType* VtxPtr = EdgeUpdate.Get<0>();
 					if (VtxPtr != nullptr)
 					{
-						MeshManager.UpdateVertexAttributes(*VtxPtr, VertAttributes);
+						MeshManager.UpdateVertexAttributes(*VtxPtr, CollapsedAttributes);
 					}
 
 					// update the second edge vertex
 					VtxPtr = EdgeUpdate.Get<1>();
 					if (VtxPtr != nullptr)
 					{
-						MeshManager.UpdateVertexAttributes(*VtxPtr, VertAttributes);
+						MeshManager.UpdateVertexAttributes(*VtxPtr, CollapsedAttributes);
 					}
 
 				}

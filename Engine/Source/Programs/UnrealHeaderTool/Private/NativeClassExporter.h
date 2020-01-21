@@ -184,6 +184,16 @@ private:
 	 */
 	static void ExportUInterfaceBoilerplate(FUHTStringBuilder& UInterfaceBoilerplate, FClass* Class, const FString& FriendText);
 
+public:
+
+	enum class EExportClassOutFlags
+	{
+		None = 0x0,
+		NeedsPushModelHeaders = 0x1 << 0,
+	};
+
+private:
+
 	/**
 	 * After all of the dependency checking, and setup for isolating the generated code, actually export the class
 	 *
@@ -197,7 +207,8 @@ private:
 		FOutputDevice&           OutDeclarations,
 		FReferenceGatherers&     OutReferenceGatherers, 
 		FClass*                  Class,
-		const FUnrealSourceFile& SourceFile
+		const FUnrealSourceFile& SourceFile,
+		EExportClassOutFlags&    OutFlags
 	) const;
 
 	/**
@@ -205,7 +216,7 @@ private:
 	 *
 	 * @param	SourceFile			Source file to export.
 	 */
-	bool WriteHeader(const TCHAR* Path, const FString& InBodyText, FReferenceGatherers& InOutReferenceGatherers) const;
+	bool WriteHeader(const TCHAR* Path, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers) const;
 
 	/**
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
@@ -552,3 +563,5 @@ public:
 	 */
 	static bool IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition);
 };
+
+ENUM_CLASS_FLAGS(FNativeClassHeaderGenerator::EExportClassOutFlags);

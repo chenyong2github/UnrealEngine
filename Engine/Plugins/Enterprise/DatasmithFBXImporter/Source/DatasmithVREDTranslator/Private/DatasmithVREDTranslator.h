@@ -5,14 +5,13 @@
 #include "CoreMinimal.h"
 #include "DatasmithVREDImporter.h"
 #include "DatasmithVREDImportOptions.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 class FDatasmithVREDTranslator : public IDatasmithTranslator
 {
 public:
 	virtual FName GetFName() const override { return "DatasmithVREDTranslator"; };
 
-	// IDatasmithTranslator interface
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 
@@ -24,7 +23,6 @@ public:
 
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
-	//~ End IDatasmithTranslator interface
 
 private:
     TStrongObjectPtr<UDatasmithVREDImportOptions> ImportOptions;

@@ -568,13 +568,7 @@ void SObjectPropertyEntryBox::OnSetObject(const FAssetData& AssetData)
 	{
 		if (!OnShouldSetAsset.IsBound() || OnShouldSetAsset.Execute(AssetData))
 		{
-			FString ObjectPathName = TEXT("None");
-			if (AssetData.IsValid())
-			{
-				ObjectPathName = AssetData.ObjectPath.ToString();
-			}
-
-			PropertyHandle->SetValueFromFormattedString(ObjectPathName);
+			PropertyHandle->SetValue(AssetData);
 		}
 	}
 	OnObjectChanged.ExecuteIfBound(AssetData);

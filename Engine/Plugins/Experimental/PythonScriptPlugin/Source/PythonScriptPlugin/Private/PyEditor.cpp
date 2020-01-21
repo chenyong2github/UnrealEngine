@@ -227,6 +227,10 @@ void InitializeModule()
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
 }
 
+void ShutdownModule()
+{
+}
+
 }
 
 #endif	// WITH_EDITOR

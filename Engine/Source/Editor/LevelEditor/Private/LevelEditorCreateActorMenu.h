@@ -19,8 +19,6 @@ namespace EActorCreateMode
 		/** Replace the actor that was last clicked on */
 		Replace,
 
-		/** Temp actor is attached to cursor & placed on click */
-		Placement,
 	};
 }
 

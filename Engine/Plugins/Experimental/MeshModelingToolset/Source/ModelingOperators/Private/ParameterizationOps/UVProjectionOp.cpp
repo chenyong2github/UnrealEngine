@@ -52,7 +52,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 	FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(LayerIndex);
 	UVLayer->ClearElements();
 
-	FVector2D Scale = FVector2D(.5,.5)*UVScale, Offset = FVector2D(.5,.5)+UVOffset;
+	FVector2f Scale = FVector2f(.5,.5)*UVScale, Offset = FVector2f(.5,.5)+UVOffset;
 	// project to major axis
 	auto ProjAxis = [&Scale, &Offset](const FVector3d& P, int Ax1, int Ax2, float Ax1Scale, float Ax2Scale)
 	{
@@ -70,7 +70,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 			if (ResultMesh->IsVertex(VID))
 			{
 				FVector2f UV = ProjAxis(TransformedVertices[VID], 0, 1, 1, 1);
-				UVLayer->InsertElement(VID, UV, VID, true);
+				UVLayer->InsertElement(VID, (float*)UV, VID, true);
 			}
 		}
 		UVLayer->EndUnsafeElementsInsert();

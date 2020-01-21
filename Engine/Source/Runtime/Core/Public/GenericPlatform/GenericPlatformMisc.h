@@ -278,6 +278,14 @@ namespace EAppReturnType
 	};
 }
 
+/**
+ * Returns the string representation of the specified EAppReturnType::Type value.
+ *
+ * @param Value The value to get the string for.
+ * @return The string representation.
+ */
+CORE_API const TCHAR* LexToString(EAppReturnType::Type Value);
+
 /*
  * Holds a computed SHA256 hash.
  */

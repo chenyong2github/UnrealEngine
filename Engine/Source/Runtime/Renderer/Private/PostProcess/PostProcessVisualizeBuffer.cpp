@@ -9,6 +9,7 @@
 #include "ImageWriteTask.h"
 #include "ImageWriteQueue.h"
 #include "HighResScreenshot.h"
+#include "BufferVisualizationData.h"
 
 class FVisualizeBufferPS : public FGlobalShader
 {
@@ -193,8 +194,10 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 	{
 	case PF_FloatRGBA:
 	{
-		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(SourceRect.Size());
-		RHICmdList.ReadSurfaceFloatData(Texture, SourceRect, PixelData->Pixels, (ECubeFace)0, 0, 0);
+		TArray<FFloat16Color> RawPixels;
+		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+		RHICmdList.ReadSurfaceFloatData(Texture, SourceRect, RawPixels, (ECubeFace)0, 0, 0);
+		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(SourceRect.Size(), TArray64<FFloat16Color>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		return PixelData;
@@ -205,8 +208,10 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 		FReadSurfaceDataFlags ReadDataFlags(RCM_MinMax);
 		ReadDataFlags.SetLinearToGamma(false);
 
-		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(SourceRect.Size());
-		RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+		TArray<FLinearColor> RawPixels;
+		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+		RHICmdList.ReadSurfaceData(Texture, SourceRect, RawPixels, ReadDataFlags);
+		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(SourceRect.Size(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		return PixelData;
@@ -218,8 +223,10 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 		FReadSurfaceDataFlags ReadDataFlags;
 		ReadDataFlags.SetLinearToGamma(false);
 
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size());
-		RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+		TArray<FColor> RawPixels;
+		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+		RHICmdList.ReadSurfaceData(Texture, SourceRect, RawPixels, ReadDataFlags);
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		return PixelData;
@@ -331,10 +338,11 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 	const FViewInfo& View,
 	const FVisualizeGBufferOverviewInputs& Inputs)
 {
-	check(Inputs.SceneColor.IsValid());
-	check(Inputs.bDumpToFile || Inputs.bOverview);
-
 	const FFinalPostProcessSettings& PostProcessSettings = View.FinalPostProcessSettings;
+
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.bDumpToFile || Inputs.bOverview || PostProcessSettings.BufferVisualizationPipes.Num() > 0);
+
 
 	FScreenPassTexture Output;
 	const EPixelFormat OutputFormat = Inputs.bOutputInHDR ? PF_FloatRGBA : PF_Unknown;
@@ -409,7 +417,7 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 
 			FVisualizeBufferTile Tile;
 			Tile.Input = AddDownsamplePass(GraphBuilder, View, DownsampleInputs);
-			Tile.Label = MaterialName;
+			Tile.Label = GetBufferVisualizationData().GetMaterialDisplayName(FName(*MaterialName)).ToString();
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			Tile.bSelected = 
 				PostProcessSettings.bBufferVisualizationOverviewTargetIsSelected &&

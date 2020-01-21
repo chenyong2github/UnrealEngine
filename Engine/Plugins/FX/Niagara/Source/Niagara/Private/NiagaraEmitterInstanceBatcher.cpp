@@ -9,6 +9,7 @@
 #include "NiagaraSortingGPU.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraShaderParticleID.h"
+#include "NiagaraRenderer.h"
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
@@ -90,6 +91,25 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 	ParticleSortBuffers.ReleaseRHI();
 }
 
+void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID)
+{
+	int iTick = 0;
+	while ( iTick < Ticks_RT.Num() )
+	{
+		FNiagaraGPUSystemTick& Tick = Ticks_RT[iTick];
+		if (Tick.SystemInstanceID == InstanceID)
+		{
+			//-OPT: Since we can't RemoveAtSwap (due to ordering issues) if may be better to not remove and flag as dead
+			Tick.Destroy();
+			Ticks_RT.RemoveAt(iTick);
+		}
+		else
+		{
+			++iTick;
+		}
+	}
+}
+
 void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSystemTick& Tick)
 {
 	check(IsInRenderingThread());
@@ -123,16 +143,23 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 	Ticks_RT.Add(Tick);
 }
 
-void NiagaraEmitterInstanceBatcher::GiveEmitterContextToDestroy_RenderThread(FNiagaraComputeExecutionContext* Context)
+void NiagaraEmitterInstanceBatcher::ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
-	ContextsToDestroy_RT.Add(Context);
+
+	if ( ExecContext != nullptr )
+	{
+		GPUInstanceCounterManager.FreeEntry(ExecContext->EmitterInstanceReadback.GPUCountOffset);
+	}
+	if ( DataSet != nullptr )
+	{
+		DataSet->ReleaseGPUInstanceCounts(GPUInstanceCounterManager);
+	}
 }
 
-void NiagaraEmitterInstanceBatcher::GiveDataSetToDestroy_RenderThread(FNiagaraDataSet* DataSet)
+void NiagaraEmitterInstanceBatcher::EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy)
 {
-	LLM_SCOPE(ELLMTag::Niagara);
-	DataSetsToDestroy_RT.Add(DataSet);
+	DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
 }
 
 void NiagaraEmitterInstanceBatcher::FinishDispatches()
@@ -398,7 +425,12 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			const uint32 RequiredInstances = FMath::Max(PrevNumInstances, NewNumInstances);
 			const uint32 AllocatedInstances = FMath::Max(RequiredInstances, Instance.SpawnInfo.MaxParticleCount);
 
-			DestinationData.AllocateGPU(AllocatedInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel);
+			if (bNeedsPersistentIDs)
+			{
+				Context->MainDataSet->AllocateGPUFreeIDs(AllocatedInstances + 1, RHICmdList, FeatureLevel, Context->GetDebugSimName());
+			}
+
+			DestinationData.AllocateGPU(AllocatedInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel, Context->GetDebugSimName());
 			DestinationData.SetNumInstances(RequiredInstances);
 
 			WriteBuffers.Add(GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
@@ -423,8 +455,8 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 
 			if (bNeedsPersistentIDs)
 			{
-				ReadBuffers.Add(CurrentData.GetGPUFreeIDs().UAV);
-				WriteBuffers.Add(CurrentData.GetGPUIDToIndexTable().UAV);
+				ReadBuffers.Add(Context->MainDataSet->GetGPUFreeIDs().UAV);
+				WriteBuffers.Add(DestinationData.GetGPUIDToIndexTable().UAV);
 				++NumFreeIDListsToCompute;
 			}
 
@@ -1196,7 +1228,8 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	FNiagaraDataBuffer& DestinationData = *Instance->DestinationData;
 	FNiagaraDataBuffer& CurrentData = *Instance->CurrentData;
 
-	if (Context->MainDataSet->GetNeedsPersistentIDs())
+	const bool bNeedsPersistentIDs = Context->MainDataSet->GetNeedsPersistentIDs();
+	if (bNeedsPersistentIDs)
 	{
 		// Put INDEX_NONE in all the slots of the ID to index table. The simulation will fill in the
 		// indices for the IDs which are currently in use, so we can compute the free ID list based on
@@ -1228,6 +1261,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	// set the shader and data set params 
 	//
+	SetSRVParameter(RHICmdList, Shader->GetComputeShader(), Shader->FreeIDBufferParam, bNeedsPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
 	CurrentData.SetShaderParams(Shader, RHICmdList, true);
 	DestinationData.SetShaderParams(Shader, RHICmdList, false);
 
@@ -1382,7 +1416,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	DestinationData.UnsetShaderParams(Shader, RHICmdList);
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
 
-	if (Context->MainDataSet->GetNeedsPersistentIDs() && ShaderStageIndex == Context->MaxUpdateIterations - 1)
+	if (bNeedsPersistentIDs && ShaderStageIndex == Context->MaxUpdateIterations - 1)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeFreeIDs);
 		SCOPED_GPU_STAT(RHICmdList, NiagaraGPUComputeFreeIDs);
@@ -1391,8 +1425,8 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 		// Make the ID to index table readable and the free ID list writable.
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, DestinationData.GetGPUIDToIndexTable().UAV);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestinationData.GetGPUFreeIDs().UAV);
-		NiagaraComputeGPUFreeIDs(RHICmdList, FeatureLevel, DestinationData.GetGPUNumAllocatedIDs(), DestinationData.GetGPUIDToIndexTable().SRV, DestinationData.GetGPUFreeIDs(), FreeIDListSizesBuffer, CurrentFreeIDListIndex);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Context->MainDataSet->GetGPUFreeIDs().UAV);
+		NiagaraComputeGPUFreeIDs(RHICmdList, FeatureLevel, Context->MainDataSet->GetGPUNumAllocatedIDs(), DestinationData.GetGPUIDToIndexTable().SRV, Context->MainDataSet->GetGPUFreeIDs(), FreeIDListSizesBuffer, CurrentFreeIDListIndex);
 		++CurrentFreeIDListIndex;
 	}
 }

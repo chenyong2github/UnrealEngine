@@ -17,6 +17,7 @@ UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FOb
 	, ThresholdPosition(THRESH_POINTS_ARE_SAME)
 	, ThresholdTangentNormal(THRESH_NORMALS_ARE_SAME)
 	, ThresholdUV(THRESH_UVS_ARE_SAME)
+	, MorphThresholdPosition(THRESH_POINTS_ARE_NEAR)
 	, bImportAnimations(true)
 	, AnimationLength(EFbxSceneVertexColorImportOption::Replace)
 	, FrameImportRange(0, 0)
@@ -37,6 +38,7 @@ void UFbxSceneImportOptionsSkeletalMesh::FillSkeletalMeshInmportData(UFbxSkeleta
 	SkeletalMeshImportData->ThresholdPosition = ThresholdPosition;
 	SkeletalMeshImportData->ThresholdTangentNormal = ThresholdTangentNormal;
 	SkeletalMeshImportData->ThresholdUV = ThresholdUV;
+	SkeletalMeshImportData->MorphThresholdPosition = MorphThresholdPosition;
 	SkeletalMeshImportData->bPreserveSmoothingGroups = bPreserveSmoothingGroups;
 	SkeletalMeshImportData->bUpdateSkeletonReferencePose = bUpdateSkeletonReferencePose;
 	SkeletalMeshImportData->bUseT0AsRefPose = bUseT0AsRefPose;

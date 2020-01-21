@@ -60,22 +60,24 @@ public:
 	UNiagaraGraph* GetCalledGraph() const;
 	
 	virtual void Compile(FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs) override;
-	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const override;
+	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 
 	void SetCachedVariablesForCompilation(const FName& InUniqueName, UNiagaraGraph* InGraph, UNiagaraScriptSourceBase* InSource);
 
 protected:
 	UEdGraphPin* PinPendingRename;
 
+	virtual bool GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const;
 	
 private:
 	/** Looks up the name of the emitter and converts it to text. */
 	FText GetNameFromEmitter();
 
 private:
+	
 
 	/** The System that owns the emitter which is represented by this node. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	UNiagaraSystem* OwnerSystem;
 
 	/** The id of the emitter handle which points to the emitter represented by this node. */
@@ -83,7 +85,7 @@ private:
 	FGuid EmitterHandleId;
 
 	/** The display name for the title bar of this node. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FText DisplayName;
 
 	UPROPERTY()

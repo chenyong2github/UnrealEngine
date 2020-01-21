@@ -116,6 +116,11 @@ class FTContour
         size_t PointCount() const { return pointList.size(); }
 
         /**
+         *  Is this contour clockwise or anti-clockwise?
+         */
+        bool Clockwise() const { return clockwise; }
+
+        /**
          * Make sure the glyph has the proper parity and create the front/back
          * outset contour.
          *
@@ -126,11 +131,6 @@ class FTContour
         // FIXME: this should probably go away.
         void buildFrontOutset(float outset);
         void buildBackOutset(float outset);
-
-		bool GetDirection() const {
-			return clockwise;
-		}
-
 
     private:
         /**

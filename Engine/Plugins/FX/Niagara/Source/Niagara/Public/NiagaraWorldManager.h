@@ -218,20 +218,11 @@ private:
 
 	UNiagaraComponentPool* ComponentPool;
 
-	/** Generated data used by data interfaces*/
+	/** Generated data used by data interfaces */
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
 
-	// Deferred deletion queue for system instances
-	// We need to make sure that any enqueued GPU ticks have been processed before we remove the system instances
-	struct FDeferredDeletionQueue
-	{
-		FRenderCommandFence							Fence;
-		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
-	};
-
-	static constexpr int NumDeferredQueues = 3;
-	int DeferredDeletionQueueIndex = 0;
-	FDeferredDeletionQueue DeferredDeletionQueue[NumDeferredQueues];
+	/** Instances that have been queued for deletion this frame, serviced in PostActorTick */
+	TArray<TUniquePtr<FNiagaraSystemInstance>> DeferredDeletionQueue;
 
 	UPROPERTY(transient)
 	TMap<UNiagaraEffectType*, FNiagaraScalabilityManager> ScalabilityManagers;

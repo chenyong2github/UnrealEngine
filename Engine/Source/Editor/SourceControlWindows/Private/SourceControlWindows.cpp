@@ -37,6 +37,29 @@ FCheckinResultInfo::FCheckinResultInfo()
 
 TWeakPtr<SNotificationItem> FSourceControlWindows::ChoosePackagesToCheckInNotification;
 
+TArray<FString> FSourceControlWindows::GetSourceControlLocations(const bool bContentOnly)
+{
+	TArray<FString> SourceControlLocations;
+
+	{
+		TArray<FString> RootPaths;
+		FPackageName::QueryRootContentPaths(RootPaths);
+		for (const FString& RootPath : RootPaths)
+		{
+			const FString RootPathOnDisk = FPackageName::LongPackageNameToFilename(RootPath);
+			SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(RootPathOnDisk));
+		}
+	}
+
+	if (!bContentOnly)
+	{
+		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
+		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+	}
+
+	return SourceControlLocations;
+}
+
 bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsOnCheckInComplete& OnCompleteDelegate)
 {
 	if (!ISourceControlModule::Get().IsEnabled())
@@ -66,11 +89,7 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	// Start selection process...
 
 	// make sure we update the SCC status of all packages (this could take a long time, so we will run it as a background task)
-	TArray<FString> Filenames;
-	Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::EngineContentDir()));
-	Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-	Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-	Filenames.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+	TArray<FString> Filenames = GetSourceControlLocations();
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	FSourceControlOperationRef Operation = ISourceControlOperation::Create<FUpdateStatus>();
@@ -369,11 +388,7 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 		return;
 	}
 
-	TArray<FString> PendingDeletePaths;
-	PendingDeletePaths.Add(FPaths::ConvertRelativePathToFull(FPaths::EngineContentDir()));
-	PendingDeletePaths.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-	PendingDeletePaths.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-	PendingDeletePaths.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+	TArray<FString> PendingDeletePaths = GetSourceControlLocations();
 
 	const bool bUseSourceControlStateCache = true;
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);

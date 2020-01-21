@@ -313,7 +313,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 #else
 				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, OutputTarget);
 #endif
-				FGenerateMips::Execute(RHICmdList, OutputTarget, FGenerateMipsParams{ SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp }, &CachedMipsGenParams, true);
+				FGenerateMips::Execute(RHICmdList, OutputTarget, CachedMipsGenParams, FGenerateMipsParams{ SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp }, true);
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, OutputTarget);
 			}
 

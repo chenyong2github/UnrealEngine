@@ -698,7 +698,6 @@ bool UBodySetup::RuntimeCookPhysics_Chaos()
 
 void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float, 3>& InReader)
 {
-	check(IsInGameThread());
 	ClearPhysicsMeshes();
 
 	const FString FullName = GetFullName();
@@ -712,6 +711,10 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 				&& InReader.ConvexImplicitObjects[ElementIndex]->IsValidGeometry()))
 			{
 				ConvexElem.SetChaosConvexMesh(MoveTemp(InReader.ConvexImplicitObjects[ElementIndex]));
+
+#if TRACK_CHAOS_GEOMETRY
+				ConvexElem.GetChaosConvexMesh()->Track(Chaos::MakeSerializable(ConvexElem.GetChaosConvexMesh()),FullName);
+#endif
 
 				if (ConvexElem.GetChaosConvexMesh()->IsPerformanceWarning())
 				{
@@ -739,6 +742,14 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	for (auto& TriMesh : ChaosTriMeshes)
 	{
 		TriMesh->Track(Chaos::MakeSerializable(TriMesh), FullName);
+	}
+#endif
+
+#if WITH_CHAOS
+	// Force trimesh collisions off
+	for (auto& TriMesh : ChaosTriMeshes)
+	{
+		TriMesh->SetDoCollide(false);
 	}
 #endif
 
@@ -1703,12 +1714,8 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 }
 
 #if WITH_CHAOS
-const TUniquePtr<Chaos::FConvex>& FKConvexElem::GetChaosConvexMesh() const
-{
-	return ChaosConvex;
-}
 
-void FKConvexElem::SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex)
+void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
 	ComputeChaosConvexIndices();

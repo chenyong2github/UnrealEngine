@@ -3847,11 +3847,13 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 		if( FPackageName::DoesPackageExist( LevelPackage->GetName(), NULL, &PackageFilename ) && 
 			FPaths::GetBaseFilename(PackageFilename).Len() > MaxFilenameLen )
 		{
+			const FString BaseFilenameOfPackageFilename = FPaths::GetBaseFilename(PackageFilename);
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("Filename"), FText::FromString(FPaths::GetBaseFilename(PackageFilename)));
+			Arguments.Add(TEXT("Filename"), FText::FromString(BaseFilenameOfPackageFilename));
+			Arguments.Add(TEXT("FilenameLength"), BaseFilenameOfPackageFilename.Len());
 			Arguments.Add(TEXT("MaxFilenameLength"), MaxFilenameLen);
 			FMessageLog("MapCheck").Warning()
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_FilenameIsTooLongForCooking", "Filename '{Filename}' is too long - this may interfere with cooking for consoles.  Unreal filenames should be no longer than {MaxFilenameLength} characters." ), Arguments ) ))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_FilenameIsTooLongForCooking", "Filename is too long ({FilenameLength} characters) - this may interfere with cooking for consoles. Unreal filenames should be no longer than {MaxFilenameLength} characters. Filename value: {Filename}" ), Arguments ) ))
 				->AddToken(FMapErrorToken::Create(FMapErrors::FilenameIsTooLongForCooking));
 		}
 	}

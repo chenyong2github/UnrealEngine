@@ -42,17 +42,11 @@ private:
 	/** Open and load a VRED .fbx scene file, placing its data in the context */
 	bool ParseFbxFile(const FString& FBXPath);
 
-	/** Open and load a VRED .fbx.intermediate scene file, placing its data in the context */
-	bool ParseIntermediateFile(const FString& FBXPath);
-
 	/** Open auxilliary .lights, .clips and/or .var files exported from VRED into the context */
 	void ParseAuxFiles(const FString& FBXPath);
 
 	/** Perform processing of internal scene data for better performance after import */
 	void ProcessScene();
-
-	/** Serializes the scene to an intermediate format that can be reimported faster than an fbx file */
-	bool SerializeScene(const FString& FBXPath);
 
 	/** Checks if the NodeType flag has a combination supported for this plugin */
 	bool CheckNodeType(const TSharedPtr<FDatasmithFBXSceneNode>& Node);

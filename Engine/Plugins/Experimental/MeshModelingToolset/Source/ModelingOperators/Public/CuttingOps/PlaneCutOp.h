@@ -17,8 +17,12 @@ public:
 
 	// inputs
 	FVector LocalPlaneOrigin, LocalPlaneNormal;
-	bool bFillCutHole, bDiscardAttributes, bFillSpans;
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	bool bFillCutHole, bFillSpans;
+	bool bKeepBothHalves;
+	float CutPlaneLocalThickness = 0; // plane thickness in the local space of the mesh
+	float UVScaleFactor;
+	int SubObjectsAttribIndex;
+	TSharedPtr<const FDynamicMesh3> OriginalMesh;
 
 	void SetTransform(const FTransform& Transform);
 

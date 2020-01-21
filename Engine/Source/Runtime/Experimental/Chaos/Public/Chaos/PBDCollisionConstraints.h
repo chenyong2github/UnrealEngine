@@ -127,6 +127,10 @@ public:
 	// General Rule API
 	//
 
+	void PrepareConstraints(FReal Dt) {}
+
+	void UnprepareConstraints(FReal Dt) {}
+
 	/**
 	 * Generate all contact constraints.
 	 */
@@ -214,8 +218,10 @@ public:
 
 
 protected:
-		using Base::GetConstraintIndex;
-		using Base::SetConstraintIndex;
+	using Base::GetConstraintIndex;
+	using Base::SetConstraintIndex;
+
+	void UpdateConstraintMaterialProperties(FConstraintBase& Contact);
 
 private:
 
@@ -236,6 +242,7 @@ private:
 	T MAngularFriction;
 	bool bUseCCD;
 	bool bEnableCollisions;
+	bool bEnableParallelFor;
 
 	int32 LifespanCounter;
 

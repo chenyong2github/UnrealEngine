@@ -107,6 +107,17 @@
 			__pragma(warning(pop))
 	#endif // PRAGMA_ENABLE_REORDER_WARNINGS
 
+	#ifndef PRAGMA_DISABLE_REGISTER_WARNINGS
+		#define PRAGMA_DISABLE_REGISTER_WARNINGS \
+			__pragma(warning(push)) \
+			__pragma(warning(disable: 5033)) /* 'register' is no longer a supported storage class */
+	#endif // PRAGMA_DISABLE_REGISTER_WARNINGS
+
+	#ifndef PRAGMA_ENABLE_REGISTER_WARNINGS
+		#define PRAGMA_ENABLE_REGISTER_WARNINGS \
+			__pragma(warning(pop))
+	#endif // PRAGMA_ENABLE_REGISTER_WARNINGS
+
 	#ifndef PRAGMA_POP
 		#define PRAGMA_POP \
 			__pragma(warning(pop))

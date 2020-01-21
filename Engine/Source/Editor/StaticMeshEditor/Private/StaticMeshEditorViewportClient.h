@@ -81,6 +81,37 @@ public:
 	/** Callback for checking the UV overlay show flag. */
 	bool IsDrawUVOverlayChecked() const;
 
+
+	/** Set the normals show flag. */
+	void SetShowNormals(bool bShowOn);
+
+	/** Set the tangents show flag. */
+	void SetShowTangents(bool bShowOn);
+
+	/** Set the binormals show flag. */
+	void SetShowBinormals(bool bShowOn);
+
+	/** Set the simple collisions show flag. */
+	void SetShowSimpleCollisions(bool bShowOn);
+
+	/** Set the complex collisions show flag. */
+	void SetShowComplexCollisions(bool bShowOn);
+
+	/** Set the pivots show flag. */
+	void SetShowPivots(bool bShowOn);
+
+	/** Set the grids show flag. */
+	void SetShowGrids(bool bShowOn);
+
+	/** Set the vertices show flag. */
+	void SetShowVertices(bool bShowOn);
+
+	/** Set the wireframes show flag. */
+	void SetShowWireframes(bool bShowOn);
+
+	/** Set the vertex colors show flag. */
+	void SetShowVertexColors(bool bShowOn);
+
 	/** Callback for toggling the normals show flag. */
 	void ToggleShowNormals();
 	

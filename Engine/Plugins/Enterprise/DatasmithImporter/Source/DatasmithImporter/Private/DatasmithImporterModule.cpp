@@ -16,11 +16,6 @@
 #include "DatasmithScene.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithUtils.h"
-#include "MasterMaterials/DatasmithC4DMaterialSelector.h"
-#include "MasterMaterials/DatasmithCityEngineMaterialSelector.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MasterMaterials/DatasmithRevitMaterialSelector.h"
-#include "MasterMaterials/DatasmithSketchupMaterialSelector.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
 #include "UI/DatasmithUIManager.h"
@@ -31,7 +26,7 @@
 #include "ContentBrowserModule.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepAssetUserData.h"
-#include "DataprepCoreLibrary.h"
+#include "DataprepCoreUtils.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorStyleSet.h"
@@ -64,13 +59,6 @@ class FDatasmithImporterModule : public IDatasmithImporterModule
 public:
 	virtual void StartupModule() override
 	{
-		FDatasmithMasterMaterialManager::Create();
-
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("C4D"), MakeShared< FDatasmithC4DMaterialSelector >());
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRevitMaterialSelector >());
-		FDatasmithMasterMaterialManager::Get().RegisterSelector( TEXT("SketchUp"), MakeShared< FDatasmithSketchUpMaterialSelector >() );
-		FDatasmithMasterMaterialManager::Get().RegisterSelector( TEXT("CityEngine"), MakeShared< FDatasmithCityEngineMaterialSelector >() );
-
 		UDatasmithFileProducer::LoadDefaultSettings();
 
 		// Disable any UI feature if running in command mode
@@ -119,10 +107,6 @@ public:
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 			PropertyModule.UnregisterCustomClassLayout( TEXT("DatasmithFileProducer") );
 		}
-
-		FDatasmithMasterMaterialManager::Get().UnregisterSelector( TEXT("CityEngine") );
-
-		FDatasmithMasterMaterialManager::Destroy();
 	}
 
 	virtual void ResetOverrides( UObject* Object ) override
@@ -252,7 +236,9 @@ void FDatasmithImporterModule::AddDataprepMenuEntryForDatasmithSceneAsset()
 						{
 							for ( const TStrongObjectPtr<UDataprepAssetInterface>& DataprepAssetInterfacePtr : DataprepAssetInterfacesPtr )
 							{
-								UDataprepCoreLibrary::ExecuteWithReporting( DataprepAssetInterfacePtr.Get() );
+								FDataprepCoreUtils::ExecuteDataprep( DataprepAssetInterfacePtr.Get()
+									, MakeShared<FDataprepCoreUtils::FDataprepLogger>()
+									, MakeShared<FDataprepCoreUtils::FDataprepProgressUIReporter>() );
 							}
 						});
 

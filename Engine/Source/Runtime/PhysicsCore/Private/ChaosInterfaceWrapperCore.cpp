@@ -42,7 +42,7 @@ namespace ChaosInterface
 
 	FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
 	{
-		return Shape.QueryData;
+		return Shape.SimData;
 	}
 
 

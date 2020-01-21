@@ -8,6 +8,7 @@
 #include "MeshAttributeArray.h" // for TMeshAttributesRef
 #include "MeshDescription.h" // for TVertexAttributesRef
 #include "MeshTypes.h" // for FElementID, FVertexID
+#include "Serialization/BulkData.h"
 
 struct FStrandID : public FElementID
 {
@@ -74,6 +75,7 @@ public:
 	FVertexID AddVertex();
 	FStrandID AddStrand();
 
+	void Reset();
 	bool IsValid() const;
 
 	TAttributesSet<FVertexID>& VertexAttributes() { return VertexAttributesSet; }
@@ -99,6 +101,51 @@ private:
 
 	int32 NumVertices;
 	int32 NumStrands;
+};
+
+/**
+ * Bulk data storage for FHairDescription
+ */
+struct HAIRSTRANDSCORE_API FHairDescriptionBulkData
+{
+public:
+	FHairDescriptionBulkData()
+	{
+		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedZLIB);
+	}
+
+#if WITH_EDITORONLY_DATA
+	void Serialize(FArchive& Ar, UObject* Owner);
+
+	/** Stores a new hair description in the bulk data */
+	void SaveHairDescription(FHairDescription& HairDescription);
+
+	/** Loads the hair description from the bulk data */
+	void LoadHairDescription(FHairDescription& HairDescription);
+
+	/** Empties the bulk data */
+	void Empty();
+
+	/** Returns true if there is nothing in the bulk data */
+	bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
+
+	/** Returns unique ID string for this bulk data */
+	FString GetIdString() const;
+
+private:
+	/** Computes a GUID from the hash of the bulk data, useful to prevent recomputing content already in cache. */
+	void ComputeGuidFromHash();
+#endif
+
+private:
+	/** Internally store bulk data as bytes */
+	FByteBulkData BulkData;
+
+	/** GUID associated with the stored bulk data */
+	FGuid Guid;
+
+	/** Custom version to propagate to archive when serializing the bulk data */
+	FCustomVersionContainer CustomVersions;
 };
 
 template <typename AttributeType> using TStrandAttributesRef = TMeshAttributesRef<FStrandID, AttributeType>;

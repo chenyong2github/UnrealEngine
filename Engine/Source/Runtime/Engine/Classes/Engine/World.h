@@ -3218,15 +3218,22 @@ private:
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
 	ENetMode InternalGetNetMode() const;
 
-#if WITH_EDITOR
-	/** Attempts to derive the net mode from PlayInSettings for PIE*/
-	ENetMode AttemptDeriveFromPlayInSettings() const;
-#endif
-
 	/** Attempts to derive the net mode from URL */
 	ENetMode AttemptDeriveFromURL() const;
 
 	APhysicsVolume* InternalGetDefaultPhysicsVolume() const;
+
+#if WITH_EDITOR
+public:
+	void SetPlayInEditorInitialNetMode(ENetMode InNetMode)
+	{
+		PlayInEditorNetMode = InNetMode;
+	}
+
+private:
+	/** In PIE, what Net Mode was this world started in? Fallback for not having a NetDriver */
+	ENetMode PlayInEditorNetMode;
+#endif
 
 public:
 

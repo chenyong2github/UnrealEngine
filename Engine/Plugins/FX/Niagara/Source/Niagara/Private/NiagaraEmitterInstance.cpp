@@ -137,36 +137,21 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 	if (GPUExecContext != nullptr)
 	{
 		/** We defer the deletion of the particle dataset and the compute context to the RT to be sure all in-flight RT commands have finished using it.*/
-		NiagaraEmitterInstanceBatcher* B = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
-		FNiagaraComputeExecutionContext* Context = GPUExecContext;
-		FNiagaraDataSet* DataSet = ParticleDataSet;
+		NiagaraEmitterInstanceBatcher* Batcher_RT = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 		ENQUEUE_RENDER_COMMAND(FDeleteContextCommand)(
-			[B, Context, DataSet](FRHICommandListImmediate& RHICmdList)
+			[Batcher_RT, ExecContext=GPUExecContext, DataSet= ParticleDataSet](FRHICommandListImmediate& RHICmdList)
 			{
-				if (Context)
+				if ( Batcher_RT != nullptr )
 				{
-					if (B)
-					{
-						B->GiveEmitterContextToDestroy_RenderThread(Context);
-					}
-					else
-					{
-						delete Context;
-					}
+					Batcher_RT->ReleaseInstanceCounts_RenderThread(ExecContext, DataSet);
 				}
-
-				//TODO: deleting these on the RT shouldn't be needed any more.
-				if (DataSet)
+				if ( ExecContext != nullptr )
 				{
-					if (B)
-					{
-						B->GiveDataSetToDestroy_RenderThread(DataSet);
-					}
-					else
-					{
-						delete DataSet;
-					}
-
+					delete ExecContext;
+				}
+				if ( DataSet != nullptr )
+				{
+					delete DataSet;
 				}
 			}
 		);
@@ -1263,10 +1248,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			// If we have spawning make sure we clear out the remaining data and leave the end slot as MAX to avoid reading off end of the array on the GPU
 			if ( GpuSpawnInfo.EventSpawnTotal + GpuSpawnInfo.SpawnRateInstances >  0 )
 			{
-				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS - 1)
+				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS)
 				{
-					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = MAX_FLT;
-					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos] = FVector4(ForceInitToZero);
+					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].X = 0.0f;
+					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Y = 0.0f;
+					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Z) = 0;
+					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].W) = GpuSpawnInfo.SpawnRateInstances;
+					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = (float)MAX_FLT;
 					++NumSpawnInfos;
 				}
 				reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NIAGARA_MAX_GPU_SPAWN_INFOS - 1] = MAX_FLT;

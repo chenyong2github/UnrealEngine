@@ -76,6 +76,11 @@ FString FNetworkReplayStreaming::GetAutomaticReplayPrefix()
 	return CVarReplayStreamerAutoDemoPrefix.GetValueOnAnyThread();
 }
 
+FString FNetworkReplayStreaming::GetReplayFileExtension()
+{
+	return TEXT(".replay");
+}
+
 bool FNetworkReplayStreaming::UseDateTimeAsAutomaticReplayPostfix()
 {
 	return !!CVarReplayStreamerAutoDemoUseDateTimePostfix.GetValueOnAnyThread();

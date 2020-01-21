@@ -79,6 +79,11 @@ public:
 	void OnPreviewMeshChanged(class USkeletalMesh* OldPreviewMesh, class USkeletalMesh* NewPreviewMesh);
 
 	/**
+	* Is registered with Persona to handle when its preview mesh morph targets has changed.
+	*/
+	void OnMorphTargetsChanged();
+
+	/**
 	* Filters the SListView when the user changes the search text box (NameFilterBox)
 	*
 	* @param SearchText - The text the user has typed

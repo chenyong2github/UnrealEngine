@@ -352,9 +352,10 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 	USkeletalMeshComponent* SkelMeshComp = InAnimInstance->GetSkelMeshComponent();
 	UWorld* World = SkelMeshComp ? SkelMeshComp->GetWorld() : nullptr;
+	AWorldSettings* WorldSettings = World ? World->GetWorldSettings() : nullptr;
 
 	CurrentDeltaSeconds = DeltaSeconds;
-	CurrentTimeDilation = World ? World->GetWorldSettings()->GetEffectiveTimeDilation() : 1.0f;
+	CurrentTimeDilation = WorldSettings ? WorldSettings->GetEffectiveTimeDilation() : 1.0f;
 	RootMotionMode = InAnimInstance->RootMotionMode;
 	bShouldExtractRootMotion = InAnimInstance->ShouldExtractRootMotion();
 

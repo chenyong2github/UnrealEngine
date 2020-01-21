@@ -66,7 +66,18 @@ public:
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VisualizeMeshDistanceFieldsValue.UAV);
 		VisualizeMeshDistanceFields.SetTexture(RHICmdList, ShaderRHI, VisualizeMeshDistanceFieldsValue.ShaderResourceTexture, VisualizeMeshDistanceFieldsValue.UAV);
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers);
+		FRHITexture* TextureAtlas;
+		int32 AtlasSizeX;
+		int32 AtlasSizeY;
+		int32 AtlasSizeZ;
+
+		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -101,7 +112,7 @@ private:
 
 	FRWShaderParameter VisualizeMeshDistanceFields;
 	FShaderParameter NumGroups;
-	FDistanceFieldCulledObjectBufferParameters ObjectParameters;
+	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
 	FSceneTextureShaderParameters SceneTextureParameters;
 	FAOParameters AOParameters;
 	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;

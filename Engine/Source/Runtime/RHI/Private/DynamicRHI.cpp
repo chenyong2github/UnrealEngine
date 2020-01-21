@@ -236,8 +236,10 @@ void RHIInit(bool bHasEditorToken)
 				AFRUtils::StaticInitialize();
 #endif
 
-				GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
-				GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
+				// Validation of contexts.
+				GRHICommandList.GetImmediateCommandList().GetContext();
+				GRHICommandList.GetImmediateAsyncComputeCommandList().GetComputeContext();
+				check(GIsRHIInitialized);
 
 				FString FeatureLevelString;
 				GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);

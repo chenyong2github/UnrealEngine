@@ -112,25 +112,25 @@ EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const 
 
 EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle)
 {
-	if ( FApp::IsUnattended() == true || GIsRunningUnattendedScript )
-	{
-		if (GWarn)
-		{
-			GWarn->Logf( TEXT("%s"), *Message.ToString() );
-		}
+	EAppReturnType::Type Result = DefaultValue;
+	const FText Title = OptTitle ? *OptTitle : GetDefaultMessageTitle();
 
-		return DefaultValue;
-	}
-	else
+	if (!FApp::IsUnattended() && !GIsRunningUnattendedScript)
 	{
-		FText Title = OptTitle ? *OptTitle : GetDefaultMessageTitle();
 		if ( GIsEditor && !IsRunningCommandlet() && FCoreDelegates::ModalErrorMessage.IsBound() )
 		{
-			return FCoreDelegates::ModalErrorMessage.Execute( MessageType, Message, Title );
+			Result = FCoreDelegates::ModalErrorMessage.Execute( MessageType, Message, Title );
 		}
 		else
 		{
-			return FPlatformMisc::MessageBoxExt( MessageType, *Message.ToString(), *Title.ToString() );
+			Result = FPlatformMisc::MessageBoxExt( MessageType, *Message.ToString(), *Title.ToString() );
 		}
 	}
+
+	if (GWarn)
+	{
+		GWarn->Logf(TEXT("Message dialog closed, result: %s, title: %s, text: %s"), LexToString(Result), *Title.ToString(), *Message.ToString());
+	}
+
+	return Result;
 }

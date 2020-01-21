@@ -339,6 +339,7 @@ void FPreLoadScreenManager::GameLogicFrameTick()
 		DeltaTime = FMath::Min(DeltaTime, MaxTickTime);
 
         //We have to manually tick everything as we are looping the main thread here
+		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
         FTicker::GetCoreTicker().Tick(DeltaTime);
         FThreadManager::Get().Tick();
 

@@ -272,7 +272,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FText Description;
 #endif
 

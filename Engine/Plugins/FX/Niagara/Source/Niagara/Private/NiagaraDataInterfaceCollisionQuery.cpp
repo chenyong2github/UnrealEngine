@@ -183,13 +183,13 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 // TODO: need a way to identify each specific function here
 
 // 
-bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	// a little tricky, since we've got two functions for submitting and retrieving a query; we store submitted queries per thread group,
 	// assuming it'll usually be the same thread trying to call ReadQuery for a particular QueryID, that submitted it in the first place.
-	if (DefinitionFunctionName == TEXT("PerformCollisionQuery"))
+	if (FunctionInfo.DefinitionName == TEXT("PerformCollisionQuery"))
 	{
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in int InQueryID, in float3 In_ParticlePos, in float3 In_ParticleVel, in float In_DeltaSeconds, float CollisionRadius, in float CollisionDepthBounds, \
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in int InQueryID, in float3 In_ParticlePos, in float3 In_ParticleVel, in float In_DeltaSeconds, float CollisionRadius, in float CollisionDepthBounds, \
 			out int Out_QueryID, out bool OutCollisionValid, out float3 Out_CollisionPos, out float3 Out_CollisionNormal, out float Out_Friction, out float Out_Restitution) \n{\n");
 		// get the screen position
 		OutHLSL += TEXT("\
@@ -240,10 +240,10 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 			}\n\
 		}\n}\n\n");
 	}
-	else if (DefinitionFunctionName == TEXT("PerformCollisionQueryGPUShader"))
+	else if (FunctionInfo.DefinitionName == TEXT("PerformCollisionQueryGPUShader"))
 	{
-		FString SceneDepthFunction = InstanceFunctionName + TEXT("_SceneDepthCollision");
-		FString DistanceFieldFunction = InstanceFunctionName + TEXT("_DistanceFieldCollision");
+		FString SceneDepthFunction = FunctionInfo.InstanceName + TEXT("_SceneDepthCollision");
+		FString DistanceFieldFunction = FunctionInfo.InstanceName + TEXT("_DistanceFieldCollision");
 
 		OutHLSL += TEXT("void ") + SceneDepthFunction + TEXT("(in float3 In_SamplePos, in float3 In_TraceEndPos, in float CollisionDepthBounds, in float ParticleRadius, out bool OutCollisionValid, out float3 Out_CollisionPos, out float3 Out_CollisionNormal) \n{\n\
 		OutCollisionValid = false;\n\
@@ -293,7 +293,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 			Out_CollisionNormal = float3(0.0, 0.0, 1.0);\n\
 			Out_CollisionPos = InPosition;\n\
 		}\n}\n\n");
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float3 In_SamplePos, in float3 In_TraceEndPos, in float CollisionDepthBounds, ") +
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, in float3 In_TraceEndPos, in float CollisionDepthBounds, ") +
 			TEXT("in float ParticleRadius, in bool UseMeshDistanceField, out bool OutCollisionValid, out float3 Out_CollisionPos, out float3 Out_CollisionNormal) \n{\n");
 		OutHLSL += TEXT("\
 			if (UseMeshDistanceField)\n\
@@ -305,9 +305,9 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 				") + SceneDepthFunction + TEXT("(In_SamplePos, In_TraceEndPos, CollisionDepthBounds, ParticleRadius, OutCollisionValid, Out_CollisionPos, Out_CollisionNormal);\n\
 			}\n}\n\n");
 	}
-	else if (DefinitionFunctionName == TEXT("QuerySceneDepthGPU"))
+	else if (FunctionInfo.DefinitionName == TEXT("QuerySceneDepthGPU"))
 	{
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal) \n{\n");
 		OutHLSL += TEXT("\
 			Out_SceneDepth = -1;\n\
 			Out_WorldPos = float3(0.0, 0.0, 0.0);\n\
@@ -334,9 +334,9 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 				Out_IsInsideView = false;\n\
 			}\n}\n\n");
 	}
-	else if (DefinitionFunctionName == TEXT("QueryMeshDistanceFieldGPU"))
+	else if (FunctionInfo.DefinitionName == TEXT("QueryMeshDistanceFieldGPU"))
 	{
-		OutHLSL += TEXT("void ") + InstanceFunctionName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient) \n{\n");
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient) \n{\n");
 		OutHLSL += TEXT("\
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
 			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\
@@ -346,7 +346,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 	return true;
 }
 
-void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	// we don't need to add these to hlsl, as they're already in common.ush
 }

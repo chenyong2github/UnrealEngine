@@ -6220,8 +6220,10 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	ReimportUI->SkeletalMeshImportData = ImportData;
 	const FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
 
+	bool bIsBuildAvailable = SkeletalMesh->IsLODImportedDataBuildAvailable(0);
+	
 	//Manage the content type from the source file index
-	ReimportUI->bAllowContentTypeImport = SkeletalMeshModel && SkeletalMeshModel->LODModels.Num() > 0 && !SkeletalMeshModel->LODModels[0].RawSkeletalMeshBulkData.IsEmpty();
+	ReimportUI->bAllowContentTypeImport = SkeletalMeshModel && SkeletalMeshModel->LODModels.Num() > 0 && !SkeletalMesh->IsLODImportedDataEmpty(0);
 	if (!ReimportUI->bAllowContentTypeImport)
 	{
 		//No content type allow reimport All (legacy)
@@ -6305,13 +6307,18 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		if (LODInfo && SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(0))
 		{
 			const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[0];
-			if (LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			
+			if (bIsBuildAvailable)
 			{
 				//Set the build settings
 				LODInfo->BuildSettings.bComputeWeightedNormals = SKImportData->bComputeWeightedNormals;
 				LODInfo->BuildSettings.bRecomputeNormals = SKImportData->NormalImportMethod == EFBXNormalImportMethod::FBXNIM_ComputeNormals;
 				LODInfo->BuildSettings.bRecomputeTangents = SKImportData->NormalImportMethod != EFBXNormalImportMethod::FBXNIM_ImportNormalsAndTangents;
 				LODInfo->BuildSettings.bUseMikkTSpace = SKImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+				LODInfo->BuildSettings.ThresholdPosition = SKImportData->ThresholdPosition;
+				LODInfo->BuildSettings.ThresholdTangentNormal = SKImportData->ThresholdTangentNormal;
+				LODInfo->BuildSettings.ThresholdUV = SKImportData->ThresholdUV;
+				LODInfo->BuildSettings.MorphThresholdPosition = SKImportData->MorphThresholdPosition;
 			}
 		}
 	}

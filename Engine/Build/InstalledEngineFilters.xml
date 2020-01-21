@@ -121,6 +121,8 @@
 
 		<!-- Templates -->
 		Templates/TemplateCategories.ini
+		Templates/FP_FirstPerson/...
+		Templates/FP_FirstPersonBP/...
 		Templates/Media/...
 		Templates/TP_Blank/...
 		Templates/TP_BlankBP/...
@@ -529,7 +531,7 @@
 
 	<!-- PS4 -->
 	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
-		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Platforms/Sony/$(Filter);Platforms/PS4/$(Filter)"/>
+		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Platforms/Sony/$(Filter);Engine/Platforms/PS4/$(Filter)"/>
 	</ForEach>
 	<Property Name="CopyPS4Filter">
 		<!-- Build Files -->

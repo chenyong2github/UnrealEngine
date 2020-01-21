@@ -199,6 +199,14 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 	check(Context.MajorType() == ECborCode::ByteString);
 	check(TCString<char>::Strcmp(Context.AsCString(), TestCString) == 0);
 
+	// Byte String. (with '\0' in the middle)
+	uint8 ByteString[] = {static_cast<uint8>(-1), static_cast<uint8>(-55), static_cast<uint8>(-128), 0, 1, 15, 127};
+	Writer.WriteValue(ByteString, sizeof(ByteString)/sizeof(uint8));
+	check(Reader.ReadNext(Context) == true);
+	check(Context.MajorType() == ECborCode::ByteString);
+	check(FMemory::Memcmp(ByteString, Context.AsByteArray().GetData(), sizeof(ByteString)/sizeof(uint8)) == 0);
+	check(Context.AsByteArray().Num() == sizeof(ByteString)/sizeof(uint8));
+
 	// Array
 	TArray<int64> IntArray { 0, 1, -1, 10, -1000, -3000000000LL, 240, -24 };
 	Writer.WriteContainerStart(ECborCode::Array, IntArray.Num());

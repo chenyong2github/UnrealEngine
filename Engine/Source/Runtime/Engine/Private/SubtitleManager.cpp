@@ -17,18 +17,15 @@ DEFINE_LOG_CATEGORY(LogSubtitle);
 /** The default offset of the outline box. */
 FIntRect DrawStringOutlineBoxOffset(2, 2, 4, 4);
 
-
 void FSubtitleManager::KillAllSubtitles()
 {
 	ActiveSubtitles.Empty();
 }
 
-
 void FSubtitleManager::KillSubtitles(PTRINT SubtitleID)
 {
 	ActiveSubtitles.Remove(SubtitleID);
 }
-
 
 void FSubtitleManager::QueueSubtitles(const FQueueSubtitleParams& QueueSubtitleParams)
 {
@@ -61,7 +58,6 @@ void FSubtitleManager::QueueSubtitles(const FQueueSubtitleParams& QueueSubtitleP
 		}
 	}, GET_STATID(STAT_AudioQueueSubtitles));
 }
-
 
 void FSubtitleManager::QueueSubtitles(PTRINT SubtitleID, float Priority, bool bManualWordWrap, bool bSingleLine, float SoundDuration, const TArray<FSubtitleCue>& Subtitles, float InStartTime, float InCurrentTime)
 {
@@ -122,7 +118,6 @@ void FSubtitleManager::QueueSubtitles(PTRINT SubtitleID, float Priority, bool bM
 		Temp.Time = InCurrentTime + (SoundDuration - InStartTime);
 	}
 }
-
 
 void FSubtitleManager::DisplaySubtitle(FCanvas* Canvas, FActiveSubtitle* Subtitle, FIntRect& Parms, const FLinearColor& Color)
 {
@@ -475,17 +470,9 @@ void FSubtitleManager::DisplaySubtitles(FCanvas* InCanvas, FIntRect& InSubtitleR
 
 FSubtitleManager* FSubtitleManager::GetSubtitleManager()
 {
-	static FSubtitleManager* SSubtitleManager = nullptr;
-
-	if (!SSubtitleManager)
-	{
-		SSubtitleManager = new FSubtitleManager();
-		SSubtitleManager->CurrentSubtitleHeight = 0.0f;
-	}
-
-	return(SSubtitleManager);
+	static FSubtitleManager* SSubtitleManager = new FSubtitleManager();
+	return SSubtitleManager;
 }
-
 
 void FSubtitleManager::SetMovieSubtitle(UObject* SubtitleOwner, const TArray<FString>& Subtitles)
 {
@@ -512,7 +499,7 @@ void FSubtitleManager::SetMovieSubtitle(UObject* SubtitleOwner, const TArray<FSt
 			const bool bSplit = true;
 			const bool bSingleLine = false;
 
-			MovieSubtitle = MakeShareable(new FActiveSubtitle(Index, Priority, bSplit, bSingleLine, Cues));
+			MovieSubtitle = MakeShared<FActiveSubtitle>(Index, Priority, bSplit, bSingleLine, Cues);
 		}
 	}
 }

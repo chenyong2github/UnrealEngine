@@ -62,7 +62,7 @@ struct FMediaImagePixelData : FImagePixelData
 		, ERGBFormat InPixelLayout
 		, uint8 InBitDepth
 		, uint8 InNumChannels)
-		: FImagePixelData(InSize, InPixelType, InPixelLayout, InBitDepth, InNumChannels)
+		: FImagePixelData(InSize, InPixelType, InPixelLayout, InBitDepth, InNumChannels, nullptr)
 		, Sample(InSample)
 	{
 	}
@@ -79,10 +79,10 @@ struct FMediaImagePixelData : FImagePixelData
 		return MakeUnique<FMediaImagePixelData>(*this);
 	}
 
-	virtual void RetrieveData(const void*& OutDataPtr, int32& OutSizeBytes) const override
+	virtual void RetrieveData(const void*& OutDataPtr, int64& OutSizeBytes) const override
 	{
 		OutDataPtr = Sample->GetBuffer();
-		OutSizeBytes = Sample->GetStride() * Sample->GetDim().Y;
+		OutSizeBytes = int64(Sample->GetStride()) * int64(Sample->GetDim().Y);
 	}
 };
 
@@ -95,19 +95,19 @@ namespace MediaRecorderHelpers
 	template<class TColorType>
 	TUniquePtr<TImagePixelData<TColorType>> CreatePixelData(TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> InSample, const FIntPoint InSize, int32 InNumChannels)
 	{
-		const int32 NumberOfTexel = InSize.Y * InSize.X;
+		const int64 NumberOfTexel = InSize.Y * InSize.X;
 		TUniquePtr<TImagePixelData<TColorType>> PixelData = MakeUnique<TImagePixelData<TColorType>>(InSize);
 		PixelData->Pixels.Reset(NumberOfTexel);
 
 		const void* Buffer = InSample->GetBuffer();
-		const uint32 Stride = InSample->GetStride();
-		if (NumberOfTexel == Stride *InSize.Y / InNumChannels)
+		const uint64 Stride = InSample->GetStride();
+		if (NumberOfTexel == (Stride *InSize.Y) / InNumChannels)
 		{
 			PixelData->Pixels.Append(reinterpret_cast<const TColorType*>(Buffer), NumberOfTexel);
 		}
 		else
 		{
-			for (int IndexY = 0; IndexY < InSize.Y; ++IndexY)
+			for (int64 IndexY = 0; IndexY < InSize.Y; ++IndexY)
 			{
 				PixelData->Pixels.Append(reinterpret_cast<const TColorType*>(reinterpret_cast<const uint8*>(Buffer) + (Stride*IndexY)), InSize.X);
 			}
@@ -118,12 +118,12 @@ namespace MediaRecorderHelpers
 
 	TUniquePtr<TImagePixelData<FColor>> ConvertSampleInterpretedAsFloat16ColorToFColor(TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> InSample, const FIntPoint InSize, int32 InNumChannels)
 	{
-		const int32 NumberOfTexel = InSize.Y * InSize.X;
+		const int64 NumberOfTexel = InSize.Y * InSize.X;
 		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InSize);
 		PixelData->Pixels.Reset(NumberOfTexel);
 
 		const FFloat16Color* Buffer = reinterpret_cast<const FFloat16Color*>(InSample->GetBuffer());
-		for (int32 i = 0 ; i < NumberOfTexel; i++)
+		for (int64 i = 0 ; i < NumberOfTexel; i++)
 		{
 			FColor Output;
 			Output.R = (uint8)(FMath::Clamp<float>(Buffer[0].R, 0.0f, 1.0f) * 255);

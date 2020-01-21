@@ -1161,7 +1161,7 @@ void SPropertyEditorAsset::OnUse()
 		&& !OnShouldFilterAsset.IsBound()
 		&& AllowedClassFilters.Num() == 0
 		&& DisallowedClassFilters.Num() == 0
-		&& (GUnrealEd ? !GUnrealEd->MakeAssetReferenceFilter(FAssetReferenceFilterContext()).IsValid() : true))
+		&& (GEditor ? !GEditor->MakeAssetReferenceFilter(FAssetReferenceFilterContext()).IsValid() : true))
 	{
 		PropertyEditor->GetPropertyHandle()->SetObjectValueFromSelection();
 	}
@@ -1364,7 +1364,7 @@ bool SPropertyEditorAsset::IsClassAllowed(const UClass* InClass) const
 
 bool SPropertyEditorAsset::CanSetBasedOnAssetReferenceFilter( const FAssetData& InAssetData, FText* OutOptionalFailureReason) const
 {
-	if (GUnrealEd && InAssetData.IsValid())
+	if (GEditor && InAssetData.IsValid())
 	{
 		TSharedPtr<IPropertyHandle> PropertyHandleToUse = GetMostSpecificPropertyHandle();
 		FAssetReferenceFilterContext AssetReferenceFilterContext;
@@ -1390,7 +1390,7 @@ bool SPropertyEditorAsset::CanSetBasedOnAssetReferenceFilter( const FAssetData& 
 			}
 		}
 
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 		if (AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(InAssetData, OutOptionalFailureReason))
 		{
 			return false;

@@ -173,7 +173,12 @@ FText FNiagaraStackCommandContext::GetCanPasteSelectedEntriesToolTip() const
 
 void FNiagaraStackCommandContext::PasteSelectedEntries() const
 {
-	FNiagaraStackClipboardUtilities::PasteSelection(SelectedEntries);
+	FText PasteWarning;
+	FNiagaraStackClipboardUtilities::PasteSelection(SelectedEntries, PasteWarning);
+	if (PasteWarning.IsEmptyOrWhitespace() == false)
+	{
+		WarnWithToastAndLog(PasteWarning);
+	}
 }
 
 bool FNiagaraStackCommandContext::CanDeleteSelectedEntries() const

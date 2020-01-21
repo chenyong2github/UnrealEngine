@@ -53,11 +53,11 @@ public:
 
 	bool WillTopologyChange()
 	{
-		return bFixInconsistentNormals || bInvertNormals || bRecomputeNormalTopologyAndEdgeSharpness;
+		return bFixInconsistentNormals || bInvertNormals || SplitNormalMethod != ESplitNormalMethod::UseExistingTopology;
 	}
 
 	/** Recompute all mesh normals */
-	UPROPERTY(EditAnywhere, Category = NormalsCalculation, meta = (EditCondition = "!bRecomputeNormalTopologyAndEdgeSharpness"))
+	UPROPERTY(EditAnywhere, Category = NormalsCalculation, meta = (EditCondition = "SplitNormalMethod == ESplitNormalMethod::UseExistingTopology"))
 	bool bRecomputeNormals;
 
 	/** Choose the method for computing vertex normals */
@@ -72,16 +72,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
 	bool bInvertNormals;
 
-	/** Choose where to create sharp edges by having multiple normals on the same vertices, using the change in normals of adjacent faces.  If enabled, normals will always be recomputed. */
+	/** Control whether and how the topology of the normals is recomputed, e.g. to create sharp edges where face normals change by a large amount or where face group IDs change.  Normals will always be recomputed unless SplitNormal Method is UseExistingTopology. */
 	UPROPERTY(EditAnywhere, Category = NormalsTopology)
-	bool bRecomputeNormalTopologyAndEdgeSharpness;
+	ESplitNormalMethod SplitNormalMethod;
 
 	/** Threshold on angle of change in face normals across an edge, above which we create a sharp edge if bSplitNormals is true */
-	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bRecomputeNormalTopologyAndEdgeSharpness"))
+	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", EditCondition = "SplitNormalMethod == ESplitNormalMethod::FaceNormalThreshold"))
 	float SharpEdgeAngleThreshold;
 
 	/** Assign separate normals at 'sharp' vertices -- for example, at the tip of a cone */
-	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (EditCondition = "bRecomputeNormalTopologyAndEdgeSharpness"))
+	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (EditCondition = "SplitNormalMethod == ESplitNormalMethod::FaceNormalThreshold"))
 	bool bAllowSharpVertices;
 };
 
@@ -112,7 +112,7 @@ class MESHMODELINGTOOLS_API UEditNormalsOperatorFactory : public UObject, public
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UEditNormalsTool *Tool;
@@ -177,5 +177,5 @@ protected:
 
 	void UpdateNumPreviews();
 
-	void GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results);
+	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

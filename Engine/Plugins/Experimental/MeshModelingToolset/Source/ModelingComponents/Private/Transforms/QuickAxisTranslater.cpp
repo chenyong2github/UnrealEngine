@@ -178,16 +178,32 @@ void FQuickAxisTranslater::UpdateSnapAxes()
 		}
 	}
 
-	MoveAxisSolver.AddPointTarget(AxisFrameWorld.Origin, TranslateOriginSnapID, 50, 0.5*ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD());
+	MoveAxisSolver.AddPointTarget(AxisFrameWorld.Origin, TranslateOriginSnapID,
+		FRaySpatialSnapSolver::FCustomMetric::Replace(0.5*ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()), 50);
 }
 
 
 
 
 
-bool FQuickAxisTranslater::UpdateSnap(const FRay3d& Ray, FVector3d& SnapPointOut)
+bool FQuickAxisTranslater::UpdateSnap(const FRay3d& Ray, FVector3d& SnapPointOut,
+	TFunction<FVector3d(const FVector3d&)> PositionConstraintFunc)
 {
+	bool bSetConstraintFunc = false;
+	if (PositionConstraintFunc != nullptr)
+	{
+		check(MoveAxisSolver.PointConstraintFunc == nullptr);
+		MoveAxisSolver.PointConstraintFunc = PositionConstraintFunc;
+		bSetConstraintFunc = true;
+	}
+
 	MoveAxisSolver.UpdateSnappedPoint(Ray);
+
+	if (bSetConstraintFunc)
+	{
+		MoveAxisSolver.PointConstraintFunc = nullptr;
+	}
+
 	if (MoveAxisSolver.HaveActiveSnap())
 	{
 		SnapPointOut = MoveAxisSolver.GetActiveSnapToPoint();

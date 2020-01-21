@@ -282,35 +282,3 @@ FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnr
 
 	return Result;
 }
-
-const TCHAR* FNameLookupCPP::GetNameCPP(UStruct* Struct, bool bForceInterface /*= false */)
-{
-	TMap<UStruct*, TCHAR*>& NameMap = (bForceInterface ? InterfaceNameMap : StructNameMap);
-	FRWScopeLock Lock(bForceInterface ? InterfaceNameLock : StructNameLock, SLT_ReadOnly);
-
-	TCHAR* NameCPP = NameMap.FindRef(Struct);
-	if (NameCPP == nullptr)
-	{
-		const FString TempName = FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
-		const int32 StringLength = TempName.Len();
-
-		NameCPP = new TCHAR[StringLength + 1];
-		FCString::Strcpy(NameCPP, StringLength + 1, *TempName);
-		NameCPP[StringLength] = 0;
-
-		Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-
-		// Check the map again in case another thread had also been waiting on writing this data and got the write lock first
-		if (TCHAR* NameInMap = NameMap.FindRef(Struct))
-		{
-			delete NameCPP;
-			NameCPP = NameInMap;
-		}
-		else
-		{
-			NameMap.Add(Struct, NameCPP);
-		}
-	}
-
-	return NameCPP;
-}

@@ -92,7 +92,8 @@ public:
 					for (int32 BitmaskEnumIndex = 0; BitmaskEnumIndex < BitmaskEnum->NumEnums() - 1; ++BitmaskEnumIndex)
 					{
 						const int64 EnumValue = BitmaskEnum->GetValueByIndex(BitmaskEnumIndex);
-						if (EnumValue >= 0)
+						const bool bIsHidden = BitmaskEnum->HasMetaData(TEXT("Hidden"), BitmaskEnumIndex);
+						if (EnumValue >= 0 && !bIsHidden)
 						{
 							if (bUseEnumValuessAsMaskValues)
 							{

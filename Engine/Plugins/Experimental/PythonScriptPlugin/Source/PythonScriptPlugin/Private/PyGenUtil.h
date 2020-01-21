@@ -669,6 +669,13 @@ namespace PyGenUtil
 	/** Stores the minimal data needed by a runtime generated Python type */
 	struct FGeneratedWrappedType
 	{
+		enum class EFinalizedState : uint8
+		{
+			Initial,
+			Reset,
+			Finalized,
+		};
+
 		FGeneratedWrappedType()
 		{
 			PyType = { PyVarObject_HEAD_INIT(nullptr, 0) };
@@ -684,11 +691,20 @@ namespace PyGenUtil
 		/** Called to ready the generated type with Python */
 		bool Finalize();
 
+		/** Called to reset this type back to its clean state */
+		void Reset();
+
 		/** Internal version of Finalize, called before readying the type with Python */
 		virtual void Finalize_PreReady();
 
 		/** Internal version of Finalize, called after readying the type with Python */
 		virtual void Finalize_PostReady();
+
+		/** Internal version of Reset, called to remove data added to the Python type */
+		virtual void Reset_CleansePyType();
+
+		/** Internal version of Reset, called to reset the data on this type */
+		virtual void Reset_CleanseSelf();
 
 		/** The name of the type */
 		FUTF8Buffer TypeName;
@@ -701,6 +717,9 @@ namespace PyGenUtil
 
 		/* The Python type that was generated */
 		PyTypeObject PyType;
+
+		/** What is the current finalization state of this generated type? */
+		EFinalizedState FinalizedState = EFinalizedState::Initial;
 	};
 
 	/** Stores the data needed by a runtime generated Python struct type */
@@ -786,6 +805,12 @@ namespace PyGenUtil
 
 		/** Internal version of Finalize, called after readying the type with Python */
 		virtual void Finalize_PostReady() override;
+
+		/** Internal version of Reset, called to remove data added to the Python type */
+		virtual void Reset_CleansePyType() override;
+
+		/** Internal version of Reset, called to reset the data on this type */
+		virtual void Reset_CleanseSelf() override;
 
 		/** Called to extract the enum entries array from the given enum */
 		void ExtractEnumEntries(const UEnum* InEnum);
@@ -959,6 +984,9 @@ namespace PyGenUtil
 	/** Should the given function be exported to Python? */
 	bool ShouldExportFunction(const UFunction* InFunc);
 
+	/** Check that the given name will be valid for Python () */
+	bool IsValidName(const FString& InName, FText* OutError = nullptr);
+
 	/** Given a CamelCase name, convert it to snake_case */
 	FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase);
 
@@ -979,6 +1007,21 @@ namespace PyGenUtil
 
 	/** Given a property and its default value, convert it into something that could be used in a Python script */
 	FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags = EPythonizeValueFlags::None);
+
+	/** Get the type that should be used with the Python type registry (eg, a Blueprint asset should use its generated class) */
+	const UObject* GetTypeRegistryType(const UObject* InObj);
+
+	/** Get the name that should be used by the given class when registered with the Python type registry */
+	FName GetTypeRegistryName(const UClass* InClass);
+
+	/** Get the name that should be used by the given struct when registered with the Python type registry */
+	FName GetTypeRegistryName(const UScriptStruct* InStruct);
+
+	/** Get the name that should be used by the given enum when registered with the Python type registry */
+	FName GetTypeRegistryName(const UEnum* InEnum);
+
+	/** Get the name that should be used by the given delegate when registered with the Python type registry */
+	FName GetTypeRegistryName(const UFunction* InDelegateSignature);
 
 	/** Get the native module the given field belongs to */
 	FString GetFieldModule(const UField* InField);
@@ -1056,11 +1099,11 @@ namespace PyGenUtil
 	/** Get the tooltip for the given enum entry */
 	FString GetEnumEntryTooltip(const UEnum* InEnum, const int64 InEntryIndex);
 
-	/** Get the doc string for the C++ source information of the given type */
-	FString BuildCppSourceInformationDocString(const UField* InOwnerType);
+	/** Get the doc string for the C++ or asset source information of the given type */
+	FString BuildSourceInformationDocString(const UField* InOwnerType);
 
-	/** Append the doc string for the C++ source information of the given type to the given string */
-	void AppendCppSourceInformationDocString(const UField* InOwnerType, FString& OutStr);
+	/** Append the doc string for the C++ or asset source information of the given type to the given string */
+	void AppendSourceInformationDocString(const UField* InOwnerType, FString& OutStr);
 
 	/** Save a generated text file to disk as UTF-8 (only writes the file if the contents differs, unless forced) */
 	bool SaveGeneratedTextFile(const TCHAR* InFilename, const FString& InFileContents, const bool InForceWrite = false);

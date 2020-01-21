@@ -86,7 +86,7 @@ namespace FastTriWinding
 	/**
 	 *  Evaluate first-order FWN approximation at point Q, relative to Center c
 	 */
-	double EvaluateOrder1Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FVector3d& Q)
+	inline double EvaluateOrder1Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FVector3d& Q)
 	{
 		FVector3d dpq = (Center - Q);
 		double len = dpq.Length();
@@ -97,7 +97,7 @@ namespace FastTriWinding
 	/**
 	 *  Evaluate second-order FWN approximation at point Q, relative to Center c
 	 */
-	double EvaluateOrder2Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FMatrix3d& Order2Coeff, const FVector3d& Q)
+	inline double EvaluateOrder2Approx(const FVector3d& Center, const FVector3d& Order1Coeff, const FMatrix3d& Order2Coeff, const FVector3d& Q)
 	{
 		FVector3d dpq = (Center - Q);
 		double len = dpq.Length();
@@ -125,7 +125,7 @@ namespace FastTriWinding
 	// triangle-winding-number first-order approximation.
 	// T is triangle, P is 'Center' of cluster of dipoles, Q is evaluation point
 	// (This is really just for testing)
-	double Order1Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
+	inline double Order1Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
 	{
 		FVector3d at0 = XA * XN;
 
@@ -139,7 +139,7 @@ namespace FastTriWinding
 	// triangle-winding-number second-order approximation
 	// T is triangle, P is 'Center' of cluster of dipoles, Q is evaluation point
 	// (This is really just for testing)
-	double Order2Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
+	inline double Order2Approx(const FTriangle3d& T, const FVector3d& P, const FVector3d& XN, double XA, const FVector3d& Q)
 	{
 		FVector3d dpq = (P - Q);
 
@@ -166,11 +166,12 @@ namespace FastTriWinding
 	}
 } // namespace FastTriWinding
 
+
+
 /**
- *  Fast Mesh Winding Number computation
- *
- *  TODO: this is tightly coupled to the internal guts of TMeshAABBTree3 (because it is ported from code where it *was* the guts of the AABBTree)
- *			we should probably at least try to decouple it some
+ * Fast Mesh Winding Number extension to a TMeshAABBTree3.
+ * This class is an "add-on" to the AABBTree, that can compute the Fast Mesh Winding Number.
+ * This calculation requires a precomputation pass where information is cached at each tree node.
  */
 template <class TriangleMeshType>
 class TFastWindingTree
@@ -199,15 +200,18 @@ public:
 	 */
 	int FWNApproxOrder = 2;
 
-	TFastWindingTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef)
+	TFastWindingTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef, bool bAutoBuild = true)
 	{
-		SetTree(TreeToRef);
+		SetTree(TreeToRef, bAutoBuild);
 	}
 
-	void SetTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef)
+	void SetTree(TMeshAABBTree3<TriangleMeshType>* TreeToRef, bool bAutoBuild = true)
 	{
 		this->Tree = TreeToRef;
-		Build(true);
+		if (bAutoBuild)
+		{
+			Build(true);
+		}
 	}
 
 	void Build(bool bAlwaysBuildRegardlessOfTimestamp = true)
@@ -225,7 +229,10 @@ public:
 	}
 
 	/**
-	 *  Fast approximation of winding number using far-field approximations
+	 * Fast approximation of winding number using far-field approximations.
+	 * On a closed mesh the winding number will be 1 or more inside (depending on number of "winds").
+	 * Outside a closed mesh the winding number will be zero.
+	 * On an open mesh, the above holds near the mesh but in the "hole" areas the value will smoothly blend from 1 to 0 over a band of width dependent on the hole extent
 	 */
 	double FastWindingNumber(const FVector3d& P)
 	{

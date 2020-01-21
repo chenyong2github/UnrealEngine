@@ -5,10 +5,12 @@
 
 #include "Util/DynamicVector.h"
 #include "Util/RefCountVector.h"
+#include "Util/CompactMaps.h"
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
-#include "DynamicMesh3.h"
+#include "InfoTypes.h"
 
+class FDynamicMesh3;
 
 /**
  * TDynamicMeshOverlay is an add-on to a FDynamicMesh3 that allows for per-triangle storage
@@ -60,7 +62,13 @@ public:
 	{
 		ParentMesh = ParentMeshIn;
 	}
-
+private:
+	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
+	void Reparent(FDynamicMesh3* ParentMeshIn)
+	{
+		ParentMesh = ParentMeshIn;
+	}
+public:
 	/** @return the parent mesh for this overlay */
 	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }
 	/** @return the parent mesh for this overlay */
@@ -75,6 +83,110 @@ public:
 		ElementTriangles = Copy.ElementTriangles;
 	}
 
+	/** Copy the Copy overlay to a compact rep, also updating parent references based on the CompactMaps */
+	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicMeshOverlay<RealType, ElementSize>& Copy)
+	{
+		ClearElements();
+
+		// map of element IDs
+		TArray<int> MapE; MapE.SetNumUninitialized(Copy.MaxElementID());
+
+		// copy elements across
+		RealType Data[ElementSize];
+		for (int EID = 0; EID < Copy.MaxElementID(); EID++)
+		{
+			if (Copy.IsElement(EID))
+			{
+				Copy.GetElement(EID, Data);
+				MapE[EID] = AppendElement(Data, CompactMaps.MapV[Copy.ParentVertices[EID]]);
+			}
+			else
+			{
+				MapE[EID] = -1;
+			}
+		}
+
+		// copy triangles across
+		check(CompactMaps.bKeepTriangleMap && CompactMaps.MapT.Num() == Copy.GetParentMesh()->MaxTriangleID()); // must have valid triangle map
+		for (int FromTID : Copy.GetParentMesh()->TriangleIndicesItr())
+		{
+			if (!Copy.IsSetTriangle(FromTID))
+			{
+				continue;
+			}
+			int ToTID = CompactMaps.MapT[FromTID];
+			FIndex3i FromTriElements = Copy.GetTriangle(FromTID);
+			SetTriangle(ToTID, FIndex3i(MapE[FromTriElements.A], MapE[FromTriElements.B], MapE[FromTriElements.C]));
+		}
+	}
+
+	/** Compact overlay and update links to parent based on CompactMaps */
+	void CompactInPlace(const FCompactMaps& CompactMaps)
+	{
+		int iLastE = MaxElementID() - 1, iCurE = 0;
+		while (iLastE >= 0 && ElementsRefCounts.IsValidUnsafe(iLastE) == false)
+		{
+			iLastE--;
+		}
+		while (iCurE < iLastE && ElementsRefCounts.IsValidUnsafe(iCurE) == false)
+		{
+			iCurE++;
+		}
+
+		// make a map to track element index changes, to use to update element triangles later
+		// TODO: it may be faster to not construct this and to do the remapping per element as we go (by iterating the one ring of each parent vertex for each element)
+		TArray<int> MapE; MapE.SetNumUninitialized(MaxElementID());
+		for (int ID = 0; ID < MapE.Num(); ID++)
+		{
+			// mapping is 1:1 by default; sparsely re-mapped below
+			MapE[ID] = ID;
+		}
+
+		TDynamicVector<short>& ERef = ElementsRefCounts.GetRawRefCountsUnsafe();
+		RealType Data[ElementSize];
+		while (iCurE < iLastE)
+		{
+			// remap the element data
+			GetElement(iLastE, Data);
+			SetElement(iCurE, Data);
+			int OrigParent = ParentVertices[iLastE];
+			ParentVertices[iCurE] = CompactMaps.GetVertex(OrigParent);
+			ERef[iCurE] = ERef[iLastE];
+			ERef[iLastE] = FRefCountVector::INVALID_REF_COUNT;
+			MapE[iLastE] = iCurE;
+
+			// move cur forward one, last back one, and  then search for next valid
+			iLastE--; iCurE++;
+			while (iLastE >= 0 && ElementsRefCounts.IsValidUnsafe(iLastE) == false)
+			{
+				iLastE--;
+			}
+			while (iCurE < iLastE && ElementsRefCounts.IsValidUnsafe(iCurE))
+			{
+				iCurE++;
+			}
+		}
+		ElementsRefCounts.Trim(ElementCount());
+		Elements.Resize(ElementCount() * ElementSize);
+		ParentVertices.Resize(ElementCount());
+
+		for (int TID = 0, OldMaxTID = ElementTriangles.Num() / 3; TID < OldMaxTID; TID++)
+		{
+			int OldStart = TID * 3;
+			if (ElementTriangles[OldStart] == -1)
+			{
+				continue; // triangle was not set; skip it
+			}
+			int NewStart = CompactMaps.GetTriangle(TID) * 3;
+			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+			{
+				ElementTriangles[NewStart + SubIdx] = MapE[ElementTriangles[OldStart + SubIdx]];
+			}
+		}
+
+		checkSlow(IsCompact());
+	}
+
 	/** Discard current set of elements, but keep triangles */
 	void ClearElements();
 
@@ -84,6 +196,9 @@ public:
 	int MaxElementID() const { return (int)ElementsRefCounts.GetMaxIndex(); }
 	/** @return true if this element index is in use */
 	inline bool IsElement(int vID) const { return ElementsRefCounts.IsValid(vID); }
+
+	/** @return true if the elements are compact */
+	bool IsCompact() const { return ElementsRefCounts.IsDense(); }
 
 
 	typedef typename FRefCountVector::IndexEnumerable element_iterator;
@@ -123,6 +238,33 @@ public:
 	 * @param GetNewElementValue function to assign a new value to any element that is split out
 	 */
 	void SplitVerticesWithPredicate(TFunctionRef<bool(int ElementIdx, int TriID)> ShouldSplitOutVertex, TFunctionRef<void(int ElementIdx, int TriID, RealType* FillVect)> GetNewElementValue);
+
+
+	/**
+	 * Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID
+	 * (Note: This just calls "SplitElementWithNewParent" with the existing element's parent id.)
+	 *
+	 * @param ElementID the element to copy
+	 * @param TrianglesToUpdate the triangles that should now reference the new element
+	 * @return the ID of the newly created element
+	 */
+	int SplitElement(int ElementID, const TArrayView<const int>& TrianglesToUpdate);
+
+	/**
+	* Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID.  The new element will have the given parent vertex ID.
+	*
+	* @param ElementID the element to copy
+	* @param SplitParentVertexID the new parent vertex for copied elements
+	* @param TrianglesToUpdate the triangles that should now reference the new element.  Note: this is allowed to include triangles that do not have the element at all; sometimes you may want to do so to avoid creating a new array for each call.
+	* @return the ID of the newly created element
+	*/
+	int SplitElementWithNewParent(int ElementID, int SplitParentVertexID, const TArrayView<const int>& TrianglesToUpdate);
+
+
+	/**
+	* Refine an existing overlay topology by splitting any bow ties
+	*/
+	void SplitBowties();
 
 
 	//
@@ -229,6 +371,9 @@ public:
 	/** Returns true if the parent-mesh vertex is connected to any seam edges */
 	bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
+	/** @return true if the two triangles are connected, ie shared edge exists and is not a seam edge */
+	bool AreTrianglesConnected(int TriangleID0, int TriangleID1) const;
+
 	/** find the elements associated with a given parent-mesh vertex */
 	void GetVertexElements(int VertexID, TArray<int>& OutElements) const;
 	/** Count the number of unique elements for a given parent-mesh vertex */
@@ -254,15 +399,17 @@ public:
 	/** Reverse the orientation of a triangle's elements */
 	void OnReverseTriOrientation(int TriangleID);
 	/** Update the overlay to reflect an edge split in the parent mesh */
-	void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& SplitInfo);
+	void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo& SplitInfo);
 	/** Update the overlay to reflect an edge flip in the parent mesh */
-	void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo& FlipInfo);
+	void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo& FlipInfo);
 	/** Update the overlay to reflect an edge collapse in the parent mesh */
-	void OnCollapseEdge(const FDynamicMesh3::FEdgeCollapseInfo& CollapseInfo);
+	void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo& CollapseInfo);
 	/** Update the overlay to reflect a face poke in the parent mesh */
-	void OnPokeTriangle(const FDynamicMesh3::FPokeTriangleInfo& PokeInfo);
+	void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo& PokeInfo);
 	/** Update the overlay to reflect an edge merge in the parent mesh */
-	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo);
+	void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo& MergeInfo);
+	/** Update the overlay to reflect a vertex split in the parent mesh */
+	void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate);
 
 protected:
 	/** Set the value at an Element to be a linear interpolation of two other Elements */

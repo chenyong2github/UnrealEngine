@@ -80,10 +80,18 @@ namespace ToolSceneQueriesUtil
 	 * @param bVertices if true, try snapping to mesh vertices in the scene
 	 * @param bEdges if true, try snapping to mesh triangle edges in the scene
 	 * @param VisualAngleThreshold visual angle threshold to use. If 0, GetDefaultVisualAngleSnapThresh() is used
+	 * @param SnapGeometry world-space position of the snap geometry (point/line/polygon)
 	 * @param DebugTriangleOut if non-null, triangle containing snap is returned if a snap is found
 	 * @return true if a valid snap point was found
 	 */
 	MODELINGCOMPONENTS_API bool FindSceneSnapPoint(const UInteractiveTool* Tool, const FVector3d& Point, FVector3d& SnapPointOut,
 		bool bVertices = true, bool bEdges = false, double VisualAngleThreshold = 0, 
 		FSnapGeometry* SnapGeometry = nullptr, FVector* DebugTriangleOut = nullptr);
+
+
+	/**
+	 * Run a query against the scene to find the nearest WorldGrid snap point
+	 */
+	MODELINGCOMPONENTS_API bool FindWorldGridSnapPoint(const UInteractiveTool* Tool, const FVector3d& QueryPoint, FVector3d& GridSnapPointOut);
+
 }

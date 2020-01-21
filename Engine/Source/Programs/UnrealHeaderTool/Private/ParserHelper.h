@@ -1888,49 +1888,16 @@ struct FScriptLocation
 struct FNameLookupCPP
 {
 	/**
-	 * Destructor, cleaning up allocated memory.
-	 */
-	~FNameLookupCPP()
-	{
-		for (TMap<UStruct*,TCHAR*>::TIterator It(StructNameMap); It; ++It)
-		{
-			TCHAR* Name = It.Value();
-			delete [] Name;
-		}
-	
-		for (TMap<UStruct*, TCHAR*>::TIterator It(InterfaceNameMap); It; ++It)
-		{
-			TCHAR* Name = It.Value();
-			delete [] Name;
-		}
-	}
-
-	/**
 	 * Returns the name used for declaring the passed in struct in C++
 	 *
 	 * @param	Struct	UStruct to obtain C++ name for
 	 * @return	Name used for C++ declaration
 	 */
-	const TCHAR* GetNameCPP( UStruct* Struct, bool bForceInterface = false );
-
-	void SetCurrentSourceFile(FUnrealSourceFile* InUnrealSourceFile)
+	static FString GetNameCPP(UStruct* Struct, bool bForceInterface = false)
 	{
-		UnrealSourceFile = InUnrealSourceFile;
+		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
 	}
-
-private:
-	/** Map of UStruct pointers to C++ names */
-	TMap<UStruct*,TCHAR*> StructNameMap;
-	TMap<UStruct*, TCHAR*> InterfaceNameMap;
-
-	FRWLock InterfaceNameLock;
-	FRWLock StructNameLock;
-
-	FUnrealSourceFile* UnrealSourceFile;
 };
-
-extern FNameLookupCPP NameLookupCPP;
-
 
 /////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler - used by FHeaderParser::ParseParameterList, to check if a property if a function parameter has 'AdvancedDisplay' flag

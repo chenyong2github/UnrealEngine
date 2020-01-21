@@ -45,6 +45,20 @@ public:
 	virtual void SetTransform(const FTransform& Transform);
 
 
+	/**
+	 * In some use cases SetTransform() will be called repeatedly (eg during an interactive gizmo edit). External
+	 * code may know and/or need to know when such a sequence starts/ends. The OnBeginTransformEdit/OnEndTransformEdit delegates
+	 * can provide these notifications, however client code must call BeginTransformEditSequence()/EndTransformEditSequence() to fire those delegates 
+	 * as the TransformProxy doesn't know about this external state. 
+	 * @note FTransformProxyChangeSource will call these functions on Begin/End
+	 */
+	virtual void BeginTransformEditSequence();
+
+	/**
+	 * External clients should call this when done a sequence of SetTransform calls (see BeginTransformEditSequence)
+	 */
+	virtual void EndTransformEditSequence();
+
 public:
 	/**
 	 * This delegate is fired whenever the internal transform changes, ie
@@ -52,6 +66,15 @@ public:
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTransformChanged, UTransformProxy*, FTransform);
 	FOnTransformChanged OnTransformChanged;
+
+	/** This delegate is fired when BeginTransformEditSequence() is called to indicate that a transform change has started */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginTransformEdit, UTransformProxy*);
+	FOnBeginTransformEdit OnBeginTransformEdit;
+
+	/** This delegate is fired when EndTransformEditSequence() is called to indicate that a transform change has ended */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndTransformEdit, UTransformProxy*);
+	FOnEndTransformEdit OnEndTransformEdit;
+
 
 	/**
 	 * If true, relative rotation of shared transform is applied to objects before relative translation (ie they rotate in place)

@@ -14,8 +14,6 @@
 
 using namespace Chaos;
 
-
-
 FPBDConstraintGraph::FPBDConstraintGraph() : VisitToken(0)
 {
 }
@@ -391,20 +389,24 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 
 			for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 			{
-				TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-				const bool bIsDynamic = PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic;
-				int32 TmpIsland = bIsDynamic ? PBDRigid->Island() : INDEX_NONE; //question: should we even store non dynamics in this array?
+				if (CHAOS_ENSURE(Particle))
+				{
+					TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 
-				if (OtherIsland == INDEX_NONE && TmpIsland >= 0)
-				{
-					OtherIsland = TmpIsland;
-				}
-				else
-				{
-					if (TmpIsland >= 0 && OtherIsland != TmpIsland)
+					const bool bIsDynamic = PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic;
+					int32 TmpIsland = bIsDynamic ? PBDRigid->Island() : INDEX_NONE; //question: should we even store non dynamics in this array?
+
+					if (OtherIsland == INDEX_NONE && TmpIsland >= 0)
 					{
-						bIsSameIsland = false;
-						break;
+						OtherIsland = TmpIsland;
+					}
+					else
+					{
+						if (TmpIsland >= 0 && OtherIsland != TmpIsland)
+						{
+							bIsSameIsland = false;
+							break;
+						}
 					}
 				}
 			}
@@ -424,18 +426,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			{
 				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
-					TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-					if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
+					if (CHAOS_ENSURE(Particle))
 					{
-						if (!PBDRigid->Disabled())	// todo: why is this needed? [we aren't handling enable/disable state changes properly so disabled particles end up in the graph.]
+						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
+						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							PBDRigid->SetSleeping(false);
+							if (!PBDRigid->Disabled())	// todo: why is this needed? [we aren't handling enable/disable state changes properly so disabled particles end up in the graph.]
+							{
+								PBDRigid->SetSleeping(false);
+								Particles.ActivateParticle(Particle);
+							}
+						}
+						else
+						{
 							Particles.ActivateParticle(Particle);
 						}
-					}
-					else
-					{
-						Particles.ActivateParticle(Particle);
 					}
 				}
 			}
@@ -715,7 +720,7 @@ void FPBDConstraintGraph::DisableParticle(TGeometryParticleHandle<FReal, 3>* Par
 		}
 
 	}
-	else if (PBDRigid)
+	else
 	{
 		// Kinematic particles are included in IslandToParticles, however we cannot use islands to look them up.
 		// TODO find faster removal method?
@@ -784,3 +789,4 @@ bool FPBDConstraintGraph::CheckIslands(const TArray<TGeometryParticleHandle<FRea
 
 	return bIsValid;
 }
+

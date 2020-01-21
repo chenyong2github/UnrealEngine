@@ -19,14 +19,16 @@ struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
 {
-	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) {  }
+	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) { }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { }
+	FORCEINLINE void TransformRotation(FQuat& Q, const FMatrix& M) { }
 };
 
 struct FNDITransformHandler
 {
 	FORCEINLINE void TransformPosition(FVector& P, const FMatrix& M) { P = M.TransformPosition(P); }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformRotation(FQuat& Q, const FMatrix& M) { Q = M.ToQuat() * Q; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -211,6 +213,9 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 
+	/** Allows the generic class defaults version of this class to specify any dependencies/version/etc that might invalidate the compile. It should never depend on the value of specific properties.*/
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+
 	/** 
 		Subclasses that wish to work with GPU systems/emitters must implement this.
 		Those interfaces must fill DataForRenderThread with the data needed to upload to the GPU. It will be the last thing called on this
@@ -276,14 +281,13 @@ public:
 	{
 	}
 
-	virtual bool GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 	{
-//		checkf(false, TEXT("Unefined HLSL in data interface. Interfaces need to be able to return HLSL for each function they define in GetFunctions."));
-		return false;
 	}
-	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+
+	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 	{
-//		checkf(false, TEXT("Unefined HLSL in data interface. Interfaces need to define HLSL for uniforms their functions access."));
+		return false;
 	}
 
 	virtual void PostExecute() {}

@@ -35,6 +35,8 @@ public:
 
 	static ENGINE_API void Tick(float DeltaTime);
 
+	static ENGINE_API void LowDriveSpaceDetected();
+
 private:
 	static bool bIsInitialized;
 	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;

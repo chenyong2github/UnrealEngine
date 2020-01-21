@@ -60,6 +60,8 @@ public:
 
 	/** FViewport interface */
 	virtual float UpdateViewportClientWindowDPIScale() const override;
+	virtual bool ShouldDPIScaleSceneCanvas() const override { return false; }
+
 private:
 	/** Updates the states of the scrollbars */
 	void UpdateScrollBars();
@@ -215,11 +217,11 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		// And draw the text with the foreground color
 		if (Font->FontCacheType == EFontCacheType::Runtime)
 		{
-			static const float FontScale = Canvas->GetDPIScale();
+			const float FontScale = GetDPIScale();
 
 			TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
-			FVector2D CurPos = StartPos;
+			FVector2D CurPos = StartPos * FontScale;
 			int32 WidestName = 0;
 
 			// Draw and measure each name so we can work out where to start drawing the preview text column
@@ -236,10 +238,10 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				const FVector2D MeasuredText = ShapedTextItem.DrawnSize;
 				WidestName = FMath::Max(WidestName, EntryNameShapedText->GetMeasuredWidth());
 
-				CurPos.Y += EntryNameShapedText->GetMaxTextHeight() + 8.0f;
+				CurPos.Y += EntryNameShapedText->GetMaxTextHeight() + (8.0f * FontScale);
 			}
 
-			CurPos = FVector2D(WidestName + 12.0f, StartPos.Y);
+			CurPos = FVector2D(WidestName + (12.0f * FontScale), StartPos.Y * FontScale);
 
 			// Draw the preview text using each of the default fonts
 			for (const FTypefaceEntry& TypefaceEntry : Font->CompositeFont.DefaultTypeface.Fonts)
@@ -348,14 +350,14 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 					}
 				}
 
-				CurPos.Y += ShapedPreviewText->GetMaxTextHeight() + 8.0f;
+				CurPos.Y += ShapedPreviewText->GetMaxTextHeight() + (8.0f * FontScale);
 			}
 
 			// Draw the key
 			if (bDrawFontMetrics)
 			{
 				const FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("NormalFont");
-				const float KeyBoxSize = 14.0f;
+				const float KeyBoxSize = 14.0f * FontScale;
 
 				struct FKeyDataType
 				{
@@ -377,13 +379,13 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 					KeyBox.LineThickness = KeyBoxSize * 0.5f;
 					Canvas->DrawItem(KeyBox);
 
-					CurPos.X += KeyBoxSize + 4.0f;
+					CurPos.X += KeyBoxSize + (4.0f * FontScale);
 
 					FShapedGlyphSequenceRef KeyLabelShapedText = FontCache->ShapeBidirectionalText(*KeyData.KeyText.ToString(), FontInfo, FontScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
 					FCanvasShapedTextItem ShapedTextItem(CurPos, KeyLabelShapedText, FLinearColor(ForegroundColor));
 					Canvas->DrawItem(ShapedTextItem);
 
-					CurPos.X += KeyLabelShapedText->GetMeasuredWidth() + 8.0f;
+					CurPos.X += KeyLabelShapedText->GetMeasuredWidth() + (8.0f * FontScale);
 				}
 			}
 		}

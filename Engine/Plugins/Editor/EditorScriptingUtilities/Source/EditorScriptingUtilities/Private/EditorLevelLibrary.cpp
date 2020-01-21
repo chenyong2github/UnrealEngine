@@ -178,6 +178,7 @@ void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& Ac
 		return;
 	}
 
+	GEditor->GetSelectedActors()->Modify();
 	if (ActorsToSelect.Num() > 0)
 	{
 		GEditor->SelectNone(false, true, false);
@@ -283,17 +284,20 @@ void UEditorLevelLibrary::SetLevelViewportCameraInfo(FVector CameraLocation, FRo
 
 void UEditorLevelLibrary::ClearActorSelectionSet()
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->GetSelectedActors()->DeselectAll();
 	GEditor->NoteSelectionChange();
 }
 
 void UEditorLevelLibrary::SelectNothing()
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectNone(true, true, false);
 }
 
 void UEditorLevelLibrary::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
 }
 
@@ -323,8 +327,11 @@ void UEditorLevelLibrary::EditorPlaySimulate()
 	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 	if (ActiveLevelViewport.IsValid())
 	{
-		const bool bSimulateInEditor = true;
-		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
 	}
 }
 

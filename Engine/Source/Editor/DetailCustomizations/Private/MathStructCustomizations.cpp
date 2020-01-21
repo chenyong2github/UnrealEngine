@@ -87,6 +87,12 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 		TSharedRef<SWidget> NumericEntryBox = MakeChildWidget(StructPropertyHandle, ChildHandle);
 		NumericEntryBoxWidgetList.Add(NumericEntryBox);
 
+		NumericEntryBox->SetToolTipText(MakeAttributeLambda([StructPropertyHandle] {
+			FText result;
+			StructPropertyHandle->GetValueAsDisplayText(result);
+			return result;
+		}));
+
 		HorizontalBox->AddSlot()
 		.Padding(FMargin(0.0f, 2.0f, bLastChild ? 0.0f : 3.0f, 2.0f))
 		[

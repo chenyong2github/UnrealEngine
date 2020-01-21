@@ -543,6 +543,7 @@ namespace UnrealBuildTool
 				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("$1{0}/{0}$2", p));
 				IncludeRewriteRulesText.Add(String.Format("expansions3={0}", String.Join("|", PlatformExpansions)));
 			}
+
 			File.WriteAllText(IncludeRewriteRulesFile.FullName, String.Join(Environment.NewLine, IncludeRewriteRulesText));
 		}
 	}

@@ -11,6 +11,21 @@ class IMessageBus;
 class IDisplayClusterClusterManager;
 struct FDisplayClusterClusterEvent;
 
+
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterInterception, Log, All);
+
+
+struct FInterceptedMessageDescriptor
+{
+	FInterceptedMessageDescriptor(TArray<FName>&& InMessageTypes, FName InAnnotation)
+		: MessageTypes(MoveTemp(InMessageTypes))
+		, Annotation(InAnnotation)
+	{}
+
+	TArray<FName> MessageTypes;
+	FName Annotation;
+};
+
 /**
  * Display Cluster Message Interceptor 
  * Intercept message bus messages to process them in sync across the display cluster
@@ -22,9 +37,9 @@ class FDisplayClusterMessageInterceptor : public TSharedFromThis<FDisplayCluster
 public:
 	FDisplayClusterMessageInterceptor();
 
-	void Setup(IDisplayClusterClusterManager* InClusterManager, TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus);
+	void Setup(IDisplayClusterClusterManager* InClusterManager, const FMessageInterceptionSettings& InInterceptionSettings);
 	
-	void Start();
+	void Start(TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus);
 	void Stop();
 	
 	void SyncMessages();
@@ -51,9 +66,6 @@ private:
 	/** Sender address needed by message bus. */
 	FMessageAddress Address;
 
-	/** Message with this annotation will be intercepted. */
-	FName InterceptedAnnotation;
-
 	/** The bus this interceptor is intercepting messages on. */
 	TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InterceptedBus;
 
@@ -62,6 +74,12 @@ private:
 
 	/** Critical section for the intercepted messages. */
 	FCriticalSection ContextQueueCS;
+
+	/** Settings to be used for interception */
+	FMessageInterceptionSettings InterceptionSettings;
+
+	/** Description of messages we intercept */
+	TArray<FInterceptedMessageDescriptor> InterceptedMessages;
 
 	/** Holds intercepted messages and their current sync state across the cluster. */
 	struct FContextSync

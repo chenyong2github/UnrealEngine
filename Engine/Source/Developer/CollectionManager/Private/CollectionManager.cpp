@@ -712,7 +712,8 @@ bool FCollectionManager::IsValidCollectionName(const FString& CollectionName, EC
 	// Make sure we are not creating an FName that is too large
 	if (CollectionName.Len() > NAME_SIZE)
 	{
-		LastError = LOCTEXT("Error_CollectionNameTooLong", "This collection name is too long. Please choose a shorter name.");
+		LastError = FText::Format(LOCTEXT("Error_CollectionNameTooLong", "This collection name is too long ({0} characters), the maximum is {1}. Please choose a shorter name. Collection name: {2}"),
+			FText::AsNumber(CollectionName.Len()), FText::AsNumber(NAME_SIZE), FText::FromString(CollectionName));
 		return false;
 	}
 

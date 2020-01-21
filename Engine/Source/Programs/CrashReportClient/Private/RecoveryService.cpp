@@ -86,6 +86,7 @@ bool FRecoveryService::Startup()
 	ServerConfig->bAutoArchiveOnReboot = true; // If server crashed, was killed, etc, ensure the recovery session is archived (expected by recovery flow).
 	ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 0;
 	ServerConfig->bMountDefaultSessionRepository = false; // Let the client mount its own repository to support concurrent recovery server and prevent them from concurrently accessing non-sharable database files.
+	ServerConfig->AuthorizedClientKeys.Add(ServerConfig->ServerName); // The disaster recovery client is configured to use the unique server name as key to identify itself.
 
 	FConcertSessionFilter AutoArchiveSessionFilter;
 	AutoArchiveSessionFilter.bIncludeIgnoredActivities = true;

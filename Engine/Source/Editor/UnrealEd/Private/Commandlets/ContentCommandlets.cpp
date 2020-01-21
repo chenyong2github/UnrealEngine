@@ -1675,6 +1675,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				TSet<UPackage*> PackagesToSave;
 				for(ULevel* Level : World->GetLevels())
 				{
+					PackagesToSave.Add(Level->GetOutermost());
+
 					if(Level->bIsVisible)
 					{
 						Builder.GetMeshesPackagesToSave(Level, PackagesToSave);
@@ -1704,7 +1706,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
 					UPackage* Package = It->GetOutermost();
-					if (Package != nullptr && Package->IsDirty())
+					if (Package != nullptr && Package->IsDirty() && !Package->HasAnyFlags(RF_Transient))
 					{
 						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 					}

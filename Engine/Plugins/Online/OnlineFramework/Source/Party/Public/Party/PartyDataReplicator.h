@@ -65,7 +65,7 @@ PACKAGE_SCOPE:
 		{
 			if (FVariantDataConverter::VariantMapToUStruct(IncomingPartyData.GetKeyValAttrs(), RepDataType, RepDataPtr, 0, CPF_Transient | CPF_RepSkip))
 			{
-				static_cast<FOnlinePartyRepDataBase*>(RepDataPtr)->PostReplication();
+				static_cast<FOnlinePartyRepDataBase*>(RepDataPtr)->PostReplication(*RepDataCopy);
 
 				if (bCompareToPrevious)
 				{

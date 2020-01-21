@@ -898,9 +898,11 @@ void UVREditorMode::ToggleSIEAndVREditor()
 {
 	if (GEditor->EditorWorld == nullptr && !GEditor->bIsSimulatingInEditor)
 	{
-		const FVector* StartLoc = NULL;
-		const FRotator* StartRot = NULL;
-		GEditor->RequestPlaySession(false, VREditorLevelViewportWeakPtr.Pin(), true /*bSimulateInEditor*/, StartLoc, StartRot, -1);
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.DestinationSlateViewport = VREditorLevelViewportWeakPtr;
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+
+		GEditor->RequestPlaySession(SessionParams);
 	}
 	else if (GEditor->PlayWorld != nullptr && GEditor->bIsSimulatingInEditor)
 	{
@@ -913,10 +915,16 @@ void UVREditorMode::TogglePIEAndVREditor()
 	bool bRequestedPIE = false;
 	if (GEditor->EditorWorld == nullptr && GEditor->PlayWorld == nullptr && !GEditor->bIsSimulatingInEditor)
 	{
-		const FVector* StartLoc = NULL;
-		const FRotator* StartRot = NULL;
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.DestinationSlateViewport = VREditorLevelViewportWeakPtr;
+		SessionParams.WorldType = EPlaySessionWorldType::PlayInEditor;
+		
 		const bool bHMDIsReady = (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected());
-		GEditor->RequestPlaySession(true, VREditorLevelViewportWeakPtr.Pin(), false /*bSimulateInEditor*/, StartLoc, StartRot, -1, false, bHMDIsReady);
+		if (bHMDIsReady)
+		{
+			SessionParams.SessionPreviewTypeOverride = EPlaySessionPreviewType::VRPreview;
+		}
+		GEditor->RequestPlaySession(SessionParams);
 		bRequestedPIE = true;
 	}
 	else if (GEditor->PlayWorld != nullptr)

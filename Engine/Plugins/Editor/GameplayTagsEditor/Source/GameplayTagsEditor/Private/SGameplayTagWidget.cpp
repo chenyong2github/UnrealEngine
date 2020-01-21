@@ -8,7 +8,7 @@
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "Widgets/SWindow.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "GameplayTagsModule.h"
 #include "ScopedTransaction.h"
 #include "Textures/SlateIcon.h"
@@ -1075,7 +1075,8 @@ void SGameplayTagWidget::VerifyAssetTagValidity()
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("Objects"), FText::FromString( InvalidTagNames ));
 				FText DialogText = FText::Format( LOCTEXT("GameplayTagWidget_InvalidTags", "Invalid Tags that have been removed: \n\n{Objects}"), Arguments );
-				OpenMsgDlgInt( EAppMsgType::Ok, DialogText, LOCTEXT("GameplayTagWidget_Warning", "Warning") );
+				FText DialogTitle = LOCTEXT("GameplayTagWidget_Warning", "Warning");
+				FMessageDialog::Open( EAppMsgType::Ok, DialogText, &DialogTitle );
 			}
 		}
 	}

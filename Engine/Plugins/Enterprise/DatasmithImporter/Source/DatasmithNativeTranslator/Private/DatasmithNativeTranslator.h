@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 class FDatasmithNativeTranslator : public IDatasmithTranslator
 {

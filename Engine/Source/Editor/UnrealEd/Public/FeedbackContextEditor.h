@@ -42,7 +42,11 @@ public:
 
 	void SetContext( FContextSupplier* InSupplier ) override {}
 
-	/** Whether or not the user has canceled out of this dialog */
+	/**
+	 * Whether or not the user has canceled out of the progress dialog 
+	 * (i.e. the ongoing slow task or the last one that ran).
+	 * The user cancel flag is reset when starting a new root slow task.
+	 */
 	virtual bool ReceivedUserCancel() override;
 
 	void OnUserCancel();

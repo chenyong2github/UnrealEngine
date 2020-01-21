@@ -15,4 +15,6 @@ enum class ECheckedMetadataSpecifier
 	, Max
 };
 
-extern const TCHAR* GCheckedMetadataSpecifierStrings[(int32)ECheckedMetadataSpecifier::Max];
+extern const TMap<FName, ECheckedMetadataSpecifier> GCheckedMetadataSpecifiers;
+
+ECheckedMetadataSpecifier GetCheckedMetadataSpecifier(FName Key);

@@ -12,38 +12,41 @@
 #define NIAGARA_KEYGEN 0
 #endif
 
-#if (!RAYHITGROUPSHADER && !COMPUTESHADER) || NIAGARA_KEYGEN
+#define NIAGARA_LOOSEPARAM_BINDING (!RAYHITGROUPSHADER && !COMPUTESHADER) || NIAGARA_KEYGEN
 
-Buffer<float> NiagaraParticleDataFloat;
+#if NIAGARA_LOOSEPARAM_BINDING
+
+#define NIAGARA_LOOSEPARAM_STRUCT(x) x
 uint NiagaraFloatDataOffset;
 uint NiagaraFloatDataStride;
 
-float GetFloat(int RegisterIdx, uint InstanceID)
+float GetFloat(Buffer<float> NiagaraBuffer, int RegisterIdx, uint InstanceID)
 {
-	return NiagaraParticleDataFloat[NiagaraFloatDataOffset + (RegisterIdx * NiagaraFloatDataStride + InstanceID)];
+	return NiagaraBuffer[NiagaraFloatDataOffset + (RegisterIdx * NiagaraFloatDataStride + InstanceID)];
 }
 
 #else
+#define NIAGARA_LOOSEPARAM_STRUCT(x) NiagaraVFLooseParameters.x
 
-float GetFloat(int RegisterIdx, uint InstanceID)
+float GetFloat(Buffer<float> NiagaraBuffer, int RegisterIdx, uint InstanceID)
 {
-	return NiagaraVFLooseParameters.NiagaraParticleDataFloat[NiagaraVFLooseParameters.NiagaraFloatDataOffset + (RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
+	return NiagaraBuffer[NiagaraVFLooseParameters.NiagaraFloatDataOffset + (RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
 }
 
 #endif
 
-float2 GetVec2(int RegisterIndex, uint InstanceID)
+float2 GetVec2(Buffer<float> NiagaraBuffer, int RegisterIndex, uint InstanceID)
 {
-	return float2(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID));
+	return float2(GetFloat(NiagaraBuffer, RegisterIndex, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+1, InstanceID));
 }
 
-float3 GetVec3(int RegisterIndex, uint InstanceID)
+float3 GetVec3(Buffer<float> NiagaraBuffer, int RegisterIndex, uint InstanceID)
 {
-	return float3(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID));
+	return float3(GetFloat(NiagaraBuffer, RegisterIndex, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+1, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+2, InstanceID));
 }
 
-float4 GetVec4(int RegisterIndex, uint InstanceID)
+float4 GetVec4(Buffer<float> NiagaraBuffer, int RegisterIndex, uint InstanceID)
 {
-	return float4(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID), GetFloat(RegisterIndex+3, InstanceID));
+	return float4(GetFloat(NiagaraBuffer, RegisterIndex, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+1, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+2, InstanceID), GetFloat(NiagaraBuffer, RegisterIndex+3, InstanceID));
 }
 

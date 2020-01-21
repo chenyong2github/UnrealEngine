@@ -543,6 +543,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						+SWidgetSwitcher::Slot()
 						[
 							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
+							.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
+							.PhysicalSplitterHandleSize(2.0f)
 							.Orientation(EOrientation::Orient_Vertical)
 							.MinimumSlotHeight(70.0f)
 							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
@@ -1966,6 +1968,16 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 			AssetRegistry.GetSubPaths( CrumbData, SubPaths, bRecurse );
+
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			TSharedRef<FBlacklistPaths> FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
+			if (FolderBlacklist->HasFiltering())
+			{
+				SubPaths.RemoveAll([FolderBlacklist](const FString& SubPath)
+				{
+					return !FolderBlacklist->PassesStartsWithFilter(SubPath);
+				});
+			}
 		}
 
 		if( SubPaths.Num() > 0 )

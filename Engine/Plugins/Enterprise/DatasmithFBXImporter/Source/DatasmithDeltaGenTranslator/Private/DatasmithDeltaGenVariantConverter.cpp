@@ -6,6 +6,7 @@
 #include "DatasmithDeltaGenImportData.h"
 #include "DatasmithDeltaGenLog.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "DatasmithVariantElements.h"
 
 namespace FDeltaGenVariantConverterImpl
@@ -63,12 +64,26 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 
 	TSharedPtr<IDatasmithLevelVariantSetsElement> LVS = FDatasmithSceneFactory::CreateLevelVariantSets(TEXT("LevelVariantSets"));
 
-	// Remember all vars and varsets we created so that we can sanitize their names
-	// later and remove duplicates
+	// Remember all vars and varsets we created so that we can reference them later from Package variants
 	TMap<TSharedPtr<IDatasmithVariantSetElement>, FString> CreatedVariantSetsToOriginalNames;
 
 	TMap<FString, FDeltaGenVarDataVariantSwitch*> NonPackageVariantsByName;
 	TArray<FDeltaGenVarDataVariantSwitch*> PackageVariants;
+
+	// We may have to create some actors to meet some SwitchObject requirements, so we need to make sure
+	// their names are unique
+	FDatasmithUniqueNameProvider UniqueNameProvider;
+	for (TPair<FName, TArray<TSharedPtr<IDatasmithActorElement>>> Pair : ActorsByOriginalName)
+	{
+		for (const TSharedPtr<IDatasmithActorElement>& Actor : Pair.Value)
+		{
+			UniqueNameProvider.AddExistingName(Actor->GetName());
+		}
+	}
+
+	// Remember for which Switch actors we already created an extra actor to serve as the "disabled" option. Without this,
+	// if we had multiple switch variants that target the same actor, we would end up with multiple "disabled" actors
+	TMap<TSharedPtr<IDatasmithActorElement>, TSharedPtr<IDatasmithActorElement>> CreatedSwitchObjectNullActors;
 
 	// We'll parse them separately because the package variants will refer to the created
 	// non-package variants
@@ -309,21 +324,54 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 			LVS->AddVariantSet(NewVarSet.ToSharedRef());
 			CreatedVariantSetsToOriginalNames.Add(NewVarSet, VarName);
 
+			TSharedPtr<IDatasmithActorElement> DisabledActor = nullptr;
+
 			for (const FDeltaGenVarDataSwitchObjectVariant& Option : Var->SwitchObject.Variants)
 			{
 				TSharedPtr<IDatasmithVariantElement> NewVar = FDatasmithSceneFactory::CreateVariant(*Option.Name);
 				NewVarSet->AddVariant(NewVar.ToSharedRef());
 
+				// DeltaGen uses the convention where if a switch is supposed to show nothing, it will just pick a selection index
+				// that references nothing. Since our Switch Actors must always pick something, here we create an empty actor
+				// to serve as the disabled alternative of the switch
+				if (Option.Selection >= SwitchObjectElement->GetChildrenCount() && DisabledActor == nullptr)
+				{
+					if (TSharedPtr<IDatasmithActorElement>* FoundDisabledActor = CreatedSwitchObjectNullActors.Find(SwitchObjectElement))
+					{
+						DisabledActor = *FoundDisabledActor;
+					}
+					else
+					{
+						DisabledActor = FDatasmithSceneFactory::CreateActor(*UniqueNameProvider.GenerateUniqueName(*(VarName + TEXT("_Disabled"))));
+						DisabledActor->AddTag(TEXT("Disabled"));
+						CreatedSwitchObjectNullActors.Add(SwitchObjectElement, DisabledActor);
+						SwitchObjectElement->AddChild(DisabledActor);
+					}
+				}
+
 				for (int32 ChildIndex = 0; ChildIndex < SwitchObjectElement->GetChildrenCount(); ++ChildIndex)
 				{
-					bool bIsVisible = (ChildIndex == Option.Selection);
+					TSharedPtr<IDatasmithActorElement> ChildActor = SwitchObjectElement->GetChild(ChildIndex);
+
+					bool bIsVisible = false;
+					if (ChildIndex == Option.Selection)
+					{
+						bIsVisible = true;
+					}
+					// In case the switch object has more than one selection index that reference nothing
+					// Example: Originally 1 child, but has switch options "0", "1" and "2". We will only create one extra
+					// "disabled" actor, so here we check if we're also in option "2"
+					else if (Option.Selection >= SwitchObjectElement->GetChildrenCount() && ChildActor == DisabledActor)
+					{
+						bIsVisible = true;
+					}
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> VisibilityProperty = FDatasmithSceneFactory::CreatePropertyCapture();
 					VisibilityProperty->SetCategory(EDatasmithPropertyCategory::Visibility);
 					VisibilityProperty->SetRecordedData((uint8*)&bIsVisible, sizeof(bool));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
-					Binding->SetActor(SwitchObjectElement->GetChild(ChildIndex));
+					Binding->SetActor(ChildActor);
 					Binding->AddPropertyCapture(VisibilityProperty.ToSharedRef());
 
 					NewVar->AddActorBinding(Binding.ToSharedRef());
@@ -471,7 +519,6 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FDeltaGenVariantConverter::Convert
 	{
 		TSharedPtr<IDatasmithVariantSetElement> NewVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("POS Variants"));
 		LVS->AddVariantSet(NewVarSet.ToSharedRef());
-		CreatedVariantSetsToOriginalNames.Add(NewVarSet, TEXT("POS Variants"));
 
 		for (const FDeltaGenPosDataState& State : PosStates)
 		{

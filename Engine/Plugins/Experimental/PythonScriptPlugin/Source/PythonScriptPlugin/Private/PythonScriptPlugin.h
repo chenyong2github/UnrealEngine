@@ -9,9 +9,15 @@
 #include "Misc/CoreMisc.h"
 #include "HAL/IConsoleManager.h"
 #include "Framework/Commands/InputChord.h"
+#include "Kismet2/EnumEditorUtils.h"
 
 class FPythonScriptPlugin;
 class FPythonScriptRemoteExecution;
+class FPackageReloadedEvent;
+
+struct FAssetData;
+
+enum class EPackageReloadPhase : uint8;
 
 #if WITH_PYTHON
 
@@ -81,7 +87,10 @@ struct IPythonCommandMenu
 };
 #endif	// WITH_PYTHON
 
-class FPythonScriptPlugin : public IPythonScriptPlugin, public FSelfRegisteringExec
+class FPythonScriptPlugin 
+	: public IPythonScriptPlugin
+	, public FSelfRegisteringExec
+	, public FEnumEditorUtils::INotifyOnEnumChanged
 {
 public:
 	FPythonScriptPlugin();
@@ -105,6 +114,10 @@ public:
 
 	//~ FSelfRegisteringExec interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+	//~ FEnumEditorUtils::INotifyOnEnumChanged interface
+	virtual void PreChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info) override;
+	virtual void PostChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info) override;
 
 #if WITH_PYTHON
 
@@ -130,6 +143,11 @@ public:
 
 	/** Run a Python file */
 	bool RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPythonCommandEx& InOutPythonCommand);
+
+	PyObject* GetDefaultGlobalDict() { return PyDefaultGlobalDict.Get(); }
+	PyObject* GetDefaultLocalDict()  { return PyDefaultLocalDict.Get();  }
+	PyObject* GetConsoleGlobalDict() { return PyConsoleGlobalDict.Get(); }
+	PyObject* GetConsoleLocalDict()  { return PyConsoleLocalDict.Get();  }
 #endif	// WITH_PYTHON
 
 private:
@@ -151,6 +169,14 @@ private:
 	void OnContentPathMounted(const FString& InAssetPath, const FString& InFilesystemPath);
 
 	void OnContentPathDismounted(const FString& InAssetPath, const FString& InFilesystemPath);
+
+	void OnAssetRenamed(const FAssetData& Data, const FString& OldName);
+
+	void OnAssetRemoved(const FAssetData& Data);
+
+	void OnAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
+
+	void OnAssetUpdated(const UObject* InObj);
 
 #if WITH_EDITOR
 	void OnPrepareToCleanseEditorObject(UObject* InObject);

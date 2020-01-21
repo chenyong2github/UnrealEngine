@@ -1,0 +1,41 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+static const int FLUID_PRESSURE_OFFSET = 6;
+static const int FLUID_DISTANCE_OFFSET = 14;
+static const int NUM_ATTRIBUTES = 17;
+
+static const float MAX_DISTANCE = 1e+8;
+
+int3 GridSize;
+int CopyPressure;
+
+Texture3D<int>		GridCurrentBuffer;
+RWTexture3D<int>	GridDestinationBuffer;
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint GridHash = DispatchThreadId.x;
+	if (GridHash < (GridSize.x+1)*(GridSize.y+1)*(GridSize.z+1))
+	{
+		const int GridSizeYZ = (GridSize.y+1) * (GridSize.z+1);
+		const int GridHashYZ = GridHash % GridSizeYZ;
+
+		const int3 GridIndex = int3(GridHash / GridSizeYZ, GridHashYZ / (GridSize.z+1), GridHashYZ % (GridSize.z+1));
+
+		[unroll]
+		for(int i = 0; i < NUM_ATTRIBUTES; ++i)
+		{
+			const int3 AttrIndex = int3(GridIndex.x+i*(GridSize.x+1),GridIndex.yz);
+			GridDestinationBuffer[AttrIndex] = 0;
+		}
+		if(CopyPressure)
+		{
+			const int3 PressureIndex = int3(GridIndex.x+FLUID_PRESSURE_OFFSET*(GridSize.x+1),GridIndex.yz);
+			GridDestinationBuffer[PressureIndex] = GridCurrentBuffer[PressureIndex];
+		}
+
+		const int3 DistanceIndex = int3(GridIndex.x+FLUID_DISTANCE_OFFSET*(GridSize.x+1),GridIndex.yz);
+		GridDestinationBuffer[DistanceIndex] = MAX_DISTANCE;
+	}
+}

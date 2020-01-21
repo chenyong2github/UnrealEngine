@@ -30,6 +30,7 @@
 #include "Templates/UniquePtr.h"
 #include "RenderGraph.h"
 #include "MeshDrawCommands.h"
+#include "GpuDebugRendering.h"
 
 // Forward declarations.
 class FScene;
@@ -1092,9 +1093,6 @@ public:
 	/** Frame's exposure. Always > 0. */
 	float PreExposure;
 
-	/** Mip bias to apply in material's samplers. */
-	float MaterialTextureMipBias;
-
 	/** Precomputed visibility data, the bits are indexed by VisibilityId of a primitive component. */
 	const uint8* PrecomputedVisibilityData;
 
@@ -1159,6 +1157,8 @@ public:
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FRWBufferStructured ShaderPrintValueBuffer;
+
+	FShaderDrawDebugData ShaderDrawData;
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;

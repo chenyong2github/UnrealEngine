@@ -10,8 +10,6 @@
 #include "c4d_file.h"
 #include "DatasmithC4DMelangeSDKLeaveGuard.h"
 
-#include "DatasmithC4DImportException.h"
-
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
@@ -420,18 +418,24 @@ FString MelangeParameterValueToString(melange::BaseList2D* Object, melange::Int3
 	return TEXT("");
 }
 
-FString GetMelangeBaseList2dID(melange::BaseList2D* BaseList)
+TOptional<FString> GetMelangeBaseList2dID(melange::BaseList2D* BaseList)
 {
+	TOptional<FString> MelangeID;
 	if (BaseList)
 	{
-		DatasmithC4DImportCheck(BaseList->GetUniqueIDCount() > 0);
-		melange::Int32 AppId;
-		const melange::Char* IdData;
-		melange::Int Bytes;
-		DatasmithC4DImportCheck(BaseList->GetUniqueIDIndex(0, AppId, IdData, Bytes));
-		return BytesToHex(reinterpret_cast<const uint8*>(&AppId), sizeof(AppId)) + "_" + BytesToHex(reinterpret_cast<const uint8*>(IdData), static_cast<int32>(Bytes));
+		if (BaseList->GetUniqueIDCount() > 0)
+		{
+			melange::Int32 AppId;
+			const melange::Char* IdData;
+			melange::Int Bytes;
+			if (BaseList->GetUniqueIDIndex(0, AppId, IdData, Bytes))
+			{
+				MelangeID.Emplace(BytesToHex(reinterpret_cast<const uint8*>(&AppId), sizeof(AppId)) + "_" + BytesToHex(reinterpret_cast<const uint8*>(IdData), static_cast<int32>(Bytes)));
+			}
+		}
 	}
-	return TEXT("Invalid object");
+	
+	return MelangeID;
 }
 
 #endif

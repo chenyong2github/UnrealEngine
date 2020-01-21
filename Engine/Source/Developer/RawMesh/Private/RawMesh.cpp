@@ -160,8 +160,6 @@ FRawMeshBulkData::FRawMeshBulkData()
 {
 }
 
-#if WITH_EDITORONLY_DATA
-
 /**
  * Serialization of raw meshes uses its own versioning scheme because it is
  * stored in bulk data.
@@ -321,5 +319,3 @@ void FRawMeshBulkData::Empty()
 	Guid.Invalidate();
 	bGuidIsHash = false;
 }
-
-#endif // #if WITH_EDITORONLY_DATA

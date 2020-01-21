@@ -61,6 +61,8 @@ public:
 	FMeshTangentsf* GetTangents();
 
 
+
+
 	/**
 	 * Write the internal mesh to a MeshDescription
 	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
@@ -84,10 +86,22 @@ public:
 	//
 
 	/**
-	 * Call this if you update the mesh via GetMesh()
+	 * Call this if you update the mesh via GetMesh(). This will destroy the existing RenderProxy and create a new one.
 	 * @todo should provide a function that calls a lambda to modify the mesh, and only return const mesh pointer
 	 */
 	virtual void NotifyMeshUpdated() override;
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex colors (or triangle color function).
+	 * This function will update the existing RenderProxy buffers if possible
+	 */
+	void FastNotifyColorsUpdated();
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions.
+	 * This function will update the existing RenderProxy buffers if possible
+	 */
+	void FastNotifyPositionsUpdated();
 
 	/**
 	 * Apply a vertex deformation change to the internal mesh
@@ -99,6 +113,11 @@ public:
 	 */
 	virtual void ApplyChange(const FMeshChange* Change, bool bRevert) override;
 
+	/**
+	* Apply a general mesh replacement change to the internal mesh
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override;
+
 
 	/**
 	 * This delegate fires when a FCommandChange is applied to this component, so that
@@ -107,36 +126,61 @@ public:
 	FSimpleMulticastDelegate OnMeshChanged;
 
 
-	void SetDrawOnTop(bool bSet);
-
 	/**
 	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
 	 */
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
 
+	/**
+	 * @return true if wireframe rendering pass is enabled
+	 */
+	virtual bool EnableWireframeRenderPass() const override { return bExplicitShowWireframe; }
 
+
+	/**
+	 * If this function is set, we will use these colors instead of vertex colors
+	 */
+	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
+
+
+	/**
+	 * If Secondary triangle buffers are enabled, then we will filter triangles that pass the given predicate
+	 * function into a second index buffer. These triangles will be drawn with the Secondary render material
+	 * that is set in the BaseDynamicMeshComponent. Calling this function invalidates the SceneProxy.
+	 */
+	virtual void EnableSecondaryTriangleBuffers(TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFunc);
+
+	/**
+	 * Disable secondary triangle buffers. This invalidates the SceneProxy.
+	 */
+	virtual void DisableSecondaryTriangleBuffers();
+
+
+public:
+
+	// do not use this
 	UPROPERTY()
 	bool bDrawOnTop = false;
 
+	// do not use this
+	void SetDrawOnTop(bool bSet);
 
 
-	TFunction<FColor(int)> TriangleColorFunc = nullptr;
-	void FastNotifyColorsUpdated();
-
-	void FastNotifyPositionsUpdated();
+protected:
+	/**
+	 * This is called to tell our RenderProxy about modifications to the material set.
+	 * We need to pass this on for things like material validation in the Editor.
+	 */
+	virtual void NotifyMaterialSetUpdated();
 
 private:
 
-	FSimpleDynamicMeshSceneProxy* CurrentProxy = nullptr;
+	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FSimpleDynamicMeshSceneProxy*)SceneProxy; }
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	//~ End UPrimitiveComponent Interface.
-
-	//~ Begin UMeshComponent Interface.
-	virtual int32 GetNumMaterials() const override;
-	//~ End UMeshComponent Interface.
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -145,10 +189,16 @@ private:
 	TUniquePtr<FDynamicMesh3> Mesh;
 	void InitializeNewMesh();
 
+	// local-space bounding of Mesh
+	FAxisAlignedBox3d LocalBounds;
+
 	bool bTangentsValid = false;
 	FMeshTangentsf Tangents;
 	
-	FColor GetTriangleColor(int TriangleID);
+	FColor GetTriangleColor(const FDynamicMesh3* Mesh, int TriangleID);
+
+	TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFunc = nullptr;
+
 
 	//friend class FCustomMeshSceneProxy;
 };

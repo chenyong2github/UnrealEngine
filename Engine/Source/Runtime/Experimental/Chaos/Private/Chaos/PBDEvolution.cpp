@@ -83,6 +83,7 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 		{
 			InitForceRule.Apply(MParticles, Dt, Index); // F = TV(0)
 			GravityForces.Apply(MParticles, Dt, Index);
+			VelocityField.Apply(MParticles, Dt, Index);
 			for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
 			{
 				ForceRule(MParticles, Dt, Index); // F += M * A

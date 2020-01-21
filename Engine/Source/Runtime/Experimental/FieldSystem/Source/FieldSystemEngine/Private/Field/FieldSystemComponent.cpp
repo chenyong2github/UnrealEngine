@@ -27,7 +27,6 @@ UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectIni
 	SetGenerateOverlapEvents(false);
 }
 
-
 FPrimitiveSceneProxy* UFieldSystemComponent::CreateSceneProxy()
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::CreateSceneProxy()"), this);
@@ -35,6 +34,35 @@ FPrimitiveSceneProxy* UFieldSystemComponent::CreateSceneProxy()
 	return new FFieldSystemSceneProxy(this);
 }
 
+TSet<FPhysScene_Chaos*> UFieldSystemComponent::GetPhysicsScenes() const
+{
+	TSet<FPhysScene_Chaos*> Scenes;
+	if (SupportedSolvers.Num())
+	{
+		for (const TSoftObjectPtr<AChaosSolverActor>& Actor : SupportedSolvers)
+		{
+			if (!Actor.IsValid())
+				continue;
+			Scenes.Add(Actor->GetPhysicsScene().Get());
+		}
+	}
+	else
+	{
+#if INCLUDE_CHAOS
+		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
+		{
+			FPhysScene_ChaosInterface* WorldPhysScene = GetOwner()->GetWorld()->GetPhysicsScene();
+			Scenes.Add(&WorldPhysScene->GetScene());
+		}
+		else
+		{
+			check(GWorld);
+			Scenes.Add(&GWorld->GetPhysicsScene()->GetScene());
+		}
+#endif
+	}
+	return Scenes;
+}
 
 void UFieldSystemComponent::OnCreatePhysicsState()
 {
@@ -49,10 +77,13 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 
 		PhysicsProxy = new FFieldSystemPhysicsProxy(this);
 #if INCLUDE_CHAOS
-		TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
-		Scene->AddObject(this, PhysicsProxy);
+		TSet<FPhysScene_Chaos*> Scenes = GetPhysicsScenes();
+		for (auto* Scene : Scenes)
+		{
+			// Does each scene need its own proxy?
+			Scene->AddObject(this, PhysicsProxy);
+		}
 #endif
-
 		bHasPhysicsState = true;
 
 		if(FieldSystem)
@@ -75,15 +106,19 @@ void UFieldSystemComponent::OnDestroyPhysicsState()
 	}
 
 #if INCLUDE_CHAOS
-	TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
-	Scene->RemoveObject(PhysicsProxy);
+	//TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
+	TSet<FPhysScene_Chaos*> Scenes = GetPhysicsScenes();
+	for (auto* Scene : Scenes)
+	{
+		Scene->RemoveObject(PhysicsProxy);
+	}
 #endif
 
 	ChaosModule = nullptr;
+	// Discard the pointer (cleanup happens through the scene or dedicated thread)
 	PhysicsProxy = nullptr;
 
 	bHasPhysicsState = false;
-	
 }
 
 bool UFieldSystemComponent::ShouldCreatePhysicsState() const

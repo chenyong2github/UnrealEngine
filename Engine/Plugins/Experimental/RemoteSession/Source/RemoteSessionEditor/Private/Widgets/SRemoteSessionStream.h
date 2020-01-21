@@ -19,6 +19,7 @@
 #include "SRemoteSessionStream.generated.h"
 
 struct FAssetData;
+struct FCanDeleteAssetResult;
 class FMenuBuilder;
 class FWidgetRenderer;
 class IDetailsView;
@@ -67,7 +68,7 @@ public:
 	URemoteSessionStreamWidgetUserData();
 
 	UPROPERTY(EditAnywhere, Category = "Remote Session")
-	UWidgetBlueprint* WidgetBlueprint;
+	TSubclassOf<UUserWidget> WidgetClass;
 
 	UPROPERTY(EditAnywhere, Category = "Remote Session")
 	FVector2D Size;
@@ -132,6 +133,7 @@ private:
 	void OnPrepareToCleanseEditorObject(UObject* Object);
 	void HandleAssetRemoved(const FAssetData& AssetData);
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
+	void CanDeleteAssets(const TArray<UObject*>& InAssetsToDelete, FCanDeleteAssetResult& CanDeleteResult);
 
 private:
 	TSharedPtr<IDetailsView> DetailView;
@@ -144,14 +146,13 @@ private:
 	UTextureRenderTarget2D* RenderTarget2D;
 	UUserWidget* UserWidget;
 	UWorld* WidgetWorld;
-	UWidgetBlueprint* WidgetBlueprint;
 	URemoteSessionMediaOutput* MediaOutput;
 	URemoteSessionMediaCapture* MediaCapture;
 	//~ End GC by AddReferencedObjects
 
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 	TSharedPtr<SVirtualWindow> VirtualWindow;
-	TUniquePtr<FWidgetRenderer> WidgetRenderer;
+	FWidgetRenderer* WidgetRenderer;
 	TWeakPtr<ILevelViewport> ActiveLevelViewport;
 	FVector2D WidgetSize;
 

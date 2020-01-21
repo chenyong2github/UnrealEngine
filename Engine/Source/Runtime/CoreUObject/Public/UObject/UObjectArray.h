@@ -232,7 +232,7 @@ public:
 	int32 AddSingle() TSAN_SAFE
 	{
 		int32 Result = NumElements;
-		checkf(NumElements + 1 <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor in project settings."), MaxElements);
+		checkf(NumElements + 1 <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
 		check(Result == NumElements);
 		++NumElements;
 		FPlatformMisc::MemoryBarrier();
@@ -243,7 +243,7 @@ public:
 	int32 AddRange(int32 Count) TSAN_SAFE
 	{
 		int32 Result = NumElements + Count - 1;
-		checkf(NumElements + Count <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor in project settings."), MaxElements);
+		checkf(NumElements + Count <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
 		check(Result == (NumElements + Count - 1));
 		NumElements += Count;
 		FPlatformMisc::MemoryBarrier();
@@ -508,7 +508,7 @@ public:
 	int32 AddRange(int32 NumToAdd) TSAN_SAFE
 	{
 		int32 Result = NumElements;
-		checkf(Result + NumToAdd <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor in project settings."), MaxElements);
+		checkf(Result + NumToAdd <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
 		ExpandChunksToIndex(Result + NumToAdd - 1);
 		NumElements += NumToAdd;
 		return Result;

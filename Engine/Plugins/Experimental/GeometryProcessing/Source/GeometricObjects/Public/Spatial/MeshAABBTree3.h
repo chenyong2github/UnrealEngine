@@ -19,7 +19,7 @@ class TMeshAABBTree3 : public IMeshSpatial
 	friend class TFastWindingTree<TriangleMeshType>;
 
 protected:
-	TriangleMeshType* Mesh;
+	const TriangleMeshType* Mesh;
 	int MeshTimestamp = -1;
 	int TopDownLeafMaxTriCount = 4;
 
@@ -36,12 +36,12 @@ public:
 		Mesh = nullptr;
 	}
 
-	TMeshAABBTree3(TriangleMeshType* SourceMesh, bool bAutoBuild = true)
+	TMeshAABBTree3(const TriangleMeshType* SourceMesh, bool bAutoBuild = true)
 	{
 		SetMesh(SourceMesh, bAutoBuild);
 	}
 
-	void SetMesh(TriangleMeshType* SourceMesh, bool bAutoBuild = true)
+	void SetMesh(const TriangleMeshType* SourceMesh, bool bAutoBuild = true)
 	{
 		Mesh = SourceMesh;
 		MeshTimestamp = -1;
@@ -98,6 +98,8 @@ public:
 		find_nearest_tri(RootIndex, P, NearestDistSqr, tNearID);
 		return tNearID;
 	}
+
+protected:
 	void find_nearest_tri(int IBox, const FVector3d& P, double& NearestDistSqr, int& TID)
 	{
 		int idx = BoxToIndex[IBox];
@@ -164,28 +166,38 @@ public:
 		}
 	}
 
+public:
 	virtual bool SupportsTriangleRayIntersection() override
 	{
 		return true;
 	}
 
-	virtual int FindNearestHitTriangle(const FRay3d& Ray, double MaxDist = TNumericLimits<double>::Max()) override
+	inline virtual int FindNearestHitTriangle(const FRay3d& Ray, double MaxDistance = TNumericLimits<double>::Max()) override
 	{
+		double NearestT;
+		int TID;
+		FindNearestHitTriangle(Ray, NearestT, TID, MaxDistance);
+		return TID;
+	}
+
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, double MaxDist = TNumericLimits<double>::Max()) override
+	{
+		TID = IndexConstants::InvalidID;
+		NearestT = (MaxDist < TNumericLimits<double>::Max()) ? MaxDist : TNumericLimits<float>::Max();
+
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 		check(RootIndex >= 0);
 		if (RootIndex < 0)
 		{
-			return IndexConstants::InvalidID;
+			return false;
 		}
 		// TODO: check( ray_is_normalized)
 
 		// [RMS] note: using float.MaxValue here because we need to use <= to compare Box hit
 		//   to NearestT, and Box hit returns double.MaxValue on no-hit. So, if we set
 		//   nearestT to double.MaxValue, then we will test all boxes (!)
-		double NearestT = (MaxDist < TNumericLimits<double>::Max()) ? MaxDist : TNumericLimits<float>::Max();
-		int tNearID = IndexConstants::InvalidID;
-		FindHitTriangle(RootIndex, Ray, NearestT, tNearID);
-		return tNearID;
+		FindHitTriangle(RootIndex, Ray, NearestT, TID);
+		return TID != IndexConstants::InvalidID;
 	}
 
 	void FindHitTriangle(int IBox, const FRay3d& Ray, double& NearestT, int& TID)

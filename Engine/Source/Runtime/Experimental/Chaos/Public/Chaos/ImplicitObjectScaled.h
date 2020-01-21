@@ -13,7 +13,7 @@
 namespace Chaos
 {
 
-template <typename TConcrete, bool bInstanced = true>
+template <typename TConcrete>
 class TImplicitObjectInstanced final : public FImplicitObject
 {
 public:
@@ -21,16 +21,26 @@ public:
 	using TType = T;
 	static constexpr int d = TConcrete::D;
 	static constexpr int D = d;
+	using ObjectType = TSharedPtr<TConcrete,ESPMode::ThreadSafe>;
 
-	using ObjectType = typename TChooseClass<bInstanced, TSerializablePtr<TConcrete>, TUniquePtr<TConcrete>>::Result;
 	using FImplicitObject::GetTypeName;
 
-	TImplicitObjectInstanced(ObjectType Object)
+	TImplicitObjectInstanced(const ObjectType&& Object)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
 	{
 		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
+	}
+
+	TImplicitObjectInstanced(const ObjectType& Object)
+		: FImplicitObject(EImplicitObject::HasBoundingBox,Object->GetType() | ImplicitObjectType::IsInstanced)
+		,MObject(Object)
+	{
+		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
+		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	static constexpr EImplicitObjectType StaticType()
@@ -41,6 +51,11 @@ public:
 	const TConcrete* GetInstancedObject() const
 	{
 		return MObject.Get();
+	}
+
+	bool GetDoCollide() const
+	{
+		return MObject->GetDoCollide();
 	}
 
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
@@ -58,21 +73,6 @@ public:
 		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject;
-	}
-
-	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
-	template <typename TGeometry>
-	static bool LowLevelSweepGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0)
-	{
-		ensure(false);
-		return false;
-	}
-
-	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
-	bool LowLevelOverlapGeom(const TImplicitObjectInstanced<TConcrete, bInstanced>& OwningInstanced, const FImplicitObject& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0) const
-	{
-		ensure(false);
-		return false;
 	}
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
@@ -95,7 +95,7 @@ public:
 	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support(Direction, Thickness); }
 	FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support2(Direction); }
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MObject->BoundingBox(); }
+	virtual const TAABB<T, d> BoundingBox() const override { return MObject->BoundingBox(); }
 
 	const ObjectType Object() const { return MObject; }
 
@@ -109,17 +109,39 @@ public:
 		return TUniquePtr<FImplicitObject>(CopyHelper(this));
 	}
 
+	static const TImplicitObjectInstanced<TConcrete>& AsInstancedChecked(const FImplicitObject& Obj)
+	{
+		if(TIsSame<TConcrete,FImplicitObject>::Value)
+		{
+			//can cast any instanced to ImplicitObject base
+			check(IsInstanced(Obj.GetType()));
+		} else
+		{
+			check(StaticType() == Obj.GetType());
+		}
+		return static_cast<const TImplicitObjectInstanced<TConcrete>&>(Obj);
+	}
+
+	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
+	template <typename QueryGeomType>
+	bool LowLevelSweepGeom(const QueryGeomType& B,const TRigidTransform<T,d>& BToATM,const TVector<T,d>& LocalDir,const T Length,T& OutTime,TVector<T,d>& LocalPosition,TVector<T,d>& LocalNormal,int32& OutFaceIndex,T Thickness = 0,bool bComputeMTD = false) const
+	{
+		return MObject->SweepGeom(B,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,OutFaceIndex,Thickness,bComputeMTD);
+	}
+
+	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
+	template <typename QueryGeomType>
+	bool LowLevelOverlapGeom(const QueryGeomType& B,const TRigidTransform<T,d>& BToATM,T Thickness = 0) const
+	{
+		return MObject->OverlapGeom(B,BToATM,Thickness);
+	}
+
 protected:
 	ObjectType MObject;
 
-	static TImplicitObjectInstanced<TConcrete, true>* CopyHelper(const TImplicitObjectInstanced<TConcrete, true>* Obj)
+	static TImplicitObjectInstanced<TConcrete>* CopyHelper(const TImplicitObjectInstanced<TConcrete>* Obj)
 	{
-		return new TImplicitObjectInstanced<TConcrete, true>(Obj->MObject);
-	}
-
-	static TImplicitObjectInstanced<TConcrete, false>* CopyHelper(const TImplicitObjectInstanced<TConcrete, false>* Obj)
-	{
-		return new TImplicitObjectInstanced<TConcrete, false>(Obj->MObject->Copy());
+		return new TImplicitObjectInstanced<TConcrete>(Obj->MObject);
 	}
 };
 
@@ -153,6 +175,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -173,6 +196,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -185,6 +209,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Object->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -201,6 +226,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
 	~TImplicitObjectScaled() {}
 
@@ -340,11 +366,15 @@ public:
 			
 			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, MInternalThickness + Thickness, bComputeMTD))
 			{
-				OutTime = LengthScaleInv * UnscaledTime;
-				LocalPosition = MScale * UnscaledPosition;
-				LocalNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
-				ensure(OutTime <= Length);
-				return true;
+				const T NewTime = LengthScaleInv * UnscaledTime;
+				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
+				if (NewTime < Length)
+				{
+					OutTime = NewTime;
+					LocalPosition = MScale * UnscaledPosition;
+					LocalNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+					return true;
+				}
 			}
 		}
 
@@ -487,7 +517,7 @@ public:
 		UpdateBounds();
 	}
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MLocalBoundingBox; }
 
 	const FReal GetVolume() const
 	{

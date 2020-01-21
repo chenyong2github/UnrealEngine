@@ -282,11 +282,11 @@ namespace Chaos
 		// Remove the proxy from the GT proxy map
 		if (InParticleType == EParticleType::Rigid)
 		{
-			RigidParticlePhysicsProxies.Remove((FRigidParticlePhysicsProxy*)InProxy);
+			RigidParticlePhysicsProxies.RemoveSingleSwap((FRigidParticlePhysicsProxy*)InProxy);
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
-			KinematicGeometryParticlePhysicsProxies.Remove((FKinematicGeometryParticlePhysicsProxy*)InProxy);
+			KinematicGeometryParticlePhysicsProxies.RemoveSingleSwap((FKinematicGeometryParticlePhysicsProxy*)InProxy);
 		}
 		else if (InParticleType == EParticleType::GeometryCollection)
 		{
@@ -294,7 +294,7 @@ namespace Chaos
 		}
 		else
 		{
-			GeometryParticlePhysicsProxies.Remove((FGeometryParticlePhysicsProxy*)InProxy);
+			GeometryParticlePhysicsProxies.RemoveSingleSwap((FGeometryParticlePhysicsProxy*)InProxy);
 		}
 
 		// Enqueue a command to remove the particle and delete the proxy
@@ -570,9 +570,10 @@ namespace Chaos
 		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		for (Chaos::TGeometryParticleHandleImp<float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			switch (ActiveObject.Type)
+			switch (ActiveObject.GetParticleType())
 			{
 			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->BufferPhysicsResults();
@@ -603,9 +604,10 @@ namespace Chaos
 		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		for (Chaos::TGeometryParticleHandleImp < float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			switch (ActiveObject.Type)
+			switch (ActiveObject.GetParticleType())
 			{
 			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->FlipBuffer();
@@ -636,9 +638,10 @@ namespace Chaos
 		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		for (Chaos::TGeometryParticleHandleImp < float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			switch (ActiveObject.Type)
+			switch (ActiveObject.GetParticleType())
 			{
 			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->PullFromPhysicsState();

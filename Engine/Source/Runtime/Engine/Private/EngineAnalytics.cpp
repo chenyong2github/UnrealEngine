@@ -233,3 +233,13 @@ void FEngineAnalytics::Tick(float DeltaTime)
 	}
 #endif
 }
+
+void FEngineAnalytics::LowDriveSpaceDetected()
+{
+#if WITH_EDITOR
+	if (SessionSummaryWriter.IsValid())
+	{
+		SessionSummaryWriter->LowDriveSpaceDetected();
+	}
+#endif
+}

@@ -20,6 +20,7 @@ namespace Chaos
 			{
 				uint32 NumBytes;
 				FString DebugInfo;
+				FString ToString;
 
 				bool operator<(const FMemInfo& Other) const { return NumBytes < Other.NumBytes; }
 			};
@@ -35,6 +36,7 @@ namespace Chaos
 				FChaosArchive ChaosAr(MemAr);
 				FImplicitObject* NonConst = const_cast<FImplicitObject*>(Itr.Key.Get());	//only doing this to write out, serialize is non const for read in
 				NonConst->Serialize(ChaosAr);
+				Info.ToString = NonConst->ToString();
 				Info.NumBytes = Data.Num();
 				MemEntries.Add(Info);
 				TotalBytes += Info.NumBytes;
@@ -48,7 +50,7 @@ namespace Chaos
 
 			for (const FMemInfo& Info : MemEntries)
 			{
-				Ar->Logf(TEXT("%-10d %s"), Info.NumBytes, *Info.DebugInfo);
+				Ar->Logf(TEXT("%-10d %s ToString:%s"), Info.NumBytes, *Info.DebugInfo, *Info.ToString);
 			}
 
 			Ar->Logf(TEXT("%-10d Total"), TotalBytes);

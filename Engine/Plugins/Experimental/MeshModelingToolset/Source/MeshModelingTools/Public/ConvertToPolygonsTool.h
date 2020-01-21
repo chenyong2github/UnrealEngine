@@ -9,6 +9,7 @@
 #include "DynamicMesh3.h"
 #include "FindPolygonsAlgorithm.h"
 #include "PreviewMesh.h"
+#include "Changes/ValueWatcher.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
@@ -30,6 +31,17 @@ public:
 
 
 
+UENUM()
+enum class EConvertToPolygonsMode
+{
+	/** Convert based on Angle Tolerance between Face Normals */
+	FaceNormalDeviation,
+	/** Create PolyGroups based on UV Islands */
+	FromUVISlands
+};
+
+
+
 
 UCLASS()
 class MESHMODELINGTOOLS_API UConvertToPolygonsToolProperties : public UInteractiveToolPropertySet
@@ -37,8 +49,11 @@ class MESHMODELINGTOOLS_API UConvertToPolygonsToolProperties : public UInteracti
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, Category = PolyGroups)
+	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
+
 	/** Tolerance for planarity */
-	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0"))
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation"))
 	float AngleTolerance = 0.1f;
 
 	UPROPERTY(EditAnywhere, Category = PolyGroups)
@@ -58,6 +73,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void Tick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;
@@ -75,6 +91,10 @@ protected:
 protected:
 	FDynamicMesh3 SearchMesh;
 	FDynamicMeshNormalOverlay InitialNormals;
+
+	TValueWatcher<EConvertToPolygonsMode> ConvertModeWatcher;
+
+
 	FFindPolygonsAlgorithm Polygons;
 	bool bPolygonsValid = false;
 	void UpdatePolygons();

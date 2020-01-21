@@ -107,6 +107,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
+	Concrete.ClearEvents();
 }
 
 
@@ -243,6 +244,7 @@ public:
 		GeometryParticles = InParticles;
 	}
 
+	EParticleType GetParticleType() const { return Type; }
 protected:
 	union
 	{
@@ -1244,6 +1246,8 @@ public:
 
 	void Reset() { Type = EParticleType::Static; }
 
+	virtual ~FParticleData() = default;
+
 	EParticleType Type;
 };
 
@@ -1405,6 +1409,7 @@ public:
 	const TShapesArray<T,d>& ShapesArray() const { return MShapesArray; }
 
 	EObjectStateType ObjectState() const;
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false);
 
 	EParticleType ObjectType() const
 	{
@@ -1568,7 +1573,15 @@ public:
 #if CHAOS_CHECKED
 		, DebugName(InParticle.DebugName())
 #endif
-	{}
+	{
+		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
+		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
+		{
+			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+		}
+
+	}
 
 	void Reset() 
 	{ 
@@ -1579,6 +1592,7 @@ public:
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		HashResult = 0;
 		DirtyFlags.Clear();
+		ShapeCollisionDisableFlags.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1590,9 +1604,11 @@ public:
 	FSpatialAccelerationIdx SpatialIdx;
 	uint32 HashResult;
 	FParticleDirtyFlags DirtyFlags;
+	TBitArray<> ShapeCollisionDisableFlags;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
+
 };
 
 
@@ -1723,7 +1739,7 @@ public:
 protected:
 	friend TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
 	TPBDRigidParticle<T, d>(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
-		: TKinematicGeometryParticle<T, d>(DynamicParams)
+		: TKinematicGeometryParticle<T, d>(DynamicParams), MAwakeEvent(false)
 	{
 		Type = EParticleType::Rigid;
 		MIsland = INDEX_NONE;
@@ -1827,15 +1843,24 @@ public:
 	const TVector<T, d>& F() const { return MF; }
 	void SetF(const TVector<T, d>& InF)
 	{
-		this->MarkDirty(EParticleFlags::F);
-		this->MF = InF;
+		//question: should we do this check? only adding because we clear forces after removing from dirty list, but this marks dirty
+		if(InF != this->MF)
+		{
+			this->MarkDirty(EParticleFlags::F);
+			this->MF = InF;
+		}
+		
 	}
 
 	const TVector<T, d>& Torque() const { return MTorque; }
 	void SetTorque(const TVector<T, d>& InTorque)
 	{
-		this->MarkDirty(EParticleFlags::Torque);
-		this->MTorque = InTorque;
+		//question: should we do this check? only adding because we clear forces after removing from dirty list, but this marks dirty
+		if(InTorque != this->MTorque)
+		{
+			this->MarkDirty(EParticleFlags::Torque);
+			this->MTorque = InTorque;
+		}
 	}
 
 	const TVector<T, d>& LinearImpulse() const { return MLinearImpulse; }
@@ -1909,12 +1934,18 @@ public:
 	}
 
 	EObjectStateType ObjectState() const { return MObjectState; }
-	void SetObjectState(EObjectStateType InState)
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false)
 	{
-		//todo: look at physics thread logic
+		if (bAllowEvents && MObjectState != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
+		{
+			MAwakeEvent |= true;
+		}
 		MObjectState = InState;
 		this->MarkDirty(EParticleFlags::ObjectState);
 	}
+
+	void ClearEvents() { MAwakeEvent = false; }
+	bool HasAwakeEvent() { return MAwakeEvent; }
 
 	FParticleData* NewData() const
 	{
@@ -1944,6 +1975,7 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MAwakeEvent;
 };
 
 template <typename T, int d>
@@ -2025,13 +2057,6 @@ public:
 		, MGravityEnabled(InParticle.IsGravityEnabled())
 	{
 		Type = EParticleType::Rigid;
-
-		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
-		ShapeCollisionDisableFlags.Empty(Shapes.Num());
-		for(const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
-		{
-			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
-		}
 	}
 
 
@@ -2056,7 +2081,6 @@ public:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
-	TBitArray<> ShapeCollisionDisableFlags;
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
@@ -2082,7 +2106,6 @@ public:
 		MDisabled = false;
 		MToBeRemovedOnFracture = false;
 		MGravityEnabled = false;
-		ShapeCollisionDisableFlags.Reset();
 	}
 };
 
@@ -2132,6 +2155,15 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 	return nullptr;
 }
 
+template <typename T, int d>
+void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents)
+{
+	TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+	if (Dyn)
+	{
+		Dyn->SetObjectState(InState, bAllowEvents);
+	}
+}
 
 template <typename T, int d>
 EObjectStateType TGeometryParticle<T, d>::ObjectState() const

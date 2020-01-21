@@ -44,6 +44,9 @@ private:
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 
+	uint32 bSubImageBlend : 1;
+	FVector2D SubImageSize;
+
 	uint32 MaterialParamValidMask;
 
 	int32 MeshMinimumLOD = 0;

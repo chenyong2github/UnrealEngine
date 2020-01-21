@@ -34,7 +34,18 @@ public class UElibPNG : ModuleRules
 
 		string LibDir;
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		// On Windows x64, use the LLVM compiled version with changes made by us to improve performance
+		// due to better vectorization and FMV support that will take advantage of the different instruction
+		// sets depending on CPU supported features.
+		// Please, take care of bringing those changes over if you upgrade the library
+		if (Target.Platform == UnrealTargetPlatform.Win64 &&
+		    Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+		{
+			string LibFileName = string.Format("libpng15_static{0}.lib", Target.Configuration != UnrealTargetConfiguration.Debug ? "" : "d");
+			LibDir = Path.Combine(LibPNGPath, "Win64-llvm", Target.Configuration != UnrealTargetConfiguration.Debug ? "Release" : "Debug");
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibDir = Path.Combine(LibPNGPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 

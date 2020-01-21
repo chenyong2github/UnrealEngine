@@ -49,8 +49,8 @@ void SerializeMessageV10(FArchive& Archive, const TSharedRef<IMessageContext, ES
 	FStructSerializer::Serialize(MessageContext->GetMessage(), *MessageContext->GetMessageTypeInfo(), Backend);
 }
 
-/** Serialization Routine for message using Protocol version 11 or 12 */
-void SerializeMessageV11_12(FArchive& Archive, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& MessageContext, const EStructSerializerBackendFlags StructSerializerBackendFlags)
+/** Serialization Routine for message using Protocol version 11, 12 or 13. */
+void SerializeMessageV11_13(FArchive& Archive, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& MessageContext, const EStructSerializerBackendFlags StructSerializerBackendFlags)
 {
 	const FName& MessageType = MessageContext->GetMessageType();
 	Archive << const_cast<FName&>(MessageType);
@@ -118,12 +118,17 @@ void FUdpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const F
 
 			case 11:
 				ProtocolMaxSegmentSize = UDP_MESSAGING_SEGMENT_SIZE * (int64)UINT16_MAX;
-				UdpSerializeMessageTaskDetails::SerializeMessageV11_12(Archive, MessageContext, EStructSerializerBackendFlags::Legacy);
+				UdpSerializeMessageTaskDetails::SerializeMessageV11_13(Archive, MessageContext, EStructSerializerBackendFlags::Legacy);
 				break;
 
 			case 12:
 				ProtocolMaxSegmentSize = UDP_MESSAGING_SEGMENT_SIZE * (int64)INT32_MAX;
-				UdpSerializeMessageTaskDetails::SerializeMessageV11_12(Archive, MessageContext, EStructSerializerBackendFlags::Default);
+				UdpSerializeMessageTaskDetails::SerializeMessageV11_13(Archive, MessageContext, EStructSerializerBackendFlags::WriteTextAsComplexString);
+				break;
+
+			case 13:
+				ProtocolMaxSegmentSize = UDP_MESSAGING_SEGMENT_SIZE * (int64)INT32_MAX;
+				UdpSerializeMessageTaskDetails::SerializeMessageV11_13(Archive, MessageContext, EStructSerializerBackendFlags::Default);
 				break;
 
 			default:

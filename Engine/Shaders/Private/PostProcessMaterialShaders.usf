@@ -342,5 +342,9 @@ void MainPS(
 #endif
 #endif
 	OutColor = FullSceneColor;
+#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
+	// If MSAA is in use we reapply the on-chip pre-tonemap since the tonemapper will be expecting it.
+	OutColor.rgb = lerp(OutColor.rgb, OutColor.rgb* rcp(OutColor.r*0.299 + OutColor.g*0.587 + OutColor.b*0.114 + 1.0), ResolvedView.IsMobileMSAA);
+#endif
 }
 #endif //(FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)

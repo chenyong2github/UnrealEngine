@@ -39,7 +39,7 @@ public:
 
 protected:
 	// Creates client socket
-	FSocket* CreateSocket(const FString& InName, const int32 BuffSize = DisplayClusterConstants::net::SocketBufferSize);
+	FSocket* CreateSocket(const FString& InName);
 
 private:
 	// Client name

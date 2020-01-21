@@ -8,6 +8,7 @@
 #include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
+#include "Changes/MeshReplacementChange.h"
 
 #include "DynamicMesh3.h"
 
@@ -41,7 +42,7 @@ enum class EDynamicMeshTangentCalcType : uint8
  * Currently no functionality lives here, only some interface functions are defined that various subclasses implement.
  */
 UCLASS(hidecategories = (LOD, Physics, Collision), editinlinenew, ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget
+class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -71,5 +72,117 @@ public:
 	{
 		unimplemented();
 	}
+
+	/**
+	* Apply a full mesh replacement change to the internal mesh  (implements IMeshReplacementCommandChangeTarget)
+	*/
+	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override
+	{
+		unimplemented();
+	}
+
+
+protected:
+	/**
+	 * Subclass must implement this to notify allocated proxies of updated materials
+	 */
+	virtual void NotifyMaterialSetUpdated()
+	{
+		unimplemented();
+	}
+
+
+
+public:
+
+	/**
+	 * @return true if wireframe rendering pass is enabled (default false)
+	 */
+	virtual bool EnableWireframeRenderPass() const { return false; }
+
+
+	//
+	// Override rendering material support
+	//
+
+	/**
+	 * Set an active override render material. This should replace all materials during rendering.
+	 */
+	virtual void SetOverrideRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear any active override render material
+	 */
+	virtual void ClearOverrideRenderMaterial();
+	
+	/**
+	 * @return true if an override render material is currently enabled for the given MaterialIndex
+	 */
+	virtual bool HasOverrideRenderMaterial(int k) const
+	{
+		return OverrideRenderMaterial != nullptr;
+	}
+
+	/**
+	 * @return active override render material for the given MaterialIndex
+	 */
+	virtual UMaterialInterface* GetOverrideRenderMaterial(int MaterialIndex) const
+	{
+		return OverrideRenderMaterial;
+	}
+
+
+
+
+public:
+
+	//
+	// secondary buffer support
+	//
+
+	/**
+	 * Set an active override render material. This should replace all materials during rendering.
+	 */
+	virtual void SetSecondaryRenderMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Clear any active override render material
+	 */
+	virtual void ClearSecondaryRenderMaterial();
+
+	/**
+	 * @return true if an override render material is currently enabled for the given MaterialIndex
+	 */
+	virtual bool HasSecondaryRenderMaterial() const
+	{
+		return SecondaryRenderMaterial != nullptr;
+	}
+
+	/**
+	 * @return active override render material for the given MaterialIndex
+	 */
+	virtual UMaterialInterface* GetSecondaryRenderMaterial() const
+	{
+		return SecondaryRenderMaterial;
+	}
+
+
+
+protected:
+
+	TArray<UMaterialInterface*> BaseMaterials;
+
+	UMaterialInterface* OverrideRenderMaterial = nullptr;
+	UMaterialInterface* SecondaryRenderMaterial = nullptr;
+
+public:
+
+
+	//~ Begin UMeshComponent Interface.
+	virtual int32 GetNumMaterials() const override;
+	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	//~ End UMeshComponent Interface.
 
 };

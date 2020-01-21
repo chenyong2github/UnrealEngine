@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVoxelPageCommonStruct.ush" 
+
 #include "../Common.ush"
 
 //#define SceneTexturesStruct DeepShadowPass.SceneTextures
@@ -38,7 +40,7 @@ RWTexture2D<uint> PPLLNodeIndex;
 RWStructuredBuffer<FPPLLNodeData> PPLLNodes;
 #endif
 
-uint HairVisibilityPass_HairClusterIndex;
+uint HairVisibilityPass_HairMacroGroupIndex;
 uint HairVisibilityPass_HairMaterialId;
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL
@@ -114,7 +116,7 @@ void MainVisibility(
 	VisibilityData.Tangent = float3(0, 0, 1);
 	VisibilityData.PrimitiveId = 0;
   #endif
-	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+	VisibilityData.MacroGroupId = HairVisibilityPass_HairMacroGroupIndex;
 	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
 
 	half3 BaseColor = 0;
@@ -168,7 +170,7 @@ void MainVisibility(
 		// If we can append new node, add it and make it point to the node previously in head of list
 		uint NextNodeIndex;
 		InterlockedExchange(PPLLNodeIndex[PixelCoord], NodeIndex, NextNodeIndex);
-		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, VisibilityData, BaseColor, Roughness, Specular, Velocity, NextNodeIndex);
+		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, Coverage, VisibilityData, BaseColor, Roughness, Specular, Velocity, NextNodeIndex);
 		PPLLNodes[NodeIndex] = Node;
 	}
 #endif

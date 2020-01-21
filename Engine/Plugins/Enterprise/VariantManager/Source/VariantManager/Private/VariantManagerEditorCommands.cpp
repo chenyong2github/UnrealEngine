@@ -20,6 +20,8 @@ void FVariantManagerEditorCommands::RegisterCommands()
 	UI_COMMAND(ClearThumbnailVariantCommand, "Clear Thumbnail", "Resets the variant thumbnail to default", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddPropertyCaptures, "Add properties", "Capture new properties from the selected actors to this variant", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddFunction, "Add function caller", "Add a function caller to execute blueprint code or trigger events when this variant is switched on", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(RebindActorDisabled, "Rebind to other Actor", "Actors can only be rebound one at a time!", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(RebindToSelected, "Bind selected", "Rebind to the first selected actor", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RemoveActorBindings, "Remove", "Remove the actor binding from its variant", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ApplyProperty, "Apply recorded value", "Applies the recorded value of this property to the bound actor", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RecordProperty, "Record current value", "Updates the recorded value with the current value of this property in the bound actor", EUserInterfaceActionType::Button, FInputChord());

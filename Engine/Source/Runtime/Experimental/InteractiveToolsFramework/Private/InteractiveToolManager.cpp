@@ -80,11 +80,6 @@ bool UInteractiveToolManager::CanActivateTool(EToolSide Side, const FString& Ide
 {
 	check(Side == EToolSide::Left);   // TODO: support right-side tool
 
-	if (ActiveLeftTool != nullptr)
-	{
-		return false;
-	}
-
 	if (ToolBuilders.Contains(Identifier))
 	{
 		FToolBuilderState InputState;
@@ -104,7 +99,7 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 
 	if (ActiveLeftTool != nullptr) 
 	{
-		DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+		DeactivateTool(EToolSide::Left, EToolShutdownType::Accept);
 	}
 
 	if (ActiveLeftBuilder == nullptr) 
@@ -180,6 +175,11 @@ bool UInteractiveToolManager::HasAnyActiveTool() const
 UInteractiveTool* UInteractiveToolManager::GetActiveTool(EToolSide Side)
 {
 	return (Side == EToolSide::Left) ? ActiveLeftTool : ActiveRightTool;
+}
+
+UInteractiveToolBuilder* UInteractiveToolManager::GetActiveToolBuilder(EToolSide Side)
+{
+	return (Side == EToolSide::Left) ? ActiveLeftBuilder : ActiveRightBuilder;
 }
 
 

@@ -71,7 +71,7 @@ void UMediaProfile::Apply()
 		return;
 	}
 
-	// Make sure we have the same amount of souces and outputs as the number of proxies.
+	// Make sure we have the same amount of sources and outputs as the number of proxies.
 	FixNumSourcesAndOutputs();
 
 	{
@@ -100,35 +100,29 @@ void UMediaProfile::Apply()
 		}
 	}
 
+	ResetTimecodeProvider();
 	if (bOverrideTimecodeProvider)
 	{
-		if (TimecodeProvider)
+		bTimecodeProvideWasApplied = true;
+		AppliedTimecodeProvider = TimecodeProvider;
+		PreviousTimecodeProvider = GEngine->GetTimecodeProvider();
+		bool bResult = GEngine->SetTimecodeProvider(TimecodeProvider);
+		if (!bResult && TimecodeProvider)
 		{
-			bool bResult = GEngine->SetTimecodeProvider(TimecodeProvider);
-			if (!bResult)
-			{
-				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The TimecodeProvider '%s' could not be initialized."), *TimecodeProvider->GetName());
-			}
-		}
-		else
-		{
-			GEngine->SetTimecodeProvider(nullptr);
+			UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The Timecode Provider '%s' could not be initialized."), *TimecodeProvider->GetName());
 		}
 	}
 
+	ResetCustomTimeStep();
 	if (bOverrideCustomTimeStep)
 	{
-		if (CustomTimeStep)
+		bCustomTimeStepWasApplied = true;
+		AppliedCustomTimeStep = CustomTimeStep;
+		PreviousCustomTimeStep = GEngine->GetCustomTimeStep();
+		bool bResult = GEngine->SetCustomTimeStep(CustomTimeStep);
+		if (!bResult && CustomTimeStep)
 		{
-			bool bResult = GEngine->SetCustomTimeStep(CustomTimeStep);
-			if (!bResult)
-			{
-				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The Custom Time Step '%s' could not be initialized."), *CustomTimeStep->GetName());
-			}
-		}
-		else
-		{
-			GEngine->SetCustomTimeStep(nullptr);
+			UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The Custom Time Step '%s' could not be initialized."), *CustomTimeStep->GetName());
 		}
 	}
 }
@@ -166,28 +160,68 @@ void UMediaProfile::Reset()
 		}
 	}
 
-	{
-		// Reset the timecode provider
-		const UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
-		if (CurrentTimecodeProvider)
-		{
-			if (CurrentTimecodeProvider->GetOuter() == this)
-			{
-				GEngine->SetTimecodeProvider(nullptr);
-			}
-		}
-	}
+	// Reset the timecode provider
+	ResetTimecodeProvider();
 
+	// Reset the engine custom time step
+	ResetCustomTimeStep();
+}
+
+void UMediaProfile::ResetTimecodeProvider()
+{
+	if (bTimecodeProvideWasApplied)
 	{
-		// Reset the engine custom time step
-		const UEngineCustomTimeStep* CurrentCustomTimeStep = GEngine->GetCustomTimeStep();
-		if (CurrentCustomTimeStep)
+		if (AppliedTimecodeProvider == GEngine->GetTimecodeProvider())
 		{
-			if (CurrentCustomTimeStep->GetOuter() == this)
+			bool bResult = GEngine->SetTimecodeProvider(PreviousTimecodeProvider);
+			if (!bResult && PreviousTimecodeProvider)
 			{
-				GEngine->SetCustomTimeStep(GEngine->GetDefaultCustomTimeStep());
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The TimecodeProvider '%s' could not be initialized."), *PreviousTimecodeProvider->GetName());
 			}
 		}
+		else
+		{
+			if (PreviousTimecodeProvider)
+			{
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("Could not set the previous TimecodeProvider '%s'."), *PreviousTimecodeProvider->GetName());
+			}
+			else
+			{
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("Could not set the previous TimecodeProvider."));
+			}
+		}
+		PreviousTimecodeProvider = nullptr;
+		AppliedTimecodeProvider = nullptr;
+		bTimecodeProvideWasApplied = false;
+	}
+}
+
+void UMediaProfile::ResetCustomTimeStep()
+{
+	if (bCustomTimeStepWasApplied)
+	{
+		if (AppliedCustomTimeStep == GEngine->GetCustomTimeStep())
+		{
+			bool bResult = GEngine->SetCustomTimeStep(PreviousCustomTimeStep);
+			if (!bResult && PreviousCustomTimeStep)
+			{
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The Custom Time Step '%s' could not be initialized."), *PreviousCustomTimeStep->GetName());
+			}
+		}
+		else
+		{
+			if (PreviousCustomTimeStep)
+			{
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("Could not set the previous Custom Time Step '%s'."), *PreviousCustomTimeStep->GetName());
+			}
+			else
+			{
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("Could not set the previous Custom Time Step."));
+			}
+		}
+		PreviousCustomTimeStep = nullptr;
+		AppliedCustomTimeStep = nullptr;
+		bCustomTimeStepWasApplied = false;
 	}
 }
 

@@ -47,7 +47,7 @@ protected:
 private:
 	struct FDisplayClusterMessageHeader
 	{
-		uint16 Length;
+		uint32 Length;
 
 		FString ToString()
 		{

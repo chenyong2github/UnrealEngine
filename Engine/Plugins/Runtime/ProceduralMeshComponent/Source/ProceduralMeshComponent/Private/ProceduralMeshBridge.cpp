@@ -40,6 +40,6 @@ FProceduralMeshComponentTarget::GetMesh()
 void
 FProceduralMeshComponentTarget::CommitMesh( const FCommitter& ModifyFunc )
 {
-	ModifyFunc(MeshDescription.Get());
+	ModifyFunc({MeshDescription.Get()});
 	MeshDescriptionToProcMesh( *MeshDescription, Cast<UProceduralMeshComponent>(Component) );
 }

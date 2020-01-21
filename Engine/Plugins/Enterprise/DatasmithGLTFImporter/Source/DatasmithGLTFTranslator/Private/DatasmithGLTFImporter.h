@@ -10,7 +10,6 @@
 #include "MeshDescription.h"
 
 #include "GLTFLogger.h"
-#include "GLTFMaterialFactory.h"
 
 class UStaticMesh;
 struct FDatasmithImportContext;
@@ -28,7 +27,7 @@ namespace GLTF
 {
 	class FFileReader;
 	struct FAsset;
-	class FStaticMeshFactory;
+	class FMeshFactory;
 	class FMaterialFactory;
 }
 
@@ -93,7 +92,7 @@ private:
 	mutable TArray<GLTF::FLogMessage>           LogMessages;
 	TUniquePtr<GLTF::FFileReader>               GLTFReader;
 	TUniquePtr<GLTF::FAsset>                    GLTFAsset;
-	TUniquePtr<GLTF::FStaticMeshFactory>        StaticMeshFactory;
+	TUniquePtr<GLTF::FMeshFactory>				MeshFactory;
 	TUniquePtr<GLTF::FMaterialFactory>          MaterialFactory;
 	TUniquePtr<FDatasmithGLTFAnimationImporter> AnimationImporter;
 

@@ -1288,8 +1288,16 @@ void SLevelViewportToolBar::CreateViewMenuExtensions(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddSubMenu(LOCTEXT("VisualizeBufferViewModeDisplayName", "Buffer Visualization"),
 		LOCTEXT("BufferVisualizationMenu_ToolTip", "Select a mode for buffer visualization"),
 		FNewMenuDelegate::CreateStatic(&FBufferVisualizationMenuCommands::BuildVisualisationSubMenu),
-		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode"));
+		FUIAction(FExecuteAction(), FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+				const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+				check(ViewportClient.IsValid());
+				return ViewportClient->IsViewModeEnabled(VMI_VisualizeBuffer);
+			})),
+		/* InExtensionHook = */ NAME_None, EUserInterfaceActionType::RadioButton,
+		/* bInOpenSubMenuOnClick = */ false, FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode"));
 
 	MenuBuilder.BeginSection("LevelViewportLandscape", LOCTEXT("LandscapeHeader", "Landscape") );
 	{

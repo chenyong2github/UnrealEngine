@@ -37,6 +37,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
 
+#include "UObject/MetaData.h"
 
 bool GBuildStaticMeshCollision = 1;
 
@@ -274,7 +275,7 @@ private:
 	}
 };
 
-void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
+bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
 {
 	// We keep no ref to this Model, so it will be GC'd at some point after the import.
 	auto TempModel = NewObject<UModel>();
@@ -294,6 +295,7 @@ void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 	ConnectivityBuilder.CreateConnectivityGroups();
 
 	// For each valid group build BSP and extract convex hulls
+	bool bSuccess = true;
 	for ( int32 i=0; i<ConnectivityBuilder.Groups.Num(); i++ )
 	{
 		const FMeshConnectivityGroup &Group = ConnectivityBuilder.Groups[ i ];
@@ -331,8 +333,11 @@ void DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 
 		// Convert collision model into a collection of convex hulls.
 		// Generated convex hulls will be added to existing ones
-		BodySetup->CreateFromModel( TempModel, false );
+		bSuccess = BodySetup->CreateFromModel( TempModel, false ) && bSuccess;
 	}
+
+	// Could all meshes be properly decomposed?
+	return bSuccess;
 }
 
 /** 
@@ -1010,6 +1015,9 @@ struct ExistingStaticMeshData
 	FVector						ExistingNegativeBoundsExtension;
 
 	UStaticMesh::FOnMeshChanged	ExistingOnMeshChanged;
+	UStaticMesh* ExistingComplexCollisionMesh = nullptr;
+
+	TMap<FName, FString>* ExistingUMetaDataTagValues;
 };
 
 bool IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
@@ -1039,6 +1047,9 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 	{
 		bool bSaveMaterials = !ImportOptions->bImportMaterials;
 		ExistingMeshDataPtr = new ExistingStaticMeshData();
+
+		//Save the package UMetaData
+		ExistingMeshDataPtr->ExistingUMetaDataTagValues = UMetaData::GetMapForObject(ExistingMesh);
 
 		ExistingMeshDataPtr->ImportVersion = ExistingMesh->ImportVersion;
 		ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = IsUsingMaterialSlotNameWorkflow(ExistingMesh->AssetImportData);
@@ -1192,6 +1203,8 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 			}
 		}
 		ExistingMeshDataPtr->ExistingOnMeshChanged = ExistingMesh->OnMeshChanged;
+
+		ExistingMeshDataPtr->ExistingComplexCollisionMesh = ExistingMesh->ComplexCollisionMesh;
 	}
 
 	return ExistingMeshDataPtr;
@@ -1406,6 +1419,14 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 	{
 		delete ExistingMeshDataPtr;
 		return;
+	}
+
+	//Restore the package metadata
+	if (ExistingMeshDataPtr->ExistingUMetaDataTagValues)
+	{
+		UMetaData* PackageMetaData = NewMesh->GetOutermost()->GetMetaData();
+		checkSlow(PackageMetaData);
+		PackageMetaData->SetObjectValues(NewMesh, *ExistingMeshDataPtr->ExistingUMetaDataTagValues);
 	}
 
 	//Create a remap material Index use to find the matching section later
@@ -1680,6 +1701,8 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 	NewMesh->bAllowCPUAccess = ExistingMeshDataPtr->ExistingAllowCpuAccess;
 	NewMesh->PositiveBoundsExtension = ExistingMeshDataPtr->ExistingPositiveBoundsExtension;
 	NewMesh->NegativeBoundsExtension = ExistingMeshDataPtr->ExistingNegativeBoundsExtension;
+
+	NewMesh->ComplexCollisionMesh = ExistingMeshDataPtr->ExistingComplexCollisionMesh;
 
 	delete ExistingMeshDataPtr;
 }

@@ -59,8 +59,14 @@ bool FDisplayClusterSocketOps::SendMsg(const TSharedPtr<FDisplayClusterMessage>&
 	// Initialize the message header
 	FDisplayClusterMessageHeader MessageHeader;
 	const int32 MessageLength = DataBuffer.Num();
-	MessageHeader.Length = static_cast<uint16>(MessageLength & 0xFFFF) - sizeof(FDisplayClusterMessageHeader);
+	MessageHeader.Length = static_cast<uint32>(MessageLength & 0xFFFFFFFF) - sizeof(FDisplayClusterMessageHeader);
 	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("Outgoing message body length %d"), MessageHeader.Length);
+
+	if (MessageHeader.Length > INT32_MAX)
+	{
+		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Message length %u exceeds maximum limit"), MessageHeader.Length);
+		return false;
+	}
 
 	// Fill packet header with message data length
 	FMemory::Memcpy(DataBuffer.GetData(), &MessageHeader, sizeof(FDisplayClusterMessageHeader));
@@ -146,8 +152,14 @@ bool FDisplayClusterSocketOps::SendJson(const TSharedPtr<FJsonObject>& Message)
 
 	// Initialize message header
 	FDisplayClusterMessageHeader MessageHeader;
-	MessageHeader.Length = static_cast<uint16>(MessageLength & 0xFFFF);
+	MessageHeader.Length = static_cast<uint32>(MessageLength & 0xFFFFFFFF);
 	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("Outgoing json body length %d"), MessageHeader.Length);
+
+	if (MessageHeader.Length > INT32_MAX)
+	{
+		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Message length %u exceeds maximum limit"), MessageHeader.Length);
+		return false;
+	}
 
 	// Fill packet header with message data length
 	FMemory::Memcpy(DataBuffer.GetData(), &MessageHeader, sizeof(FDisplayClusterMessageHeader));

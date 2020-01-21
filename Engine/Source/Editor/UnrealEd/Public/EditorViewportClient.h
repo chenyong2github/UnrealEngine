@@ -1143,6 +1143,11 @@ public:
 	bool IsBufferVisualizationModeSelected( FName InName ) const;
 
 	/**
+	 * It returns the FText display name associate with CurrentBufferVisualizationMode
+	 */
+	FText GetCurrentBufferVisualizationModeDisplayName() const;
+
+	/**
 	 * Changes the ray tracing debug visualization mode for this viewport
 	 *
 	 * @param InName	The ID of the required ray tracing debug visualization mode
@@ -1635,6 +1640,26 @@ protected:
 	FVector DefaultOrbitLocation;
 	FVector DefaultOrbitZoom;
 	FVector DefaultOrbitLookAt;
+
+public:
+	/**
+	 * Enable customization of the EngineShowFlags for rendering. After calling this function,
+	 * the provided OverrideFunc will be passed a copy of .EngineShowFlags in ::Draw() just before rendering setup.
+	 * Changes made to the ShowFlags will be used for that frame but .EngineShowFlags will not be modified.
+	 * @param OverrideFunc custom override function that will be called every frame until override is disabled.
+	 */
+	void EnableOverrideEngineShowFlags(TUniqueFunction<void(FEngineShowFlags&)> OverrideFunc);
+
+	/** Disable EngineShowFlags override if enabled */
+	void DisableOverrideEngineShowFlags();
+
+	/** @return true if Override EngineShowFlags are currently enabled */
+	bool IsEngineShowFlagsOverrideEnabled() const { return !! OverrideShowFlagsFunc; }
+
+protected:
+	
+	/** Custom override function that will be called every ::Draw() until override is disabled */
+	TUniqueFunction<void(FEngineShowFlags&)> OverrideShowFlagsFunc;
 
 protected:
 	// Used for the display of the current preview light after it has been adjusted

@@ -7,6 +7,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
+#include "ObjectEditorUtils.h"
 #include "NiagaraCommon.h"
 #include "NiagaraEditorCommon.h"
 #include "INiagaraCompiler.h"
@@ -810,7 +811,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 					FText MenuCat;
 					if (const UClass* Class = Type.GetClass())
 					{						
-						MenuCat = Class->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), Class->GetFullGroupName(false));
+						MenuCat = FObjectEditorUtils::GetCategoryText(Class);
 					}
 					else
 					{

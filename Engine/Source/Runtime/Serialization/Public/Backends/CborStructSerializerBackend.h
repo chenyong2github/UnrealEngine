@@ -8,7 +8,6 @@
 
 /**
  * Implements a writer for UStruct serialization using Cbor.
-
  */
 class SERIALIZATION_API FCborStructSerializerBackend
 	: public IStructSerializerBackend
@@ -32,8 +31,8 @@ public:
 	 */
 	FCborStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags);
 
-
 	virtual ~FCborStructSerializerBackend();
+
 public:
 
 	// IStructSerializerBackend interface
@@ -50,4 +49,10 @@ private:
 
 	/** Flags controlling the serialization behavior. */
 	EStructSerializerBackendFlags Flags;
+
+	/** Stores the accumulated bytes extracted from UByteProperty/UIntProperty when writing a TArray<uint8>/TArray<int8>. */
+	TArray<uint8> AccumulatedBytes;
+
+	/** Whether the serializer is encoding array of uint8/int8 */
+	bool bSerializingByteArray = false;
 };

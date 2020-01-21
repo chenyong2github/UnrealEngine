@@ -198,6 +198,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
 	uint32 bEnableColorizedEditorTabs : 1;
 
+	/** If enabled, the modes tab will revert to the previous mode UI */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = UserInterface, meta=(ConfigRestartRequired = true))
+	uint32 bEnableLegacyEditorModeUI : 1;
+
 public:
 
 	/**

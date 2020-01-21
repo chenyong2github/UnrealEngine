@@ -65,7 +65,7 @@ class IDynamicMeshOperatorFactory
 public:
 	virtual ~IDynamicMeshOperatorFactory() {}
 
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() = 0;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() = 0;
 };
 
 

@@ -95,7 +95,9 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 
 		// Save the manifest and archives for debug purposes, but don't add them to the build
 		// We don't care if this fails as it's only for debugging
-		ChunkLocTextHelper.SaveAll();
+		
+		// Commenting out per Jamie.Dale for FORT-245482
+		// ChunkLocTextHelper.SaveAll();
 
 		// Produce the LocMeta file for the chunk target
 		{

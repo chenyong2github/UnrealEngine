@@ -1135,6 +1135,8 @@ private:
 		// Generic exception description is stored in GErrorExceptionDescription
 		else if (ExceptionInfo->ExceptionRecord->ExceptionCode != 1)
 		{
+			// When a generic exception is thrown, it is important to get all the stack frames
+			NumStackFramesToIgnore = 0;
 			CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
 			ErrorMessage = GErrorExceptionDescription;
 		}

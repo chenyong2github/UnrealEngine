@@ -172,19 +172,31 @@ void UDefaultControlRigManipulationLayer::GetGizmoCreationParams(TArray<FGizmoAc
 	OutCreationParams.Reset();
 
 	// for now we only support FTransform
-	for (IControlRigManipulatable* ManipObject : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> ManipObject : ManipulatableObjects)
 	{
-		const TArray<FRigControl>& Controls = ManipObject->AvailableControls();
-		UControlRigGizmoLibrary* GizmoLibrary = ManipObject->GetGizmoLibrary();
+		if (!ManipObject.IsValid())
+		{
+			continue;
+		}
+
+		IControlRigManipulatable* Manipulatable = Cast<IControlRigManipulatable>(ManipObject.Get());
+		if (Manipulatable == nullptr)
+		{
+			checkNoEntry();
+			continue;
+		}
+
+		const TArray<FRigControl>& Controls = Manipulatable->AvailableControls();
+		UControlRigGizmoLibrary* GizmoLibrary = Manipulatable->GetGizmoLibrary();
 
 		for (const FRigControl& Control : Controls)
 		{
 			if (IsSupportedControlType(Control.ControlType))
 			{
 				FGizmoActorCreationParam Param;
-				Param.ManipObj = ManipObject;
+				Param.ManipObj = Manipulatable;
 				Param.ControlName = Control.Name;
-				Param.SpawnTransform = ManipObject->GetControlGlobalTransform(Control.Name);
+				Param.SpawnTransform = Manipulatable->GetControlGlobalTransform(Control.Name);
 				Param.GizmoTransform = Control.GizmoTransform;
 
 				if (GizmoLibrary)
@@ -372,10 +384,9 @@ void UDefaultControlRigManipulationLayer::OnControlModified(IControlRigManipulat
 
 TSharedPtr<IControlRigObjectBinding> UDefaultControlRigManipulationLayer::GetObjectBinding() const
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		if (ControlRig)
+		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
 		{
 			return ControlRig->GetObjectBinding();
 		}
@@ -386,10 +397,9 @@ TSharedPtr<IControlRigObjectBinding> UDefaultControlRigManipulationLayer::GetObj
 
 void UDefaultControlRigManipulationLayer::SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		if (ControlRig)
+		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
 		{
 			ControlRig->SetObjectBinding(InObjectBinding);
 		}
@@ -415,11 +425,13 @@ FTransform	UDefaultControlRigManipulationLayer::GetSkeletalMeshComponentTransfor
 
 void UDefaultControlRigManipulationLayer::BeginTransaction()
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		ControlRig->SetFlags(RF_Transactional);
-		ControlRig->Modify();
+		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
+		{
+			ControlRig->SetFlags(RF_Transactional);
+			ControlRig->Modify();
+		}
 	}
 }
 

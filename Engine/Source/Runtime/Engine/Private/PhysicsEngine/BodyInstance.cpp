@@ -1350,7 +1350,10 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 {
 	SCOPE_CYCLE_COUNTER(STAT_TermBody);
 
-	FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
+	if (IsValidBodyInstance())
+	{
+		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
+	}
 
 	// @TODO UE4: Release spring body here
 
@@ -1805,9 +1808,9 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				case ImplicitObjectType::Convex:
 				{
 
-					if (!CHAOS_ENSURE(IsScaled(ImplicitType)))
+					if (!CHAOS_ENSURE(IsScaled(ImplicitType) || IsInstanced(ImplicitType)))
 					{
-						// Currently assuming all Convex are scaled implicits.
+						// Currently assuming all convexes are scaled or instanced (if scale == 1).
 						break;
 					}
 
@@ -1815,7 +1818,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					const TImplicitObjectScaled<FConvex>* ConvexGeometry = static_cast<const TImplicitObjectScaled<FConvex>*>(&ImplicitObject);
 
 					FKConvexElem* ConvexElem = ShapeElem->GetShapeCheck<FKConvexElem>();
-					const TUniquePtr<FConvex>& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
+					const auto& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
 
 					// Ensure no rotation/translation in relative transform. PhysX supports this, we currently do not.
 					CHAOS_ENSURE(RelativeTM.GetRotation() == FQuat::Identity);
@@ -1831,9 +1834,9 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				}
 				case ImplicitObjectType::TriangleMesh:
 				{
-					if (!CHAOS_ENSURE(IsScaled(ImplicitType)))
+					if(!CHAOS_ENSURE(IsScaled(ImplicitType) || IsInstanced(ImplicitType)))
 					{
-						// Currently assuming all TriangleMesh are scaled implicits.
+						// Currently assuming all triangle meshes are scaled or instanced (if scale == 1).
 						break;
 					}
 

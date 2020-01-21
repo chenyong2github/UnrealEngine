@@ -1327,14 +1327,17 @@ public:
 
 	struct FShaderRecordCacheKey
 	{
-		static constexpr uint32 MaxUniformBuffers = 4;
+		static constexpr uint32 MaxUniformBuffers = 6;
 		FRHIUniformBuffer* const* UniformBuffers[MaxUniformBuffers];
 		uint64 Hash;
 		uint32 NumUniformBuffers;
+		uint32 ShaderIndex;
 
 		FShaderRecordCacheKey() = default;
-		FShaderRecordCacheKey(uint32 InNumUniformBuffers, FRHIUniformBuffer* const* InUniformBuffers)
+		FShaderRecordCacheKey(uint32 InNumUniformBuffers, FRHIUniformBuffer* const* InUniformBuffers, uint32 InShaderIndex)
 		{
+			ShaderIndex = InShaderIndex;
+
 			check(InNumUniformBuffers <= MaxUniformBuffers);
 			NumUniformBuffers = FMath::Min(MaxUniformBuffers, InNumUniformBuffers);
 
@@ -1346,6 +1349,7 @@ public:
 		bool operator == (const FShaderRecordCacheKey& Other) const
 		{
 			if (Hash != Other.Hash) return false;
+			if (ShaderIndex != Other.ShaderIndex) return false;
 			if (NumUniformBuffers != Other.NumUniformBuffers) return false;
 
 			for (uint32 BufferIndex = 0; BufferIndex < NumUniformBuffers; ++BufferIndex)
@@ -1388,6 +1392,35 @@ public:
 			Resource->UpdateResidency(CommandContext.CommandListHandle);
 		}
 		Buffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+	}
+
+	// Some resources referenced in SBT may be dynamic (written on GPU timeline) and may require transition barriers.
+	// We save such resources while we fill the SBT and issue transitions before the SBT is used.
+
+	TSet<FD3D12ShaderResourceView*> TransitionSRVs;
+	TSet<FD3D12UnorderedAccessView*> TransitionUAVs;
+
+	void AddResourceTransition(FD3D12ShaderResourceView* SRV)
+	{
+		TransitionSRVs.Add(SRV);
+	}
+
+	void AddResourceTransition(FD3D12UnorderedAccessView* UAV)
+	{
+		TransitionUAVs.Add(UAV);
+	}
+
+	void TransitionResources(FD3D12CommandContext& CommandContext)
+	{
+		for (FD3D12ShaderResourceView* SRV : TransitionSRVs)
+		{
+			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, SRV, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		}
+
+		for (FD3D12UnorderedAccessView* UAV : TransitionUAVs)
+		{
+			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, UAV, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
 	}
 };
 
@@ -2706,6 +2739,16 @@ struct FD3D12RayTracingGlobalResourceBinder
 		D3D12Resource->UpdateResidency(CommandContext.CommandListHandle);
 	}
 
+	void AddResourceTransition(FD3D12ShaderResourceView* SRV)
+	{
+		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, SRV, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	}
+
+	void AddResourceTransition(FD3D12UnorderedAccessView* UAV)
+	{
+		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, UAV, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
+
 	FD3D12CommandContext& CommandContext;
 };
 
@@ -2764,6 +2807,22 @@ struct FD3D12RayTracingLocalResourceBinder
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* RHIResource)
 	{
 		ShaderTable->AddResourceReference(D3D12Resource, RHIResource);
+	}
+
+	void AddResourceTransition(FD3D12ShaderResourceView* SRV)
+	{
+		if (SRV->GetResource()->RequiresResourceStateTracking())
+		{
+			ShaderTable->AddResourceTransition(SRV);
+		}
+	}
+
+	void AddResourceTransition(FD3D12UnorderedAccessView* UAV)
+	{
+		if (UAV->GetResource()->RequiresResourceStateTracking())
+		{
+			ShaderTable->AddResourceTransition(UAV);
+		}
 	}
 
 	FD3D12Device* Device = nullptr;
@@ -2865,6 +2924,7 @@ static void SetRayTracingShaderResources(
 			BoundUAVMask |= 1ull << UAVIndex;
 
 			ReferencedResources.Add({ UAV->GetResource(), Resource });
+			Binder.AddResourceTransition(UAV);
 		}
 	}
 
@@ -2907,6 +2967,7 @@ static void SetRayTracingShaderResources(
 					BoundSRVMask |= 1ull << BindIndex;
 
 					ReferencedResources.Add({ SRV->GetResource(), SRV });
+					Binder.AddResourceTransition(SRV);
 
 					ResourceInfo = *ResourceInfos++;
 				} while (FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
@@ -2934,6 +2995,7 @@ static void SetRayTracingShaderResources(
 					BoundSRVMask |= 1ull << BindIndex;
 
 					ReferencedResources.Add({ SRV->GetResource(), SRV });
+					Binder.AddResourceTransition(SRV);
 
 					ResourceInfo = *ResourceInfos++;
 				} while (FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
@@ -3130,6 +3192,11 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		SetRayTracingShaderResources(CommandContext, RayGenShader, GlobalBindings, TransientDescriptorCache, ResourceBinder);
 	}
 
+	if (OptShaderTable)
+	{
+		OptShaderTable->TransitionResources(CommandContext);
+	}
+
 	CommandContext.CommandListHandle.FlushResourceBarriers();
 
 	ID3D12StateObject* RayTracingStateObject = Pipeline->StateObject.GetReference();
@@ -3279,13 +3346,13 @@ static void SetRayTracingHitGroup(
 
 	const bool bCanUseRecordCache = GRayTracingCacheShaderRecords
 		&& Scene->Lifetime == RTSL_SingleFrame
-		&& LooseParameterDataSize == 0
-		&& NumUniformBuffers > 0
+		&& LooseParameterDataSize == 0 // loose parameters end up in unique constant buffers, so SBT records can't be shared
+		&& NumUniformBuffers > 0 // there is no benefit from cache if no resources are being bound
 		&& NumUniformBuffers <= CacheKey.MaxUniformBuffers;
 
 	if (bCanUseRecordCache)
 	{
-		CacheKey = FD3D12RayTracingShaderTable::FShaderRecordCacheKey(NumUniformBuffers, UniformBuffers);
+		CacheKey = FD3D12RayTracingShaderTable::FShaderRecordCacheKey(NumUniformBuffers, UniformBuffers, HitGroupIndex);
 
 		uint32* ExistingRecordIndex = ShaderTable->ShaderRecordCache.Find(CacheKey);
 		if (ExistingRecordIndex)

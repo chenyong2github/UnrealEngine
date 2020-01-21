@@ -23,14 +23,19 @@ enum class EStructSerializerBackendFlags
 	WriteTextAsComplexString = 1<<0,
 
 	/**
+	 * Write TArray<uint8>/TArray<int> as byte string if possible (CBOR), starting at 4.25.
+	 */
+	WriteByteArrayAsByteStream = 1<<1,
+
+	/**
 	 * Legacy settings for backwards compatibility with code compiled prior to 4.22.
 	 */
 	Legacy = None,
 
 	/**
-	 * Default settings for code compiled for 4.22 onwards.
+	 * Default settings for code compiled for 4.25 onwards.
 	 */
-	Default = WriteTextAsComplexString,
+	Default = WriteTextAsComplexString | WriteByteArrayAsByteStream,
 };
 ENUM_CLASS_FLAGS(EStructSerializerBackendFlags);
 

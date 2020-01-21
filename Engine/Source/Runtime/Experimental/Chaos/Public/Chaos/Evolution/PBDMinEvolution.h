@@ -83,6 +83,8 @@ namespace Chaos
 		void Integrate(FReal Dt);
 		void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
 		void DetectCollisions(FReal Dt);
+		void PrepareConstraints(FReal Dt);
+		void UnprepareConstraints(FReal Dt);
 		void ApplyConstraints(FReal Dt);
 		void UpdateVelocities(FReal Dt);
 		void ApplyPushOutConstraints(FReal Dt);
