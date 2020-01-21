@@ -23,14 +23,14 @@ bool FAsioIoable::SetSink(FAsioIoSink* Ptr, uint32 Id)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioIoable::OnIoComplete(const asio::error_code& ErrorCode, int32 Size)
 {
-	if (ErrorCode)
-	{
-		Size = -1;
-	}
-
 	if (SinkPtr == nullptr)
 	{
 		return;
+	}
+
+	if (ErrorCode)
+	{
+		Size = -1;
 	}
 
 	FAsioIoSink* Ptr = SinkPtr;
