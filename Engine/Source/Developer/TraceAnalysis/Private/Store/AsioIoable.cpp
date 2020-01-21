@@ -30,7 +30,7 @@ void FAsioIoable::OnIoComplete(const asio::error_code& ErrorCode, int32 Size)
 
 	if (ErrorCode)
 	{
-		Size = -1;
+		Size = 0 - ErrorCode.value();
 	}
 
 	FAsioIoSink* Ptr = SinkPtr;
