@@ -76,11 +76,10 @@ enum class EUsdUpAxis
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EUsdPurpose : int32
 {
-	None = 0 UMETA(Hidden),
-	Default = 1,
-	Proxy = 2,
-	Render = 4,
-	Guide = 8
+	Default = 0 UMETA(Hidden),
+	Proxy = 1,
+	Render = 2,
+	Guide = 4
 };
 ENUM_CLASS_FLAGS(EUsdPurpose);
 

@@ -43,13 +43,13 @@ void UUSDPrimResolver::FindMeshAssetsToImport(FUsdImportContext& ImportContext, 
 	bool bHasUnrealAssetPath = IUsdPrim::GetUnrealAssetPath( StartPrim.Get() ).size() > 0;
 	bool bHasUnrealActorClass = IUsdPrim::GetUnrealActorClass( StartPrim.Get() ).size() > 0;
 
-	EUsdPurpose EnabledPurposes = EUsdPurpose::Default | EUsdPurpose::Render;
+	EUsdPurpose EnabledPurposes = EUsdPurpose::Render;
 	if (UUSDSceneImportOptions* SceneImportOptions = Cast<UUSDSceneImportOptions>(ImportContext.ImportOptions))
 	{
 		EnabledPurposes = (EUsdPurpose)SceneImportOptions->PurposesToImport;
 	}
 
-	if (EnumHasAnyFlags(EnabledPurposes, IUsdPrim::GetPurpose(StartPrim.Get())) &&
+	if (EnumHasAllFlags(EnabledPurposes, IUsdPrim::GetPurpose(StartPrim.Get())) &&
 		IUsdPrim::HasGeometryDataOrLODVariants(StartPrim.Get()))
 	{
 		FUsdAssetPrimToImport NewTopLevelPrim;
@@ -402,7 +402,7 @@ void UUSDPrimResolver::FindMeshChildren(FUsdImportContext& ImportContext, const 
 	{
 		EnabledPurposes = (EUsdPurpose)SceneImportOptions->PurposesToImport;
 	}
-	bool bValidPurpose = EnumHasAnyFlags(EnabledPurposes, IUsdPrim::GetPurpose(ParentPrim.Get()));
+	bool bValidPurpose = EnumHasAllFlags(EnabledPurposes, IUsdPrim::GetPurpose(ParentPrim.Get()));
 
 	if(bOnlyLODRoots && IUsdPrim::GetNumLODs( ParentPrim.Get() ) > 0 && bValidPurpose)
 	{

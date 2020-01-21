@@ -65,11 +65,6 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	if ( UsdStageActor.IsValid() )
 	{
 		UsdStage = UsdStageActor->GetUsdStage();
-
-		if ( !UsdStage.Get() )
-		{
-			UsdStageActor.Reset();
-		}
 	}
 
 	ChildSlot
@@ -95,7 +90,6 @@ void SUsdStage::Construct( const FArguments& InArgs )
 				.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 				[
 					SAssignNew( UsdStageInfoWidget, SUsdStageInfo, UsdStageActor.Get() )
-					.OnInitialLoadSetChanged( this, &SUsdStage::OnInitialLoadSetChanged )
 				]
 			]
 
@@ -243,6 +237,12 @@ TSharedRef< SWidget > SUsdStage::MakeMainMenu()
 			LOCTEXT( "ActionsMenu", "Actions" ),
 			LOCTEXT( "ActionsMenu_ToolTip", "Opens the actions menu" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillActionsMenu ) );
+
+		// Options
+		MenuBuilder.AddPullDownMenu(
+			LOCTEXT( "OptionsMenu", "Options" ),
+			LOCTEXT( "OptionsMenu_ToolTip", "Opens the options menu" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillOptionsMenu ) );
 	}
 
 	// Create the menu bar
@@ -323,6 +323,209 @@ void SUsdStage::FillActionsMenu( FMenuBuilder& MenuBuilder )
 		);
 	}
 	MenuBuilder.EndSection();
+}
+
+void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection( "Options", LOCTEXT("Options", "Options") );
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("Payloads", "Payloads"),
+			LOCTEXT("Payloads_ToolTip", "What to do with payloads when initially opening the stage"),
+			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPayloadsSubMenu));
+
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("PurposesToLoad", "Purposes to load"),
+			LOCTEXT("PurposesToLoad_ToolTip", "Only load prims with these specific purposes from the USD stage"),
+			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposesToLoadSubMenu),
+			false,
+			FSlateIcon(),
+			false);
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("PurposeVisibility", "Purpose visibility"),
+			LOCTEXT("PurposeVisibility_ToolTip", "Quickly toggle which of the loaded purposes are visible on the stage"),
+			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposeVisibilitySubMenu),
+			false,
+			FSlateIcon(),
+			false);
+	}
+	MenuBuilder.EndSection();
+}
+
+void SUsdStage::FillPayloadsSubMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("LoadAll", "Load all"),
+		LOCTEXT("LoadAll_ToolTip", "Loads all payloads initially"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = UsdStageActor.Get())
+				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("SetLoadAllTransaction", "Set USD stage actor '{0}' actor to load all payloads initially"),
+						FText::FromString(StageActor->GetActorLabel())
+					));
+
+					StageActor->Modify();
+					StageActor->InitialLoadSet = EUsdInitialLoadSet::LoadAll;
+				}
+			}),
+			FCanExecuteAction::CreateLambda([this]()
+			{
+				return UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = UsdStageActor.Get())
+				{
+					return StageActor->InitialLoadSet == EUsdInitialLoadSet::LoadAll;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("LoadNone", "Load none"),
+		LOCTEXT("LoadNone_ToolTip", "Don't load any payload initially"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = UsdStageActor.Get())
+				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("SetLoadNoneTransaction", "Set USD stage actor '{0}' actor to load no payloads initially"),
+						FText::FromString(StageActor->GetActorLabel())
+					));
+
+					StageActor->Modify();
+					StageActor->InitialLoadSet = EUsdInitialLoadSet::LoadNone;
+				}
+			}),
+			FCanExecuteAction::CreateLambda([this]()
+			{
+				return UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = UsdStageActor.Get())
+				{
+					return StageActor->InitialLoadSet == EUsdInitialLoadSet::LoadNone;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+}
+
+void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
+{
+	auto AddPurposeEntry = [&](const EUsdPurpose& Purpose, const FText& Text)
+	{
+		MenuBuilder.AddMenuEntry(
+			Text,
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this, Purpose]()
+				{
+					if(AUsdStageActor* StageActor = UsdStageActor.Get())
+					{
+						FScopedTransaction Transaction(FText::Format(
+							LOCTEXT("PurposesToLoadTransaction", "Change purposes to load for USD stage actor '{0}'"),
+							FText::FromString(StageActor->GetActorLabel())
+						));
+
+						StageActor->Modify();
+						StageActor->PurposesToLoad = (int32)((EUsdPurpose)StageActor->PurposesToLoad ^ Purpose);
+
+						FPropertyChangedEvent PropertyChangedEvent(
+							FindFieldChecked< FProperty >( StageActor->GetClass(), GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
+						);
+						StageActor->PostEditChangeProperty(PropertyChangedEvent);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([this]()
+				{
+					return UsdStageActor.Get() != nullptr;
+				}),
+				FIsActionChecked::CreateLambda([this, Purpose]()
+				{
+					if(AUsdStageActor* StageActor = UsdStageActor.Get())
+					{
+						return EnumHasAllFlags((EUsdPurpose)StageActor->PurposesToLoad, Purpose);
+					}
+					return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+	};
+
+	AddPurposeEntry(EUsdPurpose::Proxy,  LOCTEXT("ProxyPurpose",  "Proxy"));
+	AddPurposeEntry(EUsdPurpose::Render, LOCTEXT("RenderPurpose", "Render"));
+	AddPurposeEntry(EUsdPurpose::Guide,  LOCTEXT("GuidePurpose",  "Guide"));
+}
+
+void SUsdStage::FillPurposeVisibilitySubMenu(FMenuBuilder& MenuBuilder)
+{
+	auto AddPurposeEntry = [&](const EUsdPurpose& Purpose, const FText& Text)
+	{
+		MenuBuilder.AddMenuEntry(
+			Text,
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this, Purpose]()
+				{
+					if(AUsdStageActor* StageActor = UsdStageActor.Get())
+					{
+						FScopedTransaction Transaction(FText::Format(
+							LOCTEXT("PurposeVisibilityTransaction", "Change purpose visibility for USD stage actor '{0}'"),
+							FText::FromString(StageActor->GetActorLabel())
+						));
+
+						StageActor->Modify();
+						StageActor->PurposeVisibility = (int32)((EUsdPurpose)StageActor->PurposeVisibility ^ Purpose);
+
+						FPropertyChangedEvent PropertyChangedEvent(
+							FindFieldChecked< FProperty >( StageActor->GetClass(), GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposeVisibility ) )
+						);
+						StageActor->PostEditChangeProperty(PropertyChangedEvent);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([this]()
+				{
+					return UsdStageActor.Get() != nullptr;
+				}),
+				FIsActionChecked::CreateLambda([this, Purpose]()
+				{
+					if(AUsdStageActor* StageActor = UsdStageActor.Get())
+					{
+						return EnumHasAllFlags((EUsdPurpose)StageActor->PurposeVisibility, Purpose);
+					}
+					return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+	};
+
+	AddPurposeEntry(EUsdPurpose::Proxy,  LOCTEXT("ProxyPurpose",  "Proxy"));
+	AddPurposeEntry(EUsdPurpose::Render, LOCTEXT("RenderPurpose", "Render"));
+	AddPurposeEntry(EUsdPurpose::Guide,  LOCTEXT("GuidePurpose",  "Guide"));
 }
 
 void SUsdStage::OnNew()
@@ -515,27 +718,12 @@ void SUsdStage::OnPrimSelected( FString PrimPath )
 	}
 }
 
-void SUsdStage::OnInitialLoadSetChanged( EUsdInitialLoadSet InitialLoadSet )
-{
-	if ( UsdStageActor.IsValid() && UsdStageActor->InitialLoadSet != InitialLoadSet )
-	{
-		const FScopedTransaction Transaction( LOCTEXT("EditInitialLoadSetTransaction", "Edit Initial Load Set") );
-		UsdStageActor->Modify();
-		UsdStageActor->InitialLoadSet = InitialLoadSet;
-	}
-}
-
 void SUsdStage::OpenStage( const TCHAR* FilePath )
 {
 	if ( !UsdStageActor.IsValid() )
 	{
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
-
-		if ( UsdStageInfoWidget )
-		{
-			UsdStageActor->InitialLoadSet = UsdStageInfoWidget->GetInitialLoadSet();
-		}
 
 		SetupStageActorDelegates();
 	}

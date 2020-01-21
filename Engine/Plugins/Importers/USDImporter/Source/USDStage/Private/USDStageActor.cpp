@@ -127,8 +127,8 @@ struct FUsdStageActorImpl
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
-	, PurposesToLoad((int32)(EUsdPurpose::Default | EUsdPurpose::Proxy))
-	, PurposeVisibility((int32)(EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide))
+	, PurposesToLoad((int32) EUsdPurpose::Proxy)
+	, PurposeVisibility((int32)(EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide))
 	, Time( 0.0f )
 	, StartTimeCode( 0.f )
 	, EndTimeCode( 100.f )
@@ -436,20 +436,16 @@ void AUsdStageActor::RefreshVisibilityBasedOnPurpose()
 #if USE_USD_SDK
 	USceneComponent* Root = GetRootComponent();
 
-	TSet<FName> VisiblePurposeNames;
-	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Default))
-	{
-		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Default));
-	}
-	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Proxy))
+	TSet<FName> VisiblePurposeNames{ IUsdPrim::GetPurposeName(EUsdPurpose::Default) };
+	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Proxy))
 	{
 		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Proxy));
 	}
-	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Render))
+	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Render))
 	{
 		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Render));
 	}
-	if (EnumHasAnyFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Guide))
+	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Guide))
 	{
 		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Guide));
 	}

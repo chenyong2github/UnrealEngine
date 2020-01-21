@@ -260,7 +260,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 	FScopedUnrealAllocs UnrealAllocs;
 
 	// Ignore meshes from disabled purposes
-	if (!EnumHasAnyFlags(Context->PurposesToLoad, IUsdPrim::GetPurpose(GeomMesh.Get().GetPrim())))
+	if (!EnumHasAllFlags(Context->PurposesToLoad, IUsdPrim::GetPurpose(GeomMesh.Get().GetPrim())))
 	{
 		return;
 	}
