@@ -1881,6 +1881,7 @@ public:
 	/** Used to detect atlas reallocations, since objects store UVs into the atlas and need to be updated when it changes. */
 	int32 AtlasGeneration;
 	int32 HeightFieldAtlasGeneration;
+	int32 HFVisibilityAtlasGenerattion;
 
 	bool bTrackAllPrimitives;
 	bool bCanUse16BitObjectIndices;
