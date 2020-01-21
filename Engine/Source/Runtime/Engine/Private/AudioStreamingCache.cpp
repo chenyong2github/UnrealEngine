@@ -1459,12 +1459,6 @@ FString FAudioChunkCache::DebugPrint()
 	// More detailed info about individual chunks here:
 	while (CurrentElement != nullptr)
 	{
-		// We use a CVar to clamp the max amount of chunks we display.
-		if (Index > DebugMaxElementsDisplayCVar)
-		{
-			break;
-		}
-
 		int32 NumTotalChunks = -1;
 		int32 NumTimesTouched = -1;
 		double TimeToLoad = -1.0;
