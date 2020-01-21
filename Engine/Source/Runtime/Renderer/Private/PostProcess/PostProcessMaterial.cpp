@@ -411,7 +411,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
-			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
 			Output.LoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
