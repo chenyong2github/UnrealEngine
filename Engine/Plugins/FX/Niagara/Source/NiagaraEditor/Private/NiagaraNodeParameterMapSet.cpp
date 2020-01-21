@@ -107,13 +107,6 @@ void UNiagaraNodeParameterMapSet::OnPinRenamed(UEdGraphPin* RenamedPin, const FS
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 }
 
-void UNiagaraNodeParameterMapSet::SetPinName(UEdGraphPin* InPin, const FName& InName)
-{
-	FName OldName = InPin->PinName;
-	InPin->PinName = InName;
-	OnPinRenamed(InPin, OldName.ToString());
-}
-
 bool UNiagaraNodeParameterMapSet::CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
 {
 	if (InGraphPinObj == PinPendingRename)

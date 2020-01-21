@@ -36,8 +36,6 @@ public:
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	virtual void PostLoad() override;
 
-	void SetPinName(UEdGraphPin* InPin, const FName& InName);
-
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin); 
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
