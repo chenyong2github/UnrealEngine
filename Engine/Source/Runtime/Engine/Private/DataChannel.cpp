@@ -987,6 +987,9 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 	if ( Connection->Driver->IsServer() )
 	{
+		// This is a bit special, currently we report this is at the end of bunch event though AppendMustBeMappedGuids rewrites the entire bunch
+		UE_NET_TRACE_SCOPE(MustBeMappedGuids_IsAtStartOfBunch, *Bunch, GetTraceCollector(*Bunch), ENetTraceVerbosity::Trace);
+
 		// Append any "must be mapped" guids to front of bunch from the packagemap
 		AppendMustBeMappedGuids( Bunch );
 

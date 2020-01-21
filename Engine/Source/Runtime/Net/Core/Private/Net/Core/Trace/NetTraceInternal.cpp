@@ -128,7 +128,12 @@ void FNetTrace::FoldTraceCollector(FNetTraceCollector* DstCollector, const FNetT
 		const uint32 Offset = (DstCollector->EventCount && !bIsBunch) ? FMath::Max(DstCollector->Events[LastEventStorageIndex].StartPos, DstCollector->Events[LastEventStorageIndex].EndPos) : 0U;
 
 		// Make sure that the events fit
-		if (SrcCollector->EventCount + DstCollector->EventCount < (uint32)DstCollector->Events.Num())
+		if (SrcCollector->EventCount + DstCollector->EventCount > (uint32)DstCollector->Events.Num())
+		{
+			DstCollector->Events.SetNumUninitialized(SrcCollector->EventCount + DstCollector->EventCount, false);
+		}
+
+		if (SrcCollector->EventCount + DstCollector->EventCount <= (uint32)DstCollector->Events.Num())
 		{			
 			uint32 DstEventIndex = DstCollector->EventCount;
 			FNetTracePacketContentEvent* DstEventData = DstCollector->Events.GetData();
@@ -318,6 +323,17 @@ void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId Bunch
 }
 
 void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector)
+{
+	if (&DstCollector != BunchCollector)
+	{
+		FNetTrace::BeginBunch(DstCollector);
+		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, true);
+	}
+		
+	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, ChIndex);
+}
+
+void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector)
 {
 	if (&DstCollector != BunchCollector)
 	{

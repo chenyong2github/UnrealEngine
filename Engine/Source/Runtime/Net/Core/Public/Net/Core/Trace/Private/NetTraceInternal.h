@@ -167,6 +167,9 @@ struct FNetTrace
 	/** TraceBunch, Commits all events in BunchCollector to DstCollector, if DstCollector == BunchCollector it is assumed that we are Ending the bunch */
 	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector);
 
+	/** TraceBunch, Commits all events in BunchCollector to DstCollector, if DstCollector == BunchCollector it is assumed that we are Ending the bunch */
+	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector);
+
 	/** PopSendBunch, last send bunch is considered to be merged with the next one, mark this by zeroing out the BunchHeaderSize */
 	NETCORE_API static void PopSendBunch(FNetTraceCollector& Collector);
 

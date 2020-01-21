@@ -61,6 +61,7 @@
 #include "DrawDebugHelpers.h"
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -1655,9 +1656,16 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 	// SendIt
 	{
 		TGuardValue<bool> Guard(ActorChannel->bHoldQueuedExportBunchesAndGUIDs, true);		// Don't export queued GUIDs in fast path
-
+		
+#if UE_NET_TRACE_ENABLED
+		// If we want to trace the actual contents of the shared path, we need to create a temporary collector associated with the shared bunch, collect the shared data and report it every time it is reused
+		// For now we just set the debug name of the the bunch to be able to give some context on what this bunch contains
+		if (OutBunch.DebugString.IsEmpty())
+		{
+			OutBunch.DebugString = FString(TEXT("ReplicateSingleActor_FastShared"));
+		}
+#endif
 		ActorChannel->SendBunch(&OutBunch, false);
-		BitsWritten = (int32)OutBunch.GetNumBits();
 	}
 
 	ensureAlwaysMsgf(OutBunch.bHasMustBeMappedGUIDs == 0, TEXT("FastShared bHasMustBeMappedGUIDs! %s"), *Actor->GetPathName());
