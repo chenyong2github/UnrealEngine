@@ -120,12 +120,24 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 				RequestEndPlayMap();
 				return;
 			}
-
-			DisplayClusterModule->StartScene(EditorWorldPreDup);
 		}
 	}
 
+	// Start PIE
 	Super::StartPlayInEditorSession(InRequestParams);
+
+	// Pass PIE world to nDisplay
+	if (bIsNDisplayPIE)
+	{
+		for (FWorldContext const& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE && Context.World())
+			{
+				DisplayClusterModule->StartScene(Context.World());
+				break;
+			}
+		}
+	}
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
