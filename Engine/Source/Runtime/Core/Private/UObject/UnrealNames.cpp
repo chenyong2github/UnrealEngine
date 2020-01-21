@@ -723,6 +723,7 @@ public:
 	{
 		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo(Num * LoadFactorDivisor / LoadFactorQuotient);
 
+		FWriteScopeLock _(Lock);
 		if (WantedCapacity > Capacity())
 		{
 			Grow(WantedCapacity);
