@@ -165,6 +165,7 @@ namespace Chaos
 		}
 
 		THandleArray(THandleArray<ElementType, IndexWidth, GenerationWidth>&& Other)
+			: THandleArray(0)
 		{
 			MoveFrom(Other);
 		}
