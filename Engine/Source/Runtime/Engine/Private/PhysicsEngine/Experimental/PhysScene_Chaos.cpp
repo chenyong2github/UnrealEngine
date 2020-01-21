@@ -1735,6 +1735,15 @@ void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type Curr
 		{
 			if(Solver->HasActiveParticles())
 			{
+				// We need to process the Command Q here to prevent corruption in BufferPhysicsResults & FlipBuffers
+				// needs further investigation.
+				TQueue<TFunction<void(FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->CommandQueue;
+				TFunction<void(FPhysicsSolver*)> Command;
+				while (Queue.Dequeue(Command))
+				{
+					Command(Solver);
+				}
+
 				ActiveSolvers.Add(Solver);
 			}
 		}
