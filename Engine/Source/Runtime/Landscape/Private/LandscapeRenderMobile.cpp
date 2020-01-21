@@ -261,6 +261,76 @@ FVertexFactoryShaderParameters* FLandscapeVertexFactoryMobile::ConstructShaderPa
 }
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
+
+
+/** 
+  * Shader parameters for use with FLandscapeFixedGridVertexFactory
+  * Simple grid rendering (without dynamic lod blend) needs a simpler fixed setup.
+  */
+class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters : public FLandscapeVertexFactoryMobileVertexShaderParameters
+{
+public:
+	virtual void GetElementShaderBindings(
+		const class FSceneInterface* Scene,
+		const FSceneView* InView,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
+
+		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
+		check(BatchElementParams);
+		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(),*BatchElementParams->LandscapeUniformShaderParametersResource);
+
+		if (LodValuesParameter.IsBound())
+		{
+			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
+		}
+
+		if (LodBiasParameter.IsBound())
+		{
+			ShaderBindings.Add(LodBiasParameter, FVector4(ForceInitToZero));
+		}
+
+		if (ForcedLodParameter.IsBound())
+		{
+			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
+		}
+	}
+};
+
+void FLandscapeFixedGridVertexFactoryMobile::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FLandscapeVertexFactoryMobile::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("FIXED_GRID"), TEXT("1"));
+}
+
+FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactoryMobile::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex:
+		return new FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters();
+	case SF_Pixel:
+		return new FLandscapeVertexFactoryMobilePixelShaderParameters();
+	}
+	return nullptr;
+}
+	
+bool FLandscapeFixedGridVertexFactoryMobile::ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FShaderType* ShaderType)
+{
+	return GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1 &&
+		(Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial());
+}
+
 
 /**
 * Initialize the RHI for this rendering resource
@@ -415,8 +485,25 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 			GetScene().GetFeatureLevel(), false, NumOcclusionVertices);
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
+				
+		if (UseVirtualTexturing(FeatureLevel))
+		{
+			//todo[vt]: We will need a version of this to support XYOffsetmapTexture
+			FLandscapeFixedGridVertexFactoryMobile* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactoryMobile(FeatureLevel);
+			LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex,Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
+			for( uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index )
+			{
+				LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
+				(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex,LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+			}
+			LandscapeVertexFactory->InitResource();
+			SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
+		}
 	}
 
+	//
+	FixedGridVertexFactory = SharedBuffers->FixedGridVertexFactory;
+	
 	SharedBuffers->AddRef();
 
 	// Init vertex buffer

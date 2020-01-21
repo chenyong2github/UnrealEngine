@@ -18,7 +18,7 @@
 #include <EGL/eglplatform.h>
 #include <GLES2/gl2ext.h>
 	
-typedef EGLSyncKHR UGLsync;
+typedef GLsync			UGLsync;
 #define GLdouble		GLfloat
 typedef khronos_int64_t GLint64;
 typedef khronos_uint64_t GLuint64;
@@ -36,8 +36,6 @@ typedef khronos_uint64_t GLuint64;
 
 #define GL_BGRA			GL_BGRA_EXT 
 #define GL_UNSIGNED_INT_8_8_8_8_REV	GL_UNSIGNED_BYTE
-#define glMapBuffer		glMapBufferOESa
-#define glUnmapBuffer	glUnmapBufferOESa
 
 #ifndef GL_HALF_FLOAT
 #define GL_HALF_FLOAT	GL_HALF_FLOAT_OES
@@ -147,6 +145,7 @@ extern PFNGLVERTEXATTRIBDIVISORPROC		glVertexAttribDivisor;
 extern PFNGLGENVERTEXARRAYSPROC 		glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC 		glBindVertexArray;
 extern PFNGLMAPBUFFERRANGEPROC			glMapBufferRange;
+extern PFNGLUNMAPBUFFERPROC				glUnmapBuffer;
 extern PFNGLCOPYBUFFERSUBDATAPROC		glCopyBufferSubData;
 extern PFNGLDRAWARRAYSINDIRECTPROC		glDrawArraysIndirect;
 extern PFNGLDRAWELEMENTSINDIRECTPROC	glDrawElementsIndirect;
@@ -157,6 +156,7 @@ extern PFNGLCLEARBUFFERFIPROC			glClearBufferfi;
 extern PFNGLCLEARBUFFERFVPROC			glClearBufferfv;
 extern PFNGLCLEARBUFFERIVPROC			glClearBufferiv;
 extern PFNGLCLEARBUFFERUIVPROC			glClearBufferuiv;
+extern PFNGLREADBUFFERPROC				glReadBuffer;
 extern PFNGLDRAWBUFFERSPROC				glDrawBuffers;
 extern PFNGLTEXIMAGE3DPROC				glTexImage3D;
 extern PFNGLTEXSUBIMAGE3DPROC			glTexSubImage3D;
@@ -190,6 +190,10 @@ extern PFNGLDISPATCHCOMPUTEPROC			glDispatchCompute;
 extern PFNGLDISPATCHCOMPUTEINDIRECTPROC	glDispatchComputeIndirect;
 extern PFNGLBINDIMAGETEXTUREPROC		glBindImageTexture;
 
+extern PFNGLDELETESYNCPROC				glDeleteSync;
+extern PFNGLFENCESYNCPROC				glFenceSync;
+extern PFNGLISSYNCPROC					glIsSync;
+extern PFNGLCLIENTWAITSYNCPROC			glClientWaitSync;
 
 #include "OpenGLES2.h"
 
@@ -292,52 +296,38 @@ struct FAndroidOpenGL : public FOpenGLES2
 	{
 		if (GUseThreadedRendering)
 		{
-			//handle error here
-			EGLBoolean Result = eglDestroySyncKHR_p( AndroidEGL::GetInstance()->GetDisplay(), Sync );
-			if(Result == EGL_FALSE)
-			{
-				//handle error here
-			}
+			glDeleteSync( Sync );
 		}
 	}
 
 	static FORCEINLINE UGLsync FenceSync(GLenum Condition, GLbitfield Flags)
 	{
-		check(Condition == GL_SYNC_GPU_COMMANDS_COMPLETE && Flags == 0);
-		return GUseThreadedRendering ? eglCreateSyncKHR_p( AndroidEGL::GetInstance()->GetDisplay(), EGL_SYNC_FENCE_KHR, NULL ) : 0;
+		return GUseThreadedRendering ? glFenceSync( Condition, Flags ) : 0;
 	}
-	
+
 	static FORCEINLINE bool IsSync(UGLsync Sync)
 	{
-		if(GUseThreadedRendering)
+		if (GUseThreadedRendering)
 		{
-			return (Sync != EGL_NO_SYNC_KHR) ? true : false;
+			return (glIsSync( Sync ) == GL_TRUE) ? true : false;
 		}
-		else
-		{
-			return true;
-		}
+		return true;
 	}
 
 	static FORCEINLINE EFenceResult ClientWaitSync(UGLsync Sync, GLbitfield Flags, GLuint64 Timeout)
 	{
 		if (GUseThreadedRendering)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_eglClientWaitSyncKHR_p);
-			// check( Flags == GL_SYNC_FLUSH_COMMANDS_BIT );
-			GLenum Result = eglClientWaitSyncKHR_p( AndroidEGL::GetInstance()->GetDisplay(), Sync, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, Timeout );
+			GLenum Result = glClientWaitSync( Sync, Flags, Timeout );
 			switch (Result)
 			{
-			case EGL_TIMEOUT_EXPIRED_KHR:		return FR_TimeoutExpired;
-			case EGL_CONDITION_SATISFIED_KHR:	return FR_ConditionSatisfied;
+				case GL_ALREADY_SIGNALED:		return FR_AlreadySignaled;
+				case GL_TIMEOUT_EXPIRED:		return FR_TimeoutExpired;
+				case GL_CONDITION_SATISFIED:	return FR_ConditionSatisfied;
 			}
 			return FR_WaitFailed;
 		}
-		else
-		{
-			return FR_ConditionSatisfied;
-		}
-		return FR_WaitFailed;
+		return FR_ConditionSatisfied;
 	}
 
 	static FORCEINLINE void FramebufferTexture2D(GLenum Target, GLenum Attachment, GLenum TexTarget, GLuint Texture, GLint Level)
@@ -554,6 +544,11 @@ struct FAndroidOpenGL : public FOpenGLES2
 		glDrawBuffers(NumBuffers, Buffers);
 	}
 	
+	static FORCEINLINE void ReadBuffer(GLenum Mode)
+	{
+		glReadBuffer( Mode );
+	}
+
 	static FORCEINLINE void ColorMaskIndexed(GLuint Index, GLboolean Red, GLboolean Green, GLboolean Blue, GLboolean Alpha)
 	{
 		check(Index == 0 || SupportsMultipleRenderTargets());
@@ -677,6 +672,8 @@ struct FAndroidOpenGL : public FOpenGLES2
 		glBindImageTexture(Unit, Texture, Level, Layered, Layer, Access, Format);
 	}
 	
+	static FORCEINLINE bool SupportsPixelBuffers() { return false; }
+	
 	// Adreno doesn't support HALF_FLOAT
 	static FORCEINLINE int32 GetReadHalfFloatPixelsEnum()				{ return GL_FLOAT; }
 
@@ -740,7 +737,12 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE GLint GetMaxComputeTextureImageUnits() { check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }
-
+	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
+	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ check(MaxComputeUAVUnits != -1); return MaxComputeUAVUnits; }
+	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
+	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ check(MaxPixelUAVUnits != -1); return MaxPixelUAVUnits; }
+	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return MaxCombinedUAVUnits; }
+		
 	static FORCEINLINE void FrameBufferFetchBarrier()
 	{
 		if (glFramebufferFetchBarrierQCOM)
@@ -808,6 +810,10 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static GLint MaxComputeTextureImageUnits;
 	static GLint MaxComputeUniformComponents;
+
+	static GLint MaxCombinedUAVUnits;
+	static GLint MaxComputeUAVUnits;
+	static GLint MaxPixelUAVUnits;
 };
 
 typedef FAndroidOpenGL FOpenGL;

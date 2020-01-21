@@ -632,7 +632,7 @@ private:
 	void InitEditorPrimitivesDepth(FRHICommandList& RHICmdList);
 
 	/** Allocates render targets for use with the mobile path. */
-	void AllocateMobileRenderTargets(FRHICommandList& RHICmdList);
+	void AllocateMobileRenderTargets(FRHICommandListImmediate& RHICmdList);
 
 public:
 	/** Allocates render targets for use with the deferred shading path. */

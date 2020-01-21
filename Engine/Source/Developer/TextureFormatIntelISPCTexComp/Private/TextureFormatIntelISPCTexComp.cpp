@@ -736,7 +736,18 @@ public:
 			bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG ||
 				BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
 
-			CompressedPixelFormat = GetQualityFormat( BlockWidth, BlockHeight, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality );
+			if (BuildSettings.bVirtualStreamable)
+			{
+				// Always use 4x4 for streamable VT, to reduce texture format fragmentation
+				CompressedPixelFormat = PF_ASTC_4x4;
+				BlockWidth = 4;
+				BlockHeight = 4;
+			}
+			else
+			{
+				CompressedPixelFormat = GetQualityFormat( BlockWidth, BlockHeight, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality );
+			}
+			check(CompressedPixelFormat == PF_ASTC_4x4 || !BuildSettings.bVirtualStreamable);
 
 			FASTCEncoderSettings EncoderSettings;
 			if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
@@ -744,24 +755,32 @@ public:
 				GetProfile_astc_alpha_fast(&EncoderSettings, BlockWidth, BlockHeight);
 				EncoderSettings.TextureFormatName = BuildSettings.TextureFormatName;
 				bCompressionSucceeded = true;
+				check(EncoderSettings.block_width!=0);
 			}
 			else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 			{
 				GetProfile_astc_fast(&EncoderSettings, BlockWidth, BlockHeight);
 				EncoderSettings.TextureFormatName = BuildSettings.TextureFormatName;
 				bCompressionSucceeded = true;
+				check(EncoderSettings.block_width!=0);
 			}
 			else if (bIsRGBColorASTC)
 			{
 				GetProfile_astc_fast(&EncoderSettings, BlockWidth, BlockHeight);
 				EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGB;
 				bCompressionSucceeded = true;
+				check(EncoderSettings.block_width!=0);
 			}
 			else if (bIsRGBAColorASTC)
 			{
 				GetProfile_astc_alpha_fast(&EncoderSettings, BlockWidth, BlockHeight);
 				EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGBA;
 				bCompressionSucceeded = true;
+				check(EncoderSettings.block_width!=0);
+			}
+			else
+			{
+				check(0);
 			}
 
 			if (bCompressionSucceeded)

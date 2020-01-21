@@ -57,7 +57,8 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 {
 	FGlslCodeBackend(unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, bool bInIsWebGL) :
 		FCodeBackend(InHlslCompileFlags, InTarget),
-		bIsWebGL(bInIsWebGL)
+		bIsWebGL(bInIsWebGL),
+		bExplicitDepthWrites(false)
 	{
 	}
 
@@ -100,6 +101,7 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 	}
 
 	bool bIsWebGL;
+	bool bExplicitDepthWrites;
 };
 
 

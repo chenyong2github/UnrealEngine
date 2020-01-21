@@ -205,8 +205,14 @@ public:
 	static FORCEINLINE GLint GetFirstDomainTextureUnit()		{ return GetFirstHullTextureUnit() + GetMaxHullTextureImageUnits(); }
 
 	static FORCEINLINE GLint GetFirstComputeTextureUnit()		{ return 0; }
+	
+	// Image load/store units
 	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
-
+	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ return 0; }
+	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
+	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ return 0; }
+	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return 0; }
+	
 	static FORCEINLINE GLint GetMaxVaryingVectors()				{ check(MaxVaryingVectors != -1); return MaxVaryingVectors; }
 	static FORCEINLINE GLint GetMaxPixelUniformComponents()		{ check(MaxPixelUniformComponents != -1); return MaxPixelUniformComponents; }
 	static FORCEINLINE GLint GetMaxVertexUniformComponents()	{ check(MaxVertexUniformComponents != -1); return MaxVertexUniformComponents; }

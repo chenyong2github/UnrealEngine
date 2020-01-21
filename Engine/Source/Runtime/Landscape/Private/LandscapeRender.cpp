@@ -4711,7 +4711,9 @@ public:
 				}
 
 				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
-				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory)
+				static const FName LandscapeFixedGridVertexFactoryMobile = FName(TEXT("FLandscapeFixedGridVertexFactoryMobile"));
+				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
+					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactoryMobile)
 				{
 					return bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}

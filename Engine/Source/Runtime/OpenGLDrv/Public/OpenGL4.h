@@ -102,6 +102,12 @@ struct FOpenGL4 : public FOpenGL3
 	static FORCEINLINE GLint GetMaxComputeTextureImageUnits() { check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }
 
+	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
+	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ check(MaxComputeUAVUnits != -1); return MaxComputeUAVUnits; }
+	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
+	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ check(MaxPixelUAVUnits != -1); return MaxPixelUAVUnits; }
+	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return MaxCombinedUAVUnits; }
+		
 	static uint64 GetVideoMemorySize();
 
 	static FORCEINLINE int32 GetReadHalfFloatPixelsEnum() { return GL_HALF_FLOAT; }
@@ -109,6 +115,10 @@ struct FOpenGL4 : public FOpenGL3
 protected:
 	static GLint MaxComputeTextureImageUnits;
 	static GLint MaxComputeUniformComponents;
+
+	static GLint MaxCombinedUAVUnits;
+	static GLint MaxComputeUAVUnits;
+	static GLint MaxPixelUAVUnits;
 
 	static bool bSupportsComputeShaders;
 	static bool bSupportsGPUMemoryInfo;

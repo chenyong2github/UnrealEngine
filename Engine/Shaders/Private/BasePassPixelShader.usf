@@ -51,9 +51,9 @@
 
 #if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
 #if COMPILER_HLSLCC
-	RWTexture2D<uint> VTFeedbackBuffer;
+	RWBuffer<uint> VTFeedbackBuffer;
 #else
-	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
+	RWBuffer<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
 #endif
 #endif
 

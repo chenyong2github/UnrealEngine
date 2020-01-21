@@ -213,6 +213,13 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Whether to support 'Software Occlusion Culling' on mobile platforms. This will package occluder information and enable Software Occlusion Culling.",
 		ConfigRestartRequired=false))
 	uint32 bMobileAllowSoftwareOcclusionCulling:1;
+
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.Mobile.VirtualTextures", DisplayName = "Enable virtual texture support on Mobile",
+		ToolTip = "Whether to support Virtual Textures on mobile. Requires general Virtual Texturing option enabled as well. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bMobileVirtualTextures : 1;
 	
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
 		ConsoleVariable = "r.DiscardUnusedQuality", DisplayName = "Game Discards Unused Material Quality Levels",

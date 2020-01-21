@@ -3489,7 +3489,8 @@ public:
 
 			const char* DefaultPrecision = bDefaultPrecisionIsHalf ? "mediump" : "highp";
 			ralloc_asprintf_append(buffer, "precision %s float;\n", DefaultPrecision);
-			ralloc_asprintf_append(buffer, "precision %s int;\n", DefaultPrecision);
+			// always use highp for integers as shaders use them as bit storage
+			ralloc_asprintf_append(buffer, "precision %s int;\n", "highp");
 			//ralloc_asprintf_append(buffer, "\n#ifndef DONTEMITSAMPLERDEFAULTPRECISION\n");
 			ralloc_asprintf_append(buffer, "precision %s sampler;\n", DefaultPrecision);
 			ralloc_asprintf_append(buffer, "precision %s sampler2D;\n", DefaultPrecision);
@@ -5478,6 +5479,11 @@ bool FVulkanCodeBackend::GenerateMain(
 						);
 					break;
 				case ir_var_out:
+					if (Frequency == HSF_PixelShader && Variable->semantic && (strcmp(Variable->semantic, "SV_Depth") == 0))
+					{
+						bExplicitDepthWrites = true;
+					}
+					
 					ArgVarDeref = GenShaderOutput(
 						Frequency,
 						ParseState,
@@ -5626,7 +5632,7 @@ bool FVulkanCodeBackend::GenerateMain(
 		MainSig->body.push_tail(new(ParseState)ir_call(EntryPointSig, EntryPointReturn, &ArgInstructions));
 		MainSig->body.append_list(&PostCallInstructions);
 		MainSig->maxvertexcount = EntryPointSig->maxvertexcount;
-		MainSig->is_early_depth_stencil = EntryPointSig->is_early_depth_stencil;
+		MainSig->is_early_depth_stencil = (EntryPointSig->is_early_depth_stencil && !bExplicitDepthWrites);
 		MainSig->wg_size_x = EntryPointSig->wg_size_x;
 		MainSig->wg_size_y = EntryPointSig->wg_size_y;
 		MainSig->wg_size_z = EntryPointSig->wg_size_z;

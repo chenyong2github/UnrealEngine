@@ -1250,12 +1250,6 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 	else
 #endif
 	{
-		// only at SM5 
-		if (InFeatureLevel < ERHIFeatureLevel::SM5)
-		{
-			return false;
-		}
-
 		// does the platform supports it.
 #if WITH_EDITOR
 		if (GIsEditor && TargetPlatform == nullptr)
@@ -1273,13 +1267,6 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 		}
 #endif
 
-		// Remove this when UE-80097 is implemented
-		static bool bIsVulkanRHI = FCString::Strcmp(GDynamicRHI->GetName(), TEXT("Vulkan")) == 0;
-		if (bIsVulkanRHI)
-		{
-			return false;
-		}
-
 		// does the project has it enabled ?
 		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
 		check(CVarVirtualTexture);
@@ -1287,6 +1274,13 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 		{
 			return false;
 		}		
+
+		// mobile needs an additional switch to enable VT		
+		static const auto CVarMobileVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.VirtualTextures"));
+		if (InFeatureLevel == ERHIFeatureLevel::ES3_1 && CVarMobileVirtualTexture->GetValueOnAnyThread() == 0)
+		{
+			return false;
+		}
 
 		return true;
 	}

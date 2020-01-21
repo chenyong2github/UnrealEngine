@@ -362,14 +362,6 @@ void FVulkanCommandListContext::RHISetGraphicsPipelineState(FRHIGraphicsPipeline
 		PendingGfxState->MarkNeedsDynamicStates();
 		PendingGfxState->StencilRef = 0;
 	}
-
-	// Yuck - Bind pending pixel shader UAVs from SetRenderTargets
-	{
-		for (int32 Index = 0; Index < PendingPixelUAVs.Num(); ++Index)
-		{
-			PendingGfxState->SetUAVForStage(ShaderStage::Pixel, PendingPixelUAVs[Index].BindIndex, PendingPixelUAVs[Index].UAV);
-		}
-	}
 }
 
 

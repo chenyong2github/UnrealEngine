@@ -1373,6 +1373,7 @@ inline bool IsShaderParameterTypeForUniformBufferLayout(EUniformBufferBaseType B
 		BaseType == UBMT_TEXTURE ||
 		BaseType == UBMT_SRV ||
 		BaseType == UBMT_SAMPLER ||
+		BaseType == UBMT_UAV ||
 
 		// RHI is able to access RHI resources from RDG.
 		IsRDGResourceReferenceShaderParameterType(BaseType) ||

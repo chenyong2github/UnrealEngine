@@ -318,7 +318,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	SnapshotArray(TranslucencyLightingVolumeAmbient, SnapshotSource.TranslucencyLightingVolumeAmbient);
 	SnapshotArray(TranslucencyLightingVolumeDirectional, SnapshotSource.TranslucencyLightingVolumeDirectional);
 	SnapshotArray(OptionalShadowDepthColor, SnapshotSource.OptionalShadowDepthColor);
-	VirtualTextureFeedback.MakeSnapshot(SnapshotSource.VirtualTextureFeedback);
 }
 
 inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
@@ -893,10 +892,10 @@ void FSceneRenderTargets::BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPIn
 	// must match VT_FEEDBACK_REGISTER in VirtualTextureCommon.ush
 	static const int32 VT_FEEDBACK_REGISTER = 7;
 
-	checkf(VirtualTextureFeedback.FeedbackTextureGPU, TEXT("Invalid attempt to render VT feedback after it has already been transferred to CPU, need to adjust location of TransferGPUToCPU"));
+	checkf(VirtualTextureFeedback.FeedbackBufferUAV, TEXT("Invalid attempt to render VT feedback after it has already been transferred to CPU, need to adjust location of TransferGPUToCPU"));
 	check(RPInfo.GetNumColorRenderTargets() <= VT_FEEDBACK_REGISTER);
 	RPInfo.UAVIndex = VT_FEEDBACK_REGISTER;
-	RPInfo.UAVs[RPInfo.NumUAVs++] = VirtualTextureFeedback.FeedbackTextureGPU->GetRenderTargetItem().UAV;
+	RPInfo.UAVs[RPInfo.NumUAVs++] = VirtualTextureFeedback.FeedbackBufferUAV;
 }
 
 void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, const FLinearColor& ClearColor/*=(0,0,0,1)*/, bool bIsWireframe)
@@ -2062,7 +2061,7 @@ void FSceneRenderTargets::SetSeparateTranslucencyBufferSize(bool bAnyViewWantsDo
 	SeparateTranslucencyScale = EffectiveScale;
 }
 
-void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdList)
+void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& RHICmdList)
 {
 	// on ES2 we don't do on demand allocation of SceneColor yet (in non ES2 it's released in the Tonemapper Process())
 	AllocSceneColor(RHICmdList);
@@ -2103,6 +2102,12 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 	else
 	{
 		SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
+	}
+	
+	if (UseVirtualTexturing(CurrentFeatureLevel))
+	{
+		FIntPoint FeedbackSize = FIntPoint::DivideAndRoundUp(BufferSize, FMath::Max(GVirtualTextureFeedbackFactor, 1));
+		VirtualTextureFeedback.CreateResourceGPU(RHICmdList, FeedbackSize);
 	}
 }
 
@@ -3234,6 +3239,15 @@ void SetupMobileSceneTextureUniformParameters(
 
 	SceneTextureParameters.MobileCustomStencilTexture = MobileCustomStencil;
 	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	
+	if (SceneContext.VirtualTextureFeedback.FeedbackBufferUAV.IsValid())
+	{
+		SceneTextureParameters.VirtualTextureFeedbackUAV = SceneContext.VirtualTextureFeedback.FeedbackBufferUAV;
+	}
+	else
+	{
+		SceneTextureParameters.VirtualTextureFeedbackUAV = GVirtualTextureFeedbackDummyResource.UAV;
+	}
 }
 
 template< typename TRHICmdList >

@@ -35,6 +35,12 @@ static TAutoConsoleVariable<int32> CVarVirtualTextures(
 	TEXT("Is virtual texture streaming enabled?"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarMobileVirtualTextures(
+	TEXT("r.Mobile.VirtualTextures"),
+	0,
+	TEXT("Whether virtual texture streaming is enabled on mobile platforms. Requires r.VirtualTextures enabled as well. \n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
 
 DEFINE_LOG_CATEGORY(LogTexture);
 
