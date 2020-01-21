@@ -285,6 +285,7 @@ protected:
 		ESelectionMode::Type SelectionMode = ESelectionMode::Single;
 		bool bClearSelectionOnClick = false;
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
+		bool bReturnFocusToSelection = false;
 	};
 
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
@@ -299,6 +300,7 @@ protected:
 			.ClearSelectionOnClick(Args.bClearSelectionOnClick)
 			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
 			.SelectionMode(Args.SelectionMode)
+			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
