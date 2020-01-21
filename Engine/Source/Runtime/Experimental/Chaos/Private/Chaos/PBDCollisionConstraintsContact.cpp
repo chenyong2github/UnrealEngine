@@ -292,13 +292,15 @@ namespace Chaos
 			const T RelativeVelocityDotNormal = TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal);
 			if (RelativeVelocityDotNormal < 0)
 			{
-				T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, Factor * Contact.Normal);
-				TVector<T, d> ImpulseNumerator = -TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal * ScalingFactor;
-				if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("ApplyPushout Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Contact.Normal:%s, ImpulseDenominator:%f"),
+				const TVector<T, d> ImpulseNumerator = -TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal * ScalingFactor;
+				const TVector<T, d> FactorContactNormal = Factor * Contact.Normal;
+				T ImpulseDenominator = TVector<T, d>::DotProduct(Contact.Normal, FactorContactNormal);
+				if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, 
+					TEXT("ApplyPushout Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Contact.Normal:%s, ImpulseDenominator:%f"),
 					*Contact.ToString(),
 					*Particle0->ToString(),
 					*Particle1->ToString(),
-					*(Factor*Contact.Normal).ToString(), ImpulseDenominator))
+					*FactorContactNormal.ToString(), ImpulseDenominator))
 				{
 					ImpulseDenominator = (T)1;
 				}
