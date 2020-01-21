@@ -27,7 +27,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("USE_USD_SDK=1");
 
-                PublicIncludePaths.AddRange(
+				PublicIncludePaths.AddRange(
 					new string[] {
 					ModuleDirectory + "/../ThirdParty/USD/include",
 					});
@@ -36,9 +36,9 @@ namespace UnrealBuildTool.Rules
 
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-                    PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=1");
+					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=1");
 
-                    USDLibsDir = Path.Combine(ModuleDirectory, "../ThirdParty/USD/lib/");
+					USDLibsDir = Path.Combine(ModuleDirectory, "../ThirdParty/USD/lib/");
 
 					var USDLibs = new string[]
 					{
@@ -66,33 +66,38 @@ namespace UnrealBuildTool.Rules
 					}
 
 					PublicIncludePaths.Add(PythonSourceTPSDir + "/Win64/include");
-                    PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/libs"));
-                }
+					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/libs"));
+				}
 				else if (Target.Platform == UnrealTargetPlatform.Linux)
 				{
-                    PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=0"); // USD uses tbb malloc on Linux
+					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=0"); // USD uses tbb malloc on Linux
 
-                    USDLibsDir = Path.Combine(ModuleDirectory, "../../Binaries/Linux/", Target.Architecture);
+					USDLibsDir = Path.Combine(ModuleDirectory, "../../Binaries/Linux/", Target.Architecture);
 
 					var USDLibs = new string[]
 					{
+							"libar.so",
 							"libarch.so",
-                            "libboost_python.so",
+							"libboost_python.so",
 							"libgf.so",
 							"libjs.so",
 							"libkind.so",
+							"libndr.so",
 							"libpcp.so",
 							"libplug.so",
 							"libsdf.so",
+							"libsdr.so",
 							"libtbb.so",
 							"libtbbmalloc.so",
 							"libtf.so",
+							"libtrace.so",
 							"libusd.so",
 							"libusdGeom.so",
 							"libusdLux.so",
 							"libusdShade.so",
 							"libusdSkel.so",
 							"libusdUtils.so",
+							"libusdVol.so",
 							"libvt.so",
 							"libwork.so",
 					};
@@ -103,8 +108,8 @@ namespace UnrealBuildTool.Rules
 					}
 
 					PublicIncludePaths.Add(PythonSourceTPSDir + "/Linux/include/" + Target.Architecture);
-                    PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/lib"));
-                }
+					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/lib"));
+				}
 
 				if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
 				{
@@ -118,8 +123,8 @@ namespace UnrealBuildTool.Rules
 			else
 			{
 				PublicDefinitions.Add("USE_USD_SDK=0");
-                PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=0"); // USD uses tbb malloc on Linux
-            }
-        }
+				PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=0"); // USD uses tbb malloc on Linux
+			}
+		}
 	}
 }
