@@ -534,7 +534,8 @@ void ExtractInputPinsFromHistory(FNiagaraParameterMapHistory& History, UEdGraph*
 			const UEdGraphPin* InputPin = ReadHistory[0].Get<0>();
 
 			// Make sure that the module input is from the called graph, and not a nested graph.
-			if (InputPin->GetOwningNode()->GetGraph() == FunctionGraph &&
+			UEdGraph* NodeGraph = InputPin->GetOwningNode()->GetGraph();
+			if (NodeGraph == FunctionGraph &&
 				(Options == FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::AllInputs || FNiagaraParameterHandle(InputPin->PinName).IsModuleHandle()))
 			{
 				OutPins.Add(InputPin);
@@ -729,6 +730,56 @@ void FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(UNiagaraNodeFu
 				FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
 				OutOutputVariables.Add(Variable);
 				OutOutputVariablesWithOriginalAliasesIntact.Add(VariableWithOriginalAliasIntact);
+			}
+		}
+	}
+}
+
+void FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver, TArray<FNiagaraVariable>& OutVariables, TArray<FNiagaraVariable>& OutVariablesWithOriginalAliasesIntact)
+{
+	FNiagaraParameterMapHistoryBuilder Builder;
+	Builder.SetIgnoreDisabled(false);
+	Builder.ConstantResolver = ConstantResolver;
+	FunctionCallNode.BuildParameterMapHistory(Builder, false);
+
+	if (ensureMsgf(Builder.Histories.Num() == 1, TEXT("Invalid Stack Graph - Function call node has invalid history count!")))
+	{
+		for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
+		{
+			bool bHasParameterMapSetWrite = false;
+			for (const UEdGraphPin* WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
+			{
+				if (WritePin != nullptr && WritePin->GetOwningNode() != nullptr && 
+					WritePin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
+				{
+					bHasParameterMapSetWrite = true;
+					break;
+				}
+			}
+
+			if (bHasParameterMapSetWrite)
+			{
+				FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
+				FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
+				OutVariables.Add(Variable);
+				OutVariablesWithOriginalAliasesIntact.Add(VariableWithOriginalAliasIntact);
+			}
+		}
+
+		TArray<const UEdGraphPin*> InputPins;
+		ExtractInputPinsFromHistory(Builder.Histories[0], FunctionCallNode.GetCalledGraph(), FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, InputPins);
+
+		for (const UEdGraphPin* Pin : InputPins)
+		{
+			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
+			{
+				FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
+				if (VariableWithOriginalAliasIntact.GetName() == Pin->PinName)
+				{
+					FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
+					OutVariables.AddUnique(Variable);
+					OutVariablesWithOriginalAliasesIntact.AddUnique(VariableWithOriginalAliasIntact);
+				}
 			}
 		}
 	}
@@ -2290,6 +2341,177 @@ void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 	}
 
 	RelayoutGraph(*SystemGraph);
+}
+
+void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem& System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& ModuleNode, TArray<TWeakObjectPtr<UNiagaraScript>>& OutAffectedScripts)
+{
+	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(ModuleNode);
+
+	if (OutputNode)
+	{
+		TArray<UNiagaraScript*> Scripts;
+		if (Emitter != nullptr)
+		{
+			Emitter->GetScripts(Scripts, false);
+		}
+
+		OutAffectedScripts.Add(System.GetSystemSpawnScript());
+		OutAffectedScripts.Add(System.GetSystemUpdateScript());
+
+		for (UNiagaraScript* Script : Scripts)
+		{
+			if (OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
+			{
+				if (Script->GetUsage() == ENiagaraScriptUsage::ParticleEventScript && Script->GetUsageId() == OutputNode->GetUsageId())
+				{
+					OutAffectedScripts.Add(Script);
+					break;
+				}
+			}
+			else if (Script->ContainsUsage(OutputNode->GetUsage()))
+			{
+				OutAffectedScripts.Add(Script);
+			}
+		}
+	}
+}
+
+void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap)
+{
+	if (OldFunctionName == NewFunctionName)
+	{
+		return;
+	}
+
+	TArray<FNiagaraVariable> OutputVariables;
+	TArray<FNiagaraVariable> OutputVariablesWithOriginalAliasesIntact;
+	FCompileConstantResolver ConstantResolver(Emitter);
+	FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(FunctionCallNode, ConstantResolver, OutputVariables, OutputVariablesWithOriginalAliasesIntact);
+
+	for (FNiagaraVariable& OutputVariableWithOriginalAliasesIntact : OutputVariablesWithOriginalAliasesIntact)
+	{
+		TArray<FString> SplitAliasedVariableName;
+		OutputVariableWithOriginalAliasesIntact.GetName().ToString().ParseIntoArray(SplitAliasedVariableName, TEXT("."));
+		if (SplitAliasedVariableName.Contains(TEXT("Module")))
+		{
+			TArray<FString> SplitOldVariableName = SplitAliasedVariableName;
+			TArray<FString> SplitNewVariableName = SplitAliasedVariableName;
+			for (int32 i = 0; i < SplitAliasedVariableName.Num(); i++)
+			{
+				if (SplitAliasedVariableName[i] == TEXT("Module"))
+				{
+					SplitOldVariableName[i] = OldFunctionName;
+					SplitNewVariableName[i] = NewFunctionName;
+				}
+			}
+
+			OutOldToNewNameMap.Add(*FString::Join(SplitOldVariableName, TEXT(".")), *FString::Join(SplitNewVariableName, TEXT(".")));
+		}
+	}
+}
+
+void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap)
+{
+	if (OldFunctionName == NewFunctionName)
+	{
+		return;
+	}
+
+	TArray<FNiagaraVariable> Variables;
+	TArray<FNiagaraVariable> VariablesWithOriginalAliasesIntact;
+	FCompileConstantResolver ConstantResolver(Emitter);
+	FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(FunctionCallNode, ConstantResolver, Variables, VariablesWithOriginalAliasesIntact);
+
+	for (FNiagaraVariable& Variable : VariablesWithOriginalAliasesIntact)
+	{
+		TArray<FString> SplitAliasedVariableName;
+		Variable.GetName().ToString().ParseIntoArray(SplitAliasedVariableName, TEXT("."));
+		if (SplitAliasedVariableName.Contains(TEXT("Module")))
+		{
+			TArray<FString> SplitOldVariableName = SplitAliasedVariableName;
+			TArray<FString> SplitNewVariableName = SplitAliasedVariableName;
+			for (int32 i = 0; i < SplitAliasedVariableName.Num(); i++)
+			{
+				if (SplitAliasedVariableName[i] == TEXT("Module"))
+				{
+					SplitOldVariableName[i] = OldFunctionName;
+					SplitNewVariableName[i] = NewFunctionName;
+				}
+			}
+
+			OutOldToNewNameMap.Add(*FString::Join(SplitOldVariableName, TEXT(".")), *FString::Join(SplitNewVariableName, TEXT(".")));
+		}
+	}
+}
+
+void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldModuleName, const FString& NewModuleName)
+{
+	TMap<FName, FName> OldNameToNewNameMap;
+	FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariableNames(Emitter, FunctionCallNode, OldModuleName, NewModuleName, OldNameToNewNameMap);
+
+	// local function to rename pins referencing the given module
+	auto RenamePinsReferencingModule = [&OldNameToNewNameMap](UNiagaraNodeParameterMapBase* Node)
+	{
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			FName* NewName = OldNameToNewNameMap.Find(Pin->PinName);
+			if (NewName != nullptr)
+			{
+				Node->SetPinName(Pin, *NewName);
+			}
+		}
+	};
+
+	UNiagaraNodeParameterMapSet* ParameterMapSet = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(FunctionCallNode);
+	if (ParameterMapSet != nullptr)
+	{
+		RenamePinsReferencingModule(ParameterMapSet);
+	}
+
+	TArray<TWeakObjectPtr<UNiagaraScript>> Scripts;
+	FindAffectedScripts(System, Emitter, FunctionCallNode, Scripts);
+
+	const UNiagaraNodeOutput* OutputNode = GetEmitterOutputNodeForStackNode(FunctionCallNode);
+	UNiagaraGraph* OwningGraph = FunctionCallNode.GetNiagaraGraph();
+
+	FString OwningEmitterName = Emitter != nullptr ? Emitter->GetUniqueEmitterName() : FString();
+
+	for (TWeakObjectPtr<UNiagaraScript> Script : Scripts)
+	{
+		if (!Script.IsValid(false))
+		{
+			continue;
+		}
+
+		TArray<FNiagaraVariable> RapidIterationVariables;
+		Script->RapidIterationParameters.GetParameters(RapidIterationVariables);
+
+		for (FNiagaraVariable& Variable : RapidIterationVariables)
+		{
+			FString EmitterName, FunctionCallName, InputName;
+			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(Variable, EmitterName, FunctionCallName, InputName))
+			{
+				if (EmitterName == OwningEmitterName && FunctionCallName == OldModuleName)
+				{
+					FName NewParameterName(*(NewModuleName + TEXT(".") + InputName));
+					FNiagaraVariable NewParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(EmitterName, Script->GetUsage(), NewParameterName, Variable.GetType());
+					Script->RapidIterationParameters.RenameParameter(Variable, NewParameter.GetName());
+				}
+			}
+		}
+
+		if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource()))
+		{
+			// rename all parameter map get nodes that use the parameter name
+			TArray<UNiagaraNodeParameterMapGet*> ParameterGetNodes;
+			ScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeParameterMapGet>(ParameterGetNodes);
+
+			for (UNiagaraNodeParameterMapGet* Node : ParameterGetNodes)
+			{
+				RenamePinsReferencingModule(Node);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

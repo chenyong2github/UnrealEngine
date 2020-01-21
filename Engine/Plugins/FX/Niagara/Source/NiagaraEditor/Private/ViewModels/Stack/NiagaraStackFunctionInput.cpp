@@ -137,48 +137,21 @@ void UNiagaraStackFunctionInput::Initialize(
 	OwningFunctionCallInitialScript = OwningFunctionCallNode->FunctionScript;
 	OwningAssignmentNode = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get());
 
-	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
+	UNiagaraSystem& ParentSystem = GetSystemViewModel()->GetSystem();
 	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraSystem* ParentSystem = &GetSystemViewModel()->GetSystem();
-	if (OutputNode)
+
+	FNiagaraStackGraphUtilities::FindAffectedScripts(ParentSystem, ParentEmitter, *OwningModuleNode.Get(), AffectedScripts);
+
+	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
+	for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
 	{
-		TArray<UNiagaraScript*> Scripts;
-		if (ParentEmitter != nullptr)
+		if (AffectedScript.IsValid() && AffectedScript->IsEquivalentUsage(OutputNode->GetUsage()) && AffectedScript->GetUsageId() == OutputNode->GetUsageId())
 		{
-			ParentEmitter->GetScripts(Scripts, false);
-		}
-		if (ParentSystem != nullptr)
-		{
-			Scripts.Add(ParentSystem->GetSystemSpawnScript());
-			Scripts.Add(ParentSystem->GetSystemUpdateScript());
-		}
-
-		for (UNiagaraScript* Script : Scripts)
-		{
-			if (OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
-			{
-				if (Script->GetUsage() == ENiagaraScriptUsage::ParticleEventScript && Script->GetUsageId() == OutputNode->GetUsageId())
-				{
-					AffectedScripts.Add(Script);
-					break;
-				}
-			}
-			else if (Script->ContainsUsage(OutputNode->GetUsage()))
-			{
-				AffectedScripts.Add(Script);
-			}
-		}
-
-		for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
-		{
-			if (AffectedScript.IsValid() && AffectedScript->IsEquivalentUsage(OutputNode->GetUsage()) && AffectedScript->GetUsageId() == OutputNode->GetUsageId())
-			{
-				SourceScript = AffectedScript;
-				RapidIterationParametersChangedHandle = SourceScript->RapidIterationParameters.AddOnChangedHandler(
-					FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackFunctionInput::OnRapidIterationParametersChanged));
-				SourceScript->GetSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
-				break;
-			}
+			SourceScript = AffectedScript;
+			RapidIterationParametersChangedHandle = SourceScript->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackFunctionInput::OnRapidIterationParametersChanged));
+			SourceScript->GetSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
+			break;
 		}
 	}
 
@@ -446,12 +419,12 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				if (InputValues.DynamicNode->FunctionScript->bDeprecated)
 				{
 					FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetName()));
+						FText::Format(LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for this dynamic input has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
+						FText::Format(LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetName()));
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
-						LOCTEXT("ModuleScriptDeprecationShort", "Deprecated module"),
+						LOCTEXT("DynamicInputScriptDeprecationShort", "Deprecated dynamic input"),
 						LongMessage,
 						GetStackEditorDataKey(),
 						false,
@@ -460,7 +433,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 								LOCTEXT("SelectNewDynamicInputScriptFix", "Select a new dynamic input script"),
 								FStackIssueFixDelegate::CreateLambda([this]() { this->bIsDynamicInputScriptReassignmentPending = true; })),
 							FStackIssueFix(
-								LOCTEXT("ResetFix", "Reset this input to it's default value"),
+								LOCTEXT("ResetDynamicInputFix", "Reset this input to its default value"),
 								FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
 						}));
 
@@ -468,7 +441,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 					{
 						NewIssues[AddIdx].InsertFix(0,
 							FStackIssueFix(
-							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement"),
+							LOCTEXT("SelectNewDynamicInputScriptFixUseRecommended", "Use recommended replacement"),
 							FStackIssueFixDelegate::CreateLambda([this]() { ReassignDynamicInputScript(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation); })));
 					}
 				}
@@ -477,8 +450,8 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				{
 					NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Info,
-						LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
-						FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetName())),
+						LOCTEXT("DynamicInputScriptExperimentalShort", "Experimental dynamic input"),
+						FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for this dynamic input is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetName())),
 						GetStackEditorDataKey(),
 						true));
 				}
@@ -1762,8 +1735,22 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		TEXT("Can not reassign the dynamic input script when tne input doesn't have a valid dynamic input.")))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignDynamicInputTransaction", "Reassign dynamic input script"));
+
+		const FString OldName = InputValues.DynamicNode->GetFunctionName();
+
 		InputValues.DynamicNode->Modify();
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
+
+		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
+		RefreshChildren();
+
+		InputValues.DynamicNode->SuggestName(FString());
+
+		const FString NewName = InputValues.DynamicNode->GetFunctionName();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
+
 		InputValues.DynamicNode->RefreshFromExternalChanges();
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();

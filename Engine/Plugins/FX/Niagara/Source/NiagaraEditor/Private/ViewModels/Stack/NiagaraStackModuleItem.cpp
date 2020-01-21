@@ -913,8 +913,23 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		TEXT("Can not reassign the module script when the module isn't a valid function call module.")))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
+
+		const FString OldName = FunctionCallNode->GetFunctionName();
+		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+
 		FunctionCallNode->Modify();
 		FunctionCallNode->FunctionScript = ModuleScript;
+		
+		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
+		RefreshChildren();
+
+		FunctionCallNode->SuggestName(FString());
+
+		const FString NewName = FunctionCallNode->GetFunctionName();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();
