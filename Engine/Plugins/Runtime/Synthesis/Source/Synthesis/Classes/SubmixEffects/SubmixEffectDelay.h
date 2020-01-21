@@ -27,7 +27,7 @@ struct SYNTHESIS_API FSubmixEffectDelaySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20000.0"))
 	float InterpolationTime;
 
-	// Number of milliseconds of delay.  Caps at max delay at runtime.
+	// Number of milliseconds of delay.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20000.0"))
 	float DelayLength;
 

@@ -47,7 +47,7 @@ namespace Audio
 	{
 		if (AudioBuffer)
 		{
-			FMemory::Memzero(AudioBuffer, sizeof(float) * AudioBufferSize);
+			FMemory::Memzero(AudioBuffer, sizeof(float)*AudioBufferSize);
 		}
 
 		WriteIndex = 0;
@@ -59,8 +59,8 @@ namespace Audio
 	void FDelay::SetDelayMsec(const float InDelayMsec)
 	{
 		// Directly set the delay
-		const float NewDelayInSamples = InDelayMsec * SampleRate * 0.001f;
-		DelayInSamples = FMath::Min(NewDelayInSamples, static_cast<float>(AudioBufferSize));
+		DelayInSamples = InDelayMsec * SampleRate * 0.001f;
+		check(DelayInSamples < AudioBufferSize);
 		Update(true);
 	}
 
@@ -75,8 +75,7 @@ namespace Audio
 		EaseDelayMsec.SetValue(InDelayMsec, bIsInit);
 		if (bIsInit)
 		{
-			const float NewDelayInSamples = InDelayMsec * SampleRate * 0.001f;
-			DelayInSamples = FMath::Min(NewDelayInSamples, static_cast<float>(AudioBufferSize));
+			DelayInSamples = InDelayMsec * SampleRate * 0.001f;
 		}
 		Update(bIsInit);
 	}
