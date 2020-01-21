@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Misc/DateTime.h"
 #include "TraceServices/Model/Channel.h"
 
 namespace Trace {

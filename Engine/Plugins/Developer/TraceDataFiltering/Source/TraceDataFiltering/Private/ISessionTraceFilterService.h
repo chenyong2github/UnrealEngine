@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "IFilterPreset.h"
+#include "Templates/SharedPointer.h"
 
 struct FTraceObjectInfo
 {
