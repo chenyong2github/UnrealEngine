@@ -1042,7 +1042,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			const FClothCollisionPrim_Sphere& Sphere = ClothCollisionData.Spheres[i];
 
 			BoneIndices[j] = GetMappedBoneIndex(UsedBoneIndices, Sphere.BoneIndex);
-			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[i]);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[j]);
 
 			BaseTransforms[j] = Chaos::TRigidTransform<float, 3>(FTransform::Identity);
 
