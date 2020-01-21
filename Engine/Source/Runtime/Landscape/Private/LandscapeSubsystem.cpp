@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "LandscapeInfoMap.h"
 #include "LandscapeInfo.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
