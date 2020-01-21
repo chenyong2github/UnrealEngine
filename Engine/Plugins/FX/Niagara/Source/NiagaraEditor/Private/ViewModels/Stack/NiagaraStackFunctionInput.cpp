@@ -353,7 +353,7 @@ FText UNiagaraStackFunctionInput::GetPasteTransactionText(const UNiagaraClipboar
 	return LOCTEXT("PasteInputTransactionText", "Paste niagara inputs");
 }
 
-void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
 	checkf(ClipboardContent != nullptr && ClipboardContent->FunctionInputs.Num() == 1, TEXT("Clipboard must not be null, and must contain a single input.  Call TestCanPasteWithMessage to validate"));
 

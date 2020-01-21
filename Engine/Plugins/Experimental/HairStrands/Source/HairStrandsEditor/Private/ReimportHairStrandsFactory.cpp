@@ -97,7 +97,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 
 		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
-			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayOptions(CurrentOptions, CurrentFilename);
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, CurrentFilename);
 
 			if (!GroomOptionWindow->ShouldImport())
 			{
@@ -114,9 +114,6 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 		{
 			return EReimportResult::Failed;
 		}
-
-		FScopedSlowTask Progress( (float) 1, LOCTEXT("ReimportHairAsset", "Reimporting hair asset..."), true );
-		Progress.MakeDialog(true);
 
 		FHairDescription HairDescription;
 		if (!SelectedTranslator->Translate(CurrentFilename, HairDescription, CurrentOptions->ConversionSettings))

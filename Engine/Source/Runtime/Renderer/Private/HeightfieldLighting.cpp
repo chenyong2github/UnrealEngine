@@ -945,7 +945,18 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		GlobalHeightfieldParameters.Set(RHICmdList, ShaderRHI, Atlas);
-		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers);
+
+		FRHITexture* TextureAtlas;
+		int32 AtlasSizeX;
+		int32 AtlasSizeY;
+		int32 AtlasSizeZ;
+
+		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+
+		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
 
 		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetDirection());
 
@@ -987,7 +998,7 @@ private:
 
 	FHeightfieldDescriptionParameters HeightfieldDescriptionParameters;
 	FGlobalHeightfieldParameters GlobalHeightfieldParameters;
-	FDistanceFieldCulledObjectBufferParameters ObjectParameters;
+	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
 	FShaderParameter LightDirection;
 	FShaderParameter TanLightAngle;
 	FShaderParameter CascadeDepthMinMax;

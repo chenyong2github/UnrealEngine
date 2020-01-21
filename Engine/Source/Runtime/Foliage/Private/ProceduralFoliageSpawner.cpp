@@ -17,13 +17,6 @@ UProceduralFoliageSpawner::UProceduralFoliageSpawner(const FObjectInitializer& O
 	RandomSeed = 42;
 }
 
-#if WITH_EDITOR
-void UProceduralFoliageSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	bNeedsSimulation = true;
-}
-#endif
-
 UProceduralFoliageTile* UProceduralFoliageSpawner::CreateTempTile()
 {
 	UProceduralFoliageTile* TmpTile = NewObject<UProceduralFoliageTile>(this);
@@ -47,8 +40,6 @@ void UProceduralFoliageSpawner::SetClean()
 	{
 		FoliageTypeObject.SetClean();
 	}
-
-	bNeedsSimulation = false;
 }
 
 // Custom serialization version for all packages containing ProceduralFoliage
@@ -81,34 +72,6 @@ void UProceduralFoliageSpawner::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FProceduralFoliageCustomVersion::GUID);
-}
-
-bool UProceduralFoliageSpawner::AnyDirty() const
-{
-	bool bDirty = bNeedsSimulation;
-
-	if (!bDirty)
-	{
-		for (const FFoliageTypeObject& FoliageTypeObject : FoliageTypes)
-		{
-			if (FoliageTypeObject.IsDirty())
-			{
-				bDirty = true;
-				break;
-			}
-		}
-	}
-	
-	return bDirty;
-}
-
-void UProceduralFoliageSpawner::SimulateIfNeeded()
-{
-	//if (AnyDirty())	@todo: for now we must force simulation every time since precomputed tiles are weak pointers
-	{
-		Simulate();
-	}
-
 }
 
 void UProceduralFoliageSpawner::Empty()

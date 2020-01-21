@@ -752,11 +752,16 @@ void FHlslNiagaraTranslator::HandleNamespacedExternalVariablesToDataSetRead(TArr
 
 bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& Variable) const
 {
-	static FNiagaraVariable ExcludeVariables[] =
+	static FNiagaraVariable GpuExcludeVariables[] =
 	{
+		// Variables that must be calcualted on the GPU
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Engine.ExecutionCount")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Engine_ExecutionCount")),
+
+		// Spawn variables
 		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter_SpawnInterval")),
-		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter_InterpSpawnStartDt")),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter.SpawnInterval")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter_InterpSpawnStartDt")),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter.InterpSpawnStartDt")),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Emitter_SpawnGroup")),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Emitter.SpawnGroup")),
@@ -764,7 +769,7 @@ bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& V
 
 	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		for ( const FNiagaraVariable& ExcludeVar : ExcludeVariables )
+		for ( const FNiagaraVariable& ExcludeVar : GpuExcludeVariables)
 		{
 			if ( Variable == ExcludeVar )
 			{
@@ -1520,16 +1525,7 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 		FString PrevMap = TranslationStages[i - 1].PassNamespace;
 		FString CurMap = TranslationStages[i].PassNamespace;
 		{
-			// GPU simulation is slightly different as we run all spawns at once rather than separate invocations so we can not ExecIndex() as it has to be biased into the correct spawn group's index
-			if ( CompilationTarget == ENiagaraSimTarget::GPUComputeSim )
-			{
-				HlslOutputString += TEXT("\tint InterpSpawn_Index = GInterpSpawnIndex;\n");
-			}
-			else
-			{
-				HlslOutputString += TEXT("\tint InterpSpawn_Index = ExecIndex();\n");
-			}
-
+			HlslOutputString += TEXT("\tint InterpSpawn_Index = ExecIndex();\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_SpawnTime = ") + Emitter_InterpSpawnStartDt + TEXT(" + (") + Emitter_SpawnInterval + TEXT(" * InterpSpawn_Index);\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_UpdateTime = Engine_DeltaTime - InterpSpawn_SpawnTime;\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_InvSpawnTime = 1.0 / InterpSpawn_SpawnTime;\n");
@@ -1792,7 +1788,7 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 				const bool HlslOK = CDO->GetFunctionHLSL(DIInstanceInfo, DIFunc, FunctionInstanceIndex, InterfaceFunctionHLSL);
 				if (!HlslOK)
 				{
-					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} is not implemented for GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(DIFunc.DefinitionName)), nullptr, nullptr);
+					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotImplemented", "DataInterface {0} function {1} is not implemented for GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(DIFunc.DefinitionName)), nullptr, nullptr);
 				}
 			}
 		}

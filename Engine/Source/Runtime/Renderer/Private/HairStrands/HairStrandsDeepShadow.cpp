@@ -45,76 +45,11 @@ static FLightSceneInfosArray GetVisibleDeepShadowLights(const FScene* Scene, con
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void RenderDeepShadowFrontDepth(
-	FRHICommandList& RHICmdList,
-	const FScene* Scene,
-	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfo,
-	const FIntRect& AtlasRect,
-	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
-	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters,
-	const bool bClearOutput,
-	TRefCountPtr<IPooledRenderTarget>& outShadowDepthRT)
-{
-	DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsDeepShadowFrontDepth);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsDeepShadowFrontDepth);
-
-	EDepthStencilTargetActions DepthStencilAction = MakeDepthStencilTargetActions(
-		MakeRenderTargetActions(bClearOutput ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore),
-		MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction));
-	FRHIRenderPassInfo RPInfo(outShadowDepthRT->GetRenderTargetItem().TargetableTexture, DepthStencilAction, nullptr, FExclusiveDepthStencil::DepthWrite_StencilNop);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("DeepShadowDepth"));
-	RasterHairStrands(
-		RHICmdList,
-		Scene,
-		ViewInfo,
-		PrimitiveSceneInfo,
-		EHairStrandsRasterPassType::FrontDepth,
-		AtlasRect,
-		ViewUniformShaderParameters,
-		DeepShadowPassUniformParameters);
-	RHICmdList.EndRenderPass();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-static void RenderDeepShadowLayers(
-	FRHICommandListImmediate& RHICmdList,
-	const FScene* Scene,
-	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfo,
-	const FIntRect& AtlasRect,
-	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
-	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters,
-	const bool bClearOutput,
-	TRefCountPtr<IPooledRenderTarget>& outDeepShadowLayersRT)
-{
-	DECLARE_GPU_STAT(HairStrandsDeepShadowLayers);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsDeepShadowLayers);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsDeepShadowLayers);
-
-	FRHIRenderPassInfo RPInfo(outDeepShadowLayersRT->GetRenderTargetItem().TargetableTexture, bClearOutput ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("DeepShadowLayers"));
-	RasterHairStrands(
-		RHICmdList,
-		Scene,
-		ViewInfo,
-		PrimitiveSceneInfo,
-		EHairStrandsRasterPassType::DeepOpacityMap,
-		AtlasRect,
-		ViewUniformShaderParameters,
-		DeepShadowPassUniformParameters);
-	RHICmdList.EndRenderPass();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 	FRHICommandListImmediate& RHICmdList,
 	const FScene* Scene,
 	const TArray<FViewInfo>& Views,
-	const FHairStrandsClusterViews& DeepShadowClusterViews)
+	const FHairStrandsMacroGroupViews& MacroGroupsViews)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderDeepShadow);
 	DECLARE_GPU_STAT(HairStrandsDeepShadow);
@@ -131,25 +66,25 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 		const FViewInfo& View = Views[ViewIndex];
 		if (View.Family)
 		{
-			const FHairStrandsClusterDatas& DeepShadowClusterDatas = DeepShadowClusterViews.Views[ViewIndex];
+			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupsViews.Views[ViewIndex];
 			DeepShadowsPerView.Views.AddDefaulted();
 
-			if (DeepShadowClusterDatas.Datas.Num() == 0 || 
+			if (MacroGroupDatas.Datas.Num() == 0 || 
 				VisibleLightsPerView[ViewIndex].Num() == 0 ||
 				IsHairStrandsForVoxelTransmittanceAndShadowEnable()) 
 			{
 				continue; 
 			}
 
-			for (int32 ClusterIt = 0; ClusterIt < DeepShadowClusterDatas.Datas.Num(); ++ClusterIt)
+			for (int32 MacroGroupIt = 0; MacroGroupIt < MacroGroupDatas.Datas.Num(); ++MacroGroupIt)
 			{
-				const FHairStrandsClusterData& Cluster = DeepShadowClusterDatas.Datas[ClusterIt];
-				const FBoxSphereBounds ClusterBounds = Cluster.Bounds;
+				const FHairStrandsMacroGroupData& MacroGroup = MacroGroupDatas.Datas[MacroGroupIt];
+				const FBoxSphereBounds MacroGroupBounds = MacroGroup.Bounds;
 
 				for (const FLightSceneInfo* LightInfo : VisibleLightsPerView[ViewIndex])
 				{
 					const FLightSceneProxy* LightProxy = LightInfo->Proxy;
-					if (!LightProxy->AffectsBounds(ClusterBounds))
+					if (!LightProxy->AffectsBounds(MacroGroupBounds))
 					{
 						continue;
 					}
@@ -167,28 +102,15 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 	const FIntPoint AtlasSlotDimension(AtlasSlotX, AtlasSlotX == DOMSlotCount ? 1 : AtlasSlotX);
 	const FIntPoint AtlasSlotResolution(GDeepShadowResolution, GDeepShadowResolution);
 	const FIntPoint AtlasResolution(AtlasSlotResolution.X * AtlasSlotDimension.X, AtlasSlotResolution.Y * AtlasSlotDimension.Y);
-	TRefCountPtr<IPooledRenderTarget> FrontDepthAtlasTexture;
-	TRefCountPtr<IPooledRenderTarget> DeepShadowLayersAtlasTexture;
+
+	FRDGBuilder GraphBuilder(RHICmdList);
 
 	// Create Atlas resources for DOM
 	bool bClearFrontDepthAtlasTexture = true;
 	bool bClearLayerAtlasTexture = true;
-	{
-		{
-			FPooledRenderTargetDesc ShadowDesc(FPooledRenderTargetDesc::Create2DDesc(AtlasResolution, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, ShadowDesc, FrontDepthAtlasTexture, TEXT("ShadowDepth"));
-		}
+	FRDGTextureRef FrontDepthAtlasTexture = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(AtlasResolution, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false), TEXT("ShadowDepth"));
+	FRDGTextureRef DeepShadowLayersAtlasTexture = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(AtlasResolution, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false), TEXT("DeepShadowLayers"));
 
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(AtlasResolution, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DeepShadowLayersAtlasTexture, TEXT("DeepShadowLayers"));
-		}
-	}
-
-	// @todo_hair: could we share the rendering of the deep shadow across all view? Is it needed?
-	// @todo_hair: need to clarify what how view are/should be managed. At the moment this is 
-	// confusing as it seems there are many views but in the renderLight code, only one shadow mask 
-	// texture is created for all lights.
 	uint32 AtlasSlotIndex = 0;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -197,18 +119,18 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 		{
 			FHairStrandsDeepShadowDatas& DeepShadowDatas = DeepShadowsPerView.Views[ViewIndex];
 
-			const FHairStrandsClusterDatas& DeepShadowClusterDatas = DeepShadowClusterViews.Views[ViewIndex];
-			for (int32 ClusterIt = 0; ClusterIt < DeepShadowClusterDatas.Datas.Num(); ++ClusterIt)
+			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupsViews.Views[ViewIndex];
+			for (int32 MacroGroupIt = 0; MacroGroupIt < MacroGroupDatas.Datas.Num(); ++MacroGroupIt)
 			{
 				// List of all the light in the scene.
 				uint32 LightLocalIndex = 0;
 				for (const FLightSceneInfo* LightInfo : VisibleLightsPerView[ViewIndex])
 				{
-					const FHairStrandsClusterData& Cluster = DeepShadowClusterDatas.Datas[ClusterIt];
-					FBoxSphereBounds ClusterBounds = Cluster.Bounds;
+					const FHairStrandsMacroGroupData& MacroGroup = MacroGroupDatas.Datas[MacroGroupIt];
+					FBoxSphereBounds MacroGroupBounds = MacroGroup.Bounds;
 
 					const FLightSceneProxy* LightProxy = LightInfo->Proxy;
-					if (!LightProxy->AffectsBounds(ClusterBounds))
+					if (!LightProxy->AffectsBounds(MacroGroupBounds))
 					{
 						continue;
 					}
@@ -222,71 +144,74 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 
 					// Note: LightPosition.W is used in the transmittance mask shader to differentiate between directional and local lights.
 					FHairStrandsDeepShadowData& DomData = DeepShadowDatas.Datas.AddZeroed_GetRef();
-					ComputeWorldToLightClip(DomData.WorldToLightTransform, MinStrandRadiusAtDepth1, ClusterBounds, *LightProxy, LightType, AtlasSlotResolution);
+					ComputeWorldToLightClip(DomData.WorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
 					DomData.LightDirection = LightProxy->GetDirection();
 					DomData.LightPosition = FVector4(LightProxy->GetPosition(), LightType == ELightComponentType::LightType_Directional ? 0 : 1);
 					DomData.LightLuminance = LightProxy->GetColor();
 					DomData.LightType = LightType;
 					DomData.LightId = LightInfo->Id;
 					DomData.ShadowResolution = AtlasSlotResolution;
-					DomData.Bounds = ClusterBounds;
+					DomData.Bounds = MacroGroupBounds;
 					DomData.AtlasRect = FIntRect(AtlasRectOffset, AtlasRectOffset + AtlasSlotResolution);
-					DomData.ClusterId = Cluster.ClusterId;
-					DomData.DepthTexture = FrontDepthAtlasTexture;
-					DomData.LayersTexture = DeepShadowLayersAtlasTexture;
+					DomData.MacroGroupId = MacroGroup.MacroGroupId;					
 					AtlasSlotIndex++;
 
-					TUniformBufferRef<FDeepShadowPassUniformParameters> DeepShadowPassUniformParameters;
+					const bool bIsOrtho = LightType == ELightComponentType::LightType_Directional;
+					const FVector4 HairRenderInfo = PackHairRenderInfo(MinStrandRadiusAtDepth1.Primary, MinStrandRadiusAtDepth1.Primary, 1, bIsOrtho, false);
+					
+					// Front depth
 					{
-						FDeepShadowPassUniformParameters PassParameters;
-						PassParameters.WorldToClipMatrix = DomData.WorldToLightTransform;;
-						PassParameters.SliceValue = FVector4(1, 1, 1, 1);
-						PassParameters.FrontDepthTexture = DomData.DepthTexture->GetRenderTargetItem().TargetableTexture.GetReference();
-						PassParameters.AtlasRect = DomData.AtlasRect;
-						PassParameters.VoxelMinAABB = FVector::ZeroVector;
-						PassParameters.VoxelMaxAABB = FVector::ZeroVector;
-						PassParameters.VoxelResolution = 0;
-						DeepShadowPassUniformParameters = CreateUniformBufferImmediate(PassParameters, UniformBuffer_SingleFrame, EUniformBufferValidation::None);
+						DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
+						SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsDeepShadowFrontDepth);
+						SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsDeepShadowFrontDepth);
+
+						FHairDeepShadowRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterPassParameters>();
+						PassParameters->WorldToClipMatrix = DomData.WorldToLightTransform;;
+						PassParameters->SliceValue = FVector4(1, 1, 1, 1);
+						PassParameters->AtlasRect = DomData.AtlasRect;
+						PassParameters->ViewportResolution = AtlasSlotResolution;
+						PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(FrontDepthAtlasTexture, bClearFrontDepthAtlasTexture ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+						AddHairDeepShadowRasterPass(
+							GraphBuilder,
+							Scene,
+							&ViewInfo,
+							MacroGroup.PrimitivesInfos,
+							EHairStrandsRasterPassType::FrontDepth,
+							DomData.AtlasRect,
+							HairRenderInfo,
+							DomData.LightDirection,
+							PassParameters);
 					}
 
-					TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+					// Deep layers
 					{
-						const float bIsOrtho = LightType == ELightComponentType::LightType_Directional;
+						DECLARE_GPU_STAT(HairStrandsDeepShadowLayers);
+						SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsDeepShadowLayers);
+						SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsDeepShadowLayers);
 
-						// Save some status we need to restore
-						const FVector SavedViewForward = ViewInfo.CachedViewUniformShaderParameters->ViewForward;
-						// Update our view parameters
-						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.X = MinStrandRadiusAtDepth1.Primary;
-						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Y = MinStrandRadiusAtDepth1.Primary;
-						ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo.Z = bIsOrtho;
-						ViewInfo.CachedViewUniformShaderParameters->ViewForward = DomData.LightDirection;
-						// Create the uniform buffer
-						ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-						// Restore the view cached parameters
-						ViewInfo.CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
+						FHairDeepShadowRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterPassParameters>();
+						PassParameters->WorldToClipMatrix = DomData.WorldToLightTransform;;
+						PassParameters->SliceValue = FVector4(1, 1, 1, 1);
+						PassParameters->AtlasRect = DomData.AtlasRect;
+						PassParameters->ViewportResolution = AtlasSlotResolution;
+						PassParameters->FrontDepthTexture = FrontDepthAtlasTexture;
+						PassParameters->RenderTargets[0] = FRenderTargetBinding(DeepShadowLayersAtlasTexture, bClearLayerAtlasTexture ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, 0);
+
+						AddHairDeepShadowRasterPass(
+							GraphBuilder,
+							Scene,
+							&ViewInfo,
+							MacroGroup.PrimitivesInfos,
+							EHairStrandsRasterPassType::DeepOpacityMap,
+							DomData.AtlasRect,
+							HairRenderInfo,
+							DomData.LightDirection,
+							PassParameters);						
 					}
 
-					RenderDeepShadowFrontDepth(
-						RHICmdList,
-						Scene,
-						&ViewInfo,
-						Cluster.PrimitivesInfos,
-						DomData.AtlasRect,
-						ViewUniformShaderParameters,
-						DeepShadowPassUniformParameters,
-						bClearFrontDepthAtlasTexture,
-						DomData.DepthTexture);
-
-					RenderDeepShadowLayers(
-						RHICmdList,
-						Scene,
-						&ViewInfo,
-						Cluster.PrimitivesInfos,
-						DomData.AtlasRect,
-						ViewUniformShaderParameters,
-						DeepShadowPassUniformParameters,
-						bClearLayerAtlasTexture,
-						DomData.LayersTexture);
+					GraphBuilder.QueueTextureExtraction(FrontDepthAtlasTexture, &DomData.DepthTexture);
+					GraphBuilder.QueueTextureExtraction(DeepShadowLayersAtlasTexture, &DomData.LayersTexture);
 
 					bClearFrontDepthAtlasTexture = false;
 					bClearLayerAtlasTexture = false;
@@ -294,6 +219,8 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 					++LightLocalIndex;
 				}
 			}
+
+			GraphBuilder.Execute();
 		}
 	}
 

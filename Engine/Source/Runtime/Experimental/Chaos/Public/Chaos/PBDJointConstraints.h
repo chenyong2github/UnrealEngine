@@ -30,6 +30,7 @@ namespace Chaos
 		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
 		CHAOS_API int32 GetConstraintLevel() const;
 		CHAOS_API const FPBDJointSettings& GetSettings() const;
+		CHAOS_API void SetSettings(const FPBDJointSettings& Settings);
 		CHAOS_API TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
 
 	protected:
@@ -123,6 +124,7 @@ namespace Chaos
 		const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
+		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
 
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
 		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);

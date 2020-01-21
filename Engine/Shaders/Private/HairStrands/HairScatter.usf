@@ -1,0 +1,467 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "HairStrandsVoxelPageCommonStruct.ush"
+
+#include "../Common.ush"
+//#include "../CommonViewUniformBuffer.ush"
+
+#include "HairStrandsCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+
+#include "../SceneTexturesCommon.ush"
+#include "HairStrandsDebugCommon.ush"
+#include "HairStrandsDeepShadowCommon.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../ShadingModels.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrandsVoxelPageCommon.ush"
+
+#define DEBUG_ENABLE 0
+
+#define VOXEL_TRAVERSAL_DEBUG DEBUG_ENABLE
+#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
+#include "HairStrandsVoxelPageTraversal.ush"
+#include "../HairBsdf.ush"
+#include "../ShaderDrawDebug.ush"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// INLINE OF: #include "DeepTransmittanceDualScattering.ush"
+
+float Hair_g2(float B,float Theta)
+{
+	#if 0
+	return Hair_g(B,Theta);
+	#else
+	// Unnormalized Gaussian
+	return exp( -0.5 * Pow2( Theta ) / (B*B) );
+	#endif
+}
+
+// TODO; clean up the dual scattering file to remove the dependencies
+// Dual scattering computation are done here for faster iteration (i.e., does not invalidate tons of shaders)
+void ComputeDualScatteringTerms(
+	const FHairTransmittanceData TransmittanceData,
+	const float Roughness,
+	const float3 V,
+	const float3 L,
+	const float3 T,
+	const uint HairComponents,
+	inout float3 OutGlobalScattering,
+	inout float3 OutLocalScattering)
+{
+	const float SinThetaL = clamp(dot(T, L), -1, 1);
+	const float SinThetaV = clamp(dot(T, V), -1, 1);
+
+	const float MaxAverageScatteringValue = 0.99f;
+
+	// Straight implementation of the dual scattering paper 
+    const float3 af	 = min(MaxAverageScatteringValue.xxx, TransmittanceData.A_front);
+	const float3 af2 = Pow2(af);
+	const float3 ab  = min(MaxAverageScatteringValue.xxx, TransmittanceData.A_back);
+	const float3 ab2 = Pow2(ab);
+    const float3 OneMinusAf2 = 1 - af2;
+
+	const float3 A1 = ab * af2 / OneMinusAf2;
+	const float3 A3 = ab * ab2 * af2 / (OneMinusAf2*Pow2(OneMinusAf2));
+	const float3 Ab = A1 + A3;
+
+	// todo_hair: Should use the average roughness after k scattering event instead of the BSDF roughness
+	const float Beta_R	 = Pow2( Roughness );
+	const float Beta_TT	 = Pow2( Roughness / 2 ); 
+	const float Beta_TRT = Pow2( Roughness * 2 ); 
+
+	const float Shift     = 0.035;
+	const float Shift_R   =-0.035*2;
+	const float Shift_TT  = 0.035;
+	const float Shift_TRT = 0.035*4;
+
+	// Average density factor (This is the constant used in the original paper)
+	const float df = 0.7f;
+	const float db = 0.7f;
+
+	// This is a coarse approximation of eq. 13. Normally, Beta_f should be weighted by the 'normalized' 
+	// R, TT, and TRT terms 
+	const float3 af_weights = af / (af.r + af.g + af.b);
+    const float3 Beta_f  = dot(float3(Beta_R, Beta_TT, Beta_TRT), af_weights);
+	const float3 Beta_f2 = Beta_f*Beta_f;
+    const float3 sigma_f = Beta_f * max(1, TransmittanceData.HairCount);
+
+    const float Theta_h = (asin(SinThetaL) + asin(SinThetaV)) * 0.5f;
+
+	// Global scattering spread 'Sf'
+	// It is unclear if this is correct to use a normalized Gaussian as in the original paper, as with an increase 
+	// number of hair count the Gaussian will become more and more spread, and have less and less contribution. 
+	// This is correct from an energy point of view, as long as the scattering is integrated over multiple scattering 
+	// event, which is not our case here.
+	// This is why there is a non-normalized Gaussian version in case this does not fly properly with regular 
+	// normalized Gaussian
+	// const float3 Sf = 1;
+	// const float3 Sf = Hair_g_unnormalized(sigma_f, Theta_h) / PI; 
+    float3 Sf = float3(	Hair_g2(sigma_f.r, Theta_h), 
+						Hair_g2(sigma_f.g, Theta_h), 
+						Hair_g2(sigma_f.b, Theta_h)) / PI;
+	const float3 Tf = TransmittanceData.Transmittance;
+
+	// Overall shift due to the various local scatteing event (all shift & roughnesss should vary with color)
+	//const float3 shift_f = 0.33f * (Shift_R + Shift_TT + Shift_TRT);
+    const float3 shift_f = dot(float3(Shift_R, Shift_TT, Shift_TRT), af_weights);
+	const float3 shift_b = shift_f;
+    const float3 delta_b = 0; //shift_b * (1 - 2*ab2 / Pow2(1 - af2)) * shift_f * (2 * Pow2(1 - af2) + 4*af2*ab2)/Pow3(1-af2);
+
+	const float3 ab_weights = ab / (ab.r + ab.g + ab.b);
+	const float3 Beta_b  = dot(float3(Beta_R, Beta_TT, Beta_TRT), ab_weights);
+	const float3 Beta_b2 = Beta_f2;
+
+    const float3 sigma_b = (1 + db*af2) * (ab*sqrt(2*Beta_f2 + Beta_b2) + ab*ab2*sqrt(2*Beta_f2 + Beta_b2)) / (ab + ab*ab2*(2*Beta_f + 3*Beta_b));
+
+	// Local scattering Spread 'Sb'
+    float3 Sb = float3(	Hair_g2(Pow2(sigma_b.r), Theta_h - delta_b.r),
+						Hair_g2(Pow2(sigma_b.g), Theta_h - delta_b.g),
+						Hair_g2(Pow2(sigma_b.b), Theta_h - delta_b.b))  / PI;
+
+	// Override the spread function to cancel them
+	//Sf = 1;
+	//Sb = 1;
+
+    // Different variant for managing sefl-occlusion issue for global scattering
+	const bool bIsOccluded = TransmittanceData.HairCount > 0;
+	const float3 GlobalScattering = bIsOccluded ? Tf * Sf * df : 1;
+	//const float3 GlobalScattering = TransmittanceData.HairCount >= 1 ? Tf * Sf * df : 1;
+    //const float3 GlobalScattering = lerp(1, Tf * Sf * df, saturate(TransmittanceData.HairCount));
+	//const float3 GlobalScattering = Tf * Sf * df;
+
+	const float3 LocalScattering  = 2 * Ab * Sb * db;
+	
+	// Decode if the Local/Global component should be enabled or not (for debug purpose)
+	const float LocalWeights  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? 1 : 0;
+
+	OutGlobalScattering = (HairComponents & HAIR_COMPONENT_GS) > 0 ? GlobalScattering : 1;
+	OutLocalScattering  = LocalScattering * LocalWeights;
+
+	// Final computation is done in ShadingModels.ush with the following formula
+	// GlobalScattering * (Fs + LocalScattering) * TransmittanceData.OpaqueVisibility;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+	return WorldPosition;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float2 						OutputResolution;
+float  						GatherWorldRadius;  // cm
+float						PixelRadiusAtDepth1;
+
+uint 						Enable;
+uint 						Debug;
+uint						SampleCount;
+uint 						HairComponents;
+
+Texture2D<float4> 			DiffusionInputTexture;
+
+Texture2D<uint4>  			CategorizationTexture;
+Texture2D<uint> 			VisibilityNodeIndex;
+StructuredBuffer<FNodeData> VisibilityNodeData;
+
+Texture3D<float4>			HairLUTTexture;
+Texture3D<float4>			HairEnergyLUTTexture;
+SamplerState 				LinearSampler;
+
+FHairTransmittanceMask ComputeTransmittanceVoxel(
+	const uint2 PixelCoord,
+	float3 WorldPosition,
+	float3 SamplePosition,
+	uint MacroGroupId,
+	FGBufferData GBuffer,
+	FTransmittanceSettings Settings,
+	Texture3D<float4>	HairLUTTexture,
+	SamplerState		HairLUTSampler,
+	bool bDebugEnabled)
+{
+	const float3 L = normalize(SamplePosition - WorldPosition);;
+	const float3 T = GBuffer.WorldNormal;
+	const float SinLightAngle = dot(L, T);
+
+	// Depth bias
+	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
+	float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
+
+	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+	const float3 DepthBias = MaxVoxelSize * (Settings.DeepShadowDepthBiasScale*L + SampleRandom);
+
+	FVirtualVoxelCommonDesc CommonDesc;
+	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
+	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
+	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
+	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
+
+	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+
+	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
+	TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
+	TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
+	TraversalSettings.DistanceThreshold = 100000;
+	TraversalSettings.bDebugEnabled = bDebugEnabled;
+	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+	TraversalSettings.Random = SampleRandom;
+
+	FHairTraversalResult Result = ComputeHairCountVirtualVoxel(
+		WorldPosition + DepthBias,
+		SamplePosition,
+		CommonDesc,
+		NodeDesc,
+		VirtualVoxel.PageIndexBuffer,
+		VirtualVoxel.PageTexture,
+		TraversalSettings);
+
+	return ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairLUTTexture, HairLUTSampler);
+}
+
+FGBufferData GetGBufferData(uint2 PixelCoord)
+{
+	FGBufferData GBuffer;
+	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
+	GBuffer.WorldNormal = float3(1, 0, 0);
+	GBuffer.BaseColor = float3(0, 0, 0);
+	GBuffer.Roughness = 1;
+	GBuffer.Specular = 0;
+
+	uint MacroGroupIndex = 0;
+	const FNodeDesc NodeDesc = DecodeNodeDesc(VisibilityNodeIndex.Load(uint3(PixelCoord, 0)));
+	if (NodeDesc.Count > 0)
+	{
+		float ClosestDepth = 0; // Inverse-Z
+		[loop]
+		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; ++SampleIt)
+		{
+			const uint LocalOffset = NodeDesc.Offset + SampleIt;
+			const FNodeData NodeData = VisibilityNodeData[LocalOffset];
+			float			SampleDepth;
+			FVisibilityData SampleVisData;
+			float3			SampleBaseColor;
+			float			SampleRoughness;
+			float			SampleSpecular;
+			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+
+			if (SampleDepth >= ClosestDepth) // InverseZ
+			{
+				GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
+				GBuffer.WorldNormal = SampleVisData.Tangent;
+				GBuffer.BaseColor = SampleBaseColor;
+				GBuffer.Roughness = SampleRoughness;
+				GBuffer.Specular = SampleSpecular;
+				ClosestDepth = SampleDepth;
+
+				// todo
+				MacroGroupIndex = 0; //clamp(SampleVisData.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
+			}
+		}
+	}
+
+	return GBuffer;
+}
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor  : SV_Target0,
+	out float4 OutSubPixelColor  : SV_Target1,
+	out float4 OutDiffusionTexture : SV_Target2)
+{
+	OutColor = 0;
+	OutSubPixelColor = 0;	
+	if (Enable == 0)
+		return;
+
+
+	const uint2 PixelCoord = floor(Input.Position.xy);
+	const float2 UV = Input.UV;
+	float4 HairColor = 0;
+	const bool bDebugEnabled = PixelCoord.x == uint(GetCursorPos().x) && PixelCoord.y == uint(GetCursorPos().y);
+	const float3 TransmittanceRandom = float3(InterleavedGradientNoise(PixelCoord.xy, 1), InterleavedGradientNoise(PixelCoord.xy, 2), InterleavedGradientNoise(PixelCoord.xy, 3));
+	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord,0)));
+
+	const bool bIsCoveredByHair = CatData.PixelCoverage > 0;
+	if (!bIsCoveredByHair)
+		discard;
+
+	const float PixelDepth = ConvertFromDeviceZ(CatData.ClosestDepth);
+	const float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, PixelDepth);
+	const float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
+
+	FGBufferData GBuffer = GetGBufferData(PixelCoord);
+
+	const float3 T = GBuffer.WorldNormal;
+	const float3 RandOffset = float3(
+		InterleavedGradientNoise(PixelCoord.xy, 5), 
+		InterleavedGradientNoise(PixelCoord.xy, 6), 
+		InterleavedGradientNoise(PixelCoord.xy, 7));
+
+	const uint IndirectSampleCount = clamp(SampleCount, 0, 32);
+	const float GatherRadiusInPixel = clamp(GatherWorldRadius / (PixelRadiusAtDepth1 * PixelDepth), 0, 300) * 0.5f;
+
+	#if DEBUG_ENABLE
+	if (bDebugEnabled)
+	{
+		const float3 Extent = 0.5;
+		const float4 DebugColor = float4(1, 0, 1, 1);
+		AddAABB(WorldPosition - GatherWorldRadius, WorldPosition + GatherWorldRadius, DebugColor);
+	}
+	#endif
+
+	float4 AccIndirectLuminance = 0;
+	[loop]
+	for (uint IndirectSampleIt=0; IndirectSampleIt < IndirectSampleCount; ++IndirectSampleIt)
+	{	
+		// [0..1]^2
+		const float2 Rand2 = Hammersley(IndirectSampleIt, IndirectSampleCount, uint2(0, 0)) + RandOffset.xy;
+
+		const float2 SampleOffset	= frac(Rand2) * 2 - float2(1,1);
+		const uint2 SamplePixelPos	= clamp(PixelCoord + SampleOffset * GatherRadiusInPixel, 0, OutputResolution-1);
+		const float2 SampleUV		= SamplePixelPos / OutputResolution;
+
+		const float4 SampleColor = DiffusionInputTexture.Load(uint3(SamplePixelPos, 0));
+		if(SampleColor.w == 0)
+			continue;
+		const FCategorizationData SampleCatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(SamplePixelPos,0)));
+		const float  SampleDepth    = ConvertFromDeviceZ(SampleCatData.ClosestDepth);
+		const float3 SampleWorldPos = ReconstructWorldPositionFromDepth(SampleUV, SampleDepth);
+		const float3 L 				= normalize(SampleWorldPos - WorldPosition);
+		const float SinLightAngle	= dot(L, T);
+
+		const float Distance = distance(SampleWorldPos, WorldPosition);
+		FGBufferData SampleGBuffer = GetGBufferData(SamplePixelPos);
+		const float3 SampleT = SampleGBuffer.WorldNormal;
+		const float SampleSinLightAngle = dot(L, SampleT);
+
+		#if DEBUG_ENABLE
+		if (bDebugEnabled)
+		{
+			const float3 Extent = 0.1;
+			const float4 DebugColor = float4(1, 1, 0, 1);
+			AddAABB(SampleWorldPos - Extent, SampleWorldPos + Extent, DebugColor);
+		}
+		#endif	
+
+		// Weighted by the BSDF and dual scattering
+		{
+			// Compute transmittance with voxel data
+			FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
+			#if 1
+			{
+				FTransmittanceSettings Settings;
+				Settings.LightDirection = L;
+				Settings.LightPosition = float4(SampleWorldPos,1);
+				Settings.DeepShadowDensityScale = 1; // Voxel_DensityScale;
+				Settings.DeepShadowDepthBiasScale = 1; // Voxel_DepthBiasScale;
+				Settings.Random = TransmittanceRandom;
+
+				const uint MacroGroupId = 0;
+				TransmittanceMask = ComputeTransmittanceVoxel(
+					PixelCoord,
+					WorldPosition,
+					SampleWorldPos,
+					MacroGroupId,
+					GBuffer,
+					Settings,
+					HairLUTTexture,
+					LinearSampler,
+					bDebugEnabled && DEBUG_ENABLE);
+			}
+			#endif
+
+
+			// Use dual scattering
+			#if 0
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			{
+				TransmittanceData.Transmittance = TransmittanceMask.Transmittance;
+				TransmittanceData.HairCount = TransmittanceMask.HairCount;
+				TransmittanceData.GlobalScattering = TransmittanceMask.Transmittance;
+				TransmittanceData.LocalScattering = 0;
+				TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
+				TransmittanceData.OpaqueVisibility = TransmittanceMask.Visibility;
+
+				{
+					// Compute the transmittance based on precompute Hair transmittance LUT
+					HairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, LinearSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+					TransmittanceData.A_front = AverageScattering.A_front;
+					TransmittanceData.A_back  = AverageScattering.A_back;
+				}
+
+				ComputeDualScatteringTerms(
+					TransmittanceData, 
+					GBuffer.Roughness, 
+					V,
+					L,
+					T,
+					HairComponents,
+					TransmittanceData.GlobalScattering, 
+					TransmittanceData.LocalScattering);
+			
+				TransmittanceData.LocalScattering = 1;
+			}
+			#endif
+
+			// Use average energy
+			#if 1
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			{
+				TransmittanceData.LocalScattering = 0;
+				TransmittanceData.OpaqueVisibility = 1;
+				TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
+
+				// Compute the transmittance based on precompute Hair transmittance LUT
+				HairAverageEnergy Energy	= SampleHairEnergyLUT(HairEnergyLUTTexture, LinearSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+				const float3 TotalEnergy	= Energy.A_R + Energy.A_TT + Energy.A_TRT;
+	
+				HairAverageEnergy SampleEnergy = SampleHairEnergyLUT(HairEnergyLUTTexture, LinearSampler, SampleGBuffer.BaseColor, SampleGBuffer.Roughness, SampleSinLightAngle);
+				const float3 SampleTotalEnergy = SampleEnergy.A_R + SampleEnergy.A_TT + SampleEnergy.A_TRT;
+
+				TransmittanceData.LocalScattering = TotalEnergy * SampleTotalEnergy;
+			}
+			#endif
+
+			// Nothing (passthrough)
+			#if 0
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			{
+				TransmittanceData.LocalScattering = 0;
+				TransmittanceData.GlobalScattering = 0;
+				TransmittanceData.OpaqueVisibility = 1;
+				TransmittanceData.ScatteringComponent = HairComponents;
+			}
+			#endif
+
+			const float Area = 0;
+			const float3 TransmittedLight = TransmittanceMask.Transmittance * TransmittanceMask.Visibility * SampleColor.xyz;
+			float3 Luminance = HairShading(GBuffer, L, V, T, 1, TransmittanceData, 1, Area, uint2(0,0)) * TransmittedLight;
+			
+			AccIndirectLuminance.rgb += Luminance.xyz;
+			AccIndirectLuminance.w += 1;
+		}
+	}
+
+	AccIndirectLuminance /= max(AccIndirectLuminance.w,1);
+
+
+	if (CatData.PixelCoverage < 1)
+	{
+		OutSubPixelColor.xyz = AccIndirectLuminance.xyz * CatData.PixelCoverage;
+		OutSubPixelColor.a = 0;
+	}
+	else if (CatData.PixelCoverage >= 1)
+	{
+		OutColor.xyz = AccIndirectLuminance.xyz;
+		OutColor.a = 0;
+	}
+
+	OutDiffusionTexture = AccIndirectLuminance;
+}

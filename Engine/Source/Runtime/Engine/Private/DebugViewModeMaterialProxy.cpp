@@ -84,7 +84,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, StaticParamSet, ShaderPlatform);
+		CacheShaders(ResourceId, &StaticParamSet, ShaderPlatform);
 	}
 	else
 	{

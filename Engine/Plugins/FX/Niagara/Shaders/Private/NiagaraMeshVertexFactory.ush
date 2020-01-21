@@ -20,6 +20,7 @@
 	Buffer<float> NiagaraParticleDataScale;
 	Buffer<float> NiagaraParticleDataTransform;
 	Buffer<float> NiagaraParticleDataNormalizedAge;
+	Buffer<float> NiagaraParticleDataSubImage;
 	Buffer<float> NiagaraParticleDataMaterialRandom;
 	Buffer<float> NiagaraParticleDataMaterialParam0;
 	Buffer<float> NiagaraParticleDataMaterialParam1;
@@ -111,7 +112,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if NEEDS_PARTICLE_COLOR
-	float4	ParticleColor : COLOR1;
+	nointerpolation float4	ParticleColor : COLOR1;
 #endif
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
@@ -129,25 +130,25 @@ struct FVertexFactoryInterpolantsVSToPS
 
 #if USE_PARTICLE_POSITION
 	/** Particle position in camera-centered translated world space */
-	float3 ParticleTranslatedWorldPosition	: PARTICLE_POSITION;
+	nointerpolation float3 ParticleTranslatedWorldPosition	: PARTICLE_POSITION;
 #endif
 
 #if USE_PARTICLE_VELOCITY
 	/** The velocity of the particle, XYZ: direction, W: speed. */
-	float4 ParticleVelocity	: PARTICLE_VELOCITY;
+	nointerpolation float4 ParticleVelocity	: PARTICLE_VELOCITY;
 #endif
 
 #if USE_PARTICLE_TIME
 	/** Relative alive time of the particle */
-	float RelativeTime : PARTICLE_TIME;
+	nointerpolation float RelativeTime : PARTICLE_TIME;
 #endif
 
 #if USE_PARTICLE_RANDOM
-	float ParticleRandom : PARTICLE_RANDOM;
+	nointerpolation float ParticleRandom : PARTICLE_RANDOM;
 #endif
 
 #if USE_PARTICLE_TRANSFORM
-	float4 LocalToWorld[4] : PARTICLE_TRANSFORM;
+	nointerpolation float4 LocalToWorld[4] : PARTICLE_TRANSFORM;
 #endif
 
 #if INSTANCED_STEREO
@@ -169,7 +170,7 @@ struct FVertexFactoryIntermediates
 #endif
 #if USE_PARTICLE_SUBUVS
 	float4 SubUVCoords;
-	float SubUVLerp;
+	nointerpolation float SubUVLerp;
 #endif
 
 	/** Optional dynamic parameters for the particle. */
@@ -706,12 +707,28 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 
 #if USE_PARTICLE_SUBUVS
-		Intermediates.SubUVCoords.xy = (float2( Input.SubUVParams.x, Input.SubUVParams.y ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
-		Intermediates.SubUVCoords.zw = (float2( Input.SubUVParams.z, Input.SubUVParams.w ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
-		//Intermediates.SubUVLerp = Input.SubUVLerpAndRelTime.x;
+	if (NiagaraMeshVF.SubImageDataOffset == -1)
+	{
+		Intermediates.SubUVCoords.xy = 0.0f;
+		Intermediates.SubUVCoords.zw = 0.0f;
+		Intermediates.SubUVLerp = 0;
+	}
+	else
+	{
+		// SubUV.
+		float SubImageIndex = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataSubImage), NiagaraMeshVF.SubImageDataOffset, Input.InstanceId);
+		float SubImageLerp = frac(SubImageIndex);
+		float SubImageA = SubImageIndex - SubImageLerp;
+		float SubImageB = SubImageA + 1;
+		float SubImageAH = fmod(SubImageA, NiagaraMeshVF.SubImageSize.x);
+		float SubImageBH = fmod(SubImageB, NiagaraMeshVF.SubImageSize.x);
+		float SubImageAV = floor(SubImageA * NiagaraMeshVF.SubImageSize.z);
+		float SubImageBV = floor(SubImageB * NiagaraMeshVF.SubImageSize.z);
+		Intermediates.SubUVCoords.xy = (float2(SubImageAH, SubImageAV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
+		Intermediates.SubUVCoords.zw = (float2(SubImageBH, SubImageBV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
+		Intermediates.SubUVLerp = (NiagaraMeshVF.SubImageBlendMode == 1) ? SubImageLerp : 0.0f;
+	}
 #endif
-
-	//Intermediates.RelativeTime = Input.SubUVLerpAndRelTime.y;
 
 	return Intermediates;
 }

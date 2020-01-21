@@ -26,6 +26,7 @@ FForceFeedbackValues FAndroidInputInterface::VibeValues;
 
 bool FAndroidInputInterface::bAllowControllers = true;
 bool FAndroidInputInterface::bBlockAndroidKeysOnControllers = false;
+bool FAndroidInputInterface::bControllersBlockDeviceFeedback = false;
 
 FAndroidControllerData FAndroidInputInterface::OldControllerData[MAX_NUM_CONTROLLERS];
 FAndroidControllerData FAndroidInputInterface::NewControllerData[MAX_NUM_CONTROLLERS];
@@ -72,6 +73,7 @@ FAndroidInputInterface::FAndroidInputInterface(const TSharedRef< FGenericApplica
 {
 	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBlockAndroidKeysOnControllers"), bBlockAndroidKeysOnControllers, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bControllersBlockDeviceFeedback"), bControllersBlockDeviceFeedback, GEngineIni);
 
 	ButtonMapping[0] = FGamepadKeyNames::FaceButtonBottom;
 	ButtonMapping[1] = FGamepadKeyNames::FaceButtonRight;
@@ -224,6 +226,8 @@ void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FF
 		}
 	}
 
+	bDidFeedback |= IsGamepadAttached() && bControllersBlockDeviceFeedback;
+
 	// If controller handled force feedback don't do it on the phone
 	if (bDidFeedback)
 	{
@@ -273,16 +277,20 @@ void FAndroidInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, c
 		}
 	}
 
+	bDidFeedback |= IsGamepadAttached() && bControllersBlockDeviceFeedback;
+
 	// If controller handled force feedback don't do it on the phone
 	if (bDidFeedback)
 	{
-		return;
+		VibeValues.LeftLarge = VibeValues.RightLarge = VibeValues.LeftSmall = VibeValues.RightSmall = 0.0f;
+	}
+	else
+	{
+		VibeValues = Values;
 	}
 
 	// Note: only one motor on Android at the moment, but remember all the settings
 	// update will look at combination of all values to pick state
-
-	VibeValues = Values;
 
 	// Update with the latest values (wait for SendControllerEvents later?)
 	UpdateVibeMotors();

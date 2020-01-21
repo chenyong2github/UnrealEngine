@@ -29,6 +29,7 @@ public:
 		NiagaraParticleDataMaterialParam1.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam1"));
 		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
 		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
+		NiagaraParticleDataSubImage.Bind(ParameterMap, TEXT("NiagaraParticleDataSubImage"));
 
 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
@@ -40,7 +41,6 @@ public:
 		MeshFacingMode.Bind(ParameterMap, TEXT("MeshFacingMode"));
 		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
-
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -57,6 +57,7 @@ public:
 		Ar << NiagaraParticleDataMaterialParam1;
 		Ar << NiagaraParticleDataMaterialParam2;
 		Ar << NiagaraParticleDataMaterialParam3;
+		Ar << NiagaraParticleDataSubImage;
 		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
 
@@ -98,6 +99,7 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataSubImage, NiagaraMeshVF->GetParticleDataFloatSRV());
 
 		ShaderBindings.Add(FloatDataOffset, NiagaraMeshVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, NiagaraMeshVF->GetFloatDataStride());
@@ -122,6 +124,7 @@ private:
 	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
+	FShaderResourceParameter NiagaraParticleDataSubImage;
 	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 

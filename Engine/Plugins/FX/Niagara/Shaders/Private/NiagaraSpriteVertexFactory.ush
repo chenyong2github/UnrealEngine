@@ -127,15 +127,15 @@ struct FVertexFactoryInterpolantsVSToPS
 
 #if USE_PARTICLE_POSITION
 	/** Cam-relative (translated) particle center and radius */
-	float4 ParticleTranslatedWorldPositionAndSize	: PARTICLE_POSITION;
+	nointerpolation float4 ParticleTranslatedWorldPositionAndSize	: PARTICLE_POSITION;
 #endif
 
 #if USE_PARTICLE_VELOCITY
-	float4 ParticleVelocity : PARTICLE_VELOCITY;
+	nointerpolation float4 ParticleVelocity : PARTICLE_VELOCITY;
 #endif
 
 #if USE_PARTICLE_TIME
-	float RelativeTime : PARTICLE_TIME;
+	nointerpolation float RelativeTime : PARTICLE_TIME;
 #endif
 
 #if USE_PARTICLE_LIGHTING_OFFSET
@@ -143,11 +143,11 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if USE_PARTICLE_SIZE
-	float2 ParticleSize : PARTICLE_SIZE;
+	nointerpolation float2 ParticleSize : PARTICLE_SIZE;
 #endif
 
 #if USE_PARTICLE_RANDOM
-	float ParticleRandom : PARTICLE_RANDOM;
+	nointerpolation float ParticleRandom : PARTICLE_RANDOM;
 #endif
 
 #if INSTANCED_STEREO

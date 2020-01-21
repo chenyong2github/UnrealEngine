@@ -192,7 +192,26 @@ public:
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
+
+		FRHITexture* TextureAtlas;
+		int32 AtlasSizeX;
+		int32 AtlasSizeY;
+		int32 AtlasSizeZ;
+
+		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+
+		ObjectBufferParameters.Set(
+			RHICmdList,
+			ShaderRHI,
+			*(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()),
+			Scene->DistanceFieldSceneData.NumObjectsInBuffer,
+			TextureAtlas,
+			AtlasSizeX,
+			AtlasSizeY,
+			AtlasSizeZ);
 
 		FRHIUnorderedAccessView* OutUAVs[4];
 		OutUAVs[0] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV;
@@ -201,7 +220,7 @@ public:
 		OutUAVs[3] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.BoxBounds.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
-		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers);
+		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
 
 		extern float GAOConeHalfAngle;
 		const float GlobalMaxSphereQueryRadius = MaxOcclusionDistance / (1 + FMath::Tan(GAOConeHalfAngle));
@@ -247,8 +266,8 @@ public:
 
 private:
 
-	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
-	FDistanceFieldCulledObjectBufferParameters CulledObjectParameters;
+	TDistanceFieldObjectBufferParameters<DFPT_SignedDistanceField> ObjectBufferParameters;
+	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> CulledObjectParameters;
 	FShaderParameter AOGlobalMaxSphereQueryRadius;
 	FShaderParameter VolumeBounds;
 	FShaderParameter AcceptOftenMovingObjectsOnly;
@@ -368,7 +387,18 @@ public:
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers);
+
+		FRHITexture* TextureAtlas;
+		int32 AtlasSizeX;
+		int32 AtlasSizeY;
+		int32 AtlasSizeZ;
+
+		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+
+		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, GlobalDistanceFieldInfo.ParameterData);
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GObjectGridBuffers.CullGridObjectNum.UAV);
@@ -416,7 +446,7 @@ public:
 
 private:
 
-	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> CulledObjectBufferParameters;
 	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;
 	FRWShaderParameter CullGridObjectNum;
 	FRWShaderParameter CullGridObjectArray;
@@ -503,7 +533,18 @@ public:
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers);
+
+		FRHITexture* TextureAtlas;
+		int32 AtlasSizeX;
+		int32 AtlasSizeY;
+		int32 AtlasSizeZ;
+
+		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+
+		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, ParameterData);
 
 		const FSceneRenderTargetItem& ClipMapRTI = Clipmap.RenderTarget->GetRenderTargetItem();
@@ -567,7 +608,7 @@ public:
 
 private:
 
-	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> CulledObjectBufferParameters;
 	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;
 	FRWShaderParameter GlobalDistanceFieldTexture;
 	FShaderResourceParameter ParentGlobalDistanceFieldTexture;

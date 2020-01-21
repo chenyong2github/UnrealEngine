@@ -1628,6 +1628,12 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static bool GetVolumeButtonsHandledBySystem();
 
 	/**
+	 * Sets whether attached gamepads will block feedback from the device itself (Mobile only).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Platform")
+	static void SetGamepadsBlockDeviceFeedback(bool bBlock);
+
+	/**
 	 * Resets the gamepad to player controller id assignments (Android and iOS only)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Platform")

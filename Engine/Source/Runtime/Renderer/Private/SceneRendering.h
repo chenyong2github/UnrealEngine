@@ -30,6 +30,7 @@
 #include "Templates/UniquePtr.h"
 #include "RenderGraph.h"
 #include "MeshDrawCommands.h"
+#include "GpuDebugRendering.h"
 
 // Forward declarations.
 class FScene;
@@ -1147,6 +1148,8 @@ public:
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FRWBufferStructured ShaderPrintValueBuffer;
+
+	FShaderDrawDebugData ShaderDrawData;
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;

@@ -27,7 +27,7 @@ const FEditorModeID FBuiltinEditorModes::EM_SceneDepthPicker(TEXT("EM_SceneDepth
 
 FEdModeDefault::FEdModeDefault()
 {
-	bDrawGrid = false;
+	bDrawGrid = true;
 	bDrawPivot = false;
 	bDrawBaseInfo = false;
 	bDrawWorldBox = false;

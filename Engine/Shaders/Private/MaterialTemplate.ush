@@ -657,13 +657,10 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialVertexParameters Parameters, co
 MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, const uint SceneTextureId)
 {
 	#if POST_PROCESS_MATERIAL
-	if (IsPostProcessInputSceneTexture(SceneTextureId))
-		{
-			return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
-		}
-		#endif
-
-	return GetSceneTextureUV(Parameters);
+		return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
+	#else
+		return GetSceneTextureUV(Parameters);
+	#endif
 }
 
 

@@ -79,7 +79,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 			[
 				SAssignNew(ImportButton, SButton)
 				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("GroomOptionsWindow_Import", "Import"))
+				.Text(InArgs._ButtonLabel)
 				.IsEnabled(this, &SGroomImportOptionsWindow::CanImport)
 				.OnClicked(this, &SGroomImportOptionsWindow::OnImport)
 			]
@@ -88,7 +88,6 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("GroomOptionsWindow_Cancel", "Cancel"))
-				.ToolTipText(LOCTEXT("GroomOptionsWindow_Cancel_ToolTip", "Cancels importing this groom file"))
 				.OnClicked(this, &SGroomImportOptionsWindow::OnCancel)
 			]
 		]
@@ -100,13 +99,40 @@ bool SGroomImportOptionsWindow::CanImport()  const
 	return true;
 }
 
-TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
+enum class EGroomOptionsVisibility : uint8
+{
+	None = 0x00,
+	ConversionOptions = 0x01,
+	BuildOptions = 0x02,
+	All = ConversionOptions | BuildOptions
+};
+
+ENUM_CLASS_FLAGS(EGroomOptionsVisibility);
+
+TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, EGroomOptionsVisibility VisibilityFlag, FText WindowTitle, FText InButtonLabel)
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("GroomOptionsWindow_WindowTitle", "Groom Import Options"))
+		.Title(WindowTitle)
 		.SizingRule(ESizingRule::Autosized);
 
 	TSharedPtr<SGroomImportOptionsWindow> OptionsWindow;
+
+	FProperty* ConversionOptionsProperty = FindField<FProperty>(ImportOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomImportOptions, ConversionSettings));
+	if (ConversionOptionsProperty)
+	{
+		if (EnumHasAnyFlags(VisibilityFlag, EGroomOptionsVisibility::ConversionOptions))
+		{
+			ConversionOptionsProperty->SetMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("1"));
+			ConversionOptionsProperty->SetMetaData(TEXT("Category"), TEXT("Conversion"));
+		}
+		else
+		{
+			// Note that UGroomImportOptions HideCategories named "Hidden",
+			// but the hiding doesn't work with ShowOnlyInnerProperties 
+			ConversionOptionsProperty->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
+			ConversionOptionsProperty->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		}
+	}
 
 	FString FileName = FPaths::GetCleanFilename(FilePath);
 	Window->SetContent
@@ -115,6 +141,7 @@ TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayOptions(
 		.ImportOptions(ImportOptions)
 		.WidgetWindow(Window)
 		.FullPath(FText::FromString(FileName))
+		.ButtonLabel(InButtonLabel)
 	);
 
 	TSharedPtr<SWindow> ParentWindow;
@@ -129,5 +156,16 @@ TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayOptions(
 
 	return OptionsWindow;
 }
+
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
+{
+	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::All, LOCTEXT("GroomOptionsWindow_WindowTitle", "Groom Import Options"), LOCTEXT("GroomOptionsWindow_Import", "Import"));
+}
+
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
+{
+	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomBuildOptionsWindow_WindowTitle", "Groom Build Options"), LOCTEXT("GroomOptionsWindow_Build", "Build"));
+}
+
 
 #undef LOCTEXT_NAMESPACE

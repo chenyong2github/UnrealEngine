@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/Delay.h"
+#include "Filter.h"
 
 namespace Audio
 {
@@ -20,6 +21,14 @@ namespace Audio
 			Count
 		};
 	}
+
+	enum class EDynamicsProcessorChannelLinkMode : uint8
+	{
+		Disabled,
+		Average,
+		Peak,
+		Count
+	};
 
 	// Dynamic range compressor
 	// https://en.wikipedia.org/wiki/Dynamic_range_compression
@@ -38,8 +47,16 @@ namespace Audio
 		void SetRatio(const float InCompressionRatio);
 		void SetKneeBandwidth(const float InKneeBandwidthDb);
 		void SetInputGain(const float InInputGainDb);
+		void SetKeyAudition(const bool InAuditionEnabled);
+		void SetKeyGain(const float InKeyGain);
+		void SetKeyHighshelfCutoffFrequency(const float InCutoffFreq);
+		void SetKeyHighshelfEnabled(const bool bInEnabled);
+		void SetKeyHighshelfGain(const float InGainDb);
+		void SetKeyLowshelfCutoffFrequency(const float InCutoffFreq);
+		void SetKeyLowshelfEnabled(const bool bInEnabled);
+		void SetKeyLowshelfGain(const float InGainDb);
 		void SetOutputGain(const float InOutputGainDb);
-		void SetChannelLinked(const bool bInIsChannelLinked);
+		void SetChannelLinkMode(const EDynamicsProcessorChannelLinkMode InLinkMode);
 		void SetAnalogMode(const bool bInIsAnalogMode);
 		void SetPeakMode(const EPeakMode::Type InEnvelopeFollowerModeType);
 		void SetProcessingMode(const EDynamicsProcessingMode::Type ProcessingMode);
@@ -52,6 +69,12 @@ namespace Audio
 
 		float ComputeGain(const float InEnvFollowerDb);
 
+		// (Optional) Low-pass filter for input signal
+		FBiquadFilter InputLowshelfFilter;
+
+		// (Optional) High-pass filter for input signal
+		FBiquadFilter InputHighshelfFilter;
+
 		EDynamicsProcessingMode::Type ProcessingMode;
 
 		// Lookahead delay lines
@@ -63,7 +86,10 @@ namespace Audio
 		// Points in the knee used for lagrangian interpolation
 		TArray<FVector2D> KneePoints;
 
+		// Channel values of cached detector sample
 		TArray<float> DetectorOuts;
+
+		// Channel values of cached gain sample
 		TArray<float> Gain;
 
 		// How far ahead to look in the audio
@@ -78,7 +104,7 @@ namespace Audio
 		// Amplitude threshold above which gain will be reduced
 		float ThresholdDb;
 
-		// Amount of gain reduction.
+		// Amount of gain reduction
 		float Ratio;
 
 		// Defines how hard or soft the gain reduction blends from no gain reduction to gain reduction (determined by the ratio)
@@ -90,14 +116,25 @@ namespace Audio
 		// Amount of output gain
 		float OutputGain;
 
+		// Gain of key detector signal in dB
+		float KeyGain;
+
 		// Number of channels to use for the dynamics processor
 		int32 NumChannels;
 
-		// Whether or not the stereo channels are linked
-		bool bIsChannelLinked;
+		// Whether or not input channels are linked, and if so, how to calculate gain
+		EDynamicsProcessorChannelLinkMode LinkMode;
 
 		// Whether or not we're in analog mode
 		bool bIsAnalogMode;
 
+		// Whether or not to bypass processor and only output key modulator
+		bool bKeyAuditionEnabled;
+
+		// Whether or not key high-pass filter is enabled
+		bool bKeyHighshelfEnabled;
+
+		// Whether or not key low-pass filter is enabled
+		bool bKeyLowshelfEnabled;
 	};
 }

@@ -412,7 +412,9 @@ public:
 	virtual bool ShouldCreateRayTracedCascade(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const override
 	{
 		static auto CVarDistanceFieldShadowing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldShadowing"));
-		if (CVarDistanceFieldShadowing != nullptr && CVarDistanceFieldShadowing->GetInt() == 0)
+		static IConsoleVariable* CVarHFShadowing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HeightFieldShadowing"));
+
+		if (CVarDistanceFieldShadowing != nullptr && CVarDistanceFieldShadowing->GetInt() == 0 && (!CVarHFShadowing || !CVarHFShadowing->GetInt()))
 		{
 			return false;
 		}

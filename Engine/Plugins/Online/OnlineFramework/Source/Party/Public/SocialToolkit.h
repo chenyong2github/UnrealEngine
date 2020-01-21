@@ -110,6 +110,10 @@ public:
 	DECLARE_EVENT(USocialToolkit, FBasicToolkitEvent);
 	FBasicToolkitEvent& OnToolkitReset() const { return OnToolkitResetEvent; }
 
+#if WITH_EDITOR
+	bool Debug_IsRandomlyChangingPresence() { return bDebug_IsRandomlyChangingUserPresence; }
+#endif
+
 PARTY_SCOPE:
 	void NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	TSubclassOf<USocialChatManager> GetChatManagerClass() { return ChatManagerClass; }
@@ -220,6 +224,15 @@ private:	// Handlers
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
 
 	void HandleExistingPartyInvites(ESocialSubsystem SubsystemType);
+
+#if WITH_EDITOR
+	void Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer);
+	void Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPresence);
+	bool Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser);
+	void Debug_ChangeRandomUserPresence(uint8 NumRandomUser);
+	bool bDebug_IsRandomlyChangingUserPresence = false;
+	FDelegateHandle Debug_PresenceTickerHandle;
+#endif
 
 private:
 	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);

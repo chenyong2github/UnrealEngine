@@ -17,6 +17,7 @@
 
 class FMaterial;
 class FMeshDrawSingleShaderBindings;
+class FPrimitiveSceneProxy;
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (push,4)

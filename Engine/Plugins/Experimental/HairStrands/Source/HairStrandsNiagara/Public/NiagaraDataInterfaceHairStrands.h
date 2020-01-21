@@ -26,7 +26,7 @@ enum class EHairStrandsSize : uint8
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, 
+	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, 
 		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource );
 
 	/** Init the buffer */
@@ -38,35 +38,11 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIHairStrandsBuffer"); }
 
-	/** Clear the bounding box buffer */
-	void ClearBuffer(FRHICommandList& RHICmdList);
-
 	/** Strand curves point offset buffer */
 	FRWBuffer CurvesOffsetsBuffer;
 
 	/** Deformed position buffer in case no ressource are there */
 	FRWBuffer DeformedPositionBuffer;
-
-	/**Rest triangle position of vertex A*/
-	FRWBuffer RestTrianglePositionABuffer;
-
-	/**Rest triangle position of vertex B*/
-	FRWBuffer RestTrianglePositionBBuffer;
-
-	/**Rest triangle position of vertex C*/
-	FRWBuffer RestTrianglePositionCBuffer;
-
-	/**Deformed triangle position of vertex A*/
-	FRWBuffer DeformedTrianglePositionABuffer;
-
-	/**Deformed triangle position of vertex B*/
-	FRWBuffer DeformedTrianglePositionBBuffer;
-
-	/**Deformed triangle position of vertex C*/
-	FRWBuffer DeformedTrianglePositionCBuffer;
-
-	/**Root barycentric coordinates */
-	FRWBuffer RootBarycentricCoordinatesBuffer;
 
 	/** Bounding Box Buffer*/
 	FRWBuffer BoundingBoxBuffer;
@@ -90,6 +66,12 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 /** Data stored per strand base instance*/
 struct FNDIHairStrandsData
 {
+	/** Initialize the buffers */
+	bool Init(class UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance);
+
+	/** Release the buffers */
+	void Release();
+
 	/** Cached World transform. */
 	FTransform WorldTransform;
 
@@ -166,7 +148,7 @@ public:
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 
 	/** Update the source component */
-	void UpdateSourceComponent(FNiagaraSystemInstance* SystemInstance);
+	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance);
 
 	/** Check if the component is Valid */
 	bool IsComponentValid() const;
@@ -289,6 +271,15 @@ public:
 	/** Project the static collision constraint */
 	void ProjectStaticCollisionConstraint(FVectorVMContext& Context);
 
+	/** Solve the soft collision constraint */
+	void SolveSoftCollisionConstraint(FVectorVMContext& Context);
+
+	/** Project the soft collision constraint */
+	void ProjectSoftCollisionConstraint(FVectorVMContext& Context);
+
+	/** Setup the soft collision constraint */
+	void SetupSoftCollisionConstraint(FVectorVMContext& Context);
+
 	/** Compute the rest direction*/
 	void ComputeRestDirection(FVectorVMContext& Context);
 
@@ -400,7 +391,7 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Initialize the Proxy data strands buffer */
-	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandsBuffer, const uint32 NumStrands, const uint8 StrandSize, const FVector& BoxCenter, const FVector& BoxExtent, const FTransform& WorldTransform);
+	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);

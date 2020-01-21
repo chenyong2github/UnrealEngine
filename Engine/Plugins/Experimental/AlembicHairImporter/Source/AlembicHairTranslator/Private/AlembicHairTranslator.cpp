@@ -264,7 +264,7 @@ namespace AlembicHairTranslatorUtils
 			TStrandAttributesRef<AttributeType> StrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<AttributeType>(AttributeName);
 			if (!StrandAttributeRef.IsValid())
 			{
-				HairDescription.StrandAttributes().RegisterAttribute<AttributeType>(AttributeName);
+				HairDescription.StrandAttributes().RegisterAttribute<AttributeType>(AttributeName, 1, AttributeType::ZeroVector);
 				StrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<AttributeType>(AttributeName);
 			}
 
@@ -345,7 +345,15 @@ namespace AlembicHairTranslatorUtils
 				break;
 				case Alembic::Util::kInt32POD:
 				{
-					ConvertAlembicAttribute<Alembic::AbcGeom::IInt32GeomParam, Alembic::Abc::Int32ArraySamplePtr, int>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName);
+					switch (Extent)
+					{
+					case 1:
+						ConvertAlembicAttribute<Alembic::AbcGeom::IInt32GeomParam, Alembic::Abc::Int32ArraySamplePtr, int>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName);
+						break;
+					case 3:
+						ConvertAlembicAttribute<Alembic::AbcGeom::IV3iGeomParam, Alembic::Abc::V3iArraySamplePtr, FVector>(HairDescription, StartStrandID, NumStrands, StartVertexID, NumVertices, Parameters, PropName, DataType.getExtent());
+						break;
+					}
 				}
 				break;
 				case Alembic::Util::kFloat32POD:
@@ -420,8 +428,8 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 		Alembic::Abc::Int32ArraySamplePtr NumVertices = Sample.getCurvesNumVertices();
 
 		const int32 NumWidths = Widths ? Widths->size() : 0;
-		const uint32 NumPoints = Positions ? Positions->size() : 0;
-		const uint32 NumCurves = NumVertices->size(); // equivalent to Sample.getNumCurves()
+		uint32 NumPoints = Positions ? Positions->size() : 0;
+		uint32 NumCurves = NumVertices ? NumVertices->size() : 0; // equivalent to Sample.getNumCurves()
 
 		// Get the starting strand and vertex IDs for this group of ICurves
 		int32 StartStrandID = HairDescription.GetNumStrands();
@@ -429,9 +437,23 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 
 		FMatrix ConvertedMatrix = ParentMatrix * ConversionMatrix;
 		uint32 GlobalIndex = 0;
+		uint32 TotalVertices = 0;
 		for (uint32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 		{
 			const uint32 CurveNumVertices = (*NumVertices)[CurveIndex];
+
+			// Check the running total number of vertices and skip processing the rest of the node if there is mismatch with the number of points
+			TotalVertices += CurveNumVertices;
+			if (TotalVertices > NumPoints)
+			{
+				UE_LOG(LogAlembicHairImporter, Warning, TEXT("Curve %u of %u has %u vertices which causes total vertices (%u) to exceed the expected vertices (%u) in ICurves node. This curve and the remaining ones in the node will be skipped."),
+					CurveIndex + 1, NumCurves, CurveNumVertices, TotalVertices, NumPoints);
+
+				// Adjust the number of curves and points to those processed so far
+				NumCurves = HairDescription.GetNumStrands() - StartStrandID;
+				NumPoints = HairDescription.GetNumVertices() - StartVertexID;
+				break;
+			}
 
 			FStrandID StrandID = HairDescription.AddStrand();
 

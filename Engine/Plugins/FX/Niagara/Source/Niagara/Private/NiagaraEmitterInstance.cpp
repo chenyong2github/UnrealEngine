@@ -1263,10 +1263,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			// If we have spawning make sure we clear out the remaining data and leave the end slot as MAX to avoid reading off end of the array on the GPU
 			if ( GpuSpawnInfo.EventSpawnTotal + GpuSpawnInfo.SpawnRateInstances >  0 )
 			{
-				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS - 1)
+				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS)
 				{
-					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = MAX_FLT;
-					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos] = FVector4(ForceInitToZero);
+					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].X = 0.0f;
+					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Y = 0.0f;
+					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Z) = 0;
+					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].W) = GpuSpawnInfo.SpawnRateInstances;
+					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = (float)MAX_FLT;
 					++NumSpawnInfos;
 				}
 				reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NIAGARA_MAX_GPU_SPAWN_INFOS - 1] = MAX_FLT;

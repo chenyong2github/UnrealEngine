@@ -450,6 +450,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Block Android system keys being sent from controllers"))
 	bool bBlockAndroidKeysOnControllers;
 
+	// Block force feedback on the device when controllers are attached.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Block force feedback on the device when controllers are attached"))
+	bool bControllersBlockDeviceFeedback;
+
 	/** Android encoding options. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Audio, meta = (DisplayName = "Encoding Format"))
 	TEnumAsByte<EAndroidAudio::Type> AndroidAudio;

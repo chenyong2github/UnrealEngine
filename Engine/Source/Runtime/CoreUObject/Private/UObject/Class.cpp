@@ -3163,7 +3163,7 @@ bool UScriptStruct::IsStructTrashed() const
 {
 	return !!(StructFlags & STRUCT_Trashed);
 }
- 
+
 void UScriptStruct::SetStructTrashed(bool bIsTrash)
 {
 	if (bIsTrash)

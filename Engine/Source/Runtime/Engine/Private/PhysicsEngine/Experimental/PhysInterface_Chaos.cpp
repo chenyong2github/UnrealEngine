@@ -14,6 +14,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Sphere.h"
@@ -536,7 +537,7 @@ void FPhysInterface_Chaos::SetLinearVelocity_AssumesLocked(const FPhysicsActorHa
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
-			return Kinematic->SetV(InNewVelocity);
+			Kinematic->SetV(InNewVelocity);
 		}
 	}
 }
@@ -1947,6 +1948,30 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 	}
 
 	return bFoundValidBody;
+}
+
+uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
+{
+	using namespace Chaos;
+	uint8 Type = Shape.Geometry->GetType();
+	if (ensure(Type | ImplicitObjectType::TriangleMesh))
+	{
+		const FTriangleMeshImplicitObject* TriangleMesh = nullptr;
+
+		if (Type | ImplicitObjectType::IsScaled)
+		{
+			const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = static_cast<const TImplicitObjectScaled<FTriangleMeshImplicitObject>*>(Shape.Geometry.Get());
+			TriangleMesh = ScaledTriangleMesh->GetUnscaledObject();
+		}
+		else
+		{
+			TriangleMesh = static_cast<const FTriangleMeshImplicitObject*>(Shape.Geometry.Get());
+		}
+
+		return TriangleMesh->GetExternalFaceIndexFromInternal(InternalFaceIndex);
+	}
+
+	return -1;
 }
 
 template<typename AllocatorType>

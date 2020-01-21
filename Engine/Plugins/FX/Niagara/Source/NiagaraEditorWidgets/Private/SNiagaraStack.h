@@ -112,6 +112,7 @@ private:
 
 	EVisibility GetIssueIconVisibility() const;
 
+	FReply OnCycleThroughSystemIssues(TSharedPtr<FNiagaraSystemViewModel> SystemViewModel);
 	void OnCycleThroughIssues();
 
 private:

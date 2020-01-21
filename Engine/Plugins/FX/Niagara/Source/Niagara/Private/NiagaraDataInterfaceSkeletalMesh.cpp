@@ -1092,6 +1092,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Initialize members
 	Component = nullptr;
+	CachedAttachParent = nullptr;
 	Mesh = nullptr;
 	MeshSafe = nullptr;
 	Transform = FMatrix::Identity;
@@ -1132,6 +1133,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	TransformInverseTransposed = Transform.InverseFast().GetTransposed();
 	PrevTransform = Transform;
 	PrevTransformInverseTransposed = TransformInverseTransposed;
+	
+	CachedAttachParent = Component->GetAttachParent();
 
 #if WITH_EDITOR
 	MeshSafe->GetOnMeshChanged().AddUObject(SystemInstance->GetComponent(), &UNiagaraComponent::ReinitializeSystem);
@@ -1386,6 +1389,12 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	if (!Comp)
 	{
 		//The component we were bound to is no longer valid so we have to trigger a reset.
+		return true;
+	}
+
+	//Detect and reset on any attachment change.
+	if (CachedAttachParent.IsValid() && Comp->GetAttachParent() != CachedAttachParent.Get())
+	{
 		return true;
 	}
 	

@@ -22,7 +22,10 @@
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
 #include "Engine/BlueprintGeneratedClass.h"
+
+#ifdef WITH_ONLINETRACING
 #include "OnlineTracingModule.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogHotfixManager);
 
@@ -1053,11 +1056,13 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	}
 
 	// Reload configs for tracing system, this may init or tear it down if enable is toggled
+#ifdef WITH_ONLINETRACING
 	if (bUpdateOnlineTracing && 
 		FOnlineTracingModule::IsAvailable())
 	{
 		FOnlineTracingModule::Get().UpdateConfig();
 	}
+#endif
 
 	// Reload configs relevant to OSS config sections that were updated
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(OSSName.Len() ? FName(*OSSName, FNAME_Find) : NAME_None);

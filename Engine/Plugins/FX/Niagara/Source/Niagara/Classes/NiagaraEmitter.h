@@ -237,10 +237,10 @@ public:
 
 public:
 #if WITH_EDITOR
-	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as it's owner. */
+	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as its owner. */
 	NIAGARA_API static UNiagaraEmitter* CreateWithParentAndOwner(UNiagaraEmitter& InParentEmitter, UObject* InOwner, FName InName, EObjectFlags FlagMask);
 
-	/** Creates a new emitter by duplicating an existing emitter.  The new emitter  will reference the same parent emitter if one is available. */
+	/** Creates a new emitter by duplicating an existing emitter. The new emitter will reference the same parent emitter if one is available. */
 	static UNiagaraEmitter* CreateAsDuplicate(const UNiagaraEmitter& InEmitterToDuplicate, FName InDuplicateName, UNiagaraSystem& InDuplicateOwnerSystem);
 
 	//Begin UObject Interface
@@ -251,6 +251,7 @@ public:
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//End UObject Interface
 
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
@@ -474,6 +475,8 @@ public:
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+
+	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 #endif
 
 	void InitFastPathAttributeNames();

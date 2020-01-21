@@ -170,6 +170,16 @@ void UNiagaraEmitter::PostInitProperties()
 	UniqueEmitterName = TEXT("Emitter");
 }
 
+void UNiagaraEmitter::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	if (!bDuplicateForPIE)
+	{
+		SetUniqueEmitterName(GetName());
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraEmitter::GetForceCompileOnLoad()
 {
@@ -298,6 +308,14 @@ void UNiagaraEmitter::PostLoad()
 		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
 		{
 			RendererProperties.RemoveAt(RendererIndex);
+		}
+	}
+
+	for (int32 ShaderStageIndex = ShaderStages.Num() - 1; ShaderStageIndex >= 0; --ShaderStageIndex)
+	{
+		if (ensureMsgf(ShaderStages[ShaderStageIndex] != nullptr && ShaderStages[ShaderStageIndex]->Script != nullptr, TEXT("Null shader stage, or shader stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), ShaderStageIndex) == false)
+		{
+			ShaderStages.RemoveAt(ShaderStageIndex);
 		}
 	}
 
@@ -1405,6 +1423,14 @@ void UNiagaraEmitter::RemoveParent()
 {
 	Parent = nullptr;
 	ParentAtLastMerge = nullptr;
+}
+
+void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
+{
+	Parent = &InParent;
+	ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParent, this));
+	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
 #endif
 

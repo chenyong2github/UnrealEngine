@@ -52,6 +52,7 @@ void FAsyncIODelete::SetTempRoot(const FStringView& InOwnedTempRoot)
 void FAsyncIODelete::SetDeletesPaused(bool bInPaused)
 {
 	bPaused = bInPaused;
+#if ASYNCIODELETE_ASYNC_ENABLED
 	if (!bPaused)
 	{
 		IFileManager& FileManager = IFileManager::Get();
@@ -67,6 +68,7 @@ void FAsyncIODelete::SetDeletesPaused(bool bInPaused)
 		}
 		PausedDeletes.Empty();
 	}
+#endif
 }
 
 bool FAsyncIODelete::Setup()
@@ -82,6 +84,7 @@ bool FAsyncIODelete::Setup()
 		return false;
 	}
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	// Delete the TempRoot directory to clear the results from any previous process using the same TempRoot that did not shut down cleanly
 	uint32 ErrorCode;
 	if (!DeleteTempRootDirectory(ErrorCode))
@@ -107,6 +110,7 @@ bool FAsyncIODelete::Setup()
 	// TempRoot and bPaused are preserved across setup/teardown and may have any value
 	check(PausedDeletes.Num() == 0);
 	check(DeleteCounter == 0);
+#endif
 
 	// We are now setup and ready to create DeleteTasks
 	bInitialized = true;
@@ -121,6 +125,7 @@ void FAsyncIODelete::Teardown()
 		return;
 	}
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	// Clear task variables
 	WaitForAllTasks();
 	check(ActiveTaskCount == 0 && TasksComplete != nullptr && TasksComplete->Wait(0));
@@ -138,6 +143,7 @@ void FAsyncIODelete::Teardown()
 	// Clear delete variables; we don't need to run the tasks for the remaining pauseddeletes because synchronously deleting the temp directory above did the work they were going to do
 	PausedDeletes.Empty();
 	DeleteCounter = 0;
+#endif
 
 	// We are now torn down and ready for a new setup
 	bInitialized = false;
@@ -145,6 +151,7 @@ void FAsyncIODelete::Teardown()
 
 bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 {
+#if ASYNCIODELETE_ASYNC_ENABLED
 	if (!bInitialized)
 	{
 		return true;
@@ -152,7 +159,7 @@ bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 
 	if (TimeLimitSeconds <= 0.f)
 	{
-		TasksComplete->Wait();
+	TasksComplete->Wait();
 	}
 	else
 	{
@@ -162,6 +169,7 @@ bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 		}
 	}
 	check(ActiveTaskCount == 0);
+#endif
 	return true;
 }
 
@@ -195,16 +203,19 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 		return false;
 	}
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	if (DeleteCounter == UINT32_MAX)
 	{
 		Teardown();
 	}
+#endif
 	if (!Setup())
 	{
 		// Setup failed; we are not able to provide asynchronous deletes; fall back to synchronous
 		return SynchronousDelete(PathToDeleteSZ, ExpectedType);
 	}
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 	const FString TempPath = FPaths::Combine(TempRoot, FString::Printf(TEXT("Delete%u"), DeleteCounter));
 	DeleteCounter++;
 
@@ -228,8 +239,12 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 		CreateDeleteTask(TempPath, ExpectedType);
 	}
 	return true;
+#else
+	return SynchronousDelete(PathToDeleteSZ, ExpectedType);
+#endif
 }
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 void FAsyncIODelete::CreateDeleteTask(const FStringView& InDeletePath, EPathType PathType)
 {
 	{
@@ -254,6 +269,7 @@ void FAsyncIODelete::OnTaskComplete()
 		TasksComplete->Trigger();
 	}
 }
+#endif
 
 bool FAsyncIODelete::SynchronousDelete(const TCHAR* InDeletePath, EPathType PathType)
 {
@@ -277,6 +293,7 @@ bool FAsyncIODelete::SynchronousDelete(const TCHAR* InDeletePath, EPathType Path
 	return Result;
 }
 
+#if ASYNCIODELETE_ASYNC_ENABLED
 bool FAsyncIODelete::DeleteTempRootDirectory(uint32& OutErrorCode)
 {
 	OutErrorCode = 0;
@@ -315,6 +332,7 @@ bool FAsyncIODelete::DeleteTempRootDirectory(uint32& OutErrorCode)
 	}
 	return bDeleteSucceeded;
 }
+#endif
 
 #if WITH_ASYNCIODELETE_DEBUG
 void FAsyncIODelete::AddTempRoot(const FStringView& InTempRoot)

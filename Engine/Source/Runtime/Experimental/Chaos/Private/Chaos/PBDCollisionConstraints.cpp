@@ -49,9 +49,12 @@ namespace Chaos
 	CHAOS_API int32 EnableCollisions = 1;
 	FAutoConsoleVariableRef CVarEnableCollisions(TEXT("p.EnableCollisions"), EnableCollisions, TEXT("Enable/Disable collisions on the Chaos solver."));
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Reset"), STAT_Collisions_Reset, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Apply"), STAT_Collisions_Apply, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::ApplyPushOut"), STAT_Collisions_ApplyPushOut, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("Collisions::Reset"), STAT_Collisions_Reset, STATGROUP_ChaosCollision);
+	DECLARE_CYCLE_STAT(TEXT("Collisions::Apply"), STAT_Collisions_Apply, STATGROUP_ChaosCollision);
+	DECLARE_CYCLE_STAT(TEXT("Collisions::ApplyPushOut"), STAT_Collisions_ApplyPushOut, STATGROUP_ChaosCollision);
+
+	DECLARE_DWORD_COUNTER_STAT(TEXT("Collisions::NumPointConstraints"), STAT_NumPointConstraints, STATGROUP_ChaosCollision);
+	DECLARE_DWORD_COUNTER_STAT(TEXT("Collisions::NumManifoldConstraints"), STAT_NumManifoldConstraints, STATGROUP_ChaosCollision);
 
 	//
 	// Collision Constraint Container
@@ -282,6 +285,8 @@ namespace Chaos
 	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+		SET_DWORD_STAT(STAT_NumPointConstraints, PointConstraints.Num());
+		SET_DWORD_STAT(STAT_NumManifoldConstraints, IterativeConstraints.Num());
 
 		if (MApplyPairIterations > 0)
 		{
@@ -310,6 +315,8 @@ namespace Chaos
 	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
+		SET_DWORD_STAT(STAT_NumPointConstraints, PointConstraints.Num());
+		SET_DWORD_STAT(STAT_NumManifoldConstraints, IterativeConstraints.Num());
 
 		TSet<const TGeometryParticleHandle<T, d>*> TempStatic;
 		bool bNeedsAnotherIteration = false;
@@ -343,6 +350,9 @@ namespace Chaos
 	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+		SET_DWORD_STAT(STAT_NumPointConstraints, PointConstraints.Num());
+		SET_DWORD_STAT(STAT_NumManifoldConstraints, IterativeConstraints.Num());
+
 		if (MApplyPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
@@ -367,6 +377,8 @@ namespace Chaos
 	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet< const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
+		SET_DWORD_STAT(STAT_NumPointConstraints, PointConstraints.Num());
+		SET_DWORD_STAT(STAT_NumManifoldConstraints, IterativeConstraints.Num());
 
 		bool bNeedsAnotherIteration = false;
 		if (MApplyPushOutPairIterations > 0)

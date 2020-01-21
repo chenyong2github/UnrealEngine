@@ -39,7 +39,8 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 		}
 	}
 
-	bool bSucceeded = FGroomBuilder::BuildGroom(HairDescription, ImportContext.ImportOptions->BuildSettings, HairAsset);
+	HairAsset->CommitHairDescription(MoveTemp(HairDescription));
+	bool bSucceeded = HairAsset->CacheDerivedData(&ImportContext.ImportOptions->BuildSettings);
 	if (!bSucceeded)
 	{
 		// Purge the newly created asset that failed to import
@@ -51,7 +52,7 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 		return nullptr;
 	}
 
-	HairAsset->HairDescription = MakeUnique<FHairDescription>(MoveTemp(HairDescription));
+	HairAsset->InitResource();
 
 	return HairAsset;
 }

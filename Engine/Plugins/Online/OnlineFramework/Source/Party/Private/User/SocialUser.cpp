@@ -305,6 +305,13 @@ EOnlinePresenceState::Type USocialUser::GetOnlineStatus() const
 		return EOnlinePresenceState::Offline;
 	}
 
+#if WITH_EDITOR
+	if (bDebug_IsPresenceArtificial && !IsBlocked())
+	{
+		return Debug_RandomPresence;
+	}
+#endif
+
 	EOnlinePresenceState::Type OnlineStatus = EOnlinePresenceState::Offline;
 
 	// Get the most "present" status available on any of the associated platforms
@@ -1199,6 +1206,14 @@ void USocialUser::EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& InRece
 		SubsystemInfo.RecentPlayerInfo = InRecentPlayerInfo;
 	}
 }
+
+#if WITH_EDITOR
+void USocialUser::Debug_RandomizePresence()
+{
+	bDebug_IsPresenceArtificial = true;
+	Debug_RandomPresence = static_cast<EOnlinePresenceState::Type>(FMath::RandRange((int32)EOnlinePresenceState::Online, (int32)EOnlinePresenceState::Away));
+}
+#endif
 
 void USocialUser::OnPresenceChangedInternal(ESocialSubsystem SubsystemType)
 {

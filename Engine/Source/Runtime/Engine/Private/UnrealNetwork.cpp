@@ -34,7 +34,7 @@ void RegisterReplicatedLifetimeProperty(
 		const uint16 RepIndex = PropertyDescriptor.RepIndex + i;
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
-		FLifetimeProperty LifetimeProp(RepIndex, Params.Condition, Params.RepNotifyCondition);
+		FLifetimeProperty LifetimeProp(RepIndex, Params.Condition, Params.RepNotifyCondition, Params.bIsPushBased);
 
 		if (RegisteredPropertyPtr)
 		{

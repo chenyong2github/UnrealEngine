@@ -3,9 +3,10 @@
 #pragma once
 
 /* -----------------------------------------------------------------
- * Static collision constraint
+ * Static hard collision constraint
  * -----------------------------------------------------------------
  */
+
  float3 ComputeStaticCollisionDisplacement( in float3 DeltaPosition, in float3 DeltaVelocity, in float3 CollisionNormal, in float PenetrationDepth,
 							  in float StaticFriction, in float KineticFriction, in bool IsProjection)
  {
@@ -46,10 +47,10 @@
 	return float3(0,0,0);
  }
 
-void SolveStaticCollisionConstraint(in int StrandsSize, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+ void SolveStaticCollisionConstraint(in bool EnableConstraint, in int StrandsSize, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
 				in float StaticFriction, in float KineticFriction, in float DeltaTime, in bool IsProjection, in float3 PreviousPosition, inout float3 OutNodePosition )
 {
-	if( GGroupThreadId.x % StrandsSize > 1)
+	if( GGroupThreadId.x % StrandsSize > 1 && EnableConstraint)
 	{
 		const float3 NodeVelocity = (OutNodePosition - PreviousPosition)/DeltaTime;
 		const float3 DeltaPosition = OutNodePosition - CollisionPosition;
@@ -59,3 +60,144 @@ void SolveStaticCollisionConstraint(in int StrandsSize, in float PenetrationDept
 		OutNodePosition -= PositionDisplacement;
 	}
 }
+
+/* -----------------------------------------------------------------
+ * Static soft collision constraint
+ * -----------------------------------------------------------------
+ */
+
+ void UpdateSoftCollisionConstraint(in float3 DeltaPosition, in float3 DeltaVelocity, in float3 CollisionNormal, in float PenetrationDepth,
+							  in float StaticFriction, in float KineticFriction, in float DeltaTime, in bool ProjectConstraint, in float MaterialDamping, 
+			in float MaterialCompliance, in float MaterialWeight, inout float3 OutMaterialMultiplier )
+{
+	const float DeltaVNormal = dot(DeltaVelocity,CollisionNormal);
+	const float DeltaPNormal = dot(DeltaPosition,CollisionNormal)-PenetrationDepth;
+
+	if (DeltaPNormal < 0.0)
+	{
+		const float LocalCompliance = ((PenetrationDepth <= 0.0) || ( PenetrationDepth > 0.0 && DeltaPNormal < -PenetrationDepth)) ? 0.0 : MaterialCompliance;// * max(0.0,min(1.0,(1.0 + DeltaPNormal / PenetrationDepth)));
+
+		const float DeltaFNormal = ProjectConstraint ? DeltaPNormal : DeltaVNormal;
+		const float NormDeltaFN = abs(DeltaFNormal);
+
+		const float3 CollisionTangent = DeltaVelocity - DeltaVNormal * CollisionNormal;
+		const float TangentLength = length(CollisionTangent);
+
+		float3 CollisionTangentA = (TangentLength > 0.0) ? CollisionTangent/TangentLength : (abs(CollisionNormal.x-1.0f) > 0.0) ? float3(1,0,0) : 
+																					        (abs(CollisionNormal.y-1.0f) > 0.0) ? float3(0,1,0) :
+																						     float3(0,0,1);
+		float3 CollisionTangentB = cross(CollisionNormal,CollisionTangentA);
+		CollisionTangentA = cross(CollisionTangentB,CollisionNormal);
+
+		const float TangentLengthA = length(CollisionTangentA);
+		const float TangentLengthB = length(CollisionTangentB);
+
+		CollisionTangentA = (TangentLengthA > 0.0) ? CollisionTangentA/TangentLengthA : float3(0,0,0);
+		CollisionTangentB = (TangentLengthB > 0.0) ? CollisionTangentB/TangentLengthB : float3(0,0,0);
+
+		const float DeltaVTangentA = dot( DeltaVelocity, CollisionTangentA);
+		const float DeltaVTangentB = dot( DeltaVelocity, CollisionTangentB);
+
+		const float NormDeltaVTA = abs(DeltaVTangentA);
+		const float NormDeltaVTB = abs(DeltaVTangentB);
+
+		const float AlphaTangentA = ( NormDeltaVTA < StaticFriction * NormDeltaFN ) ? 1.0 : (KineticFriction > 0.0) ? max(0.0,min(KineticFriction*NormDeltaFN/NormDeltaVTA, 1.0)) : 0.0;
+		const float AlphaTangentB = ( NormDeltaVTB < StaticFriction * NormDeltaFN ) ? 1.0 : (KineticFriction > 0.0) ? max(0.0,min(KineticFriction*NormDeltaFN/NormDeltaVTB, 1.0)) : 0.0;
+
+		const float ScaledInverseMass = ( (1.0  + MaterialDamping / DeltaTime ) * SharedInverseMass[GGroupThreadId.x] );
+
+		const float3 SchurDiagonal = float3(ScaledInverseMass + LocalCompliance, ScaledInverseMass + LocalCompliance, ScaledInverseMass + LocalCompliance );
+		const float MaterialWeightN = ( SchurDiagonal.x != 0.0 ) ? 1.0 / SchurDiagonal.x : 0.0;
+		const float MaterialWeightA = ( SchurDiagonal.y != 0.0 ) ? 1.0 / SchurDiagonal.y : 0.0;
+		const float MaterialWeightB = ( SchurDiagonal.z != 0.0 ) ? 1.0 / SchurDiagonal.z : 0.0;
+
+		const float3 DeltaLambda = float3(
+		    -( DeltaFNormal + OutMaterialMultiplier.x * LocalCompliance + MaterialDamping * DeltaVNormal / DeltaTime ) * MaterialWeightN,
+			-( DeltaVTangentA + OutMaterialMultiplier.y * LocalCompliance + MaterialDamping * DeltaVTangentA / DeltaTime ) * MaterialWeightA * AlphaTangentA,
+			-( DeltaVTangentB + OutMaterialMultiplier.z * LocalCompliance + MaterialDamping * DeltaVTangentB / DeltaTime ) * MaterialWeightB * AlphaTangentB);
+
+		OutMaterialMultiplier += DeltaLambda;
+
+		SharedNodePosition[GGroupThreadId.x] += SharedInverseMass[GGroupThreadId.x] * (DeltaLambda.x * CollisionNormal + DeltaLambda.y * CollisionTangentA + DeltaLambda.z * CollisionTangentB );
+	}
+	else
+	{
+		OutMaterialMultiplier = float3(0,0,0);
+	}
+}
+
+ void SetupSoftCollisionConstraint(in int StrandsSize, in float ConstraintStiffness,
+	in float DeltaTime, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float3 OutMaterialMultiplier)
+{
+	OutMaterialCompliance = 0.0;
+	OutMaterialWeight = 0.0;
+	OutMaterialMultiplier = float3(0.0,0.0,0.0);
+
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+	if( LocalIndex > 1 )
+	{
+		OutMaterialCompliance = (ConstraintStiffness > 0.0) ? 1.0/(ConstraintStiffness*DeltaTime*DeltaTime) : 0.0;
+
+		//const float SumInverseMass = SharedInverseMass[GGroupThreadId.x];
+		//const float SchurDiagonal = ( (1.0  + MaterialDamping / DeltaTime ) * SumInverseMass + OutMaterialCompliance );
+		//OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+	}
+}
+
+void SolveSoftCollisionConstraint(in bool EnableConstraint, in int StrandsSize, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+				in float StaticFriction, in float KineticFriction, in float DeltaTime, in float MaterialDamping, 
+			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier )
+{
+	OutMaterialMultiplier = MaterialMultiplier;
+	if(EnableConstraint)
+	{
+		const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+		if( LocalIndex > 1)
+		{
+			const float3 NodeVelocity = (SharedNodePosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x])/DeltaTime;
+			const float3 DeltaPosition = SharedNodePosition[GGroupThreadId.x] - CollisionPosition;
+			const float3 DeltaVelocity = (NodeVelocity - CollisionVelocity) * DeltaTime;
+
+			UpdateSoftCollisionConstraint(DeltaPosition,DeltaVelocity,CollisionNormal,PenetrationDepth,
+					StaticFriction,KineticFriction,DeltaTime,false,MaterialDamping,MaterialCompliance,MaterialWeight,OutMaterialMultiplier);
+
+			GroupMemoryBarrier();
+		}
+	}
+}
+
+void ProjectSoftCollisionConstraint(in int StrandsSize, in float ConstraintStiffness, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+				in float StaticFriction, in float KineticFriction, in float NodeMass, in float DeltaTime, in float3 PreviousPosition, in float3 NodePosition, out float3 OutNodePosition  )
+{
+	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = PreviousPosition;
+	SharedInverseMass[GGroupThreadId.x] = (LocalIndex > 1 && NodeMass != 0.0) ? 1.0 / NodeMass : 0.0;
+	GroupMemoryBarrier();
+
+	if(DeltaTime != 0.0)
+	{
+		float MaterialCompliance = 0.0;
+		float MaterialWeight = 0.0;
+		float3 MaterialMultiplier = float3(0.0,0.0,0.0);
+
+		if( LocalIndex > 1)
+		{
+			SetupSoftCollisionConstraint(StrandsSize,ConstraintStiffness,DeltaTime,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier);
+
+			const float3 NodeVelocity = (SharedNodePosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x])/DeltaTime;
+			const float3 DeltaPosition = SharedNodePosition[GGroupThreadId.x] - CollisionPosition;
+			const float3 DeltaVelocity = (NodeVelocity - CollisionVelocity) * DeltaTime;
+
+			UpdateSoftCollisionConstraint(DeltaPosition,DeltaVelocity,CollisionNormal,PenetrationDepth,
+					StaticFriction,KineticFriction,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier);
+
+			GroupMemoryBarrier();
+		}
+	}
+	GroupMemoryBarrier();
+	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
+}
+
+

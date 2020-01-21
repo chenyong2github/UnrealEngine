@@ -110,7 +110,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float3			BaseColor = 0.0f;
 			float			Roughness = 0.0f;
 			float			Specular = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode), Depth, VisibilityData, BaseColor, Roughness, Specular);
+			uint			Coverage16bit = 0;
+			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular);
 
 			const float Coverage = From8bitCoverage(VisibilityData.Coverage8bit);
 			TotalTransmittance *= 1.0f - Coverage;
@@ -190,9 +191,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float3			BaseColor = 0.0f;
 			float			Roughness = 0.0f;
 			float			Specular = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode), Depth, VisibilityData, BaseColor, Roughness, Specular);
+			float			Coverage16bit = 0;
+			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular);
 
-			const float Coverage = From8bitCoverage(VisibilityData.Coverage8bit);
+			const float Coverage = From16bitCoverage(Coverage16bit);
 
 			// Update current node coverage as a function of previous nodes coverage
 			SortedCoverage[i] = TotalSortedTransmittance * Coverage;
@@ -209,8 +211,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		for (uint i = 0; i < PixelRenderNodecount; ++i)
 		{
 			const uint NodePPLLIndex = SortedIndex[i];
+			uint Coverage16bit = 0;
 			FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
-			FNodeData OutNodeData = ConvertToNodeData(PPLLNode);
+			FNodeData OutNodeData = ConvertToNodeData(PPLLNode, Coverage16bit);
 			float			Depth = 0.0f;
 			FVisibilityData	VisibilityData = (FVisibilityData)0;
 			float3			BaseColor = 0.0f;

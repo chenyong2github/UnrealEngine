@@ -154,10 +154,37 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+	bool CreateDefaultGeometry(const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
+	{
+		using namespace Chaos;
+
+		const FReal Mass = 1.0f;
+		const FReal Radius = 1.0f * Scale.GetMax();
+
+		auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(FVec3(0), Radius);
+		auto NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
+		NewShape->Geometry = MakeSerializable(ImplicitSphere);
+		NewShape->UpdateShapeBounds(FTransform::Identity);
+		NewShape->UserData = 0;
+		NewShape->bSimulate = false;
+
+		OutMass = Mass;
+		OutInertia = TSphere<FReal, 3>::GetInertiaTensor(Mass, Radius).GetDiagonal();
+		OutCoMTransform = FTransform::Identity;
+		OutShapes.Emplace(MoveTemp(NewShape));
+		OutGeom = MoveTemp(ImplicitSphere);
+
+		return true;
+	}
 
 	bool CreateGeometry(FBodyInstance* BodyInstance, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
 	{
 		using namespace Chaos;
+
+		if (BodyInstance == nullptr)
+		{
+			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+		}
 
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
 
@@ -289,8 +316,11 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetInvM(MassInv);
 					Dynamic->SetI({ Inertia.X, Inertia.Y, Inertia.Z });
 					Dynamic->SetInvI({ InertiaInv.X, InertiaInv.Y, InertiaInv.Z });
-					Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
-					Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+					if (BodyInstance != nullptr)
+					{
+						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
+						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+					}
 					Dynamic->Disabled() = true;
 				}
 			}
@@ -654,5 +684,4 @@ namespace ImmediatePhysics_Chaos
 	{
 		Level = InLevel;
 	}
-
 }

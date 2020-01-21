@@ -127,6 +127,10 @@ FSkeletalMeshObjectGPUSkin
 void FSkeletalMeshObjectGPUSkin::SetCallbackData(FSkeletalMeshObjectCallbackData& InMeshObjectCallbackData)
 {
 	CallbackData = InMeshObjectCallbackData;
+	if (CallbackData.Run)
+	{
+		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Register, this, CallbackData.UserData);
+	}
 }
 
 FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectGPUSkin(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
@@ -145,21 +149,12 @@ FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectGPUSkin(USkinnedMeshComponent* In
 	}
 
 	InitResources(InMeshComponent);
-	CallbackData = InMeshComponent->MeshObjectCallbackData;
-	if (CallbackData.Run)
-	{
-		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Register, this, CallbackData.UserData);
-	}
+	SetCallbackData(InMeshComponent->MeshObjectCallbackData);
 }
 
 
 FSkeletalMeshObjectGPUSkin::~FSkeletalMeshObjectGPUSkin()
 {
-	if (CallbackData.Run)
-	{
-		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Unregister, this, CallbackData.UserData);
-	}
-
 	check(!RHIThreadFenceForDynamicData.GetReference());
 	if (DynamicData)
 	{
@@ -197,6 +192,11 @@ void FSkeletalMeshObjectGPUSkin::InitResources(USkinnedMeshComponent* InMeshComp
 
 void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 {
+	if (CallbackData.Run)
+	{
+		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Unregister, this, CallbackData.UserData);
+	}
+
 	for( int32 LODIndex=0;LODIndex < LODs.Num();LODIndex++ )
 	{
 		FSkeletalMeshObjectLOD& SkelLOD = LODs[LODIndex];

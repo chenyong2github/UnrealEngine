@@ -39,6 +39,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "ShaderPrint.h"
+#include "GpuDebugRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
@@ -454,6 +455,16 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->EarlyZPassMode != DDM_None || Renderer->bEarlyZPassMovable != 0);
 }
 
+static bool DoesHairStrandsRequestHzb(EShaderPlatform Platform)
+{
+	auto HzbRequested = [&]()
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("HairStrands.Cluster.CullingUsesHzb"));
+		return CVar && CVar->GetInt() > 0;
+	};
+	return IsHairStrandsEnable(Platform) && HzbRequested();
+}
+
 bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdList)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -475,8 +486,9 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		const bool bSSR  = ShouldRenderScreenSpaceReflections(View);
 		const bool bSSAO = ShouldRenderScreenSpaceAmbientOcclusion(View);
 		const bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
+		const bool bHair = DoesHairStrandsRequestHzb(Scene->GetShaderPlatform());
 
-		if (bSSAO || bHZBOcclusion || bSSR || bSSGI)
+		if (bSSAO || bHZBOcclusion || bSSR || bSSGI || bHair)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -552,10 +564,17 @@ static int32 GetCustomDepthPassLocation()
 
 void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
+	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
+
+	if (ShouldPrepareHeightFieldScene())
+	{
+		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
+		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
+	}
+
 	if (ShouldPrepareDistanceFieldScene())
 	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
 		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
 		UpdateGlobalDistanceFieldObjectBuffers(RHICmdList);
 		if (bSplitDispatch)
@@ -1152,6 +1171,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			FViewInfo& View = Views[ViewIndex];
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			ShaderPrint::BeginView(RHICmdList, View);
+			ShaderDrawDebug::BeginView(RHICmdList, View);
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1386,11 +1406,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Interpolation needs to happen after the skin cache run as there is a dependency 
 	// on the skin cache output.
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	const bool bRunHairStrands = IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0;
+	FHairStrandClusterData HairClusterData;
+	if (bRunHairStrands)
 	{
 		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderMap, EHairStrandsInterpolationType::RenderStrands);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, &Views[0].ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::RenderStrands, &HairClusterData); // Send data to full up with culling
 	}
 
 	// Before starting the render, all async task for the Custom data must be completed
@@ -1930,10 +1952,30 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible)
 	{
 		SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		HairDatasStorage.HairClusterPerViews = CreateHairStrandsClusters(RHICmdList, Scene, Views);
-		VoxelizeHairStrands(RHICmdList, Scene, Views, HairDatasStorage.HairClusterPerViews);
-		HairDatasStorage.DeepShadowViews = RenderHairStrandsDeepShadows(RHICmdList, Scene, Views, HairDatasStorage.HairClusterPerViews);
-		HairDatasStorage.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(RHICmdList, Scene, Views, SceneContext.GBufferB, SceneContext.GetSceneColor(), SceneContext.SceneDepthZ, SceneContext.SceneVelocity, HairDatasStorage.HairClusterPerViews);
+		HairDatasStorage.MacroGroupsPerViews = CreateHairStrandsMacroGroups(RHICmdList, Scene, Views);
+
+		// Culling/LOD pass for DOM and Voxelisation altogether
+		FHairCullingParams CullingParams;
+		CullingParams.bShadowViewMode = true;
+		CullingParams.bCullingProcessSkipped = false;
+		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
+
+		ServiceLocalQueue();
+
+		// Voxelization and Deep Opacity Maps
+		VoxelizeHairStrands(RHICmdList, Scene, Views, HairDatasStorage.MacroGroupsPerViews);
+		HairDatasStorage.DeepShadowViews = RenderHairStrandsDeepShadows(RHICmdList, Scene, Views, HairDatasStorage.MacroGroupsPerViews);
+
+		ServiceLocalQueue();
+
+		// Culling/LOD pass for visibility (must be done after HZB is generated)
+		CullingParams.bShadowViewMode = false;
+		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
+		// Hair visibility pass
+		HairDatasStorage.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(RHICmdList, Scene, Views, SceneContext.GBufferB, SceneContext.GetSceneColor(), SceneContext.SceneDepthZ, SceneContext.SceneVelocity, HairDatasStorage.MacroGroupsPerViews);
+		// Reset indirect draw buffer
+		ResetHairStrandsClusterToLOD0(RHICmdList, *GetGlobalShaderMap(FeatureLevel), HairClusterData);
+
 		ServiceLocalQueue();
 
 		HairDatas = &HairDatasStorage;
@@ -2313,7 +2355,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
 		{
-			RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas);
+			RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas, HairClusterData);
 		}
 	}
 
@@ -2486,6 +2528,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			ShaderPrint::EndView(Views[ViewIndex]);
+			ShaderDrawDebug::EndView(Views[ViewIndex]);
 		}
 
 #if WITH_MGPU

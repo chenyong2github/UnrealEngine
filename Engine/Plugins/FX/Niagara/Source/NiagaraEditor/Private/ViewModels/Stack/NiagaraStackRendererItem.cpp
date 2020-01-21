@@ -195,12 +195,11 @@ void UNiagaraStackRendererItem::Copy(UNiagaraClipboardContent* ClipboardContent)
 
 bool UNiagaraStackRendererItem::TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const
 {
-	if (ClipboardContent->Renderers.Num() > 0)
+	if (RequestCanPasteDelegete.IsBound())
 	{
-		OutMessage = LOCTEXT("PasteRenderers", "Paste renderers from the clipboard.");
-		return true;
+		return RequestCanPasteDelegete.Execute(ClipboardContent, OutMessage);
 	}
-	OutMessage = LOCTEXT("NoRenderers", "No renderers on the clipboard.");
+	OutMessage = FText();
 	return false;
 }
 
@@ -209,9 +208,9 @@ FText UNiagaraStackRendererItem::GetPasteTransactionText(const UNiagaraClipboard
 	return LOCTEXT("PasteRenderersTransactionText", "Paste renderers");
 }
 
-void UNiagaraStackRendererItem::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackRendererItem::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
-	OnRequestPaste().Broadcast(ClipboardContent, INDEX_NONE);
+	RequestPasteDelegate.ExecuteIfBound(ClipboardContent, INDEX_NONE, OutPasteWarning);
 }
 
 bool UNiagaraStackRendererItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const

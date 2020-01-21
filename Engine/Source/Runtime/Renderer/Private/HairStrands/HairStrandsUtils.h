@@ -32,9 +32,11 @@ struct FHairComponent
 FHairComponent GetHairComponents();
 uint32 ToBitfield(const FHairComponent& Component);
 
+float GetHairDualScatteringRoughnessOverride();
+
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount);
 
-FIntRect ComputeVisibleHairStrandsClustersRect(const FIntRect& ViewRect, const struct FHairStrandsClusterDatas& ClusterDatas);
+FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, const struct FHairStrandsMacroGroupDatas& Datas);
 
 bool IsHairStrandsViewRectOptimEnable();
 
@@ -52,3 +54,9 @@ FIntPoint GetVendorOptimalGroupSize2D();
 
 RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
 
+FVector4 PackHairRenderInfo(
+	float PrimaryRadiusAtDepth1,
+	float VelocityRadiusAtDepth1,
+	float VelocityScale,
+	bool  bIsOrtho,
+	bool  bIsGPUDriven);

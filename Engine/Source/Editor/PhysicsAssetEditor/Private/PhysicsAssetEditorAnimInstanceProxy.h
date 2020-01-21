@@ -7,6 +7,8 @@
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNodeSpaceConversions.h"
 #include "BoneControllers/AnimNode_RigidBody.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsDeclares.h"
+
 #include "PhysicsAssetEditorAnimInstanceProxy.generated.h"
 
 class UAnimSequence;
@@ -18,14 +20,9 @@ struct FPhysicsAssetEditorAnimInstanceProxy : public FAnimPreviewInstanceProxy
 	GENERATED_BODY()
 
 public:
-	FPhysicsAssetEditorAnimInstanceProxy()
-	{
-	}
+	FPhysicsAssetEditorAnimInstanceProxy();
 
-	FPhysicsAssetEditorAnimInstanceProxy(UAnimInstance* InAnimInstance)
-		: FAnimPreviewInstanceProxy(InAnimInstance)
-	{
-	}
+	FPhysicsAssetEditorAnimInstanceProxy(UAnimInstance* InAnimInstance);
 
 	virtual ~FPhysicsAssetEditorAnimInstanceProxy();
 
@@ -38,9 +35,18 @@ public:
 
 	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None) override;
 
+	virtual void Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained);
+	virtual void Ungrab();
+	virtual void UpdateHandleTransform(const FTransform& NewTransform);
+	virtual void UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping);
+
 private:
 	void ConstructNodes();
 
 	FAnimNode_RigidBody RagdollNode;
  	FAnimNode_ConvertComponentToLocalSpace ComponentToLocalSpace;
+
+	ImmediatePhysics::FActorHandle* TargetActor;
+	ImmediatePhysics::FActorHandle* HandleActor;
+	ImmediatePhysics::FJointHandle* HandleJoint;
 };

@@ -18,6 +18,8 @@ namespace Audio
 			Bandpass,
 			Notch,
 			ParametricEQ,
+			LowShelf,
+			HighShelf,
 			AllPass,
 		};
 	}

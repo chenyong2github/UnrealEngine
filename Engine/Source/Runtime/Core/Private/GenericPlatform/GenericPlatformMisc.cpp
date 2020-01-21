@@ -856,7 +856,7 @@ const TCHAR* FGenericPlatformMisc::EngineDir()
 		{
 			EngineDirectory = DefaultEngineDir;
 		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / FString(GForeignEngineDir) / TEXT("Binaries"))))
+		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
 		{
 			EngineDirectory = GForeignEngineDir;
 		}

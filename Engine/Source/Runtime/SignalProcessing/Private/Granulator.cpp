@@ -423,7 +423,7 @@ namespace Audio
 		DynamicsProcessor.SetKneeBandwidth(10.0f);
 		DynamicsProcessor.SetInputGain(0.0f);
 		DynamicsProcessor.SetOutputGain(0.0f);
-		DynamicsProcessor.SetChannelLinked(true);
+		DynamicsProcessor.SetChannelLinkMode(EDynamicsProcessorChannelLinkMode::Average);
 		DynamicsProcessor.SetAnalogMode(true);
 		DynamicsProcessor.SetPeakMode(EPeakMode::Peak);
 		DynamicsProcessor.SetProcessingMode(EDynamicsProcessingMode::Compressor);

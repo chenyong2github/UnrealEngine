@@ -348,6 +348,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Allow MFi (Bluetooth) controllers"))
 	bool bAllowControllers;
 
+	// Block force feedback on the device when controllers are attached.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Block force feedback on the device when controllers are attached"))
+	bool bControllersBlockDeviceFeedback;
+
 	// Disables usage of device motion data. If application does not use motion data disabling it will improve battery life
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Disable Motion Controls"))
 	bool bDisableMotionData;

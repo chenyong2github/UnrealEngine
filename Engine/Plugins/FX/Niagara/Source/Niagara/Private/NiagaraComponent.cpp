@@ -1625,6 +1625,7 @@ void UNiagaraComponent::PreEditChange(FProperty* PropertyAboutToChange)
 	if (PropertyAboutToChange != nullptr && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, Asset) && Asset != nullptr)
 	{
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
+		DestroyInstance();
 	}
 }
 

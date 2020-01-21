@@ -493,8 +493,10 @@ private:
 
 	bool ShouldPrepareDistanceFieldScene() const;
 	bool ShouldPrepareGlobalDistanceField() const;
+	bool ShouldPrepareHeightFieldScene() const;
 
 	void UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
+	void UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
 	void PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch);
 
 	void RenderViewTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, ETranslucencyPass::Type TranslucenyPass);

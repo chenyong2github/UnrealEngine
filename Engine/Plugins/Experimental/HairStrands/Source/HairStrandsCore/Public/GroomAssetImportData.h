@@ -8,7 +8,7 @@
 #include "GroomAssetImportData.generated.h"
 
 UCLASS()
-class UGroomAssetImportData : public UAssetImportData
+class HAIRSTRANDSCORE_API UGroomAssetImportData : public UAssetImportData
 {
 	GENERATED_UCLASS_BODY()
 

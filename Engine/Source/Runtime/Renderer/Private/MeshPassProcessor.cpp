@@ -1011,11 +1011,20 @@ void FMeshDrawCommand::SubmitDraw(
 	}
 	else
 	{
-		RHICmdList.DrawPrimitive(
-			MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
-			MeshDrawCommand.NumPrimitives,
-			MeshDrawCommand.NumInstances * InstanceFactor
-		);
+		if (MeshDrawCommand.NumPrimitives > 0)
+		{
+			RHICmdList.DrawPrimitive(
+				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
+				MeshDrawCommand.NumPrimitives,
+				MeshDrawCommand.NumInstances * InstanceFactor);
+		}
+		else
+		{
+			RHICmdList.DrawPrimitiveIndirect(
+				MeshDrawCommand.IndirectArgs.Buffer,
+				MeshDrawCommand.IndirectArgs.Offset
+			);
+		}
 	}
 }
 #if MESH_DRAW_COMMAND_DEBUG_DATA

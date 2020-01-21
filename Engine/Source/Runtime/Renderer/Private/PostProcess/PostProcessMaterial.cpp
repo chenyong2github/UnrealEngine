@@ -356,7 +356,12 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	}
 
 	FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
-	FRHIBlendState* BlendState = GetMaterialBlendState(Material);
+	FRHIBlendState* BlendState = DefaultBlendState;
+	
+	if (IsMaterialBlendEnabled(Material))
+	{
+		BlendState = GetMaterialBlendState(Material);
+	}
 
 	// Blend / Depth Stencil usage requires that the render target have primed color data.
 	const bool bIsCompositeWithInput = DepthStencilState != DefaultDepthStencilState || BlendState != DefaultBlendState;
@@ -418,7 +423,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
 
-	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(SceneColorViewport);
+	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(OutputViewport);
 	PostProcessMaterialParameters->CustomDepth = DepthStencilTexture;
 	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 

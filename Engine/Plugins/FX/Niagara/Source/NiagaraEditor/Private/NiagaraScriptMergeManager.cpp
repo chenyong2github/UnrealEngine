@@ -2449,8 +2449,8 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		{
 			UNiagaraEmitter* BaseEmitter = BaseEmitterAdapter->GetEditableEmitter();
 			UNiagaraShaderStageBase* AddedShaderStage = CastChecked<UNiagaraShaderStageBase>(StaticDuplicateObject(AddedOtherShaderStage->GetShaderStage(), BaseEmitter));
-			AddedShaderStage->Script = NewObject<UNiagaraScript>(BaseEmitter, MakeUniqueObjectName(BaseEmitter, UNiagaraScript::StaticClass(), "ShaderStage"), EObjectFlags::RF_Transactional);
-			AddedShaderStage->Script->SetUsage(ENiagaraScriptUsage::ParticleEventScript);
+			AddedShaderStage->Script = NewObject<UNiagaraScript>(AddedShaderStage, MakeUniqueObjectName(AddedShaderStage, UNiagaraScript::StaticClass(), "ShaderStage"), EObjectFlags::RF_Transactional);
+			AddedShaderStage->Script->SetUsage(ENiagaraScriptUsage::ParticleShaderStageScript);
 			AddedShaderStage->Script->SetUsageId(AddedOtherShaderStage->GetUsageId());
 			AddedShaderStage->Script->SetSource(EmitterSource);
 			BaseEmitter->AddShaderStage(AddedShaderStage);

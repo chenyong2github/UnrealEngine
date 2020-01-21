@@ -29,6 +29,8 @@ namespace ImmediatePhysics_Chaos
 
 		void UpdateLevels();
 
+		void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
+
 	private:
 		Chaos::TVector<FActorHandle*, 2> ActorHandles;
 		FChaosConstraintContainer* Constraints;

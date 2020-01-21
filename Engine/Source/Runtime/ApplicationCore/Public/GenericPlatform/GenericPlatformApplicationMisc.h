@@ -179,6 +179,12 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	{}
 
 	/*
+	* Set whether gamepads are allowed at the platform level.
+	*/
+	static void SetGamepadsBlockDeviceFeedback(bool bAllowed)
+	{}
+
+	/*
 	 * Resets the gamepad to player controller id assignments
 	 */
 	static void ResetGamepadAssignments()

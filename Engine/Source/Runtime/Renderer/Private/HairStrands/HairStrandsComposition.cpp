@@ -9,6 +9,7 @@
 #include "RenderGraphUtils.h"
 #include "PostProcessing.h"
 #include "HairStrandsRendering.h"
+#include "HairStrandsScatter.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -225,12 +226,24 @@ void RenderHairComposeSubPixel(
 		{
 			if (ViewIndex < HairVisibilityViews.HairDatas.Num())
 			{
-				TRefCountPtr<IPooledRenderTarget> CategorisationTexture = HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture;
+				const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
+				const FHairStrandsVisibilityData& VisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
+
+				TRefCountPtr<IPooledRenderTarget> CategorisationTexture = VisibilityData.CategorizationTexture;
 				if (!CategorisationTexture)
 				{
 					continue; // Automatically skip for any view not rendering hair
 				}
 				const FRDGTextureRef RDGCategorisationTexture = CategorisationTexture ? GraphBuilder.RegisterExternalTexture(CategorisationTexture, TEXT("HairVisibilityCategorisationTexture")) : nullptr;
+
+				AddHairDiffusionPass(
+					GraphBuilder,
+					View,
+					VisibilityData,
+					MacroGroupDatas.VirtualVoxelResources,
+					SceneColorDepth,
+					SceneColorSubPixelTexture,
+					SceneColorTexture);
 
 				// #hair_todo : compose partially covered hair with transparent surface: this can be done by 
 				// rendering quad(s) covering the hair at the correct depth. This will be sorted with other 

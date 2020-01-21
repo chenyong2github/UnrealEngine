@@ -149,6 +149,12 @@ PARTY_SCOPE:
 	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
 	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
 
+#if WITH_EDITOR
+	void Debug_RandomizePresence();
+	bool bDebug_IsPresenceArtificial = false;
+	EOnlinePresenceState::Type Debug_RandomPresence;
+#endif
+
 protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
 	virtual void OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const;

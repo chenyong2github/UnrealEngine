@@ -140,6 +140,18 @@ FGameplayAbilityTargetDataHandle FGameplayAbilityTargetingLocationInfo::MakeTarg
 #define TARGETDATAHANDLE_SAFE_NET_SERIALIZE 1
 #endif
 
+struct FGameplayAbilityTargetDataDeleter
+{
+	FORCEINLINE void operator()(FGameplayAbilityTargetData* Object) const
+	{
+		check(Object);
+		UScriptStruct* ScriptStruct = Object->GetScriptStruct();
+		check(ScriptStruct);
+		ScriptStruct->DestroyStruct(Object);
+		FMemory::Free(Object);
+	}
+};
+
 bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	Ar << UniqueId;
@@ -182,7 +194,7 @@ bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackage
 				FGameplayAbilityTargetData * NewData = (FGameplayAbilityTargetData*)FMemory::Malloc(ScriptStruct->GetStructureSize());
 				ScriptStruct->InitializeStruct(NewData);
 
-				Data[i] = TSharedPtr<FGameplayAbilityTargetData>(NewData);
+				Data[i] = TSharedPtr<FGameplayAbilityTargetData>(NewData, FGameplayAbilityTargetDataDeleter());
 			}
 
 			void* ContainerPtr = Data[i].Get();

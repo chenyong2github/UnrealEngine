@@ -451,7 +451,7 @@ public:
 			break;
 		};
 		
-		CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
 	}
 
 	virtual bool IsUsedWithStaticLighting() const { return true; }
