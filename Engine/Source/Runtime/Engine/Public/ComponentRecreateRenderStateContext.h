@@ -61,7 +61,7 @@ public:
 
 private:
 	/** The recreate contexts for the individual components. */
-	TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
+	TArray<FComponentRecreateRenderStateContext> ComponentContexts;
 
 	TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos;
 

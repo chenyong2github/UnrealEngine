@@ -63,7 +63,7 @@ void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialIn
  */
 void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentMaterial, bool bRecreateUniformBuffer)
 {
-	if (GIsEditor)
+	if (GIsEditor && FApp::CanEverRender())
 	{
 		UE_LOG(LogMaterial,Verbose,TEXT("Recaching MI Uniform Expressions for parent %s"), *ParentMaterial->GetFullName());
 		TArray<FMICReentranceGuard> ReentranceGuards;
