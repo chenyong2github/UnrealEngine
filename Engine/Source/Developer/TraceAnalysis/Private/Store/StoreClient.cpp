@@ -68,6 +68,8 @@ public:
 							FStoreCborClient();
 							~FStoreCborClient();
 	bool					IsOpen() const;
+	uint32					GetStoreAddress() const;
+	uint32					GetStorePort() const;
 	const FResponse&		GetResponse() const;
 	bool					Connect(const TCHAR* Host, uint16 Port);
 	bool					GetStatus();
@@ -102,6 +104,31 @@ FStoreCborClient::~FStoreCborClient()
 bool FStoreCborClient::IsOpen() const
 {
 	return Socket.is_open();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreCborClient::GetStoreAddress() const
+{
+	if (!IsOpen())
+	{
+		return 0;
+	}
+
+	const asio::ip::tcp::endpoint Endpoint = Socket.remote_endpoint();
+	asio::ip::address Address = Endpoint.address();
+	return Address.is_v4() ? Address.to_v4().to_uint() : 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreCborClient::GetStorePort() const
+{
+	if (!IsOpen())
+	{
+		return 0;
+	}
+
+	const asio::ip::tcp::endpoint Endpoint = Socket.remote_endpoint();
+	return Endpoint.port();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -399,6 +426,26 @@ bool FStoreClient::IsValid() const
 	return Impl->IsOpen();
 #else
 	return false;
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::GetStoreAddress() const
+{
+#if TRACE_WITH_ASIO
+	return Impl->GetStoreAddress();
+#else
+	return 0;
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::GetStorePort() const
+{
+#if TRACE_WITH_ASIO
+	return Impl->GetStorePort();
+#else
+	return 0;
 #endif
 }
 

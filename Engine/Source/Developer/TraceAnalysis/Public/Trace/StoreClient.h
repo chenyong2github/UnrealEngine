@@ -16,6 +16,9 @@ class IInDataStream;
 class TRACEANALYSIS_API FStoreClient
 {
 public:
+	uint32				GetStoreAddress() const;
+	uint32				GetStorePort() const;
+
 	struct TRACEANALYSIS_API FStatus
 	{
 		uint32			GetRecorderPort() const;
