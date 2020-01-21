@@ -8,9 +8,9 @@ class UMaterialInterface;
 class FBufferVisualizationData
 {
 public:
-	
+
 	FBufferVisualizationData()
-	: bIsInitialized(false)
+		: bIsInitialized(false)
 	{
 
 	}
@@ -23,6 +23,12 @@ public:
 
 	/** Get a named material from the available material map **/
 	ENGINE_API UMaterialInterface* GetMaterial(FName InMaterialName);
+
+	/** Get the display name of a named material from the available material map **/
+	ENGINE_API FText GetMaterialDisplayName(FName InMaterialName) const;
+
+	/** Get the default display name if no material is used and the Overview window is being used **/
+	ENGINE_API static FText GetMaterialDefaultDisplayName();
 
 	/** We cache the overview material name list from the console command here, so all dynamically created views can re-use the existing cached list of materials */
 	void SetCurrentOverviewMaterialNames(const FString& InNameList);
@@ -37,7 +43,7 @@ public:
 		for (TMaterialMap::TConstIterator It = MaterialMap.CreateConstIterator(); It; ++It)
 		{
 			const Record& Rec = It.Value();
-			Iterator.ProcessValue(Rec.Name, Rec.Material, Rec.DisplayName);
+			Iterator.ProcessValue(Rec.Name, Rec.Material->GetMaterial(), Rec.DisplayName);
 		}
 	}
 
@@ -62,13 +68,16 @@ private:
 
 	/** The name->material mapping table */
 	TMaterialMap MaterialMap;
-	
+
+	/** The UMaterial.name->material mapping table */
+	TMaterialMap MaterialMapFromMaterialName;
+
 	/** List of material names to use in the buffer visualization overview */
 	FString CurrentOverviewMaterialNames;
 
 	/** List of material currently in use by the buffer visualization overview */
 	TArray<UMaterialInterface*> OverviewMaterials;
-	
+
 	/** Storage for console variable documentation strings **/
 	FString ConsoleDocumentationVisualizationMode;
 	FString ConsoleDocumentationOverviewTargets;
