@@ -108,7 +108,7 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTabAndGetID(UEdit
 {
 	RegisterTabAndGetID(InBlueprint, NewTabID);
 	SpawnRegisteredTabByID(NewTabID);
-	return GetUtilityWidgetFromBlueprint(InBlueprint);
+	return FindUtilityWidgetFromBlueprint(InBlueprint);
 }
 
 
