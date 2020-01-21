@@ -236,7 +236,7 @@ private:	// Handlers
 
 private:
 	static USocialToolkit* GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer);
-	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
+	static TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
 	USocialUser* LocalUser;
