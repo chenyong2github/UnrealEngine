@@ -134,6 +134,21 @@ namespace ChaosInterface
 
 #endif
 
+	Chaos::EChaosCollisionTraceFlag ConvertCollisionTraceFlag(ECollisionTraceFlag Flag)
+	{
+		if (Flag == ECollisionTraceFlag::CTF_UseDefault)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
+		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAndComplex)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAndComplex;
+		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAsComplex)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAsComplex;
+		if (Flag == ECollisionTraceFlag::CTF_UseComplexAsSimple)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple;
+		if (Flag == ECollisionTraceFlag::CTF_MAX)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_MAX;
+		ensure(false);
+		return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
+	}
 
 	void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes)
 	{
@@ -162,12 +177,13 @@ namespace ChaosInterface
 
 		ensure(bMakeComplexGeometry || bMakeSimpleGeometry);
 
-		auto NewShapeHelper = [&InParams](Chaos::TSerializablePtr<Chaos::FImplicitObject> InGeom, void* UserData, bool bComplexShape = false)
+		auto NewShapeHelper = [&InParams, &CollisionTraceType](Chaos::TSerializablePtr<Chaos::FImplicitObject> InGeom, void* UserData, bool bComplexShape = false)
 		{
 			auto NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
 			NewShape->Geometry = InGeom;
 			NewShape->QueryData = bComplexShape ? InParams.CollisionData.CollisionFilterData.QueryComplexFilter : InParams.CollisionData.CollisionFilterData.QuerySimpleFilter;
 			NewShape->SimData = InParams.CollisionData.CollisionFilterData.SimFilter;
+			NewShape->CollisionTraceType = ConvertCollisionTraceFlag(CollisionTraceType);
 			NewShape->UpdateShapeBounds(InParams.WorldTransform);
 			NewShape->UserData = UserData;
 			NewShape->bSimulate = bComplexShape ? InParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex : InParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple;

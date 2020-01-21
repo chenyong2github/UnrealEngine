@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ChaosArchive.h"
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 struct FCollisionFilterData
 {

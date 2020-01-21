@@ -1094,7 +1094,7 @@ namespace Chaos
 
 			//
 			// @todo(chaos): Collision Constraints (CollisionMap)
-			//    Modify Construct() and Update() use a CollisionMap indexed on 
+			//    Modify Construct() and Update() to use a CollisionMap indexed on 
 			//    EImplicitObjectType, instead of the if/else chain. Also, remove 
 			//    the blocks with the ensure(false), they are just for validation 
 			//    after the recent change. 
@@ -1175,7 +1175,18 @@ namespace Chaos
 			{
 				//UpdateCapsuleSphereManifold(ConstraintBase, Transform0, Transform1, CullDistance);
 			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
+			{
+				//UpdateBoxTriangleMeshManifold(ConstraintBase, Transform0, Transform1, CullDistance);
+			}
+			else if (Implicit0Type == FTriangleMeshImplicitObject::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				ensure(false);
+			}
+			//
 			// the generic convex bodies are last
+			//
+
 			else if (Implicit0Type == THeightField<T>::StaticType() && Implicit1.IsConvex())
 			{
 				ensure(false);
@@ -1192,17 +1203,6 @@ namespace Chaos
 			{
 				UpdateLevelsetLevelsetManifold(ConstraintBase, Transform0, Transform1, CullDistance);
 			}
-
-			/*
-			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
-			{
-				UpdateBoxTriangleMeshManifold(ConstraintBase, Transform0, Transform1, CullDistance);
-			}
-			else if (Implicit0Type == FTriangleMeshImplicitObject::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
-			{
-				ensure(false);
-			}
-			*/
 
 		}
 
@@ -1376,7 +1376,22 @@ namespace Chaos
 				//     second.
 				ensure(false);
 			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
+			{
+				UpdateBoxTriangleMeshConstraint(Implicit0.template GetObject<TBox<T, d>>()->GetAABB(), Transform0, *GetInnerObject<FTriangleMeshImplicitObject>(Implicit1), Transform1, CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
+			{
+				//     This case should not be necessary. The triangle mesh
+				//     will only ever be collided against, so ideally will never
+				//     be in index[0] position of the constraint, also the construction
+				//     of the constraint will just switch the index position so its always
+				//     second.
+				ensure(false);
+			}
+			//
 			// the generic convex bodies are last
+			//
 			else if (Implicit0Type == THeightField<T>::StaticType() && Implicit1.IsConvex())
 			{
 				//     This case should not be necessary. The height fields 
@@ -1398,22 +1413,6 @@ namespace Chaos
 			{
 				UpdateLevelsetLevelsetConstraint<UpdateType>(CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d> >());
 			}
-
-			/*
-			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
-			{
-			UpdateBoxTriangleMeshConstraint(Implicit0.template GetObject<TBox<T, d>>()->GetAABB(), Transform0, *GetUnscaledInner<FTriangleMeshImplicitObject>(Implicit1), Transform1, CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
-			}
-			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
-			{
-				//     This case should not be necessary. The triangle mesh
-				//     will only ever be collided against, so ideally will never
-				//     be in index[0] position of the constraint, also the construction
-				//     of the constraint will just switch the index position so its always
-				//     second.
-				ensure(false);
-			}
-			*/
 		}
 
 		template<ECollisionUpdateType UpdateType, typename T, int d>
@@ -1445,17 +1444,42 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance, FCollisionConstraintsArray& NewConstraints)
 		{
-			//  TriMesh Culling
-			if (Implicit0 && Implicit0->GetType() == ImplicitObjectType::TriangleMesh) return;
-			if (Implicit1 && Implicit1->GetType() == ImplicitObjectType::TriangleMesh) return;
+			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetType()) : ImplicitObjectType::Unknown;
+			EImplicitObjectType Implicit1Type = Implicit1 ? GetInnerType(Implicit1->GetType()) : ImplicitObjectType::Unknown;
 
 			// If either shape is disabled for collision bail without constructing a constraint
-			const TPerShapeData<T, d>* Shape0 = Particle0->GetImplicitShape(Implicit0);
-			const TPerShapeData<T, d>* Shape1 = Particle1->GetImplicitShape(Implicit1);
-			if ((Shape0 && Shape0->bDisable) || (Shape1 && Shape1->bDisable))
+			if (const TPerShapeData<T, d>* Shape0 = Particle0->GetImplicitShape(Implicit0))
+			{
+				if (Shape0->bDisable)
+				{
+					return;
+				}
+				if (Implicit0Type == ImplicitObjectType::TriangleMesh && Shape0->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				{
+					return;
+				}
+			} 
+			else if (Implicit0Type == ImplicitObjectType::TriangleMesh) 
 			{
 				return;
 			}
+
+			if (const TPerShapeData<T, d>* Shape1 = Particle1->GetImplicitShape(Implicit1))
+			{
+				if (Shape1->bDisable)
+				{
+					return;
+				}
+				if (Implicit1Type == ImplicitObjectType::TriangleMesh && Shape1->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				{
+					return;
+				}
+			}
+			else if (Implicit1Type == ImplicitObjectType::TriangleMesh)
+			{
+				return;
+			}
+
 
 			if (!Implicit0 || !Implicit1)
 			{
@@ -1580,9 +1604,6 @@ namespace Chaos
 				return;
 			}
 
-			EImplicitObjectType Implicit0Type = GetInnerType(Implicit0->GetType());
-			EImplicitObjectType Implicit1Type = GetInnerType(Implicit1->GetType());
-
 			if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
 			{
 				ConstructBoxBoxConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
@@ -1659,7 +1680,19 @@ namespace Chaos
 			{
 				ConstructCapsuleHeightFieldConstraints(Particle1, Particle0, Implicit1, Implicit0, Transform1, Transform0, CullDistance, NewConstraints);
 			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
+			{
+				ConstructBoxTriangleMeshConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
+			}
+			else if (Implicit0Type == FTriangleMeshImplicitObject::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				ConstructBoxTriangleMeshConstraints(Particle1, Particle0, Implicit1, Implicit0, Transform1, Transform0, CullDistance, NewConstraints);
+			}
+
+			//
 			// the generic convex bodies are last
+			//
+
 			else if (Implicit0->IsConvex() && Implicit1Type == THeightField<T>::StaticType())
 			{
 				ConstructConvexHeightFieldConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
@@ -1676,19 +1709,6 @@ namespace Chaos
 			{
 				ConstructLevelsetLevelsetConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
 			}
-
-
-			/*
-			if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == FTriangleMeshImplicitObject::StaticType())
-			{
-				ConstructBoxTriangleMeshConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
-			}
-			else if (Implicit0Type == FTriangleMeshImplicitObject::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
-			{
-				ConstructBoxTriangleMeshConstraints(Particle1, Particle0, Implicit1, Implicit0, Transform1, Transform0, CullDistance, NewConstraints);
-			}
-			*/
-
 		}
 
 		template void UpdateBoxBoxConstraint<float, 3>(const TAABB<float, 3>& Box1, const TRigidTransform<float, 3>& Box1Transform, const TAABB<float, 3>& Box2, const TRigidTransform<float, 3>& Box2Transform, const float CullDistance, TRigidBodyPointContactConstraint<float, 3>& Constraint);

@@ -73,6 +73,16 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
 			}
 		}
+
+		// @todo(chaos) : Fix - The initial update is not flagging the dirty flag, so this state is not updated. 
+		//if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::CollisionTraceType))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->CollisionTraceType = Data->CollisionTraceType[CurrShape++];
+			}
+		}
 	}
 }
 
@@ -162,6 +172,14 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
 				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::CollisionTraceType))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->CollisionTraceType = Data->CollisionTraceType[CurrShape++];
 			}
 		}
 
@@ -321,6 +339,14 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
 				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::CollisionTraceType))
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->CollisionTraceType = Data->CollisionTraceType[CurrShape++];
 			}
 		}
 

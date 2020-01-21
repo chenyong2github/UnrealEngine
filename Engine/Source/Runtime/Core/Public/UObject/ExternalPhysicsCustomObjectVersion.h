@@ -113,7 +113,10 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Acceleration structures use unique payload idx
 		UniquePayloadIdx,
-		
+	
+		// Added serialization for the collision type in the shape
+		SerializeCollisionTraceType,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

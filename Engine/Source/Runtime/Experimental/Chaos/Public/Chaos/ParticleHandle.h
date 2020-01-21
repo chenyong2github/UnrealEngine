@@ -1261,6 +1261,7 @@ public:
 	static constexpr bool AlwaysSerializable = true;
 
 protected:
+
 	TGeometryParticle(const TGeometryParticleParameters<T, d>& StaticParams = TGeometryParticleParameters<T, d>())
 		: MUserData(nullptr)
 	{
@@ -1427,6 +1428,16 @@ public:
 		}
 	}
 
+	void SetShapeCollisionTraceType(int32 InShapeIndex, EChaosCollisionTraceFlag TraceType)
+	{
+		const EChaosCollisionTraceFlag Current = MShapesArray[InShapeIndex]->CollisionTraceType;
+		if (Current != TraceType)
+		{
+			MShapesArray[InShapeIndex]->CollisionTraceType = TraceType;
+			MarkDirty(EParticleFlags::CollisionTraceType);
+		}
+	}
+
 	FParticleData* NewData() const { return new TGeometryParticleData<T, d>( *this ); }
 
 	bool IsDirty() const
@@ -1559,9 +1570,11 @@ public:
 	{
 		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
 		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		CollisionTraceType.Empty(Shapes.Num());
 		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
 		{
 			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+			CollisionTraceType.Add(ShapePtr->CollisionTraceType);
 		}
 
 	}
@@ -1576,6 +1589,7 @@ public:
 		UniqueIdx = FUniqueIdx();
 		DirtyFlags.Clear();
 		ShapeCollisionDisableFlags.Reset();
+		CollisionTraceType.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1588,6 +1602,7 @@ public:
 	FUniqueIdx UniqueIdx;
 	FParticleDirtyFlags DirtyFlags;
 	TBitArray<> ShapeCollisionDisableFlags;
+	TArray<EChaosCollisionTraceFlag> CollisionTraceType;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif

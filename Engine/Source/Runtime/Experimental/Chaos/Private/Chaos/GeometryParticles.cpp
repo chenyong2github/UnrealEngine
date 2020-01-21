@@ -60,6 +60,7 @@ namespace Chaos
 		, Materials()
 		, bDisable(false)
 		, bSimulate(true)
+		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	{
 	}
 
@@ -121,6 +122,13 @@ namespace Chaos
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
 		{
 			Ar << bSimulate;
+		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeCollisionTraceType)
+		{
+			int32 Data = (int32)CollisionTraceType;
+			Ar << Data;
+			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
 		}
 	}
 

@@ -1169,6 +1169,23 @@ struct FInitBodiesHelper
 		return true;
 	}
 
+#if WITH_CHAOS
+	Chaos::EChaosCollisionTraceFlag ConvertCollisionTraceFlag(ECollisionTraceFlag Flag)
+	{
+		if (Flag == ECollisionTraceFlag::CTF_UseDefault)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
+		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAndComplex)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAndComplex;
+		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAsComplex)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAsComplex;
+		if (Flag == ECollisionTraceFlag::CTF_UseComplexAsSimple)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple;
+		if (Flag == ECollisionTraceFlag::CTF_MAX)
+			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_MAX;
+		ensure(false);
+		return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
+	}
+#endif
 
 	void InitBodies()
 	{
@@ -1209,16 +1226,25 @@ struct FInitBodiesHelper
 							ActorHandles.Add(ActorHandle);
 
 #if WITH_CHAOS
+							const int32 NumShapes = FPhysicsInterface::GetNumShapes(ActorHandle);
+
 							// If this shape shouldn't collide in the sim we disable it here until we support
 							// a separation of unions for these shapes
 							if(BI->GetCollisionEnabled() == ECollisionEnabled::QueryOnly || BI->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 							{
-								const int32 NumShapes = FPhysicsInterface::GetNumShapes(ActorHandle);
 								for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 								{
 									ActorHandle->SetShapeCollisionDisable(ShapeIndex, true);
 								}
 							}
+							if (BI->BodySetup.IsValid())
+							{
+								for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
+								{
+									ActorHandle->SetShapeCollisionTraceType(ShapeIndex, ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
+								}
+							}
+
 #endif
 /*
 							With the implementation of AddActorsToScene_AssumesLocked,
