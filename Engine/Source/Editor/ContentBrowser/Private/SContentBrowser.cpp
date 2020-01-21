@@ -3225,7 +3225,7 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 
 void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
 {
-	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
+	UContentBrowserFolderContext* Context = Menu->FindContext<UContentBrowserFolderContext>();
 	check(Context);
 
 	const TArray<FString>& SelectedPaths = PathContextMenu->GetSelectedPaths();
