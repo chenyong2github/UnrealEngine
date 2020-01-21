@@ -896,7 +896,7 @@ public:
 	/**
 	 * This returns the initial chunk of compressed data for streaming data sources.
 	 */
-	TArrayView<const uint8> GetZerothChunk();
+	TArrayView<const uint8> GetZerothChunk(bool bForImmediatePlayback = false);
 
 	/**
 	 * Attempts to update the cached platform data after any changes that might affect it

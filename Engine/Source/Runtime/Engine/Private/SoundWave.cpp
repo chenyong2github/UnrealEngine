@@ -2002,7 +2002,7 @@ bool USoundWave::ShouldUseStreamCaching() const
 	return  FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && IsStreaming();
 }
 
-TArrayView<const uint8> USoundWave::GetZerothChunk()
+TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 {
 	if (ShouldUseStreamCaching())
 	{
@@ -2017,7 +2017,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 		if (GetNumChunks() > 1)
 		{
 			// Prime first chunk for playback.
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
 		}
 
 		return ZerothChunkData.GetView();
