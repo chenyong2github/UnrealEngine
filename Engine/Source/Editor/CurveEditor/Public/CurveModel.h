@@ -106,7 +106,7 @@ public:
 	 * @param InKeys                 Array of key handles to set positions for
 	 * @param InKeyPositions         Array of desired key positions to be applied to each of the corresponding key handles
 	 */
-	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions) = 0;
+	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified) = 0;
 
 	/**
 	 * Populate the specified draw info structure with data describing how to draw the specified point type
@@ -169,7 +169,7 @@ public:
 	 * @param InKeys                 Array of key handles to set attributes for
 	 * @param InAttributes           Array of desired key attributes to be applied to each of the corresponding key handles
 	 */
-	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes)
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified)
 	{}
 
 	/**
@@ -236,7 +236,7 @@ public:
 	/**
 	 * Helper function for assigning a the same attributes to a number of keys
 	 */
-	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes);
+	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
 
 	/**
 	 * Helper function for adding a single key to this curve

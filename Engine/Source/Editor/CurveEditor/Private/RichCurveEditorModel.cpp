@@ -149,7 +149,7 @@ void FRichCurveEditorModel::AddKeys(TArrayView<const FKeyPosition> InKeyPosition
 
 		// We reuse SetKeyAttributes here as there is complex logic determining which parts of the attributes are valid to pass on.
 		// For now we need to duplicate the new key handle array due to API mismatch. This will auto-calculate tangents if required.
-		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
+		SetKeyAttributes(NewKeyHandles, InKeyAttributes, EPropertyChangeType::ValueSet);
 	}
 }
 
@@ -274,7 +274,7 @@ void FRichCurveEditorModel::GetKeyPositions(TArrayView<const FKeyHandle> InKeys,
 	}
 }
 
-void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions)
+void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType)
 {
 	if (IsReadOnly())
 	{
@@ -296,7 +296,7 @@ void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys,
 			}
 		}
 		RichCurve->AutoSetTangents();
-		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, ChangeType);
 		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
@@ -350,7 +350,7 @@ void FRichCurveEditorModel::GetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 	}
 }
 
-void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes)
+void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
 {
 	if (IsReadOnly())
 	{
@@ -488,7 +488,7 @@ void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 			RichCurve->AutoSetTangents();
 		}
 
-		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, ChangeType);
 		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }

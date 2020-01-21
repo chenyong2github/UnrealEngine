@@ -4,7 +4,7 @@
 #include "Containers/Array.h"
 #include "CurveDataAbstraction.h"
 
-void FCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InKeyAttributes)
+void FCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InKeyAttributes, EPropertyChangeType::Type ChangeType)
 {
 	TArray<FKeyAttributes> ExpandedAttributes;
 	ExpandedAttributes.Reserve(InKeys.Num());

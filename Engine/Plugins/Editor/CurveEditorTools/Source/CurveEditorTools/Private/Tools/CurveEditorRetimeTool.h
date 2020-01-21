@@ -115,7 +115,8 @@ private:
 		TArray<FKeyHandle> Handles;
 		/** Array of all the above handle's times, one per index of Handles */
 		TArray<FKeyPosition> FrameNumbers;
-		
+		/** Array of all the above handle's last dragged times, one per index of Handles */
+		TArray<FKeyPosition> LastDraggedFrameNumbers;
 		FCurveModelID CurveID;
 	};
 
