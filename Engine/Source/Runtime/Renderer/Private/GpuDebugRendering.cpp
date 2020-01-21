@@ -253,7 +253,7 @@ namespace ShaderDrawDebug
 
 	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture, FRDGTextureRef DepthTexture)
 	{
-		if (!IsShaderDrawDebugEnabled(View))
+		//if (!IsShaderDrawDebugEnabled(View))
 		{
 			return;
 		}
