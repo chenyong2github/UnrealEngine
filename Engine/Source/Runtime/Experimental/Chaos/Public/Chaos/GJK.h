@@ -464,6 +464,8 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 
+			V = V.GetUnsafeNormal();
+
 			SupportA = SupportAFunc(V);
 			SupportB = SupportBFunc(-V);
 			const TVector<T, 3> P = SupportA - SupportB;
@@ -471,8 +473,6 @@ namespace Chaos
 			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;	//is this needed?
 			As[SimplexIDs.NumVerts] = SupportA;
 			Bs[SimplexIDs.NumVerts] = SupportB;
-
-			V = V.GetUnsafeNormal();
 
 			const T VDotW = TVector<T, 3>::DotProduct(V, W);
 
