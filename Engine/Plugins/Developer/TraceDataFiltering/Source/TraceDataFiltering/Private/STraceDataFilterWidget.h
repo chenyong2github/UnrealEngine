@@ -11,6 +11,7 @@
 class ITableRow;
 class SFilterPresetList;
 class SSessionSelector;
+class SSearchBox;
 
 class STraceDataFilterWidget : public SCompoundWidget
 {

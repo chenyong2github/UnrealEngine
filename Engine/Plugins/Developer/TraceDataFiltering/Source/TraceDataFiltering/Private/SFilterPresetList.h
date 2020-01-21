@@ -7,10 +7,15 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Templates/SharedPointer.h"
+
+#include "SFilterPreset.h"
 
 class FMenuBuilder;
 class SFilterPreset;
 class SWrapBox;
+class ULocalFilterPresetContainer;
+class USharedFilterPresetContainer;
 
 /**
  * A list of presets currently applied to insights filtering window

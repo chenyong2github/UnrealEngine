@@ -6,12 +6,18 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SOverlay.h"
 #include "Templates/SharedPointer.h"
-#include "SFilterPresetList.h"
-#include "STraceObjectRowWidget.h"
+#include "TraceServices/ITraceServicesModule.h"
+#include "TraceServices/SessionService.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Modules/ModuleManager.h"
 
+#include "STraceObjectRowWidget.h"
+#include "SFilterPresetList.h"
 #include "ITraceObject.h"
 #include "TraceChannel.h"
+#include "FilterPresets.h"
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
 

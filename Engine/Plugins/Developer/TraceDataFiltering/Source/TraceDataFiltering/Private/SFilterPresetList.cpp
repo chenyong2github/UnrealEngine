@@ -14,18 +14,21 @@
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Styling/SlateTypes.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Layout/WidgetPath.h"
 #include "Textures/SlateIcon.h"
 #include "EditorStyleSet.h"
 
+#include "SFilterPreset.h"
 #include "TraceDataFilteringModule.h"
+#include "FilterPresets.h"
 
 #if WITH_EDITOR
 #include "SSettingsEditorCheckoutNotice.h"
 #endif
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "InsightsFilterList"
 

@@ -3,6 +3,11 @@
 #include "SessionTraceFilterService.h"
 #include "TraceServices/Model/Channel.h"
 #include "TraceServices/ITraceServicesModule.h"
+#include "Templates/SharedPointer.h"
+#include "TraceServices/SessionService.h"
+#include "Misc/CoreDelegates.h"
+#include "Algo/Transform.h"
+#include "Modules/ModuleManager.h"
 
 FSessionTraceFilterService::FSessionTraceFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession) : Session(InSession), Handle(InHandle)
 {

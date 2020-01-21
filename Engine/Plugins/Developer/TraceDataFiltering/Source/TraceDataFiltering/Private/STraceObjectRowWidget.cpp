@@ -9,8 +9,14 @@
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "Types/SlateEnums.h"
-
 #include "Async/Async.h"
+
+#include "ITraceObject.h"
+#include "EventFilterStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Templates/SharedPointer.h"
+#include "Input/Events.h"
+#include "Layout/Geometry.h"
 
 class FSetFilteringDragDropOp : public FDragDropOperation, public TSharedFromThis<FSetFilteringDragDropOp>
 {

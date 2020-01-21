@@ -3,6 +3,7 @@
 #include "TraceDataFilteringModule.h"
 
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
@@ -10,6 +11,8 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
 #include "EditorStyleSet.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Misc/ConfigCacheIni.h"
 
 #include "TraceServices/ModuleService.h"
 #include "TraceServices/AnalysisService.h"
@@ -17,6 +20,7 @@
 #include "Insights/IUnrealInsightsModule.h"
 
 #include "STraceDataFilterWidget.h"
+#include "EventFilterStyle.h"
 
 IMPLEMENT_MODULE(FTraceFilteringModule, TraceDataFiltering);
 
