@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Net/Core/Trace/Reporters/NetTraceReporter.h"
 #include "HAL/PlatformTLS.h"

@@ -4,6 +4,7 @@
 
 #if UE_NET_TRACE_ENABLED
 
+#include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
 #include "HAL/PlatformTime.h"
 #include "Net/Core/Trace/NetTrace.h"
