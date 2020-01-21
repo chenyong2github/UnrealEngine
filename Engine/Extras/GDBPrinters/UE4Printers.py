@@ -470,7 +470,7 @@ class FStringPrinter:
 			return "nullptr"
 		else:
 			ActualData = self.Value['Data']['AllocatorInstance']['Data']
-			data = ActualData.cast(gdb.lookup_type("wchar_t").pointer())
+			data = ActualData.cast(gdb.lookup_type("TCHAR").pointer())
 			return '%s' % (data.string())
 
 	def display_hint (self):
@@ -488,9 +488,20 @@ class FNameEntryPrinter:
 		self.Value = val
 
 	def to_string(self):
+		self.Header = self.Value['Header']
+		IsWideString = self.Header['bIsWide'].cast(gdb.lookup_type('bool'))
 		self.AnsiName = self.Value['AnsiName']
-		return self.AnsiName
+		self.WideName = self.Value['WideName']
+		Len = int(self.Header['Len'].cast(gdb.lookup_type('uint16')))
+		if IsWideString == True:
+			WideString = self.WideName.cast(gdb.lookup_type('WIDECHAR').pointer())
+			return '%s' % WideString.string('','',Len)
+		else:
+			AnsiString = self.AnsiName.cast(gdb.lookup_type('ANSICHAR').pointer())
+			return '%s' % AnsiString.string('','',Len)
 
+	def display_hint (self):
+		return 'string'
 
 # ------------------------------------------------------------------------------
 # FName
@@ -505,17 +516,21 @@ class FNamePrinter:
 		if self.Value.is_optimized_out:
 			return '<optimized out>'
 
-		DisplayIndex = self.Value['ComparisonIndex']
+		# ComparisonIndex is an FNameEntryId
+		Index = self.Value['ComparisonIndex']['Value']
+		IndexValue = Index.__int__()
 
-		if DisplayIndex >= 1048576:
+		if IndexValue >= 4194304:
 			return 'invalid'
 		else:
-			Expr = '(char*)(((FNameEntry***)FName::GetNameTableForDebuggerVisualizers_MT())['+str(DisplayIndex)+' / 16384]['+str(DisplayIndex)+' % 16384])->AnsiName'
-			Value = gdb.parse_and_eval(Expr)
-			return '%s' % (Value.string()) 
-
-	def display_hint(self):
-		return 'string'
+			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
+			NameEntry = gdb.parse_and_eval(Expr)
+			Number = self.Value['Number']
+			NumberValue = Number.__int__()
+			if NumberValue == 0:
+				return NameEntry
+			else:
+				return str([str(NameEntry), 'Number=' + str(NumberValue)])
 
 
 # ------------------------------------------------------------------------------
@@ -528,18 +543,20 @@ class FMinimalNamePrinter:
 		self.Value = val
 
 	def to_string(self):
-		Index = self.Value['Index']
+		Index = self.Value['Index']['Value']
+		IndexValue = Index.__int__()
 
-		if Index >= 1048576:
+		if IndexValue >= 4194304:
 			return 'invalid'
 		else:
-			Expr = '(char*)(((FNameEntry***)FName::GetNameTableForDebuggerVisualizers_MT())['+str(Index)+' / 16384]['+str(Index)+' % 16384])->AnsiName'
-			Value = gdb.parse_and_eval(Expr)
-			return '%s' % (Value) 
-
-	def display_hint (self):
-		return 'string'
-
+			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
+			NameEntry = gdb.parse_and_eval(Expr)
+			Number = self.Value['Number']
+			NumberValue = Number.__int__()
+			if NumberValue == 0:
+				return NameEntry
+			else:
+				return str([str(NameEntry), 'Number=' + str(NumberValue)])
 
 # ------------------------------------------------------------------------------
 # TTuple
