@@ -443,6 +443,7 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByPosition(uint32 Connect
 	while (EventIt <= EndEventIndex && ContentEvents[EventIt].StartPos < EndPos)
 	{
 		Callback(ContentEvents[EventIt]);
+		EndPos = FMath::Max(EndPos, (uint32)ContentEvents[EventIt].EndPos);
 		++EventIt;
 	}
 }
