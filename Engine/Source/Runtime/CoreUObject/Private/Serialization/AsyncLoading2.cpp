@@ -2700,9 +2700,16 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 				TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(Object, ExportSerialSize);
 				const int64 Pos = Ar.Tell();
 				check(ExportSerialSize <= uint64(Ar.TotalSize() - Pos));
+
 				Package->EventDrivenSerializeExport(BundleEntry->LocalExportIndex, Ar);
-				check(ExportSerialSize == uint64(Ar.Tell() - Pos));
+				checkf(ExportSerialSize == uint64(Ar.Tell() - Pos), TEXT("Expect read size: %llu - Actual read size: %llu"), ExportSerialSize, uint64(Ar.Tell() - Pos));
 			}
+			else
+			{
+				// If we are not going to serialize the data we need to skip it!
+				Ar.Seek(Ar.Tell() + ExportSerialSize);
+			}
+
 			check(!Object->HasAnyFlags(RF_NeedLoad));
 
 			Package->SerialDataPtr += ExportSerialSize;
