@@ -245,7 +245,7 @@ void FQueryEvaluator::ReadExpr(FGameplayTagQueryExpression& E)
 		{
 			FGameplayTagQueryExpression Exp;
 			ReadExpr(Exp);
-			Exp.AddExpr(Exp);
+			E.AddExpr(Exp);
 		}
 	}
 }
