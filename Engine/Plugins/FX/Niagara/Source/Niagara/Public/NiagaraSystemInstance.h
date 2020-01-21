@@ -202,8 +202,6 @@ public:
 
 	bool IsReadyToRun() const;
 
-	FORCEINLINE bool HasTickingEmitters()const { return bHasTickingEmitters; }
-
 	UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
 
 	/** 
@@ -390,9 +388,6 @@ public:
 
 	uint32 bPendingSpawn : 1;
 	uint32 bNotifyOnCompletion : 1;
-
-	/** If this instance has any currently ticking emitters. If false, allows us to skip some work. */
-	uint32 bHasTickingEmitters : 1;
 
 	/** If this system is paused. When paused it will not tick and never complete etc. */
 	uint32 bPaused : 1;
