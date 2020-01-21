@@ -20,6 +20,7 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Stats/Stats.h"
+#include "Internationalization/Regex.h"
 #include "Internationalization/TextLocalizationManager.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "HAL/PlatformOutputDevices.h"
@@ -1131,7 +1132,48 @@ FProgramCounterSymbolInfoEx::FProgramCounterSymbolInfoEx( FString InModuleName, 
 
 FString RecoveryService::GetRecoveryServerName()
 {
-	// Requirement: The name must be unique on the local machine (multiple instances) and across the local network (multiple users).
+	// Requirements: To avoid collision, the name must be unique on the local machine (multiple instances) and across the local network (multiple users).
 	static FGuid RecoverySessionGuid = FGuid::NewGuid();
-	return FString::Printf(TEXT("RecoverySvr_%s"), *RecoverySessionGuid.ToString());
+	return RecoverySessionGuid.ToString();
+}
+
+FString RecoveryService::MakeSessionName()
+{
+	// Convention: The session name starts with the server name (uniqueness), followed by a zero-based unique sequence number (idendify the latest session reliably), the the session creation time and the project name.
+	static TAtomic<int32> SessionNum(0);
+	return FString::Printf(TEXT("%s_%d_%s_%s"), *RecoveryService::GetRecoveryServerName(), SessionNum++, *FDateTime::UtcNow().ToString(), FApp::GetProjectName());
+}
+
+bool RecoveryService::TokenizeSessionName(const FString& SessionName, FString* OutServerName, int32* SeqNum, FString* ProjName, FDateTime* DateTime)
+{
+	// Parse a sessionName created with 'MakeSessionName()' that have the following format: C6EACAD6419AF672D75E2EA91E05BF55_1_2019.12.05-08.59.03_FP_FirstPerson
+	//     ServerName = C6EACAD6419AF672D75E2EA91E05BF55
+	//     SeqNum = 1
+	//     DateTime = 2019.12.05-08.59.03
+	//     ProjName = FP_FirstPerson
+	FRegexPattern Pattern(TEXT(R"((^[A-Z0-9]+)_([0-9])+_([0-9\.-]+)_(.+))")); // Need help with regex? Try https://regex101.com/
+	FRegexMatcher Matcher(Pattern, SessionName);
+
+	if (!Matcher.FindNext())
+	{
+		return false; // Failed to parse.
+	}
+	if (OutServerName)
+	{
+		*OutServerName = Matcher.GetCaptureGroup(1);
+	}
+	if (SeqNum)
+	{
+		LexFromString(*SeqNum, *Matcher.GetCaptureGroup(2));
+	}
+	if (ProjName)
+	{
+		*ProjName = Matcher.GetCaptureGroup(4);
+	}
+	if (DateTime)
+	{
+		return FDateTime::Parse(Matcher.GetCaptureGroup(3), *DateTime);
+	}
+
+	return true; // Successfully parsed.
 }

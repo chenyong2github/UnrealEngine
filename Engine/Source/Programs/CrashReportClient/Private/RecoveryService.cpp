@@ -111,17 +111,27 @@ void FRecoveryService::Shutdown()
 
 FGuid FRecoveryService::GetRecoverySessionId() const
 {
+	FGuid SessionId;
+	int32 SessionSeqNum = -1;
+
 	// As long as the Concert server is up, the session would remain live (it's going to be archived when the server shutdown or reboot).
 	for (TSharedPtr<IConcertServerSession>& Session : Server->GetConcertServer()->GetSessions())
 	{
-		// As convention, the disaster recovery session names starts with the server name, followed by the project name, and date time.
+		// As convention, the disaster recovery session names starts with the server name, followed by a sequence number, the project name and date time. (See RecoveryService::MakeSessionName())
 		if (Session->GetName().StartsWith(Server->GetConcertServer()->GetServerInfo().ServerName))
 		{
-			return Session->GetId();
+			// The user may have enabled/disabled the recovery service few times and as result, several live sessions will be available. Need to pick the last one. The highest sequence number
+			// in the session name corresponds to the last session created.
+			int32 SeqNum = 0;
+			RecoveryService::TokenizeSessionName(Session->GetName(), nullptr, &SeqNum, nullptr, nullptr);
+			if (SeqNum > SessionSeqNum)
+			{
+				SessionId = Session->GetId();
+			}
 		}
 	}
 
-	return FGuid();// Not found.
+	return SessionId; // Uninitialized Guid (invalid) means not found.
 }
 
 #endif
