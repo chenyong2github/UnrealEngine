@@ -65,6 +65,7 @@ namespace ClothingSimulationDefault
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
+	, bOverrideGravity(false)
 	, Gravity(ClothingSimulationDefault::Gravity)
 	, WindVelocity(FVector::ZeroVector)
 {
@@ -308,7 +309,6 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
-		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
 
@@ -1158,11 +1158,12 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		return;
 	}
 
-	// Set gravity
+	// Set gravity, using the legacy priority: 1) config override, 2) game override, 3) world gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		(ClothSharedSimConfig && !ClothSharedSimConfig->bUseGravityOverride) ?
-			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
-			Gravity));
+		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
+		bOverrideGravity ? Gravity :
+		ClothSharedSimConfig ? Context->WorldGravity * ClothSharedSimConfig->GravityScale :
+		Context->WorldGravity));
 
 	// Set wind velocity, used by the velocity field lambda
 	WindVelocity = Context->WindVelocity * ClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
@@ -1426,12 +1427,13 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 
 void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
+	bOverrideGravity = true;
 	Gravity = InGravityOverride;
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	Gravity = !ClothSharedSimConfig ? ClothingSimulationDefault::Gravity : ClothSharedSimConfig->Gravity;
+	bOverrideGravity = false;
 }
 
 #if WITH_EDITOR

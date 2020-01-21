@@ -42,6 +42,21 @@ public:
 	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext)
 	PURE_VIRTUAL(UClothingSimulationInteractor::Sync, );
 
+	// Set the stiffness of the spring force for the animation drive
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void SetAnimDriveSpringStiffness(float InStiffness)
+	PURE_VIRTUAL(UClothingSimulationInteractor::SetAnimDriveSpringStiffness, );
+
+	// Set a new gravity override and enable the override
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void EnableGravityOverride(const FVector& InVector)
+	PURE_VIRTUAL(UClothingSimulationInteractor::EnableGravityOverride, );
+
+	// Disable any currently set gravity override
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void DisableGravityOverride()
+	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
+
 protected:
 
 	// Intended to be called by functions on the interactor to message to the 

@@ -142,6 +142,7 @@ namespace Chaos
 		float Time;
 		float DeltaTime;
 
+		bool bOverrideGravity;
 		FVector Gravity;
 		FVector WindVelocity;
 
