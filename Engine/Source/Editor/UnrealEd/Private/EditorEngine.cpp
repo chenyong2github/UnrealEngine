@@ -4288,6 +4288,12 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 
 bool UEditorEngine::IsPackageOKToSave(UPackage* InPackage, const FString& InFilename, FOutputDevice* Error)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (InPackage && !AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPackage->GetName()))
+	{
+		return false;
+	}
+
 	return true;
 }
 

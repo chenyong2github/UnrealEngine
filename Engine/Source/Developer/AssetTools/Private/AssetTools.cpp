@@ -157,6 +157,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
 	, AssetClassBlacklist(MakeShared<FBlacklistNames>())
 	, FolderBlacklist(MakeShared<FBlacklistPaths>())
+	, WritableFolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
@@ -1020,6 +1021,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const FString& DestinationPath)
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialog(const FString& DestinationPath)
 {
+	if (!GetWritableFolderBlacklist()->PassesStartsWithFilter(DestinationPath))
+	{
+		NotifyBlockedByWritableFolderFilter();
+		return TArray<UObject*>();
+	}
+
 	TArray<UObject*> ReturnObjects;
 	FString FileTypes, AllExtensions;
 	TArray<UFactory*> Factories;
@@ -3157,6 +3164,32 @@ void UAssetToolsImpl::AssetClassBlacklistChanged()
 TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
 {
 	return FolderBlacklist;
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetWritableFolderBlacklist()
+{
+	return WritableFolderBlacklist;
+}
+
+bool UAssetToolsImpl::AllPassWritableFolderFilter(const TArray<FString>& InPaths) const
+{
+	if (WritableFolderBlacklist->HasFiltering())
+	{
+		for (const FString& Path : InPaths)
+		{
+			if (!WritableFolderBlacklist->PassesStartsWithFilter(Path))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void UAssetToolsImpl::NotifyBlockedByWritableFolderFilter() const
+{
+	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("NotifyBlockedByWritableFolderFilter", "Folder is locked")));
 }
 
 #undef LOCTEXT_NAMESPACE

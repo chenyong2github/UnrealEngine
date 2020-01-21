@@ -39,6 +39,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ContentBrowserCommands.h"
 #include "ToolMenus.h"
+#include "ContentBrowserMenuContexts.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -116,6 +117,8 @@ TSharedRef<FExtender> FPathContextMenu::MakePathViewContextMenuExtender(const TA
 
 void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 {
+	UContentBrowserFolderContext* Context = Menu->FindContext<UContentBrowserFolderContext>();
+
 	// Cache any vars that are used in determining if you can execute any actions.
 	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
 	CacheCanExecuteVars();
@@ -137,7 +140,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 				FText NewAssetToolTip;
 				if(SelectedPaths.Num() == 1)
 				{
-					if(CanCreateAsset())
+					if(CanCreateAsset() && Context->bCanBeModified)
 					{
 						NewAssetToolTip = FText::Format(LOCTEXT("NewAssetTooltip_CreateIn", "Create a new asset in {0}."), FText::FromString(SelectedPaths[0]));
 					}
@@ -152,22 +155,25 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 				}
 
 				// New Asset (submenu)
-				Section.AddSubMenu(
-					"NewAsset",
-					LOCTEXT( "NewAssetLabel", "New Asset" ),
-					NewAssetToolTip,
-					FNewToolMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeNewAssetSubMenu ),
-					FUIAction(
-						FExecuteAction(),
-						FCanExecuteAction::CreateRaw( this, &FPathContextMenu::CanCreateAsset )
+				if (Context->bCanBeModified)
+				{
+					Section.AddSubMenu(
+						"NewAsset",
+						LOCTEXT("NewAssetLabel", "New Asset"),
+						NewAssetToolTip,
+						FNewToolMenuDelegate::CreateRaw(this, &FPathContextMenu::MakeNewAssetSubMenu),
+						FUIAction(
+							FExecuteAction(),
+							FCanExecuteAction::CreateRaw(this, &FPathContextMenu::CanCreateAsset)
 						),
-					EUserInterfaceActionType::Button,
-					false,
-					FSlateIcon()
+						EUserInterfaceActionType::Button,
+						false,
+						FSlateIcon()
 					);
+				}
 			}
 
-			if(bHasClassPaths)
+			if(bHasClassPaths && Context->bCanBeModified)
 			{
 				FText NewClassToolTip;
 				if(SelectedPaths.Num() == 1)
@@ -208,10 +214,13 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 				FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteExplore ) )
 				);
 
-			Section.AddMenuEntry(FGenericCommands::Get().Rename,
-				LOCTEXT("RenameFolder", "Rename"),
-				LOCTEXT("RenameFolderTooltip", "Rename the selected folder.")
-				);
+			if (Context->bCanBeModified)
+			{
+				Section.AddMenuEntry(FGenericCommands::Get().Rename,
+					LOCTEXT("RenameFolder", "Rename"),
+					LOCTEXT("RenameFolderTooltip", "Rename the selected folder.")
+					);
+			}
 
 			// If any colors have already been set, display color options as a sub menu
 			if ( ContentBrowserUtils::HasCustomColors() )
@@ -263,7 +272,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			}
 		}
 
-		if(bHasAssetPaths)
+		if(bHasAssetPaths && Context->bCanBeModified)
 		{
 			// Bulk operations section //
 			{

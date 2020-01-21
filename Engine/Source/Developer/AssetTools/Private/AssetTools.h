@@ -120,6 +120,9 @@ public:
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
 	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() override;
 	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() override;
+	virtual TSharedRef<FBlacklistPaths>& GetWritableFolderBlacklist() override;
+	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
+	virtual void NotifyBlockedByWritableFolderFilter() const;
 
 public:
 	/** Gets the asset tools singleton as a FAssetTools for asset tools module use */
@@ -194,6 +197,9 @@ private:
 
 	/** Blacklist of folder paths */
 	TSharedRef<FBlacklistPaths> FolderBlacklist;
+
+	/** Blacklist of folder paths to write to */
+	TSharedRef<FBlacklistPaths> WritableFolderBlacklist;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

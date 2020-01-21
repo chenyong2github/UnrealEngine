@@ -31,6 +31,9 @@ public:
 	UPROPERTY()
 	UClass* CommonClass;
 
+	UPROPERTY()
+	bool bCanBeModified;
+
 	UFUNCTION(BlueprintCallable, Category="Tool Menus")
 	TArray<UObject*> GetSelectedObjects() const
 	{
@@ -60,6 +63,9 @@ class CONTENTBROWSER_API UContentBrowserFolderContext : public UObject
 	GENERATED_BODY()
 
 public:
+
+	UPROPERTY()
+	bool bCanBeModified;
 
 	TWeakPtr<SContentBrowser> ContentBrowser;
 	FOnCreateNewFolder OnCreateNewFolder;

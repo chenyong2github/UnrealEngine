@@ -64,7 +64,7 @@
 #include "Engine/LevelStreaming.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
-
+#include "Misc/BlacklistNames.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -4028,11 +4028,17 @@ FString FEditorFileUtils::ExtractPackageName(const FString& ObjectPath)
 
 void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 	{
 		UPackage* WorldPackage = WorldIt->GetOutermost();
 		if (!WorldPackage->HasAnyPackageFlags(PKG_PlayInEditor)
-			&& !WorldPackage->HasAnyFlags(RF_Transient))
+			&& !WorldPackage->HasAnyFlags(RF_Transient)
+			&& (!bHasWritableFolderFilter || WritableFolderFilter->PassesStartsWithFilter(WorldPackage->GetName()))
+			)
 		{
 			if (WorldPackage->IsDirty())
 			{
@@ -4068,6 +4074,10 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 
 void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	// Make a list of all content packages that we should save
 	for (TObjectIterator<UPackage> It; It; ++It)
 	{
@@ -4093,8 +4103,19 @@ void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackag
 			// Ignore map packages, they are caught above.
 			bShouldIgnorePackage |= bIsMapPackage;
 
-			// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
-			bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(Package->GetName(), /*bIncludeReadOnlyRoots=*/false));
+			if (!bShouldIgnorePackage)
+			{
+				FString PackageName = Package->GetName();
+
+				// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
+				bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(PackageName, /*bIncludeReadOnlyRoots=*/false));
+
+				// Ignore packages that cannot be saved due to a custom filter
+				if (!bShouldIgnorePackage && bHasWritableFolderFilter)
+				{
+					bShouldIgnorePackage |= (!WritableFolderFilter->PassesStartsWithFilter(PackageName));
+				}
+			}
 		}
 
 		if (!bShouldIgnorePackage)

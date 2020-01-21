@@ -22,6 +22,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"
@@ -274,13 +275,21 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	//    being edited within, we should decide whether to disallow "Edit Here" in that case, or to close the old asset
 	//    editor and summon it in the new level editor, or to just foreground the old level editor (current behavior)
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
 	const bool bBringToFrontIfOpen = true;
 
-	// Don't open asset editors for cooked packages
 	if (UPackage* Package = Asset->GetOutermost())
 	{
+		// Don't open asset editors for cooked packages
 		if (Package->bIsCookedForEditor)
 		{
+			return false;
+		}
+
+		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(Package->GetName()))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 			return false;
 		}
 	}
@@ -301,8 +310,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	}
 
 	UE_LOG(LogAssetEditorSubsystem, Log, TEXT("Opening Asset editor for %s"), *Asset->GetFullName());
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 	TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Asset->GetClass());
 

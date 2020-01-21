@@ -1668,6 +1668,13 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 		// Note: We don't test IsAssetPathSelected here as we need to prevent dropping assets on class paths
 		const FString DestPath = SourcesData.PackagePaths[0].ToString();
 
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+			return FReply::Handled();
+		}
+
 		// If the DragDrop event is validated, continue trying to dock it to the Widget
 		bool bUnused = false;
 		if (DragDropHandler::ValidateDragDropOnAssetFolder(MyGeometry, DragDropEvent, DestPath, bUnused))
