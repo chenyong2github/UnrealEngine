@@ -37,11 +37,6 @@ void FLoadTimeProfilerTrace::FRequestGroupScope::OutputBegin()
 		<< BeginRequestGroup.Attachment(Attachment);
 }
 
-void FLoadTimeProfilerTrace::InitInternal()
-{
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginRequestGroup);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndRequestGroup);
-}
 
 #endif
 

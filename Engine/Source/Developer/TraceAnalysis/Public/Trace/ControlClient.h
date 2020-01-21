@@ -44,13 +44,6 @@ public:
 	 * @param Path File system path that the runtime should write events to. */
     void SendWriteTo(const TCHAR* Path);
 
-	/** Toggles events on and off. Events can be specified in two forms; either
-	 * by logger to address a logger's events as a whole (EventSpec="LoggerName")
-	 * or individually (EventSpec="LoggerName.EventName").
-	 * @param EventSpec Specification of the event to toggle.
-	 * @param bState True to enable the event and false to disable it. */
-    void SendToggleEvent(const TCHAR* EventSpec, bool bState=true);
-	
 	/**
 	 * Toggles one or more channels on and off. A channel or a comma separated list
 	 * of channels can be controlled.

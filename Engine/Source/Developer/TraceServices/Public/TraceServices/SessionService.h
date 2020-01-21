@@ -39,8 +39,6 @@ public:
 	virtual void GetAvailableSessions(TArray<FSessionHandle>& OutSessions) const = 0;
 	virtual void GetLiveSessions(TArray<FSessionHandle>& OutSessions) const = 0;
 	virtual bool GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo& OutSessionInfo) const = 0;
-	virtual void SetModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName, bool bState) = 0;
-	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const = 0;
 	virtual bool ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState) = 0;
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) = 0;
 	

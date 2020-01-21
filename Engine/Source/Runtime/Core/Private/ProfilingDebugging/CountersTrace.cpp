@@ -62,8 +62,6 @@ void FCountersTrace::Init(const TCHAR* CmdLine)
 {
 	if (FParse::Param(CmdLine, TEXT("counterstrace")))
 	{
-		UE_TRACE_EVENT_IS_ENABLED(Counters, SetValueInt);
-		UE_TRACE_EVENT_IS_ENABLED(Counters, SetValueFloat);
 		Trace::ToggleChannel(CountersChannel, true);
 	}
 }

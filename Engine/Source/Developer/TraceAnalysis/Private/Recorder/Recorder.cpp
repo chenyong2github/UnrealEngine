@@ -33,7 +33,6 @@ private:
 	virtual void		StopRecording() override;
 	virtual uint32		GetSessionCount() const override;
 	virtual void		GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) const override;
-	virtual bool		ToggleEvent(FRecorderSessionHandle RecordingHandle, const TCHAR* LoggerWildcard, bool bState) override;
 	virtual bool		ToggleChannels(FRecorderSessionHandle RecordingHandle, const TCHAR* Channels, bool bState) override;
 	FSession*			AcceptSession(FSocket& Socket);
 	void				CloseSession(FSession& Session);
@@ -326,29 +325,6 @@ void FRecorder::GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) con
 		SessionInfo.Handle = KV.Key;
 		SessionInfo.StoreSessionHandle = KV.Value->StoreSessionHandle;
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FRecorder::ToggleEvent(FRecorderSessionHandle SessionHandle, const TCHAR* LoggerWildcard, bool bState)
-{
-	TSharedPtr<FInternetAddr> ControlClientAddress;
-	{
-		FScopeLock Lock(&SessionsCS);
-		FSession** FindIt = Sessions.Find(SessionHandle);
-		if (!FindIt)
-		{
-			return false;
-		}
-		ControlClientAddress = (*FindIt)->ControlClientAddress;
-	}
-	FControlClient ControlClient;
-	if (!ControlClient.Connect(*ControlClientAddress))
-	{
-		return false;
-	}
-	ControlClient.SendToggleEvent(LoggerWildcard, bState);
-	ControlClient.Disconnect();
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

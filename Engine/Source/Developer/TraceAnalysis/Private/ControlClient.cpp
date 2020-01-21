@@ -122,12 +122,6 @@ void FControlClient::SendWriteTo(const TCHAR* Path)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FControlClient::SendToggleEvent(const TCHAR* EventSpec, bool bState)
-{
-    FormatAndSend(TEXT("ToggleEvent %s %d"), EventSpec, bState);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void FControlClient::SendToggleChannel(const TCHAR* Channels, bool bState /*= true*/)
 {
 	FormatAndSend(TEXT("ToggleChannels %s %d"), Channels, bState);

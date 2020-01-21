@@ -28,8 +28,6 @@ public:
 	virtual void GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions) const override;
 	virtual void GetLiveSessions(TArray<Trace::FSessionHandle>& OutSessions) const override;
 	virtual bool GetSessionInfo(Trace::FSessionHandle SessionHandle, Trace::FSessionInfo& OutSessionInfo) const override;
-	virtual void SetModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName, bool bState) override;
-	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const override;
 	virtual bool ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState) override;
 	virtual bool ConnectSession(const TCHAR* ControlClientAddress) override;
 	virtual FSessionHandle GetSessionHandleByName(const FString& SessionName) override;

@@ -40,8 +40,6 @@ struct FLoadTimeProfilerTrace
 		uint16 FormatArgsSize = 0;
 		uint8 FormatArgsBuffer[1024];
 	};
-
-	CORE_API static void InitInternal();
 };
 
 #define TRACE_LOADTIME_REQUEST_GROUP_SCOPE(Format, ...) \

@@ -47,13 +47,6 @@ public:
 	 * @param OutSessions TArray instance to receive the current session info. */
 	virtual void GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) const = 0;
 
-	/** Toggles an event logger wildcard on or off for an active recording session.
-	 * @param RecordingHandle Identifier of the active session, from GetActiveSessions().
-	 * @param EventSpec Event specification (see FControlClient::ToggleEvent)
-	 * @param bState True to enable the event and false to disable it.
-	 * @return True if the command was successfully sent. */
-	virtual bool ToggleEvent(FRecorderSessionHandle RecordingHandle, const TCHAR* EventSpec, bool bState) = 0;
-
 	/**
 	 * Toggles one or more channels on and off. A channel or a comma separated list
 	 * of channels can be controlled.

@@ -15,7 +15,6 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
-uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
 } // namespace Private
 
@@ -57,15 +56,6 @@ bool WriteTo(const TCHAR* InPath)
 	char Path[512];
 	ToAnsiCheap(Path, InPath);
 	return Private::Writer_WriteTo(Path);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 ToggleEvent(const TCHAR* Wildcard, bool bState)
-{
-	ANSICHAR WildcardA[64];
-	ToAnsiCheap(WildcardA, Wildcard);
-
-	return Private::Writer_EventToggle(WildcardA, bState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

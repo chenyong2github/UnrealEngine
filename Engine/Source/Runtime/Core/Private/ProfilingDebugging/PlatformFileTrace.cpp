@@ -141,14 +141,6 @@ void FPlatformFileTrace::Init(const TCHAR* CmdLine)
 {
 	if (FParse::Param(CmdLine, TEXT("filetrace")))
 	{
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginOpen);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndOpen);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginClose);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndClose);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginRead);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndRead);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginWrite);
-		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndWrite);
 		Trace::ToggleChannel(FileChannel, true);
 	}
 }

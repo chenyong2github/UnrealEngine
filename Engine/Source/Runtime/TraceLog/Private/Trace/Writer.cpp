@@ -674,7 +674,6 @@ struct FControlCommands
 ////////////////////////////////////////////////////////////////////////////////
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
-uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
 ////////////////////////////////////////////////////////////////////////////////
 static FControlCommands	GControlCommands;
@@ -912,19 +911,6 @@ static void Writer_InitializeControl()
 		}
 	);
 
-	Writer_ControlAddCommand("ToggleEvent", nullptr,
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
-		{
-			if (ArgC < 1)
-			{
-				return;
-			}
-			const ANSICHAR* Wildcard = ArgV[0];
-			const ANSICHAR* State = (ArgC > 1) ? ArgV[1] : "";
-			Writer_EventToggle(Wildcard, State[0] != '0');
-		}
-	);
-
 	Writer_ControlAddCommand("ToggleChannels", nullptr, 
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV) 
 		{
@@ -1141,8 +1127,6 @@ void Writer_EventCreate(
 	if (Uid >= uint32(EKnownEventUids::Max))
 	{
 		Target->Uid = uint16(EKnownEventUids::Invalid);
-		Target->Enabled.bOptedIn = false;
-		Target->Enabled.Internal = 0;
 		Target->bInitialized = true;
 		return;
 	}
@@ -1154,7 +1138,6 @@ void Writer_EventCreate(
  	Target->Uid = uint16(Uid);
 	Target->LoggerHash = LoggerHash;
 	Target->Hash = Writer_EventGetHash(LoggerHash, NameHash);
-	Target->Enabled.bOptedIn = false;
 	Target->bInitialized = true;
 	Target->bImportant = Flags & FEventDef::Flag_Important;
 
@@ -1230,48 +1213,6 @@ void Writer_EventCreate(
 			break;
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
-{
-	Writer_Initialize();
-
-	uint32 ToggleCount = 0;
-
-	const ANSICHAR* Dot = FCStringAnsi::Strchr(Wildcard, '.');
-	if (Dot == nullptr)
-	{
-		uint32 LoggerHash = Writer_EventGetHash(Wildcard);
-
-		FEventDef* Event = AtomicLoadAcquire(&GHeadEvent);
-		for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
-		{
-			if (Event->LoggerHash == LoggerHash)
-			{
-				Event->Enabled.bOptedIn = bState;
-				++ToggleCount;
-			}
-		}
-
-		return ToggleCount;
-	}
-
-	uint32 LoggerHash = Writer_EventGetHash(Wildcard, int(Dot - Wildcard));
-	uint32 NameHash = Writer_EventGetHash(Dot + 1);
-	uint32 EventHash = Writer_EventGetHash(LoggerHash, NameHash);
-
-	FEventDef* Event = (FEventDef*)AtomicLoadAcquire(&Private::GHeadEvent);
-	for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
-	{
-		if (Event->Hash == EventHash)
-		{
-			Event->Enabled.bOptedIn = bState;
-			++ToggleCount;
-		}
-	}
-
-	return ToggleCount;
 }
 
 } // namespace Private

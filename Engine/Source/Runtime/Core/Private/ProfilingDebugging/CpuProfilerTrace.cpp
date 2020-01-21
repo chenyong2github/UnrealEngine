@@ -227,7 +227,6 @@ void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
 {
 	if (FParse::Param(CmdLine, TEXT("cpuprofilertrace")))
 	{
-		UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
 		Trace::ToggleChannel(CpuProfilerChannel, true);
 	}
 }

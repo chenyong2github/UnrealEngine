@@ -115,26 +115,6 @@ UE_TRACE_EVENT_END()
 
 void FLoadTimeProfilerTracePrivate::Init()
 {
-	FLoadTimeProfilerTrace::InitInternal();
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, StartAsyncLoading);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, SuspendAsyncLoading);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ResumeAsyncLoading);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, PackageSummary);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginCreateExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndCreateExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginSerializeExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndSerializeExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginPostLoadExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndPostLoadExport);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginRequest);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndRequest);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewAsyncPackage);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginLoadAsyncPackage);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndLoadAsyncPackage);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyAsyncPackage);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageRequestAssociation);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageImportDependency);
-	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ClassInfo);
 	if (FParse::Param(FCommandLine::Get(), TEXT("loadtimetrace")))
 	{
 		Trace::ToggleChannel(LoadTimeChannel, true);

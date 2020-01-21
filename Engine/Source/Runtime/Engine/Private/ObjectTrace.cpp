@@ -80,9 +80,6 @@ void FObjectTrace::Init()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("objecttrace")))
 	{
-		UE_TRACE_EVENT_IS_ENABLED(Object, Class);
-		UE_TRACE_EVENT_IS_ENABLED(Object, Object);
-		UE_TRACE_EVENT_IS_ENABLED(Object, ObjectEvent);
 		Trace::ToggleChannel(ObjectChannel, true);
 	}
 }

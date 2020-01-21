@@ -193,58 +193,6 @@ bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo&
 	return true;
 }
 
-void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName& ModuleName, bool bState)
-{
-	FScopeLock Lock(&SessionsCS);
-	FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
-	if (!FindIt)
-	{
-		return;
-	}
-	if (bState)
-	{
-		TArray<const TCHAR*> Loggers = ModuleService.GetModuleLoggers(ModuleName);
-		TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(ModuleName);
-		for (const TCHAR* Logger : Loggers)
-		{
-			EnabledLoggers.Add(Logger);
-		}
-		if (FindIt->RecorderSessionHandle)
-		{
-			for (const FString& Logger : EnabledLoggers)
-			{
-				TraceRecorder->ToggleEvent(FindIt->RecorderSessionHandle, *Logger, true);
-			}
-		}
-	}
-	else
-	{
-		TSet<FString>* EnabledLoggers = FindIt->EnabledModuleLoggersMap.Find(ModuleName);
-		if (EnabledLoggers)
-		{
-			if (FindIt->RecorderSessionHandle)
-			{
-				for (const FString& Logger : *EnabledLoggers)
-				{
-					TraceRecorder->ToggleEvent(FindIt->RecorderSessionHandle, *Logger, false);
-				}
-			}
-			FindIt->EnabledModuleLoggersMap.Remove(ModuleName);
-		}
-	}
-}
-
-bool FSessionService::IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const
-{
-	FScopeLock Lock(&SessionsCS);
-	const FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
-	if (!FindIt)
-	{
-		return false;
-	}
-	return FindIt->EnabledModuleLoggersMap.Contains(ModuleName);
-}
-
 bool FSessionService::ToggleChannels(Trace::FSessionHandle SessionHandle, const TCHAR* Channels, bool bState)
 {
 	FScopeLock Lock(&SessionsCS);
