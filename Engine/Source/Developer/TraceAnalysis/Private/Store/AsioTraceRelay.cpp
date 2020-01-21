@@ -4,15 +4,22 @@
 
 #if TRACE_WITH_ASIO
 
+#include "AsioRecorder.h"
 #include "AsioSocket.h"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioTraceRelay::FAsioTraceRelay(asio::io_context& IoContext, FAsioReadable* InInput)
+FAsioTraceRelay::FAsioTraceRelay(
+	asio::io_context& IoContext,
+	FAsioReadable* InInput,
+	uint32 InSessionId,
+	FAsioRecorder& InRecorder)
 : FAsioTcpServer(IoContext)
 , Input(InInput)
+, Recorder(InRecorder)
+, SessionId(InSessionId)
 {
 	StartServer();
 }
@@ -51,6 +58,19 @@ void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
 	{
+		if (Id == OpRead && SessionId)
+		{
+			for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
+			{
+				const FAsioRecorder::FSession* Session = Recorder.GetSessionInfo(i);
+				if (Session->GetId() == SessionId)
+				{
+					FPlatformProcess::SleepNoStats(0.2f);
+					return OnIoComplete(OpStart, 0);
+				}
+			}
+		}
+
 		Output->Close();
 		Input->Close();
 		return;
