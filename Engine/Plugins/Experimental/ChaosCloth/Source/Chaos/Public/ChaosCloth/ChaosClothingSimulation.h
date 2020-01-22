@@ -146,7 +146,7 @@ namespace Chaos
 		FVector Gravity;
 		FVector WindVelocity;
 
-		TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>> LongRangeConstraints;
+		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
 #if WITH_EDITOR
 		// Visualization material
