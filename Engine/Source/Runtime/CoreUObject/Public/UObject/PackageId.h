@@ -33,6 +33,11 @@ public:
 		return Id;
 	}
 
+	inline uint32 ToIndexForDebugging() const
+	{
+		return Id;
+	}
+
 	inline bool operator==(FPackageId Other) const
 	{
 		return Id == Other.Id;
