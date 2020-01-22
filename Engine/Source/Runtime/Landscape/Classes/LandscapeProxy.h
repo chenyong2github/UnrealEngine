@@ -860,9 +860,12 @@ public:
 	/**
 		Update Grass 
 		* @param Cameras to use for culling, if empty, then NO culling
+		* @param InOutNumComponentsCreated, value can increase if components were created, it is also used internally to limit the number of creations
 		* @param bForceSync if true, block and finish all work
 	*/
 	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumComponentsCreated, bool bForceSync = false);
+
+	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync = false);
 
 	LANDSCAPE_API static void AddExclusionBox(FWeakObjectPtr Owner, const FBox& BoxToRemove);
 	LANDSCAPE_API static void RemoveExclusionBox(FWeakObjectPtr Owner);

@@ -2261,7 +2261,13 @@ void ALandscapeProxy::UpdateGrassData()
 }
 #endif
 
-void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumCompsCreated, bool bForceSync)
+void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync /* = false */)
+{
+	int32 InOutNumCompsCreated = 0;
+	UpdateGrass(Cameras, InOutNumCompsCreated, bForceSync);
+}
+
+void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumCompsCreated, bool bForceSync /* = false */)
 {
 	SCOPE_CYCLE_COUNTER(STAT_GrassUpdate);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateGrass);
