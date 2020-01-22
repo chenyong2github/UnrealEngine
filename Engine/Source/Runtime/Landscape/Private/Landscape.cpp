@@ -1027,6 +1027,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if !WITH_EDITORONLY_DATA
 	, LandscapeMaterialCached(nullptr)
 	, LandscapeGrassTypes()
+	, GrassMaxSquareDiscardDistance(0.0f)
 #endif
 	, bHasLandscapeGrass(true)
 {
@@ -3028,7 +3029,8 @@ void ULandscapeInfo::Tick(UWorld* World, float DeltaTime)
 		}
 	}
 
-	ForAllLandscapeProxies([DeltaTime,Cameras,World](ALandscapeProxy* Proxy)
+	int32 NumCompsCreated = 0;
+	ForAllLandscapeProxies([DeltaTime,Cameras,World,&NumCompsCreated](ALandscapeProxy* Proxy)
 	{
 #if WITH_EDITOR
 		if (GIsEditor)
@@ -3047,7 +3049,7 @@ void ULandscapeInfo::Tick(UWorld* World, float DeltaTime)
 #endif
 		if (Cameras && Proxy->ShouldTickGrass())
 		{
-			Proxy->TickGrass(*Cameras);
+			Proxy->TickGrass(*Cameras, NumCompsCreated);
 		}
 	});
 }

@@ -507,6 +507,9 @@ public:
 
 	/** Cached grass types from GetGrassTypes */
 	TArray<ULandscapeGrassType*> LandscapeGrassTypes;
+
+	/** Cached grass max square discard distance for all grass in GetGrassTypes */
+	float GrassMaxSquareDiscardDistance;
 #endif
 
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
@@ -849,7 +852,7 @@ public:
 
 		return true;
 	}
-	void TickGrass(const TArray<FVector>& Cameras);
+	void TickGrass(const TArray<FVector>& Cameras, int32& InOutNumCompsCreated);
 
 	/** Flush the grass cache */
 	LANDSCAPE_API void FlushGrassComponents(const TSet<ULandscapeComponent*>* OnlyForComponents = nullptr, bool bFlushGrassMaps = true);
@@ -859,7 +862,7 @@ public:
 		* @param Cameras to use for culling, if empty, then NO culling
 		* @param bForceSync if true, block and finish all work
 	*/
-	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync = false);
+	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumComponentsCreated, bool bForceSync = false);
 
 	LANDSCAPE_API static void AddExclusionBox(FWeakObjectPtr Owner, const FBox& BoxToRemove);
 	LANDSCAPE_API static void RemoveExclusionBox(FWeakObjectPtr Owner);
@@ -867,7 +870,7 @@ public:
 
 
 	/* Get the list of grass types on this landscape */
-	static void GetGrassTypes(UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut);
+	static void GetGrassTypes(const UWorld* World, UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut, float& OutMaxDiscardDistance);
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache = false);

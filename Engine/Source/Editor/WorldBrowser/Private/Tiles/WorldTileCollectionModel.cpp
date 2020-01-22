@@ -2097,7 +2097,8 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				/* Flush existing grass components, but not grass maps */
 				Landscape->FlushGrassComponents(nullptr, false);
 				TArray<FVector> Cameras;
-				Landscape->UpdateGrass(Cameras, true);
+				int32 NumCompsCreated = 0;
+				Landscape->UpdateGrass(Cameras, NumCompsCreated, true);
 			}
 								
 			// This is texture resolution for a landscape mesh, probably needs to be calculated using landscape size
