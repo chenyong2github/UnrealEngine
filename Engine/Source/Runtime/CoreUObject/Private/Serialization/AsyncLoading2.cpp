@@ -237,9 +237,11 @@ private:
 	void InternalMakeRaw()
 	{
 		check(bIsWeakPointer);
-		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(WeakPointer.ObjectIndex);
+		const bool bEvenIfPendingKill = false;
+		FUObjectItem* ObjectItem = GUObjectArray.IndexToValidObject(WeakPointer.ObjectIndex, bEvenIfPendingKill);
 		int32 ActualSerialNumber = GUObjectArray.GetSerialNumber(WeakPointer.ObjectIndex);
 		Object = (ObjectItem && ActualSerialNumber == WeakPointer.SerialNumber) ? (UObject*)ObjectItem->Object : nullptr;
+		check(!Object || (!Object->IsUnreachable() && !Object->IsPendingKill()));
 		bIsWeakPointer = false;
 	}
 };
