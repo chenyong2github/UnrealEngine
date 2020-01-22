@@ -16,6 +16,23 @@
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
 
+
+//////////////////////////////////////////////////////////////////////////
+
+int32 GNiagaraAllowComputeShaders = 1;
+FAutoConsoleVariableRef CVarAllowComputeShaders(
+	TEXT("fx.NiagaraAllowComputeShaders"),
+	GNiagaraAllowComputeShaders,
+	TEXT("If true, allow the usage compute shaders within Niagara."),
+	ECVF_Default);
+
+int32 GNiagaraAllowGPUParticles = 1;
+FAutoConsoleVariableRef CVarAllowGPUParticles(
+	TEXT("fx.NiagaraAllowGPUParticles"),
+	GNiagaraAllowGPUParticles,
+	TEXT("If true, allow the usage of GPU particles for Niagara."),
+	ECVF_Default);
+
 //////////////////////////////////////////////////////////////////////////
 
 FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
@@ -214,6 +231,16 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 
 
 //////////////////////////////////////////////////////////////////////////
+
+bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
+{
+	return SupportsGPUParticles(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders;
+}
+
+bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
+{
+	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders;
+}
 
 FName NIAGARA_API FNiagaraUtilities::GetUniqueName(FName CandidateName, const TSet<FName>& ExistingNames)
 {

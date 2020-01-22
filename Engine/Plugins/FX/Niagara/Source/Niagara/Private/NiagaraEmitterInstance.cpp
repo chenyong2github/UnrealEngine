@@ -203,14 +203,10 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 {
 	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
-	if (!EmitterHandle.GetIsEnabled()
-		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
-		|| (!FNiagaraUtilities::SupportsGPUParticles(GMaxRHIFeatureLevel) && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
-		)
-	{
-		return false;
-	}
-	return true;
+	return EmitterHandle.GetIsEnabled() &&
+		CachedEmitter->IsAllowedByDetailLevel(DetailLevel) &&
+		// TODO: fall back to CPU sim instead once we have scalability functionality to do so
+		(CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim || (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
 }
 
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID InSystemInstanceID)

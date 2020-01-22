@@ -499,7 +499,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 
 		// If we have active GPU emitters make sure we remove any pending ticks from the RT
 		NiagaraEmitterInstanceBatcher* InstanceBatcher = SystemInstanceAllocation->GetBatcher();
-		if (SystemInstanceAllocation->bHasGPUEmitters && NiagaraSupportsComputeShaders(InstanceBatcher->GetShaderPlatform()))
+		if (SystemInstanceAllocation->bHasGPUEmitters)
 		{
 			ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
 			(
@@ -1959,7 +1959,7 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 				Component->MarkRenderDynamicDataDirty();
 
 				// Push any GPU ticks for this system instance.
-				if (ActiveGPUEmitterCount > 0 && NiagaraSupportsComputeShaders(GetBatcher()->GetShaderPlatform()) && Component->IsRegistered())
+				if (ActiveGPUEmitterCount > 0 && Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) && Component->IsRegistered())
 				{
 					ensure(!IsComplete());
 					FNiagaraGPUSystemTick GPUTick;

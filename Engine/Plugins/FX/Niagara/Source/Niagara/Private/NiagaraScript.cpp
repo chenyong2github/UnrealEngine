@@ -1625,9 +1625,9 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{
-				if (FNiagaraUtilities::SupportsGPUParticles(CacheFeatureLevel))
+				const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
+				if (FNiagaraUtilities::AllowGPUParticles(ShaderPlatform))
 				{
-					EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
 					ResourceToCache = ScriptResourcesByFeatureLevel[CacheFeatureLevel];
 					CacheShadersForResources(ShaderPlatform, &ScriptResource, true);
 					ScriptResourcesByFeatureLevel[CacheFeatureLevel] = &ScriptResource;

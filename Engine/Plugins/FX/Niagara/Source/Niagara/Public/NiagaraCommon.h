@@ -133,11 +133,6 @@ enum class ENiagaraScriptCompileStatus : uint8
 	NCS_MAX,
 };
 
-FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
-{
-	return RHISupportsComputeShaders(ShaderPlatform);
-}
-
 USTRUCT()
 struct FNiagaraDataSetID
 {
@@ -729,17 +724,18 @@ namespace FNiagaraUtilities
 		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1);
 	}
 
-	inline bool SupportsGPUParticles(ERHIFeatureLevel::Type FeatureLevel)
-	{
-		EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		return NiagaraSupportsComputeShaders(ShaderPlatform);
-	}
-
+	// Whether the platform supports GPU particles. A static function that doesn't not rely on any runtime switches.
 	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
 	{
-		return NiagaraSupportsComputeShaders(ShaderPlatform);
+		return RHISupportsComputeShaders(ShaderPlatform);
 	}
 
+	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.
+	bool AllowGPUParticles(EShaderPlatform ShaderPlatform);
+
+	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
+	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
+	
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Prepares rapid iteration parameter stores for simulation by removing old parameters no longer used by functions, by initializing new parameters
