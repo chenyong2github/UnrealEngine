@@ -1249,7 +1249,12 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 
 			if (Info.bIsPlaceholder == false)
 			{
-				UE_LOG(LogNiagara, Error, TEXT("We somehow ended up with a data interface that we couldn't match post compile. This shouldn't happen. Creating a dummy to prevent crashes. DataInterfaceInfoName:%s Object:%s"), *Info.Name.ToString(), *GetPathNameSafe(this));
+				UE_LOG(LogNiagara, Warning, TEXT("We somehow ended up with a data interface that we couldn't match post compile. This shouldn't happen. Creating a dummy to prevent crashes. DataInterfaceInfoName:%s Object:%s"), *Info.Name.ToString(), *GetPathNameSafe(this));
+				UE_LOG(LogNiagara, Log, TEXT("Object to Name map contents:"));
+				for (const TPair<FName, UNiagaraDataInterface*>& Pair : InRequestData->GetObjectNameMap())
+				{
+					UE_LOG(LogNiagara, Log, TEXT("%s -> %s"), *Pair.Key.ToString(), *GetPathNameSafe(Pair.Value));
+				}
 			}
 		}
 		check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
