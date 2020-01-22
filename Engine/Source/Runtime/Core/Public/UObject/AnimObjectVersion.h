@@ -18,6 +18,20 @@ struct CORE_API FAnimObjectVersion
 		// Cached marker sync names on skeleton for editor
 		StoreMarkerNamesOnSkeleton,
 
+		// Serialized register array state for RigVM
+		SerializeRigVMRegisterArrayState,
+
+		// Increase number of bones per chunk from uint8 to uint16
+		IncreaseBoneIndexLimitPerChunk,
+
+		UnlimitedBoneInfluences,
+
+		// Anim sequences have colors for their curves
+		AnimSequenceCurveColors,
+
+		// Notifies and sync markers now have Guids
+		NotifyAndSyncMarkerGuids,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

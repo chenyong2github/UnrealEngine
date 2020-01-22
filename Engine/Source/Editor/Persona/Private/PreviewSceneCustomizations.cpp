@@ -215,6 +215,21 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, FName("Skeleton"), PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
 			.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandleMeshChanged)
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
+			.CustomResetToDefault(FResetToDefaultOverride::Create(
+				FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) -> bool {
+					if (PreviewScene.IsValid())
+					{
+						return PreviewScene.Pin()->GetPreviewMesh() != nullptr;
+					}
+					return false;
+				}),
+				FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) {
+					if (PreviewScene.IsValid())
+					{
+						PreviewScene.Pin()->SetPreviewMesh(nullptr, false);
+					}
+				})
+			))
 		];
 
 		// Customize animation blueprint preview

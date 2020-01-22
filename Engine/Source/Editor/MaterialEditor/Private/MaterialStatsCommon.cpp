@@ -351,7 +351,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 	bool bMobileHDR = MobileHDR && MobileHDR->GetValueOnAnyThread() == 1;
 
 	static const FName FLocalVertexFactoryName = FLocalVertexFactory::StaticType.GetFName();
-	static const FName FGPUFactoryName = TGPUSkinVertexFactory<true>::StaticType.GetFName();
+	static const FName FGPUFactoryName = TEXT("TGPUSkinVertexFactoryExtra");
 
 	if (TargetMaterial->IsUIMaterial())
 	{

@@ -3096,6 +3096,16 @@ bool FBlueprintEditor::CanNavigateToChildGraph() const
 	return FocusedGraphEdPtr.IsValid() && (FocusedGraphEdPtr.Pin()->GetCurrentGraph()->SubGraphs.Num() > 0);
 }
 
+bool FBlueprintEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedObject)
+{
+	check(InTransactedObject);
+
+	UBlueprint* BlueprintObj = GetBlueprintObj();
+	check(BlueprintObj);
+
+	return InTransactedObject->GetOutermost() == BlueprintObj->GetOutermost();
+}
+
 void FBlueprintEditor::HandleUndoTransaction(const FTransaction* Transaction)
 {
 	UBlueprint* BlueprintObj = GetBlueprintObj();
@@ -3107,9 +3117,10 @@ void FBlueprintEditor::HandleUndoTransaction(const FTransaction* Transaction)
 		// Look at the transaction this function is responding to, see if any object in it has an outermost of the Blueprint
 		TArray<UObject*> TransactionObjects;
 		Transaction->GetTransactionObjects(TransactionObjects);
+
 		for (UObject* Object : TransactionObjects)
 		{
-			if (Object->GetOutermost() == BlueprintOutermost)
+			if(TransactionObjectAffectsBlueprint(Object))
 			{
 				bAffectsBlueprint = true;
 				break;

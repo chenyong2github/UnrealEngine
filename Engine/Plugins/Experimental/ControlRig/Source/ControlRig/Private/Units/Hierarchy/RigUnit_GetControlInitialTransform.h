@@ -26,7 +26,7 @@ struct FRigUnit_GetControlInitialTransform : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, ControlName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
 	FName Control;
 
 	/**

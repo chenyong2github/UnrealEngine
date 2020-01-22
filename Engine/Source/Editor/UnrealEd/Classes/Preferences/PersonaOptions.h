@@ -15,6 +15,8 @@
 #include "Engine/EngineBaseTypes.h"
 #include "PersonaOptions.generated.h"
 
+enum class EFrameNumberDisplayFormats : uint8;
+
 /** Persisted camera follow mode */
 UENUM()
 enum class EAnimationViewportCameraFollowMode : uint8
@@ -164,6 +166,30 @@ class UNREALED_API UPersonaOptions : public UObject
 	/** Options that should be unique per asset editor (like skeletal mesh or anim sequence editors) */
 	UPROPERTY(config)
 	TArray<FAssetEditorOptions> AssetEditorOptions;
+
+	/** Snap value used to determine scrub resolution of the curve timeline */
+	UPROPERTY(config)
+	float CurveEditorSnapInterval;
+
+	/** Snap value used to determine scrub resolution of the anim timeline */
+	UPROPERTY(config)
+	int32 TimelineScrubSnapValue;
+
+	/** Display format for the anim timeline */
+	UPROPERTY(config)
+	EFrameNumberDisplayFormats TimelineDisplayFormat;
+
+	/** Whether to display percentage in the anim timeline */
+	UPROPERTY(config)
+	bool bTimelineDisplayPercentage;
+
+	/** Whether to display secondary format (times/frames) in the anim timeline */
+	UPROPERTY(config)
+	bool bTimelineDisplayFormatSecondary;
+
+	/** Whether to display keys in the timeline's curve tracks */
+	UPROPERTY(config)
+	bool bTimelineDisplayCurveKeys;
 
 public:
 	void SetShowGrid( bool bInShowGrid );

@@ -3553,11 +3553,9 @@ struct FSortedAnimAsset
 	float		SequenceLength;
 	float		RateScale;
 	int32		NumCurves;
-	FString		TranslationFormat;
-	FString		RotationFormat;
-	FString		ScaleFormat;
+	FString		DebugString;
 
-	FSortedAnimAsset(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, FName InAnimAssetType, FString InName, int32 InNumKeys, float InSequenceLength, float InRateScale, int32 InNumCurves, FString InTranslationFormat, FString InRotationFormat, FString InScaleFormat)
+	FSortedAnimAsset(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, FName InAnimAssetType, FString InName, int32 InNumKeys, float InSequenceLength, float InRateScale, int32 InNumCurves, const FString& InDebugString)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
 		, ResKBExc(InResKBExc)
@@ -3568,9 +3566,7 @@ struct FSortedAnimAsset
 		, SequenceLength(InSequenceLength)
 		, RateScale(InRateScale)
 		, NumCurves(InNumCurves)
-		, TranslationFormat(InTranslationFormat)
-		, RotationFormat(InRotationFormat)
-		, ScaleFormat(InScaleFormat)
+		, DebugString(InDebugString)
 	{}
 };
 struct FCompareFSortedAnimAsset
@@ -5620,9 +5616,7 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		float SequenceLength = 0.f;
 		float RateScale = 1.f;
 		int32 NumCurves = 0;
-		FString TranslationFormat;
-		FString RotationFormat;
-		FString ScaleFormat;
+		FString DebugString;
 
 		if (UAnimSequence* AnimSeq = Cast<UAnimSequence>(AnimAsset))
 		{
@@ -5631,10 +5625,7 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			RateScale = AnimSeq->RateScale;
 			NumCurves = AnimSeq->RawCurveData.FloatCurves.Num();
 
-			const FUECompressedAnimData& CompressedData = AnimSeq->CompressedData.CompressedDataStructure;
-			TranslationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.TranslationCompressionFormat);
-			RotationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.RotationCompressionFormat);
-			ScaleFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.ScaleCompressionFormat);
+			DebugString = AnimSeq->CompressedData.CompressedDataStructure->GetDebugString();
 		}
 
 		new(SortedAnimAssets) FSortedAnimAsset(
@@ -5648,9 +5639,7 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			SequenceLength,
 			RateScale,
 			NumCurves,
-			TranslationFormat,
-			RotationFormat,
-			ScaleFormat
+			DebugString
 		);
 	}
 
@@ -5668,9 +5657,9 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	for (const FSortedAnimAsset& SortedAsset : SortedAnimAssets)
 	{
 
-		Ar.Logf(TEXT(",%i, %i, %i, %i, %s, %s, %f, %f, %d, %s, %s, %s"),
+		Ar.Logf(TEXT(",%i, %i, %i, %i, %s, %s, %f, %f, %d, %s"),
 			SortedAsset.NumKB, SortedAsset.MaxKB, SortedAsset.ResKBExc, SortedAsset.ResKBInc, *SortedAsset.AnimAssetType.ToString(), *SortedAsset.Name, SortedAsset.SequenceLength, 
-			SortedAsset.RateScale, SortedAsset.NumCurves, *SortedAsset.TranslationFormat, *SortedAsset.RotationFormat, *SortedAsset.ScaleFormat);
+			SortedAsset.RateScale, SortedAsset.NumCurves, *SortedAsset.DebugString);
 
 		TotalNumKB += SortedAsset.NumKB;
 		TotalMaxKB += SortedAsset.MaxKB;

@@ -7,6 +7,8 @@
 #include "Rigs/RigHierarchyContainer.h"
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
+#include "Engine/SkeletalMesh.h"
+#include "SRigHierarchy.generated.h"
 
 class SRigHierarchy;
 class FControlRigEditor;
@@ -92,6 +94,19 @@ private:
 	FText GetName() const;
 };
 
+USTRUCT()
+struct FRigHierarchyImportSettings
+{
+	GENERATED_BODY()
+
+	FRigHierarchyImportSettings()
+	: Mesh(nullptr)
+	{}
+
+	UPROPERTY(EditAnywhere, Category = "Hierachy Import")
+	USkeletalMesh* Mesh;
+};
+
 /** Widget allowing editing of a control rig's structure */
 class SRigHierarchy : public SCompoundWidget, public FEditorUndoClient
 {
@@ -151,6 +166,7 @@ private:
 	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
 	TSharedPtr< SWidget > CreateContextMenu();
+	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
 
 	// FEditorUndoClient
 	virtual void PostUndo(bool bSuccess) override;
@@ -173,6 +189,9 @@ private:
 	TSharedPtr<SSearchBox> FilterBox;
 	FText FilterText;
 
+	EVisibility IsToolbarVisible() const;
+	EVisibility IsSearchbarVisible() const;
+	FReply OnImportSkeletonClicked();
 	void OnFilterTextChanged(const FText& SearchText);
 
 	/** Tree view widget */
@@ -194,6 +213,8 @@ private:
 
 	bool IsMultiSelected() const;
 	bool IsSingleSelected() const;
+	bool IsSingleBoneSelected() const;
+	bool IsSingleSpaceSelected() const;
 	bool IsControlSelected() const;
 	bool IsControlOrSpaceSelected() const;
 
@@ -212,6 +233,7 @@ private:
 	void HandleSetInitialTransformFromCurrentTransform();
 	void HandleSetInitialTransformFromClosestBone();
 	void HandleFrameSelection();
+	void HandleControlBoneOrSpaceTransform();
 	bool FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const;
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;

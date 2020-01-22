@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FloatChannelCurveModel.h"
+#include "Channels/FloatChannelCurveModel.h"
 #include "Math/Vector2D.h"
 #include "HAL/PlatformMath.h"
 #include "Channels/MovieSceneFloatChannel.h"
@@ -119,6 +119,8 @@ void FFloatChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositi
 		// We reuse SetKeyAttributes here as there is complex logic determining which parts of the attributes are valid to set.
 		// For now we need to duplicate the new key handle array due to API mismatch. This will auto calculate tangents if needed.
 		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
+
+		CurveModifiedDelegate.Broadcast();
 	}
 }
 
@@ -160,6 +162,8 @@ void FFloatChannelCurveModel::RemoveKeys(TArrayView<const FKeyHandle> InKeys)
 				ChannelData.RemoveKey(KeyIndex);
 			}
 		}
+
+		CurveModifiedDelegate.Broadcast();
 	}
 }
 
@@ -326,6 +330,8 @@ void FFloatChannelCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> InKey
 		}
 
 		Channel->AutoSetTangents();
+
+		CurveModifiedDelegate.Broadcast();
 	}
 }
 
@@ -513,6 +519,8 @@ void FFloatChannelCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKe
 		{
 			Channel->AutoSetTangents();
 		}
+
+		CurveModifiedDelegate.Broadcast();
 	}
 }
 
@@ -543,6 +551,8 @@ void FFloatChannelCurveModel::SetCurveAttributes(const FCurveAttributes& InCurve
 		{
 			Channel->PostInfinityExtrap = InCurveAttributes.GetPostExtrapolation();
 		}
+
+		CurveModifiedDelegate.Broadcast();
 	}
 }
 

@@ -1955,7 +1955,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 		int32 InfluenceBoneIndex = 0;
 		for (auto Kvp : WeightForBone)
 		{
-			SkinWeight.InfluenceBones[InfluenceBoneIndex] = (uint8)(Kvp.Key);
+			SkinWeight.InfluenceBones[InfluenceBoneIndex] = Kvp.Key;
 			SkinWeight.InfluenceWeights[InfluenceBoneIndex] = FMath::Clamp((uint8)(Kvp.Value*((float)0xFF)), (uint8)0x00, (uint8)0xFF);
 			TotalInfluenceWeight += SkinWeight.InfluenceWeights[InfluenceBoneIndex];
 			InfluenceBoneIndex++;

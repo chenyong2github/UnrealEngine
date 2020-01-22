@@ -23,4 +23,5 @@ public:
 	UEdGraphPin* InputPin,
 	/*out*/ FArrangedWidget*& StartWidgetGeometry,
 	/*out*/ FArrangedWidget*& EndWidgetGeometry) override;
+	virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
 };

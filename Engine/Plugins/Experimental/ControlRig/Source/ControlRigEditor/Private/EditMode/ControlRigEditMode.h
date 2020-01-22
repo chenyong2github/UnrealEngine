@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "IPersonaEditMode.h"
-#include "ControlRigModel.h"
+#include "RigVMModel/RigVMGraph.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "Units/RigUnitContext.h"
@@ -26,6 +26,12 @@ class FExtender;
 class IMovieScenePlayer;
 class AControlRigGizmoActor;
 class UDefaultControlRigManipulationLayer;
+class UControlRigDetailPanelControlProxies;
+class UControlRigControlsProxy;
+struct FRigControl;
+class IControlRigManipulatable;
+class ISequencer;
+enum class EControlRigSetKey : uint8;
 
 DECLARE_DELEGATE_RetVal_TwoParams(FTransform, FOnGetRigElementTransform, const FRigElementKey& /*RigElementKey*/, bool /*bLocal*/);
 DECLARE_DELEGATE_ThreeParams(FOnSetRigElementTransform, const FRigElementKey& /*RigElementKey*/, const FTransform& /*Transform*/, bool /*bLocal*/);
@@ -40,7 +46,7 @@ public:
 	~FControlRigEditMode();
 
 	/** Set the objects to be displayed in the details panel */
-	void SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject);
+	void SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject, TWeakPtr<ISequencer> InSequencer);
 
 	/** This edit mode is re-used between the level editor and the control rig editor. Calling this indicates which context we are in */
 	virtual bool IsInLevelEditor() const { return true; }
@@ -93,6 +99,10 @@ public:
 	/** Context Menu Delegates */
 	FNewMenuDelegate& OnContextMenu() { return OnContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnContextMenuCommands() { return OnContextMenuCommandsDelegate; }
+	FSimpleDelegate&  OnAnimSystemInitialized() { return OnAnimSystemInitializedDelegate; }
+
+	FRigVMGraphModifiedEvent ModifiedEvent;
+	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	// callback that gets called when rig element is selected in other view
 	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
@@ -102,9 +112,11 @@ public:
 	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
 	void OnRigElementChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
 	void OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
 
-	/** Enable RigElement Editing */
-	void EnableRigElementEditing(bool bEnabled);
+	/** return true if it can be removed from preview scene 
+	- this is to ensure preview scene doesn't remove Gizmo actors */
+	bool CanRemoveFromPreviewScene(const USceneComponent* InComponent);
 
 	/** Get Control Rig, could be more than one later,  we are animating. Currently used by Sequencer for cross selection.*/
 	UControlRig*  GetControlRig() { return WeakControlRigEditing.IsValid() ? WeakControlRigEditing.Get() : nullptr; }
@@ -114,9 +126,13 @@ protected:
 	/** Get the node name from the property path */
 	AControlRigGizmoActor* GetGizmoFromControlName(const FName& InControlName) const;
 
+
 protected:
 	/** Helper function: set ControlRigs array to the details panel */
 	void SetObjects_Internal();
+
+	/** Set up Details Panel based upon Selected Objects*/
+	void SetUpDetailPanel();
 
 	/** Updates cached pivot transform */
 	void RecalcPivotTransform();
@@ -143,6 +159,9 @@ protected:
 	bool GizmoSelectionOverride(const UPrimitiveComponent* InComponent) const;
 
 protected:
+
+	TWeakPtr<ISequencer> WeakSequencer;
+
 	/** Settings object used to insert controls into the details panel */
 	UControlRigEditModeSettings* Settings;
 
@@ -179,11 +198,10 @@ protected:
 	FOnSetRigElementTransform OnSetRigElementTransformDelegate;
 	FNewMenuDelegate OnContextMenuDelegate;
 	FNewMenuCommandsDelegate OnContextMenuCommandsDelegate;
+	FSimpleDelegate OnAnimSystemInitializedDelegate;
+	FDelegateHandle AnimInitDelegateHandle;
 	
 	TArray<FRigElementKey> SelectedRigElements;
-
-	/* Flag to enable element init pose editing @Todo: */
-	bool bEnableRigElementDefaultPoseEditing;
 
 	/* Flag to recreate manipulation layer during tick */
 	bool bRecreateManipulationLayerRequired;
@@ -191,10 +209,10 @@ protected:
 	/** Default Manipulation Layer */
 	UDefaultControlRigManipulationLayer* ManipulationLayer;
 	TArray<AControlRigGizmoActor*> GizmoActors;
+	UControlRigDetailPanelControlProxies* ControlProxy;
 
 	/** Utility functions for UI/Some other viewport manipulation*/
 	bool IsControlSelected() const;
-	bool IsControlOrSpaceOrBoneSelected() const;
 	bool AreRigElementSelectedAndMovable() const;
 	
 	/** Set initial transform handlers */
@@ -210,6 +228,8 @@ public:
 	/** Set a RigElement's selection state */
 	void SetRigElementSelection(ERigElementType Type, const FName& InRigElementName, bool bSelected);
 
+	void SetSelectedRigElement(const FName& InElementName, ERigElementType InRigElementType);
+
 	/** Set multiple RigElement's selection states */
 	void SetRigElementSelection(ERigElementType Type, const TArray<FName>& InRigElementNames, bool bSelected);
 
@@ -222,8 +242,17 @@ public:
 private:
 	/** Set a RigElement's selection state */
 	void SetRigElementSelectionInternal(ERigElementType Type, const FName& InRigElementName, bool bSelected);
-
+	
 	FEditorViewportClient* CurrentViewportClient;
+
+/* store coordinate system per widget mode*/
+private:
+	void OnWidgetModeChanged(FWidget::EWidgetMode InWidgetMode);
+	void OnCoordSystemChanged(ECoordSystem InCoordSystem);
+	TArray<ECoordSystem> CoordSystemPerWidgetMode;
+	bool bIsChangingCoordSystem;
+
+private:
 
 	friend class FControlRigEditorModule;
 	friend class UControlRigPickerWidget;

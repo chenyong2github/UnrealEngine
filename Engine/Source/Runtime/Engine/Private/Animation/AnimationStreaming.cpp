@@ -349,7 +349,7 @@ void FAnimationStreamingManager::OnAsyncFileCallback(FStreamingAnimationData* St
 		FMemoryReaderView Reader(MemView);
 
 		UAnimStreamable* Anim = StreamingAnimData->StreamableAnim;
-		NewCompressedData->SerializeCompressedData(Reader, false, Anim, Anim->GetSkeleton(), Anim->CurveCompressionSettings);
+		NewCompressedData->SerializeCompressedData(Reader, false, Anim, Anim->GetSkeleton(), Anim->BoneCompressionSettings, Anim->CurveCompressionSettings);
 
 		const float SequenceLength = StreamingAnimData->StreamableAnim->GetRunningPlatformData().Chunks[ChunkIndex].SequenceLength;
 		if (SequenceLength < RequestDuration)

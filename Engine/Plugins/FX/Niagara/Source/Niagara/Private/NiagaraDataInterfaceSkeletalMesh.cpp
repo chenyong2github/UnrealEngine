@@ -417,7 +417,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 	MeshColorBufferSrv = LODRenderData->StaticVertexBuffers.ColorVertexBuffer.GetColorComponentsSRV();
 
-	NumWeights = LODRenderData->SkinWeightVertexBuffer.HasExtraBoneInfluences() ? 8 : 4;
+	NumWeights = LODRenderData->SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
 	uint32 SectionCount = LODRenderData->RenderSections.Num();
 
@@ -1355,8 +1355,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket accross the system
 	if ( SystemInstance->HasGPUEmitters() )
 	{
-		MeshWeightStrideByte = SkinWeightBuffer->GetStride();
-		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetSRV();
+		MeshWeightStrideByte = SkinWeightBuffer->GetConstantInfluencesVertexStride();
+		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetDataVertexBuffer()->GetSRV();
 		//check(MeshSkinWeightBufferSrv->IsValid()); // not available in this stream
 
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(LODIndex);
@@ -1366,7 +1366,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh %s has cloth asset on it: spawning from it might not work properly."), *Mesh->GetName());
 		}
-		if (LODData.DoesVertexBufferHaveExtraBoneInfluences())
+		if (LODData.GetVertexBufferMaxBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh %s has bones extra influence: spawning from it might not work properly."), *Mesh->GetName());
 		}

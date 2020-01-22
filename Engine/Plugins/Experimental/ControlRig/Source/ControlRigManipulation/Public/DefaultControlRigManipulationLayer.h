@@ -5,11 +5,13 @@
 #include "IControlRigManipulationLayer.h"
 #include "ControlRigGizmoActor.h"
 #include "Units/RigUnitContext.h"
+#include "ScopedTransaction.h"
 #include "DefaultControlRigManipulationLayer.generated.h"
 
 class IControlRigObjectBinding;
 typedef uint32 FControlID;
-
+enum class EControlRigSetKey : uint8;
+	
 // control ID, I should use ID for it
 struct FControlData
 {
@@ -73,6 +75,9 @@ public:
 	AControlRigGizmoActor* GetGizmoFromControlName(const FName& ControlName) const;
 	bool GetGlobalTransform(AControlRigGizmoActor* GizmoActor, const FName& ControlName, FTransform& OutTransform) const;
 
+	// multi delegate for anim system initialized
+	FSimpleMulticastDelegate OnAnimSystemInitialized;
+
 private:
 	// GizmoActor* to ControlData index
 	TMap<AControlRigGizmoActor*, FControlID> GizmoToControlMap;
@@ -89,7 +94,10 @@ private:
 	UFUNCTION()
 	virtual void PostPoseUpdate();
 
-	void OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl);
+	UFUNCTION()
+	virtual void OnPoseInitialized();
+
+	void OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl, EControlRigSetKey InSetKey);
 	TArray<FDelegateHandle> ControlModifiedDelegateHandles;
 
 	void OnControlRigAdded(UControlRig* InControlRig);
@@ -100,4 +108,6 @@ private:
 	FDelegateHandle OnWorldCleanupHandle;
 	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 	UWorld* WorldPtr = nullptr;
+
+	FScopedTransaction* InteractionTransaction = nullptr;
 };

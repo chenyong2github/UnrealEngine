@@ -24,7 +24,7 @@ protected:
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 	//~ End UActorFactory Interface
 
-	virtual USkeletalMesh* GetSkeletalMeshFromAsset( UObject* Asset ) const override;
+	virtual USkeletalMesh* GetSkeletalMeshFromAsset( UObject* Asset ) override;
 };
 
 

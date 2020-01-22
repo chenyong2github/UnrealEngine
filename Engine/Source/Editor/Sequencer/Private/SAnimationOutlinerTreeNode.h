@@ -90,6 +90,11 @@ private:
 	FSlateColor GetDisplayNameColor() const;
 
 	/**
+	*@return The font used to draw the display name.
+	*/
+	FSlateFontInfo GetDisplayNameFont() const;
+
+	/**
 	 * @return The text displayed for the tool tip for the diplay name label. 
 	 */
 	FText GetDisplayNameToolTipText() const;

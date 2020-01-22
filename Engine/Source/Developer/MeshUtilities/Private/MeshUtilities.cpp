@@ -790,6 +790,7 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 
 		// update max bone influences
 		Section.CalcMaxBoneInfluences();
+		Section.CalcUse16BitBoneIndex();
 
 		// Log info about the chunk.
 		UE_LOG(LogSkeletalMesh, Log, TEXT("Section %u: %u vertices, %u active bones"),
@@ -4060,7 +4061,13 @@ public:
 						InfluenceCount++;
 						LookIdx++;
 					}
+
 					InfluenceCount = FMath::Min<uint32>(InfluenceCount, MAX_TOTAL_INFLUENCES);
+					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount))
+					{
+						InfluenceCount = EXTRA_BONE_INFLUENCES;
+						UE_LOG(LogSkeletalMesh, Warning, TEXT("Skeletal mesh of %d bone influences requires unlimited bone influence mode on. Influence truncated to %d."), InfluenceCount, EXTRA_BONE_INFLUENCES);
+					}
 
 					// Setup the vertex influences.
 					Vertex.InfluenceBones[0] = 0;
@@ -5737,8 +5744,7 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 		TargetLODModel.GetVertices(TargetVertices);
 
 		// Determine how many influences each skinweight can contain
-		const bool bTargetExtraBoneInfluences = TargetLODModel.DoSectionsNeedExtraBoneInfluences();
-		const int32 NumInfluences = bTargetExtraBoneInfluences ? MAX_TOTAL_INFLUENCES : MAX_INFLUENCES_PER_STREAM;
+		const int32 NumInfluences = TargetLODModel.GetMaxBoneInfluences();
 
 		TArray<FRawSkinWeight> UniqueWeights;
 		for (int32 VertexIndex = 0; VertexIndex < TargetVertices.Num(); ++VertexIndex)
@@ -5787,9 +5793,9 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 					{
 						if (SourceSkinWeight.InfluenceWeights[InfluenceIndex] > 0)
 						{
-							const uint16 Index = SourceSkinWeight.InfluenceBones[InfluenceIndex] << 8;
-							const uint16 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
-							const uint16 Value = Index | Weight;
+							const uint32 Index = SourceSkinWeight.InfluenceBones[InfluenceIndex] << 16;
+							const uint32 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
+							const uint32 Value = Index | Weight;
 
 							InOutSkinWeightOverrideData.Weights.Add(Value);
 							++DeltaOverride.NumInfluences;

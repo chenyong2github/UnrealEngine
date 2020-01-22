@@ -31,7 +31,8 @@ namespace ShaderDrawDebug
 
 	bool IsShaderDrawDebugEnabled()
 	{
-#if WITH_EDITOR
+		// This debug mode causes a GPU restart on Mac. Forcing off until UE-87288 is fixed.
+#if WITH_EDITOR && !PLATFORM_MAC
 		return CVarShaderDrawEnable.GetValueOnAnyThread() > 0;
 #else
 		return false;

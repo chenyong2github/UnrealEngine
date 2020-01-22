@@ -48,7 +48,7 @@ public:
 	// FAnimSequencerInstanceProxy interface
 	virtual void ResetNodes() override;
 
-	bool UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bUpdateInput, bool bExecute);
+	bool UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute);
 	bool SetAnimationAsset(class UAnimationAsset* NewAsset);
 
 private:

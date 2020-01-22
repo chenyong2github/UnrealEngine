@@ -308,7 +308,6 @@ FLinearColor FLinearColor::HSVToLinearRGB() const
 						A);
 }
 
-
 FLinearColor FLinearColor::LerpUsingHSV( const FLinearColor& From, const FLinearColor& To, const float Progress )
 {
 	const FLinearColor FromHSV = From.LinearRGBToHSV();

@@ -12,7 +12,7 @@ IControlRigManipulatable::IControlRigManipulatable()
 	bManipulationEnabled = false;
 }
 
-bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
+bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, EControlRigSetKey InSetKey)
 {
 	FRigControlValue Value = GetControlValueFromGlobalTransform(InControlName, InGlobalTransform);
 	if (OnFilterControl.IsBound())
@@ -23,6 +23,6 @@ bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlN
 			OnFilterControl.Broadcast(this, *Control, Value);
 		}
 	}
-	SetControlValue(InControlName, Value, true /* notify */);
+	SetControlValue(InControlName, Value, true /* notify */, InSetKey);
 	return true;
 }

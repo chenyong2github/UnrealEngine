@@ -23,7 +23,7 @@ public class AudioModulationEditor : ModuleRules
 				"AudioEditor",
 				"AudioModulation",
 				"CurveEditor",
-				"Persona"
+				"EditorWidgets"
 			}
 		);
 

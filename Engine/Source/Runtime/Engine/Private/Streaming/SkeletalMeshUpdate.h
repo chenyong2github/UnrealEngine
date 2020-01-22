@@ -85,11 +85,11 @@ protected:
 		FVertexBufferRHIRef TexCoordVertexBuffer;
 		FVertexBufferRHIRef PositionVertexBuffer;
 		FVertexBufferRHIRef ColorVertexBuffer;
-		FVertexBufferRHIRef SkinWeightVertexBuffer;
+		FSkinWeightRHIInfo SkinWeightVertexBuffer;
 		FVertexBufferRHIRef ClothVertexBuffer;
 		FIndexBufferRHIRef IndexBuffer;
 		FIndexBufferRHIRef AdjacencyIndexBuffer;
-		TArray<TPair<FName, FVertexBufferRHIRef>> AltSkinWeightVertexBuffers;
+		TArray<TPair<FName, FSkinWeightRHIInfo>> AltSkinWeightVertexBuffers;
 
 		void CreateFromCPUData_RenderThread(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource);
 		void CreateFromCPUData_Async(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource);

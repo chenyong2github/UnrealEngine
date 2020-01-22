@@ -330,10 +330,10 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						{
 							int VertexOffset = VertexBaseIndex + VertexIndex;
 							BoneMap[VertexOffset] = -1;
-							if (const TSkinWeightInfo<false> * SkinWeightInfo = SkinWeightVertexBuffer.GetSkinWeightPtr<false>(VertexIndex))
+							int32 SkeletalBoneIndex = -1;
+							check(SkinWeightVertexBuffer.GetRigidWeightBone(VertexIndex, SkeletalBoneIndex));
+							if (SkeletalBoneIndex > -1)
 							{
-								uint8 SkeletalBoneIndex = -1;
-								check(SkinWeightInfo->GetRigidWeightBone(SkeletalBoneIndex));
 								BoneMap[VertexOffset] = SkeletalBoneIndex + TransformBaseIndex;
 								Vertex[VertexOffset] = Transform[BoneMap[VertexOffset]].ToInverseMatrixWithScale().TransformPosition(PositionVertexBuffer.VertexPosition(VertexIndex));
 							}

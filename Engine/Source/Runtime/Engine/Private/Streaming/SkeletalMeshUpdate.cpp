@@ -89,7 +89,8 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	TexCoordVertexBuffer.SafeRelease();
 	PositionVertexBuffer.SafeRelease();
 	ColorVertexBuffer.SafeRelease();
-	SkinWeightVertexBuffer.SafeRelease();
+	SkinWeightVertexBuffer.DataVertexBufferRHI.SafeRelease();
+	SkinWeightVertexBuffer.LookupVertexBufferRHI.SafeRelease();
 	ClothVertexBuffer.SafeRelease();
 	IndexBuffer.SafeRelease();
 	AdjacencyIndexBuffer.SafeRelease();
@@ -117,7 +118,8 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::CheckIsNull() const
 		&& !TexCoordVertexBuffer
 		&& !PositionVertexBuffer
 		&& !ColorVertexBuffer
-		&& !SkinWeightVertexBuffer
+		&& !SkinWeightVertexBuffer.DataVertexBufferRHI
+		&& !SkinWeightVertexBuffer.LookupVertexBufferRHI
 		&& !ClothVertexBuffer
 		&& !IndexBuffer
 		&& !AdjacencyIndexBuffer

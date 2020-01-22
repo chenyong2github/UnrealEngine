@@ -31,7 +31,6 @@ public class ClothingSystemEditor : ModuleRules
                 "UnrealEd",
                 "SlateCore",
                 "Slate",
-                "Persona",
                 "ClothingSystemEditorInterface"
             }
 		);

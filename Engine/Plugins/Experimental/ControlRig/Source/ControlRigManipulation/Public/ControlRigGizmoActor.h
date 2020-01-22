@@ -58,6 +58,10 @@ public:
 	UPROPERTY(Category = StaticMesh, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* StaticMeshComponent;
 
+	// the name of the color parameter on the material
+	UPROPERTY()
+	FName ColorParameterName;
+
 	UFUNCTION(BlueprintSetter)
 	/** Set the control to be enabled/disabled */
 	virtual void SetEnabled(bool bInEnabled);
@@ -92,6 +96,9 @@ public:
 
 	/** Called from the edit mode each tick */
 	virtual void TickControl() {};
+
+	/** changes the gizmo color */
+	virtual void SetGizmoColor(const FLinearColor& InColor);
 
 	/** Event called when the transform of this control has changed */
 	UFUNCTION(BlueprintImplementableEvent)

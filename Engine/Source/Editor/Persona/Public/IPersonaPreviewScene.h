@@ -45,6 +45,9 @@ typedef FOnSelectedBoneChangedMulticaster::FDelegate FOnSelectedBoneChanged;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectedSocketChangedMulticaster, const FSelectedSocketInfo& /*InSocketInfo*/);
 typedef FOnSelectedSocketChangedMulticaster::FDelegate FOnSelectedSocketChanged;
 
+//The delegate to check if the attach component can be removed
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnRemoveAttachedComponentFilter, const USceneComponent* /*InComponent*/);
+
 /** Modes that the preview scene defaults to (usually depending on asset editor context) */
 enum class EPreviewSceneDefaultAnimationMode : int32
 {
@@ -282,6 +285,10 @@ public:
 
 	/** Unregister a callback for just after the preview scene is ticked */
 	virtual void UnregisterOnPostTick(void* Thing) = 0;
+
+	/** setter/getter for can remove attach component */
+	virtual void SetRemoveAttachedComponentFilter(const FOnRemoveAttachedComponentFilter& Delegate) = 0;
+	virtual void ClearRemoveAttachedComponentFilter() = 0;
 
 	/** Let the preview scene know that it should tick (because it is visible) */
 	virtual void FlagTickable() = 0;

@@ -13,7 +13,7 @@ struct FRichCurve;
 class CURVEEDITOR_API FRichCurveEditorModel : public FCurveModel
 {
 public:
-	FRichCurveEditorModel(FRichCurve* InRichCurve, UObject* InOwner);
+	FRichCurveEditorModel(UObject* InOwner);
 
 	virtual const void* GetCurve() const override;
 
@@ -43,9 +43,35 @@ public:
 
 	virtual TUniquePtr<IBufferedCurveModel> CreateBufferedCurveCopy() const override;
 
+	// Set a range to clamp key input values
+	void SetClampInputRange(TAttribute<TRange<double>> InClampInputRange) { ClampInputRange = InClampInputRange; }
+
+	// Check for whether this rich curve is valid. This is required mostly in the case of undo/redo, where 
+	// curves can potentially become invalid underneath this model before owners get their undo/redo callbacks
+	virtual bool IsValid() const = 0;
+
+	// Get the rich curve we are operating on
+	virtual FRichCurve& GetRichCurve() = 0;
+	virtual const FRichCurve& GetReadOnlyRichCurve() const = 0;
+
 private:
 
-	FRichCurve* RichCurve;
-
 	TWeakObjectPtr<> WeakOwner;
+
+	TAttribute<TRange<double>> ClampInputRange;
+};
+
+// Rich curve model operating on a raw curve ptr
+class CURVEEDITOR_API FRichCurveEditorModelRaw : public FRichCurveEditorModel
+{
+public:
+	FRichCurveEditorModelRaw(FRichCurve* InRichCurve, UObject* InOwner);
+
+	// FRichCurveEditorModel interface
+	virtual bool IsValid() const override { return RichCurve != nullptr; }
+	virtual FRichCurve& GetRichCurve() override;
+	virtual const FRichCurve& GetReadOnlyRichCurve() const override;
+
+private:
+	FRichCurve* RichCurve;
 };

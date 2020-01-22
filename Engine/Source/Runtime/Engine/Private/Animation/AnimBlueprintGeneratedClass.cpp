@@ -308,7 +308,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 				{
 					LinkedAnimLayerNodeProperties.Add(StructProp);
 				}
-				else if(StructProp->Struct == FAnimNode_StateMachine::StaticStruct())
+				else if(StructProp->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 				{
 					StateMachineNodeProperties.Add(StructProp);
 				}

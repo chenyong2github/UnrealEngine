@@ -67,6 +67,12 @@ public:
 	virtual bool ShouldAlwaysPurgeOnModification() const override { return false; }
 	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext, bool bIgnoreArray /*= false*/) const override;
 	virtual bool DoesSupportPinWatching() const	override { return true; }
+	virtual bool IsPinBeingWatched(UEdGraphPin const* Pin) const override;
+	virtual void ClearPinWatch(UEdGraphPin const* Pin) const override;
+	virtual void OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const override;
+	virtual bool MarkBlueprintDirtyFromNewNode(UBlueprint* InBlueprint, UEdGraphNode* InEdGraphNode) const override;
+
+	virtual bool IsStructEditable(UStruct* InStruct) const;
 
 	/** Create a graph node for a rig */
 	UControlRigGraphNode* CreateGraphNode(UControlRigGraph* InGraph, const FName& InPropertyName) const;
@@ -82,5 +88,12 @@ public:
 
 	/** Returns all of the applicable pin types for variables within a control rig */
 	virtual void GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const;
+
+private:
+
+	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
+	bool bLastPinWasInput;
+
+	friend class UControlRigRerouteNodeSpawner;
 };
 
