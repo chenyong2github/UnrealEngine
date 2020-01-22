@@ -18,6 +18,7 @@ class FAsioRecorderRelay
 public:
 						FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWriteable* InOutput);
 	virtual				~FAsioRecorderRelay();
+	bool				IsOpen();
 	void				Close();
 	uint32				GetIpAddress() const;
 
@@ -43,6 +44,12 @@ FAsioRecorderRelay::FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWrite
 FAsioRecorderRelay::~FAsioRecorderRelay()
 {
 	delete Output;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAsioRecorderRelay::IsOpen()
+{
+	return Input.IsOpen();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
