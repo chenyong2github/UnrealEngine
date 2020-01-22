@@ -6,10 +6,11 @@
 #include "../ShadingModels.ush"
 #include "../QuasiRandom.ush"
 #include "SkyLightMipTreeCommon.ush"
+#include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingSkyLightCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
-#include "../SceneTextureParameters.ush"
 
 struct FSkyLightVisibilityRays
 {
@@ -37,7 +38,14 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+
+#if 0
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+#else
+	//#dxr-todo: workaround for flickering. UE-87281
+	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+#endif
+
 	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;

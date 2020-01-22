@@ -90,30 +90,6 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	return LightData;
 }
 
-FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
-{
-	FGBufferData GBufferData = (FGBufferData)0;
-	GBufferData.Depth = 1.f; // Do not use depth
-	GBufferData.WorldNormal = Payload.WorldNormal;
-	GBufferData.BaseColor = Payload.BaseColor;
-	GBufferData.Metallic = Payload.Metallic;
-	GBufferData.Specular = Payload.Specular;
-	GBufferData.Roughness = Payload.Roughness;
-	GBufferData.CustomData = Payload.CustomData;
-	GBufferData.GBufferAO = Payload.GBufferAO;
-	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f;
-	GBufferData.ShadingModelID = Payload.ShadingModelID;
-	GBufferData.SpecularColor = Payload.SpecularColor;
-	GBufferData.DiffuseColor = Payload.DiffuseColor;
-	return GBufferData;
-}
-
-FGBufferData GetGBufferDataFromPayload(in FPackedMaterialClosestHitPayload Payload)
-{
-	RayDesc DummyRay = (RayDesc)0; // Not needed to unpack GBuffer
-	return GetGBufferDataFromPayload(UnpackRayTracingPayload(Payload, DummyRay));
-}
-
 FRectTexture GetRayTracingRectTextureData()
 {
 	FRectTexture RectTexture;
