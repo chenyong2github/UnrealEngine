@@ -7,6 +7,8 @@
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectPreset.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "PhononCommon.h"
 #include "phonon.h"
 #include "PhononReverb.generated.h"
@@ -55,6 +57,7 @@ namespace SteamAudio
 
 	private:
 		FSoundEffectSubmixPtr SubmixEffect;
+		TWeakObjectPtr<USoundSubmix> ReverbSubmix;
 
 		IPLhandle BinauralRenderer;
 		IPLhandle IndirectBinauralEffect;

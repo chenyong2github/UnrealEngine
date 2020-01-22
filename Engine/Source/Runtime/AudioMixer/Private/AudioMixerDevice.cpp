@@ -668,13 +668,14 @@ namespace Audio
 					check(ReverbPluginMixerSubmixPtr.IsValid());
 
 					const uint32 ReverbPluginId = Preset->GetUniqueID();
+					const TWeakObjectPtr<USoundSubmix> ReverbPluginSubmixPtr = ReverbPluginSubmix;
 					FMixerSubmixWeakPtr ReverbPluginMixerSubmixWeakPtr = ReverbPluginMixerSubmixPtr;
-					AudioRenderThreadCommand([ReverbPluginMixerSubmixWeakPtr, ReverbPluginEffectSubmix, ReverbPluginId]()
+					AudioRenderThreadCommand([ReverbPluginMixerSubmixWeakPtr, ReverbPluginSubmixPtr, ReverbPluginEffectSubmix, ReverbPluginId]()
 					{
 						FMixerSubmixPtr PluginSubmixPtr = ReverbPluginMixerSubmixWeakPtr.Pin();
-						if (PluginSubmixPtr.IsValid())
+						if (PluginSubmixPtr.IsValid() && ReverbPluginSubmixPtr.IsValid())
 						{
-							PluginSubmixPtr->AddSoundEffectSubmix(ReverbPluginId, ReverbPluginEffectSubmix);
+							PluginSubmixPtr->ReplaceSoundEffectSubmix(0, ReverbPluginId, ReverbPluginEffectSubmix);
 						}
 					});
 				}
