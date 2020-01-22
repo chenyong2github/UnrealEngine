@@ -1706,6 +1706,8 @@ void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObje
 	}
 	else if (Prop->HasAnyPropertyFlags(CPF_AssetRegistrySearchable))
 	{
+		TagName = Prop->GetFName();
+
 		if (Prop->IsA(FIntProperty::StaticClass()) ||
 			Prop->IsA(FFloatProperty::StaticClass()) ||
 			Prop->IsA(FDoubleProperty::StaticClass()))
