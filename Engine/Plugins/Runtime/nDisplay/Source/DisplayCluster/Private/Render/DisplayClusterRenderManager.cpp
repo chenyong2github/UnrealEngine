@@ -476,7 +476,6 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
 
 	if (!RenderDevicePtr)
 	{
