@@ -21,18 +21,37 @@ FAsioContext::FAsioContext(int32 ThreadCount)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+FAsioContext::~FAsioContext()
+{
+	Stop();
+	delete IoContext;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioContext::Start()
 {
+	if (bRunning)
+	{
+		return;
+	}
+
 	for (std::thread& Thread : ThreadPool)
 	{
 		std::thread TempThread([this] () { IoContext->run(); });
 		Thread = MoveTemp(TempThread);
 	}
+
+	bRunning = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioContext::~FAsioContext()
+void FAsioContext::Stop()
 {
+	if (!bRunning)
+	{
+		return;
+	}
+
 	IoContext->stop();
 
 	for (std::thread& Thread : ThreadPool)
@@ -40,7 +59,7 @@ FAsioContext::~FAsioContext()
 		Thread.join();
 	}
 
-	delete IoContext;
+	bRunning = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

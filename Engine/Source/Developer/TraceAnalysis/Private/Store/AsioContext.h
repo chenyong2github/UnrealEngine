@@ -20,10 +20,12 @@ public:
 							~FAsioContext();
 	asio::io_context&		Get();
 	void					Start();
+	void					Stop();
 
 private:
 	asio::io_context*		IoContext;
 	TArray<std::thread>		ThreadPool;
+	bool					bRunning = false;
 };
 
 } // namespace Trace
