@@ -45,7 +45,7 @@ namespace UsdGeomXformableTranslatorImpl
 			for ( const pxr::UsdPrim& ChildPrim : ParentPrim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
 			{
 				// Ignore meshes from disabled purposes
-				if ( !EnumHasAnyFlags( PurposesToLoad, IUsdPrim::GetPurpose( ChildPrim ) ) )
+				if ( !EnumHasAllFlags( PurposesToLoad, IUsdPrim::GetPurpose( ChildPrim ) ) )
 				{
 					continue;
 				}
