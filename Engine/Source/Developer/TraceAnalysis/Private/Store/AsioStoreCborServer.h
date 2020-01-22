@@ -7,6 +7,7 @@
 #if TRACE_WITH_ASIO
 
 #include "AsioTcpServer.h"
+#include "AsioTickable.h"
 #include "Containers/Array.h"
 
 namespace Trace
@@ -19,6 +20,7 @@ class FAsioStoreCborPeer;
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioStoreCborServer
 	: public FAsioTcpServer
+	, public FAsioTickable
 {
 public:
 								FAsioStoreCborServer(asio::io_context& IoContext, FAsioStore& InStore, FAsioRecorder& InRecorder);
@@ -28,6 +30,7 @@ public:
 
 private:
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
+	virtual void				OnTick() override;
 	TArray<FAsioStoreCborPeer*>	Peers;
 	FAsioStore&					Store;
 	FAsioRecorder&				Recorder;

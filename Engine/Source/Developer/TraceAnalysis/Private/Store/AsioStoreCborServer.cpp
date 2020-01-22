@@ -349,10 +349,12 @@ FAsioStoreCborServer::FAsioStoreCborServer(
 	FAsioStore& InStore,
 	FAsioRecorder& InRecorder)
 : FAsioTcpServer(IoContext)
+, FAsioTickable(IoContext)
 , Store(InStore)
 , Recorder(InRecorder)
 {
 	StartServer();
+	StartTick(500);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -383,6 +385,26 @@ bool FAsioStoreCborServer::OnAccept(asio::ip::tcp::socket& Socket)
 	FAsioStoreCborPeer* Peer = new FAsioStoreCborPeer(Socket, Store, Recorder);
 	Peers.Add(Peer);
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStoreCborServer::OnTick()
+{
+	uint32 FinalNum = 0;
+	for (int i = 0, n = Peers.Num(); i < n; ++i)
+	{
+		FAsioStoreCborPeer* Peer = Peers[i];
+		if (Peer->IsOpen())
+		{
+			++FinalNum;
+			continue;
+		}
+
+		delete Peer;
+		Peers[FinalNum] = Peer;
+	}
+
+	Peers.SetNum(FinalNum);
 }
 
 } // namespace Trace
