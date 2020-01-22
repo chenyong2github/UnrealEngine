@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "HeadlessChaosTestConstraints.h"
 
 #include "HeadlessChaos.h"
