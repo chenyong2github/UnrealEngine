@@ -4,14 +4,20 @@
 #include "UObject/UObjectGlobals.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
-#include "LandscapeInfoMap.h"
-#include "LandscapeInfo.h"
+#include "ContentStreaming.h"
+#include "Landscape.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+
+static int32 GUseStreamingManagerForCameras = 1;
+static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
+	TEXT("grass.UseStreamingManagerForCameras"),
+	GUseStreamingManagerForCameras,
+	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
 
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
 ULandscapeSubsystem::ULandscapeSubsystem()
-	: TickFunction(this), LandscapeInfoMap(nullptr)
+	: TickFunction(this)
 {}
 
 ULandscapeSubsystem::~ULandscapeSubsystem()
@@ -33,7 +39,17 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void ULandscapeSubsystem::Deinitialize()
 {
 	TickFunction.UnRegisterTickFunction();
-	LandscapeInfoMap = nullptr;
+	Proxies.Empty();
+}
+
+void ULandscapeSubsystem::RegisterActor(ALandscapeProxy* Proxy)
+{
+	Proxies.AddUnique(Proxy);
+}
+
+void ULandscapeSubsystem::UnregisterActor(ALandscapeProxy* Proxy)
+{
+	Proxies.Remove(Proxy);
 }
 
 void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -44,14 +60,60 @@ void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamed
 	LLM_SCOPE(ELLMTag::Landscape);
 
 	UWorld* World = GetWorld();
-	if (!LandscapeInfoMap)
+
+	static TArray<FVector> OldCameras;
+	TArray<FVector>* Cameras = nullptr;
+	if (GUseStreamingManagerForCameras == 0)
 	{
-		LandscapeInfoMap = &ULandscapeInfoMap::GetLandscapeInfoMap(World);
+		if (OldCameras.Num() || World->ViewLocationsRenderedLastFrame.Num())
+		{
+			Cameras = &OldCameras;
+			// there is a bug here, which often leaves us with no cameras in the editor
+			if (World->ViewLocationsRenderedLastFrame.Num())
+			{
+				check(IsInGameThread());
+				Cameras = &World->ViewLocationsRenderedLastFrame;
+				OldCameras = *Cameras;
+			}
+		}
 	}
-		
-	for (const auto& Pair : LandscapeInfoMap->Map)
+	else
 	{
-		Pair.Value->Tick(World, DeltaTime);
+		int32 Num = IStreamingManager::Get().GetNumViews();
+		if (Num)
+		{
+			OldCameras.Reset(Num);
+			for (int32 Index = 0; Index < Num; Index++)
+			{
+				auto& ViewInfo = IStreamingManager::Get().GetViewInformation(Index);
+				OldCameras.Add(ViewInfo.ViewOrigin);
+			}
+			Cameras = &OldCameras;
+		}
+	}
+
+	int32 InOutNumComponentsCreated = 0;
+	for(ALandscapeProxy* Proxy : Proxies)
+	{
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+			{
+				Landscape->TickLayers(DeltaTime);
+			}
+
+			// editor-only
+			if (!World->IsPlayInEditor())
+			{
+				Proxy->UpdateBakedTextures();
+			}
+		}
+#endif
+		if (Cameras && Proxy->ShouldTickGrass())
+		{
+			Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
+		}
 	}
 }
 

@@ -50,7 +50,7 @@ Landscape.cpp: Terrain rendering
 #include "EngineUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "LandscapeWeightmapUsage.h"
-#include "ContentStreaming.h"
+#include "LandscapeSubsystem.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -64,12 +64,6 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
-
-static int32 GUseStreamingManagerForCameras = 1;
-static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
-	TEXT("grass.UseStreamingManagerForCameras"),
-	GUseStreamingManagerForCameras,
-	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
 
 /** Landscape stats */
 
@@ -2995,65 +2989,6 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 
 #endif
 
-void ULandscapeInfo::Tick(UWorld* World, float DeltaTime)
-{
-	// Update Grass
-	static TArray<FVector> OldCameras;
-	TArray<FVector>* Cameras = nullptr;
-	if (GUseStreamingManagerForCameras == 0)
-	{
-		if (OldCameras.Num() || World->ViewLocationsRenderedLastFrame.Num())
-		{
-			Cameras = &OldCameras;
-			// there is a bug here, which often leaves us with no cameras in the editor
-			if (World->ViewLocationsRenderedLastFrame.Num())
-			{
-				check(IsInGameThread());
-				Cameras = &World->ViewLocationsRenderedLastFrame;
-				OldCameras = *Cameras;
-			}
-		}
-	}
-	else
-	{
-		int32 Num = IStreamingManager::Get().GetNumViews();
-		if (Num)
-		{
-			OldCameras.Reset(Num);
-			for (int32 Index = 0; Index < Num; Index++)
-			{
-				auto& ViewInfo = IStreamingManager::Get().GetViewInformation(Index);
-				OldCameras.Add(ViewInfo.ViewOrigin);
-			}
-			Cameras = &OldCameras;
-		}
-	}
-
-	int32 NumCompsCreated = 0;
-	ForAllLandscapeProxies([DeltaTime,Cameras,World,&NumCompsCreated](ALandscapeProxy* Proxy)
-	{
-#if WITH_EDITOR
-		if (GIsEditor)
-		{
-			if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
-			{
-				Landscape->TickLayers(DeltaTime);
-			}
-
-			// editor-only
-			if (World && !World->IsPlayInEditor())
-			{
-				Proxy->UpdateBakedTextures();
-			}
-		}
-#endif
-		if (Cameras && Proxy->ShouldTickGrass())
-		{
-			Proxy->TickGrass(*Cameras, NumCompsCreated);
-		}
-	});
-}
-
 void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
 {
 	ALandscape* Landscape = LandscapeActor.Get();
@@ -3074,46 +3009,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	// do not pass here invalid actors
 	checkSlow(Proxy);
 	check(Proxy->GetLandscapeGuid().IsValid());
+	
+	OwningWorld->GetSubsystem<ULandscapeSubsystem>()->RegisterActor(Proxy);
 
-	auto LamdbdaLowerBound = [](ALandscapeProxy* A, ALandscapeProxy* B)
-	{
-		FIntPoint SectionBaseA = A->GetSectionBaseOffset();
-		FIntPoint SectionBaseB = B->GetSectionBaseOffset();
-
-		if (SectionBaseA.X != SectionBaseB.X)
-		{
-			return SectionBaseA.X < SectionBaseB.X;
-		}
-
-		return SectionBaseA.Y < SectionBaseB.Y;
-	};
-
-	if (OwningWorld->IsGameWorld())
-	{
-		// register
-		if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
-		{
-			checkf(!LandscapeActor || LandscapeActor == Landscape, TEXT("Multiple landscapes with the same GUID detected: %s vs %s"), *LandscapeActor->GetPathName(), *Landscape->GetPathName());
-			LandscapeActor = Landscape;
-			// update proxies reference actor
-			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
-			{
-				StreamingProxy->LandscapeActor = LandscapeActor;
-			}
-		}
-		else
-		{
-			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-			if (!Proxies.Contains(Proxy))
-			{
-				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, LamdbdaLowerBound);
-				Proxies.Insert(StreamingProxy, InsertIndex);
-			}
-			StreamingProxy->LandscapeActor = LandscapeActor;
-		}
-	}
 #if WITH_EDITOR
-	else
+	if (!OwningWorld->IsGameWorld())
 	{
 		// in case this Info object is not initialized yet
 		// initialized it with properties from passed actor
@@ -3156,6 +3056,19 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		}
 		else
 		{
+			auto LamdbdaLowerBound = [](ALandscapeProxy* A, ALandscapeProxy* B)
+			{
+				FIntPoint SectionBaseA = A->GetSectionBaseOffset();
+				FIntPoint SectionBaseB = B->GetSectionBaseOffset();
+
+				if (SectionBaseA.X != SectionBaseB.X)
+				{
+					return SectionBaseA.X < SectionBaseB.X;
+				}
+
+				return SectionBaseA.Y < SectionBaseB.Y;
+			};
+
 			// Insert Proxies in a sorted fashion for generating deterministic results in the Layer system
 			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
 			if (!Proxies.Contains(Proxy))
@@ -3194,29 +3107,35 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 {
-	if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+	UWorld* OwningWorld = Proxy->GetWorld();
+#if WITH_EDITOR
+	if (!OwningWorld->IsGameWorld())
 	{
-		// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
-		// Note: In some cases LandscapeActor could be updated to a new landscape actor before the old landscape is unregistered/destroyed
-		// e.g. this has been observed when merging levels in the editor
-
-		if (LandscapeActor.Get() == Landscape)
+		if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
 		{
-			LandscapeActor = nullptr;
+			// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
+			// Note: In some cases LandscapeActor could be updated to a new landscape actor before the old landscape is unregistered/destroyed
+			// e.g. this has been observed when merging levels in the editor
+
+			if (LandscapeActor.Get() == Landscape)
+			{
+				LandscapeActor = nullptr;
+			}
+
+			// update proxies reference to landscape actor
+			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+			{
+				StreamingProxy->LandscapeActor = LandscapeActor;
+			}
 		}
-
-		// update proxies reference to landscape actor
-		for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+		else
 		{
-			StreamingProxy->LandscapeActor = LandscapeActor;
+			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
+			Proxies.Remove(StreamingProxy);
+			StreamingProxy->LandscapeActor = nullptr;
 		}
 	}
-	else
-	{
-		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-		Proxies.Remove(StreamingProxy);
-		StreamingProxy->LandscapeActor = nullptr;
-	}
+#endif
 
 	// remove proxy components from the XY map
 	for (int32 CompIdx = 0; CompIdx < Proxy->LandscapeComponents.Num(); ++CompIdx)
@@ -3239,12 +3158,14 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	XYtoCollisionComponentMap.Compact();
 
 #if WITH_EDITOR
-	if (!Proxy->GetWorld()->IsGameWorld())
+	if (!OwningWorld->IsGameWorld())
 	{
 		UpdateLayerInfoMap();
 		UpdateAllAddCollisions();
 	}
 #endif
+
+	OwningWorld->GetSubsystem<ULandscapeSubsystem>()->UnregisterActor(Proxy);
 }
 
 void ULandscapeInfo::RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
