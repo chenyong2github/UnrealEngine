@@ -352,6 +352,10 @@ public:
 	FOnGroomAssetChanged OnGroomAssetChanged;
 #endif
 
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = HairLab)
+	TArray<UAssetUserData*> AssetUserData;
+
 #if WITH_EDITORONLY_DATA
 public:
 	/** Commits a HairDescription to buffer for serialization */
@@ -365,10 +369,6 @@ private:
 
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
-
-	/** Array of user data stored with the asset */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = HairLab)
-	TArray<UAssetUserData*> AssetUserData;
 
 	UPROPERTY()
 	bool bIsCacheable = true;
