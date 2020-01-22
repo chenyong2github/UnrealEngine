@@ -62,4 +62,5 @@ public:
 	virtual FDisplayClusterConfigCustom  GetConfigCustom()  const = 0;
 
 	virtual FString GetFullPathToFile(const FString& FileName) const = 0;
+	virtual FString GetFullPathToNewFile(const FString& FileName) const = 0;
 };

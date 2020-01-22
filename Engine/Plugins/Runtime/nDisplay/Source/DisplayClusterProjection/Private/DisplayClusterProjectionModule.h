@@ -7,7 +7,6 @@
 
 class IDisplayClusterProjectionPolicyFactory;
 
-
 class FDisplayClusterProjectionModule
 	: public IDisplayClusterProjection
 {
@@ -28,6 +27,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void GetSupportedProjectionTypes(TArray<FString>& OutProjectionTypes) override;
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionFactory(const FString& InProjectionType) override;
+
+	virtual bool AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) override;
 
 private:
 	// Available factories

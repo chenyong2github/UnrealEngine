@@ -24,7 +24,7 @@ public:
 	enum EMPCDIProfileType: uint8
 	{
 		mpcdi_2D = 0, // 2D mode
-		mpcdi_3D,     // 3D mode
+		mpcdi_3D,     // 3D mode (2D + static Frustum)
 		mpcdi_A3D,    // Advanced 3D mode
 		mpcdi_SL,     // Shader lamps
 		Invalid,
@@ -65,7 +65,7 @@ public:
 		int BufferIndex = -1;
 		int RegionIndex = -1;
 
-		inline bool isValid() const
+		inline bool IsValid() const
 		{ 
 			return FileIndex >= 0 && BufferIndex >= 0 && RegionIndex >= 0; 
 		}
@@ -102,11 +102,15 @@ public:
 		// Viewport Size forthis view
 		FIntPoint ViewportSize;
 
-		// Local2World
-		FMatrix  Local2WorldMatrix;
+		// Camera
+		FRotator OutCameraRotation;
+		FVector  OutCameraOrigin;
 
 		// From the texture's perspective
 		FMatrix  UVMatrix;
+
+		// From the mesh local space to cave
+		FMatrix  MeshToCaveMatrix;
 
 		float    WorldScale;
 		bool     bIsValid;
@@ -273,6 +277,17 @@ public:
 	* @return - true if success
 	*/
 	virtual bool SetMPCDIProfileType(const IMPCDI::FRegionLocator& InRegionLocator, const EMPCDIProfileType ProfileType) = 0;
+
+	/**
+	* Use StaticMesh to warp
+	*
+	* @param InRegionLocator - region locator
+	* @param MeshComponent - warp static mesh component
+	* @param OriginComponent - cave origin component
+	*
+	* @return - true if success
+	*/
+	virtual bool SetStaticMeshWarp(const IMPCDI::FRegionLocator& InRegionLocator, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) = 0;
 
 	/**
 	* Load warp map data from external PFM file, used custom scale and axis orientation (by default asis in mpcdi orientation)

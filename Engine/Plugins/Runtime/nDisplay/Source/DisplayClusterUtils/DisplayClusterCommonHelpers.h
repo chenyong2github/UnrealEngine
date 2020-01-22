@@ -465,6 +465,17 @@ namespace DisplayClusterHelpers
 
 			return LocalPath;
 		}
+
+		static FString GetNewFileFullPath(const FString& LocalPath)
+		{
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			if (ConfigMgr)
+			{
+				return ConfigMgr->GetFullPathToNewFile(LocalPath);
+			}
+
+			return LocalPath;
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////

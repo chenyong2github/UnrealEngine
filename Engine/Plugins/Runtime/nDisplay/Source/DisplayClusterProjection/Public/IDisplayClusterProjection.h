@@ -54,4 +54,15 @@ public:
 	* @return - Projection policy factory of requested type, null if not available
 	*/
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionFactory(const FString& InProjectionType) = 0;
+
+	/**
+	* Create link to static mesh geometry as warp source
+	*
+	* @param ViewportId - viewport name
+	* @param MeshComponent - warp mesh
+	* @param OriginComponent - cave origin 
+	*
+	* @return - true if the mesh linked and ready to warp
+	*/
+	virtual bool AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) = 0;
 };

@@ -7,7 +7,9 @@
 #if UE_BUILD_SHIPPING
 DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjection,          Warning, Warning);
 DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjectionMPCDI,     Warning, Warning);
+DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjectionMesh,      Warning, Warning);
 #else
 DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjection,          Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjectionMPCDI,     Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogPicpProjectionMesh,      Log, All);
 #endif

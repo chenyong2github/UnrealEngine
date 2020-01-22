@@ -96,6 +96,7 @@ public:
 	{ return CfgCustom; }
 
 	virtual FString GetFullPathToFile(const FString& FileName) const override;
+	virtual FString GetFullPathToNewFile(const FString& FileName) const override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,10 +2,8 @@
 
 #pragma once
 
-
 enum class EPicpMPCDIProfile: uint8
 {
-	A3D,			// Advanced 3D mode mpcdi mode
+	A3D = 0, // Advanced 3D mode mpcdi mode
 	Invalid,
 };
-
