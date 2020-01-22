@@ -18,16 +18,13 @@ public:
 		int32				ThreadCount  = 0; // <=0:logical CPU count
 	};
 
-							~FStoreService();
+							~FStoreService() = default;
 	static FStoreService*	Create(const FDesc& Desc);
+	void					operator delete (void* Addr);
 	uint32					GetPort() const;
 
 private:
 							FStoreService() = default;
-	struct					FImpl;
-	FImpl*					Impl;
-
-private:
 							FStoreService(const FStoreService&) = delete;
 							FStoreService(const FStoreService&&) = delete;
 	void					operator = (const FStoreService&) = delete;
