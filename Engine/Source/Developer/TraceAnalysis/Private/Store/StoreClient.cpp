@@ -391,23 +391,27 @@ uint32 FStoreClient::FSessionInfo::GetIpAddress() const
 ////////////////////////////////////////////////////////////////////////////////
 FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 {
-	FStoreCborClient* Impl = new FStoreCborClient();
 #if TRACE_WITH_ASIO
+	FStoreCborClient* Impl = new FStoreCborClient();
 	if (!Impl->Connect(Host, Port))
-#endif
 	{
 		delete Impl;
 		return nullptr;
 	}
 
 	return (FStoreClient*)Impl;
+#else
+	return nullptr;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FStoreClient::operator delete (void* Addr)
 {
+#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)Addr;
 	delete Self;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
