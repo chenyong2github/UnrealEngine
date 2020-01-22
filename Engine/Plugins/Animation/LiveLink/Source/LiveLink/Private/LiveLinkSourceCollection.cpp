@@ -58,7 +58,7 @@ FLiveLinkSourceCollection::FLiveLinkSourceCollection()
 	Data.bIsVirtualSource = true;
 	Data.Source->InitializeSettings(NewSettings);
 
-	Sources.Add(Data);
+	Sources.Add(MoveTemp(Data));
 }
 
 void FLiveLinkSourceCollection::AddReferencedObjects(FReferenceCollector & Collector)
@@ -77,8 +77,9 @@ void FLiveLinkSourceCollection::AddReferencedObjects(FReferenceCollector & Colle
 
 void FLiveLinkSourceCollection::AddSource(FLiveLinkCollectionSourceItem InSource)
 {
-	Sources.Add(InSource);
-	OnLiveLinkSourceAdded().Broadcast(InSource.Guid);
+	FLiveLinkCollectionSourceItem& SourceItem = Sources.Add_GetRef(MoveTemp(InSource));
+
+	OnLiveLinkSourceAdded().Broadcast(SourceItem.Guid);
 	OnLiveLinkSourcesChanged().Broadcast();
 }
 

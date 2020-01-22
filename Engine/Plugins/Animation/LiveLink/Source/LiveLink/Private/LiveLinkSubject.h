@@ -6,6 +6,7 @@
 
 #include "LiveLinkClient.h"
 #include "ILiveLinkSource.h"
+#include "ITimedDataInput.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
 #include "LiveLinkFrameTranslator.h"
@@ -13,8 +14,8 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
+#include "LiveLinkTimedDataInputGroup.h"
 #include "LiveLinkTypes.h"
-
 
 
 struct FLiveLinkTimeSynchronizationData
@@ -41,10 +42,14 @@ struct FLiveLinkTimeSynchronizationData
 /**
  * Manages subject manipulation either to add or get frame data for specific roles
  */
-class FLiveLinkSubject : public ILiveLinkSubject
+class FLiveLinkSubject : public ILiveLinkSubject, public ITimedDataInput
 {
 private:
 	using Super = ILiveLinkSubject;
+
+public:
+	explicit FLiveLinkSubject(TWeakPtr<FLiveLinkTimedDataInputGroup> InTimedDataGroup);
+	virtual ~FLiveLinkSubject();
 
 	//~ Begin ILiveLinkSubject Interface
 public:
@@ -61,6 +66,28 @@ public:
 protected:
 	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const { return FrameSnapshot; }
 	//~ End ILiveLinkSubject Interface
+
+	//~Begin ITimedDataSource Interface
+public:
+	virtual ITimedDataInputGroup* GetGroup() const override;
+	virtual ETimedDataInputState GetState() const override;
+	virtual FText GetDisplayName() const override;
+	virtual TArray<ITimedDataInput::FDataTime> GetDataTimes() const override;
+	virtual ETimedDataInputEvaluationType GetEvaluationType() const override;
+	//~ this will change all subjects of this subject's source
+	virtual void SetEvaluationType(ETimedDataInputEvaluationType Evaluation) override;
+	virtual double GetEvaluationOffsetInSeconds() const override;
+	//~ this will change all subjects of this subject's source
+	virtual void SetEvaluationOffsetInSeconds(double Offset) override;
+	virtual FFrameRate GetFrameRate() const override;
+	virtual int32 GetDataBufferSize() const override;
+	//~ this will change all subjects of this subject's source
+	virtual void SetDataBufferSize(int32 BufferSize) const override;
+	virtual bool IsBufferStatsEnabled() const override;
+	virtual void SetBufferStatsEnabled(bool bEnable) override;
+	virtual FTimedDataInputBufferStats GetBufferStats() const override;
+	virtual void ResetBufferStats() override;
+	//~End ITimedDataSrouce Interface
 
 public:
 	bool EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
@@ -136,14 +163,14 @@ private:
 	// Name of the subject
 	FLiveLinkSubjectKey SubjectKey;
 
+	// Timed data input group for the subject
+	TWeakPtr<FLiveLinkTimedDataInputGroup> TimedDataGroup;
+
 	// Connection settings specified by user
 	FLiveLinkCachedSettings CachedSettings;
 
 	// Last time a frame was pushed
 	double LastPushTime = 0.0;
-
-	//Cache of the last frame we used to build the snapshot, used to clean frames
-	int32 LastReadFrame;
 
 #if WITH_EDITORONLY_DATA
 	int32 SnapshotIndex = INDEX_NONE;

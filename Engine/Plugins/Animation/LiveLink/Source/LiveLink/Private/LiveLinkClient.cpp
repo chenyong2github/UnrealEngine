@@ -16,6 +16,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
+#include "LiveLinkTimedDataInputGroup.h"
 #include "LiveLinkVirtualSource.h"
 #include "IMediaModule.h"
 #include "Misc/App.h"
@@ -214,20 +215,22 @@ FGuid FLiveLinkClient::AddSource(TSharedPtr<ILiveLinkSource> InSource)
 	FGuid Guid;
 	if (Collection->FindSource(InSource) == nullptr)
 	{
+		ULiveLinkSourceSettings* Settings = nullptr;
 		Guid = FGuid::NewGuid();
 
 		FLiveLinkCollectionSourceItem Data;
 		Data.Guid = Guid;
 		Data.Source = InSource;
+		Data.TimedDataGroup = MakeShared<FLiveLinkTimedDataInputGroup>(this, Guid);
 		{
 			UClass* SourceSettingsClass = InSource->GetSettingsClass().Get();
 			UClass* SettingsClass = SourceSettingsClass ? SourceSettingsClass : ULiveLinkSourceSettings::StaticClass();
-			Data.Setting = NewObject<ULiveLinkSourceSettings>(GetTransientPackage(), SettingsClass);
+			Settings = Data.Setting = NewObject<ULiveLinkSourceSettings>(GetTransientPackage(), SettingsClass);
 		}
-		Collection->AddSource(Data);
+		Collection->AddSource(MoveTemp(Data));
 
-		InSource->ReceiveClient(this, Data.Guid);
-		InSource->InitializeSettings(Data.Setting);
+		InSource->ReceiveClient(this, Guid);
+		InSource->InitializeSettings(Settings);
 	}
 	return Guid;
 }
@@ -251,10 +254,10 @@ FGuid FLiveLinkClient::AddVirtualSubjectSource(FName SourceName)
 		NewSettings->SourceName = SourceName;
 		Data.Setting = NewSettings;
 		Data.bIsVirtualSource = true;
-		Collection->AddSource(Data);
+		Collection->AddSource(MoveTemp(Data));
 
-		Source->ReceiveClient(this, Data.Guid);
-		Source->InitializeSettings(Data.Setting);
+		Source->ReceiveClient(this, Guid);
+		Source->InitializeSettings(NewSettings);
 	}
 	else
 	{
@@ -292,13 +295,15 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 		return false;
 	}
 
+	ULiveLinkSourceSettings* Setting = nullptr;
+	TSharedPtr<ILiveLinkSource> Source;
 	FLiveLinkCollectionSourceItem Data;
 	Data.Guid = InSourcePreset.Guid;
 
 	// Virtual subject source have a special settings class. We can differentiate them using this
 	if (InSourcePreset.Settings->GetClass() == ULiveLinkVirtualSubjectSourceSettings::StaticClass())
 	{
-		Data.Source = MakeShared<FLiveLinkVirtualSubjectSource>();
+		Source = MakeShared<FLiveLinkVirtualSubjectSource>();
 		Data.bIsVirtualSource = true;
 	}
 	else
@@ -309,20 +314,22 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 			return false;
 		}
 
-		Data.Source = InSourcePreset.Settings->Factory.Get()->GetDefaultObject<ULiveLinkSourceFactory>()->CreateSource(InSourcePreset.Settings->ConnectionString);
-		if (!Data.Source.IsValid())
+		Source = InSourcePreset.Settings->Factory.Get()->GetDefaultObject<ULiveLinkSourceFactory>()->CreateSource(InSourcePreset.Settings->ConnectionString);
+		if (!Source.IsValid())
 		{
 			FLiveLinkLog::Warning(TEXT("Create Source Failure: The source couldn't be created by the factory."));
 			return false;
 		}
-	}
-	
-	Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
-	
-	Collection->AddSource(Data);
 
-	Data.Source->ReceiveClient(this, Data.Guid);
-	Data.Source->InitializeSettings(Data.Setting);
+		Data.TimedDataGroup = MakeShared<FLiveLinkTimedDataInputGroup>(this, InSourcePreset.Guid);
+	}
+
+	Data.Source = Source;
+	Setting = Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
+
+	Collection->AddSource(MoveTemp(Data));
+	Source->ReceiveClient(this, InSourcePreset.Guid);
+	Source->InitializeSettings(Setting);
 
 	return true;
 }
@@ -568,7 +575,7 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 		}
 
 		bool bEnabled = Collection->FindEnabledSubject(SubjectStaticData.SubjectKey.SubjectName) == nullptr;
-		FLiveLinkCollectionSubjectItem CollectionSubjectItem(SubjectStaticData.SubjectKey, MakeUnique<FLiveLinkSubject>(), SubjectSettings, bEnabled);
+		FLiveLinkCollectionSubjectItem CollectionSubjectItem(SubjectStaticData.SubjectKey, MakeUnique<FLiveLinkSubject>(SourceItem->TimedDataGroup), SubjectSettings, bEnabled);
 		CollectionSubjectItem.GetLiveSubject()->Initialize(SubjectStaticData.SubjectKey, SubjectStaticData.Role.Get(), this);
 
 		LiveLinkSubject = CollectionSubjectItem.GetLiveSubject();
@@ -743,7 +750,7 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 		}
 
 		bool bEnabled = false;
-		FLiveLinkCollectionSubjectItem CollectionSubjectItem(InSubjectPreset.Key, MakeUnique<FLiveLinkSubject>(), SubjectSettings, bEnabled);
+		FLiveLinkCollectionSubjectItem CollectionSubjectItem(InSubjectPreset.Key, MakeUnique<FLiveLinkSubject>(SourceItem->TimedDataGroup), SubjectSettings, bEnabled);
 		CollectionSubjectItem.GetLiveSubject()->Initialize(InSubjectPreset.Key, InSubjectPreset.Role.Get(), this);
 
 		FScopeLock Lock(&CollectionAccessCriticalSection);
@@ -899,7 +906,7 @@ bool FLiveLinkClient::IsSubjectValid(const FLiveLinkSubjectKey& InSubjectKey) co
 		{
 			if (FLiveLinkSubject* LiveSubject = SubjectItem->GetLiveSubject())
 			{
-				return (FApp::GetCurrentTime() - LiveSubject->GetLastPushTime()) < GetDefault<ULiveLinkSettings>()->GetTimeWithoutFrameToBeConsiderAsInvalid();
+				return LiveSubject->GetState() == ETimedDataInputState::Connected;
 			}
 		}
 	}
