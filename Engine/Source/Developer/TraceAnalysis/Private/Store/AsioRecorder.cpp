@@ -43,6 +43,7 @@ FAsioRecorderRelay::FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWrite
 ////////////////////////////////////////////////////////////////////////////////
 FAsioRecorderRelay::~FAsioRecorderRelay()
 {
+	Close();
 	delete Output;
 }
 
@@ -123,7 +124,6 @@ FAsioRecorder::~FAsioRecorder()
 {
 	for (FSession& Session : Sessions)
 	{
-		Session.Relay->Close();
 		delete Session.Relay;
 	}
 }
