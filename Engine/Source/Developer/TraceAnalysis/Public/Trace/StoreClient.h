@@ -16,9 +16,6 @@ class IInDataStream;
 class TRACEANALYSIS_API FStoreClient
 {
 public:
-	uint32				GetStoreAddress() const;
-	uint32				GetStorePort() const;
-
 	struct TRACEANALYSIS_API FStatus
 	{
 		uint32			GetRecorderPort() const;
@@ -44,6 +41,8 @@ public:
 	static FStoreClient*Connect(const TCHAR* Host, uint32 Port);
 	void				operator delete (void* Addr);
 	bool				IsValid() const;
+	uint32				GetStoreAddress() const;
+	uint32				GetStorePort() const;
 	const FStatus*		GetStatus();
 	uint32				GetTraceCount();
 	const FTraceInfo*	GetTraceInfo(uint32 Index);
