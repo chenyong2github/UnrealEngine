@@ -146,7 +146,7 @@ FText UNiagaraStackModuleItem::GetDisplayName() const
 	}
 	else
 	{
-	return FText::FromName(NAME_None);
+		return FText::FromName(NAME_None);
 	}
 }
 
@@ -342,23 +342,10 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 			if (FunctionCallNode->FunctionScript->bExperimental)
 			{
-				FText ErrorMessage;
-				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmpty())
-				{
-					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for this module is experimental, use with care!"), FText::FromString(FunctionCallNode->GetFunctionName()));
-				}
-				else
-				{
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("Module"), FText::FromString(FunctionCallNode->GetFunctionName()));
-					Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->ExperimentalMessage);
-					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason: {Message}."), Args);
-				}
-
 				NewIssues.Add(FStackIssue(
 					EStackIssueSeverity::Info,
 					LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
-					ErrorMessage,
+					FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(FunctionCallNode->GetName())),
 					GetStackEditorDataKey(),
 					true));
 			}
@@ -421,8 +408,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}));
 			FStackIssue InconsistentEnabledError(
 				EStackIssueSeverity::Error,
-				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for this module is inconsistent."),
-				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled states are inconsistent.\nClick \"Fix issue\" to make all of the functions for this module enabled."),
+				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for module is inconsistent."),
+				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled state is inconsistent.\nClick fix to make all of the functions for this module enabled."),
 				GetStackEditorDataKey(),
 				false,
 				EnableFix);

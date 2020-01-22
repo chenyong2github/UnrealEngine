@@ -259,13 +259,6 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** Is this function experimental? */
 	UPROPERTY()
 	uint32 bExperimental : 1;
-
-#if WITH_EDITORONLY_DATA
-	/** The message to display when a function is marked experimental. */
-	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true))
-	FText ExperimentalMessage;
-#endif
-
 	/** Support running on the CPU. */
 	UPROPERTY()
 	uint32 bSupportsCPU : 1;
@@ -279,7 +272,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(meta = (SkipForCompileHash = true))
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FText Description;
 #endif
 

@@ -77,7 +77,7 @@ void UNiagaraStackErrorItem::RefreshChildrenInternal(const TArray<UNiagaraStackE
 			ErrorEntryFix->SetFixDelegate(CurrentFix.GetFixDelegate());
 		}
 		if (ensureMsgf(NewChildren.Contains(ErrorEntryFix) == false,
-			TEXT("Duplicate stack issue fix rows detected. This is caused by two different issue fixes with the same description which is used to generate their unique ID. Issue Fix description: %s.  This issue fix will not be shown in the UI."),
+			TEXT("Duplicate stack issue fix rows detected, This is caused by two different issue fixes with the same description which is used to generate their unique id. Issue Fix description: %s.  This issue fix will not be shown in the UI."),
 			*CurrentFix.GetDescription().ToString()))
 		{
 			ErrorEntryFix->OnIssueFixed().AddUObject(this, &UNiagaraStackErrorItem::IssueFixed);
@@ -172,7 +172,7 @@ void UNiagaraStackErrorItemDismiss::Initialize(FRequiredEntryData InRequiredEntr
 	UNiagaraStackEntry::Initialize(InRequiredEntryData, ErrorStackEditorDataKey);
 	StackIssue = InStackIssue;
 	IssueFix = FStackIssueFix(
-		LOCTEXT("DismissError", "Dismiss the issue without fixing (I know what I'm doing)"),
+		LOCTEXT("DismissError", "Dismiss the issue without fixing (I know what I'm doing)."),
 		FStackIssueFixDelegate::CreateUObject(this, &UNiagaraStackErrorItemDismiss::DismissIssue));
 }
 

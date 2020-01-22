@@ -624,17 +624,7 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-
-			if (FunctionScript->ExperimentalMessage.IsEmpty())
-			{
-				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
-			}
-			else
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("Message"), FunctionScript->ExperimentalMessage);
-				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
-			}
+			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
 		}
 		else
 		{
@@ -648,17 +638,7 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-
-			if (FunctionScript->ExperimentalMessage.IsEmpty())
-			{
-				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
-			}
-			else
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("Message"), Signature.ExperimentalMessage);
-				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "This function is marked as experimental, reason: {Message}"), Args);
-			}
+			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
 		}
 	}
 }

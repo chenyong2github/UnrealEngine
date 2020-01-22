@@ -419,8 +419,8 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				if (InputValues.DynamicNode->FunctionScript->bDeprecated)
 				{
 					FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetFunctionName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
+						FText::Format(LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for this dynamic input has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
+						FText::Format(LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetName()));
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
@@ -448,23 +448,10 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 				if (InputValues.DynamicNode->FunctionScript->bExperimental)
 				{
-					FText ErrorMessage;
-					if (InputValues.DynamicNode->FunctionScript->ExperimentalMessage.IsEmpty())
-					{
-						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for the dynamic input {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
-					}
-					else
-					{
-						FFormatNamedArguments Args;
-						Args.Add(TEXT("Function"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
-						Args.Add(TEXT("Message"), InputValues.DynamicNode->FunctionScript->ExperimentalMessage);
-						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimentalReason", "The script asset for the dynamic input {Function} is experimental, reason: {Message}."), Args);
-					}
-
 					NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Info,
 						LOCTEXT("DynamicInputScriptExperimentalShort", "Experimental dynamic input"),
-						ErrorMessage,
+						FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for this dynamic input is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetName())),
 						GetStackEditorDataKey(),
 						true));
 				}
@@ -485,7 +472,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 						LOCTEXT("SelectNewDynamicInputScriptFix", "Select a new dynamic input script"),
 						FStackIssueFixDelegate::CreateLambda([this]() { this->bIsDynamicInputScriptReassignmentPending = true; })),
 					FStackIssueFix(
-						LOCTEXT("ResetFix", "Reset this input to its default value"),
+						LOCTEXT("ResetFix", "Reset this input to it's default value"),
 						FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
 				}));
 		}

@@ -390,13 +390,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
 	UNiagaraScript* DeprecationRecommendation;
 
-	/** Is this script experimental and less supported? */
 	UPROPERTY(EditAnywhere, Category = Script)
 	uint32 bExperimental : 1;
-
-	/** The message to display when a function is marked experimental. */
-	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true))
-	FText ExperimentalMessage;
 
 	/* If this script is exposed to the library. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
