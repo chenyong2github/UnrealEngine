@@ -40,8 +40,9 @@ public:
 		using TUniquePtr<IInDataStream>::TUniquePtr;
 	};
 	
-						~FStoreClient();
+						~FStoreClient() = default;
 	static FStoreClient*Connect(const TCHAR* Host, uint32 Port);
+	void				operator delete (void* Addr);
 	bool				IsValid() const;
 	const FStatus*		GetStatus();
 	uint32				GetTraceCount();
@@ -78,10 +79,6 @@ public:
 
 private:
 						FStoreClient() = default;
-	struct				FImpl;
-	FImpl*				Impl = nullptr;
-
-private:
 						FStoreClient(const FStoreClient&) = delete;
 						FStoreClient(const FStoreClient&&) = delete;
 	void				operator = (const FStoreClient&) = delete;
