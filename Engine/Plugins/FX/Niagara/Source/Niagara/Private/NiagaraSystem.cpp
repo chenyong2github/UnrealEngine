@@ -8,6 +8,7 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraModule.h"
+#include "NiagaraTypes.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraEmitter.h"
 #include "UObject/Package.h"
@@ -580,7 +581,7 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 	/* Check that our post compile data is in sync with the current emitter handles count. If we have just added a new emitter handle, we will not have any outstanding compilation requests as the new compile
 	 * will not be added to the outstanding compilation requests until the next tick.
 	 */
-	if (EmitterHandles.Num() != EmitterCompiledData.Num() || EmitterHandles.Num() != SystemCompiledData.NumParticleVars.Num() || EmitterHandles.Num() != SystemCompiledData.TotalSpawnedParticlesVars.Num() || EmitterHandles.Num() != SystemCompiledData.SpawnCountScaleVars.Num())
+	if (EmitterHandles.Num() != EmitterCompiledData.Num())
 	{
 		return false;
 	}
@@ -1240,43 +1241,9 @@ void UNiagaraSystem::InitEmitterCompiledData()
 
 void UNiagaraSystem::InitSystemCompiledData()
 {
-	SystemCompiledData.NumParticleVars.Empty();
-	SystemCompiledData.TotalSpawnedParticlesVars.Empty();
-	SystemCompiledData.SpawnCountScaleVars.Empty();
 	SystemCompiledData.InstanceParamStore.Empty();
 
-	SystemCompiledData.InstanceParamStore = INiagaraModule::GetFixedSystemInstanceParameterStore();
 	ExposedParameters.CopyParametersTo(SystemCompiledData.InstanceParamStore, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
-
-	for (const FNiagaraEmitterHandle& PerEmitterHandle : EmitterHandles)
-	{
-		const UNiagaraEmitter* Emitter = PerEmitterHandle.GetInstance();
-		if (ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle when post compiling Niagara System!")))
-		{
-			const FString EmitterName = Emitter->GetUniqueEmitterName();
-			{
-				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES;
-				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
-				Var.SetName(*ParamName);
-				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
-				SystemCompiledData.NumParticleVars.Add(Var);
-			}
-			{
-				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
-				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
-				Var.SetName(*ParamName);
-				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
-				SystemCompiledData.TotalSpawnedParticlesVars.Add(Var);
-			}
-			{
-				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE;
-				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
-				Var.SetName(*ParamName);
-				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
-				SystemCompiledData.SpawnCountScaleVars.Add(Var);
-			}
-		}
-	}
 
 	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TArrayView<FNiagaraVariable> Vars)
 	{
@@ -1301,6 +1268,37 @@ void UNiagaraSystem::InitSystemCompiledData()
 	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? EngineParamsSpawn->Parameters : TArrayView<FNiagaraVariable>());
 	FNiagaraParameters* EngineParamsUpdate = GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
 	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? EngineParamsUpdate->Parameters : TArrayView<FNiagaraVariable>());
+
+	// create the bindings to be used with our constant buffers; geenrating the offsets to/from the data sets; we need
+	// editor data to build these bindings because of the constant buffer structs only having their variable definitions
+	// with editor data.
+	SystemCompiledData.SpawnInstanceGlobalBinding.Build<FNiagaraGlobalParameters>(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData);
+	SystemCompiledData.SpawnInstanceSystemBinding.Build<FNiagaraSystemParameters>(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData);
+	SystemCompiledData.SpawnInstanceOwnerBinding.Build<FNiagaraOwnerParameters>(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData);
+
+	SystemCompiledData.UpdateInstanceGlobalBinding.Build<FNiagaraGlobalParameters>(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData);
+	SystemCompiledData.UpdateInstanceSystemBinding.Build<FNiagaraSystemParameters>(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData);
+	SystemCompiledData.UpdateInstanceOwnerBinding.Build<FNiagaraOwnerParameters>(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData);
+
+	const int32 EmitterCount = EmitterHandles.Num();
+
+	SystemCompiledData.SpawnInstanceEmitterBindings.SetNum(EmitterHandles.Num());
+	SystemCompiledData.UpdateInstanceEmitterBindings.SetNum(EmitterHandles.Num());
+
+	const FString EmitterNamespace = TEXT("Emitter");
+	for (int32 EmitterIdx = 0; EmitterIdx < EmitterCount; ++EmitterIdx)
+	{
+		const FNiagaraEmitterHandle& PerEmitterHandle = EmitterHandles[EmitterIdx];
+		const UNiagaraEmitter* Emitter = PerEmitterHandle.GetInstance();
+		if (ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle when post compiling Niagara System!")))
+		{
+			const FString EmitterName = Emitter->GetUniqueEmitterName();
+
+			SystemCompiledData.SpawnInstanceEmitterBindings[EmitterIdx].Build<FNiagaraEmitterParameters>(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EmitterNamespace, EmitterName);
+			SystemCompiledData.UpdateInstanceEmitterBindings[EmitterIdx].Build<FNiagaraEmitterParameters>(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EmitterNamespace, EmitterName);
+		}
+	}
+
 }
 #endif
 
@@ -1465,3 +1463,48 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
 	EmitterTotalSpawnedParticlesVar = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
 }
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiagaraVariable>& ParameterVars, const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement)
+{
+	const bool DoNameReplacement = !NamespaceBase.IsEmpty() && !NamespaceReplacement.IsEmpty();
+
+	int32 ParameterOffset = 0;
+	for (FNiagaraVariable Var : ParameterVars)
+	{
+		if (DoNameReplacement)
+		{
+			const FString ParamName = Var.GetName().ToString().Replace(*NamespaceBase, *NamespaceReplacement);
+			Var.SetName(*ParamName);
+		}
+
+		int32 VariableIndex = DataSet.Variables.IndexOfByKey(Var);
+
+		if (DataSet.VariableLayouts.IsValidIndex(VariableIndex))
+		{
+			const FNiagaraVariableLayoutInfo& Layout = DataSet.VariableLayouts[VariableIndex];
+			int32 NumFloats = 0;
+			int32 NumInts = 0;
+
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
+			{
+				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx];
+				int32 DataSetOffset = Layout.FloatComponentStart + NumFloats++;
+				auto& Binding = FloatOffsets.AddDefaulted_GetRef();
+				Binding.ParameterOffset = ParamOffset;
+				Binding.DataSetComponentOffset = DataSetOffset;
+			}
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
+			{
+				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx];
+				int32 DataSetOffset = Layout.Int32ComponentStart + NumInts++;
+				auto& Binding = Int32Offsets.AddDefaulted_GetRef();
+				Binding.ParameterOffset = ParamOffset;
+				Binding.DataSetComponentOffset = DataSetOffset;
+			}
+		}
+
+		ParameterOffset += Var.GetSizeInBytes();
+	}
+}
+#endif

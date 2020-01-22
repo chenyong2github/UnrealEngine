@@ -123,9 +123,7 @@ void FNiagaraParameterStore::SetOwner(UObject* InOwner)
 
 FNiagaraParameterStore::FNiagaraParameterStore(const FNiagaraParameterStore& Other)
 {
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	*this = Other;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 }
 
 FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParameterStore& Other)

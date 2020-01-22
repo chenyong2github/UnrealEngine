@@ -507,10 +507,9 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 	TArray<FNiagaraVariable> UniqueVariables;
 
 	// Add in currently defined system vars.
-	TArray<FNiagaraVariable> ValueArray;
-	ParamMapDefinedSystemToNamespaceVars.GenerateValueArray(ValueArray);
-	for (FNiagaraVariable& Var : ValueArray)
+	for (const auto& SystemVarPair : ParamMapDefinedSystemVars)
 	{
+		const auto& Var = SystemVarPair.Value.Variable;
 		if (Var.GetType().GetClass() != nullptr)
 		{
 			continue;
@@ -519,6 +518,7 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 	}
 
 	// Add in currently defined emitter vars.
+	TArray<FNiagaraVariable> ValueArray;
 	ParamMapDefinedEmitterParameterToNamespaceVars.GenerateValueArray(ValueArray);
 	for (FNiagaraVariable& Var : ValueArray)
 	{
@@ -780,6 +780,16 @@ bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& V
 	return true;
 }
 
+template<typename T>
+void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode)
+{
+	for (const FNiagaraVariable& Variable : T::GetVariables())
+	{
+		const FString SymbolName = GetSanitizedSymbolName(Variable.GetName().ToString(), true);
+		AddUniformChunk(SymbolName, Variable, ChunkMode, true);
+	}
+}
+
 const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagaraCompileRequestData* InCompileData, const FNiagaraCompileOptions& InCompileOptions, FHlslNiagaraTranslatorOptions InTranslateOptions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Translate);
@@ -989,6 +999,16 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		ValidateParticleIDUsage();
 	}
 
+	BuildConstantBuffer<FNiagaraGlobalParameters>(ENiagaraCodeChunkMode::GlobalConstant);
+	// only use the SystemConstantBuffer if we are doing particle scripts (for system scripts the data should come from
+	// the datasets)
+	if (!IsBulkSystemScript())
+	{
+		BuildConstantBuffer<FNiagaraSystemParameters>(ENiagaraCodeChunkMode::SystemConstant);
+		BuildConstantBuffer<FNiagaraOwnerParameters>(ENiagaraCodeChunkMode::OwnerConstant);
+		BuildConstantBuffer<FNiagaraEmitterParameters>(ENiagaraCodeChunkMode::EmitterConstant);
+	}
+
 	//Create main scope pin cache.
 	PinToCodeChunks.AddDefaulted(1);
 
@@ -1121,34 +1141,37 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				Error(ErrorMessage, nullptr, nullptr);
 			}
 		}
-		//Declare parameters.
-		//TODO: Separate Cbuffer for Global, System and Emitter parameters.
+
+		ENiagaraCodeChunkMode ChunkModes[] = { ENiagaraCodeChunkMode::GlobalConstant, ENiagaraCodeChunkMode::SystemConstant, ENiagaraCodeChunkMode::OwnerConstant, ENiagaraCodeChunkMode::EmitterConstant, ENiagaraCodeChunkMode::Uniform };
+		FString ConstantBufferNames[] = { TEXT("FNiagaraGlobalParameters"), TEXT("FNiagaraSystemParameters"), TEXT("FNiagaraOwnerParameters"), TEXT("FNiagaraEmitterParameters"), TEXT("FNiagaraExternalParameters") };
+
+		static_assert(UE_ARRAY_COUNT(ChunkModes) == UE_ARRAY_COUNT(ConstantBufferNames), "Mismatch between ChunkModes and ConstantBufferNames");
+
+		FString SymbolPrefix[] = { TEXT(""), INTERPOLATED_PARAMETER_PREFIX };
+
+		for (int32 PrevIt = 0; PrevIt < (bInterpolateParams ? 2 : 1); ++PrevIt)
 		{
-			HlslOutput += TEXT("cbuffer FEmitterParameters\n{\n");
-
-			for (int32 i = 0; i < ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num(); ++i)
+			for (int32 ChunkModeIt = 0; ChunkModeIt < UE_ARRAY_COUNT(ChunkModes); ++ChunkModeIt)
 			{
-				FNiagaraVariable BufferVariable(CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]].Type, FName(*CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]].SymbolName));
-				if ( IsVariableInUniformBuffer(BufferVariable) )
-				{
-					FString Chunk = GetCode(ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]);
-					HlslOutput += TEXT("\t") + Chunk;
-				}
-			}
+				int32 ChunkMode = static_cast<int32>(ChunkModes[ChunkModeIt]);
+				const FString BufferName = SymbolPrefix[PrevIt] + ConstantBufferNames[ChunkModeIt];
 
-			if (bInterpolateParams)
-			{
-				//Define the params from the previous frame after the main parameters.
-				for (int32 i = 0; i < ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num(); ++i)
-				{
-					//Copy the chunk so we can fiddle it's symbol name.
-					FNiagaraCodeChunk Chunk = CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]];
-					Chunk.SymbolName = INTERPOLATED_PARAMETER_PREFIX + Chunk.SymbolName;
-					HlslOutput += TEXT("\t") + GetCode(Chunk);
-				}
-			}
+				HlslOutput += TEXT("cbuffer ") + BufferName + TEXT("\n{\n");
 
-			HlslOutput += TEXT("}\n\n");
+				for (int32 i = 0; i < ChunksByMode[ChunkMode].Num(); ++i)
+				{
+					FNiagaraVariable BufferVariable(CodeChunks[ChunksByMode[ChunkMode][i]].Type, FName(*CodeChunks[ChunksByMode[ChunkMode][i]].SymbolName));
+					if (IsVariableInUniformBuffer(BufferVariable))
+					{
+						FNiagaraCodeChunk Chunk = CodeChunks[ChunksByMode[ChunkMode][i]];
+						Chunk.SymbolName = SymbolPrefix[PrevIt] + Chunk.SymbolName;
+
+						HlslOutput += TEXT("\t") + GetCode(Chunk);
+					}
+				}
+
+				HlslOutput += TEXT("}\n\n");
+			}
 		}
 
 		WriteDataSetStructDeclarations(DataSetReadInfo[0], true, HlslOutput);
@@ -1237,7 +1260,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			HlslOutput += TEXT("struct FSimulationContext") TEXT("\n{\n");
 
 			// We need to reserve a place in the simulation context for the base Parameter Map.
-			if (PrimaryDataSetOutputEntries.Num() != 0 || ParamMapDefinedSystemToNamespaceVars.Num() != 0 || ParamMapDefinedEmitterParameterToNamespaceVars.Num() != 0 || (ParamMapSetVariablesToChunks.Num() != 0 && ParamMapSetVariablesToChunks[0].Num() > 0))
+			if (PrimaryDataSetOutputEntries.Num() != 0 || ParamMapDefinedSystemVars.Num() != 0 || ParamMapDefinedEmitterParameterToNamespaceVars.Num() != 0 || (ParamMapSetVariablesToChunks.Num() != 0 && ParamMapSetVariablesToChunks[0].Num() > 0))
 			{
 				for (int32 i = 0; i < TranslationStages.Num(); i++)
 				{
@@ -1543,40 +1566,45 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Interpolation.Emitter_InterpSpawnStartDt = Emitter_InterpSpawnStartDt;\n");
 			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Interpolation.Emitter_SpawnGroup = Emitter_SpawnGroup;\n");
 
-			for (int32 UniformIdx = 0; UniformIdx < ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num(); ++UniformIdx)
+			int32 ModesToInterpolate[] =
 			{
-				int32 ChunkIdx = ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][UniformIdx];
-				if (UniformIdx != INDEX_NONE)
+				static_cast<int32>(ENiagaraCodeChunkMode::GlobalConstant),
+				static_cast<int32>(ENiagaraCodeChunkMode::SystemConstant),
+				static_cast<int32>(ENiagaraCodeChunkMode::OwnerConstant),
+				static_cast<int32>(ENiagaraCodeChunkMode::EmitterConstant),
+				static_cast<int32>(ENiagaraCodeChunkMode::Uniform)
+			};
+
+			for (int32 ChunkMode : ModesToInterpolate)
+			{
+				for (int32 UniformIdx = 0; UniformIdx < ChunksByMode[ChunkMode].Num(); ++UniformIdx)
 				{
-					FNiagaraVariable* FoundNamespacedVar = nullptr;
-					const FName* FoundSystemKey = ParamMapDefinedSystemVarsToUniformChunks.FindKey(UniformIdx);
+					int32 ChunkIdx = ChunksByMode[ChunkMode][UniformIdx];
+					if (ChunkIdx != INDEX_NONE)
+					{
+						const FNiagaraVariable* FoundNamespacedVar = nullptr;
 
-					// This uniform was either an emitter uniform parameter or a system uniform parameter. Search our maps to find out which one it was 
-					// so that we can properly deal with accessors.
-					if (FoundSystemKey != nullptr)
-					{
-						FoundNamespacedVar = ParamMapDefinedSystemToNamespaceVars.Find(*FoundSystemKey);
-					}
-					/*else
-					{
-						const FName* FoundEmitterParameterKey = ParamMapDefinedEmitterParameterVarsToUniformChunks.FindKey(UniformIdx);
-						if (FoundEmitterParameterKey != nullptr)
+						for (const auto& SystemVarPair : ParamMapDefinedSystemVars)
 						{
-							FoundNamespacedVar = ParamMapDefinedEmitterParameterToNamespaceVars.Find(*FoundEmitterParameterKey);
+							if (SystemVarPair.Value.ChunkIndex == ChunkIdx)
+							{
+								FoundNamespacedVar = &SystemVarPair.Value.Variable;
+								break;
+							}
 						}
-					}*/
 
-					if (FoundNamespacedVar != nullptr)
-					{
-						FString FoundName = GetSanitizedSymbolName(FoundNamespacedVar->GetName().ToString());
-						FNiagaraCodeChunk& Chunk = CodeChunks[ChunkIdx];
-						if (ShouldInterpolateParameter(*FoundNamespacedVar))
+						if (FoundNamespacedVar != nullptr)
 						{
-							HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".") + FoundName + TEXT(" = lerp(") + INTERPOLATED_PARAMETER_PREFIX + Chunk.SymbolName + Chunk.ComponentMask + TEXT(", ") + Chunk.SymbolName + Chunk.ComponentMask + TEXT(", ") + TEXT("SpawnInterp);\n");
-						}
-						else
-						{
-							// For now, we do nothing for non-floating point variables..
+							FString FoundName = GetSanitizedSymbolName(FoundNamespacedVar->GetName().ToString());
+							FNiagaraCodeChunk& Chunk = CodeChunks[ChunkIdx];
+							if (ShouldInterpolateParameter(*FoundNamespacedVar))
+							{
+								HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".") + FoundName + TEXT(" = lerp(") + INTERPOLATED_PARAMETER_PREFIX + Chunk.SymbolName + Chunk.ComponentMask + TEXT(", ") + Chunk.SymbolName + Chunk.ComponentMask + TEXT(", ") + TEXT("SpawnInterp);\n");
+							}
+							else
+							{
+								// For now, we do nothing for non-floating point variables..
+							}
 						}
 					}
 				}
@@ -2721,12 +2749,14 @@ FString FHlslNiagaraTranslator::GeneratedConstantString(FVector4 Constant)
 	return FString::Format(TEXT("float4({0}, {1}, {2}, {3})"), Args);
 }
 
-int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraTypeDefinition& Type)
+int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding)
 {
+	const FNiagaraTypeDefinition& Type = InVariable.GetType();
+
 	int32 Ret = CodeChunks.IndexOfByPredicate(
 		[&](const FNiagaraCodeChunk& Chunk)
 	{
-		return Chunk.Mode == ENiagaraCodeChunkMode::Uniform && Chunk.SymbolName == SymbolName && Chunk.Type == Type;
+		return Chunk.Mode == ChunkMode && Chunk.SymbolName == SymbolName && Chunk.Type == Type;
 	}
 	);
 
@@ -2737,7 +2767,7 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 		Chunk.SymbolName = GetSanitizedSymbolName(SymbolName);
 		Chunk.Type = Type;
 
-		if (UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage))
+		if (AddPadding)
 		{
 			if (Type == FNiagaraTypeDefinition::GetVec2Def())
 			{
@@ -2751,9 +2781,14 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 			}
 		}
 
-		Chunk.Mode = ENiagaraCodeChunkMode::Uniform;
+		Chunk.Mode = ChunkMode;
 
-		ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Add(Ret);
+		ChunksByMode[static_cast<int32>(ChunkMode)].Add(Ret);
+
+		auto& SystemVar = ParamMapDefinedSystemVars.Add(InVariable.GetName());
+		SystemVar.ChunkIndex = Ret;
+		SystemVar.ChunkMode = static_cast<int32>(ChunkMode);
+		SystemVar.Variable = InVariable;
 	}
 	return Ret;
 }
@@ -3713,10 +3748,9 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 
 		if (!bIsPerInstanceBulkSystemParam)
 		{
-			int32 UniformIdx = 0;
 			int32 UniformChunk = 0;
 
-			if (false == ParamMapDefinedSystemVarsToUniformChunks.Contains(InVariable.GetName()))
+			if (false == ParamMapDefinedSystemVars.Contains(InVariable.GetName()))
 			{
 				FString SymbolNameDefined = FlattenedName;
 
@@ -3769,16 +3803,12 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					CompilationOutput.ScriptData.Parameters.SetOrAdd(InVariable);
 				}
 
-				UniformIdx = ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num();
-
-				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable.GetType());
-				ParamMapDefinedSystemVarsToUniformChunks.Add(InVariable.GetName(), UniformIdx);
-				ParamMapDefinedSystemToNamespaceVars.Add(InVariable.GetName(), InVariable);
+				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable, ENiagaraCodeChunkMode::Uniform, UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage));
 			}
 			else
 			{
-				UniformIdx = ParamMapDefinedSystemVarsToUniformChunks.FindChecked(InVariable.GetName());
-				UniformChunk = ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][UniformIdx];
+				const auto& SystemVar = ParamMapDefinedSystemVars.FindChecked(InVariable.GetName());
+				UniformChunk = SystemVar.ChunkIndex;
 			}
 			static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
 			// Avoid overriding the register indices
@@ -5379,17 +5409,23 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 				//Now remove all chunks for the function again.			
 				//This is super hacky. Should move chunks etc into a proper scoping system.
-
+				const int32 UniformMode = static_cast<int32>(ENiagaraCodeChunkMode::Uniform);
+				const int32 FuncUniformCount = ChunksByMode[UniformMode].Num() - ChunkStartsByMode[UniformMode];
 				TArray<FNiagaraCodeChunk> FuncUniforms;
-				FuncUniforms.Reserve(1024);
+				TArray<int32> OriginalUniformChunkIndices;
+
+				FuncUniforms.Reserve(FuncUniformCount);
+				OriginalUniformChunkIndices.Reserve(FuncUniformCount);
+
 				for (int32 i = 0; i < (int32)ENiagaraCodeChunkMode::Num; ++i)
 				{
 					//Keep uniform chunks.
-					if (i == (int32)ENiagaraCodeChunkMode::Uniform)
+					if (i == UniformMode)
 					{
 						for (int32 ChunkIdx = ChunkStartsByMode[i]; ChunkIdx < ChunksByMode[i].Num(); ++ChunkIdx)
 						{
 							FuncUniforms.Add(CodeChunks[ChunksByMode[i][ChunkIdx]]);
+							OriginalUniformChunkIndices.Add(ChunksByMode[i][ChunkIdx]);
 						}
 					}
 
@@ -5398,9 +5434,22 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				CodeChunks.RemoveAt(ChunkStart, CodeChunks.Num() - ChunkStart, false);
 
 				//Re-add the uniforms. Really this is horrible. Rework soon.
-				for (FNiagaraCodeChunk& Chunk : FuncUniforms)
+				for (int32 FuncUniformIt = 0; FuncUniformIt < FuncUniformCount; ++FuncUniformIt)
 				{
-					ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Add(CodeChunks.Add(Chunk));
+					const FNiagaraCodeChunk& Chunk = FuncUniforms[FuncUniformIt];
+					const int32 OriginalChunkIndex = OriginalUniformChunkIndices[FuncUniformIt];
+
+					const int32 NewChunkIndex = CodeChunks.Add(Chunk);
+					ChunksByMode[UniformMode].Add(NewChunkIndex);
+
+					for (auto& SystemVarPair : ParamMapDefinedSystemVars)
+					{
+						if ((SystemVarPair.Value.ChunkIndex == OriginalChunkIndex)
+							&& (SystemVarPair.Value.ChunkMode == UniformMode))
+						{
+							SystemVarPair.Value.ChunkIndex = NewChunkIndex;
+						}
+					}
 				}
 
 				// We don't support an empty function definition when calling a real function.

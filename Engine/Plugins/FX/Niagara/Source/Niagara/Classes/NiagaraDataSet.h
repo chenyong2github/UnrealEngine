@@ -169,7 +169,7 @@ private:
 	{
 		//Round up to VECTOR_WIDTH_BYTES.
 		//Both aligns the component buffers to the vector width but also ensures their ops cannot stomp over one another.		
-		return RequiredSize + VECTOR_WIDTH_BYTES - (RequiredSize % VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
+		return Align(RequiredSize, VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
 	}
 
 	/** Back ptr to our owning data set. Used to access layout info for the buffer. */

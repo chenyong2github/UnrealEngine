@@ -44,6 +44,8 @@ bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimT
 
 	Parameters.InitFromOwningContext(Script, InTarget, true);
 
+	HasInterpolationParameters = Script && Script->GetComputedVMCompilationId().HasInterpolatedParameters();
+
 	return true;//TODO: Error cases?
 }
 
@@ -140,7 +142,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 void FNiagaraScriptExecutionContext::PostTick()
 {
 	//If we're for interpolated spawn, copy over the previous frame's parameters into the Prev parameters.
-	if (Script && Script->GetComputedVMCompilationId().HasInterpolatedParameters())
+	if (HasInterpolationParameters)
 	{
 		Parameters.CopyCurrToPrev();
 	}
@@ -173,7 +175,7 @@ void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataBuffer* I
 	DataSetMetaTable[Index].Init(Input->GetRegisterTable().GetData(), nullptr, StartInstance, nullptr, nullptr, &DataSet->GetNumFreeIDs(), &DataSet->GetMaxUsedID(), DataSet->GetIDAcquireTag());
 }
 
-bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
+bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable)
 {
 	if (NumInstances == 0)
 	{
@@ -190,7 +192,9 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 			ExecData.ByteCode.GetData(),
 			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
 			ExecData.NumTempRegisters,
-			Parameters.GetParameterDataArray().GetData(),
+			ConstantBufferTable.Buffers.Num(),
+			ConstantBufferTable.Buffers.GetData(),
+			ConstantBufferTable.BufferSizes.GetData(),
 			DataSetMetaTable,
 			FunctionTable.GetData(),
 			DataInterfaceInstDataTable.GetData(),
@@ -295,7 +299,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	const uint32 PackedDispatchesSize = InSystemInstance->ActiveGPUEmitterCount * sizeof(FNiagaraComputeInstanceData);
 	// We want the Params after the instance data to be aligned so we can upload to the gpu.
 	uint32 PackedDispatchesSizeAligned = Align(PackedDispatchesSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
-	uint32 TotalParamSize = InSystemInstance->TotalParamSize;
+	uint32 TotalParamSize = InSystemInstance->TotalGPUParamSize;
 
 	uint32 TotalPackedBufferSize = PackedDispatchesSizeAligned + TotalParamSize;
 
@@ -308,6 +312,12 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	check(TickCount > 0);
 	bNeedsReset = ( TickCount == 1);
 
+	uint8* GlobalParamData = ParamDataBufferPtr;
+	ParamDataBufferPtr += 2 * sizeof(FNiagaraGlobalParameters);
+	uint8* SystemParamData = ParamDataBufferPtr;
+	ParamDataBufferPtr += 2 * sizeof(FNiagaraSystemParameters);
+	uint8* OwnerParamData = ParamDataBufferPtr;
+	ParamDataBufferPtr += 2 * sizeof(FNiagaraOwnerParameters);
 
 	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
@@ -319,24 +329,39 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 		if (Emitter && Emitter->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext() != nullptr && Emitter->GetExecutionState() != ENiagaraExecutionState::Complete)
 		{
+			FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;
 
-			InstanceData->Context = Emitter->GetGPUContext();
-			check(InstanceData->Context->MainDataSet);
+			InstanceData->Context = GPUContext;
+			check(GPUContext->MainDataSet);
 
-			InstanceData->SpawnInfo = Emitter->GetGPUContext()->GpuSpawnInfo_GT;
+			InstanceData->SpawnInfo = GPUContext->GpuSpawnInfo_GT;
 
-			int32 ParmSize = Emitter->GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
+			int32 ParmSize = GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
 
-			Emitter->GetGPUContext()->CombinedParamStore.CopyParameterDataToPaddedBuffer(ParamDataBufferPtr, ParmSize);
-
-			InstanceData->ParamData = ParamDataBufferPtr;
-
+			InstanceData->GlobalParamData = GlobalParamData;
+			InstanceData->SystemParamData = SystemParamData;
+			InstanceData->OwnerParamData = OwnerParamData;
+			InstanceData->EmitterParamData = ParamDataBufferPtr;
+			ParamDataBufferPtr += 2 * sizeof(FNiagaraEmitterParameters);
+			InstanceData->ExternalParamData = ParamDataBufferPtr;
 			ParamDataBufferPtr += ParmSize;
 
+			// actually copy all of the data over
+			FMemory::Memcpy(InstanceData->GlobalParamData, &InSystemInstance->GetGlobalParameters(), sizeof(FNiagaraGlobalParameters));
+			FMemory::Memcpy(InstanceData->GlobalParamData + sizeof(FNiagaraGlobalParameters), &InSystemInstance->GetGlobalParameters(true), sizeof(FNiagaraGlobalParameters));
+			FMemory::Memcpy(InstanceData->SystemParamData, &InSystemInstance->GetSystemParameters(), sizeof(FNiagaraSystemParameters));
+			FMemory::Memcpy(InstanceData->SystemParamData + sizeof(FNiagaraSystemParameters), &InSystemInstance->GetSystemParameters(true), sizeof(FNiagaraSystemParameters));
+			FMemory::Memcpy(InstanceData->OwnerParamData, &InSystemInstance->GetOwnerParameters(), sizeof(FNiagaraOwnerParameters));
+			FMemory::Memcpy(InstanceData->OwnerParamData + sizeof(FNiagaraOwnerParameters), &InSystemInstance->GetOwnerParameters(true), sizeof(FNiagaraOwnerParameters));
+			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(i), sizeof(FNiagaraEmitterParameters));
+			FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(i, true), sizeof(FNiagaraEmitterParameters));
+
+			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
+
 			// @todo-threadsafety Think of a better way to do this!
-			FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
 			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
 			for (UNiagaraDataInterface* DI : DataInterfaces)
@@ -374,7 +399,11 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
+	, GlobalCBufferLayout(TEXT("Niagara GPU Global CBuffer"))
+	, SystemCBufferLayout(TEXT("Niagara GPU System CBuffer"))
+	, OwnerCBufferLayout(TEXT("Niagara GPU Owner CBuffer"))
+	, EmitterCBufferLayout(TEXT("Niagara GPU Emitter CBuffer"))
+	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
 #if WITH_EDITORONLY_DATA
 	, GPUDebugDataReadbackFloat(nullptr)
@@ -387,6 +416,17 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUDebugDataCountOffset(INDEX_NONE)
 #endif	  
 {
+	GlobalCBufferLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
+	GlobalCBufferLayout.ComputeHash();
+
+	SystemCBufferLayout.ConstantBufferSize = sizeof(FNiagaraSystemParameters);
+	SystemCBufferLayout.ComputeHash();
+
+	OwnerCBufferLayout.ConstantBufferSize = sizeof(FNiagaraOwnerParameters);
+	OwnerCBufferLayout.ComputeHash();
+
+	EmitterCBufferLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
+	EmitterCBufferLayout.ComputeHash();
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
@@ -441,6 +481,7 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 
 	SpawnStages.Append(InSpawnStages);
 	
+	HasInterpolationParameters = GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters();
 	
 #if DO_CHECK
 	FNiagaraShader *Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
@@ -497,7 +538,7 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 void FNiagaraComputeExecutionContext::PostTick()
 {
 	//If we're for interpolated spawn, copy over the previous frame's parameters into the Prev parameters.
-	if (GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters())
+	if (HasInterpolationParameters)
 	{
 		CombinedParamStore.CopyCurrToPrev();
 	}

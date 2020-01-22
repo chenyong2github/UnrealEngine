@@ -49,10 +49,6 @@ static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
 	ECVF_Default
 );
 
-#if WITH_EDITORONLY_DATA
-FNiagaraParameterStore INiagaraModule::FixedSystemInstanceParameters = FNiagaraParameterStore();
-#endif
-
 /**
 Use Shader Stages CVar.
 Enable the custom dispatch for multiple shader stages 
@@ -307,10 +303,6 @@ void INiagaraModule::StartupModule()
 	{
 		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform);
 	}));
-
-#if WITH_EDITORONLY_DATA
-	InitFixedSystemInstanceParameterStore();
-#endif
 }
 
 void INiagaraModule::ShutdownRenderingResources()
@@ -441,37 +433,6 @@ bool INiagaraModule::IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPl
 #endif
 	return true;
 }
-
-#if WITH_EDITORONLY_DATA
-void INiagaraModule::InitFixedSystemInstanceParameterStore()
-{
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_POSITION, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_ROTATION, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SCALE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_VELOCITY, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_X_AXIS, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_Y_AXIS, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_Z_AXIS, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_TRANSPOSED, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_TRANSPOSED, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_NO_SCALE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_DELTA_TIME, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_REAL_TIME, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_INV_DELTA_TIME, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_EXECUTION_STATE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE, true, false);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_AGE);
-	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT);
-}
-#endif
 
 void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 {
@@ -1037,6 +998,80 @@ void INiagaraModule::ProcessShaderCompilationQueue()
 	return OnProcessQueue.Execute();
 }
 
+#if WITH_EDITOR
+const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
+{
+	static const TArray<FNiagaraVariable> Variables =
+	{
+		SYS_PARAM_ENGINE_DELTA_TIME,
+		SYS_PARAM_ENGINE_INV_DELTA_TIME,
+		SYS_PARAM_ENGINE_TIME,
+		SYS_PARAM_ENGINE_REAL_TIME,
+	};
+
+	return Variables;
+}
+
+const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
+{
+	static const TArray<FNiagaraVariable> Variables =
+	{
+		SYS_PARAM_ENGINE_TIME_SINCE_RENDERED,
+		SYS_PARAM_ENGINE_LOD_DISTANCE,
+		SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION,
+		SYS_PARAM_ENGINE_SYSTEM_AGE,
+		SYS_PARAM_ENGINE_EXECUTION_STATE,
+		SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT,
+		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
+		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
+	};
+
+	return Variables;
+}
+
+const TArray<FNiagaraVariable>& FNiagaraOwnerParameters::GetVariables()
+{
+	static const TArray<FNiagaraVariable> Variables =
+	{
+		SYS_PARAM_ENGINE_LOCAL_TO_WORLD,
+		SYS_PARAM_ENGINE_WORLD_TO_LOCAL,
+		SYS_PARAM_ENGINE_LOCAL_TO_WORLD_TRANSPOSED,
+		SYS_PARAM_ENGINE_WORLD_TO_LOCAL_TRANSPOSED,
+		SYS_PARAM_ENGINE_LOCAL_TO_WORLD_NO_SCALE,
+		SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE,
+		SYS_PARAM_ENGINE_ROTATION,
+		SYS_PARAM_ENGINE_POSITION,
+		SYS_PARAM_ENGINE_VELOCITY,
+		SYS_PARAM_ENGINE_X_AXIS,
+		SYS_PARAM_ENGINE_Y_AXIS,
+		SYS_PARAM_ENGINE_Z_AXIS,
+		SYS_PARAM_ENGINE_SCALE,
+	};
+
+	return Variables;
+}
+
+const TArray<FNiagaraVariable>& FNiagaraEmitterParameters::GetVariables()
+{
+	static const FName NAME_NiagaraStructPadding0 = "Engine.Emitter.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.Emitter.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.Emitter.PaddingInt32_2";
+
+	static const TArray<FNiagaraVariable> Variables =
+	{
+		SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES,
+		SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES,
+		SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE,
+		SYS_PARAM_EMITTER_AGE,
+
+		SYS_PARAM_EMITTER_RANDOM_SEED,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
+	};
+
+	return Variables;
+}
+#endif
+
 #undef LOCTEXT_NAMESPACE
-
-

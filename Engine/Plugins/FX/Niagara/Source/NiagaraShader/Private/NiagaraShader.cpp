@@ -1287,7 +1287,6 @@ const FNiagaraShaderMap* FNiagaraShaderMap::GetShaderMapBeingCompiled(const FNia
 
 FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer)
 	: FShader(Initializer)
-	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	, DebugDescription(Initializer.DebugDescription)
 {
 	check(!DebugDescription.IsEmpty());
@@ -1335,8 +1334,19 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
-	EmitterConstantBufferParam.Bind(ParameterMap, TEXT("FEmitterParameters"));
 	ViewUniformBufferParam.Bind(ParameterMap, TEXT("View"));
+
+	GlobalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraExternalParameters"));
+
+	GlobalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
 
 	// params for event buffers
 	// this is horrendous; need to do this in a uniform buffer instead.
@@ -1416,7 +1426,18 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 
 	Ar << DataInterfaceParameters;
 
-	Ar << EmitterConstantBufferParam;
+	Ar << GlobalConstantBufferParam[0];
+	Ar << SystemConstantBufferParam[0];
+	Ar << OwnerConstantBufferParam[0];
+	Ar << EmitterConstantBufferParam[0];
+	Ar << ExternalConstantBufferParam[0];
+
+	Ar << GlobalConstantBufferParam[1];
+	Ar << SystemConstantBufferParam[1];
+	Ar << OwnerConstantBufferParam[1];
+	Ar << EmitterConstantBufferParam[1];
+	Ar << ExternalConstantBufferParam[1];
+
 	Ar << DataInterfaceUniformBufferParam;
 	Ar << NumEventsPerParticleParam;
 	Ar << NumParticlesPerEventParam;

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShader.h: Shader base classes
@@ -31,7 +31,6 @@ public:
 	static FName UniformBufferLayoutName;
 
 	FNiagaraShader()
-		: CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	{
 	}
 
@@ -99,7 +98,6 @@ public:
 	virtual bool Serialize(FArchive& Ar) override;
 	virtual uint32 GetAllocatedSize() const override;
 
-	FRHIUniformBufferLayout CBufferLayout;
 	FShaderResourceParameter FloatInputBufferParam;
 	FShaderResourceParameter IntInputBufferParam;
 	FRWShaderParameter FloatOutputBufferParam;
@@ -109,7 +107,11 @@ public:
 	FShaderParameter WriteInstanceCountOffsetParam;
 	FShaderResourceParameter FreeIDBufferParam;
 	FRWShaderParameter IDToIndexBufferParam;
-	FShaderUniformBufferParameter EmitterConstantBufferParam;
+	FShaderUniformBufferParameter GlobalConstantBufferParam[2];
+	FShaderUniformBufferParameter SystemConstantBufferParam[2];
+	FShaderUniformBufferParameter OwnerConstantBufferParam[2];
+	FShaderUniformBufferParameter EmitterConstantBufferParam[2];
+	FShaderUniformBufferParameter ExternalConstantBufferParam[2];
 	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
 	FShaderUniformBufferParameter ViewUniformBufferParam;
 	FShaderParameter SimStartParam;
