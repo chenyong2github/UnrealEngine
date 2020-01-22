@@ -13,6 +13,7 @@ namespace Trace
 {
 
 class FAsioRecorder;
+class FAsioSocket;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioTraceRelay
@@ -22,6 +23,7 @@ class FAsioTraceRelay
 public:
 						FAsioTraceRelay(asio::io_context& IoContext, FAsioReadable* InInput, uint32 InTraceIf, FAsioRecorder& InRecorder);
 						~FAsioTraceRelay();
+	bool				IsOpen() const;
 	void				Close();
 
 private:
@@ -30,7 +32,7 @@ private:
 	enum				{ OpStart, OpRead, OpSend };
 	static const uint32	BufferSize = 64 << 10;
 	FAsioReadable*		Input;
-	FAsioWriteable*		Output = nullptr;
+	FAsioSocket*		Output = nullptr;
 	FAsioRecorder&		Recorder;
 	uint32				SessionId;
 	uint8				Buffer[BufferSize];

@@ -46,6 +46,12 @@ void FAsioTraceRelay::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FAsioTraceRelay::IsOpen() const
+{
+	return (Output != nullptr) && Output->IsOpen();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 {
 	Output = new FAsioSocket(Socket);
