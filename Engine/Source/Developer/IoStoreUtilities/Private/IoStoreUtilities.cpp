@@ -205,7 +205,16 @@ static FIoChunkId CreateChunkId(int32 GlobalPackageId, uint16 ChunkIndex, EIoChu
 	return ChunkId;
 }
 
-static FIoChunkId CreateChunkIdForBulkData(int32 GlobalPackageId, uint64 BulkdataOffset, EIoChunkType ChunkType, const TCHAR* DebugString)
+static FIoChunkId CreateChunkIdForBulkData(int32 GlobalPackageId,EIoChunkType ChunkType, const TCHAR* DebugString)
+{
+	FIoChunkId ChunkId = CreateIoChunkId(GlobalPackageId, 0, ChunkType);
+#if OUTPUT_CHUNKID_DIRECTORY
+	ChunkIdCsv.AddChunk(GlobalPackageId, 0, 0, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
+#endif
+	return ChunkId;
+}
+
+static FIoChunkId CreateChunkIdForBulkData(int32 GlobalPackageId, int64 BulkdataOffset, EIoChunkType ChunkType, const TCHAR* DebugString)
 {
 	FIoChunkId ChunkId = CreateBulkdataChunkId(GlobalPackageId, BulkdataOffset, ChunkType);
 #if OUTPUT_CHUNKID_DIRECTORY
@@ -860,7 +869,7 @@ static bool WriteBulkData(	const FString& Filename, FPackageStoreBulkDataManifes
 	{
 		const EIoChunkType ChunkIdType = BulkdataTypeToChunkIdType(Type);
 
-		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, TNumericLimits<uint64>::Max()-1, ChunkIdType, *Package.FileName);
+		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, ChunkIdType, *Package.FileName);
 
 #if !SKIP_WRITE_CONTAINER		
 		FIoBuffer IoBuffer;
