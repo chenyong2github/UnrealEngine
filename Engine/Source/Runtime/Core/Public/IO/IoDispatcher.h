@@ -789,7 +789,8 @@ public:
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
 	CORE_API FIoStatus	Initialize();
-	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk);
+	CORE_API FIoStatus	EnableCsvOutput();
+	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.
