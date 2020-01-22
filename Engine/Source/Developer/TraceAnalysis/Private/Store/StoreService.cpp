@@ -19,6 +19,7 @@ struct FStoreServiceImpl
 {
 public:
 							FStoreServiceImpl(const FStoreService::FDesc& Desc);
+							~FStoreServiceImpl();
 	FAsioContext			Context;
 	FAsioStore				Store;
 	FAsioRecorder			Recorder;
@@ -32,6 +33,12 @@ FStoreServiceImpl::FStoreServiceImpl(const FStoreService::FDesc& Desc)
 , Recorder(Context.Get(), Store)
 , CborServer(Context.Get(), Store, Recorder)
 {
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FStoreServiceImpl::~FStoreServiceImpl()
+{
+	Context.Stop();
 }
 
 } // namespace Trace
