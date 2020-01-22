@@ -175,7 +175,21 @@ bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioRecorder::OnTick()
 {
-	/* cleanup dead clients */
+	uint32 FinalNum = 0;
+	for (int i = 0, n = Sessions.Num(); i < n; ++i)
+	{
+		FSession& Session = Sessions[i];
+		if (Session.Relay->IsOpen())
+		{
+			++FinalNum;
+			continue;
+		}
+
+		delete Session.Relay;
+		Sessions[FinalNum] = Session;
+	}
+
+	Sessions.SetNum(FinalNum);
 }
 
 } // namespace Trace
