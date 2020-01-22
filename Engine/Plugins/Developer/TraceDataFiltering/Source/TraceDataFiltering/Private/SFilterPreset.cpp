@@ -6,6 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "EventFilterStyle.h"
+#include "IFilterPreset.h"
 
 #define LOCTEXT_NAMESPACE "SFilterPreset"
 

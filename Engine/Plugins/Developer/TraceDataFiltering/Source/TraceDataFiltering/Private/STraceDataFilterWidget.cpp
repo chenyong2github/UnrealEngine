@@ -18,6 +18,7 @@
 #include "ITraceObject.h"
 #include "TraceChannel.h"
 #include "FilterPresets.h"
+#include "IFilterPreset.h"
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
 

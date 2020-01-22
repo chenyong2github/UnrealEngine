@@ -3,15 +3,23 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "ITraceObject.h"
+#include "TraceServices/SessionService.h"
+#include "Containers/UnrealString.h"
 #include "Misc/IFilter.h"
 #include "Framework/Views/TreeFilterHandler.h"
 #include "Misc/TextFilter.h"
+
+#include "ITraceObject.h"
 
 class ITableRow;
 class SFilterPresetList;
 class SSessionSelector;
 class SSearchBox;
+struct IFilterPreset;
+class ITraceObject;
+class ISessionTraceFilterService;
+class FEventFilterService;
+struct FTraceObjectInfo;
 
 class STraceDataFilterWidget : public SCompoundWidget
 {

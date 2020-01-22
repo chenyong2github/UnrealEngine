@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Delegates/DelegateCombinations.h"
+
+struct IFilterPreset;
 
 DECLARE_DELEGATE(FOnPresetsChanged);
 

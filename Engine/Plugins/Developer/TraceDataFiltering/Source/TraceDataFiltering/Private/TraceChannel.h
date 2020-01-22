@@ -4,6 +4,8 @@
 
 #include "ITraceObject.h"
 
+class ISessionTraceFilterService;
+
 class FTraceChannel : public ITraceObject
 {
 public:

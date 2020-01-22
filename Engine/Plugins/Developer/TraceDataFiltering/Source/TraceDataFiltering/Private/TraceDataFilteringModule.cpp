@@ -21,6 +21,7 @@
 
 #include "STraceDataFilterWidget.h"
 #include "EventFilterStyle.h"
+#include "EventFilterService.h"
 
 IMPLEMENT_MODULE(FTraceFilteringModule, TraceDataFiltering);
 
