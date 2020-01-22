@@ -34,9 +34,6 @@ public:
 		constexpr explicit		operator bool () const { return true; }
 	};
 
-	void*						Handle;
-	uint32						LoggerHash;
-	uint32						Hash;
 	uint16						Uid;
 	bool						bInitialized;
 	bool						bImportant;
