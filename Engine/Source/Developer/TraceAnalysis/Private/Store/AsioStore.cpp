@@ -27,15 +27,20 @@ uint32 FAsioStore::FTrace::GetId() const
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FAsioStore::FTrace::GetSize() const
 {
+#if PLATFORM_WINDOWS
 	HANDLE Inner = HANDLE(Handle);
 	LARGE_INTEGER FileSize;
 	GetFileSizeEx(Inner, &FileSize);
 	return FileSize.QuadPart;
+#else
+	return 0; // TODO
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FAsioStore::FTrace::GetTimestamp() const
 {
+#if PLATFORM_WINDOWS
 	HANDLE Inner = HANDLE(Handle);
 	FILETIME Time;
 	if (!GetFileTime(Inner, &Time, nullptr, nullptr))
@@ -43,6 +48,9 @@ uint64 FAsioStore::FTrace::GetTimestamp() const
 		return 0;
 	}
 	return (uint64(Time.dwLowDateTime) << 32ull) | uint64(Time.dwHighDateTime);
+#else
+	return 0; // TODO
+#endif
 }
 
 
@@ -118,12 +126,20 @@ FAsioStore::FTrace* FAsioStore::GetTrace(uint32 Id)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::FTrace* FAsioStore::AddTrace(const TCHAR* Path)
 {
+#if PLATFORM_WINDOWS
 	HANDLE Handle = CreateFileW(Path, 0, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
 		nullptr, OPEN_EXISTING, 0, nullptr);
 	if (Handle == INVALID_HANDLE_VALUE)
 	{
 		return nullptr;
 	}
+#else
+	int Handle = open(TCHAR_TO_ANSI(Path), O_RDWR, 0666);
+	if (!Handle)
+	{
+		return nullptr;
+	}
+#endif
 
 	const TCHAR* Dot = FCString::Strrchr(Path, '.');
 	if (Dot == nullptr)

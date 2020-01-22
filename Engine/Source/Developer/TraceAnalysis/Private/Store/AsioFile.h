@@ -7,6 +7,9 @@
 #if TRACE_WITH_ASIO
 
 #include "AsioIoable.h"
+#if !PLATFORM_WINDOWS
+#include "asio/posix/stream_descriptor.hpp"
+#endif
 
 namespace Trace
 {
@@ -26,7 +29,11 @@ public:
 	virtual bool						ReadSome(void* Dest, uint32 BufferSize, FAsioIoSink* Sink, uint32 Id) override;
 
 private:
+#if PLATFORM_WINDOWS
 	asio::windows::random_access_handle	Handle;
+#else
+	asio::posix::stream_descriptor		StreamDescriptor;
+#endif
 	uint64								Offset = 0;
 };
 
