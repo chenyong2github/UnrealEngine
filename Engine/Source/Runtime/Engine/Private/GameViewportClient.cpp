@@ -534,6 +534,8 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputKeyEvent.Broadcast(EventArgs);
+
 #if WITH_EDITOR
 	// Give debugger commands a chance to process key binding
 	if (GameViewportInputKeyDelegate.IsBound())
@@ -600,6 +602,8 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputAxisEvent.Broadcast(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	
 	bool bResult = false;
 
 	// Don't allow mouse/joystick input axes while in PIE and the console has forced the cursor to be visible.  It's
