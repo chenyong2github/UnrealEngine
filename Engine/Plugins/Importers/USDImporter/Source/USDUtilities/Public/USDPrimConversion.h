@@ -27,6 +27,7 @@ class USceneComponent;
 namespace UsdToUnreal
 {
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, USceneComponent& SceneComponent, pxr::UsdTimeCode EvalTime = pxr::UsdTimeCode::EarliestTime() );
+	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, FTransform& OutTransform, pxr::UsdTimeCode EvalTime = pxr::UsdTimeCode::EarliestTime() );
 	USDUTILITIES_API bool ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, pxr::UsdTimeCode EvalTime = pxr::UsdTimeCode::EarliestTime() );
 }
 

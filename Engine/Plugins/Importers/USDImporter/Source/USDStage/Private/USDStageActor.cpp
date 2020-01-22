@@ -144,22 +144,54 @@ AUsdStageActor::AUsdStageActor()
 	RootUsdTwin.PrimPath = TEXT("/");
 
 	UsdListener.OnPrimChanged.AddLambda(
-		[ this ]( const FString& PrimPath, bool bResync )
+		[ this ]( const FString& OriginalPrimPath, bool bResync )
 			{
-				TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimPath );
+				auto UnwindToNonCollapsedPrim = [ &OriginalPrimPath, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> TUsdStore< pxr::SdfPath >
+				{
+					IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimPath );
+					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, OriginalPrimPath );
 
-				this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() ) );
+					TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *OriginalPrimPath );
+					TUsdStore< pxr::UsdPrim > UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
 
-				this->UpdatePrim( UsdPrimPath.Get(), bResync, *TranslationContext );
-				TranslationContext->CompleteTasks();
+					if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
+					{
+						while ( SchemaTranslator->IsCollapsed( FUsdSchemaTranslator::ECollapsingType::Assets ) )
+						{
+							UsdPrimPath = UsdPrimPath.Get().GetParentPath();
+							UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
 
+							TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( UsdPrimPath.Get() ) );
+							SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) );
+						}
+					}
+
+					return UsdPrimPath;
+				};
+
+				// Reload assets
+				{
+					TUsdStore< pxr::SdfPath > AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
+
+					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
+					this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+				}
+
+				// Update components
+				{
+					TUsdStore< pxr::SdfPath > ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
+
+					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
+					this->UpdatePrim( ComponentsPrimPath.Get(), bResync, *TranslationContext );
+					TranslationContext->CompleteTasks();
+				}
+				
 				this->RefreshVisibilityBasedOnPurpose();
 
 				if ( this->HasAutorithyOverStage() )
 				{
-					this->OnPrimChanged.Broadcast( PrimPath, bResync );
+					this->OnPrimChanged.Broadcast( OriginalPrimPath, bResync );
 				}
 			}
 		);
@@ -275,7 +307,7 @@ FUsdPrimTwin* AUsdStageActor::ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTr
 			SchemaTranslator->UpdateComponents( UsdPrimTwin->SceneComponent.Get() );
 		}
 
-		bExpandChilren = !SchemaTranslator->CollapsedHierarchy();
+		bExpandChilren = !SchemaTranslator->CollapsesChildren( FUsdSchemaTranslator::ECollapsingType::Components );
 	}
 
 	if ( bExpandChilren )
@@ -657,14 +689,19 @@ bool AUsdStageActor::HasAutorithyOverStage() const
 #if USE_USD_SDK
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
-	auto CreateAssetsForPrims = [ &TranslationContext ]( const TArray< TUsdStore< pxr::UsdPrim > >& AllPrimAssets )
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAssets );
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+
+	auto CreateAssetsForPrims = [ &UsdSchemasModule, &TranslationContext ]( const TArray< TUsdStore< pxr::UsdPrim > >& AllPrimAssets )
 	{
-		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+		TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrims );
 
 		for ( const TUsdStore< pxr::UsdPrim >& UsdPrim : AllPrimAssets )
 		{
 			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( UsdPrim.Get() ) ) )
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrim );
 				SchemaTranslator->CreateAssets();
 			}
 		}
@@ -672,15 +709,23 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 		TranslationContext.CompleteTasks(); // Finish the assets tasks before moving on
 	};
 
+	auto PruneChildren = [ &UsdSchemasModule, &TranslationContext ]( const pxr::UsdPrim& UsdPrim ) -> bool
+	{
+		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( UsdPrim ) ) )
+		{
+			return SchemaTranslator->CollapsesChildren( FUsdSchemaTranslator::ECollapsingType::Assets );
+		}
+
+		return false;
+	};
+
 	// Load materials first since meshes are referencing them
-	TArray< TUsdStore< pxr::UsdPrim > > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdShadeMaterial >() );
+	TArray< TUsdStore< pxr::UsdPrim > > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdShadeMaterial >(), PruneChildren );
 
 	CreateAssetsForPrims( AllPrimAssets );
 
 	// Load meshes
-	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdGeomMesh >(), { pxr::TfType::Find< pxr::UsdSkelRoot >() } );
-	AllPrimAssets.Append( UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdSkelRoot >() ) );
-
+	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdGeomXformable >(), PruneChildren );
 	CreateAssetsForPrims( AllPrimAssets );
 }
 

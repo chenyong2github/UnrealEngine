@@ -26,6 +26,7 @@ class UStaticMesh;
 namespace UsdToUnreal
 {
 	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
+	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdMesh, UMaterial& Material );
 
 	/** Reads the first display color and opacity value and assigns it as the base color and opacity of the material */

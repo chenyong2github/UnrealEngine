@@ -152,7 +152,7 @@ enum class ESchemaTranslationStatus
 	Done
 };
 
-class FUsdSchemaTranslator
+class USDSCHEMAS_API FUsdSchemaTranslator
 {
 public:
 	explicit FUsdSchemaTranslator( TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema )
@@ -168,7 +168,16 @@ public:
 	virtual USceneComponent* CreateComponents() { return nullptr; }
 	virtual void UpdateComponents( USceneComponent* SceneComponent ) {}
 
-	virtual bool CollapsedHierarchy() const { return false; }
+	enum class ECollapsingType
+	{
+		Assets,
+		Components
+	};
+
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const { return false; }
+
+	bool IsCollapsed( ECollapsingType CollapsingType ) const;
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const { return false; }
 
 protected:
 	TSharedRef< FUsdSchemaTranslationContext > Context;
@@ -210,6 +219,8 @@ struct FSchemaTranslatorTask
 class FUsdSchemaTranslatorTaskChain
 {
 public:
+	virtual ~FUsdSchemaTranslatorTaskChain() = default;
+
 	FUsdSchemaTranslatorTaskChain& Do( bool bAsync, TFunction< bool() > Callable );
 	FUsdSchemaTranslatorTaskChain& Then( bool bAsync, TFunction< bool() > Callable );
 

@@ -22,12 +22,14 @@
 
 #include "USDIncludesEnd.h"
 
-bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, USceneComponent& SceneComponent, pxr::UsdTimeCode EvalTime )
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, FTransform& OutTransform, pxr::UsdTimeCode EvalTime )
 {
 	if ( !Xformable )
 	{
 		return false;
 	}
+
+	FScopedUsdAllocs UsdAllocs;
 
 	pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis( Stage );
 
@@ -46,9 +48,29 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 		UpAxis = pxr::UsdGeomTokens->y; // Cameras are always Y up in USD
 	}
 
-	FTransform Transform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix ) * FTransform( AdditionalRotation );
+	OutTransform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix ) * FTransform( AdditionalRotation );
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, USceneComponent& SceneComponent, pxr::UsdTimeCode EvalTime )
+{
+	if ( !Xformable )
+	{
+		return false;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertXformable );
+
+	FScopedUsdAllocs UsdAllocs;
+
+	// Transform
+	FTransform Transform;
+	UsdToUnreal::ConvertXformable( Stage, Xformable, Transform, EvalTime );
+
 	SceneComponent.SetRelativeTransform( Transform );
 
+	// Visibility
 	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
 	SceneComponent.SetVisibility( !bIsHidden );
 
@@ -152,7 +174,11 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 			{
 				if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
 				{
-					FString AssignedMaterialPathName = AssignedMaterial->GetPathName();
+					FString AssignedMaterialPathName;
+					if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
+					{
+						AssignedMaterialPathName = AssignedMaterial->GetPathName();
+					}
 
 					UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
 				}
