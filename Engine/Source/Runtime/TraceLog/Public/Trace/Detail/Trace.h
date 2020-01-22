@@ -85,7 +85,7 @@
 	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
-	if (TRACE_PRIVATE_EVENT_IS_INITIALIZED(LoggerName, EventName) && TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
+	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) && TRACE_PRIVATE_EVENT_IS_INITIALIZED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
 			if (auto LogScope = Trace::FEventDef::FLogScope( \
 				LoggerName##EventName##Event.Uid, \
@@ -132,9 +132,6 @@
 #define TRACE_PRIVATE_EVENT_END() \
 		const FTraceDisabled& Attachment; \
 	};
-
-#define TRACE_PRIVATE_EVENT_IS_INITIALIZED(LoggerName, EventName) \
-	(false)
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
 	if (const auto& EventName = *(F##LoggerName##EventName##Dummy*)1) \
