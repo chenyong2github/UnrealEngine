@@ -145,6 +145,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			NormalsAttribute.Get( &Normals, TimeCodeValue );
 		}
 
+		pxr::TfToken NormalsInterpType = UsdMesh.GetNormalsInterpolation();
+
 		// UVs
 		TVertexInstanceAttributesRef< FVector2D > MeshDescriptionUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
@@ -267,13 +269,15 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 				if ( Normals.size() > 0 )
 				{
-					const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
-					check(NormalIndex < Normals.size());
-					const GfVec3f& Normal = Normals[NormalIndex];
-					FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageUpAxis, Normal ) ).GetSafeNormal();
+					const int32 NormalIndex = UsdToUnrealImpl::GetPrimValueIndex( NormalsInterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
-					ensure( !TransformedNormal.IsNearlyZero() );
-					MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+					if ( NormalIndex < Normals.size() )
+					{
+						const GfVec3f& Normal = Normals[NormalIndex];
+						FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageUpAxis, Normal ) ).GetSafeNormal();
+
+						MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+					}
 				}
 
 				int32 UVLayerIndex = 0;
