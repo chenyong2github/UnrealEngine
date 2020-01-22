@@ -48,6 +48,6 @@ private:
 	void ReleaseMPCDIData();
 
 private:
-	FCriticalSection DataGuard;
+	mutable FCriticalSection DataGuard;
 	TArray<TSharedPtr<FMPCDIData>> MPCDIData;
 };

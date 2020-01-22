@@ -5,6 +5,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "ComposurePostMoves.h"
 #include "UObject/Package.h"
+#include "Engine/Texture2D.h"
 
 #include "IPicpProjection.h"
 #include "IPicpMPCDI.h"

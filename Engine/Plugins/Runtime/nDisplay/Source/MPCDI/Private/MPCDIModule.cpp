@@ -112,10 +112,9 @@ bool FMPCDIModule::SetStaticMeshWarp(const IMPCDI::FRegionLocator& InRegionLocat
 
 	if (InRegionLocator.RegionIndex >= 0)
 	{
-		if (MPCDIData.Num() > InRegionLocator.FileIndex)
+		if (MPCDIData.Num() > InRegionLocator.FileIndex && MPCDIData[InRegionLocator.FileIndex].IsValid())
 		{
-			FMPCDIData& Dst = *MPCDIData[InRegionLocator.FileIndex];
-			FMPCDIRegion* DstRegion = Dst.GetRegion(InRegionLocator);
+			FMPCDIRegion* DstRegion = MPCDIData[InRegionLocator.FileIndex]->GetRegion(InRegionLocator);
 			if (DstRegion)
 			{
 				return DstRegion->SetStaticMeshWarp(MeshComponent, OriginComponent);
