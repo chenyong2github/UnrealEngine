@@ -154,7 +154,11 @@ namespace Chaos
 
 		check(Handle != nullptr);
 		Handles.Add(Handle);
+
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
+		check(!Manifolds.Contains(Handle->GetKey()));
 		Manifolds.Add(Handle->GetKey(), Handle);
+#endif
 
 		UpdateConstraintMaterialProperties(PointConstraints[Idx]);
 	}
@@ -168,7 +172,11 @@ namespace Chaos
 
 		check(Handle != nullptr);
 		Handles.Add(Handle);
+
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
+		check(!Manifolds.Contains(Handle->GetKey()));
 		Manifolds.Add(Handle->GetKey(), Handle);
+#endif
 
 		UpdateConstraintMaterialProperties(IterativeConstraints[Idx]);
 	}
@@ -186,8 +194,8 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
-
 		int32 LifespanWindow = LifespanCounter - 1;
 		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 		{
@@ -196,7 +204,15 @@ namespace Chaos
 				RemoveConstraint(ContactHandle);
 			}
 		}
-
+#else
+		for (FConstraintContainerHandle* Handle : Handles)
+		{
+			HandleAllocator.FreeHandle(Handle);
+		}
+		PointConstraints.Reset();
+		IterativeConstraints.Reset();
+		Handles.Reset();
+#endif
 
 		MAngularFriction = 0;
 		bUseCCD = false;
@@ -245,23 +261,27 @@ namespace Chaos
 
 		if (ConstraintType == FCollisionConstraintBase::FType::SinglePoint)
 		{
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 			if (Idx < PointConstraints.Num() - 1)
 			{
 				// update the handle
 				FConstraintContainerHandleKey Key = FPBDCollisionConstraintHandle::MakeKey(&PointConstraints.Last());
 				Manifolds[Key]->SetConstraintIndex(Idx, ConstraintType);
 			}
+#endif
 			PointConstraints.RemoveAtSwap(Idx);
 
 		}
 		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
 		{
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 			if (Idx < IterativeConstraints.Num() - 1)
 			{
 				// update the handle
 				FConstraintContainerHandleKey Key = FPBDCollisionConstraintHandle::MakeKey(&IterativeConstraints.Last());
 				Manifolds[Key]->SetConstraintIndex(Idx, ConstraintType);
 			}
+#endif
 			IterativeConstraints.RemoveAtSwap(Idx);
 		}
 		else 
@@ -272,7 +292,9 @@ namespace Chaos
 		// @todo(chaos): Collision Manifold
 		//   Add an index to the handle in the Manifold.Value 
 		//   to prevent the search in Handles when removed.
-		Manifolds.Remove(KeyToRemove);  
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
+		Manifolds.Remove(KeyToRemove);
+#endif
 		Handles.Remove(Handle);
 
 		ensure(Handles.Num() == PointConstraints.Num() + IterativeConstraints.Num());
@@ -287,16 +309,19 @@ namespace Chaos
 		// Clustering uses update constraints to force a re-evaluation. 
 	}
 
+	// Called once per frame to update persistent constraints (reruns collision detection, or selects the best manifold point)
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::UpdateConstraints(T Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdatePointConstraints);
 
+		// @todo(chaos): parallelism needs to be optional
+
 		//PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
 		//{
 		//	FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
 		//	check(ConstraintHandle != nullptr);
-		//	Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
+		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 
 		//	if (ConstraintHandle->GetContact().GetPhi() < MCullDistance) 
 		//	{
@@ -306,7 +331,7 @@ namespace Chaos
 
 		for (FPointContactConstraint& Contact : PointConstraints)
 		{
-			Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MCullDistance, Contact);
+			Collisions::Update(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
@@ -314,21 +339,24 @@ namespace Chaos
 		}
 	}
 
+	// Called once per tick to update/regenerate persistent manifold planes and points
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::UpdateManifolds(T Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateManifoldConstraints);
 
+		// @todo(chaos): parallelism needs to be optional
+
 		//PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
 		//{
 		//	FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
 		//	check(ConstraintHandle != nullptr);
-		//	Collisions::UpdateManifold<float, 3>(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
+		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
 		for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 		{
-			Collisions::UpdateManifold<float, 3>(MCullDistance, Contact);
+			Collisions::UpdateManifold(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;

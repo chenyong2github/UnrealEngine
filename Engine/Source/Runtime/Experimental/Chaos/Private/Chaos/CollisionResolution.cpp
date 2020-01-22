@@ -24,6 +24,13 @@ DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_Chaos
 
 //#pragma optimize("", off)
 
+bool Chaos_Collision_UseManifolds = true;
+FAutoConsoleVariableRef CVarChaosCollisionUseManifolds(TEXT("p.Chaos.Collision.UseManifolds"), Chaos_Collision_UseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
+
+bool Chaos_Collision_UseManifolds_Test = false;
+FAutoConsoleVariableRef CVarChaosCollisionUseManifoldsTest(TEXT("p.Chaos.Collision.UseManifoldsTest"), Chaos_Collision_UseManifolds_Test, TEXT("Enable/Disable use of manifoldes in collision."));
+
+
 namespace Chaos
 {
 	namespace Collisions
@@ -52,6 +59,53 @@ namespace Chaos
 				Manifold.Phi = NewContactPoint.Phi;
 			}
 		}
+
+		/**
+		 * Select the best manifold point as the new contact point and update the constraint data.
+		 */
+		template<class T, int d>
+		void UpdateConstraintFromManifold(TRigidBodyMultiPointContactConstraint<T, d>& Constraint, const TRigidTransform<T, d>& ParticleTransform0, const TRigidTransform<T, d>& ParticleTransform1, const T CullDistance)
+		{
+			// TEMP: Test code - run single-point algorithm instead. Allows us to debug draw the manifold without using it
+			if (Chaos_Collision_UseManifolds_Test)
+			{
+				TRigidBodyPointContactConstraint<T, d> PointConstraint(Constraint.Particle[0], Constraint.Manifold.Implicit[0], Constraint.ImplicitTransform[0], Constraint.Particle[1], Constraint.Manifold.Implicit[1], Constraint.ImplicitTransform[1], Constraint.Manifold.ShapesType);
+				UpdateConstraint<ECollisionUpdateType::Deepest>(PointConstraint, ParticleTransform0, ParticleTransform1, CullDistance);
+				Constraint.Manifold = PointConstraint.Manifold;
+				return;
+			}
+
+			// Get the plane and point transforms (depends which body owns the plane)
+			const FRigidTransform3 Transform0 = Constraint.ImplicitTransform[0] * ParticleTransform0;
+			const FRigidTransform3 Transform1 = Constraint.ImplicitTransform[1] * ParticleTransform1;
+			const FRigidTransform3& PlaneTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? Transform0 : Transform1;
+			const FRigidTransform3& PointsTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? Transform1 : Transform0;
+
+			// World-space manifold plane
+			FVec3 PlaneNormal = PlaneTransform.TransformVector(Constraint.GetManifoldPlaneNormal());
+			FVec3 PlanePos = PlaneTransform.TransformPosition(Constraint.GetManifoldPlanePosition());
+
+			// Select the best manifold point
+			const int32 NumPoints = Constraint.NumManifoldPoints();
+			for (int32 PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
+			{
+				// World-space manifold point and distance to manifold plane
+				FVec3 PointPos = PointsTransform.TransformPosition(Constraint.GetManifoldPoint(PointIndex));
+				FReal PointDistance = FVec3::DotProduct(PointPos - PlanePos, PlaneNormal);
+
+				// If this is the deepest hit, select it
+				if (PointDistance < Constraint.Manifold.Phi)
+				{
+					// @todo(chaos): Consider using average of plane and point positions for contact location
+					FVec3 ContactPos = PointPos - PointDistance * PlaneNormal;
+					FVec3 ContactNormal = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? -PlaneNormal : PlaneNormal;
+					Constraint.Manifold.Phi = PointDistance;
+					Constraint.Manifold.Location = ContactPos;
+					Constraint.Manifold.Normal = ContactNormal;
+				}
+			}
+		}
+
 
 		template <typename T, int d, typename GeometryA, typename GeometryB>
 		TContactPoint<T> GJKContactPoint(const GeometryA& A, const TRigidTransform<T, d>& ATM, const GeometryB& B, const TRigidTransform<T, d>& BTM, const TVector<T, 3>& InitialDir)
@@ -150,26 +204,22 @@ namespace Chaos
 			//
 			int32 FaceIndex = Constraint.Manifold.Implicit[0]->FindClosestFaceAndVertices(Transform0.InverseTransformPosition(ContactPoint.Location), CollisionSamples, 1.f);
 
-			if (!ContactPoint.Normal.Equals(Constraint.PlaneNormal) || !Constraint.NumSamples())
+			bool bNewManifold = (FaceIndex != Constraint.GetManifoldPlaneFaceIndex()) || (Constraint.NumManifoldPoints() == 0);
+			if (bNewManifold)
 			{
-				Constraint.PlaneNormal = Transform1.InverseTransformVector(ContactPoint.Normal);
-				Constraint.PlanePosition = Transform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
-			}
-
-
-			if (FaceIndex != Constraint.SourceNormalIndex || !Constraint.NumSamples())
-			{
-				Constraint.ResetSamples(CollisionSamples.Num());
-				Constraint.SourceNormalIndex = FaceIndex;
+				const FVec3 PlaneNormal = Transform1.InverseTransformVector(ContactPoint.Normal);
+				const FVec3 PlanePos = Transform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
+				Constraint.SetManifoldPlane(1, FaceIndex, PlaneNormal, PlanePos);
 
 				//
 				// @todo(chaos) : Collision Manifold
 				//   Only save the four best samples and hard-code the size of Constraint.Samples to [len:4].
 				//   Currently this just grabs all points and uses the deepest point for resolution. 
 				//
+				Constraint.ResetManifoldPoints(CollisionSamples.Num());
 				for (FVec3 Sample : CollisionSamples)
 				{
-					Constraint.AddSample({ Sample,0.f });
+					Constraint.AddManifoldPoint(Sample);
 				}
 			}
 		}
@@ -180,9 +230,9 @@ namespace Chaos
 			auto SumSampleData = [&](TRigidBodyMultiPointContactConstraint<T, d>& LambdaConstraint) -> TVector<float, 3>
 			{
 				TVector<float, 3> ReturnValue(0);
-				for (int i = 0; i < LambdaConstraint.NumSamples(); i++)
+				for (int i = 0; i < LambdaConstraint.NumManifoldPoints(); i++)
 				{
-					ReturnValue += LambdaConstraint[i].X;
+					ReturnValue += LambdaConstraint.GetManifoldPoint(i);
 				}
 				return ReturnValue;
 			};
@@ -190,21 +240,22 @@ namespace Chaos
 			// iterative manifolds for non TConvex implicit objects that require sampling 
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(*Constraint.Manifold.Implicit[0], Transform0, *Constraint.Manifold.Implicit[1], Transform1, CullDistance);
 
-			if (!ContactPoint.Normal.Equals(Constraint.PlaneNormal) || !Constraint.NumSamples())
+			if (!ContactPoint.Normal.Equals(Constraint.GetManifoldPlaneNormal()) || !Constraint.NumManifoldPoints())
 			{
-				Constraint.ResetSamples();
-				Constraint.PlaneNormal = Transform1.InverseTransformVector(ContactPoint.Normal);
-				Constraint.PlanePosition = Transform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
+				Constraint.ResetManifoldPoints();
+				FVec3 PlaneNormal = Transform1.InverseTransformVector(ContactPoint.Normal);
+				FVec3 PlanePosition = Transform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
+				Constraint.SetManifoldPlane(1, INDEX_NONE, PlaneNormal, PlanePosition);
 			}
 
 			TVector<T, d> SurfaceSample = Transform0.InverseTransformPosition(ContactPoint.Location);
-			if (Constraint.NumSamples() < 4)
+			if (Constraint.NumManifoldPoints() < 4)
 			{
-				Constraint.AddSample({ SurfaceSample,0.f });
+				Constraint.AddManifoldPoint(SurfaceSample);
 			}
-			else if (Constraint.NumSamples() == 4)
+			else if (Constraint.NumManifoldPoints() == 4)
 			{
-				TVector<T, d> Center = SumSampleData(Constraint) / Constraint.NumSamples();
+				TVector<T, d> Center = SumSampleData(Constraint) / Constraint.NumManifoldPoints();
 				T Delta = (Center - SurfaceSample).SizeSquared();
 
 				//
@@ -214,24 +265,25 @@ namespace Chaos
 				//
 				T SmallestDelta = FLT_MAX;
 				int32 SmallestIndex = 0;
-				for (int32 idx = 0; idx < Constraint.NumSamples(); idx++)
-					if (Constraint[idx].Delta < SmallestDelta) {
-						SmallestDelta = Constraint[idx].Delta;
+				for (int32 idx = 0; idx < Constraint.NumManifoldPoints(); idx++)
+				{
+					T IdxDelta = (Center - Constraint.GetManifoldPoint(idx)).SizeSquared();
+					if (IdxDelta < SmallestDelta)
+					{
+						SmallestDelta = IdxDelta;
 						SmallestIndex = idx;
 					}
+				}
 
-				if (Delta > SmallestDelta) {
-					Constraint[SmallestIndex] = { SurfaceSample,Delta };
+				if (Delta > SmallestDelta) 
+				{
+					Constraint.SetManifoldPoint(SmallestIndex, SurfaceSample);
 				}
 			}
 			else
 			{
 				ensure(false); // max of 4 points
 			}
-
-			typedef FRigidBodyMultiPointContactConstraint::FSampleData FSampleData;
-			TVector<T, d> Center = SumSampleData(Constraint) / Constraint.NumSamples();
-			for (int32 Index = 0; Index < Constraint.NumSamples(); Index++) { Constraint[Index].Delta = (Center - Constraint[Index].X).SizeSquared(); }
 		}
 
 		template <typename TPGeometryClass>
@@ -779,7 +831,6 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance, FCollisionConstraintsArray& NewConstraints)
 		{
-
 			const TCapsule<T> * Object0 = Implicit0->template GetObject<const TCapsule<T> >();
 			const TCapsule<T> * Object1 = Implicit1->template GetObject<const TCapsule<T> >();
 			if (ensure(Object0 && Object1))
@@ -809,11 +860,202 @@ namespace Chaos
 			UpdateContactPoint(Constraint.Manifold, CapsuleBoxContactPoint(A, ATransform, B, BTransform, InitialDir, CullDistance));
 		}
 
+		/**
+		 * Generate a Capsule-Box Manifold.
+		 *
+		 * This starts by finding the closest feature using GJK/EPA. Then it adds points to the manifold that depend on
+		 * the closest feature types on the box (face, edge, vertex) and capsule (edge, vertex).
+		 *
+		 * For box vertex collisions, only the single near point/plane is used in the manifold.
+		 * For box face collisions, the box owns the manifold plane, and the capsule edge nearest the box face is used to generate manifold points.
+		 * For box edge collision with the capsule edge, the capsule owns the manifold plane, and the capsule edge is projected onto the box plane to generate the manifold points.
+		 * For box edge with capsule vertex collisions, only the single near point/plane is used in the manifold.
+		 * 
+		 */
 		template<class T, int d>
-		void UpdateCapsuleBoxManifold(TCollisionConstraintBase<T, d>&  Constraint, const TRigidTransform<T, d>& ATM, const TRigidTransform<T, d>& BTM, const T CullDistance)
+		void UpdateCapsuleBoxManifold(const TCapsule<T>& Capsule, const TRigidTransform<T, d>& CapsuleTM, const TAABB<T, d>& Box, const TRigidTransform<T, d>& BoxTM, const T CullDistance, FRigidBodyMultiPointContactConstraint& Constraint)
 		{
-			// @todo(chaos) : Stub Update Manifold
-			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
+			Constraint.ResetManifoldPoints();
+
+			// Find the nearest points on the capsule and box
+			// Note: We flip the order for GJK so we get the normal in box space. This makes it easier to build the face-capsule manifold.
+			const TRigidTransform<T, d> CapsuleToBoxTM = CapsuleTM.GetRelativeTransform(BoxTM);
+
+			// NOTE: All GJK results in box-space
+			// @todo(ccaulfield): use center-to-center direction for InitialDir
+			FVec3 InitialDir = FVec3(1, 0, 0);
+			T Penetration;
+			FVec3 CapsuleClosestBoxSpace, BoxClosestBoxSpace, NormalBoxSpace;
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK);
+				if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, (T)0, InitialDir, (T)0)))
+				{
+					return;
+				}
+			}
+
+			// Cache the closest point so we don't need to re-iterate over the manifold on the first iteration
+			Constraint.Manifold.Location = BoxTM.TransformPosition(BoxClosestBoxSpace);
+			Constraint.Manifold.Normal = BoxTM.TransformVector(NormalBoxSpace);
+			Constraint.Manifold.Phi = -Penetration;
+
+			// Find the box feature that the near point is on
+			// Face, Edge, or Vertex can be determined from number of non-zero elements in the box-space normal.
+			const FReal ComponentEpsilon = 0.09f; // ~Sin(5deg) = angle tolerance
+			int32 NumNonZeroNormalComponents = 0;
+			int32 MaxComponentIndex = INDEX_NONE;
+			FReal MaxComponentValue = 0;
+			for (int32 ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+			{
+				FReal AbsComponentValue = FMath::Abs(NormalBoxSpace[ComponentIndex]);
+				if (AbsComponentValue > ComponentEpsilon)
+				{
+					++NumNonZeroNormalComponents;
+				}
+				if (AbsComponentValue > MaxComponentValue)
+				{
+					MaxComponentValue = AbsComponentValue;
+					MaxComponentIndex = ComponentIndex;
+				}
+			}
+
+			// Make sure we actually have a feature to use
+			if (!ensure(MaxComponentIndex != INDEX_NONE))
+			{
+				return;
+			}
+
+			FVec3 CapsuleAxis = CapsuleToBoxTM.TransformVector(Capsule.GetAxis()); // Box space capsule axis
+			FReal CapsuleAxisNormal = FVec3::DotProduct(CapsuleAxis, NormalBoxSpace);
+			const bool bIsBoxFaceContact = (NumNonZeroNormalComponents == 1);
+			const bool bIsBoxEdgeContact = (NumNonZeroNormalComponents == 2);
+			const bool bIsBoxVertexContact = (NumNonZeroNormalComponents == 3);
+			const bool bIsCapsuleEdgeContact = (CapsuleAxisNormal < ComponentEpsilon);
+			const bool bIsCapsuleVertexContact = !bIsCapsuleEdgeContact;
+
+			// We just use the nearest point for these combinations, with the box as the plane owner
+			if (bIsBoxVertexContact || (bIsBoxEdgeContact && bIsCapsuleVertexContact))
+			{
+				Constraint.SetManifoldPlane(1, INDEX_NONE, NormalBoxSpace, BoxClosestBoxSpace);
+				Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleClosestBoxSpace));
+				return;
+			}
+
+			// Get the radial direction from the capsule axis to the box face
+			FVec3 CapsuleRadiusDir = FVec3::CrossProduct(FVec3::CrossProduct(NormalBoxSpace, CapsuleAxis), CapsuleAxis);
+			if (!Utilities::NormalizeSafe(CapsuleRadiusDir))
+			{
+				// Capsule is perpendicular to the face, just leave the one-point manifold
+				Constraint.SetManifoldPlane(1, INDEX_NONE, NormalBoxSpace, BoxClosestBoxSpace);
+				Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleClosestBoxSpace));
+				return;
+			}
+
+			// This is the axis of the box face we will be using below
+			int32 FaceAxisIndex = MaxComponentIndex;
+
+			// If this is a box face contact, the box is the manifold plane owner, regardless of the capsule feature involved. 
+			// We take the edge of the capsule nearest the face, clip it to the face, and use the clipped points as the manifold points.
+			// NOTE: The plane normal is not exactly the face normal, so this is not strictly the correct manifold. In particular
+			// it will over-limit the rotation for this frame. We could fix this by reverse-projecting the edge points based on the angle...
+			if (bIsBoxFaceContact)
+			{
+				// Initialize the manifold with the nearest plane and nearest point
+				Constraint.SetManifoldPlane(1, INDEX_NONE, NormalBoxSpace, BoxClosestBoxSpace);
+				Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleClosestBoxSpace));
+
+				// Calculate the capsule edge nearest the face
+				FVec3 CapsuleVert0 = CapsuleToBoxTM.TransformPosition(Capsule.GetX1()) + Capsule.GetMargin() * CapsuleRadiusDir;
+				FVec3 CapsuleVert1 = CapsuleToBoxTM.TransformPosition(Capsule.GetX2()) + Capsule.GetMargin() * CapsuleRadiusDir;
+
+				// Clip the capsule edge to the axis-aligned box face
+				for (int32 ClipAxisIndex = 0; ClipAxisIndex < 3; ++ClipAxisIndex)
+				{
+					if (ClipAxisIndex != FaceAxisIndex)
+					{
+						bool bAcceptedPos = Utilities::ClipLineSegmentToAxisAlignedPlane(CapsuleVert0, CapsuleVert1, ClipAxisIndex, 1.0f, Box.Max()[ClipAxisIndex]);
+						bool bAcceptedNeg = Utilities::ClipLineSegmentToAxisAlignedPlane(CapsuleVert0, CapsuleVert1, ClipAxisIndex, -1.0f, Box.Min()[ClipAxisIndex]);
+						if (!bAcceptedPos || !bAcceptedNeg)
+						{
+							// Capsule edge is outside a face - stick with the single point we have
+							return;
+						}
+					}
+				}
+
+				// Add the clipped points to the manifold if they are not too close to each other, or the near point calculated above.
+				// Note: verts are in box space - need to be in capsule space
+				// @todo(ccaulfield): manifold point distance tolerance should be a per-solver or per object setting
+				const FReal DistanceToleranceSq = (0.1f * Capsule.GetHeight()) * (0.1f * Capsule.GetHeight());
+				bool bUserVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				bool bUseVert1 = ((CapsuleVert1 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				if (bUserVert0)
+				{ 
+					Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleVert0));
+				}
+				if (bUseVert1)
+				{
+					Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleVert1));
+				}
+
+				return;
+			}
+
+			// If the box edge and the capsule edge are the closest features, we treat the capsule as the
+			// plane owner. Then select the most-parallel box face as the source of manifold points. The
+			// manifold points are found by projecting the capsule verts onto the face and clipping to it.
+			// We have a capsule edge if the normal is perpendicular to the capsule axis
+			if (bIsBoxEdgeContact && bIsCapsuleEdgeContact)
+			{
+				// Initialize the manifold with the plane and point on the capsule (move to capsule space)
+				FVec3 NormalCapsuleSpace = CapsuleToBoxTM.InverseTransformVector(NormalBoxSpace);
+				FVec3 CapsuleClosestCapsuleSpace = CapsuleToBoxTM.InverseTransformPosition(CapsuleClosestBoxSpace);
+				Constraint.SetManifoldPlane(0, INDEX_NONE, -NormalCapsuleSpace, CapsuleClosestCapsuleSpace);
+				Constraint.AddManifoldPoint(BoxClosestBoxSpace);
+
+				// Project the capsule edge onto the box face
+				FReal FaceAxisSign = FMath::Sign(NormalBoxSpace[FaceAxisIndex]);
+				FReal FacePos = (FaceAxisSign >= 0.0f)? Box.Max()[FaceAxisIndex] : Box.Min()[FaceAxisIndex];
+				FVec3 CapsuleVert0 = CapsuleToBoxTM.TransformPosition(Capsule.GetX1());
+				FVec3 CapsuleVert1 = CapsuleToBoxTM.TransformPosition(Capsule.GetX2());
+				Utilities::ProjectPointOntoAxisAlignedPlane(CapsuleVert0, CapsuleRadiusDir, FaceAxisIndex, FaceAxisSign, FacePos);
+				Utilities::ProjectPointOntoAxisAlignedPlane(CapsuleVert1, CapsuleRadiusDir, FaceAxisIndex, FaceAxisSign, FacePos);
+
+				// Clip the capsule edge to the axis-aligned box face
+				for (int32 ClipAxisIndex = 0; ClipAxisIndex < 3; ++ClipAxisIndex)
+				{
+					if (ClipAxisIndex != FaceAxisIndex)
+					{
+						bool bAcceptedPos = Utilities::ClipLineSegmentToAxisAlignedPlane(CapsuleVert0, CapsuleVert1, ClipAxisIndex, 1.0f, Box.Max()[ClipAxisIndex]);
+						bool bAcceptedNeg = Utilities::ClipLineSegmentToAxisAlignedPlane(CapsuleVert0, CapsuleVert1, ClipAxisIndex, -1.0f, Box.Min()[ClipAxisIndex]);
+						if (!bAcceptedPos || !bAcceptedNeg)
+						{
+							// Capsule edge is outside a face - stick with the single point we have
+							return;
+						}
+					}
+				}
+
+				// Add the clipped points to the manifold if they are not too close to each other, or the near point calculated above.
+				// Note: verts are in box space - need to be in capsule space
+				// @todo(ccaulfield): manifold point distance tolerance should be a per-solver or per object setting
+				const FReal DistanceToleranceSq = (0.1f * Capsule.GetHeight()) * (0.1f * Capsule.GetHeight());
+				bool bUserVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - BoxClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				bool bUseVert1 = ((CapsuleVert1 - BoxClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				if (bUserVert0)
+				{
+					Constraint.AddManifoldPoint(CapsuleVert0);
+				}
+				if (bUseVert1)
+				{
+					Constraint.AddManifoldPoint(CapsuleVert1);
+				}
+
+				return;
+			}
+
+			// All feature combinations should be covered above
+			ensure(false);
 		}
 
 		template<typename T, int d>
@@ -834,9 +1076,19 @@ namespace Chaos
 				{
 					TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 					TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM, EContactShapesType::CapsuleBox);
-					UpdateCapsuleBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+
+					if (Chaos_Collision_UseManifolds)
+					{ 
+						FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM, EContactShapesType::CapsuleBox);
+						UpdateCapsuleBoxManifold(*Object0, Transform0, Object1->BoundingBox(), Transform1, CullDistance, Constraint);
+						NewConstraints.TryAdd(CullDistance, Constraint);
+					}
+					else
+					{
+						FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM, EContactShapesType::CapsuleBox);
+						UpdateCapsuleBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, CullDistance, Constraint);
+						NewConstraints.TryAdd(CullDistance, Constraint);
+					}
 				}
 			}
 		}
@@ -939,21 +1191,21 @@ namespace Chaos
 
 				const TRigidTransform<T, d> AToBTM = Transform0.GetRelativeTransform(Transform1);
 
-				TPlane<T, d> CollisionPlane(Constraint.PlanePosition, Constraint.PlaneNormal);
+				TPlane<T, d> CollisionPlane(Constraint.GetManifoldPlanePosition(), Constraint.GetManifoldPlaneNormal());
 
 				// re-sample the constraint based on the distance from the collision plane.
-				for (int32 Idx = 0; Idx < Constraint.NumSamples(); Idx++)
+				for (int32 Idx = 0; Idx < Constraint.NumManifoldPoints(); Idx++)
 				{
-					Constraint[Idx].Manifold.Phi = CollisionPlane.PhiWithNormal(AToBTM.TransformPosition(Constraint[Idx].X), Constraint[Idx].Manifold.Normal);
-					Constraint[Idx].Manifold.Normal = Transform1.TransformVector(Constraint.PlaneNormal);
-					Constraint[Idx].Manifold.Location = Transform0.TransformPosition(Constraint[Idx].X);
+					FVec3 Location = Constraint.GetManifoldPoint(Idx);
+					FVec3 Normal;
+					FReal Phi = CollisionPlane.PhiWithNormal(AToBTM.TransformPosition(Location), Normal);
 
 					// save the best point for collision processing	
-					if (ContactPoint.Phi > Constraint[Idx].Manifold.Phi)
+					if (ContactPoint.Phi > Phi)
 					{
-						ContactPoint.Phi = Constraint[Idx].Manifold.Phi;
-						ContactPoint.Normal = Constraint[Idx].Manifold.Normal;
-						ContactPoint.Location = Constraint[Idx].Manifold.Location;
+						ContactPoint.Phi = Phi;
+						ContactPoint.Normal = Transform1.TransformVector(Constraint.GetManifoldPlaneNormal());
+						ContactPoint.Location = Transform0.TransformPosition(Location);
 					}
 				}
 			}
@@ -1170,6 +1422,12 @@ namespace Chaos
 		template<typename T, int d>
 		void UpdateManifold(TCollisionConstraintBase<T, d>& ConstraintBase, const TRigidTransform<T, d>& ATM, const TRigidTransform<T, d>& BTM, const T CullDistance)
 		{
+			if (ConstraintBase.GetType() != TCollisionConstraintBase<T, d>::FType::MultiPoint)
+			{
+				return;
+			}
+			TRigidBodyMultiPointContactConstraint<T, d>& Constraint = *ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>();
+
 			const FImplicitObject& Implicit0 = *ConstraintBase.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *ConstraintBase.Manifold.Implicit[1];
 
@@ -1214,7 +1472,8 @@ namespace Chaos
 			//    the blocks with the ensure(false), they are just for validation 
 			//    after the recent change. 
 			//
-
+			// @todo(chaos): use constraint ShapesType to index manifold update function
+			//
 			EImplicitObjectType Implicit0Type = GetInnerType(Implicit0.GetType());
 			EImplicitObjectType Implicit1Type = GetInnerType(Implicit1.GetType()); 
 			
@@ -1256,7 +1515,7 @@ namespace Chaos
 			}
 			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
 			{
-				UpdateCapsuleBoxManifold(ConstraintBase, Transform0, Transform1, CullDistance);
+				UpdateCapsuleBoxManifold<T, d>(*Constraint.Manifold.Implicit[0]->template GetObject<const TCapsule<T>>(), Transform0, Constraint.Manifold.Implicit[1]->template GetObject<const TBox<T, d>>()->GetAABB(), Transform1, CullDistance, Constraint);
 			}
 			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == THeightField<T>::StaticType())
 			{
@@ -1348,7 +1607,7 @@ namespace Chaos
 		}
 
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void UpdateConstraintAny(TCollisionConstraintBase<T, d>& ConstraintBase, const FImplicitObject& Implicit0, const FImplicitObject& Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance)
+		void UpdateAnyConstraint(TCollisionConstraintBase<T, d>& ConstraintBase, const FImplicitObject& Implicit0, const FImplicitObject& Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance)
 		{
 #if !UE_BUILD_SHIPPING
 			EImplicitObjectType Implicit0OuterType = Implicit0.GetType();
@@ -1603,26 +1862,37 @@ namespace Chaos
 		template<ECollisionUpdateType UpdateType, typename T, int d>
 		void UpdateConstraint(TCollisionConstraintBase<T, d>& ConstraintBase, const TRigidTransform<T, d>& ParticleTransform0, const TRigidTransform<T, d>& ParticleTransform1, const T CullDistance)
 		{
-			const FImplicitObject& Implicit0 = *ConstraintBase.Manifold.Implicit[0];
-			const FImplicitObject& Implicit1 = *ConstraintBase.Manifold.Implicit[1];
-
-			const TRigidTransform<T, d>& Transform0 = ConstraintBase.ImplicitTransform[0] * ParticleTransform0;
-			const TRigidTransform<T, d>& Transform1 = ConstraintBase.ImplicitTransform[1] * ParticleTransform1;
-
-			switch (ConstraintBase.Manifold.ShapesType)
+			if (ConstraintBase.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
 			{
-			case EContactShapesType::CapsuleCapsule:
-				UpdateCapsuleCapsuleConstraint(*Implicit0.template GetObject<TCapsule<T>>(), Transform0, *Implicit1.template GetObject<TCapsule<T>>(), Transform1, CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
-				break;
-			case EContactShapesType::CapsuleBox:
-				UpdateCapsuleBoxConstraint(*Implicit0.template GetObject<TCapsule<T>>(), Transform0, Implicit1.template GetObject<TBox<T, d>>()->GetAABB(), Transform1, CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
-				break;
-			case EContactShapesType::BoxBox:
-				UpdateBoxBoxConstraint(Implicit0.template GetObject<TBox<T, d>>()->GetAABB(), Transform0, Implicit1.template GetObject<TBox<T, d>>()->GetAABB(), Transform1, CullDistance, *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>());
-				break;
-			default:
-				UpdateConstraintAny<UpdateType, T, d>(ConstraintBase, Implicit0, Implicit1, Transform0, Transform1, CullDistance);
-				break;
+				// Select the best point from the available manifold points as the current contact
+				TRigidBodyMultiPointContactConstraint<T, d>& MultiPointConstraint = *ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>();
+				UpdateConstraintFromManifold(MultiPointConstraint, ParticleTransform0, ParticleTransform1, CullDistance);
+			}
+			else if (ConstraintBase.GetType() == TCollisionConstraintBase<T, d>::FType::SinglePoint)
+			{
+				const FImplicitObject& Implicit0 = *ConstraintBase.Manifold.Implicit[0];
+				const FImplicitObject& Implicit1 = *ConstraintBase.Manifold.Implicit[1];
+				const TRigidTransform<T, d> Transform0 = ConstraintBase.ImplicitTransform[0] * ParticleTransform0;
+				const TRigidTransform<T, d> Transform1 = ConstraintBase.ImplicitTransform[1] * ParticleTransform1;
+
+				// Re-run collision detection to generate a new contact
+				// @todo(chaos): all constraints should have a ShapesType set in ConstructConstraints. Then we can use a function table for all.
+				TRigidBodyPointContactConstraint<T, d>& PointConstraint = *ConstraintBase.template As<TRigidBodyPointContactConstraint<T, d>>();
+				switch (ConstraintBase.Manifold.ShapesType)
+				{
+				case EContactShapesType::CapsuleCapsule:
+					UpdateCapsuleCapsuleConstraint(*Implicit0.template GetObject<TCapsule<T>>(), Transform0, *Implicit1.template GetObject<TCapsule<T>>(), Transform1, CullDistance, PointConstraint);
+					break;
+				case EContactShapesType::CapsuleBox:
+					UpdateCapsuleBoxConstraint(*Implicit0.template GetObject<TCapsule<T>>(), Transform0, Implicit1.template GetObject<TBox<T, d>>()->GetAABB(), Transform1, CullDistance, PointConstraint);
+					break;
+				case EContactShapesType::BoxBox:
+					UpdateBoxBoxConstraint(Implicit0.template GetObject<TBox<T, d>>()->GetAABB(), Transform0, Implicit1.template GetObject<TBox<T, d>>()->GetAABB(), Transform1, CullDistance, PointConstraint);
+					break;
+				default:
+					UpdateAnyConstraint<UpdateType, T, d>(ConstraintBase, Implicit0, Implicit1, Transform0, Transform1, CullDistance);
+					break;
+				}
 			}
 		}
 
@@ -1702,7 +1972,6 @@ namespace Chaos
 				ConstructConstraints(Particle0, Particle1, Implicit0, TransformedImplicit1->GetTransformedObject(), Transform0, TransformedTransform1, CullDistance, NewConstraints);
 				return;
 			}
-
 
 			else if (Implicit0OuterType == TImplicitObjectInstanced<FConvex>::StaticType())
 			{
@@ -1966,7 +2235,7 @@ namespace Chaos
 		template void ConstructCapsuleCapsuleConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance, FCollisionConstraintsArray& NewConstraints);
 
 		template void UpdateCapsuleBoxConstraint<float, 3>(const TCapsule<float>& A, const TRigidTransform<float, 3>& ATransform, const TAABB<float, 3>& B, const TRigidTransform<float, 3>& BTransform, const float CullDistance, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-		template void UpdateCapsuleBoxManifold<float, 3>(TCollisionConstraintBase<float, 3>&  Constraint, const TRigidTransform<float, 3>& ATM, const TRigidTransform<float, 3>& BTM, const float CullDistance);
+		template void UpdateCapsuleBoxManifold<float, 3>(const TCapsule<float>& Capsule, const TRigidTransform<float, 3>& CapsuleTM, const TAABB<float, 3>& Box, const TRigidTransform<float, 3>& BoxTM, const float CullDistance, FRigidBodyMultiPointContactConstraint& Constraint);
 		template void ConstructCapsuleBoxConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance, FCollisionConstraintsArray& NewConstraints);
 
 		template void UpdateCapsuleHeightFieldConstraint<float, 3>(const TCapsule<float>& A, const TRigidTransform<float, 3>& ATransform, const THeightField<float>& B, const TRigidTransform<float, 3>& BTransform, const float CullDistance, TRigidBodyPointContactConstraint<float, 3>& Constraint);
@@ -1993,6 +2262,7 @@ namespace Chaos
 		template void UpdateManifold<float, 3>(TCollisionConstraintBase<float, 3>& ConstraintBase, const TRigidTransform<float, 3>& ATM, const TRigidTransform<float, 3>& BTM, const float CullDistance);
 		template void UpdateConstraint<ECollisionUpdateType::Any, float, 3>(TCollisionConstraintBase<float, 3>& ConstraintBase, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance);
 		template void UpdateConstraint<ECollisionUpdateType::Deepest, float, 3>(TCollisionConstraintBase<float, 3>& ConstraintBase, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance);
+		template void UpdateConstraintFromManifold(TRigidBodyMultiPointContactConstraint<float, 3>& Constraint, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance);
 		template void ConstructConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float CullDistance, FCollisionConstraintsArray& NewConstraints);
 
 	} // Collisions

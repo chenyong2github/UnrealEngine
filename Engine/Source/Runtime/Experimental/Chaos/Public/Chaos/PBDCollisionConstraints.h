@@ -12,6 +12,9 @@
 #include "BoundingVolume.h"
 #include "AABBTree.h"
 
+// @todo(chaos): optimize and re-enable persistent constraints if we want it
+#define CHAOS_COLLISION_PERSISTENCE_ENABLED 0
+
 namespace Chaos
 {
 template<typename T, int d>
@@ -175,7 +178,11 @@ public:
 
 	bool Contains(const FConstraintBase* Base) const 
 	{
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 		return Manifolds.Contains(FConstraintContainerHandle::MakeKey(Base));
+#else
+		return false;
+#endif
 	}
 
 	// @todo(chaos): remove
@@ -252,7 +259,9 @@ private:
 	TArray<FPointContactConstraint> PointConstraints;
 	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
+#endif
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 
