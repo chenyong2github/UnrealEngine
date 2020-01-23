@@ -26,7 +26,7 @@ PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "PackageTools.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 #include "ObjectTools.h"
 
 #include "Engine/StaticMesh.h"
@@ -1364,7 +1364,7 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 		MeshDescription->CreatePolygon(PolygonGroupID, CornerVertexInstanceIDs);
 	}
 	//Set the edge hardness from the smooth group
-	FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(Sample->SmoothingGroupIndices, *MeshDescription);
+	FStaticMeshOperations::ConvertSmoothGroupToHardEdges(Sample->SmoothingGroupIndices, *MeshDescription);
 }
 
 void FAbcImporter::GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset)

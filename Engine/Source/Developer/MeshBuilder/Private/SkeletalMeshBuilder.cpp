@@ -7,7 +7,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshAttributes.h"
 #include "MeshDescriptionHelper.h"
 #include "MeshBuild.h"

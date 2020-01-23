@@ -4,22 +4,17 @@
 #include "ContourList.h"
 #include "Data.h"
 #include "Part.h"
-#include "Intersection.h"
 #include "GlyphLoader.h"
 
 #include "Math/UnrealMathUtility.h"
 
-
-FContourList::FContourList(const FT_GlyphSlot Glyph, const TSharedPtr<FData> DataIn)
-	: Data(DataIn)
+FContourList::FContourList()
 {
-	FGlyphLoader().Load(Glyph, Data, this);
-	Init();
 }
 
 FContour& FContourList::Add()
 {
-	AddTail(FContour(Data));
+	AddTail(FContour());
 	return GetTail()->GetValue();
 }
 
@@ -40,21 +35,61 @@ void FContourList::Reset()
 {
 	for (FContour& Contour : *this)
 	{
-		for (FPart* const Part : Contour)
+		for (const FPartPtr Part : Contour)
 		{
 			Part->ResetDoneExpand();
 			Part->ResetInitialPosition();
 		}
-
-		Contour.ResetContour();
 	}
 }
 
-void FContourList::Init()
+void FContourList::Initialize()
 {
 	for (FContour& Contour : *this)
 	{
-		for (FPart* const Point : Contour)
+		const FPartPtr First = Contour[0];
+		for (FPartPtr Point = First; ; Point = Point->Next)
+		{
+			if (!Point->bSmooth && Point->TangentsDotProduct() > 0.f)
+			{
+				const FPartPtr Curr = Point;
+				const FPartPtr Prev = Point->Prev;
+
+				const float TangentsCrossProduct = FVector2D::CrossProduct(-Prev->TangentX, Curr->TangentX);
+				const float MinTangentsCrossProduct = 0.9f;
+
+				if (FMath::Abs(TangentsCrossProduct) < MinTangentsCrossProduct)
+				{
+					const float OffsetDefault = 0.01f;
+					const float Offset = FMath::Min3(Prev->Length() / 2.f, Curr->Length() / 2.f, OffsetDefault);
+
+					const FPartPtr Added = MakeShared<FPart>();
+					Contour.Add(Added);
+
+					Prev->Next = Added;
+					Added->Prev = Prev;
+					Added->Next = Curr;
+					Curr->Prev = Added;
+
+					const FVector2D CornerPosition = Curr->Position;
+
+					Curr->Position = CornerPosition + Curr->TangentX * Offset;
+					Added->Position = CornerPosition - Prev->TangentX * Offset;
+
+					Added->ComputeTangentX();
+
+					Added->ComputeNormal();
+					Curr->ComputeNormal();
+				}
+			}
+
+			if (Point == First->Prev)
+			{
+				break;
+			}
+		}
+
+		for (const FPartPtr Point : Contour)
 		{
 			if (!Point->bSmooth)
 			{
@@ -62,19 +97,6 @@ void FContourList::Init()
 			}
 
 			Point->ResetInitialPosition();
-		}
-
-		for (FPart* const Point : Contour)
-		{
-			Contour.ComputeAvailableExpandNear(Point);
-		}
-
-		if (Contour.Num() > FIntersection::MinContourSizeForIntersectionFar)
-		{
-			for (FPart* const Point : Contour)
-			{
-				Contour.ComputeAvailableExpandsFarFrom(Point);
-			}
 		}
 	}
 }

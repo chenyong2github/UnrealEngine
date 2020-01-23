@@ -347,9 +347,10 @@ private:
 	int32 CalcBlockSize(int32 BlockIndex) const;
 	int32 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
 
-	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
-	void UseHashAsGuid();
 public:
+	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
+	ENGINE_API void UseHashAsGuid();
+
 	void ReleaseSourceMemory(); // release the memory from the mips (does almost the same as remove source data except doesn't rebuild the guid)
 	FORCEINLINE bool HasHadBulkDataCleared() const { return bHasHadBulkDataCleared; }
 private:
@@ -393,7 +394,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bPNGCompressed;
 
-	/** Legacy textures use a hash instead of a GUID. */
+	/** Uses hash instead of guid to identify content to improve DDC cache hit. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bGuidIsHash;
 

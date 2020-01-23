@@ -49,6 +49,11 @@ void FWindowsPlatformProcess::AddDllDirectory(const TCHAR* Directory)
 	DllDirectories.AddUnique(NormalizedDirectory);
 }
 
+void FWindowsPlatformProcess::GetDllDirectories(TArray<FString>& OutDllDirectories)
+{
+	OutDllDirectories = DllDirectories;
+}
+
 void* FWindowsPlatformProcess::GetDllHandle( const TCHAR* FileName )
 {
 	check(FileName);
@@ -1917,6 +1922,73 @@ FString FWindowsPlatformProcess::FProcEnumInfo::GetName() const
 FString FWindowsPlatformProcess::FProcEnumInfo::GetFullPath() const
 {
 	return GetApplicationName(GetPID());
+}
+
+namespace WindowsPlatformProcessImpl
+{
+	static void SetThreadName(LPCSTR ThreadName)
+	{
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		/**
+		 * Code setting the thread name for use in the debugger.
+		 *
+		 * http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
+		 */
+		const uint32 MS_VC_EXCEPTION=0x406D1388;
+
+		struct THREADNAME_INFO
+		{
+			uint32 dwType;		// Must be 0x1000.
+			LPCSTR szName;		// Pointer to name (in user addr space).
+			uint32 dwThreadID;	// Thread ID (-1=caller thread).
+			uint32 dwFlags;		// Reserved for future use, must be zero.
+		};
+
+		THREADNAME_INFO ThreadNameInfo;
+		ThreadNameInfo.dwType		= 0x1000;
+		ThreadNameInfo.szName		= ThreadName;
+		ThreadNameInfo.dwThreadID	= ::GetCurrentThreadId();
+		ThreadNameInfo.dwFlags		= 0;
+
+		__try
+		{
+			RaiseException( MS_VC_EXCEPTION, 0, sizeof(ThreadNameInfo)/sizeof(ULONG_PTR), (ULONG_PTR*)&ThreadNameInfo );
+		}
+		__except( EXCEPTION_EXECUTE_HANDLER )
+		CA_SUPPRESS(6322)
+		{
+		}
+#endif
+	}
+
+	static void SetThreadDescription(PCWSTR lpThreadDescription)
+	{
+		// SetThreadDescription is only available from Windows 10 version 1607 / Windows Server 2016
+		//
+		// So in order to be compatible with older Windows versions we probe for the API at runtime
+		// and call it only if available.
+
+		typedef HRESULT(WINAPI *SetThreadDescriptionFnPtr)(HANDLE hThread, PCWSTR lpThreadDescription);
+
+	#pragma warning( push )
+	#pragma warning( disable: 4191 )	// unsafe conversion from 'type of expression' to 'type required'
+		static SetThreadDescriptionFnPtr RealSetThreadDescription = (SetThreadDescriptionFnPtr) GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "SetThreadDescription");
+	#pragma warning( pop )
+
+		if (RealSetThreadDescription)
+		{
+			RealSetThreadDescription(::GetCurrentThread(), lpThreadDescription);
+		}
+	}
+}
+
+void FWindowsPlatformProcess::SetThreadName( const TCHAR* ThreadName )
+{
+	// We try to use the SetThreadDescription API where possible since this
+	// enables thread names in crashdumps and ETW traces
+	WindowsPlatformProcessImpl::SetThreadDescription(TCHAR_TO_WCHAR(ThreadName));
+
+	WindowsPlatformProcessImpl::SetThreadName(TCHAR_TO_ANSI(ThreadName));
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"

@@ -124,34 +124,14 @@ TArray< TWeakObjectPtr< UObject > > UDataprepAssetProducers::Produce( const FDat
 
 UDataprepContentProducer* UDataprepAssetProducers::AddProducer(UClass* ProducerClass)
 {
-	if( ProducerClass && ProducerClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
-	{
-		Modify();
+	constexpr bool bIsAutomated = false;
+	return AddProducer_Internal( ProducerClass, bIsAutomated );
+}
 
-		UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( this, ProducerClass, NAME_None, RF_Transactional );
-		FAssetRegistryModule::AssetCreated( Producer );
-
-		Producer->GetOnChanged().AddUObject(this, &UDataprepAssetProducers::OnProducerChanged);
-
-		Producer->MarkPackageDirty();
-
-		int32 ProducerNextIndex = AssetProducers.Num();
-		AssetProducers.Emplace( Producer, true );
-
-		bool bChangeAll = false;
-		ValidateProducerChanges( ProducerNextIndex, bChangeAll );
-
-		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
-
-		if(bChangeAll)
-		{
-			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
-		}
-
-		return Producer;
-	}
-
-	return nullptr;
+UDataprepContentProducer* UDataprepAssetProducers::AddProducerAutomated(UClass* ProducerClass)
+{
+	constexpr bool bIsAutomated = true;
+	return AddProducer_Internal( ProducerClass, bIsAutomated );
 }
 
 UDataprepContentProducer* UDataprepAssetProducers::CopyProducer(const UDataprepContentProducer* InProducer)
@@ -160,7 +140,6 @@ UDataprepContentProducer* UDataprepAssetProducers::CopyProducer(const UDataprepC
 	{
 		UDataprepContentProducer* Producer = DuplicateObject<UDataprepContentProducer>( InProducer, this );
 		Producer->SetFlags( RF_Transactional );
-		FAssetRegistryModule::AssetCreated( Producer );
 
 		Producer->GetOnChanged().AddUObject(this, &UDataprepAssetProducers::OnProducerChanged);
 
@@ -281,6 +260,13 @@ bool UDataprepAssetProducers::RemoveProducer(int32 IndexToRemove)
 		return true;
 	}
 
+	UE_LOG( LogDataprepCore
+		, Error
+		, TEXT("The producer to remove is out of bound. (Passed index: %d, Number of producer: %d, DataprepAssetProducers: %s)")
+		, IndexToRemove
+		, AssetProducers.Num()
+		, *GetPathName()
+		);
 	return false;
 }
 
@@ -334,6 +320,23 @@ bool UDataprepAssetProducers::EnableAllProducers(bool bValue)
 	}
 
 	return false;
+}
+
+const UDataprepContentProducer* UDataprepAssetProducers::GetProducer(int32 Index) const
+{
+	if ( AssetProducers.IsValidIndex( Index ) )
+	{
+		return AssetProducers[Index].Producer;
+	}
+
+	UE_LOG(LogDataprepCore
+		, Error
+		, TEXT("The producer to retrive is out of bound. (Passed index: %d, Number of producer: %d, DataprepAssetProducers: %s)")
+		, Index
+		, AssetProducers.Num()
+		, *GetPathName()
+	);
+	return nullptr;
 }
 
 void UDataprepAssetProducers::OnProducerChanged( const UDataprepContentProducer* InProducer )
@@ -423,6 +426,42 @@ void UDataprepAssetProducers::ValidateProducerChanges( int32 InIndex, bool &bCha
 			}
 		}
 	}
+}
+
+UDataprepContentProducer* UDataprepAssetProducers::AddProducer_Internal(UClass* ProducerClass, bool bIsAutomated)
+{
+	if( ProducerClass && ProducerClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
+	{
+		Modify();
+
+		UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( this, ProducerClass, NAME_None, RF_Transactional );
+		
+		if ( Producer->CanAddToProducersArray( bIsAutomated ) )
+		{
+			Producer->GetOnChanged().AddUObject(this, &UDataprepAssetProducers::OnProducerChanged);
+
+			int32 ProducerNextIndex = AssetProducers.Num();
+			AssetProducers.Emplace( Producer, true );
+
+			bool bChangeAll = false;
+			ValidateProducerChanges( ProducerNextIndex, bChangeAll );
+
+			OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+			if(bChangeAll)
+			{
+				OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+			}
+
+			return Producer;
+		}
+		else
+		{
+			Producer->MarkPendingKill();
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -86,6 +86,9 @@ FDatasmithTextureImporter::FDatasmithTextureImporter(FDatasmithImportContext& In
 {
 	TextureFact->SuppressImportOverwriteDialog();
 
+	// Avoid recomputing DDC when importing the same texture more than once
+	TextureFact->bUseHashAsGuid = true;
+
 	TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithTextureImport"));
 	IFileManager::Get().MakeDirectory(*TempDir);
 }

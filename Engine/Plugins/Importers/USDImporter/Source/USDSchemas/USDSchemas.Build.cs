@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"MaterialEditor",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MeshUtilities",
 					"MessageLog",
 					"PropertyEditor",

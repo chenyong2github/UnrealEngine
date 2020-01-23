@@ -35,9 +35,12 @@ public:
 	virtual FText GetFilterCategoryText() const override;
 	virtual TSubclassOf<UDataprepFetcher> GetAcceptedFetcherClass() const override;
 	virtual void SetFetcher(const TSubclassOf<UDataprepFetcher>& FetcherClass) override;
-	virtual UDataprepFetcher* GetFetcher() const override;
+
+private:
+	virtual const UDataprepFetcher* GetFetcherImplementation() const override;
 	//~ Begin UDataprepFilter Interface
 
+public:
 	EDataprepStringMatchType GetStringMatchingCriteria() const;
 	FString GetUserString() const;
 
@@ -45,11 +48,11 @@ public:
 	void SetUserString(FString UserString);
 
 private:
-	// The criteria selected by the user
+	// The matching criteria used when checking if a fetched value can pass the filter
 	UPROPERTY(EditAnywhere, Category = Filter)
 	EDataprepStringMatchType StringMatchingCriteria;
 
-	// The string entered by the user
+	// The string used when doing the comparison
 	UPROPERTY(EditAnywhere, Category = Filter)
 	FString UserString;
 

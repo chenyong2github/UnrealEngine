@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
 #include "DatasmithMaxExporterDefines.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -23,3 +24,9 @@ public:
 private:
 	bool bNeedsDelete = false;
 };
+
+
+namespace DatasmithMaxHelper
+{
+	void FilterInvertedScaleTransforms(const TArray<FTransform>& Transforms, TArray<FTransform>& OutNormal, TArray<FTransform>& OutInverted);
+}

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "DynamicMeshBuilder.h"
 
-
 struct FText3DDynamicData
 {
 	FText3DDynamicData()
@@ -28,7 +27,7 @@ struct FText3DMesh : public FText3DDynamicData
 	bool IsEmpty() const;
 };
 
-enum class EText3DMeshType : uint32
+enum class EText3DGroupType : uint8
 {
 	Front = 0,
 	Bevel = 1,
@@ -38,4 +37,4 @@ enum class EText3DMeshType : uint32
 	TypeCount = 4
 };
 
-using TText3DMeshList = TArray<FText3DMesh, TFixedAllocator<static_cast<int32>(EText3DMeshType::TypeCount)>>;
+using TText3DMeshList = TArray<FText3DMesh, TFixedAllocator<static_cast<int32>(EText3DGroupType::TypeCount)>>;

@@ -15,6 +15,32 @@ public:
 
 	static FName GetStyleSetName();
 
+	static float GetFloat( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetFloat( PropertyName, Specifier );
+	}
+
+	static FVector2D GetVector( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetVector( PropertyName, Specifier );
+	}
+
+	static const FLinearColor& GetColor( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetColor( PropertyName, Specifier );
+	}
+
+	static const FMargin& GetMargin( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetMargin( PropertyName, Specifier );
+	}
+
+	template< typename WidgetStyleType >            
+	static const WidgetStyleType& GetWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetWidgetStyle<WidgetStyleType>( PropertyName, Specifier );
+	}
+
 private:
 	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
 

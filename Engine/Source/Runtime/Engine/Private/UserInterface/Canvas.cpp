@@ -676,6 +676,7 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 
 	if (!bInsideRenderPass)
 	{
+		GetRendererModule().InitializeSystemTextures(RHICmdList);
 		const FTexture2DRHIRef& RenderTargetTexture = RenderTarget->GetRenderTargetTexture();
 
 		check(IsValidRef(RenderTargetTexture));

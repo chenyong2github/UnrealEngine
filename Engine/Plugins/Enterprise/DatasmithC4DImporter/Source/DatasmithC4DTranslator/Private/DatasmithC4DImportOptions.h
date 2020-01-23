@@ -53,11 +53,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Scale the Entire Scene"))
 	float ScaleVertices;
 
+#if WITH_EDITORONLY_DATA
 	/**
 	* Export the imported scene as a .datasmith file, next to the .c4d file.
 	*/
 	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Export to .udatasmith"))
 	bool bExportToUDatasmith;
+#endif //WITH_EDITORONLY_DATA
 };
 
 

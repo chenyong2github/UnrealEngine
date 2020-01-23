@@ -21,8 +21,8 @@ namespace UnrealBuildTool.Rules
                     "DatasmithCore",
                     "DatasmithTranslator",
                     "MeshDescription",
-                    "MeshDescriptionOperations",
                     "RawMesh",
+                    "StaticMeshDescription",
                 }
             );
         }

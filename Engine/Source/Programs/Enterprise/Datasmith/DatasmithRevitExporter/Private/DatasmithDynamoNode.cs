@@ -12,7 +12,7 @@ namespace DSNode
 {
     public class DatasmithDynamoNode
     {
-		public static void Export3DViewsToDatasmith(Document InDocument, string InOutputPath, List<int> InViewIds)
+		public static void Export3DViewsToDatasmith(Document InDocument, string InOutputPath, List<int> InViewIds, int InTesselation = 8)
 		{
 			if (InDocument == null)
 			{
@@ -65,8 +65,12 @@ namespace DSNode
 
 			// Retrieve the Unreal Datasmith export options.
 			DatasmithRevitExportOptions ExportOptions = new DatasmithRevitExportOptions(InDocument);
+
 			// Create a custom export context for command Export to Unreal Datasmith.
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(App, InDocument, FilePaths, ExportOptions);
+
+			// Clamp tesselation parameter to a valid range.
+			ExportContext.LevelOfTessellation = Math.Min(Math.Max(InTesselation, -1), 15);
 
 			using (CustomExporter Exporter = new CustomExporter(InDocument, ExportContext))
 			{

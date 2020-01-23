@@ -16,8 +16,9 @@ bool FCADToolsModule::IsAvailable()
 	return FModuleManager::Get().IsModuleLoaded(CADTOOLS_MODULE_NAME);
 }
 
-void FCADToolsModule::StartupModule()
+uint32 FCADToolsModule::GetCacheVersion()
 {
+	return 4;
 }
 
 IMPLEMENT_MODULE(FCADToolsModule, CADTools);

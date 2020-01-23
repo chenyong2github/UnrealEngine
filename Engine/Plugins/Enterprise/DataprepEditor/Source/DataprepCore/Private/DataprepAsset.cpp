@@ -4,14 +4,14 @@
 
 #include "Blueprint/K2Node_DataprepActionCore.h"
 #include "Blueprint/K2Node_DataprepProducer.h"
+#include "DataprepActionAsset.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
-#include "DataprepRecipe.h"
-#include "DataprepActionAsset.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepParameterizableObject.h"
+#include "DataprepRecipe.h"
 #include "Parameterization/DataprepParameterization.h"
 
 #include "AssetRegistryModule.h"
@@ -24,6 +24,9 @@
 #ifdef WITH_EDITOR
 #include "Editor.h"
 #endif //WITH_EDITOR
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphSchema_K2.h"
+#include "EdGraph/EdGraphNode.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAsset"
 
@@ -137,6 +140,195 @@ bool UDataprepAsset::Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOute
 	}
 
 	return bWasRename;
+}
+
+const UDataprepActionAsset* UDataprepAsset::GetAction(int32 Index) const
+{
+	if ( ActionAssets.IsValidIndex( Index ) )
+	{
+		return ActionAssets[Index];
+	}
+	else
+	{
+		UE_LOG( LogDataprepCore
+			, Error
+			, TEXT("The action to retrieve is out of bound. (Passed index: %d, Number of actions: %d, Dataprepsset: %s)")
+			, Index
+			, ActionAssets.Num()
+			, *GetPathName()
+			);
+	}
+
+	return nullptr;
+}
+
+void UDataprepAsset::RemoveActionUsingBP(int32 Index)
+{
+	if ( ActionAssets.IsValidIndex( Index ) )
+	{
+		if ( UDataprepActionAsset* DataprepActionAsset = ActionAssets[Index] )
+		{
+			// Note this code will need to be updated with the new graph (also performance wise it's not really good (to many events) )
+			if ( UK2Node_DataprepActionCore* DataprepActionNode = Cast<UK2Node_DataprepActionCore>( DataprepActionAsset->GetOuter() ) )
+			{
+				UEdGraphPin* OuputPin = DataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+				UEdGraphPin* InputPin = DataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Execute, EGPD_Input );
+
+				// Reconnects the input of the node to it's output
+				if ( OuputPin && InputPin && OuputPin->LinkedTo.Num() > 0 && InputPin->LinkedTo.Num() )
+				{
+					if ( const UEdGraphSchema* GraphSchema = DataprepActionNode->GetSchema() )
+					{
+						TArray<UEdGraphPin*> Froms = InputPin->LinkedTo;
+						UEdGraphPin* To = OuputPin->LinkedTo[0];
+
+						// Notification will be send latter for the froms and to (modification are still recorded if there is a transaction)
+						constexpr bool bSendNotification = false;
+						GraphSchema->BreakPinLinks( *InputPin, bSendNotification );
+						GraphSchema->BreakPinLinks( *OuputPin, bSendNotification );
+
+						for ( UEdGraphPin* From : Froms )
+						{
+							GraphSchema->TryCreateConnection( From, To );
+						}
+					}
+				}
+
+				DataprepActionNode->DestroyNode();
+				UpdateActions();
+			}
+		}
+	}
+	else
+	{
+		UE_LOG( LogDataprepCore
+			, Error
+			,TEXT("The action to remove is out of bound. (Passed index: %d, Number of actions: %d, Dataprepsset: %s)")
+			, Index
+			, ActionAssets.Num()
+			, *GetPathName()
+			);
+	}
+
+}
+
+UDataprepActionAsset* UDataprepAsset::AddActionUsingBP(UEdGraphNode* NewActionNode)
+{
+	if ( ActionAssets.Num() > 0 )
+	{
+		UDataprepActionAsset* LastDataprepAction = ActionAssets.Last();
+		if ( UEdGraphNode* LastActionNode = Cast<UEdGraphNode>( LastDataprepAction->GetOuter() ) )
+		{
+			NewActionNode->AutowireNewNode( LastActionNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output ) );
+		}
+	}
+	else
+	{
+		NewActionNode->AutowireNewNode( StartNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output ) );
+	}
+	UpdateActions();
+
+	//Todo return the action
+	return nullptr;
+}
+
+void UDataprepAsset::SwapActionsUsingBP(int32 FirstActionIndex, int32 SecondActionIndex)
+{
+	if ( ActionAssets.Num() > 0 )
+	{
+		if ( !ActionAssets.IsValidIndex( FirstActionIndex ) || !ActionAssets.IsValidIndex( SecondActionIndex ) )
+		{
+			UE_LOG( LogDataprepCore
+				, Error
+				, TEXT("Can swap the dataprep actions a index is out of range. (First Index : %d, Second Index: %d, Number of Actions: %d, DataprepAction: %s)")
+				, FirstActionIndex
+				, SecondActionIndex
+				, ActionAssets.Num()
+				, *GetPathName()
+				);
+		}
+
+		// Note this code will need to be updated with the new graph (also performance wise it's not really good (to many events) )
+		auto GetOutput = [](UEdGraphPin& OuputPin) -> UEdGraphPin*
+		{
+			if (OuputPin.LinkedTo.Num() > 0)
+			{
+				return OuputPin.LinkedTo[0];
+			}
+			return nullptr;
+		};
+
+		// Grab the in/out of the first action
+		UDataprepActionAsset* FirstDataprepActionAsset = ActionAssets[FirstActionIndex];
+		check(FirstDataprepActionAsset);
+		UK2Node_DataprepActionCore* FirstDataprepActionNode = Cast<UK2Node_DataprepActionCore>( FirstDataprepActionAsset->GetOuter() );
+		check(FirstDataprepActionNode);
+
+		UEdGraphPin* FirstOuputPin = FirstDataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+		check(FirstOuputPin);
+		UEdGraphPin* FirstOuput = GetOutput( *FirstOuputPin );
+
+		UEdGraphPin* FirstInputPin = FirstDataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Execute, EGPD_Input );
+		check(FirstInputPin);
+		TArray<UEdGraphPin*> FirstInputs = FirstInputPin->LinkedTo;
+
+		// Grab the in/out of the second action
+		UDataprepActionAsset* SecondDataprepActionAsset = ActionAssets[SecondActionIndex];
+		check(SecondDataprepActionAsset);
+		UK2Node_DataprepActionCore* SecondDataprepActionNode = Cast<UK2Node_DataprepActionCore>( SecondDataprepActionAsset->GetOuter() );
+		check(SecondDataprepActionNode);
+
+		UEdGraphPin* SecondOuputPin = SecondDataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+		check(SecondOuputPin);
+		UEdGraphPin* SecondOuput = GetOutput( *SecondOuputPin );
+
+		UEdGraphPin* SecondInputPin = SecondDataprepActionNode->FindPin( UEdGraphSchema_K2::PN_Execute, EGPD_Input );
+		check(SecondInputPin);
+		TArray<UEdGraphPin*> SecondInputs = SecondInputPin->LinkedTo;
+
+		// Reconnect the nodes
+		// Notification will be send latter for the froms and to (modification are still recorded if there is a transaction)
+		constexpr bool bSendNotification = false;
+		FirstOuputPin->BreakAllPinLinks( bSendNotification );
+		FirstInputPin->BreakAllPinLinks( bSendNotification );
+		SecondOuputPin->BreakAllPinLinks( bSendNotification );
+		SecondInputPin->BreakAllPinLinks( bSendNotification );
+
+		const UEdGraphSchema* GraphSchema = FirstDataprepActionNode->GetSchema();
+		check(GraphSchema);
+		if ( FMath::Abs( FirstActionIndex - SecondActionIndex ) == 1 )
+		{
+			for (UEdGraphPin* FirstInput : FirstInputs)
+			{
+				GraphSchema->TryCreateConnection( FirstInput, SecondInputPin );
+			}
+			GraphSchema->TryCreateConnection( FirstOuputPin, SecondOuput );
+			GraphSchema->TryCreateConnection( SecondOuputPin, FirstInputPin );
+		}
+		else
+		{
+			GraphSchema->TryCreateConnection(FirstOuputPin, SecondOuput);
+			for (UEdGraphPin* SecondInput : SecondInputs)
+			{
+				GraphSchema->TryCreateConnection(SecondInput, FirstInputPin);
+			}
+			GraphSchema->TryCreateConnection(SecondOuputPin, FirstOuput);
+			for (UEdGraphPin* FirstInput : FirstInputs)
+			{
+				GraphSchema->TryCreateConnection(FirstInput, SecondInputPin);
+			}
+		}
+
+		UpdateActions();
+	}
+	else
+	{
+		UE_LOG( LogDataprepCore
+			, Error
+			, TEXT("Can't swap the actions of a DataprepAsset without actions. (DataprepAsset: %s)")
+			, *GetPathName()
+			);
+	}
 }
 
 bool UDataprepAsset::CreateBlueprint()
@@ -316,6 +508,162 @@ void UDataprepAsset::UpdateActions()
 			NextNodeInPin = NodeOutPin ? ( NodeOutPin->LinkedTo.Num() > 0 ? NodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
 		}
 	}
+}
+
+int32 UDataprepAsset::AddAction(const UDataprepActionAsset* InAction)
+{
+	if ( InAction )
+	{
+		Modify();
+
+		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		ActionAssets.Add( Action );
+		OnActionChanged.Broadcast(Action, FDataprepAssetChangeType::ActionAdded);
+
+		return ActionAssets.Num() - 1;
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: The action is invalid") );
+	ensure(false);
+
+	// Invalid
+	return INDEX_NONE;
+}
+
+bool UDataprepAsset::InsertAction(const UDataprepActionAsset* InAction, int32 Index)
+{
+	if(!ActionAssets.IsValidIndex(Index))
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::InsertAction: The index is invalid") );
+		return false;
+	}
+
+	if ( InAction )
+	{
+		Modify();
+
+		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		ActionAssets.Insert( Action, Index );
+
+		OnActionChanged.Broadcast(Action, FDataprepAssetChangeType::ActionAdded);
+
+		return true;
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: The action is invalid") );
+	ensure(false);
+
+	// Invalid
+	return false;
+}
+
+bool UDataprepAsset::MoveAction(int32 SourceIndex, int32 DestinationIndex)
+{
+	if ( SourceIndex == DestinationIndex )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: Nothing done. Moving to current location") );
+		return true;
+	}
+
+	if ( !ActionAssets.IsValidIndex( SourceIndex ) || !ActionAssets.IsValidIndex( DestinationIndex ) )
+	{
+		if ( !ActionAssets.IsValidIndex( SourceIndex ) )
+		{
+			UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: The Step Index is out of range") );
+		}
+
+		if ( !ActionAssets.IsValidIndex( DestinationIndex ) )
+		{
+			UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: The Destination Index is out of range") );
+		}
+		return false;
+	}
+
+	Modify();
+
+	if ( DataprepCorePrivateUtils::MoveArrayElement( ActionAssets, SourceIndex, DestinationIndex ) )
+	{
+		OnActionChanged.Broadcast(ActionAssets[DestinationIndex], FDataprepAssetChangeType::ActionMoved);
+		return true;
+	}
+
+	ensure( false );
+	return false;
+}
+
+bool UDataprepAsset::RemoveAction(int32 Index)
+{
+	if ( ActionAssets.IsValidIndex( Index ) )
+	{
+		Modify();
+
+		UDataprepActionAsset* ActionAsset = ActionAssets[Index];
+		if(ActionAsset)
+		{
+			ActionAsset->NotifyDataprepSystemsOfRemoval();
+		}
+
+		ActionAssets.RemoveAt( Index );
+
+		OnActionChanged.Broadcast(ActionAsset, FDataprepAssetChangeType::ActionRemoved);
+
+		return true;
+	}
+
+	ensure( false );
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::RemoveAction: The Index is out of range") );
+
+	return false;
+}
+
+bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices)
+{
+	bool bHasValidIndices = false;
+	for(int32 Index : Indices)
+	{
+		if(ActionAssets.IsValidIndex( Index ))
+		{
+			bHasValidIndices = true;
+			break;
+		}
+	}
+
+	if ( bHasValidIndices )
+	{
+		Modify();
+
+		// Used to cache last action removed
+		UDataprepActionAsset* ActionAsset = nullptr;
+
+		// Sort array in reverse order before removal
+		TArray<int32> LocalIndices = Indices;
+		LocalIndices.Sort(TGreater<int32>());
+
+		// Now safe to use TArray::RemoveAt
+		for(int32 Index : LocalIndices)
+		{
+			if(ActionAssets.IsValidIndex( Index ))
+			{
+				ActionAsset = ActionAssets[Index];
+				if(ActionAsset)
+				{
+					ActionAsset->NotifyDataprepSystemsOfRemoval();
+				}
+
+				ActionAssets.RemoveAt(Index);
+			}
+		}
+
+		// Notify on last action removed
+		OnActionChanged.Broadcast(ActionAsset, FDataprepAssetChangeType::ActionRemoved);
+
+		return true;
+	}
+
+	ensure( false );
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::RemoveActions: None of the indices are in range") );
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

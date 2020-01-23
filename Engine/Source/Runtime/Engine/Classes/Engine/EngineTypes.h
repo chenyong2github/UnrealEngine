@@ -1537,7 +1537,7 @@ struct ENGINE_API FRotationConversionCache
 		{
 			return CachedRotator;
 		}
-		return InQuat.Rotator();
+		return InQuat.GetNormalized().Rotator();
 	}
 
 	/** Version of QuatToRotator when the Quat is known to already be normalized. */

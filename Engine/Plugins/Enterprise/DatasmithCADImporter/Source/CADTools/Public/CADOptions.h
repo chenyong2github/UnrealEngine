@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Math/Vector.h"
+#include "Templates/TypeHash.h"
 
 namespace CADLibrary
 {
@@ -48,6 +49,7 @@ namespace CADLibrary
 		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;
+		bool bEnableCacheUsage = true;
 
 		uint32 GetHash() const
 		{

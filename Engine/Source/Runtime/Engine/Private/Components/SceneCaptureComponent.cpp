@@ -492,7 +492,10 @@ void USceneCaptureComponent2D::OnRegister()
 #if WITH_EDITOR
 	// Update content on register to have at least one frames worth of good data.
 	// Without updating here this component would not work in a blueprint construction script which recreates the component after each move in the editor
-	CaptureSceneDeferred();
+	if (bCaptureOnMovement)
+	{
+		CaptureSceneDeferred();
+	}
 #endif
 }
 
@@ -1001,7 +1004,10 @@ void USceneCaptureComponentCube::OnRegister()
 #if WITH_EDITOR
 	// Update content on register to have at least one frames worth of good data.
 	// Without updating here this component would not work in a blueprint construction script which recreates the component after each move in the editor
-	CaptureSceneDeferred();
+	if (bCaptureOnMovement)
+	{
+		CaptureSceneDeferred();
+	}
 #endif
 }
 

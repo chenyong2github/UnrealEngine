@@ -103,7 +103,6 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"MeshDescription",
                 "StaticMeshDescription",
-                "MeshDescriptionOperations",
                 "MeshBuilder",
                 "MaterialShaderQualitySettings",
                 "EditorSubsystem",

@@ -5,6 +5,7 @@
 
 #include "Containers/Array.h"
 #include "Math/Color.h"
+#include "Misc/Paths.h"
 
 class FArchive;
 
@@ -16,6 +17,9 @@ using CADUUID = uint32;  // Universal unique identifier that be used for the unr
 
 namespace CADLibrary
 {
+
+// TODO: Remove from hear and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
+CADTOOLS_API void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension);
 
 class CADTOOLS_API FCADMaterial
 {
@@ -38,6 +42,44 @@ struct CADTOOLS_API FObjectDisplayDataId
 	CADUUID DefaultMaterialName = 0;
 	MaterialId Material = 0;
 	ColorId Color = 0; // => FastHash == ColorId+Transparency
+};
+
+struct CADTOOLS_API FFileDescription
+{
+	explicit FFileDescription(const TCHAR* InFilePath = nullptr, const TCHAR* InConfiguration = nullptr, const TCHAR* InRootFilePath = nullptr)
+		: Path(InFilePath)
+		, Configuration(InConfiguration)
+		, MainCadFilePath(InRootFilePath)
+	{
+		if (MainCadFilePath.IsEmpty() && !Path.IsEmpty())
+		{
+			MainCadFilePath = FPaths::GetPath(Path);
+		}
+
+		GetCleanFilenameAndExtension(Path, Name, Extension);
+		Name += TEXT(".") + Extension;
+	}
+
+	/**
+	 * Used to replace CADFile path by the path of the file saved in KernelIO format (*.ct)
+	 */ 
+	void ReplaceByKernelIOBackup(const FString& InKernelIOBackupPath)
+	{
+		Path = InKernelIOBackupPath;
+	}
+
+	bool operator==(const FFileDescription& Other) const
+	{
+		return (FPaths::IsSamePath(Path, Other.Path) && (Configuration == Other.Configuration));
+	}
+
+	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescription& File);
+
+	FString Path;
+	FString Name;  
+	FString Extension;
+	FString Configuration;
+	FString MainCadFilePath;
 };
 
 /**
@@ -81,6 +123,7 @@ public:
 
 public:
 	TArray<FTessellationData> Faces;
+	FBox BBox;
 
 	uint32 TriangleCount = 0;
 	CadId BodyID = 0;
@@ -184,4 +227,11 @@ inline void CopyValue(const void* Source, int Offset, uint8 Size, int32 Dest[3])
 	}
 }
 
+using ::GetTypeHash;
+FORCEINLINE CADTOOLS_API uint32 GetTypeHash(const FFileDescription& FileDescription)
+{
+	return HashCombine(GetTypeHash(FileDescription.Name), GetTypeHash(FileDescription.Configuration));
+};
+
 }
+

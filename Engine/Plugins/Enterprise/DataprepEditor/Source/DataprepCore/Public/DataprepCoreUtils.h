@@ -16,8 +16,9 @@
 
 class UDataprepAsset;
 class UDataprepAssetInterface;
-
+class UDataprepParameterizableObject;
 struct FScopedSlowTask;
+template <class t> class TSubclassOf;
 
 class DATAPREPCORE_API FDataprepCoreUtils
 {
@@ -77,6 +78,19 @@ public:
 	 * @param Reporter A optional progress reporter for the dataprep producers, operations and consumer
 	 */
 	static bool ExecuteDataprep(UDataprepAssetInterface* DataprepAssetInterface, const TSharedPtr<IDataprepLogger>& Logger, const TSharedPtr<IDataprepProgressReporter>& Reporter);
+
+	/**
+	 * Check if class can be used to create a step for a dataprep action
+	 * @param StepType The class for the creation of the step
+	 * @param OutValidRootClass The valid root class if found.
+	 * @param OutMessageIfInvalid A message to report if the class is invalid.
+	 */
+	static bool IsClassValidForStepCreation(const TSubclassOf<UDataprepParameterizableObject>& StepType, UClass*& OutValidRootClass, FText& OutMessageIfInvalid);
+
+	/**
+	 * Return the type of step that action step might be (Filter or Operation)
+	 */
+	static UClass* GetTypeOfActionStep(const UDataprepParameterizableObject* Object);
 
 	/**
 	 * Helper function to build assets for use in the Dataprep pipeline

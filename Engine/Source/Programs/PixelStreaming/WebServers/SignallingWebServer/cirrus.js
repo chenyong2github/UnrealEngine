@@ -85,6 +85,7 @@ var streamerPort = 8888; // port to listen to Streamer connections
 
 var matchmakerAddress = '127.0.0.1';
 var matchmakerPort = 9999;
+var matchmakerRetryInterval = 5;
 
 var gameSessionId;
 var userSessionId;
@@ -129,6 +130,10 @@ try {
 
 	if (typeof config.matchmakerPort != 'undefined') {
 		matchmakerPort = config.matchmakerPort;
+	}
+
+	if (typeof config.matchmakerRetryInterval != 'undefined') {
+		matchmakerRetryInterval = config.matchmakerRetryInterval;
 	}
 } catch (e) {
 	console.error(e);
@@ -418,7 +423,9 @@ function disconnectAllPlayers(code, reason) {
  */
 
 if (config.UseMatchmaker) {
-	var matchmaker = net.connect(matchmakerPort, matchmakerAddress, () => {
+	var matchmaker = new net.Socket();
+
+	matchmaker.on('connect', function() {
 		console.log(`Cirrus connected to Matchmaker ${matchmakerAddress}:${matchmakerPort}`);
 		message = {
 			type: 'connect',
@@ -428,9 +435,33 @@ if (config.UseMatchmaker) {
 		matchmaker.write(JSON.stringify(message));
 	});
 
-	matchmaker.on('error', () => {
-		console.error('Cirrus disconnected from matchmaker');
+	matchmaker.on('error', (err) => {
+		console.log(`Matchmaker connection error ${JSON.stringify(err)}`);
 	});
+
+	matchmaker.on('end', () => {
+		console.log('Matchmaker connection ended');
+	});
+
+	matchmaker.on('close', (hadError) => {
+		console.log(`Matchmaker connection closed (hadError=${hadError})`);
+		reconnect();
+	});
+
+	// Attempt to connect to the Matchmaker
+	function connect() {
+		matchmaker.connect(matchmakerPort, matchmakerAddress);
+	}
+
+	// Try to reconnect to the Matchmaker after a given period of time
+	function reconnect() {
+		console.log(`Try reconnect to Matchmaker in ${matchmakerRetryInterval} seconds`)
+		setTimeout(function() {
+			connect();
+		}, matchmakerRetryInterval * 1000);
+	}
+
+	connect();
 }
 
 //Keep trying to send gameSessionId in case the server isn't ready yet

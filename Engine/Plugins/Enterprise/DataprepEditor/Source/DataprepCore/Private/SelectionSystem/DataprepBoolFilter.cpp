@@ -53,7 +53,7 @@ void UDataprepBoolFilter::SetFetcher(const TSubclassOf<UDataprepFetcher>& Fetche
 	}
 }
 
-UDataprepFetcher* UDataprepBoolFilter::GetFetcher() const
+const UDataprepFetcher* UDataprepBoolFilter::GetFetcherImplementation() const
 {
 	return BoolFetcher;
 }

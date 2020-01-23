@@ -4,6 +4,7 @@
 
 #include "DatasmithTranslator.h"
 #include "DatasmithTranslatorManager.h"
+#include "DatasmithUtils.h"
 
 #include "Misc/Paths.h"
 
@@ -12,13 +13,7 @@
 void FDatasmithSceneSource::SetSourceFile(const FString& InFilePath)
 {
 	FilePath = InFilePath;
-	SceneDeducedName = FPaths::GetBaseFilename(FilePath);
-	FileExtension = FPaths::GetExtension(FilePath);
-	if (FCString::IsNumeric(*FileExtension))
-	{
-		FileExtension = FPaths::GetExtension(SceneDeducedName) + TEXT(".") + FileExtension;
-		SceneDeducedName = FPaths::GetBaseFilename(SceneDeducedName);
-	}
+	FDatasmithUtils::GetCleanFilenameAndExtension(FilePath, SceneDeducedName, FileExtension);
 }
 
 void FDatasmithSceneSource::SetSceneName(const FString& InSceneName)

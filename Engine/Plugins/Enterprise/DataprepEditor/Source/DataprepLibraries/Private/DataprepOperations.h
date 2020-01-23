@@ -331,3 +331,101 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Add Tags", ToolTip = "On each actor to process, add specified tags"))
+class UDataprepAddTagsOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+	// Array of reduction settings to apply to each new LOD.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, Meta = (ToolTip = "Array of tags to add"))
+	TArray<FName> Tags;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Set Metadata", ToolTip = "On each actor to process set metadata value"))
+class UDataprepSetMetadataOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+private:
+	// Table of metadata keys/values.
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Array of metadata values"))
+	TMap<FName, FString> Metadata;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Replace Asset References", ToolTip = "Replace references to each asset with the first asset in the list"))
+class UDataprepConsolidateObjectsOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Randomize Transform", ToolTip = "For each actor in the input set, offset its position/rotation/scale with random vector generated from X/Y/Z Min-Max."))
+class UDataprepRandomizeTransformOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepRandomizeTransformOperation()
+		: TransformType(ERandomizeTransformType::Translation) 
+		, Mode(ERandomizeTransformMode::Relative)
+	{
+	}
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Transform component to randomize"))
+	ERandomizeTransformType TransformType;
+
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Transform mode to use (relative/world)"))
+	ERandomizeTransformMode Mode;
+
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Min random value"))
+	FVector Min;
+
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Max random value"))
+	FVector Max;
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};

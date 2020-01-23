@@ -67,7 +67,7 @@ struct FDataprepConsumerContext
  * 
  * Use the SDataprepConsumerWidget class to detail the properties of this class
  */
-UCLASS(Experimental, Abstract, config = EditorSettings, HideCategories = (DataprepConsumerInternal))
+UCLASS(Experimental, Abstract, config = EditorSettings, BlueprintType)
 class DATAPREPCORE_API UDataprepContentConsumer : public UObject
 {
 	GENERATED_BODY()
@@ -102,28 +102,55 @@ public:
 	/**
 	 * Sets the name of the level the consumer should move objects to if applicable.
 	 * @param InLevelName : New name for the consumer's level.
-	 * @param OutReason : String explaining reason of failure to set level name
+	 * @param OutFailureReason : String explaining reason of failure to set the level name
 	 * @return true if the name has been successfully set
 	 * @remark if InLevelName is empty or equal to 'current' (case insensitive), no change is made
 	 */
-	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason );
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
+	bool SetLevelName(const FString& InLevelName, FText& OutFailureReason);
 
+	/**
+	 * Sets the name of the level the consumer should move objects to if applicable.
+	 * This version won't pop any ui
+	 * @param InLevelName : New name for the consumer's level.
+	 * @param OutFailureReason : String explaining reason of failure to set the level name
+	 * @return true if the name has been successfully set
+	 * @remark if InLevelName is empty or equal to 'current' (case insensitive), no change is made
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
+	bool SetLevelNameAutomated(const FString& InLevelName, FText& OutFailureReason);
+
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
 	const FString& GetLevelName() { return LevelName; }
 
 	/**
 	 * Sets the path of the package the consumer should move assets to if applicable.
 	 * Generally, this package path is substituted to the temporary path the assets are in
 	 * @param InTargetContentFolder : Path of the package to save any assets in
+	 * @param OutFailureReason : String explaining reason of failure to set the target content folder
 	 * @return true if the assignment has been successful, false otherwise
 	 * @remark if InPackagePath is empty the package path of the consumer is used
 	 */
-	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason );
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
+	bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutFailureReason);
 
+	/**
+	 * Sets the path of the package the consumer should move assets to if applicable.
+	 * This version won't pop any ui
+	 * Generally, this package path is substituted to the temporary path the assets are in
+	 * @param InTargetContentFolder : Path of the package to save any assets in
+	 * @param OutFailureReason : String explaining reason of failure to set the target content folder
+	 * @return true if the assignment has been successful, false otherwise
+	 * @remark if InPackagePath is empty the package path of the consumer is used
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
+	bool SetTargetContentFolderAutomated(const FString& InTargetContentFolder, FText& OutFailureReason);
+
+	UFUNCTION(BlueprintCallable, Category = DataprepConsumer)
 	const FString& GetTargetContentFolder() { return TargetContentFolder; }
 
 	/**
 	 * Returns a well-formed path to use when calling CreatePackage to create the target package.
-	 * @remark 
 	 */
 	FString GetTargetPackagePath() const;
 
@@ -138,6 +165,27 @@ public:
 	}
 
 protected:
+
+	/**
+	 * Sets the name of the level the consumer should move objects to if applicable.
+	 * @param InLevelName : New name for the consumer's level.
+	 * @param OutFailureReason : String explaining reason of failure to set the level name
+	 * @param bIsAutomated If it is true the function shouldn't require any feedback from the user
+	 * @return true if the name has been successfully set
+	 * @remark if InLevelName is empty or equal to 'current' (case insensitive), no change should be made
+	 */
+	virtual bool SetLevelNameImplementation(const FString& InLevelName, FText& OutFailureReason, const bool bIsAutomated);
+
+	/**
+	 * Sets the path of the package the consumer should move assets to if applicable.
+	 * Generally, this package path is substituted to the temporary path the assets are in
+	 * @param InTargetContentFolder : Path of the package to save any assets in
+	 * @param OutFailureReason : String explaining reason of failure to set the target content folder
+	 * @param bIsAutomated If it is true the function shouldn't require any feedback from the user
+	 * @return true if the assignment has been successful, false otherwise
+	 * @remark if InPackagePath is empty the package path of the consumer is used
+	 */
+	virtual bool SetTargetContentFolderImplementation(const FString& InTargetContentFolder, FText& OutFailureReason, const bool bIsAutomated);
 
 	/**
 	 * Initialize the consumer to be ready for the next call to the Run method.
@@ -181,10 +229,10 @@ protected:
 	// End of helper functions to log messages
 
 protected:
-	UPROPERTY( EditAnywhere, Category = DataprepConsumerInternal )
+	UPROPERTY()
 	FString TargetContentFolder;
 
-	UPROPERTY( EditAnywhere, Category = DataprepConsumerInternal )
+	UPROPERTY()
 	FString LevelName;
 
 	/** Context which the consumer will run with */

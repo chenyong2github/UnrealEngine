@@ -18,17 +18,23 @@ THIRD_PARTY_INCLUDES_END
 
 bool ProxyLOD::MeshArrayToSDFVolume(const FMeshDescriptionArrayAdapter& MeshAdapter, openvdb::FloatGrid::Ptr& SDFGrid, openvdb::Int32Grid* PolyIndexGrid)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::MeshArrayToSDFVolume)
 
 	bool success = true;
 	try
 	{
 		const float HalfBandWidth = 2.f;
 		int Flags = 0;
-		SDFGrid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(MeshAdapter, MeshAdapter.GetTransform(), HalfBandWidth /*exterior*/, HalfBandWidth/*interior*/, Flags, PolyIndexGrid);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OpenVDB::MeshToVolume)
+			SDFGrid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(MeshAdapter, MeshAdapter.GetTransform(), HalfBandWidth /*exterior*/, HalfBandWidth/*interior*/, Flags, PolyIndexGrid);
+		}
 
-		// reduce memory footprint, increase the spareness.
-
-		openvdb::tools::pruneLevelSet(SDFGrid->tree(), HalfBandWidth, -HalfBandWidth);
+		// reduce memory footprint, increase the sparseness.
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OpenVDB::PruneLevelSet)
+			openvdb::tools::pruneLevelSet(SDFGrid->tree(), HalfBandWidth, -HalfBandWidth);
+		}
 	}
 	catch (std::bad_alloc& )
 	{
@@ -62,17 +68,23 @@ bool ProxyLOD::MeshArrayToSDFVolume(const FMeshDescriptionArrayAdapter& MeshAdap
 
 bool ProxyLOD::MeshArrayToSDFVolume(const FMeshDescriptionAdapter& MeshAdapter, openvdb::FloatGrid::Ptr& SDFGrid, openvdb::Int32Grid* PolyIndexGrid)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::MeshArrayToSDFVolume)
 
 	bool success = true;
 	try
 	{
 		const float HalfBandWidth = 2.f;
 		int Flags = 0;
-		SDFGrid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(MeshAdapter, MeshAdapter.GetTransform(), HalfBandWidth /*exterior*/, HalfBandWidth/*interior*/, Flags, PolyIndexGrid);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OpenVDB::MeshToVolume)
+			SDFGrid = openvdb::tools::meshToVolume<openvdb::FloatGrid>(MeshAdapter, MeshAdapter.GetTransform(), HalfBandWidth /*exterior*/, HalfBandWidth/*interior*/, Flags, PolyIndexGrid);
+		}
 
 		// reduce memory footprint, increase the spareness.
-
-		openvdb::tools::pruneLevelSet(SDFGrid->tree(), HalfBandWidth, -HalfBandWidth);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OpenVDB::PruneLevelSet)
+			openvdb::tools::pruneLevelSet(SDFGrid->tree(), HalfBandWidth, -HalfBandWidth);
+		}
 	}
 	catch (std::bad_alloc&)
 	{
@@ -106,6 +118,7 @@ bool ProxyLOD::MeshArrayToSDFVolume(const FMeshDescriptionAdapter& MeshAdapter, 
 */
 static openvdb::FloatGrid::Ptr OffsetSDF(const openvdb::FloatGrid::Ptr InSDFVolume, const double WSOffset, const double ResultVolexSize)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(OffsetSDF)
 	// Extract the iso-surface with offset DilationInVoxels.
 
 	// The voxel size in world space units : taking the first element is okay, since the voxels are square.
@@ -118,7 +131,10 @@ static openvdb::FloatGrid::Ptr OffsetSDF(const openvdb::FloatGrid::Ptr InSDFVolu
 	const double IsoValue = WSOffset;
 
 	FMixedPolyMesh  MixedPolyMesh;
-	openvdb::tools::volumeToMesh(*InSDFVolume, MixedPolyMesh.Points, MixedPolyMesh.Triangles, MixedPolyMesh.Quads, IsoValue, 0.001);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(OpenVDB::VolumeToMesh)
+		openvdb::tools::volumeToMesh(*InSDFVolume, MixedPolyMesh.Points, MixedPolyMesh.Triangles, MixedPolyMesh.Quads, IsoValue, 0.001);
+	}
 
 	// convert the mesh to FMeshDescription
 	FMeshDescription RawMesh;
@@ -168,8 +184,9 @@ void ProxyLOD::CloseGaps(openvdb::FloatGrid::Ptr InOutSDFVolume, const double Ga
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::CloseGaps)
 	const double MaxOffsetInVoxels = 1.5;
-	
+
 	// Step configuration using InputVoxelSize
 
 	const double DefaultStepSize  = MaxOffsetInVoxels * InputVoxelSize;
@@ -253,6 +270,7 @@ void ProxyLOD::CloseGaps(openvdb::FloatGrid::Ptr InOutSDFVolume, const double Ga
 
 void ProxyLOD::RemoveClipped(openvdb::FloatGrid::Ptr InOutSDFVolume, openvdb::FloatGrid::Ptr ClippingVolume)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::RemoveClipped)
 
 	// do a difference that deletes the clippling volume from the geometry.
 

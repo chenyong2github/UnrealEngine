@@ -611,6 +611,13 @@ void UDatasmithFileProducer::PreventNameCollision()
 	FDatasmithFileProducerUtils::DeletePackagesPath( PathsToDelete );
 }
 
+void UDatasmithFileProducer::OnFilePathChanged()
+{
+	FilePath = FPaths::ConvertRelativePathToFull( FilePath );
+	UpdateName();
+	OnChanged.Broadcast( this );
+}
+
 void UDatasmithFileProducer::Reset()
 {
 	DatasmithScenePtr.Reset();
@@ -637,15 +644,13 @@ FString UDatasmithFileProducer::GetNamespace() const
 	return FString::FromInt( GetTypeHash( FilePath ) );
 }
 
-void UDatasmithFileProducer::SetFilename( const FString& InFilename )
+void UDatasmithFileProducer::SetFilePath( const FString& InFilePath )
 {
 	Modify();
 
-	FilePath = FPaths::ConvertRelativePathToFull( InFilename );
+	FilePath = InFilePath;
 
-	UpdateName();
-
-	OnChanged.Broadcast( this );
+	OnFilePathChanged();
 }
 
 void UDatasmithFileProducer::UpdateName()
@@ -672,6 +677,23 @@ bool UDatasmithFileProducer::Supersede(const UDataprepContentProducer* OtherProd
 		FilePath == OtherFileProducer->FilePath;
 }
 
+bool UDatasmithFileProducer::CanAddToProducersArray(bool bIsAutomated)
+{
+	if ( bIsAutomated )
+	{
+		return true;
+	}
+
+	FilePath = FDatasmithFileProducerUtils::SelectFileToImport();
+	if ( !FilePath.IsEmpty() )
+	{
+		UpdateName();
+		return true;
+	}
+
+	return false;
+}
+
 void UDatasmithFileProducer::PostEditUndo()
 {
 	UDataprepContentProducer::PostEditUndo();
@@ -679,15 +701,13 @@ void UDatasmithFileProducer::PostEditUndo()
 	OnChanged.Broadcast( this );
 }
 
-void UDatasmithFileProducer::PostInitProperties()
+void UDatasmithFileProducer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UDataprepContentProducer::PostInitProperties();
+	FProperty* EditedProperty = PropertyChangedEvent.Property;
 
-	// Set FilePath when creating a new producer
-	if( !HasAnyFlags( RF_ClassDefaultObject | RF_WasLoaded | RF_Transient ) )
+	if ( !EditedProperty || EditedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDatasmithFileProducer, FilePath) )
 	{
-		FilePath = FDatasmithFileProducerUtils::SelectFileToImport();
-		UpdateName();
+		OnFilePathChanged();
 	}
 }
 
@@ -833,29 +853,60 @@ void UDatasmithDirProducer::Serialize( FArchive& Ar )
 	}
 }
 
-void UDatasmithDirProducer::PostInitProperties()
+void UDatasmithDirProducer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UDataprepContentProducer::PostInitProperties();
+	FProperty* EditedProperty = PropertyChangedEvent.Property;
 
-	if( !HasAnyFlags( RF_ClassDefaultObject | RF_WasLoaded | RF_Transient ) )
+	if ( !EditedProperty || EditedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, FolderPath) )
 	{
-		FolderPath = FDatasmithFileProducerUtils::SelectDirectory();
-		UpdateName();
+		//OnEditFolderPathChanged();
+	}
+
+	if ( !EditedProperty || EditedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, ExtensionString) )
+	{
+		OnExtensionsChanged();
+	}
+
+	if ( !EditedProperty || EditedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, bRecursive) )
+	{
+		OnRecursivityChanged();
 	}
 }
 
-void UDatasmithDirProducer::SetFolderName( const FString& InFolderName )
+void UDatasmithDirProducer::SetFolderPath( const FString& InFolderPath )
 {
-	if(!InFolderName.IsEmpty())
-	{
-		Modify();
+	Modify();
+	FolderPath = InFolderPath;
+	OnFolderPathChanged();
+}
 
-		FolderPath = FPaths::ConvertRelativePathToFull( InFolderName );
+FString UDatasmithDirProducer::GetFolderPath() const
+{
+	return FolderPath;
+}
 
-		UpdateName();
+void UDatasmithDirProducer::SetExtensionString(const FString& InExtensionString)
+{
+	Modify();
+	ExtensionString = InExtensionString;
+	OnExtensionsChanged();
+}
 
-		OnChanged.Broadcast(this);
-	}
+FString UDatasmithDirProducer::GetExtensionString() const
+{
+	return ExtensionString;
+}
+
+void UDatasmithDirProducer::SetIsRecursive(bool bInRecursive)
+{
+	Modify();
+	bRecursive = bInRecursive;
+	OnRecursivityChanged();
+}
+
+bool UDatasmithDirProducer::IsRecursive() const
+{
+	return bRecursive;
 }
 
 void UDatasmithDirProducer::UpdateName()
@@ -933,6 +984,31 @@ bool UDatasmithDirProducer::Supersede(const UDataprepContentProducer* OtherProdu
 	}
 
 	return false;
+}
+
+bool UDatasmithDirProducer::CanAddToProducersArray(bool bIsAutomated)
+{
+	if ( bIsAutomated )
+	{
+		return true;
+	}
+
+
+	FolderPath = FDatasmithFileProducerUtils::SelectDirectory();
+	if ( !FolderPath.IsEmpty() )
+	{
+		UpdateName();
+		return true;
+	}
+
+	return false;
+}
+
+void UDatasmithDirProducer::OnFolderPathChanged()
+{
+	FolderPath = FPaths::ConvertRelativePathToFull( FolderPath );
+	UpdateName();
+	OnChanged.Broadcast(this);
 }
 
 void UDatasmithDirProducer::OnRecursivityChanged()
@@ -1077,7 +1153,7 @@ private:
 		{
 			const FScopedTransaction Transaction( LOCTEXT("Producer_SetFilename", "Set Filename") );
 
-			ProducerPtr->SetFilename( SelectedFile );
+			ProducerPtr->SetFilePath( SelectedFile );
 			FileName->SetText( GetFilenameText() );
 		}
 
@@ -1110,17 +1186,17 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	DetailBuilder.HideCategory(FName( TEXT( "Warning" ) ) );
 
-	FName CategoryName( TEXT("DatasmithFileProducerCustom") );
-	IDetailCategoryBuilder& ImportSettingsCategoryBuilder = DetailBuilder.EditCategory( CategoryName, FText::GetEmpty(), ECategoryPriority::Important );
+	//FName CategoryName( TEXT("DatasmithFileProducerCustom") );
+	IDetailCategoryBuilder& ImportSettingsCategoryBuilder = DetailBuilder.EditCategory( NAME_None, FText::GetEmpty(), ECategoryPriority::Important );
+
+	TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty( TEXT("FilePath"), UDatasmithFileProducer::StaticClass() );
+	PropertyHandle->MarkHiddenByCustomization();
 
 	FDetailWidgetRow& CustomAssetImportRow = ImportSettingsCategoryBuilder.AddCustomRow( FText::FromString( TEXT( "Import File" ) ) );
 
 	CustomAssetImportRow.NameContent()
 	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("DatasmithFileProducerDetails_ImportFile", "Filename"))
-		.ToolTipText(LOCTEXT("DatasmithFileProducerDetails_ImportFileTooltip", "The file imported by datasmith."))
-		.Font( IDetailLayoutBuilder::GetDetailFont() )
+		PropertyHandle->CreatePropertyNameWidget()
 	];
 
 	CustomAssetImportRow.ValueContent()
@@ -1187,7 +1263,7 @@ private:
 		if( !SelectedFolder.IsEmpty() )
 		{
 			const FScopedTransaction Transaction( LOCTEXT("Producer_SetFolderName", "Set Folder Name") );
-			ProducerPtr->SetFolderName( SelectedFolder );
+			ProducerPtr->SetFolderPath( SelectedFolder );
 
 			FolderName->SetText( GetFilenameText() );
 		}

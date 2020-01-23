@@ -69,7 +69,14 @@ public:
 	 * @param ProducerClass Class of the Producer to add
 	 * @return true if addition was successful, false otherwise
 	 */
-	UDataprepContentProducer* AddProducer( UClass* ProducerClass );
+	UDataprepContentProducer* AddProducer(UClass* ProducerClass);
+
+	/**
+	 * Add a producer of a given class but don't pop any ui
+	 * @param ProducerClass Class of the Producer to add
+	 * @return true if addition was successful, false otherwise
+	 */
+	UDataprepContentProducer* AddProducerAutomated(UClass* ProducerClass);
 
 	/**
 	 * Add a copy of a producer
@@ -114,14 +121,12 @@ public:
 	int32 GetProducersCount() const { return AssetProducers.Num(); }
 
 	/** @return pointer on producer at Index-th position in AssetProducers array. nullptr if Index is invalid */
-	const UDataprepContentProducer* GetProducer(int32 Index) const
-	{ 
-		return AssetProducers.IsValidIndex(Index) ? AssetProducers[Index].Producer : nullptr;
-	}
+	const UDataprepContentProducer* GetProducer(int32 Index) const;
+
 
 	UDataprepContentProducer* GetProducer(int32 Index)
-	{ 
-		return AssetProducers.IsValidIndex(Index) ? AssetProducers[Index].Producer : nullptr;
+	{
+		return const_cast<UDataprepContentProducer*>( static_cast<const UDataprepAssetProducers*>(this)->GetProducer( Index ) );
 	}
 
 	/** @return True if producer at Index-th position is enabled. Returns false if disabled or Index is invalid */
@@ -184,6 +189,7 @@ private:
 	 */
 	void ValidateProducerChanges( int32 Index, bool &bChangeAll );
 
+	UDataprepContentProducer* AddProducer_Internal(UClass* ProducerClass, bool bIsAutomated);
 
 	/** Delegate broadcasted when one of the producers has changed */
 	FOnDataprepProducersChanged OnChanged;

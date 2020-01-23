@@ -349,6 +349,7 @@ namespace ProxyLOD
 		                                   TAOSMesh<VertexType>& ResultMesh)
 	{
 
+		TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::MergeMeshArray)
 		const int32 NumPartitions = MeshArray.Num();
 
 

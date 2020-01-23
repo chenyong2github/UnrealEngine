@@ -16,13 +16,7 @@
     {
       "Name": "Text3D",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": [
-        "Win32",
-        "Win64",
-        "Linux",
-        "Mac"
-      ]
+      "LoadingPhase": "Default"
     }
   ]
 }

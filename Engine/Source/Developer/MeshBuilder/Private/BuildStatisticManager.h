@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "GenericPlatform/GenericPlatformTime.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMeshDescriptionBuildStatistic, Log, All);
 

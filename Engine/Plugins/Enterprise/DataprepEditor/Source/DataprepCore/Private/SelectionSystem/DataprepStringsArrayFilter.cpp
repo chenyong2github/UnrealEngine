@@ -15,13 +15,13 @@ bool UDataprepStringsArrayFilter::Filter(const TArray<FString>& StringArray) con
 		switch (StringMatchingCriteria)
 		{
 			case EDataprepStringMatchType::Contains:
-				bResult = StringArray[Index].Equals(UserString);
+				bResult = StringArray[Index].Contains(UserString, ESearchCase::IgnoreCase);
 				break;
 			case EDataprepStringMatchType::ExactMatch:
-				bResult = StringArray[Index].Contains(UserString);
+				bResult = StringArray[Index].Equals(UserString, ESearchCase::IgnoreCase);				
 				break;
 			case EDataprepStringMatchType::MatchesWildcard:
-				bResult = StringArray[Index].MatchesWildcard(UserString);
+				bResult = StringArray[Index].MatchesWildcard(UserString, ESearchCase::IgnoreCase);
 				break;
 		}
 
@@ -71,7 +71,7 @@ void UDataprepStringsArrayFilter::SetFetcher(const TSubclassOf<UDataprepFetcher>
 	}
 }
 
-UDataprepFetcher* UDataprepStringsArrayFilter::GetFetcher() const
+const UDataprepFetcher* UDataprepStringsArrayFilter::GetFetcherImplementation() const
 {
 	return StringsArrayFetcher;
 }

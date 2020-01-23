@@ -42,7 +42,6 @@
 #include "MaterialOptions.h"
 
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"

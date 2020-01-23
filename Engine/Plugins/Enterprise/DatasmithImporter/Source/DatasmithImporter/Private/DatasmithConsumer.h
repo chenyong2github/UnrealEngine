@@ -38,10 +38,12 @@ public:
 	// Begin UDataprepContentConsumer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
-	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason ) override;
-	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason) override;
 
 protected:
+
+	virtual bool SetLevelNameImplementation(const FString& InLevelName, FText& OutFailureReason, const bool bIsAutomated) override;
+	virtual bool SetTargetContentFolderImplementation(const FString& InTargetContentFolder, FText& OutFailureReason, const bool bIsAutomated) override;
+
 	virtual bool Initialize() override;
 	virtual bool Run() override;
 	virtual void Reset() override;

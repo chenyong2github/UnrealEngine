@@ -17,6 +17,16 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription"
 				}
 			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MeshUtilitiesCommon",
+					"RawMesh",
+				}
+			);
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
 		}
 	}
 }

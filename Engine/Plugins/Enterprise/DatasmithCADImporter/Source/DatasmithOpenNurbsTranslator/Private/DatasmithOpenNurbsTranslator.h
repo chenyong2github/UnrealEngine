@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "DatasmithCoreTechTranslator.h"
-#include "DatasmithImportOptions.h"
+#include "CoreMinimal.h"
+
+#include "DatasmithTranslator.h"
+#include "DatasmithOpenNurbsImportOptions.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 class FOpenNurbsTranslatorImpl;
 
-class FDatasmithOpenNurbsTranslator : public FDatasmithCoreTechTranslator
+class FDatasmithOpenNurbsTranslator : public IDatasmithTranslator
 {
 public:
 	FDatasmithOpenNurbsTranslator();
@@ -28,10 +29,12 @@ public:
 
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
+	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+
 protected:
-	virtual void InitCommonTessellationOptions(FDatasmithTessellationOptions& TessellationOptions) override
+	const FDatasmithTessellationOptions& GetCommonTessellationOptions()
 	{
-		TessellationOptions.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone;
+		return OpenNurbsImportOptions->Options;
 	}
 
 private:
@@ -41,5 +44,7 @@ private:
 	// Temporarily store this here for UE-81278 so that we can trigger the recreation of
 	// static meshes if we're reimporting with new materials that haven't been assigned yet
 	FDatasmithImportBaseOptions BaseOptions;
+
+	TStrongObjectPtr<UDatasmithOpenNurbsImportOptions> OpenNurbsImportOptions;
 };
 

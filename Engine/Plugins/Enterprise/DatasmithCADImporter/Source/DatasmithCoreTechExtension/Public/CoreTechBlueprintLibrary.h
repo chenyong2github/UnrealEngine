@@ -23,10 +23,22 @@ public:
 	 * Re-tessellate LOD 0 of a static mesh if it contains parametric surface data.
 	 * @param	StaticMesh				Static mesh to re-tessellate.
 	 * @param	TessellationSettings	Tessellation settings to use.
-	 * @param	bPostChanges			If true, .
-	 * @param	OutReason				Text describing the reason of failure.
+	 * @param	FailureReason			Text describing the reason of failure.
 	 * @return True if successful, false otherwise
 	 */
-	UFUNCTION(BlueprintPure, Category = "Datasmith | Surface Operations" )
-	static bool RetessellateStaticMesh( UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, bool bPostChanges, FText& OutReason );
+	UFUNCTION(BlueprintCallable, Category = "Datasmith | Surface Operations" )
+	static bool RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, FText& FailureReason);
+
+	/**
+	 * Re-tessellate LOD 0 of a static mesh if it contains parametric surface data.
+	 * This implementations allows to skip post edit operations (bApplyChanges=false),
+	 * the caller is then responsible to handle those operations.
+	 * @param	StaticMesh				Static mesh to re-tessellate.
+	 * @param	TessellationSettings	Tessellation settings to use.
+	 * @param	bApplyChanges			Indicates if change must be notified.
+	 * @param	FailureReason			Text describing the reason of failure.
+	 * @return True if successful, false otherwise
+	 */
+	UFUNCTION(Category = "Datasmith | Surface Operations" )
+	static bool RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason);
 };

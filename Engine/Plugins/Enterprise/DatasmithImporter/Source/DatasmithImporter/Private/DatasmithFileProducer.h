@@ -28,22 +28,29 @@ class DATASMITHIMPORTER_API UDatasmithFileProducer : public UDataprepContentProd
 public:
 	// UObject interface
 	virtual void PostEditUndo() override;
-	virtual void PostInitProperties() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 
-	/** Update producer with newly selected filename */
-	void SetFilename( const FString& InFilename );
+	/** Update producer with the desired file */
+	void SetFilePath( const FString& InFilePath );
 
 	const FString& GetFilePath() const { return FilePath; }
 
 	/** Load default settings for file producer in DatasmithImporter.ini */
 	static void LoadDefaultSettings();
 
+	UE_DEPRECATED(4.26, "SetFilename was renamed to SetFilePath")
+	void SetFilename(const FString& InFilename)
+	{
+		SetFilePath( InFilename );
+	}
+
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 	virtual FString GetNamespace() const override;
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const override;
+	virtual bool CanAddToProducersArray(bool bIsAutomated) override;
 
 protected:
 	virtual bool Initialize() override;
@@ -51,7 +58,7 @@ protected:
 	virtual void Reset() override;
 	// End UDataprepContentProducer overrides
 
-	UPROPERTY( EditAnywhere, Category = DatasmithProducer_Internal )
+	UPROPERTY( EditAnywhere, Category = DatasmithProducer )
 	FString FilePath;
 
 private:
@@ -60,6 +67,9 @@ private:
 
 	/** Fill up world with content of Datasmith scene element */
 	void PreventNameCollision();
+
+	/** Does what is required after setting a new FilePath */
+	void OnFilePathChanged();
 
 	/** Update the name of the producer based on the filename */
 	void UpdateName();
@@ -99,22 +109,33 @@ protected:
 	UDatasmithDirProducer();
 
 public:
+	/** Update producer with the selected folder name */
+	void SetFolderPath(const FString& InFolderPath);
+	FString GetFolderPath() const;
+
+	void SetExtensionString(const FString& InExtensionString);
+	FString GetExtensionString() const;
+
+	void SetIsRecursive(bool bInRecursive);
+	bool IsRecursive() const;
 
 	// Begin UObject interface
-	virtual void Serialize( FArchive& Ar ) override;
-	virtual void PostInitProperties() override;
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 
-	// End UObject interface
-
-	/** Update producer with newly selected folder name */
-	void SetFolderName( const FString& InFolderName );
+	UE_DEPRECATED(4.26, "SetFolderName was renamed to SetFolderPath")
+	void SetFolderName(const FString& InFolderName)
+	{
+		SetFolderPath( InFolderName );
+	}
 
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 	virtual FString GetNamespace() const override;
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const override;
+	virtual bool CanAddToProducersArray(bool bIsAutomated) override;
 
 protected:
 	virtual bool Initialize() override;
@@ -122,14 +143,22 @@ protected:
 	virtual void Reset() override;
 	// End UDataprepContentProducer overrides
 
+private:
+
+	// The folder were datasmith will look for files to import
 	UPROPERTY( EditAnywhere, Category = DatasmithDirProducer_Internal )
 	FString FolderPath;
 
-	UPROPERTY( EditAnywhere, Category = DatasmithDirProducer, meta = (ToolTip = "semi-column separated string containing the extensions to consider. By default, set to * to get all extensions") )
+	// Semi-column separated string containing the extensions to consider. By default, set to * to get all extensions.
+	UPROPERTY( EditAnywhere, Category = DatasmithDirProducer )
 	FString ExtensionString;
 
+	// If true the producer will look for the files in the sub-directories.
 	UPROPERTY( EditAnywhere, Category = DatasmithDirProducer, meta = (ToolTip = "If checked, sub-directories will be traversed") )
 	bool bRecursive;
+
+	/** Called if the folder path has changed */
+	void OnFolderPathChanged();
 
 	/** Called if ExtensionString has changed */
 	void OnExtensionsChanged();
@@ -137,7 +166,6 @@ protected:
 	/** Called if bRecursive has changed */
 	void OnRecursivityChanged();
 
-private:
 	/** Helper function to extract set of extensions based on content of ExtensionString and supported formats */
 	void UpdateExtensions();
 
@@ -147,7 +175,6 @@ private:
 	/** Update the name of the producer based on the directory name */
 	void UpdateName();
 
-private:
 	/** Indicates if ExtensionString contains "*.*" */
 	bool bHasWildCardSearch;
 

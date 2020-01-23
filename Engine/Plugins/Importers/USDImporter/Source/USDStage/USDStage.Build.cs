@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"LevelSequence",
 					"MaterialEditor",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MeshUtilities",
 					"MessageLog",
 					"MovieScene",

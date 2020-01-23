@@ -11,6 +11,8 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Stats/StatsMisc.h"
+#include "HAL/RunnableThread.h"
+
 //#include "ScopedTimers.h"
 THIRD_PARTY_INCLUDES_START
 #include <openvdb/openvdb.h>
@@ -38,7 +40,6 @@ THIRD_PARTY_INCLUDES_END
 #include "ProxyLODThreadedWrappers.h"
 
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 
 
 
@@ -214,7 +215,7 @@ private:
 
 	// Flag that can enable/disable the multi-threaded aspect of the simplifier.
 
-	bool bMutliThreadSimplify = true;
+	bool bMultiThreadSimplify = true;
 
 	// Flag to enable the thin wall correction.
 	// Very thin walls can develop mesh interpenetration(opposing wall surfaces meet) during simplification.This
@@ -269,13 +270,86 @@ DEFINE_LOG_CATEGORY_STATIC(LogProxyLODMeshReduction, Log, All);
 
 IMPLEMENT_MODULE(FProxyLODMeshReduction, ProxyLODMeshReduction)
 
+// Reuse FRunnableThread facilities to support FTlsAutoCleanup on TBB threads
+class FTBBThread : private FRunnableThread
+{
+	virtual void SetThreadPriority( EThreadPriority ) override {}
+	virtual void Suspend( bool ) override {}
+	virtual bool Kill( bool ) override { return false; }
+	virtual void WaitForCompletion() override {}
+	virtual bool CreateInternal( FRunnable*, const TCHAR*, uint32, EThreadPriority, uint64 ) override { return true; }
+public:
+	FTBBThread()
+	{
+		static TAtomic<uint32> ThreadIndex(0);
+		ThreadName = FString::Printf(TEXT("TBB %d"), ThreadIndex++);
+		ThreadID = FPlatformTLS::GetCurrentThreadId();
+		SetTls();
+		TRACE_CREATE_THREAD(ThreadID, TEXT("TBB"), TPri_Normal);
 
+		FPlatformProcess::SetThreadName(*ThreadName);
+	}
 
+	virtual ~FTBBThread() override
+	{
+		// Allow us to clear any TlsAutoCleanup
+		FreeTls();
+	}
+
+	static FRunnableThread* GetRunnableThread()
+	{
+		return FRunnableThread::GetRunnableThread();
+	}
+};
+
+class FTBBTaskObserver : private tbb::task_scheduler_observer
+{
+public:
+	FTBBTaskObserver()
+	{
+	}
+
+	void Initialize()
+	{
+		observe(true);
+	}
+
+	void Shutdown()
+	{
+		observe(false);
+	}
+
+private:
+	void on_scheduler_entry(bool is_worker) override
+	{
+		if (is_worker)
+		{
+			if (FTBBThread::GetRunnableThread() == nullptr)
+			{
+				new FTBBThread();
+			}
+		}
+	}
+
+	void on_scheduler_exit(bool is_worker) override
+	{
+		if (is_worker)
+		{
+			if (FTBBThread::GetRunnableThread())
+			{
+				delete FTBBThread::GetRunnableThread();
+			}
+		}
+	}
+};
+
+FTBBTaskObserver TBBTaskObserver;
 
 void FProxyLODMeshReduction::StartupModule()
 {
-	// Global registration of  the vdb types.
+	TBBTaskObserver.Initialize();
 
+	// Global registration of  the vdb types.
 	openvdb::initialize();
 
 	IModularFeatures::Get().RegisterModularFeature(IMeshReductionModule::GetModularFeatureName(), this);
@@ -284,13 +358,12 @@ void FProxyLODMeshReduction::StartupModule()
 
 void FProxyLODMeshReduction::ShutdownModule()
 {
-
 	// Global deregistration of vdb types
-
 	openvdb::uninitialize();
 
 	IModularFeatures::Get().UnregisterModularFeature(IMeshReductionModule::GetModularFeatureName(), this);
 
+	TBBTaskObserver.Shutdown();
 }
 
 
@@ -352,7 +425,7 @@ void FVoxelizeMeshMerging::CaptureCVars()
 		this->bChartColorVerts         = bAddChartColorVerts;
 		this->bUseTangentSpace         = bUseTrueTangentSpace;
 		this->bRemeshOnly              = bVoxelizeAndRemeshOnly;
-		this->bMutliThreadSimplify     = !bSingleThreadedSimplify;
+		this->bMultiThreadSimplify     = !bSingleThreadedSimplify;
 		this->bCorrectCollapsedWalls   = bWallCorreciton;
 	}
 #else
@@ -420,6 +493,8 @@ static void SimplifyMesh( const FClosestPolyField& SrcGeometryPolyField,
 	                      FSimplifierMeshType& InOutMesh, 
 	                      bool bSingleThreaded)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SimplifyMesh)
+
 	//SCOPE_LOG_TIME(TEXT("UE4_ProxyLOD_Simplifier"), nullptr);
 
 	// Compute some of the metrics that relate the desired resolution to simplifier parameters.
@@ -552,7 +627,7 @@ static ProxyLOD::ENormalComputationMethod GetNormalComputationMethod(const FMesh
 
 void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMeshProxySettings& InProxySettings, const FFlattenMaterialArray& InputMaterials, const FGuid InJobGUID)
 {
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVoxelizeMeshMerging::ProxyLOD)
 	// Update any pipeline controlling parameters.
 
 	CaptureCVars();
@@ -607,7 +682,8 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 	bool bProxyGenerationSuccess = true;
 	// Compute the simplified mesh and related materials.
 	{
-	
+		TRACE_CPUPROFILER_EVENT_SCOPE(ComputeSimplifiedMesh)
+
 		// Create an adapter to make the data appear as a single mesh as required by the voxelization code.
 
 		FMeshDescriptionArrayAdapter SrcGeometryAdapter(InGeometry);
@@ -642,8 +718,16 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 		const double VoxelSize = SrcGeometryAdapter.GetTransform().voxelSize()[0];
 
-		
+		// Prepare kDOPTree asynchronously ahead of time so it's ready when we need it
+		ProxyLOD::FkDOPTree  kDOPTree;
+		ProxyLOD::FTaskGroup kDOPTaskGroup;
 
+		kDOPTaskGroup.Run(
+			[&kDOPTree, &SrcGeometryAdapter]()
+			{
+				ProxyLOD::BuildkDOPTree(SrcGeometryAdapter, kDOPTree);
+			}
+		);
 
 		// --- Set pointers and containers shared by the various threaded stages ---
 		// NB: These need to be declared outside of the thread task scope.
@@ -677,6 +761,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 		// 4) Transfer normals to the new geometry. 
 		// The steps in the following scope are fully parallelized
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(CreateHighPolyGeometry)
 			{
 				// Parameters for the voxelization and iso-surface extraction. 
 
@@ -754,7 +839,6 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			// 4) Transfers the src geometry normals to the simplifier mesh.  
 
 			ProxyLOD::TransferSrcNormals(*SrcGeometryPolyField, AOSMeshedVolume);
-
 		}
 
 
@@ -764,17 +848,19 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 		ProxyLOD::ProjectVertexOntoSrcSurface(*SrcGeometryPolyField, AOSMeshedVolume);
 
 		// Allow for the parallel execution of baking the source textures and generated the simplified geometry with UVs.
-	
-		bool bUVGenerationSucess       = false;
+
+		bool bUVGenerationSuccess          = false;
 		const bool bColorVertsByChart      = this->bChartColorVerts;
 		const bool bDoCollapsedWallFix     = this->bCorrectCollapsedWalls;
-		const bool bSingleThreadedSimplify = !(this->bMutliThreadSimplify);
+		const bool bSingleThreadedSimplify = !(this->bMultiThreadSimplify);
 
 		const float HardAngle       = InProxySettings.HardAngleThreshold;
 		const bool bSplitHardAngles = (HardAngle > 0.f && HardAngle < 179.f) && InProxySettings.bUseHardAngleThreshold;
 		
 		if (!this->bRemeshOnly)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ConvertHighPolyIsoSurface)
+
 			ProxyLOD::FTaskGroup PrepGeometryAndBakeMaterialsTaskGroup;
 			
 			// --- Convert High Poly Iso Surface To Simplified Geometry and Prepare for Materials ---
@@ -784,20 +870,20 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 			PrepGeometryAndBakeMaterialsTaskGroup.Run([&AOSMeshedVolume,
 				&SrcGeometryPolyField, &VertexDataMesh,
-				&TextureAtlasDesc, &bUVGenerationSucess, &InProxySettings,
+				&TextureAtlasDesc, &bUVGenerationSuccess, &InProxySettings,
 				VoxelSize, bColorVertsByChart, bSingleThreadedSimplify, bDoCollapsedWallFix, bSplitHardAngles, HardAngle]()
 			{
-
+				TRACE_CPUPROFILER_EVENT_SCOPE(PrepGeometryTask)
 				// 1) Simplified mesh and convert it to the correct format for UV generation
 
 				{
-					
+
 					// Compute the number target number of polys.
-					
+
 					const int32 PixelCoverage = InProxySettings.ScreenSize;
-				
+
 					// By default, we don't want the simplifier to toss much more than 98% of the triangles.
-				
+
 					float PercentToRetain = 0.002f; 
 
 					// Replaces the AOS mesh with a simplified version
@@ -814,7 +900,6 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 					ProxyLOD::ConvertMesh(SimplifierMesh, VertexDataMesh);
 
-				
 					// --- Attempt to fix-up the geometry if needed ---
 
 					if (bDoCollapsedWallFix)
@@ -851,9 +936,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				// UV Atlas create, this can fail.
 				// NB: Vertices are split on UV seams. 
 
-				bUVGenerationSucess = ProxyLOD::GenerateUVs(VertexDataMesh, TextureAtlasDesc, bColorVertsByChart);
-
-
+				bUVGenerationSuccess = ProxyLOD::GenerateUVs(VertexDataMesh, TextureAtlasDesc, bColorVertsByChart);
 			});
 
 			// --- Bake the materials ---
@@ -867,6 +950,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			PrepGeometryAndBakeMaterialsTaskGroup.RunAndWait(
 				[&]()->void 
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(BakeMaterialTask)
 					if (this->bSupportsParallelMaterialBake() && BakeMaterialsDelegate.IsBound())
 					{
 						IMeshMerging::BakeMaterialsDelegate.Execute(LocalBakedMaterials);
@@ -888,7 +972,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 		// Using the new UVs fill OutMaterial texture atlas. 
 
-		if (bUVGenerationSucess && SrcGeometryPolyField)
+		if (bUVGenerationSuccess && SrcGeometryPolyField)
 		{
 			ProxyLOD::FRasterGrid::Ptr DstUVGrid;
 			ProxyLOD::FRasterGrid::Ptr DstSuperSampledUVGrid;
@@ -900,6 +984,8 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			// 1) Map at final resolution
 			// 2) Map at supper sample resolution
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MapTextureAtlas)
+
 				// 1) Rasterize the triangles into a grid of the same resolution as the texture atlas.
 
 				MapTextureAtlasAndAddTangentSpaceTaskGroup.Run(
@@ -929,6 +1015,8 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			MapTextureAtlasAndAddTangentSpaceTaskGroup.RunAndWait(
 				[&VertexDataMesh, &OutRawMesh]()->void
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(ComputeTangentSpace)
+
 					const bool bDoMikkT = false;
 					const bool bRecomputeNormals = false; // if true, the UV seams are often more apparent since verts may have been split to make uvs. 
 					if (bDoMikkT)
@@ -948,14 +1036,15 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 						ProxyLOD::ConvertMesh(VertexDataMesh, OutRawMesh);
 					}
-				
+
 				}
 			);
-
 
 			// --- Populate the output materials ---
 			// --- By mapping the texels to the source geometry.
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(PopulateOutputMaterials)
+
 				// Inherit the material settings from the first baked down source material.
 
 				if (BakedMaterials->Num())
@@ -985,8 +1074,11 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				// Fire rays from the simplified mesh to the original collection of meshes 
 				// to determine a correspondence between the SrcMesh and the Simplified mesh.
 
+				// Now that kDOPTree is needed, make sure it's ready
+				kDOPTaskGroup.Wait();
+
 				ProxyLOD::FSrcDataGrid::Ptr SuperSampledCorrespondenceGrid =
-					ProxyLOD::CreateCorrespondence(SrcGeometryAdapter, VertexDataMesh, *DstSuperSampledUVGrid, this->RayHitOrder, MaxRayLength);
+					ProxyLOD::CreateCorrespondence(SrcGeometryAdapter, kDOPTree, VertexDataMesh, *DstSuperSampledUVGrid, this->RayHitOrder, MaxRayLength);
 
 				// just for testing, this should force it to save in world space
 				const bool bUseWorldSpaceNormals = (!this->bUseTangentSpace);
@@ -1002,8 +1094,6 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				// Compute the baked-down maps
 
 				ProxyLOD::MapFlattenMaterials(OutRawMesh, SrcGeometryAdapter, *SuperSampledCorrespondenceGrid, *DstSuperSampledUVGrid, *DstUVGrid, *BakedMaterials, UnresolvedGeometryColor, OutMaterial);
-
-
 
 				// Transfer the vertex colors unless we want to display the Charts as vertex colors for debugging
 
@@ -1033,7 +1123,6 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			ResizeArray(TargetBuffer, DstSize.X * DstSize.Y);
 			for (int32 i = 0; i < DstSize.X * DstSize.Y; ++i) TargetBuffer[i] = FColor::Red;
 		}
-	
 	}
 
 	// testing 

@@ -44,15 +44,70 @@ public:
 	// UDataprepAssetInterface interface
 	virtual void ExecuteRecipe( const TSharedPtr<FDataprepActionContext>& InActionsContext ) override;
 	virtual bool HasActions() const override { return ActionAssets.Num() > 0; }
+	virtual const TArray<UDataprepActionAsset*>& GetActions() const override { return ActionAssets; }
 private:
 	virtual TArray<UDataprepActionAsset*> GetCopyOfActions(TMap<UObject*,UObject*>& OutOriginalToCopy) const override;
 	// End of UDataprepAssetInterface interface
 
 public:
-	// Temp code for the nodes development
-	bool CreateBlueprint();
+	int32 GetActionCount() const { return ActionAssets.Num(); }
+
+	UDataprepActionAsset* GetAction(int32 Index)
+	{
+		return const_cast<UDataprepActionAsset*>( static_cast<const UDataprepAsset*>(this)->GetAction(Index) );
+	}
+
+	const UDataprepActionAsset* GetAction(int32 Index) const;
+
+	/**
+	 * Add a copy of the action to the Dataprep asset
+	 * @param Action The action we want to duplicate in the Dataprep asset
+	 * @return The index of the added action or index none if the action is invalid
+	 */
+	int32 AddAction(const UDataprepActionAsset* Action);
+
+	/**
+	 * Insert a copy of the action to the Dataprep asset at the requested index
+	 * @param Action The action we want to duplicate in the Dataprep asset
+	 * @param Index The index at which the insertion must happen
+	 * @return True if the insertion is successful, false if the action or the index are invalid
+	 */
+	bool InsertAction(const UDataprepActionAsset* InAction, int32 Index);
+
+	/**
+	 * Move an action to another spot in the order of actions
+	 * This operation take O(n) time. Where n is the absolute value of SourceIndex - DestinationIndex
+	 * @param SourceIndex The Index of the action to move
+	 * @param DestinationIndex The index of where the action will be move to
+	 * @return True if the action was move
+	*/
+	bool MoveAction(int32 SourceIndex, int32 DestinationIndex);
+
+	/**
+	 * Remove an action from the Dataprep asset
+	 * @param Index The index of the action to remove
+	 * @return True if the action was removed
+	 */
+	bool RemoveAction(int32 Index);
+
+	/**
+	 * Remove a set of actions from the Dataprep asset
+	 * @param Index The index of the action to remove
+	 * @return True if the action was removed
+	 */
+	bool RemoveActions(const TArray<int32>& Indices);
+
+	/**
+	 * Allow an observer to be notified of an change in the pipeline
+	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
+	 */
+	DECLARE_EVENT_TwoParams(UDataprepAsset, FOnDataprepActionAssetChange, UObject* /*The object that was modified*/, FDataprepAssetChangeType)
+	FOnDataprepActionAssetChange& GetOnActionChanged() { return OnActionChanged; }
 
 	bool CreateParameterization();
+
+	// Temp code for the nodes development
+	bool CreateBlueprint();
 
 	/** @return pointer on the recipe */
 	const UBlueprint* GetRecipeBP() const
@@ -85,10 +140,17 @@ public:
 		}
 	};
 
+	//Todo Change the signature of this function when the new graph is ready (Hack to avoid a refactoring)
+	UDataprepActionAsset* AddActionUsingBP(class UEdGraphNode* NewActionNode);
+
+	void SwapActionsUsingBP(int32 FirstActionIndex, int32 SecondActionIndex);
+
+	void RemoveActionUsingBP(int32 Index);
+
 	/**
-	* Allow an observer to be notified of an change in the pipeline
-	* return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
-	*/
+	 * Allow an observer to be notified of an change in the pipeline
+	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
+	 */
 	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepBlueprintChange, UObject* /*The object that was modified*/)
 	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
@@ -152,6 +214,8 @@ private:
 
 	UPROPERTY()
 	TArray<UDataprepActionAsset*> ActionAssets;
+
+	FOnDataprepActionAssetChange OnActionChanged;
 
 	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
 	FOnDataprepBlueprintChange OnBlueprintChanged;

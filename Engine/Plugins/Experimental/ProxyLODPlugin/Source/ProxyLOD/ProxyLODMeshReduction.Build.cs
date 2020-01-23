@@ -58,7 +58,6 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "UnrealEd",
-                    "MeshDescriptionOperations"
 					// ... add private dependencies that you statically link with here ...
 				}
 				);

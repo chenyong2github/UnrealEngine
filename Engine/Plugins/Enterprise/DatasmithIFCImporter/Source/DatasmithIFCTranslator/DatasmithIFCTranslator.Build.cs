@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"Json",
                     "MeshDescription",
-                    "MessageLog",
 					"Projects",
 					"RawMesh",
                     "Slate",
@@ -28,6 +27,11 @@ namespace UnrealBuildTool.Rules
                     "XmlParser",
                 }
             );
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.Add("MessageLog");
+			}
 
 			string IfcEngineDir = Path.Combine(PluginDirectory, "Source", "ThirdParty", "NotForLicensees", "ifcengine");
 			if (Directory.Exists(IfcEngineDir))

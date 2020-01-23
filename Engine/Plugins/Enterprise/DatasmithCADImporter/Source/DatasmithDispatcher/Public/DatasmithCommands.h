@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "CADData.h"
 #include "CADOptions.h"
 #include "DatasmithDispatcherTask.h"
 
@@ -78,14 +79,14 @@ class FRunTaskCommand : public ICommand
 {
 public:
 	FRunTaskCommand() = default;
-	FRunTaskCommand(const FTask& Task) : JobFilePath(Task.FileName), JobIndex(Task.Index) {}
+	FRunTaskCommand(const FTask& Task) : JobFileDescription(Task.FileDescription), JobIndex(Task.Index) {}
 	virtual ECommandId GetType() const override { return ECommandId::RunTask; }
 
 protected:
 	virtual void SerializeImpl(FArchive&) override;
 
 public:
-	FString JobFilePath;
+	CADLibrary::FFileDescription JobFileDescription;
 	int32 JobIndex = -1;
 };
 
@@ -98,10 +99,11 @@ protected:
 	virtual void SerializeImpl(FArchive&) override;
 
 public:
-	TArray<FString> ExternalReferences;
+	TArray<CADLibrary::FFileDescription> ExternalReferences;
 	FString SceneGraphFileName;
 	FString GeomFileName;
 	ETaskState ProcessResult = ETaskState::Unknown;
+	TArray<FString> WarningMessages;
 };
 
 class FImportParametersCommand : public ICommand

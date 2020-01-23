@@ -102,6 +102,12 @@ public:
 	virtual UObject* ImportObject(UClass* InClass, UObject* InOuter, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, bool& OutCanceled);
 
 	/**
+	 * Returns an array of all the additional objects created during the last imports, as some factories may produce more than one object.
+	 * The internal array is cleared before each import and upon Cleanup().
+	 */
+	const TArray<UObject*>& GetAdditionalImportedObjects() const { return AdditionalImportedObjects; }
+
+	/**
 	 * Import object(s) using a task via script
 	 *
 	 * @param InTask
@@ -163,7 +169,7 @@ public:
 	virtual void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
 
 	/** Do clean up after importing is done. Will be called once for multi batch import. */
-	virtual void CleanUp() {}
+	virtual void CleanUp() { AdditionalImportedObjects.Empty(); }
 	/**
 	 * Creates an asset if it doesn't exist. If it does exist then it overwrites it if possible. If it can not overwrite then it will delete and replace. If it can not delete, it will return nullptr.
 	 * 
@@ -395,5 +401,7 @@ protected:
 	*/
 	UPROPERTY()
 	int32 OverwriteYesOrNoToAllState;
+
+	TArray<UObject*> AdditionalImportedObjects;
 
 };

@@ -36,7 +36,7 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
-	TMap<FString, FString> CADFileToUE4GeomMap;
+	TMap<uint32, FString> CADFileToUE4GeomMap;
 
 	CADLibrary::FImportParameters ImportParameters;
 

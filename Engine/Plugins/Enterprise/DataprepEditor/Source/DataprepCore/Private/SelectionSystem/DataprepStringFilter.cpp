@@ -64,7 +64,7 @@ void UDataprepStringFilter::SetFetcher(const TSubclassOf<UDataprepFetcher>& Fetc
 	}
 }
 
-UDataprepFetcher* UDataprepStringFilter::GetFetcher() const
+const UDataprepFetcher* UDataprepStringFilter::GetFetcherImplementation() const
 {
 	return StringFetcher;
 }

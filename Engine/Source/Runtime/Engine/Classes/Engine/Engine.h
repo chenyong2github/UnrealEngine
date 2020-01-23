@@ -1572,9 +1572,6 @@ public:
 	UPROPERTY(globalconfig)
 	FString ParticleEventManagerClassPath;
 
-	/** A collection of messages to display on-screen. */
-	TArray<struct FScreenMessageString> PriorityScreenMessages;
-
 	/** Used to alter the intensity level of the selection highlight on selected objects */
 	UPROPERTY(transient)
 	float SelectionHighlightIntensity;
@@ -1774,10 +1771,30 @@ protected:
 	/** Audio device handle to the main audio device. */
 	uint32 MainAudioDeviceHandle;
 
-public:
+private:
+	/** A collection of messages to display on-screen. */
+	TArray<struct FScreenMessageString> PriorityScreenMessages;
 
 	/** A collection of messages to display on-screen. */
 	TMap<int32, FScreenMessageString> ScreenMessages;
+
+public:
+	float DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageX, float MessageY);
+
+	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
+	void AddOnScreenDebugMessage(uint64 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+
+	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
+	void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+
+	/** Retrieve the message for the given key */
+	bool OnScreenDebugMessageExists(uint64 Key);
+
+	/** Clear any existing debug messages */
+	void ClearOnScreenDebugMessages();
+
+	//Remove the message for the given key
+	void RemoveOnScreenDebugMessage(uint64 Key);
 
 	/** Reference to the stereoscopic rendering interface, if any */
 	TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice;
@@ -2333,18 +2350,6 @@ public:
 	 * Returns the current desired time between garbage collection passes (not the time remaining)
 	 */
 	float GetTimeBetweenGarbageCollectionPasses() const;
-
-	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(uint64 Key,float TimeToDisplay,FColor DisplayColor,const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
-
-	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
-
-	/** Retrieve the message for the given key */
-	bool OnScreenDebugMessageExists(uint64 Key);
-
-	/** Clear any existing debug messages */
-	void ClearOnScreenDebugMessages();
 
 #if !UE_BUILD_SHIPPING
 	/** 

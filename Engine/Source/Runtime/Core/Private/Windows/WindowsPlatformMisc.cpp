@@ -1998,7 +1998,7 @@ class FCPUIDQueriedData
 {
 public:
 	FCPUIDQueriedData()
-		: bHasCPUIDInstruction(CheckForCPUIDInstruction()), Vendor(), CPUInfo(0), CacheLineSize(1)
+		: bHasCPUIDInstruction(CheckForCPUIDInstruction()), Vendor(), CPUInfo(0), CacheLineSize(PLATFORM_CACHE_LINE_SIZE)
 	{
 		if(bHasCPUIDInstruction)
 		{
@@ -2080,9 +2080,13 @@ private:
 	 */
 	static bool CheckForCPUIDInstruction()
 	{
-#if PLATFORM_SEH_EXCEPTIONS_DISABLED
-		return false;
+		// all x86 64-bit CPUs support CPUID, no check required
+#if PLATFORM_HAS_CPUID && PLATFORM_64BITS
+		return true;
 #else
+	#if PLATFORM_SEH_EXCEPTIONS_DISABLED
+		return false;
+	#else
 		__try
 		{
 			int Args[4];
@@ -2093,6 +2097,7 @@ private:
 			return false;
 		}
 		return true;
+	#endif
 #endif
 	}
 

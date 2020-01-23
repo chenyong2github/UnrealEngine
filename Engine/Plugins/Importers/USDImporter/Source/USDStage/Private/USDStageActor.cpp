@@ -27,12 +27,12 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 
 #include "Channels/MovieSceneChannelProxy.h"
 #include "LevelSequence.h"

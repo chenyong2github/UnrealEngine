@@ -182,6 +182,9 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End of FGCObject interface
 
+	static int32 GetDesiredWidth() { return DesiredWidth; }
+	static void SetDesiredWidth(int32 InDesiredWidth) { DesiredWidth = InDesiredWidth; }
+
 protected:
 	// ueent_hotfix Hack for 4.24 allow to refresh the ui in between two frame without any flickering
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
@@ -191,9 +194,8 @@ protected:
 	//				See SConstrainedBox's trick in cpp file
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
-		const float MaxWidth = 400.0f;
 		const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-		return FVector2D( MaxWidth, ChildSize.Y );
+		return FVector2D( DesiredWidth, ChildSize.Y );
 	}
 	// End SWidget overrides.
 
@@ -286,6 +288,9 @@ private:
 
 	/** Grid panel storing the row widgets */
 	TSharedPtr<SGridPanel> GridPanel;
+
+
+	static int32 DesiredWidth;
 };
 
 /**

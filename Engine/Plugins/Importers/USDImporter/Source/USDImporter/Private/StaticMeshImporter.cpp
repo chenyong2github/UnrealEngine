@@ -12,11 +12,11 @@
 #include "Factories/Factory.h"
 #include "Factories/MaterialImportHelpers.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshAttributes.h"
 #include "IMeshBuilderModule.h"
 #include "PackageTools.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 
 #include "USDAssetImportData.h"
 #include "USDGeomMeshConversion.h"
@@ -151,7 +151,7 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 
 		if (Material == nullptr)
 		{
-			if ( FMeshDescriptionOperations::HasVertexColor( *MeshDescription ) )
+			if ( FStaticMeshOperations::HasVertexColor( *MeshDescription ) )
 			{
 				FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
 				Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
