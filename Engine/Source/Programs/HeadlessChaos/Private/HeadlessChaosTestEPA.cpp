@@ -630,13 +630,7 @@ namespace ChaosTest
 			bool bResult = GJKRaycast2(ScaledConvex, Sphere, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness);
 
 		}
-
-	}
-
-	// Currently broken EPA edge cases. As they are fixed move them to EPARealFailures_Fixed above so that we can ensure they don't break again.
-	GTEST_TEST(EPATests, EPARealFailures_Broken)
-	{
-		using namespace Chaos;
+		
 		// Sphere sweep against triangle, fails when it should hit. Raycast added as well for verification purposes.
 		{
 			const TTriangle<FReal> Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
@@ -674,9 +668,14 @@ namespace ChaosTest
 				bTriangleIntersects = DistToTriangle2 <= SMALL_NUMBER;	//raycast gave us the intersection point so sphere radius is already accounted for
 			}
 
-			//EXPECT_EQ(bTriangleIntersects, bSweepResult); // uncomment to demonstrate failure.
+			EXPECT_EQ(bTriangleIntersects, bSweepResult); // uncomment to demonstrate failure.
 		}
 
+	}
+
+	// Currently broken EPA edge cases. As they are fixed move them to EPARealFailures_Fixed above so that we can ensure they don't break again.
+	GTEST_TEST(EPATests, EPARealFailures_Broken)
+	{
 	}
 
 
