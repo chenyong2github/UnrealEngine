@@ -72,8 +72,6 @@ enum EDebugState
 	DEBUGSTATE_TestLPF,
 	// Force LPF on all sources
 	DEBUGSTATE_TestHPF,
-	// Bleed stereo sounds fully to the rear speakers
-	DEBUGSTATE_TestStereoBleed,
 	// Bleed all sounds to the LFE speaker
 	DEBUGSTATE_TestLFEBleed,
 	// Disable any LPF filter effects
@@ -442,7 +440,6 @@ private:
 	bool HandleIsolateReverbCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestLFEBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDisableLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDisableHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);

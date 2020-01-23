@@ -1261,13 +1261,6 @@ bool FAudioDevice::HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
-bool FAudioDevice::HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	Ar.Logf(TEXT("StereoBleed set to max for all sources"));
-	SetMixDebugState(DEBUGSTATE_TestStereoBleed);
-	return true;
-}
-
 bool FAudioDevice::HandleTestLFEBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("LFEBleed set to max for all sources"));
@@ -1956,10 +1949,6 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("TestLPF")))
 	{
 		return HandleTestLPFCommand(Cmd, Ar);
-	}
-	else if (FParse::Command(&Cmd, TEXT("TestStereoBleed")))
-	{
-		return HandleTestStereoBleedCommand(Cmd, Ar);
 	}
 	else if (FParse::Command(&Cmd, TEXT("TestLFEBleed")))
 	{

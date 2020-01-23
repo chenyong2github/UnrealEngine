@@ -224,9 +224,6 @@ public:
 	/** The volume at which the radio filter kicks in */
 	float RadioFilterVolumeThreshold;
 
-	/** The amount of stereo sounds to bleed to the rear speakers */
-	float StereoBleed;
-
 	/** The amount of a sound to bleed to the LFE channel */
 	float LFEBleed;
 
@@ -540,7 +537,6 @@ public:
 		: AudioDevice(InAudioDevice)
 		, WaveInstance(nullptr)
 		, Buffer(nullptr)
-		, StereoBleed(0.0f)
 		, LFEBleed(0.5f)
 		, LPFFrequency(MAX_FILTER_FREQUENCY)
 		, HPFFrequency(MIN_FILTER_FREQUENCY)
@@ -632,9 +628,6 @@ public:
 	/** Set the bReverbApplied variable. */
 	ENGINE_API bool SetReverbApplied(bool bHardwareAvailable);
 
-	/** Set the StereoBleed variable. */
-	ENGINE_API float SetStereoBleed();
-
 	/** Updates and sets the LFEBleed variable. */
 	ENGINE_API float SetLFEBleed();
 
@@ -696,9 +689,6 @@ protected:
 
 	/** Cached sound buffer associated with currently bound wave instance. */
 	FSoundBuffer* Buffer;
-
-	/** The amount of stereo sounds to bleed to the rear speakers */
-	float StereoBleed;
 
 	/** The amount of a sound to bleed to the LFE speaker */
 	float LFEBleed;
