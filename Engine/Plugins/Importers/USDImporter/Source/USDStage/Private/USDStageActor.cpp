@@ -691,6 +691,16 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAssets );
 
+	// Clear existing prim/asset association
+	FString StartPrimPath = UsdToUnreal::ConvertPath( StartPrim.GetPrimPath() );
+	for ( TMap< FString, UObject* >::TIterator PrimPathToAssetIt = PrimPathsToAssets.CreateIterator(); PrimPathToAssetIt; ++PrimPathToAssetIt )
+	{
+		if ( PrimPathToAssetIt.Key().StartsWith( StartPrimPath ) || PrimPathToAssetIt.Key() == StartPrimPath )
+		{
+			PrimPathToAssetIt.RemoveCurrent();
+		}
+	}
+
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
 	auto CreateAssetsForPrims = [ &UsdSchemasModule, &TranslationContext ]( const TArray< TUsdStore< pxr::UsdPrim > >& AllPrimAssets )
