@@ -5,6 +5,7 @@
 #include "Asio/Asio.h"
 #include "AsioIoable.h"
 #include "AsioTcpServer.h"
+#include "AsioTickable.h"
 
 namespace Trace
 {
@@ -16,6 +17,7 @@ class FAsioSocket;
 class FAsioTraceRelay
 	: public FAsioTcpServer
 	, public FAsioIoSink
+	, public FAsioTickable
 {
 public:
 						FAsioTraceRelay(asio::io_context& IoContext, FAsioReadable* InInput, uint32 InTraceIf, FAsioRecorder& InRecorder);
@@ -25,6 +27,7 @@ public:
 
 private:
 	virtual bool		OnAccept(asio::ip::tcp::socket& Socket) override;
+	virtual void		OnTick() override;
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
 	enum				{ OpStart, OpRead, OpSend };
 	static const uint32	BufferSize = 64 << 10;

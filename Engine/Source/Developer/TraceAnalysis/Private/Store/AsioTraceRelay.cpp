@@ -14,6 +14,7 @@ FAsioTraceRelay::FAsioTraceRelay(
 	uint32 InSessionId,
 	FAsioRecorder& InRecorder)
 : FAsioTcpServer(IoContext)
+, FAsioTickable(IoContext)
 , Input(InInput)
 , Recorder(InRecorder)
 , SessionId(InSessionId)
@@ -57,19 +58,24 @@ bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAsioTraceRelay::OnTick()
+{
+	return OnIoComplete(OpStart, 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
 	{
-		if (Id == OpRead && SessionId)
+		if (Id == OpRead && SessionId /*&& -Size == asio::eof*/)
 		{
 			for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
 			{
 				const FAsioRecorder::FSession* Session = Recorder.GetSessionInfo(i);
 				if (Session->GetId() == SessionId)
 				{
-					FPlatformProcess::SleepNoStats(0.2f);
-					return OnIoComplete(OpStart, 0);
+					return TickOnce(200);
 				}
 			}
 		}
