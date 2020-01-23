@@ -6,8 +6,9 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Framework/Docking/TabManager.h"
 
-namespace Trace 
-{ 
+namespace Trace
+{
+	class FStoreService;
 	class IAnalysisService;
 	class ISessionService;
 	class IModuleService;
@@ -33,8 +34,9 @@ public:
 	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;
-	virtual void StartAnalysisForSession(const TCHAR* InSessionId) override;
-	virtual void StartAnalysisForLastLiveSession() override;
+	virtual void StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId) override;
+	virtual void StartAnalysisForLastLiveSession(/*StoreClient*/) override;
+	//virtual void StartAnalysisForTrace(StoreClient or FTraceData..) override;
 	virtual void ShutdownUserInterface() override;
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) override;
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) override;
@@ -44,7 +46,10 @@ public:
 	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
 
 protected:
+	void InitTraceStore();
+
 	void RegisterTabSpawners();
+	void UnregisterTabSpawners();
 
 	void AddAreaForSessionViewer(TSharedRef<FTabManager::FLayout> Layout);
 	void AddAreaForWidgetReflector(TSharedRef<FTabManager::FLayout> Layout, bool bAllowDebugTools);
@@ -82,9 +87,7 @@ protected:
 #endif
 
 protected:
-	TSharedPtr<FTabManager::FLayout> PersistentLayout;
-	bool bBrowserMode;
-	FString UnrealInsightsLayoutIni;
+	TUniquePtr<Trace::FStoreService> StoreService;
 
 	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<Trace::ISessionService> TraceSessionService;
@@ -93,4 +96,7 @@ protected:
 	TMap<FName, FInsightsMajorTabConfig> TabConfigs;
 
 	FOnInsightsMajorTabCreated OnInsightsMajorTabCreatedDelegate;
+
+	TSharedPtr<FTabManager::FLayout> PersistentLayout;
+	FString UnrealInsightsLayoutIni;
 };

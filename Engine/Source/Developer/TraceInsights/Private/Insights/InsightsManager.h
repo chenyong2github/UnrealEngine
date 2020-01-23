@@ -15,6 +15,11 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace Trace
+{
+	class FStoreClient;
+}
+
 class SStartPageWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,11 +77,22 @@ public:
 	TSharedRef<Trace::ISessionService> GetSessionService() const { return SessionService; }
 	TSharedRef<Trace::IModuleService> GetModuleService() const { return ModuleService; }
 
+	void SetStoreDir(const FString& InStoreDir) { StoreDir = InStoreDir; }
+	const FString& GetStoreDir() const { return StoreDir; }
+
+	bool ConnectToStore(const TCHAR* Host, uint32 Port);
+	const FString& GetStoreHost() const { return StoreHost; }
+	uint32 GetStorePort() const { return StorePort; }
+	Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
+
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> GetSession() const;
 
-	/** @return the session handle of the trace analysis session. */
-	Trace::FSessionHandle GetSessionHandle() const;
+	/** @return the id of the trace being analyzed. */
+	uint32 GetTraceId() const { return CurrentTraceId; }
+
+	/** @return the filename of the trace being analyzed. */
+	const FString& GetTraceFilename() const { return CurrentTraceFilename; }
 
 	/** @returns UI command list for the main manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
@@ -116,26 +132,20 @@ public:
 	bool ShouldOpenAnalysisInSeparateProcess() const { return bShouldOpenAnalysisInSeparateProcess; }
 	void SetOpenAnalysisInSeparateProcess(bool bOnOff) { bShouldOpenAnalysisInSeparateProcess = bOnOff; }
 
-	bool IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const;
-	bool IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const;
-
-	/** Creates a new analysis session instance and loads the latest available trace session that is live. */
+	/** Creates a new analysis session instance and loads the latest available trace that is live. */
 	void LoadLastLiveSession();
 
-	/** Creates a new analysis session instance and loads the latest available trace session. */
-	void LoadLastSession();
-
 	/**
-	 * Creates a new analysis session instance using specified session handle.
-	 * @param SessionHandle - The handle for session to analyze
+	 * Creates a new analysis session instance using specified trace id.
+	 * @param TraceId - The id of the trace to analyze
 	 */
-	void LoadSession(Trace::FSessionHandle SessionHandle);
+	void LoadTrace(uint32 TraceId);
 
 	/**
 	 * Creates a new analysis session instance and loads a trace file from the specified location.
-	 * @param TraceFilepath - The path to the trace file
+	 * @param TraceFilename - The trace file to analyze
 	 */
-	void LoadTraceFile(const FString& TraceFilepath);
+	void LoadTraceFile(const FString& TraceFilename);
 
 	/** Opens the Settings dialog. */
 	void OpenSettings();
@@ -183,11 +193,26 @@ private:
 	TSharedRef<Trace::ISessionService> SessionService;
 	TSharedRef<Trace::IModuleService> ModuleService;
 
+	/** The location of the trace files managed by the trace store. */
+	FString StoreDir;
+
+	/** The host name of the trace store. */
+	FString StoreHost;
+
+	/** The port of the trace store. */
+	uint32 StorePort;
+
+	/** The client used to connect to the trace store. */
+	TUniquePtr<Trace::FStoreClient> StoreClient;
+
 	/** The trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> Session;
 
-	/** The session handle. */
-	Trace::FSessionHandle CurrentSessionHandle;
+	/** The id of the trace being analyzed. */
+	uint32 CurrentTraceId;
+
+	/** The filename of the trace being analyzed. */
+	FString CurrentTraceFilename;
 
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;

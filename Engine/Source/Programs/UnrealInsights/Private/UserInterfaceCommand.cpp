@@ -96,17 +96,20 @@ void FUserInterfaceCommand::Run()
 {
 	// Only a single instance of Session Browser window/process is allowed.
 	{
-		const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
-		TCHAR* TraceFile = new TCHAR[MaxPath + 1];
-		TraceFile[0] = 0;
-		bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-Trace="), TraceFile, MaxPath, true);
+		bool bBrowserMode = true;
 
-		if (!bUseTraceFile)
+		if (bBrowserMode)
 		{
-			if (!CheckSessionBrowserSingleInstance())
-			{
-				return;
-			}
+			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-TraceId=")) == nullptr;
+		}
+		if (bBrowserMode)
+		{
+			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-TraceFile=")) == nullptr;
+		}
+
+		if (bBrowserMode && !CheckSessionBrowserSingleInstance())
+		{
+			return;
 		}
 	}
 
@@ -206,22 +209,43 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
 	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
-	TCHAR* TraceFile = new TCHAR[MaxPath + 1];
-	TraceFile[0] = 0;
-	bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-Trace="), TraceFile, MaxPath, true);
 
-	if (bUseTraceFile)
+	uint32 TraceId = 0;
+	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-TraceId="), TraceId);
+
+	if (bUseTraceId)
 	{
+		TCHAR* StoreHost = new TCHAR[MaxPath + 1];
+		FCString::Strcpy(StoreHost, MaxPath, TEXT("127.0.0.1"));
+		FParse::Value(FCommandLine::Get(), TEXT("-StoreHost="), StoreHost, MaxPath, true);
+
+		uint32 StorePort = 0;
+		FParse::Value(FCommandLine::Get(), TEXT("-StorePort="), StorePort);
+
 		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
-		TraceInsightsModule.StartAnalysisForTraceFile(TraceFile);
+		TraceInsightsModule.StartAnalysisForTrace(StoreHost, StorePort, TraceId);
+
+		delete[] StoreHost;
 	}
 	else
 	{
-		const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
-		TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
-	}
+		TCHAR* TraceFile = new TCHAR[MaxPath + 1];
+		TraceFile[0] = 0;
+		bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-TraceFile="), TraceFile, MaxPath, true);
 
-	delete[] TraceFile;
+		if (bUseTraceFile)
+		{
+			TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile);
+		}
+		else
+		{
+			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
+			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
+		}
+
+		delete[] TraceFile;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

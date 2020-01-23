@@ -3,6 +3,8 @@
 #include "TraceInsightsModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Modules/ModuleManager.h"
+#include "Trace/StoreClient.h"
+#include "Trace/StoreService.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -56,14 +58,8 @@ void FTraceInsightsModule::StartupModule()
 	FLoadingProfilerManager::Initialize();
 	FNetworkingProfilerManager::Initialize();
 
-	//////////////////////////////////////////////////
-
 #if WITH_EDITOR
-	if (TraceSessionService.IsValid())
-	{
-		TraceSessionService->StartRecorderServer();
-	}
-
+	//...
 	FCoreDelegates::OnExit.AddRaw(this, &FTraceInsightsModule::HandleExit);
 #endif
 }
@@ -81,18 +77,7 @@ void FTraceInsightsModule::ShutdownModule()
 	}
 #endif
 
-#if !WITH_EDITOR
-	if (TraceSessionService.IsValid())
-	{
-		TraceSessionService->StopRecorderServer();
-	}
-#endif
-
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
+	UnregisterTabSpawners();
 
 	if (FNetworkingProfilerManager::Get().IsValid())
 	{
@@ -125,11 +110,8 @@ void FTraceInsightsModule::ShutdownModule()
 void FTraceInsightsModule::HandleExit()
 {
 	// In editor, as module lifetimes are different, we need to shut down the recorder service before
-	// threads get killed in the shutdown process otherwise we will hang forever waiting on the recorder server
-	if (TraceSessionService.IsValid())
-	{
-		TraceSessionService->StopRecorderServer();
-	}
+	// threads get killed in the shutdown process otherwise we will hang forever waiting on the recorder server.
+	//...
 }
 #endif
 
@@ -140,7 +122,7 @@ void FTraceInsightsModule::RegisterTabSpawners()
 	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory(); 
 
 	const FInsightsMajorTabConfig& StartPageConfig = FindMajorTabConfig(FInsightsManagerTabs::StartPageTabId);
-	if(StartPageConfig.bIsAvailable)
+	if (StartPageConfig.bIsAvailable)
 	{
 		// Register tab spawner for the Start Page.
 		FTabSpawnerEntry& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId,
@@ -153,20 +135,20 @@ void FTraceInsightsModule::RegisterTabSpawners()
 	}
 
 	const FInsightsMajorTabConfig& SessionInfoConfig = FindMajorTabConfig(FInsightsManagerTabs::SessionInfoTabId);
-	if(SessionInfoConfig.bIsAvailable)
+	if (SessionInfoConfig.bIsAvailable)
 	{
 		// Register tab spawner for the Session Info.
 		FTabSpawnerEntry& SessionInfoTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId,
 			FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnSessionInfoTab))
-			.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTabTitle", "Session Info"))
-			.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "SessionInfoTooltipText", "Open the Session Info tab."))
-			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
+			.SetDisplayName(SessionInfoConfig.TabLabel.IsSet() ? SessionInfoConfig.TabLabel.GetValue() : NSLOCTEXT("FTraceInsightsModule", "SessionInfoTabTitle", "Session Info"))
+			.SetTooltipText(SessionInfoConfig.TabTooltip.IsSet() ? SessionInfoConfig.TabTooltip.GetValue() : NSLOCTEXT("FTraceInsightsModule", "SessionInfoTooltipText", "Open the Session Info tab."))
+			.SetIcon(SessionInfoConfig.TabIcon.IsSet() ? SessionInfoConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
 
 		SessionInfoTabSpawnerEntry.SetGroup(SessionInfoConfig.WorkspaceGroup.IsValid() ? SessionInfoConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory);
 	}
 
 	const FInsightsMajorTabConfig& TimingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
-	if(TimingProfilerConfig.bIsAvailable)
+	if (TimingProfilerConfig.bIsAvailable)
 	{
 		// Register tab spawner for the Timing Insights.
 		FTabSpawnerEntry& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
@@ -179,7 +161,7 @@ void FTraceInsightsModule::RegisterTabSpawners()
 	}
 
 	const FInsightsMajorTabConfig& LoadingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId);
-	if(LoadingProfilerConfig.bIsAvailable)
+	if (LoadingProfilerConfig.bIsAvailable)
 	{
 		// Register tab spawner for the Asset Loading Insights.
 		FTabSpawnerEntry& LoadingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
@@ -192,7 +174,7 @@ void FTraceInsightsModule::RegisterTabSpawners()
 	}
 
 	const FInsightsMajorTabConfig& NetworkingProfilerConfig = FindMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId);
-	if(NetworkingProfilerConfig.bIsAvailable)
+	if (NetworkingProfilerConfig.bIsAvailable)
 	{
 		// Register tab spawner for the Networking Insights.
 		FTabSpawnerEntry& NetworkingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId,
@@ -208,14 +190,33 @@ void FTraceInsightsModule::RegisterTabSpawners()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTraceInsightsModule::UnregisterTabSpawners()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess)
 {
-	bBrowserMode = true;
 	FInsightsManager::Get()->SetOpenAnalysisInSeparateProcess(!bSingleProcess);
+	FInsightsManager::Get()->SetStoreDir(FPaths::ProjectSavedDir() / TEXT("TraceSessions"));
 
-	if (TraceSessionService.IsValid())
+	// Create the Store Service.
+	Trace::FStoreService::FDesc StoreServiceDesc;
+	StoreServiceDesc.StoreDir = *FInsightsManager::Get()->GetStoreDir();
+	StoreServiceDesc.RecorderPort = 1980;
+	StoreServiceDesc.ThreadCount = 2;
+	StoreService = TUniquePtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+
+	if (StoreService.IsValid())
 	{
-		TraceSessionService->StartRecorderServer();
+		// Create the Store Client.
+		FInsightsManager::Get()->ConnectToStore(TEXT("127.0.0.1"), StoreService->GetPort());
 	}
 
 	RegisterTabSpawners();
@@ -257,8 +258,6 @@ void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSin
 
 void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 {
-	bBrowserMode = false;
-
 	RegisterTabSpawners();
 
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
@@ -351,7 +350,7 @@ void FTraceInsightsModule::UnregisterMajorTabConfig(const FName& InMajorTabId)
 const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FName& InMajorTabId) const
 {
 	const FInsightsMajorTabConfig* FoundConfig = TabConfigs.Find(InMajorTabId);
-	if(FoundConfig != nullptr)
+	if (FoundConfig != nullptr)
 	{
 		return *FoundConfig;
 	}
@@ -372,11 +371,13 @@ void FTraceInsightsModule::StartAnalysisForTraceFile(const TCHAR* InTraceFile)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::StartAnalysisForSession(const TCHAR* InSessionId)
+void FTraceInsightsModule::StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId)
 {
-	if (InSessionId != nullptr)
+	FInsightsManager::Get()->ConnectToStore(InStoreHost, InStorePort);
+
+	if (InTraceId != 0)
 	{
-		//TODO: FInsightsManager::Get()->LoadSession(FString(InSessionId));
+		FInsightsManager::Get()->LoadTrace(InTraceId);
 	}
 }
 

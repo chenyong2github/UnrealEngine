@@ -24,6 +24,7 @@ public class TraceInsights : ModuleRules
 				"Slate",
 				"EditorStyle",
 				"TraceLog",
+				"TraceAnalysis",
 				"TraceServices",
 				"DesktopPlatform",
 				"WorkspaceMenuStructure",

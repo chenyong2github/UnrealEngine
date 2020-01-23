@@ -8,6 +8,11 @@
 
 class FExtender;
 
+namespace Trace
+{
+	class FStoreClient;
+}
+
 /** Major tab IDs for Insights tools */
 struct TRACEINSIGHTS_API FInsightsManagerTabs
 {
@@ -118,16 +123,18 @@ public:
 	/**
 	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
 	 *
-	 * @param InTraceFile The file path to the *.utrace file to analyze.
+	 * @param InTraceFile The filename (*.utrace) of the trace to analyze.
 	 */
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
 
 	/**
-	 * Starts analysis of the specified session. Called when the application starts in "Viewer" mode.
+	 * Starts analysis of the specified trace. Called when the application starts in "Viewer" mode.
 	 *
-	 * @param InSessionId The id of the session to analyze.
+	 * @param InStoreHost The host of the store to connect to.
+	 * @param InStorePort The port of the store to connect to.
+	 * @param InTraceId The id of the trace to analyze.
 	 */
-	virtual void StartAnalysisForSession(const TCHAR* InSessionId) = 0;
+	virtual void StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId) = 0;
 
 	/**
 	 * Starts analysis of the last live session. Called when the application starts in "Viewer" mode.
@@ -139,7 +146,7 @@ public:
 	 */
 	virtual void ShutdownUserInterface() = 0;
 
-	/** 
+	/**
 	 * Registers a major tab layout. This defines how the major tab will appear when spawned.
 	 * If this is not called prior to tabs being spawned then the built-in default layout will be used.
 	 * @param	InMajorTabId	The major tab ID we are supplying a layout to
@@ -147,7 +154,7 @@ public:
 	 */
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) = 0;
 
-	/** 
+	/**
 	 * Unregisters a major tab layout. This will revert the major tab to spawning with its default layout
 	 * @param	InMajorTabId	The major tab ID we are supplying a layout to
 	 */

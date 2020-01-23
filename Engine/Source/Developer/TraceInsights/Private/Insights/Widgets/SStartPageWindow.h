@@ -9,6 +9,7 @@
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
+#include "Trace/StoreClient.h"
 #include "TraceServices/ModuleService.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -42,33 +43,52 @@ typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 
 struct FTraceSession
 {
-	Trace::FSessionHandle SessionHandle;
+	uint32 TraceId;
+	int32 TraceIndex; // debug
+
 	FText Name;
 	FText Uri;
+	FDateTime Timestamp = 0;
+	uint64 Size = 0;
+
+	bool bIsLive = false;
+	uint32 IpAddress = 0;
+
 	FText Platform;
 	FText AppName;
 	FText CommandLine;
-	EBuildConfiguration ConfigurationType;
-	EBuildTargetType TargetType;
-	FDateTime TimeStamp;
-	uint64 Size;
-	bool bIsLive;
+	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
+	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 
-	FTraceSession(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
-		: SessionHandle(InSessionHandle)
-		, Name(FText::FromString(InSessionInfo.Name))
-		, Uri(FText::FromString(InSessionInfo.Uri))
-		, Platform(FText::FromString(InSessionInfo.Platform))
-		, AppName(FText::FromString(InSessionInfo.AppName))
-		, CommandLine(FText::FromString(InSessionInfo.CommandLine))
-		//, ConfigurationType(EBuildConfiguration::Unknown)
-		, ConfigurationType(InSessionInfo.ConfigurationType)
-		//, TargetType(EBuildTargetType::Unknown)
-		, TargetType(InSessionInfo.TargetType)
-		, TimeStamp(InSessionInfo.TimeStamp)
-		, Size(InSessionInfo.Size)
-		, bIsLive(InSessionInfo.bIsLive)
-	{}
+	//FTraceSession() = default;
+	FTraceSession(const Trace::FStoreClient::FTraceInfo* InTraceInfo)
+		: TraceId(InTraceInfo->GetId())
+		, TraceIndex(-1)
+		, Name(AnsiStringViewToText(InTraceInfo->GetName()))
+		, Uri(/*TODO: InTraceInfo->GetUri()*/)
+		, Timestamp(ConvertTimestamp(InTraceInfo->GetTimestamp()))
+		, Size(InTraceInfo->GetSize())
+		, bIsLive(false)
+		, IpAddress(0)
+		, Platform()
+		, AppName()
+		, CommandLine()
+		, ConfigurationType(EBuildConfiguration::Unknown)
+		, TargetType(EBuildTargetType::Unknown)
+	{
+	}
+
+	static FDateTime ConvertTimestamp(uint64 InTimestamp)
+	{
+		return FDateTime(static_cast<int64>(InTimestamp));
+	}
+
+private:
+	static FText AnsiStringViewToText(const FAnsiStringView& AnsiStringView)
+	{
+		FString FatString(AnsiStringView.Len(), AnsiStringView.GetData());
+		return FText::FromString(FatString);
+	}
 };
 
 /** Implements the Start Page window. */
@@ -122,7 +142,7 @@ private:
 
 	void LoadTraceSession(TSharedPtr<FTraceSession> InTraceSession);
 	void LoadTraceFile(const FString& InTraceFile);
-	void LoadSession(Trace::FSessionHandle InSessionHandle);
+	void LoadTrace(uint32 InTraceId);
 
 	TSharedRef<SWidget> MakeSessionListMenu();
 
@@ -227,11 +247,10 @@ private:
 	/** Holds all widgets for the profiler window like menu bar, toolbar and tabs. */
 	TSharedPtr<SVerticalBox> MainContentPanel;
 
-	int32 AvailableSessionCount;
 	int32 LiveSessionCount;
 
 	bool bAutoStartAnalysisForLiveSessions;
-	TArray<Trace::FSessionHandle> AutoStartedSessions; // tracks sessions that were auto started (in order to not start them again)
+	TArray<uint32> AutoStartedSessions; // tracks sessions that were auto started (in order to not start them again)
 
 	TSharedPtr<SSearchBox> AutoStartPlatformFilter;
 	TSharedPtr<SSearchBox> AutoStartAppNameFilter;
@@ -240,7 +259,7 @@ private:
 
 	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
 	TArray<TSharedPtr<FTraceSession>> TraceSessions;
-	TMap<Trace::FSessionHandle, TSharedPtr<FTraceSession>> TraceSessionsMap;
+	TMap<uint32, TSharedPtr<FTraceSession>> TraceSessionsMap;
 	TSharedPtr<SEditableTextBox> HostTextBox;
 	TSharedPtr<FTraceSession> SelectedTraceSession;
 

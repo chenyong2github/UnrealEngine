@@ -3,7 +3,7 @@
 #pragma once
 
 #if !defined(TRACE_WITH_ASIO)
-#	define TRACE_WITH_ASIO 0
+#	define TRACE_WITH_ASIO 1
 #endif // 0
 
 #if TRACE_WITH_ASIO
