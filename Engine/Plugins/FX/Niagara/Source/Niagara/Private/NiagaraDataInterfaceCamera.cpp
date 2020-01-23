@@ -21,7 +21,7 @@ const FName UNiagaraDataInterfaceCamera::GetFieldOfViewName(TEXT("GetFieldOfView
 UNiagaraDataInterfaceCamera::UNiagaraDataInterfaceCamera(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Proxy = MakeShared<FNiagaraDataIntefaceProxyCameraQuery, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataIntefaceProxyCameraQuery());
 }
 
 void UNiagaraDataInterfaceCamera::PostInitProperties()

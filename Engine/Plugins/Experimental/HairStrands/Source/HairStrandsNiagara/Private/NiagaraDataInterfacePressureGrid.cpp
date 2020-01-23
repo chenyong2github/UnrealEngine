@@ -259,7 +259,7 @@ UNiagaraDataInterfacePressureGrid::UNiagaraDataInterfacePressureGrid(FObjectInit
 	, MinOutput(0)
 	, MaxOutput(0)
 {
-	Proxy = MakeShared<FNDIPressureGridProxy, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNDIPressureGridProxy());
 }
 
 bool UNiagaraDataInterfacePressureGrid::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)

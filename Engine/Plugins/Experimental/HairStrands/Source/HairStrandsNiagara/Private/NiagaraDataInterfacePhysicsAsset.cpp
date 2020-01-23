@@ -502,16 +502,6 @@ private:
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPhysicsAssetProxy::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
-}
-
 void FNDIPhysicsAssetProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIPhysicsAssetData* SourceData = static_cast<FNDIPhysicsAssetData*>(PerInstanceData);
@@ -535,22 +525,14 @@ void FNDIPhysicsAssetProxy::InitializePerInstanceData(const FNiagaraSystemInstan
 	check(IsInRenderingThread());
 
 	FNDIPhysicsAssetData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
+	TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
 }
 
 void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	//check(SystemInstancesToProxyData.Contains(SystemInstance));
+	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -562,7 +544,7 @@ UNiagaraDataInterfacePhysicsAsset::UNiagaraDataInterfacePhysicsAsset(FObjectInit
 	, SourceComponent(nullptr)
 	, PhysicsAsset(nullptr)
 {
-	Proxy = MakeShared<FNDIPhysicsAssetProxy, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNDIPhysicsAssetProxy());
 }
 
 void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance)

@@ -356,7 +356,7 @@ private:
 UNiagaraDataInterfaceParticleRead::UNiagaraDataInterfaceParticleRead(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyParticleRead, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyParticleRead());
 }
 
 void UNiagaraDataInterfaceParticleRead::PostInitProperties()

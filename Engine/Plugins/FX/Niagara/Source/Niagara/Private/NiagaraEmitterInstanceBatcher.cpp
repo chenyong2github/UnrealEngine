@@ -157,39 +157,9 @@ void NiagaraEmitterInstanceBatcher::ReleaseInstanceCounts_RenderThread(FNiagaraC
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy)
-{
-	DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
-}
-
 void NiagaraEmitterInstanceBatcher::FinishDispatches()
 {
 	ReleaseTicks();
-
-	for (FNiagaraComputeExecutionContext* Context : ContextsToDestroy_RT)
-	{
-		check(Context);
-		// Put back the GPU instance counter the global pool.
-		GPUInstanceCounterManager.FreeEntry(Context->EmitterInstanceReadback.GPUCountOffset);
-		delete Context;
-	}
-	ContextsToDestroy_RT.Reset();
-
-	for (FNiagaraDataSet* DataSet : DataSetsToDestroy_RT)
-	{
-		check(DataSet);
-		// Put back the GPU instance counter the global pool.
-		DataSet->ReleaseGPUInstanceCounts(GPUInstanceCounterManager);
-		delete DataSet;
-	}
-	DataSetsToDestroy_RT.Reset();
-
-	for (TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>& Proxy : DIProxyDeferredDeletes_RT)
-	{
-		Proxy->DeferredDestroy();
-	}
-
-	DIProxyDeferredDeletes_RT.Empty();
 }
 
 void NiagaraEmitterInstanceBatcher::ReleaseTicks()

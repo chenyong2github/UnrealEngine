@@ -212,9 +212,6 @@ protected:
 /** Proxy to send data to gpu */
 struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 {
-	/** Destroy internal data */
-	virtual void DeferredDestroy() override;
-
 	/** Get the size of the data that will be passed to render*/
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FNDIPhysicsAssetData); }
 
@@ -229,8 +226,5 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
-
-	/** List of proxy data to destroy later */
-	TSet<FNiagaraSystemInstanceID> DeferredDestroyList;
 };
 

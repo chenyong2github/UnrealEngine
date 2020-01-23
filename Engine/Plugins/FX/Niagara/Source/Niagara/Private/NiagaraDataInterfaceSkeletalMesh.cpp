@@ -1575,7 +1575,7 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 #endif
 	, ChangeId(0)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxySkeletalMesh, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxySkeletalMesh());
 }
 
 
@@ -1741,6 +1741,7 @@ void UNiagaraDataInterfaceSkeletalMesh::DestroyPerInstanceData(void* PerInstance
 		ENQUEUE_RENDER_COMMAND(FNiagaraDestroySkeletalMeshInstanceData) (
 			[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 			{
+				//check(ThisProxy->Contains(InstanceID));
 				ThisProxy->SystemInstancesToData.Remove(InstanceID);
 			}
 		);

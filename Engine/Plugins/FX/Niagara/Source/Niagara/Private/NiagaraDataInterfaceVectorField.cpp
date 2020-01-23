@@ -32,7 +32,7 @@ UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitia
 	, bTileY(false)
 	, bTileZ(false)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyVectorField, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyVectorField());
 	PushToRenderThread();
 }
 

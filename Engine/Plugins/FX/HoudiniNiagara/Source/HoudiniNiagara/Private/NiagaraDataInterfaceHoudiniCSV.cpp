@@ -96,7 +96,7 @@ UNiagaraDataInterfaceHoudiniCSV::UNiagaraDataInterfaceHoudiniCSV(FObjectInitiali
     HoudiniCSVAsset = nullptr;
 	LastSpawnedPointID = -1;
 
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyHoudiniCSV, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyHoudiniCSV());
 }
 
 void UNiagaraDataInterfaceHoudiniCSV::PostInitProperties()

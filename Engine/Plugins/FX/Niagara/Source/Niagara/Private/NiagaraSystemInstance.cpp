@@ -1148,6 +1148,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 	Component->GetOverrideParameters().Tick();
 	
+	//-TODO: Validate that any queued ticks have been executed
 	DestroyDataInterfaceInstanceData();
 
 	GPUDataInterfaceInstanceDataSize = 0;

@@ -240,11 +240,6 @@ bool FNiagaraScriptExecutionContext::CanExecute()const
 	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
 }
 
-struct H2
-{
-	FNiagaraDataInterfaceProxy* Proxy;
-};
-
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
 	check(IsInGameThread());
