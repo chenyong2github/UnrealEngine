@@ -61,7 +61,6 @@ void FGameplayInsightsModule::StartupModule()
 	StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
 
 	FCoreDelegates::OnPreExit.AddLambda([this]() {
-		StoreClient.Reset();
 		StoreService.Reset();
 	});
 

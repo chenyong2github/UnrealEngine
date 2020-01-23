@@ -36,6 +36,5 @@ private:
 #endif
 
 	TSharedPtr<Trace::FStoreService> StoreService;
-	TSharedPtr<Trace::FStoreClient> StoreClient;
 	TWeakPtr<FTabManager> WeakTimingProfilerTabManager;
 };
