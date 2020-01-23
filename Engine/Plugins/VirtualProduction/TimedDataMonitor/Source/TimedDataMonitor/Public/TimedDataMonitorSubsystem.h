@@ -23,15 +23,10 @@ public:
 
 	bool IsValidGroup() const { return Group.IsValid(); }
 
-	bool operator== (const FTimedDataMonitorGroupIdentifier& Other) const
-	{
-		return Other.Group == Group;
-	}
+	bool operator== (const FTimedDataMonitorGroupIdentifier& Other) const { return Other.Group == Group; }
+	bool operator!= (const FTimedDataMonitorGroupIdentifier& Other) const { return Other.Group != Group; }
 
-	friend uint32 GetTypeHash(const FTimedDataMonitorGroupIdentifier& Identifier)
-	{
-		return GetTypeHash(Identifier.Group);
-	}
+	friend uint32 GetTypeHash(const FTimedDataMonitorGroupIdentifier& Identifier) { return GetTypeHash(Identifier.Group); }
 };
 
 USTRUCT(BlueprintType)
@@ -48,15 +43,19 @@ public:
 
 	bool IsValidInput() const { return Input.IsValid(); }
 
-	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const
-	{
-		return Other.Input == Input;
-	}
+	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Input == Input; }
+	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Input != Input; }
 
-	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& Identifier)
-	{
-		return GetTypeHash(Identifier.Input);
-	}
+	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& Identifier) { return GetTypeHash(Identifier.Input); }
+};
+
+
+UENUM()
+enum class ETimedDataMonitorGroupEnabled
+{
+	Disabled,
+	Enabled,
+	MultipleValues,
 };
 
 
@@ -124,6 +123,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	TArray<FTimedDataMonitorInputIdentifier> GetAllInputs();
 
+	/** Reset the stat of all the input of that group. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	void ResetAllBufferStats();
+
 	/** Return true if the identifier is a valid group. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
 	bool DoesGroupExist(const FTimedDataMonitorGroupIdentifier& Identifier);
@@ -140,9 +143,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
 	void SetGroupDataBufferSize(const FTimedDataMonitorGroupIdentifier& Identifier, int32 BufferSize);
 
+	/** Get the worst state of all the input state of that group. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
+	ETimedDataInputState GetGroupState (const FTimedDataMonitorGroupIdentifier& Identifier);
+
+	/** Reset the stat of all the input of that group. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
+	void ResetGroupBufferStats(const FTimedDataMonitorGroupIdentifier& Identifier);
+
 	/** Return true if all inputs in the group are enabled. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	bool IsGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier);
+	ETimedDataMonitorGroupEnabled GetGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier);
 
 	/** Enable or disable all inputs in the group. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
@@ -152,15 +163,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	bool DoesInputExist(const FTimedDataMonitorInputIdentifier& Identifier);
 
+	/** Return the display name of an input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	FText GetInputDisplayName(const FTimedDataMonitorInputIdentifier& Identifier);
+
 	/** Return the group in which the input is part of. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FTimedDataMonitorGroupIdentifier GetInputGroup(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Get how the input is evaluated type */
+	/** Get how the input is evaluated type. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	ETimedDataInputEvaluationType GetInputEvaluationType(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Set how the input is evaluated type */
+	/** Set how the input is evaluated type. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputEvaluationType(const FTimedDataMonitorInputIdentifier& Identifier, ETimedDataInputEvaluationType Evaluation);
 
@@ -172,9 +187,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputEvaluationOffsetInSeconds(const FTimedDataMonitorInputIdentifier& Identifier, float Seconds);
 
+	/** Get the current input state. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
+
 	/** Get the frame rate at which the samples is produce. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FFrameRate GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Get the input latest sample time at which it should be evaluated. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	FTimedDataInputSampleTime GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Get the size of the buffer used by the input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -183,6 +206,10 @@ public:
 	/** Set the size of the buffer used by the input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputDataBufferSize(const FTimedDataMonitorInputIdentifier& Identifier, int32 BufferSize);
+
+	/** Reset the stat of the input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	void ResetInputBufferStats(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Is the input enabled in the monitor. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -204,6 +231,6 @@ private:
 	bool bRequestSourceListRebuilt = false;
 	TMap<FTimedDataMonitorInputIdentifier, FTimeDataInputItem> InputMap;
 	TMap<FTimedDataMonitorGroupIdentifier, FTimeDataInputItemGroup> GroupMap;
-	TArray<FTimedDataMonitorInputIdentifier> UnGroupedInputs;
+	FTimedDataMonitorGroupIdentifier OtherGroupIdentifier;
 	FSimpleMulticastDelegate OnIdentifierListChanged_Delegate;
 };

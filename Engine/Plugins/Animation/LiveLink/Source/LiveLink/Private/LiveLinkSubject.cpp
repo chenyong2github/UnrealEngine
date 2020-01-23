@@ -939,8 +939,8 @@ ITimedDataInputGroup* FLiveLinkSubject::GetGroup() const
 
 ETimedDataInputState FLiveLinkSubject::GetState() const
 {
-	return (FApp::GetCurrentTime() - GetLastPushTime() < GetDefault<ULiveLinkSettings>()->GetTimeWithoutFrameToBeConsiderAsInvalid())
-		? ETimedDataInputState::Connected : ETimedDataInputState::Unresponsive;
+	bool bHasValidFrame = (FApp::GetCurrentTime() - GetLastPushTime() < GetDefault<ULiveLinkSettings>()->GetTimeWithoutFrameToBeConsiderAsInvalid());
+	return (bHasValidFrame && HasValidFrameSnapshot()) ? ETimedDataInputState::Connected : ETimedDataInputState::Unresponsive;
 }
 
 FText FLiveLinkSubject::GetDisplayName() const
@@ -948,9 +948,18 @@ FText FLiveLinkSubject::GetDisplayName() const
 	return FText::FromName(SubjectKey.SubjectName);
 }
 
-TArray<ITimedDataInput::FDataTime> FLiveLinkSubject::GetDataTimes() const
+FTimedDataInputSampleTime FLiveLinkSubject::GetNewestDataTime() const
 {
-	TArray<ITimedDataInput::FDataTime> Result;
+	if (FrameData.Num() > 0)
+	{
+		return FTimedDataInputSampleTime(FrameData.Last().GetBaseData()->WorldTime.GetOffsettedTime(), FrameData.Last().GetBaseData()->MetaData.SceneTime);
+	}
+	return FTimedDataInputSampleTime();
+}
+
+TArray<FTimedDataInputSampleTime> FLiveLinkSubject::GetDataTimes() const
+{
+	TArray<FTimedDataInputSampleTime> Result;
 	Result.Reset(FrameData.Num());
 	for (const FLiveLinkFrameDataStruct& Data : FrameData)
 	{
@@ -958,8 +967,6 @@ TArray<ITimedDataInput::FDataTime> FLiveLinkSubject::GetDataTimes() const
 	}
 	return Result;
 }
-
-
 
 ETimedDataInputEvaluationType FLiveLinkSubject::GetEvaluationType() const
 {

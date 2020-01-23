@@ -72,7 +72,8 @@ public:
 	virtual ITimedDataInputGroup* GetGroup() const override;
 	virtual ETimedDataInputState GetState() const override;
 	virtual FText GetDisplayName() const override;
-	virtual TArray<ITimedDataInput::FDataTime> GetDataTimes() const override;
+	virtual FTimedDataInputSampleTime GetNewestDataTime() const override;
+	virtual TArray<FTimedDataInputSampleTime> GetDataTimes() const override;
 	virtual ETimedDataInputEvaluationType GetEvaluationType() const override;
 	//~ this will change all subjects of this subject's source
 	virtual void SetEvaluationType(ETimedDataInputEvaluationType Evaluation) override;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -44,6 +44,10 @@ private:
 	ECheckBoxState GetEnabledCheckState() const;
 	void OnEnabledCheckStateChanged(ECheckBoxState NewState);
 
+	FText GetStateGlyphs() const;
+	FSlateColor GetStateColorAndOpacity() const;
+
+	FText GetDescription() const;
 	TOptional<int32> GetBufferSize() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;

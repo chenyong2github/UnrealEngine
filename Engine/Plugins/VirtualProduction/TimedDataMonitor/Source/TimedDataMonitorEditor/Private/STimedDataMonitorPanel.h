@@ -9,6 +9,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "SlateOptMacros.h"
 
+#include "Input/Reply.h"
+
 
 class FWorkspaceItem;
 class STimedDataInputListView;
@@ -30,6 +32,9 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+private:
+	FReply OnResetErrors();
 
 private:
 	TSharedPtr<STimedDataInputListView> TimedDataSourceList;

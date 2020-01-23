@@ -136,6 +136,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.ContentPadding(FMargin(4, 0))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
+					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrors)
 					[
 						SNew(STextBlock)
 						.TextStyle(FTimedDataMonitorStyle::Get(), "TextBlock.Regular")
@@ -190,5 +191,14 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 	];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+
+FReply STimedDataMonitorPanel::OnResetErrors()
+{
+	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+	check(TimedDataMonitorSubsystem);
+	TimedDataMonitorSubsystem->ResetAllBufferStats();
+	return FReply::Handled();
+}
 
 #undef LOCTEXT_NAMESPACE

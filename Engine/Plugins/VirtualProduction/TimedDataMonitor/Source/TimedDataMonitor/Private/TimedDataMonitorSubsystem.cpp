@@ -61,6 +61,7 @@ void UTimedDataMonitorSubsystem::FTimeDataInputItemGroup::ResetValue()
  */
 void UTimedDataMonitorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	OtherGroupIdentifier = FTimedDataMonitorGroupIdentifier::NewIdentifier();
 	bRequestSourceListRebuilt = true;
 	ITimeManagementModule::Get().GetTimedDataInputCollection().OnCollectionChanged().AddUObject(this, &UTimedDataMonitorSubsystem::OnTimedDataSourceCollectionChanged);
 	Super::Initialize(Collection);
@@ -77,7 +78,6 @@ void UTimedDataMonitorSubsystem::Deinitialize()
 	bRequestSourceListRebuilt = true;
 	InputMap.Reset();
 	GroupMap.Reset();
-	UnGroupedInputs.Reset();
 	OnIdentifierListChanged_Delegate.Broadcast();
 	OnIdentifierListChanged_Dynamic.Broadcast();
 
@@ -131,6 +131,17 @@ TArray<FTimedDataMonitorInputIdentifier> UTimedDataMonitorSubsystem::GetAllInput
 }
 
 
+void UTimedDataMonitorSubsystem::ResetAllBufferStats()
+{
+	BuildSourcesListIfNeeded();
+
+	for (auto& InputItt : InputMap)
+	{
+		InputItt.Value.Input->ResetBufferStats();
+	}
+}
+
+
 bool UTimedDataMonitorSubsystem::DoesGroupExist(const FTimedDataMonitorGroupIdentifier& Identifier)
 {
 	BuildSourcesListIfNeeded();
@@ -143,13 +154,19 @@ FText UTimedDataMonitorSubsystem::GetGroupDisplayName(const FTimedDataMonitorGro
 {
 	BuildSourcesListIfNeeded();
 
-	if (FTimeDataInputItemGroup* GroupItem = GroupMap.Find(Identifier))
+	if (Identifier == OtherGroupIdentifier)
 	{
+		return LOCTEXT("DefaultGroupName", "Other");
+	}
+	else if (FTimeDataInputItemGroup* GroupItem = GroupMap.Find(Identifier))
+	{
+		check(GroupItem->Group);
 		return GroupItem->Group->GetDisplayName();
 	}
 
 	return FText::GetEmpty();
 }
+
 
 void UTimedDataMonitorSubsystem::GetGroupDataBufferSize(const FTimedDataMonitorGroupIdentifier& Identifier, int32& OutMinBufferSize, int32& OutMaxBufferSize)
 {
@@ -196,23 +213,84 @@ void UTimedDataMonitorSubsystem::SetGroupDataBufferSize(const FTimedDataMonitorG
 }
 
 
-bool UTimedDataMonitorSubsystem::IsGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier)
+ETimedDataInputState UTimedDataMonitorSubsystem::GetGroupState(const FTimedDataMonitorGroupIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	ETimedDataInputState WorstState = ETimedDataInputState::Connected;
+	bool bHasAtLeastOneItem = false; 
+	if (FTimeDataInputItemGroup* GroupItem = GroupMap.Find(Identifier))
+	{
+		for (const FTimedDataMonitorInputIdentifier& InputIdentifier : GroupItem->InputIdentifiers)
+		{
+			const FTimeDataInputItem& InputItem = InputMap[InputIdentifier];
+			if (InputItem.bEnabled)
+			{
+				bHasAtLeastOneItem = true;
+				ETimedDataInputState InputState = InputItem.Input->GetState();
+				if (InputState == ETimedDataInputState::Disconnected)
+				{
+					WorstState = ETimedDataInputState::Disconnected;
+					break;
+				}
+				else if (InputState == ETimedDataInputState::Unresponsive)
+				{
+					WorstState = ETimedDataInputState::Unresponsive;
+				}
+			}
+		}
+	}
+
+	return bHasAtLeastOneItem ? WorstState : ETimedDataInputState::Disconnected;
+}
+
+
+void UTimedDataMonitorSubsystem::ResetGroupBufferStats(const FTimedDataMonitorGroupIdentifier& Identifier)
 {
 	BuildSourcesListIfNeeded();
 
 	if (FTimeDataInputItemGroup* GroupItem = GroupMap.Find(Identifier))
 	{
+		for (const FTimedDataMonitorInputIdentifier& InputIdentifier : GroupItem->InputIdentifiers)
+		{
+			const FTimeDataInputItem& InputItem = InputMap[InputIdentifier];
+			InputItem.Input->ResetBufferStats();
+		}
+	}
+}
+
+
+ETimedDataMonitorGroupEnabled UTimedDataMonitorSubsystem::GetGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItemGroup* GroupItem = GroupMap.Find(Identifier))
+	{
+		int32 bCountEnabled = 0;
+		int32 bCountDisabled = 0;
 		for (const FTimedDataMonitorInputIdentifier& Input : GroupItem->InputIdentifiers)
 		{
-			if (!InputMap[Input].bEnabled)
+			if (InputMap[Input].bEnabled)
 			{
-				return false;
+				++bCountEnabled;
+				if (bCountDisabled > 0)
+				{
+					return ETimedDataMonitorGroupEnabled::MultipleValues;
+				}
+			}
+			else
+			{
+				++bCountDisabled;
+				if (bCountEnabled > 0)
+				{
+					return ETimedDataMonitorGroupEnabled::MultipleValues;
+				}
 			}
 		}
-		return GroupItem->InputIdentifiers.Num() > 0;
+		return bCountEnabled > 0 ? ETimedDataMonitorGroupEnabled::Enabled : ETimedDataMonitorGroupEnabled::Disabled;
 	}
 
-	return false;
+	return ETimedDataMonitorGroupEnabled::Disabled;
 }
 
 
@@ -235,6 +313,19 @@ bool UTimedDataMonitorSubsystem::DoesInputExist(const FTimedDataMonitorInputIden
 	BuildSourcesListIfNeeded();
 
 	return InputMap.Find(Identifier) != nullptr;
+}
+
+
+FText UTimedDataMonitorSubsystem::GetInputDisplayName(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetDisplayName();
+	}
+
+	return FText::GetEmpty();
 }
 
 
@@ -299,6 +390,19 @@ void UTimedDataMonitorSubsystem::SetInputEvaluationOffsetInSeconds(const FTimedD
 }
 
 
+ETimedDataInputState UTimedDataMonitorSubsystem::GetInputState(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetState();
+	}
+
+	return ETimedDataInputState::Disconnected;
+}
+
+
 FFrameRate UTimedDataMonitorSubsystem::GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier)
 {
 	BuildSourcesListIfNeeded();
@@ -309,6 +413,19 @@ FFrameRate UTimedDataMonitorSubsystem::GetInputFrameRate(const FTimedDataMonitor
 	}
 
 	return ITimedDataInput::UnknowedFrameRate;
+}
+
+
+FTimedDataInputSampleTime UTimedDataMonitorSubsystem::GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetNewestDataTime();
+	}
+
+	return FTimedDataInputSampleTime();
 }
 
 
@@ -349,6 +466,17 @@ bool UTimedDataMonitorSubsystem::IsInputEnabled(const FTimedDataMonitorInputIden
 }
 
 
+void UTimedDataMonitorSubsystem::ResetInputBufferStats(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		SourceItem->Input->ResetBufferStats();
+	}
+}
+
+
 void UTimedDataMonitorSubsystem::SetInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier, bool bInEnabled)
 {
 	BuildSourcesListIfNeeded();
@@ -368,24 +496,32 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 		{
 			GroupMap.Reset();
 			InputMap.Reset();
-			UnGroupedInputs.Reset();
 		}
 		else
 		{
 			bRequestSourceListRebuilt = false;
 
-			TMap<ITimedDataInputGroup*, FTimedDataMonitorGroupIdentifier> ReverseGroupMap;
 			// Build ReverseGroupMap
+			TMap<ITimedDataInputGroup*, FTimedDataMonitorGroupIdentifier> ReverseGroupMap;
 			for (const auto& Itt : GroupMap)
 			{
-				ReverseGroupMap.Add(Itt.Value.Group, Itt.Key);
+				if (Itt.Value.Group)
+				{
+					ReverseGroupMap.Add(Itt.Value.Group, Itt.Key);
+				}
 			}
+
+			const TArray<ITimedDataInputGroup*>& TimedDataGoups = ITimeManagementModule::Get().GetTimedDataInputCollection().GetGroups();
+			const TArray<ITimedDataInput*>& TimedDataInputs = ITimeManagementModule::Get().GetTimedDataInputCollection().GetInputs();
+
+			TArray<FTimedDataMonitorGroupIdentifier> PreviousGroupList;
+			GroupMap.GenerateKeyArray(PreviousGroupList);
+
+			TArray<FTimedDataMonitorInputIdentifier> PreviousInputList;
+			InputMap.GenerateKeyArray(PreviousInputList);
 
 			// Regenerate the list of group
 			{
-				TArray<FTimedDataMonitorGroupIdentifier> PreviousGroupList;
-				GroupMap.GenerateKeyArray(PreviousGroupList);
-				const TArray<ITimedDataInputGroup*>& TimedDataGoups = ITimeManagementModule::Get().GetTimedDataInputCollection().GetGroups();
 				for (ITimedDataInputGroup* TimedDataGoup : TimedDataGoups)
 				{
 					if(TimedDataGoup == nullptr)
@@ -410,8 +546,27 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 						ReverseGroupMap.Add(TimedDataGoup, GroupIdentifier);
 					}
 				}
+			}
 
-				// Remove old group
+			// Look to see if there is any item that needs the Other group
+			{
+				for (ITimedDataInput* TimedDataInput : TimedDataInputs)
+				{
+					if (TimedDataInput && TimedDataInput->GetGroup() == nullptr)
+					{
+						PreviousGroupList.RemoveSingleSwap(OtherGroupIdentifier);
+						FTimeDataInputItemGroup* FoundGroup = GroupMap.Find(OtherGroupIdentifier);
+						if (FoundGroup)
+						{
+							FoundGroup->ResetValue();
+						}
+						break;
+					}
+				}
+			}
+
+			// Remove old groups
+			{
 				check(PreviousGroupList.Num() == 0);
 				for (const FTimedDataMonitorGroupIdentifier& Old : PreviousGroupList)
 				{
@@ -421,9 +576,6 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 
 			// Regenerate the list of inputs
 			{
-				TArray<FTimedDataMonitorInputIdentifier> PreviousInputList;
-				InputMap.GenerateKeyArray(PreviousInputList);
-				const TArray<ITimedDataInput*>& TimedDataInputs = ITimeManagementModule::Get().GetTimedDataInputCollection().GetInputs();
 				for (ITimedDataInput* TimedDataInput : TimedDataInputs)
 				{
 					if (TimedDataInput == nullptr)
@@ -431,10 +583,11 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 						continue;
 					}
 
-					FTimedDataMonitorGroupIdentifier GroupIdentifier;
+					FTimedDataMonitorGroupIdentifier GroupIdentifier = OtherGroupIdentifier;
 					if (ITimedDataInputGroup* Group = TimedDataInput->GetGroup())
 					{
-						if (FTimedDataMonitorGroupIdentifier* FoundGroupIdentifier = ReverseGroupMap.Find(Group))
+						FTimedDataMonitorGroupIdentifier* FoundGroupIdentifier = ReverseGroupMap.Find(Group);
+						if (ensure(FoundGroupIdentifier))
 						{
 							GroupIdentifier = *FoundGroupIdentifier;
 						}
@@ -466,8 +619,10 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 						InputMap.Add(NewIdentifier, MoveTemp(NewInput));
 					}
 				}
+			}
 
-				// Remove old input
+			// Remove old inputs
+			{
 				check(PreviousInputList.Num() == 0);
 				for (const FTimedDataMonitorInputIdentifier& Old : PreviousInputList)
 				{
@@ -476,17 +631,12 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 			}
 
 			// generate group's input list
-			UnGroupedInputs.Reset();
 			for (const auto& Itt : InputMap)
 			{
-				FTimeDataInputItemGroup* FoundGroup = Itt.Value.HasGroup() ? GroupMap.Find(Itt.Value.GroupIdentifier) : nullptr;
-				if (FoundGroup)
+				FTimeDataInputItemGroup* FoundGroup = GroupMap.Find(Itt.Value.GroupIdentifier);
+				if (ensure(FoundGroup))
 				{
 					FoundGroup->InputIdentifiers.Add(Itt.Key);
-				}
-				else
-				{
-					UnGroupedInputs.Add(Itt.Key);
 				}
 			}
 		}
@@ -510,7 +660,10 @@ void UTimedDataMonitorSubsystem::OnTimedDataSourceCollectionChanged()
 	}
 	for (const FTimedDataMonitorGroupIdentifier& Id : GroupToRemove)
 	{
-		GroupMap.Remove(Id);
+		if (Id != OtherGroupIdentifier)
+		{
+			GroupMap.Remove(Id);
+		}
 	}
 
 	const TArray<ITimedDataInput*>& TimedDataInputs = ITimeManagementModule::Get().GetTimedDataInputCollection().GetInputs();

@@ -39,11 +39,16 @@ FTimedDataMonitorStyle::FTimedDataMonitorStyle()
 	{
 		FSlateImageBrush SwitchOn = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_ON.png")), FVector2D(28.0F, 14.0F));
 		FSlateImageBrush SwitchOff = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_OFF.png")), FVector2D(28.0F, 14.0F));
+		FSlateImageBrush SwitchUndeterminded = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_Undetermined.png")), FVector2D(28.0F, 14.0F));
+
 		FCheckBoxStyle SwitchStyle = FCheckBoxStyle()
 			.SetForegroundColor(FLinearColor::White)
 			.SetUncheckedImage(SwitchOff)
 			.SetUncheckedHoveredImage(SwitchOff)
 			.SetUncheckedPressedImage(SwitchOff)
+			.SetUndeterminedImage(SwitchUndeterminded)
+			.SetUndeterminedHoveredImage(SwitchUndeterminded)
+			.SetUndeterminedPressedImage(SwitchUndeterminded)
 			.SetCheckedImage(SwitchOn)
 			.SetCheckedHoveredImage(SwitchOn)
 			.SetCheckedPressedImage(SwitchOn)

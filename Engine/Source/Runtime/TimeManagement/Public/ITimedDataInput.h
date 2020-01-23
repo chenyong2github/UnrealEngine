@@ -45,6 +45,22 @@ enum class ETimedDataInputState : uint8
 
 
 USTRUCT(BlueprintType)
+struct FTimedDataInputSampleTime
+{
+	GENERATED_BODY()
+
+	FTimedDataInputSampleTime() = default;
+	FTimedDataInputSampleTime(double InPlatformSeconds, const FQualifiedFrameTime& InTimecode)
+		: PlatformSecond(InPlatformSeconds), Timecode(InTimecode)
+	{ }
+	/** The time is relative to FPlatformTime::Seconds.*/
+	double PlatformSecond = 0.0;
+	/** Timecode value of the sample */
+	FQualifiedFrameTime Timecode;
+};
+
+
+USTRUCT(BlueprintType)
 struct TIMEMANAGEMENT_API FTimedDataInputBufferStats
 {
 	GENERATED_BODY()
@@ -75,18 +91,6 @@ struct TIMEMANAGEMENT_API FTimedDataInputBufferStats
 class TIMEMANAGEMENT_API ITimedDataInput
 {
 public:
-	struct FDataTime
-	{
-		FDataTime() = default;
-		FDataTime(double InSeconds, const FQualifiedFrameTime& InTimecode)
-			: Second(InSeconds), Timecode(InTimecode)
-		{ }
-		/** The time is relative to FPlatformTime::Seconds.*/
-		double Second;
-		/** Timecode value of the sample */
-		FQualifiedFrameTime Timecode;
-	};
-
 	static FFrameRate UnknowedFrameRate;
 	
 	static double ConvertSecondOffsetInFrameOffset(double Seconds, FFrameRate Rate);
@@ -104,9 +108,12 @@ public:
 
 	/** Get the name used when displayed. */
 	virtual FText GetDisplayName() const = 0;
+
+	/** Get the time of the newest data sample available. */
+	virtual FTimedDataInputSampleTime GetNewestDataTime() const = 0;
 	
 	/** Get the time of all the data samples available. */
-	virtual TArray<FDataTime> GetDataTimes() const = 0;
+	virtual TArray<FTimedDataInputSampleTime> GetDataTimes() const = 0;
 
 	/** Get how the input is evaluated. */
 	virtual ETimedDataInputEvaluationType GetEvaluationType() const = 0;
