@@ -190,7 +190,19 @@ bool SNiagaraAssetPickerList::OnCompareItemsForSorting(const FAssetData& ItemA, 
 
 bool SNiagaraAssetPickerList::OnDoesItemMatchFilterText(const FText& FilterText, const FAssetData& Item)
 {
-	return Item.AssetName.ToString().Contains(FilterText.ToString());
+	TArray<FString> FilterStrings;
+	FilterText.ToString().ParseIntoArrayWS(FilterStrings, TEXT(","));
+
+	FString AssetNameString = Item.AssetName.ToString();
+	for (const FString& FilterString : FilterStrings)
+	{
+		if (!AssetNameString.Contains(FilterString))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForCategory(const FText& Category)
