@@ -10,6 +10,7 @@
 #include "SlateOptMacros.h"
 
 
+class FWorkspaceItem;
 class STimedDataInputListView;
 
 

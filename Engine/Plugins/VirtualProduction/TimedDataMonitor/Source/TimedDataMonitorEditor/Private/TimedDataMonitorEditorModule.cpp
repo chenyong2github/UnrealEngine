@@ -4,6 +4,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#include "Framework/Docking/WorkspaceItem.h"
 #include "STimedDataMonitorPanel.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
