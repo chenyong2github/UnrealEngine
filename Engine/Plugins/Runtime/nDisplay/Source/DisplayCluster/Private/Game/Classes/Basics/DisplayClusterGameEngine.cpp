@@ -13,11 +13,10 @@
 #include "Misc/Parse.h"
 #include "Misc/QualifiedFrameTime.h"
 
-#include "Misc/DisplayClusterHelpers.h"
-
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
@@ -112,7 +111,7 @@ EDisplayClusterOperationMode UDisplayClusterGameEngine::DetectOperationMode()
 		OpMode = EDisplayClusterOperationMode::Standalone;
 	}
 
-	UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected operation mode: %s"), *FDisplayClusterTypesConverter::ToString(OpMode));
+	UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected operation mode: %s"), *FDisplayClusterTypesConverter::template ToString(OpMode));
 
 	return OpMode;
 }
@@ -131,7 +130,7 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 	FDisplayClusterConfigClusterNode LocalClusterNode;
 	if (DisplayClusterHelpers::config::GetLocalClusterNode(LocalClusterNode))
 	{
-		UE_LOG(LogDisplayClusterEngine, Log, TEXT("Configuring sound enabled: %s"), *FDisplayClusterTypesConverter::ToString(LocalClusterNode.SoundEnabled));
+		UE_LOG(LogDisplayClusterEngine, Log, TEXT("Configuring sound enabled: %s"), *FDisplayClusterTypesConverter::template ToString(LocalClusterNode.SoundEnabled));
 		bUseSound = LocalClusterNode.SoundEnabled;
 	}
 

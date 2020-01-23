@@ -2,8 +2,7 @@
 
 #include "Input/Devices/VRPN/Analog/DisplayClusterVrpnAnalogInputDevice.h"
 
-#include "Misc/DisplayClusterHelpers.h"
-
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 

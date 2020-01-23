@@ -4,7 +4,6 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
-#include "Misc/DisplayClusterHelpers.h"
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 
@@ -17,6 +16,7 @@
 #include "DisplayClusterScreenComponent.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 

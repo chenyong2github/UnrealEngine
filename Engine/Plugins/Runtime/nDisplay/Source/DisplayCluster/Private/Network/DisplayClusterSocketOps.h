@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "Sockets.h"
 
-#include "Network/DisplayClusterMessage.h"
-
+class FDisplayClusterMessage;
 class FJsonObject;
 
 

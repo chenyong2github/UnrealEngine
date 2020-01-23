@@ -8,7 +8,6 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterUtils/DisplayClusterCommonStrings.h"
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
 
 
 /**

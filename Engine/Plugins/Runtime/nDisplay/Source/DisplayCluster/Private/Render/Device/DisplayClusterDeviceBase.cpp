@@ -15,8 +15,6 @@
 #include "RHIStaticStates.h"
 #include "Slate/SceneViewport.h"
 
-#include "Misc/DisplayClusterHelpers.h"
-
 #include "Render/Device/DisplayClusterRenderViewport.h"
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 #include "Render/Presentation/DisplayClusterPresentationBase.h"
@@ -25,6 +23,7 @@
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 
 #include <utility>

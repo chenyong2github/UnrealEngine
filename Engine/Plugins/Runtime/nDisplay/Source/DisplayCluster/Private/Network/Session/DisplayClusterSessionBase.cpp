@@ -2,7 +2,6 @@
 
 #include "Network/Session/DisplayClusterSessionBase.h"
 #include "Network/DisplayClusterServer.h"
-#include "Network/DisplayClusterMessage.h"
 
 #include "HAL/RunnableThread.h"
 
