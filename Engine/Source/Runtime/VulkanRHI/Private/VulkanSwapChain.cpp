@@ -12,7 +12,12 @@
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
 
+#if PLATFORM_ANDROID
+// this path crashes within libvulkan during vkDestroySwapchainKHR on some versions of Android. See FORT-250079
+int32 GVulkanKeepSwapChain = 0;
+#else
 int32 GVulkanKeepSwapChain = 1;
+#endif
 static FAutoConsoleVariableRef CVarVulkanKeepSwapChain(
 	TEXT("r.Vulkan.KeepSwapChain"),
 	GVulkanKeepSwapChain,
@@ -456,12 +461,14 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 #endif
 	}
 
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FVulkanSwapChain::FVulkanSwapChain calling VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle() %p, &SwapChainInfo %p, VULKAN_CPU_ALLOCATOR %p, &SwapChain %p)"), Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
-
+	 
 	if (RecreateInfo != nullptr)
 	{
 		if (RecreateInfo->SwapChain != VK_NULL_HANDLE)
 		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FVulkanSwapChain::FVulkanSwapChain, calling VulkanRHI::vkDestroySwapchainKHR(Device: %p, Swapchain: %p, Allocator: %p)"), Device.GetInstanceHandle(), RecreateInfo->SwapChain, VULKAN_CPU_ALLOCATOR);
 			VulkanRHI::vkDestroySwapchainKHR(Device.GetInstanceHandle(), RecreateInfo->SwapChain, VULKAN_CPU_ALLOCATOR);
 			RecreateInfo->SwapChain = VK_NULL_HANDLE;
 		}
@@ -517,6 +524,8 @@ void FVulkanSwapChain::Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo)
 	Device.WaitUntilIdle();
 
 	bool bRecreate = RecreateInfo && GVulkanKeepSwapChain;
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FVulkanSwapChain::Destroy, would have called VulkanRHI::vkDestroySwapchainKHR(Device: %p, Swapchain: %p, Allocator: %p)"), Device.GetInstanceHandle(), SwapChain, VULKAN_CPU_ALLOCATOR);
+
 	if (bRecreate)
 	{
 		RecreateInfo->SwapChain = SwapChain;
