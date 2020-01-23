@@ -6,21 +6,21 @@
 
 class FAnimationSharedData;
 class FTimingEventSearchParameters;
-struct FSkeletalMeshPoseMessage;
-class FSkeletalMeshCurvesTrack;
+struct FAnimMontageMessage;
+class FMontageTrack;
 
-class FSkeletalMeshCurveSeries : public FGameplayGraphSeries
+class FMontageSeries : public FGameplayGraphSeries
 {
 public:
-	uint32 CurveId;
+	uint64 MontageId;
 };
 
-class FSkeletalMeshCurvesTrack : public FGameplayGraphTrack
+class FMontageTrack : public FGameplayGraphTrack
 {
-	INSIGHTS_DECLARE_RTTI(FSkeletalMeshCurvesTrack, FGameplayGraphTrack)
+	INSIGHTS_DECLARE_RTTI(FMontageTrack, FGameplayGraphTrack)
 
 public:
-	FSkeletalMeshCurvesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
+	FMontageTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
@@ -30,8 +30,8 @@ public:
 	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 
 private:
-	// Helper function used to find a skeletal mesh pose
-	void FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const;
+	// Helper function used to find a montage message
+	void FindMontageMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FAnimMontageMessage&)> InFoundPredicate) const;
 
 private:
 	/** The shared data */

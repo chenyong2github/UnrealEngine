@@ -24,7 +24,7 @@
 INSIGHTS_IMPLEMENT_RTTI(FSkeletalMeshPoseTrack)
 
 FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
+	: FGameplayTimingEventsTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 	, Color(FLinearColor::MakeRandomColor())
 	, bDrawPose(false)

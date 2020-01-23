@@ -9,6 +9,9 @@ namespace GameplayTrackConstants
 	constexpr float IndentSize = 12.0f;
 }
 
+struct FVariantTreeNode;
+class FGameplaySharedData;
+
 // Provides parent/child hierarchy structure and the owning object Id
 // Designed as a compositional member of outer timing tracks
 class FGameplayTrack
@@ -88,5 +91,25 @@ private:
 	FGameplayTrack GameplayTrack;
 };
 
+// Common base class for timing-event tracks
+class FGameplayTimingEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+{
+	INSIGHTS_DECLARE_RTTI(FGameplayTimingEventsTrack, TGameplayTrackMixin<FTimingEventsTrack>)
+
+public:
+	FGameplayTimingEventsTrack(const FGameplaySharedData& InGameplaySharedData, uint64 InObjectId, const FText& InName)
+		: TGameplayTrackMixin<FTimingEventsTrack>(InObjectId, InName)
+		, GameplaySharedData(InGameplaySharedData)
+	{}
+
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	/** Get all variants at the specified time */
+	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const {}
+
+protected:
+	const FGameplaySharedData& GameplaySharedData;
+};
+
 //template <class Base>
-//INSIGHTS_IMPLEMENT_RTTI(TGameplayTrackMixin<Base>) // Note: All templeted classes will return same type name as FName(TEXT"TGameplayTrackMixin<Base>") !!!
+//INSIGHTS_IMPLEMENT_RTTI(TGameplayTrackMixin<Base>) // Note: All templated classes will return same type name as FName(TEXT"TGameplayTrackMixin<Base>") !!!

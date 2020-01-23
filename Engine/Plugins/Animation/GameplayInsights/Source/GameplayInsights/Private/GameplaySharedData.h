@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Framework/Docking/TabManager.h"
 
 namespace Trace { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
@@ -10,6 +11,7 @@ class FObjectEventsTrack;
 class FSkeletalMeshPoseTrack;
 class FAnimationTickRecordsTrack;
 struct FObjectInfo;
+class FGameplayTrack;
 
 class FGameplaySharedData
 {
@@ -42,6 +44,28 @@ public:
 	// Delegate fired when tracks change
 	FSimpleMulticastDelegate& OnTracksChanged() { return OnTracksChangedDelegate; }
 
+	/** Search predicate wrapper for an open document */
+	struct FSearchForTab : public FTabManager::FSearchPreference
+	{
+		FSearchForTab(TFunction<TSharedPtr<SDockTab>(void)> InSearchFunction)
+			: SearchFunction(InSearchFunction)
+		{
+		}
+
+		virtual TSharedPtr<SDockTab> Search(const FTabManager& Manager, FName PlaceholderId, const TSharedRef<SDockTab>& UnmanagedTab) const override
+		{
+			return SearchFunction();
+		}
+
+		TFunction<TSharedPtr<SDockTab>(void)> SearchFunction;
+	};
+
+	// Helper function to find an existing document tab
+	static TSharedPtr<SDockTab> FindDocumentTab(const TArray<TWeakPtr<SDockTab>>& InWeakDocumentTabs, TFunction<bool(const TSharedRef<SDockTab>&)> InSearchFunction);
+
+	/** Open a tab to see a track's variants */
+	void OpenTrackVariantsTab(const FGameplayTrack& InGameplayTrack) const;
+
 private:
 	// Re-sort tracks if track ordering has changed
 	void SortTracks();
@@ -59,8 +83,14 @@ private:
 	// Cached analysis session, set in Tick()
 	const Trace::IAnalysisSession* AnalysisSession;
 
+	// Cached timing view session, set in OnBeginSession/OnEndSession
+	Insights::ITimingViewSession* TimingViewSession;
+
 	// Delegate fired when tracks change
 	FSimpleMulticastDelegate OnTracksChangedDelegate;
+
+	// All the documents we have spawned
+	mutable TArray<TWeakPtr<SDockTab>> WeakTrackVariantsDocumentTabs;
 
 	// Dirty flag for adding object tracks, used to trigger re-sorting
 	bool bObjectTracksDirty;

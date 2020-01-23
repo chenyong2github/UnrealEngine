@@ -35,7 +35,7 @@
 INSIGHTS_IMPLEMENT_RTTI(FAnimNodesTrack)
 
 FAnimNodesTrack::FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
+	: FGameplayTimingEventsTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 #if WITH_EDITOR
 	, InstanceClass(nullptr)

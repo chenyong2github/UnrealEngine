@@ -8,6 +8,12 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
+#include "GameplaySharedData.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+INSIGHTS_IMPLEMENT_RTTI(FGameplayTimingEventsTrack);
+
+#define LOCTEXT_NAMESPACE "GameplayTrack"
 
 void FGameplayTrack::AddChildTrack(FGameplayTrack& InChildTrack)
 {
@@ -84,3 +90,24 @@ void FGameplayTrack::DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InC
 		}
 	}
 }
+
+void FGameplayTimingEventsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("View", LOCTEXT("ViewHeader", "View"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ViewProperties", "View Properties"),
+			LOCTEXT("ViewProperties_Tooltip", "Open a window to view the properties of this track. You can scrub the timeline to see properties change in real-time."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ GameplaySharedData.OpenTrackVariantsTab(GetGameplayTrack()); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+#undef LOCTEXT_NAMESPACE

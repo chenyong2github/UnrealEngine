@@ -18,6 +18,10 @@
 #include "GameplayInsightsModule.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Animation/AnimTypes.h"
+#include "AnimNotifiesTrack.h"
+#include "MontageTrack.h"
+#include "STrackVariantValueView.h"
 
 #if WITH_EDITOR
 #include "EditorViewportClient.h"
@@ -35,6 +39,8 @@ FAnimationSharedData::FAnimationSharedData(FGameplaySharedData& InGameplayShared
 	, bSkeletalMeshCurveTracksEnabled(true)
 	, bTickRecordTracksEnabled(true)
 	, bAnimNodeTracksEnabled(true)
+	, bAnimNotifyTracksEnabled(true)
+	, bMontageTracksEnabled(true)
 {
 }
 
@@ -169,6 +175,58 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimNodesTrack->GetGameplayTrack());
 						}
 					});
+
+					auto ProcessNotifyTimeline = [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession]()
+					{
+						auto FindAnimNotifyTrack = [](const FBaseTimingTrack& InTrack)
+						{
+							return InTrack.Is<FAnimNotifiesTrack>();
+						};
+
+						TSharedPtr<FAnimNotifiesTrack> ExistingAnimNotifyTrack = StaticCastSharedPtr<FAnimNotifiesTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindAnimNotifyTrack));
+						if(!ExistingAnimNotifyTrack.IsValid())
+						{
+							TSharedPtr<FAnimNotifiesTrack> AnimNotifyTrack = MakeShared<FAnimNotifiesTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
+							AnimNotifyTrack->SetVisibilityFlag(bAnimNotifyTracksEnabled);
+							AnimNotifyTracks.Add(AnimNotifyTrack.ToSharedRef());
+
+							InTimingViewSession.AddScrollableTrack(AnimNotifyTrack);
+							GameplaySharedData.InvalidateObjectTracksOrder();
+
+							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimNotifyTrack->GetGameplayTrack());
+						}
+					};
+
+					AnimationProvider->ReadNotifyTimeline(InObjectInfo.Id, [&ProcessNotifyTimeline](const IAnimationProvider::AnimNotifyTimeline& InTimeline)
+					{
+						ProcessNotifyTimeline();
+					});
+
+					AnimationProvider->EnumerateNotifyStateTimelines(InObjectInfo.Id, [&ProcessNotifyTimeline](uint32 InNotifyNameId, const IAnimationProvider::AnimNotifyTimeline& InTimeline)
+					{
+						ProcessNotifyTimeline();
+					});
+
+					AnimationProvider->ReadMontageTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession](const IAnimationProvider::AnimMontageTimeline& InTimeline)
+					{
+						auto FindMontageTrack = [](const FBaseTimingTrack& InTrack)
+						{
+							return InTrack.Is<FMontageTrack>();
+						};
+
+						TSharedPtr<FMontageTrack> ExistingMontageTrack = StaticCastSharedPtr<FMontageTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindMontageTrack));
+						if(!ExistingMontageTrack.IsValid())
+						{
+							TSharedPtr<FMontageTrack> MontageTrack = MakeShared<FMontageTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
+							MontageTrack->SetVisibilityFlag(bMontageTracksEnabled);
+							MontageTracks.Add(MontageTrack.ToSharedRef());
+
+							InTimingViewSession.AddScrollableTrack(MontageTrack);
+							GameplaySharedData.InvalidateObjectTracksOrder();
+
+							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(MontageTrack->GetGameplayTrack());
+						}
+					});
 				}
 			});
 		});
@@ -249,6 +307,30 @@ void FAnimationSharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
+
+	InMenuBuilder.AddMenuEntry(
+		LOCTEXT("ToggleAnimNotifyTracks", "Notify Tracks"),
+		LOCTEXT("ToggleAnimNotifyTracks_Tooltip", "Show/hide the animation notify/sync marker tracks"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimNotifyTracks),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this](){ return bAnimNotifyTracksEnabled; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	InMenuBuilder.AddMenuEntry(
+		LOCTEXT("ToggleMontageTracks", "Montage Tracks"),
+		LOCTEXT("ToggleMontageTracks_Tooltip", "Show/hide the montage tracks"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleMontageTracks),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this](){ return bMontageTracksEnabled; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
 }
 
 void FAnimationSharedData::ToggleAnimationTracks()
@@ -259,6 +341,8 @@ void FAnimationSharedData::ToggleAnimationTracks()
 	bSkeletalMeshCurveTracksEnabled = bAnimationTracksEnabled;
 	bTickRecordTracksEnabled = bAnimationTracksEnabled;
 	bAnimNodeTracksEnabled = bAnimationTracksEnabled;
+	bAnimNotifyTracksEnabled = bAnimationTracksEnabled;
+	bMontageTracksEnabled = bAnimNotifyTracksEnabled;
 
 	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
 	{
@@ -279,11 +363,21 @@ void FAnimationSharedData::ToggleAnimationTracks()
 	{
 		AnimNodesTrack->SetVisibilityFlag(bAnimationTracksEnabled);
 	}
+
+	for(TSharedRef<FAnimNotifiesTrack> AnimNotifyTrack : AnimNotifyTracks)
+	{
+		AnimNotifyTrack->SetVisibilityFlag(bAnimationTracksEnabled);
+	}
+
+	for(TSharedRef<FMontageTrack> MontageTrack : MontageTracks)
+	{
+		MontageTrack->SetVisibilityFlag(bAnimationTracksEnabled);
+	}
 }
 
 bool FAnimationSharedData::AreAnimationTracksEnabled() const
 {
-	return bSkeletalMeshPoseTracksEnabled && bSkeletalMeshCurveTracksEnabled && bTickRecordTracksEnabled && bAnimNodeTracksEnabled;
+	return bSkeletalMeshPoseTracksEnabled && bSkeletalMeshCurveTracksEnabled && bTickRecordTracksEnabled && bAnimNodeTracksEnabled && bAnimNotifyTracksEnabled && bMontageTracksEnabled;
 }
 
 void FAnimationSharedData::ToggleSkeletalMeshPoseTracks()
@@ -323,6 +417,26 @@ void FAnimationSharedData::ToggleAnimNodeTracks()
 	for(TSharedRef<FAnimNodesTrack> AnimNodesTrack : AnimNodesTracks)
 	{
 		AnimNodesTrack->SetVisibilityFlag(bAnimNodeTracksEnabled);
+	}
+}
+
+void FAnimationSharedData::ToggleAnimNotifyTracks()
+{
+	bAnimNotifyTracksEnabled = !bAnimNotifyTracksEnabled;
+
+	for(TSharedRef<FAnimNotifiesTrack> AnimNotifyTrack : AnimNotifyTracks)
+	{
+		AnimNotifyTrack->SetVisibilityFlag(bAnimNotifyTracksEnabled);
+	}
+}
+
+void FAnimationSharedData::ToggleMontageTracks()
+{
+	bMontageTracksEnabled = !bMontageTracksEnabled;
+	
+	for(TSharedRef<FMontageTrack> MontageTrack : MontageTracks)
+	{
+		MontageTrack->SetVisibilityFlag(bMontageTracksEnabled);
 	}
 }
 
@@ -447,36 +561,23 @@ void FAnimationSharedData::GetCustomDebugObjects(const IAnimationBlueprintEditor
 
 #endif
 
-/** Search predicate for an open anim graph document */
-struct FSearchForAnimInstanceTab : public FTabManager::FSearchPreference
-{
-	FSearchForAnimInstanceTab(uint64 InAnimInstanceId)
-		: AnimInstanceId(InAnimInstanceId)
-	{
-	}
-
-	virtual TSharedPtr<SDockTab> Search(const FTabManager& Manager, FName PlaceholderId, const TSharedRef<SDockTab>& UnmanagedTab) const override
-	{
-		TSharedRef<SAnimGraphSchematicView> Content = StaticCastSharedRef<SAnimGraphSchematicView>(UnmanagedTab->GetContent());
-		if(Content->GetAnimInstanceId() == AnimInstanceId)
-		{
-			return UnmanagedTab;
-		}
-
-		return TSharedPtr<SDockTab>();
-	}
-
-	uint64 AnimInstanceId;
-};
-
 void FAnimationSharedData::OpenAnimGraphTab(uint64 InAnimInstanceId) const
 {
 	if(TimingViewSession && AnalysisSession)
 	{
 		FGameplayInsightsModule& GameplayInsightsModule = FModuleManager::GetModuleChecked<FGameplayInsightsModule>("GameplayInsights");
-		TSharedRef<SDockTab> Tab = GameplayInsightsModule.SpawnTimingProfilerDocumentTab(FSearchForAnimInstanceTab(InAnimInstanceId));
+		TSharedRef<SDockTab> Tab = GameplayInsightsModule.SpawnTimingProfilerDocumentTab(
+			FGameplaySharedData::FSearchForTab([this, InAnimInstanceId]()
+			{
+				return FGameplaySharedData::FindDocumentTab(WeakAnimGraphDocumentTabs, [InAnimInstanceId](const TSharedRef<SDockTab>& InDockTab)
+				{
+					return StaticCastSharedRef<SAnimGraphSchematicView>(InDockTab->GetContent())->GetAnimInstanceId() == InAnimInstanceId;
+				});
+			})
+		);
 
 		Tab->SetContent(SNew(SAnimGraphSchematicView, InAnimInstanceId, *TimingViewSession, *AnalysisSession));
+		WeakAnimGraphDocumentTabs.Add(Tab);
 
 		const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 		if(GameplayProvider)

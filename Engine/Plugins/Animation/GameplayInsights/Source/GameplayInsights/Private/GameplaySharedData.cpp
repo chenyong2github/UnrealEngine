@@ -8,6 +8,10 @@
 #include "Insights/ITimingViewSession.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SGameplayTrackTree.h"
+#include "GameplayInsightsModule.h"
+#include "STrackVariantValueView.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "GameplaySharedData"
 
@@ -20,12 +24,16 @@ FGameplaySharedData::FGameplaySharedData()
 
 void FGameplaySharedData::OnBeginSession(Insights::ITimingViewSession& InTimingViewSession)
 {
+	TimingViewSession = &InTimingViewSession;
+
 	ObjectTracks.Reset();
 }
 
 void FGameplaySharedData::OnEndSession(Insights::ITimingViewSession& InTimingViewSession)
 {
 	ObjectTracks.Reset();
+
+	TimingViewSession = nullptr;
 }
 
 TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
@@ -219,6 +227,44 @@ void FGameplaySharedData::EnumerateObjectTracks(TFunctionRef<void(const TSharedR
 	for(const auto& TrackPair : ObjectTracks)
 	{
 		InCallback(TrackPair.Value.ToSharedRef());
+	}
+}
+
+TSharedPtr<SDockTab> FGameplaySharedData::FindDocumentTab(const TArray<TWeakPtr<SDockTab>>& InWeakDocumentTabs, TFunction<bool(const TSharedRef<SDockTab>&)> InSearchFunction)
+{
+	for(TWeakPtr<SDockTab> WeakTab : InWeakDocumentTabs)
+	{
+		TSharedPtr<SDockTab> PinnedTab = WeakTab.Pin();
+		if(PinnedTab.IsValid())
+		{
+			if(InSearchFunction(PinnedTab.ToSharedRef()))
+			{
+				return PinnedTab;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void FGameplaySharedData::OpenTrackVariantsTab(const FGameplayTrack& InGameplayTrack) const
+{
+	if(TimingViewSession && AnalysisSession)
+	{
+		FGameplayInsightsModule& GameplayInsightsModule = FModuleManager::GetModuleChecked<FGameplayInsightsModule>("GameplayInsights");
+		TSharedRef<SDockTab> Tab = GameplayInsightsModule.SpawnTimingProfilerDocumentTab(
+			FSearchForTab([this, &InGameplayTrack]()
+			{
+				return FindDocumentTab(WeakTrackVariantsDocumentTabs, [&InGameplayTrack](const TSharedRef<SDockTab>& InDockTab)
+				{
+					return StaticCastSharedRef<STrackVariantValueView>(InDockTab->GetContent())->GetTimingTrack() == InGameplayTrack.GetTimingTrack();
+				});
+			})
+		);
+
+		Tab->SetContent(SNew(STrackVariantValueView, InGameplayTrack.GetTimingTrack(), *TimingViewSession, *AnalysisSession));
+		WeakTrackVariantsDocumentTabs.Add(Tab);
+		Tab->SetLabel(FText::FromString(InGameplayTrack.GetTimingTrack()->GetName()));
 	}
 }
 

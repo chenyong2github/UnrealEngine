@@ -8,6 +8,7 @@
 
 class FTimingEventSearchParameters;
 class FGameplayGraphTrack;
+struct FVariantTreeNode;
 
 /** The various layouts that we display series with */
 enum class EGameplayGraphLayout : int32
@@ -43,11 +44,14 @@ class FGameplayGraphTrack : public TGameplayTrackMixin<FGraphTrack>
 	INSIGHTS_DECLARE_RTTI(FGameplayGraphTrack, TGameplayTrackMixin<FGraphTrack>)
 
 public:
-	FGameplayGraphTrack(uint64 InObjectID, const FText& InName);
+	FGameplayGraphTrack(const FGameplaySharedData& InGameplaySharedData, uint64 InObjectID, const FText& InName);
 
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	// Get all variants at the specified time
+	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const {}
 
 	// Get the requested track size scale
 	float GetRequestedTrackSizeScale() const { return RequestedTrackSizeScale; }
@@ -77,6 +81,8 @@ private:
 	void UpdateSeriesInternal(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport, int32 InActiveSeriesIndex);
 
 protected:
+	const FGameplaySharedData& GameplaySharedData;
+
 	/** The track size we want to be displayed at */
 	float RequestedTrackSizeScale;
 

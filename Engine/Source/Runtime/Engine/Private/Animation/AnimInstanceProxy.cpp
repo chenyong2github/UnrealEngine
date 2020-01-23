@@ -826,6 +826,13 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 					}
 				}
 			}
+
+#if ANIM_TRACE_ENABLED
+			for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
+			{
+				TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(GetAnimInstanceObject()), PassedMarker);
+			}
+#endif
 		}
 	}
 
@@ -847,6 +854,13 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 		{
 			ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, AssetPlayerToTick.GetRootMotionWeight());
 		}
+
+#if ANIM_TRACE_ENABLED
+		for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
+		{
+			TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(GetAnimInstanceObject()), PassedMarker);
+		}
+#endif
 	}
 }
 

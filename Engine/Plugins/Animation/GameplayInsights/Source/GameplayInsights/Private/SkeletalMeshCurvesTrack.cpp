@@ -11,13 +11,15 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "Modules/ModuleManager.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
+#include "VariantTreeNode.h"
+#include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshCurvesTrack"
 
 INSIGHTS_IMPLEMENT_RTTI(FSkeletalMeshCurvesTrack)
 
 FSkeletalMeshCurvesTrack::FSkeletalMeshCurvesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: FGameplayGraphTrack(InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Curves - {0}"), FText::FromString(FString(InName))))
+	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Curves - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 {
 }
@@ -26,40 +28,43 @@ void FSkeletalMeshCurvesTrack::AddAllSeries()
 {
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	bool bFirstSeries = true;
+	bool bFirstSeries = AllSeries.Num() == 0;
 	if(AnimationProvider)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		AnimationProvider->EnumerateSkeletalMeshCurveIds(GetGameplayTrack().GetObjectId(), [this, &bFirstSeries, &AnimationProvider](uint32 InCurveId)
 		{
-			auto MakeCurveSeriesColor = [](uint32 InSeed, bool bInLine)
+			if(!AllSeries.ContainsByPredicate([InCurveId](const TSharedPtr<FGraphSeries>& InSeries){ return StaticCastSharedPtr<FSkeletalMeshCurveSeries>(InSeries)->CurveId == InCurveId; }))
 			{
-				FRandomStream Stream(InSeed);
-				const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
-				const uint8 SatVal = bInLine ? 196 : 128;
-				return FLinearColor::MakeFromHSV8(Hue, SatVal, SatVal);
-			};
+				auto MakeCurveSeriesColor = [](uint32 InSeed, bool bInLine)
+				{
+					FRandomStream Stream(InSeed);
+					const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
+					const uint8 SatVal = bInLine ? 196 : 128;
+					return FLinearColor::MakeFromHSV8(Hue, SatVal, SatVal);
+				};
 
-			TSharedRef<FSkeletalMeshCurveSeries> Series = MakeShared<FSkeletalMeshCurveSeries>();
+				TSharedRef<FSkeletalMeshCurveSeries> Series = MakeShared<FSkeletalMeshCurveSeries>();
 
-			const TCHAR* CurveName = AnimationProvider->GetName(InCurveId);
+				const TCHAR* CurveName = AnimationProvider->GetName(InCurveId);
 
-			Series->SetName(CurveName);
-			Series->SetDescription(FText::Format(LOCTEXT("CurveNameFormat", "Values for curve '{0}'"), FText::FromString(CurveName)));
+				Series->SetName(CurveName);
+				Series->SetDescription(FText::Format(LOCTEXT("CurveNameFormat", "Values for curve '{0}'"), FText::FromString(CurveName)));
 
-			const FLinearColor LineColor = MakeCurveSeriesColor(InCurveId, true);
-			const FLinearColor FillColor = MakeCurveSeriesColor(InCurveId, false);
-			Series->SetColor(LineColor, LineColor, FillColor);
+				const FLinearColor LineColor = MakeCurveSeriesColor(InCurveId, true);
+				const FLinearColor FillColor = MakeCurveSeriesColor(InCurveId, false);
+				Series->SetColor(LineColor, LineColor, FillColor);
 
-			Series->CurveId = InCurveId;
-			Series->SetVisibility(bFirstSeries);
-			Series->SetBaselineY(25.0f);
-			Series->SetScaleY(20.0f);
-			Series->EnableAutoZoom();
-			AllSeries.Add(Series);	
+				Series->CurveId = InCurveId;
+				Series->SetVisibility(bFirstSeries);
+				Series->SetBaselineY(25.0f);
+				Series->SetScaleY(20.0f);
+				Series->EnableAutoZoom();
+				AllSeries.Add(Series);	
 
-			bFirstSeries = false;
+				bFirstSeries = false;
+			}
 		});
 	}
 }
@@ -204,6 +209,40 @@ void FSkeletalMeshCurvesTrack::FindSkeletalMeshPoseMessage(const FTimingEventSea
 		{
 			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
+}
+
+void FSkeletalMeshCurvesTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{
+	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+	if(GameplayProvider && AnimationProvider)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
+
+		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
+
+		AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [&Header, &FramesProvider, &AnimationProvider, &InTime](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline, bool bInHasCurves)
+		{
+			// round to nearest frame boundary
+			Trace::FFrame Frame;
+			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			{
+				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&Header, &AnimationProvider, &Frame](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
+				{
+					if(Frame.StartTime <= InStartTime && Frame.EndTime >= InEndTime)
+					{
+						AnimationProvider->EnumerateSkeletalMeshCurves(InMessage, [&Header, &AnimationProvider](const FSkeletalMeshNamedCurve& InCurve)
+						{
+							const TCHAR* CurveName = AnimationProvider->GetName(InCurve.Id);
+							Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(CurveName), InCurve.Value));
+						});
+					}
+				});
+			}
+		});
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

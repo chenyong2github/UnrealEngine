@@ -5,16 +5,16 @@
 #include "GameplayTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
-class FGameplaySharedData;
-struct FObjectEventMessage;
+class FAnimationSharedData;
 class FTimingEventSearchParameters;
+struct FAnimNotifyMessage;
 
-class FObjectEventsTrack : public FGameplayTimingEventsTrack
+class FAnimNotifiesTrack : public FGameplayTimingEventsTrack
 {
-	INSIGHTS_DECLARE_RTTI(FObjectEventsTrack, FGameplayTimingEventsTrack)
+	INSIGHTS_DECLARE_RTTI(FAnimNotifiesTrack, FGameplayTimingEventsTrack)
 
 public:
-	FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
+	FAnimNotifiesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -23,12 +23,16 @@ public:
 	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 
 private:
-	// Helper function used to find an object event
-	void FindObjectEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FObjectEventMessage&)> InFoundPredicate) const;
-
-	// Helper function to build the track's name
-	FText MakeTrackName(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName) const;
+	// Helper function used to find an anim notify message
+	void FindAnimNotifyMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FAnimNotifyMessage&)> InFoundPredicate) const;
 
 private:
-	const FGameplaySharedData& SharedData;
+	// The shared data
+	const FAnimationSharedData& SharedData;
+
+	// Map of notify ID->depth of notify states that are currently drawn
+	TMap<uint64, uint32> IdToDepthMap;
+
+	// Whether we are currently drawing any notifies
+	bool bHasNotifies;
 };

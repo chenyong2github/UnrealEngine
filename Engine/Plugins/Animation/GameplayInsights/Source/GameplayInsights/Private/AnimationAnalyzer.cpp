@@ -26,6 +26,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_AnimNodeValueBool, "Animation", "AnimNodeValueBool");
 	Builder.RouteEvent(RouteId_AnimNodeValueInt, "Animation", "AnimNodeValueInt");
 	Builder.RouteEvent(RouteId_AnimNodeValueFloat, "Animation", "AnimNodeValueFloat");
+	Builder.RouteEvent(RouteId_AnimNodeValueVector2D, "Animation", "AnimNodeValueVector2D");
 	Builder.RouteEvent(RouteId_AnimNodeValueVector, "Animation", "AnimNodeValueVector");
 	Builder.RouteEvent(RouteId_AnimNodeValueString, "Animation", "AnimNodeValueString");
 	Builder.RouteEvent(RouteId_AnimNodeValueObject, "Animation", "AnimNodeValueObject");
@@ -34,6 +35,9 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_BlendSpacePlayer, "Animation", "BlendSpacePlayer");
 	Builder.RouteEvent(RouteId_StateMachineState, "Animation", "StateMachineState");
 	Builder.RouteEvent(RouteId_Name, "Animation", "Name");
+	Builder.RouteEvent(RouteId_Notify, "Animation", "Notify");
+	Builder.RouteEvent(RouteId_SyncMarker, "Animation", "SyncMarker");
+	Builder.RouteEvent(RouteId_Montage, "Animation", "Montage");
 }
 
 bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -185,6 +189,12 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			AnimationProvider.AppendAnimNodeValue(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), FrameCounter, NodeId, Key, Value);
 			break;
 		}
+		case RouteId_AnimNodeValueVector2D:
+		{
+			FVector2D Value(EventData.GetValue<float>("ValueX"), EventData.GetValue<float>("ValueY"));
+			AnimationProvider.AppendAnimNodeValue(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), FrameCounter, NodeId, Key, Value);
+			break;
+		}
 		case RouteId_AnimNodeValueVector:
 		{
 			FVector Value(EventData.GetValue<float>("ValueX"), EventData.GetValue<float>("ValueY"), EventData.GetValue<float>("ValueZ"));
@@ -245,6 +255,39 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		float StateWeight = EventData.GetValue<float>("StateWeight");
 		float ElapsedTime = EventData.GetValue<float>("ElapsedTime");
 		AnimationProvider.AppendStateMachineState(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), NodeId, StateMachineIndex, StateIndex, StateWeight, ElapsedTime);
+		break;
+	}
+	case RouteId_Notify:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint64 AssetId = EventData.GetValue<uint64>("AssetId");
+		uint64 NotifyId = EventData.GetValue<uint64>("NotifyId");
+		uint32 NameId = EventData.GetValue<uint32>("NameId");
+		float Time = EventData.GetValue<float>("Time");
+		float Duration = EventData.GetValue<float>("Duration");
+		uint8 NotifyEventType = EventData.GetValue<uint8>("NotifyEventType");
+		AnimationProvider.AppendNotify(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), AssetId, NotifyId, NameId, Time, Duration, (EAnimNotifyMessageType)NotifyEventType);
+		break;
+	}
+	case RouteId_SyncMarker:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint32 NameId = EventData.GetValue<uint32>("NameId");
+		AnimationProvider.AppendNotify(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), 0, 0, NameId, 0.0f, 0.0f, EAnimNotifyMessageType::SyncMarker);
+		break;
+	}
+	case RouteId_Montage:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint64 MontageId = EventData.GetValue<uint64>("MontageId");
+		uint32 CurrentSectionNameId = EventData.GetValue<uint32>("CurrentSectionNameId");
+		uint32 NextSectionNameId = EventData.GetValue<uint32>("NextSectionNameId");
+		float Weight = EventData.GetValue<float>("Weight");
+		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
+		AnimationProvider.AppendMontage(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight);
 		break;
 	}
 	}

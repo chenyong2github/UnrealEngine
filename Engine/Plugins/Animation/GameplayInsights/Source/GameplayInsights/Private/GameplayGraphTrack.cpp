@@ -5,7 +5,7 @@
 #include "AnimationProvider.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingEvent.h"
-#include "AnimationSharedData.h"
+#include "GameplaySharedData.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
@@ -18,8 +18,6 @@
 #define LOCTEXT_NAMESPACE "GameplayGraphTrack"
 
 INSIGHTS_IMPLEMENT_RTTI(FGameplayGraphTrack)
-
-PRAGMA_DISABLE_OPTIMIZATION
 
 static float GetSeriesHeight(const FTimingViewLayout& InLayout)
 {
@@ -48,8 +46,9 @@ void FGameplayGraphSeries::UpdateAutoZoom(const FTimingTrackViewport& InViewport
 	FGraphSeries::UpdateAutoZoom(TopY, BottomY, CurrentMin, CurrentMax, false);
 }
 
-FGameplayGraphTrack::FGameplayGraphTrack(uint64 InObjectID, const FText& InName)
+FGameplayGraphTrack::FGameplayGraphTrack(const FGameplaySharedData& InGameplaySharedData, uint64 InObjectID, const FText& InName)
 	: TGameplayTrackMixin<FGraphTrack>(InObjectID, InName)
+	, GameplaySharedData(InGameplaySharedData)
 	, RequestedTrackSizeScale(1.0f)
 	, BorderY(0.0f)
 	, NumActiveSeries(0)
@@ -123,10 +122,7 @@ void FGameplayGraphTrack::UpdateSeriesInternal(FGameplayGraphSeries& InSeries, c
 
 void FGameplayGraphTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 {
-	if(AllSeries.Num() == 0)
-	{
-		AddAllSeries();
-	}
+	AddAllSeries();
 
 	FGraphTrack::PreUpdate(Context);
 
@@ -219,6 +215,22 @@ void FGameplayGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 void FGameplayGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.BeginSection("View", LOCTEXT("ViewHeader", "View"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ViewProperties", "View Properties"),
+			LOCTEXT("ViewProperties_Tooltip", "Open a window to view the properties of this track. You can scrub the timeline to see properties change in real-time."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ GameplaySharedData.OpenTrackVariantsTab(GetGameplayTrack()); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
 	FGraphTrack::BuildContextMenu(MenuBuilder);
 
 	MenuBuilder.BeginSection("Layout", LOCTEXT("TrackLayoutMenuHeader", "Track Layout"));
@@ -313,7 +325,5 @@ void FGameplayGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	}
 	MenuBuilder.EndSection();
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

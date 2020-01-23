@@ -22,6 +22,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "EdGraph/EdGraphNode.h"
 #endif
+#include "VariantTreeNode.h"
+#include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "AnimationTickRecordsTrack"
 
@@ -58,7 +60,7 @@ static FLinearColor MakeSeriesColor(FTickRecordSeries::ESeriesType InSeed, bool 
 }
 
 FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, uint64 InAssetId, int32 InNodeId, const TCHAR* InName)
-	: FGameplayGraphTrack(InObjectID, MakeTrackName(InSharedData.GetGameplaySharedData(), InAssetId, InName))
+	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, MakeTrackName(InSharedData.GetGameplaySharedData(), InAssetId, InName))
 	, SharedData(InSharedData)
 	, AssetId(InAssetId)
 	, NodeId(InNodeId)
@@ -87,6 +89,11 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 
 void FAnimationTickRecordsTrack::AddAllSeries()
 {
+	if(AllSeries.Num() > 0)
+	{
+		return;
+	}
+
 	struct FSeriesDescription
 	{
 		FText Name;
@@ -408,6 +415,45 @@ FText FAnimationTickRecordsTrack::MakeTrackName(const FGameplaySharedData& InSha
 	}
 
 	return FText::Format(LOCTEXT("AnimationTickRecordsTrackName", "{0} - {1}"), AssetTypeName, FText::FromString(InName));
+}
+
+void FAnimationTickRecordsTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{
+	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+	if(GameplayProvider && AnimationProvider)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(AssetId);
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(ClassInfo.Name), AssetId));
+
+		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
+
+		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), AssetId, NodeId, [&Header, &FramesProvider, &InTime](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		{
+			// round to nearest frame boundary
+			Trace::FFrame Frame;
+			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			{
+				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&Header](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+				{
+					if(Header->GetChildren().Num() == 0)
+					{
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendWeight", "Blend Weight"), InMessage.BlendWeight));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlaybackTime", "Playback Time"), InMessage.PlaybackTime));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("RootMotionWeight", "Root Motion Weight"), InMessage.RootMotionWeight));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlayRate", "Play Rate"), InMessage.PlayRate));
+						if(InMessage.bIsBlendSpace)
+						{
+							Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionX", "Blend Space Position X"), InMessage.BlendSpacePositionX));
+							Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionY", "Blend Space Position Y"), InMessage.BlendSpacePositionY));
+						}
+					}
+				});
+			}
+		});
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

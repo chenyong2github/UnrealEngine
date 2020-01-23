@@ -20,15 +20,14 @@ class FAnimationSharedData;
 class FTimingEventSearchParameters;
 struct FSkeletalMeshPoseMessage;
 
-class FSkeletalMeshPoseTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+class FSkeletalMeshPoseTrack : public FGameplayTimingEventsTrack
 #if WITH_ENGINE
 	, public FGCObject
 #endif
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FSkeletalMeshPoseTrack, FGameplayTimingEventsTrack)
 
+public:
 	FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 	~FSkeletalMeshPoseTrack();
 

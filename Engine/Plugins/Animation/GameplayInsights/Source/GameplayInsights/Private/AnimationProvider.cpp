@@ -231,6 +231,74 @@ bool FAnimationProvider::ReadStateMachinesTimeline(uint64 InObjectId, TFunctionR
 	return false;
 }
 
+bool FAnimationProvider::ReadNotifyTimeline(uint64 InObjectId, TFunctionRef<void(const AnimNotifyTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToAnimNotifyTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimNotifyTimelines.Num()))
+		{
+			Callback(*AnimNotifyTimelines[*IndexPtr]);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FAnimationProvider::EnumerateNotifyStateTimelines(uint64 InObjectId, TFunctionRef<void(uint64, const AnimNotifyTimeline&)> Callback) const
+{
+	const uint32* IndexPtr = ObjectIdToAnimNotifyStateTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimNotifyStateTimelineStorage.Num()))
+		{
+			const TSharedRef<FAnimNotifyStateTimelineStorage>& TimelineStorage = AnimNotifyStateTimelineStorage[*IndexPtr];
+			for(auto NotifyIdPair : TimelineStorage->NotifyIdToAnimNotifyStateTimeline)
+			{
+				Callback(NotifyIdPair.Key, TimelineStorage->Timelines[NotifyIdPair.Value].Get());
+			}
+		}
+	}
+}
+
+bool FAnimationProvider::ReadMontageTimeline(uint64 InObjectId, TFunctionRef<void(const AnimMontageTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToAnimMontageTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimMontageTimelineStorage.Num()))
+		{
+			Callback(*AnimMontageTimelineStorage[*IndexPtr]->Timeline.Get());
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FAnimationProvider::EnumerateMontageIds(uint64 InObjectId, TFunctionRef<void(uint64)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToAnimMontageTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimMontageTimelineStorage.Num()))
+		{
+			const TSharedRef<FMontageTimelineStorage>& TimelineStorage = AnimMontageTimelineStorage[*IndexPtr];
+			for(uint64 Id : TimelineStorage->AllMontageIds)
+			{
+				Callback(Id);
+			}
+		}
+	}
+}
+
 const FSkeletalMeshInfo* FAnimationProvider::FindSkeletalMeshInfo(uint64 InObjectId) const
 {
 	Session.ReadAccessCheck();
@@ -255,7 +323,7 @@ const TCHAR* FAnimationProvider::GetName(uint32 InId) const
 		return *FoundName;
 	}
 
-	static FText UnknownText(LOCTEXT("UnknownCurve", "Unknown"));
+	static FText UnknownText(LOCTEXT("UnknownName", "Unknown"));
 	return *UnknownText.ToString();
 }
 
@@ -268,32 +336,35 @@ FText FAnimationProvider::FormatNodeValue(const FAnimNodeValueMessage& InMessage
 {
 	FText Text;
 
-	switch(InMessage.Type)
+	switch(InMessage.Value.Type)
 	{
 	case EAnimNodeValueType::Bool:
-		Text = InMessage.Bool.bValue ? LOCTEXT("True", "true") : LOCTEXT("False", "false");
+		Text = InMessage.Value.Bool.bValue ? LOCTEXT("True", "true") : LOCTEXT("False", "false");
 		break;
 	case EAnimNodeValueType::Int32:
-		Text =  FText::AsNumber(InMessage.Int32.Value);
+		Text =  FText::AsNumber(InMessage.Value.Int32.Value);
 		break;
 	case EAnimNodeValueType::Float:
-		Text = FText::AsNumber(InMessage.Float.Value);
+		Text = FText::AsNumber(InMessage.Value.Float.Value);
+		break;
+	case EAnimNodeValueType::Vector2D:
+		Text = FText::Format(LOCTEXT("Vector2Format", "({0}, {1})"), FText::AsNumber(InMessage.Value.Vector.Value.X), FText::AsNumber(InMessage.Value.Vector.Value.Y));
 		break;
 	case EAnimNodeValueType::Vector:
-		Text = FText::Format(LOCTEXT("VectorFormat", "({0}, {1}, {2})"), FText::AsNumber(InMessage.Vector.Value.X), FText::AsNumber(InMessage.Vector.Value.Y), FText::AsNumber(InMessage.Vector.Value.Z));
+		Text = FText::Format(LOCTEXT("VectorFormat", "({0}, {1}, {2})"), FText::AsNumber(InMessage.Value.Vector.Value.X), FText::AsNumber(InMessage.Value.Vector.Value.Y), FText::AsNumber(InMessage.Value.Vector.Value.Z));
 		break;
 	case EAnimNodeValueType::String:
-		Text = FText::FromString(InMessage.String.Value);
+		Text = FText::FromString(InMessage.Value.String.Value);
 		break;
 	case EAnimNodeValueType::Object:
 	{
-		const FObjectInfo& ObjectInfo = GameplayProvider.GetObjectInfo(InMessage.Object.Value);
+		const FObjectInfo& ObjectInfo = GameplayProvider.GetObjectInfo(InMessage.Value.Object.Value);
 		Text = FText::FromString(ObjectInfo.PathName);
 		break;
 	}
 	case EAnimNodeValueType::Class:
 	{
-		const FClassInfo& ClassInfo = GameplayProvider.GetClassInfo(InMessage.Class.Value);
+		const FClassInfo& ClassInfo = GameplayProvider.GetClassInfo(InMessage.Value.Class.Value);
 		Text = FText::FromString(ClassInfo.PathName);
 		break;
 	}
@@ -686,8 +757,8 @@ void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double 
 void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, bool bInValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Bool.bValue = bInValue;
-	Message.Type = EAnimNodeValueType::Bool;
+	Message.Value.Bool.bValue = bInValue;
+	Message.Value.Type = EAnimNodeValueType::Bool;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -695,8 +766,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, int32 InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Int32.Value = InValue;
-	Message.Type = EAnimNodeValueType::Int32;
+	Message.Value.Int32.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Int32;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -704,8 +775,17 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, float InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Float.Value = InValue;
-	Message.Type = EAnimNodeValueType::Float;
+	Message.Value.Float.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Float;
+
+	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
+}
+
+void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, const FVector2D& InValue)
+{
+	FAnimNodeValueMessage Message;
+	Message.Value.Vector2D.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Vector2D;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -713,8 +793,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, const FVector& InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Vector.Value = InValue;
-	Message.Type = EAnimNodeValueType::Vector;
+	Message.Value.Vector.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Vector;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -722,8 +802,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, const TCHAR* InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.String.Value = Session.StoreString(InValue);
-	Message.Type = EAnimNodeValueType::String;
+	Message.Value.String.Value = Session.StoreString(InValue);
+	Message.Value.Type = EAnimNodeValueType::String;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -731,8 +811,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendAnimNodeValueObject(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, uint64 InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Object.Value = InValue;
-	Message.Type = EAnimNodeValueType::Object;
+	Message.Value.Object.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Object;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -740,8 +820,8 @@ void FAnimationProvider::AppendAnimNodeValueObject(uint64 InAnimInstanceId, doub
 void FAnimationProvider::AppendAnimNodeValueClass(uint64 InAnimInstanceId, double InTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, uint64 InValue)
 {
 	FAnimNodeValueMessage Message;
-	Message.Class.Value = InValue;
-	Message.Type = EAnimNodeValueType::Class;
+	Message.Value.Class.Value = InValue;
+	Message.Value.Type = EAnimNodeValueType::Class;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InFrameCounter, InNodeId, InKey, Message);
 }
@@ -799,6 +879,122 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 	Message.ElapsedTime = InElapsedTime;
 
 	Timeline->AppendEvent(InTime, Message);
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
+void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, uint64 InNotifyId, uint32 InNameId, float InNotifyTime, float InNotifyDuration, EAnimNotifyMessageType InNotifyEventType)
+{
+	Session.WriteAccessCheck();
+
+	// Check if stateful or event-based
+	if(InNotifyEventType == EAnimNotifyMessageType::Begin || InNotifyEventType == EAnimNotifyMessageType::End)
+	{
+		TSharedPtr<Trace::TIntervalTimeline<FAnimNotifyMessage>> Timeline;
+		TSharedPtr<FAnimNotifyStateTimelineStorage> TimelineStorage;
+		uint32* TimelineStorageIndexPtr = ObjectIdToAnimNotifyStateTimelines.Find(InAnimInstanceId);
+		if(TimelineStorageIndexPtr != nullptr)
+		{
+			TimelineStorage = AnimNotifyStateTimelineStorage[*TimelineStorageIndexPtr];
+		}
+		else
+		{
+			ObjectIdToAnimNotifyStateTimelines.Add(InAnimInstanceId, AnimNotifyStateTimelineStorage.Num());
+			TimelineStorage = AnimNotifyStateTimelineStorage.Add_GetRef(MakeShared<FAnimNotifyStateTimelineStorage>());
+		}
+
+		check(TimelineStorage.IsValid());
+
+		uint32* TimelineIndexPtr = TimelineStorage->NotifyIdToAnimNotifyStateTimeline.Find(InNotifyId);
+		if(TimelineIndexPtr != nullptr)
+		{
+			Timeline = TimelineStorage->Timelines[*TimelineIndexPtr];
+		}
+		else
+		{
+			Timeline = MakeShared<Trace::TIntervalTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
+			TimelineStorage->NotifyIdToAnimNotifyStateTimeline.Add(InNotifyId, TimelineStorage->Timelines.Num());
+			TimelineStorage->Timelines.Add(Timeline.ToSharedRef());
+		}
+
+		if(InNotifyEventType == EAnimNotifyMessageType::Begin)
+		{
+			FAnimNotifyMessage Message;
+			Message.AnimInstanceId = InAnimInstanceId;
+			Message.AssetId = InAssetId;
+			Message.NotifyId = InNotifyId;
+			Message.NameId = InNameId;
+			Message.Time = InNotifyTime; 
+			Message.Duration = InNotifyDuration;
+			Message.NotifyEventType = InNotifyEventType;
+
+			Timeline->AppendBeginEvent(InTime, Message);
+		}
+		else if(Timeline->GetEventCount() > 0)
+		{
+			Timeline->EndEvent(Timeline->GetEventCount() - 1, InTime);
+		}
+	}
+	else
+	{
+		TSharedPtr<Trace::TPointTimeline<FAnimNotifyMessage>> Timeline;
+		uint32* IndexPtr = ObjectIdToAnimNotifyTimelines.Find(InAnimInstanceId);
+		if(IndexPtr != nullptr)
+		{
+			Timeline = AnimNotifyTimelines[*IndexPtr];
+		}
+		else
+		{
+			Timeline = MakeShared<Trace::TPointTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
+			ObjectIdToAnimNotifyTimelines.Add(InAnimInstanceId, AnimNotifyTimelines.Num());
+			AnimNotifyTimelines.Add(Timeline.ToSharedRef());
+		}
+
+		FAnimNotifyMessage Message;
+		Message.AnimInstanceId = InAnimInstanceId;
+		Message.AssetId = InAssetId;
+		Message.NotifyId = InNotifyId;
+		Message.NameId = InNameId;
+		Message.Time = InNotifyTime; 
+		Message.Duration = InNotifyDuration;
+		Message.NotifyEventType = InNotifyEventType;
+
+		Timeline->AppendEvent(InTime, Message);
+	}
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
+void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight)
+{
+	Session.WriteAccessCheck();
+
+	TSharedPtr<FMontageTimelineStorage> TimelineStorage;
+	uint32* IndexPtr = ObjectIdToAnimMontageTimelines.Find(InAnimInstanceId);
+	if(IndexPtr != nullptr)
+	{
+		TimelineStorage = AnimMontageTimelineStorage[*IndexPtr];
+	}
+	else
+	{
+		TimelineStorage = MakeShared<FMontageTimelineStorage>();
+		TimelineStorage->Timeline = MakeShared<Trace::TPointTimeline<FAnimMontageMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline->SetEnumerateOutsideRange(true);
+		ObjectIdToAnimMontageTimelines.Add(InAnimInstanceId, AnimMontageTimelineStorage.Num());
+		AnimMontageTimelineStorage.Add(TimelineStorage.ToSharedRef());
+	}
+
+	TimelineStorage->AllMontageIds.Add(InMontageId);
+
+	FAnimMontageMessage Message;
+	Message.AnimInstanceId = InAnimInstanceId;
+	Message.MontageId = InMontageId;
+	Message.CurrentSectionNameId = InCurrentSectionNameId;
+	Message.NextSectionNameId = InNextSectionNameId;
+	Message.Weight = InWeight;
+	Message.DesiredWeight = InDesiredWeight;
+
+	TimelineStorage->Timeline->AppendEvent(InTime, Message);
 
 	Session.UpdateDurationSeconds(InTime);
 }

@@ -16,6 +16,9 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/AnimTypes.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
 
@@ -109,6 +112,16 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueFloat)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueVector2D)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, NodeId)
+	UE_TRACE_EVENT_FIELD(int32, KeyLength)
+	UE_TRACE_EVENT_FIELD(float, ValueX)
+	UE_TRACE_EVENT_FIELD(float, ValueY)
+	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueVector)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
@@ -179,11 +192,44 @@ UE_TRACE_EVENT_BEGIN(Animation, Name, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Animation, Notify)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint64, AssetId)
+	UE_TRACE_EVENT_FIELD(uint64, NotifyId)
+	UE_TRACE_EVENT_FIELD(uint32, NameId)
+	UE_TRACE_EVENT_FIELD(float, Time)
+	UE_TRACE_EVENT_FIELD(float, Duration)
+	UE_TRACE_EVENT_FIELD(uint8, NotifyEventType)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Animation, SyncMarker)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint32, NameId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Animation, Montage)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint64, MontageId)
+	UE_TRACE_EVENT_FIELD(uint32, CurrentSectionNameId)
+	UE_TRACE_EVENT_FIELD(uint32, NextSectionNameId)
+	UE_TRACE_EVENT_FIELD(float, Weight)
+	UE_TRACE_EVENT_FIELD(float, DesiredWeight)
+UE_TRACE_EVENT_END()
+
 // Object annotations used for tracing
 FUObjectAnnotationSparseBool GSkeletalMeshTraceAnnotations;
 
 // Map used for unique name output
 TMap<FName, uint32> GAnimTraceNames;
+
+// Global unique name index
+uint32 GAnimTraceCurrentNameId = 1;
+
+// Critical section used to lock global name map & index
+FCriticalSection GAnimTraceNameCriticalSection;
 
 // Scratch buffers for various traces to avoid allocation churn.
 // These can be removed when lambda support is added for array fields to remove a memcpy.
@@ -388,11 +434,26 @@ void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 
 uint32 FAnimTrace::OutputName(const FName& InName)
 {
-	static uint32 CurrentId = 1;
-	check(IsInGameThread());
+	uint32 NameId = 0;
+	bool bShouldTrace = false;
+	if(InName != NAME_None)
+	{
+		FScopeLock ScopeLock(&GAnimTraceNameCriticalSection);
 
-	uint32* ExistingIdPtr = GAnimTraceNames.Find(InName);
-	if(ExistingIdPtr == nullptr)
+		uint32* ExistingIdPtr = GAnimTraceNames.Find(InName);
+		if(ExistingIdPtr == nullptr)
+		{
+			NameId = GAnimTraceCurrentNameId++;
+			GAnimTraceNames.Add(InName, NameId);
+			bShouldTrace = true;
+		}
+		else
+		{
+			NameId = *ExistingIdPtr;
+		}
+	}
+
+	if(bShouldTrace)
 	{
 		int32 NameStringLength = InName.GetStringLength() + 1;
 
@@ -401,19 +462,12 @@ uint32 FAnimTrace::OutputName(const FName& InName)
 			InName.ToString(reinterpret_cast<TCHAR*>(Out), NameStringLength);
 		};
 
-		uint32 NewId = CurrentId++;
-
 		UE_TRACE_LOG(Animation, Name, AnimationChannel, NameStringLength * sizeof(TCHAR))
-			<< Name.Id(NewId)
+			<< Name.Id(NameId)
 			<< Name.Attachment(StringCopyFunc);
+	}
 
-		GAnimTraceNames.Add(InName, NewId);
-		return NewId;
-	}
-	else
-	{
-		return *ExistingIdPtr;
-	}
+	return NameId;
 }
 
 void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InComponent)
@@ -649,6 +703,32 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 		<< AnimNodeValueFloat.Attachment(InKey, KeyLength * sizeof(TCHAR));
 }
 
+void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector2D& InValue)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	check(InContext.AnimInstanceProxy);
+
+	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+
+	int32 KeyLength = FCString::Strlen(InKey) + 1;
+
+	UE_TRACE_LOG(Animation, AnimNodeValueVector2D, AnimationChannel, KeyLength * sizeof(TCHAR))
+		<< AnimNodeValueVector2D.Cycle(FPlatformTime::Cycles64())
+		<< AnimNodeValueVector2D.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
+		<< AnimNodeValueVector2D.NodeId(InContext.GetCurrentNodeId())
+		<< AnimNodeValueVector2D.KeyLength(KeyLength)
+		<< AnimNodeValueVector2D.ValueX(InValue.X)
+		<< AnimNodeValueVector2D.ValueY(InValue.Y)
+		<< AnimNodeValueVector2D.FrameCounter((uint16)(GFrameCounter % 0xffff))
+		<< AnimNodeValueVector2D.Attachment(InKey, KeyLength * sizeof(TCHAR));
+}
+
+
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FRotator& Value)
 {
 	const FVector VectorValue(Value.Roll, Value.Pitch, Value.Yaw);
@@ -832,6 +912,90 @@ void FAnimTrace::OutputStateMachineState(const FAnimationBaseContext& InContext,
 		<< StateMachineState.StateIndex(InStateIndex)
 		<< StateMachineState.StateWeight(InStateWeight)
 		<< StateMachineState.ElapsedTime(InElapsedTime);
+}
+
+void FAnimTrace::OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNotifyEvent& InNotifyEvent, ENotifyEventType InEventType)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InAnimInstance);
+
+	const UObject* NotifyObject = nullptr;
+	const UObject* NotifyAsset = nullptr;
+	if(InNotifyEvent.Notify)
+	{
+		NotifyObject = InNotifyEvent.Notify;
+		NotifyAsset = NotifyObject->GetOuter();
+	}
+	else if(InNotifyEvent.NotifyStateClass)
+	{
+		NotifyObject = InNotifyEvent.NotifyStateClass;
+		NotifyAsset = NotifyObject->GetOuter();
+	}
+
+	TRACE_OBJECT(NotifyAsset);
+	TRACE_OBJECT(NotifyObject);
+
+	const uint32 NameId = OutputName(InNotifyEvent.NotifyName);
+
+	UE_TRACE_LOG(Animation, Notify, AnimationChannel)
+		<< Notify.Cycle(FPlatformTime::Cycles64())
+		<< Notify.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
+		<< Notify.AssetId(FObjectTrace::GetObjectId(NotifyAsset))
+		<< Notify.NotifyId(FObjectTrace::GetObjectId(NotifyObject))
+		<< Notify.NameId(NameId)
+		<< Notify.Time(InNotifyEvent.GetTime())
+		<< Notify.Duration(InNotifyEvent.GetDuration())
+		<< Notify.NotifyEventType((uint8)InEventType);
+}
+
+void FAnimTrace::OutputAnimSyncMarker(UAnimInstance* InAnimInstance, const FPassedMarker& InPassedSyncMarker)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InAnimInstance);
+
+	const uint32 NameId = OutputName(InPassedSyncMarker.PassedMarkerName);
+
+	UE_TRACE_LOG(Animation, SyncMarker, AnimationChannel)
+		<< SyncMarker.Cycle(FPlatformTime::Cycles64())
+		<< SyncMarker.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
+		<< SyncMarker.NameId(NameId);
+}
+
+void FAnimTrace::OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontageInstance& InMontageInstance)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	if(InMontageInstance.Montage != nullptr)
+	{
+		TRACE_OBJECT(InAnimInstance);
+		TRACE_OBJECT(InMontageInstance.Montage);
+
+		const uint32 CurrentSectionNameId = OutputName(InMontageInstance.GetCurrentSection());
+		const uint32 NextSectionNameId = OutputName(InMontageInstance.GetNextSection());
+
+		UE_TRACE_LOG(Animation, Montage, AnimationChannel)
+			<< Montage.Cycle(FPlatformTime::Cycles64())
+			<< Montage.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
+			<< Montage.MontageId(FObjectTrace::GetObjectId(InMontageInstance.Montage))
+			<< Montage.CurrentSectionNameId(CurrentSectionNameId)
+			<< Montage.NextSectionNameId(NextSectionNameId)
+			<< Montage.Weight(InMontageInstance.GetWeight())
+			<< Montage.DesiredWeight(InMontageInstance.GetDesiredWeight());
+	}
 }
 
 #endif

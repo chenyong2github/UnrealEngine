@@ -12,11 +12,14 @@ class FSkeletalMeshPoseTrack;
 class FSkeletalMeshCurvesTrack;
 class FAnimationTickRecordsTrack;
 class FAnimNodesTrack;
+class FAnimNotifiesTrack;
+class FMontageTrack;
 class FMenuBuilder;
 class UWorld;
 class IAnimationBlueprintEditor;
 struct FCustomDebugObject;
 class SDockTab;
+class FGameplayTrack;
 
 class FAnimationSharedData
 {
@@ -75,6 +78,8 @@ private:
 	void ToggleSkeletalMeshCurveTracks();
 	void ToggleTickRecordTracks();
 	void ToggleAnimNodeTracks();
+	void ToggleAnimNotifyTracks();
+	void ToggleMontageTracks();
 
 private:
 	// The gameplay shared data we are linked to
@@ -91,6 +96,11 @@ private:
 	TArray<TSharedRef<FSkeletalMeshCurvesTrack>> SkeletalMeshCurvesTracks;
 	TArray<TSharedRef<FAnimationTickRecordsTrack>> AnimationTickRecordsTracks;
 	TArray<TSharedRef<FAnimNodesTrack>> AnimNodesTracks;
+	TArray<TSharedRef<FAnimNotifiesTrack>> AnimNotifyTracks;
+	TArray<TSharedRef<FMontageTrack>> MontageTracks;
+
+	// All the documents we have spawned
+	mutable TArray<TWeakPtr<SDockTab>> WeakAnimGraphDocumentTabs;
 
 	// Delegate handles for hooks into the timing view
 	FDelegateHandle TimeMarkerChangedHandle;
@@ -106,4 +116,6 @@ private:
 	bool bSkeletalMeshCurveTracksEnabled;
 	bool bTickRecordTracksEnabled;
 	bool bAnimNodeTracksEnabled;
+	bool bAnimNotifyTracksEnabled;
+	bool bMontageTracksEnabled;
 };

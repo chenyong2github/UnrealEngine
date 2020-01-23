@@ -29,7 +29,7 @@
 
 namespace GameplayInsightsTabs
 {
-	static const FName AnimGraphSchematicView("AnimGraphSchematicView");
+	static const FName DocumentTab("DocumentTab");
 };
 
 void FGameplayInsightsModule::StartupModule()
@@ -85,7 +85,7 @@ void FGameplayInsightsModule::StartupModule()
 	FInsightsMajorTabConfig TimingProfilerConfig;
 	TimingProfilerConfig.TabLabel = LOCTEXT("GameplayInsightsTabName", "Gameplay Insights");
 	TimingProfilerConfig.TabTooltip = LOCTEXT("GameplayInsightsTabTooltip", "Open the Gameplay Insights tab.");
-	TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.0")
+	TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.1")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()
@@ -114,7 +114,7 @@ void FGameplayInsightsModule::StartupModule()
 		(
 			FTabManager::NewStack()
 			->SetSizeCoefficient(0.3f)
-			->AddTab(GameplayInsightsTabs::AnimGraphSchematicView, ETabState::ClosedTab)
+			->AddTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab)
 		)
 	);
 
@@ -161,7 +161,7 @@ TSharedRef<SDockTab> FGameplayInsightsModule::SpawnTimingProfilerDocumentTab(con
 	TSharedPtr<FTabManager> TimingProfilerTabManager = WeakTimingProfilerTabManager.Pin();
 	if(TimingProfilerTabManager.IsValid())
 	{
-		TimingProfilerTabManager->InsertNewDocumentTab(GameplayInsightsTabs::AnimGraphSchematicView, InSearchPreference, NewTab);
+		TimingProfilerTabManager->InsertNewDocumentTab(GameplayInsightsTabs::DocumentTab, InSearchPreference, NewTab);
 	}
 	return NewTab;
 }

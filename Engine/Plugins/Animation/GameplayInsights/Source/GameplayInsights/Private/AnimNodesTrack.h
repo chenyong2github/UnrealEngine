@@ -18,15 +18,14 @@ class AActor;
 class USkeletalMeshComponent;
 class UAnimInstance;
 
-class FAnimNodesTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+class FAnimNodesTrack : public FGameplayTimingEventsTrack
 #if WITH_ENGINE
 	, public FGCObject
 #endif
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FAnimNodesTrack, FGameplayTimingEventsTrack)
 
+public:
 	FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;

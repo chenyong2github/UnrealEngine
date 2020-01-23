@@ -47,7 +47,7 @@ enum class EAnimGraphSchematicFilterState
 	Highlighted,
 };
 
-// A in the tree of 'properties' for an animation node's debug info
+// A node in the tree of 'properties' for an animation node's debug info
 class FAnimGraphSchematicPropertyNode
 {
 public:
@@ -72,13 +72,13 @@ public:
 
 	static TSharedRef<SWidget> StaticMakeValueWidget(const Trace::IAnalysisSession& InAnalysisSession, const TSharedRef<FAnimNodeValueMessage>& InValue) 
 	{ 
-		switch(InValue->Type)
+		switch(InValue->Value.Type)
 		{
 		case EAnimNodeValueType::Bool:
 			return 
 				SNew(SCheckBox)
 				.IsEnabled(false)
-				.IsChecked(InValue->Bool.bValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+				.IsChecked(InValue->Value.Bool.bValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
 
 		case EAnimNodeValueType::Int32:
 			return
@@ -88,7 +88,7 @@ public:
 					SNew(SEditableTextBox)
 					.IsEnabled(false)
 					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::AsNumber(InValue->Int32.Value))
+					.Text(FText::AsNumber(InValue->Value.Int32.Value))
 				];
 
 		case EAnimNodeValueType::Float:
@@ -99,7 +99,34 @@ public:
 					SNew(SEditableTextBox)
 					.IsEnabled(false)
 					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::AsNumber(InValue->Float.Value))
+					.Text(FText::AsNumber(InValue->Value.Float.Value))
+				];
+
+		case EAnimNodeValueType::Vector2D:
+			return SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(125.0f)
+					[
+						SNew(SEditableTextBox)
+						.IsEnabled(false)
+						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
+						.Text(FText::AsNumber(InValue->Value.Vector2D.Value.X))
+					]
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(125.0f)
+					[
+						SNew(SEditableTextBox)
+						.IsEnabled(false)
+						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
+						.Text(FText::AsNumber(InValue->Value.Vector2D.Value.Y))
+					]
 				];
 
 		case EAnimNodeValueType::Vector:
@@ -113,7 +140,7 @@ public:
 						SNew(SEditableTextBox)
 						.IsEnabled(false)
 						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Vector.Value.X))
+						.Text(FText::AsNumber(InValue->Value.Vector.Value.X))
 					]
 				]
 				+SHorizontalBox::Slot()
@@ -125,7 +152,7 @@ public:
 						SNew(SEditableTextBox)
 						.IsEnabled(false)
 						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Vector.Value.Y))
+						.Text(FText::AsNumber(InValue->Value.Vector.Value.Y))
 					]
 				]
 				+SHorizontalBox::Slot()
@@ -137,7 +164,7 @@ public:
 						SNew(SEditableTextBox)
 						.IsEnabled(false)
 						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Vector.Value.Z))
+						.Text(FText::AsNumber(InValue->Value.Vector.Value.Z))
 					]
 				];
 
@@ -145,7 +172,7 @@ public:
 			return 
 				SNew(STextBlock)
 				.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-				.Text(FText::FromString(InValue->String.Value));
+				.Text(FText::FromString(InValue->Value.String.Value));
 
 		case EAnimNodeValueType::Object:
 		{
@@ -154,7 +181,7 @@ public:
 			{
 				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
-				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InValue->Object.Value);
+				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InValue->Value.Object.Value);
 #if WITH_EDITOR
 				return 
 					SNew(SHyperlink)
@@ -183,7 +210,7 @@ public:
 			{
 				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
-				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InValue->Class.Value);
+				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InValue->Value.Class.Value);
 #if WITH_EDITOR
 				return 
 					SNew(SHyperlink)
@@ -600,9 +627,9 @@ void SAnimGraphSchematicView::RefreshNodes()
 										TSharedRef<FAnimNodeValueMessage> WeightMessage = MakeShared<FAnimNodeValueMessage>();
 										WeightMessage->NodeId = InMessage.NodeId;
 										WeightMessage->FrameCounter = InMessage.FrameCounter;
-										WeightMessage->Type = EAnimNodeValueType::Float;
+										WeightMessage->Value.Type = EAnimNodeValueType::Float;
 										WeightMessage->Key = TEXT("Weight");
-										WeightMessage->Float.Value = InMessage.Weight;
+										WeightMessage->Value.Float.Value = InMessage.Weight;
 
 										Node->KeysAndValues.Add(AnimGraphSchematicColumns::Weight, WeightMessage);
 										Node->Values.Add(WeightMessage);
@@ -610,9 +637,9 @@ void SAnimGraphSchematicView::RefreshNodes()
 										TSharedRef<FAnimNodeValueMessage> RootMotionWeightMessage = MakeShared<FAnimNodeValueMessage>();
 										RootMotionWeightMessage->NodeId = InMessage.NodeId;
 										RootMotionWeightMessage->FrameCounter = InMessage.FrameCounter;
-										RootMotionWeightMessage->Type = EAnimNodeValueType::Float;
+										RootMotionWeightMessage->Value.Type = EAnimNodeValueType::Float;
 										RootMotionWeightMessage->Key = TEXT("Root Motion Weight");
-										RootMotionWeightMessage->Float.Value = InMessage.RootMotionWeight;
+										RootMotionWeightMessage->Value.Float.Value = InMessage.RootMotionWeight;
 
 										Node->KeysAndValues.Add(AnimGraphSchematicColumns::RootMotionWeight, RootMotionWeightMessage);
 										Node->Values.Add(RootMotionWeightMessage);

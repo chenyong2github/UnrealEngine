@@ -262,6 +262,7 @@ void UAnimInstance::UninitializeAnimation()
 			const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
 			if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 			{
+				TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
 				AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
 			}
 		}
@@ -306,6 +307,13 @@ void UAnimInstance::UpdateMontage(float DeltaSeconds)
 	// if we do multi threading, make sure this stays in game thread. 
 	// This is because branch points need to execute arbitrary code inside this call.
 	Montage_Advance(DeltaSeconds);
+
+#if ANIM_TRACE_ENABLED
+	for (FAnimMontageInstance* MontageInstance : MontageInstances)
+	{
+		TRACE_ANIM_MONTAGE(this, *MontageInstance);
+	}
+#endif
 }
 
 void UAnimInstance::UpdateMontageSyncGroup()
@@ -1321,6 +1329,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 		const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
 		if (AnimNotifyEvent.NotifyStateClass && ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 		{
+			TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
 			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
 		}
 		// The NotifyEnd callback above may have triggered actor destruction and the tear down
@@ -1338,6 +1347,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	{
 		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent->NotifyStateClass))
 		{
+			TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Begin);
 			AnimNotifyEvent->NotifyStateClass->NotifyBegin(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent->NotifyStateClass->GetOuter()), AnimNotifyEvent->GetDuration());
 		}
 	}
@@ -1350,6 +1360,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	{
 		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 		{
+			TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, Tick);
 			AnimNotifyEvent.NotifyStateClass->NotifyTick(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), DeltaSeconds);
 		}
 	}
@@ -1368,6 +1379,7 @@ void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEv
 		if (AnimNotifyEvent->Notify != nullptr)
 		{	
 			// Implemented notify: just call Notify. UAnimNotify will forward this to the event which will do the work.
+			TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
 			AnimNotifyEvent->Notify->Notify(GetSkelMeshComponent(), Cast<UAnimSequenceBase>(AnimNotifyEvent->Notify->GetOuter()));
 		}
 		else if (AnimNotifyEvent->NotifyName != NAME_None)
@@ -1380,6 +1392,7 @@ void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEv
 				// if parameter is none, add event
 				if (Function->NumParms == 0)
 				{
+					TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
 					ProcessEvent(Function, NULL);
 				}
 				else if ((Function->NumParms == 1) && (CastField<FObjectProperty>(Function->PropertyLink) != NULL))
@@ -1391,6 +1404,8 @@ void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEv
 
 					FAnimNotifierHandler_Parms Parms;
 					Parms.Notify = AnimNotifyEvent->Notify;
+
+					TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
 					ProcessEvent(Function, &Parms);
 				}
 				else
@@ -1411,6 +1426,7 @@ void UAnimInstance::EndNotifyStates()
 	{
 		if (UAnimNotifyState* NotifyState = Event.NotifyStateClass)
 		{
+			TRACE_ANIM_NOTIFY(this, Event, End);
 			NotifyState->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(NotifyState->GetOuter()));
 		}
 	}
@@ -1621,6 +1637,7 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 			{
 				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 				{
+					TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
 					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, NotifyMontage);
 				}
 
