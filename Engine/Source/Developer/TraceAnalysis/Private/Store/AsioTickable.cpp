@@ -50,6 +50,22 @@ bool FAsioTickable::StopTick()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAsioTickable::TickOnce(uint32 InMillisecondRate)
+{
+	if (MillisecondRate)
+	{
+		return;
+	}
+
+	MillisecondRate = InMillisecondRate;
+	if (MillisecondRate)
+	{
+		AsyncTick();
+		MillisecondRate = 0;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioTickable::AsyncTick()
 {
 	auto StdTime = std::chrono::milliseconds(MillisecondRate);

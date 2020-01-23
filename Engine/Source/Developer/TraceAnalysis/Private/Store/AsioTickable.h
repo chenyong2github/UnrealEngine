@@ -19,6 +19,7 @@ public:
 	virtual				~FAsioTickable();
 	bool				StartTick(uint32 MillisecondRate);
 	bool				StopTick();
+	void				TickOnce(uint32 MillisecondRate);
 	virtual void		OnTick() = 0;
 
 private:
