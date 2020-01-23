@@ -2,6 +2,7 @@
 
 #include "AsioStore.h"
 #include "HAL/PlatformFile.h"
+#include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
