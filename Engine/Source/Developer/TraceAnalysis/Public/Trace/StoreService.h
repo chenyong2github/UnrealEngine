@@ -22,6 +22,7 @@ public:
 	static FStoreService*	Create(const FDesc& Desc);
 	void					operator delete (void* Addr);
 	uint32					GetPort() const;
+	uint32					GetRecorderPort() const;
 
 private:
 							FStoreService() = default;

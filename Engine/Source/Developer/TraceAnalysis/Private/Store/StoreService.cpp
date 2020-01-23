@@ -80,4 +80,11 @@ uint32 FStoreService::GetPort() const
 	return Self->CborServer.GetPort();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreService::GetRecorderPort() const
+{
+	auto* Self = (FStoreServiceImpl*)this;
+	return Self->Recorder.GetPort();
+}
+
 } // namespace Trace
