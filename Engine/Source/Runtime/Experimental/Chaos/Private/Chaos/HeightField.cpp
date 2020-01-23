@@ -5,6 +5,7 @@
 #include "Chaos/GJK.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/GeometryQueries.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Chaos/Triangle.h"
@@ -1328,8 +1329,11 @@ namespace Chaos
 
 	template <typename T>
 	template <typename QueryGeomType>
-	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FVec3& OutNormal, FReal& OutPenetration, bool bComputeMTD) const
 	{
+		OutNormal = FVec3(0.0f);
+		OutPenetration = 0.0f;
+
 		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
 		{
 			const TVector<T, 3> AB = B - A;
@@ -1340,7 +1344,29 @@ namespace Chaos
 			const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
 
 			TTriangle<T> TriangleConvex(A, B, C);
-			return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
+			if (bComputeMTD)
+			{
+				FVec3 TriangleNormal(0.0f);
+				FReal Penetration = 0.0f;
+				FVec3 ClosestA(0.0f);
+				FVec3 ClosestB(0.0f);
+				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
+				{
+					// Use Deepest MTD.
+					if (Penetration > OutPenetration)
+					{
+						OutPenetration = Penetration;
+						OutNormal = TriangleNormal;
+					}
+					return true;
+				}
+
+				return false;
+			}
+			else
+			{
+				return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
+			}
 		};
 
 		bool bResult = false;
@@ -1357,6 +1383,7 @@ namespace Chaos
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
+		bool bOverlaps = false;
 		for(const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
@@ -1364,64 +1391,184 @@ namespace Chaos
 
 			if(OverlapTriangle(Points[0], Points[1], Points[3]))
 			{
-				return true;
+				bOverlaps = true;
+				if (!bComputeMTD)
+				{
+					return true;
+				}
 			}
 
 			if(OverlapTriangle(Points[0], Points[3], Points[2]))
 			{
+				bOverlaps = true;
+				if (!bComputeMTD)
+				{
+					return true;
+				}
+			}
+		}
+
+		return bOverlaps;
+	}
+
+	template <typename T>
+	bool THeightField<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	{
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
 				return true;
 			}
 		}
 
-		return false;
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
+
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
-	}
+		FVec3 Normal;
+		FReal Penetration;
+		if (OutMTD)
+		{
+			// Computes MTD
+			if (OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/true))
+			{
+				OutMTD->Normal = Normal;
+				OutMTD->Penetration = Penetration;
+				return true;
+			}
+		}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
-	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		// No MTD
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, Normal, Penetration, /*bComputeMTD=*/false);
 	}
 
 	template <typename T>

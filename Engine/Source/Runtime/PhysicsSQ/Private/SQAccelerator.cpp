@@ -240,7 +240,7 @@ private:
 				TVector<float, 3> WorldPosition, WorldNormal;
 				float Distance = 0;	//not needed but fixes compiler warning for overlap
 				int32 FaceIdx = INDEX_NONE;	//not needed but fixes compiler warning for overlap
-				const bool bComputeMTD = !!((uint16)(OutputFlags & EHitFlags::MTD));
+				const bool bComputeMTD = !!((uint16)(OutputFlags.HitFlags & EHitFlags::MTD));
 
 				if (SQ == ESQType::Raycast)
 				{
@@ -262,7 +262,19 @@ private:
 				}
 				else if (SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0))
 				{
-					bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0);
+					if (bComputeMTD)
+					{
+						FMTDInfo MTDInfo;
+						bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0, &MTDInfo);
+						if (bHit)
+						{
+							WorldNormal = MTDInfo.Normal * MTDInfo.Penetration;
+						}
+					}
+					else
+					{
+						bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0);
+					}
 				}
 
 				if(bHit)
@@ -322,7 +334,7 @@ private:
 	const FVector StartPoint;
 	const FVector Dir;
 	const FVector HalfExtents;
-	EHitFlags OutputFlags;
+	FHitFlags OutputFlags;
 	bool bAnyHit;
 	const FQueryDebugParams DebugParams;
 	ChaosInterface::FSQHitBuffer<THitType>& HitBuffer;
