@@ -3,6 +3,7 @@
 #include "MPCDIModule.h"
 
 #include "MPCDIData.h"
+#include "MPCDIRegion.h"
 #include "MPCDIShader.h"
 
 #include "Interfaces/IPluginManager.h"

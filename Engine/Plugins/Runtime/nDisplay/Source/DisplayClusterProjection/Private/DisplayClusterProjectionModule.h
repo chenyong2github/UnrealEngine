@@ -6,6 +6,9 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 
 class IDisplayClusterProjectionPolicyFactory;
+class USceneComponent;
+class UStaticMeshComponent;
+
 
 class FDisplayClusterProjectionModule
 	: public IDisplayClusterProjection

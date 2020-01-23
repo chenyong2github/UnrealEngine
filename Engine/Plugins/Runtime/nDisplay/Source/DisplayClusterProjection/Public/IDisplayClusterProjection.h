@@ -6,7 +6,9 @@
 #include "Modules/ModuleInterface.h"
 
 class IDisplayClusterProjectionPolicyFactory;
+class USceneComponent;
 class UStaticMeshComponent;
+
 
 class IDisplayClusterProjection : public IModuleInterface
 {

@@ -16,6 +16,9 @@
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+
 
 FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
 {

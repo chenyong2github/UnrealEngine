@@ -13,7 +13,9 @@
 #include "RHIUtilities.h"
 
 class FMPCDIData;
+class USceneComponent;
 class UStaticMeshComponent;
+
 
 class IMPCDI : public IModuleInterface
 {

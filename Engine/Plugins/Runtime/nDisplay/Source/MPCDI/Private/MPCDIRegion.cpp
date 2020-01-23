@@ -4,6 +4,7 @@
 #include "MPCDIBlendTexture.h"
 #include "MPCDIHelpers.h"
 #include "MPCDIWarpTexture.h"
+#include "MPCDIWarp.h"
 #include "MPCDIWarpMesh.h"
 
 THIRD_PARTY_INCLUDES_START
@@ -21,6 +22,7 @@ THIRD_PARTY_INCLUDES_START
 #include "mpcdiPNGReadWrite.h"
 THIRD_PARTY_INCLUDES_END
 
+#include "Components/SceneComponent.h"
 #include "Misc/FileHelper.h"
 
 
@@ -40,7 +42,16 @@ FMPCDIRegion::FMPCDIRegion(const wchar_t* Name, int InW, int InH)
 	, ResX(InW), ResY(InH)
 	, isRuntimeData(true)
 	, WarpData(nullptr)
-{ }
+{
+}
+
+FMPCDIRegion::~FMPCDIRegion()
+{
+	if (WarpData)
+	{
+		delete WarpData;
+	}
+}
 
 void FMPCDIRegion::FExternalFileReloader::Initialize(const FString& FullPathFileName)
 {

@@ -3,9 +3,13 @@
 #pragma once
 
 #include "MPCDIBlendTexture.h"
-#include "MPCDIWarp.h"
+#include "IMPCDI.h"
 
 #include "RenderResource.h"
+
+class FMPCDIWarp;
+class USceneComponent;
+
 
 namespace mpcdi
 {
@@ -69,13 +73,7 @@ struct FMPCDIRegion
 
 	FMPCDIRegion(const wchar_t* Name, int InW, int InH);
 
-	~FMPCDIRegion()
-	{ 
-		if (WarpData)
-		{
-			delete WarpData;
-		}
-	}
+	~FMPCDIRegion();
 
 	bool Load(mpcdi::Region* InMPCIDRegionData, const IMPCDI::EMPCDIProfileType ProfileType);
 

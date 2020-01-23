@@ -4,6 +4,8 @@
 
 #include "IMPCDI.h"
 
+#include "Components/SceneComponent.h"
+
 class FMPCDIData;
 
 

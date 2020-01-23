@@ -5,6 +5,9 @@
 #include "IMPCDI.h"
 #include "MPCDIWarp.h"
 
+class USceneComponent;
+class UStaticMeshComponent;
+
 
 class FMPCDIWarpMesh
 	: public FMPCDIWarp
