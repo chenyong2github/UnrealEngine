@@ -848,9 +848,17 @@ public:
 	class FNetworkNotify*		Notify;
 	
 	/** Accumulated time for the net driver, updated by Tick */
+	UE_DEPRECATED(4.25, "Time is being replaced with a double precision value, please use GetElapsedTime() instead.")
 	UPROPERTY()
 	float						Time;
 
+	double GetElapsedTime() const { return ElapsedTime; }
+	void ResetElapsedTime() { ElapsedTime = 0.0; }
+
+private:
+	double						ElapsedTime;
+
+public:
 	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */
 	double						LastTickDispatchRealtime;
 
@@ -1629,7 +1637,7 @@ private:
 	int32 DuplicateLevelID;
 
 	/** NetDriver time to end packet loss burst simulation. */
-	float PacketLossBurstEndTime;
+	double PacketLossBurstEndTime;
 
 	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
 	uint32 OutTotalNotifiedPackets;

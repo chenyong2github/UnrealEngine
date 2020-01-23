@@ -77,10 +77,10 @@ private:
 	float SocketErrorDisconnectDelay;
 
 	/** Cached time of the first send socket error that will be used to compute disconnect delay. */
-	float SocketError_SendDelayStartTime;
+	double SocketError_SendDelayStartTime;
 
 	/** Cached time of the first recv socket error that will be used to compute disconnect delay. */
-	float SocketError_RecvDelayStartTime;
+	double SocketError_RecvDelayStartTime;
 
 	friend class FIpConnectionHelper;
 

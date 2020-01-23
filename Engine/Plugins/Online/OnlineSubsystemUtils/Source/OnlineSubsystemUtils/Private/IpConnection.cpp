@@ -341,10 +341,10 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 
 void UIpConnection::ReceivedRawPacket(void* Data, int32 Count)
 {
-	UE_CLOG(SocketError_RecvDelayStartTime > 0.f, LogNet, Log, TEXT("UIpConnection::ReceivedRawPacket: Recoverd from socket errors. %s Connection"), *Describe());
+	UE_CLOG(SocketError_RecvDelayStartTime > 0.0, LogNet, Log, TEXT("UIpConnection::ReceivedRawPacket: Recoverd from socket errors. %s Connection"), *Describe());
 	
 	// We received data successfully, reset our error counters.
-	SocketError_RecvDelayStartTime = 0.f;
+	SocketError_RecvDelayStartTime = 0.0;
 
 	Super::ReceivedRawPacket(Data, Count);
 }
@@ -356,7 +356,7 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 		UE_CLOG(SocketError_SendDelayStartTime > 0.f, LogNet, Log, TEXT("UIpConnection::HandleSocketSendResult: Recovered from socket errors. %s Connection"), *Describe());
 
 		// We sent data successfully, reset our error counters.
-		SocketError_SendDelayStartTime = 0.f;
+		SocketError_SendDelayStartTime = 0.0;
 	}
 	else if (Result.Error != SE_EWOULDBLOCK)
 	{
@@ -364,8 +364,8 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 
 		if (SocketErrorDisconnectDelay > 0.f)
 		{
-			const float Time = Driver->Time;
-			if (SocketError_SendDelayStartTime == 0.f)
+			const double Time = Driver->GetElapsedTime();
+			if (SocketError_SendDelayStartTime == 0.0)
 			{
 				UE_LOG(LogNet, Log, TEXT("UIpConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection beginning close timeout (Timeout = %d)."),
 					static_cast<int32>(Result.Error),
@@ -406,8 +406,8 @@ void UIpConnection::HandleSocketRecvError(class UNetDriver* NetDriver, const FSt
 
 	if (SocketErrorDisconnectDelay > 0.f)
 	{
-		const float Time = NetDriver->Time;
-		if (SocketError_RecvDelayStartTime == 0.f)
+		const double Time = NetDriver->GetElapsedTime();
+		if (SocketError_RecvDelayStartTime == 0.0)
 		{
 			UE_LOG(LogNet, Log, TEXT("%s. %s Connection beginning close timeout (Timeout = %d)."),
 				*ErrorString,

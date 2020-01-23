@@ -301,16 +301,22 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	SetConnectionId(InDriver->AllocateConnectionId());
 
+	const double DriverElapsedTime = Driver->GetElapsedTime();
+
 	// Stats
-	StatUpdateTime			= Driver->Time;
-	LastReceiveTime			= Driver->Time;
+	StatUpdateTime			= DriverElapsedTime;
+	LastReceiveTime			= DriverElapsedTime;
 	LastReceiveRealtime		= 0.0;			// These are set to 0 and initialized on our first tick to deal with scenarios where
 	LastGoodPacketRealtime	= 0.0;			// notable time may elapse between init and first use
 	LastTime				= 0.0;
-	LastSendTime			= Driver->Time;
-	LastTickTime			= Driver->Time;
-	LastRecvAckTime			= Driver->Time;
-	ConnectTime				= Driver->Time;
+	LastSendTime			= DriverElapsedTime;
+	LastTickTime			= DriverElapsedTime;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	LastRecvAckTime			= DriverElapsedTime;
+	ConnectTime				= DriverElapsedTime;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	LastRecvAckTimestamp	= DriverElapsedTime;
+	ConnectTimestamp		= DriverElapsedTime;
 
 	// Analytics
 	TSharedPtr<FNetAnalyticsAggregator>& AnalyticsAggregator = Driver->AnalyticsAggregator;
@@ -1393,7 +1399,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 	TimeSensitive = 0;
 
 	// If there is any pending data to send, send it.
-	if (SendBuffer.GetNumBits() || HasDirtyAcks || ( Driver->Time-LastSendTime > Driver->KeepAliveTime && !InternalAck && State != USOCK_Closed))
+	if (SendBuffer.GetNumBits() || HasDirtyAcks || ( Driver->GetElapsedTime() - LastSendTime > Driver->KeepAliveTime && !InternalAck && State != USOCK_Closed))
 	{
 		// Due to the PacketHandler handshake code, servers must never send the client data,
 		// before first receiving a client control packet (which is taken as an indication of a complete handshake).
@@ -1522,11 +1528,11 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		//Record the first packet time in the histogram
 		if (bFlushedNetThisFrame == false)
 		{
-			double LastPacketTimeDiffInMs = (Driver->Time - LastSendTime) * 1000.0;
+			double LastPacketTimeDiffInMs = (Driver->GetElapsedTime() - LastSendTime) * 1000.0;
 			NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
 		}
 
-		LastSendTime = Driver->Time;
+		LastSendTime = Driver->GetElapsedTime();
 
 		const int32 PacketBytes = SendBuffer.GetNumBytes() + PacketOverhead;
 
@@ -1667,7 +1673,10 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 	OutAckPacketId = AckPacketId;
 
 	// Process the bunch.
-	LastRecvAckTime = Driver->Time;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	LastRecvAckTime = Driver->GetElapsedTime();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	LastRecvAckTimestamp = Driver->GetElapsedTime();
 
 	PacketAnalytics.TrackAck(AckPacketId);
 
@@ -2058,7 +2067,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
 
 		// Update receive time to avoid timeout.
-		LastReceiveTime = Driver->Time;
+		LastReceiveTime = Driver->GetElapsedTime();
 		LastReceiveRealtime = CurrentReceiveTimeInS;
 	}
 
@@ -2965,7 +2974,7 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 
 	// Remember start position.
 	AllowMerge      = InAllowMerge;
-	Bunch.Time      = Driver->Time;
+	Bunch.Time      = Driver->GetElapsedTime();
 
 	if ((Bunch.bClose || Bunch.bOpen) && UE_LOG_ACTIVE(LogNetDormancy,VeryVerbose) )
 	{
@@ -3228,7 +3237,7 @@ void UNetConnection::Tick()
 		const bool bIsServer = Driver->IsServer();
 		OutAckPacketId = OutPacketId;
 
-		LastReceiveTime = Driver->Time;
+		LastReceiveTime = Driver->GetElapsedTime();
 		LastReceiveRealtime = FPlatformTime::Seconds();
 		LastGoodPacketRealtime = FPlatformTime::Seconds();
 
@@ -3301,8 +3310,9 @@ void UNetConnection::Tick()
 	}
 
 	// Compute time passed since last update.
-	const float DeltaTime	= Driver->Time - LastTickTime;
-	LastTickTime			= Driver->Time;
+	const double DriverElapsedTime = Driver->GetElapsedTime();
+	const double DeltaTime	= DriverElapsedTime - LastTickTime;
+	LastTickTime			= DriverElapsedTime;
 
 	// Handle timeouts.
 	const float Timeout = GetTimeoutValue();
@@ -3315,16 +3325,16 @@ void UNetConnection::Tick()
 		// Compute true realtime since packet was received (as well as truly processed)
 		const double Seconds = FPlatformTime::Seconds();
 
-		const float ReceiveRealtimeDelta = Seconds - LastReceiveRealtime;
-		const float GoodRealtimeDelta = Seconds - LastGoodPacketRealtime;
+		const double ReceiveRealtimeDelta = Seconds - LastReceiveRealtime;
+		const double GoodRealtimeDelta = Seconds - LastGoodPacketRealtime;
 
 		// Timeout.
 		FString Error = FString::Printf(TEXT("%s. Elapsed: %2.2f, Real: %2.2f, Good: %2.2f, DriverTime: %2.2f, Threshold: %2.2f, %s"),
 			bPendingDestroy ? DestroyString : TimeoutString,
-			Driver->Time - LastReceiveTime,
+			DriverElapsedTime - LastReceiveTime,
 			ReceiveRealtimeDelta,
 			GoodRealtimeDelta,
-			Driver->Time,
+			DriverElapsedTime,
 			Timeout,
 			*Describe());
 		
@@ -3433,7 +3443,7 @@ void UNetConnection::Tick()
 	}
 
 	// Flush.
-	if ( TimeSensitive || (Driver->Time - LastSendTime) > Driver->KeepAliveTime)
+	if ( TimeSensitive || (Driver->GetElapsedTime() - LastSendTime) > Driver->KeepAliveTime)
 	{
 		bool bHandlerHandshakeComplete = !Handler.IsValid() || Handler->IsFullyInitialized();
 
@@ -3546,7 +3556,7 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 	PC->NetConnection = NetConnection;
 	PC->SetPlayer(LocalPlayer);
 	UE_LOG(LogNet, Verbose, TEXT("%s setplayer %s"),*PC->GetName(),*LocalPlayer->GetName());
-	LastReceiveTime = Driver->Time;
+	LastReceiveTime = Driver->GetElapsedTime();
 	State = USOCK_Open;
 	PlayerController = PC;
 	OwningActor = PC;

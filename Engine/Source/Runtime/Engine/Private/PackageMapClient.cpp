@@ -2214,7 +2214,7 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 		{
 			if (UNetDriver const * const NetDriver = ((Connection) ? Connection->GetDriver() : nullptr))
 			{
-				CurrentQueuedBunchNetGUIDs.Emplace(NetGUID, NetDriver->Time);
+				CurrentQueuedBunchNetGUIDs.Emplace(NetGUID, NetDriver->GetElapsedTime());
 			}
 		}
 
@@ -2222,7 +2222,7 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 	}
 	else
 	{
-		float StartTime = 0.f;
+		double StartTime = 0.f;
 
 		// We try to remove the value regardless of whether or not the CVar is on.
 		// That way if it's toggled on and off, we don't end up wasting resources.
@@ -2234,7 +2234,7 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 		{
 			if (UNetDriver const * const NetDriver = ((Connection) ? Connection->GetDriver() : nullptr))
 			{
-				const float QueuedTime = NetDriver->Time - StartTime;
+				const double QueuedTime = NetDriver->GetElapsedTime() - StartTime;
 				if (QueuedTime > GPackageMapTrackQueuedActorTreshold)
 				{
 					if (FNetGuidCacheObject const * const CacheObject = GuidCache->ObjectLookup.Find(NetGUID))
@@ -2877,7 +2877,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PendingAsyncPackages.Add(CacheObject.PathName, NetGUID);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	PendingAsyncLoadRequests.Emplace(CacheObject.PathName, FPendingAsyncLoadRequest(NetGUID, Driver->Time));
+	PendingAsyncLoadRequests.Emplace(CacheObject.PathName, FPendingAsyncLoadRequest(NetGUID, Driver->GetElapsedTime()));
 
 	DelinquentAsyncLoads.MaxConcurrentAsyncLoads = FMath::Max<uint32>(DelinquentAsyncLoads.MaxConcurrentAsyncLoads, PendingAsyncLoadRequests.Num());
 
@@ -2928,7 +2928,7 @@ void FNetGUIDCache::AsyncPackageCallback(const FName& PackageName, UPackage * Pa
 
 		// This won't be the exact amount of time that we spent loading the package, but should
 		// give us a close enough estimate (within a frame time).
-		const float LoadTime = (Driver->Time - PendingLoadRequest->RequestStartTime);
+		const double LoadTime = (Driver->GetElapsedTime() - PendingLoadRequest->RequestStartTime);
 		if (GGuidCacheTrackAsyncLoadingGUIDTreshold > 0.f &&
 			LoadTime >= GGuidCacheTrackAsyncLoadingGUIDTreshold)
 		{

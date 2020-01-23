@@ -380,12 +380,26 @@ public:
 	int32			QueuedBits;			// Bits assumed to be queued up.
 	int32			TickCount;				// Count of ticks.
 	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
+
 	/** The last time an ack was received */
+	UE_DEPRECATED(4.25, "Please use GetLastRecvAckTime() instead.")
 	float			LastRecvAckTime;
+
+	double GetLastRecvAckTime() const { return LastRecvAckTimestamp; }
+
 	/** Time when connection request was first initiated */
+	UE_DEPRECATED(4.25, "Please use GetConnectTime() instead.")
 	float			ConnectTime;
 
+	double GetConnectTime() const { return ConnectTimestamp; }
+
 private:
+	/** The last time an ack was received */
+	double			LastRecvAckTimestamp;
+
+	/** Time when connection request was first initiated */
+	double			ConnectTimestamp;
+
 	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
 	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
 

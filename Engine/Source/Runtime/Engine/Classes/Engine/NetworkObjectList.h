@@ -31,7 +31,9 @@ struct FNetworkObjectInfo
 
 	/** Last time this actor was updated for replication via NextUpdateTime
 	* @warning: internal net driver time, not related to WorldSettings.TimeSeconds */
+	UE_DEPRECATED(4.25, "Please use LastNetUpdateTimestamp instead.")
 	float LastNetUpdateTime;
+	double LastNetUpdateTimestamp;
 
 	/** List of connections that this actor is dormant on */
 	TSet<TWeakObjectPtr<UNetConnection>> DormantConnections;
@@ -64,6 +66,7 @@ struct FNetworkObjectInfo
 		, LastNetReplicateTime(0.0)
 		, OptimalNetUpdateDelta(0.0f)
 		, LastNetUpdateTime(0.0f)
+		, LastNetUpdateTimestamp(0.0)
 		, bPendingNetUpdate(false)
 		, bForceRelevantNextUpdate(false)
 		, bDirtyForReplay(false)
@@ -76,6 +79,7 @@ struct FNetworkObjectInfo
 		, LastNetReplicateTime(0.0)
 		, OptimalNetUpdateDelta(0.0f) 
 		, LastNetUpdateTime(0.0f)
+		, LastNetUpdateTimestamp(0.0)
 		, bPendingNetUpdate(false)
 		, bForceRelevantNextUpdate(false)
 		, bDirtyForReplay(false)

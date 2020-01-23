@@ -151,7 +151,7 @@ int64 UChannel::Close(EChannelCloseReason Reason)
 			SentClosingBunch = 1; //in case this send ends up failing and trying to reach back to close the connection, don't allow recursion.
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			CloseBunch.DebugString = FString::Printf(TEXT("%.2f Close: %s"), Connection->Driver->Time, *Describe());
+			CloseBunch.DebugString = FString::Printf(TEXT("%.2f Close: %s"), Connection->Driver->GetElapsedTime(), *Describe());
 #endif
 			check(!CloseBunch.IsError());
 			check(CloseBunch.bClose);
@@ -1711,19 +1711,27 @@ void UControlChannel::Tick()
 	if( !OpenAcked )
 	{
 		int32 Count = 0;
-		for( FOutBunch* Out=OutRec; Out; Out=Out->Next )
-			if( !Out->ReceivedAck )
+		for (FOutBunch* Out = OutRec; Out; Out = Out->Next)
+		{
+			if (!Out->ReceivedAck)
+			{
 				Count++;
-		if ( Count > 8 )
+			}
+		}
+
+		if (Count > 8)
+		{
 			return;
+		}
+
 		// Resend any pending packets if we didn't get the appropriate acks.
 		for( FOutBunch* Out=OutRec; Out; Out=Out->Next )
 		{
 			if( !Out->ReceivedAck )
 			{
-				float Wait = Connection->Driver->Time-Out->Time;
-				checkSlow(Wait>=0.f);
-				if( Wait>1.f )
+				const double Wait = Connection->Driver->GetElapsedTime() - Out->Time;
+				checkSlow(Wait >= 0.0);
+				if (Wait > 1.0)
 				{
 					UE_LOG(LogNetTraffic, Log, TEXT("Channel %i ack timeout); resending %i..."), ChIndex, Out->ChSequence );
 					check(Out->bReliable);
@@ -1780,8 +1788,8 @@ void UActorChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, EC
 {
 	Super::Init( InConnection, InChannelIndex, CreateFlags );
 
-	RelevantTime			= Connection->Driver->Time;
-	LastUpdateTime			= Connection->Driver->Time - Connection->Driver->SpawnPrioritySeconds;
+	RelevantTime			= Connection->Driver->GetElapsedTime();
+	LastUpdateTime			= Connection->Driver->GetElapsedTime() - Connection->Driver->SpawnPrioritySeconds;
 	bForceCompareProperties	= false;
 	bActorIsPendingKill		= false;
 	CustomTimeDilation		= 1.0f;
@@ -2942,7 +2950,7 @@ int64 UActorChannel::ReplicateActor()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CVarNetReliableDebug.GetValueOnAnyThread() > 0)
 	{
-		Bunch.DebugString = FString::Printf(TEXT("%.2f ActorBunch: %s"), Connection->Driver->Time, *Actor->GetName() );
+		Bunch.DebugString = FString::Printf(TEXT("%.2f ActorBunch: %s"), Connection->Driver->GetElapsedTime(), *Actor->GetName() );
 	}
 #endif
 
@@ -3142,7 +3150,7 @@ int64 UActorChannel::ReplicateActor()
 	PendingObjKeys.Empty();
 
 	// If we evaluated everything, mark LastUpdateTime, even if nothing changed.
-	LastUpdateTime = Connection->Driver->Time;
+	LastUpdateTime = Connection->Driver->GetElapsedTime();
 
 	MemMark.Pop();
 
