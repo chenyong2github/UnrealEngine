@@ -139,6 +139,13 @@ public:
 	FOwnedBulkDataPtr* StealFileMapping();
 
 private:
+	/**
+	 * Poll to see if it is safe to discard the data owned by the Bulkdata object
+	 *
+	 * @return True if we are allowed to discard the existing data in the Bulkdata object.
+	 */
+	bool CanDiscardInternalData() const;
+
 	void LoadDataDirectly(void** DstBuffer);
 
 	void SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);

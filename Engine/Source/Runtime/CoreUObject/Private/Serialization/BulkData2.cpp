@@ -907,7 +907,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 		{
 			FMemory::Memcpy(*DstBuffer, DataBuffer, GetBulkDataSize());
 
-			if (bDiscardInternalCopy && (CanLoadFromDisk() || IsSingleUse()))
+			if (bDiscardInternalCopy && CanDiscardInternalData())
 			{
 				UE_LOG(LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy both copied and discarded it's data, passing in an empty pointer would avoid an extra allocate and memcpy!"));
 				FreeData();
@@ -922,7 +922,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 	{
 		if (IsBulkDataLoaded())
 		{
-			if (bDiscardInternalCopy && (CanLoadFromDisk() || IsSingleUse()))
+			if (bDiscardInternalCopy && CanDiscardInternalData())
 			{
 				// Since we were going to discard the data anyway we can just hand over ownership to the caller
 				::Swap(*DstBuffer, DataBuffer);
@@ -983,18 +983,6 @@ bool FBulkDataBase::CanLoadFromDisk() const
 { 
 	// If this BulkData is using the IoDispatcher then it can load from disk 
 	if (IsUsingIODispatcher())
-	{
-		return true;
-	}
-
-	// If the IoDispatcher is enabled then technically inlined data cannot load
-	// from disk, but it should act as thought it can up until the point that it
-	// actually tries to load. At which point it will give a log error.
-	//
-	// This is a temp hack while we work out if we want to allow additional inline
-	// loading at runtime (and pay the memory increase in the ToC) or prevent it entirely.
-	// TODO: Resolve this!
-	if (IsInlined() && IsIoDispatcherEnabled())
 	{
 		return true;
 	}
@@ -1238,6 +1226,21 @@ FString FBulkDataBase::GetFilename() const
 		UE_LOG(LogBulkDataRuntime, Warning, TEXT("Attempting to get the filename for BulkData that uses the IoDispatcher, this will return an empty string"));
 		return FString("");
 	}
+}
+
+bool FBulkDataBase::CanDiscardInternalData() const
+{
+	// We can discard the data if:
+	// -	We can reload the Bulkdata from disk
+	// -	If the Bulkdata object has been marked as single use which shows 
+	//		that there is no intent to access the data again)
+	// -	If we are using the IoDispatcher and the data is currently inlined
+	//		since we will not be able to reload inline data when the IoStore is
+	//		active.
+
+	// TODO: This is currently called from ::GetCopy but not ::Unlock, we should investe unifying the
+	// rules for discarding data
+	return CanLoadFromDisk() || IsSingleUse() || (IsInlined() && IsIoDispatcherEnabled());
 }
 
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
