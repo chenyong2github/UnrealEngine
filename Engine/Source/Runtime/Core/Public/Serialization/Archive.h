@@ -15,6 +15,7 @@
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsSigned.h"
 
 class FArchive;
 class FCustomVersionContainer;
