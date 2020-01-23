@@ -233,6 +233,13 @@ void UTimeSynthComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 
 		for (FTimeSynthClipHandle& ClipHandle : VolumeGroup.Clips)
 		{
+			if (FMath::IsNearlyEqual(VolumeGroup.CurrentVolumeDb, VolumeGroup.LastVolumeDb, KINDA_SMALL_NUMBER))
+			{
+				continue;
+			}
+
+			VolumeGroup.LastVolumeDb = VolumeGroup.CurrentVolumeDb;
+
 			float LinearVolume = Audio::ConvertToLinear(VolumeGroup.CurrentVolumeDb);
 
 			SynthCommand([this, ClipHandle, LinearVolume]
