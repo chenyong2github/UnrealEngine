@@ -704,13 +704,18 @@ namespace Chaos
 	template <typename T>
 	bool THeightField<T>::GridCast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, THeightfieldRaycastVisitor<T>& Visitor) const
 	{
+		//Is this check needed?
+		if(Length < 1e-4)
+		{
+			return false;
+		}
+
 		T CurrentLength = Length;
 		TVector<T, 2> ClippedFlatRayStart;
 		TVector<T, 2> ClippedFlatRayEnd;
 
 		// Data for fast box cast
 		TVector<T, 3> Min, Max, HitPoint;
-		float ToI;
 		bool bParallel[3];
 		TVector<T, 3> InvDir;
 
@@ -721,135 +726,98 @@ namespace Chaos
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
+		T TOI;
+		const FBounds2D FlatBounds = GetFlatBounds();
+		TAABB<T,3> Bounds(
+			TVec3<T>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
+			TVec3<T>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
+			);
+		TVector<T,3> NextStart;
 
-
-		if(GetFlatBounds().ClipLine(StartPoint, StartPoint + Dir * Length, ClippedFlatRayStart, ClippedFlatRayEnd))
+		if(Bounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, TOI, NextStart))
 		{
-			// The line is now valid and is entirely enclosed by the bounds (and thus, the grid)
-			if(FMath::Abs((ClippedFlatRayEnd - ClippedFlatRayStart).SizeSquared()) < SMALL_NUMBER)
+			const TVector<T,2> Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
+			TVector<int32,2> CellIdx = FlatGrid.Cell(TVector<int32,2>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
+
+			// Boundaries might push us one cell over
+			CellIdx = FlatGrid.ClampIndex(CellIdx);
+			const T ZDx = Bounds.Extents()[2];
+			const T ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
+			const TVector<T,3> ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
+			const TVector<T,2> ScaledDx2D(ScaledDx[0],ScaledDx[1]);
+			const TVector<T,2> ScaledMin = FlatGrid.MinCorner() * Scale2D;
+
+			//START
+			do
 			{
-				// This is a cast down the Z axis, handle in a simpler way as this is the common case
-				const int32 QueryX = (int32)(ClippedFlatRayStart[0] / GeomData.Scale[0]);
-				const int32 QueryY = (int32)(ClippedFlatRayStart[1] / GeomData.Scale[1]);
-				const TVector<int32, 2> Cell = FlatGrid.ClampIndex({QueryX, QueryY});
-
-				if (GetCellBounds3DScaled(Cell, Min, Max))
+				if(GetCellBounds3DScaled(CellIdx,Min,Max))
 				{
-					if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+					// Check cell bounds
+					//todo: can do it without raycast
+					if(TAABB<T,3>(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
 					{
-						Visitor.VisitRaycast(Cell[1] * (GeomData.NumCols - 1) + Cell[0], CurrentLength);
-					}
-				}
-			}
-			else
-			{
-				// Rasterize the line over the grid
-				const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
-				TVector<int32, 2> StartCell = FlatGrid.Cell(ClippedFlatRayStart/Scale2D);
-				TVector<int32, 2> EndCell = FlatGrid.Cell(ClippedFlatRayEnd/Scale2D);
-
-				// Boundaries might push us one cell over
-				StartCell = FlatGrid.ClampIndex(StartCell);
-				EndCell = FlatGrid.ClampIndex(EndCell);
-
-				int32 DeltaX = FMath::Abs(EndCell[0] - StartCell[0]);
-				int32 DeltaY = -FMath::Abs(EndCell[1] - StartCell[1]);
-				int32 DirX = StartCell[0] < EndCell[0] ? 1 : -1;
-				int32 DirY = StartCell[1] < EndCell[1] ? 1 : -1;
-				int32 Error =  DeltaX + DeltaY;
-
-
-				if(StartCell == EndCell)
-				{
-					// Visit the selected cell, in this case no need to rasterize because we never
-					// leave the initial cell
-					if (GetCellBounds3DScaled(StartCell, Min, Max))
-					{
-						// Check cell bounds
-						if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						// Visit the selected cell
+						bool bContinue = Visitor.VisitRaycast(CellIdx[1] * (GeomData.NumCols - 1) + CellIdx[0],CurrentLength);
+						if(!bContinue)
 						{
-							Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
+							return false;
 						}
 					}
 				}
-				else
+
+
+				//find next cell
+
+				//We want to know which plane we used to cross into next cell
+				const TVector<T,2> ScaledCellCenter2D = ScaledMin + TVector<T,2>(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
+				const TVector<T,3> ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
+
+				T Times[3];
+				T BestTime = CurrentLength;
+				bool bTerminate = true;
+				for(int Axis = 0; Axis < 3; ++Axis)
 				{
-
-					if (GetCellBounds3DScaled(StartCell, Min, Max))
+					if(!bParallel[Axis])
 					{
-						// Check cell bounds
-						if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						const T CrossPoint = Dir[Axis] > 0 ? ScaledCellCenter[Axis] + ScaledDx[Axis] / 2 : ScaledCellCenter[Axis] - ScaledDx[Axis] / 2;
+						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+						const T Time = Distance * InvDir[Axis];
+						Times[Axis] = Time;
+						if(Time < BestTime)
 						{
-							Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
+							bTerminate = false;	//found at least one plane to pass through
+							BestTime = Time;
 						}
+					} else
+					{
+						Times[Axis] = TNumericLimits<T>::Max();
 					}
-
-					do 
-					{
-						const int32 DoubleError = Error * 2;
-
-						if(DoubleError >= DeltaY)
-						{
-							Error += DeltaY;
-							StartCell[0] += DirX;
-						}
-
-						if(DoubleError <= DeltaX)
-						{
-							Error += DeltaX;
-							StartCell[1] += DirY;
-						}
-
-						if (GetCellBounds3DScaled(StartCell, Min, Max))
-						{
-							// Check cell bounds
-							if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-							{
-								// Visit the selected cell
-								bool bContinue = Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
-								if (!bContinue)
-								{
-									return true;
-								}
-							}
-						}
-
-						// When traversing diagonally, there is a possibility of cutting corners on adjacent cell w/ current algorithm.
-						// Visit both adjacent cells to cover this issue.
-						// To visit minimal amount of cells, need to choose cell based on whichever cell boundary (vertical/horizontal) is
-						// next intersected using real value position within cells. (MaxW has a shelf in progress, holding off to not introduce bugs).
-						if (DoubleError >= DeltaY && DoubleError <= DeltaX)
-						{
-							TVector<int32, 2> TestCell = StartCell + TVector<int32, 2>(0, -DirY); // subtract because StartCell was incremented already
-							if (GetCellBounds3DScaled(TestCell, Min, Max))
-							{
-								if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-								{
-									bool bContinue = Visitor.VisitRaycast(TestCell[1] * (GeomData.NumCols - 1) + TestCell[0], CurrentLength);
-									if (!bContinue)
-									{
-										return true;
-									}
-								}
-							}
-
-							TestCell = StartCell + TVector<int32, 2>(-DirX, 0);  // subtract because StartCell was incremented already
-							if (GetCellBounds3DScaled(TestCell, Min, Max))
-							{
-								if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-								{
-									bool bContinue = Visitor.VisitRaycast(TestCell[1] * (GeomData.NumCols - 1) + TestCell[0], CurrentLength);
-									if (!bContinue)
-									{
-										return true;
-									}
-								}
-							}
-						}
-
-					} while(StartCell != EndCell);
 				}
-			}
+
+				if(bTerminate)
+				{
+					return false;
+				}
+
+				const TVector<int32,2> PrevIdx = CellIdx;
+
+				for(int Axis = 0; Axis < 2; ++Axis)
+				{
+					CellIdx[Axis] += (Times[Axis] <= BestTime) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
+					if(CellIdx[Axis] < 0 || CellIdx[Axis] >= FlatGrid.Counts()[Axis])
+					{
+						return false;
+					}
+				}
+
+				if(PrevIdx == CellIdx)
+				{
+					//crossed on z plane which means no longer in heightfield bounds
+					return false;
+				}
+
+				NextStart = NextStart + Dir * BestTime;
+			} while(true);
 		}
 
 		return false;

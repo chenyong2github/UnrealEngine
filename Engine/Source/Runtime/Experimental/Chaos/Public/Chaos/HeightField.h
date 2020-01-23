@@ -258,6 +258,11 @@ namespace Chaos
 				return static_cast<typename FDataType::RealType>(MinValue);
 			}
 
+			FORCEINLINE T GetMaxHeight() const
+			{
+				return static_cast<typename FDataType::RealType>(MaxValue);
+			}
+
 			void Serialize(FChaosArchive& Ar)
 			{
 				int32 TempRealSize = RealSize;
