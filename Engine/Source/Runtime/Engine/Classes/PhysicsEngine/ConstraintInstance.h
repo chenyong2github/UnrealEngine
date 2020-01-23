@@ -135,7 +135,7 @@ struct ENGINE_API FConstraintInstance
 	///////////////////////////// Body1 ref frame
 	
 	/** Location of constraint in Body1 reference frame. */
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, Category=Constraint)
 	FVector Pos1;
 
 	/** Primary (twist) axis in Body1 reference frame. */
@@ -149,7 +149,7 @@ struct ENGINE_API FConstraintInstance
 	///////////////////////////// Body2 ref frame
 	
 	/** Location of constraint in Body2 reference frame. */
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, Category=Constraint)
 	FVector Pos2;
 
 	/** Primary (twist) axis in Body2 reference frame. */
