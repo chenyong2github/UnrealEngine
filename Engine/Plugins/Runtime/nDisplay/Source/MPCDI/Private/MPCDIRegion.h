@@ -7,8 +7,10 @@
 
 #include "RenderResource.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+
 class FMPCDIWarp;
-class USceneComponent;
 
 
 namespace mpcdi

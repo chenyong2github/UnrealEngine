@@ -12,9 +12,10 @@
 #include "RHIResources.h"
 #include "RHIUtilities.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+
 class FMPCDIData;
-class USceneComponent;
-class UStaticMeshComponent;
 
 
 class IMPCDI : public IModuleInterface

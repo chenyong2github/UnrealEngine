@@ -23,6 +23,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Misc/FileHelper.h"
 
 

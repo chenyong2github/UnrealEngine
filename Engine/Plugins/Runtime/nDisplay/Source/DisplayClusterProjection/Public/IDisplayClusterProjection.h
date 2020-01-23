@@ -5,9 +5,10 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+
 class IDisplayClusterProjectionPolicyFactory;
-class USceneComponent;
-class UStaticMeshComponent;
 
 
 class IDisplayClusterProjection : public IModuleInterface
