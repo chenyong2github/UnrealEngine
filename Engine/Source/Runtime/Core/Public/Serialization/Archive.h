@@ -1179,7 +1179,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(Value);
 		}
 		return Ar;
 	}
@@ -1196,7 +1196,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(reinterpret_cast<uint16&>(Value));
 		}
 		return Ar;
 	}
@@ -1213,7 +1213,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(Value);
 		}
 		return Ar;
 	}
@@ -1267,7 +1267,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(reinterpret_cast<uint32&>(Value));
 		}
 		return Ar;
 	}
@@ -1285,7 +1285,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(reinterpret_cast<unsigned long&>(Value));
 		}
 		return Ar;
 	}	
@@ -1303,7 +1303,8 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			static_assert(sizeof(float) == sizeof(uint32), "Expected float to be 4 bytes to swap as uint32");
+			Ar.ByteOrderSerialize(reinterpret_cast<uint32&>(Value));
 		}
 		return Ar;
 	}
@@ -1320,7 +1321,8 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			static_assert(sizeof(double) == sizeof(uint64), "Expected double to be 8 bytes to swap as uint64");
+			Ar.ByteOrderSerialize(reinterpret_cast<uint64&>(Value));
 		}
 		return Ar;
 	}
@@ -1337,7 +1339,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(Value);
 		}
 		return Ar;
 	}
@@ -1354,7 +1356,7 @@ public:
 		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
 #endif
 		{
-			Ar.ByteOrderSerialize(&Value, sizeof(Value));
+			Ar.ByteOrderSerialize(reinterpret_cast<uint64&>(Value));
 		}
 		return Ar;
 	}
@@ -1391,7 +1393,6 @@ public:
 	friend CORE_API FArchive& operator<<(FArchive& Ar, FString& Value);
 
 public:
-
 	virtual void Serialize(void* V, int64 Length) { }
 
 	virtual void SerializeBits(void* V, int64 LengthBits)
@@ -1406,7 +1407,7 @@ public:
 
 	virtual void SerializeInt(uint32& Value, uint32 Max)
 	{
-		ByteOrderSerialize(&Value, sizeof(Value));
+		ByteOrderSerialize(Value);
 	}
 
 	/** Packs int value into bytes of 7 bits with 8th bit for 'more' */
@@ -1516,7 +1517,6 @@ public:
 	void SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
 
 
-
 	using FArchiveState::IsByteSwapping;
 
 	// Used to do byte swapping on small items. This does not happen usually, so we don't want it inline
@@ -1524,13 +1524,12 @@ public:
 
 	FORCEINLINE FArchive& ByteOrderSerialize(void* V, int32 Length)
 	{
-		Serialize(V, Length);
-		if (IsByteSwapping())
+		if (!IsByteSwapping()) // Most likely case (hot path)
 		{
-			// Transferring between memory and file, so flip the byte order.
-			ByteSwap(V, Length);
+			Serialize(V, Length);
+			return *this;
 		}
-		return *this;
+		return SerializeByteOrderSwapped(V, Length); // Slowest and unlikely path (should not be inlined)
 	}
 
 	using FArchiveState::ThisContainsCode;
@@ -1538,7 +1537,7 @@ public:
 	using FArchiveState::ThisRequiresLocalizationGather;
 
 	/** Sets a flag indicating that this archive is currently serializing class/struct defaults. */
-	void StartSerializingDefaults() 
+	void StartSerializingDefaults()
 	{
 		ArSerializingDefaults++;
 	}
@@ -1753,6 +1752,27 @@ public:
 	}
 
 	virtual void SetArchiveState(const FArchiveState& InState);
+
+private:
+	// Used internally only to control the amount of generated code/type under control.
+	template<typename T>
+	FArchive& ByteOrderSerialize(T& Value)
+	{
+		static_assert(!TIsSigned<T>::Value, "To reduce the number of template instances, cast 'Value' to a uint16&, uint32& or uint64& prior to the call or use ByteOrderSerialize(void*, int32).");
+
+		if (!IsByteSwapping()) // Most likely case (hot path)
+		{
+			Serialize(&Value, sizeof(T));
+			return *this;
+		}
+		return SerializeByteOrderSwapped(Value); // Slowest and unlikely path (but fastest than SerializeByteOrderSwapped(void*, int32)).
+	}
+
+	// Not inlined to keep ByteOrderSerialize(), small and fast.
+	FArchive& SerializeByteOrderSwapped(void* V, int32 Length);
+	FArchive& SerializeByteOrderSwapped(uint16& Value);
+	FArchive& SerializeByteOrderSwapped(uint32& Value);
+	FArchive& SerializeByteOrderSwapped(uint64& Value);
 
 private:
 	using FArchiveState::ArIsLoading;

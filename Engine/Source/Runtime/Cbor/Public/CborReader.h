@@ -12,7 +12,13 @@
 class CBOR_API FCborReader
 {
 public:
-	FCborReader(FArchive* InStream);
+	/**
+	 * Construct a CBOR reader.
+	 * @param InStream The stream containing the CBOR data.
+	 * @param InReaderEndianness Specify which endianness should be use to read the archive.
+	 * @note CBOR standard endianness is big endian. For interoperability with external tools, the standard endianness should be used. For internal usage, the platform endianness is faster.
+	 */
+	FCborReader(FArchive* InStream, ECborEndianness InReaderEndianness = ECborEndianness::Platform);
 	~FCborReader();
 
 	/** @return the archive we are reading from. */
@@ -58,4 +64,6 @@ private:
 	FArchive* Stream;
 	/** Holds the context stack for the reader. */
 	TArray<FCborContext> ContextStack;
+	/** Read the CBOR data using the specified endianness. */
+	ECborEndianness Endianness;
 };

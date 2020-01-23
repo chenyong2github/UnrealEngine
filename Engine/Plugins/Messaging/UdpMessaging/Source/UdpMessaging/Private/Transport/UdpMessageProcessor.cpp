@@ -38,6 +38,7 @@ FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNod
 	, Socket(&InSocket)
 	, SocketSender(nullptr)
 	, Stopping(false)
+	, MessageFormat(GetDefault<UUdpMessagingSettings>()->MessageFormat) // NOTE: When the message format changes (in the Udp Messaging settings panel), the service is restarted and the processor recreated.
 {
 	WorkEvent = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
@@ -146,7 +147,7 @@ bool FUdpMessageProcessor::EnqueueOutboundMessage(const TSharedRef<IMessageConte
 	for (const auto& RecipientVersion : RecipientPerVersions)
 	{
 		// Create a message to serialize using that protocol version
-		TSharedRef<FUdpSerializedMessage, ESPMode::ThreadSafe> SerializedMessage = MakeShared<FUdpSerializedMessage, ESPMode::ThreadSafe>(RecipientVersion.Key, MessageContext->GetFlags());
+		TSharedRef<FUdpSerializedMessage, ESPMode::ThreadSafe> SerializedMessage = MakeShared<FUdpSerializedMessage, ESPMode::ThreadSafe>(MessageFormat, RecipientVersion.Key, MessageContext->GetFlags());
 
 		// Kick off the serialization task
 		TGraphTask<FUdpSerializeMessageTask>::CreateTask().ConstructAndDispatchWhenReady(MessageContext, SerializedMessage, WorkEvent);
@@ -175,9 +176,10 @@ bool FUdpMessageProcessor::Init()
 	Beacon = new FUdpMessageBeacon(Socket, LocalNodeId, MulticastEndpoint);
 	SocketSender = new FUdpSocketSender(Socket, TEXT("FUdpMessageProcessor.Sender"));
 
-	// Current protocol version 13
+	// Current protocol version 14
 	SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
-	// Support Protocol version 10, 11, 12
+	// Support Protocol version 10, 11, 12, 13
+	SupportedProtocolVersions.Add(13);
 	SupportedProtocolVersions.Add(12);
 	SupportedProtocolVersions.Add(11);
 	SupportedProtocolVersions.Add(10);
