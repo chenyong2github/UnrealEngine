@@ -8,11 +8,27 @@
 
 namespace Chaos
 {
+	void ToSwingTwistX(const FRotation3& Q, FRotation3& OutSwing, FRotation3& OutTwist)
+	{
+		FReal S = FMath::Sqrt(Q.X * Q.X + Q.W * Q.W);
+		if (S > KINDA_SMALL_NUMBER)
+		{
+			FReal SInv = 1.0f / S;
+			OutTwist = FRotation3::FromElements(Q.X * SInv, 0, 0, Q.W * SInv);
+			OutSwing = FRotation3::FromElements(0, (Q.W * Q.Y + Q.X * Q.Z) * SInv, (Q.W * Q.Z - Q.X * Q.Y) * SInv, S);
+		}
+		else
+		{
+			OutTwist = FRotation3::FromIdentity();
+			OutSwing = Q;
+		}
+	}
+
 
 	void FPBDJointUtilities::DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Swing, FRotation3& R01Twist)
 	{
 		const FRotation3 R01 = R0.Inverse() * R1;
-		R01.ToSwingTwistX(R01Swing, R01Twist);
+		ToSwingTwistX(R01, R01Swing, R01Twist);
 	}
 
 	// @todo(ccaulfield): separate linear soft and stiff

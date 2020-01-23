@@ -171,8 +171,7 @@ namespace Chaos
 
 		void ApplyRotationConstraint(
 			const FReal Stiffness,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
+			const FVec3& Axis,
 			const FReal Angle);
 
 		void ApplyRotationConstraintSoft(
@@ -180,8 +179,7 @@ namespace Chaos
 			const FReal Stiffness,
 			const FReal Damping,
 			const bool bAccelerationMode,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
+			const FVec3& Axis,
 			const FReal Angle,
 			FReal& Lambda);
 
