@@ -529,7 +529,6 @@ bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelS
 
 	FDateTime UtcNow = FDateTime::UtcNow();
 	AssetMetaData->SetTimestamp(UtcNow);
-	AssetMetaData->SetFrameRate(FApp::GetTimecodeFrameRate());
 
 	// @todo: duration / tick resolution / sample rate / frame rate needs some clarification between sync clocks, template sequences and meta data
 	if (AssetMetaData->GetDuration() > 0)
