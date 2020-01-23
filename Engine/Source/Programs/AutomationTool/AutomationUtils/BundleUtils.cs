@@ -46,7 +46,6 @@ namespace AutomationUtils.Automation
 			ConfigHierarchy BundleConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.InstallBundle, ProjectDir, Platform);
 
 			const string BundleDefinitionPrefix = "InstallBundleDefinition ";
-			string PlatformBundleDefinitionPrefix = "InstallBundleDefinition" + Platform.ToString() + " ";
 
 			foreach (string SectionName in BundleConfig.SectionNames)
 			{
@@ -91,7 +90,7 @@ namespace AutomationUtils.Automation
 					Bundle.Tags = new List<string>();
 				}
 
-				GetPlatformSettings(Bundle, BundleConfig, PlatformBundleDefinitionPrefix + Bundle.Name);
+				GetPlatformSettings(Bundle, BundleConfig, BundleDefinitionPrefix + Bundle.Name);
 
 				Bundles.Add(Bundle);
 			}
