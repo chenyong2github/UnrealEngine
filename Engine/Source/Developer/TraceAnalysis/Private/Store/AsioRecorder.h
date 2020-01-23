@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Asio/Asio.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioTcpServer.h"
 #include "AsioTickable.h"
 #include "Containers/Array.h"
@@ -49,5 +46,3 @@ private:
 };
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

@@ -2,9 +2,6 @@
 
 #include "Trace/StoreService.h"
 #include "Asio/Asio.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioContext.h"
 #include "AsioRecorder.h"
 #include "AsioStore.h"
@@ -41,19 +38,9 @@ FStoreServiceImpl::~FStoreServiceImpl()
 	Context.Stop();
 }
 
-} // namespace Trace
-
-#endif // TRACE_WITH_ASIO
-
-
-
-namespace Trace
-{
-
 ////////////////////////////////////////////////////////////////////////////////
 FStoreService* FStoreService::Create(const FDesc& InDesc)
 {
-#if TRACE_WITH_ASIO
 	FDesc Desc = InDesc;
 
 	IPlatformFile& PlatformFile = IPlatformFile::GetPlatformPhysical();
@@ -77,29 +64,20 @@ FStoreService* FStoreService::Create(const FDesc& InDesc)
 	Impl->Context.Start();
 
 	return (FStoreService*)Impl;
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FStoreService::operator delete (void* Addr)
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreServiceImpl*)Addr;
 	delete Self;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreService::GetPort() const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreServiceImpl*)this;
 	return Self->CborServer.GetPort();
-#else
-	return 0;
-#endif // TRACE_WITH_ASIO
 }
 
 } // namespace Trace

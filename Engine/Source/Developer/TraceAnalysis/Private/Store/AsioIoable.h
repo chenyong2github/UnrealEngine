@@ -4,8 +4,6 @@
 
 #include "Asio/Asio.h"
 
-#if TRACE_WITH_ASIO
-
 namespace Trace
 {
 
@@ -52,5 +50,3 @@ public:
 };
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

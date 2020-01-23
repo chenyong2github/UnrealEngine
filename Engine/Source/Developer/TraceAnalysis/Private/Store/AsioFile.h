@@ -4,8 +4,6 @@
 
 #include "Asio/Asio.h"
 
-#if TRACE_WITH_ASIO
-
 #include "AsioIoable.h"
 #if !PLATFORM_WINDOWS
 #include "asio/posix/stream_descriptor.hpp"
@@ -38,5 +36,3 @@ private:
 };
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

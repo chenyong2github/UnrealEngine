@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioTraceRelay.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioRecorder.h"
 #include "AsioSocket.h"
 
@@ -96,5 +93,3 @@ void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

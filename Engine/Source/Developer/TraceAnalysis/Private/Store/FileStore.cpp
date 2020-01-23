@@ -371,5 +371,4 @@ TSharedPtr<IStore> Store_Create(const TCHAR* StoreDir)
 	return FileStore;
 }
 
-}
-
+} // namespace Trace

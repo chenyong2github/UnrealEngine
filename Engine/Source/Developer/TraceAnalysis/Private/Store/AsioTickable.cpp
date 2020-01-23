@@ -2,8 +2,6 @@
 
 #include "AsioTickable.h"
 
-#if TRACE_WITH_ASIO
-
 namespace Trace
 {
 
@@ -74,5 +72,3 @@ void FAsioTickable::AsyncTick()
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

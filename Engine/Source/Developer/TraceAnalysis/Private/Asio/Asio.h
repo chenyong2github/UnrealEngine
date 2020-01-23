@@ -2,12 +2,6 @@
 
 #pragma once
 
-#if !defined(TRACE_WITH_ASIO)
-#	define TRACE_WITH_ASIO 1
-#endif // 0
-
-#if TRACE_WITH_ASIO
-
 #include "HAL/Platform.h"
 
 #if PLATFORM_WINDOWS
@@ -46,5 +40,3 @@ THIRD_PARTY_INCLUDES_END
 #	include "Windows/HideWindowsPlatformAtomics.h"
 #	include "Windows/HideWindowsPlatformTypes.h"
 #endif
-
-#endif // TRACE_WITH_ASIO

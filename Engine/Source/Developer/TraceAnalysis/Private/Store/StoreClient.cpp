@@ -2,9 +2,6 @@
 
 #include "Trace/StoreClient.h"
 #include "Asio/Asio.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioStore.h"
 #include "CborPayload.h"
 #include "Templates/UnrealTemplate.h"
@@ -22,9 +19,7 @@ public:
 	virtual int32			Read(void* Dest, uint32 DestSize) override;
 
 private:
-#if TRACE_WITH_ASIO
 	asio::ip::tcp::socket	Socket;
-#endif // TRACE_WITH_ASIO
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,15 +31,12 @@ FTraceDataStream::FTraceDataStream(asio::ip::tcp::socket& InSocket)
 ////////////////////////////////////////////////////////////////////////////////
 FTraceDataStream::~FTraceDataStream()
 {
-#if TRACE_WITH_ASIO
 	Socket.close();
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 {
-#if TRACE_WITH_ASIO
 	asio::error_code ErrorCode;
 	size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
 	if (ErrorCode)
@@ -54,9 +46,6 @@ int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 	}
 
 	return int32(BytesRead);
-#else
-	return -1;
-#endif // TRACE_WITH_ASIO
 }
 
 
@@ -309,19 +298,6 @@ bool FStoreCborClient::GetSessionInfoByTraceId(uint32 TraceId)
 
 } // namespace Trace
 
-#endif // TRACE_WITH_ASIO
-
-
-
-#if !TRACE_WITH_ASIO
-struct FResponse
-{
-	int64		GetInteger(const char*, int64 Default) const		{ return Default; }
-	const char* GetString(const char*, const char* Default) const	{ return Default; }
-};
-#endif // !TRACE_WITH_ASIO
-
-
 
 namespace Trace
 {
@@ -391,7 +367,6 @@ uint32 FStoreClient::FSessionInfo::GetIpAddress() const
 ////////////////////////////////////////////////////////////////////////////////
 FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 {
-#if TRACE_WITH_ASIO
 	FStoreCborClient* Impl = new FStoreCborClient();
 	if (!Impl->Connect(Host, Port))
 	{
@@ -400,57 +375,39 @@ FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 	}
 
 	return (FStoreClient*)Impl;
-#else
-	return nullptr;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FStoreClient::operator delete (void* Addr)
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)Addr;
 	delete Self;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FStoreClient::IsValid() const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	return Self->IsOpen();
-#else
-	return false;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::GetStoreAddress() const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	return Self->GetStoreAddress();
-#else
-	return 0;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::GetStorePort() const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	return Self->GetStorePort();
-#else
-	return 0;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FStatus* FStoreClient::GetStatus()
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetStatus())
 	{
@@ -459,15 +416,11 @@ const FStoreClient::FStatus* FStoreClient::GetStatus()
 
 	const FResponse& Response = Self->GetResponse();
 	return (FStatus*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::GetTraceCount()
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetTraceCount())
 	{
@@ -475,15 +428,11 @@ uint32 FStoreClient::GetTraceCount()
 	}
 
 	return Self->GetResponse().GetInteger("count", 0);
-#else
-	return 0;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfo(uint32 Index)
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetTraceInfo(Index))
 	{
@@ -492,15 +441,11 @@ const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfo(uint32 Index)
 
 	const FResponse& Response = Self->GetResponse();
 	return (FTraceInfo*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfoById(uint32 Id)
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetTraceInfoById(Id))
 	{
@@ -509,26 +454,18 @@ const FStoreClient::FTraceInfo* FStoreClient::GetTraceInfoById(uint32 Id)
 
 	const FResponse& Response = Self->GetResponse();
 	return (FTraceInfo*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FStoreClient::FTraceData FStoreClient::ReadTrace(uint32 Id)
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	return FTraceData(Self->ReadTrace(Id));
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::GetSessionCount() const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetSessionCount())
 	{
@@ -536,15 +473,11 @@ uint32 FStoreClient::GetSessionCount() const
 	}
 
 	return Self->GetResponse().GetInteger("count", 0);
-#else
-	return 0;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfo(uint32 Index) const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetSessionInfo(Index))
 	{
@@ -553,15 +486,11 @@ const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfo(uint32 Index) con
 
 	const FResponse& Response = Self->GetResponse();
 	return (FSessionInfo*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoById(uint32 Id) const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetSessionInfoById(Id))
 	{
@@ -570,15 +499,11 @@ const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoById(uint32 Id) co
 
 	const FResponse& Response = Self->GetResponse();
 	return (FSessionInfo*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByTraceId(uint32 TraceId) const
 {
-#if TRACE_WITH_ASIO
 	auto* Self = (FStoreCborClient*)this;
 	if (!Self->GetSessionInfoByTraceId(TraceId))
 	{
@@ -587,9 +512,6 @@ const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByTraceId(uint32 T
 
 	const FResponse& Response = Self->GetResponse();
 	return (FSessionInfo*)(&Response);
-#else
-	return nullptr;
-#endif // TRACE_WITH_ASIO
 }
 
 } // namespace Trace

@@ -32,5 +32,4 @@ inline uint32 QuickStoreHash(TStringViewImpl<CharType> View)
 	return Value;
 }
 
-
 } // namespace Trace

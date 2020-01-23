@@ -2,8 +2,6 @@
 
 #include "AsioObject.h"
 
-#if TRACE_WITH_ASIO
-
 namespace Trace
 {
 
@@ -20,5 +18,3 @@ asio::io_context& FAsioObject::GetIoContext()
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioRecorder.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioIoable.h"
 #include "AsioSocket.h"
 #include "AsioStore.h"
@@ -21,7 +18,6 @@ public:
 	bool				IsOpen();
 	void				Close();
 	uint32				GetIpAddress() const;
-
 
 private:
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
@@ -193,5 +189,3 @@ void FAsioRecorder::OnTick()
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

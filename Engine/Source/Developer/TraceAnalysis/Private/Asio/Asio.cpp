@@ -2,8 +2,6 @@
 
 #include "Asio.h"
 
-#if TRACE_WITH_ASIO
-
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 
@@ -31,5 +29,3 @@ THIRD_PARTY_INCLUDES_END
 #	include "Windows/HideWindowsPlatformAtomics.h"
 #	include "Windows/HideWindowsPlatformTypes.h"
 #endif
-
-#endif // TRACE_WITH_ASIO

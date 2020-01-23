@@ -2,8 +2,6 @@
 
 #include "AsioIoable.h"
 
-#if TRACE_WITH_ASIO
-
 namespace Trace
 {
 
@@ -46,5 +44,3 @@ void FAsioIoable::OnIoComplete(const asio::error_code& ErrorCode, int32 Size)
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

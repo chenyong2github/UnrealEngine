@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioStore.h"
-
-#if TRACE_WITH_ASIO
-
 #include "HAL/PlatformFile.h"
 #include "Containers/UnrealString.h"
 #include "Misc/CString.h"
@@ -247,5 +244,3 @@ FAsioReadable* FAsioStore::OpenTrace(uint32 Id)
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

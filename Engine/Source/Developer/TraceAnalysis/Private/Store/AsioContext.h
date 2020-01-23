@@ -5,8 +5,6 @@
 #include "Asio/Asio.h"
 #include "Containers/Array.h"
 
-#if TRACE_WITH_ASIO
-
 #include <thread>
 
 namespace Trace
@@ -29,5 +27,3 @@ private:
 };
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

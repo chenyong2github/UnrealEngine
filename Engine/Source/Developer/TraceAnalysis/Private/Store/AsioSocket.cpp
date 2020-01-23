@@ -2,8 +2,6 @@
 
 #include "AsioSocket.h"
 
-#if TRACE_WITH_ASIO
-
 #include "Templates/UnrealTemplate.h"
 
 namespace Trace
@@ -79,7 +77,7 @@ bool FAsioSocket::Read(void* Dest, uint32 Size, FAsioIoSink* Sink, uint32 Id)
 
 	asio::async_read(
 		Socket,
-        asio::buffer(Dest, Size),
+		asio::buffer(Dest, Size),
 		[this] (const asio::error_code& ErrorCode, size_t BytesReceived)
 		{
 			OnIoComplete(ErrorCode, BytesReceived);
@@ -98,7 +96,7 @@ bool FAsioSocket::ReadSome(void* Dest, uint32 BufferSize, FAsioIoSink* Sink, uin
 	}
 
 	Socket.async_receive(
-        asio::buffer(Dest, BufferSize),
+		asio::buffer(Dest, BufferSize),
 		[this] (const asio::error_code& ErrorCode, size_t BytesReceived)
 		{
 			return OnIoComplete(ErrorCode, BytesReceived);
@@ -129,5 +127,3 @@ bool FAsioSocket::Write(const void* Src, uint32 Size, FAsioIoSink* Sink, uint32 
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

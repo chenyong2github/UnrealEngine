@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioTcpServer.h"
-
-#if TRACE_WITH_ASIO
-
 #include "Templates/UnrealTemplate.h"
 
 namespace Trace
@@ -51,7 +48,7 @@ bool FAsioTcpServer::StartServer(uint32 Port)
 
 	using asio::ip::tcp;
 
-    tcp::endpoint Endpoint(tcp::v4(), uint16(Port));
+	tcp::endpoint Endpoint(tcp::v4(), uint16(Port));
 	tcp::acceptor TempAcceptor(GetIoContext(), Endpoint, false);
 
 	asio::error_code ErrorCode;
@@ -102,5 +99,3 @@ void FAsioTcpServer::AsyncAccept()
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

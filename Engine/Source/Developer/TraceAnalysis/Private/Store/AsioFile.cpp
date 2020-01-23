@@ -2,8 +2,6 @@
 
 #include "AsioFile.h"
 
-#if TRACE_WITH_ASIO
-
 #if !PLATFORM_WINDOWS
 #include <sys/file.h>
 #include <errno.h>
@@ -133,5 +131,3 @@ FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const TCHAR* Pat
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioStoreCborServer.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioIoable.h"
 #include "AsioObject.h"
 #include "AsioRecorder.h"
@@ -408,5 +405,3 @@ void FAsioStoreCborServer::OnTick()
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

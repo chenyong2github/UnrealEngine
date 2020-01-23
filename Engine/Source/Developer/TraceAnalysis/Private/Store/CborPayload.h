@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Asio/Asio.h"
-
-#if TRACE_WITH_ASIO
-
 #include "CborReader.h"
 #include "CborWriter.h"
 #include "Containers/Array.h"
@@ -229,5 +226,3 @@ inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Defaul
 }
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO

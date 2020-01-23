@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Asio/Asio.h"
-
-#if TRACE_WITH_ASIO
-
 #include "AsioIoable.h"
 
 namespace Trace
@@ -33,5 +30,3 @@ private:
 };
 
 } // namespace Trace
-
-#endif // TRACE_WITH_ASIO
