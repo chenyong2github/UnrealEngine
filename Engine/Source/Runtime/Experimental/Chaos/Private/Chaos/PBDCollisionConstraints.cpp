@@ -152,6 +152,8 @@ namespace Chaos
 		FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
 		Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
 
+		PointConstraints[Idx].ConstraintHandle = Handle;
+
 		check(Handle != nullptr);
 		Handles.Add(Handle);
 
@@ -169,6 +171,8 @@ namespace Chaos
 		int32 Idx = IterativeConstraints.Add(InConstraint);
 		FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyMultiPointContactConstraint<T, d> >(this, Idx);
 		Handle->GetContact().Timestamp = LifespanCounter;
+
+		IterativeConstraints[Idx].ConstraintHandle = Handle;
 
 		check(Handle != nullptr);
 		Handles.Add(Handle);
@@ -270,6 +274,10 @@ namespace Chaos
 			}
 #endif
 			PointConstraints.RemoveAtSwap(Idx);
+			if (Idx < PointConstraints.Num())
+			{
+				PointConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
+			}
 
 		}
 		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
@@ -283,6 +291,10 @@ namespace Chaos
 			}
 #endif
 			IterativeConstraints.RemoveAtSwap(Idx);
+			if (Idx < IterativeConstraints.Num())
+			{
+				IterativeConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
+			}
 		}
 		else 
 		{

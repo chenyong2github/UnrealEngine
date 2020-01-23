@@ -101,6 +101,7 @@ namespace Chaos
 		TCollisionConstraintBase(FType InType = FType::None)
 			: AccumulatedImpulse(0)
 			, Timestamp(-INT_MAX)
+			, ConstraintHandle(nullptr)
 			, Type(InType)
 		{ 
 			ImplicitTransform[0] = TRigidTransform<T, d>::Identity; ImplicitTransform[1] = TRigidTransform<T,d>::Identity;
@@ -114,6 +115,7 @@ namespace Chaos
 			FType InType, EContactShapesType ShapesType, int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
+			, ConstraintHandle(nullptr)
 			, Type(InType)
 		{
 			ImplicitTransform[0] = Transform0; ImplicitTransform[1] = Transform1;
@@ -160,6 +162,7 @@ namespace Chaos
 		TVector<T, d> AccumulatedImpulse;
 		FManifold Manifold;
 		int32 Timestamp;
+		TPBDCollisionConstraintHandle<T, d>* ConstraintHandle;
 
 	private:
 
