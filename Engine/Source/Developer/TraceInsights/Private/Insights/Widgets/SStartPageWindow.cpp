@@ -1493,7 +1493,7 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
-		const uint32 StorePort = FInsightsManager::Get()->GetStorePort();
+		const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
 		FString CmdLine = FString::Printf(TEXT("-TraceId=%d -StorePort=%d"), InTraceId, StorePort);
 
 		constexpr bool bLaunchDetached = false;

@@ -201,6 +201,13 @@ void FTraceInsightsModule::UnregisterTabSpawners()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FTraceInsightsModule::ConnectToStore(const TCHAR* Host, uint32 Port)
+{
+	return FInsightsManager::Get()->ConnectToStore(Host, Port);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess)
 {
 	FInsightsManager::Get()->SetOpenAnalysisInSeparateProcess(!bSingleProcess);

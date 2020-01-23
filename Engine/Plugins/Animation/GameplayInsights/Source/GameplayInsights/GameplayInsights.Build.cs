@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 				"InputCore",
 				"SlateCore",
 				"Slate",
+				"TraceLog",
 				"TraceAnalysis",
 				"TraceServices",
 				"TraceInsights",

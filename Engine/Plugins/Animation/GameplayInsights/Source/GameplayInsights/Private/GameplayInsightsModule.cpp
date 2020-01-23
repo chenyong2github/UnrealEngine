@@ -14,6 +14,8 @@
 #include "TraceServices/ITraceServicesModule.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Trace/StoreService.h"
+#include "Trace/StoreClient.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -48,28 +50,24 @@ void FGameplayInsightsModule::StartupModule()
 		GameplayTimingViewExtender.GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
 	});
 
-	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
-
-	// Connect to loopback session
-	TSharedPtr<Trace::ISessionService> SessionService = TraceServicesModule.GetSessionService();
-	if(SessionService.IsValid())
-	{
-		// Connect session
-		SessionService->ConnectSession(TEXT("127.0.0.1"));
-
-		// Wait a second then attempt a connection - it takes a bit of time for sessions to get populated
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float InDeltaSeconds)
-		{
-			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-
-			// Start analysis on the latest live session
-			UnrealInsightsModule.StartAnalysisForLastLiveSession();
-
-			return false;
-		}), 1.0f);
-	}
-
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+
+	// Create the Store Service.
+	FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+	Trace::FStoreService::FDesc StoreServiceDesc;
+	StoreServiceDesc.StoreDir = *StoreDir;
+	StoreServiceDesc.RecorderPort = 0; // Let system decide port
+	StoreServiceDesc.ThreadCount = 2;
+	StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+
+	FCoreDelegates::OnPreExit.AddLambda([this]() {
+		StoreClient.Reset();
+		StoreService.Reset();
+	});
+
+	// Connect to our newly created store and setup the insights module
+	UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
+	Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
 
@@ -137,6 +135,7 @@ void FGameplayInsightsModule::StartupModule()
 	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
 
 	UnrealInsightsModule.CreateSessionViewer(false);
+	UnrealInsightsModule.StartAnalysisForLastLiveSession();
 #endif
 }
 

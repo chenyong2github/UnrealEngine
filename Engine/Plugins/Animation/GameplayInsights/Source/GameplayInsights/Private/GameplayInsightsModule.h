@@ -8,6 +8,12 @@
 #include "GameplayTimingViewExtender.h"
 #include "Framework/Docking/TabManager.h"
 
+namespace Trace 
+{
+	class FStoreService;
+	class FStoreClient;
+}
+
 class FGameplayInsightsModule : public IModuleInterface
 {
 public:
@@ -29,5 +35,7 @@ private:
 	FDelegateHandle CustomDebugObjectHandle;
 #endif
 
+	TSharedPtr<Trace::FStoreService> StoreService;
+	TSharedPtr<Trace::FStoreClient> StoreClient;
 	TWeakPtr<FTabManager> WeakTimingProfilerTabManager;
 };

@@ -31,6 +31,7 @@ public:
 		return false;
 	}
 
+	virtual bool ConnectToStore(const TCHAR* Host, uint32 Port) override;
 	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;

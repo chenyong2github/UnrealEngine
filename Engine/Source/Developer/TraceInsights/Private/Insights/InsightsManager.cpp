@@ -38,8 +38,6 @@ FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAn
 	, SessionService(InTraceSessionService)
 	, ModuleService(InTraceModuleService)
 	, StoreDir()
-	, StoreHost()
-	, StorePort(0)
 	, StoreClient()
 	, CommandList(new FUICommandList())
 	, ActionManager(this)
@@ -132,8 +130,6 @@ FInsightsSettings& FInsightsManager::GetSettings()
 bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 {
 	using namespace Trace;
-	StoreHost = Host;
-	StorePort = Port;
 	FStoreClient* Client = FStoreClient::Connect(Host, Port);
 	StoreClient = TUniquePtr<FStoreClient>(Client);
 	return StoreClient.IsValid();
@@ -274,7 +270,7 @@ void FInsightsManager::LoadLastLiveSession()
 {
 	ResetSession();
 
-	if (StoreClient.IsValid())
+	if (!StoreClient.IsValid())
 	{
 		return;
 	}

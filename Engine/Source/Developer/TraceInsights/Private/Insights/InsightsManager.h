@@ -81,8 +81,6 @@ public:
 	const FString& GetStoreDir() const { return StoreDir; }
 
 	bool ConnectToStore(const TCHAR* Host, uint32 Port);
-	const FString& GetStoreHost() const { return StoreHost; }
-	uint32 GetStorePort() const { return StorePort; }
 	Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 
 	/** @return an instance of the trace analysis session. */
@@ -193,14 +191,8 @@ private:
 	TSharedRef<Trace::ISessionService> SessionService;
 	TSharedRef<Trace::IModuleService> ModuleService;
 
-	/** The location of the trace files managed by the trace store. */
+	/** The location of the trace files managed by trace store. */
 	FString StoreDir;
-
-	/** The host name of the trace store. */
-	FString StoreHost;
-
-	/** The port of the trace store. */
-	uint32 StorePort;
 
 	/** The client used to connect to the trace store. */
 	TUniquePtr<Trace::FStoreClient> StoreClient;
@@ -211,7 +203,7 @@ private:
 	/** The id of the trace being analyzed. */
 	uint32 CurrentTraceId;
 
-	/** The filename of the trace being analyzed. */
+	/** The filename of trace being analyzed. */
 	FString CurrentTraceFilename;
 
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */

@@ -110,6 +110,12 @@ struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 class IUnrealInsightsModule : public IModuleInterface
 {
 public:
+
+	/**
+	 * Connect to specific store.
+	 */
+	virtual bool ConnectToStore(const TCHAR* Host, uint32 Port) = 0;
+
 	/**
 	 * Called when the application starts in "Browser" mode.
 	 */
