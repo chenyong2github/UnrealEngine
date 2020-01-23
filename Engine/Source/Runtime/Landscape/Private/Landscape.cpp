@@ -97,6 +97,7 @@ DEFINE_STAT(STAT_LandscapeLayersRegenerateWeightmaps);
 
 DEFINE_STAT(STAT_LandscapeVertexMem);
 DEFINE_STAT(STAT_LandscapeOccluderMem);
+DEFINE_STAT(STAT_LandscapeHoleMem);
 DEFINE_STAT(STAT_LandscapeComponentMem);
 
 #if ENABLE_COOK_STATS
@@ -117,7 +118,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("6862AA3DD9FB4368B9DDAF9EB7E9901F")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("EAA6E15CEDD644308E8B8D5427EC180")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -3317,7 +3318,7 @@ ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& Obj
 }
 
 // Generate a new guid to force a recache of all landscape derived data
-#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("016D326F3A954BBA9CCDFA00CEFA31E9")
+#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("89D752865B0642E89CC8A5A2FED808A2")
 
 FString FLandscapeComponentDerivedData::GetDDCKeyString(const FGuid& StateId)
 {
@@ -3495,6 +3496,10 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	int32 OccluderGeometryLOD = GetLandscapeProxy()->OccluderGeometryLOD;
 	Ar << OccluderGeometryLOD;
+
+	bool bMeshHoles = GetLandscapeProxy()->bMeshHoles;
+	uint8 MeshHolesMaxLod = GetLandscapeProxy()->MeshHolesMaxLod;
+	Ar << bMeshHoles << MeshHolesMaxLod;
 
 	// Take into account the Heightmap offset per component
 	Ar << HeightmapScaleBias.Z;

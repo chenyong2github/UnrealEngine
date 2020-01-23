@@ -2323,6 +2323,9 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = SharedBuffers->IndexRanges[LODIndex].MinIndexFull;
 		BatchElement.MaxVertexIndex = SharedBuffers->IndexRanges[LODIndex].MaxIndexFull;
+
+		// The default is overridden here only by mobile landscape to punch holes in the geometry
+		ApplyMeshElementModifier(BatchElement, LODIndex);
 	}
 
 	return true;

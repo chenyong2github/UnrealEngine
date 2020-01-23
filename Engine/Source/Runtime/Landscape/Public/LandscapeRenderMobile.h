@@ -133,6 +133,8 @@ public:
 	uint8 BlendableLayerMask;
 
 	friend class FLandscapeVertexBufferMobile;
+
+	virtual void ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const override;
 };
 
 
