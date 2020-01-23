@@ -3,6 +3,8 @@
 #include "AsioFile.h"
 
 #if !PLATFORM_WINDOWS
+#include "Containers/StringConv.h"
+
 #include <sys/file.h>
 #include <errno.h>
 #endif
