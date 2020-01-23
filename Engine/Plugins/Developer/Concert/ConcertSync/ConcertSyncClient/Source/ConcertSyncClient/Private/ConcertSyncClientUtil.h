@@ -87,4 +87,6 @@ namespace ConcertSyncClientUtil
 	void HotReloadPackages(TArrayView<const FName> InPackageNames);
 
 	void PurgePackages(TArrayView<const FName> InPackageNames);
+
+	UWorld* GetCurrentWorld();
 }

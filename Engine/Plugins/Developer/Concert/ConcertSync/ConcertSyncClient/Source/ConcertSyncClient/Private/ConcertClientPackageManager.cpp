@@ -169,6 +169,16 @@ void FConcertClientPackageManager::QueueDirtyPackagesForReload()
 #if WITH_EDITOR
 	{
 		UEditorLoadingAndSavingUtils::GetDirtyMapPackages(DirtyPkgs);
+		// strip the current world from the dirty list if it doesn't have a file on disk counterpart
+		UWorld* CurrentWorld = ConcertSyncClientUtil::GetCurrentWorld();
+		UPackage* WorldPackage = CurrentWorld ? CurrentWorld->GetOutermost() : nullptr;
+		if (WorldPackage && WorldPackage->IsDirty() &&
+			(WorldPackage->HasAnyPackageFlags(PKG_PlayInEditor | PKG_InMemoryOnly) ||
+			WorldPackage->HasAnyFlags(RF_Transient) ||
+			WorldPackage->FileName != WorldPackage->GetFName()))
+		{
+			DirtyPkgs.Remove(WorldPackage);
+		}
 		UEditorLoadingAndSavingUtils::GetDirtyContentPackages(DirtyPkgs);
 	}
 #endif
