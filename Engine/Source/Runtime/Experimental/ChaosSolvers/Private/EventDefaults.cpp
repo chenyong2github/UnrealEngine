@@ -72,7 +72,8 @@ namespace Chaos
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
-						if (Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
+						IPhysicsProxyBase* Proxy = Solver->GetProxy(Constraint.Particle[0]->Handle());
+						if (Proxy != nullptr)
 
 						{
 							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
@@ -371,15 +372,16 @@ namespace Chaos
 			{
 				if(SleepData.Particle)
 				{
+					IPhysicsProxyBase* PhysicsProxy = NonConstSolver->GetProxy(SleepData.Particle);
+
 					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
-					if(Particle && Particle->Proxy != nullptr)
+					if(Particle != nullptr && PhysicsProxy != nullptr)
 					{
 						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
 						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 						SleepingDataArrayItem.Particle = Particle;
 						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 
-						IPhysicsProxyBase* PhysicsProxy = Particle->Proxy;
 						AllSleepIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
 					}
 				}
