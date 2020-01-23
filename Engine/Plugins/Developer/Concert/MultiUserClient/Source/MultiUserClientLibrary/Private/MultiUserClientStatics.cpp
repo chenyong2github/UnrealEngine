@@ -9,6 +9,7 @@
 #include "IConcertClient.h"
 #include "IConcertSession.h"
 #include "IConcertClientPresenceManager.h"
+#include "ConcertSettings.h"
 #include "ConcertMessageData.h"
 #endif
 
@@ -28,6 +29,29 @@ FMultiUserClientInfo ConvertClientInfo(const FGuid& ClientEndpointId, const FCon
 	Result.AvatarColor = ClientInfo.AvatarColor;
 	Result.Tags = ClientInfo.Tags;
 	return Result;
+}
+
+FMultiUserConnectionError ConvertConnectionError(FConcertConnectionError Error)
+{
+	FMultiUserConnectionError MUError;
+	MUError.ErrorCode = static_cast<EMultiUserConnectionError>(Error.ErrorCode);
+	MUError.ErrorMessage = Error.ErrorText;
+	return MUError;
+}
+
+UConcertClientConfig* ModifyClientConfig(const FMultiUserClientConfig& InClientConfig)
+{
+	UConcertClientConfig* ClientConfig = GetMutableDefault<UConcertClientConfig>();
+	ClientConfig->DefaultServerURL = InClientConfig.DefaultServerURL;
+	ClientConfig->DefaultSessionName = InClientConfig.DefaultSessionName;
+	ClientConfig->DefaultSessionToRestore = InClientConfig.DefaultSessionToRestore;
+	ClientConfig->SourceControlSettings.ValidationMode = static_cast<EConcertSourceValidationMode>(InClientConfig.ValidationMode);
+	return ClientConfig;
+}
+
+EMultiUserConnectionStatus ConvertConnectionStatus(EConcertConnectionStatus ConnectionStatus)
+{
+	return static_cast<EMultiUserConnectionStatus>(ConnectionStatus);
 }
 
 } // namespace MultiUserClientUtil
@@ -231,7 +255,48 @@ bool UMultiUserClientStatics::GetRemoteMultiUserClientInfos(TArray<FMultiUserCli
 	return false;
 }
 
-bool UMultiUserClientStatics::GetMultiUserConnectionStatus()
+bool UMultiUserClientStatics::ConfigureMultiUserClient(const FMultiUserClientConfig& ClientConfig)
+{
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			ConcertSyncClient->GetConcertClient()->Configure(MultiUserClientUtil::ModifyClientConfig(ClientConfig));
+			return true;
+		}
+	}
+#endif
+	return false;
+}
+
+bool UMultiUserClientStatics::StartMultiUserDefaultConnection()
+{
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		return IMultiUserClientModule::Get().DefaultConnect();
+	}
+#endif
+	return false;
+}
+
+FMultiUserConnectionError UMultiUserClientStatics::GetLastMultiUserConnectionError()
+{
+	FMultiUserConnectionError LastError;
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			LastError = MultiUserClientUtil::ConvertConnectionError(ConcertSyncClient->GetConcertClient()->GetLastConnectionError());
+		}
+	}
+#endif
+	return LastError;
+}
+
+EMultiUserConnectionStatus UMultiUserClientStatics::GetMultiUserConnectionStatusDetail()
 {
 #if WITH_CONCERT
 	if (IMultiUserClientModule::IsAvailable())
@@ -243,13 +308,19 @@ bool UMultiUserClientStatics::GetMultiUserConnectionStatus()
 			const TSharedPtr<IConcertClientSession> ClientSession = ConcertClient->GetCurrentSession();
 			if (ClientSession.IsValid())
 			{
-				return ClientSession->GetConnectionStatus() == EConcertConnectionStatus::Connected ? true : false;
+				return MultiUserClientUtil::ConvertConnectionStatus(ClientSession->GetConnectionStatus());
 			}
 		}
 	}
 #endif
-	return false;
+	return EMultiUserConnectionStatus::Disconnected;;
 }
+
+bool UMultiUserClientStatics::GetMultiUserConnectionStatus()
+{
+	return GetMultiUserConnectionStatusDetail() == EMultiUserConnectionStatus::Connected;
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

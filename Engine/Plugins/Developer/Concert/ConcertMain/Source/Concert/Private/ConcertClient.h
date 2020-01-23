@@ -64,6 +64,7 @@ public:
 	virtual bool IsAutoConnecting() const override;
 	virtual void StartAutoConnect() override;
 	virtual void StopAutoConnect() override;
+	virtual FConcertConnectionError GetLastConnectionError() const override;
 
 	virtual TArray<FConcertServerInfo> GetKnownServers() const override;
 	virtual FSimpleMulticastDelegate& OnKnownServersUpdated() override;
@@ -110,6 +111,9 @@ private:
 	TFuture<EConcertResponseCode> InternalJoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, TUniquePtr<FAsyncTaskNotification> OngoingNotification = nullptr);
 	TFuture<EConcertResponseCode> InternalRestoreSession(const FGuid& ServerAdminEndpointId, const FConcertRestoreSessionArgs& RestoreSessionArgs, TUniquePtr<FAsyncTaskNotification> OngoingNotification = nullptr);
 	void InternalDisconnectSession();
+
+	/** Set the connection error. */
+	void SetLastConnectionError(FConcertConnectionError LastError);
 
 	/** */
 	void OnEndFrame();
@@ -176,11 +180,11 @@ private:
 	/** Pointer to the Concert Session the client is connected to */
 	TSharedPtr<FConcertClientSession> ClientSession;
 
-	/** True if the client session disconnected this frame and should be fully destroyed at the end of the frame (this is mainly to handle timeouts) */
-	bool bClientSessionPendingDestroy;
-
 	/** Client settings object we were configured with */
 	TStrongObjectPtr<const UConcertClientConfig> Settings;
+
+	/** The last connection attempt error, if any. */
+	FConcertConnectionError LastConnectionError;
 
 	/** Holds the auto connection routine, if any. */
 	TUniquePtr<FConcertAutoConnection> AutoConnection;
@@ -190,4 +194,7 @@ private:
 
 	/** The promise sets when the connection to the current session is confirmed or infirmed. */
 	TUniquePtr<TPromise<EConcertResponseCode>> ConnectionPromise;
+
+	/** True if the client session disconnected this frame and should be fully destroyed at the end of the frame (this is mainly to handle timeouts) */
+	bool bClientSessionPendingDestroy;
 };

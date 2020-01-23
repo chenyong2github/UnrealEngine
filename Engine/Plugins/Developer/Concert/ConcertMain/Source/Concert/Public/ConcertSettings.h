@@ -234,10 +234,10 @@ struct FConcertClientSettings
 };
 
 UENUM()
-enum class EConcertSourceValidationMode
+enum class EConcertSourceValidationMode : uint8
 {
 	/** Source control validation will fail on any changes when connecting to a Multi-User Session. */
-	Hard,
+	Hard = 0,
 	/** 
 	 * Source control validation will warn and prompt on any changes when connecting to a Multi-User session. 
 	 * In Memory changes will be hot-reloaded.

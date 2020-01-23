@@ -32,6 +32,84 @@ struct FMultiUserClientInfo
 	TArray<FName> Tags;
 };
 
+/**
+ * Enum of the known Multi-User connection error, their value needs to match the internally returned error code.
+ * @see FConcertConnectionError
+ */
+UENUM()
+enum class EMultiUserConnectionError
+{
+	None								= 0,
+	Canceled							= 1,
+	ConnectionAttemptAborted			= 2,
+	ServerNotResponding					= 3,
+	ServerError							= 4,
+	WorkspaceValidationUnknown			= 100,
+	SourceControlValidationUnknown		= 110,
+	SourceControlValidationCanceled		= 111,
+	SourceControlValidationError		= 112,
+	DirtyPackageValidationError			= 113,
+};
+
+USTRUCT(BlueprintType)
+struct FMultiUserConnectionError
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Connection Error")
+	EMultiUserConnectionError ErrorCode = EMultiUserConnectionError::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Connection Error")
+	FText ErrorMessage;
+};
+
+UENUM(BlueprintType)
+enum class EMultiUserSourceValidationMode : uint8
+{
+	/** Source control validation will fail on any changes when connecting to a Multi-User Session. */
+	Hard = 0,
+	/**
+	 * Source control validation will warn and prompt on any changes when connecting to a Multi-User session.
+	 * In Memory changes will be hot-reloaded.
+	 * Source control changes aren't affected but will be stashed/shelved in the future.
+	 */
+	 Soft,
+	 /** Soft validation mode with auto proceed on prompts. */
+	 SoftAutoProceed
+};
+
+USTRUCT(BlueprintType)
+struct FMultiUserClientConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Client Settings")
+	FString DefaultServerURL;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Client Settings")
+	FString DefaultSessionName;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Client Settings")
+	FString DefaultSessionToRestore;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Source Control Settings")
+	EMultiUserSourceValidationMode ValidationMode;
+};
+
+/** Connection status for Multi-User client sessions */
+UENUM(BlueprintType)
+enum class EMultiUserConnectionStatus : uint8
+{
+	/** Currently establishing connection to the server session */
+	Connecting,
+	/** Connection established and alive */
+	Connected,
+	/** Currently severing connection to the server session gracefully */
+	Disconnecting,
+	/** Disconnected */
+	Disconnected,
+};
+
 UCLASS()
 class MULTIUSERCLIENTLIBRARY_API UMultiUserClientStatics : public UBlueprintFunctionLibrary
 {
@@ -56,7 +134,7 @@ public:
 	static FTransform GetMultiUserPresenceTransform(const FGuid& ClientEndpointId);
 
 	/** Teleport to another Multi-User user's presence. */
-	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta = (DevelopmentOnly, DisplayName = "Jump to Multi-User Presence"))
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Presence", meta = (DevelopmentOnly, DisplayName = "Jump to Multi-User Presence"))
 	static void JumpToMultiUserPresence(const FString& OtherUserName, FTransform TransformOffset);
 
 	/** Update Multi-User Workspace Modified Packages to be in sync for source control submission. */
@@ -79,8 +157,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Remote Multi-User Client Infos"))
 	static bool GetRemoteMultiUserClientInfos(TArray<FMultiUserClientInfo>& ClientInfos);
 
-	/** Get Multi-User connection status. */
-	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Multi-User Connection Status"))
-	static bool GetMultiUserConnectionStatus();
+	/** Configure the Multi-User client. */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Configure Multi-User Client"))
+	static bool ConfigureMultiUserClient(const FMultiUserClientConfig& ClientConfig);
 
+	/** Start the Multi-User default connection process. */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Start Multi-User Default Connection"))
+	static bool StartMultiUserDefaultConnection();
+
+	/** Get the last Multi-User connection error that happened, if any */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta = (DevelopmentOnly, DisplayName = "Get Last Multi-User Connection Error"))
+	static FMultiUserConnectionError GetLastMultiUserConnectionError();
+
+	/** Get Multi-User connection status. */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Multi-User Connection Status Detail"))
+	static EMultiUserConnectionStatus GetMultiUserConnectionStatusDetail();
+
+	/** Get Multi-User connection status. */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DeprecatedFunction, DeprecationMessage = "'Get Multi-User Connection Status' is deprecated. Please use 'Get Multi-User Connection Status Detail' instead.", DisplayName = "Get Multi-User Connection Status"))
+	static bool GetMultiUserConnectionStatus();
 };

@@ -29,6 +29,12 @@ namespace ConcertUtil
 		return &LogConcert;
 	#endif
 	}
+
+	// Connection Error code
+	constexpr uint32 CancelCode = 1;
+	constexpr uint32 ConectionAttemptAbortedErrorCode = 2;
+	constexpr uint32 ServerNotRespondingErrorCode = 3;
+	constexpr uint32 ServerErrorCode = 4;
 }
 
 class FConcertAutoConnection
@@ -312,7 +318,7 @@ public:
 			ConnectionTasks[0]->Abort();
 
 			// Clear the tasks, set the notification text and fulfill the 'Execute()' promise.
-			SetResult(EConcertResponseCode::Failed, GetCanceledErrorMessage());
+			SetResult(EConcertResponseCode::Failed, GetCanceledError());
 		}
 	}
 
@@ -348,9 +354,9 @@ public:
 	}
 
 private:
-	static FText GetCanceledErrorMessage()
+	static FConcertConnectionError GetCanceledError()
 	{
-		return LOCTEXT("ConnectionProcessCanceled", "Connection Process Canceled");
+		return FConcertConnectionError{ ConcertUtil::CancelCode, LOCTEXT("ConnectionProcessCanceled", "Connection Process Canceled") };
 	}
 
 	bool CanCancel() const
@@ -390,7 +396,7 @@ private:
 				ConnectionTasks[0]->Tick(TaskAction); // Give it a last tick to give it a chance to cancel cleanly.
 			}
 
-			SetResultAndDelete(EConcertResponseCode::Failed, bCanceled, GetCanceledErrorMessage()); // Cancellation has priority over other possible errors (it could hide some failure)
+			SetResultAndDelete(EConcertResponseCode::Failed, bCanceled, GetCanceledError()); // Cancelation has priority over other possible errors (it could hide some failure)
 			return; // Do not use 'this' anymore, it was deleted above.
 		}
 
@@ -404,7 +410,7 @@ private:
 			// Prompt state - wait for user action to either proceed (success) or stop (fail)
 		case EConcertResponseCode::InvalidRequest:
 			{
-				FAsyncNotificationStateData StateData(Config.PendingTitleText.Get(FText::GetEmpty()), ConnectionTasks[0]->GetError(), EAsyncTaskNotificationState::Prompt);
+				FAsyncNotificationStateData StateData(Config.PendingTitleText.Get(FText::GetEmpty()), ConnectionTasks[0]->GetError().ErrorText, EAsyncTaskNotificationState::Prompt);
 				StateData.PromptText = ConnectionTasks[0]->GetPrompt();
 				StateData.HyperlinkText = LOCTEXT("PendingConnectionFailureDetails", "See Details...");
 				StateData.Hyperlink = ConnectionTasks[0]->GetErrorDelegate();
@@ -434,7 +440,7 @@ private:
 	}
 
 	/** Set the result */
-	void SetResult(const EConcertResponseCode InResult, const FText InFailureReason = FText(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
+	void SetResult(const EConcertResponseCode InResult, const FConcertConnectionError InError = FConcertConnectionError(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
 	{
 		if (InResult == EConcertResponseCode::Success)
 		{
@@ -448,18 +454,19 @@ private:
 				Notification->SetKeepOpenOnFailure(Config.KeepNotificationOpenOnError);
 			}
 			Notification->SetHyperlink(InErrorDelegate, LOCTEXT("PendingConnectionFailureDetails", "See Details..."));
-			Notification->SetComplete(Config.FailureTitleText.Get(FText::GetEmpty()), InFailureReason, /*bSuccess*/false);
+			Notification->SetComplete(Config.FailureTitleText.Get(FText::GetEmpty()), InError.ErrorText, /*bSuccess*/false);
 		}
 
 		ConnectionTasks.Reset();
 		ConnectionResult.SetValue(InResult);
+		Client->SetLastConnectionError(InError);
 	}
 
 	/** Set the result and delete ourself - 'this' will be garbage after calling this function! */
-	void SetResultAndDelete(const EConcertResponseCode InResult, bool bWasCanceled, const FText InFailureReason = FText(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
+	void SetResultAndDelete(const EConcertResponseCode InResult, bool bWasCanceled, const FConcertConnectionError InError = FConcertConnectionError(), const FSimpleDelegate& InErrorDelegate = FSimpleDelegate())
 	{
 		// Set the result and delete ourself
-		SetResult(InResult, InFailureReason, InErrorDelegate);
+		SetResult(InResult, InError, InErrorDelegate);
 		check(Client->PendingConnection.Get() == this);
 		// if the connection was canceled, also cancel the auto connection, so it won't retry on failure		
 		if (bWasCanceled)
@@ -528,9 +535,9 @@ public:
 		return FText::GetEmpty();
 	}
 
-	virtual FText GetError() const override
+	virtual FConcertConnectionError GetError() const override
 	{
-		return Result.IsValid() ? ErrorText : LOCTEXT("RemoteConnectionAttemptAborted", "Remote Connection Attempt Aborted.");
+		return Result.IsValid() ? ConnectionError : FConcertConnectionError{ConcertUtil::ConectionAttemptAbortedErrorCode ,LOCTEXT("RemoteConnectionAttemptAborted", "Remote Connection Attempt Aborted.") };
 	}
 
 	virtual FSimpleDelegate GetErrorDelegate() const override
@@ -543,9 +550,9 @@ public:
 		return LOCTEXT("AttemptingRemoteConnection", "Attempting Remote Connection...");
 	}
 
-	static FText GetServerNotRespondingErrorMessage()
+	static FConcertConnectionError GetServerNotRespondingErrorMessage()
 	{
-		return LOCTEXT("JoinTask_ServerNotResponding", "Server Not Responding");
+		return FConcertConnectionError{ ConcertUtil::ServerNotRespondingErrorCode, LOCTEXT("JoinTask_ServerNotResponding", "Server Not Responding") };
 	}
 
 protected:
@@ -553,7 +560,7 @@ protected:
 	RequestType Request;
 	FGuid ServerAdminEndpointId;
 	TFuture<TSharedFuture<EConcertResponseCode>> Result;
-	FText ErrorText;
+	FConcertConnectionError ConnectionError;
 	TSharedPtr<uint8> AsyncRequestExecutionGuard;
 };
 
@@ -581,12 +588,13 @@ public:
 				if (SessionInfoResponse.ResponseCode == EConcertResponseCode::Success)
 				{
 					// If CreateClientSession() returns a failure, it is because the server did not reply to the 'join session' event and the endpoint timed out or the connection was canceled/aborted (for which there is a special message already).
-					ErrorText = GetServerNotRespondingErrorMessage();
+					ConnectionError = GetServerNotRespondingErrorMessage();
 					return Client->CreateClientSession(SessionInfoResponse.SessionInfo).Share();
 				}
 				else
 				{
-					ErrorText = SessionInfoResponse.Reason;
+					ConnectionError.ErrorCode = ConcertUtil::ServerErrorCode;
+					ConnectionError.ErrorText = SessionInfoResponse.Reason;
 					return MakeFulfilledPromise<EConcertResponseCode>(SessionInfoResponse.ResponseCode).GetFuture().Share();
 				}
 			});
@@ -616,12 +624,13 @@ public:
 				else if (SessionInfoResponse.ResponseCode == EConcertResponseCode::Success)
 				{
 					// If CreateClientSession() returns a failure, it is because the server did not reply to the 'join session' event and the endpoint timed out or the connection was canceled/aborted (for which there is a special message already).
-					ErrorText = GetServerNotRespondingErrorMessage();
+					ConnectionError = GetServerNotRespondingErrorMessage();
 					return Client->CreateClientSession(SessionInfoResponse.SessionInfo).Share();
 				}
 				else
 				{
-					ErrorText = SessionInfoResponse.Reason;
+					ConnectionError.ErrorCode = ConcertUtil::ServerErrorCode;
+					ConnectionError.ErrorText = SessionInfoResponse.Reason;
 					return MakeFulfilledPromise<EConcertResponseCode>(SessionInfoResponse.ResponseCode).GetFuture().Share();
 				}
 			});
@@ -804,6 +813,11 @@ void FConcertClient::StopAutoConnect()
 		PendingConnection.Reset();
 	}
 	AutoConnection.Reset();
+}
+
+FConcertConnectionError FConcertClient::GetLastConnectionError() const
+{
+	return LastConnectionError;
 }
 
 TArray<FConcertServerInfo> FConcertClient::GetKnownServers() const
@@ -1068,6 +1082,9 @@ TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertClient::GetSessionAc
 
 TFuture<EConcertResponseCode> FConcertClient::InternalCreateSession(const FGuid& ServerAdminEndpointId, const FConcertCreateSessionArgs& CreateSessionArgs, TUniquePtr<FAsyncTaskNotification> OngoingNotification)
 {
+	// Reset last connection error
+	LastConnectionError = FConcertConnectionError();
+
 	// Cancel any pending connection (will be aborted)
 	PendingConnection.Reset();
 
@@ -1108,6 +1125,9 @@ TFuture<EConcertResponseCode> FConcertClient::InternalCreateSession(const FGuid&
 
 TFuture<EConcertResponseCode> FConcertClient::InternalJoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, TUniquePtr<FAsyncTaskNotification> OngoingNotification)
 {
+	// Reset last connection error
+	LastConnectionError = FConcertConnectionError();
+
 	// Cancel any pending connection (will be aborted)
 	PendingConnection.Reset();
 
@@ -1204,6 +1224,11 @@ void FConcertClient::InternalDisconnectSession()
 	}
 
 	bClientSessionPendingDestroy = false;
+}
+
+void FConcertClient::SetLastConnectionError(FConcertConnectionError LastError)
+{
+	LastConnectionError = MoveTemp(LastError);
 }
 
 void FConcertClient::OnEndFrame()

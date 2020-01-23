@@ -89,6 +89,12 @@ void KillProcess(uint32 ProcessID)
 #endif
 }
 
+// Validation task error codes;
+constexpr uint32 GenericWorkspaceValidationErrorCode = 100;
+constexpr uint32 SourceControlValidationGenericErrorCode = 110;
+constexpr uint32 SourceControlValidationCancelErrorCode = 111;
+constexpr uint32 SourceControlValidationErrorCode = 112;
+constexpr uint32 DirtyPackageValidationErrorCode = 113;
 }
 
 /**
@@ -145,9 +151,9 @@ public:
 		return SharedState ? SharedState->PromptText : FText::GetEmpty();
 	}
 
-	virtual FText GetError() const override
+	virtual FConcertConnectionError GetError() const override
 	{
-		return SharedState ? SharedState->ErrorText : LOCTEXT("ValidatingWorkspace_Aborted", "The workspace validation request was aborted.");
+		return SharedState ? SharedState->Error : FConcertConnectionError{ MultiUserClientUtil::GenericWorkspaceValidationErrorCode , LOCTEXT("ValidatingWorkspace_Aborted", "The workspace validation request was aborted.") };
 	}
 
 	virtual FSimpleDelegate GetErrorDelegate() const override
@@ -169,7 +175,7 @@ protected:
 		TArray<FString> ContentPaths;
 		EConcertResponseCode Result = EConcertResponseCode::Pending;
 		FText PromptText;
-		FText ErrorText;
+		FConcertConnectionError Error;
 	};
 
 	static EConcertResponseCode GetValidationModeResultOnFailure(const UConcertClientConfig* InClientConfig)
@@ -284,7 +290,8 @@ private:
 				{
 					InSharedState->Result = GetValidationModeResultOnFailure(InClientConfig);
 					InSharedState->PromptText = LOCTEXT("ValidatingWorkspace_SCContinue", "Continue");
-					InSharedState->ErrorText = InClientConfig->SourceControlSettings.ValidationMode == EConcertSourceValidationMode::Hard ?
+					InSharedState->Error.ErrorCode = MultiUserClientUtil::SourceControlValidationErrorCode;
+					InSharedState->Error.ErrorText = InClientConfig->SourceControlSettings.ValidationMode == EConcertSourceValidationMode::Hard ?
 						LOCTEXT("ValidatingWorkspace_LocalChangesHard", "This workspace has local changes. Please submit or revert these changes before attempting to connect.") :
 						LOCTEXT("ValidatingWorkspace_LocalChangesSoft", "This workspace has local changes. Local changes won't be immediately available to other users.");
 				}
@@ -297,11 +304,13 @@ private:
 		break;
 		case ECommandResult::Cancelled:
 			InSharedState->Result = EConcertResponseCode::Failed;
-			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_Canceled", "The workspace validation request was canceled.");
+			InSharedState->Error.ErrorCode = MultiUserClientUtil::SourceControlValidationCancelErrorCode;
+			InSharedState->Error.ErrorText = LOCTEXT("ValidatingWorkspace_Canceled", "The workspace validation request was canceled.");
 			break;
 		default:
 			InSharedState->Result = EConcertResponseCode::Failed;
-			InSharedState->ErrorText = LOCTEXT("ValidatingWorkspace_Failed", "The workspace validation request failed. Please check your source control settings.");
+			InSharedState->Error.ErrorCode = MultiUserClientUtil::SourceControlValidationGenericErrorCode;
+			InSharedState->Error.ErrorText = LOCTEXT("ValidatingWorkspace_Failed", "The workspace validation request failed. Please check your source control settings.");
 			break;
 		}
 	}
@@ -342,7 +351,8 @@ public:
 
 			SharedState->Result = GetValidationModeResultOnFailure(ClientConfig);
 			SharedState->PromptText = LOCTEXT("ValidatingWorkspace_DiscardChanges", "Discard");
-			SharedState->ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Continue will discard changes.");
+			SharedState->Error.ErrorCode = MultiUserClientUtil::DirtyPackageValidationErrorCode;
+			SharedState->Error.ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Continue will discard changes.");
 		}
 		else
 		{
@@ -632,14 +642,17 @@ public:
 
 	/**
 	 * Connect to the default connection setup
+	 * @return true if the connection process started
 	 */
-	virtual void DefaultConnect() override
+	virtual bool DefaultConnect() override
 	{
 		IConcertClientRef ConcertClient = MultiUserClient->GetConcertClient();
 		if (ConcertClient->CanAutoConnect() && ConcertClient->GetSessionConnectionStatus() == EConcertConnectionStatus::Disconnected)
 		{
 			ConcertClient->StartAutoConnect();
+			return true;
 		}
+		return false;
 	}
 
 	/**
@@ -799,7 +812,7 @@ private:
 		DefaultConnectConsoleCommand = MakeUnique<FAutoConsoleCommand>(
 			TEXT("Concert.DefaultConnect"),
 			TEXT("Connect to the default Multi-User session (as defined in the Multi-User settings)"),
-			FExecuteAction::CreateRaw(this, &FMultiUserClientModule::DefaultConnect)
+			FExecuteAction::CreateLambda([this]() { DefaultConnect(); })
 			);
 
 		DisconnectConsoleCommand = MakeUnique<FAutoConsoleCommand>(
