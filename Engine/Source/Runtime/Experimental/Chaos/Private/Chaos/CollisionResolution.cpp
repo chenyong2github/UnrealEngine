@@ -1896,50 +1896,105 @@ namespace Chaos
 			}
 		}
 
+		typedef uint8 FMaskFilter;
+		enum { NumExtraFilterBits = 6 };
+		enum { NumCollisionChannelBits = 5 };
+
+		inline bool IsValid(const FCollisionFilterData& Filter)
+		{
+			return Filter.Word0 || Filter.Word1 || Filter.Word2 || Filter.Word3;
+		}
+
+		inline uint32 GetChaosCollisionChannel(uint32 Word3)
+		{
+			uint32 ChannelMask = (Word3 << NumExtraFilterBits) >> (32 - NumCollisionChannelBits);
+			return (uint32)ChannelMask;
+		}
+
+		inline uint32 GetChaosCollisionChannelAndExtraFilter(uint32 Word3, FMaskFilter& OutMaskFilter)
+		{
+			uint32 ChannelMask = GetChaosCollisionChannel(Word3);
+			OutMaskFilter = Word3 >> (32 - NumExtraFilterBits);
+			return (uint32)ChannelMask;
+		}
+
+		template<class T, int d>
+		bool DoCollide(EImplicitObjectType Implicit0Type, const TPerShapeData<T, d>* Shape0, EImplicitObjectType Implicit1Type, const TPerShapeData<T, d>* Shape1)
+		{
+			/*
+			if (Shape0 && Shape1)
+			{
+				if (!IsValid(Shape0->SimData) && !IsValid(Shape1->SimData))
+				{
+					return true;
+				}
+
+				FMaskFilter Filter0Mask, Filter1Mask;
+				const uint32 Filter0Channel = GetChaosCollisionChannelAndExtraFilter(Shape0->SimData.Word3, Filter0Mask);
+				const uint32 Filter1Channel = GetChaosCollisionChannelAndExtraFilter(Shape1->SimData.Word3, Filter1Mask);
+
+				if ((Filter0Mask & Filter1Mask) != 0)
+				{
+					return false;
+				}
+
+				const uint32 Filter1Bit = 1 << (Filter1Channel); // SIMDATA_TO_BITFIELD
+				uint32 const Filter0Bit = 1 << (Filter0Channel); // SIMDATA_TO_BITFIELD
+				return (Filter0Bit & Shape1->SimData.Word1) && (Filter1Bit & Shape0->SimData.Word1);
+			}
+			*/
+
+			if (Shape0)
+			{
+				if (Shape0->bDisable)
+				{
+					return false;
+				}
+				if (Implicit0Type == ImplicitObjectType::TriangleMesh && Shape0->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				{
+					return false;
+				}
+				else if (Shape0->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit0Type != ImplicitObjectType::TriangleMesh)
+				{
+					return false;
+				}
+			}
+			else if (Implicit0Type == ImplicitObjectType::TriangleMesh)
+			{
+				return false;
+			}
+
+			if (Shape1)
+			{
+				if (Shape1->bDisable)
+				{
+					return false;
+				}
+				if (Implicit1Type == ImplicitObjectType::TriangleMesh && Shape1->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				{
+					return false;
+				}
+				else if (Shape1->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit1Type != ImplicitObjectType::TriangleMesh)
+				{
+					return false;
+				}
+
+			}
+			else if (Implicit1Type == ImplicitObjectType::TriangleMesh)
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		template<typename T, int d>
 		void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance, FCollisionConstraintsArray& NewConstraints)
 		{
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetType()) : ImplicitObjectType::Unknown;
 			EImplicitObjectType Implicit1Type = Implicit1 ? GetInnerType(Implicit1->GetType()) : ImplicitObjectType::Unknown;
 
-			// If either shape is disabled for collision bail without constructing a constraint
-			if (const TPerShapeData<T, d>* Shape0 = Particle0->GetImplicitShape(Implicit0))
-			{
-				if (Shape0->bDisable)
-				{
-					return;
-				}
-				if (Implicit0Type == ImplicitObjectType::TriangleMesh && Shape0->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
-				{
-					return;
-				}
-				else if (Shape0->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit0Type != ImplicitObjectType::TriangleMesh)
-				{
-					return;
-				}
-			} 
-			else if (Implicit0Type == ImplicitObjectType::TriangleMesh) 
-			{
-				return;
-			}
-
-			if (const TPerShapeData<T, d>* Shape1 = Particle1->GetImplicitShape(Implicit1))
-			{
-				if (Shape1->bDisable)
-				{
-					return;
-				}
-				if (Implicit1Type == ImplicitObjectType::TriangleMesh && Shape1->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
-				{
-					return;
-				}
-				else if (Shape1->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit1Type != ImplicitObjectType::TriangleMesh)
-				{
-					return;
-				}
-
-			}
-			else if (Implicit1Type == ImplicitObjectType::TriangleMesh)
+			if (!DoCollide(Implicit0Type, Particle0->GetImplicitShape(Implicit0), Implicit1Type, Particle1->GetImplicitShape(Implicit1)))
 			{
 				return;
 			}
@@ -1985,7 +2040,6 @@ namespace Chaos
 				ConstructConstraints(Particle0, Particle1, Implicit0, TransformedImplicit1->GetInstancedObject(), Transform0, Transform1, CullDistance, NewConstraints);
 				return;
 			}
-
 
 			else if (Implicit0OuterType == TImplicitObjectInstanced<TBox<FReal,3>>::StaticType())
 			{
@@ -2066,6 +2120,7 @@ namespace Chaos
 				ConstructUnionUnionConstraints(Particle0, Particle1, Implicit0, Implicit1, Transform0, Transform1, CullDistance, NewConstraints);
 				return;
 			}
+
 
 			if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
 			{
