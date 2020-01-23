@@ -423,31 +423,52 @@ class TMapPrinter:
 # ------------------------------------------------------------------------------
 # TWeakObjectPtr
 #
+
 class TWeakObjectPtrPrinter:
 	"Print TWeakObjectPtr"
 
+	class _iterator(Iterator):
+		def __init__(self, val):
+			self.Value = val
+			self.Counter = 0
+			self.Object = None
+			
+			self.ObjectSerialNumber = int(self.Value['ObjectSerialNumber'])
+			if self.ObjectSerialNumber >= 1:
+				ObjectIndexValue = int(self.Value['ObjectIndex'])
+				ObjectItemExpr = 'GCoreObjectArrayForDebugVisualizers->Objects['+str(ObjectIndexValue)+'/FChunkedFixedUObjectArray::NumElementsPerChunk]['+str(ObjectIndexValue)+ '% FChunkedFixedUObjectArray::NumElementsPerChunk]'
+				ObjectItem = gdb.parse_and_eval(ObjectItemExpr);
+				IsValidObject = int(ObjectItem['SerialNumber']) == self.ObjectSerialNumber
+				if IsValidObject == True:
+					ObjectType = self.Value.type.template_argument(0)			
+					self.Object = ObjectItem['Object'].dereference().cast(ObjectType.reference())
+
+		def __iter__(self):
+			return self
+
+		def __next__(self):
+			if self.Counter > 0:
+				raise StopIteration
+
+			self.Counter = self.Counter + 1
+			
+			if self.Object != None:
+				return ('Object', self.Object)
+			elif self.ObjectSerialNumber > 0:
+				return ('Object', 'STALE')
+			else:
+				return ('Object', 'nullptr')
+
+			
 	def __init__(self, typename, val):
 		self.Value = val
-
+		
+	def children(self):
+		return self._iterator(self.Value)
+		
 	def to_string(self):
-		self.ObjectSerialNumber = self.Value['ObjectSerialNumber']
-		self.ObjectIndex = self.Value['ObjectIndex']
-		self.ktype = self.Value.type.template_argument(0)
-
-		if self.ObjectSerialNumber >= 1:
-			Expr = 'GObjectArrayForDebugVisualizers->Objects['+str(self.ObjectIndex)+'].SerialNumber == '+str(self.ObjectSerialNumber)
-			Value = gdb.parse_and_eval(Expr)
-			if Value != 0:
-				Expr = 'GObjectArrayForDebugVisualizers->Objects['+str(self.ObjectIndex)+'].Object'
-				Value = gdb.parse_and_eval(Expr)
-				return Value
-
-			Expr = '(void*)0xDEADBEEF'
-			Value = gdb.parse_and_eval(Expr)
-			return Value
-
-	def display_hint (self):
-		return 'string'
+		ObjectType = self.Value.type.template_argument(0)
+		return 'TWeakObjectPtr<%s>' % ObjectType.name;
 
 
 # ------------------------------------------------------------------------------
@@ -518,7 +539,7 @@ class FNamePrinter:
 
 		# ComparisonIndex is an FNameEntryId
 		Index = self.Value['ComparisonIndex']['Value']
-		IndexValue = Index.__int__()
+		IndexValue = int(Index)
 
 		if IndexValue >= 4194304:
 			return 'invalid'
@@ -526,7 +547,7 @@ class FNamePrinter:
 			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
 			NameEntry = gdb.parse_and_eval(Expr)
 			Number = self.Value['Number']
-			NumberValue = Number.__int__()
+			NumberValue = int(Number)
 			if NumberValue == 0:
 				return NameEntry
 			else:
@@ -544,7 +565,7 @@ class FMinimalNamePrinter:
 
 	def to_string(self):
 		Index = self.Value['Index']['Value']
-		IndexValue = Index.__int__()
+		IndexValue = int(Index)
 
 		if IndexValue >= 4194304:
 			return 'invalid'
@@ -552,7 +573,7 @@ class FMinimalNamePrinter:
 			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
 			NameEntry = gdb.parse_and_eval(Expr)
 			Number = self.Value['Number']
-			NumberValue = Number.__int__()
+			NumberValue = int(Number)
 			if NumberValue == 0:
 				return NameEntry
 			else:
@@ -700,7 +721,7 @@ def build_dictionary ():
 	pretty_printers_dict[re.compile('^TMap<.+,.+,.+>$')] = lambda typename, val: TMapPrinter(typename, val)
 	pretty_printers_dict[re.compile('^TPair<.+,.+>$')] = lambda typename, val: TTuplePrinter(typename, val)
 	pretty_printers_dict[re.compile('^TTuple<.+,.+>$')] = lambda typename, val: TTuplePrinter(typename, val)
-#	pretty_printers_dict[re.compile('^TWeakObjectPtr<.+>$')] = lambda typename, val: TWeakObjectPtrPrinter(typename, val)
+	pretty_printers_dict[re.compile('^TWeakObjectPtr<.+>$')] = lambda typename, val: TWeakObjectPtrPrinter(typename, val)
 
 
 pretty_printers_dict = {}
