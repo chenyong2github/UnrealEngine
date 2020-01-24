@@ -18,7 +18,7 @@
 	"Modules": [
 		{
 			"Name": "GameplayInsights",
-			"Type": "UncookedOnly",
+			"Type": "EditorAndProgram",
 			"LoadingPhase": "Default",
 			"WhitelistPrograms": [
 				"UnrealInsights"
