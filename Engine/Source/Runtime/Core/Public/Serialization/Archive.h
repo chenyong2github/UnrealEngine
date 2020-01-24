@@ -1774,6 +1774,13 @@ private:
 	FArchive& SerializeByteOrderSwapped(uint16& Value);
 	FArchive& SerializeByteOrderSwapped(uint32& Value);
 	FArchive& SerializeByteOrderSwapped(uint64& Value);
+#if PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG
+	FArchive& SerializeByteOrderSwapped(unsigned long& Value)
+	{
+		static_assert(sizeof(unsigned long) == sizeof(uint64), "Wrong unsigned long size assuption.");
+		return SerializeByteOrderSwapped(reinterpret_cast<uint64&>(Value));
+	}
+#endif
 
 private:
 	using FArchiveState::ArIsLoading;

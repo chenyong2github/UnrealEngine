@@ -322,7 +322,7 @@ public:
 	ScopedCborArchiveEndianness(FArchive& InArchive, ECborEndianness Endianness) : Archive(InArchive), bOldByteSwappingState(InArchive.IsByteSwapping())
 	{
 		constexpr bool bLittleEndianPlatform = PLATFORM_LITTLE_ENDIAN != 0;
-		Archive.SetByteSwapping(Endianness != ECborEndianness::Platform && (Endianness == ECborEndianness::BigEndian && bLittleEndianPlatform || Endianness == ECborEndianness::LittleEndian && !bLittleEndianPlatform));
+		Archive.SetByteSwapping(Endianness != ECborEndianness::Platform && ((Endianness == ECborEndianness::BigEndian && bLittleEndianPlatform) || (Endianness == ECborEndianness::LittleEndian && !bLittleEndianPlatform)));
 	}
 
 	~ScopedCborArchiveEndianness()
