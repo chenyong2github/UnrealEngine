@@ -13,11 +13,12 @@ public class TraceDataFiltering : ModuleRules
                     "SlateCore",
                     "Slate",
                     "InputCore",
-					"EditorStyle",                    
+					"EditorStyle",
                     "TraceLog",
 					"TraceAnalysis",
 					"TraceServices",
                     "TraceInsights",
+					"Sockets"
                 }
             );
 

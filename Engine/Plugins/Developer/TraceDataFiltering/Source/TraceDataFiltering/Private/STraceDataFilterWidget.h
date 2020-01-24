@@ -53,8 +53,8 @@ protected:
 	void ConstructSearchBoxFilter();
 	void ConstructFilterHandler();
 
-	/** Callback for whenever a different analysis session (by handle), has been selected through the SessionSelector widget */
-	void SetCurrentAnalysisSession(Trace::FSessionHandle Handle);
+	/** Callback for whenever a different analysis session (store) has been retrieved */
+	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession);
 	bool HasValidFilterSession() const;
 		
 	void RefreshTreeviewData();
@@ -99,8 +99,6 @@ protected:
 	TSharedPtr<ISessionTraceFilterService> SessionFilterService;
 	/** Timestamp used for refreshing cached filter data */
 	FDateTime SyncTimeStamp;
-
-	FEventFilterService& FilterService;
 	
 	/** Wrapper for presets drop down button */
 	TSharedPtr<SHorizontalBox> OptionsWidget;

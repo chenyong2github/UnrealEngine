@@ -19,12 +19,15 @@
 #include "TraceChannel.h"
 #include "FilterPresets.h"
 #include "IFilterPreset.h"
+#include "Insights/IUnrealInsightsModule.h"
+#include "Trace/StoreClient.h"
+#include "Trace/SessionTraceFilterService.h"
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
 
 TSet<FString> STraceDataFilterWidget::LastExpandedObjectNames;
 
-STraceDataFilterWidget::STraceDataFilterWidget() : FilterService(FEventFilterService::Get()), bNeedsTreeRefresh(false), bHighlightingPreset(false)
+STraceDataFilterWidget::STraceDataFilterWidget() : bNeedsTreeRefresh(false), bHighlightingPreset(false)
 {
 }
 
@@ -531,9 +534,10 @@ void STraceDataFilterWidget::RestoreItemSelection()
 	SelectedObjectNames.Empty();
 }
 
-void STraceDataFilterWidget::SetCurrentAnalysisSession(Trace::FSessionHandle Handle)
+void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession)
 {
-	SessionFilterService = FilterService.GetFilterServiceByHandle(Handle);
+	SessionFilterService = MakeShareable(new FSessionTraceFilterService(SessionHandle, AnalysisSession));
+
 	/** Refresh presets so config loaded state is directly applied */
 	OnPresetsChanged();
 	/** Refresh data driving the treeview */
@@ -678,13 +682,17 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	}
 	else
 	{
-		ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
-		TArray<Trace::FSessionHandle> LiveSessionHandles;
-		TraceServicesModule.GetSessionService()->GetLiveSessions(LiveSessionHandles);
-		for (const Trace::FSessionHandle& Handle : LiveSessionHandles)
+		IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+		Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
+		const int32 SessionCount = StoreClient->GetSessionCount();
+
+		if (SessionCount > 0)
 		{
-			SetCurrentAnalysisSession(Handle);
-			break;
+			const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+			if (SessionInfo)
+			{
+				SetCurrentAnalysisSession(SessionInfo->GetTraceId(), InsightsModule.GetAnalysisSession().ToSharedRef());
+			}
 		}
 	}
 
