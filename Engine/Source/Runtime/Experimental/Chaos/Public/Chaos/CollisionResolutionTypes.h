@@ -71,11 +71,7 @@ namespace Chaos
 
 		EContactShapesType ShapesType;
 
-
-		FString CHAOS_API ToString() const
-		{
-			return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%f"), *Location.ToString(), *Normal.ToString(), Phi);
-		}
+		FString ToString() const;
 
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
 	};
