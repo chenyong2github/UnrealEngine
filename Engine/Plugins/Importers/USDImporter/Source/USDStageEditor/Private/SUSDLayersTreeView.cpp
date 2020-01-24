@@ -403,7 +403,7 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnAddSubLayer ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanAddSubLayer )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -415,7 +415,7 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnNewSubLayer ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanAddSubLayer )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -479,6 +479,11 @@ void SUsdLayersTreeView::OnEditSelectedLayer()
 		SelectedItem->RefreshData();
 		break;
 	}
+}
+
+bool SUsdLayersTreeView::CanAddSubLayer() const
+{
+	return GetSelectedItems().Num() > 0;
 }
 
 void SUsdLayersTreeView::OnAddSubLayer()
