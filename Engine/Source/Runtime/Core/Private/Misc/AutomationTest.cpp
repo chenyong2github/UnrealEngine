@@ -1304,7 +1304,7 @@ bool FAutomationTestBase::TestNull(const TCHAR* What, const void* Pointer)
 {
 	if ( Pointer != nullptr )
 	{
-		AddError(FString::Printf(TEXT("Expected '%s' to be null."), *What), 1);
+		AddError(FString::Printf(TEXT("Expected '%s' to be null."), What), 1);
 		return false;
 	}
 	return true;
