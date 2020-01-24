@@ -174,6 +174,12 @@ struct CORE_API FGenericPlatformProcess
 
 	}
 
+	/** Get the list of registered directories to search in when resolving implicitly loaded or filename-only DLLs. **/
+	FORCEINLINE static void GetDllDirectories(TArray<FString>& OutDllDirectories)
+	{
+
+	}
+
 	/**
 	 * Retrieves the ProcessId of this process.
 	 *

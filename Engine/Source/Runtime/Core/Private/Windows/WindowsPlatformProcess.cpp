@@ -51,6 +51,11 @@ void FWindowsPlatformProcess::AddDllDirectory(const TCHAR* Directory)
 	DllDirectories.AddUnique(NormalizedDirectory);
 }
 
+void FWindowsPlatformProcess::GetDllDirectories(TArray<FString>& OutDllDirectories)
+{
+	OutDllDirectories = DllDirectories;
+}
+
 void* FWindowsPlatformProcess::GetDllHandle( const TCHAR* FileName )
 {
 	check(FileName);
