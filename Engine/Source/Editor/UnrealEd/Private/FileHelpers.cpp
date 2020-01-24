@@ -66,6 +66,7 @@
 #include "AssetRegistryModule.h"
 #include "Misc/BlacklistNames.h"
 #include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 
 

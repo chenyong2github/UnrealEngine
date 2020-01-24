@@ -52,6 +52,7 @@
 #include "Misc/EmbeddedCommunication.h"
 #include "Engine/CoreSettings.h"
 #include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
 #include "Engine/DemoNetDriver.h"
 
 #include "Tickable.h"
