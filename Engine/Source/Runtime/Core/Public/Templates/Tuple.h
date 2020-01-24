@@ -17,21 +17,6 @@ struct TTuple;
 
 namespace UE4Tuple_Private
 {
-	template <int32 N, typename... Types>
-	struct TNthTypeFromParameterPack;
-
-	template <int32 N, typename T, typename... OtherTypes>
-	struct TNthTypeFromParameterPack<N, T, OtherTypes...>
-	{
-		typedef typename TNthTypeFromParameterPack<N - 1, OtherTypes...>::Type Type;
-	};
-
-	template <typename T, typename... OtherTypes>
-	struct TNthTypeFromParameterPack<0, T, OtherTypes...>
-	{
-		typedef T Type;
-	};
-
 	template <typename T, typename... Types>
 	struct TDecayedFrontOfParameterPackIsSameType
 	{
