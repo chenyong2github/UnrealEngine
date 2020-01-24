@@ -37,6 +37,10 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 
+#if WITH_CHAOS
+#include "Chaos/ParticleHandle.h"
+#endif // WITH_CHAOS
+
 #if WITH_PHYSX
 	#include "PhysXPublic.h"
 	#include "Physics/PhysicsFiltering.h"
@@ -1265,6 +1269,26 @@ struct FInitBodiesHelper
 					}
 
 					PhysScene->AddActorsToScene_AssumesLocked(ActorHandles);
+#if WITH_CHAOS
+					for (FBodyInstance* BI : Bodies)
+					{
+						FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
+						if (FPhysicsInterface::IsValid(ActorHandle))
+						{
+
+							PhysScene->AddToComponentMaps(BI->OwnerComponent.Get(), ActorHandle->Proxy);
+						}
+						if (BI->bNotifyRigidBodyCollision)
+						{
+							if (UPrimitiveComponent* PrimComp = BI->OwnerComponent.Get())
+							{
+								FPhysScene_ChaosInterface* PhysScene = PrimComp->GetWorld()->GetPhysicsScene();
+								FPhysScene_Chaos& Scene = PhysScene->GetScene();
+								Scene.RegisterForCollisionEvents(PrimComp);
+							}
+						}
+					}
+#endif
 				}
 
 				// Set up dynamic instance data
@@ -1400,6 +1424,23 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 			DOFConstraint = NULL;
 	}
 	
+#if WITH_CHAOS
+	if (UPrimitiveComponent* PrimComp = OwnerComponent.Get())
+	{
+		if (FPhysScene_ChaosInterface* PhysScene = PrimComp->GetWorld()->GetPhysicsScene())
+		{
+			if (FPhysicsInterface::IsValid(ActorHandle))
+			{
+				PhysScene->RemoveFromComponentMaps(ActorHandle->Proxy);
+			}
+			if (bNotifyRigidBodyCollision)
+			{
+				FPhysScene_Chaos& Scene = PhysScene->GetScene();
+				Scene.UnRegisterForCollisionEvents(PrimComp);
+			}
+		}
+	}
+#endif // WITH_CHAOS
 }
 
 bool FBodyInstance::Weld(FBodyInstance* TheirBody, const FTransform& TheirTM)

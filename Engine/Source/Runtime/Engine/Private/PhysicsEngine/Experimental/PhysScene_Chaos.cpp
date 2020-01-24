@@ -36,6 +36,9 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
 #include "PhysicsReplication.h"
+#include "ChaosSolvers/Public/EventsData.h"
+#include "ChaosSolvers/Public/EventManager.h"
+#include "Physics/Experimental/PhysicsUserData_Chaos.h"
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"
@@ -400,6 +403,9 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 		PhysScene_ChaosPauseHandler = MakeUnique<FPhysScene_ChaosPauseHandler>(ChaosModule);
 	}
 #endif
+
+	Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
+	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &FPhysScene_Chaos::HandleCollisionEvents);
 }
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
@@ -414,6 +420,9 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 		delete PhysicsReplication;
 	}
 #endif
+
+	Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
+	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 
 	Shutdown();
 	
@@ -504,6 +513,16 @@ Chaos::FPhysicsSolver* FPhysScene_Chaos::GetSolver() const
 AActor* FPhysScene_Chaos::GetSolverActor() const
 {
 	return SolverActor.Get();
+}
+
+void FPhysScene_Chaos::RegisterForCollisionEvents(UPrimitiveComponent* Component)
+{
+	CollisionEventRegistrations.AddUnique(Component);
+}
+
+void FPhysScene_Chaos::UnRegisterForCollisionEvents(UPrimitiveComponent* Component)
+{
+	CollisionEventRegistrations.Remove(Component);
 }
 
 Chaos::IDispatcher* FPhysScene_Chaos::GetDispatcher() const
@@ -882,6 +901,136 @@ void FPhysScene_Chaos::CopySolverAccelerationStructure()
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
+}
+
+static void SetCollisionInfoFromComp(FRigidBodyCollisionInfo& Info, UPrimitiveComponent* Comp)
+{
+	if (Comp)
+	{
+		Info.Component = Comp;
+		Info.Actor = Comp->GetOwner();
+
+		const FBodyInstance* const BodyInst = Comp->GetBodyInstance();
+		Info.BodyIndex = BodyInst ? BodyInst->InstanceBodyIndex : INDEX_NONE;
+		Info.BoneName = BodyInst && BodyInst->BodySetup.IsValid() ? BodyInst->BodySetup->BoneName : NAME_None;
+	}
+	else
+	{
+		Info.Component = nullptr;
+		Info.Actor = nullptr;
+		Info.BodyIndex = INDEX_NONE;
+		Info.BoneName = NAME_None;
+	}
+}
+
+FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry)
+{
+	const FUniqueContactPairKey Key = { P0, P1 };
+	const int32* PendingNotifyIdx = ContactPairToPendingNotifyMap.Find(Key);
+	if (PendingNotifyIdx)
+	{
+		// we already have one for this pair
+		bNewEntry = false;
+		return PendingCollisionNotifies[*PendingNotifyIdx];
+	}
+
+	// make a new entry
+	bNewEntry = true;
+	int32 NewIdx = PendingCollisionNotifies.AddZeroed();
+	return PendingCollisionNotifies[NewIdx];
+}
+
+void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
+{
+
+	ContactPairToPendingNotifyMap.Reset();
+
+	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
+	Chaos::FCollisionDataArray const& CollisionData = Event.CollisionData.AllCollisionsArray;
+
+	int32 NumCollisions = CollisionData.Num();
+	if (NumCollisions > 0)
+	{
+		// look through all the components that someone is interested in, and see if they had a collision
+		// note that we only need to care about the interaction from the POV of the registered component,
+		// since if anyone wants notifications for the other component it hit, it's also registered and we'll get to that elsewhere in the list
+		for (TArray<UPrimitiveComponent*>::TIterator It(CollisionEventRegistrations); It; ++It)
+		{
+			UPrimitiveComponent* const Comp0 = *It;
+			IPhysicsProxyBase* const PhysicsProxy0 = GetOwnedPhysicsProxy(Comp0);
+			TArray<int32> const* const CollisionIndices = PhysicsProxyToCollisionIndicesMap.Find(PhysicsProxy0);
+			if (CollisionIndices)
+			{
+				for (int32 EncodedCollisionIdx : *CollisionIndices)
+				{
+					bool bSwapOrder;
+					int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
+
+					Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
+					IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
+
+					{
+						bool bNewEntry = false;
+						FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+
+						// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
+						const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
+						const FVector FrictionImpulse = FVector(CollisionDataItem.AccumulatedImpulse) - NormalImpulse; // friction is component not along contact normal
+						NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
+						NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
+
+						if (bNewEntry)
+						{
+							UPrimitiveComponent* const Comp1 = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+
+							// fill in legacy contact data
+							NotifyInfo.bCallEvent0 = true;
+							// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
+
+							SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
+							SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
+
+							FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
+							NewContact.ContactNormal = CollisionDataItem.Normal;
+							NewContact.ContactPosition = CollisionDataItem.Location;
+							NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+							// NewContact.PhysMaterial[1] UPhysicalMaterial required here
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Tell the world and actors about the collisions
+	DispatchPendingCollisionNotifies();
+}
+
+void FPhysScene_Chaos::DispatchPendingCollisionNotifies()
+{
+	//UWorld const* const OwningWorld = GetWorld();
+
+	//// Let the game-specific PhysicsCollisionHandler process any physics collisions that took place
+	//if (OwningWorld != nullptr && OwningWorld->PhysicsCollisionHandler != nullptr)
+	//{
+	//	OwningWorld->PhysicsCollisionHandler->HandlePhysicsCollisions_AssumesLocked(PendingCollisionNotifies);
+	//}
+
+	// Fire any collision notifies in the queue.
+	for (FCollisionNotifyInfo& NotifyInfo : PendingCollisionNotifies)
+	{
+		//		if (NotifyInfo.RigidCollisionData.ContactInfos.Num() > 0)
+		{
+			if (NotifyInfo.bCallEvent0 && /*NotifyInfo.IsValidForNotify() && */ NotifyInfo.Info0.Actor.IsValid())
+			{
+				NotifyInfo.Info0.Actor->DispatchPhysicsCollisionHit(NotifyInfo.Info0, NotifyInfo.Info1, NotifyInfo.RigidCollisionData);
+			}
+
+			// CHAOS: don't call event 1, because the code below will generate the reflexive hit data as separate entries
+		}
+	}
+
+	PendingCollisionNotifies.Reset();
 }
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
@@ -1758,6 +1907,16 @@ void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type Curr
 			Solver->FlipBuffers();
 		});
 	}
+}
+
+void FPhysScene_ChaosInterface::AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject)
+{
+	Scene.AddToComponentMaps(Component, InObject);
+}
+
+void FPhysScene_ChaosInterface::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
+{
+	Scene.RemoveFromComponentMaps(InObject);
 }
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_ChaosInterface::PhysicsReplicationFactory;

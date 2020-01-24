@@ -44,6 +44,8 @@ namespace Chaos
 {
 	class FPhysicsProxy;
 
+	struct FCollisionEventData;
+
 	enum EEventType : int32;
 
 	template<typename PayloadType, typename HandlerType>
@@ -100,7 +102,10 @@ public:
 
 	/** Returns the actor that owns this solver. */
 	AActor* GetSolverActor() const;
-	
+
+	void RegisterForCollisionEvents(UPrimitiveComponent* Component);
+
+	void UnRegisterForCollisionEvents(UPrimitiveComponent* Component);
 
 	/**
 	 * Get the internal Dispatcher object
@@ -115,6 +120,9 @@ public:
 	void AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject);
+
+	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
+	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
 	/**
 	 * Called during physics state destruction for the game thread to remove objects from the simulation
@@ -177,6 +185,39 @@ public:
 	void CopySolverAccelerationStructure();
 
 private:
+	UPROPERTY()
+	TArray<UPrimitiveComponent*> CollisionEventRegistrations;
+
+	// contains the set of properties that uniquely identifies a reported collision
+	// Note that order matters, { Body0, Body1 } is not the same as { Body1, Body0 }
+	struct FUniqueContactPairKey
+	{
+		const void* Body0;
+		const void* Body1;
+
+		friend bool operator==(const FUniqueContactPairKey& Lhs, const FUniqueContactPairKey& Rhs)
+		{
+			return Lhs.Body0 == Rhs.Body0 && Lhs.Body1 == Rhs.Body1;
+		}
+
+		friend inline uint32 GetTypeHash(FUniqueContactPairKey const& P)
+		{
+			return (PTRINT)P.Body0 ^ ((PTRINT)P.Body1 << 18);
+		}
+	};
+
+	FCollisionNotifyInfo& GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry);
+	/** Key is the unique pair, value is index into PendingNotifies array */
+	TMap<FUniqueContactPairKey, int32> ContactPairToPendingNotifyMap;
+
+	/** Holds the list of pending legacy notifies that are to be processed */
+	TArray<FCollisionNotifyInfo> PendingCollisionNotifies;
+
+	// Chaos Event Handlers
+	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
+
+	void DispatchPendingCollisionNotifies();
+
 	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
 
 	/** Replication manager that updates physics bodies towards replicated physics state */
@@ -186,9 +227,6 @@ private:
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */
 	void OnUpdateWorldPause();
 #endif
-
-	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
-	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
 #if WITH_EDITOR
 	/**
@@ -298,6 +336,9 @@ public:
 	// So the array of handles must be non-const.
 	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors, const bool bImmediate=true);
 	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
+
+	void ENGINE_API AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
+	void ENGINE_API RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
 	void SetOwningWorld(UWorld* InOwningWorld);
 
