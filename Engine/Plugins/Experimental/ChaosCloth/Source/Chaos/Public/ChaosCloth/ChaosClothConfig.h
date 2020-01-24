@@ -86,13 +86,17 @@ public:
 	UPROPERTY()
 	float ShapeTargetStiffness = 0.f;
 
-	// The drag coefficient applying on each particle
-	UPROPERTY(EditAnywhere, Category = Wind, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float DragCoefficient = 0.5f;
+	// The amount of damping applied to the cloth velocities
+	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float DampingCoefficient = 0.01f;
 
 	// Friction coefficient for cloth - collider interaction
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float CoefficientOfFriction = 0.f;
+	UPROPERTY()
+	float FrictionCoefficient = 0.f;
+
+	// The drag coefficient applying on each particle
+	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
+	float DragCoefficient = 0.5f;
 
 	// Default spring stiffness for anim drive if an anim drive is in use
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
@@ -160,8 +164,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float CollisionThickness = 1.0f;
 
-	//The amount of cloth damping
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	// Use shared config damping rather than per cloth damping
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (InlineEditConditionToggle))
+	bool bUseDampingOverride = true;
+
+	// The amount of cloth damping. Override the per cloth damping coefficients.
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseDampingOverride", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float Damping = 0.01f;
 
 	// Use gravity value vs world gravity
