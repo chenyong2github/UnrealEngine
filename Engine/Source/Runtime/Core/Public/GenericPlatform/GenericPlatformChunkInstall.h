@@ -97,11 +97,18 @@ struct FCustomChunk
 
 struct FCustomChunkMapping
 {
+	enum class CustomChunkMappingType : uint8
+	{
+		Main,
+		Optional
+	};
+
 	FString Pattern;
 	uint32	ChunkID;
+	CustomChunkMappingType MappingType;
 
-	FCustomChunkMapping(FString InPattern, uint32 InChunkID) :
-		Pattern(InPattern), ChunkID(InChunkID)
+	FCustomChunkMapping(FString InPattern, uint32 InChunkID, CustomChunkMappingType InMappingType) :
+		Pattern(InPattern), ChunkID(InChunkID), MappingType(InMappingType)
 	{}
 };
 
