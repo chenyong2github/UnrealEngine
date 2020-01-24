@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "Templates/ChooseClass.h"
-#include "Templates/EnableIf.h"
-#include "Templates/IsClass.h"
-#include "Templates/IsConstructible.h"
 #include "Templates/MemoryOps.h"
-#include "Templates/RemoveReference.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Delegates/IntegerSequence.h"
+#include "Templates/AndOrNot.h"
 
 #include "Misc/AssertionMacros.h"
 
@@ -22,6 +19,15 @@
 #else
 #define TVARIANT_STORAGE_USE_RECURSIVE_TEMPLATE 0
 #endif
+
+template <typename T, typename... Ts>
+class TVariant;
+
+template <typename T>
+struct TIsVariant;
+
+template <typename T>
+struct TVariantSize;
 
 namespace UE4Variant_Details
 {
@@ -101,7 +107,24 @@ namespace UE4Variant_Details
 		static constexpr SIZE_T AlignofValue = TVariantStorageTraits<T, Ts...>::MaxAlignof(0);
 		static_assert(SizeofValue > 0, "MaxSizeof must be greater than 0");
 		static_assert(AlignofValue > 0, "MaxAlignof must be greater than 0");
-		using Type = TAlignedBytes<SizeofValue, AlignofValue>;
+
+		/** Interpret the underlying data as the type in the variant parameter pack at the compile-time index. This function is used to implement Visit and should not be used directly */
+		template <SIZE_T N>
+		auto& GetValueAsIndexedType()
+		{
+			using ReturnType = typename TNthTypeFromParameterPack<N, T, Ts...>::Type;
+			return *reinterpret_cast<ReturnType*>(&Storage);
+		}
+
+		/** Interpret the underlying data as the type in the variant parameter pack at the compile-time index. This function is used to implement Visit and should not be used directly */
+		template <SIZE_T N>
+		const auto& GetValueAsIndexedType() const
+		{
+			// Temporarily remove the const qualifier so we can implement GetValueAsIndexedType in one location.
+			return const_cast<TVariantStorage*>(this)->template GetValueAsIndexedType<N>();
+		}
+
+		TAlignedBytes<SizeofValue, AlignofValue> Storage;
 	};
 #else
 	/** Determine the max alignof and sizeof of all types in a template parameter pack and provide a type that is compatible with those sizes */
@@ -135,7 +158,24 @@ namespace UE4Variant_Details
 		static constexpr SIZE_T AlignofValue = MaxAlignof();
 		static_assert(SizeofValue > 0, "MaxSizeof must be greater than 0");
 		static_assert(AlignofValue > 0, "MaxAlignof must be greater than 0");
-		using Type = TAlignedBytes<SizeofValue, AlignofValue>;
+
+		/** Interpret the underlying data as the type in the variant parameter pack at the compile-time index. This function is used to implement Visit and should not be used directly */
+		template <SIZE_T N>
+		auto& GetValueAsIndexedType()
+		{
+			using ReturnType = typename TNthTypeFromParameterPack<N, Ts...>::Type;
+			return *reinterpret_cast<ReturnType*>(&Storage);
+		}
+
+		/** Interpret the underlying data as the type in the variant parameter pack at the compile-time index. This function is used to implement Visit and should not be used directly */
+		template <SIZE_T N>
+		const auto& GetValueAsIndexedType() const
+		{
+			// Temporarily remove the const qualifier so we can implement GetValueAsIndexedType in one location.
+			return const_cast<TVariantStorage*>(this)->template GetValueAsIndexedType<N>();
+		}
+
+		TAlignedBytes<SizeofValue, AlignofValue> Storage;
 	};
 #endif
 
@@ -251,6 +291,96 @@ namespace UE4Variant_Details
 			return bIsSameType[TypeIndex];
 		}
 	};
+
+	/** Determine if all the types are TVariant<...> */
+	template <typename... Ts>
+	using TIsAllVariant = TAnd<TIsVariant<Ts>...>;
+
+	/** Encode the stored index of a bunch of variants into a single value used to lookup a Visit invocation function */
+	template <typename T>
+	inline SIZE_T EncodeIndices(const T& Variant)
+	{
+		return Variant.GetIndex();
+	}
+
+	template <typename Variant0, typename... Variants>
+	inline SIZE_T EncodeIndices(const Variant0& First, const Variants&... Rest)
+	{
+		return First.GetIndex() + TVariantSize<Variant0>::Value * EncodeIndices(Rest...);
+	}
+
+	/** Inverse operation of EncodeIndices. Decodes an encoded index into the individual index for the specified variant index. */
+	constexpr SIZE_T DecodeIndex(SIZE_T EncodedIndex, SIZE_T VariantIndex, const SIZE_T* VariantSizes)
+	{
+		while (VariantIndex)
+		{
+			EncodedIndex /= *VariantSizes;
+			--VariantIndex;
+			++VariantSizes;
+		}
+		return EncodedIndex % *VariantSizes;
+	}
+
+#if !PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS
+	/** Used to determine the total number of possible Visit invocations when fold expressions are not available. */
+	constexpr SIZE_T Multiply(const SIZE_T* Args, SIZE_T Num)
+	{
+		SIZE_T Result = 1;
+		while (Num)
+		{
+			Result *= *Args++;
+			--Num;
+		}
+		return Result;
+	}
+#endif
+
+	/** Cast a TVariant to its private base */
+	template <typename... Ts>
+	FORCEINLINE TVariantStorage<Ts...>& CastToStorage(TVariant<Ts...>& Variant)
+	{
+		return *(TVariantStorage<Ts...>*)(&Variant);
+	}
+
+	template <typename... Ts>
+	FORCEINLINE const TVariantStorage<Ts...>& CastToStorage(const TVariant<Ts...>& Variant)
+	{
+		return *(const TVariantStorage<Ts...>*)(&Variant);
+	}
+
+	/** Invocation detail for a single combination of stored variant indices */
+	template <SIZE_T EncodedIndex, SIZE_T... VariantIndices, typename Func, typename... Variants>
+	inline decltype(auto) VisitApplyEncoded(Func&& Callable, Variants&&... Args)
+	{
+		constexpr SIZE_T VariantSizes[] = { TVariantSize<Variants>::Value... };
+		return Callable(CastToStorage(Args).template GetValueAsIndexedType<DecodeIndex(EncodedIndex, VariantIndices, VariantSizes)>()...);
+	}
+
+	/**
+	 * Work around used to separate pack expansion of EncodedIndices and VariantIndices in VisitImpl below when defining the Invokers array.
+	 *
+	 * Ideally the line below would only need to be written as:
+	 * constexpr InvokeFn Invokers[] = { &VisitApplyEncoded<EncodedIndices, VariantIndices...>... };
+	 *
+	 * Due to what appears to be a lexing bug, MSVC 2017 tries to expand EncodedIndices and VariantIndices together
+	 */
+	template <typename InvokeFn, SIZE_T... VariantIndices>
+	struct TWrapper
+	{
+		template <SIZE_T EncodedIndex>
+		static constexpr InvokeFn FuncPtr = &VisitApplyEncoded<EncodedIndex, VariantIndices...>;
+	};
+
+	/** Implementation detail for Visit(Callable, Variants...). Builds an array of invokers, and forwards the variants to the callable for the specific EncodedIndex */
+	template <typename Func, SIZE_T... EncodedIndices, SIZE_T... VariantIndices, typename... Variants>
+	decltype(auto) VisitImpl(SIZE_T EncodedIndex, Func&& Callable, TIntegerSequence<SIZE_T, EncodedIndices...>&&, TIntegerSequence<SIZE_T, VariantIndices...>&& VariantIndicesSeq, Variants&&... Args)
+	{
+		using ReturnType = decltype(VisitApplyEncoded<0, VariantIndices...>(Forward<Func>(Callable), Forward<Variants>(Args)...));
+		using InvokeFn = ReturnType(*)(Func&&, Variants&&...);
+		using WrapperType = TWrapper<InvokeFn, VariantIndices...>;
+		static constexpr InvokeFn Invokers[] = { WrapperType::template FuncPtr<EncodedIndices>... };
+		return Invokers[EncodedIndex](Forward<Func>(Callable), Forward<Variants>(Args)...);
+	}
 }
 
 #undef TVARIANT_STORAGE_USE_RECURSIVE_TEMPLATE
