@@ -513,10 +513,10 @@ public:
 		return *Context;
 	}
 
-	void SetComputeContext(IRHIComputeContext* InContext)
+	void SetComputeContext(IRHIComputeContext* InComputeContext)
 	{
-		check(InContext);
-		ComputeContext = InContext;
+		check(Context == nullptr);
+		ComputeContext = InComputeContext;
 	}
 
 	IRHIComputeContext& GetComputeContext()
@@ -562,7 +562,6 @@ protected:
 	FRHICommandListBase(FRHIGPUMask InGPUMask);
 
 	bool bAsyncPSOCompileAllowed;
-	bool bRecursive;
 	FRHIGPUMask GPUMask;
 	// GPUMask that was set at the time the command list was last Reset. We set
     // this mask on the command contexts immediately before executing the
@@ -4673,7 +4672,6 @@ public:
 	{
 		SetContext(Context);
 		bAsyncPSOCompileAllowed = false;
-		bRecursive = true;
 	}
 };
 
