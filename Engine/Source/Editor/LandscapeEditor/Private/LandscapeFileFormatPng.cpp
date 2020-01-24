@@ -22,7 +22,7 @@ FLandscapeHeightmapInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR*
 {
 	FLandscapeHeightmapInfo Result;
 
-	TArray<uint8> ImportData;
+	TArray64<uint8> ImportData;
 	if (!FFileHelper::LoadFileToArray(ImportData, HeightmapFilename, FILEREAD_Silent))
 	{
 		Result.ResultCode = ELandscapeImportResult::Error;
@@ -102,7 +102,7 @@ FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Png::Import(const TC
 				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileLowBitDepth", "The heightmap file appears to be an 8-bit png, 16-bit is preferred. The import *can* continue, but the result may be lower quality than desired.");
 			}
 
-			const TArray<uint8>* RawData = nullptr;
+			TArray64<uint8> RawData;
 			if (ImageWrapper->GetBitDepth() <= 8)
 			{
 				if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 8, RawData))
@@ -113,7 +113,7 @@ FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Png::Import(const TC
 				else
 				{
 					Result.Data.Empty(ExpectedResolution.Width * ExpectedResolution.Height);
-					Algo::Transform(*RawData, Result.Data, [](uint8 Value) { return Value * 0x101; }); // Expand to 16-bit
+					Algo::Transform(RawData, Result.Data, [](uint8 Value) { return Value * 0x101; }); // Expand to 16-bit
 				}
 			}
 			else
@@ -127,7 +127,7 @@ FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Png::Import(const TC
 				{
 					Result.Data.Empty(ExpectedResolution.Width * ExpectedResolution.Height);
 					Result.Data.AddUninitialized(ExpectedResolution.Width * ExpectedResolution.Height);
-					FMemory::Memcpy(Result.Data.GetData(), RawData->GetData(), ExpectedResolution.Width * ExpectedResolution.Height * 2);
+					FMemory::Memcpy(Result.Data.GetData(), RawData.GetData(), ExpectedResolution.Width * ExpectedResolution.Height * 2);
 				}
 			}
 		}
@@ -143,7 +143,7 @@ void FLandscapeHeightmapFileFormat_Png::Export(const TCHAR* HeightmapFilename, T
 
 	if (ImageWrapper->SetRaw(Data.GetData(), Data.Num() * 2, DataResolution.Width, DataResolution.Height, ERGBFormat::Gray, 16))
 	{
-		const TArray<uint8>& TempData = ImageWrapper->GetCompressed();
+		const TArray64<uint8>& TempData = ImageWrapper->GetCompressed();
 		FFileHelper::SaveArrayToFile(TempData, HeightmapFilename);
 	}
 }
@@ -161,7 +161,7 @@ FLandscapeWeightmapInfo FLandscapeWeightmapFileFormat_Png::Validate(const TCHAR*
 {
 	FLandscapeWeightmapInfo Result;
 
-	TArray<uint8> ImportData;
+	TArray64<uint8> ImportData;
 	if (!FFileHelper::LoadFileToArray(ImportData, WeightmapFilename, FILEREAD_Silent))
 	{
 		Result.ResultCode = ELandscapeImportResult::Error;
@@ -198,7 +198,7 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TC
 {
 	FLandscapeWeightmapImportData Result;
 
-	TArray<uint8> TempData;
+	TArray64<uint8> TempData;
 	if (!FFileHelper::LoadFileToArray(TempData, WeightmapFilename, FILEREAD_Silent))
 	{
 		Result.ResultCode = ELandscapeImportResult::Error;
@@ -209,7 +209,6 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TC
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 
-		const TArray<uint8>* RawData = nullptr;
 		if (!ImageWrapper->SetCompressed(TempData.GetData(), TempData.Num()))
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
@@ -220,7 +219,7 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TC
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_LayerResolutionMismatch", "The layer file's resolution does not match the requested resolution");
 		}
-		else if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 8, RawData))
+		else if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 8, Result.Data))
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_LayerCorruptPng", "The layer file cannot be read (corrupt png?)");
@@ -232,8 +231,6 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TC
 				Result.ResultCode = ELandscapeImportResult::Warning;
 				Result.ErrorMessage = LOCTEXT("Import_LayerColorPng", "The layer file appears to be a color png, grayscale is expected. The import *can* continue, but the result may not be what you expect...");
 			}
-
-			Result.Data = *RawData; // agh I want to use MoveTemp() here
 		}
 	}
 
@@ -247,7 +244,7 @@ void FLandscapeWeightmapFileFormat_Png::Export(const TCHAR* WeightmapFilename, F
 
 	if (ImageWrapper->SetRaw(Data.GetData(), Data.Num(), DataResolution.Width, DataResolution.Height, ERGBFormat::Gray, 8))
 	{
-		const TArray<uint8>& TempData = ImageWrapper->GetCompressed();
+		const TArray64<uint8>& TempData = ImageWrapper->GetCompressed();
 		FFileHelper::SaveArrayToFile(TempData, WeightmapFilename);
 	}
 }

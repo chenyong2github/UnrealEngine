@@ -527,7 +527,7 @@ public:
 };
 
 
-bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64& OutResult,bool bWait)
+bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait, uint32 GPUIndex)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 

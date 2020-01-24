@@ -9,10 +9,14 @@ PathTracingMaterialCommon.usf: Brdf utility functions
 #include "../PathTracingCommon.ush"
 #include "/Engine/Private/BRDF.ush"
 
-
 float3 GetMaterialEmission(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.Radiance;
+}
+
+float3 GetBaseColor(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.BaseColor;
 }
 
 float3 GetDiffuseColor(FMaterialClosestHitPayload HitInfo)
@@ -28,6 +32,42 @@ float3 GetSpecularColor(FMaterialClosestHitPayload HitInfo)
 float GetRoughness(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.Roughness;
+}
+
+float GetClearCoat(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.CustomData.x;
+}
+
+float GetClearCoatRoughness(FMaterialClosestHitPayload HitInfo)
+{
+	return max(HitInfo.CustomData.y, 0.02);
+}
+
+float3 GetClearCoatBottomNormal(FMaterialClosestHitPayload HitInfo)
+{
+	float3 N = HitInfo.WorldNormal;
+#ifdef PATH_TRACING
+	#if CLEAR_COAT_BOTTOM_NORMAL
+	// Functionally inverse of behavior in RayTracingMaterialHitShader.usf
+	float2 oct2 = UnitVectorToOctahedron(HitInfo.WorldNormal);
+	float2 oct3 = float2(HitInfo.CustomData.a, HitInfo.CustomData.z);
+	float2 oct1 = (oct3 - (128.0 / 255.0)) * 2.0 + oct2;
+
+	N = OctahedronToUnitVector(oct1);
+	#endif
+#endif
+	return N;
+}
+
+float GetClearCoatThickness(FMaterialClosestHitPayload HitInfo)
+{
+	return 0.1;
+}
+
+float GetClearCoatIor(FMaterialClosestHitPayload HitInfo)
+{
+	return 1.5;
 }
 
 float3 GetWorldNormal(FMaterialClosestHitPayload HitInfo)
@@ -53,6 +93,16 @@ bool IsPureSpecularTransmission(FMaterialClosestHitPayload HitInfo)
 bool IsLambert(FMaterialClosestHitPayload HitInfo)
 {
 	return GetRoughness(HitInfo) > GLOSSY_MAX_ROUGHNESS;
+}
+
+bool IsDefaultLitMaterial(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;
+}
+
+bool IsClearCoatMaterial(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_CLEAR_COAT;
 }
 
 bool BSDF_Refract(float3 V, float3 N, float Eta, out float3 L)

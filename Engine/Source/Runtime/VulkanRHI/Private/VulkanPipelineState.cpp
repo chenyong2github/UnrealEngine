@@ -362,6 +362,16 @@ void FVulkanCommandListContext::RHISetGraphicsPipelineState(FRHIGraphicsPipeline
 		PendingGfxState->MarkNeedsDynamicStates();
 		PendingGfxState->StencilRef = 0;
 	}
+
+	ApplyGlobalUniformBuffers(static_cast<FVulkanVertexShader*>(Pipeline->VulkanShaders[ShaderStage::Vertex]));
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	ApplyGlobalUniformBuffers(static_cast<FVulkanHullShader*>(Pipeline->VulkanShaders[ShaderStage::Hull]));
+	ApplyGlobalUniformBuffers(static_cast<FVulkanDomainShader*>(Pipeline->VulkanShaders[ShaderStage::Domain]));
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	ApplyGlobalUniformBuffers(static_cast<FVulkanGeometryShader*>(Pipeline->VulkanShaders[ShaderStage::Geometry]));
+#endif
+	ApplyGlobalUniformBuffers(static_cast<FVulkanPixelShader*>(Pipeline->VulkanShaders[ShaderStage::Pixel]));
 }
 
 

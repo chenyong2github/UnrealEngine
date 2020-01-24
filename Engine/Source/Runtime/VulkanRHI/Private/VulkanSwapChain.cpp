@@ -121,7 +121,7 @@ VkResult SimulateErrors(VkResult Result)
 extern TAutoConsoleVariable<int32> GAllowPresentOnComputeQueue;
 static TSet<EPixelFormat> GPixelFormatNotSupportedWarning;
 
-FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height,
+FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height, bool bIsFullScreen,
 	uint32* InOutDesiredNumBackBuffers, TArray<VkImage>& OutImages, int8 InLockToVsync, FVulkanSwapChainRecreateInfo* RecreateInfo)
 	: SwapChain(VK_NULL_HANDLE)
 	, Device(InDevice)
@@ -137,7 +137,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	NextPresentTargetTime = (FPlatformTime::Seconds() - GStartTime);
 
-	if(RecreateInfo != nullptr && RecreateInfo->SwapChain != VK_NULL_HANDLE)
+	if (RecreateInfo != nullptr && RecreateInfo->SwapChain != VK_NULL_HANDLE)
 	{
 		check(RecreateInfo->Surface != VK_NULL_HANDLE);
 		Surface = RecreateInfo->Surface;
@@ -428,7 +428,6 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		SwapChainInfo.oldSwapchain = RecreateInfo->SwapChain;
 	}
 	
-
 	SwapChainInfo.clipped = VK_TRUE;
 	SwapChainInfo.compositeAlpha = CompositeAlpha;
 
@@ -461,7 +460,28 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 #endif
 	}
 
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
+#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
+	VkSurfaceFullScreenExclusiveInfoEXT FullScreenInfo;
+	ZeroVulkanStruct(FullScreenInfo, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT);
+	if (Device.GetOptionalExtensions().HasEXTFullscreenExclusive)
+	{
+		FullScreenInfo.fullScreenExclusive = bIsFullScreen ? VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT : VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
+		FullScreenInfo.pNext = (void*)SwapChainInfo.pNext;
+		SwapChainInfo.pNext = &FullScreenInfo;
+	}
+#endif
+
+	VkResult Result = VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
+#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
+	if (Device.GetOptionalExtensions().HasEXTFullscreenExclusive && Result == VK_ERROR_INITIALIZATION_FAILED)
+	{
+		// Unlink fullscreen
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Create swapchain failed with Initialization error; removing FullScreen extension..."));
+		SwapChainInfo.pNext = FullScreenInfo.pNext;
+		Result = VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
+	}
+#endif
+	VERIFYVULKANRESULT_EXPANDED(Result);
 
 	if (RecreateInfo != nullptr)
 	{
@@ -479,6 +499,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	InternalWidth = FMath::Min(Width, SwapChainInfo.imageExtent.width);
 	InternalHeight = FMath::Min(Height, SwapChainInfo.imageExtent.height);
+	bInternalFullScreen = bIsFullScreen;
 
 	uint32 NumSwapChainImages;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkGetSwapchainImagesKHR(Device.GetInstanceHandle(), SwapChain, &NumSwapChainImages, nullptr));

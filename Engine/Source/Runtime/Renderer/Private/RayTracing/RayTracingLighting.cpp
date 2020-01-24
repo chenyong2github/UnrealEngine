@@ -6,6 +6,21 @@
 
 #if RHI_RAYTRACING
 
+#include "SceneRendering.h"
+
+static TAutoConsoleVariable<int32> CVarRayTracingLightingMissShader(
+	TEXT("r.RayTracing.LightingMissShader"),
+	1,
+	TEXT("Whether evaluate lighting using a miss shader when rendering reflections and translucency instead of doing it in ray generation shader. (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform)
+{
+	return GRHISupportsRayTracingMissShaderBindings
+		&& CVarRayTracingLightingMissShader.GetValueOnRenderThread() != 0
+		&& FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsRayTracingMissShaderBindings;
+}
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, "RaytracingLightsDataPacked");
 
 void SetupRaytracingLightDataPacked(
@@ -178,7 +193,11 @@ void SetupRaytracingLightDataPacked(
 	}
 }
 
-TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer(const TSparseArray<FLightSceneInfoCompact>& Lights, const class FViewInfo& View, EUniformBufferUsage Usage, FStructuredBufferRHIRef& OutLightDataArray)
+TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer(
+	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const class FViewInfo& View, EUniformBufferUsage Usage,
+	FStructuredBufferRHIRef& OutLightDataBuffer,
+	FShaderResourceViewRHIRef& OutLightDataSRV)
 {
 	FRaytracingLightDataPacked LightData;
 	TResourceArray<FRTLightingData> LightDataArray;
@@ -197,9 +216,90 @@ TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer
 	FRHIResourceCreateInfo CreateInfo;
 	CreateInfo.ResourceArray = &LightDataArray;
 
-	OutLightDataArray = RHICreateStructuredBuffer(sizeof(FRTLightingData), LightDataArray.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+	OutLightDataBuffer = RHICreateStructuredBuffer(sizeof(FRTLightingData), LightDataArray.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+	OutLightDataSRV = RHICreateShaderResourceView(OutLightDataBuffer);
+
+	LightData.LightDataBuffer = OutLightDataSRV;
+	LightData.SSProfilesTexture = View.RayTracingSubSurfaceProfileSRV;
 
 	return CreateUniformBufferImmediate(LightData, Usage);
+}
+
+class FRayTracingLightingMS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingLightingMS);
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingLightingMS, FGlobalShader)
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
+			&& FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsRayTracingMissShaderBindings;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingLightingMS, "/Engine/Private/RayTracing/RayTracingLightingMS.usf", "RayTracingLightingMS", SF_RayMiss);
+
+FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingLightingMissShader(FViewInfo& View)
+{
+	return View.ShaderMap->GetShader<FRayTracingLightingMS>()->GetRayTracingShader();
+}
+
+template< typename ShaderClass>
+static int32 BindParameters(ShaderClass* Shader, typename ShaderClass::FParameters & Parameters, int32 MaxParams, const FRHIUniformBuffer **OutUniformBuffers)
+{
+	FRayTracingShaderBindingsWriter ResourceBinder;
+
+	auto &ParameterMap = Shader->GetParameterMapInfo();
+
+	// all parameters should be in uniform buffers
+	check(ParameterMap.LooseParameterBuffers.Num() == 0);
+	check(ParameterMap.SRVs.Num() == 0);
+	check(ParameterMap.TextureSamplers.Num() == 0);
+
+	SetShaderParameters(ResourceBinder, Shader, Parameters);
+
+	FMemory::Memzero(OutUniformBuffers, sizeof(FRHIUniformBuffer *)*MaxParams);
+
+	const int32 NumUniformBuffers = ParameterMap.UniformBuffers.Num();
+
+	int32 MaxUniformBufferUsed = -1;
+	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
+	{
+		const FShaderParameterInfo &Parameter = ParameterMap.UniformBuffers[UniformBufferIndex];
+		checkSlow(Parameter.BaseIndex < MaxParams);
+		const FRHIUniformBuffer* UniformBuffer = ResourceBinder.UniformBuffers[UniformBufferIndex];
+		if (Parameter.BaseIndex < MaxParams)
+		{
+			OutUniformBuffers[Parameter.BaseIndex] = UniformBuffer;
+			MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
+		}
+	}
+
+	return MaxUniformBufferUsed + 1;
+}
+
+void FDeferredShadingSceneRenderer::SetupRayTracingLightingMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FRayTracingLightingMS::FParameters MissParameters;
+	MissParameters.LightDataPacked = View.RayTracingLightingDataUniformBuffer;
+	MissParameters.ViewUniformBuffer = View.ViewUniformBuffer;
+
+	static constexpr uint32 MaxUniformBuffers = UE_ARRAY_COUNT(FRayTracingShaderBindings::UniformBuffers);
+	const FRHIUniformBuffer* MissData[MaxUniformBuffers] = {};
+	auto MissShader = View.ShaderMap->GetShader<FRayTracingLightingMS>();
+
+	int32 ParameterSlots = BindParameters(MissShader, MissParameters, MaxUniformBuffers, MissData);
+
+	RHICmdList.SetRayTracingMissShader(View.RayTracingScene.RayTracingSceneRHI,
+		RAY_TRACING_MISS_SHADER_SLOT_LIGHTING, // Shader slot in the scene
+		View.RayTracingMaterialPipeline,
+		RAY_TRACING_MISS_SHADER_SLOT_LIGHTING, // Miss shader index in the pipeline
+		ParameterSlots, (FRHIUniformBuffer**)MissData, 0);
 }
 
 #endif // RHI_RAYTRACING

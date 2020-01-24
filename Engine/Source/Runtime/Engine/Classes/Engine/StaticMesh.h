@@ -275,11 +275,16 @@ struct FMeshSectionInfo
 	UPROPERTY()
 	bool bCastShadow;
 
+	/** If true, this section will always considered opaque in ray tracing Geometry. */
+	UPROPERTY()
+	bool bForceOpaque;
+
 	/** Default values. */
 	FMeshSectionInfo()
 		: MaterialIndex(0)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bForceOpaque(false)
 	{
 	}
 
@@ -288,6 +293,7 @@ struct FMeshSectionInfo
 		: MaterialIndex(InMaterialIndex)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bForceOpaque(false)
 	{
 	}
 };

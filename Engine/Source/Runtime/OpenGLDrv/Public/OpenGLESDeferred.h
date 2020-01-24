@@ -59,7 +59,6 @@ struct FOpenGLESDeferred : public FOpenGLBase
 	static FORCEINLINE bool SupportsTextureCompare()					{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsTextureBaseLevel()					{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsTextureMaxLevel()					{ return !bES2Fallback; }
-	static FORCEINLINE bool SupportsInstancing()						{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsVertexAttribInteger()				{ return true; }
 	static FORCEINLINE bool SupportsVertexAttribShort()					{ return true; }
 	static FORCEINLINE bool SupportsVertexAttribByte()					{ return true; }

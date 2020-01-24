@@ -12,7 +12,7 @@
  */
 struct FCompressedImage2D
 {
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	int32 SizeX;
 	int32 SizeY;
 	int32 SizeZ; // Only for Volume Texture

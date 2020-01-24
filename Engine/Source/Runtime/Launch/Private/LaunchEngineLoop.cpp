@@ -2460,7 +2460,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	{
 		SCOPED_BOOT_TIMING("FUniformBufferStruct::InitializeStructs()");
-		FShaderParametersMetadata::InitializeAllGlobalStructs();
+		FShaderParametersMetadata::InitializeAllUniformBufferStructs();
 	}
 
 	{
@@ -5646,6 +5646,15 @@ void FEngineLoop::PostInitRHI()
 		PixelFormatByteWidth[i] = GPixelFormats[i].BlockBytes;
 	}
 	RHIPostInit(PixelFormatByteWidth);
+
+#if (!UE_BUILD_SHIPPING)
+	if (FParse::Param(FCommandLine::Get(), TEXT("rhiunittest")))
+	{
+		extern ENGINE_API void RunRHIUnitTest();
+		RunRHIUnitTest();
+	}
+#endif //(!UE_BUILD_SHIPPING)
+
 #endif
 }
 

@@ -914,6 +914,11 @@ void FNiagaraEditorModule::StartupModule()
 		return CompileScript(CompileRequest, Options);
 	}));
 
+	CompileResultHandle = NiagaraModule.RegisterCompileResultDelegate(INiagaraModule::FCheckCompilationResult::CreateLambda([this](int32 JobID, bool bWait)
+	{
+		return GetCompilationResult(JobID, bWait);
+	}));
+
 	PrecompilerHandle = NiagaraModule.RegisterPrecompiler(INiagaraModule::FOnPrecompile::CreateLambda([this](UObject* InObj)
 	{
 		return Precompile(InObj);
@@ -1015,6 +1020,7 @@ void FNiagaraEditorModule::ShutdownModule()
 		NiagaraModule->UnregisterMergeManager(ScriptMergeManager.ToSharedRef());
 		NiagaraModule->UnregisterEditorOnlyDataUtilities(EditorOnlyDataUtilities.ToSharedRef());
 		NiagaraModule->UnregisterScriptCompiler(ScriptCompilerHandle);
+		NiagaraModule->UnregisterCompileResultDelegate(CompileResultHandle);
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
 	}
 

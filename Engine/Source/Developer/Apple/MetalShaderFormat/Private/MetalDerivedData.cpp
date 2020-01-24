@@ -22,10 +22,8 @@ THIRD_PARTY_INCLUDES_END
 #endif
 #endif
 
-extern bool ExecRemoteProcess(const TCHAR* Command, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr);
+extern bool ExecXcodeCommand(EShaderPlatform ShaderPlatform, const TCHAR* Command, const TCHAR* Parameters, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr);
 extern FString GetXcodePath();
-extern FString GetMetalStdLibPath(FString const& PlatformPath);
-extern FString GetMetalCompilerVers(FString const& PlatformPath);
 extern bool RemoteFileExists(const FString& Path);
 extern FString MakeRemoteTempFolder(FString Path);
 extern FString LocalPathToRemote(const FString& LocalPath, const FString& RemoteFolder);
@@ -34,10 +32,8 @@ extern bool CopyRemoteFileToLocal(FString const& RemotePath, FString const& Loca
 extern bool ChecksumRemoteFile(FString const& RemotePath, uint32* CRC, uint32* Len);
 extern bool ModificationTimeRemoteFile(FString const& RemotePath, uint64& Time);
 extern bool RemoveRemoteFile(FString const& RemotePath);
-extern FString GetMetalBinaryPath(uint32 ShaderPlatform);
-extern FString GetMetalToolsPath(uint32 ShaderPlatform);
-extern FString GetMetalLibraryPath(uint32 ShaderPlatform);
-extern FString GetMetalCompilerVersion(uint32 ShaderPlatform);
+extern const FString& GetMetalToolsPath(EShaderPlatform ShaderPlatform);
+extern const FString& GetMetalCompilerVersion(EShaderPlatform ShaderPlatform);
 extern uint16 GetXcodeVersion(uint64& BuildVersion);
 extern EShaderPlatform MetalShaderFormatToLegacyShaderPlatform(FName ShaderFormat);
 extern void BuildMetalShaderOutput(
@@ -88,7 +84,8 @@ const TCHAR* FMetalShaderDebugInfoCooker::GetVersionString() const
 
 FString FMetalShaderDebugInfoCooker::GetPluginSpecificCacheKeySuffix() const
 {
-	FString CompilerVersion = GetMetalCompilerVersion(MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat));
+	EShaderPlatform Platform = MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
+	const FString& CompilerVersion = GetMetalCompilerVersion(Platform);
 
 	FString VersionedName = FString::Printf(TEXT("%s%u%u%s%s%s%s%s%s"), *Job.ShaderFormat.GetPlainNameString(), Job.SourceCRCLen, Job.SourceCRC, *Job.Hash.ToString(), *Job.CompilerVersion, *Job.MinOSVersion, *Job.DebugInfo, *Job.MathMode, *Job.Standard);
 	// get rid of some not so filename-friendly characters ('=',' ' -> '_')
@@ -151,7 +148,8 @@ const TCHAR* FMetalShaderBytecodeCooker::GetVersionString() const
 FString FMetalShaderBytecodeCooker::GetPluginSpecificCacheKeySuffix() const
 {
 	FString CompilerVersion = Job.CompilerVersion;
-	FString CompilerPath = GetMetalToolsPath(MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat));
+	EShaderPlatform ShaderPlatform = MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
+	const FString& CompilerPath = GetMetalToolsPath(ShaderPlatform);
 
 	uint64 BuildVersion = 0;
 	uint32 XcodeVersion = GetXcodeVersion(BuildVersion);
@@ -198,10 +196,8 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 	const FString RemoteObjFile = LocalPathToRemote(Job.OutputObjectFile, RemoteFolder);				// Output from the compiler -> Input file to the archiver
 	const FString RemoteOutputFilename = LocalPathToRemote(Job.OutputFile, RemoteFolder);	// Output from the library generator - Copied from remote machine to local machine
 
-	uint32 ShaderPlatform = MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
-	FString MetalPath = GetMetalBinaryPath(ShaderPlatform);
-	FString MetalToolsPath = GetMetalToolsPath(ShaderPlatform);
-	FString MetalLibPath = MetalToolsPath + TEXT("/metallib");
+	EShaderPlatform ShaderPlatform = MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
+	const FString& MetalToolsPath = GetMetalToolsPath(ShaderPlatform);
 	
 	FString IncludeArgs = Job.IncludeDir.Len() ? FString::Printf(TEXT("-I %s"), *Job.IncludeDir) : TEXT("");
 	
@@ -236,13 +232,13 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 
 	TCHAR const* CompileType = bRemoteBuildingConfigured ? TEXT("remotely") : TEXT("locally");
 
-	bSucceeded = (ExecRemoteProcess(*MetalPath, *MetalParams, &Job.ReturnCode, &Job.Results, &Job.Errors) && Job.ReturnCode == 0);
+	bSucceeded = (ExecXcodeCommand(ShaderPlatform, TEXT("metal"), *MetalParams, &Job.ReturnCode, &Job.Results, &Job.Errors) && Job.ReturnCode == 0);
 	if (bSucceeded)
 	{
 		if (!Job.bCompileAsPCH)
 		{
 			FString LibraryParams = FString::Printf(TEXT("-o %s %s"), *RemoteOutputFilename, *RemoteObjFile);
-			bSucceeded = (ExecRemoteProcess(*MetalLibPath, *LibraryParams, &Job.ReturnCode, &Job.Results, &Job.Errors) && Job.ReturnCode == 0);
+			bSucceeded = (ExecXcodeCommand(ShaderPlatform, TEXT("metallib"), *LibraryParams, &Job.ReturnCode, &Job.Results, &Job.Errors) && Job.ReturnCode == 0);
 			if (bSucceeded)
 			{
 				if (Job.bRetainObjectFile)

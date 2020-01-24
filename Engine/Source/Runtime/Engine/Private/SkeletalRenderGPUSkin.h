@@ -200,25 +200,6 @@ public:
 		return ResourceSize;
 	}
 
-	/**
-	* Get Resource Size : only get the size of the GPU resource
-	*/
-	SIZE_T GetUAVSize()
-	{
-		SIZE_T ResourceSize = 0;
-
-		if (VertexBufferRHI)
-		{
-			// LOD of the skel mesh is used to find number of vertices in buffer
-			FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData->LODRenderData[LODIdx];
-
-			// Create the buffer rendering resource
-			ResourceSize += LodData.GetNumVertices() * sizeof(FMorphGPUSkinVertex);
-		}
-
-		return ResourceSize;
-	}
-
 	/** Has been updated or not by UpdateMorphVertexBuffer**/
 	bool bHasBeenUpdated;
 

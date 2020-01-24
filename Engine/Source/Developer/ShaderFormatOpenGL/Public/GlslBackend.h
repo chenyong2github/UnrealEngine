@@ -43,8 +43,6 @@ public:
 	virtual void SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, exec_list* ir) override;
 
 	virtual bool AllowsImageLoadsForNonScalar() const { return !bIsES2; }
-
-	virtual bool EmulateStructuredWithTypedBuffers() const override { return bIsES31; }
 };
 
 class ir_variable;

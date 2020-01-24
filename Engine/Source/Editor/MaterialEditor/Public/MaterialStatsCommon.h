@@ -27,6 +27,7 @@ enum class EPlatformCategoryType : int32
 	Desktop,
 	Android,
 	IOS,
+	Console,
 
 	Num
 };

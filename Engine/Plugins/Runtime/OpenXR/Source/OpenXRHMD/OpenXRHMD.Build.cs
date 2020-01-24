@@ -81,6 +81,7 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 
                 // Vulkan
                 {

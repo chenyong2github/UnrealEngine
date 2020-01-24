@@ -70,6 +70,16 @@ public:
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}
 
+	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) override final
+	{
+		RHIContext->RHIClearUAVFloat(UnorderedAccessViewRHI, Values);
+	}
+
+	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) override final
+	{
+		RHIContext->RHIClearUAVUint(UnorderedAccessViewRHI, Values);
+	}
+
 	virtual void RHISubmitCommandsHint() override final
 	{
 		RHIContext->RHISubmitCommandsHint();
@@ -84,7 +94,7 @@ public:
 
 	/**
 	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
+	* @param Shader				The compute shader to set the sampler for.
 	* @param SamplerIndex		The index of the sampler.
 	* @param NewState			The new sampler state.
 	*/
@@ -231,10 +241,14 @@ public:
 		RHIContext->RHISetMultipleViewports(Count, Data);
 	}
 
-	/** Clears a UAV to the multi-component value provided. */
-	virtual void RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values) override final
+	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) final override
 	{
-		RHIContext->RHIClearTinyUAV(UnorderedAccessViewRHI, Values);
+		RHIContext->RHIClearUAVFloat(UnorderedAccessViewRHI, Values);
+	}
+
+	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) final override
+	{
+		RHIContext->RHIClearUAVUint(UnorderedAccessViewRHI, Values);
 	}
 
 	/**
@@ -387,12 +401,12 @@ public:
 	// @param MinY including like Win32 RECT
 	// @param MaxX excluding like Win32 RECT
 	// @param MaxY excluding like Win32 RECT
-	virtual void RHISetViewport(uint32 MinX, uint32 MinY, float MinZ, uint32 MaxX, uint32 MaxY, float MaxZ) override final
+	virtual void RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ) override final
 	{
 		RHIContext->RHISetViewport(MinX, MinY, MinZ, MaxX, MaxY, MaxZ);
 	}
 
-	virtual void RHISetStereoViewport(uint32 LeftMinX, uint32 RightMinX, uint32 LeftMinY, uint32 RightMinY, float MinZ, uint32 LeftMaxX, uint32 RightMaxX, uint32 LeftMaxY, uint32 RightMaxY, float MaxZ) override final
+	virtual void RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ) override final
 	{
 		RHIContext->RHISetStereoViewport(LeftMinX, RightMinX, LeftMinY, RightMinY, MinZ, LeftMaxX, RightMaxX, LeftMaxY, RightMaxY, MaxZ);
 	}
@@ -415,35 +429,7 @@ public:
 	}
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
-	virtual void RHISetShaderTexture(FRHIVertexShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
-	}
-
-	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
-	virtual void RHISetShaderTexture(FRHIHullShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
-	}
-
-	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
-	virtual void RHISetShaderTexture(FRHIDomainShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
-	}
-
-	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
-	virtual void RHISetShaderTexture(FRHIGeometryShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
-	}
-
-	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
-	virtual void RHISetShaderTexture(FRHIPixelShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
+	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
@@ -458,7 +444,7 @@ public:
 
 	/**
 	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
+	* @param Shader				The compute shader to set the sampler for.
 	* @param SamplerIndex		The index of the sampler.
 	* @param NewState			The new sampler state.
 	*/
@@ -470,64 +456,30 @@ public:
 
 	/**
 	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
+	* @param Shader				The graphics shader to set the sampler for.
 	* @param SamplerIndex		The index of the sampler.
 	* @param NewState			The new sampler state.
 	*/
-	virtual void RHISetShaderSampler(FRHIVertexShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
-	}
-
-
-	/**
-	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
-	* @param SamplerIndex		The index of the sampler.
-	* @param NewState			The new sampler state.
-	*/
-	virtual void RHISetShaderSampler(FRHIGeometryShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
+	virtual void RHISetShaderSampler(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
 	}
 
 	/**
-	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
-	* @param SamplerIndex		The index of the sampler.
-	* @param NewState			The new sampler state.
+	* Sets a pixel shader UAV parameter.
+	* @param Shader	The pixel shader to set the UAV for.
+	* @param UAVIndex		The index of the UAVIndex.
+	* @param UAV			The new UAV.
 	*/
-	virtual void RHISetShaderSampler(FRHIDomainShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
+	virtual void RHISetUAVParameter(FRHIPixelShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
+		checkf(State.bGfxPSOSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
 	}
 
-	/**
-	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
-	* @param SamplerIndex		The index of the sampler.
-	* @param NewState			The new sampler state.
-	*/
-	virtual void RHISetShaderSampler(FRHIHullShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
-	}
 
-	/**
-	* Sets sampler state.
-	* @param Shader	The geometry shader to set the sampler for.
-	* @param SamplerIndex		The index of the sampler.
-	* @param NewState			The new sampler state.
-	*/
-	virtual void RHISetShaderSampler(FRHIPixelShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
-	}
+
 
 	/**
 	* Sets a compute shader UAV parameter.
@@ -554,13 +506,7 @@ public:
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV, InitialCount);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FRHIPixelShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
-	}
-
-	virtual void RHISetShaderResourceViewParameter(FRHIVertexShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
@@ -572,49 +518,7 @@ public:
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FRHIHullShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
-	}
-
-	virtual void RHISetShaderResourceViewParameter(FRHIDomainShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
-	}
-
-	virtual void RHISetShaderResourceViewParameter(FRHIGeometryShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
-	}
-
-	virtual void RHISetShaderUniformBuffer(FRHIVertexShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
-	}
-
-	virtual void RHISetShaderUniformBuffer(FRHIHullShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
-	}
-
-	virtual void RHISetShaderUniformBuffer(FRHIDomainShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
-	}
-
-	virtual void RHISetShaderUniformBuffer(FRHIGeometryShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
-	}
-
-	virtual void RHISetShaderUniformBuffer(FRHIPixelShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
+	virtual void RHISetShaderUniformBuffer(FRHIGraphicsShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
@@ -626,31 +530,7 @@ public:
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
-	virtual void RHISetShaderParameter(FRHIVertexShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
-	}
-
-	virtual void RHISetShaderParameter(FRHIPixelShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
-	}
-
-	virtual void RHISetShaderParameter(FRHIHullShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
-	}
-
-	virtual void RHISetShaderParameter(FRHIDomainShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
-	{
-		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
-	}
-
-	virtual void RHISetShaderParameter(FRHIGeometryShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
+	virtual void RHISetShaderParameter(FRHIGraphicsShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
@@ -674,9 +554,9 @@ public:
 		RHIContext->RHISetBlendFactor(BlendFactor);
 	}
 
-	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs) override final
+	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) override final
 	{
-		RHIContext->RHISetRenderTargets(NumSimultaneousRenderTargets, NewRenderTargets, NewDepthStencilTarget, NumUAVs, UAVs);
+		RHIContext->RHISetRenderTargets(NumSimultaneousRenderTargets, NewRenderTargets, NewDepthStencilTarget);
 	}
 
 	virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) override final

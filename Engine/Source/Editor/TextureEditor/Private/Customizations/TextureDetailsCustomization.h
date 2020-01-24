@@ -39,6 +39,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
 	TSharedPtr<IPropertyHandle> PowerOfTwoModePropertyHandle;
+	TSharedPtr<IPropertyHandle> VirtualTextureStreamingPropertyHandle;
 	TArray<TSharedPtr<FString>> PowerOfTwoModeComboBoxList;
 	TWeakObjectPtr<UObject> TextureBeingCustomized;
 	TSharedPtr<STextComboBox> TextComboBox;

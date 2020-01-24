@@ -11,7 +11,9 @@
 #include "Linux/LinuxSystemIncludes.h"
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	#include "Math/UnrealPlatformMathSSE.h"
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+#elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	#include <arm_neon.h>
+#endif
 
 /**
 * Linux implementation of the Math OS functions

@@ -288,9 +288,9 @@ namespace ShaderDrawDebug
 			}
 
 			ValidateShaderParameters(*PixelShader, PassParameters->ShaderDrawPSParameters);
-			ClearUnusedGraphResources(*PixelShader, &PassParameters->ShaderDrawPSParameters);
+			ClearUnusedGraphResources(*PixelShader, &PassParameters->ShaderDrawPSParameters, { IndirectBuffer });
 			ValidateShaderParameters(*VertexShader, PassParameters->ShaderDrawVSParameters);
-			ClearUnusedGraphResources(*VertexShader, &PassParameters->ShaderDrawVSParameters);
+			ClearUnusedGraphResources(*VertexShader, &PassParameters->ShaderDrawVSParameters, { IndirectBuffer });
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ShaderDrawDebug"),
@@ -298,6 +298,12 @@ namespace ShaderDrawDebug
 				ERDGPassFlags::Raster,
 				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bIsBehindDepth, bUseRdgInput](FRHICommandListImmediate& RHICmdListImmediate)
 			{
+				// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
+				if (bUseRdgInput)
+				{
+					PassParameters->ShaderDrawVSParameters.IndirectBuffer->MarkResourceAsUsed();
+				}
+
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);
 				GraphicsPSOInit.DepthStencilState = bIsBehindDepth ? TStaticDepthStencilState<false, CF_DepthFarther>::GetRHI() : TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
@@ -315,7 +321,10 @@ namespace ShaderDrawDebug
 
 				if (bUseRdgInput)
 				{
-					RHICmdListImmediate.DrawPrimitiveIndirect(IndirectBuffer->GetIndirectRHICallBuffer(), 0);
+					// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
+					FRHIVertexBuffer* IndirectBufferRHI = PassParameters->ShaderDrawVSParameters.IndirectBuffer->GetIndirectRHICallBuffer();
+					check(IndirectBufferRHI != nullptr);
+					RHICmdListImmediate.DrawPrimitiveIndirect(IndirectBufferRHI, 0);
 				}
 				else
 				{
@@ -347,7 +356,6 @@ namespace ShaderDrawDebug
 				FShaderDrawDebugCopyCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FShaderDrawDebugCopyCS::FBufferType>(0);
 				TShaderMapRef<FShaderDrawDebugCopyCS> ComputeShader(View.ShaderMap, PermutationVector);
-
 				FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
 				Parameters->NumElements = NumElements;
 				Parameters->InStructuredBuffer = GraphBuilder.CreateSRV(DataBuffer);

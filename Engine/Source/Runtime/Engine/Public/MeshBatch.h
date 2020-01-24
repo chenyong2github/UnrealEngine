@@ -88,7 +88,6 @@ struct FMeshBatchElement
 	uint8 InstancedLODIndex : 4;
 	uint8 InstancedLODRange : 4;
 	uint8 bUserDataIsColorVertexBuffer : 1;
-	uint8 bIsInstancedMesh : 1;
 	uint8 bIsSplineProxy : 1;
 	uint8 bIsInstanceRuns : 1;
 
@@ -133,7 +132,6 @@ struct FMeshBatchElement
 	,	InstancedLODIndex(0)
 	,	InstancedLODRange(0)
 	,	bUserDataIsColorVertexBuffer(false)
-	,   bIsInstancedMesh(false)
 	,	bIsSplineProxy(false)
 	,	bIsInstanceRuns(false)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

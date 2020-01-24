@@ -278,6 +278,9 @@ public:
 	/** External bindings for this shader. */
 	FOpenGLShaderBindings Bindings;
 
+	/** Static slots for each uniform buffer. */
+	TArray<FUniformBufferStaticSlot> StaticSlots;
+
 	// List of memory copies from RHIUniformBuffer to packed uniforms
 	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
 

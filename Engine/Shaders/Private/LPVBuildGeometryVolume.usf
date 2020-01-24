@@ -48,7 +48,7 @@ void CSBuildGeometryVolume(uint3 DTid : SV_DispatchThreadID)
 	while (listIndex != -1 )
 	{
 		VplListEntry listEntry = gGvListBuffer[ listIndex ];
-		Vpl	vpl = UnpackVpl( listEntry );  
+		VplData	vpl = UnpackVpl( listEntry );  
 
 		// Weight according to projected texel size 1 / N dot L
 		float nDotL = abs( dot( LpvWrite.GeometryVolumeCaptureLightDirection.xyz, vpl.normal ) );

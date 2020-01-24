@@ -63,9 +63,6 @@ namespace NiagaraShaderCookStats
 TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> FNiagaraShaderMap::GIdToNiagaraShaderMap[SP_NumPlatforms];
 TArray<FNiagaraShaderMap*> FNiagaraShaderMap::AllNiagaraShaderMaps;
 
-// The Id of 0 is reserved for global shaders
-uint32 FNiagaraShaderMap::NextCompilingId = 2;
-
 
 /** 
  * Tracks FNiagaraShaderScripts and their shader maps that are being compiled.
@@ -422,7 +419,7 @@ void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 		{
 			if (It.Key() == StructIt->GetShaderVariableName())
 			{
-				StructIt->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.ResourceTableLayoutHashes);
+				StructIt->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.ResourceTableLayoutHashes, OutEnvironment.ResourceTableLayoutSlots);
 			}
 		}
 	}
@@ -840,11 +837,8 @@ void FNiagaraShaderMap::Compile(
 		{
 			Script->RemoveOutstandingCompileId(CompilingId);
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
-			CompilingId = NextCompilingId;
+			CompilingId = FShaderCommonCompileJob::GetNextJobId();
 			Script->AddCompileId(CompilingId);
-
-			check(NextCompilingId < UINT_MAX);
-			NextCompilingId++;
   
 			TArray<FNiagaraShaderScript*> NewCorrespondingScripts;
 			NewCorrespondingScripts.Add(Script);
@@ -913,14 +907,14 @@ void FNiagaraShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			FNiagaraShaderCompilationManager::Get().AddJobs(NewJobs);
+			GNiagaraShaderCompilationManager.AddJobs(NewJobs);
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
 			{
 				TArray<int32> CurrentShaderMapId;
 				CurrentShaderMapId.Add(CompilingId);
-				FNiagaraShaderCompilationManager::Get().FinishCompilation(*FriendlyName, CurrentShaderMapId);
+				GNiagaraShaderCompilationManager.FinishCompilation(*FriendlyName, CurrentShaderMapId);
 			}
 		}
 	}

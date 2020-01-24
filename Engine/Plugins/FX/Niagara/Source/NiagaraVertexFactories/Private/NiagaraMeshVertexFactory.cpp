@@ -82,7 +82,6 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const override
 	{
-		const bool bInstanced = GRHISupportsInstancing;
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 
@@ -167,8 +166,6 @@ public:
 void FNiagaraMeshVertexFactory::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-
-	check(GRHISupportsInstancing);
 
 	{
 		if (Data.PositionComponent.VertexBuffer != NULL)

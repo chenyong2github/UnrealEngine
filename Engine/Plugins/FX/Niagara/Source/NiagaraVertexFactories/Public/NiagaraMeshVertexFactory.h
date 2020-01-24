@@ -212,10 +212,12 @@ class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEmulatedInstancing : p
 	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing);
 
 public:
+	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
 	FNiagaraMeshVertexFactoryEmulatedInstancing(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
 	{}
 
+	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
 	FNiagaraMeshVertexFactoryEmulatedInstancing()
 		: FNiagaraMeshVertexFactory()
 	{}
@@ -236,24 +238,10 @@ public:
 
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory()
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FNiagaraMeshVertexFactory();
-	}
-	else
-	{
-		return new FNiagaraMeshVertexFactoryEmulatedInstancing();
-	}
+	return new FNiagaraMeshVertexFactory();
 }
 
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FNiagaraMeshVertexFactory(InType, InFeatureLevel);
-	}
-	else
-	{
-		return new FNiagaraMeshVertexFactoryEmulatedInstancing(InType, InFeatureLevel);
-	}
+	return new FNiagaraMeshVertexFactory(InType, InFeatureLevel);
 }

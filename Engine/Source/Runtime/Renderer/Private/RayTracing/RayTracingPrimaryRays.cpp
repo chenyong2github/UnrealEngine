@@ -24,7 +24,9 @@ class FRayTracingPrimaryRaysRGS : public FGlobalShader
 
 	class FDenoiserOutput : SHADER_PERMUTATION_BOOL("DIM_DENOISER_OUTPUT");
 	class FEnableTwoSidedGeometryForShadowDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
-	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FEnableTwoSidedGeometryForShadowDim>;
+	class FMissShaderLighting : SHADER_PERMUTATION_BOOL("DIM_MISS_SHADER_LIGHTING");
+
+	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FEnableTwoSidedGeometryForShadowDim, FMissShaderLighting>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, SamplesPerPixel)
@@ -71,8 +73,14 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingPrimaryRaysRGS, "/Engine/Private/RayTracing/R
 void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
+
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
+
+	const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
+	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bLightingMissShader);
+
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
 	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
 }
@@ -138,10 +146,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->PrimaryRayFlags = (uint32)Flags;
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-
-	FStructuredBufferRHIRef LightingDataBuffer;
-	PassParameters->LightDataPacked = CreateLightDataPackedUniformBuffer(Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame, LightingDataBuffer);
-	PassParameters->LightDataBuffer = RHICreateShaderResourceView(LightingDataBuffer);
+	PassParameters->LightDataPacked = View.RayTracingLightingDataUniformBuffer;
+	PassParameters->LightDataBuffer = View.RayTracingLightingDataSRV;
 
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->SceneTextureSamplers = SceneTextureSamplers;
@@ -156,15 +162,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->RayHitDistanceOutput = GraphBuilder.CreateUAV(*InOutRayHitDistanceTexture);
 
 	// TODO: should be converted to RDG
-	TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*)GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList));
-	if (!SubsurfaceProfileRT)
-	{
-		SubsurfaceProfileRT = GSystemTextures.BlackDummy;
-	}
-	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(SubsurfaceProfileRT);
+	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
+
+	const bool bMissShaderLighting = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
 
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+	PermutationVector.Set< FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bMissShaderLighting);
+
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
 
 	ClearUnusedGraphResources(RayGenShader, PassParameters);

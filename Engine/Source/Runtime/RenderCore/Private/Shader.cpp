@@ -42,6 +42,13 @@ static TAutoConsoleVariable<int32> CVarUsePipelines(
 	1,
 	TEXT("Enable using Shader pipelines."));
 
+static TAutoConsoleVariable<int32> CVarSkipShaderCompression(
+	TEXT("r.SkipShaderCompression"),
+	0,
+	TEXT("Skips shader compression after compiling. Shader compression time can be quite significant when using debug shaders. This CVar is only valid in non-shipping/test builds."),
+	ECVF_ReadOnly | ECVF_Cheat
+	);
+
 static TLinkedList<FShaderType*>*			GShaderTypeList = nullptr;
 static TLinkedList<FShaderPipelineType*>*	GShaderPipelineList = nullptr;
 static TMap<FName, FShaderType*>*			GShaderNameToTypeMap = nullptr;
@@ -701,10 +708,21 @@ void FShaderResource::CompressCode(const TArray<uint8>& UncompressedCode)
 	UncompressedCodeSize = UncompressedCode.Num();
 	Code = UncompressedCode;
 	int32 CompressedSize = Code.Num();
-	if (FCompression::CompressMemory(ShaderCompressionFormat, Code.GetData(), CompressedSize, UncompressedCode.GetData(), UncompressedCode.Num()))
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (!CVarSkipShaderCompression.GetValueOnAnyThread())
 	{
-		Code.SetNum(CompressedSize);
+#endif
+
+		if (FCompression::CompressMemory(ShaderCompressionFormat, Code.GetData(), CompressedSize, UncompressedCode.GetData(), UncompressedCode.Num()))
+		{
+			Code.SetNum(CompressedSize);
+		}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	}
+#endif
+
 	Code.Shrink();
 }
 
@@ -911,12 +929,10 @@ bool FShaderResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform, ES
 		bFeatureLevelCompatible = GetMaxSupportedFeatureLevel(CurrentPlatform) >= GetMaxSupportedFeatureLevel(TargetPlatform);
 		
 		bool const bIsTargetD3D = TargetPlatform == SP_PCD3D_SM5 ||
-		TargetPlatform == SP_PCD3D_ES3_1 ||
-		TargetPlatform == SP_PCD3D_ES2;
+		TargetPlatform == SP_PCD3D_ES3_1;
 		
 		bool const bIsCurrentPlatformD3D = CurrentPlatform == SP_PCD3D_SM5 ||
-		TargetPlatform == SP_PCD3D_ES3_1 ||
-		CurrentPlatform == SP_PCD3D_ES2;
+		CurrentPlatform == SP_PCD3D_ES3_1;
 		
 		// For Metal in Editor we can switch feature-levels, but not in cooked projects when using Metal shader librariss.
 		bool const bIsCurrentMetal = IsMetalPlatform(CurrentPlatform);

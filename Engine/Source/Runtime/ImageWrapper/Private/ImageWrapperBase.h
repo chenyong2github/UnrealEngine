@@ -27,9 +27,19 @@ public:
 	 *
 	 * @return A read-only byte array containing the data.
 	 */
-	const TArray<uint8>& GetRawData() const
+	const TArray64<uint8>& GetRawData() const
 	{
 		return RawData;
+	}
+
+	/**
+	 * Moves the image's raw data into the provided array.
+	 *
+	 * @param OutRawData The destination array.
+	 */
+	void MoveRawData(TArray64<uint8>& OutRawData)
+	{
+		OutRawData = MoveTemp(RawData);
 	}
 
 public:
@@ -64,7 +74,7 @@ public:
 
 	//~ IImageWrapper interface
 
-	virtual const TArray<uint8>& GetCompressed(int32 Quality = 0) override;
+	virtual const TArray64<uint8>& GetCompressed(int32 Quality = 0) override;
 
 	virtual int32 GetBitDepth() const override
 	{
@@ -81,7 +91,7 @@ public:
 		return Height;
 	}
 
-	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, const TArray<uint8>*& OutRawData) override;
+	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;
 
 	virtual int32 GetWidth() const override
 	{
@@ -98,15 +108,15 @@ public:
 		return Framerate;
 	}
 
-	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) override;
-	virtual bool SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
+	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
+	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
 	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
 
 protected:
 
 	/** Arrays of compressed/raw data */
-	TArray<uint8> RawData;
-	TArray<uint8> CompressedData;
+	TArray64<uint8> RawData;
+	TArray64<uint8> CompressedData;
 
 	/** Format of the raw data */
 	ERGBFormat RawFormat;

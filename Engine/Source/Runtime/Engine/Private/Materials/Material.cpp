@@ -915,7 +915,6 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bEnableCrackFreeDisplacement = false;
 	bEnableAdaptiveTessellation = true;
 	MaxDisplacement = 0.0f;
-	bOutputVelocityOnBasePass = true;
 	bEnableSeparateTranslucency = true;
 	bEnableMobileSeparateTranslucency = false;
 	bEnableResponsiveAA = false;

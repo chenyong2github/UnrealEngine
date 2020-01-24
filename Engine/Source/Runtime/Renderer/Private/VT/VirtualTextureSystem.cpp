@@ -492,16 +492,7 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		NumPhysicalGroups = Desc.NumTextureLayers;
 	}
 
-	FVTSpaceDescription SpaceDesc;
-	SpaceDesc.Dimensions = Desc.Dimensions;
-	SpaceDesc.NumPageTableLayers = (uint8)NumPhysicalGroups;
-	SpaceDesc.TileSize = Desc.TileSize;
-	SpaceDesc.TileBorderSize = Desc.TileBorderSize;
-	SpaceDesc.bPrivateSpace = Desc.bPrivateSpace;
-	SpaceDesc.PageTableFormat = bSupport16BitPageTable ? EVTPageTableFormat::UInt16 : EVTPageTableFormat::UInt32;
-	FVirtualTextureSpace* Space = AcquireSpace(SpaceDesc, FMath::Max(BlockWidthInTiles * WidthInBlocks, BlockHeightInTiles * HeightInBlocks));
-
-	AllocatedVT = new FAllocatedVirtualTexture(this, Frame, Desc, Space, ProducerForLayer, BlockWidthInTiles, BlockHeightInTiles, WidthInBlocks, HeightInBlocks, DepthInTiles);
+	AllocatedVT = new FAllocatedVirtualTexture(this, Frame, Desc, ProducerForLayer, BlockWidthInTiles, BlockHeightInTiles, WidthInBlocks, HeightInBlocks, DepthInTiles);
 	if (bAnyLayerProducerWantsPersistentHighestMip)
 	{
 		AllocatedVTsToMap.Add(AllocatedVT);
@@ -574,11 +565,12 @@ FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextu
 	return Producers.FindProducer(Handle);
 }
 
-FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded)
+FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, FAllocatedVirtualTexture* AllocatedVT)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
 
 	// If InDesc requests a private space, don't reuse any existing spaces
+	uint32 NumFailedAllocations = 0u;
 	if (!InDesc.bPrivateSpace)
 	{
 		for (uint32 SpaceIndex = 0u; SpaceIndex < MaxSpaces; ++SpaceIndex)
@@ -586,8 +578,17 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 			FVirtualTextureSpace* Space = Spaces[SpaceIndex].Get();
 			if (Space && Space->GetDescription() == InDesc)
 			{
-				Space->AddRef();
-				return Space;
+				const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
+				if (vAddress != ~0u)
+				{
+					AllocatedVT->VirtualAddress = vAddress;
+					Space->AddRef();
+					return Space;
+				}
+				else
+				{
+					++NumFailedAllocations;
+				}
 			}
 		}
 	}
@@ -596,17 +597,23 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 	{
 		if (!Spaces[SpaceIndex])
 		{
-			FVirtualTextureSpace* Space = new FVirtualTextureSpace(this, SpaceIndex, InDesc, InSizeNeeded);
+			FVirtualTextureSpace* Space = new FVirtualTextureSpace(this, SpaceIndex, InDesc, FMath::Max(AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles()));
 			Spaces[SpaceIndex].Reset(Space);
 			INC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
 			BeginInitResource(Space);
+
+			const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
+			check(vAddress != ~0u);
+			AllocatedVT->VirtualAddress = vAddress;
+
 			Space->AddRef();
 			return Space;
 		}
 	}
 
 	// out of space slots
-	check(false);
+	checkf(false, TEXT("Failed to acquire space for VT (%d x %d), failed to allocate from %d existing matching spaces"),
+		AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles(), NumFailedAllocations);
 	return nullptr;
 }
 

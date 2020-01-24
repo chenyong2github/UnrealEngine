@@ -56,9 +56,6 @@ struct ILanguageSpec
 
 	// Does this language require negating DDY?
 	virtual bool RequiresNegateDDY() const { return true; }
-
-	// Whether this language has to emulate structured buffers with a typed buffers
-	virtual bool EmulateStructuredWithTypedBuffers() const { return false; }
 };
 
 enum

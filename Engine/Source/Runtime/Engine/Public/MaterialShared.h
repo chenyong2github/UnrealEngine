@@ -1188,9 +1188,6 @@ private:
 	/** Uniform expressions generated from the material compile. */
 	FMaterialCompilationOutput MaterialCompilationOutput;
 
-	/** Next value for CompilingId. */
-	static uint32 NextCompilingId;
-
 	/** Tracks material resources and their shader maps that need to be compiled but whose compilation is being deferred. */
 	static TMap<TRefCountPtr<FMaterialShaderMap>, TArray<FMaterial*> > ShaderMapsBeingCompiled;
 
@@ -1479,9 +1476,9 @@ public:
 	virtual bool IsFullyRough() const { return false; }
 	virtual bool UseNormalCurvatureToRoughness() const { return false; }
 	virtual bool IsUsingFullPrecision() const { return false; }
+	virtual bool IsUsingPreintegratedGFForSimpleIBL() const { return false; }
 	virtual bool IsUsingHQForwardReflections() const { return false; }
 	virtual bool IsUsingPlanarForwardReflections() const { return false; }
-	virtual bool OutputsVelocityOnBasePass() const { return true; }
 	virtual bool IsNonmetal() const { return false; }
 	virtual bool UseLmDirectionality() const { return true; }
 	virtual bool IsMasked() const = 0;
@@ -2253,9 +2250,9 @@ public:
 	ENGINE_API virtual bool IsFullyRough() const override;
 	ENGINE_API virtual bool UseNormalCurvatureToRoughness() const override;
 	ENGINE_API virtual bool IsUsingFullPrecision() const override;
+	ENGINE_API virtual bool IsUsingPreintegratedGFForSimpleIBL() const override;
 	ENGINE_API virtual bool IsUsingHQForwardReflections() const override;
 	ENGINE_API virtual bool IsUsingPlanarForwardReflections() const override;
-	ENGINE_API virtual bool OutputsVelocityOnBasePass() const override;
 	ENGINE_API virtual bool IsNonmetal() const override;
 	ENGINE_API virtual bool UseLmDirectionality() const override;
 	ENGINE_API virtual enum EBlendMode GetBlendMode() const override;

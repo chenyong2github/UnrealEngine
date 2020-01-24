@@ -230,6 +230,8 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 	{
 		RayTracingDynamicVertexBuffer.Release();
 	});
+
+	check(!RayTracingDynamicVertexBuffer.Buffer.IsValid());
 #endif
 }
 
@@ -508,7 +510,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_ClearMorphBuffer);
 		if (IsValidRef(LOD.MorphVertexBuffer.GetUAV()))
 		{
-			ClearUAV(RHICmdList, LOD.MorphVertexBuffer.GetUAV(), LOD.MorphVertexBuffer.GetUAVSize(), 0);
+			RHICmdList.ClearUAVUint(LOD.MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LOD.MorphVertexBuffer.GetUAV());
 		}
 	}
@@ -835,7 +837,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			MorphTargetVertexInfoBuffers.GetNumWorkItems());
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, MorphVertexBuffer.GetUAV());
 
-		ClearUAV(RHICmdList, MorphVertexBuffer.GetUAV(), MorphVertexBuffer.GetUAVSize(), 0);
+		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 
 		RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
 

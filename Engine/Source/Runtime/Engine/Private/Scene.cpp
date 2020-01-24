@@ -167,8 +167,8 @@ FCameraExposureSettings::FCameraExposureSettings()
 
 	// next value might get overwritten by r.DefaultFeature.AutoExposure.Method
 	Method = AEM_Histogram;
-	LowPercent = 80.0f;
-	HighPercent = 98.3f;
+	LowPercent = 10.0f;
+	HighPercent = 90.0f;
 
 	if (bExtendedLuminanceRange)
 	{
@@ -189,7 +189,9 @@ FCameraExposureSettings::FCameraExposureSettings()
 	SpeedUp = 3.0f;
 	SpeedDown = 1.0f;
 	Bias = 0.0f;
-	CalibrationConstant	= 16.0;
+	CalibrationConstant	= 18.0;
+
+	ApplyPhysicalCameraExposure = 0;
 }
 
 void FCameraExposureSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
@@ -203,8 +205,10 @@ void FCameraExposureSettings::ExportToPostProcessSettings(FPostProcessSettings* 
 	OutPostProcessSettings->bOverride_AutoExposureSpeedDown = true;
 	OutPostProcessSettings->bOverride_AutoExposureBias = true;
 	OutPostProcessSettings->bOverride_AutoExposureBiasCurve = true;
+	OutPostProcessSettings->bOverride_AutoExposureMeterMask = true;
 	OutPostProcessSettings->bOverride_HistogramLogMin = true;
 	OutPostProcessSettings->bOverride_HistogramLogMax = true;
+	OutPostProcessSettings->bOverride_AutoExposureApplyPhysicalCameraExposure = true;
 
 	OutPostProcessSettings->AutoExposureLowPercent = LowPercent;
 	OutPostProcessSettings->AutoExposureHighPercent = HighPercent;
@@ -214,8 +218,10 @@ void FCameraExposureSettings::ExportToPostProcessSettings(FPostProcessSettings* 
 	OutPostProcessSettings->AutoExposureSpeedDown = SpeedDown;
 	OutPostProcessSettings->AutoExposureBias = Bias;
 	OutPostProcessSettings->AutoExposureBiasCurve = BiasCurve;
+	OutPostProcessSettings->AutoExposureMeterMask = MeterMask;
 	OutPostProcessSettings->HistogramLogMin = HistogramLogMin;
 	OutPostProcessSettings->HistogramLogMax = HistogramLogMax;
+	OutPostProcessSettings->AutoExposureApplyPhysicalCameraExposure = ApplyPhysicalCameraExposure;
 }
 
 
@@ -451,10 +457,10 @@ FPostProcessSettings::FPostProcessSettings()
 	// next value might get overwritten by r.DefaultFeature.AutoExposure.Method
 	CameraShutterSpeed = 60.f;
 	CameraISO = 100.f;
-	AutoExposureCalibrationConstant = 16.f;
+	AutoExposureCalibrationConstant_DEPRECATED = 16.f;
 	AutoExposureMethod = AEM_Histogram;
-	AutoExposureLowPercent = 80.0f;
-	AutoExposureHighPercent = 98.3f;
+	AutoExposureLowPercent = 10.0f;
+	AutoExposureHighPercent = 90.0f;
 
 	// next value might get overwritten by r.DefaultFeature.AutoExposure
 	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
@@ -477,6 +483,9 @@ FPostProcessSettings::FPostProcessSettings()
 	AutoExposureBias = 0.0f;
 	AutoExposureSpeedUp = 3.0f;
 	AutoExposureSpeedDown = 1.0f;
+
+	AutoExposureApplyPhysicalCameraExposure = 1;
+
 	LPVDirectionalOcclusionIntensity = 0.0f;
 	LPVDirectionalOcclusionRadius = 8.0f;
 	LPVDiffuseOcclusionExponent = 1.0f;
@@ -664,11 +673,13 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_AutoExposureHighPercent(Settings.bOverride_AutoExposureHighPercent)
 	, bOverride_AutoExposureMinBrightness(Settings.bOverride_AutoExposureMinBrightness)
 	, bOverride_AutoExposureMaxBrightness(Settings.bOverride_AutoExposureMaxBrightness)
-	, bOverride_AutoExposureCalibrationConstant(Settings.bOverride_AutoExposureCalibrationConstant)
+	, bOverride_AutoExposureCalibrationConstant_DEPRECATED(Settings.bOverride_AutoExposureCalibrationConstant_DEPRECATED)
 	, bOverride_AutoExposureSpeedUp(Settings.bOverride_AutoExposureSpeedUp)
 	, bOverride_AutoExposureSpeedDown(Settings.bOverride_AutoExposureSpeedDown)
 	, bOverride_AutoExposureBias(Settings.bOverride_AutoExposureBias)
 	, bOverride_AutoExposureBiasCurve(Settings.bOverride_AutoExposureBiasCurve)
+	, bOverride_AutoExposureMeterMask(Settings.bOverride_AutoExposureMeterMask)
+	, bOverride_AutoExposureApplyPhysicalCameraExposure(Settings.bOverride_AutoExposureApplyPhysicalCameraExposure)
 	, bOverride_HistogramLogMin(Settings.bOverride_HistogramLogMin)
 	, bOverride_HistogramLogMax(Settings.bOverride_HistogramLogMax)
 	, bOverride_LensFlareIntensity(Settings.bOverride_LensFlareIntensity)
@@ -841,7 +852,9 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, DepthOfFieldMinFstop(Settings.DepthOfFieldMinFstop)
 	, DepthOfFieldBladeCount(Settings.DepthOfFieldBladeCount)
 	, AutoExposureBias(Settings.AutoExposureBias)
+	, AutoExposureApplyPhysicalCameraExposure(Settings.AutoExposureApplyPhysicalCameraExposure)
 	, AutoExposureBiasCurve(Settings.AutoExposureBiasCurve)
+	, AutoExposureMeterMask(Settings.AutoExposureMeterMask)
 	, AutoExposureLowPercent(Settings.AutoExposureLowPercent)
 	, AutoExposureHighPercent(Settings.AutoExposureHighPercent)
 	, AutoExposureMinBrightness(Settings.AutoExposureMinBrightness)
@@ -850,7 +863,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, AutoExposureSpeedDown(Settings.AutoExposureSpeedDown)
 	, HistogramLogMin(Settings.HistogramLogMin)
 	, HistogramLogMax(Settings.HistogramLogMax)
-	, AutoExposureCalibrationConstant(Settings.AutoExposureCalibrationConstant)
+	, AutoExposureCalibrationConstant_DEPRECATED(Settings.AutoExposureCalibrationConstant_DEPRECATED)
 	, LensFlareIntensity(Settings.LensFlareIntensity)
 	, LensFlareTint(Settings.LensFlareTint)
 	, LensFlareBokehSize(Settings.LensFlareBokehSize)
@@ -955,6 +968,98 @@ bool FPostProcessSettings::Serialize(FArchive& Ar)
 	return false;
 }
 
+// Conversion estimate for auto-exposure parameters from 4.24 to 4.25. Because we reduced the complexity of the algorithm,
+// we can't do an exact match of legacy parameters to current parameters. So we are storing the backup exposure compensation just in case.
+float CalculateEyeAdaptationExposureVersionUpdate(const FPostProcessSettings& Settings, const bool bExtendedLuminanceRange)
+{
+	float ExtraExposureCompensation = 0.0f;
+
+	// Since we are doing this without CVars, we can not call LuminanceMaxFromLensAttenuation(). Instead, assume 1.0
+	const float CurrLuminanceMax = 1.0f; 
+	const float PrevLuminanceMax = bExtendedLuminanceRange ? 1.2f : 1.0f;
+
+	// In legacy, some parameters (like Calibration Constant) would apply an exposure bias before the min/max luminance clamp. So if we
+	// match the previous look of Calibration Constant by adding an exposure bias, it will look fine with wide EV ranges.  But it is 
+	// quite common for levels to fake manual exposure by forcing min and max luminance to the same value. In those cases adding an EV
+	// bias causes more problems than it solves.
+	//
+	// Additionally, when bExtendedLuminanceRange is false, in general, the range is pretty tight. So if we add one or two stops of
+	// exposure compensation it will often look much too bright.
+	//
+	// So the compromise is:
+	// 1. We always include the Luminance Max 1.2 conversion for Extended range, and keep it at 1.0 for not extended range.
+	// 2. When AutoExposureMinBrightness=AutoExposureMaxBrightness, do nothing (fake manual exposure).
+	// 3a. In Basic mode, apply the basic Calibration Constant (it behaves slightly differently when bExtendedLuminanceRange is true)
+	// 3b. In Histogram mode, when bExtendedLuminanceRange is false, do nothing.
+	// 3c. In Histogram mode, otherwise apply a rough perceptual conversion.
+	if (Settings.AutoExposureMinBrightness >= Settings.AutoExposureMaxBrightness)
+	{
+		// fake manual exposure, no op
+	}
+	else
+	{
+		if (Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
+		{
+			if (bExtendedLuminanceRange)
+			{
+				// add the Calibration Constant into EC
+				ExtraExposureCompensation += FMath::Log2(18.0f / Settings.AutoExposureCalibrationConstant_DEPRECATED);
+			}
+			else
+			{
+				// add the Calibration Constant into EC, but it without extended luminance range the minimum is 16.
+				ExtraExposureCompensation += FMath::Log2(18 / FMath::Max(16.0f, Settings.AutoExposureCalibrationConstant_DEPRECATED));
+			}
+		}
+		else if (Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Histogram)
+		{
+			if (bExtendedLuminanceRange)
+			{
+				// We're matching the look of the old and new formula by adding exposure compensation. But this does not work correctly
+				// at the min and max values of the exposure range, because adding exposure compensation pushes it outside the clamped
+				// value. So in the general case of AutoExposureMinBrightness < AutoExposureMaxBrightness, tweak the exposure compensation
+				// to adjust the look. But in the other special case, do nothing.
+				if (Settings.AutoExposureMinBrightness < Settings.AutoExposureMaxBrightness)
+				{
+					// The previous version of the histogram would take the averge luminance between high and low, and then make that
+					// value the white point. This is different from basic exposure (and the new version) which makes that point 
+					// middle grey instead. The following formula gives a similar look for auto-conversion.
+					const float Average = ((Settings.AutoExposureLowPercent + Settings.AutoExposureHighPercent) * .5f);
+					const float X0 = 50.00f;
+					const float X1 = 89.15f;
+					const float Y0 = 1.0f;
+					const float Y1 = 1.5f;
+
+					// These numbers actually under-correct a bit. Since we are doing a hidden upgrade, it's better to undercorrect
+					// than to overcorrect.
+
+					const float T = (Average - X0) / (X1 - X0);
+					ExtraExposureCompensation += FMath::Lerp(Y0, Y1, T);
+				}
+				else
+				{
+					// no op, histogram auto-exposure is effectively being used as manual exposure
+				}
+			}
+			else
+			{
+				// If we are not in extended luminance range, then do nothing. The default ranges is pretty tight (0.03 linear to 2.0),
+				// so if we apply an exposure bias to "fix the look" it will probably do more harm than good.
+			}
+		}
+		else // ConvertedSettings.AutoExposureMethod == EAutoExposureMethod::AEM_Manual
+		{
+			// nothing to do
+		}
+	}
+
+	// add the exposure compensation from the LuminanceMax. In general, if extended luminance range is enabled, the old value should be 1.2 and the new
+	// value should be 1.0. Otherwise they should both be 1.0.
+	ExtraExposureCompensation += FMath::Log2(PrevLuminanceMax/ CurrLuminanceMax);
+
+	return ExtraExposureCompensation;
+}
+
 void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading())
@@ -990,6 +1095,33 @@ void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 			// This is only for assets saved in the the window DiaphragmDOFOnlyForDeferredShadingRenderer -> FocalDistanceDisablesDOF
 			DepthOfFieldFocalDistance = 0.0f;
 		}
+		
+		if (RenderingObjectVersion < FRenderingObjectVersion::AutoExposureChanges)
+		{
+			// Backup the exposure bias in case we run into a major problem with the conversion below
+			AutoExposureBiasBackup = AutoExposureBias;
+
+			// Only adjust this post process volume if the autoexposure values are selected. Speed up/down and new values are skipped from this check.
+			const bool bIsAnyNonDefault = bOverride_AutoExposureBias ||
+				bOverride_AutoExposureLowPercent ||
+				bOverride_AutoExposureHighPercent ||
+				bOverride_AutoExposureBiasCurve ||
+				bOverride_AutoExposureMethod ||
+				bOverride_AutoExposureMinBrightness ||
+				bOverride_AutoExposureMaxBrightness;
+
+			// Calculate an exposure bias to try and keep the look similar from 4.24 to 4.25
+			if (bIsAnyNonDefault)
+			{
+				const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
+				bool bExtendedLuminanceRange = (VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnAnyThread() == 1);
+
+				const float ExtraAutoExposureBias = CalculateEyeAdaptationExposureVersionUpdate(*this, bExtendedLuminanceRange);
+
+				AutoExposureBias += ExtraAutoExposureBias;
+			}
+		}
+
 	}
 }
 #endif

@@ -184,11 +184,6 @@ void FVirtualTextureFeedback::CreateResourceGPU( FRHICommandListImmediate& RHICm
 		FeedbackBufferUAV = RHICreateUnorderedAccessView(FeedbackBuffer, /*Format=*/ PF_R32_UINT);
 	}
 	
-	// Clear to default value
-	const uint32 ClearValue[4] = { ~0u, ~0u, ~0u, ~0u };
-	ClearUAV(RHICmdList, FeedbackBufferUAV.GetReference(), NumBytes, ~0u);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToGfx, FeedbackBufferUAV);
-
 	FeedBackFences->Init(RHICmdList);
 }
 

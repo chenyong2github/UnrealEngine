@@ -491,7 +491,7 @@ public:
 	void FlushRuntimeVirtualTexture();
 
 #if RHI_RAYTRACING
-	RENDERER_API FRayTracingGeometryRHIRef GetStaticRayTracingGeometryInstance(int LodLevel);
+	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 #endif
 
 private:

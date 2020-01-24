@@ -36,8 +36,7 @@ class FNiagaraShaderProcessorTickable : FTickableEditorObject
 
 	virtual void Tick(float DeltaSeconds) override
 	{
-		FNiagaraShaderCompilationManager::Get().Tick(DeltaSeconds);
-		FNiagaraShaderCompilationManager::Get().ProcessAsyncResults();
+		GNiagaraShaderCompilationManager.ProcessAsyncResults();
 	}
 
 	virtual TStatId GetStatId() const

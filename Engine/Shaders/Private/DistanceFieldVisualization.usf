@@ -290,5 +290,9 @@ void VisualizeDistanceFieldUpsamplePS(in float4 UVAndScreenPos : TEXCOORD0, out 
 
 	float3 Value = Texture2DSampleLevel(VisualizeDistanceFieldTexture, VisualizeDistanceFieldSampler, DistanceFieldUVs, 0).xyz;
 
+#if USE_PREEXPOSURE
+	Value *= View.PreExposure;
+#endif
+
 	OutColor = float4(Value, 1);
 }

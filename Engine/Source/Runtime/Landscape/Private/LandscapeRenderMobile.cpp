@@ -131,6 +131,7 @@ public:
 			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
 		}
 
+#if 0
 		FLandscapeComponentSceneProxy::FViewCustomDataLOD* LODData = (FLandscapeComponentSceneProxy::FViewCustomDataLOD*)InView->GetCustomData(SceneProxy->GetPrimitiveSceneInfo()->GetIndex());
 		int32 SubSectionIndex = BatchElementParams->SubX + BatchElementParams->SubY * SceneProxy->NumSubsections;
 
@@ -185,6 +186,7 @@ public:
 				}
 			}
 		}
+#endif
 	}
 protected:
 	FShaderParameter LodValuesParameter;

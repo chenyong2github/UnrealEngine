@@ -182,9 +182,11 @@ struct SFindStructMembersVisitor : public ir_rvalue_visitor
 				ir_variable* RecordVar = RValue->variable_referenced();
 				if (RecordVar->mode == ir_var_uniform)
 				{
-					check(RecordVar->type->is_record());
-					check(RecordVar->semantic && *RecordVar->semantic);
-					FoundRecordVars.insert(RecordVar);
+					if (RecordVar->type->is_record())
+					{
+						check(RecordVar->semantic && *RecordVar->semantic);
+						FoundRecordVars.insert(RecordVar);
+					}
 				}
 			}
 		}

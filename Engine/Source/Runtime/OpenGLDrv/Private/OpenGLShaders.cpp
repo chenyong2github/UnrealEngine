@@ -838,7 +838,20 @@ ShaderType* CompileOpenGLShader(const TArray<uint8>& InShaderCode, const FSHAHas
 	Shader->Resource = Resource;
 	Shader->Bindings = Header.Bindings;
 	Shader->UniformBuffersCopyInfo = Header.UniformBuffersCopyInfo;
-	
+	Shader->StaticSlots.Reserve(Header.Bindings.ShaderResourceTable.ResourceTableLayoutHashes.Num());
+
+	for (uint32 LayoutHash : Header.Bindings.ShaderResourceTable.ResourceTableLayoutHashes)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
+		{
+			Shader->StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			Shader->StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
+
 	if (FOpenGL::SupportsSeparateShaderObjects())
 	{
 		FSHAHash Hash;

@@ -528,6 +528,41 @@ FORCEINLINE typename TEnableIf<TAreTypesEqual<T, uint32>::Value, T>::Type Revers
 	return Bits;
 }
 
+/**
+ * Generates a bitmask with a given number of bits set.
+ */
+template <typename T>
+FORCEINLINE T BitMask( uint32 Count );
+
+template <>
+FORCEINLINE uint64 BitMask<uint64>( uint32 Count )
+{
+	checkSlow(Count <= 64);
+	return (uint64(Count < 64) << Count) - 1;
+}
+
+template <>
+FORCEINLINE uint32 BitMask<uint32>( uint32 Count )
+{
+	checkSlow(Count <= 32);
+	return uint32(uint64(1) << Count) - 1;
+}
+
+template <>
+FORCEINLINE uint16 BitMask<uint16>( uint32 Count )
+{
+	checkSlow(Count <= 16);
+	return uint16((uint32(1) << Count) - 1);
+}
+
+template <>
+FORCEINLINE uint8 BitMask<uint8>( uint32 Count )
+{
+	checkSlow(Count <= 8);
+	return uint8((uint32(1) << Count) - 1);
+}
+
+
 /** Template for initializing a singleton at the boot. */
 template< class T >
 struct TForceInitAtBoot

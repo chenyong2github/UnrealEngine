@@ -454,6 +454,11 @@ void FLinuxWindow::Restore()
 /** Native window should make itself visible */
 void FLinuxWindow::Show()
 {
+	if ( IsMinimized() )
+	{
+		Restore();
+	}
+
 	if ( !bIsVisible )
 	{
 		bIsVisible = true;

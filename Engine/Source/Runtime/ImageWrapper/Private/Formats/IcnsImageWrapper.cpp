@@ -14,7 +14,7 @@ FIcnsImageWrapper::FIcnsImageWrapper()
 /* FImageWrapper interface
  *****************************************************************************/
 
-bool FIcnsImageWrapper::SetCompressed(const void* InCompressedData, int32 InCompressedSize)
+bool FIcnsImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
 #if PLATFORM_MAC
 	return FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
@@ -24,7 +24,7 @@ bool FIcnsImageWrapper::SetCompressed(const void* InCompressedData, int32 InComp
 }
 
 
-bool FIcnsImageWrapper::SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FIcnsImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
 {
 #if PLATFORM_MAC
 	return FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth);
@@ -66,7 +66,7 @@ void FIcnsImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitD
 
 			if (Format == ERGBFormat::BGRA)
 			{
-				for (int32 Index = 0; Index < [Bitmap bytesPerPlane]; Index += 4)
+				for (int64 Index = 0; Index < [Bitmap bytesPerPlane]; Index += 4)
 				{
 					uint8 Byte = RawData[Index];
 					RawData[Index] = RawData[Index + 2];

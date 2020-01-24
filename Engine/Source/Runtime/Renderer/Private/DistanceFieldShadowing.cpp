@@ -893,7 +893,7 @@ void ScatterObjectsToShadowTiles(
 	PixelShader->GetUAVs(View, TileIntersectionResources, UAVs);
 	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, UAVs.GetData(), UAVs.Num());
 
-	FRHIRenderPassInfo RPInfo(UAVs.Num(), UAVs.GetData());
+	FRHIRenderPassInfo RPInfo(FRHIRenderPassInfo::NoRenderTargets);
 	if (GRHIRequiresRenderTargetForPixelShaderUAVs)
 	{
 		TRefCountPtr<IPooledRenderTarget> Dummy;
@@ -977,7 +977,8 @@ void CullDistanceFieldObjectsForLight_Internal(
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, CullObjectsToFrustum, TEXT("CullObjectsToFrustum %sObjects %d"), bIsHeightfield ? TEXT("HeightField") : TEXT("DistanceField"), NumObjectsInBuffer);
 
-			ClearUAV(RHICmdList, CulledObjectBuffers.Buffers.ObjectIndirectArguments, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV);
+			RHICmdList.ClearUAVUint(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 			TShaderMapRef<TCullObjectsForShadowCS<PrimitiveType>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
@@ -1026,12 +1027,14 @@ void CullDistanceFieldObjectsForLight_Internal(
 			SCOPED_DRAW_EVENT(RHICmdList, ComputeTileStartOffsets);
 
 			// Start at 0 tiles per object
-			ClearUAV(RHICmdList, TileIntersectionResources->TileNumCulledObjects, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TileIntersectionResources->TileNumCulledObjects.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->TileNumCulledObjects.UAV, FUintVector4(0, 0, 0, 0));
 
 			// Rasterize object bounding shapes and intersect with shadow tiles to compute how many objects intersect each tile
 			ScatterObjectsToShadowTiles<true, PrimitiveType>(RHICmdList, View, WorldToShadowValue, ShadowBoundingRadius, LightTileDimensions, TileIntersectionResources.Get());
 
-			ClearUAV(RHICmdList, TileIntersectionResources->NextStartOffset, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TileIntersectionResources->NextStartOffset.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->NextStartOffset.UAV, FUintVector4(0, 0, 0, 0));
 
 			uint32 GroupSizeX = FMath::DivideAndRoundUp<int32>(LightTileDimensions.X, ComputeCulledObjectStartOffsetGroupSize);
 			uint32 GroupSizeY = FMath::DivideAndRoundUp<int32>(LightTileDimensions.Y, ComputeCulledObjectStartOffsetGroupSize);
@@ -1048,7 +1051,8 @@ void CullDistanceFieldObjectsForLight_Internal(
 			SCOPED_DRAW_EVENTF(RHICmdList, CullObjectsToTiles, TEXT("CullObjectsToTiles %ux%u"), LightTileDimensions.X, LightTileDimensions.Y);
 
 			// Start at 0 tiles per object
-			ClearUAV(RHICmdList, TileIntersectionResources->TileNumCulledObjects, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TileIntersectionResources->TileNumCulledObjects.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->TileNumCulledObjects.UAV, FUintVector4(0, 0, 0, 0));
 
 			// Rasterize object bounding shapes and intersect with shadow tiles, and write out intersecting tile indices for the cone tracing pass
 			ScatterObjectsToShadowTiles<false, PrimitiveType>(RHICmdList, View, WorldToShadowValue, ShadowBoundingRadius, LightTileDimensions, TileIntersectionResources.Get());
@@ -1425,7 +1429,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandLis
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-				SetBlendStateForProjection(GraphicsPSOInit, bProjectingForForwardShading, false);
+				GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
 
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
