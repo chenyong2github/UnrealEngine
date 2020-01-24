@@ -5,6 +5,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Docking/LayoutExtender.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -325,6 +326,8 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("TimingProfilerMenuGroupName", "Timing Insights"));
 
+	Extension = MakeShared<FInsightsMajorTabExtender>(TabManager);
+
 	TabManager->RegisterTabSpawner(FTimingProfilerTabs::ToolbarID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Toolbar))
 		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Toolbar.Icon.Small"))
@@ -374,8 +377,14 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	FTraceInsightsModule& TraceInsightsModule = FModuleManager::GetModuleChecked<FTraceInsightsModule>("TraceInsights");
 	FInsightsMajorTabConfig TabConfig = TraceInsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
 
+	const FOnRegisterMajorTabExtensions* ExtensionDelegate = TraceInsightsModule.FindMajorTabLayoutExtension(FInsightsManagerTabs::TimingProfilerTabId);
+	if (ExtensionDelegate)
+	{
+		ExtensionDelegate->Broadcast(*Extension);
+	}
+
 	// Register any new minor tabs
-	for(const FInsightsMinorTabConfig& MinorTabConfig : TabConfig.MinorTabs)
+	for(const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
 	{
 		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab);
 
@@ -473,8 +482,10 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 			);
 	}
 
+	Layout->ProcessExtensions(Extension->GetLayoutExtender());
+
 	// Create & initialize main menu.
-	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>(), TabConfig.MenuExtender);
+	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>(), Extension->GetMenuExtender());
 
 	MenuBarBuilder.AddPullDownMenu(
 		LOCTEXT("MenuLabel", "Menu"),

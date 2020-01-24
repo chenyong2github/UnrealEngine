@@ -42,10 +42,12 @@ public:
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) override;
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) override;
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() override { return OnInsightsMajorTabCreatedDelegate; }
+	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) override;
 
 	/** Find a major tab config for the specified ID */
 	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
 
+	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
 protected:
 	void InitTraceStore();
 
@@ -95,6 +97,7 @@ protected:
 	TSharedPtr<Trace::IModuleService> TraceModuleService;
 
 	TMap<FName, FInsightsMajorTabConfig> TabConfigs;
+	TMap<FName, FOnRegisterMajorTabExtensions> MajorTabExtensionDelegates;
 
 	FOnInsightsMajorTabCreated OnInsightsMajorTabCreatedDelegate;
 

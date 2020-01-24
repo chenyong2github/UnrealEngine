@@ -14,6 +14,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/IUnrealInsightsModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -187,4 +188,7 @@ private:
 
 	/** The number of seconds the profiler has been active */
 	float DurationActive;
+
+	/** Tab specific slate extender structure, has the lifetime of this widget */
+	TSharedPtr<FInsightsMajorTabExtender> Extension;
 };

@@ -166,6 +166,7 @@ void FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearc
 
 void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
+#if WITH_ENGINE
 	MenuBuilder.BeginSection(TEXT("DrawingSection"), LOCTEXT("Drawing", "Drawing (Component)"));
 	{
 		MenuBuilder.AddMenuEntry(
@@ -317,6 +318,7 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			}
 		}
 	}
+#endif
 }
 
 #if WITH_ENGINE

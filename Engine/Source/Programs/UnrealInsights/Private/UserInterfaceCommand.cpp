@@ -123,6 +123,7 @@ void FUserInterfaceCommand::Run()
 	// Load plug-ins.
 	// @todo: allow for better plug-in support in standalone Slate applications
 	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PreDefault);
+	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::Default);
 
 	// Load optional modules.
 	FModuleManager::Get().LoadModule("SettingsEditor");

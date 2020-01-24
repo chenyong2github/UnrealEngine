@@ -14,9 +14,18 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
+	"SupportedPrograms": [ "UnrealInsights" ],
 	"Modules": [
 		{
 			"Name": "GameplayInsights",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default",
+			"WhitelistPrograms": [
+				"UnrealInsights"
+			]
+		},
+		{
+			"Name": "GameplayInsightsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

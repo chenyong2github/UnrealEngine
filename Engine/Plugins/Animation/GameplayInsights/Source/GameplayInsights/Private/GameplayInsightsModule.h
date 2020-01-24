@@ -7,6 +7,9 @@
 #include "GameplayTraceModule.h"
 #include "GameplayTimingViewExtender.h"
 #include "Framework/Docking/TabManager.h"
+#include "IGameplayInsightsModule.h"
+
+struct FInsightsMajorTabExtender;
 
 namespace Trace 
 {
@@ -23,6 +26,9 @@ public:
 
 	// Spawn a document tab
 	TSharedRef<SDockTab> SpawnTimingProfilerDocumentTab(const FTabManager::FSearchPreference& InSearchPreference);
+
+protected:
+	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
 private:
 	FGameplayTraceModule GameplayTraceModule;

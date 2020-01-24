@@ -27,10 +27,7 @@
 
 #define LOCTEXT_NAMESPACE "GameplayInsightsModule"
 
-namespace GameplayInsightsTabs
-{
-	static const FName DocumentTab("DocumentTab");
-};
+const FName GameplayInsightsTabs::DocumentTab("DocumentTab");
 
 void FGameplayInsightsModule::StartupModule()
 {
@@ -43,99 +40,105 @@ void FGameplayInsightsModule::StartupModule()
 		return true;
 	});
 
-#if WITH_EDITOR
-	IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
-	CustomDebugObjectHandle = AnimationBlueprintEditorModule.OnGetCustomDebugObjects().AddLambda([this](const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
-	{
-		GameplayTimingViewExtender.GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
-	});
-
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
-	// Create the Store Service.
-	FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
-	Trace::FStoreService::FDesc StoreServiceDesc;
-	StoreServiceDesc.StoreDir = *StoreDir;
-	StoreServiceDesc.RecorderPort = 0; // Let system decide port
-	StoreServiceDesc.ThreadCount = 2;
-	StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+#if WITH_EDITOR
+	if (!IsRunningCommandlet())
+	{
+		IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
+		CustomDebugObjectHandle = AnimationBlueprintEditorModule.OnGetCustomDebugObjects().AddLambda([this](const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
+		{
+			GameplayTimingViewExtender.GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
+		});
 
-	FCoreDelegates::OnPreExit.AddLambda([this]() {
-		StoreService.Reset();
-	});
+		// Create the Store Service.
+		FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+		Trace::FStoreService::FDesc StoreServiceDesc;
+		StoreServiceDesc.StoreDir = *StoreDir;
+		StoreServiceDesc.RecorderPort = 0; // Let system decide port
+		StoreServiceDesc.ThreadCount = 2;
+		StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
 
-	// Connect to our newly created store and setup the insights module
-	UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
-	Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
+		FCoreDelegates::OnPreExit.AddLambda([this]() {
+			StoreService.Reset();
+		});
 
-	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
+		// Connect to our newly created store and setup the insights module
+		UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
+		Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 
-	TSharedRef<FTabManager::FLayout> MajorTabsLayout = FTabManager::NewLayout("GameplayInsightsMajorLayout_v1.0")
-	->AddArea
-	(
-		FTabManager::NewArea(1280.f * DPIScaleFactor, 720.0f * DPIScaleFactor)
-		->Split
+		const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
+
+		TSharedRef<FTabManager::FLayout> MajorTabsLayout = FTabManager::NewLayout("GameplayInsightsMajorLayout_v1.0")
+		->AddArea
 		(
-			FTabManager::NewStack()
-			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
-		)
-	);
-
-	FInsightsMajorTabConfig TimingProfilerConfig;
-	TimingProfilerConfig.TabLabel = LOCTEXT("GameplayInsightsTabName", "Gameplay Insights");
-	TimingProfilerConfig.TabTooltip = LOCTEXT("GameplayInsightsTabTooltip", "Open the Gameplay Insights tab.");
-	TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.1")
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->SetOrientation(Orient_Horizontal)
-		->Split
-		(
-			FTabManager::NewSplitter()
-			->SetOrientation(Orient_Vertical)
-			->SetSizeCoefficient(0.7f)
+			FTabManager::NewArea(1280.f * DPIScaleFactor, 720.0f * DPIScaleFactor)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+				->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
+			)
+		);
+
+		FInsightsMajorTabConfig TimingProfilerConfig;
+		TimingProfilerConfig.TabLabel = LOCTEXT("GameplayInsightsTabName", "Gameplay Insights");
+		TimingProfilerConfig.TabTooltip = LOCTEXT("GameplayInsightsTabTooltip", "Open the Gameplay Insights tab.");
+		TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.1")
+		->AddArea
+		(
+			FTabManager::NewPrimaryArea()
+			->SetOrientation(Orient_Horizontal)
+			->Split
+			(
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(0.7f)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.1f)
+					->SetHideTabWell(true)
+					->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.9f)
+					->SetHideTabWell(true)
+					->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+				)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.9f)
-				->SetHideTabWell(true)
-				->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+				->SetSizeCoefficient(0.3f)
+				->AddTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab)
 			)
-		)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.3f)
-			->AddTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab)
-		)
-	);
+		);
+		TimingProfilerConfig.WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
+
+		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId, TimingProfilerConfig);
+		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::StartPageTabId, FInsightsMajorTabConfig::Unavailable());
+		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::SessionInfoTabId, FInsightsMajorTabConfig::Unavailable());
+		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
+		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
+
+		UnrealInsightsModule.CreateSessionViewer(false);
+		UnrealInsightsModule.StartAnalysisForLastLiveSession();
+	}
+
+#else
+	FOnRegisterMajorTabExtensions& TimingProfilerExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
+	TimingProfilerExtension.AddRaw(this, &FGameplayInsightsModule::RegisterTimingProfilerLayoutExtensions);
+#endif
 
 	UnrealInsightsModule.OnMajorTabCreated().AddLambda([this](const FName& InMajorTabId, TSharedPtr<FTabManager> InTabManager)
 	{
-		if(InMajorTabId == FInsightsManagerTabs::TimingProfilerTabId)
+		if (InMajorTabId == FInsightsManagerTabs::TimingProfilerTabId)
 		{
 			WeakTimingProfilerTabManager = InTabManager;
 		}
 	});
-
-	TimingProfilerConfig.WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
-
-	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId, TimingProfilerConfig);
-	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::StartPageTabId, FInsightsMajorTabConfig::Unavailable());
-	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::SessionInfoTabId, FInsightsMajorTabConfig::Unavailable());
-	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
-	UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
-
-	UnrealInsightsModule.CreateSessionViewer(false);
-	UnrealInsightsModule.StartAnalysisForLastLiveSession();
-#endif
 }
 
 void FGameplayInsightsModule::ShutdownModule()
@@ -146,6 +149,10 @@ void FGameplayInsightsModule::ShutdownModule()
 	{
 		AnimationBlueprintEditorModule->OnGetCustomDebugObjects().Remove(CustomDebugObjectHandle);
 	}
+#else
+	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	FOnRegisterMajorTabExtensions& TimingProfilerLayoutExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
+	TimingProfilerLayoutExtension.RemoveAll(this);
 #endif
 
 	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
@@ -163,6 +170,11 @@ TSharedRef<SDockTab> FGameplayInsightsModule::SpawnTimingProfilerDocumentTab(con
 		TimingProfilerTabManager->InsertNewDocumentTab(GameplayInsightsTabs::DocumentTab, InSearchPreference, NewTab);
 	}
 	return NewTab;
+}
+
+void FGameplayInsightsModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender)
+{
+	InOutExtender.GetLayoutExtender().ExtendLayout(FTimingProfilerTabs::TimersID, ELayoutExtensionPosition::Before, FTabManager::FTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab));
 }
 
 IMPLEMENT_MODULE(FGameplayInsightsModule, GameplayInsights);

@@ -352,6 +352,14 @@ void FTraceInsightsModule::UnregisterMajorTabConfig(const FName& InMajorTabId)
 	TabConfigs.Remove(InMajorTabId);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FOnRegisterMajorTabExtensions& FTraceInsightsModule::OnRegisterMajorTabExtension(const FName& InMajorTabId)
+{
+	return MajorTabExtensionDelegates.FindOrAdd(InMajorTabId);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FName& InMajorTabId) const
@@ -364,6 +372,13 @@ const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FN
 
 	static FInsightsMajorTabConfig DefaultConfig;
 	return DefaultConfig;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExtension(const FName& InMajorTabId) const
+{
+	return MajorTabExtensionDelegates.Find(InMajorTabId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

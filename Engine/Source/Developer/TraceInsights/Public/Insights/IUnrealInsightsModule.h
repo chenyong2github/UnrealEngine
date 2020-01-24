@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Framework/Docking/TabManager.h"
+#include "Framework/Docking/LayoutExtender.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 
 class FExtender;
 
@@ -96,15 +98,36 @@ struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 	/** The menu workspace group to use. If not specified, the default will be used. */
 	TSharedPtr<FWorkspaceItem> WorkspaceGroup;
 
+	/** Whether the tab is available for selection (i.e. registered with the tab manager) */
+	bool bIsAvailable;
+};
+
+/** Combination of extenders applied to the individual major tabs within Insights */
+struct TRACEINSIGHTS_API FInsightsMajorTabExtender
+{
+	FInsightsMajorTabExtender(TSharedPtr<FTabManager>& InTabManager) : MenuExtender(MakeShared<FExtender>()), TabManager(InTabManager) {}
+	
+	TSharedPtr<FExtender>& GetMenuExtender() { return MenuExtender; }
+	FLayoutExtender& GetLayoutExtender() { return LayoutExtender; }
+	FInsightsMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }	
+	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
+	const TArray<FInsightsMinorTabConfig>& GetMinorTabs() const { return MinorTabs; }
+protected:
 	/** Extender used to add to the menu for this tab */
 	TSharedPtr<FExtender> MenuExtender;
 
 	/** Any additional minor tabs to add */
 	TArray<FInsightsMinorTabConfig> MinorTabs;
 
-	/** Whether the tab is available for selection (i.e. registered with the tab manager) */
-	bool bIsAvailable;
+	/** Extender used when creating the layout for this tab */
+	FLayoutExtender LayoutExtender;
+
+	/** Tab manager for this major tab*/
+	TSharedPtr<FTabManager> TabManager;
 };
+
+/** Called back to register common layout extensions */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterMajorTabExtensions, FInsightsMajorTabExtender&);
 
 /** Interface for an Unreal Insights module. */
 class IUnrealInsightsModule : public IModuleInterface
@@ -165,6 +188,12 @@ public:
 	 * @param	InMajorTabId	The major tab ID we are supplying a layout to
 	 */
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) = 0;
+	
+	/**
+	 * Allows for registering a delegate callback for populating a FInsightsMajorTabExtender structure	 
+	 * @param	InMajorTabId	The major tab ID to register the delegate for
+	 */
+	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) = 0;
 
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;

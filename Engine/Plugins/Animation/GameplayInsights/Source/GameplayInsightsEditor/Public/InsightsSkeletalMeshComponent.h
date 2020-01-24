@@ -11,7 +11,7 @@ struct FSkeletalMeshPoseMessage;
 struct FSkeletalMeshInfo;
 
 UCLASS()
-class UInsightsSkeletalMeshComponent : public USkeletalMeshComponent
+class GAMEPLAYINSIGHTSEDITOR_API UInsightsSkeletalMeshComponent : public USkeletalMeshComponent
 {
 	GENERATED_BODY()
 

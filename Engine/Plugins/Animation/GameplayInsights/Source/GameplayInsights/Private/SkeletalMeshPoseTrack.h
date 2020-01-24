@@ -64,9 +64,10 @@ private:
 	// Helper function used to find a skeletal mesh pose
 	void FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const;
 
+#if WITH_ENGINE
 	// Updates component visibility based on draw pose flag
 	void UpdateComponentVisibility();
-
+#endif
 private:
 	/** The shared data */
 	const FAnimationSharedData& SharedData;

@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
 					"AnimationBlueprintEditor",
 					"Persona",
 					"UnrealEd",
+  					"GameplayInsightsEditor"
 				});
 			}
 		}

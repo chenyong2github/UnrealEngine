@@ -18,10 +18,13 @@
 #include "GameplayInsightsModule.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Animation/AnimTypes.h"
 #include "AnimNotifiesTrack.h"
 #include "MontageTrack.h"
 #include "STrackVariantValueView.h"
+
+#if WITH_ENGINE
+#include "Animation/AnimTypes.h"
+#endif 
 
 #if WITH_EDITOR
 #include "EditorViewportClient.h"
