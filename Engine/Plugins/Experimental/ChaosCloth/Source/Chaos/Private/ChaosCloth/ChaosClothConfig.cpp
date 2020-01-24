@@ -88,6 +88,8 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 	GravityScale = ClothConfig.GravityScale;
 
 	Gravity = ClothConfig.GravityOverride;
+
+	bUseDampingOverride = false;  // Damping is migrated to per cloth configs
 }
 
 void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)
