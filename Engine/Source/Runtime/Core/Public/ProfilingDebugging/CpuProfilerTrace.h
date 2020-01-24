@@ -19,8 +19,7 @@
 
 // @note Cannot use the declare macros in this header since including
 // Trace.h will result in a circular dependency.
-CORE_API extern Trace::FChannel CpuProfilerChannel;
-CORE_API extern Trace::FChannel NamedEventsChannel;
+CORE_API extern Trace::FChannel CpuChannel;
 
 struct FCpuProfilerTrace
 {
@@ -89,13 +88,13 @@ struct FCpuProfilerTrace
 	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(#Name, Channel)
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
-	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(Name, CpuProfilerChannel)
+	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(Name, CpuChannel)
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(Name, Channel) \
 	FCpuProfilerTrace::FDynamicEventScope PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__)(Name, Channel);
 	
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(Name) \
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(Name, CpuProfilerChannel)
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(Name, CpuChannel)
 
 #else
 

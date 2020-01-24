@@ -12,8 +12,7 @@
 
 #if CPUPROFILERTRACE_ENABLED
 
-UE_TRACE_CHANNEL_DEFINE(CpuProfilerChannel)
-UE_TRACE_CHANNEL_DEFINE(NamedEventsChannel)
+UE_TRACE_CHANNEL_DEFINE(CpuChannel)
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
@@ -99,7 +98,7 @@ FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThrea
 
 void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 {
-	UE_TRACE_LOG(CpuProfiler, EventBatch, CpuProfilerChannel, InThreadBuffer->BufferSize)
+	UE_TRACE_LOG(CpuProfiler, EventBatch, CpuChannel, InThreadBuffer->BufferSize)
 		<< EventBatch.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< EventBatch.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
@@ -107,7 +106,7 @@ void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE() \
 	++FCpuProfilerTraceInternal::ThreadDepth; \
-	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuProfilerChannel); \
+	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuChannel); \
 	if (!bEventEnabled) \
 	{ \
 		return; \
@@ -173,7 +172,7 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, const Trace::
 void FCpuProfilerTrace::OutputEndEvent(const Trace::FChannel& Channel)
 {
 	--FCpuProfilerTraceInternal::ThreadDepth;
-	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuProfilerChannel);
+	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuChannel);
 	if (!bEventEnabled)
 	{
 		return;
@@ -205,7 +204,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuProfilerChannel, NameSize)
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
 		<< EventSpec.CharSize(sizeof(TCHAR))
 		<< EventSpec.Attachment(Name, NameSize);
@@ -216,7 +215,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameSize = strlen(Name) + 1;
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuProfilerChannel, NameSize)
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
 		<< EventSpec.CharSize(1)
 		<< EventSpec.Attachment(Name, NameSize);
@@ -227,7 +226,7 @@ void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
 {
 	if (FParse::Param(CmdLine, TEXT("cpuprofilertrace")))
 	{
-		Trace::ToggleChannel(CpuProfilerChannel, true);
+		Trace::ToggleChannel(CpuChannel, true);
 	}
 }
 
