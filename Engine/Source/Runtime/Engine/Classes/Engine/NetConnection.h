@@ -24,7 +24,7 @@
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
 #include "Net/Core/Misc/PacketTraits.h"
-#include "Net/Util/ResizableCircularQueue.h"
+#include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 
 #include "NetConnection.generated.h"

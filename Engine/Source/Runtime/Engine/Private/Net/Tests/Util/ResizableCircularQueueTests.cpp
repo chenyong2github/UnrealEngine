@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
-#include "Net/Util/ResizableCircularQueue.h"
+#include "Net/Core/Misc/ResizableCircularQueue.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
