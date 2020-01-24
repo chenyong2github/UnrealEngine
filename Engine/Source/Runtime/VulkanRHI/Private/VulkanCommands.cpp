@@ -501,7 +501,7 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
 			FRHIUnorderedAccessView* CurrentUAV = (FRHIUnorderedAccessView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (UAV)
+			if (CurrentUAV)
 			{
 				FVulkanUnorderedAccessView* UAV = ResourceCast(CurrentUAV);
 				State->SetUAVForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, UAV);
