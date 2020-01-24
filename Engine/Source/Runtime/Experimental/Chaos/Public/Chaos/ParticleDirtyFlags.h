@@ -38,9 +38,10 @@ namespace Chaos
 		UniqueIdx				= 1 << 26,
 		ShapeDisableCollision	= 1 << 27,
 		CollisionTraceType		= 1 << 28,
-		ShapeSimData            = 1 << 29
+		ShapeSimData            = 1 << 29,
+		UserData				= 1 << 30
 #if CHAOS_CHECKED
-		, DebugName				= 1 << 30
+		, DebugName				= 1 << 31
 #endif
 	};
 

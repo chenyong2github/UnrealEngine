@@ -50,6 +50,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
+	Concrete.SetUserData(nullptr);
 }
 
 template <typename T, int d, typename FConcrete>
@@ -360,6 +361,9 @@ public:
 
 	FUniqueIdx UniqueIdx() const { return GeometryParticles->UniqueIdx(ParticleIdx); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
+
+	void* UserData() const { return GeometryParticles->UserData(ParticleIdx); }
+	void SetUserData(void* InUserData) { GeometryParticles->UserData(ParticleIdx) = InUserData; }
 
 	const TRotation<T, d>& R() const { return GeometryParticles->R(ParticleIdx); }
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
@@ -1361,6 +1365,7 @@ public:
 	void* UserData() const { return this->MUserData; }
 	void SetUserData(void* InUserData)
 	{
+		this->MarkDirty(EParticleFlags::UserData);
 		this->MUserData = InUserData;
 	}
 
@@ -1560,6 +1565,7 @@ public:
 		, X(TVector<T, d>(0))
 		, R(TRotation<T, d>())
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
+		, UserData(nullptr)
 		, DirtyFlags()
 #if CHAOS_CHECKED
 		, DebugName(NAME_None)
@@ -1573,6 +1579,7 @@ public:
 		, Geometry(InParticle.GeometrySharedLowLevel())
 		, SpatialIdx(InParticle.SpatialIdx())
 		, UniqueIdx(InParticle.UniqueIdx())
+		, UserData(InParticle.UserData())
 		, DirtyFlags(InParticle.DirtyFlags())
 #if CHAOS_CHECKED
 		, DebugName(InParticle.DebugName())
@@ -1598,6 +1605,7 @@ public:
 		Geometry = TSharedPtr<FImplicitObjectUnion, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		UniqueIdx = FUniqueIdx();
+		UserData = nullptr;
 		DirtyFlags.Clear();
 		ShapeCollisionDisableFlags.Reset();
 		CollisionTraceType.Reset();
@@ -1612,6 +1620,7 @@ public:
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
 	FUniqueIdx UniqueIdx;
+	void* UserData;
 	FParticleDirtyFlags DirtyFlags;
 	TBitArray<> ShapeCollisionDisableFlags;
 	TArray<EChaosCollisionTraceFlag> CollisionTraceType;
@@ -2299,7 +2308,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	AccelerationHandle.Serialize(Ar);
 	return Ar;
 }
-
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<float, 3>;
 extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;
