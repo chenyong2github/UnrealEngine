@@ -29,6 +29,8 @@ class UNREALED_API FFeedbackContextEditor : public FFeedbackContext
 
 	bool HasTaskBeenCancelled;
 
+	double SlowTaskStartTime = 0;
+
 public:
 
 	FFeedbackContextEditor();

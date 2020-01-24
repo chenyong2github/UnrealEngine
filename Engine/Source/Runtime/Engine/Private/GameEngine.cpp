@@ -1621,6 +1621,11 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		FEngineAnalytics::Tick(DeltaSeconds);
 	}
 
+	{
+		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Studio Analytics"));
+		FStudioAnalytics::Tick(DeltaSeconds);
+	}
+
 	// -----------------------------------------------------
 	// Begin ticking worlds
 	// -----------------------------------------------------
