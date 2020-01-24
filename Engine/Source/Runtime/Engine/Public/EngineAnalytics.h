@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StudioAnalytics.h"
+#include "AnalyticsEventAttribute.h"
 
 class FEngineSessionManager;
 class IAnalyticsProvider;

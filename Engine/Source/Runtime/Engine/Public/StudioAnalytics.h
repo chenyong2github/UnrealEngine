@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Thread.h"
+#include "AnalyticsEventAttribute.h"
 
 class IAnalyticsProvider;
 
