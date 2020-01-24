@@ -1124,6 +1124,8 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
 	//DestroyInstance();//Can't do this here as we can call this from inside the system instance currently during completion 
 
+	UnregisterWithScalabilityManager();
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
@@ -1151,7 +1153,11 @@ void UNiagaraComponent::OnUnregister()
 
 void UNiagaraComponent::BeginDestroy()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP  %s\n"), this, *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+
+	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
+	ScalabilityManagerHandle = INDEX_NONE;
+
 	DestroyInstance();
 
 	Super::BeginDestroy();
