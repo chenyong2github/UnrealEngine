@@ -139,7 +139,7 @@ namespace Chaos
 		T GetPhi() const { return Manifold.Phi; }
 
 		void SetDisabled(bool bInDisabled) { Manifold.bDisabled = bInDisabled; }
-		bool GetDisabled() const { return Manifold.bDisabled; }
+		TVector<T, d> GetDisabled() const { return Manifold.bDisabled; }
 
 		void SetNormal(const TVector<T, d> & InNormal) { Manifold.Normal = InNormal; }
 		TVector<T, d> GetNormal() const { return Manifold.Normal; }
@@ -420,8 +420,14 @@ namespace Chaos
 #if PLATFORM_MAC || PLATFORM_LINUX
 	extern template class CHAOS_API TCollisionContact<float, 3>;
 	extern template class CHAOS_API TCollisionConstraintBase<float, 3>;
+	extern template class CHAOS_API TRigidBodyPointContactConstraint<float, 3>;
+	extern template class CHAOS_API TRigidBodyMultiPointContactConstraint<float, 3>;
+	extern template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>;
 #else
 	extern template class TCollisionContact<float, 3>;
 	extern template class TCollisionConstraintBase<float, 3>;
+	extern template class TRigidBodyPointContactConstraint<float, 3>;
+	extern template class TRigidBodyMultiPointContactConstraint<float, 3>;
+	extern template class TPBDCollisionConstraintHandle<float, 3>;
 #endif
 }
