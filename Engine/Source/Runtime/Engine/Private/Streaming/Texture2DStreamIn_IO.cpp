@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming files.
@@ -17,15 +17,19 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn(InTexture, InRequestedMips)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
-
+	, IOFileOffset(0)
+	, IOFileHandle(nullptr)
 {
-	IORequests.AddZeroed(InTexture->GetNumMips());
+	FMemory::Memzero(IORequests, sizeof(IORequests));
 }
 
 FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 {
+	// Work must be done here because derived destructors have been called now and so derived members are invalid.
+	check(!IOFileHandle);
+
 #if DO_CHECK
-	for (const IBulkDataIORequest* IORequest : IORequests)
+	for (IAsyncReadRequest* IORequest : IORequests)
 	{
 		check(!IORequest);
 	}
@@ -37,49 +41,97 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
 
 	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-
-	if (PendingFirstMip < CurrentFirstMip && GEventDrivenLoaderEnabled)
+	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
 	{
-		const FTexture2DMipMap& MipMap = OwnerMips[PendingFirstMip];
-	
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-		verify(Context.Texture->GetMipDataFilename(PendingFirstMip, IOFilename));
+		const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
+		if (MipMap.BulkData.IsStoredCompressedOnDisk())
+		{
+			UE_LOG(LogTexture, Error, TEXT("Compression at the package level is no longer supported."));
+			IOFilename.Reset();
+			break;
+		}
+		else if (MipMap.BulkData.GetBulkDataSize() <= 0)
+		{
+			UE_LOG(LogTexture, Error, TEXT("%s has invalid bulk data size."), *Context.Texture->GetName());
+			IOFilename.Reset();
+			break;
+		}
+
+		if (MipIndex == PendingFirstMip)
+		{
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+			IOFilename = MipMap.BulkData.GetFilename();
+#else
+			verify(Context.Texture->GetMipDataFilename(MipIndex, IOFilename));
 #endif
+
+			if (GEventDrivenLoaderEnabled)
+			{
+				if (IOFilename.EndsWith(TEXT(".uasset")) || IOFilename.EndsWith(TEXT(".umap")))
+				{
+					IOFileOffset = -IFileManager::Get().FileSize(*IOFilename);
+					check(IOFileOffset < 0);
+					IOFilename = FPaths::GetBaseFilename(IOFilename, false) + TEXT(".uexp");
+					UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *IOFilename);
+				}
+			}
+		}
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+		else if (IOFilename != MipMap.BulkData.GetFilename())
+		{
+			UE_LOG(LogTexture, Error, TEXT("All of the streaming mips must be stored in the same file %s %s."), *IOFilename, *MipMap.BulkData.GetFilename());
+			IOFilename.Reset();
+			break;
+		}
+#endif
+	}
+
+	if (IOFilename.IsEmpty())
+	{
+		MarkAsCancelled();
 	}
 }
 
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 {
 	SetAsyncFileCallback();
-	
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
 
-	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+	check(!IOFileHandle);
+	IOFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*IOFilename);
+	if (IOFileHandle)
 	{
-		const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
+		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
 
-		check(MipData[MipIndex]);
+		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+		{
+			const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
 
-		// Increment as we push the requests. If a requests complete immediately, then it will call the callback
-		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
-		TaskSynchronization.Increment();
+			check(MipData[MipIndex]);
 
-		IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
-			TEXTURE2DMIPMAP_PARAM(IOFilename) // Only used if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA is enabled
-			0,
-			MipMap.BulkData.GetBulkDataSize(),
-			bPrioritizedIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallBack,
-			(uint8*)MipData[MipIndex]);
+			// Increment as we push the requests. If a requests complete immediately, then it will call the callback
+			// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
+			TaskSynchronization.Increment();
+
+			IORequests[MipIndex] = IOFileHandle->ReadRequest(
+				MipMap.BulkData.GetBulkDataOffsetInFile() + IOFileOffset, 
+				MipMap.BulkData.GetBulkDataSize(), 
+				bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low), 
+				&AsyncFileCallBack, 
+				(uint8*)MipData[MipIndex]);
+		}
+	}
+	else
+	{
+		MarkAsCancelled();
 	}
 }
 
 void FTexture2DStreamIn_IO::CancelIORequests()
 {
-	for (int32 MipIndex = 0; MipIndex < IORequests.Num(); ++MipIndex)
+	for (int32 MipIndex = 0; MipIndex < MAX_TEXTURE_MIP_COUNT; ++MipIndex)
 	{
-		IBulkDataIORequest* IORequest = IORequests[MipIndex];
+		IAsyncReadRequest* IORequest = IORequests[MipIndex];
 		if (IORequest)
 		{
 			// Calling cancel will trigger the SetAsyncFileCallback() which will also try a tick but will fail.
@@ -90,24 +142,30 @@ void FTexture2DStreamIn_IO::CancelIORequests()
 
 void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 {
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-
-	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
+	if (IOFileHandle)
 	{
-		IBulkDataIORequest* IORequest = IORequests[MipIndex];
-		IORequests[MipIndex] = nullptr;
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
+		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
 
-		if (IORequest != nullptr)
+		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
 		{
-			// If clearing requests not yet completed, cancel and wait.
-			if (!IORequest->PollCompletion())
+			IAsyncReadRequest* IORequest = IORequests[MipIndex];
+			IORequests[MipIndex] = nullptr;
+
+			if (IORequest)
 			{
-				IORequest->Cancel();
-				IORequest->WaitCompletion();
+				// If clearing requests not yet completed, cancel and wait.
+				if (!IORequest->PollCompletion())
+				{
+					IORequest->Cancel();
+					IORequest->WaitCompletion();
+				}
+				delete IORequest;
 			}
-			delete IORequest;
 		}
+
+		delete IOFileHandle;
+		IOFileHandle = nullptr;
 	}
 }
 
@@ -143,26 +201,14 @@ void FTexture2DStreamIn_IO::Abort()
 	{
 		FTexture2DStreamIn::Abort();
 
-		if (HasPendingIORequests())
+		// IO requests can only exist in the lifetime of IOFileHandle.
+		if (IOFileHandle)
 		{
 			// Prevent the update from being considered done before this is finished.
-			// By checking that it was not already canceled, we make sure this doesn't get called twice.
+			// By checking that it was not already cancelled, we make sure this doesn't get called twice.
 			(new FAsyncCancelIORequestsTask(this))->StartBackgroundTask();
 		}
 	}
-}
-
-bool FTexture2DStreamIn_IO::HasPendingIORequests()
-{
-	for (IBulkDataIORequest* IORequest : IORequests)
-	{
-		if (IORequest != nullptr)
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 void FTexture2DStreamIn_IO::FCancelIORequestsTask::DoWork()
