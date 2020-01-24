@@ -638,6 +638,7 @@ void FEditorModeTools::SetCoordSystem(ECoordSystem NewCoordSystem)
 		}
 	}
 	CoordSystem = NewCoordSystem;
+	BroadcastCoordSystemChanged(NewCoordSystem);
 }
 
 void FEditorModeTools::SetDefaultMode( const FEditorModeID DefaultModeID )

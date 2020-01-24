@@ -1427,25 +1427,24 @@ FString FFbxExporter::FMatineeNodeNameAdapter::GetActorNodeName(const AActor* Ac
 	return NodeName;
 }
 
-
-FFbxExporter::FMatineeAnimTrackAdapter::FMatineeAnimTrackAdapter( AMatineeActor* InMatineeActor )
+FMatineeAnimTrackAdapter::FMatineeAnimTrackAdapter( AMatineeActor* InMatineeActor )
 {
 	MatineeActor = InMatineeActor;
 }
 
-int32 FFbxExporter::FMatineeAnimTrackAdapter::GetLocalStartFrame() const
+int32 FMatineeAnimTrackAdapter::GetLocalStartFrame() const
 {
 	return 0;
 }
 
 
-int32 FFbxExporter::FMatineeAnimTrackAdapter::GetLength() const
+int32 FMatineeAnimTrackAdapter::GetLength() const
 {
 	return MatineeActor->MatineeData->InterpLength * (1.f / GetFrameRate());
 }
 
 
-void FFbxExporter::FMatineeAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
+void FMatineeAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
 {
 	float Time = LocalFrame * GetFrameRate();
 	MatineeActor->UpdateInterp( Time, true );
@@ -1580,29 +1579,28 @@ FbxNode* FFbxExporter::FLevelSequenceNodeNameAdapter::GetFbxNode(UObject* InObje
 	return nullptr;
 }
 
-FFbxExporter::FLevelSequenceAnimTrackAdapter::FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform)
+FLevelSequenceAnimTrackAdapter::FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform)
 {
 	MovieScenePlayer = InMovieScenePlayer;
 	MovieScene = InMovieScene;
 	RootToLocalTransform = InRootToLocalTransform;
 }
 
-
-int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetLocalStartFrame() const
+int32 FLevelSequenceAnimTrackAdapter::GetLocalStartFrame() const
 {
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	return FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange())), TickResolution, DisplayRate).RoundToFrame().Value;
 }
 
-int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetStartFrame() const
+int32 FLevelSequenceAnimTrackAdapter::GetStartFrame() const
 {
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	return FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
 }
 
-int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetLength() const
+int32 FLevelSequenceAnimTrackAdapter::GetLength() const
 {
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
@@ -1610,7 +1608,7 @@ int32 FFbxExporter::FLevelSequenceAnimTrackAdapter::GetLength() const
 }
 
 
-void FFbxExporter::FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
+void FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
 {	
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
@@ -1623,7 +1621,7 @@ void FFbxExporter::FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalF
 	MovieScenePlayer->GetEvaluationTemplate().Evaluate( Context, *MovieScenePlayer );
 }
 
-float FFbxExporter::FLevelSequenceAnimTrackAdapter::GetFrameRate() const
+float FLevelSequenceAnimTrackAdapter::GetFrameRate() const
 {
 	return MovieScene->GetDisplayRate().AsDecimal();
 }

@@ -207,6 +207,11 @@ void FAnimNode_LinkedAnimGraph::OnInitializeAnimInstance(const FAnimInstanceProx
 		// We have an instance but no instance class
 		TeardownInstance();
 	}
+
+	if(InstanceToRun)
+	{
+		InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeObjects(InstanceToRun);
+	}
 }
 
 void FAnimNode_LinkedAnimGraph::TeardownInstance()

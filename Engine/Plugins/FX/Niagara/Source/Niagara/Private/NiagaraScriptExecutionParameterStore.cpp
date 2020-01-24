@@ -147,6 +147,20 @@ void FNiagaraScriptExecutionParameterStore::AddPaddedParamSize(const FNiagaraTyp
 	}
 }
 
+void FNiagaraScriptExecutionParameterStore::AddAlignmentPadding()
+{
+	if (PaddingInfo.Num())
+	{
+		const auto& LastEntry = PaddingInfo.Last();
+		const uint32 CurrentOffset = LastEntry.DestOffset + LastEntry.DestSize;
+		const uint32 AlignedOffset = Align(CurrentOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+		if (CurrentOffset != AlignedOffset)
+		{
+			PaddingInfo.Emplace(GetParameterDataArray().Num(), CurrentOffset, 0, AlignedOffset - CurrentOffset);
+		}
+	}
+}
 
 void FNiagaraScriptExecutionParameterStore::InitFromOwningScript(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bNotifyAsDirty)
 {
@@ -224,11 +238,15 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	DebugName = FString::Printf(TEXT("ScriptExecParamStore %s %p"), *Script->GetFullName(), this);
 #endif
 	
+	ParameterSize = GetParameterDataArray().Num();
+
 	//Add previous frame values if we're interpolated spawn.
 	bool bIsInterpolatedSpawn = Script->GetVMExecutableDataCompilationId().HasInterpolatedParameters();
 
 	if (bIsInterpolatedSpawn)
 	{
+		AddAlignmentPadding();
+
 		for (FNiagaraVariable& Param : Script->GetVMExecutableData().Parameters.Parameters)
 		{
 			FNiagaraVariable PrevParam(Param.GetType(), FName(*(INTERPOLATED_PARAMETER_PREFIX + Param.GetName().ToString())));
@@ -236,7 +254,6 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		}
 	}
 	
-	ParameterSize = GetParameterDataArray().Num();
 	if (bIsInterpolatedSpawn)
 	{
 		CopyCurrToPrev();
@@ -281,8 +298,8 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 
 void FNiagaraScriptExecutionParameterStore::CopyCurrToPrev()
 {
-	int32 ParamStart = ParameterSize / 2;
-	checkSlow(FMath::Frac((float)ParameterSize / 2) == 0.0f);
+	int32 ParamStart = ParameterSize;
+	checkSlow(FMath::Frac((float)ParameterSize) == 0.0f);
 
 	FMemory::Memcpy(GetParameterData_Internal(ParamStart), GetParameterData(0), ParamStart);
 }

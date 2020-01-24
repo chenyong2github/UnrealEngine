@@ -53,13 +53,13 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the first bone to slide
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName StartBone;
 
 	/** 
 	 * The name of the last bone to slide
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName EndBone;
 
 	/** 
@@ -73,7 +73,7 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	UPROPERTY(transient)

@@ -97,7 +97,7 @@ namespace Chaos
 				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
 				{
 					FVec3 LocalA,LocalB,LocalNormal;
-					if(GJKPenetration<FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
+					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
 					{
 						OutMTD->Normal = ATM.TransformVectorNoScale(LocalNormal);
 						return true;
@@ -118,23 +118,23 @@ namespace Chaos
 			case ImplicitObjectType::HeightField:
 			{
 				const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
-				return AHeightField.OverlapGeom(B, BToATM, Thickness);
+				return AHeightField.OverlapGeom(B, BToATM, Thickness, OutMTD);
 			}
 			case ImplicitObjectType::TriangleMesh:
 			{
 				const FTriangleMeshImplicitObject& ATriangleMesh = static_cast<const FTriangleMeshImplicitObject&>(A);
-				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness);
+				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness, OutMTD);
 			}
 			default:
 				if (IsScaled(AType))
 				{
 					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
-					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness);
+					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
 				else if(IsInstanced(AType))
 				{
 					const auto& AInstanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
-					return AInstanced.LowLevelOverlapGeom(B,BToATM,Thickness);
+					return AInstanced.LowLevelOverlapGeom(B,BToATM,Thickness, OutMTD);
 				}
 				else
 				{

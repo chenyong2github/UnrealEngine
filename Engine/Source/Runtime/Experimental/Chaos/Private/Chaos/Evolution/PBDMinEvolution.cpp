@@ -30,11 +30,12 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_Chaos);
 
-	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector)
+	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
 		, CollisionDetector(InCollisionDetector)
 		, NumApplyIterations(0)
 		, NumApplyPushOutIterations(0)
+		, BoundsExtension(InBoundsExtension)
 		, Gravity(FVec3(0))
 	{
 	}
@@ -151,27 +152,16 @@ namespace Chaos
 
 				if (Particle.HasBounds())
 				{
-					const FReal BoundsThickness = 1.0f;
-					const FReal BoundsThicknessVelocityInflation = 2.0f;
 					const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
-					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
-					WorldSpaceBounds.ThickenSymmetrically(FVec3(BoundsThickness) + BoundsThicknessVelocityInflation * Particle.V().GetAbs() * Dt);
+					
+					TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
+					NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+
+					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+					WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+
 					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}
-			}
-		}
-
-		for (TTransientGeometryParticleHandle<FReal, 3>& Particle : Particles.GetActiveKinematicParticlesView())
-		{
-			if (Particle.HasBounds())
-			{
-				const FReal BoundsThickness = 1.0f;
-				const FReal BoundsThicknessVelocityInflation = 2.0f;
-				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
-				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
-				const FVec3 VAbs = (Particle.CastToKinematicParticle()) ? Particle.CastToKinematicParticle()->V().GetAbs() : FVec3(0);
-				WorldSpaceBounds.ThickenSymmetrically(FVec3(BoundsThickness) + BoundsThicknessVelocityInflation * VAbs.GetAbs() * Dt);
-				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 			}
 		}
 	}
@@ -189,6 +179,9 @@ namespace Chaos
 		const FReal MinDt = 1e-6f;
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
+			const FVec3 PrevX = Particle.X();
+			const FRotation3 PrevR = Particle.R();
+
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			switch (KinematicTarget.GetMode())
 			{
@@ -239,6 +232,20 @@ namespace Chaos
 				FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
 				break;
 			}
+			}
+
+			// Update world space bouunds
+			if (Particle.HasBounds())
+			{
+				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+				
+				TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+				NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+
+				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
+				WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+
+				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 			}
 		}
 	}

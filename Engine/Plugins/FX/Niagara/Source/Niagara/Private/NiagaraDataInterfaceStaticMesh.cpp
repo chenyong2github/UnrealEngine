@@ -508,7 +508,19 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 				{
 					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, SpawnBuffer->GetBufferTexCoordSRV());
 				}
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, SpawnBuffer->GetBufferColorSRV());
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+				}
+
+				if(SpawnBuffer->GetBufferColorSRV())
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, SpawnBuffer->GetBufferColorSRV());
+				}
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+				}
 
 				check(SpawnBuffer); // should always be allocated, we always need the GPU buffer for a GpuSimulation.
 				SetShaderValue(RHICmdList, ComputeShaderRHI, SectionCount, SpawnBuffer->GetValidSectionCount());
@@ -516,6 +528,10 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 				if (Data->bIsGpuUniformlyDistributedSampling)
 				{
 					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, SpawnBuffer->GetBufferUniformTriangleSamplingSRV());
+				}
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
 				}
 
 				const float InvDeltaTime = Data->DeltaSeconds > 0.0f ? 1.0f / Data->DeltaSeconds : 0.0f;
@@ -574,53 +590,20 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraDataInterfaceProxyStaticMesh::DeferredDestroy()
-{
-	//-TODO: This is incorrect, we could be destroying instance data for a batcher is yet to tick, we should only be destroying data for this batcher!
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToMeshData.Remove(Sys);
-		//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - DeferredDestroy %s"), *Sys.ToString());
-	}
-
-	DeferredDestroyList.Empty();
-}
-
 void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FStaticMeshGpuSpawnBuffer* MeshGPUSpawnBuffer)
 {
 	check(IsInRenderingThread());
+	check(!SystemInstancesToMeshData.Contains(SystemInstance));
 
-	FNiagaraStaticMeshData* Data = SystemInstancesToMeshData.Find(SystemInstance);
-	if (Data != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		Data = &SystemInstancesToMeshData.Add(SystemInstance);
-	}
-	//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - InitializePerInstanceData %s"), *SystemInstance.ToString());
-
-	// @todo-threadsafety We should not ever see this case! Though it's not really an error...
-	if (Data->MeshGpuSpawnBuffer)
-	{
-		Data->MeshGpuSpawnBuffer->ReleaseResource();
-		delete Data->MeshGpuSpawnBuffer;
-	}
-
-	Data->MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
+	FNiagaraStaticMeshData& Data = SystemInstancesToMeshData.Add(SystemInstance);
+	Data.MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
 }
 
 void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-
-	//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - DestroyPerInstanceData %s"), *SystemInstance.ToString());
-
-	// @todo-threadsafety verify this destroys the MeshGPUSpawnBuffer data. This thread owns it now.
-	//SystemInstancesToMeshData.Remove(SystemInstance);
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	//check(SystemInstancesToMeshData.Contains(SystemInstance));
+	SystemInstancesToMeshData.Remove(SystemInstance);
 }
 
 void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
@@ -655,7 +638,7 @@ UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitiali
 	//, bSupportingVertexColorSampling(0)//Vertex color filtering needs some more work.
 	//, bFilterInitialized(false)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyStaticMesh, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyStaticMesh());
 }
 
 void UNiagaraDataInterfaceStaticMesh::PostInitProperties()
@@ -2488,4 +2471,3 @@ void FNDI_StaticMesh_GeneratedData::CleanupDynamicColorFilterData()
 }
 
 #undef LOCTEXT_NAMESPACE
-

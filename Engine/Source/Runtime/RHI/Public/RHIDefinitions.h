@@ -1344,7 +1344,7 @@ inline int32 GetFeatureLevelMaxNumberOfBones(ERHIFeatureLevel::Type FeatureLevel
 	case ERHIFeatureLevel::ES3_1:
 		return 75;	
 	case ERHIFeatureLevel::SM5:
-		return 256;
+		return 65536; // supports uint16
 	default:
 		checkf(0, TEXT("Unknown FeatureLevel %d"), (int32)FeatureLevel);
 	}

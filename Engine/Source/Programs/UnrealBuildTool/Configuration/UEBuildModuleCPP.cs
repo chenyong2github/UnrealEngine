@@ -693,6 +693,10 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+			if(ModuleCompileEnvironment.UnsafeTypeCastWarningLevel != CompileEnvironment.UnsafeTypeCastWarningLevel)
+			{
+				return false;
+			}
 			if(ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings != CompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
 				return false;
@@ -757,6 +761,23 @@ namespace UnrealBuildTool
 					Variant += ".NoShadow";
 				}
 			}
+
+			if (CompileEnvironment.UnsafeTypeCastWarningLevel != BaseCompileEnvironment.UnsafeTypeCastWarningLevel)
+			{
+				if (CompileEnvironment.UnsafeTypeCastWarningLevel == WarningLevel.Error)
+				{
+					Variant += ".TypeCastErrors";
+				}
+				else if (CompileEnvironment.UnsafeTypeCastWarningLevel == WarningLevel.Warning)
+				{
+					Variant += ".TypeCastWarnings";
+				}
+				else
+				{
+					Variant += ".NoTypeCast";
+				}
+			}
+			
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings != BaseCompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
 				if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
@@ -782,6 +803,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.bUseRTTI = ModuleCompileEnvironment.bUseRTTI;
 			CompileEnvironment.bEnableExceptions = ModuleCompileEnvironment.bEnableExceptions;
 			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
+			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
 		}
 
@@ -1157,6 +1179,7 @@ namespace UnrealBuildTool
 			Result.bEnableExceptions |= Rules.bEnableExceptions;
 			Result.bEnableObjCExceptions |= Rules.bEnableObjCExceptions;
 			Result.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
+			Result.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
 
 			// If the module overrides the C++ language version, override it on the compile environment
@@ -1181,7 +1204,7 @@ namespace UnrealBuildTool
 				Result.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
 
-			// For game modules, set the define for the project name. This will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
+			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
 			if (!Rules.bTreatAsEngineModule)
 			{
 				// Make sure we don't set any define for a non-engine module that's under the engine directory (eg. UE4Game)
@@ -1189,6 +1212,7 @@ namespace UnrealBuildTool
 				{
 					string ProjectName = Target.ProjectFile.GetFileNameWithoutExtension();
 					Result.Definitions.Add(String.Format("UE_PROJECT_NAME={0}", ProjectName));
+					Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.Name));
 				}
 			}
 

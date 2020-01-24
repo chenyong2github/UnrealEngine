@@ -97,7 +97,7 @@ namespace {
 		// CrashContext.runtime-xml is now a part of the minidump file.
 		MINIDUMP_USER_STREAM CrashContextStream = { 0 };
 		CrashContextStream.Type = UE4_MINIDUMP_CRASHCONTEXT;
-		CrashContextStream.BufferSize = InContext.GetBuffer().GetAllocatedSize();
+		CrashContextStream.BufferSize = (ULONG)InContext.GetBuffer().GetAllocatedSize();
 		CrashContextStream.Buffer = (void*)*InContext.GetBuffer();
 
 		MINIDUMP_USER_STREAM_INFORMATION CrashContextStreamInformation = { 0 };

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	UnBits.h: Unreal bitstream manipulation classes.
-=============================================================================*/
-
 #include "Serialization/BitWriter.h"
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 extern const uint8 GShift[8];
 extern const uint8 GMask[8];
@@ -300,3 +298,5 @@ void FBitWriterMark::Copy( FBitWriter& Writer, TArray<uint8> &Buffer )
 		appBitsCpy(Buffer.GetData(), 0, Writer.Buffer.GetData(), Num, Writer.Num - Num);
 	}
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

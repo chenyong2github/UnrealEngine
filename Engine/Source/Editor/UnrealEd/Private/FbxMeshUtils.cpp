@@ -204,6 +204,7 @@ namespace FbxMeshUtils
 					}
 
 					// Update mesh component
+					BaseStaticMesh->PostEditChange();
 					BaseStaticMesh->MarkPackageDirty();
 
 					// Import worked
@@ -532,6 +533,7 @@ namespace FbxMeshUtils
 					}
 
 					bSuccess = true;
+
 					// Set LOD source filename
 					SelectedSkelMesh->GetLODInfo(SelectedLOD)->SourceImportFilename = UAssetImportData::SanitizeImportFilename(Filename, nullptr);
 					SelectedSkelMesh->GetLODInfo(SelectedLOD)->bImportWithBaseMesh = false;

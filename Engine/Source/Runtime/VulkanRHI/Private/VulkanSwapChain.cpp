@@ -12,7 +12,12 @@
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
 
+#if PLATFORM_ANDROID
+// this path crashes within libvulkan during vkDestroySwapchainKHR on some versions of Android. See FORT-250079
+int32 GVulkanKeepSwapChain = 0;
+#else
 int32 GVulkanKeepSwapChain = 1;
+#endif
 static FAutoConsoleVariableRef CVarVulkanKeepSwapChain(
 	TEXT("r.Vulkan.KeepSwapChain"),
 	GVulkanKeepSwapChain,

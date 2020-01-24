@@ -130,7 +130,7 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		// Hide or destroy the sources
 		{
 			if (MergeProps->bDeleteInputActors) 
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Remove Sources"));
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
 			
 			for (auto& ComponentTarget : ComponentTargets)
 			{

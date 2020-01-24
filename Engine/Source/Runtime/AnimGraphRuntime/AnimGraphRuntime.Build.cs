@@ -14,7 +14,7 @@ public class AnimGraphRuntime : ModuleRules
 				"Core", 
 				"CoreUObject", 
 				"Engine",
-				"AnimationCore",
+                "AnimationCore",
 			}
 		);
 
@@ -24,17 +24,22 @@ public class AnimGraphRuntime : ModuleRules
 			}
 		);
 
-		SetupModulePhysicsSupport(Target);
+        SetupModulePhysicsSupport(Target);
 
-		if (Target.bCompileChaos || Target.bUseChaos)
-		{
-			PublicDependencyModuleNames.AddRange(
-				new string[] {
+		// External users of this library do not need to know about Eigen.
+        AddEngineThirdPartyPrivateStaticDependencies(Target,
+                "Eigen"
+                );
+
+        if (Target.bCompileChaos || Target.bUseChaos)
+        {
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
 					"ChaosSolvers",
 					"GeometryCollectionEngine",
 					"GeometryCollectionSimulationCore"
-				}
-			);
-		}
-	}
+                }
+            );
+        }
+    }
 }

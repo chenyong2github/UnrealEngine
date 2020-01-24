@@ -220,7 +220,7 @@ TSharedRef<SWidget> SControlRigProfilingItem::GenerateWidgetForColumn(const FNam
 		[
 			SNew(STextBlock)
 			.Text(this, &SControlRigProfilingItem::GetLabelText)
-			.ToolTipText(this, &SControlRigProfilingItem::GetTooltipText)
+			.ToolTipText(this, &SControlRigProfilingItem::GetToolTipText)
 			.ColorAndOpacity(this, &SControlRigProfilingItem::GetTextColor)
 			.OnDoubleClicked(this, &SControlRigProfilingItem::OnDoubleClicked)
 		];
@@ -305,7 +305,7 @@ FText SControlRigProfilingItem::GetLabelText() const
 	return (FText::FromName(Name));
 }
 
-FText SControlRigProfilingItem::GetTooltipText() const
+FText SControlRigProfilingItem::GetToolTipText() const
 {
 	FString Path = WeakTreeElement.Pin()->GetPath();
 	

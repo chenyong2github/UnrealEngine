@@ -915,7 +915,7 @@ void SGenericDialogWidget::Construct( const FArguments& InArgs )
 	];
 }
 
-void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedRef< SWidget >& DisplayContent, const FArguments& InArgs)
+void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedRef< SWidget >& DisplayContent, const FArguments& InArgs, bool bAsModalDialog)
 {
 	TSharedPtr< SWindow > Window;
 	TSharedPtr< SGenericDialogWidget > GenericDialogWidget;
@@ -941,7 +941,14 @@ void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedR
 
 	GenericDialogWidget->SetWindow(Window);
 
-	FSlateApplication::Get().AddWindow( Window.ToSharedRef() );
+	if(bAsModalDialog)
+	{
+		GEditor->EditorAddModalWindow(Window.ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow( Window.ToSharedRef() );
+	}
 }
 
 FReply SGenericDialogWidget::OnOK_Clicked(void)

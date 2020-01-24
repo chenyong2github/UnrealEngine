@@ -13,7 +13,7 @@
 class UControlRig;
 struct FRigHierarchyContainer;
 
-UENUM()
+UENUM(BlueprintType)
 enum class ERigHierarchyImportMode : uint8
 {
 	Append,
@@ -46,10 +46,11 @@ struct CONTROLRIG_API FRigHierarchyCopyPasteContent
 	TArray<FTransform> GlobalTransforms;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigHierarchyContainer
 {
 public:
+
 	GENERATED_BODY()
 
 	FRigHierarchyContainer();
@@ -67,7 +68,7 @@ public:
 	UPROPERTY()
 	FRigCurveContainer CurveContainer;
 
-	void Initialize();
+	void Initialize(bool bResetTransforms = true);
 	void Reset();
 	void ResetTransforms();
 

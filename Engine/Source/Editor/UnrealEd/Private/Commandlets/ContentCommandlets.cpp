@@ -1649,6 +1649,16 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					Builder.PreviewBuild();
 				}
 
+				// Get the list of packages that needs to be saved after cluster rebuilding.
+				TSet<UPackage*> PackagesToSave;
+				for (ULevel* Level : World->GetLevels())
+				{
+					if (Level->bIsVisible)
+					{
+						PackagesToSave.Add(Level->GetOutermost());
+					}
+				}
+
 				if (bGenerateMeshProxies || bForceProxyGeneration)
 				{
 					Builder.BuildMeshesForLODActors(bForceProxyGeneration);
@@ -1671,12 +1681,9 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					GShaderCompilingManager->ProcessAsyncResults(false, false);
 				}
 
-				// Get the list of packages needs to be saved.
-				TSet<UPackage*> PackagesToSave;
+				// Get the list of packages needs to be saved after proxy mesh generation.
 				for(ULevel* Level : World->GetLevels())
 				{
-					PackagesToSave.Add(Level->GetOutermost());
-
 					if(Level->bIsVisible)
 					{
 						Builder.GetMeshesPackagesToSave(Level, PackagesToSave);

@@ -1261,13 +1261,6 @@ bool FAudioDevice::HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
-bool FAudioDevice::HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	Ar.Logf(TEXT("StereoBleed set to max for all sources"));
-	SetMixDebugState(DEBUGSTATE_TestStereoBleed);
-	return true;
-}
-
 bool FAudioDevice::HandleTestLFEBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("LFEBleed set to max for all sources"));
@@ -1667,6 +1660,13 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 		ReportAr->Log(TEXT("Sound Wave Memory Report"));
 		ReportAr->Log(TEXT(""));
 
+		FString StreamingMemoryReport = IStreamingManager::Get().GetAudioStreamingManager().GenerateMemoryReport();
+
+		ReportAr->Log(TEXT("\n/*******************/\n"));
+		ReportAr->Log(TEXT("Streaming Audio Info:"));
+		ReportAr->Log(*StreamingMemoryReport);
+		ReportAr->Log(TEXT("\n/*******************/\n"));
+
 		if (SoundWaveObjects.Num())
 		{
 			// Alpha sort the sound wave objects
@@ -1949,10 +1949,6 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("TestLPF")))
 	{
 		return HandleTestLPFCommand(Cmd, Ar);
-	}
-	else if (FParse::Command(&Cmd, TEXT("TestStereoBleed")))
-	{
-		return HandleTestStereoBleedCommand(Cmd, Ar);
 	}
 	else if (FParse::Command(&Cmd, TEXT("TestLFEBleed")))
 	{
@@ -5854,7 +5850,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 			else
 			{
 				// This is the one case where precaching will not be done when this function exits
-				check(SoundWave->GetPrecacheState() == ESoundWavePrecacheState::InProgress);
+				checkf(SoundWave->GetPrecacheState() == ESoundWavePrecacheState::InProgress, TEXT("Bad PrecacheState %d on SoundWave %s"), static_cast<uint8>(SoundWave->GetPrecacheState()), *GetPathNameSafe(SoundWave));
 				SoundWave->AudioDecompressor = new FAsyncAudioDecompress(SoundWave, GetNumPrecacheFrames());
 				SoundWave->AudioDecompressor->StartBackgroundTask();
 				PrecachingSoundWaves.Add(SoundWave);

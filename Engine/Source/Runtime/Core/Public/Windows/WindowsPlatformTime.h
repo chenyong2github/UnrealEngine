@@ -33,7 +33,7 @@ struct CORE_API FWindowsPlatformTime
 	{
 		Windows::LARGE_INTEGER Cycles;
 		Windows::QueryPerformanceCounter(&Cycles);
-		return Cycles.QuadPart;
+		return (uint32)Cycles.QuadPart;
 	}
 
 	static FORCEINLINE uint64 Cycles64()

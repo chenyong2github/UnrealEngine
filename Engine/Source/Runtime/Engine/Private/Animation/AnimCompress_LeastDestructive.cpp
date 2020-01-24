@@ -12,16 +12,5 @@ UAnimCompress_LeastDestructive::UAnimCompress_LeastDestructive(const FObjectInit
 {
 	Description = TEXT("Least Destructive");
 	TranslationCompressionFormat = ACF_None;
-	RotationCompressionFormat = ACF_None;
+	RotationCompressionFormat = ACF_Float96NoW;
 }
-
-
-#if WITH_EDITOR
-void UAnimCompress_LeastDestructive::DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
-{
-	UAnimCompress* BitwiseCompressor = NewObject<UAnimCompress_BitwiseCompressOnly>();
-	BitwiseCompressor->RotationCompressionFormat = ACF_Float96NoW;
-	BitwiseCompressor->TranslationCompressionFormat = ACF_None;
-	BitwiseCompressor->Reduce(CompressibleAnimData, OutResult);
-}
-#endif // WITH_EDITOR

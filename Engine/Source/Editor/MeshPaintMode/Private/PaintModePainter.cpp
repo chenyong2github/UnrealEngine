@@ -813,9 +813,16 @@ void FPaintModePainter::FinishPainting()
 	IMeshPainter::FinishPainting();	
 	FinishPaintingTexture();	
 
-	if (PaintSettings->PaintMode == EPaintMode::Vertices && !PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD)
+	if (PaintSettings->PaintMode == EPaintMode::Vertices)
 	{
-		PropagateVertexColorsToLODs();
+		if (!PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD)
+		{
+			PropagateVertexColorsToLODs();
+		}
+		else
+		{
+			Refresh();
+		}
 	}
 
 	UpdateCachedVertexDataSize();

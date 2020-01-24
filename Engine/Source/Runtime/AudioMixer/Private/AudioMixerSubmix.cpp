@@ -108,7 +108,7 @@ namespace Audio
 			{
 				// Create a new effect instance using the preset
 				FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
-
+				
 				FSoundEffectSubmixInitData InitData;
 				InitData.SampleRate = MixerDevice->GetSampleRate();
 				InitData.PresetSettings = nullptr;
@@ -374,6 +374,15 @@ namespace Audio
 		}
 
 		EffectSubmixChain.Reset();
+	}
+
+	void FMixerSubmix::ReplaceSoundEffectSubmix(int32 InIndex, int32 InPresetId, FSoundEffectSubmixPtr InEffectInstance)
+	{
+		if (InEffectInstance->GetPreset() != nullptr && InIndex < EffectSubmixChain.Num())
+		{
+			EffectSubmixChain[InIndex].PresetId = InPresetId;
+			EffectSubmixChain[InIndex].EffectInstance = InEffectInstance;
+		}
 	}
 
 	void FMixerSubmix::SetBackgroundMuted(bool bInMuted)

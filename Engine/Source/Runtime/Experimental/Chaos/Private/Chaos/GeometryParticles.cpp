@@ -60,6 +60,7 @@ namespace Chaos
 		, Materials()
 		, bDisable(false)
 		, bSimulate(true)
+		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	{
 	}
 
@@ -122,6 +123,13 @@ namespace Chaos
 		{
 			Ar << bSimulate;
 		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeCollisionTraceType)
+		{
+			int32 Data = (int32)CollisionTraceType;
+			Ar << Data;
+			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
+		}
 	}
 
 
@@ -166,19 +174,6 @@ namespace Chaos
 	{
 		auto& SerializableGeometryParticles = AsAlwaysSerializableArray(GeometryParticles->MGeometryParticle);
 		Ar << SerializableGeometryParticles;
-	}
-
-	template <typename T, int d, EGeometryParticlesSimType SimType>
-	void TGeometryParticlesImp<T, d, SimType>::SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle)
-	{
-		if (Particle)
-		{
-			MHashResult.Add(Particle->GetHashResultLowLevel());
-		}
-		else
-		{
-			MHashResult.Add(FMath::RandHelper(TNumericLimits<uint32>::Max()));
-		}
 	}
 
 	

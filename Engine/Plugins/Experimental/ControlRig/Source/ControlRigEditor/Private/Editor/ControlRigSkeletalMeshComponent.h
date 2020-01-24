@@ -34,6 +34,8 @@ class UControlRigSkeletalMeshComponent : public UDebugSkelMeshComponent
 
 	virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset) override;
 
+	// return true if preview animation is active 
+	virtual bool IsPreviewOn() const override;
 	// END UDebugSkeletalMeshComponent interface
 
 public:

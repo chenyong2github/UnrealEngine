@@ -47,6 +47,9 @@ public:
 		.ShowWorkingRange(!!(InArgs.ShowRanges & EShowRange::WorkingRange))
 		.ShowViewRange(!!(InArgs.ShowRanges & EShowRange::ViewRange))
 		.ShowPlaybackRange(!!(InArgs.ShowRanges & EShowRange::PlaybackRange))
+		.EnableWorkingRange(!!(InArgs.EnableRanges & EShowRange::WorkingRange))
+		.EnableViewRange(!!(InArgs.EnableRanges & EShowRange::ViewRange))
+		.EnablePlaybackRange(!!(InArgs.EnableRanges & EShowRange::PlaybackRange))
 		[
 			Content
 		];

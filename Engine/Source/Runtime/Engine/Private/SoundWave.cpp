@@ -1746,7 +1746,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
 		WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
 		WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
-		WaveInstance->StereoBleed = SoundClassProperties->StereoBleed;
 		WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
 
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
@@ -1780,7 +1779,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->VoiceCenterChannelVolume = 0.f;
 		WaveInstance->RadioFilterVolume = 0.f;
 		WaveInstance->RadioFilterVolumeThreshold = 0.f;
-		WaveInstance->StereoBleed = 0.f;
 		WaveInstance->LFEBleed = 0.f;
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound;
 		WaveInstance->bIsMusic = ActiveSound.bIsMusic;
@@ -2002,7 +2000,7 @@ bool USoundWave::ShouldUseStreamCaching() const
 	return  FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && IsStreaming();
 }
 
-TArrayView<const uint8> USoundWave::GetZerothChunk()
+TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 {
 	if (ShouldUseStreamCaching())
 	{
@@ -2017,7 +2015,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 		if (GetNumChunks() > 1)
 		{
 			// Prime first chunk for playback.
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
 		}
 
 		return ZerothChunkData.GetView();

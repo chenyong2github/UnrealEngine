@@ -69,10 +69,6 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	float AttenuationDistanceScale;
 
-	/** The amount of stereo sounds to bleed to the rear speakers */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing)
-	float StereoBleed;
-
 	/** The amount of a sound to bleed to the LFE channel */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing, meta = (DisplayName = "LFE Bleed"))
 	float LFEBleed;

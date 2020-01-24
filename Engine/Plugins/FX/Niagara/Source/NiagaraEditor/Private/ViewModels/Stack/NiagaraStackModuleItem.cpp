@@ -146,7 +146,7 @@ FText UNiagaraStackModuleItem::GetDisplayName() const
 	}
 	else
 	{
-		return FText::FromName(NAME_None);
+	return FText::FromName(NAME_None);
 	}
 }
 
@@ -342,10 +342,23 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 			if (FunctionCallNode->FunctionScript->bExperimental)
 			{
+				FText ErrorMessage;
+				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmpty())
+				{
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for this module is experimental, use with care!"), FText::FromString(FunctionCallNode->GetFunctionName()));
+				}
+				else
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Module"), FText::FromString(FunctionCallNode->GetFunctionName()));
+					Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->ExperimentalMessage);
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason: {Message}."), Args);
+				}
+
 				NewIssues.Add(FStackIssue(
 					EStackIssueSeverity::Info,
 					LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
-					FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(FunctionCallNode->GetName())),
+					ErrorMessage,
 					GetStackEditorDataKey(),
 					true));
 			}
@@ -408,8 +421,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}));
 			FStackIssue InconsistentEnabledError(
 				EStackIssueSeverity::Error,
-				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for module is inconsistent."),
-				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled state is inconsistent.\nClick fix to make all of the functions for this module enabled."),
+				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for this module is inconsistent."),
+				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled states are inconsistent.\nClick \"Fix issue\" to make all of the functions for this module enabled."),
 				GetStackEditorDataKey(),
 				false,
 				EnableFix);
@@ -913,8 +926,23 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		TEXT("Can not reassign the module script when the module isn't a valid function call module.")))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
+
+		const FString OldName = FunctionCallNode->GetFunctionName();
+		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+
 		FunctionCallNode->Modify();
 		FunctionCallNode->FunctionScript = ModuleScript;
+		
+		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
+		RefreshChildren();
+
+		FunctionCallNode->SuggestName(FString());
+
+		const FString NewName = FunctionCallNode->GetFunctionName();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();

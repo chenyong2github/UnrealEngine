@@ -42,7 +42,7 @@ struct FRayTracingPrimaryRaysOptions
 
 
 #if RHI_RAYTRACING
-extern bool AnyRayTracingPassEnabled(const FViewInfo& View);
+extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 extern int32 GetForceRayTracingEffectsCVarValue();
 extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions();
 
@@ -63,7 +63,7 @@ extern bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform);
 
 #else
 
-FORCEINLINE bool AnyRayTracingPassEnabled(const FViewInfo& View)
+FORCEINLINE bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
 	return 0;
 }

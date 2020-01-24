@@ -7,7 +7,7 @@
 #include "Sequencer/MovieSceneControlRigParameterTemplate.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
-
+#include "Sequencer/ControlRigSortedControls.h"
 #define LOCTEXT_NAMESPACE "MovieSceneParameterControlRigTrack"
 
 
@@ -47,77 +47,94 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 	{
 		NewSection->SetBlendType(EMovieSceneBlendType::Additive);
 	}
-	UMovieScene* OuterMovieScene = GetTypedOuter<UMovieScene>();
-	IControlRigManipulatable* Manip = GetManipulatableFromBinding(OuterMovieScene);
-	if (Manip)
+	if (ControlRig)
 	{
-		/*
-		UENUM()
-		enum class ERigControlType : uint8
-		{
-			Bool,
-			Float,
-			Vector2D,
-			Position,
-			Scale,
-			Quat,
-			Rotator,
-			Transform
-		};
-		*/
-
-		const TArray<FRigControl>& Controls = Manip->AvailableControls();
 		TArray<bool> OnArray;
+		const TArray<FRigControl>& Controls = ControlRig->AvailableControls();
 		OnArray.Init(true,Controls.Num());
 		NewSection->SetControlsMask(OnArray);
 
-
-		for (const FRigControl& RigControl : Controls)
+		TArray<FRigControl> SortedControls;
+		FControlRigSortedControls::GetControlsInOrder(ControlRig, SortedControls);
+		
+		for (const FRigControl& RigControl : SortedControls)
 		{
 			switch (RigControl.ControlType)
 			{
-			case ERigControlType::Float:
-			{
-				TOptional<float> DefaultValue;
-				if (bSetDefault)
+				case ERigControlType::Float:
 				{
-					//or use IntialValue?
-					DefaultValue = RigControl.Value.Get<float>();
+					TOptional<float> DefaultValue;
+					if (bSetDefault)
+					{
+						//or use IntialValue?
+						DefaultValue = RigControl.Value.Get<float>();
+					}
+					NewSection->AddScalarParameter(RigControl.Name,DefaultValue,false);
+					break;
 				}
-				NewSection->AddScalarParameter(RigControl.Name,DefaultValue);
-				break;
-			}
-			case ERigControlType::Position:
-			case ERigControlType::Scale:
-			case ERigControlType::Rotator:
-			{
-				TOptional<FVector> DefaultValue;
-				if (bSetDefault)
+				case ERigControlType::Bool:
 				{
-					//or use IntialValue?
-					DefaultValue = RigControl.Value.Get<FVector>();
+					TOptional<bool> DefaultValue;
+					if (bSetDefault)
+					{
+						//or use IntialValue?
+						DefaultValue = RigControl.Value.Get<bool>();
+					}
+					NewSection->AddBoolParameter(RigControl.Name, DefaultValue, false);
+					break;
 				}
-				NewSection->AddVectorParameter(RigControl.Name,DefaultValue);
-				//mz todo specify rotator special so we can do quat interps or no we have a quat type so...
-				break;
-			}
-			case ERigControlType::Transform:
-			{
-				TOptional<FTransform> DefaultValue;
-				if (bSetDefault)
+				case ERigControlType::Vector2D:
 				{
-					//or use IntialValue?
-					DefaultValue = RigControl.Value.Get<FTransform>();
+					TOptional<FVector2D> DefaultValue;
+					if (bSetDefault)
+					{
+						//or use IntialValue?
+						DefaultValue = RigControl.Value.Get<FVector2D>();
+					}
+					NewSection->AddVector2DParameter(RigControl.Name, DefaultValue, false);
+					break;
 				}
-				NewSection->AddTransformParameter(RigControl.Name,DefaultValue);
-				break;
-			}
-				//mz todo the other types
+				
+				case ERigControlType::Position:
+				case ERigControlType::Scale:
+				case ERigControlType::Rotator:
+				{
+					TOptional<FVector> DefaultValue;
+					if (bSetDefault)
+					{
+						//or use IntialValue?
+						DefaultValue = RigControl.Value.Get<FVector>();
+					}
+					NewSection->AddVectorParameter(RigControl.Name,DefaultValue,false);
+					//mz todo specify rotator special so we can do quat interps
+					break;
+				}
+				case ERigControlType::TransformNoScale:
+				case ERigControlType::Transform:
+				{
+					TOptional<FTransform> DefaultValue;
+					if (bSetDefault)
+					{
+						if (RigControl.ControlType == ERigControlType::Transform)
+						{
+							DefaultValue = RigControl.Value.Get<FTransform>();
+						}
+						else
+						{
+							FTransformNoScale NoScale = RigControl.Value.Get<FTransformNoScale>();
+							DefaultValue = NoScale;
+						}
+					}
+					NewSection->AddTransformParameter(RigControl.Name,DefaultValue,false);
+					break;
+				}
+				
+				default:
+					break;
 			}
 		}
-
-
-
+		NewSection->ReconstructChannelProxy(true);
+		
 	}
 	return  NewSection;
 }
@@ -381,6 +398,16 @@ void UMovieSceneControlRigParameterTrack::SetSectionToKey(UMovieSceneSection* In
 UMovieSceneSection* UMovieSceneControlRigParameterTrack::GetSectionToKey() const
 {
 	return SectionToKey;
+}
+
+void UMovieSceneControlRigParameterTrack::PostLoad()
+{
+	Super::PostLoad();
+	if (ControlRig)
+	{
+		ControlRig->Initialize();
+		ControlRig->CreateRigControlsForCurveContainer();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

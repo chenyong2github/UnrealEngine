@@ -1763,6 +1763,98 @@ bool FMathRoundHalfFromZeroTests::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FIsNearlyEqualByULPTest, "System.Core.Math.IsNearlyEqualByULP", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FIsNearlyEqualByULPTest::RunTest(const FString& Parameters)
+{
+	static float FloatNan = FMath::Sqrt(-1.0f);
+	static double DoubleNan = double(FloatNan);
+
+	static float FloatInf = 1.0f / 0.0f;
+	static double DoubleInf = 1.0 / 0.0;
+
+	float FloatTrueMin;
+	double DoubleTrueMin;
+
+	// Construct our own true minimum float constants (aka FLT_TRUE_MIN), bypassing any value parsing.
+	{
+		uint32 FloatTrueMinInt = 0x00000001U;
+		uint64 DoubleTrueMinInt = 0x0000000000000001ULL;
+
+		::memcpy(&FloatTrueMin, &FloatTrueMinInt, sizeof(FloatTrueMinInt));
+		::memcpy(&DoubleTrueMin, &DoubleTrueMinInt, sizeof(DoubleTrueMinInt));
+	}
+
+
+	static struct TestItem
+	{
+		const FString &Name;
+		bool Predicate;
+		struct 
+		{
+			float A;
+			float B;
+		} F;
+		struct
+		{
+			double A;
+			double B;
+		} D;
+
+		int ULP = 4;
+	} TestItems[] = {
+		{"ZeroEqual",		true, {0.0f, 0.0f}, {0.0, 0.0}},
+		{"OneEqual",		true, {1.0f, 1.0f}, {1.0, 1.0}},
+		{"MinusOneEqual",	true, {-1.0f, -1.0f}, {-1.0, -1.0}},
+		{"PlusMinusOneNotEqual", false, {-1.0f, 1.0f}, {-1.0, 1.0}},
+
+		{"NanEqualFail",	false, {FloatNan, FloatNan}, {DoubleNan, DoubleNan}},
+
+		// FLT_EPSILON is the smallest quantity that can be added to 1.0 and still be considered a distinct number
+		{"OneULPDistUp",	true, {1.0f, 1.0f + FLT_EPSILON}, {1.0, 1.0 + DBL_EPSILON}, 1},
+
+		// Going below one, we need to halve the epsilon, since the exponent has been lowered by one and hence the 
+		// numerical density doubles between 0.5 and 1.0.
+		{"OneULPDistDown",	true, {1.0f, 1.0f - (FLT_EPSILON / 2.0f)}, {1.0, 1.0 - (DBL_EPSILON / 2.0)}, 1},
+
+		// Make sure the ULP distance is computed correctly for double epsilon.
+		{"TwoULPDist",		true, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 2},
+		{"TwoULPDistFail",	false, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 1},
+
+		// Check if the same test works for higher exponents on both sides.
+		{"ONeULPDistEight",	true, {8.0f, 8.0f + 8.0f * FLT_EPSILON}, {8.0, 8.0 + 8.0 * DBL_EPSILON}, 1},
+		{"ONeULPDistFailEight",	false, {8.0f, 8.0f + 16.0f * FLT_EPSILON}, {8.0, 8.0 + 16.0 * DBL_EPSILON}, 1},
+
+		// Test for values around the zero point.
+		{"AroundZero",		true, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 2},
+		{"AroundZeroFail",	false, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 1},
+
+		// Test for values close to zero and zero.
+		{"PosNextToZero",	true, {0, FloatTrueMin}, {0, DoubleTrueMin}, 1},
+		{"NegNextToZero",	true, {-FloatTrueMin, 0}, {-DoubleTrueMin, 0}, 1},
+
+		// Should fail, even for maximum ULP distance.
+		{"InfAndMaxFail",	false, {FLT_MAX, FloatInf}, {DBL_MAX, DoubleInf}, INT32_MAX},
+		{"InfAndNegInfFail", false, {-FloatInf, FloatInf}, {-DoubleInf, DoubleInf}, INT32_MAX},
+
+		// Two infinities of the same sign should compare the same, regardless of ULP.
+		{"InfAndInf",		true, {FloatInf, FloatInf}, {DoubleInf, DoubleInf}, 0},
+
+	};
+
+	bool(FAutomationTestBase::*FuncTrue)(const FString &, bool) = &FAutomationTestBase::TestTrue;
+	bool(FAutomationTestBase::*FuncFalse)(const FString &, bool) = &FAutomationTestBase::TestFalse;
+
+	for (const TestItem& Item : TestItems)
+	{
+		auto Func = Item.Predicate ? FuncTrue : FuncFalse;
+
+		(this->*Func)(Item.Name + "-Float", FMath::IsNearlyEqualByULP(Item.F.A, Item.F.B, Item.ULP));
+		(this->*Func)(Item.Name + "-Double", FMath::IsNearlyEqualByULP(Item.D.A, Item.D.B, Item.ULP));
+	}
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathTruncationTests, "System.Core.Math.TruncationFunctions", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FMathTruncationTests::RunTest(const FString& Parameters)
 {

@@ -323,6 +323,11 @@ float UAnimSingleNodeInstance::GetCurrentTime() const
 void UAnimSingleNodeInstance::SetReverse(bool bInReverse)
 {
 	GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>().SetReverse(bInReverse);
+
+	if (FAnimMontageInstance* CurMontageInstance = GetActiveMontageInstance())
+	{
+		CurMontageInstance->SetPlayRate(GetPlayRate());
+	}
 }
 
 void UAnimSingleNodeInstance::SetPositionWithPreviousTime(float InPosition, float InPreviousTime, bool bFireNotifies)

@@ -46,10 +46,14 @@ public:
 
 	// ISequencerTrackEditor interface
 	virtual void OnRelease() override;
-	virtual void BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
+	virtual bool HasTransformKeyBindings() const override { return true; }
+	virtual bool CanAddTransformKeysForSelectedObjects() const override;
+	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
+	virtual bool HasTransformKeyOverridePriority() const override;
+	virtual void ObjectImplicitlyAdded(UObject* InObject)  override;
 
 private:
 
@@ -64,23 +68,28 @@ private:
 	/** Delegate for MovieScene Changing so we can see if our track got deleted*/
 	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
+	/** Delegate for Curve Selection Changed Event */
+	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
+
 	/** Control Rig Delegates*/
-	void HandleControlModified(IControlRigManipulatable* Subject, const FRigControl& Control);
+	void HandleControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
 	void HandleControlSelected(IControlRigManipulatable* Subject, const FRigControl& Control, bool bSelected);
 
+	/** Handle Creattion for SkelMeshComp or Actor Owner, either may have a binding*/
+	FMovieSceneTrackEditor::FFindOrCreateHandleResult FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp);
+
 private:
-	//MZ TODO Store map of control rig to parameter values to see if they changed?
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
 	TSharedPtr<FUICommandList> CommandBindings;
 public:
 
-	void AddControlKeys(UObject* InObject, IControlRigManipulatable* Manip, FName PropertyName, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, ESequencerKeyMode KeyMode);
+	void AddControlKeys(USceneComponent *InSceneComp, IControlRigManipulatable* Manip, FName PropertyName, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, ESequencerKeyMode KeyMode);
 	void GetControlRigKeys(IControlRigManipulatable* Manip, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys);
 	FKeyPropertyResult AddKeysToControlRig(
-		UObject* Object, IControlRigManipulatable* Manip, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
+		USceneComponent *InSceneComp, IControlRigManipulatable* Manip, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName);
-	FKeyPropertyResult AddKeysToControlRigHandle(UObject *Object, IControlRigManipulatable* Manip,
+	FKeyPropertyResult AddKeysToControlRigHandle(USceneComponent *InSceneComp, IControlRigManipulatable* Manip,
 		FGuid ObjectHandle, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName);
 	/**
@@ -103,15 +112,13 @@ public:
 	void OnControlRigAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings,  USkeleton* Skeleton);
 	*/
 private:
-	bool CanAddTransformKeysForSelectedObjects();
-	void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
 
 private:
 
 	/** Guard to stop infinite loops when handling control selections*/
-	bool bIsDoingASelection;
+	bool bIsDoingSelection;
 
 };
 

@@ -764,19 +764,8 @@ struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterface
 
 	void DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
 
-	virtual void DeferredDestroy()
-	{
-		for (const FNiagaraSystemInstanceID& SystemInstance : InstancesToDestroy)
-		{
-			SystemsToGPUInstanceData.Remove(SystemInstance);
-		}
-
-		InstancesToDestroy.Empty();
-	}
-
 	float SolverTime;
 	int32 LastSpawnedPointID;
 
 	TMap<FNiagaraSystemInstanceID, FNiagaraDIChaosDestruction_GPUData> SystemsToGPUInstanceData;
-	TSet<FNiagaraSystemInstanceID> InstancesToDestroy;
 };

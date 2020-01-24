@@ -634,7 +634,7 @@ public:
 	{
 		if (JsonObject->HasTypedField<EJson::Number>(Name))
 		{
-			Value = JsonObject->GetNumberField(Name);
+			Value = (float)JsonObject->GetNumberField(Name);
 		}
 	}
 	/**
@@ -743,7 +743,7 @@ public:
 			// Iterate all of the keys and their values
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonMap->Values)
 			{
-				const int32 Value = Pair.Value->AsNumber();
+				const int32 Value = (int32)Pair.Value->AsNumber();
 				Map.Add(Pair.Key, Value);
 			}
 		}
@@ -763,7 +763,7 @@ public:
 			// Iterate all of the keys and their values
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonMap->Values)
 			{
-				const int64 Value = Pair.Value->AsNumber();
+				const int64 Value = (int64)Pair.Value->AsNumber();
 				Map.Add(Pair.Key, Value);
 			}
 		}

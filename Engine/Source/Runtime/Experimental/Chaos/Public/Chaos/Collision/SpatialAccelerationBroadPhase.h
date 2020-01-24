@@ -211,7 +211,9 @@ namespace Chaos
 
 					const FReal Box2Thickness = bIsParticle2Dynamic ? ComputeBoundsThickness(*Particle2.CastToRigidParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size() : (FReal)0;
 
-					NarrowPhase.GenerateCollisions(Dt, Receiver, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
+					FCollisionConstraintsArray NewConstraints;
+					NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
+					Receiver.ReceiveCollisions(NewConstraints);
 				}
 			}
 

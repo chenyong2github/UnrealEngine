@@ -37,10 +37,10 @@ FAutoConsoleVariableRef CVarAOLogObjectBufferReallocation(
 
 // Must match equivalent shader defines
 template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 5;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
 
 // In float4's.  Must match corresponding usf definition
@@ -1235,6 +1235,12 @@ bool ProcessHeightFieldPrimitiveUpdate(
 	FHeightfieldComponentDescription HeightFieldCompDesc(PrimitiveSceneInfo->Proxy->GetLocalToWorld());
 	PrimitiveSceneInfo->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
 
+	const uint32 Handle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
+	if (Handle == INDEX_NONE)
+	{
+		return false;
+	}
+
 	uint32 UploadIdx;
 	if (bIsAddOperation)
 	{
@@ -1269,18 +1275,32 @@ bool ProcessHeightFieldPrimitiveUpdate(
 	UploadObjectData.Add(*(const FVector4*)&WorldToLocalT.M[2]);
 
 	const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
-	UploadObjectData.Add(FVector4(HeightFieldRect.Min.X, HeightFieldRect.Min.Y, HeightFieldRect.Width(), HeightFieldRect.Height()));
+	const float WorldToLocalScale = FMath::Min3(
+		WorldToLocalT.GetColumn(0).Size(),
+		WorldToLocalT.GetColumn(1).Size(),
+		WorldToLocalT.GetColumn(2).Size());
+	UploadObjectData.Add(FVector4(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f));
 
 	const FVector4& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
 	check(HeightFieldScaleBias.Y >= 0.f && HeightFieldScaleBias.Z >= 0.f && HeightFieldScaleBias.W >= 0.f);
-	const uint32 TileHandle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
-	check(TileHandle != INDEX_NONE);
-	const FVector4 TileScaleBias = GHeightFieldTextureAtlas.GetTileScaleBias(TileHandle);
+	const FVector4 AllocationScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(Handle);
 	UploadObjectData.Add(FVector4(
-		FMath::Abs(HeightFieldScaleBias.X) * TileScaleBias.X,
-		HeightFieldScaleBias.Y * TileScaleBias.Y,
-		HeightFieldScaleBias.Z * TileScaleBias.X + TileScaleBias.Z,
-		HeightFieldScaleBias.W * TileScaleBias.Y + TileScaleBias.W));
+		FMath::Abs(HeightFieldScaleBias.X) * AllocationScaleBias.X,
+		HeightFieldScaleBias.Y * AllocationScaleBias.Y,
+		HeightFieldScaleBias.Z * AllocationScaleBias.X + AllocationScaleBias.Z,
+		HeightFieldScaleBias.W * AllocationScaleBias.Y + AllocationScaleBias.W));
+
+	FVector4 VisUVScaleBias(ForceInitToZero);
+	if (VisibilityTexture)
+	{
+		const uint32 VisHandle = GHFVisibilityTextureAtlas.GetAllocationHandle(VisibilityTexture);
+		if (VisHandle != INDEX_NONE)
+		{
+			const FVector4 ScaleBias = GHFVisibilityTextureAtlas.GetAllocationScaleBias(VisHandle);
+			VisUVScaleBias = FVector4(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
+		}
+	}
+	UploadObjectData.Add(VisUVScaleBias);
 
 	check(!(UploadObjectData.Num() % UploadHeightFieldObjectDataStride));
 
@@ -1605,7 +1625,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 	if (GHeightFieldTextureAtlas.GetAtlasTexture()
 		&& (DistanceFieldSceneData.HasPendingHeightFieldOperations()
-			|| DistanceFieldSceneData.HeightFieldAtlasGeneration != GHeightFieldTextureAtlas.GetGeneration()))
+			|| DistanceFieldSceneData.HeightFieldAtlasGeneration != GHeightFieldTextureAtlas.GetGeneration()
+			|| DistanceFieldSceneData.HFVisibilityAtlasGenerattion != GHFVisibilityTextureAtlas.GetGeneration()))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateHeightFieldSceneObjectData);
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateHeightFieldSceneObjectData);
@@ -1615,19 +1636,21 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 			DistanceFieldSceneData.HeightFieldObjectBuffers = new FHeightFieldObjectBuffers;
 		}
 
-		if (DistanceFieldSceneData.HeightFieldAtlasGeneration != GHeightFieldTextureAtlas.GetGeneration())
+		if (DistanceFieldSceneData.HeightFieldAtlasGeneration != GHeightFieldTextureAtlas.GetGeneration()
+			|| DistanceFieldSceneData.HFVisibilityAtlasGenerattion != GHFVisibilityTextureAtlas.GetGeneration())
 		{
 			DistanceFieldSceneData.HeightFieldAtlasGeneration = GHeightFieldTextureAtlas.GetGeneration();
+			DistanceFieldSceneData.HFVisibilityAtlasGenerattion = GHFVisibilityTextureAtlas.GetGeneration();
 
 			for (int32 Idx = 0; Idx < DistanceFieldSceneData.HeightfieldPrimitives.Num(); ++Idx)
 			{
-				const FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Idx];
+				FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Idx];
 
 				if (!DistanceFieldSceneData.HasPendingRemoveHeightFieldPrimitive(Primitive)
 					&& !DistanceFieldSceneData.PendingHeightFieldAddOps.Contains(Primitive)
 					&& !DistanceFieldSceneData.PendingHeightFieldUpdateOps.Contains(Primitive))
 				{
-					DistanceFieldSceneData.PendingUpdateOperations.Add((FPrimitiveSceneInfo*)Primitive);
+					DistanceFieldSceneData.PendingHeightFieldUpdateOps.Add(Primitive);
 				}
 			}
 		}

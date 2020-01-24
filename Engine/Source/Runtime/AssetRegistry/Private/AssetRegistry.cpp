@@ -1356,9 +1356,9 @@ EAssetAvailability::Type UAssetRegistryImpl::GetAssetAvailability(const FAssetDa
 	EChunkLocation::Type BestLocation = EChunkLocation::DoesNotExist;
 
 	// check all chunks to see which has the best locality
-	for (int32 ChunkId : AssetData.ChunkIDs)
+	for (int32 PakchunkId : AssetData.ChunkIDs)
 	{
-		EChunkLocation::Type ChunkLocation = ChunkInstall->GetChunkLocation(ChunkId);
+		EChunkLocation::Type ChunkLocation = ChunkInstall->GetPakchunkLocation(PakchunkId);
 
 		// if we find one in the best location, early out
 		if (ChunkLocation == EChunkLocation::BestLocation)
@@ -1400,9 +1400,9 @@ float UAssetRegistryImpl::GetAssetAvailabilityProgress(const FAssetData& AssetDa
 	float BestProgress = MAX_FLT;
 
 	// check all chunks to see which has the best time remaining
-	for (int32 ChunkId : AssetData.ChunkIDs)
+	for (int32 PakchunkID : AssetData.ChunkIDs)
 	{
-		float Progress = ChunkInstall->GetChunkProgress(ChunkId, ChunkReportType);
+		float Progress = ChunkInstall->GetChunkProgress(PakchunkID, ChunkReportType);
 
 		// need to flip percentage completes for the comparison
 		if (IsPercentageComplete)
@@ -1445,7 +1445,7 @@ void UAssetRegistryImpl::PrioritizeAssetInstall(const FAssetData& AssetData) con
 		return;
 	}
 
-	ChunkInstall->PrioritizeChunk(AssetData.ChunkIDs[0], EChunkPriority::Immediate);
+	ChunkInstall->PrioritizePakchunk(AssetData.ChunkIDs[0], EChunkPriority::Immediate);
 }
 
 bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)

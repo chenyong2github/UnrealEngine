@@ -180,6 +180,13 @@ public:
 	virtual void RefreshPluginsList() = 0;
 
 	/**
+	 * Adds a single plugin to the list of plugins. Faster than refreshing all plugins with RefreshPluginsList() when you only want to add one. Does nothing if already in the list.
+	 * 
+	 * @return True if the plugin was added or already in the list. False if it failed to load.
+	 */
+	virtual bool AddToPluginsList( const FString& PluginFilename ) = 0;
+
+	/**
 	 * Loads all plug-ins
 	 *
 	 * @param	LoadingPhase	Which loading phase we're loading plug-in modules from.  Only modules that are configured to be

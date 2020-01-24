@@ -140,7 +140,7 @@ UNiagaraDataInterfaceNeighborGrid3D::UNiagaraDataInterfaceNeighborGrid3D(FObject
 	: Super(ObjectInitializer)
 	, MaxNeighborsPerVoxel(8)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyNeighborGrid3D, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyNeighborGrid3D());
 	PushToRenderThread();
 }
 
@@ -438,15 +438,8 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
 		[RT_Proxy, RT_NumVoxels, RT_MaxNeighborsPerVoxel, RT_WorldBBoxSize, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
 	{
-		NeighborGrid3DRWInstanceData* TargetData = RT_Proxy->SystemInstancesToProxyData.Find(InstanceID);
-		if (TargetData != nullptr)
-		{
-			RT_Proxy->DeferredDestroyList.Remove(InstanceID);
-		}
-		else
-		{
-			TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
-		}
+		check(!RT_Proxy->SystemInstancesToProxyData.Contains(InstanceID));
+		NeighborGrid3DRWInstanceData* TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
 
 		TargetData->NumVoxels = RT_NumVoxels;
 		TargetData->MaxNeighborsPerVoxel = RT_MaxNeighborsPerVoxel;		
@@ -476,7 +469,8 @@ void UNiagaraDataInterfaceNeighborGrid3D::DestroyPerInstanceData(void* PerInstan
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
-		ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+		//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
+		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 	}
 	);
 }
@@ -490,26 +484,6 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(FRHICommandList& RHICmdL
 		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodBuffer.UAV, FUintVector4((uint32)-1, (uint32)-1, (uint32)-1, (uint32)-1));
 		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodCountBuffer.UAV, FUintVector4(0, 0, 0 ,0));
 	}
-}
-
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyNeighborGrid3D::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
-{
-	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
-}
-
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyNeighborGrid3D::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
 }
 
 bool UNiagaraDataInterfaceNeighborGrid3D::CopyToInternal(UNiagaraDataInterface* Destination) const

@@ -6973,8 +6973,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	// Find all the localized packages and map them back to their source package
 	{
-		UE_LOG(LogCook, Display, TEXT("Discovering localized assets"));
-
 		TArray<FString> AllCulturesToCook = CookByTheBookStartupOptions.CookCultures;
 		for (const FString& CultureName : CookByTheBookStartupOptions.CookCultures)
 		{
@@ -6985,6 +6983,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 		}
 		AllCulturesToCook.Sort();
+
+		UE_LOG(LogCook, Display, TEXT("Discovering localized assets for cultures: %s"), *FString::Join(AllCulturesToCook, TEXT(", ")));
 
 		TArray<FString> RootPaths;
 		FPackageName::QueryRootContentPaths(RootPaths);
@@ -7032,7 +7032,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		{
 			for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
 			{
-				Pair.Value->RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(MoveTemp(LocalizationTargetsToChunk), MoveTemp(AllCulturesToCook)));
+				Pair.Value->RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(PackagingSettings->LocalizationTargetCatchAllChunkId, LocalizationTargetsToChunk, AllCulturesToCook));
 			}
 		}
 	}

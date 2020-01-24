@@ -70,18 +70,28 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.StatsText", CategoryText);
 
 	// Asset picker
+	FTextBlockStyle AssetPickerBoldAssetNameText = FTextBlockStyle(NormalText)
+		.SetColorAndOpacity(FLinearColor::White)
+		.SetFont(DEFAULT_FONT("Bold", 9));
+
+	Style->Set("NiagaraEditor.AssetPickerBoldAssetNameText", AssetPickerBoldAssetNameText);
+
 	FTextBlockStyle AssetPickerAssetNameText = FTextBlockStyle(NormalText)
 		.SetColorAndOpacity(FLinearColor::White)
-		.SetFont(DEFAULT_FONT("Bold", 14))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetFont(DEFAULT_FONT("Regular", 9));
 
 	Style->Set("NiagaraEditor.AssetPickerAssetNameText", AssetPickerAssetNameText);
 
 	FTextBlockStyle AssetPickerAssetCategoryText = FTextBlockStyle(NormalText)
-		.SetFont(DEFAULT_FONT("Regular", 10));
+		.SetFont(DEFAULT_FONT("Bold", 11));
 
 	Style->Set("NiagaraEditor.AssetPickerAssetCategoryText", AssetPickerAssetCategoryText);
+
+
+	FTextBlockStyle AssetPickerAssetSubcategoryText = FTextBlockStyle(NormalText)
+		.SetFont(DEFAULT_FONT("Bold", 10));
+
+	Style->Set("NiagaraEditor.AssetPickerAssetSubcategoryText", AssetPickerAssetSubcategoryText);
 
 	// New Asset Dialog
 	FTextBlockStyle NewAssetDialogOptionText = FTextBlockStyle(NormalText)
@@ -91,17 +101,13 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 
 	FTextBlockStyle NewAssetDialogHeaderText = FTextBlockStyle(NormalText)
 		.SetColorAndOpacity(FLinearColor::White)
-		.SetFont(DEFAULT_FONT("Bold", 10))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetFont(DEFAULT_FONT("Bold", 10));
 
 	Style->Set("NiagaraEditor.NewAssetDialog.HeaderText", NewAssetDialogHeaderText);
 
 	FTextBlockStyle NewAssetDialogSubHeaderText = FTextBlockStyle(NormalText)
 		.SetColorAndOpacity(FLinearColor::White)
-		.SetFont(DEFAULT_FONT("Bold", 10))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetFont(DEFAULT_FONT("Bold", 11));
 
 	Style->Set("NiagaraEditor.NewAssetDialog.SubHeaderText", NewAssetDialogSubHeaderText);
 
@@ -118,9 +124,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 
 	// Emitter Header
 	FTextBlockStyle HeadingText = FTextBlockStyle(NormalText)
-		.SetFont(DEFAULT_FONT("Regular", 14))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetFont(DEFAULT_FONT("Regular", 14));
 
 	FEditableTextBoxStyle HeadingEditableTextBox = FEditableTextBoxStyle(NormalEditableTextBox)
 		.SetFont(DEFAULT_FONT("Regular", 14));
@@ -142,17 +146,13 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 
 	FTextBlockStyle SubduedHeadingText = FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 14))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
 	
 	Style->Set("NiagaraEditor.SubduedHeadingTextBox", SubduedHeadingText);
 
 	// Details
 	FTextBlockStyle DetailsHeadingText = FTextBlockStyle(NormalText)
-		.SetFont(DEFAULT_FONT("Bold", 9))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetFont(DEFAULT_FONT("Bold", 9));
 
 	Style->Set("NiagaraEditor.DetailsHeadingText", DetailsHeadingText);
 
@@ -201,9 +201,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	FSlateFontInfo SelectedEmitterUnsupportedSelectionFont = DEFAULT_FONT("Regular", 10);
 	FTextBlockStyle SelectedEmitterUnsupportedSelectionText = FTextBlockStyle(NormalText)
 		.SetFont(SelectedEmitterUnsupportedSelectionFont)
-		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	Style->Set("NiagaraEditor.SelectedEmitter.UnsupportedSelectionText", SelectedEmitterUnsupportedSelectionText);
 
 	// Toolbar Icons

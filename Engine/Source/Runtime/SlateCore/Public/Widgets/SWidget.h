@@ -755,7 +755,7 @@ private:
 #endif
 	}
 
-	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode);
+	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle);
 
 #if WITH_SLATE_DEBUGGING
 	uint32 Debug_GetLastPaintFrame() const { return LastPaintFrame; }

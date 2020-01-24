@@ -72,6 +72,15 @@ FShaderResourceViewRHIRef FEmptyDynamicRHI::RHICreateShaderResourceView(FRHIVert
 	return SRV;
 }
 
+FShaderResourceViewRHIRef FEmptyDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+{
+	FEmptyVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+
+	FEmptyShaderResourceView* SRV = new FEmptyShaderResourceView;
+	SRV->SourceVertexBuffer = VertexBuffer;
+	return SRV;
+}
+
 FShaderResourceViewRHIRef FEmptyDynamicRHI::RHICreateShaderResourceView(FRHIIndexBuffer* BufferRHI)
 {
 	// there should be no need to create an object

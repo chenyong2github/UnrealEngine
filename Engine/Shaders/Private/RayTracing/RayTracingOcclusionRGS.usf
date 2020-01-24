@@ -9,6 +9,7 @@
 #include "../SobolRandom.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
 #include "RayTracingSphereLight.ush"
@@ -140,15 +141,24 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		uint ShadingModelID = SHADINGMODELID_UNLIT;
 		float3 WorldNormal = 0;
 		{
-			const FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
+#if 0
+			FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+#else
+			//#dxr-todo: workaround for flickering. UE-87281
+			FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+#endif
 			ShadingModelID = GBufferData.ShadingModelID;
 			WorldNormal = GBufferData.WorldNormal;
 		}
 
-
 		// Mask out depth values that are infinitely far away
 
+#if 0
 		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+#else
+		//#dxr-todo: workaround for flickering. UE-87281
+		float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+#endif
 		const bool bIsDepthValid = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r > 0.0;
 		bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
 

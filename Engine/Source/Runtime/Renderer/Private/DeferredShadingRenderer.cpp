@@ -570,6 +570,11 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 
 	if (ShouldPrepareHeightFieldScene())
 	{
+		extern int32 GHFShadowQuality;
+		if (GHFShadowQuality > 2)
+		{
+			GHFVisibilityTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
+		}
 		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
 		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
 	}
@@ -619,7 +624,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		return false;
 	}
 
-	if (!AnyRayTracingPassEnabled(Views[0]))
+	bool bAnyRayTracingPassEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+	}
+
+	if (!bAnyRayTracingPassEnabled)
 	{
 		return false;
 	}
@@ -1021,7 +1032,13 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		return false;
 	}
 
-	if (!AnyRayTracingPassEnabled(Views[0]))
+	bool bAnyRayTracingPassEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+	}
+
+	if (!bAnyRayTracingPassEnabled)
 	{
 		return false;
 	}
@@ -3035,13 +3052,12 @@ void FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRHIComm
 
 #if RHI_RAYTRACING
 
-bool AnyRayTracingPassEnabled(const FViewInfo& View)
+bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
 	static auto CVarRayTracingSkyLight = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.SkyLight"));
 	static auto CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
 	static auto CVarStochasticRectLight = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.StochasticRectLight"));
 
-	const bool bRayTracingSkyLight = CVarRayTracingSkyLight != nullptr && CVarRayTracingSkyLight->GetInt() > 0;
 	const bool bRayTracingShadows = CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0;
 	const bool bRayTracingStochasticRectLight = CVarStochasticRectLight != nullptr && CVarStochasticRectLight->GetInt() > 0;
 
@@ -3050,7 +3066,7 @@ bool AnyRayTracingPassEnabled(const FViewInfo& View)
 		|| ShouldRenderRayTracingReflections(View)
 		|| ShouldRenderRayTracingGlobalIllumination(View)
 		|| ShouldRenderRayTracingTranslucency(View)
-		|| bRayTracingSkyLight
+		|| ShouldRenderRayTracingSkyLight(Scene? Scene->SkyLight : nullptr)
 		|| bRayTracingShadows
 		|| bRayTracingStochasticRectLight
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing

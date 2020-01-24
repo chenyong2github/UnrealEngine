@@ -60,6 +60,8 @@
 #include "FbxExporter.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
+#include "AnimationRecorder.h"
+#include "Components/SkeletalMeshComponent.h"
 
 /* MovieSceneToolHelpers
  *****************************************************************************/
@@ -2044,3 +2046,71 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 
 	return true;
 }
+
+
+
+bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UMovieScene* MovieScene, IMovieScenePlayer* Player,
+	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	//if we have no allocated bone space transforms something wrong so try to recalc them
+	if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+	{
+		SkelMeshComp->RecalcRequiredBones(0);
+		if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+		{
+
+			UE_LOG(LogMovieScene, Error, TEXT("Error Animation Anim Sequence Export, No Bone Transforms."));
+			return false;
+		}
+	}
+
+	UnFbx::FLevelSequenceAnimTrackAdapter AnimTrackAdapter(Player, MovieScene, RootToLocalTransform);
+
+	FFrameRate SampleRate = MovieScene->GetDisplayRate();
+
+	FAnimRecorderInstance AnimationRecorder;
+	FAnimationRecordingSettings RecordingSettings;
+	RecordingSettings.SampleRate = SampleRate.AsDecimal();
+	RecordingSettings.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+	RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+	RecordingSettings.Length = 0;
+	RecordingSettings.bRecordInWorldSpace = true;
+	RecordingSettings.bRemoveRootAnimation = false;
+	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
+	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
+	AnimationRecorder.BeginRecording();
+
+
+	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
+	int32 StartFrame = AnimTrackAdapter.GetStartFrame();
+	int32 AnimationLength = AnimTrackAdapter.GetLength();
+	float FrameRate = AnimTrackAdapter.GetFrameRate();
+	float DeltaTime = 1.0f / FrameRate;
+	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
+	{
+
+		int32 LocalFrame = LocalStartFrame + FrameCount;
+
+		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+
+		// Update space bases so new animation position has an effect.
+		// @todo - hack - this will be removed at some point (this comment is all over the place by the way in fbx export code).
+		SkelMeshComp->TickAnimation(0.03f, false);
+
+		SkelMeshComp->RefreshBoneTransforms();
+		SkelMeshComp->RefreshSlaveComponents();
+		SkelMeshComp->UpdateComponentToWorld();
+		SkelMeshComp->FinalizeBoneTransform();
+		SkelMeshComp->MarkRenderTransformDirty();
+		SkelMeshComp->MarkRenderDynamicDataDirty();
+
+		AnimationRecorder.Update(DeltaTime);
+	}
+
+	const bool bShowAnimationAssetCreatedToast = false;
+	AnimationRecorder.FinishRecording(bShowAnimationAssetCreatedToast);
+
+	return true;
+}
+

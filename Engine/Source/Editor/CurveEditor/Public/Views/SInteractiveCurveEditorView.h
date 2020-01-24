@@ -108,9 +108,6 @@ protected:
 
 private:
 
-	/** Gets info about the curves being drawn. Converts actual curves into an abstract series of lines/points/handles/etc. */
-	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
-
 	void CreateContextMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	/** Updates our distance to all of the curves we represent. */

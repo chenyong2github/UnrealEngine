@@ -354,8 +354,6 @@ struct FNiagaraPassedInstanceDataForRT
 
 struct FNiagaraDataInterfaceProxyStaticMesh : public FNiagaraDataInterfaceProxy
 {
-	virtual void DeferredDestroy() override;
-
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return sizeof(FNiagaraPassedInstanceDataForRT);
@@ -367,6 +365,4 @@ struct FNiagaraDataInterfaceProxyStaticMesh : public FNiagaraDataInterfaceProxy
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
 
 	TMap<FNiagaraSystemInstanceID, FNiagaraStaticMeshData> SystemInstancesToMeshData;
-
-	TSet<FNiagaraSystemInstanceID> DeferredDestroyList;
 };

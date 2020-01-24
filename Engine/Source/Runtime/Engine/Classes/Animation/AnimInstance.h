@@ -1330,22 +1330,36 @@ protected:
 	/** Override point for derived classes to destroy their own proxy objects (allows custom allocation) */
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy);
 
+	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it 
+	 *	This is protected static member for allowing derived to access
+	 */
+	template <typename T /*= FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
+	FORCEINLINE static T* GetProxyOnGameThreadStatic(UAnimInstance* InAnimInstance)
+	{
+		if (InAnimInstance)
+		{
+			check(IsInGameThread());
+			UObject* OuterObj = InAnimInstance->GetOuter();
+			if (OuterObj && OuterObj->IsA<USkeletalMeshComponent>())
+			{
+				bool bBlockOnTask = true;
+				bool bPerformPostAnimEvaluation = true;
+				InAnimInstance->GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+			}
+			if (InAnimInstance->AnimInstanceProxy == nullptr)
+			{
+				InAnimInstance->AnimInstanceProxy = InAnimInstance->CreateAnimInstanceProxy();
+			}
+			return static_cast<T*>(InAnimInstance->AnimInstanceProxy);
+		}
+
+		return nullptr;
+	}
 	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it */
 	template <typename T /*= FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
 	FORCEINLINE T& GetProxyOnGameThread()
 	{
-		check(IsInGameThread());
-		if(GetOuter() && GetOuter()->IsA<USkeletalMeshComponent>())
-		{
-			bool bBlockOnTask = true;
-			bool bPerformPostAnimEvaluation = true;
-			GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
-		}
-		if(AnimInstanceProxy == nullptr)
-		{
-			AnimInstanceProxy = CreateAnimInstanceProxy();
-		}
-		return *static_cast<T*>(AnimInstanceProxy);
+		return *GetProxyOnGameThreadStatic<T>(this);
 	}
 
 	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it */

@@ -879,7 +879,7 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 void LaunchCheckForCommandLineAliases(bool& bChanged)
 {
 	bChanged = false;
-	if (FPaths::IsProjectFilePathSet())
+	if (FPaths::ProjectDir().Len() > 0)
 	{
 		// Pass GeneratedConfigDir as nullptr instead of FPaths::GeneratedConfigDir() so that saved directory is not cached before -saveddir argument can be added
 		const TCHAR* GeneratedConfigDir = nullptr;
@@ -947,12 +947,26 @@ void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
 				FString FileCmds;
 				if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
 				{
-					FileCmds = FString(TEXT(" ")) + FileCmds.TrimStartAndEnd();
-					if (FileCmds.Len() > 1)
+					FileCmds = FileCmds.TrimStartAndEnd();
+					if (FileCmds.Len() > 0)
 					{
-						UE_LOG(LogInit, Log, TEXT("Appending commandline from file: %s, %s"), *InFilePath, *FileCmds);
-						FCommandLine::Append(*FileCmds);
-						bChanged = true;
+						UE_LOG(LogInit, Log, TEXT("Inserting commandline from file: %s, %s"), *InFilePath, *FileCmds);
+						FString NewCommandLine = FCommandLine::Get();
+						FString Left;
+						FString Right;
+						if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
+						{
+							FString NextToken;
+							const TCHAR* Stream = *Right;
+							if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
+							{
+								Right = FString(Stream);
+							}
+
+							NewCommandLine = Left + TEXT(" ") + FileCmds + TEXT(" ") + Right;
+							FCommandLine::Set(*NewCommandLine);
+							bChanged = true;
+						}
 					}
 
 					return true;
@@ -962,7 +976,7 @@ void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
 			};
 
 			bool bFoundFile = TryProcessFile(CmdLineFile);
-			if (!bFoundFile && FPaths::IsProjectFilePathSet())
+			if (!bFoundFile && FPaths::ProjectDir().Len() > 0)
 			{
 				const FString ProjectDir = FPaths::ProjectDir();
 				bFoundFile = TryProcessFile(ProjectDir + CmdLineFile);
@@ -1391,6 +1405,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 	{
+		SCOPED_BOOT_TIMING("InitTrace")
+
 		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
@@ -1582,7 +1598,10 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	// 
 #if PLATFORM_DESKTOP && !IS_MONOLITHIC
-	FModuleManager::Get().AddExtraBinarySearchPaths();
+	{
+		SCOPED_BOOT_TIMING("AddExtraBinarySearchPaths");
+		FModuleManager::Get().AddExtraBinarySearchPaths();
+	}
 #endif
 
 	// Initialize file manager

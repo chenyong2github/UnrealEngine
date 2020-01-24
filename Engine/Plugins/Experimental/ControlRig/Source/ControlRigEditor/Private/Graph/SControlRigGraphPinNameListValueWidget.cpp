@@ -17,6 +17,7 @@ void SControlRigGraphPinNameListValueWidget::Construct(const FArguments& InArgs)
 
 	TSharedRef<SWidget> ComboBoxMenuContent =
 		SNew(SBox)
+		.MinDesiredWidth(150.0f)
 		.MaxDesiredHeight(InArgs._MaxListHeight)
 		[
 			SNew(SVerticalBox)

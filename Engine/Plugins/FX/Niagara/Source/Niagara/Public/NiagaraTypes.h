@@ -1196,3 +1196,78 @@ inline void FNiagaraVariable::SetValue<bool>(const bool& Data)
 	FNiagaraBool* BoolStruct = (FNiagaraBool*)GetData();
 	BoolStruct->SetValue(Data);
 }
+
+// Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
+// properly rebuild the scripts
+struct alignas(16) FNiagaraGlobalParameters
+{
+#if WITH_EDITOR
+	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
+#endif
+
+	float EngineDeltaTime =  0.0f;
+	float EngineInvDeltaTime = 0.0f;
+	float EngineTime = 0.0f;
+	float EngineRealTime = 0.0f;
+};
+
+// Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
+// properly rebuild the scripts
+struct alignas(16) FNiagaraSystemParameters
+{
+#if WITH_EDITOR
+	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
+#endif
+
+	float EngineTimeSinceRendered = 0.0f;
+	float EngineLodDistance = 0.0f;
+	float EngineLodDistanceFraction = 0.0f;
+	float EngineSystemAge = 0.0f;
+	uint32 EngineExecutionState = 0;
+	int32 EngineTickCount = 0;
+	int32 EngineEmitterCount = 0;
+	int32 EngineAliveEmitterCount = 0;
+};
+
+// Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
+// properly rebuild the scripts
+struct alignas(16) FNiagaraOwnerParameters
+{
+#if WITH_EDITOR
+	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
+#endif
+
+	FMatrix EngineLocalToWorld = FMatrix::Identity;
+	FMatrix EngineWorldToLocal = FMatrix::Identity;
+	FMatrix EngineLocalToWorldTransposed = FMatrix::Identity;
+	FMatrix EngineWorldToLocalTransposed = FMatrix::Identity;
+	FMatrix EngineLocalToWorldNoScale = FMatrix::Identity;
+	FMatrix EngineWorldToLocalNoScale = FMatrix::Identity;
+	FQuat EngineRotation = FQuat::Identity;
+	FVector4 EnginePosition = FVector4(EForceInit::ForceInitToZero);
+	FVector4 EngineVelocity = FVector4(EForceInit::ForceInitToZero);
+	FVector4 EngineXAxis = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
+	FVector4 EngineYAxis = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
+	FVector4 EngineZAxis = FVector4(0.0f, 0.0f, 1.0f, 0.0f);
+	FVector4 EngineScale = FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+};
+
+// Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
+// properly rebuild the scripts
+struct alignas(16) FNiagaraEmitterParameters
+{
+#if WITH_EDITOR
+	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
+#endif
+
+	int32 EmitterNumParticles = 0;
+	int32 EmitterTotalSpawnedParticles = 0;
+	float EmitterSpawnCountScale = 1.0f;
+	float EmitterAge = 0.0f;
+	int32 EmitterRandomSeed = 0;
+
+	// todo - what else should be inserted here?  we could put an array of spawninfos/interp spawn values
+	int32 _Pad0;
+	int32 _Pad1;
+	int32 _Pad2;
+};

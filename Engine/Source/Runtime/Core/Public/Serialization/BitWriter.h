@@ -133,6 +133,8 @@ public:
 
 	FORCEINLINE bool AllowAppend(int64 LengthBits)
 	{
+		//@TODO: FLOATPRECISION: This class pretends it is 64-bit aware, e.g., in the type of LengthBits and the Num/Max members, but it is not as the inner Buffer is a 32 bit TArray, etc...
+
 		if (Num+LengthBits > Max)
 		{
 			if (bAllowResize)
@@ -143,8 +145,8 @@ public:
 				// in chunks).
 
 				Max = FMath::Max<int64>(Max<<1,Num+LengthBits);
-				int32 ByteMax = (Max+7)>>3;
-				Buffer.AddZeroed(ByteMax - Buffer.Num());
+				int64 ByteMax = (Max+7)>>3;
+				Buffer.AddZeroed((int32)(ByteMax - Buffer.Num()));
 				check((Max+7)>>3== Buffer.Num());
 				return true;
 			}

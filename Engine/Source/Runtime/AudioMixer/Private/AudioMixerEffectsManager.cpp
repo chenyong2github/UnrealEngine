@@ -9,89 +9,6 @@
 
 namespace Audio
 {
-#define ENABLE_REVERB_SETTINGS_PRINTING 0
-#define ENABLE_EQ_SETTINGS_PRINTING 0
-
-	static void PrintReverbSettings(const FAudioReverbEffect& Settings)
-	{
-#if ENABLE_REVERB_SETTINGS_PRINTING
-
-		const char* FmtText =
-			"\nVolume: %.4f\n"
-			"Density: %.4f\n"
-			"Diffusion: %.4f\n"
-			"Gain: %.4f\n"
-			"GainHF: %.4f\n"
-			"DecayTime: %.4f\n"
-			"DecayHFRatio: %.4f\n"
-			"ReflectionsGain: %.4f\n"
-			"ReflectionsDelay: %.4f\n"
-			"LateGain: %.4f\n"
-			"LateDelay: %.4f\n"
-			"AirAbsorptionGainHF: %.4f\n"
-			"RoomRolloffFactor: %.4f\n";
-
-		FString FmtString(FmtText);
-
-		FString Params = FString::Printf(
-			*FmtString,
-			Settings.Volume,
-			Settings.Density,
-			Settings.Diffusion,
-			Settings.Gain,
-			Settings.GainHF,
-			Settings.DecayTime,
-			Settings.DecayHFRatio,
-			Settings.ReflectionsGain,
-			Settings.ReflectionsDelay,
-			Settings.LateGain,
-			Settings.LateDelay,
-			Settings.AirAbsorptionGainHF,
-			Settings.RoomRolloffFactor
-			);
-
-		UE_LOG(LogTemp, Log, TEXT("%s"), *Params);
-#endif
-	}
-
-	static void PrintEQSettings(const FAudioEQEffect& Settings)
-	{
-#if ENABLE_EQ_SETTINGS_PRINTING
-		const char* FmtText =
-			"\nFrequencyCenter0: %.4f\n"
-			"Gain0: %.4f\n"
-			"Bandwidth0: %.4f\n"
-			"FrequencyCenter1: %.4f\n"
-			"Gain1: %.4f\n"
-			"Bandwidth1: %.4f\n"
-			"FrequencyCenter2: %.4f\n"
-			"Gain2: %.4f\n"
-			"Bandwidth2: %.4f\n"
-			"FrequencyCenter3: %.4f\n"
-			"Gain3: %.4f\n"
-			"Bandwidth3: %.4f\n";
-
-		FString FmtString(FmtText);
-
-		FString Params = FString::Printf(
-			*FmtString,
-			Settings.FrequencyCenter0,
-			Settings.Gain0,
-			Settings.Bandwidth0,
-			Settings.FrequencyCenter1,
-			Settings.Gain1,
-			Settings.Bandwidth1,
-			Settings.FrequencyCenter2,
-			Settings.Gain2,
-			Settings.Bandwidth2,
-			Settings.FrequencyCenter3,
-			Settings.Gain3,
-			Settings.Bandwidth3
-		);
-
-		UE_LOG(LogTemp, Log, TEXT("%s"), *Params);
-#endif
-	}
 
 	FAudioMixerEffectsManager::FAudioMixerEffectsManager(FAudioDevice* InDevice)
 		: FAudioEffectsManager(InDevice)
@@ -101,7 +18,7 @@ namespace Audio
 	FAudioMixerEffectsManager::~FAudioMixerEffectsManager()
 	{}
 
-	void FAudioMixerEffectsManager::SetReverbEffectParameters(const FAudioReverbEffect& ReverbEffectParameters)
+	void FAudioMixerEffectsManager::SetReverbEffectParameters(const FAudioEffectParameters& InEffectParameters)
 	{
 		FMixerDevice* MixerDevice = (FMixerDevice*)AudioDevice;
 
@@ -110,18 +27,36 @@ namespace Audio
 		
 		if (MasterReverbSubmixPtr.IsValid())
 		{
+			bool bReportFailure = false;
+
 			FSoundEffectSubmixPtr SoundEffectSubmix = MasterReverbSubmixPtr->GetSubmixEffect(0);
 			if (SoundEffectSubmix.IsValid())
 			{
-				TSharedPtr<FSubmixEffectReverbFast, ESPMode::ThreadSafe> SoundEffectReverb = StaticCastSharedPtr<FSubmixEffectReverbFast, FSoundEffectSubmix, ESPMode::ThreadSafe>(SoundEffectSubmix);
-				SoundEffectReverb->SetEffectParameters(ReverbEffectParameters);
+				InEffectParameters.PrintSettings();
 
-				PrintReverbSettings(ReverbEffectParameters);
+				if (!SoundEffectSubmix->SupportsDefaultReverb() || !SoundEffectSubmix->SetParameters(InEffectParameters))
+				{
+					bReportFailure = true;
+				}
+				else
+				{
+					InvalidReverbEffect.Reset();
+				}
+			}
+			else
+			{
+				bReportFailure = true;
+			}
+
+			if (bReportFailure && InvalidReverbEffect != SoundEffectSubmix)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Failed to update reverb parameters on Default Reverb Submix. Ensure first submix effect is supported type"));
+				InvalidReverbEffect = SoundEffectSubmix;
 			}
 		}
 	}
 
-	void FAudioMixerEffectsManager::SetEQEffectParameters(const FAudioEQEffect& InEQEffectParameters)
+	void FAudioMixerEffectsManager::SetEQEffectParameters(const FAudioEffectParameters& InEffectParameters)
 	{
 		FMixerDevice* MixerDevice = (FMixerDevice*)AudioDevice;
 
@@ -130,19 +65,36 @@ namespace Audio
 
 		if (MasterEQSubmixPtr.IsValid())
 		{
+			bool bReportFailure = false;
 			FSoundEffectSubmixPtr SoundEffectSubmix = MasterEQSubmixPtr->GetSubmixEffect(0);
 			if (SoundEffectSubmix.IsValid())
 			{
-				TSharedPtr<FSubmixEffectSubmixEQ, ESPMode::ThreadSafe> SoundEffectEQ = StaticCastSharedPtr<FSubmixEffectSubmixEQ, FSoundEffectSubmix, ESPMode::ThreadSafe>(SoundEffectSubmix);
-				SoundEffectEQ->SetEffectParameters(InEQEffectParameters);
-				PrintEQSettings(InEQEffectParameters);
+				InEffectParameters.PrintSettings();
+
+				if (!SoundEffectSubmix->SupportsDefaultEQ() || !SoundEffectSubmix->SetParameters(InEffectParameters))
+				{
+					bReportFailure = true;
+				}
+				else
+				{
+					InvalidEQEffect.Reset();
+				}
+			}
+			else
+			{
+				bReportFailure = true;
+			}
+
+			if (bReportFailure && InvalidEQEffect != SoundEffectSubmix)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Failed to update EQ parameters on legacy Default EQ Submix. Ensure first submix effect is supported type"));
+				InvalidEQEffect = SoundEffectSubmix;
 			}
 		}
 	}
 
-	void FAudioMixerEffectsManager::SetRadioEffectParameters(const FAudioRadioEffect& ReverbEffectParameters)
+	void FAudioMixerEffectsManager::SetRadioEffectParameters(const FAudioEffectParameters& InEffectParameters)
 	{
-
+		// Effect system deprecated
 	}
-
 }

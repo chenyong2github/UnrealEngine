@@ -90,9 +90,9 @@ CONSTEXPR const T* GetData(std::initializer_list<T> List)
 * Generically gets the number of items in a contiguous container
 */
 template<typename T, typename = typename TEnableIf<TIsContiguousContainer<T>::Value>::Type>
-auto GetNum(T&& Container) -> decltype((SIZE_T)Container.Num())
+auto GetNum(T&& Container) -> decltype(Container.Num())
 {
-	return (SIZE_T)Container.Num();
+	return Container.Num();
 }
 
 template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (& Container)[N]) { return N; }

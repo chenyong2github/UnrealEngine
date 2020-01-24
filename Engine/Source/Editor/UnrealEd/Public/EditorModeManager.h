@@ -456,6 +456,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/**	Broadcasts the EditorModeIDChanged event */
 	void BroadcastEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEnteringMode) { EditorModeIDChangedEvent.Broadcast(ModeID, IsEnteringMode); }
 
+	/** delegate type for triggering when coordinate system changed */
+	DECLARE_EVENT_OneParam(FEditorModeTools, FCoordSystemChangedEvent, ECoordSystem);
+	FCoordSystemChangedEvent& OnCoordSystemChanged() { return CoordSystemChangedEvent; }
+
+	/**	Broadcasts the CoordSystemChangedEvent event */
+	void BroadcastCoordSystemChanged(ECoordSystem InCoordSystem) { CoordSystemChangedEvent.Broadcast(InCoordSystem); }
+	
 	/**
 	 * Returns the current CoordSystem
 	 * 
@@ -628,6 +635,9 @@ private:
 
 	/** Multicast delegate that is broadcast when a widget mode is changed */
 	FWidgetModeChangedEvent WidgetModeChangedEvent;
+
+	/** Multicast delegate that is broadcast when the coordinate system is changed */
+	FCoordSystemChangedEvent CoordSystemChangedEvent;
 
 	/** The dock tab for any modes that generate a toolbar */
 	TWeakPtr<SDockTab> ModeToolbarTab;

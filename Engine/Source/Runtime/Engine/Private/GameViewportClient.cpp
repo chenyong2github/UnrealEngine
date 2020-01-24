@@ -2958,7 +2958,7 @@ void UGameViewportClient::ToggleShowCollision()
 	if (World != nullptr)
 	{
 		// Tell engine to create proxies for hidden components, so we can still draw collision
-		World->bCreateRenderStateForHiddenComponents = bIsShowingCollision;
+		World->bCreateRenderStateForHiddenComponentsWithCollsion = bIsShowingCollision;
 
 		// Need to recreate scene proxies when this flag changes.
 		FGlobalComponentRecreateRenderStateContext Recreate;

@@ -35,7 +35,10 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs, const TSharedRef
 
 	bShouldSetPreviewValue = false;
 
-	SAnimEditorBase::Construct(SAnimEditorBase::FArguments().DisplayAnimInfoBar(false), InPreviewScene);
+	SAnimEditorBase::Construct(SAnimEditorBase::FArguments()
+		.DisplayAnimTimeline(false)
+		.DisplayAnimScrubBar(true),
+		InPreviewScene);
 
 	NonScrollEditorPanels->AddSlot()
 	[

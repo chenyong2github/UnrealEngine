@@ -165,6 +165,7 @@ namespace Chaos
 		}
 
 		THandleArray(THandleArray<ElementType, IndexWidth, GenerationWidth>&& Other)
+			: THandleArray(0)
 		{
 			MoveFrom(Other);
 		}
@@ -211,18 +212,7 @@ namespace Chaos
 
 		~THandleArray()
 		{
-			if(Data)
-			{
-				for(int32 Index = 0; Index < NumData; ++Index)
-				{
-					if(Validity[Index])
-					{
-						DestructItem(Data + Index);
-					}
-				}
-
-				FMemory::Free(Data);
-			}
+			DestroyItems();
 		}
 
 		ElementType* Get(FHandle InHandle) const
@@ -405,8 +395,34 @@ namespace Chaos
 
 	private:
 
+		void DestroyItems()
+		{
+			if(Data)
+			{
+				for(int32 Index = 0; Index < NumData; ++Index)
+				{
+					if(Validity[Index])
+					{
+						DestructItem(Data + Index);
+					}
+				}
+
+				FMemory::Free(Data);
+			}
+
+			FreeList = InvalidFreeIndex;
+			Capacity = 0;
+			NumData = 0;
+			NumActive = 0;
+			Data = nullptr;
+			Validity.Reset();
+			HandleEntries.Reset();
+		}
+
 		void CopyFrom(const THandleArray& Other)
 		{
+			DestroyItems();
+
 			Capacity = Other.Capacity;
 			HandleEntries = Other.HandleEntries;
 			Validity = Other.Validity;
@@ -431,6 +447,8 @@ namespace Chaos
 
 		void MoveFrom(THandleArray& Other)
 		{
+			DestroyItems();
+
 			Capacity = Other.Capacity;
 
 			if(Capacity > 0)
@@ -707,6 +725,8 @@ namespace Chaos
 
 		void CopyFrom(const THandleHeap<ElementType, IndexWidth, GenerationWidth>& Other)
 		{
+			Empty();
+
 			FreeList = Other.FreeList;
 			NumActive = Other.NumActive;
 			Validity = Other.Validity;
@@ -724,6 +744,8 @@ namespace Chaos
 
 		void MoveFrom(THandleHeap<ElementType, IndexWidth, GenerationWidth>& Other)
 		{
+			Empty();
+
 			FreeList = Other.FreeList;
 			NumActive = Other.NumActive;
 

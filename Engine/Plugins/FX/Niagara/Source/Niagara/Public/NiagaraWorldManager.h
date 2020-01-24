@@ -126,6 +126,7 @@ public:
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
 	void PostGarbageCollect();
+	void PreGarbageCollectBeginDestroy();
 	
 	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
 
@@ -179,7 +180,10 @@ private:
 
 	// Callback to handle any post GC processing needed.
 	static void OnPostGarbageCollect();
-	
+
+	// Callback to handle any pre GC processing needed.
+	static void OnPreGarbageCollectBeginDestroy();
+		
 	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
 	void OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher);
 
@@ -200,6 +204,7 @@ private:
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
 	static FDelegateHandle PostGCHandle;
+	static FDelegateHandle PreGCBeginDestroyHandle;
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 

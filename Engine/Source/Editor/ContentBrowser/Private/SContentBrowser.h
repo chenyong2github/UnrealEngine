@@ -241,6 +241,9 @@ private:
 	/** Handle creating a context menu for the "Add New" button */
 	TSharedRef<SWidget> MakeAddNewContextMenu(bool bShowGetContent, bool bShowImport);
 
+	/** Handle populating a context menu for the "Add New" button */
+	void PopulateAddNewContextMenu(class UToolMenu* Menu, bool bShowGetContent, bool bShowImport, const int32 NumAssetPaths);
+
 	/** Called to work out whether the import button should be enabled */
 	bool IsAddNewEnabled() const;
 
@@ -432,6 +435,9 @@ private:
 
 	/** Delegate called when generating the context menu for a folder */
 	TSharedPtr<SWidget> GetFolderContextMenu(const TArray<FString>& SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder OnCreateNewFolder, bool bPathView);
+
+	/** Populate the context menu for a folder */
+	void PopulateFolderContextMenu(UToolMenu* Menu);
 
 	/** Delegate called to get the current selection state */
 	void GetSelectionState(TArray<FAssetData>& SelectedAssets, TArray<FString>& SelectedPaths);

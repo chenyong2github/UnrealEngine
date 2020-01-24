@@ -100,6 +100,14 @@ float4 SpotLightDirectionAndSpecularScale[MAX_DYNAMIC_POINT_LIGHTS];
 	#endif
 #endif
 
+#if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
+#if COMPILER_HLSLCC
+	#define VTFeedbackBuffer MobileSceneTextures.VirtualTextureFeedbackUAV
+#else
+	RWBuffer<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
+#endif
+#endif
+
 half PhongApprox( half Roughness, half RoL )
 {
 	half a = Roughness * Roughness;			// 1 mul
@@ -387,6 +395,7 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
     float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 }
 
+EARLYDEPTHSTENCIL
 void Main( 
 	FVertexFactoryInterpolantsVSToPS Interpolants
 	, FMobileBasePassInterpolantsVSToPS BasePassInterpolants
@@ -829,5 +838,15 @@ void Main(
 	#if OUTPUT_GAMMA_SPACE
 		OutColor.rgb = sqrt(OutColor.rgb);
 	#endif
+#endif
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	FinalizeVirtualTextureFeedback(
+		MaterialParameters.VirtualTextureFeedback,
+		MaterialParameters.SvPosition,
+		Opacity,
+		View.FrameNumber,
+		VTFeedbackBuffer
+	);
 #endif
 }

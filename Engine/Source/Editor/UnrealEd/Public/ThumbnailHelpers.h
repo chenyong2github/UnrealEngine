@@ -98,6 +98,9 @@ public:
 	/** Sets the skeletal mesh to use in the next GetView() */
 	void SetSkeletalMesh(class USkeletalMesh* InSkeletalMesh);
 
+	/** Returns the preview actor within the scene */
+	class ASkeletalMeshActor* GetPreviewActor() { return PreviewActor; }
+
 protected:
 	// FThumbnailPreviewScene implementation
 	virtual void GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const override;

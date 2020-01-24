@@ -63,21 +63,54 @@ struct FNiagaraEmitterCompiledData
 };
 
 USTRUCT()
+struct FNiagaraParameterDataSetBinding
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	int32 ParameterOffset;
+
+	UPROPERTY()
+	int32 DataSetComponentOffset;
+};
+
+USTRUCT()
+struct FNiagaraParameterDataSetBindingCollection
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> FloatOffsets;
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> Int32Offsets;
+
+#if WITH_EDITORONLY_DATA
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, TEXT(""), TEXT(""));
+	}
+
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, NamespaceBase, NamespaceReplacement);
+	}
+
+protected:
+	void BuildInternal(const TArray<FNiagaraVariable>& ParameterVars, const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement);
+
+#endif
+};
+
+USTRUCT()
 struct FNiagaraSystemCompiledData
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FNiagaraVariable> NumParticleVars;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> TotalSpawnedParticlesVars;
-
-	UPROPERTY()
 	FNiagaraParameterStore InstanceParamStore;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> SpawnCountScaleVars;
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
@@ -87,6 +120,24 @@ struct FNiagaraSystemCompiledData
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData UpdateInstanceParamsDataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
 };
 
 USTRUCT()
@@ -241,6 +292,10 @@ public:
 	/** Internal: Indicates the thumbnail image is out of date.*/
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
+
+	/* If this system is exposed to the library. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	bool bExposeToLibrary;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bIsTemplateAsset;

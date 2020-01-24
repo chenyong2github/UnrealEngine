@@ -20,6 +20,14 @@ FRigUnit_SetRelativeBoneTransform_Execute()
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
 				CachedSpaceIndex = Hierarchy->GetIndex(Space);
+				if (CachedBoneIndex == INDEX_NONE)
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
+				}
+				if (CachedSpaceIndex == INDEX_NONE)
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space is not set."));
+				}
 				// fall through to update
 			}
 			case EControlRigState::Update:

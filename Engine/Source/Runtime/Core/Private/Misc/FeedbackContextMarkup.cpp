@@ -146,7 +146,7 @@ bool FFeedbackContextMarkup::ReadInteger(const TCHAR*& Text, uint32& OutInteger)
 	if(FChar::IsDigit(*Text))
 	{
 		TCHAR *End;
-		OutInteger = FCString::Strtoui64(Text, &End, 10);
+		OutInteger = (uint32)FCString::Strtoui64(Text, &End, 10);
 		Text = End;
 		while(FChar::IsWhitespace(*Text)) Text++;
 		return true;
@@ -162,7 +162,7 @@ bool FFeedbackContextMarkup::ReadString(const TCHAR*& Text, FString& OutString)
 		{
 			if(*End == *Text)
 			{
-				OutString = FString(End - (Text + 1), Text + 1);
+				OutString = FString(UE_PTRDIFF_TO_INT32(End - (Text + 1)), Text + 1);
 				do { End++; } while(FChar::IsWhitespace(*End));
 				Text = End;
 				return true;

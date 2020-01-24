@@ -37,8 +37,8 @@ class ICurveEditorToolExtension;
 class IBufferedCurveModel;
 
 DECLARE_DELEGATE_OneParam(FOnSetBoolean, bool)
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCurveArrayChanged, FCurveModelID)
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActiveToolChanged, FCurveEditorToolID)
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCurveArrayChanged, FCurveModel*, bool /*displayed*/);
 
 
 class CURVEEDITOR_API FCurveEditor 
@@ -78,6 +78,11 @@ public:
 	/** Grid line label text format strings for the X and Y axis */
 	TAttribute<FText> GridLineLabelFormatXAttribute, GridLineLabelFormatYAttribute;
 
+	/** Padding applied to zoom-to-fit the input */
+	TAttribute<double> InputZoomToFitPadding;
+
+	/** Padding applied to zoom-to-fit the output */
+	TAttribute<double> OutputZoomToFitPadding;
 
 	/** Delegate that is invoked when a tool becomes active. Also fired when the tool goes inactive. */
 	FOnActiveToolChanged OnActiveToolChangedDelegate;
@@ -103,6 +108,10 @@ public:
 	void SetPanel(TSharedPtr<SCurveEditorPanel> InPanel);
 
 	TSharedPtr<SCurveEditorPanel> GetPanel() const;
+
+	void SetView(TSharedPtr<SCurveEditorView> InPanel);
+
+	TSharedPtr<SCurveEditorView> GetView() const;
 
 	FCurveEditorScreenSpaceH GetPanelInputSpace() const;
 
@@ -192,6 +201,9 @@ public:
 	* Remove a curve from this editor.
 	*/
 	void RemoveCurve(FCurveModelID InCurveID);
+
+	/** Remove all curves from this editor */
+	void RemoveAllCurves();
 
 	bool IsCurvePinned(FCurveModelID InCurveID) const;
 
@@ -291,6 +303,16 @@ public:
 	 * Remove a tree item from the curve editor
 	 */
 	void RemoveTreeItem(FCurveEditorTreeItemID ItemID);
+
+	/**
+	 * Remove all tree items fromt he curve editor
+	 */
+	void RemoveAllTreeItems();
+
+	/**
+	 * Set the tree selection directly
+	 */
+	void SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
 
 	/**
 	 * Check whether this tree item is selected
@@ -396,6 +418,13 @@ public:
 
 public:
 	/**
+	 * Populate the specified array with curve painting parameters
+	 *
+	 * @param OutDrawParams    An array to populate with curve painting parameters, one per visible curve
+	 */
+	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
+
+	/**
 	 * Called by SCurveEditorPanel to update the allocated geometry for this curve editor.
 	 */
 	void UpdateGeometry(const FGeometry& CurrentGeometry);
@@ -417,6 +446,27 @@ public:
 	 * Bind UI commands that this curve editor responds to
 	 */
 	void BindCommands();
+
+public:
+
+	/** Suspend or resume broadcast of curve array changing  */
+	void SuspendBroadcast()
+	{
+		SuspendBroadcastCount++;
+	}
+
+	void ResumeBroadcast()
+	{
+		SuspendBroadcastCount--;
+		checkf(SuspendBroadcastCount >= 0, TEXT("Suspend/Resume broadcast mismatch Curve Editor!"));
+	}
+
+	bool IsBroadcasting()
+	{
+		return SuspendBroadcastCount == 0;
+	}
+
+	void BroadcastCurveChanged(FCurveModel* InCurve);
 
 protected:
 
@@ -454,6 +504,8 @@ protected:
 
 	TWeakPtr<SCurveEditorPanel> WeakPanel;
 
+	TWeakPtr<SCurveEditorView> WeakView;
+
 	/** Hierarchical information pertaining to curve data */
 	FCurveEditorTree Tree;
 
@@ -490,9 +542,18 @@ protected:
 	/** A serial number that is incremented any time the currently active set of curves are changed */
 	uint32 ActiveCurvesSerialNumber;
 
+	/** Counter to suspend broadcasting of changed delegates*/
+	int32 SuspendBroadcastCount;
+
 private:
 
 	/** Cached physical size of the panel representing this editor */
 	FVector2D CachedPhysicalSize;
+
+public:
+	/**
+	* Delegate that's broadcast when the curve display changes.
+	*/
+	FOnCurveArrayChanged OnCurveArrayChanged;
 
 };

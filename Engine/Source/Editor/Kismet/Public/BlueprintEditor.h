@@ -877,7 +877,7 @@ protected:
 	bool CanSelectAllNodes() const;
 
 	virtual void DeleteSelectedNodes();
-	bool CanDeleteNodes() const;
+	virtual bool CanDeleteNodes() const;
 
 	/**
 	* Given a node, make connections from anything connected to it's input pin to
@@ -889,16 +889,16 @@ protected:
 
 	void DeleteSelectedDuplicatableNodes();
 
-	void CutSelectedNodes();
-	bool CanCutNodes() const;
+	virtual void CutSelectedNodes();
+	virtual bool CanCutNodes() const;
 
-	void CopySelectedNodes();
-	bool CanCopyNodes() const;
+	virtual void CopySelectedNodes();
+	virtual bool CanCopyNodes() const;
 
 	/** Paste on graph at specific location */
 	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
 
-	void PasteNodes();
+	virtual void PasteNodes();
 	virtual bool CanPasteNodes() const override;
 
 	void DuplicateNodes();
@@ -910,11 +910,11 @@ protected:
 	void OnAssignReferencedActor();
 	bool CanAssignReferencedActor() const;
 
-	void OnStartWatchingPin();
-	bool CanStartWatchingPin() const;
+	virtual void OnStartWatchingPin();
+	virtual bool CanStartWatchingPin() const;
 
-	void OnStopWatchingPin();
-	bool CanStopWatchingPin() const;
+	virtual void OnStopWatchingPin();
+	virtual bool CanStopWatchingPin() const;
 
 	/**  BEGIN PERSONA related callback functions */
 	virtual void OnSelectBone() {};
@@ -1177,6 +1177,9 @@ private:
 	void HandleUndoTransaction(const class FTransaction* Transaction);
 
 public://@TODO
+
+	virtual bool TransactionObjectAffectsBlueprint(UObject* InTransactedObject);
+
 	TSharedPtr<FDocumentTracker> DocumentManager;
 	
 	/** Update all nodes' unrelated states when the graph has changed */

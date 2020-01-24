@@ -8,6 +8,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/Triangle.h"
 
 namespace ChaosTest
 {
@@ -400,6 +401,22 @@ namespace ChaosTest
 			EXPECT_EQ(Idxs[1], 1);
 			EXPECT_EQ(Idxs[2], 3);
 			EXPECT_FLOAT_EQ(Barycentric[0] + Barycentric[1] + Barycentric[3], 1);
+		}
+
+		{
+			// Previous failing case observed with Voronoi region implementation - Not quite degenerate (totally degenerate cases work)
+			T Barycentric[4];
+			TVector<T, 3> Simplex[] = { { -15.9112930, -15.2787428, 1.33070087 },
+										{ 1.90487099, 2.25161266, 0.439208984 },
+										{ -15.8914719, -15.2915068, 1.34186459 },
+										{ 1.90874290, 2.24025059, 0.444719315 } };
+
+			FSimplex Idxs = { 0,1,2,3 };
+			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			EXPECT_EQ(Idxs.NumVerts, 3);
+			EXPECT_EQ(Idxs[0], 0);
+			EXPECT_EQ(Idxs[1], 1);
+			EXPECT_EQ(Idxs[2], 2);
 		}
 	}
 
@@ -956,7 +973,7 @@ namespace ChaosTest
 			//MTD
 			T Penetration;
 			TVec3<T> ClosestA, ClosestB;
-			EXPECT_TRUE(GJKPenetration<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 2), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 2), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir)));
 			EXPECT_FLOAT_EQ(Penetration, 0.5);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0).GetUnsafeNormal(), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1238,7 +1255,7 @@ namespace ChaosTest
 			//MTD
 			T Penetration;
 			TVec3<T> ClosestA, ClosestB;
-			EXPECT_TRUE(GJKPenetration<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir)));
 			EXPECT_FLOAT_EQ(Penetration, 1.5);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1252,7 +1269,7 @@ namespace ChaosTest
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 
 			//EPA
-			EXPECT_TRUE(GJKPenetration<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1266,7 +1283,7 @@ namespace ChaosTest
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 
 			//EPA
-			EXPECT_TRUE(GJKPenetration<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 2.25, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1280,7 +1297,7 @@ namespace ChaosTest
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(0, 0, -1), Eps);
 
 			//MTD
-			EXPECT_TRUE(GJKPenetration<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, -2.875), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, -2.875), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 0.125, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(0, 0, -1), Eps);
 			EXPECT_VECTOR_NEAR(ClosestA, TVec3<T>(3.25, 0, 0), Eps);
@@ -1450,12 +1467,73 @@ namespace ChaosTest
 			T Penetration;
 			TVec3<T> ClosestA,ClosestB,Normal;
 			const TVec3<T> Offset ={162.072754,-178.514679,-102.071632};
-			EXPECT_TRUE(GJKPenetration<T>(A,B,BToATM,Penetration,ClosestA,ClosestB,Normal,0,Offset,0));
+			EXPECT_TRUE((GJKPenetration<false, T>(A,B,BToATM,Penetration,ClosestA,ClosestB,Normal,0,Offset,0)));
 
 			const TRigidTransform<T,3> NewAToBTM (BToATM.GetTranslation() + (0.01 + Penetration) * Normal,BToATM.GetRotation());;
 
-			EXPECT_FALSE(GJKPenetration<T>(A,B,NewAToBTM,Penetration,ClosestA,ClosestB,Normal,0,Offset,0));
+			EXPECT_FALSE((GJKPenetration<false, T>(A,B,NewAToBTM,Penetration,ClosestA,ClosestB,Normal,0,Offset,0)));
 
+		}
+
+		{
+			//capsule perfectly aligned with another capsule but a bit off on the z
+			const TVec3<T> Pt0(0.0,0.0,-45.0);
+			TVec3<T> Pt1 = Pt0;
+			Pt1 += (TVec3<T>(0.0,0.0,1.0) * 90.0);
+
+			const TCapsule<T> A(Pt0,Pt1,34.f);
+			const TCapsule<T> B(Pt0,Pt1,33.8499985f);
+
+			const TRigidTransform<T,3> BToATM(TVec3<T>(0.0f,0.0f,-23.4092140f),TRotation<T,3>::FromElements(0.0,0.0,0.0,1.0));
+
+			EXPECT_TRUE(GJKIntersection<T>(A,B,BToATM,0.0,TVec3<T>(0,0,23.4092140)));
+
+			T Penetration;
+			TVec3<T> ClosestA,ClosestB,Normal;
+			EXPECT_TRUE((GJKPenetration<false, T>(A,B,BToATM, Penetration, ClosestA, ClosestB, Normal, 0.0,TVec3<T>(0,0,23.4092140))));
+			EXPECT_FLOAT_EQ(Normal.Z,0);
+			EXPECT_FLOAT_EQ(Penetration,A.GetRadius() + B.GetRadius());
+		}
+
+		{
+			//capsule vs triangle as we make the sweep longer the world space point of impact should stay the same
+			TParticles<T,3> ConvexParticles;
+			ConvexParticles.AddParticles(3);
+
+			ConvexParticles.X(0) ={7400.00000, 12600.0000, 206.248123};
+			ConvexParticles.X(1) ={7500.00000, 12600.0000, 199.994904};
+			ConvexParticles.X(2) ={7500.00000, 12700.0000, 189.837433};
+			
+			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles);
+			TSerializablePtr<FConvex> AConv(UniqueConvex);
+			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,TVec3<T>(1.0,1.0,1.0));
+
+			TTriangle<T> A(ConvexParticles.X(0),ConvexParticles.X(1),ConvexParticles.X(2));
+
+			const TVec3<T> Pt0(0.0,0.0,-29.6999969);
+			TVec3<T> Pt1 = Pt0;
+			Pt1 += (TVec3<T>(0.0,0.0,1.0) * 59.3999939);
+
+			const TCapsule<T> B(Pt0,Pt1,42.0);
+
+			const TRigidTransform<T,3> BToATM(TVec3<T>(7475.74512, 12603.9082, 277.767120),TRotation<T,3>::FromElements(0,0,0,1));
+			const TVec3<T> LocalDir(0,0,-0.999999940);
+			const T Length = 49.9061584;
+			const TVec3<T> SearchDir(1,0,0);
+
+			T Time;
+			TVec3<T> Position,Normal;
+			EXPECT_TRUE(GJKRaycast2<T>(AConvScaled,B,BToATM,LocalDir,Length,Time,Position,Normal,0,true,SearchDir,0));
+
+			const TRigidTransform<T,3> BToATM2(TVec3<T>(7475.74512, 12603.9082, 277.767120+100),TRotation<T,3>::FromElements(0,0,0,1));
+
+			T Time2;
+			TVec3<T> Position2,Normal2;
+			EXPECT_TRUE(GJKRaycast2<T>(AConvScaled,B,BToATM2,LocalDir,Length+100,Time2,Position2,Normal2,0,true,SearchDir,0));
+			EXPECT_TRUE(GJKRaycast2<T>(A,B,BToATM2,LocalDir,Length+100,Time2,Position2,Normal2,0,true,SearchDir,0));
+			EXPECT_FLOAT_EQ(Time+100,Time2);
+			EXPECT_VECTOR_NEAR(Normal,Normal2,1e-4);
+			EXPECT_VECTOR_NEAR(Position,Position2,1e-3);
 		}
 		
 	}

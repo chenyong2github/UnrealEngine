@@ -18,7 +18,7 @@
 class UAIPerceptionComponent;
 class UAISenseEvent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
+AIMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
 
 class APawn;
 

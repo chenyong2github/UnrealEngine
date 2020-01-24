@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	MallocBinned.cpp: Binned memory allocator
-=============================================================================*/
-
 #include "HAL/MallocBinned3.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Logging/LogMacros.h"
@@ -15,8 +13,6 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
-
-
 
 #if USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS
 #include "HAL/Allocators/CachedOSPageAllocator.h"
@@ -1594,3 +1590,5 @@ void FMallocBinned3::DumpAllocatorStats(class FOutputDevice& Ar)
 	#endif
 #endif
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

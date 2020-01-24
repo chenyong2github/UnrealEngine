@@ -251,6 +251,9 @@
 	<!-- exclude VR feature pack on Mac -->
 	<Property Name="CopyEditorExceptions" Value="$(CopyEditorExceptions);FeaturePacks/TP_VirtualRealityBP.upack" If="'$(HostPlatform)' == 'Linux'"/>
 
+	<!-- Projects to be compiled for UAT -->
+	<Property Name="AutomationToolPaths" Value="Engine/Source/Programs/AutomationTool/..."/>
+	
 	<!-- Win64-specific dependencies -->
 	<Do If="'$(HostPlatform)' == 'Win64'">
 		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter)">
@@ -530,9 +533,12 @@
 	<!-- Win64 specific -->
 
 	<!-- PS4 -->
-	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
-		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Platforms/Sony/$(Filter);Engine/Platforms/PS4/$(Filter)"/>
-	</ForEach>
+	<Do If="$(WithPS4)">
+		<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
+			<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Platforms/Sony/$(Filter);Engine/Platforms/PS4/$(Filter)"/>
+		</ForEach>
+		<Property Name="AutomationToolPaths" Value="$(AutomationToolPaths);Engine/Platforms/Sony/Source/Programs/AutomationTool/...;Engine/Platforms/PS4/Source/Programs/AutomationTool/..."/>
+	</Do>
 	<Property Name="CopyPS4Filter">
 		<!-- Build Files -->
 		Engine/Build/PS4/...

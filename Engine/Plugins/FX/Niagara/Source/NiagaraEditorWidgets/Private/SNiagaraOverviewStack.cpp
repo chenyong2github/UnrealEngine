@@ -56,12 +56,12 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		if (StackEntry->IsA<UNiagaraStackItem>())
 		{
 			BackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.Item.BackgroundColor");
-			ContentPadding = FMargin(0, 2, 0, 2);
+			ContentPadding = FMargin(0, 1, 0, 1);
 		}
 		else
 		{
 			BackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.Group.BackgroundColor");
-			ContentPadding = FMargin(0, 5, 0, 5);
+			ContentPadding = FMargin(0, 2, 0, 2);
 		}
 
 		DisabledBackgroundColor = BackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
@@ -490,7 +490,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(3, 3, 0, 3)
+			.Padding(3, 2, 0, 2)
 			[
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")

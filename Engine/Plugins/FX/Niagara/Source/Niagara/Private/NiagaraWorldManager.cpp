@@ -52,7 +52,8 @@ FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
-FDelegateHandle FNiagaraWorldManager::PostGCHandle;
+FDelegateHandle FNiagaraWorldManager::PostGCHandle; 
+FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle; 
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
 TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
@@ -169,6 +170,7 @@ void FNiagaraWorldManager::OnStartup()
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
 
 	PostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddStatic(&FNiagaraWorldManager::OnPostGarbageCollect);
+	PreGCBeginDestroyHandle = FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy);
 }
 
 void FNiagaraWorldManager::OnShutdown()
@@ -180,6 +182,8 @@ void FNiagaraWorldManager::OnShutdown()
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
 
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGCHandle);
+	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.Remove(PreGCBeginDestroyHandle);
+
 
 	//Should have cleared up all world managers by now.
 	check(WorldManagers.Num() == 0);
@@ -355,6 +359,20 @@ void FNiagaraWorldManager::PostGarbageCollect()
 	while (ScalabilityManagers.Remove(nullptr)) {}
 }
 
+void FNiagaraWorldManager::PreGarbageCollectBeginDestroy()
+{
+	//Clear out and scalability managers who's EffectTypes have been GCd.
+	while (ScalabilityManagers.Remove(nullptr)) {}
+
+	//Also tell the scalability managers to clear out any references the GC has nulled.
+	for (auto& Pair : ScalabilityManagers)
+	{
+		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
+		UNiagaraEffectType* EffectType = Pair.Key;
+		ScalabilityMan.PreGarbageCollectBeginDestroy();
+	}
+}
+
 void FNiagaraWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
 {
 	check(WorldManagers.Find(World) == nullptr);
@@ -422,6 +440,14 @@ void FNiagaraWorldManager::OnPostGarbageCollect()
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
 	{
 		Pair.Value->PostGarbageCollect();
+	}
+}
+
+void FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy()
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->PreGarbageCollectBeginDestroy();
 	}
 }
 

@@ -501,10 +501,10 @@ FORCEINLINE FVector4::FVector4(FVector2D InXY, FVector2D InZW)
 }
 
 FORCEINLINE FVector4::FVector4(const FIntVector4& InVector)
-	: X(InVector.X)
-	, Y(InVector.Y)
-	, Z(InVector.Z)
-	, W(InVector.W)
+	: X((float)InVector.X)
+	, Y((float)InVector.Y)
+	, Z((float)InVector.Z)
+	, W((float)InVector.W)
 {
 }
 

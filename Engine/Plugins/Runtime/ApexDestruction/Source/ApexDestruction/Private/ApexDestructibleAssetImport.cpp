@@ -766,6 +766,8 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 {
 	DestructibleMesh.PreEditChange(NULL);
 
+	DestructibleMesh.InvalidateDeriveDataCacheGUID();
+
 	ExistingDestMeshData * ExistDestMeshDataPtr = nullptr;
 	if(Options & EDestructibleImportOptions::PreserveSettings)
 	{

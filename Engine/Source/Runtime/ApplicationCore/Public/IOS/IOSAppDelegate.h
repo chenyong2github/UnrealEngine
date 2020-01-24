@@ -188,6 +188,8 @@ APPLICATIONCORE_API
 @property (assign) bool bBatteryState;
 @property (assign) int BatteryLevel;
 
+@property (assign) bool bUpdateAvailable;
+
 /**
  * @return the single app delegate object
  */
@@ -208,6 +210,8 @@ APPLICATIONCORE_API
 -(void)CheckForZoomAccessibility;
 -(float)GetBackgroundingMainThreadBlockTime;
 -(void)OverrideBackgroundingMainThreadBlockTime:(float)BlockTime;
+
+-(bool)IsUpdateAvailable;
 
 @property (assign) bool bAudioSessionInitialized;
 

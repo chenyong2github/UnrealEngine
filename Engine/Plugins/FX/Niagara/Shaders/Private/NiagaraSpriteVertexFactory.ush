@@ -486,7 +486,12 @@ void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermed
 	
 	/**This could well be better as a branch*/
 	BRANCH
-	if(NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_UNALIGNED)
+	if(NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_CUSTOMALIGNMENT && NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_CUSTOMFACINGVECTOR)
+	{
+		Right = cross(Intermediates.CustomAlignmentVector, CustomFacingVector);
+		Up = Intermediates.CustomAlignmentVector;
+	}
+	else if(NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_UNALIGNED)
 	{
 		FLATTEN
 		if (NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_FACECAMERADISTANCEBLEND)
