@@ -869,13 +869,12 @@ FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV()
 
 FUnorderedAccessViewRHIRef FSceneRenderTargets::GetVirtualTextureFeedbackUAV()
 {
-	TRefCountPtr< IPooledRenderTarget > RenderTarget = VirtualTextureFeedback.FeedbackTextureGPU;
-	if(!RenderTarget)
+	if (!VirtualTextureFeedback.FeedbackBufferUAV)
 	{
 		return GBlackTextureWithUAV->UnorderedAccessViewRHI;
 	}
 	
-	return RenderTarget->GetRenderTargetItem().UAV;
+	return VirtualTextureFeedback.FeedbackBufferUAV;
 }
 
 void FSceneRenderTargets::BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo)
