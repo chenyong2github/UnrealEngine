@@ -1972,10 +1972,6 @@ namespace AutomationTool
 		{
 			return DetectedTargets.FindAll(Target => Target.Rules.Type == DesiredType).ConvertAll(Target => Target.TargetName);
 		}
-		private List<String> PrimaryTargetNamesOfType(TargetType DesiredType)
-		{
-			return DetectedTargets.FindAll(Target => (Target.Rules.Type == DesiredType && Target.Rules.IsPrimaryTarget)).ConvertAll(Target => Target.TargetName);
-		}
 
 		private String ChooseTarget(List<String> Targets, TargetType Type)
 		{
@@ -2115,7 +2111,7 @@ namespace AutomationTool
 				List<String> AvailableGameTargets = TargetNamesOfType(TargetType.Game);
 				List<String> AvailableClientTargets = TargetNamesOfType(TargetType.Client);
 				List<String> AvailableServerTargets = TargetNamesOfType(TargetType.Server);
-				List<String> AvailableEditorTargets = PrimaryTargetNamesOfType(TargetType.Editor);
+				List<String> AvailableEditorTargets = TargetNamesOfType(TargetType.Editor);
 
 				// That should cover all detected targets; Program targets are handled separately.
 				System.Diagnostics.Debug.Assert(DetectedTargets.Count == (AvailableGameTargets.Count + AvailableClientTargets.Count + AvailableServerTargets.Count + AvailableEditorTargets.Count));
@@ -2137,12 +2133,26 @@ namespace AutomationTool
 
 				if (AvailableEditorTargets.Count > 0)
 				{
-					if (AvailableEditorTargets.Count > 1)
-					{
-						throw new AutomationException("There can be only one primary editor target per project.");
-					}
+					string DefaultEditorTarget;
 
-					EditorTarget = AvailableEditorTargets.First();
+					if (EngineConfigs[BuildHostPlatform.Current.Platform].GetString("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out DefaultEditorTarget))
+					{
+						if (!AvailableEditorTargets.Contains(DefaultEditorTarget))
+						{
+							throw new AutomationException(string.Format("A default editor target '{0}' was specified in engine.ini but does not exist", DefaultEditorTarget));
+						}
+
+						EditorTarget = DefaultEditorTarget;
+					}
+					else
+					{
+						if (AvailableEditorTargets.Count > 1)
+						{
+							throw new AutomationException("Project contains multiple editor targets but no default is set in engine.ini");
+						}
+
+						EditorTarget = AvailableEditorTargets.First();
+					}
 				}
 
 				if (AvailableServerTargets.Count > 0 && (DedicatedServer || Cook || CookOnTheFly)) // only if server is needed

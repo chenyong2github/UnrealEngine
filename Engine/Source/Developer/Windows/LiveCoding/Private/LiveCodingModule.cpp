@@ -307,10 +307,14 @@ bool FLiveCodingModule::StartLiveCoding()
 		LppRegisterProcessGroup(TCHAR_TO_ANSI(*ProcessGroup));
 
 		// Build the command line
-		FString Arguments;
-		Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
-		Arguments += FString::Printf(TEXT(" %s"), LexToString(FApp::GetBuildConfiguration()));
-		Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
+		FString KnownTargetName = FPlatformMisc::GetUBTTargetName();
+		FString Arguments = FString::Printf(TEXT("%s %s %s"),
+			*KnownTargetName,
+			FPlatformMisc::GetUBTPlatform(),
+			LexToString(FApp::GetBuildConfiguration()));
+
+		UE_LOG(LogLiveCoding, Display, TEXT("LiveCodingConsole Arguments: %s"), *Arguments);
+
 		if(SourceProject.Len() > 0)
 		{
 			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(SourceProject));
