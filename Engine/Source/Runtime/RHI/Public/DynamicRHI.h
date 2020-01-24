@@ -191,6 +191,95 @@ struct FRayTracingSceneInitializer
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 };
 
+struct FShaderResourceViewInitializer
+{
+	struct FVertexBufferShaderResourceViewInitializer
+	{
+		FRHIVertexBuffer* VertexBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+		uint8 Format;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat);
+
+	const FVertexBufferShaderResourceViewInitializer& AsVertexBufferSRV() const
+	{
+		check(Type == EType::VertexBufferSRV);
+		return VertexBufferInitializer;
+	}
+
+	struct FStructuredBufferShaderResourceViewInitializer
+	{
+		FRHIStructuredBuffer* StructuredBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer);
+
+	const FStructuredBufferShaderResourceViewInitializer& AsStructuredBufferSRV() const
+	{
+		check(Type == EType::StructuredBufferSRV);
+		return StructuredBufferInitializer;
+	}
+
+	struct FIndexBufferShaderResourceViewInitializer
+	{
+		FRHIIndexBuffer* IndexBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer);
+
+	const FIndexBufferShaderResourceViewInitializer& AsIndexBufferSRV() const
+	{
+		check(Type == EType::IndexBufferSRV);
+		return IndexBufferInitializer;
+	}
+
+	enum class EType : uint8
+	{
+		VertexBufferSRV,
+		StructuredBufferSRV,
+		IndexBufferSRV,
+	};
+
+	const EType GetType() const
+	{
+		return Type;
+	}
+
+private:
+	union
+	{
+		FVertexBufferShaderResourceViewInitializer VertexBufferInitializer;
+		FStructuredBufferShaderResourceViewInitializer StructuredBufferInitializer;
+		FIndexBufferShaderResourceViewInitializer IndexBufferInitializer;
+	};
+
+	const EType Type;
+};
+
 class FDynamicRHI;
 
 class RHI_API FDefaultRHIRenderQueryPool final : public FRHIRenderQueryPool
@@ -528,6 +617,9 @@ public:
 	/** Creates a shader resource view of the given vertex buffer. */
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) = 0;
+
+	/** Creates a shader resource view **/
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) = 0;
 
 	/** Creates a shader resource view of the given index buffer. */
 	// FlushType: Wait RHI Thread
@@ -1185,6 +1277,7 @@ public:
 	virtual FVertexBufferRHIRef CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual FStructuredBufferRHIRef CreateStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer);
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus);
 	virtual ETextureReallocationStatus FinalizeAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted);
@@ -1234,6 +1327,7 @@ public:
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);

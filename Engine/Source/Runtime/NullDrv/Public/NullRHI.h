@@ -222,6 +222,11 @@ public:
 		return new FRHIShaderResourceView(); 
 	}
 
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) final override
+	{
+		return new FRHIShaderResourceView();
+	}
+
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer) final override
 	{ 
 		return new FRHIShaderResourceView(); 

@@ -87,6 +87,7 @@ PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
 PFNGLREADBUFFERPROC						glReadBuffer = NULL;
 PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
 PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
+PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
 PFNGLCOPYIMAGESUBDATAPROC				glCopyImageSubData = nullptr;
 
 PFNGLGETPROGRAMBINARYOESPROC            glGetProgramBinary = NULL;
@@ -1226,6 +1227,7 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		if (bSupportsTextureBuffer)
 		{
 			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
+			glTexBufferRangEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
 		}
 
 		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;

@@ -437,6 +437,14 @@ public:
 		return RHI->RHICreateShaderResourceView(VertexBuffer, Stride, Format);
 	}
 
+
+	/** Creates a shader resource view of the given buffer. */
+	// FlushType: Wait RHI Thread
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) override final
+	{
+		return RHI->RHICreateShaderResourceView(Initializer);
+	}
+
 	/** Creates a shader resource view of the given index buffer. */
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer) override final
@@ -1238,6 +1246,11 @@ public:
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final
 	{
 		return RHI->CreateShaderResourceView_RenderThread(RHICmdList, VertexBuffer, Stride, Format);
+	}
+
+	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final
+	{
+		return RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
 	}
 
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer) override final

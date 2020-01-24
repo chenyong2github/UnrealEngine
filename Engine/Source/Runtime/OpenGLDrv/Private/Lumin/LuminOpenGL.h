@@ -140,6 +140,7 @@ namespace GL_EXT
 	extern PFNGLVERTEXATTRIBDIVISORPROC		glVertexAttribDivisor;
 
 	extern PFNGLTEXBUFFEREXTPROC			glTexBufferEXT;
+	extern PFNGLTEXBUFFERRANGEEXTPROC		glTexBufferRangeEXT;
 	extern PFNGLUNIFORM4UIVPROC				glUniform4uiv;
 	extern PFNGLCLEARBUFFERFIPROC			glClearBufferfi;
 	extern PFNGLCLEARBUFFERFVPROC			glClearBufferfv;
@@ -386,6 +387,11 @@ struct FLuminOpenGL : public FOpenGLES2
 	static FORCEINLINE void TexBuffer(GLenum Target, GLenum InternalFormat, GLuint Buffer)
 	{
 		glTexBufferEXT(Target, InternalFormat, Buffer);
+	}
+
+	static FORCEINLINE void TexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Buffer, GLintptr Offset, GLsizeiptr Size)
+	{
+		glTexBufferRangeEXT(Target, InternalFormat, Buffer, Offset, Size);
 	}
 
 	static FORCEINLINE void ProgramUniform4uiv(GLuint Program, GLint Location, GLsizei Count, const GLuint *Value)

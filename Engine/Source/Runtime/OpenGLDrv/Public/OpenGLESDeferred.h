@@ -611,6 +611,11 @@ struct FOpenGLESDeferred : public FOpenGLBase
 		glTexBufferEXT(Target, InternalFormat, Buffer);
 	}
 
+	static FORCEINLINE void TexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Buffer, GLintptr Offset, GLsizeiptr Size)
+	{
+		glTexBufferRangeEXT(Target, InternalFormat, Buffer, Offset, Size);
+	}
+
 	static FORCEINLINE void TexSubImage3D(GLenum Target, GLint Level, GLint XOffset, GLint YOffset, GLint ZOffset, GLsizei Width, GLsizei Height, GLsizei Depth, GLenum Format, GLenum Type, const GLvoid* PixelData)
 	{
 		glTexSubImage3D(Target, Level, XOffset, YOffset, ZOffset, Width, Height, Depth, Format, Type, PixelData);

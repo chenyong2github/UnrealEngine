@@ -87,6 +87,10 @@ struct FOpenGL4 : public FOpenGL3
 	{
 		glVertexBindingDivisor(BindingIndex, Divisor);
 	}
+	static FORCEINLINE void TexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Buffer, GLintptr Offset, GLsizeiptr Size)
+	{
+		glTexBufferRange(Target, InternalFormat, Buffer, Offset, Size);
+	}
 	static FORCEINLINE void TextureView(GLuint ViewName, GLenum ViewTarget, GLuint SrcName, GLenum InternalFormat, GLuint MinLevel, GLuint NumLevels, GLuint MinLayer, GLuint NumLayers)
 	{
 		glTextureView(ViewName, ViewTarget, SrcName, InternalFormat, MinLevel, NumLevels, MinLayer, NumLayers);

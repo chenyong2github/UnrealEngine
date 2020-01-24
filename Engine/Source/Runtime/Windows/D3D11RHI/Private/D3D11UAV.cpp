@@ -189,36 +189,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_Render
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBufferRHI)
 {
-	FD3D11StructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
-
-	D3D11_BUFFER_DESC BufferDesc;
-	StructuredBuffer->Resource->GetDesc(&BufferDesc);
-
-	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
-
-	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-
-	if ( bByteAccessBuffer )
-	{
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
-		SRVDesc.BufferEx.NumElements = BufferDesc.ByteWidth / 4;
-		SRVDesc.BufferEx.FirstElement = 0;
-		SRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
-		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	}
-	else
-	{
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-		SRVDesc.Buffer.FirstElement = 0;
-	    SRVDesc.Buffer.NumElements = BufferDesc.ByteWidth / BufferDesc.StructureByteStride;
-		SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
-	}
-
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(StructuredBuffer->Resource, &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,StructuredBuffer);
+	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(StructuredBufferRHI));
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
@@ -228,7 +199,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderTh
 	return RHICreateShaderResourceView(StructuredBuffer);
 }
 
-static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, ID3D11Buffer* Buffer, uint32 Stride, uint8 Format, ID3D11ShaderResourceView** OutSRV)
+static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, ID3D11Buffer* Buffer, uint32 StartElement, uint32 NumElements, uint8 Format, ID3D11ShaderResourceView** OutSRV)
 {
 	D3D11_BUFFER_DESC BufferDesc;
 	Buffer->GetDesc(&BufferDesc);
@@ -237,10 +208,14 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
 	FMemory::Memzero(SRVDesc);
 	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-	SRVDesc.Buffer.FirstElement = 0;
 
+	uint32 Stride = GPixelFormats[Format].BlockBytes;
+	uint32 MaxElements = BufferDesc.ByteWidth / Stride;
+	StartElement = FMath::Min(StartElement, MaxElements);
+
+	SRVDesc.Buffer.FirstElement = StartElement;
 	SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
-	SRVDesc.Buffer.NumElements = BufferDesc.ByteWidth / Stride;
+	SRVDesc.Buffer.NumElements = FMath::Min(NumElements, MaxElements - StartElement);
 
 	HRESULT hr = Direct3DDevice->CreateShaderResourceView(Buffer, &SRVDesc, OutSRV);
 	if (FAILED(hr))
@@ -260,16 +235,95 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
 {
-	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-	if (!VertexBufferRHI || !VertexBuffer->Resource)
+	ensureMsgf(Stride == GPixelFormats[Format].BlockBytes, TEXT("provided stride: %i was not consitent with Pixelformat: %s"), Stride, GPixelFormats[Format].Name);
+	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexBufferRHI, Format));
+}
+
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
+{
+	switch (Initializer.GetType())
 	{
-		return new FD3D11ShaderResourceView(nullptr, nullptr);
+		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
+		{
+			FShaderResourceViewInitializer::FVertexBufferShaderResourceViewInitializer Desc = Initializer.AsVertexBufferSRV();
+
+			FD3D11VertexBuffer* VertexBuffer = ResourceCast(Desc.VertexBuffer);
+			if (!Desc.VertexBuffer || !VertexBuffer->Resource)
+			{
+				return new FD3D11ShaderResourceView(nullptr, nullptr);
+			}
+
+			TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, Desc.StartElement, Desc.NumElements, Desc.Format, ShaderResourceView.GetInitReference());
+
+			return new FD3D11ShaderResourceView(ShaderResourceView, VertexBuffer);
+		}
+
+		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
+		{
+			FShaderResourceViewInitializer::FStructuredBufferShaderResourceViewInitializer Desc = Initializer.AsStructuredBufferSRV();
+
+			FD3D11StructuredBuffer* StructuredBuffer = ResourceCast(Desc.StructuredBuffer);
+
+			D3D11_BUFFER_DESC BufferDesc;
+			StructuredBuffer->Resource->GetDesc(&BufferDesc);
+
+			const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
+
+			// Create a Shader Resource View
+			D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+
+			if (bByteAccessBuffer)
+			{
+				uint32 MaxElements = BufferDesc.ByteWidth / 4;
+				uint32 StartElement = FMath::Min(Desc.StartElement, MaxElements);
+				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+				SRVDesc.BufferEx.NumElements = FMath::Min(Desc.NumElements, MaxElements - StartElement);
+				SRVDesc.BufferEx.FirstElement = Desc.StartElement;
+				SRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
+				SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+			}
+			else
+			{
+				uint32 MaxElements = BufferDesc.ByteWidth / BufferDesc.StructureByteStride;
+				uint32 StartElement = FMath::Min(Desc.StartElement, BufferDesc.ByteWidth / BufferDesc.StructureByteStride);
+				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+				SRVDesc.Buffer.FirstElement = Desc.StartElement;
+				SRVDesc.Buffer.NumElements = FMath::Min(Desc.NumElements, MaxElements - StartElement);
+				SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+			}
+
+			TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(StructuredBuffer->Resource, &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
+
+			return new FD3D11ShaderResourceView(ShaderResourceView, StructuredBuffer);
+		}
+
+		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
+		{
+			FShaderResourceViewInitializer::FIndexBufferShaderResourceViewInitializer Desc = Initializer.AsIndexBufferSRV();
+
+			if (!Desc.IndexBuffer)
+			{
+				return new FD3D11ShaderResourceView(nullptr, nullptr);
+			}
+			FD3D11IndexBuffer* Buffer = ResourceCast(Desc.IndexBuffer);
+			check(Buffer);
+			check(Buffer->Resource);
+
+			// The stride in bytes of the index buffer; must be 2 or 4
+			const uint32 Stride = Desc.IndexBuffer->GetStride();
+			check(Stride == 2 || Stride == 4);
+			const EPixelFormat Format = (Stride == 2) ? PF_R16_UINT : PF_R32_UINT;
+			TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Desc.StartElement, Desc.NumElements, Format, ShaderResourceView.GetInitReference());
+
+			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
+		}
 	}
 
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,VertexBuffer);
+	checkNoEntry();
+	return nullptr;
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(
@@ -279,6 +333,20 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThrea
 	uint8 Format)
 {
 	return RHICreateShaderResourceView(VertexBuffer, Stride, Format);
+}
+
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
+	class FRHICommandListImmediate& RHICmdList,
+	const FShaderResourceViewInitializer& Initializer)
+{
+	return RHICreateShaderResourceView(Initializer);
+}
+
+FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(
+	class FRHICommandListImmediate& RHICmdList,
+	const FShaderResourceViewInitializer& Initializer)
+{
+	return RHICreateShaderResourceView(Initializer);
 }
 
 void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
@@ -295,7 +363,7 @@ void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 		check(VertexBuffer->Resource);
 
 		TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-		CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
+		CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, 0, UINT32_MAX, Format, ShaderResourceView.GetInitReference());
 
 		SRVD3D11->Rename(ShaderResourceView, VertexBuffer);
 	}
@@ -317,7 +385,7 @@ void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 		const uint32 Stride = IndexBuffer->GetStride();
 		const EPixelFormat Format = Stride == 2 ? PF_R16_UINT : PF_R32_UINT;
 		TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-		CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, IndexBuffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
+		CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, IndexBuffer->Resource, 0, UINT32_MAX, Format, ShaderResourceView.GetInitReference());
 
 		SRVD3D11->Rename(ShaderResourceView, IndexBuffer);
 	}
@@ -325,22 +393,7 @@ void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIIndexBuffer* BufferRHI)
 {
-	if (!BufferRHI)
-	{
-		return new FD3D11ShaderResourceView(nullptr, nullptr);
-	}
-	FD3D11IndexBuffer* Buffer = ResourceCast(BufferRHI);
-	check(Buffer);
-	check(Buffer->Resource);
-
-	// The stride in bytes of the index buffer; must be 2 or 4
-	const uint32 Stride = BufferRHI->GetStride();
-	check(Stride == 2 || Stride == 4);
-	const EPixelFormat Format = (Stride == 2) ? PF_R16_UINT : PF_R32_UINT;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
-
-	return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
+	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(

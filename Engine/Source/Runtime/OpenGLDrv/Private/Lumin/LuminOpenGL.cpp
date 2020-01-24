@@ -79,6 +79,7 @@ namespace GL_EXT
 	PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
 	PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
 	PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
+	PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
 
 	PFNGLREADBUFFERPROC glReadBuffer = nullptr;
 	PFNGLCOPYIMAGESUBDATAEXTPROC glCopyImageSubDataEXT = nullptr;
@@ -547,6 +548,7 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		if (bSupportsTextureBuffer)
 		{
 			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
+			glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
 		}
 	}
 	

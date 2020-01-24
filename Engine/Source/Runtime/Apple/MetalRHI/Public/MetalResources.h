@@ -796,17 +796,17 @@ public:
 	/**
 	 * Allocate a linear texture for given format.
 	 */
-	FMetalTexture AllocLinearTexture(EPixelFormat Format);
+	FMetalTexture AllocLinearTexture(EPixelFormat Format, NSUInteger Offset);
 	
 	/**
 	 * Get a linear texture for given format.
 	 */
-	ns::AutoReleased<FMetalTexture> CreateLinearTexture(EPixelFormat Format, FRHIResource* InParent);
+	ns::AutoReleased<FMetalTexture> CreateLinearTexture(EPixelFormat Format, FRHIResource* InParent, uint32 Offset);
 	
 	/**
 	 * Get a linear texture for given format.
 	 */
-	ns::AutoReleased<FMetalTexture> GetLinearTexture(EPixelFormat Format);
+	ns::AutoReleased<FMetalTexture> GetLinearTexture(EPixelFormat Format, NSUInteger Offset);
 	
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -832,7 +832,7 @@ public:
 	FMetalBuffer CPUBuffer;
 	
 	// The map of linear textures for this vertex buffer - may be more than one due to type conversion.
-	TMap<EPixelFormat, FMetalTexture> LinearTextures;
+	TMap<TTuple<EPixelFormat, uint32>, FMetalTexture> LinearTextures;
 	
 	/** Buffer for small buffers < 4Kb to avoid heap fragmentation. */
 	FMetalBufferData* Data;
@@ -1081,6 +1081,7 @@ public:
 	TRefCountPtr<FMetalStructuredBuffer> SourceStructuredBuffer;
 	
 	FMetalSurface* TextureView;
+	uint32 Offset;
 	uint8 MipLevel;
 	uint8 NumMips;
 	uint8 Format;
