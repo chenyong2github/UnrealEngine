@@ -217,6 +217,7 @@
 #include "ToolMenus.h"
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "StudioAnalytics.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);

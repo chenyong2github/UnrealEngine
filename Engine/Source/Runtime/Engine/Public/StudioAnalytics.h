@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Thread.h"
-#include "AnalyticsEventAttribute.h"
 
 class IAnalyticsProvider;
+struct FAnalyticsEventAttribute;
 
 /**
  * The public interface for the game studio to gather information about internal development metrics.
@@ -32,6 +32,7 @@ public:
 	static ENGINE_API void Shutdown();
 
 	/** General report event function. */
+	static ENGINE_API void ReportEvent(const FString& EventName);
 	static ENGINE_API void ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
 
 	/** An event for reporting load time that blocks the editor. */

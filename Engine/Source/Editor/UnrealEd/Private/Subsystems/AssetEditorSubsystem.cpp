@@ -23,6 +23,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/BlacklistNames.h"
+#include "StudioAnalytics.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"

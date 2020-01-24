@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "StudioAnalytics.h"
-#include "AnalyticsEventAttribute.h"
 
 class FEngineSessionManager;
 class IAnalyticsProvider;
 class IAnalyticsProviderET;
+struct FAnalyticsEventAttribute;
 
 /**
  * The public interface for the editor's analytics provider singleton.

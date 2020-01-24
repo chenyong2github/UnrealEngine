@@ -84,6 +84,7 @@
 #include "LauncherPlatformModule.h"
 #include "ILauncherServicesModule.h"
 #include "HAL/PlatformTime.h"
+#include "StudioAnalytics.h"
 
 #define USE_UNIT_TESTS 0
 

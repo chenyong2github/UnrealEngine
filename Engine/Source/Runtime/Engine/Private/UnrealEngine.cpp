@@ -230,6 +230,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Components/SkinnedMeshComponent.h"
 #include "ObjectTrace.h"
 #include "Animation/AnimTrace.h"
+#include "StudioAnalytics.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );

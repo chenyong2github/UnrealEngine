@@ -91,6 +91,11 @@ double FStudioAnalytics::GetAnalyticSeconds()
 	return bInitialized ? TimeEstimation : FPlatformTime::Seconds();
 }
 
+void FStudioAnalytics::ReportEvent(const FString& EventName)
+{
+	ReportEvent(EventName, TArray<FAnalyticsEventAttribute>());
+}
+
 void FStudioAnalytics::ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	if (FStudioAnalytics::IsAvailable())
