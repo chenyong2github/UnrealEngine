@@ -5,11 +5,12 @@
 
 namespace Chaos
 {
-	template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>; 
-
-	template<>
-	FString TCollisionContact<float, 3>::ToString() const
+	template<typename T, int d>
+	FString TCollisionContact<T,d>::ToString() const
 	{
 		return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%f"), *Location.ToString(), *Normal.ToString(), Phi);
 	}
+
+	template class TPBDCollisionConstraintHandle<float, 3>; 
+	template class TCollisionConstraintBase<float, 3>;
 };
