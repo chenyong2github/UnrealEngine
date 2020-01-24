@@ -421,8 +421,11 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 	}
 #endif
 
-	Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
-	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+	if (SceneSolver)
+	{
+		Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
+		EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+	}
 
 	Shutdown();
 	
