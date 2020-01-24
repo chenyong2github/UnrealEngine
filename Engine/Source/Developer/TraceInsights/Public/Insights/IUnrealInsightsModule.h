@@ -13,6 +13,7 @@ class FExtender;
 namespace Trace
 {
 	class FStoreClient;
+	class IAnalysisSession;
 }
 
 /** Major tab IDs for Insights tools */
@@ -195,6 +196,16 @@ public:
 	 */
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) = 0;
 
+
+	/**
+	 * Expose the session service directly
+	 */
+	virtual Trace::FStoreClient* GetStoreClient() = 0;
+
+	/**
+	 * Get the session service.
+	 */
+	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const = 0;
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;
 };

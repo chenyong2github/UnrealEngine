@@ -361,6 +361,19 @@ FOnRegisterMajorTabExtensions& FTraceInsightsModule::OnRegisterMajorTabExtension
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
+{
+	return FInsightsManager::Get()->GetStoreClient();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<const Trace::IAnalysisSession> FTraceInsightsModule::GetAnalysisSession() const
+{
+	return FInsightsManager::Get()->GetSession();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FName& InMajorTabId) const
 {
