@@ -21,6 +21,11 @@ THIRD_PARTY_INCLUDES_END
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVivoxVoiceChat, Log, All);
 
+#define VIVOXVOICECHATUSER_LOG(VivoxVoiceChatLogLevel, VivoxVoiceChatFormatStr, ...) \
+{ \
+	UE_LOG(LogVivoxVoiceChat, VivoxVoiceChatLogLevel, TEXT("[%p] ") VivoxVoiceChatFormatStr, (void*)this, __VA_ARGS__); \
+}
+
 DECLARE_STATS_GROUP(TEXT("Vivox"), STATGROUP_Vivox, STATCAT_Advanced);
 
 class VIVOXVOICECHAT_API FVivoxDelegates
@@ -190,7 +195,7 @@ protected:
 
 	struct FLoginSession
 	{
-		FPlatformUserId PlatformId;
+		FPlatformUserId PlatformId = PLATFORMUSERID_NONE;
 		FString PlayerName;
 		VivoxClientApi::AccountName AccountName;
 		VivoxClientApi::Uri UserUri;
