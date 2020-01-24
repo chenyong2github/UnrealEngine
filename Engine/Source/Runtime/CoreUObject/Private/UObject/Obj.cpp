@@ -2474,15 +2474,18 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			FArrayProperty* Array   = CastField<FArrayProperty>( Property );
 			if( Array )
 			{
+				FConfigSection* Sec = Config->GetSectionPrivate(*Section, 1, 0, *PropFileName);
+				// Default ini's require the array syntax to be applied to the property name
+				FString CompleteKey = FString::Printf(TEXT("%s%s"), bIsADefaultIniWrite ? TEXT("+") : TEXT(""), *Key);
+				if (Sec)
+				{
+					// Delete the old value for the property in the ConfigCache before (conditionally) adding in the new value
+					Sec->Remove(*CompleteKey);
+				}
+
 				if (!bPropDeprecated && (!bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject)))
 				{
-					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
 					check(Sec);
-					Sec->Remove( *Key );
-
-					// Default ini's require the array syntax to be applied to the property name
-					FString CompleteKey = FString::Printf(TEXT("%s%s"), bIsADefaultIniWrite ? TEXT("+") : TEXT(""), *Key);
-
 					FScriptArrayHelper_InContainer ArrayHelper(Array, this);
 					for( int32 i=0; i<ArrayHelper.Num(); i++ )
 					{
@@ -2490,16 +2493,6 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 						Array->Inner->ExportTextItem( Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags );
 						Sec->Add(*CompleteKey, *Buffer);
 					}
-				}
-				else
-				{
-					// If we are not writing it to config above, we should make sure that this property isn't stagnant in the cache.
-					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
-					if( Sec )
-					{
-						Sec->Remove( *Key );
-					}
-
 				}
 			}
 			else
