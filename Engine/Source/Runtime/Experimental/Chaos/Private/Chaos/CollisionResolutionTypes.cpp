@@ -7,6 +7,7 @@ namespace Chaos
 {
 	template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>; 
 
+	template<>
 	FString TCollisionContact<float, 3>::ToString() const
 	{
 		return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%f"), *Location.ToString(), *Normal.ToString(), Phi);
