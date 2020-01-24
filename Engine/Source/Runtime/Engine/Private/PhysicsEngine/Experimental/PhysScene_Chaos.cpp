@@ -62,6 +62,8 @@ TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPhysScene_ChaosSolver, Log, All);
 
+Chaos::TCollisionModifierCallback<float, 3> FPhysScene_ChaosInterface::CollisionModifierCallback;
+
 void DumpHierarchyStats(const TArray<FString>& Args)
 {
 #if !UE_BUILD_SHIPPING
@@ -1141,8 +1143,8 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 	Scene.SetPhysicsReplication(PhysicsReplication);
 
 	Scene.GetSolver()->PhysSceneHack = this;
-	
 
+	Scene.GetSolver()->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
 }
 
 void FPhysScene_ChaosInterface::OnWorldBeginPlay()

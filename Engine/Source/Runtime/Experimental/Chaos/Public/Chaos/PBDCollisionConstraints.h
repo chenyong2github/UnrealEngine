@@ -4,6 +4,7 @@
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -19,6 +20,18 @@ namespace Chaos
 {
 template<typename T, int d>
 class TPBDCollisionConstraints;
+
+template <typename T, int d>
+class TPBDCollisionConstraintHandle;
+
+template <typename T, int d>
+class TCollisionConstraintBase;
+
+template <typename T, int d>
+class TRigidBodyPointContactConstraint;
+
+template <typename T, int d>
+class TRigidBodyMultiPointContactConstraint;
 
 template <typename T, int d>
 class TRigidTransform;
@@ -46,6 +59,9 @@ using TRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const T Dt,
 template<typename T, int d>
 using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>&, bool)>;
 
+template <typename T, int d>
+using TCollisionModifierCallback = TFunction<ECollisionModifierResult(const TPBDCollisionConstraintHandle<T, d>*)>;
+
 /**
  * A container and solver for collision constraints.
  */
@@ -63,6 +79,7 @@ public:
 	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
+	using FCollisionModifier = TCollisionModifierCallback<T, d>;
 
 	TPBDCollisionConstraints(const TPBDRigidsSOAs<T,d>& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
@@ -93,7 +110,7 @@ public:
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.
 	 */
-	void ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier);
+	void ApplyCollisionModifier(const FCollisionModifier& CollisionModifier);
 
 
 	/**

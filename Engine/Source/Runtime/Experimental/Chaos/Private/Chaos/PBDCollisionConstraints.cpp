@@ -225,14 +225,17 @@ namespace Chaos
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier)
 	{
-		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
-
-		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
+		if (CollisionModifier)
 		{
-			ECollisionModifierResult Result = CollisionModifier(ContactHandle);
-			if (Result == ECollisionModifierResult::Disabled)
+			TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
+
+			for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 			{
-				RemoveConstraint(ContactHandle);
+				ECollisionModifierResult Result = CollisionModifier(ContactHandle);
+				if (Result == ECollisionModifierResult::Disabled)
+				{
+					RemoveConstraint(ContactHandle);
+				}
 			}
 		}
 	}

@@ -50,7 +50,7 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TCollisionContact
+	class TCollisionContact
 	{
 	public:
 		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
@@ -85,7 +85,7 @@ namespace Chaos
 	*
 	*/
 	template<class T = float, int d = 3>
-	class CHAOS_API TCollisionConstraintBase
+	class TCollisionConstraintBase
 	{
 	public:
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
@@ -131,6 +131,7 @@ namespace Chaos
 
 		bool ContainsManifold(const FImplicitObject* A, const FImplicitObject* B) const { return A == Manifold.Implicit[0] && B == Manifold.Implicit[1]; }
 		void SetManifold(const FImplicitObject* A, const FImplicitObject* B) { Manifold.Implicit[0] = A; Manifold.Implicit[1] = B; }
+		const FManifold& GetManifold() const { return Manifold; }
 
 		//
 		// API
@@ -175,7 +176,7 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TRigidBodyPointContactConstraint : public TCollisionConstraintBase<T, d>
+	class TRigidBodyPointContactConstraint : public TCollisionConstraintBase<T, d>
 	{
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
@@ -198,7 +199,7 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TRigidBodyMultiPointContactConstraint : public TCollisionConstraintBase<T, d>
+	class TRigidBodyMultiPointContactConstraint : public TCollisionConstraintBase<T, d>
 	{
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
@@ -273,7 +274,7 @@ namespace Chaos
 
 
 	template<class T, int d>
-	class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>
+	class TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>
 	{
 	public:
 		using Base = TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>;
@@ -418,4 +419,19 @@ namespace Chaos
 	};
 
 	using FCollisionConstraintsArray = TCollisionConstraintsStore<8>;
+
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+	extern template class CHAOS_API TCollisionContact<float, 3>;
+	extern template class CHAOS_API TCollisionConstraintBase<float, 3>;
+	extern template class CHAOS_API TRigidBodyPointContactConstraint<float, 3>;
+	extern template class CHAOS_API TRigidBodyMultiPointContactConstraint<float, 3>;
+	extern template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>;
+#else
+	extern template class TCollisionContact<float, 3>;
+	extern template class TCollisionConstraintBase<float, 3>;
+	extern template class TRigidBodyPointContactConstraint<float, 3>;
+	extern template class TRigidBodyMultiPointContactConstraint<float, 3>;
+	extern template class TPBDCollisionConstraintHandle<float, 3>;
+#endif
 }

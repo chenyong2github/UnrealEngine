@@ -16,6 +16,7 @@
 #include "Chaos/Declares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Framework/Threading.h"
+#include "Chaos/PBDCollisionConstraints.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -413,6 +414,8 @@ public:
 
 	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
+
+	ENGINE_API static Chaos::TCollisionModifierCallback<float, 3> CollisionModifierCallback;
 
 #if XGE_FIXED
 	template<typename PayloadType>
