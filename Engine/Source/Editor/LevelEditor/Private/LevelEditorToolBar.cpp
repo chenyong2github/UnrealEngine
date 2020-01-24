@@ -1531,7 +1531,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 						FCanExecuteAction(),
 						FIsActionChecked(),
 						FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
-					FNewToolMenuWidgetChoice(),
+					FNewToolMenuChoice(),
 					LOCTEXT("CompileCombo_Label", "Compile Options"),
 					LOCTEXT("CompileComboToolTip", "Compile options menu"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
