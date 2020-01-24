@@ -1339,7 +1339,7 @@ public:
 	 * This class will be responsible of updating the application Time and DeltaTime.
 	 * Can be used to synchronize the engine with another process (gen-lock).
 	 */
-	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="EngineCustomTimeStep", DisplayName="Custom TimeStep", ConfigRestartRequired=true))
+	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="EngineCustomTimeStep", DisplayName="Custom TimeStep"))
 	FSoftClassPath CustomTimeStepClassName;
 
 private:
@@ -1355,7 +1355,7 @@ private:
 
 public:
 	/** Set TimecodeProvider when the engine is started. */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="Timecode Provider", ConfigRestartRequired=true))
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="Timecode Provider"))
 	FSoftClassPath TimecodeProviderClassName;
 
 	/**
@@ -1974,6 +1974,9 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual bool IsDestructionThreadSafe() const override { return false; }
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~ End UObject Interface.
 
 	/** Initialize the game engine. */

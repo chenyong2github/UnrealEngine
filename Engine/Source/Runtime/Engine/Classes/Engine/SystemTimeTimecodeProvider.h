@@ -13,7 +13,7 @@ class ENGINE_API USystemTimeTimecodeProvider : public UTimecodeProvider
 {
 	GENERATED_BODY()
 
-private:
+public:
 
 	/** The frame rate at which the timecode value will be generated. */
 	UPROPERTY(EditAnywhere, Category = Timecode)
@@ -30,6 +30,9 @@ private:
 	UPROPERTY(AdvancedDisplay, EditAnywhere, Category = Timecode)
 	bool bUseHighPerformanceClock;
 
+private:
+
+	/** Current state of the provider */
 	ETimecodeProviderSynchronizationState State;
 
 public:
@@ -75,10 +78,4 @@ public:
 		State = ETimecodeProviderSynchronizationState::Closed;
 	}
 	//~ End UTimecodeProvider Interface
-
-	UFUNCTION()
-	void SetFrameRate(const FFrameRate& InFrameRate)
-	{
-		FrameRate = InFrameRate;
-	}
 };
