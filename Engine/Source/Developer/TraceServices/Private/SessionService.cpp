@@ -14,12 +14,6 @@
 #include "IPAddress.h"
 #include "AddressInfoTypes.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/AllowWindowsPlatformTypes.h"
-	#include "Windows/MinWindows.h"
-	#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
 namespace Trace
 {
 
@@ -108,14 +102,6 @@ FSessionService::~FSessionService()
 bool FSessionService::StartRecorderServer()
 {
 	bool bOk = TraceRecorder->StartRecording();
-#if PLATFORM_WINDOWS
-	// Create a named event that other processes can use detect a running
-	// recorder and connect to it automatically
-	if (bOk && RecorderEvent == nullptr)
-	{
-		RecorderEvent = ::CreateEvent(nullptr, true, false, TEXT("Local\\UnrealInsightsRecorder"));
-	}
-#endif // PLATFORM_WINDOWS
 	return bOk;
 }
 
@@ -126,13 +112,6 @@ bool FSessionService::IsRecorderServerRunning() const
 
 void FSessionService::StopRecorderServer()
 {
-#if PLATFORM_WINDOWS
-	if (RecorderEvent != nullptr)
-	{
-		::CloseHandle(RecorderEvent);
-		RecorderEvent = nullptr;
-	}
-#endif // PLATFORM_WINDOWS
 	TraceRecorder->StopRecording();
 }
 

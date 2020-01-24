@@ -57,7 +57,6 @@ private:
 
 	FModuleService& ModuleService;
 	FAnalysisService& AnalysisService;
-	void* RecorderEvent = nullptr;
 	FString LocalSessionDirectory;
 	TSharedPtr<IStore> TraceStore;
 	TSharedPtr<IRecorder> TraceRecorder;

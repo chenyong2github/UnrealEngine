@@ -44,6 +44,7 @@
 namespace UserInterfaceCommand
 {
 	TSharedRef<FWorkspaceItem> DeveloperTools = FWorkspaceItem::NewGroup(NSLOCTEXT("UnrealInsights", "DeveloperToolsMenu", "Developer Tools"));
+	static void* RecorderEvent = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -242,6 +243,15 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 		{
 			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
 			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
+
+#if PLATFORM_WINDOWS
+			// Create a named event that other processes can use detect a running
+			// recorder and connect to it automatically
+			if (UserInterfaceCommand::RecorderEvent == nullptr)
+			{
+				UserInterfaceCommand::RecorderEvent = ::CreateEvent(nullptr, true, false, TEXT("Local\\UnrealInsightsRecorder"));
+			}
+#endif // PLATFORM_WINDOWS
 		}
 
 		delete[] TraceFile;
@@ -257,6 +267,14 @@ void FUserInterfaceCommand::ShutdownSlateApplication()
 
 	// Shut down application.
 	FSlateApplication::Shutdown();
+
+#if PLATFORM_WINDOWS
+	if (UserInterfaceCommand::RecorderEvent != nullptr)
+	{
+		::CloseHandle(UserInterfaceCommand::RecorderEvent);
+		UserInterfaceCommand::RecorderEvent = nullptr;
+	}
+#endif // PLATFORM_WINDOWS
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
