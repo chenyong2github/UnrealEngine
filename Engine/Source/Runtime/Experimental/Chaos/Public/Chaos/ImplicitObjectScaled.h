@@ -541,6 +541,9 @@ public:
 	}
 
 	const ObjectType Object() const { return MObject; }
+
+	// Only should be retrieved for copy purposes. Do not modify or access.
+	TSharedPtr<TConcrete, ESPMode::ThreadSafe> GetSharedObject() const { return MSharedPtrForRefCount; }
 	
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
