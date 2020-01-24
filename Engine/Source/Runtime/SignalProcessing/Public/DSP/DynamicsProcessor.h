@@ -61,8 +61,8 @@ namespace Audio
 		void SetPeakMode(const EPeakMode::Type InEnvelopeFollowerModeType);
 		void SetProcessingMode(const EDynamicsProcessingMode::Type ProcessingMode);
 
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame);
+		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer = nullptr);
 
 
 	protected:
