@@ -158,6 +158,10 @@ public:
 
 	// FGCObject Interface ///////////////////////////////////////////////////
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const
+	{
+		return "FPhysScene_Chaos";
+	}
 	//////////////////////////////////////////////////////////////////////////
 	
 	/** Given a solver object, returns its associated component. */
@@ -183,6 +187,12 @@ public:
 	 * to this are made at appropriate sync points if required
 	 */
 	void CopySolverAccelerationStructure();
+
+	/**
+	 * Callback when a world ends, to mark updated packages dirty. This can't be done in final
+	 * sync as the editor will ignore packages being dirtied in PIE. Also used to clean up any other references
+	 */
+	void OnWorldEndPlay();
 
 private:
 	UPROPERTY()
@@ -229,13 +239,6 @@ private:
 #endif
 
 #if WITH_EDITOR
-	/**
-	 * Callback when a world ends, to mark updated packages dirty. This can't be done in final
-	 * sync as the editor will ignore packages being dirtied in PIE
-	 */
-	void OnWorldEndPlay();
-
-
 	// List of objects that we modified during a PIE run for physics simulation caching.
 	TArray<UObject*> PieModifiedObjects;
 #endif

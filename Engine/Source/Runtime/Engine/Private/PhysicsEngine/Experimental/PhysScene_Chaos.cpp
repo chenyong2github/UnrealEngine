@@ -397,8 +397,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	ComponentToPhysicsProxyMap.Reset();
 
 #if WITH_EDITOR
-	FGameDelegates::Get().GetEndPlayMapDelegate().AddRaw(this, &FPhysScene_Chaos::OnWorldEndPlay);
-
 	if(!PhysScene_ChaosPauseHandler)
 	{
 		PhysScene_ChaosPauseHandler = MakeUnique<FPhysScene_ChaosPauseHandler>(ChaosModule);
@@ -431,10 +429,6 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 	Shutdown();
 	
 	FCoreDelegates::OnPreExit.RemoveAll(this);
-
-#if WITH_EDITOR
-	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
-#endif
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	if (SyncCaller)
@@ -1078,9 +1072,9 @@ void FPhysScene_Chaos::OnUpdateWorldPause()
 }
 #endif  // #if CHAOS_WITH_PAUSABLE_SOLVER
 
-#if WITH_EDITOR
 void FPhysScene_Chaos::OnWorldEndPlay()
 {
+#if WITH_EDITOR
 	// Mark PIE modified objects dirty - couldn't do this during the run because
 	// it's silently ignored
 	for(UObject* Obj : PieModifiedObjects)
@@ -1089,8 +1083,13 @@ void FPhysScene_Chaos::OnWorldEndPlay()
 	}
 
 	PieModifiedObjects.Reset();
+#endif
+
+	PhysicsProxyToComponentMap.Reset();
+	ComponentToPhysicsProxyMap.Reset();
 }
 
+#if WITH_EDITOR
 void FPhysScene_Chaos::AddPieModifiedObject(UObject* InObj)
 {
 	if(GIsPlayInEditorWorld)
@@ -1213,6 +1212,7 @@ void FPhysScene_ChaosInterface::OnWorldEndPlay()
 	}
 #endif
 
+	Scene.OnWorldEndPlay();
 }
 
 void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles, const bool bImmediate)
