@@ -578,6 +578,7 @@ void FStaticMeshSceneProxy::DestroyRenderThreadResources()
 
 	// Call here because it uses RenderData from the StaticMesh which is not guaranteed to still be valid after this DestroyRenderThreadResources call
 	RemoveSpeedTreeWind();
+	StaticMesh = nullptr;
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */

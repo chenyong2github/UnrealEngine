@@ -890,6 +890,12 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_DeselectedInstances.bRenderSelected = false;
 }
 
+void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	InstancedRenderData.ReleaseResources(&GetScene(), StaticMesh);
+	FStaticMeshSceneProxy::DestroyRenderThreadResources();
+}
+
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
 {
 	OutMeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
