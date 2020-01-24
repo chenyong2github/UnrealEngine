@@ -17,6 +17,7 @@ public:
 							FTraceDataStream(asio::ip::tcp::socket& InSocket);
 	virtual					~FTraceDataStream();
 	virtual int32			Read(void* Dest, uint32 DestSize) override;
+	virtual void			Close() override;
 
 private:
 	asio::ip::tcp::socket	Socket;
@@ -31,6 +32,18 @@ FTraceDataStream::FTraceDataStream(asio::ip::tcp::socket& InSocket)
 ////////////////////////////////////////////////////////////////////////////////
 FTraceDataStream::~FTraceDataStream()
 {
+	Close();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceDataStream::Close()
+{
+	if (!Socket.is_open())
+	{
+		return;
+	}
+
+	Socket.shutdown(asio::ip::tcp::socket::shutdown_both);
 	Socket.close();
 }
 
@@ -253,6 +266,12 @@ FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 	asio::error_code ErrorCode;
 	asio::ip::tcp::socket SenderSocket(IoContext);
 	SenderSocket.connect(Endpoint, ErrorCode);
+	if (ErrorCode)
+	{
+		return nullptr;
+	}
+
+	SenderSocket.native_non_blocking(false, ErrorCode);
 	if (ErrorCode)
 	{
 		return nullptr;
