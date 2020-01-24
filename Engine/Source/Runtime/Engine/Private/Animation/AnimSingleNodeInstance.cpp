@@ -192,6 +192,7 @@ void UAnimSingleNodeInstance::RestartMontage(UAnimMontage* Montage, FName FromSe
 			Montage_JumpToSection(FromSection);
 		}
 		SetMontageLoop(Montage, Proxy.IsLooping(), FromSection);
+		UpdateMontageWeightForTimeSkip(Montage->BlendIn.GetBlendTime());
 	}
 }
 
