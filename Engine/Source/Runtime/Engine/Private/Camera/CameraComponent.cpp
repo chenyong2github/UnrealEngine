@@ -111,7 +111,8 @@ FText UCameraComponent::GetFilmbackText() const
 void UCameraComponent::OnRegister()
 {
 #if WITH_EDITORONLY_DATA
-	if (AActor* MyOwner = GetOwner())
+	AActor* MyOwner = GetOwner();
+	if ((MyOwner != nullptr) && !IsRunningCommandlet())
 	{
 		if (ProxyMeshComponent == nullptr)
 		{
