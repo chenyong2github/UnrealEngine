@@ -69,7 +69,6 @@ public:
 private:
 
 	FShaderResourceParameter NiagaraParticleDataFloat;
-	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 	FShaderResourceParameter GPUParticleCountBuffer;
 	FShaderParameter ParticleCountParams;
