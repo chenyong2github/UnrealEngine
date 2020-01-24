@@ -19,7 +19,7 @@
 #include "Framework/PhysicsTickTask.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
-#include "PhysicsEngine/BodyInstance.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/PrimitiveComponent.h"
 
