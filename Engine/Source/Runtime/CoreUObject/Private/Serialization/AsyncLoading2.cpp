@@ -135,25 +135,53 @@ public:
 	}
 };
 
-struct FExportMapEntry
+FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry)
 {
-	uint64 SerialSize;
-	int32 ObjectName[2];
-	FPackageIndex OuterIndex;
-	FPackageIndex ClassIndex;
-	FPackageIndex SuperIndex;
-	FPackageIndex TemplateIndex;
-	int32 GlobalImportIndex;
-	EObjectFlags ObjectFlags;
-	EExportFilterFlags FilterFlags;
-	uint8 Pad[7];
-};
+	Ar << ExportBundleEntry.LocalExportIndex;
+	Ar << ExportBundleEntry.CommandType;
 
-struct FExportBundleHeader
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader)
 {
-	uint32 FirstEntryIndex;
-	uint32 EntryCount;
-};
+	Ar << ExportBundleHeader.FirstEntryIndex;
+	Ar << ExportBundleHeader.EntryCount;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
+{
+	Ar << ExportMapEntry.SerialSize;
+	Ar << ExportMapEntry.ObjectName[0] << ExportMapEntry.ObjectName[1];
+	Ar << ExportMapEntry.OuterIndex;
+	Ar << ExportMapEntry.ClassIndex;
+	Ar << ExportMapEntry.SuperIndex;
+	Ar << ExportMapEntry.TemplateIndex;
+	Ar << ExportMapEntry.GlobalImportIndex;
+
+	uint32 ObjectFlags = uint32(ExportMapEntry.ObjectFlags);
+	Ar << ObjectFlags;
+	
+	if (Ar.IsLoading())
+	{
+		ExportMapEntry.ObjectFlags = EObjectFlags(ObjectFlags);
+	}
+
+	uint8 FilterFlags = uint8(ExportMapEntry.FilterFlags);
+	Ar << FilterFlags;
+
+	if (Ar.IsLoading())
+	{
+		ExportMapEntry.FilterFlags = EExportFilterFlags(FilterFlags);
+	}
+
+	uint64 Pad = 0;
+	Ar.Serialize(&Pad, 7);
+
+	return Ar;
+}
 
 struct FExportObject
 {

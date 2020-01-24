@@ -7,7 +7,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectResource.h"
 
+class FArchive;
 class IAsyncPackageLoader;
 class FIoDispatcher;
 class IEDLBootNotificationManager;
@@ -65,6 +67,8 @@ struct FExportBundleEntry
 	};
 	uint32 LocalExportIndex;
 	uint32 CommandType;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry);
 };
 
 /**
@@ -74,6 +78,36 @@ struct FExportBundleMetaEntry
 {
 	uint32 LoadOrder = ~uint32(0);
 	uint32 PayloadSize = ~uint32(0);
+};
+
+/**
+ * Export bundle header
+ */
+struct FExportBundleHeader
+{
+	uint32 FirstEntryIndex;
+	uint32 EntryCount;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader);
+};
+
+/**
+ * Export map entry.
+ */
+struct FExportMapEntry
+{
+	uint64 SerialSize;
+	int32 ObjectName[2];
+	FPackageIndex OuterIndex;
+	FPackageIndex ClassIndex;
+	FPackageIndex SuperIndex;
+	FPackageIndex TemplateIndex;
+	int32 GlobalImportIndex;
+	EObjectFlags ObjectFlags;
+	EExportFilterFlags FilterFlags;
+	uint8 Pad[7];
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
 
 /**
