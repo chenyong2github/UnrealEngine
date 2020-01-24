@@ -72,7 +72,7 @@ namespace Chaos
 		EContactShapesType ShapesType;
 
 
-		FString ToString() const
+		FString CHAOS_API ToString() const
 		{
 			return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%f"), *Location.ToString(), *Normal.ToString(), Phi);
 		}
