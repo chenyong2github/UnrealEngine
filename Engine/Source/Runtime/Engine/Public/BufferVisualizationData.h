@@ -2,8 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-class UMaterialInterface;
+#include "Materials/MaterialInterface.h"
 
 class FBufferVisualizationData
 {
