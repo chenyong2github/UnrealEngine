@@ -96,7 +96,7 @@ public:
 
 	// The drag coefficient applying on each particle
 	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float DragCoefficient = 0.5f;
+	float DragCoefficient = 0.07f;
 
 	// Default spring stiffness for anim drive if an anim drive is in use
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
