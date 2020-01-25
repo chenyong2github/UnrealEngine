@@ -2,9 +2,9 @@
 
 #include "Config/DisplayClusterConfigTypes.h"
 
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
-#include "Misc/DisplayClusterHelpers.h"
 
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 

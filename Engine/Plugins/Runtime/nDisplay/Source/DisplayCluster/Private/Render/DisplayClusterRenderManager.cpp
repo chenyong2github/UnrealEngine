@@ -33,8 +33,8 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
-#include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
+#include "DisplayClusterHelpers.h"
 
 #include "UnrealClient.h"
 #include "Kismet/GameplayStatics.h"
@@ -691,7 +691,7 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 
 	// Create sync policy specified in a config file
 	FDisplayClusterConfigGeneral CfgGeneral = GDisplayCluster->GetPrivateConfigMgr()->GetConfigGeneral();
-	const FString SyncPolicyType = FDisplayClusterTypesConverter::ToString(CfgGeneral.SwapSyncPolicy);
+	const FString SyncPolicyType = FDisplayClusterTypesConverter::template ToString(CfgGeneral.SwapSyncPolicy);
 	const FString RHIName = GDynamicRHI->GetName();
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> NewSyncPolicy;
 

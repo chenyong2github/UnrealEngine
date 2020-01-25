@@ -14,7 +14,6 @@
 #include "Dom/JsonObject.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterHelpers.h"
 
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
@@ -24,6 +23,7 @@
 
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
@@ -586,7 +586,7 @@ FDisplayClusterClusterManager::TController FDisplayClusterClusterManager::Create
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Current operation mode: %s"), *FDisplayClusterTypesConverter::ToString(CurrentOperationMode));
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Current operation mode: %s"), *FDisplayClusterTypesConverter::template ToString(CurrentOperationMode));
 
 	// Instantiate appropriate controller depending on operation mode and cluster role
 	FDisplayClusterNodeCtrlBase* pController = nullptr;
