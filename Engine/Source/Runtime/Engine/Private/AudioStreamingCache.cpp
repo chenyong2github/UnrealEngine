@@ -340,6 +340,24 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 			if (!bIsValidChunk)
 			{
 				UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
+
+
+				AsyncTask(ENamedThreads::GameThread, []()
+				{
+					int32 NumChunksReleased = 0;
+
+					for (TObjectIterator<USoundWave> It; It; ++It)
+					{
+						USoundWave* Wave = *It;
+						if (Wave && Wave->IsRetainingAudio())
+						{
+							Wave->ReleaseCompressedAudio();
+							NumChunksReleased++;
+						}
+					}
+
+					UE_LOG(LogAudio, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
+				});
 			}
 		}
 

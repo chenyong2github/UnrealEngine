@@ -2454,6 +2454,11 @@ void USoundWave::ReleaseCompressedAudio()
 	FirstChunk = FAudioChunkHandle();
 }
 
+bool USoundWave::IsRetainingAudio()
+{
+	return FirstChunk.IsValid();
+}
+
 void USoundWave::CacheInheritedLoadingBehavior()
 {
 	check(IsInGameThread());
