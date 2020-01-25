@@ -33,7 +33,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
-
+#include "Async/Async.h"
 #include "Misc/CommandLine.h"
 
 static int32 SoundWaveDefaultLoadingBehaviorCVar = 0;
@@ -2432,13 +2432,19 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	{
 		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle OutHandle)
 		{
-			check(IsInGameThread());
-			
-			if (WeakThis.IsValid())
+			if (OutHandle.IsValid())
 			{
-				WeakThis->FirstChunk = OutHandle;
+				AsyncTask(ENamedThreads::GameThread, [WeakThis, OutHandle]() {
+					check(IsInGameThread());
+
+					if (WeakThis.IsValid())
+					{
+						WeakThis->FirstChunk = OutHandle;
+					}
+				});
+				
 			}
-		}, false, 1, ENamedThreads::GameThread);
+		}, false, 1);
 	}
 }
 
