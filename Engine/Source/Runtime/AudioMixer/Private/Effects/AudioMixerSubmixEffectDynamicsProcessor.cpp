@@ -16,6 +16,7 @@ namespace
 } // namespace <>
 
 FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
+	: DeviceId(INDEX_NONE)
 {
 }
 
