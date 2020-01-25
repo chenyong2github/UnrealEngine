@@ -14,6 +14,9 @@
 
 //#pragma optimize("", off)
 
+bool bChaos_Joint_EarlyOut_Enabled = true;
+FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
+
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("Joints::Sort"), STAT_Joints_Sort, STATGROUP_ChaosJoint);
@@ -154,6 +157,8 @@ namespace Chaos
 		: ApplyPairIterations(1)
 		, ApplyPushOutPairIterations(1)
 		, SwingTwistAngleTolerance(1.0e-6f)
+		, PositionTolerance(0)
+		, AngleTolerance(0)
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
 		, AngularConstraintPositionCorrection(1.0f)
@@ -494,13 +499,16 @@ namespace Chaos
 			PreApplyCallback(Dt, Handles);
 		}
 
+		FJointSolverResult NetResult;
 		if (Settings.ApplyPairIterations > 0)
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
-				SolvePosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				NetResult += SolvePosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
 			}
 		}
+
+		//UE_LOG(LogChaosJoint, Warning, TEXT("Apply %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostApplyCallback != nullptr)
 		{
@@ -515,13 +523,16 @@ namespace Chaos
 		// @todo(ccaulfield): track whether we are sufficiently solved
 		bool bNeedsAnotherIteration = true;
 
+		FJointSolverResult NetResult;
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
-				ProjectPosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
+				NetResult += ProjectPosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
+
+		//UE_LOG(LogChaosJoint, Warning, TEXT("Push  %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostProjectCallback != nullptr)
 		{
@@ -655,7 +666,7 @@ namespace Chaos
 
 	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
-	void FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	FJointSolverResult FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -679,17 +690,25 @@ namespace Chaos
 			Particle1->V(),
 			Particle1->W());
 
+		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyConstraints(Dt, Settings, JointSettings);
-			Solver.ApplyDrives(Dt, Settings, JointSettings);
+			NetResult += Solver.ApplyConstraints(Dt, Settings, JointSettings);
+			NetResult +=  Solver.ApplyDrives(Dt, Settings, JointSettings);
+
+			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			{
+				break;
+			}
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
 		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1));
+
+		return NetResult;
 	}
 
-	void FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	FJointSolverResult FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -713,13 +732,21 @@ namespace Chaos
 			Particle1->V(),
 			Particle1->W());
 
+		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyProjections(Dt, Settings, JointSettings);
+			NetResult = Solver.ApplyProjections(Dt, Settings, JointSettings);
+			
+			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			{
+				break;
+			}
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
 		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
+
+		return NetResult;
 	}
 }
 

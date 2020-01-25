@@ -13,6 +13,9 @@ namespace Chaos
 {
 	namespace Collisions
 	{
+		int32 Chaos_Collision_EnergyClampEnabled = 1;
+		FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.Collision.EnergyClampEnabled"), Chaos_Collision_EnergyClampEnabled, TEXT("Whether to use energy clamping in collision apply step"));
+
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
@@ -168,7 +171,10 @@ namespace Chaos
 					Impulse = ImpulseNumerator / ImpulseDenominator;
 				}
 
-				Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				if (Chaos_Collision_EnergyClampEnabled != 0)
+				{
+					Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				}
 				AccumulatedImpulse += Impulse;
 
 				if (bIsRigidDynamic0)
@@ -335,7 +341,10 @@ namespace Chaos
 				}
 
 				FVec3 VelocityFixImpulse = ImpulseNumerator / ImpulseDenominator;
-				VelocityFixImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), VelocityFixImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				if (Chaos_Collision_EnergyClampEnabled)
+				{
+					VelocityFixImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), VelocityFixImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				}
 				AccumulatedImpulse += VelocityFixImpulse;	//question: should we track this?
 				if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
 				{
