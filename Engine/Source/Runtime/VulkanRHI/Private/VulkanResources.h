@@ -1301,7 +1301,7 @@ public:
 		, SourceTexture(nullptr)
 		, SourceStructuredBuffer(InStructuredBuffer)
 		, NumMips(0)
-		, Size(InStructuredBuffer->GetSize() - Offset)
+		, Size(InStructuredBuffer->GetSize() - InOffset)
 		, Offset(InOffset)
 		, SourceBuffer(nullptr)
 	{

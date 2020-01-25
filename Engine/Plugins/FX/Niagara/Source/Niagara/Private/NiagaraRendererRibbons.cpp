@@ -758,7 +758,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	auto& ParticleData = CPUSimParticleDataAllocation.ParticleData;
 
 	int32 ParticleDataStride = GbEnableMinimalGPUBuffers ? SourceParticleData->GetNumInstances() : SourceParticleData->GetFloatStride() / sizeof(float);
-	CollectorResources.VertexFactory.SetParticleData(ParticleData.ReadBuffer->SRV, ParticleData.FirstIndex / sizeof(float), ParticleDataStride);
+	CollectorResources.VertexFactory.SetParticleData(ParticleData.SRV, ParticleDataStride);
 
 	// TODO: need to make these two a global alloc buffer as well, not recreate
 				// pass in the sorted indices so the VS can fetch the particle data in order
@@ -808,7 +808,6 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	VFLooseParams.NiagaraParticleDataMaterialParam1 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
 	VFLooseParams.NiagaraParticleDataMaterialParam2 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
 	VFLooseParams.NiagaraParticleDataMaterialParam3 = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
-	VFLooseParams.NiagaraFloatDataOffset = CollectorResources.VertexFactory.GetFloatDataOffset();
 	VFLooseParams.NiagaraFloatDataStride = CollectorResources.VertexFactory.GetFloatDataStride();
 	VFLooseParams.SortedIndicesOffset = CollectorResources.VertexFactory.GetSortedIndicesOffset();
 	VFLooseParams.FacingMode = CollectorResources.VertexFactory.GetFacingMode();

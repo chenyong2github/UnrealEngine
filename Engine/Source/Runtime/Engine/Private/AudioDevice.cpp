@@ -2,6 +2,7 @@
 #include "AudioDevice.h"
 
 #include "ActiveSound.h"
+#include "Audio.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
 #include "AudioDefines.h"
@@ -76,6 +77,14 @@ FAutoConsoleVariableRef CVarForceRealtimeDecompression(
 	ForceRealtimeDecompressionCvar,
 	TEXT("When set to 1, this deliberately ensures that all audio assets are decompressed as they play, rather than fully on load.\n")
 	TEXT("0: Allow full decompression on load, 1: force realtime decompression."),
+	ECVF_Default);
+
+static int32 DisableAppVolumeCvar = 0;
+FAutoConsoleVariableRef CVarDisableAppVolume(
+	TEXT("au.DisableAppVolume"),
+	DisableAppVolumeCvar,
+	TEXT("Disables application volume when set to 1.\n")
+	TEXT("0: App volume enabled, 1: App volume disabled"),
 	ECVF_Default);
 
 static int32 DisableAutomaticPrecacheCvar = 0;
@@ -4151,7 +4160,12 @@ void FAudioDevice::Update(bool bGameTicking)
 	bIsStoppingVoicesEnabled = !DisableStoppingVoicesCvar;
 
 	// Update the master volume
-	MasterVolume = GetTransientMasterVolume() * FApp::GetVolumeMultiplier();
+	MasterVolume = GetTransientMasterVolume();
+	
+	if (!DisableAppVolumeCvar)
+	{
+		MasterVolume *= FApp::GetVolumeMultiplier();
+	}
 
 	UpdateAudioPluginSettingsObjectCache();
 

@@ -88,7 +88,6 @@ FNiagaraSortKeyGenCS::FNiagaraSortKeyGenCS(const ShaderMetaType::CompiledShaderI
 	: FGlobalShader(Initializer)
 {
 	NiagaraParticleDataFloat.Bind(Initializer.ParameterMap, TEXT("NiagaraParticleDataFloat"));
-	FloatDataOffset.Bind(Initializer.ParameterMap, TEXT("NiagaraFloatDataOffset"));
 	FloatDataStride.Bind(Initializer.ParameterMap, TEXT("NiagaraFloatDataStride"));
 	GPUParticleCountBuffer.Bind(Initializer.ParameterMap, TEXT("GPUParticleCountBuffer"));
 	ParticleCountParams.Bind(Initializer.ParameterMap, TEXT("ParticleCountParams"));
@@ -105,7 +104,6 @@ bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << NiagaraParticleDataFloat;
-	Ar << FloatDataOffset;
 	Ar << FloatDataStride;
 	Ar << GPUParticleCountBuffer;
 	Ar << ParticleCountParams;
@@ -130,7 +128,6 @@ void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNia
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, NiagaraParticleDataFloat, SortInfo.ParticleDataFloatSRV);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, FloatDataOffset, SortInfo.FloatDataOffset);
 	SetShaderValue(RHICmdList, ComputeShaderRHI, FloatDataStride, SortInfo.FloatDataStride);
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, GPUParticleCountBuffer, SortInfo.GPUParticleCountSRV);

@@ -26,8 +26,7 @@ static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Bu
 		GLsizeiptr Size = NumElements * Stride;
 
 #if DO_CHECK
-		GLint Alignment = 0;
-		glGetIntegerv(GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT, &Alignment);
+		GLint Alignment = FOpenGLBase::GetTextureBufferAlignment();
 		check(Stride > 0 && Offset % Alignment == 0);
 #endif
 

@@ -983,6 +983,11 @@ FName FAssetEditorToolkit::GetToolMenuAppName() const
 	return GetToolkitFName();
 }
 
+FName FAssetEditorToolkit::GetToolMenuName() const
+{
+	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".MainMenu"));
+}
+
 FName FAssetEditorToolkit::GetToolMenuToolbarName() const
 {
 	FName ParentName;

@@ -496,8 +496,6 @@ public:
 
 	~FInstancedStaticMeshSceneProxy()
 	{
-		InstancedRenderData.ReleaseResources(&GetScene( ), StaticMesh);
-
 #if RHI_RAYTRACING
 		for (int32 i = 0; i < RayTracingCullClusterInstances.Num(); ++i)
 		{
@@ -507,7 +505,9 @@ public:
 	}
 
 	// FPrimitiveSceneProxy interface.
-	
+
+	virtual void DestroyRenderThreadResources() override;
+
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;

@@ -2,8 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-class UMaterialInterface;
+#include "Materials/MaterialInterface.h"
 
 class FBufferVisualizationData
 {
@@ -43,7 +42,7 @@ public:
 		for (TMaterialMap::TConstIterator It = MaterialMap.CreateConstIterator(); It; ++It)
 		{
 			const Record& Rec = It.Value();
-			Iterator.ProcessValue(Rec.Name, Rec.Material->GetMaterial(), Rec.DisplayName);
+			Iterator.ProcessValue(Rec.Name, Rec.Material, Rec.DisplayName);
 		}
 	}
 

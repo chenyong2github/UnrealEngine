@@ -2,6 +2,7 @@
 
 #include "Chaos/CollisionResolution.h"
 
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/CollisionResolutionTypes.h"
@@ -20,7 +21,12 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/GeometryQueries.h"
 
+#if 0
 DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_ChaosCollision);
+#define SCOPE_CYCLE_COUNTER_GJK() SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK)
+#else
+#define SCOPE_CYCLE_COUNTER_GJK()
+#endif
 
 //#pragma optimize("", off)
 
@@ -110,7 +116,7 @@ namespace Chaos
 		template <typename T, int d, typename GeometryA, typename GeometryB>
 		TContactPoint<T> GJKContactPoint(const GeometryA& A, const TRigidTransform<T, d>& ATM, const GeometryB& B, const TRigidTransform<T, d>& BTM, const TVector<T, 3>& InitialDir)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK);
+			SCOPE_CYCLE_COUNTER_GJK();
 
 			TContactPoint<T> Contact;
 			const TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
@@ -179,9 +185,9 @@ namespace Chaos
 		template<class T, int d>
 		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T CullDistance)
 		{
-			return CastHelper(A, ATM, [&](const auto& ADowncast, const TRigidTransform<T,d>& AFullTM)
+			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const TRigidTransform<T,d>& AFullTM)
 			{
-				return CastHelper(B, BTM, [&](const auto& BDowncast, const TRigidTransform<T,d>& BFullTM)
+				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const TRigidTransform<T,d>& BFullTM)
 				{
 					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, TVector<T, d>(1, 0, 0));
 				});
@@ -887,7 +893,7 @@ namespace Chaos
 			T Penetration;
 			FVec3 CapsuleClosestBoxSpace, BoxClosestBoxSpace, NormalBoxSpace;
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK);
+				SCOPE_CYCLE_COUNTER_GJK();
 				if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, (T)0, InitialDir, (T)0)))
 				{
 					return;

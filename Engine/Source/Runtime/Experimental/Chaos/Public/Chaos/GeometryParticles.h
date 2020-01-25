@@ -461,30 +461,9 @@ namespace Chaos
 			MapImplicitShapes(Index);
 		}
 
-		void MapImplicitShapes()
-		{
-			int32 NumShapeArrays = MShapesArray.Num();
-			ImplicitShapeMap.Resize(NumShapeArrays);
-			for(int32 Index = 0; Index < NumShapeArrays; ++Index)
-			{
-				MapImplicitShapes(Index);
-			}
-		}
+		void MapImplicitShapes();
 
-		void MapImplicitShapes(int32 Index)
-		{
-			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
-
-			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
-			TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
-			Mapping.Reset();
-
-			int32 ShapeIndex = 0;
-			for(TUniquePtr<TPerShapeData<T, d>>& Shape : ShapeArray)
-			{
-				Mapping.Add(Shape->Geometry.Get(), ShapeIndex++);
-			}
-		}
+		void MapImplicitShapes(int32 Index);
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
 		friend class TGeometryParticlesImp;

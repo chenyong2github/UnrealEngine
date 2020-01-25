@@ -224,6 +224,10 @@ public:
 	/** The volume at which the radio filter kicks in */
 	float RadioFilterVolumeThreshold;
 
+	/** The amount of stereo sounds to bleed to the rear speakers */
+	UE_DEPRECATED(4.25, "Stereo Bleed is no longer supported.")
+	float StereoBleed;
+
 	/** The amount of a sound to bleed to the LFE channel */
 	float LFEBleed;
 
@@ -627,6 +631,10 @@ public:
 
 	/** Set the bReverbApplied variable. */
 	ENGINE_API bool SetReverbApplied(bool bHardwareAvailable);
+
+	/** Set the StereoBleed variable. */
+	UE_DEPRECATED(4.25, "Stereo Bleed is no longer supported.")
+	ENGINE_API float SetStereoBleed();
 
 	/** Updates and sets the LFEBleed variable. */
 	ENGINE_API float SetLFEBleed();

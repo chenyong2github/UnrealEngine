@@ -54,7 +54,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonUniformParameters> FNiagaraRibbonUniformBufferRef;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER(uint32, NiagaraFloatDataOffset)
 	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
 	SHADER_PARAMETER(uint32, SortedIndicesOffset)
 	SHADER_PARAMETER(uint32, FacingMode)
@@ -143,10 +142,9 @@ public:
 	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, int32 ParameterIndex, uint32 StreamOffset, uint32 Stride);
 
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataOffset, uint32 InFloatDataStride)
+	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
 	{
 		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataOffset = InFloatDataOffset;
 		FloatDataStride = InFloatDataStride;
 	}
 
@@ -184,11 +182,6 @@ public:
 	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataOffset()
-	{
-		return FloatDataOffset;
 	}
 
 	FORCEINLINE int32 GetFloatDataStride()
@@ -261,7 +254,6 @@ private:
 	const FNiagaraDataSet *DataSet;
 
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
 
 	FVertexBufferRHIRef SortedIndicesBuffer;

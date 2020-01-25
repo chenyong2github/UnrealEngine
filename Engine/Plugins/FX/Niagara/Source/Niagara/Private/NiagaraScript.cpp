@@ -499,8 +499,17 @@ FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParamete
 		return nullptr;
 	}
 #else
-	check(GetSimTarget().GetValue() == SimTarget);
-	return &ScriptExecutionParamStore;
+	TOptional<ENiagaraSimTarget> ActualSimTarget = GetSimTarget();
+	if (ActualSimTarget.IsSet() )
+	{
+		if ( ActualSimTarget == SimTarget )
+		{
+			return &ScriptExecutionParamStore;
+		}
+
+		UE_LOG(LogNiagara, Warning, TEXT("SimTarget is '%d' but expecting '%d' on Script '%s' Usage '%d'"), ActualSimTarget.GetValue(), SimTarget, *GetFullName(), Usage);
+	}
+	return nullptr;
 #endif
 }
 

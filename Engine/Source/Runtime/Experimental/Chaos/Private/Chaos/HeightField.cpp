@@ -557,21 +557,18 @@ namespace Chaos
 	}
 
 	template<typename T>
-	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocation) const
+	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const
 	{
-		const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
-		const TVector<T, 2> UnscaledLocation = InGridLocation / Scale2D;
-
-		if(UnscaledLocation == FlatGrid.Clamp(UnscaledLocation))
+		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
 		{
-			TVector<int32, 2> CellCoord = FlatGrid.Cell(UnscaledLocation);
+			TVector<int32, 2> CellCoord = FlatGrid.Cell(InGridLocationLocal);
 
 			const int32 SingleIndex = CellCoord[1] * (GeomData.NumCols) + CellCoord[0];
 			TVector<T, 3> Pts[4];
 			GeomData.GetPoints(SingleIndex, Pts);
 
-			float FractionX = FMath::Frac(UnscaledLocation[0]);
-			float FractionY = FMath::Frac(UnscaledLocation[1]);
+			float FractionX = FMath::Frac(InGridLocationLocal[0]);
+			float FractionY = FMath::Frac(InGridLocationLocal[1]);
 
 			if(FractionX > FractionY)
 			{

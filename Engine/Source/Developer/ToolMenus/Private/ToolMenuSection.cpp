@@ -173,38 +173,6 @@ bool FToolMenuSection::IsNonLegacyDynamic() const
 	return ToolMenuSectionDynamic || Construct.NewToolMenuDelegate.IsBound();
 }
 
-void FToolMenuSection::AssembleBlock(const FToolMenuEntry& Block)
-{
-	const EToolMenuInsertType Position = Block.InsertPosition.Position;
-
-	int32 ExistingIndex = IndexOfBlock(Block.Name);
-	if (ExistingIndex != INDEX_NONE)
-	{
-		Blocks[ExistingIndex] = Block;
-	}
-	else if (Position == EToolMenuInsertType::Before || Position == EToolMenuInsertType::After)
-	{
-		int32 DestIndex = IndexOfBlock(Block.InsertPosition.Name);
-		if (DestIndex != INDEX_NONE)
-		{
-			if (Position == EToolMenuInsertType::After)
-			{
-				++DestIndex;
-			}
-
-			Blocks.Insert(Block, DestIndex);
-		}
-	}
-	else if (Position == EToolMenuInsertType::First)
-	{
-		Blocks.Insert(Block, 0);
-	}
-	else
-	{
-		Blocks.Add(Block);
-	}
-}
-
 int32 FToolMenuSection::RemoveEntry(const FName InName)
 {
 	return Blocks.RemoveAll([InName](const FToolMenuEntry& Block) { return Block.Name == InName; });
@@ -248,7 +216,7 @@ int32 FToolMenuSection::FindBlockInsertIndex(const FToolMenuEntry& InBlock) cons
 		return INDEX_NONE;
 	}
 
-	if (InsertPosition.Position == EToolMenuInsertType::After)
+	if (InPosition.Position == EToolMenuInsertType::After)
 	{
 		++DestIndex;
 	}
