@@ -294,10 +294,6 @@ public:
 	void OnCreateMaterial(Chaos::FMaterialHandle InHandle);
 	void OnDestroyMaterial(Chaos::FMaterialHandle InHandle);
 
-	void OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
-	void OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
-	void OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
-
 private:
 
 	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
@@ -367,10 +363,6 @@ private:
 	FDelegateHandle OnCreateMaterialHandle;
 	FDelegateHandle OnDestroyMaterialHandle;
 	FDelegateHandle OnUpdateMaterialHandle;
-
-	FDelegateHandle OnCreateMaterialMaskHandle;
-	FDelegateHandle OnDestroyMaterialMaskHandle;
-	FDelegateHandle OnUpdateMaterialMaskHandle;
 };
 
 /**

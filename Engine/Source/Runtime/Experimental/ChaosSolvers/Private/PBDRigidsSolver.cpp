@@ -715,26 +715,10 @@ namespace Chaos
 		SimMaterials.Destroy(InHandle.InnerHandle);
 	}
 
-	void FPBDRigidsSolver::UpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData)
-	{
-		*SimMaterialMasks.Get(InHandle.InnerHandle) = InNewData;
-	}
-
-	void FPBDRigidsSolver::CreateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData)
-	{
-		ensure(SimMaterialMasks.Create(InNewData) == InHandle.InnerHandle);
-	}
-
-	void FPBDRigidsSolver::DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle)
-	{
-		SimMaterialMasks.Destroy(InHandle.InnerHandle);
-	}
-
 	void FPBDRigidsSolver::SyncQueryMaterials()
 	{
 		TSolverQueryMaterialScope<ELockType::Write> Scope(this);
 		QueryMaterials = SimMaterials;
-		QueryMaterialMasks = SimMaterialMasks;
 	}
 
 }; // namespace Chaos

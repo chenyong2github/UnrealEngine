@@ -13,9 +13,6 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceBasePropertyOverrides.h"
 #include "Misc/App.h"
-#if WITH_CHAOS
-#include "Physics/PhysicsInterfaceCore.h"
-#endif
 #include "MaterialInstance.generated.h"
 
 class ITargetPlatform;
@@ -299,10 +296,6 @@ class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialInstance)
 	class UPhysicalMaterial* PhysMaterial;
 
-	/** Physical material map used with physical material mask, when it exists.*/
-	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
-	class UPhysicalMaterial* PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
-
 	/** Parent material. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, AssetRegistrySearchable)
 	class UMaterialInterface* Parent;
@@ -498,8 +491,6 @@ public:
 	virtual ENGINE_API bool IsDependent(UMaterialInterface* TestDependency) override;
 	virtual ENGINE_API FMaterialRenderProxy* GetRenderProxy() const override;
 	virtual ENGINE_API UPhysicalMaterial* GetPhysicalMaterial() const override;
-	virtual ENGINE_API UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;
-	virtual ENGINE_API UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const override;
 	virtual ENGINE_API bool UpdateLightmassTextureTracking() override;
 	virtual ENGINE_API bool GetCastShadowAsMasked() const override;
 	virtual ENGINE_API float GetEmissiveBoost() const override;

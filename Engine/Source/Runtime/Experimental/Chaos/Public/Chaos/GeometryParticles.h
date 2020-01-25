@@ -12,7 +12,6 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
-#include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 
 #ifndef CHAOS_DETERMINISTIC
 #define CHAOS_DETERMINISTIC 1
@@ -53,9 +52,6 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
-		TArray<FMaterialMaskHandle> MaterialMasks;
-		TArray<uint32> MaterialMaskMaps;
-		TArray<FMaterialHandle> MaterialMaskMapMaterials;
 
 		// TODO: Bitfields?
 		bool bDisable;

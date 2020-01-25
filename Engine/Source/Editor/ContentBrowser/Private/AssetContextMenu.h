@@ -99,9 +99,6 @@ private:
 	/** Handler to check to see if imported asset actions are allowed */
 	bool CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const;
 
-	/** Handler to check to see if reimport asset actions are allowed */
-	bool CanExecuteReimportAssetActions(const TArray<FString> ResolvedFilePaths) const;
-
 	/** Handler for Reimport */
 	void ExecuteReimport(int32 SourceFileIndex = INDEX_NONE);
 

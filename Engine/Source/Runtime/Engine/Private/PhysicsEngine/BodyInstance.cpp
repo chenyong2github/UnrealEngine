@@ -469,12 +469,11 @@ void FBodyInstance::UpdatePhysicalMaterials()
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePhysMats);
 	UPhysicalMaterial* SimplePhysMat = GetSimplePhysicalMaterial();
-	TArray<FPhysicalMaterialMaskParams> ComplexPhysMatMasks;
-	TArray<UPhysicalMaterial*> ComplexPhysMats = GetComplexPhysicalMaterials(ComplexPhysMatMasks);
+	TArray<UPhysicalMaterial*> ComplexPhysMats = GetComplexPhysicalMaterials();
 
 	FPhysicsCommand::ExecuteWrite(GetActorReferenceWithWelding(), [&](const FPhysicsActorHandle& Actor)
 	{
-		ApplyMaterialToInstanceShapes_AssumesLocked(SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks);
+		ApplyMaterialToInstanceShapes_AssumesLocked(SimplePhysMat, ComplexPhysMats);
 	});
 }
 
@@ -1060,15 +1059,7 @@ struct FInitBodiesHelper
 	bool CreateShapes_AssumesLocked(FBodyInstance* Instance) const
 	{
 		UPhysicalMaterial* SimplePhysMat = Instance->GetSimplePhysicalMaterial();
-
-		TArray<UPhysicalMaterial*> ComplexPhysMats;
-		TArray<FPhysicalMaterialMaskParams> ComplexPhysMatMasks;
-
-#if WITH_CHAOS
-		ComplexPhysMats = Instance->GetComplexPhysicalMaterials(ComplexPhysMatMasks);
-#else
-		ComplexPhysMats = Instance->GetComplexPhysicalMaterials();
-#endif
+		TArray<UPhysicalMaterial*> ComplexPhysMats = Instance->GetComplexPhysicalMaterials();
 
 		FBodyCollisionData BodyCollisionData;
 		Instance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
@@ -1077,7 +1068,7 @@ struct FInitBodiesHelper
 		bool bInitFail = false;
 
 		// #PHYS2 Call interface AddGeometry
-		BodySetup->AddShapesToRigidActor_AssumesLocked(Instance, Instance->Scale3D, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, FTransform::Identity);
+		BodySetup->AddShapesToRigidActor_AssumesLocked(Instance, Instance->Scale3D, SimplePhysMat, ComplexPhysMats, BodyCollisionData, FTransform::Identity);
 
 		const int32 NumShapes = FPhysicsInterface::GetNumShapes(Instance->ActorHandle);
 		bInitFail |= NumShapes == 0;
@@ -1480,21 +1471,14 @@ bool FBodyInstance::Weld(FBodyInstance* TheirBody, const FTransform& TheirTM)
 		TheirBody->WeldParent = this;
 
 		UPhysicalMaterial* SimplePhysMat = TheirBody->GetSimplePhysicalMaterial();
+		TArray<UPhysicalMaterial*> ComplexPhysMats = TheirBody->GetComplexPhysicalMaterials();
 
-		TArray<UPhysicalMaterial*> ComplexPhysMats;
-		TArray<FPhysicalMaterialMaskParams> ComplexPhysMatMasks;
-	
-#if WITH_CHAOS
-		ComplexPhysMats = TheirBody->GetComplexPhysicalMaterials(ComplexPhysMatMasks);
-#else
-		ComplexPhysMats = TheirBody->GetComplexPhysicalMaterials();
-#endif
 		// This builds collision data based on this (parent) body, not their body. This gets fixed  up later though when PostShapeChange() calls UpdatePhysicsFilterData().
 		FBodyCollisionData BodyCollisionData;
 		BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
 		BuildBodyCollisionFlags(BodyCollisionData.CollisionFlags, GetCollisionEnabled(), BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple);
 
-		TheirBody->BodySetup->AddShapesToRigidActor_AssumesLocked(this, Scale3D, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, RelativeTM, &PNewShapes);
+		TheirBody->BodySetup->AddShapesToRigidActor_AssumesLocked(this, Scale3D, SimplePhysMat, ComplexPhysMats, BodyCollisionData, RelativeTM, &PNewShapes);
 
 		FPhysicsInterface::SetSendsSleepNotifies_AssumesLocked(Actor, TheirBody->bGenerateWakeEvents);
 
@@ -2792,24 +2776,13 @@ TArray<UPhysicalMaterial*> FBodyInstance::GetComplexPhysicalMaterials() const
 	return PhysMaterials;
 }
 
-TArray<UPhysicalMaterial*> FBodyInstance::GetComplexPhysicalMaterials(TArray<FPhysicalMaterialMaskParams>& OutPhysMaterialMasks) const
+void FBodyInstance::GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*>& PhysMaterials) const
 {
-	TArray<UPhysicalMaterial*> PhysMaterials;
-	GetComplexPhysicalMaterials(PhysMaterials, OutPhysMaterialMasks);
-	return PhysMaterials;
+	GetComplexPhysicalMaterials(this, OwnerComponent, PhysMaterials);
 }
 
-void FBodyInstance::GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*>& OutPhysMaterials) const
-{
-	GetComplexPhysicalMaterials(this, OwnerComponent, OutPhysMaterials);
-}
 
-void FBodyInstance::GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*>& OutPhysMaterials, TArray<FPhysicalMaterialMaskParams>& OutPhysMaterialMasks) const
-{
-	GetComplexPhysicalMaterials(this, OwnerComponent, OutPhysMaterials, &OutPhysMaterialMasks);
-}
-
-void FBodyInstance::GetComplexPhysicalMaterials(const FBodyInstance*, TWeakObjectPtr<UPrimitiveComponent> OwnerComp, TArray<UPhysicalMaterial*>& OutPhysMaterials, TArray<FPhysicalMaterialMaskParams>* OutPhysMaterialMasks)
+void FBodyInstance::GetComplexPhysicalMaterials(const FBodyInstance*, TWeakObjectPtr<UPrimitiveComponent> OwnerComp, TArray<UPhysicalMaterial*>& OutPhysicalMaterials)
 {
 	if(!GEngine || !GEngine->DefaultPhysMaterial)
 	{
@@ -2823,12 +2796,7 @@ void FBodyInstance::GetComplexPhysicalMaterials(const FBodyInstance*, TWeakObjec
 	if (PrimComp)
 	{
 		const int32 NumMaterials = PrimComp->GetNumMaterials();
-		OutPhysMaterials.SetNum(NumMaterials);
-
-		if (OutPhysMaterialMasks)
-		{
-			OutPhysMaterialMasks->SetNum(NumMaterials);
-		}
+		OutPhysicalMaterials.SetNum(NumMaterials);
 
 		for (int32 MatIdx = 0; MatIdx < NumMaterials; MatIdx++)
 		{
@@ -2838,26 +2806,9 @@ void FBodyInstance::GetComplexPhysicalMaterials(const FBodyInstance*, TWeakObjec
 			{
 				PhysMat = Material->GetPhysicalMaterial();
 			}
-			
-			OutPhysMaterials[MatIdx] = PhysMat;
 
-			if (OutPhysMaterialMasks)
-			{
-				UPhysicalMaterialMask* PhysMatMask = nullptr;
-				UMaterialInterface* PhysMatMap = nullptr;
-
-				if (Material)
-				{
-					PhysMatMask = Material->GetPhysicalMaterialMask();
-					if (PhysMatMask)
-					{
-						PhysMatMap = Material;
-					}
-				}
-
-				(*OutPhysMaterialMasks)[MatIdx].PhysicalMaterialMask = PhysMatMask;
-				(*OutPhysMaterialMasks)[MatIdx].PhysicalMaterialMap = PhysMatMap;
-			}
+			check(PhysMat != NULL);
+			OutPhysicalMaterials[MatIdx] = PhysMat;
 		}
 	}
 }
@@ -3768,7 +3719,7 @@ void FBodyInstance::FixupData(class UObject* Loader)
 	}
 }
 
-void FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats, const TArrayView<FPhysicalMaterialMaskParams>* ComplexPhysMatMasks)
+void FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats)
 {
 	// If a triangle mesh, need to get array of materials...
 	ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(InShape);
@@ -3776,18 +3727,7 @@ void FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle
 	{
 		if(ComplexPhysMats.Num())
 		{
-#if WITH_CHAOS
-			if (ensure(ComplexPhysMatMasks))
-			{
-				FPhysicsInterface::SetMaterials(InShape, ComplexPhysMats, *ComplexPhysMatMasks);
-			}
-			else
-			{
-				FPhysicsInterface::SetMaterials(InShape, ComplexPhysMats);
-			}
-#else
 			FPhysicsInterface::SetMaterials(InShape, ComplexPhysMats);
-#endif
 		}
 		else
 		{
@@ -3814,7 +3754,7 @@ void FBodyInstance::ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle
 	}
 }
 
-void FBodyInstance::ApplyMaterialToInstanceShapes_AssumesLocked(UPhysicalMaterial* SimplePhysMat, TArray<UPhysicalMaterial*>& ComplexPhysMats, const TArrayView<FPhysicalMaterialMaskParams>& ComplexPhysMatMasks)
+void FBodyInstance::ApplyMaterialToInstanceShapes_AssumesLocked(UPhysicalMaterial* SimplePhysMat, TArray<UPhysicalMaterial*>& ComplexPhysMats)
 {
 	FBodyInstance* TheirBI = this;
 	FBodyInstance* BIWithActor = TheirBI->WeldParent ? TheirBI->WeldParent : TheirBI;
@@ -3827,11 +3767,11 @@ void FBodyInstance::ApplyMaterialToInstanceShapes_AssumesLocked(UPhysicalMateria
 		if(TheirBI->IsShapeBoundToBody(Shape))
 		{
 			FPhysicsCommand::ExecuteShapeWrite(BIWithActor, Shape, [&](const FPhysicsShapeHandle& InnerShape)
-			{
-				ApplyMaterialToShape_AssumesLocked(InnerShape, SimplePhysMat, ComplexPhysMats, &ComplexPhysMatMasks);
-			});		
-		}
+		{
+				ApplyMaterialToShape_AssumesLocked(InnerShape, SimplePhysMat, ComplexPhysMats);
+		});		
 	}
+}
 }
 
 bool FBodyInstance::ValidateTransform(const FTransform &Transform, const FString& DebugName, const UBodySetup* Setup)

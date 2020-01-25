@@ -17,9 +17,6 @@
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "MaterialSceneTextureId.h"
-#if WITH_CHAOS
-#include "Physics/PhysicsInterfaceCore.h"
-#endif
 #include "MaterialInterface.generated.h"
 
 class FMaterialCompiler;
@@ -27,7 +24,6 @@ class FMaterialRenderProxy;
 class FMaterialResource;
 class UMaterial;
 class UPhysicalMaterial;
-class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
 struct FPrimitiveViewRelevance;
@@ -367,20 +363,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Material")
 	virtual UPhysicalMaterial* GetPhysicalMaterial() const PURE_VIRTUAL(UMaterialInterface::GetPhysicalMaterial,return NULL;);
-
-	/**
-	 * Return a pointer to the physical material mask used by this material instance.
-	 * @return The physical material.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Physics|Material")
-	virtual UPhysicalMaterialMask* GetPhysicalMaterialMask() const PURE_VIRTUAL(UMaterialInterface::GetPhysicalMaterialMask, return nullptr;);
-
-	/**
-	 * Return a pointer to the physical material from mask map at given index.
-	 * @return The physical material.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Physics|Material")
-	virtual UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const PURE_VIRTUAL(UMaterialInterface::GetPhysicalMaterialFromMap, return nullptr;);
 
 	/** Return the textures used to render this material. */
 	virtual void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const

@@ -16,7 +16,6 @@
 
 class UBodySetup;
 class UPhysicalMaterial;
-class UPhysicalMaterialMask;
 class UPrimitiveComponent;
 struct FBodyInstance;
 struct FCollisionNotifyInfo;
@@ -589,20 +588,14 @@ public:
 	/** Find the correct PhysicalMaterial for simple geometry on a given body and owner. This is really for internal use during serialization */
 	static UPhysicalMaterial* GetSimplePhysicalMaterial(const FBodyInstance* BodyInstance, TWeakObjectPtr<UPrimitiveComponent> Owner, TWeakObjectPtr<UBodySetup> BodySetupPtr);
 
-	/** Get the complex PhysicalMaterials array for this body */
+	/** Get the complex PhysicalMaterial array for this body */
 	TArray<UPhysicalMaterial*> GetComplexPhysicalMaterials() const;
 
-	/** Get the complex PhysicalMaterials and PhysicalMaterialMasks array for this body */
-	TArray<UPhysicalMaterial*> GetComplexPhysicalMaterials(TArray<FPhysicalMaterialMaskParams>& OutPhysMaterialMasks) const;
+	/** Find the correct PhysicalMaterial for simple geometry on a given body and owner. This is really for internal use during serialization */
+	static void GetComplexPhysicalMaterials(const FBodyInstance* BodyInstance, TWeakObjectPtr<UPrimitiveComponent> Owner, TArray<UPhysicalMaterial*>& OutPhysicalMaterials);
 
 	/** Get the complex PhysicalMaterials for this body */
-	void GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*> &OutPhysMaterials) const;
-
-	/** Get the complex PhysicalMaterials and PhysicalMaterialMasks for this body */
-	void GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*> &OutPhysMaterials, TArray<FPhysicalMaterialMaskParams>& OutPhysMaterialMasks) const;
-
-	/** Find the correct PhysicalMaterial and PhysicalMaterialMasks for complex geometry on a given body and owner. This is really for internal use during serialization */
-	static void GetComplexPhysicalMaterials(const FBodyInstance* BodyInstance, TWeakObjectPtr<UPrimitiveComponent> Owner, TArray<UPhysicalMaterial*>& OutPhysMaterials, TArray<FPhysicalMaterialMaskParams>* OutPhysMaterialMasks = nullptr);
+	void GetComplexPhysicalMaterials(TArray<UPhysicalMaterial*> &PhysMaterials) const;
 
 	/** Returns the slope override struct for this instance. If we don't have our own custom setting, it will return the setting from the body setup. */
 	const struct FWalkableSlopeOverride& GetWalkableSlopeOverride() const;
@@ -869,10 +862,10 @@ public:
 	 *  @param  SimplePhysMat			The material to use if a simple shape is provided (or complex materials are empty)
 	 *  @param  ComplexPhysMats			The array of materials to apply if a complex shape is provided
 	 */
-	static void ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats, const TArrayView<FPhysicalMaterialMaskParams>* ComplexPhysMatMasks = nullptr);
+	static void ApplyMaterialToShape_AssumesLocked(const FPhysicsShapeHandle& InShape, UPhysicalMaterial* SimplePhysMat, const TArrayView<UPhysicalMaterial*>& ComplexPhysMats);
 
 	/** Note: This function is not thread safe. Make sure you obtain the appropriate physics scene lock before calling it*/
-	void ApplyMaterialToInstanceShapes_AssumesLocked(UPhysicalMaterial* SimplePhysMat, TArray<UPhysicalMaterial*>& ComplexPhysMats, const TArrayView<FPhysicalMaterialMaskParams>& ComplexPhysMatMasks);
+	void ApplyMaterialToInstanceShapes_AssumesLocked(UPhysicalMaterial* SimplePhysMat, TArray<UPhysicalMaterial*>& ComplexPhysMats);
 
 	/** Update the instances collision filtering data */ 
 	void UpdatePhysicsFilterData();

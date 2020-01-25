@@ -664,14 +664,6 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
 	uint8 bSupportUniformlyDistributedSampling : 1;
 
-	/** 
-		If true, complex collision data will store UVs and face remap table for use when performing
-	    PhysicalMaterialMask lookups in cooked builds. Note the increased memory cost for this
-		functionality.
-	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
-	uint8 bSupportPhysicalMaterialMasks : 1;
-
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */

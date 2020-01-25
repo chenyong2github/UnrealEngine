@@ -25,7 +25,6 @@
 #include "UObject/NiagaraObjectVersion.h"
 #include "UObject/DestructionObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
-#include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 #include "UObject/CineCameraObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDevObjectVersion, Log, All);
@@ -170,13 +169,6 @@ FDevVersionRegistration GRegisterDestructionObjectVersion(FDestructionObjectVers
 const FGuid FExternalPhysicsCustomObjectVersion::GUID(0x35F94A83, 0xE258406C, 0xA31809F5, 0x9610247C);
 // Register Physics custom version with Core
 FDevVersionRegistration GRegisterExternalPhysicsCustomVersion(FExternalPhysicsCustomObjectVersion::GUID, FExternalPhysicsCustomObjectVersion::LatestVersion, TEXT("Dev-Physics-Ext"));
-// Unique Physics Object version id
-
-// Unique Physics Material Object version id
-const FGuid FExternalPhysicsMaterialCustomObjectVersion::GUID(0xB68FC16E, 0x8B1B42E2, 0xB453215C, 0x058844FE);
-// Register Physics custom version with Core
-FDevVersionRegistration GRegisterExternalPhysicsMaterialCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID, FExternalPhysicsMaterialCustomObjectVersion::LatestVersion, TEXT("Dev-PhysicsMaterial-Chaos"));
-// Unique PhysicsMaterial  Object version id
 
 // Unique CineCamera Object version id
 const FGuid FCineCameraObjectVersion::GUID(0xB2E18506, 0x4273CFC2, 0xA54EF4BB, 0x758BBA07);

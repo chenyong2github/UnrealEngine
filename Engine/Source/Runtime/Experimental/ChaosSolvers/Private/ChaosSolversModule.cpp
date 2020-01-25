@@ -233,10 +233,6 @@ void FChaosSolversModule::Initialize()
 		OnDestroyMaterialHandle = MaterialManager.OnMaterialDestroyed.Add(Chaos::FMaterialDestroyedDelegate::CreateRaw(this, &FChaosSolversModule::OnDestroyMaterial));
 		OnUpdateMaterialHandle = MaterialManager.OnMaterialUpdated.Add(Chaos::FMaterialUpdatedDelegate::CreateRaw(this, &FChaosSolversModule::OnUpdateMaterial));
 
-		OnCreateMaterialMaskHandle = MaterialManager.OnMaterialMaskCreated.Add(Chaos::FMaterialMaskCreatedDelegate::CreateRaw(this, &FChaosSolversModule::OnCreateMaterialMask));
-		OnDestroyMaterialMaskHandle = MaterialManager.OnMaterialMaskDestroyed.Add(Chaos::FMaterialMaskDestroyedDelegate::CreateRaw(this, &FChaosSolversModule::OnDestroyMaterialMask));
-		OnUpdateMaterialMaskHandle = MaterialManager.OnMaterialMaskUpdated.Add(Chaos::FMaterialMaskUpdatedDelegate::CreateRaw(this, &FChaosSolversModule::OnUpdateMaterialMask));
-
 		bModuleInitialized = true;
 	}
 }
@@ -492,9 +488,7 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 		Chaos::FPhysicalMaterialManager& Manager =	Chaos::FPhysicalMaterialManager::Get();
 		NewSolver->QueryMaterialLock.WriteLock();
 		NewSolver->QueryMaterials = Manager.GetMasterMaterials();
-		NewSolver->QueryMaterialMasks = Manager.GetMasterMaterialMasks();
 		NewSolver->SimMaterials = Manager.GetMasterMaterials();
-		NewSolver->SimMaterialMasks = Manager.GetMasterMaterialMasks();
 		NewSolver->QueryMaterialLock.WriteUnlock();
 	}
 
@@ -960,71 +954,6 @@ void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle](Chaos::FPhysicsSolver* InSolver)
 			{
 				InSolver->DestroyMaterial(InHandle);
-			});
-		}
-	}
-}
-
-void FChaosSolversModule::OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle)
-{
-	check(Dispatcher);
-
-	// Grab the material
-	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
-
-	if (ensure(MaterialMask))
-	{
-		for (Chaos::FPhysicsSolver* Solver : Solvers)
-		{
-			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask](Chaos::FPhysicsSolver* InSolver)
-			{
-				InSolver->UpdateMaterialMask(InHandle, MaterialMaskCopy);
-			});
-		}
-	}
-}
-
-void FChaosSolversModule::OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle)
-{
-	check(Dispatcher);
-
-	// Grab the material
-	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
-
-	if (ensure(MaterialMask))
-	{
-		for (Chaos::FPhysicsSolver* Solver : Solvers)
-		{
-			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask](Chaos::FPhysicsSolver* InSolver)
-			{
-				InSolver->CreateMaterialMask(InHandle, MaterialMaskCopy);
-			});
-		}
-	}
-}
-
-void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle)
-{
-	// @todo(bgallagher)
-	//check(Dispatcher);
-	if (!ensure(Dispatcher))
-	{
-		return;
-	}
-
-	// Grab the material
-	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
-
-	if (ensure(MaterialMask))
-	{
-		for (Chaos::FPhysicsSolver* Solver : Solvers)
-		{
-			// Notify each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle](Chaos::FPhysicsSolver* InSolver)
-			{
-				InSolver->DestroyMaterialMask(InHandle);
 			});
 		}
 	}

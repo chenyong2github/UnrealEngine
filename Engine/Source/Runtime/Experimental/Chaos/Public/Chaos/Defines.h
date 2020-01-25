@@ -64,46 +64,11 @@ namespace Chaos
 		}
 	};
 
-	class FChaosPhysicsMaterialMask
+
+	template <typename T>
+	FORCEINLINE FArchive& operator<<(FArchive& Ar, FChaosPhysicsMaterial& Value)
 	{
-	public:
-
-		int32 SizeX;
-		int32 SizeY;
-		TArray<uint32> MaskData;
-
-		int32 UVChannelIndex;
-		int32 AddressX;
-		int32 AddressY;
-
-		FChaosPhysicsMaterialMask()
-			: SizeX(0)
-			, SizeY(0)
-			, MaskData()
-			, UVChannelIndex(0)
-			, AddressX(0)
-			, AddressY(0)
-		{
-		}
-
-		static constexpr bool IsSerializablePtr = true;
-
-		static void StaticSerialize(FArchive& Ar, TSerializablePtr<FChaosPhysicsMaterialMask>& Serializable)
-		{
-			FChaosPhysicsMaterialMask* MaterialMask = const_cast<FChaosPhysicsMaterialMask*>(Serializable.Get());
-
-			if (Ar.IsLoading())
-			{
-				MaterialMask = new FChaosPhysicsMaterialMask();
-				Serializable.SetFromRawLowLevel(MaterialMask);
-			}
-
-			MaterialMask->Serialize(Ar);
-		}
-
-		void Serialize(FArchive& Ar)
-		{
-			Ar << SizeX << SizeY << UVChannelIndex << AddressX << AddressY << MaskData;
-		}
-	};
+		Value.Serialize(Ar);
+		return Ar;
+	}
 }
