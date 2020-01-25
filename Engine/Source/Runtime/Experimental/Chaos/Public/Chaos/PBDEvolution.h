@@ -29,8 +29,6 @@ class CHAOS_API TPBDEvolution
 	void AddXPBDConstraintFunctions(TFunction<void()> InitConstraintFunction, TFunction<void(TPBDParticles<T, d>&, const T)> ConstraintFunction) { MInitConstraintRules.Add(InitConstraintFunction); MConstraintRules.Add(ConstraintFunction); }
 	void AddForceFunction(TFunction<void(TPBDParticles<T, d>&, const T, const int32)> ForceFunction) { MForceRules.Add(ForceFunction); }
 
-	void AddParticles(uint32 Num, uint32 GroupId = 0);
-
 	const TPBDParticles<T, d>& Particles() const { return MParticles; }
 	TPBDParticles<T, d>& Particles() { return MParticles; }
 
@@ -61,7 +59,6 @@ class CHAOS_API TPBDEvolution
 
 	T GetDamping() const { return MDamping; }
 	void SetDamping(const T Damping) { MDamping = Damping; }
-	void SetDamping(const uint32 GroupId, const T Damping) { MPerGroupDamping[GroupId] = Damping; }
 
 	T GetTime() const { return MTime; }
 
@@ -75,8 +72,6 @@ class CHAOS_API TPBDEvolution
 	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
 	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 	TArrayCollectionArray<bool> MCollided;
-	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters
-	TArray<T> MPerGroupDamping;
 	int32 MNumIterations;
 	T MCollisionThickness;
 	T MSelfCollisionThickness;

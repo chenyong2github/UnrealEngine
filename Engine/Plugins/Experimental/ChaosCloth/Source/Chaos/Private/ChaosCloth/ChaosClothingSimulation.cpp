@@ -57,8 +57,8 @@ namespace ClothingSimulationDefault
 	static const int32 NumIterations = 1;
 	static const float SelfCollisionThickness = 2.f;
 	static const float CollisionThickness = 1.2f;
-	static const float FrictionCoefficient = 0.f;
-	static const float DampingCoefficient = 0.01f;
+	static const float CoefficientOfFriction = 0.f;
+	static const float Damping = 0.01f;
 	static const float WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
 }
 
@@ -90,8 +90,8 @@ void ClothingSimulation::Initialize()
 			ClothingSimulationDefault::NumIterations,
 			ClothingSimulationDefault::CollisionThickness,
 			ClothingSimulationDefault::SelfCollisionThickness,
-			ClothingSimulationDefault::FrictionCoefficient,
-			ClothingSimulationDefault::DampingCoefficient));
+			ClothingSimulationDefault::CoefficientOfFriction,
+			ClothingSimulationDefault::Damping));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
     Evolution->GetGravityForces().SetAcceleration(Gravity);
@@ -199,7 +199,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	// Add particles
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
 	const uint32 Offset = Particles.Size();
-	Evolution->AddParticles(PhysMesh.Vertices.Num(), (uint32)InSimDataIndex);
+	Particles.AddParticles(PhysMesh.Vertices.Num());
 
 	if (IndexToRangeMap.Num() <= InSimDataIndex)
 	{
@@ -242,17 +242,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	AddConstraints(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
-	// Set damping
-	if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
-	{
-		Evolution->SetDamping(InSimDataIndex, ClothSharedSimConfig->Damping);
-	}
-	else
-	{
-		Evolution->SetDamping(InSimDataIndex, ChaosClothSimConfig->DampingCoefficient);
-	}
-
-	// Add velocity field
+	// Add Velocity field
 	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
 	{
 		return WindVelocity;
@@ -319,6 +309,7 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
+		Evolution->SetDamping(ClothSharedSimConfig->Damping);
 	}
 }
 
@@ -1387,16 +1378,6 @@ void ClothingSimulation::RefreshClothConfig()
 				SetParticleMasses(ChaosClothConfig, PhysMesh, SimDataIndex);
 
 				AddConstraints(ChaosClothConfig, PhysMesh, SimDataIndex);
-
-				// Set damping
-				if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
-				{
-					Evolution->SetDamping(SimDataIndex, ClothSharedSimConfig->Damping);
-				}
-				else
-				{
-					Evolution->SetDamping(SimDataIndex, ChaosClothConfig->DampingCoefficient);
-				}
 
 				// Add Velocity field
 				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
