@@ -4,6 +4,7 @@
 #include "../SceneTextureParameters.ush"
 #include "../SceneTextureParameters.ush"
 #include "RayTracingSkyLightEvaluation.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 
 RaytracingAccelerationStructure TLAS;
 
