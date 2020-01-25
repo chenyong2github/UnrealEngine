@@ -1225,7 +1225,7 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		if (bSupportsTextureBuffer)
 		{
 			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
-			glTexBufferRangEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
+			glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
 		}
 
 		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
