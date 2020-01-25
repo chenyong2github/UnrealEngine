@@ -11,7 +11,7 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
+#include "DisplayClusterTypesConverter.h"
 
 class AActor;
 class UDisplayClusterCameraComponent;
@@ -461,6 +461,17 @@ namespace DisplayClusterHelpers
 			if (ConfigMgr)
 			{
 				return ConfigMgr->GetFullPathToFile(LocalPath);
+			}
+
+			return LocalPath;
+		}
+
+		static FString GetNewFileFullPath(const FString& LocalPath)
+		{
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			if (ConfigMgr)
+			{
+				return ConfigMgr->GetFullPathToNewFile(LocalPath);
 			}
 
 			return LocalPath;

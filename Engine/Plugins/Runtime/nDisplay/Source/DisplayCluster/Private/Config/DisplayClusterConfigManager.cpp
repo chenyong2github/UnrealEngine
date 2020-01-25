@@ -539,6 +539,29 @@ FString FDisplayClusterConfigManager::GetFullPathToFile(const FString& FileName)
 		}
 
 		//@Handle error, file not found
+		UE_LOG(LogDisplayClusterConfig, Warning, TEXT("File '%s' not found. In case of relative path do not forget to put './' at the beginning"), *FileName);
+	}
+
+	return FileName;
+}
+
+FString FDisplayClusterConfigManager::GetFullPathToNewFile(const FString& FileName) const
+{
+	TArray<FString> OrderedBaseDirs;
+
+	//Add ordered search base dirs
+	OrderedBaseDirs.Add(FPaths::GetPath(ConfigPath));
+	OrderedBaseDirs.Add(FPaths::RootDir());
+
+	// Process base dirs in order:
+	for (auto It : OrderedBaseDirs)
+	{
+		FString FullPath = FPaths::ConvertRelativePathToFull(It, FileName);
+		
+		if (FPaths::DirectoryExists(FPaths::GetPath(FullPath)))
+		{
+			return FullPath;
+		}
 	}
 
 	return FileName;
