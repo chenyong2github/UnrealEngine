@@ -160,14 +160,14 @@ namespace ImmediatePhysics_Chaos
 	//
 
 	FSimulation::FSimulation()
-		: PotentiallyCollidingPairs()
+		: ActivePotentiallyCollidingPairs()
 		, CollidedParticles()
 		, ParticleMaterials()
 		, PerParticleMaterials()
 		, Particles()
 		, Joints()
 		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
-		, BroadPhase(PotentiallyCollidingPairs, ChaosImmediate_Collision_CullDistance)
+		, BroadPhase(ActivePotentiallyCollidingPairs, ChaosImmediate_Collision_CullDistance)
 		, CollisionDetector(BroadPhase, Collisions)
 		, JointsRule(0, Joints)
 		, CollisionsRule(1, Collisions)
@@ -177,6 +177,8 @@ namespace ImmediatePhysics_Chaos
 		, RollingAverageStepTime(ChaosImmediate_Evolution_InitialStepTime)
 		, NumRollingAverageStepTimes(1)
 		, MaxNumRollingAverageStepTimes(ChaosImmediate_Evolution_DeltaTimeCount)
+		, bActorsDirty(false)
+		, bJointsDirty(false)
 	{
 		using namespace Chaos;
 
@@ -286,12 +288,14 @@ namespace ImmediatePhysics_Chaos
 
 	FActorHandle* FSimulation::CreateActor(EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform)
 	{
+		// @todo(ccaulfield): Shared materials
+		// @todo(ccaulfield): Add colliding particle pairs
+
 		using namespace Chaos;
 
 		FActorHandle* ActorHandle = new FActorHandle(Particles, ActorType, BodyInstance, Transform);
 		int ActorIndex = ActorHandles.Add(ActorHandle);
 
-		// @todo(ccaulfield): shared materials
 		TUniquePtr<FChaosPhysicsMaterial> Material = MakeUnique<FChaosPhysicsMaterial>();
 		if (BodyInstance != nullptr)
 		{
@@ -307,24 +311,33 @@ namespace ImmediatePhysics_Chaos
 		PerParticleMaterials.Add(MoveTemp(Material));
 		CollidedParticles.Add(false);
 
+		bActorsDirty = true;
+
 		return ActorHandle;
 	}
 
 	void FSimulation::DestroyActor(FActorHandle* ActorHandle)
 	{
 		// @todo(ccaulfield): FActorHandle could remember its index to optimize this
+		// @todo(ccaulfield): Remove colliding particle pairs
+
 		int32 Index = ActorHandles.Remove(ActorHandle);
 		delete ActorHandle;
 
 		ParticleMaterials.RemoveAt(Index, 1);
 		PerParticleMaterials.RemoveAt(Index, 1);
 		CollidedParticles.RemoveAt(Index, 1);
+
+		bActorsDirty = true;
 	}
 
 	FJointHandle* FSimulation::CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2)
 	{
 		FJointHandle* JointHandle = new FJointHandle(&Joints, ConstraintInstance, Body1, Body2);
 		JointHandles.Add(JointHandle);
+
+		bJointsDirty = true;
+
 		return JointHandle;
 	}
 
@@ -333,6 +346,8 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): FJointHandle could remember its index to optimize this
 		JointHandles.Remove(JointHandle);
 		delete JointHandle;
+
+		bJointsDirty = true;
 	}
 
 	void FSimulation::SetNumActiveBodies(int32 InNumActiveActorHandles)
@@ -363,6 +378,8 @@ namespace ImmediatePhysics_Chaos
 				Handle->SetEnabled(false);
 			}
 		}
+
+		bActorsDirty = true;
 	}
 
 	void FSimulation::SetIgnoreCollisionPairTable(const TArray<FIgnorePair>& InIgnoreCollisionPairTable)
@@ -408,6 +425,7 @@ namespace ImmediatePhysics_Chaos
 			}
 		}
 
+		bActorsDirty = true;
 	}
 
 	void FSimulation::SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors)
@@ -420,6 +438,24 @@ namespace ImmediatePhysics_Chaos
 			if (Particle != nullptr && Particle->ObjectState() == EObjectStateType::Dynamic)
 			{
 				Particle->SetCollisionGroup(INDEX_NONE);
+			}
+		}
+
+		bActorsDirty = true;
+	}
+
+	void FSimulation::UpdateActivePotentiallyCollidingPairs()
+	{
+		using namespace Chaos;
+
+		ActivePotentiallyCollidingPairs.Reset();
+		for (const FParticlePair& ParticlePair : PotentiallyCollidingPairs)
+		{
+			bool bAnyDisabled = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->Disabled() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->Disabled();
+			bool bAnyDynamic = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->IsDynamic() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->IsDynamic();
+			if (bAnyDynamic && !bAnyDisabled)
+			{
+				ActivePotentiallyCollidingPairs.Add(ParticlePair);
 			}
 		}
 	}
@@ -561,7 +597,17 @@ namespace ImmediatePhysics_Chaos
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
 
-		ConditionConstraints();
+		if (bJointsDirty)
+		{
+			ConditionConstraints();
+			bJointsDirty = false;
+		}
+
+		if (bActorsDirty)
+		{
+			UpdateActivePotentiallyCollidingPairs();
+			bActorsDirty = false;
+		}
 
 		Evolution.SetGravity(InGravity);
 		

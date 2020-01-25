@@ -74,6 +74,7 @@ namespace ImmediatePhysics_Chaos
 
 	private:
 		void ConditionConstraints();
+		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
@@ -87,7 +88,7 @@ namespace ImmediatePhysics_Chaos
 		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
 
 		// @todo(ccaulfield): Look into these...
-		TArray<FParticlePair> PotentiallyCollidingPairs;
+		TArray<FParticlePair> ActivePotentiallyCollidingPairs;
 		Chaos::TArrayCollectionArray<bool> CollidedParticles;
 		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
 		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
@@ -114,11 +115,16 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): Optimize
 		TMap<const FParticleHandle*, TSet<const FParticleHandle*>> IgnoreCollisionParticlePairTable;
 
+		TArray<FParticlePair> PotentiallyCollidingPairs;
+
 		FTransform SimulationSpaceTransform;
 
 		FReal RollingAverageStepTime;
 		int32 NumRollingAverageStepTimes;
 		int32 MaxNumRollingAverageStepTimes;
+
+		bool bActorsDirty;
+		bool bJointsDirty;
 	};
 
 }
