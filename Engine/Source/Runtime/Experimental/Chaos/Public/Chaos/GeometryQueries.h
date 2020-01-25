@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Transform.h"
@@ -19,46 +20,6 @@
 
 namespace Chaos
 {
-	template <typename Lambda>
-	FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
-	{
-		const EImplicitObjectType Type = Geom.GetType(true);
-		switch (Type)
-		{
-		case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>(), TM);
-		case ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>(), TM);
-		case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<TCapsule<FReal>>(), TM);
-		case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<FConvex>(), TM);
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>(), TM);
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>(), TM);
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>(), TM);
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>(), TM);
-		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Sphere:
-		{
-			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TSphere<FReal,3>>>().GetInstancedObject()->template GetObjectChecked<TSphere<FReal,3>>(),TM);
-		}
-		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Box:
-		{
-			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TBox<FReal,3>>>().GetInstancedObject()->template GetObjectChecked<TBox<FReal,3>>(),TM);
-		}
-		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule:
-		{
-			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>().GetInstancedObject()->template GetObjectChecked<TCapsule<FReal>>(),TM);
-		}
-		case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex:
-		{
-			return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FConvex>>().GetInstancedObject()->template GetObjectChecked<FConvex>(),TM);
-		}
-		case ImplicitObjectType::Transformed:
-		{
-			const auto& ImplicitObjectTransformed = (Geom.template GetObjectChecked<TImplicitObjectTransformed<FReal,3>>());
-			return CastHelper(*ImplicitObjectTransformed.GetTransformedObject(), ImplicitObjectTransformed.GetTransform() * TM, Func);
-		}
-
-		default: check(false);
-		}
-		return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>(), TM);	//needed for return type
-	}
 
 	struct FMTDInfo
 	{
@@ -94,7 +55,7 @@ namespace Chaos
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
 			if (OutMTD)
 			{
-				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
+				return Utilities::CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
 				{
 					FVec3 LocalA,LocalB,LocalNormal;
 					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
@@ -108,7 +69,7 @@ namespace Chaos
 			}
 			else
 			{
-				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM) { return GJKIntersection<FReal>(AConcrete, B, BToAFullTM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+				return Utilities::CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM) { return GJKIntersection<FReal>(AConcrete, B, BToAFullTM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
 			}
 		}
 		else
@@ -206,7 +167,7 @@ namespace Chaos
 			}
 
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
-			bResult = CastHelper(A, BToATM, [&](const auto& ADowncast, const auto& BToAFullTM){ return GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness); });
+			bResult = Utilities::CastHelper(A, BToATM, [&](const auto& ADowncast, const auto& BToAFullTM){ return GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness); });
 			if (AType == ImplicitObjectType::Convex)
 			{
 				//todo: find face index

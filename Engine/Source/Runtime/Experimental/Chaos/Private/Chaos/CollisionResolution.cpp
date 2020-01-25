@@ -2,6 +2,7 @@
 
 #include "Chaos/CollisionResolution.h"
 
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/CollisionResolutionTypes.h"
@@ -184,9 +185,9 @@ namespace Chaos
 		template<class T, int d>
 		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T CullDistance)
 		{
-			return CastHelper(A, ATM, [&](const auto& ADowncast, const TRigidTransform<T,d>& AFullTM)
+			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const TRigidTransform<T,d>& AFullTM)
 			{
-				return CastHelper(B, BTM, [&](const auto& BDowncast, const TRigidTransform<T,d>& BFullTM)
+				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const TRigidTransform<T,d>& BFullTM)
 				{
 					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, TVector<T, d>(1, 0, 0));
 				});
