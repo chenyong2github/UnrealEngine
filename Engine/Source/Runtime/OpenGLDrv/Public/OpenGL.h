@@ -194,6 +194,7 @@ public:
 	static FORCEINLINE GLint GetMaxDomainTextureImageUnits()	{ check(MaxDomainTextureImageUnits != -1); return MaxDomainTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxComputeTextureImageUnits()	{ return 0; }
 	static FORCEINLINE GLint GetMaxCombinedTextureImageUnits()	{ check(MaxCombinedTextureImageUnits != -1); return MaxCombinedTextureImageUnits; }
+	static FORCEINLINE GLint GetTextureBufferAlignment()		{ return TextureBufferAlignment; }
 
 
 	// Indices per unit are set in this order [Pixel, Vertex, Geometry, Hull, Domain]
@@ -431,6 +432,7 @@ protected:
 	static GLint MaxHullUniformComponents;
 	static GLint MaxDomainUniformComponents;
 	static GLint MaxVaryingVectors;
+	static GLint TextureBufferAlignment;
 
 	/** GL_ARB_clip_control */
 	static bool bSupportsClipControl;
