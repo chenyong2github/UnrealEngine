@@ -81,13 +81,14 @@ FWriteTlsContext::FWriteTlsContext()
 	if (!Once)
 	{
 		Target->Cursor = DefaultBuffer;
+		Target->ThreadId = 0;
 		Once = true;
 	}
 
 	Buffer = Target;
 
 	// Assign a new id to this thread.
-	ThreadId = AtomicIncrementRelaxed(&ThreadIdCounter);
+	ThreadId = AtomicIncrementRelaxed(&ThreadIdCounter) + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +104,7 @@ FWriteTlsContext::~FWriteTlsContext()
 ////////////////////////////////////////////////////////////////////////////////
 bool FWriteTlsContext::HasValidBuffer() const
 {
-	return (UPTRINT(Buffer) != UPTRINT(DefaultBuffer));
+	return (Buffer->ThreadId != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
