@@ -170,12 +170,12 @@ void MigrateSessionInfoFrom_4_24(const FString& OldInfoPathname, FDisasterRecove
 
 					if (bAutoRestore && !bHistoryList)
 					{
-						MigratedSession.Flags = EDisasterRecoverySessionFlags::AbnormalTerminaison;
+						MigratedSession.Flags = static_cast<uint8>(EDisasterRecoverySessionFlags::AbnormalTerminaison);
 						OutRecoveryInfo.ActiveSessions.Add(MoveTemp(MigratedSession));
 					}
 					else
 					{
-						MigratedSession.Flags = EDisasterRecoverySessionFlags::Recent;
+						MigratedSession.Flags = static_cast<uint8>(EDisasterRecoverySessionFlags::Recent);
 						OutRecoveryInfo.RecentSessions.Add(MoveTemp(MigratedSession));
 					}
 				}
@@ -345,13 +345,13 @@ TArray<FGuid> FDisasterRecoverySessionManager::InitAndRotateSessions()
 	// Update the active sessions, detecting potential crashes.
 	for (FDisasterRecoverySession& Active : RecoveryInfo.ActiveSessions)
 	{
-		check((Active.Flags & (EDisasterRecoverySessionFlags::Imported | EDisasterRecoverySessionFlags::Recent)) == 0);
+		check(!EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Active.Flags), EDisasterRecoverySessionFlags::Imported | EDisasterRecoverySessionFlags::Recent));
 
 		if (!DisasterRecoveryUtil::IsSessionClientProcessRunning(Active))
 		{
 			Active.ClientProcessId = 0;
 			Active.MountedByProcessId = 0;
-			Active.Flags |= EDisasterRecoverySessionFlags::AbnormalTerminaison; // In the active list but its client is not running -> it is a crash.
+			Active.Flags |= static_cast<uint8>(EDisasterRecoverySessionFlags::AbnormalTerminaison); // In the active list but its client is not running -> it is a crash.
 		}
 	}
 
@@ -405,9 +405,9 @@ void FDisasterRecoverySessionManager::Refresh()
 			{
 				SessionFromDisk.ClientProcessId = 0;
 				SessionFromDisk.MountedByProcessId = 0;
-				if ((SessionFromDisk.Flags & (EDisasterRecoverySessionFlags::Recent | EDisasterRecoverySessionFlags::Imported)) == 0) // Don't alter the flags of recent/imported sessions.
+				if (!EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(SessionFromDisk.Flags), EDisasterRecoverySessionFlags::Recent | EDisasterRecoverySessionFlags::Imported)) // Don't alter the flags of recent/imported sessions.
 				{
-					SessionFromDisk.Flags |= EDisasterRecoverySessionFlags::AbnormalTerminaison;
+					SessionFromDisk.Flags |= static_cast<uint8>(EDisasterRecoverySessionFlags::AbnormalTerminaison);
 				}
 				bUpdated = true;
 			}
@@ -634,7 +634,7 @@ TVariant<TSharedPtr<FDisasterRecoverySession>, FText> FDisasterRecoverySessionMa
 	else
 	{
 		ImportedSession = MakeShared<FDisasterRecoverySession>();
-		ImportedSession->Flags = EDisasterRecoverySessionFlags::Imported;
+		ImportedSession->Flags = static_cast<uint8>(EDisasterRecoverySessionFlags::Imported);
 		ImportedSession->SessionName = SessionInfo.SessionName;
 		ImportedSession->RepositoryId = FGuid::NewGuid();
 		ImportedSession->RepositoryRootDir = GetSessionRepositoryRootDir();
@@ -957,7 +957,7 @@ void FDisasterRecoverySessionManager::OnRecoverySessionStartup(TSharedRef<IConce
 			{
 				// Insert the session to the recent list. (Newest are at the front)
 				RecoveryInfo.RecentSessions.Insert(Candidate, 0);
-				RecoveryInfo.RecentSessions[0].Flags |= EDisasterRecoverySessionFlags::Recent;
+				RecoveryInfo.RecentSessions[0].Flags |= static_cast<uint8>(EDisasterRecoverySessionFlags::Recent);
 				return true; // Yes, remove it from the list of active session.
 			}
 
@@ -976,7 +976,7 @@ void FDisasterRecoverySessionManager::OnRecoverySessionStartup(TSharedRef<IConce
 			RecoverySession.MountedByProcessId = FPlatformProcess::GetCurrentProcessId();
 			RecoverySession.ClientProcessId = FPlatformProcess::GetCurrentProcessId();
 			RecoverySession.RepositoryId = CurrentSessionRepositoryId;
-			RecoverySession.Flags = FPlatformMisc::IsDebuggerPresent() ? EDisasterRecoverySessionFlags::DebuggerAttached : EDisasterRecoverySessionFlags::None;
+			RecoverySession.Flags = FPlatformMisc::IsDebuggerPresent() ? static_cast<uint8>(EDisasterRecoverySessionFlags::DebuggerAttached) : static_cast<uint8>(EDisasterRecoverySessionFlags::None);
  
 			// Session was created, remove it from the pending list.
 			RecoveryInfo.PendingSessions.RemoveAll([this](const FDisasterRecoverySession& RemoveCandidate) { return RemoveCandidate.RepositoryId == CurrentSessionRepositoryId; });
@@ -1008,10 +1008,10 @@ void FDisasterRecoverySessionManager::OnRecoverySessionShutdown(TSharedRef<IConc
 				// Add the most recent session at the front of the recent list.
 				RecoveryInfo.RecentSessions.Insert(Session, 0);
 				RecoveryInfo.RecentSessions[0].ClientProcessId = 0;
-				RecoveryInfo.RecentSessions[0].Flags = EDisasterRecoverySessionFlags::Recent;
-				if (Session.Flags & EDisasterRecoverySessionFlags::DebuggerAttached)
+				RecoveryInfo.RecentSessions[0].Flags = static_cast<uint8>(EDisasterRecoverySessionFlags::Recent);
+				if (EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Session.Flags), EDisasterRecoverySessionFlags::DebuggerAttached))
 				{
-					RecoveryInfo.RecentSessions[0].Flags |= EDisasterRecoverySessionFlags::DebuggerAttached;
+					RecoveryInfo.RecentSessions[0].Flags |= static_cast<uint8>(EDisasterRecoverySessionFlags::DebuggerAttached);
 				}
 				UE_LOG(LogDisasterRecovery, Verbose, TEXT("Recovery session '%s' was shutdown normally"), *InSession->GetSessionInfo().SessionName);
 				return true; // Remove from the active list.

@@ -7,7 +7,7 @@
 #include "DisasterRecoverySessionInfo.generated.h"
 
 /** Flags describing the type of recovery sessions. */
-enum EDisasterRecoverySessionFlags : uint8
+enum class EDisasterRecoverySessionFlags : uint8
 {
 	/** No flags. */
 	None = 0,
@@ -24,6 +24,7 @@ enum EDisasterRecoverySessionFlags : uint8
 	/** Indicate if the debugger was attached when the session was created. */
 	DebuggerAttached = 1 << 3,
 };
+ENUM_CLASS_FLAGS(EDisasterRecoverySessionFlags)
 
 /** Information about a single session info. */
 USTRUCT()
@@ -53,22 +54,22 @@ struct FDisasterRecoverySession
 
 	/** Information about the session. */
 	UPROPERTY()
-	uint8 Flags = EDisasterRecoverySessionFlags::None;
+	uint8 Flags = static_cast<uint8>(EDisasterRecoverySessionFlags::None);
 
 	/** Returns true if the session is currently in-progress (i.e. the session is live and has a client) */
 	bool IsLive() const { return ClientProcessId != 0; }
 
 	/** Returns true if the session was moved to the recent list. */
-	bool IsRecent() const { return Flags & EDisasterRecoverySessionFlags::Recent; }
+	bool IsRecent() const { return EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Flags), EDisasterRecoverySessionFlags::Recent); }
 
 	/** Returns true if the session was imported for inspection. It can be from any project and likely not recoverable. */
-	bool IsImported() const { return Flags & EDisasterRecoverySessionFlags::Imported; }
+	bool IsImported() const { return EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Flags), EDisasterRecoverySessionFlags::Imported); }
 
 	/** Returns true if the debugger was attached to this session. */
-	bool WasDebuggerAttached() const { return Flags & EDisasterRecoverySessionFlags::DebuggerAttached; }
+	bool WasDebuggerAttached() const { return EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Flags), EDisasterRecoverySessionFlags::DebuggerAttached); }
 
 	/** Session was abnormally terminated */
-	bool WasAbnormallyTerminated() const { return Flags & EDisasterRecoverySessionFlags::AbnormalTerminaison; }
+	bool WasAbnormallyTerminated() const { return EnumHasAnyFlags(static_cast<EDisasterRecoverySessionFlags>(Flags), EDisasterRecoverySessionFlags::AbnormalTerminaison); }
 
 	/** Returns true if the session abnormally terminated and the user did not have the change to inspect/recover it. */
 	bool IsUnreviewedCrash() const { return WasAbnormallyTerminated() && !IsLive() && !IsRecent() && !IsImported(); }

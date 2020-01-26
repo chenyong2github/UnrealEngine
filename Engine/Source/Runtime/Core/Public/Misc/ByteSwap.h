@@ -145,3 +145,4 @@ template<> inline int64 ByteSwap(int64 Value)   { return BYTESWAP_ORDER64(Value)
 template<> inline uint64 ByteSwap(uint64 Value) { return BYTESWAP_ORDER64(Value); }
 template<> inline float ByteSwap(float Value)   { return BYTESWAP_ORDERF(Value); }
 template<> inline double ByteSwap(double Value) { return BYTESWAP_ORDERD(Value); }
+template<> inline char16_t ByteSwap(char16_t Value) { return static_cast<char16_t>(BYTESWAP_ORDER16(static_cast<uint16>(Value))); }
