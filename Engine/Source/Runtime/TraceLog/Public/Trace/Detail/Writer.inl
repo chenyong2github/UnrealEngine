@@ -18,7 +18,8 @@ struct FWriteBuffer
 {
 	uint32						Overflow;
 	uint32						ThreadId;
-	FWriteBuffer* __restrict	Next;
+	FWriteBuffer* __restrict	NextThread;
+	FWriteBuffer* __restrict	NextBuffer;
 	uint8* __restrict			Cursor;
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
@@ -33,7 +34,7 @@ struct FWriteTlsContext
 							FWriteTlsContext();
 							~FWriteTlsContext();
 	bool					HasValidBuffer() const;
-	void					SetBuffer(FWriteBuffer*);
+	FWriteBuffer*			SetBuffer(FWriteBuffer*);
 	FWriteBuffer*			GetBuffer() const { return Buffer; }
 
 private:
