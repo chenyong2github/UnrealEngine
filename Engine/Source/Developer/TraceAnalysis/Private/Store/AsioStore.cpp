@@ -110,27 +110,7 @@ FAsioStore::FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir)
 : FAsioObject(IoContext)
 , StoreDir(InStoreDir)
 {
-	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
-	FileSystem.IterateDirectory(InStoreDir, [this] (const TCHAR* Path, bool IsDirectory)
-	{
-#if 0
-		if (IsDirectory)
-		{
-			int32 Id = FCString::Atoi(Path);
-			LastTraceId = (Id < LastTraceId) ? Id : LastTraceId;
-		}
-#else
-		const TCHAR* Dot = FCString::Strrchr(Path, '.');
-		if (Dot == nullptr || FCString::Strcmp(Dot, TEXT(".utrace")))
-		{
-			return true;
-		}
-
-		AddTrace(Path);
-#endif // 0
-
-		return true;
-	});
+	Refresh();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +128,6 @@ void FAsioStore::ClearTraces()
 	}
 
 	Traces.Empty();
-}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,6 +245,41 @@ FAsioReadable* FAsioStore::OpenTrace(uint32 Id)
 #endif // 0
 
 	return FAsioFile::ReadFile(GetIoContext(), *TracePath);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStore::Refresh()
+{
+	ClearTraces();
+
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	FileSystem.IterateDirectory(*StoreDir, [this] (const TCHAR* Path, bool IsDirectory)
+	{
+#if 0
+		if (!IsDirectory)
+		{
+			return true;
+		}
+
+		int32 Id = FCString::Atoi(Path);
+		LastTraceId = (Id < LastTraceId) ? Id : LastTraceId;
+#else
+		if (IsDirectory)
+		{
+			return true;
+		}
+
+		const TCHAR* Dot = FCString::Strrchr(Path, '.');
+		if (Dot == nullptr || FCString::Strcmp(Dot, TEXT(".utrace")))
+		{
+			return true;
+		}
+
+		AddTrace(Path);
+#endif // 0
+
+		return true;
+	});
 }
 
 } // namespace Trace
