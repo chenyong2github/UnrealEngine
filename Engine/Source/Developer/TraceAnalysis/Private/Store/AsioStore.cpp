@@ -11,9 +11,27 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-const TCHAR* FAsioStore::FTrace::GetName() const
+const FStringView& FAsioStore::FTrace::GetName() const
 {
-	return *Name;
+	if (Name.Len() == 0)
+	{
+		const TCHAR* Dot = FCString::Strrchr(*Path, '.');
+		if (Dot == nullptr)
+		{
+			Dot = *Path;
+		}
+
+		for (const TCHAR* c = Dot; c > *Path; --c)
+		{
+			if (c[-1] == '\\' || c[-1] == '/')
+			{
+				Name = FStringView(c, int32(Dot - c));
+				break;
+			}
+		}
+	}
+
+	return Name;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,25 +161,9 @@ FAsioStore::FTrace* FAsioStore::AddTrace(const TCHAR* Path)
 	}
 #endif
 
-	const TCHAR* Dot = FCString::Strrchr(Path, '.');
-	if (Dot == nullptr)
-	{
-		return nullptr;
-	}
-
-	FStringView Name;
-	for (const TCHAR* c = Dot; c > Path; --c)
-	{
-		if (c[-1] == '\\' || c[-1] == '/')
-		{
-			Name = FStringView(c, int32(Dot - c));
-			break;
-		}
-	}
-
 	FTrace* Trace = new FTrace();
-	Trace->Name = Name;
-	Trace->Id = QuickStoreHash(Name);
+	Trace->Path = Path;
+	Trace->Id = QuickStoreHash(Trace->GetName());
 	Trace->Handle = UPTRINT(Handle);
 
 	Traces.Add(Trace);
@@ -238,7 +240,8 @@ FAsioReadable* FAsioStore::OpenTrace(uint32 Id)
 #if 0
 	TracePath.Appendf(TEXT("/%05d/data.utrace"), Id);
 #else
-	TracePath.Appendf(TEXT("/%s.utrace"), Trace->GetName());
+	const FStringView& Name = Trace->GetName();
+	TracePath.Appendf(TEXT("/%.*s.utrace"), Name.Len(), Name.GetData());
 #endif // 0
 
 	return FAsioFile::ReadFile(GetIoContext(), *TracePath);

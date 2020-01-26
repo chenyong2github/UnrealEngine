@@ -6,6 +6,7 @@
 #include "AsioFile.h"
 #include "AsioObject.h"
 #include "Containers/Array.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Utils.h"
 
@@ -29,16 +30,18 @@ public:
 	class FTrace
 	{
 	public:
-		const TCHAR*	GetName() const;
-		uint32			GetId() const;
-		uint64			GetSize() const;
-		uint64			GetTimestamp() const;
+		const FStringView&	GetName() const;
+		uint32				GetId() const;
+		uint64				GetSize() const;
+		uint64				GetTimestamp() const;
 
 	private:
-		friend			FAsioStore;
-		FString			Name;
-		UPTRINT			Handle;
-		uint32			Id;
+		friend				FAsioStore;
+		FString				Path;
+		mutable FStringView	Name;
+		uint64				Timestamp;
+		UPTRINT				Handle;
+		uint32		        Id;
 	};
 
 	struct FNewTrace

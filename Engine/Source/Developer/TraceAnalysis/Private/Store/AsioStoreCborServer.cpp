@@ -196,23 +196,19 @@ void FAsioStoreCborPeer::OnTraceInfo()
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	const TCHAR* Name = Trace->GetName();
 	char OutName[256];
-	for (char& Out : OutName)
+	const FStringView& Name = Trace->GetName();
+	uint32 NameLength = FMath::Min(uint32(sizeof(OutName)), uint32(Name.Len()));
+	for (uint32 i = 0; i < NameLength; ++i)
 	{
-		Out = char(*Name++);
-		if (Out == '\0')
-		{
-			break;
-		}
+		OutName[i] = char(Name[i]);
 	}
-	OutName[sizeof(OutName) - 1] = '\0';
 
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
 	Builder.AddInteger("timestamp", Trace->GetTimestamp());
-	Builder.AddString("name", OutName);
+	Builder.AddString("name", OutName, NameLength);
 	SendResponse(Builder.Done());
 }
 
