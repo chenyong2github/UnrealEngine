@@ -1287,7 +1287,7 @@ public:
 		if( Packet.ThreadType == EThreadType::Other )
 		{
 			FPlatformMisc::MemoryBarrier();
-			uint64 Frame = FStats::GameThreadStatsFrame;
+			int32 Frame = FStats::GameThreadStatsFrame;
 			const bool bFrameHasChanged = Frame > CurrentGameFrame;
 			if( bFrameHasChanged )
 			{

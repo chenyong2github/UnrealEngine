@@ -1955,7 +1955,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 		int32 InfluenceBoneIndex = 0;
 		for (auto Kvp : WeightForBone)
 		{
-			SkinWeight.InfluenceBones[InfluenceBoneIndex] = (uint8)(Kvp.Key);
+			SkinWeight.InfluenceBones[InfluenceBoneIndex] = Kvp.Key;
 			SkinWeight.InfluenceWeights[InfluenceBoneIndex] = FMath::Clamp((uint8)(Kvp.Value*((float)0xFF)), (uint8)0x00, (uint8)0xFF);
 			TotalInfluenceWeight += SkinWeight.InfluenceWeights[InfluenceBoneIndex];
 			InfluenceBoneIndex++;
@@ -2031,7 +2031,6 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				});
 			}
 
-			//Reduce all dependent LOD in same time
 			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
 			{
 				FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
@@ -2560,12 +2559,13 @@ void FLODUtilities::UnbindClothingAndBackup(USkeletalMesh* SkeletalMesh, TArray<
 	{
 		if (Binding.LODIndex == LODIndex)
 		{
-			check(Binding.Asset);
-			Binding.Asset->UnbindFromSkeletalMesh(SkeletalMesh, Binding.LODIndex);
-			
 			//Use the UserSectionsData original section index, this will ensure we remap correctly the cloth if the reduction has change the number of sections
 			int32 OriginalDataSectionIndex = LODModel.Sections[Binding.SectionIndex].OriginalDataSectionIndex;
-			Binding.SectionIndex = OriginalDataSectionIndex;
+			if (Binding.Asset)
+			{
+				Binding.Asset->UnbindFromSkeletalMesh(SkeletalMesh, Binding.LODIndex);
+				Binding.SectionIndex = OriginalDataSectionIndex;
+			}
 			
 			FSkelMeshSourceSectionUserData& SectionUserData = LODModel.UserSectionsData.FindChecked(OriginalDataSectionIndex);
 			SectionUserData.ClothingData.AssetGuid = FGuid();
@@ -2598,9 +2598,8 @@ void FLODUtilities::RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArra
 			{
 				continue;
 			}
-			if (Binding.LODIndex == LODIndex)
+			if (Binding.LODIndex == LODIndex && Binding.Asset)
 			{
-				check(Binding.Asset);
 				if (Binding.Asset->BindToSkeletalMesh(SkeletalMesh, Binding.LODIndex, SectionIndex, Binding.AssetInternalLodIndex))
 				{
 					//If successfull set back the section user data
