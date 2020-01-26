@@ -69,6 +69,8 @@ namespace Chaos
 			, LevelsetIndexMesh(InLevelsetIndexMesh)
 		{}
 
+		bool IsValid() { return (ParticleProxy && LevelsetProxy); }
+
 		TVector<T, d> Location;
 		TVector<T, d> AccumulatedImpulse;
 		TVector<T, d> Normal;
