@@ -35,7 +35,7 @@ namespace String
 				}
 			}
 
-			Visitor(FStringView(LineStart, LineEnd - LineStart));
+			Visitor(FStringView(LineStart, static_cast<FStringView::SizeType>(LineEnd - LineStart)));
 		}
 		while (ViewIt != ViewEnd);
 	}

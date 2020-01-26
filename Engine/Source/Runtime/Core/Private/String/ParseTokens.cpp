@@ -30,11 +30,11 @@ namespace String
 				++ViewIt;
 				continue;
 			}
-			Visitor(FStringView(NextToken, ViewIt - NextToken));
+			Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 
-		Visitor(FStringView(NextToken, ViewIt - NextToken));
+		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 	}
 
 	/** Parse tokens with multiple single-character Basic Latin delimiters. */
@@ -62,11 +62,11 @@ namespace String
 				++ViewIt;
 				continue;
 			}
-			Visitor(FStringView(NextToken, ViewIt - NextToken));
+			Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 
-		Visitor(FStringView(NextToken, ViewIt - NextToken));
+		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 	}
 
 	/** Parse tokens with multiple single-character delimiters in the Basic Multilingual Plane. */
@@ -92,11 +92,11 @@ namespace String
 				++ViewIt;
 				continue;
 			}
-			Visitor(FStringView(NextToken, ViewIt - NextToken));
+			Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 
-		Visitor(FStringView(NextToken, ViewIt - NextToken));
+		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 	}
 
 	/** Parse tokens with multiple multi-character delimiters. */

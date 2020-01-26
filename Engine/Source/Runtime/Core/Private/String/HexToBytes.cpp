@@ -25,7 +25,7 @@ namespace String
 			const uint8 HiNibble = TCharToNibble(*HexPos++) << 4;
 			*OutPos++ = HiNibble | TCharToNibble(*HexPos++);
 		}
-		return OutPos - OutBytes;
+		return static_cast<int32>(OutPos - OutBytes);
 	}
 
 	int32 HexToBytes(const FStringView& Hex, uint8* OutBytes)
