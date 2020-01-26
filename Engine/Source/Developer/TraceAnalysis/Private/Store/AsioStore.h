@@ -41,7 +41,6 @@ public:
 		FString				Path;
 		FStringView			Name;
 		uint64				Timestamp;
-		UPTRINT				Handle;
 		uint32				Id = 0;
 	};
 
