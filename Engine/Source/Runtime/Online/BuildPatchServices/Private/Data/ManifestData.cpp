@@ -20,6 +20,58 @@ DEFINE_LOG_CATEGORY(LogManifestData);
 
 namespace BuildPatchServices
 {
+
+	// The constant minimum sizes for each version of a header struct. Must be updated.
+	// If new member variables are added the version MUST be bumped and handled properly here,
+	// and these values must never change.
+	static const uint32 ManifestHeaderVersionSizes[(int32)EFeatureLevel::LatestPlusOne] =
+	{
+		// EFeatureLevel::Original is 37B (32b Magic, 32b HeaderSize, 32b DataSizeUncompressed, 32b DataSizeCompressed, 160b SHA1, 8b StoredAs)
+		// This remained the same all up to including EFeatureLevel::StoresPrerequisiteIds.
+		37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
+		// EFeatureLevel::StoredAsBinaryData is 41B, (296b Original, 32b Version).
+		// This remained the same all up to including EFeatureLevel::UsesBuildTimeGeneratedBuildId.
+		41, 41, 41, 41, 41
+	};
+	static_assert((int32)EFeatureLevel::Latest == 18, "Please adjust ManifestHeaderVersionSizes values accordingly.");
+
+	/**
+	 * Enum which describes the FManifestMeta data version.
+	 */
+	enum class EManifestMetaVersion : uint8
+	{
+		Original = 0,
+		SerialisesBuildId,
+
+		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
+		LatestPlusOne,
+		Latest = (LatestPlusOne - 1)
+	};
+
+	/**
+	 * Enum which describes the FChunkDataList data version.
+	 */
+	enum class EChunkDataListVersion : uint8
+	{
+		Original = 0,
+
+		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
+		LatestPlusOne,
+		Latest = (LatestPlusOne - 1)
+	};
+
+	/**
+	 * Enum which describes the FFileManifestList data version.
+	 */
+	enum class EFileManifestListVersion : uint8
+	{
+		Original = 0,
+
+		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
+		LatestPlusOne,
+		Latest = (LatestPlusOne - 1)
+	};
+
 	namespace ManifestVersionHelpers
 	{
 		const TCHAR* GetChunkSubdir(EFeatureLevel FeatureLevel)
@@ -36,7 +88,38 @@ namespace BuildPatchServices
 				: FeatureLevel < EFeatureLevel::StoresChunkDataShaHashes ? TEXT("FilesV2")
 				: TEXT("FilesV3");
 		}
+
+		EManifestMetaVersion FeatureLevelToManifestMetaVersion(EFeatureLevel FeatureLevel)
+		{
+			switch (FeatureLevel)
+			{
+			case BuildPatchServices::EFeatureLevel::Original:
+			case BuildPatchServices::EFeatureLevel::CustomFields:
+			case BuildPatchServices::EFeatureLevel::StartStoringVersion:
+			case BuildPatchServices::EFeatureLevel::DataFileRenames:
+			case BuildPatchServices::EFeatureLevel::StoresIfChunkOrFileData:
+			case BuildPatchServices::EFeatureLevel::StoresDataGroupNumbers:
+			case BuildPatchServices::EFeatureLevel::ChunkCompressionSupport:
+			case BuildPatchServices::EFeatureLevel::StoresPrerequisitesInfo:
+			case BuildPatchServices::EFeatureLevel::StoresChunkFileSizes:
+			case BuildPatchServices::EFeatureLevel::StoredAsCompressedUClass:
+			case BuildPatchServices::EFeatureLevel::UNUSED_0:
+			case BuildPatchServices::EFeatureLevel::UNUSED_1:
+			case BuildPatchServices::EFeatureLevel::StoresChunkDataShaHashes:
+			case BuildPatchServices::EFeatureLevel::StoresPrerequisiteIds:
+			case BuildPatchServices::EFeatureLevel::StoredAsBinaryData:
+			case BuildPatchServices::EFeatureLevel::VariableSizeChunksWithoutWindowSizeChunkInfo:
+			case BuildPatchServices::EFeatureLevel::VariableSizeChunks:
+			case BuildPatchServices::EFeatureLevel::UsesRuntimeGeneratedBuildId:
+				return EManifestMetaVersion::Original;
+			case BuildPatchServices::EFeatureLevel::UsesBuildTimeGeneratedBuildId:
+				return EManifestMetaVersion::SerialisesBuildId;
+			}
+			checkf(false, TEXT("Unhandled FeatureLevel %s"), FeatureLevelToString(FeatureLevel));
+			return EManifestMetaVersion::Latest;
+		}
 	}
+	static_assert((uint32)EFeatureLevel::Latest == 18, "Please adjust ManifestVersionHelpers::FeatureLevelToManifestMetaVersion for new feature levels.");
 
 	namespace ManifestDataHelpers
 	{
@@ -61,20 +144,6 @@ namespace BuildPatchServices
 
 	/* FManifestHeader - The header for a compressed/encoded manifest file.
 	*****************************************************************************/
-
-	// The constant minimum sizes for each version of a header struct. Must be updated.
-	// If new member variables are added the version MUST be bumped and handled properly here,
-	// and these values must never change.
-	static const uint32 ManifestHeaderVersionSizes[(int32)EFeatureLevel::LatestPlusOne] =
-	{
-		// EFeatureLevel::Original is 37B (32b Magic, 32b HeaderSize, 32b DataSizeUncompressed, 32b DataSizeCompressed, 160b SHA1, 8b StoredAs)
-		// This remained the same all up to including EFeatureLevel::StoresPrerequisiteIds.
-		37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
-		// EFeatureLevel::StoredAsBinaryData is 41B, (296b Original, 32b Version).
-		// This remained the same all up to including EFeatureLevel::StoresUniqueBuildId.
-		41, 41, 41, 41
-	};
-	static_assert((int32)EFeatureLevel::Latest == 17, "Please adjust ManifestHeaderVersionSizes values accordingly.");
 
 	FManifestHeader::FManifestHeader()
 		: Version(EFeatureLevel::Latest)
@@ -155,21 +224,6 @@ namespace BuildPatchServices
 	/* FManifestMeta - The data implementation for a build meta data.
 	*****************************************************************************/
 
-	/**
-	 * Enum which describes the FManifestMeta data version.
-	 */
-	enum class ManifestMetaVersion : uint8
-	{
-		Original = 0,
-		/* Due to some specific EpicGamesLauncher functionality, we're going to not start saving the build ID until a client is released that can save it properly.
-		   It does not cause a serialisation issue, it just means we can't use optimised deltas immediately unless we forgo this field until later.
-		StoresBuildId,*/
-
-		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
-		LatestPlusOne,
-		Latest = (LatestPlusOne - 1)
-	};
-
 	FManifestMeta::FManifestMeta()
 		: FeatureLevel(BuildPatchServices::EFeatureLevel::Invalid)
 		, bIsFileData(false)
@@ -188,16 +242,16 @@ namespace BuildPatchServices
 		// Serialise the data header type values.
 		const int64 StartPos = Ar.Tell();
 		uint32 DataSize = 0;
-		ManifestMetaVersion DataVersion = ManifestMetaVersion::Latest;
+		EManifestMetaVersion DataVersion = Ar.IsSaving() ? ManifestVersionHelpers::FeatureLevelToManifestMetaVersion(Meta.FeatureLevel) : EManifestMetaVersion::Latest;
 		{
 			uint8 DataVersionInt = (uint8)DataVersion;
 			Ar << DataSize;
 			Ar << DataVersionInt;
-			DataVersion = (ManifestMetaVersion)DataVersionInt;
+			DataVersion = (EManifestMetaVersion)DataVersionInt;
 		}
 
 		// Serialise the ManifestMetaVersion::Original version variables.
-		if (!Ar.IsError() && DataVersion >= ManifestMetaVersion::Original)
+		if (!Ar.IsError() && DataVersion >= EManifestMetaVersion::Original)
 		{
 			int32 FeatureLevelInt = (int32)Meta.FeatureLevel;
 			uint8 IsFileDataInt = Meta.bIsFileData ? 1 : 0;
@@ -216,22 +270,13 @@ namespace BuildPatchServices
 			Meta.bIsFileData = IsFileDataInt == 1;
 		}
 
-		/* Due to some specific EpicGamesLauncher functionality, we're going to not start saving the build ID until a client is released that can save it properly.
-		 * It does not cause a serialisation issue, it just means we can't use optimised deltas immediately unless we forgo this field until later.
 		// Serialise the BuildId.
-		if (!Ar.IsError())
+		if (!Ar.IsError() && DataVersion >= EManifestMetaVersion::SerialisesBuildId)
 		{
-			if (DataVersion >= ManifestMetaVersion::StoresBuildId)
-			{
-				Ar << Meta.BuildId;
-			}
-			// Otherwise, initialise with backwards compat default when loading
-			else if (Ar.IsLoading())
-			{
-				Meta.BuildId = FBuildPatchUtils::GetBackwardsCompatibleBuildId(Meta);
-			}
-		}*/
-		if (!Ar.IsError() && Ar.IsLoading())
+			Ar << Meta.BuildId;
+		}
+		// Otherwise, initialise with backwards compatible default when loading.
+		else if (!Ar.IsError() && Ar.IsLoading())
 		{
 			Meta.BuildId = FBuildPatchUtils::GetBackwardsCompatibleBuildId(Meta);
 		}
@@ -259,18 +304,6 @@ namespace BuildPatchServices
 
 	/* FChunkDataList - The data implementation for a list of referenced chunk data.
 	*****************************************************************************/
-
-	/**
-	 * Enum which describes the FChunkDataList data version.
-	 */
-	enum class EChunkDataListVersion : uint8
-	{
-		Original = 0,
-
-		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
-		LatestPlusOne,
-		Latest = (LatestPlusOne - 1)
-	};
 
 	FChunkDataList::FChunkDataList()
 	{
@@ -346,18 +379,6 @@ namespace BuildPatchServices
 
 	/* FFileManifestList - The data implementation for a list of referenced files.
 	*****************************************************************************/
-
-	/**
-	 * Enum which describes the FFileManifestList data version.
-	 */
-	enum class EFileManifestListVersion : uint8
-	{
-		Original = 0,
-
-		// Always after the latest version, signifies the latest version plus 1 to allow initialization simplicity.
-		LatestPlusOne,
-		Latest = (LatestPlusOne - 1)
-	};
 
 	FFileManifestList::FFileManifestList()
 	{

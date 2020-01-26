@@ -916,7 +916,6 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 			StencilStore = NewStencilStore;
 		}
 		
-		bHasValidRenderTarget |= (InRenderTargets.NumUAVs > 0);
 		if (SampleCount == 0)
 		{
 			SampleCount = 1;
@@ -1186,17 +1185,6 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 				ShaderParameters[EMetalShaderStages::Pixel].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 			}
 		}
-		
-		{
-			for (uint32 i = 0; i < RenderPassInfo.NumUAVs; i++)
-			{
-				if (IsValidRef(RenderPassInfo.UAVs[i]))
-				{
-					FMetalUnorderedAccessView* UAV = ResourceCast(RenderPassInfo.UAVs[i].GetReference());
-					SetShaderUnorderedAccessView(EMetalShaderStages::Pixel, i, UAV);
-				}
-			}
-		}
 	}
 }
 
@@ -1261,7 +1249,7 @@ bool FMetalStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRender
 	uint32 NewNumColorRenderTargets = InRenderPassInfo.GetNumColorRenderTargets();
 	
 	// basic checks
-	bool bAllChecksPassed = GetHasValidRenderTarget() && bIsRenderTargetActive && CurrentNumColorRenderTargets == NewNumColorRenderTargets && InRenderPassInfo.NumUAVs == RenderPassInfo.NumUAVs &&
+	bool bAllChecksPassed = GetHasValidRenderTarget() && bIsRenderTargetActive && CurrentNumColorRenderTargets == NewNumColorRenderTargets &&
 		(InRenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget == RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget);
 
 	// now check each color target if the basic tests passe
@@ -1530,24 +1518,24 @@ void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShade
 			SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
 			if (VB)
             {
-                SetShaderBuffer(ShaderStage, VB->Buffer, VB->Data, 0, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+                SetShaderBuffer(ShaderStage, VB->Buffer, VB->Data, SRV->Offset, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
             }
             else if (IB)
             {
-                SetShaderBuffer(ShaderStage, IB->Buffer, nil, 0, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+                SetShaderBuffer(ShaderStage, IB->Buffer, nil, SRV->Offset, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
             }
 		}
 		else if (VB)
 		{
-			SetShaderBuffer(ShaderStage, VB->Buffer, VB->Data, 0, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+			SetShaderBuffer(ShaderStage, VB->Buffer, VB->Data, SRV->Offset, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
 		}
 		else if (IB)
 		{
-			SetShaderBuffer(ShaderStage, IB->Buffer, nil, 0, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+			SetShaderBuffer(ShaderStage, IB->Buffer, nil, SRV->Offset, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
 		}
 		else if (SB)
 		{
-			SetShaderBuffer(ShaderStage, SB->Buffer, nil, 0, SB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read);
+			SetShaderBuffer(ShaderStage, SB->Buffer, nil, SRV->Offset, SB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read);
 		}
 	}
 }

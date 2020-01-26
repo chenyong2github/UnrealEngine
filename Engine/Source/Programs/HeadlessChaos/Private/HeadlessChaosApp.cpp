@@ -221,6 +221,7 @@ TEST(ChaosSolver, ChaosSolverTests)
 {
 	ChaosTest::SingleParticleProxySingleThreadTest<float>();
 	ChaosTest::CommandListTest<float>();
+	ChaosTest::SingleParticleProxyWakeEventPropergationTest<float>();
 }
 TEST(ChaosSolver, DISABLED_ChaosSolverTests)
 {

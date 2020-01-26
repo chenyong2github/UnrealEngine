@@ -11,12 +11,12 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditorActions.h"
 #include "ControlRig.h"
-#include "ControlRigDAG.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "EulerTransform.h"
+#include "Curves/CurveFloat.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphSchema"
 
@@ -33,11 +33,14 @@ void UControlRigGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 
 void UControlRigGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
+	/*
+	// this seems to be taken care of by ControlRigGraphNode
 #if WITH_EDITOR
 	return IControlRigEditorModule::Get().GetContextMenuActions(this, Menu, Context);
 #else
 	check(0);
 #endif
+	*/
 }
 
 bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
@@ -49,6 +52,9 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 	}
 #endif
 
+	UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
+	MutableThis->LastPinForCompatibleCheck = nullptr;
+
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (RigBlueprint != nullptr)
@@ -59,11 +65,7 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 			PinA = PinB;
 			PinB = Temp;
 		}
-
-		FString LeftA, LeftB, RightA, RightB;
-		RigBlueprint->Model->SplitPinPath(PinA->GetName(), LeftA, RightA);
-		RigBlueprint->Model->SplitPinPath(PinB->GetName(), LeftB, RightB);
-		return RigBlueprint->ModelController->MakeLink(*LeftA, *RightA, *LeftB, *RightB);
+		return RigBlueprint->Controller->AddLink(PinA->GetName(), PinB->GetName());
 	}
 	return false;
 }
@@ -97,33 +99,39 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (RigBlueprint != nullptr)
 	{
-		FString LeftA, LeftB, RightA, RightB;
-		RigBlueprint->Model->SplitPinPath(A->GetName(), LeftA, RightA);
-		RigBlueprint->Model->SplitPinPath(B->GetName(), LeftB, RightB);
+		UControlRigGraphNode* RigNodeA = Cast<UControlRigGraphNode>(A->GetOwningNode());
+		UControlRigGraphNode* RigNodeB = Cast<UControlRigGraphNode>(B->GetOwningNode());
 
-		const FControlRigModelPin* PinA = RigBlueprint->Model->FindPin(*LeftA, *RightA);
-		if (PinA)
+		if (RigNodeA && RigNodeB)
 		{
-			RigBlueprint->ModelController->PrepareCycleCheckingForPin(*LeftA, *RightA, A->Direction == EGPD_Input);
-		}
+			URigVMPin* PinA = RigNodeA->GetModelPinFromPinPath(A->GetName());
+			if (PinA)
+			{
+				PinA = PinA->GetPinForLink();
+				RigBlueprint->Model->PrepareCycleChecking(PinA, A->Direction == EGPD_Input);
+			}
 
-		if (A->Direction == EGPD_Input)
-		{
-			FString Temp = LeftA;
-			LeftA = LeftB;
-			LeftB = Temp;
-			Temp = RightA;
-			RightA = RightB;
-			RightB = Temp;
-		}
+			URigVMPin* PinB = RigNodeB->GetModelPinFromPinPath(B->GetName());
+			if (PinB)
+			{
+				PinB = PinB->GetPinForLink();
+			}
 
-		FString FailureReason;
-		bool bResult = RigBlueprint->ModelController->CanLink(*LeftA, *RightA, *LeftB, *RightB, &FailureReason);
-		if (!bResult)
-		{
-			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
+			if (A->Direction == EGPD_Input)
+			{
+				URigVMPin* Temp = PinA;
+				PinA = PinB;
+				PinB = Temp;
+			}
+
+			FString FailureReason;
+			bool bResult = RigBlueprint->Model->CanLink(PinA, PinB, &FailureReason);
+			if (!bResult)
+			{
+				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
+			}
+			return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("ConnectResponse_Allowed", "Connect"));
 		}
-		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("ConnectResponse_Allowed", "Connect"));
 	}
 
 	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectResponse_Disallowed_Unexpected", "Unexpected error"));
@@ -134,9 +142,12 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 	const FName& TypeName = PinType.PinCategory;
 	if (TypeName == UEdGraphSchema_K2::PC_Struct)
 	{
-		if (PinType.PinSubCategoryObject == FControlRigExecuteContext::StaticStruct())
+		if (UStruct* Struct = Cast<UStruct>(PinType.PinSubCategoryObject))
 		{
-			return FLinearColor::White;
+			if (Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			{
+				return FLinearColor::White;
+			}
 		}
 	}
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
@@ -151,9 +162,7 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (RigBlueprint != nullptr)
 	{
-		FString Left, Right;
-		RigBlueprint->Model->SplitPinPath(TargetPin.GetName(), Left, Right);
-		RigBlueprint->ModelController->BreakLinks(*Left, *Right, TargetPin.Direction == EGPD_Input);
+		RigBlueprint->Controller->BreakAllLinks(TargetPin.GetName(), TargetPin.Direction == EGPD_Input);
 	}
 }
 
@@ -172,10 +181,7 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 			SourcePin = Temp;
 		}
 		
-		FString SourceLeft, SourceRight, TargetLeft, TargetRight;
-		RigBlueprint->Model->SplitPinPath(SourcePin->GetName(), SourceLeft, SourceRight);
-		RigBlueprint->Model->SplitPinPath(TargetPin->GetName(), TargetLeft, TargetLeft);
-		RigBlueprint->ModelController->BreakLink(*SourceLeft, *SourceRight, *TargetLeft, *TargetRight);
+		RigBlueprint->Controller->BreakLink(SourcePin->GetName(), TargetPin->GetName());
 	}
 }
 
@@ -195,12 +201,67 @@ bool UControlRigGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 	return HasParentConnection_Recursive(Pin);
 }
 
+bool UControlRigGraphSchema::IsPinBeingWatched(UEdGraphPin const* Pin) const
+{
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
+	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+	if (RigBlueprint != nullptr)
+	{
+		if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(Pin->GetName()))
+		{
+			return ModelPin->RequiresWatch();
+		}
+	}
+	return false;
+}
+
+void UControlRigGraphSchema::ClearPinWatch(UEdGraphPin const* Pin) const
+{
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
+	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+	if (RigBlueprint != nullptr)
+	{
+		RigBlueprint->Controller->SetPinIsWatched(Pin->GetName(), false);
+	}
+}
+
+void UControlRigGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const
+{
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
+	const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+	if (RigBlueprint != nullptr)
+	{
+		if (URigVMLink* Link = RigBlueprint->Model->FindLink(FString::Printf(TEXT("%s -> %s"), *PinA->GetName(), *PinB->GetName())))
+		{
+			RigBlueprint->Controller->AddRerouteNodeOnLink(Link, false, GraphPosition);
+		}
+	}
+}
+
+bool UControlRigGraphSchema::MarkBlueprintDirtyFromNewNode(UBlueprint* InBlueprint, UEdGraphNode* InEdGraphNode) const
+{
+	if (InBlueprint == nullptr || InEdGraphNode == nullptr)
+	{
+		return false;
+	}
+	return true;
+}
+
+bool UControlRigGraphSchema::IsStructEditable(UStruct* InStruct) const
+{
+	if (InStruct == FRuntimeFloatCurve::StaticStruct())
+	{
+		return true;
+	}
+	return false;
+}
+
 UControlRigGraphNode* UControlRigGraphSchema::CreateGraphNode(UControlRigGraph* InGraph, const FName& InPropertyName) const
 {
 	const bool bSelectNewNode = true;
 	FGraphNodeCreator<UControlRigGraphNode> GraphNodeCreator(*InGraph);
 	UControlRigGraphNode* ControlRigGraphNode = GraphNodeCreator.CreateNode(bSelectNewNode);
-	ControlRigGraphNode->SetPropertyName(InPropertyName);
+	ControlRigGraphNode->ModelNodePath = InPropertyName.ToString();
 	GraphNodeCreator.Finalize();
 
 	return ControlRigGraphNode;
@@ -246,12 +307,29 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 	{
 		return false;
 	}
+
+	// for reroute nodes - always allow it
+	if (PinA->PinType.PinCategory == TEXT("REROUTE"))
+	{
+		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
+		MutableThis->LastPinForCompatibleCheck = PinB;
+		MutableThis->bLastPinWasInput = true;
+		return true;
+	}
+	if (PinB->PinType.PinCategory == TEXT("REROUTE"))
+	{
+		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
+		MutableThis->LastPinForCompatibleCheck = PinA;
+		MutableThis->bLastPinWasInput = false;
+		return true;
+	}
+
 	return GetDefault<UEdGraphSchema_K2>()->ArePinsCompatible(PinA, PinB, CallingContext, bIgnoreArray);
 }
 
 void UControlRigGraphSchema::RenameNode(UControlRigGraphNode* Node, const FName& InNewNodeName) const
 {
-	Node->NodeTitleFull = Node->NodeTitle = FText::FromName(InNewNodeName);
+	Node->NodeTitle = FText::FromName(InNewNodeName);
 	Node->Modify();
 }
 

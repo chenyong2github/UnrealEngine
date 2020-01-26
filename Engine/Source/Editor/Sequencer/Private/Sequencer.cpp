@@ -341,6 +341,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		CurveEditorModel->InputSnapRateAttribute      = MakeAttributeSP(this, &FSequencer::GetFocusedDisplayRate);
 
 		CurveEditorModel->DefaultKeyAttributes        = MakeAttributeSP(this, &FSequencer::GetDefaultKeyAttributes);
+		
+		CurveEditorModel->OnCurveArrayChanged.AddRaw(this, &FSequencer::OnCurveModelDisplayChanged);
+
 	}
 
 	{
@@ -1760,6 +1763,50 @@ void FSequencer::ShrinkTime(FFrameTime InDeltaTime)
 	// Return state
 	FocusedMovieScene->SetSelectionRange(CachedSelectionRange);
 	Selection.Empty(); //todo restore key and section selection
+}
+
+bool FSequencer::CanAddTransformKeysForSelectedObjects() const
+{
+	for (int32 i = 0; i < TrackEditors.Num(); ++i)
+	{
+		if (TrackEditors[i]->HasTransformKeyBindings() && TrackEditors[i]->CanAddTransformKeysForSelectedObjects())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FSequencer::OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel)
+{
+	TArray<TSharedPtr<ISequencerTrackEditor>> PossibleTrackEditors;
+	bool AtLeastOneHasPriority = false;
+	for (int32 i = 0; i < TrackEditors.Num(); ++i)
+	{
+		if (TrackEditors[i]->HasTransformKeyBindings()  && TrackEditors[i]->CanAddTransformKeysForSelectedObjects())
+		{
+			PossibleTrackEditors.Add(TrackEditors[i]);
+			if (TrackEditors[i]->HasTransformKeyOverridePriority())
+			{
+				AtLeastOneHasPriority = true;
+			}
+		}
+	}
+	for (int32 i = 0; i < PossibleTrackEditors.Num(); ++i)
+	{
+		if (AtLeastOneHasPriority)
+		{
+			if (PossibleTrackEditors[i]->HasTransformKeyOverridePriority())
+			{
+				PossibleTrackEditors[i]->OnAddTransformKeysForSelectedObjects(Channel);
+			}
+		}
+		else
+		{
+			PossibleTrackEditors[i]->OnAddTransformKeysForSelectedObjects(Channel);
+		}
+	}
+
 }
 
 void FSequencer::BakeTransform()
@@ -5496,7 +5543,7 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 	{
 		if (GEditor->GetSelectedActorCount())
 		{
-			const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelectionNone", "Select None" ) );
+			const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "UpdatingActorComponentSelectionNone", "Select None"), !GIsTransacting);
 			GEditor->SelectNone( bNotifySelectionChanged, bDeselectBSP, bWarnAboutTooManyActors );
 			GEditor->NoteSelectionChange();
 		}
@@ -5566,7 +5613,7 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 		return;
 	}
 
-	const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelection", "Select Actors/Components" ) );
+	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "UpdatingActorComponentSelection", "Select Actors/Components"), !GIsTransacting);
 
 
 	GEditor->GetSelectedActors()->Modify();
@@ -5830,6 +5877,16 @@ FSequencerSelectionPreview& FSequencer::GetSelectionPreview()
 	return SelectionPreview;
 }
 
+void FSequencer::SuspendSelectionBroadcast()
+{
+	Selection.SuspendBroadcast();
+}
+
+void FSequencer::ResumeSelectionBroadcast()
+{
+	Selection.ResumeBroadcast();
+}
+
 void FSequencer::GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks)
 {
 	OutSelectedTracks.Append(Selection.GetSelectedTracks());
@@ -5892,49 +5949,72 @@ void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyArea
 	}
 }
 
-void FSequencer::SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect)
+void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect)
 {
 	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
 	TArray<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
-	for (const TSharedRef<FSequencerDisplayNode>& Node : NodeTree->GetAllNodes())
+
+	TOptional<FSectionHandle> SectionHandle = NodeTree->GetSectionHandle(Section);
+	int32 Count = 0;
+	if (SectionHandle.IsSet())
 	{
-		if (Node->GetType() == ESequencerNode::Track)
+		TSharedRef<FSequencerTrackNode> TrackNode = SectionHandle->GetTrackNode();
+		for (const TSharedRef<FSequencerDisplayNode>& Node : TrackNode->GetChildNodes())
 		{
-			TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(Node);
-			TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
-			TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
-			for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+				NodesToSelect.Add(Node);
+				if (bSelect == false) //make sure all children not selected
 				{
-					for (const IKeyArea& InKeyArea : InKeyAreas)
+					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
 					{
-						if (InKeyArea.GetOwningSection() == KeyArea->GetOwningSection() &&
-							InKeyArea.GetChannel() == KeyArea->GetChannel())
-						{
-							if (bSelectParentInstead || bSelect == false)
-							{
-								Nodes.Add(KeyAreaNode->GetParent()->AsShared());
-							}
-							if (!bSelectParentInstead || bSelect == false)
-							{
-								Nodes.Add(KeyAreaNode);
-							}
-						}
+						NodesToSelect.Add(ChildNode);
 					}
 				}
 			}
 		}
-		else if (Node->GetType() == ESequencerNode::KeyArea)
+	}
+	if (bSelect)
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodesToSelect)
 		{
-			TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node);
+			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+			{
+				DisplayNode->GetParent()->SetExpansionState(true);
+				break;
+			}
+		}
+		Selection.AddToSelection(NodesToSelect);
+	}
+	else
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodesToSelect)
+		{
+			Selection.RemoveFromSelection(DisplayNode);
+			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
+		}
+	}
+}
 
+
+void FSequencer::SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect)
+{
+	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
+	TArray<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
+
+	TOptional<FSectionHandle> SectionHandle = NodeTree->GetSectionHandle(Section);
+	if (SectionHandle.IsSet())
+	{
+		TSharedRef<FSequencerTrackNode> TrackNode = SectionHandle->GetTrackNode();
+		TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
+		TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
+		for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+		{
 			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
 			{
 				for (const IKeyArea& InKeyArea : InKeyAreas)
 				{
-					if (InKeyArea.GetOwningSection() == KeyArea->GetOwningSection() &&
-						InKeyArea.GetChannel() == KeyArea->GetChannel())
+					if (InKeyArea.GetChannel() == KeyArea->GetChannel())
 					{
 						if (bSelectParentInstead || bSelect == false)
 						{
@@ -5949,13 +6029,18 @@ void FSequencer::SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSele
 			}
 		}
 	}
+	
 	if (bSelect)
 	{
 		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
 		{
+			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+			{
+				DisplayNode->GetParent()->SetExpansionState(true);
+			}
 			NodesToSelect.Add(DisplayNode);
-			Selection.AddToSelection(NodesToSelect);
 		}
+		Selection.AddToSelection(NodesToSelect);
 	}
 	else
 	{
@@ -7862,6 +7947,19 @@ void FSequencer::ImportTracksFromText(const FString& TextToImport, /*out*/ TArra
 
 	// Remove the temp package from the root now that it has served its purpose
 	TempPackage->RemoveFromRoot();
+}
+
+void FSequencer::ObjectImplicitlyAdded(UObject* InObject) const
+{
+	for (int32 i = 0; i < TrackEditors.Num(); ++i)
+	{
+		TrackEditors[i]->ObjectImplicitlyAdded(InObject);
+	}
+}
+
+void FSequencer::SetFilterOn(const FText& InName, bool bOn)
+{
+	SequencerWidget->SetFilterOn(InName, bOn);
 }
 
 
@@ -10833,6 +10931,24 @@ void FSequencer::BindCommands()
 		TrackEditors[i]->BindCommands(SequencerCommandBindings);
 	}
 
+
+	SequencerCommandBindings->MapAction(
+		Commands.AddTransformKey,
+		FExecuteAction::CreateSP(this, &FSequencer::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::All),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
+	SequencerCommandBindings->MapAction(
+		Commands.AddTranslationKey,
+		FExecuteAction::CreateSP(this, &FSequencer::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Translation),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
+	SequencerCommandBindings->MapAction(
+		Commands.AddRotationKey,
+		FExecuteAction::CreateSP(this, &FSequencer::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Rotation),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
+	SequencerCommandBindings->MapAction(
+		Commands.AddScaleKey,
+		FExecuteAction::CreateSP(this, &FSequencer::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Scale),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
+
 	// copy subset of sequencer commands to shared commands
 	*SequencerSharedBindings = *SequencerCommandBindings;
 
@@ -10859,7 +10975,17 @@ void FSequencer::BindCommands()
 		EUIActionRepeatMode::RepeatEnabled);
 
 	SequencerCommandBindings->MapAction(
+		Commands.StepForward2,
+		FExecuteAction::CreateSP(this, &FSequencer::StepForward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
 		Commands.StepBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepBackward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepBackward2,
 		FExecuteAction::CreateSP(this, &FSequencer::StepBackward),
 		EUIActionRepeatMode::RepeatEnabled);
 
@@ -10976,6 +11102,7 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeToAllShots ),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
 
+
 	// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
 	// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread
 	// across both lists which makes a direct copy like it already uses difficult).
@@ -10988,8 +11115,15 @@ void FSequencer::BindCommands()
 	CurveEditorSharedBindings->MapAction(Commands.Pause,				*SequencerCommandBindings->GetActionForCommand(Commands.Pause));
 	CurveEditorSharedBindings->MapAction(Commands.StepForward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepForward));
 	CurveEditorSharedBindings->MapAction(Commands.StepBackward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepBackward));
+	CurveEditorSharedBindings->MapAction(Commands.StepForward2,         *SequencerCommandBindings->GetActionForCommand(Commands.StepForward2));
+	CurveEditorSharedBindings->MapAction(Commands.StepBackward2,        *SequencerCommandBindings->GetActionForCommand(Commands.StepBackward2));
 	CurveEditorSharedBindings->MapAction(Commands.StepToNextKey,		*SequencerCommandBindings->GetActionForCommand(Commands.StepToNextKey));
 	CurveEditorSharedBindings->MapAction(Commands.StepToPreviousKey, 	*SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousKey));
+
+	CurveEditorSharedBindings->MapAction(Commands.AddTransformKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTransformKey));
+	CurveEditorSharedBindings->MapAction(Commands.AddTranslationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTranslationKey));
+	CurveEditorSharedBindings->MapAction(Commands.AddRotationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddRotationKey));
+	CurveEditorSharedBindings->MapAction(Commands.AddScaleKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddScaleKey));
 
 	GetCurveEditor()->GetCommands()->Append(CurveEditorSharedBindings);
 
@@ -11176,4 +11310,10 @@ void FSequencer::RecompileDirtyDirectors()
 		}
 	}
 }
+
+void FSequencer::OnCurveModelDisplayChanged(FCurveModel *InCurveModel, bool bDisplayed)
+{
+	OnCurveDisplayChanged.Broadcast(InCurveModel, bDisplayed);
+}
+
 #undef LOCTEXT_NAMESPACE

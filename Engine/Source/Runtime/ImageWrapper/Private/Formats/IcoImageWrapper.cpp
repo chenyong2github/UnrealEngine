@@ -83,7 +83,7 @@ void FIcoImageWrapper::Uncompress( const ERGBFormat InFormat, const int32 InBitD
 }
 
 
-bool FIcoImageWrapper::SetCompressed( const void* InCompressedData, int32 InCompressedSize )
+bool FIcoImageWrapper::SetCompressed( const void* InCompressedData, int64 InCompressedSize )
 {
 	bool bResult = FImageWrapperBase::SetCompressed( InCompressedData, InCompressedSize );
 
@@ -91,14 +91,14 @@ bool FIcoImageWrapper::SetCompressed( const void* InCompressedData, int32 InComp
 }
 
 
-bool FIcoImageWrapper::GetRaw( const ERGBFormat InFormat, int32 InBitDepth, const TArray<uint8>*& OutRawData )
+bool FIcoImageWrapper::GetRaw( const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData )
 {
 	LastError.Empty();
 	Uncompress(InFormat, InBitDepth);
 
 	if (LastError.IsEmpty())
 	{
-		OutRawData = &SubImageWrapper->GetRawData();
+		SubImageWrapper->MoveRawData(OutRawData);
 	}
 
 	return LastError.IsEmpty();

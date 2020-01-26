@@ -28,8 +28,9 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "InputCore",
                     "TimeManagement",
-					"Persona",
+					"EditorWidgets",
 					"MessageLog",
+                    "RigVM",
                 }
             );
 
@@ -50,6 +51,7 @@ namespace UnrealBuildTool.Rules
                         "AnimGraph",
                         "BlueprintGraph",
                         "PropertyEditor",
+                        "RigVMDeveloper",
                     }
                 );
 

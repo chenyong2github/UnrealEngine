@@ -74,7 +74,7 @@ namespace StringConv
 	static FORCEINLINE void DecodeSurrogate(const uint32 Codepoint, uint16& OutHighSurrogate, uint16& OutLowSurrogate)
 	{
 		const uint32 TmpCodepoint = Codepoint - 0x10000;
-		OutHighSurrogate = (TmpCodepoint >> 10) + HIGH_SURROGATE_START_CODEPOINT;
+		OutHighSurrogate = (uint16)((TmpCodepoint >> 10) + HIGH_SURROGATE_START_CODEPOINT);
 		OutLowSurrogate = (TmpCodepoint & 0x3FF) + LOW_SURROGATE_START_CODEPOINT;
 	}
 
@@ -266,7 +266,7 @@ public:
 			}
 		}
 
-		return static_cast<int32>(OutputIterator - OutputIteratorStartPosition);
+		return UE_PTRDIFF_TO_INT32(OutputIterator - OutputIteratorStartPosition);
 	}
 
 	/**
@@ -346,7 +346,7 @@ private:
 				{
 					const uint32 LowSurrogate = Codepoint;
 					// Combine our high and low surrogates together to a single Unicode codepoint
-					Codepoint = StringConv::EncodeSurrogate(HighSurrogate, LowSurrogate);
+					Codepoint = StringConv::EncodeSurrogate((uint16)HighSurrogate, (uint16)LowSurrogate);
 				}
 				else
 				{
@@ -657,7 +657,7 @@ private:
 		while (Source < SourceEnd && DestLen > 0)
 		{
 			// Read our codepoint, advancing the source pointer
-			uint32 Codepoint = CodepointFromUtf8(Source, SourceEnd - Source);
+			uint32 Codepoint = CodepointFromUtf8(Source, UE_PTRDIFF_TO_UINT32(SourceEnd - Source));
 
 #if !PLATFORM_TCHAR_IS_4_BYTES
 			// We want to write out two chars
@@ -670,8 +670,8 @@ private:
 					uint16 LowSurrogate = 0;
 					StringConv::DecodeSurrogate(Codepoint, HighSurrogate, LowSurrogate);
 
-					*(ConvertedBuffer++) = (TCHAR)HighSurrogate;
-					*(ConvertedBuffer++) = (TCHAR)LowSurrogate;
+					*(ConvertedBuffer++) = (ToType)HighSurrogate;
+					*(ConvertedBuffer++) = (ToType)LowSurrogate;
 					DestLen -= 2;
 					continue;
 				}
@@ -686,7 +686,7 @@ private:
 			}
 #endif	// !PLATFORM_TCHAR_IS_4_BYTES
 
-			*(ConvertedBuffer++) = Codepoint;
+			*(ConvertedBuffer++) = (ToType)Codepoint;
 			--DestLen;
 		}
 	}
@@ -757,7 +757,7 @@ public:
 			*(OutputIterator++) = Codepoint;
 		}
 
-		return static_cast<int32>(OutputIterator - OutputIteratorStartPosition);
+		return UE_PTRDIFF_TO_INT32(OutputIterator - OutputIteratorStartPosition);
 	}
 
 	/**

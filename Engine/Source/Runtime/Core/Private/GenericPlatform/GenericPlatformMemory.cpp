@@ -293,11 +293,11 @@ EPlatformMemorySizeBucket FGenericPlatformMemory::GetMemorySizeBucket()
 		{
 			MemoryBucketRoundingAddition = FCString::Atoi64(**MemoryBucketRoundingAdditionVar);
 		}
-		uint32 TotalPhysicalGB = (Stats.TotalPhysical + MemoryBucketRoundingAddition * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
+		uint32 TotalPhysicalGB = (uint32)((Stats.TotalPhysical + MemoryBucketRoundingAddition * 1024 * 1024 - 1) / 1024 / 1024 / 1024);
 #else
-		uint32 TotalPhysicalGB = (Stats.TotalPhysical + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
+		uint32 TotalPhysicalGB = (uint32)((Stats.TotalPhysical + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024);
 #endif
-		uint32 AddressLimitGB = (Stats.AddressLimit + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
+		uint32 AddressLimitGB = (uint32)((Stats.AddressLimit + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024);
 		int32 CurMemoryGB = (int32)FMath::Min(TotalPhysicalGB, AddressLimitGB);
 
 		// if at least Smaller is specified, we can set the Bucket
@@ -398,7 +398,7 @@ void FGenericPlatformMemory::MemswapGreaterThan8( void* RESTRICT Ptr1, void* RES
 		Size -= 4;
 	}
 
-	uint32 CommonAlignment = FMath::Min(FMath::CountTrailingZeros(Union1.PtrUint - Union2.PtrUint), 3u);
+	uint32 CommonAlignment = FMath::Min(FMath::CountTrailingZeros((uint32)(Union1.PtrUint - Union2.PtrUint)), 3u);
 	switch (CommonAlignment)
 	{
 		default:

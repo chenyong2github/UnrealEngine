@@ -244,6 +244,8 @@ public:
 	static UNiagaraEmitter* CreateAsDuplicate(const UNiagaraEmitter& InEmitterToDuplicate, FName InDuplicateName, UNiagaraSystem& InDuplicateOwnerSystem);
 
 	//Begin UObject Interface
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
@@ -251,7 +253,6 @@ public:
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//End UObject Interface
 
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
@@ -393,6 +394,10 @@ public:
 	/** Internal: Indicates the thumbnail image is out of date.*/
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
+
+	/* If this emitter is exposed to the library. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	bool bExposeToLibrary;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bIsTemplateAsset;

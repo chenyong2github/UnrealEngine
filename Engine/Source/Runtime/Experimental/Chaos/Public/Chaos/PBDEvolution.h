@@ -3,7 +3,7 @@
 
 #include "Chaos/KinematicGeometryParticles.h"
 #include "Chaos/PerParticleGravity.h"
-#include "Chaos/PerParticleVelocityField.h"
+#include "Chaos/VelocityField.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/Vector.h"
 
@@ -14,7 +14,7 @@ class CHAOS_API TPBDEvolution
 {
   public:
 	using FGravityForces = TPerParticleGravity<T, d>;
-	using FVelocityField = TPerParticleVelocityField<T, d>;
+	using FVelocityField = TVelocityField<T, d>;
 
 	// TODO(mlentine): Init particles from some type of input
 	TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryClothParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles, int32 NumIterations = 1, T CollisionThickness = 0, T SelfCollisionsThickness = 0, T CoefficientOfFriction = 0, T Damping = 0.04);
@@ -29,14 +29,16 @@ class CHAOS_API TPBDEvolution
 	void AddXPBDConstraintFunctions(TFunction<void()> InitConstraintFunction, TFunction<void(TPBDParticles<T, d>&, const T)> ConstraintFunction) { MInitConstraintRules.Add(InitConstraintFunction); MConstraintRules.Add(ConstraintFunction); }
 	void AddForceFunction(TFunction<void(TPBDParticles<T, d>&, const T, const int32)> ForceFunction) { MForceRules.Add(ForceFunction); }
 
+	void AddParticles(uint32 Num, uint32 GroupId = 0);
+
 	const TPBDParticles<T, d>& Particles() const { return MParticles; }
 	TPBDParticles<T, d>& Particles() { return MParticles; }
 
 	FGravityForces& GetGravityForces() { return GravityForces; }
 	const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-	FVelocityField& GetVelocityField() { return VelocityField; }
-	const FVelocityField& GetVelocityField() const { return VelocityField; }
+	TArray<FVelocityField>& GetVelocityFields() { return VelocityFields; }
+	const TArray<FVelocityField>& GetVelocityFields() const { return VelocityFields; }
 
 	const TGeometryClothParticles<T, d>& CollisionParticles() const { return MCollisionParticles; }
 	TGeometryClothParticles<T, d>& CollisionParticles() { return MCollisionParticles; }
@@ -59,11 +61,13 @@ class CHAOS_API TPBDEvolution
 
 	T GetDamping() const { return MDamping; }
 	void SetDamping(const T Damping) { MDamping = Damping; }
+	void SetDamping(const uint32 GroupId, const T Damping) { MPerGroupDamping[GroupId] = Damping; }
 
 	T GetTime() const { return MTime; }
 
 	void ResetConstraintRules() { MInitConstraintRules.Reset(); MConstraintRules.Reset(); };
 	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
+	void ResetVelocityFields() { VelocityFields.Reset(); };
 
   private:
 	TPBDParticles<T, d> MParticles;
@@ -71,6 +75,8 @@ class CHAOS_API TPBDEvolution
 	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
 	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 	TArrayCollectionArray<bool> MCollided;
+	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters
+	TArray<T> MPerGroupDamping;
 	int32 MNumIterations;
 	T MCollisionThickness;
 	T MSelfCollisionThickness;
@@ -79,7 +85,7 @@ class CHAOS_API TPBDEvolution
 	T MTime;
 
 	FGravityForces GravityForces;
-	FVelocityField VelocityField;
+	TArray<FVelocityField> VelocityFields;
 
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MForceRules;
 	TArray<TFunction<void()>> MInitConstraintRules;

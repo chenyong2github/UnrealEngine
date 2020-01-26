@@ -376,6 +376,7 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 	, HeightFieldAtlasGeneration(0)
+	, HFVisibilityAtlasGenerattion(0)
 {
 	ObjectBuffers[0] = nullptr;
 	ObjectBuffers[1] = nullptr;
@@ -405,13 +406,18 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	{
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			// Theoretically, we may need to wait for high-res mips to be streamed in.
-			// In practice, however, those mips are usually resident at this point.
 			UTexture2D* HeightAndNormal;
-			UTexture2D* Unused0, *Unused1;
-			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
+
+			if (Visibility)
+			{
+				check(Desc.VisibilityChannel >= 0 && Desc.VisibilityChannel < 4);
+				GHFVisibilityTextureAtlas.AddAllocation(Visibility, Desc.VisibilityChannel);
+			}
 
 			checkSlow(!PendingHeightFieldAddOps.Contains(InPrimitive));
 			checkSlow(!PendingHeightFieldUpdateOps.Contains(InPrimitive));
@@ -469,10 +475,16 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
 			UTexture2D* HeightAndNormal;
-			UTexture2D* Unused0, *Unused1;
-			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
+
+			if (Visibility)
+			{
+				GHFVisibilityTextureAtlas.RemoveAllocation(Visibility);
+			}
 
 			PendingHeightFieldAddOps.Remove(InPrimitive);
 			PendingHeightFieldUpdateOps.Remove(InPrimitive);
@@ -1086,6 +1098,10 @@ FScene::~FScene()
 	}
 #endif
 
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive removal operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(AddedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive addition operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(Primitives.Num() == 0, TEXT("All primitives are expected to be removed before the scene is destroyed. Remaining primitives are likely to cause a memory leak."));
+
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
 	DistanceFieldSceneData.Release();
@@ -1148,7 +1164,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
 	PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
 
-	// Cache the primitive's initial transform.
+	// Cache the primitives initial transform.
 	FMatrix RenderMatrix = Primitive->GetRenderMatrix();
 	FVector AttachmentRootPosition(0);
 
@@ -1628,7 +1644,7 @@ void FScene::AddLight(ULightComponent* Light)
 		Light->SceneProxy = Proxy;
 
 		// Update the light's transform and position.
-		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(),Light->GetLightPosition());
+		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(), Light->GetLightPosition());
 
 		// Create the light scene info.
 		Proxy->LightSceneInfo = new FLightSceneInfo(Proxy, true);
@@ -3104,7 +3120,7 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
-			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			// Flush any remaining batched primitive update commands before deleting the scene.
 			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});

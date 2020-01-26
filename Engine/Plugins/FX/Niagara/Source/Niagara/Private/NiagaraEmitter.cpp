@@ -170,16 +170,6 @@ void UNiagaraEmitter::PostInitProperties()
 	UniqueEmitterName = TEXT("Emitter");
 }
 
-void UNiagaraEmitter::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	if (!bDuplicateForPIE)
-	{
-		SetUniqueEmitterName(GetName());
-	}
-}
-
 #if WITH_EDITORONLY_DATA
 bool UNiagaraEmitter::GetForceCompileOnLoad()
 {
@@ -284,7 +274,6 @@ UNiagaraEmitter* UNiagaraEmitter::DuplicateWithoutMerging(UObject* InOuter)
 	}
 	return Duplicate;
 }
-
 #endif
 
 void UNiagaraEmitter::Serialize(FArchive& Ar)
@@ -503,7 +492,7 @@ UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InPa
 	NewEmitter->Parent = &InParentEmitter;
 	NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParentEmitter, NewEmitter));
 	NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
-	NewEmitter->SetUniqueEmitterName(InName.ToString());
+	NewEmitter->SetUniqueEmitterName(InName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
 	return NewEmitter;
 }
@@ -519,10 +508,31 @@ UNiagaraEmitter* UNiagaraEmitter::CreateAsDuplicate(const UNiagaraEmitter& InEmi
 		NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(InEmitterToDuplicate.ParentAtLastMerge, NewEmitter));
 		NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
 	}
-	NewEmitter->SetUniqueEmitterName(InDuplicateName.ToString());
+	NewEmitter->SetUniqueEmitterName(InDuplicateName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
 
 	return NewEmitter;
+}
+
+
+void UNiagaraEmitter::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if (IsAsset() && DuplicateMode == EDuplicateMode::Normal)
+	{
+		SetUniqueEmitterName(GetFName().GetPlainNameString());
+	}
+}
+
+void UNiagaraEmitter::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+
+	if (IsAsset())
+	{
+		SetUniqueEmitterName(GetFName().GetPlainNameString());
+	}
 }
 
 void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

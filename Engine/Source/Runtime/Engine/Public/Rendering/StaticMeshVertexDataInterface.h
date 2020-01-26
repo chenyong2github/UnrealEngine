@@ -46,7 +46,7 @@ public:
 	virtual FResourceArrayInterface* GetResourceArray() = 0;
 
 	/** Serializer. */
-	virtual void Serialize(FArchive& Ar) = 0;
+	virtual void Serialize(FArchive& Ar, bool bForcePerElementSerialization = false) = 0;
 
 	virtual SIZE_T GetResourceSize() const = 0;
 

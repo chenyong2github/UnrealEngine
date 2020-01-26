@@ -38,7 +38,7 @@ class PARTY_API USocialToolkit : public UObject
 
 public:
 	template <typename ToolkitT = USocialToolkit>
-	static ToolkitT* GetToolkitForPlayer(ULocalPlayer* LocalPlayer)
+	static ToolkitT* GetToolkitForPlayer(const ULocalPlayer* LocalPlayer)
 	{
 		static_assert(TIsDerivedFrom<ToolkitT, USocialToolkit>::IsDerived, "GetToolkitForPlayer only supports getting USocialToolkit type objects");
 		return Cast<ToolkitT>(GetToolkitForPlayerInternal(LocalPlayer));
@@ -235,8 +235,8 @@ private:	// Handlers
 #endif
 
 private:
-	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
-	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
+	static USocialToolkit* GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer);
+	static TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
 	USocialUser* LocalUser;

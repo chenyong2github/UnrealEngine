@@ -138,49 +138,49 @@ struct NIAGARA_API FNiagaraParameterStore
 	GENERATED_USTRUCT_BODY()
 
 private:
-	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
-	UPROPERTY(Transient)
-	UObject* Owner;
-	
+/** Owner of this store. Used to provide an outer to data interfaces in this store. */
+UPROPERTY(Transient)
+UObject* Owner;
+
 #if WITH_EDITORONLY_DATA
-	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
-	UPROPERTY()
-	TMap<FNiagaraVariable, int32> ParameterOffsets;
+/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
+UPROPERTY()
+TMap<FNiagaraVariable, int32> ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY()
-	TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
+UPROPERTY()
+TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
 
-	/** Buffer containing parameter data. Indexed using offsets in ParameterOffsets */
-	UPROPERTY()
-	TArray<uint8> ParameterData;
-	
-	/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
-	UPROPERTY()
-	TArray<UNiagaraDataInterface*> DataInterfaces;
+/** Buffer containing parameter data. Indexed using offsets in ParameterOffsets */
+UPROPERTY()
+TArray<uint8> ParameterData;
 
-	/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
-	UPROPERTY()
-	TArray<UObject*> UObjects;
+/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
+UPROPERTY()
+TArray<UNiagaraDataInterface*> DataInterfaces;
 
-	/** Bindings between this parameter store and others we push data into when we tick. */
-	TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
+/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
+UPROPERTY()
+TArray<UObject*> UObjects;
 
-	/** Parameter stores we've been bound to and are feeding data into us. */
-	TArray<FNiagaraParameterStore*> SourceStores;
+/** Bindings between this parameter store and others we push data into when we tick. */
+TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
 
-	/** Marks our parameters as dirty. They will be pushed to any bound stores on tick if true. */
-	uint32 bParametersDirty : 1;
-	/** Marks our interfaces as dirty. They will be pushed to any bound stores on tick if true. */
-	uint32 bInterfacesDirty : 1;
-	/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
-	uint32 bUObjectsDirty : 1;
+/** Parameter stores we've been bound to and are feeding data into us. */
+TArray<FNiagaraParameterStore*> SourceStores;
 
-	/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
-	uint32 LayoutVersion;
+/** Marks our parameters as dirty. They will be pushed to any bound stores on tick if true. */
+uint32 bParametersDirty : 1;
+/** Marks our interfaces as dirty. They will be pushed to any bound stores on tick if true. */
+uint32 bInterfacesDirty : 1;
+/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
+uint32 bUObjectsDirty : 1;
+
+/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
+uint32 LayoutVersion;
 
 #if WITH_EDITOR
-	FOnChanged OnChangedDelegate;
+FOnChanged OnChangedDelegate;
 #endif
 
 public:
@@ -189,10 +189,10 @@ public:
 	FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
 
 	virtual ~FNiagaraParameterStore();
-	
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	FString DebugName;
+		FString DebugName;
 #endif
 
 	void SetOwner(UObject* InOwner);
@@ -223,7 +223,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void Tick();
 	/** Unbinds this store from all stores it's being driven by. */
 	void UnbindFromSourceStores();
-	
+
 	bool VerifyBinding(const FNiagaraParameterStore* InDestStore) const;
 
 	void CheckForNaNs() const;
@@ -233,7 +233,18 @@ public:
 	Does nothing if this parameter is already present.
 	Returns true if we added a new parameter.
 	*/
-	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize=true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
+	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
+
+#if WITH_EDITORONLY_DATA
+	template<typename BufferType>
+	void AddConstantBuffer()
+	{
+		for (const FNiagaraVariable& BufferVariable : BufferType::GetVariables())
+		{
+			AddParameter(BufferVariable, true, false);
+		}
+	}
+#endif
 
 	/** Removes the passed parameter if it exists in the store. */
 	virtual bool RemoveParameter(const FNiagaraVariable& Param);

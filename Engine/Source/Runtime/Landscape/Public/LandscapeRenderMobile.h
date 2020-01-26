@@ -133,4 +133,22 @@ public:
 	uint8 BlendableLayerMask;
 
 	friend class FLandscapeVertexBufferMobile;
+
+	virtual void ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const override;
+};
+
+
+class FLandscapeFixedGridVertexFactoryMobile : public FLandscapeVertexFactoryMobile
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactoryMobile);
+
+public:
+	FLandscapeFixedGridVertexFactoryMobile(ERHIFeatureLevel::Type InFeatureLevel)
+		: FLandscapeVertexFactoryMobile(InFeatureLevel)
+	{
+	}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
+	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FShaderType* ShaderType);
 };

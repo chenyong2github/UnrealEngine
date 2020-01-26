@@ -204,7 +204,7 @@ bool FSlateD3DTextureManager::LoadTexture( const FSlateBrush& InBrush, uint32& O
 	FString ResourcePath = GetResourcePath( InBrush );
 
 	uint32 BytesPerPixel = 4;
-	bool bSucceeded = true;
+	bool bSucceeded = false;
 	TArray<uint8> RawFileData;
 	if( FFileHelper::LoadFileToArray( RawFileData, *ResourcePath ) )
 	{
@@ -223,27 +223,23 @@ bool FSlateD3DTextureManager::LoadTexture( const FSlateBrush& InBrush, uint32& O
 			OutWidth = ImageWrapper->GetWidth();
 			OutHeight = ImageWrapper->GetHeight();
 
-			const TArray<uint8>* RawData = NULL;
-			if (ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawData) == false)
+			if (ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, OutDecodedImage))
 			{
-				UE_LOG(LogSlateD3D, Log, TEXT("Invalid texture format for Slate resource only RGBA and RGB pngs are supported: %s"), *InBrush.GetResourceName().ToString() );
-				bSucceeded = false;
+				bSucceeded = true;
 			}
 			else
 			{
-				OutDecodedImage = *RawData;
+				UE_LOG(LogSlateD3D, Warning, TEXT("Invalid texture format %d for Slate resource only RGBA and RGB pngs are supported: %s"), ImageFormat, *InBrush.GetResourceName().ToString() );
 			}
 		}
 		else
 		{
-			UE_LOG(LogSlateD3D, Log, TEXT("Only pngs are supported in Slate. [%s] '%s'"), *InBrush.GetResourceName().ToString(), *ResourcePath);
-			bSucceeded = false;
+			UE_LOG(LogSlateD3D, Warning, TEXT("Only pngs are supported in Slate. [%s] '%s'"), *InBrush.GetResourceName().ToString(), *ResourcePath);
 		}
 	}
 	else
 	{
-		UE_LOG(LogSlateD3D, Log, TEXT("Could not find file for Slate resource: [%s] '%s'"), *InBrush.GetResourceName().ToString(), *ResourcePath);
-		bSucceeded = false;
+		UE_LOG(LogSlateD3D, Warning, TEXT("Could not find file for Slate resource: [%s] '%s'"), *InBrush.GetResourceName().ToString(), *ResourcePath);
 	}
 
 	return bSucceeded;

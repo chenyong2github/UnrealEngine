@@ -234,6 +234,8 @@ static ENetMode GetNetModeFromPlayNetMode(const EPlayNetMode InPlayNetMode, cons
 
 FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanceIndex, const FGameInstancePIEParameters& Params)
 {
+	PIEStartTime = Params.PIEStartTime;
+
 	UEditorEngine* const EditorEngine = CastChecked<UEditorEngine>(GetEngine());
 
 	// Look for an existing pie world context, may have been created before

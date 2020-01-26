@@ -8,29 +8,32 @@
 
 #pragma once
 #include "Animation/AnimInstance.h"
-#include "AnimCustomInstance.h"
+#include "SequencerAnimationSupport.h"
 #include "AnimSequencerInstance.generated.h"
 
 UCLASS(transient, NotBlueprintable)
-class ANIMGRAPHRUNTIME_API UAnimSequencerInstance : public UAnimCustomInstance
+class ANIMGRAPHRUNTIME_API UAnimSequencerInstance : public UAnimInstance, public ISequencerAnimationSupport
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	/** Update an animation sequence player in this instance */
-	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
-	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
+	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
 	/** Reset all nodes in this instance */
-	void ResetNodes();
+	virtual void ResetNodes() override;
 
 	/** Reset the pose for this instance*/
-	void ResetPose();
+	virtual void ResetPose() override;
 
 	/** Saved the named pose to restore after */
-	void SavePose();
+	virtual void SavePose() override;
 
+	virtual UAnimInstance* GetSourceAnimInstance() override { return this; }
+	virtual void SetSourceAnimInstance(UAnimInstance* SourceAnimInstance) {  /* nothing to do */ ensure(false); }
+	virtual bool DoesSupportDifferentSourceAnimInstance() const override { return false; }
 protected:
 	// UAnimInstance interface
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
@@ -41,3 +44,4 @@ public:
 	static const FName SequencerPoseName;
 
 };
+

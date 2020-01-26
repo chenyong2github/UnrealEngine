@@ -50,7 +50,7 @@ UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer cons
 	, SetGridFromVoxelSize(false)	
 	, WorldBBoxSize(100., 100., 100.)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyRW, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
 	RWProxy = (FNiagaraDataInterfaceProxyRW*) Proxy.Get();
 	PushToRenderThread();
 }
@@ -319,7 +319,7 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	, SetGridFromMaxAxis(false)	
 	, WorldBBoxSize(100., 100.)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyRW, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
 	PushToRenderThread();
 }
 

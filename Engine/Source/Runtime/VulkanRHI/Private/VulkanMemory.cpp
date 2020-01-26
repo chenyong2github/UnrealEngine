@@ -432,7 +432,7 @@ namespace VulkanRHI
 	{
 		check(bCanBeMapped);
 		check(!MappedPointer);
-		check(InSize == VK_WHOLE_SIZE || InSize + Offset <= Size);
+		checkf(InSize == VK_WHOLE_SIZE || InSize + Offset <= Size, TEXT("Failed to Map %llu bytes, Offset %llu, AllocSize %llu bytes"), InSize, Offset, Size);
 
 		VERIFYVULKANRESULT(VulkanRHI::vkMapMemory(DeviceHandle, Handle, Offset, InSize, 0, &MappedPointer));
 		return MappedPointer;
@@ -1415,13 +1415,10 @@ namespace VulkanRHI
 
 		bool bIsTexelBuffer = (BufferUsageFlags & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)) != 0;
 		bool bIsStorageBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0;
-		if (bIsTexelBuffer)
+		if (bIsTexelBuffer || bIsStorageBuffer)
 		{
-			Alignment = FMath::Max(Alignment, (uint32)Limits.minTexelBufferOffsetAlignment);
-		}
-		else if (bIsStorageBuffer)
-		{
-			Alignment = FMath::Max(Alignment, (uint32)Limits.minStorageBufferOffsetAlignment);
+			Alignment = FMath::Max(Alignment, bIsTexelBuffer ? (uint32)Limits.minTexelBufferOffsetAlignment : 0);
+			Alignment = FMath::Max(Alignment, bIsStorageBuffer ? (uint32)Limits.minStorageBufferOffsetAlignment : 0);
 		}
 		else
 		{
@@ -1850,7 +1847,8 @@ namespace VulkanRHI
 
 		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
 		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
-		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+		static const bool bIsAmd = Device->GetDeviceProperties().vendorID == 0x1002;
+		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT || bIsAmd)
 		{
 			uint64 NonCoherentAtomSize = (uint64)Device->GetLimits().nonCoherentAtomSize;
 			MemReqs.alignment = AlignArbitrary(MemReqs.alignment, NonCoherentAtomSize);
@@ -2298,7 +2296,9 @@ namespace VulkanRHI
 		Size = InSize;
 		PeakUsed = 0;
 		BufferSuballocation = InDevice->GetResourceHeapManager().AllocateBuffer(InSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | 
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | 
+			VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			__FILE__, __LINE__);
 		MappedData = (uint8*)BufferSuballocation->GetMappedPointer();

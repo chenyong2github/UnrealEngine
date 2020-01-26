@@ -126,6 +126,7 @@ public:
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
 	void PostGarbageCollect();
+	void PreGarbageCollectBeginDestroy();
 	
 	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
 
@@ -179,7 +180,10 @@ private:
 
 	// Callback to handle any post GC processing needed.
 	static void OnPostGarbageCollect();
-	
+
+	// Callback to handle any pre GC processing needed.
+	static void OnPreGarbageCollectBeginDestroy();
+		
 	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
 	void OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher);
 
@@ -200,6 +204,7 @@ private:
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
 	static FDelegateHandle PostGCHandle;
+	static FDelegateHandle PreGCBeginDestroyHandle;
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 
@@ -218,20 +223,11 @@ private:
 
 	UNiagaraComponentPool* ComponentPool;
 
-	/** Generated data used by data interfaces*/
+	/** Generated data used by data interfaces */
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
 
-	// Deferred deletion queue for system instances
-	// We need to make sure that any enqueued GPU ticks have been processed before we remove the system instances
-	struct FDeferredDeletionQueue
-	{
-		FRenderCommandFence							Fence;
-		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
-	};
-
-	static constexpr int NumDeferredQueues = 3;
-	int DeferredDeletionQueueIndex = 0;
-	FDeferredDeletionQueue DeferredDeletionQueue[NumDeferredQueues];
+	/** Instances that have been queued for deletion this frame, serviced in PostActorTick */
+	TArray<TUniquePtr<FNiagaraSystemInstance>> DeferredDeletionQueue;
 
 	UPROPERTY(transient)
 	TMap<UNiagaraEffectType*, FNiagaraScalabilityManager> ScalabilityManagers;

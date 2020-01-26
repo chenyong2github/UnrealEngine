@@ -14,6 +14,7 @@
 
 //------------------------------------------------------------------------------
 
+#include "LPVListEntry.ush"
 #include "LPVCommon.ush"
 
 //------------------------------------------------------------------------------
@@ -23,28 +24,7 @@
 
 #define	LPV_STORE_INDEX_IN_HEAD_BUFFER		1
 #define	LPV_HEAD_BUFFER_START_OFFSET		64
-//------------------------------------------------------------------------------
 
-#define PACKED_VPL 1
-
-struct Vpl
-{
-	float3 normal;
-	float3 flux;
-};
-
-struct VplListEntry
-{
-#if PACKED_VPL
-	uint	normalPacked;
-	uint	fluxPacked;
-#else
-	float3	normal;
-	float3  flux;
-#endif
-
-	int		nextIndex;
-};
 
 //-------------------------------------------------------------------------------------------------
 // Functions
@@ -69,9 +49,9 @@ uint PackVPLNormal( float3 normal )
 
 //-------------------------------------------------------------------------------------------------
 
-Vpl UnpackVpl( VplListEntry entry )
+VplData UnpackVpl( VplListEntry entry )
 {
-	Vpl vpl;
+	VplData vpl;
 #if PACKED_VPL
 	vpl.flux   = UnpackRGY32( entry.fluxPacked );
 	vpl.normal = UnpackVPLNormal( entry.normalPacked );
@@ -84,7 +64,7 @@ Vpl UnpackVpl( VplListEntry entry )
 
 //-------------------------------------------------------------------------------------------------
 
-VplListEntry PackVpl( Vpl vpl )
+VplListEntry PackVpl( VplData vpl )
 {
 	VplListEntry entry;
 

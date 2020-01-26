@@ -119,7 +119,7 @@ FStagingBufferRHIRef FVulkanDynamicRHI::RHICreateStagingBuffer()
 	return new FVulkanStagingBuffer();
 }
 
-void* FVulkanDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
+void* FVulkanDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBufferRHI, FRHIGPUFence* Fence, uint32 Offset, uint32 NumBytes)
 {
 	FVulkanStagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
 	return StagingBuffer->Lock(Offset, NumBytes);
@@ -375,6 +375,19 @@ void FVulkanGPUProfiler::BeginFrame()
 		static auto* CrashCollectionDataDepth = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.gpucrash.datadepth"));
 		bTrackingGPUCrashData = CrashCollectionEnableCvar ? CrashCollectionEnableCvar->GetValueOnRenderThread() != 0 : false;
 		GPUCrashDataDepth = CrashCollectionDataDepth ? CrashCollectionDataDepth->GetValueOnRenderThread() : -1;
+		if (GPUCrashDataDepth == -1 || GPUCrashDataDepth > GMaxCrashBufferEntries)
+		{
+			if (Device->GetOptionalExtensions().HasAMDBufferMarker)
+			{
+				static bool bChecked = false;
+				if (!bChecked)
+				{
+					bChecked = true;
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Clamping r.gpucrash.datadepth to %d"), GMaxCrashBufferEntries);
+				}
+				GPUCrashDataDepth = GMaxCrashBufferEntries;
+			}
+		}
 
 		// Use local tracepoints if no extension is available
 		if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions() && LocalTracePointsQueryPool == nullptr)

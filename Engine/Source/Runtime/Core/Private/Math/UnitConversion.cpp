@@ -6,6 +6,8 @@
 #include "Misc/ExpressionParser.h"
 #include "Math/BasicMathExpressionEvaluator.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 #define LOCTEXT_NAMESPACE "UnitConversion"
 
 /** Structure used to match units when parsing */
@@ -775,3 +777,5 @@ namespace UnitConversion
 }	// namespace UnitConversion
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

@@ -14,6 +14,7 @@
 
 #include "GroomAsset.generated.h"
 
+class UAssetUserData;
 class UMaterialInterface;
 class UNiagaraSystem;
 struct FHairGroupData;

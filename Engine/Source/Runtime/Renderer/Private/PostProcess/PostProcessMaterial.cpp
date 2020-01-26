@@ -411,7 +411,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
-			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
 			Output.LoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
@@ -467,6 +467,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	FPostProcessMaterialVS* VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
 	FPostProcessMaterialPS* PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
+	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
 	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
 
@@ -578,7 +579,8 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer)
 	{
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterialInterface* VisMaterial = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterial* Material = VisMaterial ? VisMaterial->GetMaterial() : nullptr;
 
 		if (Material && Material->BlendableLocation == Location)
 		{

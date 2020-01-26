@@ -102,6 +102,8 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 		const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 		const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
 
+		const float LuminanceMax = LuminanceMaxFromLensAttenuation();
+
 		float X = Output.ViewRect.Min.X + 30;
 		float Y = Output.ViewRect.Min.Y + 28;
 		const float YStep = 14;
@@ -126,7 +128,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 			if (!bExtendedLuminanceRange)
 			{
 				// In this case the post process settings are actually Log2 values.
-				EV100Value = Log2ToEV100(EV100Value);
+				EV100Value = Log2ToEV100(LuminanceMax,EV100Value);
 			}
 
 			Line = FString::Printf(TEXT("%.2g"), EV100Value);
@@ -161,7 +163,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 		}
 		else
 		{
-			Line = FString::Printf(TEXT("%.1f .. %.1f"), LuminanceToEV100(View.FinalPostProcessSettings.AutoExposureMinBrightness), LuminanceToEV100(View.FinalPostProcessSettings.AutoExposureMaxBrightness));
+			Line = FString::Printf(TEXT("%.1f .. %.1f"), LuminanceToEV100(LuminanceMax,View.FinalPostProcessSettings.AutoExposureMinBrightness), LuminanceToEV100(LuminanceMax,View.FinalPostProcessSettings.AutoExposureMaxBrightness));
 		}
 		Canvas.DrawShadowedString(X, Y += YStep, TEXT("EV100 Min/Max"), GetStatsFont(), FLinearColor(1, 1, 1));
 		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(0.3f, 0.3f, 1));
@@ -176,7 +178,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 			float AverageSceneLuminance = View.GetLastAverageSceneLuminance();
 			if (AverageSceneLuminance > 0)
 			{
-				AutoExposureBias += View.FinalPostProcessSettings.AutoExposureBiasCurve->GetFloatValue(LuminanceToEV100(AverageSceneLuminance));
+				AutoExposureBias += View.FinalPostProcessSettings.AutoExposureBiasCurve->GetFloatValue(LuminanceToEV100(LuminanceMax,AverageSceneLuminance));
 			}
 		}
 
@@ -184,20 +186,13 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Exposure Compensation: "), GetStatsFont(), FLinearColor(1, 1, 1));
 		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 0.3f, 0.3f));
 
-		if (AutoExposureMethod == AEM_Basic || AutoExposureMethod == AEM_Histogram)
-		{
-			Line = FString::Printf(TEXT("%g%%"), AutoExposureMethod == AEM_Basic ? View.FinalPostProcessSettings.AutoExposureCalibrationConstant : 100.f);
-			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Calibration Constant: "), GetStatsFont(), FLinearColor(1, 1, 1));
-			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 0.3f, 0.3f));
-		}
-
 		if (bExtendedLuminanceRange)
 		{
 			Line = FString::Printf(TEXT("%.1f .. %.1f"), View.FinalPostProcessSettings.HistogramLogMin, View.FinalPostProcessSettings.HistogramLogMax);
 		}
 		else
 		{
-			Line = FString::Printf(TEXT("%.1f .. %.1f"), Log2ToEV100(View.FinalPostProcessSettings.HistogramLogMin), Log2ToEV100(View.FinalPostProcessSettings.HistogramLogMax));
+			Line = FString::Printf(TEXT("%.1f .. %.1f"), Log2ToEV100(LuminanceMax,View.FinalPostProcessSettings.HistogramLogMin), Log2ToEV100(LuminanceMax,View.FinalPostProcessSettings.HistogramLogMax));
 		}
 
 		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Histogram EV100 Min/Max:"), GetStatsFont(), FLinearColor(1, 1, 1));

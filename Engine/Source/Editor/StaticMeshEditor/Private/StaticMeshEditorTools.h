@@ -381,6 +381,9 @@ private:
 	*/
 	TSharedRef<SWidget> OnGenerateCustomSectionWidgetsForSection(int32 ForLODIndex, int32 SectionIndex);
 
+	ECheckBoxState IsSectionOpaque(int32 SectionIndex) const;
+	void OnSectionForceOpaqueFlagChanged(ECheckBoxState NewState, int32 SectionIndex);
+	
 	ECheckBoxState DoesSectionCastShadow(int32 SectionIndex) const;
 	void OnSectionCastShadowChanged(ECheckBoxState NewState, int32 SectionIndex);
 	ECheckBoxState DoesSectionCollide(int32 SectionIndex) const;

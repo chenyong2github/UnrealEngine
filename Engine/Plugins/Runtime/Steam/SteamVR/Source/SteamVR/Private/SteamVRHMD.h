@@ -178,8 +178,7 @@ public:
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 
 	// IStereoLayers interface
-	// Create/Set/Get/Destroy inherited from TStereoLayerManager
-	virtual void GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture) override;
+	// Create/Set/Get/Destroy and GetAllocatedTexture inherited from TStereoLayerManager
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
 
 	// ISceneViewExtension interface

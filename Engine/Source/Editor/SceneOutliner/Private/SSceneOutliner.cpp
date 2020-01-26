@@ -28,6 +28,7 @@
 #include "Textures/SlateIcon.h"
 #include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
+#include "UObject/PackageReload.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"

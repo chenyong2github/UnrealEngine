@@ -777,6 +777,13 @@ void FNiagaraEditorModule::StartupModule()
 	);
 
 	FNiagaraEditorStyle::Initialize();
+	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.NiagaraEditor.ReinitializeStyle"),
+		TEXT("Reinitializes the style for the niagara editor module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
+		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorModule::ReinitializeStyle));
+
+
+
 	FNiagaraEditorCommands::Register();
 
 	TSharedPtr<FNiagaraScriptGraphPanelPinFactory> GraphPanelPinFactory = MakeShareable(new FNiagaraScriptGraphPanelPinFactory());
@@ -907,6 +914,11 @@ void FNiagaraEditorModule::StartupModule()
 		return CompileScript(CompileRequest, Options);
 	}));
 
+	CompileResultHandle = NiagaraModule.RegisterCompileResultDelegate(INiagaraModule::FCheckCompilationResult::CreateLambda([this](int32 JobID, bool bWait)
+	{
+		return GetCompilationResult(JobID, bWait);
+	}));
+
 	PrecompilerHandle = NiagaraModule.RegisterPrecompiler(INiagaraModule::FOnPrecompile::CreateLambda([this](UObject* InObj)
 	{
 		return Precompile(InObj);
@@ -1008,6 +1020,7 @@ void FNiagaraEditorModule::ShutdownModule()
 		NiagaraModule->UnregisterMergeManager(ScriptMergeManager.ToSharedRef());
 		NiagaraModule->UnregisterEditorOnlyDataUtilities(EditorOnlyDataUtilities.ToSharedRef());
 		NiagaraModule->UnregisterScriptCompiler(ScriptCompilerHandle);
+		NiagaraModule->UnregisterCompileResultDelegate(CompileResultHandle);
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
 	}
 
@@ -1352,6 +1365,13 @@ void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
 		}
 	}
 }
+
+void FNiagaraEditorModule::ReinitializeStyle()
+{
+	FNiagaraEditorStyle::Shutdown();
+	FNiagaraEditorStyle::Initialize();
+}
+
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

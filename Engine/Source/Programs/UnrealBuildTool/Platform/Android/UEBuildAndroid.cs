@@ -105,13 +105,13 @@ namespace UnrealBuildTool
 			Target.bCompileNvCloth = false;
 
 			Target.bCompileRecast = true;
-			Target.bCompileISPC = true;
+			Target.bCompileISPC = false;
 		}
 
 		public override bool CanUseXGE()
 		{
 			// Disable when building on Linux
-			return BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux && !(Environment.GetEnvironmentVariable("IsBuildMachine") == "1");
+			return BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux;
 		}
 
 		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)

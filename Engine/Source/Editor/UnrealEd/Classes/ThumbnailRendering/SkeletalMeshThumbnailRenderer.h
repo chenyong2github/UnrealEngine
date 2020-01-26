@@ -15,20 +15,22 @@
 class FCanvas;
 class FRenderTarget;
 
-UCLASS(config=Editor, MinimalAPI)
-class USkeletalMeshThumbnailRenderer : public UDefaultSizedThumbnailRenderer
+UCLASS(config=Editor)
+class UNREALED_API USkeletalMeshThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 
 
 	// Begin UThumbnailRenderer Object
-	UNREALED_API virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas) override;
+	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas) override;
 	// End UThumbnailRenderer Object
 
 	// UObject implementation
-	UNREALED_API virtual void BeginDestroy() override;
+	virtual void BeginDestroy() override;
 
-private:
+	virtual void AddAdditionalPreviewSceneContent(UObject* Object, UWorld* PreviewWorld) {}
+
+protected:
 	class FSkeletalMeshThumbnailScene* ThumbnailScene;
 };
 

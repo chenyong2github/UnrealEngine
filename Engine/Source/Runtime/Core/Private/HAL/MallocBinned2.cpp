@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	MallocBinned.cpp: Binned memory allocator
-=============================================================================*/
-
 #include "HAL/MallocBinned2.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ScopeLock.h"
@@ -14,6 +10,8 @@
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if BINNED2_ALLOW_RUNTIME_TWEAKING
 
@@ -1053,8 +1051,8 @@ void FMallocBinned2::FlushCurrentThreadCache()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_FlushCurrentThreadCache);
 	FPerThreadFreeBlockLists* Lists = FPerThreadFreeBlockLists::Get();
 
-	float WaitForMutexTime = 0.0f;
-	float WaitForMutexAndTrimTime = 0.0f;
+	double WaitForMutexTime = 0.0;
+	double WaitForMutexAndTrimTime = 0.0;
 
 	if (Lists)
 	{
@@ -1309,3 +1307,5 @@ void FMallocBinned2::DumpAllocatorStats(class FOutputDevice& Ar)
 		#include "FMemory.inl"
 	#endif
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

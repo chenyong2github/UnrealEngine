@@ -10,4 +10,6 @@ namespace ChaosTest
 	template <typename T>
 	void SingleParticleProxyTaskGraphTest();
 
+	template <typename T>
+	void SingleParticleProxyWakeEventPropergationTest();
 }

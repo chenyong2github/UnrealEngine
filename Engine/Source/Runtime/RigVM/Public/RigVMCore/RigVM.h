@@ -6,6 +6,7 @@
 #include "RigVMMemory.h"
 #include "RigVMRegistry.h"
 #include "RigVMByteCode.h"
+#include "RigVMStatistics.h"
 #include "RigVM.generated.h"
 
 // The type of parameter for a VM
@@ -23,7 +24,7 @@ enum class ERigVMParameterType : uint8
  * used to set input parameters as well as retrieve output parameters.
  */
 USTRUCT(BlueprintType)
-struct FRigVMParameter
+struct RIGVM_API FRigVMParameter
 {
 	GENERATED_BODY()
 
@@ -37,6 +38,13 @@ public:
 		, ScriptStruct(nullptr)
 		, ScriptStructPath()
 	{
+	}
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMParameter& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
 	}
 
 	// returns true if the parameter is valid
@@ -110,8 +118,17 @@ public:
 	URigVM();
 	virtual ~URigVM();
 
-	// resets the container and removes all memory
+	// UObject interface
+	void Serialize(FArchive& Ar);
+
+	// resets the container and maintains all memory
 	void Reset();
+
+	// resets the container and removes all memory
+	void Empty();
+
+	// resets the container and clones the input VM
+	void CopyFrom(URigVM* InVM);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
@@ -129,6 +146,10 @@ public:
 	UFUNCTION()
 	int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName);
 
+	// Returns the name of a function given its index
+	UFUNCTION()
+	FString GetRigVMFunctionName(int32 InFunctionIndex) const;
+
 	// The default mutable work memory
 	UPROPERTY()
 	FRigVMMemoryContainer WorkMemory;
@@ -145,7 +166,10 @@ public:
 	const FRigVMInstructionArray& GetInstructions();
 
 	// Returns the parameters of the VM
-	const TArray<FRigVMParameter>& GetParameters();
+	const TArray<FRigVMParameter>& GetParameters() const;
+
+	// Returns a parameter given it's name
+	FRigVMParameter GetParameterByName(const FName& InParameterName);
 
 	// Adds a new input / output to the VM
 	template<class T>
@@ -202,31 +226,38 @@ public:
 
 	// Retrieve the value of a parameter
 	template<class T>
-	const T& GetParameterValue(const FRigVMParameter& InParameter, int32 InArrayIndex = 0)
+	T GetParameterValue(const FRigVMParameter& InParameter, int32 InArrayIndex = 0, T DefaultValue = T{})
 	{
-		return WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex];
+		if (InParameter.GetRegisterIndex() != INDEX_NONE)
+		{
+			return WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex];
+		}
+		return DefaultValue;
 	}
 
 	// Retrieve the value of a parameter given its index
 	template<class T>
-	const T& GetParameterValue(int32 InParameterIndex, int32 InArrayIndex = 0)
+	T GetParameterValue(int32 InParameterIndex, int32 InArrayIndex = 0, T DefaultValue = T{})
 	{
-		return GetParameterValue<T>(Parameters[InParameterIndex], InArrayIndex);
+		return GetParameterValue<T>(Parameters[InParameterIndex], InArrayIndex, DefaultValue);
 	}
 
 	// Retrieve the value of a parameter given its name
 	template<class T>
-	const T& GetParameterValue(const FName& InParameterName, int32 InArrayIndex = 0)
+	T GetParameterValue(const FName& InParameterName, int32 InArrayIndex = 0, T DefaultValue = T{})
 	{
 		int32 ParameterIndex = ParametersNameMap.FindChecked(InParameterName);
-		return GetParameterValue<T>(ParameterIndex, InArrayIndex);
+		return GetParameterValue<T>(ParameterIndex, InArrayIndex, DefaultValue);
 	}
 
 	// Set the value of a parameter
 	template<class T>
 	void SetParameterValue(const FRigVMParameter& InParameter, const T& InNewValue, int32 InArrayIndex = 0)
 	{
-		WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex] = InNewValue;
+		if (InParameter.GetRegisterIndex() != INDEX_NONE)
+		{
+			WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex] = InNewValue;
+		}
 	}
 
 	// Set the value of a parameter given its index
@@ -277,25 +308,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FVector2D GetParameterValueVector2D(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FVector2D>(InParameterName, InArrayIndex);
+		return GetParameterValue<FVector2D>(InParameterName, InArrayIndex, FVector2D::ZeroVector);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FVector GetParameterValueVector(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FVector>(InParameterName, InArrayIndex);
+		return GetParameterValue<FVector>(InParameterName, InArrayIndex, FVector::ZeroVector);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FQuat GetParameterValueQuat(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FQuat>(InParameterName, InArrayIndex);
+		return GetParameterValue<FQuat>(InParameterName, InArrayIndex, FQuat::Identity);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FTransform GetParameterValueTransform(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FTransform>(InParameterName, InArrayIndex);
+		return GetParameterValue<FTransform>(InParameterName, InArrayIndex, FTransform::Identity);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
@@ -352,6 +383,26 @@ public:
 		SetParameterValue<FTransform>(InParameterName, InValue, InArrayIndex);
 	}
 
+	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);
+
+	// returns the statistics information
+	FRigVMStatistics GetStatistics() const
+	{
+		FRigVMStatistics Statistics;
+		Statistics.LiteralMemory = LiteralMemory.GetStatistics();
+		Statistics.WorkMemory = WorkMemory.GetStatistics();
+		Statistics.ByteCode = ByteCode.GetStatistics();
+		Statistics.BytesForCaching = FirstPointerForInstruction.GetAllocatedSize() + CachedMemoryPointers.GetAllocatedSize();
+		Statistics.BytesForCDO =
+			Statistics.LiteralMemory.TotalBytes +
+			Statistics.WorkMemory.TotalBytes +
+			Statistics.ByteCode.DataBytes +
+			Statistics.BytesForCaching;
+		// Statistics.BytesPerInstance = Statistics.WorkMemory.DataBytes;
+		Statistics.BytesPerInstance = Statistics.BytesForCDO;
+		return Statistics;
+	}
+
 private:
 
 	FORCEINLINE FRigVMParameter AddPlainParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, const uint8* InPtr, uint16 InSize, int32 InArraySize)
@@ -386,12 +437,14 @@ private:
 
 	void ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
+	void InvalidateCachedMemory();
+	void CacheMemoryPointersIfRequired(FRigVMMemoryContainerPtrArray InMemory);
 
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
 
 	UPROPERTY()
-	TArray<FString> FunctionNames;
+	TArray<FName> FunctionNames;
 
 	TArray<FRigVMFunctionPtr> Functions;
 
@@ -400,6 +453,10 @@ private:
 
 	UPROPERTY()
 	TMap<FName, int32> ParametersNameMap;
+
+	TArray<uint32> FirstPointerForInstruction;
+	TArray<void*> CachedMemoryPointers;
+	TArray<FRigVMMemoryContainer*> CachedMemory;
 
 	friend class URigVMCompiler;
 };

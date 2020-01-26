@@ -199,9 +199,14 @@ public:
 		return StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 	}
 
-	bool DoesVertexBufferHaveExtraBoneInfluences() const
+	uint32 GetVertexBufferMaxBoneInfluences() const
 	{
-		return SkinWeightVertexBuffer.HasExtraBoneInfluences();
+		return SkinWeightVertexBuffer.GetMaxBoneInfluences();
+	}
+
+	bool DoesVertexBufferUse16BitBoneIndex() const
+	{
+		return SkinWeightVertexBuffer.Use16BitBoneIndex();
 	}
 
 	uint32 GetNumTexCoords() const

@@ -116,7 +116,7 @@ private:
 
 const FCompilerNativizationOptions& FBlueprintNativeCodeGenModule::GetNativizationOptionsForPlatform(const ITargetPlatform* Platform) const
 {
-	const FName PlatformName = ensure(Platform) ? Platform->GetPlatformInfo().PlatformInfoName : NAME_None;
+	const FName PlatformName = ensure(Platform) ? FName(*Platform->PlatformName()) : NAME_None;
 
 	const TUniquePtr<FBlueprintNativeCodeGenManifest>* Result = Manifests.Find(PlatformName);
 	if (ensure(Result && Result->IsValid()))

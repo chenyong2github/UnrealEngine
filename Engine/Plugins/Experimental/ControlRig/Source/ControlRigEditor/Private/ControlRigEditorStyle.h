@@ -63,6 +63,11 @@ public:
 
 			Set("ControlRig.ExecuteGraph", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon40x40));
 			Set("ControlRig.ExecuteGraph.Small", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon20x20));
+
+			Set("ControlRig.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon40x40));
+			Set("ControlRig.AutoCompileGraph.Small", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
+
+			Set("ControlRig.RigUnit.VisualDebug", new IMAGE_BRUSH("Slate/ControlRig_Unit_VisualDebug_40x", Icon40x40));
 		}
 
 		// Graph styles

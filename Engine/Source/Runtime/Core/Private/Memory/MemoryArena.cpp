@@ -7,6 +7,8 @@
 #include "Misc/ScopeRWLock.h"
 #include <atomic>
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 #if UE_WITH_HEAPARENA
 // dlmalloc for use in FHeapArena
 
@@ -113,7 +115,7 @@ static uint16 AllocArenaId(FMemoryArena* Arena)
 	Tracker.KnownArenas[NewArenaId].Arena	= Arena;
 	Tracker.NextFreeArenaIndex				= NextFree;
 
-	return NewArenaId;
+	return (uint16)NewArenaId;
 }
 
 static void FreeArenaId(uint16 ArenaId, FMemoryArena* Arena)
@@ -474,3 +476,5 @@ FMemoryArena* FArenaMap::MapPtrToArena(const void* VaBase)
 #endif
 
 //////////////////////////////////////////////////////////////////////////
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

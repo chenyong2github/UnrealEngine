@@ -69,7 +69,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			TEXTURE2DMIPMAP_PARAM(IOFilename) // Only used if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA is enabled
 			0,
 			MipMap.BulkData.GetBulkDataSize(),
-			bPrioritizedIORequest ? AIOP_BelowNormal : AIOP_Low,
+			bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low),
 			&AsyncFileCallBack,
 			(uint8*)MipData[MipIndex]);
 	}

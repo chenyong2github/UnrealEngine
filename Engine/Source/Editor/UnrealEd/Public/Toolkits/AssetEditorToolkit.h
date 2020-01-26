@@ -194,6 +194,7 @@ public:
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext);
 	FName GetToolMenuToolbarName() const;
 	FName GetToolMenuAppName() const;
+	FName GetToolMenuName() const;
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }

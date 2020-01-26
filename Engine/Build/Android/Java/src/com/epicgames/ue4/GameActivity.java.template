@@ -5132,7 +5132,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
 	{
-		return NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
+		boolean bPluginEnabled = false;
+//$${gameActivityAllowedRemoteNotificationsAdditions}$$
+		return bPluginEnabled && NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
 	}
 
 	public void AndroidThunkJava_SetDesiredViewSize(int width, int height)
@@ -5290,7 +5292,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 			String framesPerBuffer = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-			int framesPerBufferInt = Integer.parseInt(framesPerBuffer);
+			int framesPerBufferInt = framesPerBuffer == null ? 0 : Integer.parseInt(framesPerBuffer);
 			if (framesPerBufferInt == 0) framesPerBufferInt = 256; // Use default
 			Log.debug("[JAVA] audiomanager.framesPerBuffer = " + framesPerBufferInt);
 			return framesPerBufferInt;
@@ -5300,7 +5302,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 			String sampleRateStr = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-			int sampleRateInt = Integer.parseInt(sampleRateStr);
+			int sampleRateInt = sampleRateStr == null ? 0 : Integer.parseInt(sampleRateStr);
 			if (sampleRateInt == 0) sampleRateInt = 44100; // Use a default value if property not found
 			Log.debug("[JAVA] audiomanager.optimalSampleRate = " + sampleRateInt);
 			return sampleRateInt;

@@ -45,6 +45,26 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	return true;
 }
 
+template <typename TShaderType>
+static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
+{
+	const FBaseShaderResourceTable& SRT = Shader->ShaderResourceTable;
+
+	Shader->StaticSlots.Reserve(SRT.ResourceTableLayoutHashes.Num());
+
+	for (uint32 LayoutHash : SRT.ResourceTableLayoutHashes)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
+		{
+			Shader->StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			Shader->StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
+}
+
 FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
 {
 	FShaderCodeReader ShaderCode(Code);
@@ -63,6 +83,7 @@ FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 
 	Shader->Code = Code;
 	Shader->Offset = Offset;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
@@ -90,6 +111,7 @@ FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	}
 
 	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
@@ -117,6 +139,7 @@ FHullShaderRHIRef FD3D12DynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	}
 
 	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
@@ -144,6 +167,7 @@ FDomainShaderRHIRef FD3D12DynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 	}
 
 	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
@@ -171,6 +195,7 @@ FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(const TArray<uin
 	}
 
 	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
@@ -198,6 +223,7 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(const TArray<uint8
 	}
 
 	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
 	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;

@@ -37,10 +37,6 @@ void FRigUnit_AimConstraint::Execute(const FRigUnitContext& Context)
 				}
 			}
 		}
-		else
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
-		}
 	}
 	else if (Context.State == EControlRigState::Update)
 	{

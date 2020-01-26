@@ -81,10 +81,10 @@ protected:
 
 	/* Initialize property links from the source instance, in this case AnimInstance 
 	 * Compiler creates those properties during compile time */
-	void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass);
+	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass);
 
 	/* Propagate the Source Instances' properties to Target Instance*/
-	void PropagateInputProperties(const UObject* InSourceInstance);
+	virtual void PropagateInputProperties(const UObject* InSourceInstance);
 
 	/** Get Target Class */
 	virtual UClass* GetTargetClass() const PURE_VIRTUAL(FAnimNode_CustomProperty::GetTargetClass, return nullptr;);

@@ -6,6 +6,7 @@
 #include "../SceneTextureParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 
 uint SamplesPerPixel;
 float MaxRayDistance;
@@ -52,7 +53,14 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);	
+
+#if 0
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+#else
+	//#dxr-todo: workaround for flickering. UE-87281
+	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+#endif
+
 	float Depth = GBufferData.Depth;
 	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition = ReconstructWorldPositionFromDeviceZ(PixelCoord, DeviceZ);

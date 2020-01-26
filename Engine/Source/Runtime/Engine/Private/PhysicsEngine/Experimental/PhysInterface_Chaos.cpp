@@ -405,6 +405,7 @@ void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAct
 	if(Particle && Particle->ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		Particle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+		Particle->ClearEvents();
 	}
 }
 
@@ -675,36 +676,66 @@ void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHa
 
 void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddForce(InForce, InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			AddVelocity_AssumesLocked(InActorReference, Rigid->InvM() * InForce);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddTorque(InTorque, InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			AddAngularVelocityInRadians_AssumesLocked(InActorReference, Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->InvI()) * InTorque);
+		}
+	}
 }
 
-void FPhysInterface_Chaos::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
-{	
-	// #todo : Implement
-    //InActorReference.GetScene()->AddForce(InForce * InActorReference.GetScene()->Scene.GetSolver()->GetRigidParticles().M(InActorReference.GetScene()->GetIndexFromId(InActorReference.GetId())), InActorReference.GetId());
-	CHAOS_ENSURE(false);
-}
-
-void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque)
+void FPhysInterface_Chaos::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InVelocityDelta)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddTorque(InActorReference.GetScene()->Scene.GetSolver()->GetRigidParticles().I(InActorReference.GetScene()->GetIndexFromId(InActorReference.GetId())) * Chaos::TVector<float, 3>(InTorque), InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
+		if (ensure(Kinematic))
+		{
+			Kinematic->SetV(Kinematic->V() + InVelocityDelta);
+		}
+	}
+}
+
+void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InAngularVelocityDeltaRad)
+{
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
+		if (ensure(Kinematic))
+		{
+			// NOTE: Need to convert W to rad/sec?
+			Kinematic->SetW(Kinematic->W() + InAngularVelocityDeltaRad);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InImpulse, const FVector& InLocation)
 {
-    // @todo(mlentine): We don't currently have a way to apply an instantaneous force. Do we need this?
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+			const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM, InImpulse);
+			AddImpulse_AssumesLocked(InActorReference, InImpulse);
+			AddAngularImpulseInRadians_AssumesLocked(InActorReference, AngularImpulse);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange)
@@ -1568,7 +1599,7 @@ bool CalculateMassPropertiesOfImplicitType(
 		else
 		{
 			//question: is LocalTM enough to merge these two branches?
-			Chaos::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
+			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
 				OutMassProperties.Volume = Object.GetVolume();
 				OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
@@ -1790,7 +1821,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 							Chaos::TVector<float, 3> WorldPosition;
 							Chaos::TVector<float, 3> WorldNormal;
 							int32 FaceIdx;
-							if (Chaos::CastHelper(ShapeAdapter.GetGeometry(), ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::SweepQuery(*Shape->Geometry, FullActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
+							if (Chaos::Utilities::CastHelper(ShapeAdapter.GetGeometry(), ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::SweepQuery(*Shape->Geometry, FullActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
 							{
 								// we just like to make sure if the hit is made
 								FCollisionFilterData QueryFilter;
@@ -1850,7 +1881,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 			if (OutOptResult)
 			{
 				Chaos::FMTDInfo MTDInfo;
-				if (Chaos::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
+				if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
 				{
 					OutOptResult->Distance = MTDInfo.Penetration;
 					OutOptResult->Direction = MTDInfo.Normal;
@@ -1859,7 +1890,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 			}
 			else	//question: why do we even allow user to not pass in MTD info?
 			{
-				if (Chaos::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform); }))
+				if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform); }))
 				{
 					return true;
 				}
@@ -1915,7 +1946,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 
 			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape);
 
-			if (GeomType == ECollisionShapeType::Trimesh)
+			if (!Shape.GetGeometry().IsConvex())
 			{
 				// Type unsupported for this function, but some other shapes will probably work. 
 				continue;

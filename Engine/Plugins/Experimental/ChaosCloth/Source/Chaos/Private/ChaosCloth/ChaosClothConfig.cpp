@@ -54,13 +54,19 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 
 	AnimDriveSpringStiffness = FMath::Clamp(ClothConfig.AnimDriveSpringStiffness, 0.f, 1.f);
 
-	CoefficientOfFriction = FMath::Clamp(ClothConfig.Friction, 0.f, 10.f);
+	FrictionCoefficient = FMath::Clamp(ClothConfig.Friction, 0.f, 10.f);
 
 	bUseBendingElements = false;
 	bUseSelfCollisions = (ClothConfig.SelfCollisionRadius > 0.f && ClothConfig.SelfCollisionStiffness > 0.f);
 
 	StrainLimitingStiffness = FMath::Clamp(ClothConfig.TetherStiffness, 0.f, 1.f);
+	LimitScale = FMath::Clamp(ClothConfig.TetherLimit, 0.01f, 10.f);
 	ShapeTargetStiffness = 0.f;
+
+	DragCoefficient = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.5f;  // Only Accurate wind uses the WindDragCoefficient
+
+	const float Damping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
+	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
 }
 
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()
@@ -77,16 +83,13 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 
 	CollisionThickness = FMath::Clamp(ClothConfig.CollisionThickness, 0.f, 1000.f);
 
-	const float InDamping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
-	Damping = FMath::Clamp(InDamping * InDamping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
-
 	bUseGravityOverride = ClothConfig.bUseGravityOverride;
 
 	GravityScale = ClothConfig.GravityScale;
 
 	Gravity = ClothConfig.GravityOverride;
 
-	WindDrag = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.5f;  // Only Accurate wind uses the WindDragCoefficient
+	bUseDampingOverride = false;  // Damping is migrated to per cloth configs
 }
 
 void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)

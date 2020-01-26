@@ -38,19 +38,19 @@ public:
 	/** 
 	 * Calls the platform specific code to set the parameters that define reverb
 	 */
-	virtual void SetReverbEffectParameters( const FAudioReverbEffect& ReverbEffectParameters );
+	virtual void SetReverbEffectParameters(const FAudioEffectParameters& InEffectParameters);
 
 	/** 
 	 * Calls the platform specific code to set the parameters that define EQ
 	 */
-	virtual void SetEQEffectParameters( const FAudioEQEffect& ReverbEffectParameters );
+	virtual void SetEQEffectParameters(const FAudioEffectParameters& InEffectParameters);
 
 	/** 
 	 * Calls the platform specific code to set the parameters that define a radio effect.
 	 * 
 	 * @param	RadioEffectParameters	The new parameters for the radio distortion effect. 
 	 */
-	virtual void SetRadioEffectParameters( const FAudioRadioEffect& RadioEffectParameters );
+	virtual void SetRadioEffectParameters(const FAudioEffectParameters& InEffectParameters);
 
 private:
 	/** 

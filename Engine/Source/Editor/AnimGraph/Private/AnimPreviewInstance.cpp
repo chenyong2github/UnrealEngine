@@ -4,6 +4,7 @@
 #include "AnimPreviewInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimSequence.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -412,7 +413,7 @@ void FAnimPreviewInstanceProxy::SetKeyImplementation(const FCompactPose& PreCont
 
 		ResetModifiedBone(false);
 
-		OnSetKeyCompleteDelegate.ExecuteIfBound();
+		OnSetKeyCompleteDelegate.Broadcast();
 	}
 #endif
 }
@@ -518,20 +519,24 @@ void UAnimPreviewInstance::ResetModifiedBone(bool bCurveController/*=false*/)
 	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().ResetModifiedBone(bCurveController);
 }
 
-void UAnimPreviewInstance::SetKey(FSimpleDelegate InOnSetKeyCompleteDelegate)
-{
-	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().SetKey(InOnSetKeyCompleteDelegate);
-}
+#if WITH_EDITOR	
 
 void UAnimPreviewInstance::SetKey()
 {
 	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().SetKey();
 }
 
-void UAnimPreviewInstance::SetKeyCompleteDelegate(FSimpleDelegate InOnSetKeyCompleteDelegate)
+FDelegateHandle UAnimPreviewInstance::AddKeyCompleteDelegate(FSimpleMulticastDelegate::FDelegate InOnSetKeyCompleteDelegate)
 {
-	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().SetKeyCompleteDelegate(InOnSetKeyCompleteDelegate);
+	return GetProxyOnGameThread<FAnimPreviewInstanceProxy>().AddKeyCompleteDelegate(InOnSetKeyCompleteDelegate);
 }
+
+void UAnimPreviewInstance::RemoveKeyCompleteDelegate(FDelegateHandle InDelegateHandle)
+{
+	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().RemoveKeyCompleteDelegate(InDelegateHandle);
+}
+
+#endif
 
 void UAnimPreviewInstance::RefreshCurveBoneControllers()
 {
@@ -703,7 +708,7 @@ void UAnimPreviewInstance::MontagePreview_StepForward()
 		// Add DELTA to prefer next frame when we're close to the boundary
 		float CurrentFraction = Proxy.GetCurrentTime() / Montage->SequenceLength + DELTA;
 		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) + 1.0f, 0, NumFrames);
-		float NewTime = Montage->SequenceLength * (NextFrame / NumFrames);
+		float NewTime = Montage->SequenceLength * (NextFrame / (NumFrames-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(NewTime - Proxy.GetCurrentTime(), false);
@@ -759,7 +764,7 @@ void UAnimPreviewInstance::MontagePreview_StepBackward()
 		// Add DELTA to prefer next frame when we're close to the boundary
 		float CurrentFraction = Proxy.GetCurrentTime() / Montage->SequenceLength + DELTA;
 		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) - 1.0f, 0, NumFrames);
-		float NewTime = Montage->SequenceLength * (NextFrame / NumFrames);
+		float NewTime = Montage->SequenceLength * (NextFrame / (NumFrames-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(FMath::Abs(NewTime - Proxy.GetCurrentTime()), false);

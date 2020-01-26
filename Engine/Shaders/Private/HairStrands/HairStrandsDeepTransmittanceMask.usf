@@ -60,12 +60,12 @@ float				LightRadius;
 float				DeepShadow_KernelAperture;
 uint				DeepShadow_KernelType;
 uint				DeepShadow_DebugMode;
-int2				DeepShadow_AtlasSlotOffsets[MAX_HAIR_MACROGROUP_COUNT];
+int4				DeepShadow_AtlasSlotOffsets[MAX_HAIR_MACROGROUP_COUNT];
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
 
-float3				Voxel_MinAABBs[MAX_HAIR_MACROGROUP_COUNT];
-float3				Voxel_MaxAABBs[MAX_HAIR_MACROGROUP_COUNT];
+float4				Voxel_MinAABBs[MAX_HAIR_MACROGROUP_COUNT];
+float4				Voxel_MaxAABBs[MAX_HAIR_MACROGROUP_COUNT];
 uint				Voxel_Resolution;
 Texture3D<uint> 	Voxel_DensityTexture0;
 Texture3D<uint> 	Voxel_DensityTexture1;

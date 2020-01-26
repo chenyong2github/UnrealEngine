@@ -24,6 +24,37 @@ void FRDGPassParameterStruct::ClearUniformBuffers() const
 	}
 }
 
+FUniformBufferStaticBindings FRDGPassParameterStruct::GetGlobalUniformBuffers() const
+{
+	FUniformBufferStaticBindings GlobalUniformBuffers;
+
+	const auto& Resources = Layout->Resources;
+
+	for (int32 ResourceIndex = 0; ResourceIndex < Resources.Num(); ++ResourceIndex)
+	{
+		const EUniformBufferBaseType MemberType = Resources[ResourceIndex].MemberType;
+
+		if (MemberType == UBMT_REFERENCED_STRUCT)
+		{
+			const uint16 MemberOffset = Resources[ResourceIndex].MemberOffset;
+
+			FRHIUniformBuffer* UniformBufferPtr = *reinterpret_cast<FUniformBufferRHIRef*>(Contents + MemberOffset);
+
+			if (UniformBufferPtr)
+			{
+				const FUniformBufferStaticSlot StaticSlot = UniformBufferPtr->GetLayout().StaticSlot;
+
+				if (IsUniformBufferStaticSlotValid(StaticSlot))
+				{
+					GlobalUniformBuffers.AddUniformBuffer(UniformBufferPtr);
+				}
+			}
+		}
+	}
+
+	return GlobalUniformBuffers;
+}
+
 FRDGPass::FRDGPass(
 	FRDGEventName&& InName,
 	FRDGPassParameterStruct InParameterStruct,
@@ -35,6 +66,9 @@ FRDGPass::FRDGPass(
 
 void FRDGPass::Execute(FRHICommandListImmediate& RHICmdList) const
 {
+	FUniformBufferStaticBindings GlobalUniformBuffers = ParameterStruct.GetGlobalUniformBuffers();
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 	ExecuteImpl(RHICmdList);
 
 	ParameterStruct.ClearUniformBuffers();

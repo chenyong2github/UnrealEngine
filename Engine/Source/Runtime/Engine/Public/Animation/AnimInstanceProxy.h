@@ -772,7 +772,7 @@ protected:
 	void InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode);
 
 	/** Manually add object references to GC */
-	void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
 
 	/** Allow nodes to register log messages to be processed on the game thread */
 	void LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const;
@@ -795,6 +795,13 @@ protected:
 
 	/** Add a curve value */
 	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);
+
+	/** Custom proxy Init/Cache/Update/Evaluate functions */
+	static void InitializeInputProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance);
+	static void GatherInputProxyDebugData(FAnimInstanceProxy* InputProxy, FNodeDebugData& DebugData);
+	static void CacheBonesInputProxy(FAnimInstanceProxy* InputProxy);
+	static void UpdateInputProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context);
+	static void EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
 
 private:
 	/** The component to world transform of the component we are running on */

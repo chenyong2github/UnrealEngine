@@ -7,6 +7,7 @@
 #include "../SceneTextureParameters.ush"
 
 #include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingGatherPoints.ush"
 
@@ -49,7 +50,14 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
+
+#if 0
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+#else
+	//#dxr-todo: workaround for flickering. UE-87281
+	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+#endif
+
 	// Remap DiffuseColor when using SubsurfaceProfile (GBuffer decoding replaces with 100% albedo)
 	if (UseSubsurfaceProfile(GBufferData.ShadingModelID))
 	{

@@ -131,6 +131,7 @@ public:
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes) const override;
 	virtual FText GetDisplayName() const override;
 	virtual FLinearColor GetDisplayNameColor() const override;
+	virtual FSlateFontInfo GetDisplayNameFont() const override;
 	virtual float GetNodeHeight() const override;
 	virtual FNodePadding GetNodePadding() const override;
 	virtual ESequencerNode::Type GetType() const override;

@@ -409,6 +409,7 @@ public:
 		CulledObjectBounds.Bind(ParameterMap, TEXT("CulledObjectBounds"));
 		CulledObjectData.Bind(ParameterMap, TEXT("CulledObjectData"));
 		CulledObjectBoxBounds.Bind(ParameterMap, TEXT("CulledObjectBoxBounds"));
+		HFVisibilityTexture.Bind(ParameterMap, TEXT("HFVisibilityTexture"));
 		DistanceFieldTexture.Bind(ParameterMap, TEXT("DistanceFieldTexture"));
 		DistanceFieldSampler.Bind(ParameterMap, TEXT("DistanceFieldSampler"));
 		DistanceFieldAtlasTexelSize.Bind(ParameterMap, TEXT("DistanceFieldAtlasTexelSize"));
@@ -420,9 +421,8 @@ public:
 		TShaderRHI* ShaderRHI,
 		const TDistanceFieldCulledObjectBuffers<PrimitiveType>& ObjectBuffers,
 		FRHITexture* TextureAtlas,
-		int32 AtlasSizeX,
-		int32 AtlasSizeY,
-		int32 AtlasSizeZ)
+		const FIntVector& AtlasSizes,
+		FRHITexture* HFVisibilityAtlas = nullptr)
 	{
 		ObjectIndirectArguments.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.ObjectIndirectArguments);
 		CulledObjectBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.Bounds);
@@ -443,9 +443,15 @@ public:
 			TextureAtlas
 			);
 
-		const int32 NumTexelsOneDimX = AtlasSizeX;
-		const int32 NumTexelsOneDimY = AtlasSizeY;
-		const int32 NumTexelsOneDimZ = AtlasSizeZ;
+		if (HFVisibilityTexture.IsBound())
+		{
+			check(HFVisibilityAtlas);
+			SetTextureParameter(RHICmdList, ShaderRHI, HFVisibilityTexture, HFVisibilityAtlas);
+		}
+
+		const int32 NumTexelsOneDimX = AtlasSizes.X;
+		const int32 NumTexelsOneDimY = AtlasSizes.Y;
+		const int32 NumTexelsOneDimZ = AtlasSizes.Z;
 		const FVector InvTextureDim(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
 		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldAtlasTexelSize, InvTextureDim);
 	}
@@ -494,7 +500,14 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, TDistanceFieldCulledObjectBufferParameters<PrimitiveType>& P)
 	{
-		Ar << P.ObjectIndirectArguments << P.CulledObjectBounds << P.CulledObjectData << P.CulledObjectBoxBounds << P.DistanceFieldTexture << P.DistanceFieldSampler << P.DistanceFieldAtlasTexelSize;
+		Ar << P.ObjectIndirectArguments;
+		Ar << P.CulledObjectBounds;
+		Ar << P.CulledObjectData;
+		Ar << P.CulledObjectBoxBounds;
+		Ar << P.HFVisibilityTexture;
+		Ar << P.DistanceFieldTexture;
+		Ar << P.DistanceFieldSampler;
+		Ar << P.DistanceFieldAtlasTexelSize;
 		return Ar;
 	}
 
@@ -503,6 +516,7 @@ private:
 	FRWShaderParameter CulledObjectBounds;
 	FRWShaderParameter CulledObjectData;
 	FRWShaderParameter CulledObjectBoxBounds;
+	FShaderResourceParameter HFVisibilityTexture;
 	FShaderResourceParameter DistanceFieldTexture;
 	FShaderResourceParameter DistanceFieldSampler;
 	FShaderParameter DistanceFieldAtlasTexelSize;
@@ -569,12 +583,12 @@ public:
 	{
 		TileAlignedDimensions = FIntPoint(Align(TileDimensions.X, 64), Align(TileDimensions.Y, 64));
 			
-		TileNumCulledObjects.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static);
-		TileStartOffsets.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static);
-		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static);
+		TileNumCulledObjects.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileNumCulledObjects"));
+		TileStartOffsets.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileStartOffsets"));
+		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::NextStartOffset"));
 
 		//@todo - handle max exceeded
-		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), MaxNumObjectsPerTile * TileAlignedDimensions.X * TileAlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static);
+		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), MaxNumObjectsPerTile * TileAlignedDimensions.X * TileAlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileArrayData"));
 	}
 
 	void Release()

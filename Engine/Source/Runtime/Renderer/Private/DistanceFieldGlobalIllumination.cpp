@@ -153,7 +153,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GShadowCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GShadowCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		SetShaderValue(RHICmdList, ShaderRHI, InvPlacementGridSize, InvPlacementGridSizeValue);
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowValue);
@@ -384,7 +384,7 @@ void PlaceVPLs(
 	GVPLResources.AllocateFor(GVPLGridDimension * GVPLGridDimension);
 
 	{
-		ClearUAV(RHICmdList, GVPLResources.VPLParameterBuffer, 0);
+		RHICmdList.ClearUAVUint(GVPLResources.VPLParameterBuffer.UAV, FUintVector4(0, 0, 0, 0));
 	}
 
 	const FLightSceneProxy* DirectionalLightProxy = NULL;
@@ -542,7 +542,7 @@ void PlaceVPLs(
 			{
 				GCulledVPLResources.AllocateFor(GVPLGridDimension * GVPLGridDimension);
 
-				ClearUAV(RHICmdList, GCulledVPLResources.VPLParameterBuffer, 0);
+				RHICmdList.ClearUAVUint(GCulledVPLResources.VPLParameterBuffer.UAV, FUintVector4(0, 0, 0, 0));
 
 				TShaderMapRef<FCullVPLsForViewCS> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
@@ -603,7 +603,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		SetShaderValue(RHICmdList, ShaderRHI, ObjectProcessStride, GVPLSpreadUpdateOver);
 	}
@@ -700,7 +700,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 		SurfelParameters.Set(RHICmdList, ShaderRHI, *Scene->DistanceFieldSceneData.SurfelBuffers, *Scene->DistanceFieldSceneData.InstancedSurfelBuffers);
 
 		FLightShaderParameters LightParameters;
@@ -890,7 +890,7 @@ void UpdateVPLs(
 			}
 			else
 			{
-				ClearUAV(RHICmdList, Scene->DistanceFieldSceneData.InstancedSurfelBuffers->VPLFlux, 0);
+				RHICmdList.ClearUAVFloat(Scene->DistanceFieldSceneData.InstancedSurfelBuffers->VPLFlux.UAV, FVector4(0, 0, 0, 0));
 			}
 		}
 		else
@@ -1063,7 +1063,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
@@ -1213,8 +1213,8 @@ void ComputeIrradianceForScreenGrid(
 	const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor, GScreenGridIrradianceThreadGroupSizeX);
 	const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GScreenGridIrradianceThreadGroupSizeX);
 
-	ClearUAV(RHICmdList, ScreenGridResources.HeightfieldIrradiance, 0);
-	ClearUAV(RHICmdList, ScreenGridResources.SurfelIrradiance, 0);
+	RHICmdList.ClearUAVFloat(ScreenGridResources.HeightfieldIrradiance.UAV, FVector4(0, 0, 0, 0));
+	RHICmdList.ClearUAVFloat(ScreenGridResources.SurfelIrradiance.UAV, FVector4(0, 0, 0, 0));
 
 	View.HeightfieldLightingViewInfo.
 		ComputeIrradianceForScreenGrid(View, RHICmdList, DistanceFieldNormal, ScreenGridResources, Parameters);

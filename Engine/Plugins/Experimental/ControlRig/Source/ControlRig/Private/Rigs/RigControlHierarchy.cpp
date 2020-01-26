@@ -6,6 +6,151 @@
 #include "Settings/ControlRigSettings.h"
 
 ////////////////////////////////////////////////////////////////////////////////
+// FRigControl
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigControl::ApplyLimits(FRigControlValue& InOutValue)
+{
+	if (!bLimitTranslation && !bLimitRotation && !bLimitScale)
+	{
+		return;
+	}
+
+	switch(ControlType)
+	{
+		case ERigControlType::Float:
+		{
+			if (bLimitTranslation)
+			{
+				float& ValueRef = InOutValue.GetRef<float>();
+				ValueRef = Clamp(ValueRef, MinimumValue.Get<float>(), MaximumValue.Get<float>());
+			}
+			break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			if (bLimitTranslation)
+			{
+				FVector2D& ValueRef = InOutValue.GetRef<FVector2D>();
+				const FVector2D& Min = MinimumValue.GetRef<FVector2D>();
+				const FVector2D& Max = MaximumValue.GetRef<FVector2D>();
+				ValueRef.X = Clamp(ValueRef.X, Min.X, Max.X);
+				ValueRef.Y = Clamp(ValueRef.Y, Min.Y, Max.Y);
+			}
+			break;
+		}
+		case ERigControlType::Position:
+		{
+			if (bLimitTranslation)
+			{
+				FVector& ValueRef = InOutValue.GetRef<FVector>();
+				const FVector& Min = MinimumValue.GetRef<FVector>();
+				const FVector& Max = MaximumValue.GetRef<FVector>();
+				ValueRef.X = Clamp(ValueRef.X, Min.X, Max.X);
+				ValueRef.Y = Clamp(ValueRef.Y, Min.Y, Max.Y);
+				ValueRef.Z = Clamp(ValueRef.Z, Min.Z, Max.Z);
+			}
+			break;
+		}
+		case ERigControlType::Scale:
+		{
+			if (bLimitScale)
+			{
+				FVector& ValueRef = InOutValue.GetRef<FVector>();
+				const FVector& Min = MinimumValue.GetRef<FVector>();
+				const FVector& Max = MaximumValue.GetRef<FVector>();
+				ValueRef.X = Clamp(ValueRef.X, Min.X, Max.X);
+				ValueRef.Y = Clamp(ValueRef.Y, Min.Y, Max.Y);
+				ValueRef.Z = Clamp(ValueRef.Z, Min.Z, Max.Z);
+			}
+			break;
+		}
+		case ERigControlType::Rotator:
+		{
+			if (bLimitRotation)
+			{
+				FRotator& ValueRef = InOutValue.GetRef<FRotator>();
+				const FRotator& Min = MinimumValue.GetRef<FRotator>();
+				const FRotator& Max = MaximumValue.GetRef<FRotator>();
+				ValueRef.Pitch = Clamp(ValueRef.Pitch, Min.Pitch, Max.Pitch);
+				ValueRef.Yaw = Clamp(ValueRef.Yaw, Min.Yaw, Max.Yaw);
+				ValueRef.Roll = Clamp(ValueRef.Roll, Min.Roll, Max.Roll);
+			}
+			break;
+		}
+		case ERigControlType::Transform:
+		{
+			FTransform& ValueRef = InOutValue.GetRef<FTransform>();
+			const FTransform& Min = MinimumValue.GetRef<FTransform>();
+			const FTransform& Max = MaximumValue.GetRef<FTransform>();
+
+			if (bLimitTranslation)
+			{
+				ValueRef.SetLocation(FVector(
+					Clamp(ValueRef.GetLocation().X, Min.GetLocation().X, Max.GetLocation().X),
+					Clamp(ValueRef.GetLocation().Y, Min.GetLocation().Y, Max.GetLocation().Y),
+					Clamp(ValueRef.GetLocation().Z, Min.GetLocation().Z, Max.GetLocation().Z)
+				));
+			}
+			if (bLimitRotation)
+			{
+				FRotator Rotator = ValueRef.GetRotation().Rotator();
+				FRotator MinRotator = Min.GetRotation().Rotator();
+				FRotator MaxRotator = Max.GetRotation().Rotator();
+
+				ValueRef.SetRotation(FQuat(FRotator(
+					Clamp(Rotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch),
+					Clamp(Rotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw),
+					Clamp(Rotator.Roll, MinRotator.Roll, MaxRotator.Roll)
+				)));
+			}
+			if (bLimitScale)
+			{
+				ValueRef.SetScale3D(FVector(
+					Clamp(ValueRef.GetScale3D().X, Min.GetScale3D().X, Max.GetScale3D().X),
+					Clamp(ValueRef.GetScale3D().Y, Min.GetScale3D().Y, Max.GetScale3D().Y),
+					Clamp(ValueRef.GetScale3D().Z, Min.GetScale3D().Z, Max.GetScale3D().Z)
+				));
+			}
+			break;
+		}
+		case ERigControlType::TransformNoScale:
+		{
+			FTransformNoScale& ValueRef = InOutValue.GetRef<FTransformNoScale>();
+			const FTransformNoScale& Min = MinimumValue.GetRef<FTransformNoScale>();
+			const FTransformNoScale& Max = MaximumValue.GetRef<FTransformNoScale>();
+
+			if (bLimitTranslation)
+			{
+				ValueRef.Location = FVector(
+					Clamp(ValueRef.Location.X, Min.Location.X, Max.Location.X),
+					Clamp(ValueRef.Location.Y, Min.Location.Y, Max.Location.Y),
+					Clamp(ValueRef.Location.Z, Min.Location.Z, Max.Location.Z)
+				);
+			}
+			if (bLimitRotation)
+			{
+				FRotator Rotator = ValueRef.Rotation.Rotator();
+				FRotator MinRotator = Min.Rotation.Rotator();
+				FRotator MaxRotator = Max.Rotation.Rotator();
+
+				ValueRef.Rotation = FQuat(FRotator(
+					Clamp(Rotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch),
+					Clamp(Rotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw),
+					Clamp(Rotator.Roll, MinRotator.Roll, MaxRotator.Roll)
+				));
+			}
+			break;
+		}
+		case ERigControlType::Bool:
+		default:
+		{
+			break;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FRigControlHierarchy
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -55,12 +200,10 @@ FRigControl& FRigControlHierarchy::Add(
 	ERigControlType InControlType,
 	const FName& InParentName,
 	const FName& InSpaceName,
-	const FRigControlValue& InValue
-#if WITH_EDITORONLY_DATA
-	,const FName& InGizmoName,
+	const FRigControlValue& InValue,
+	const FName& InGizmoName,
 	const FTransform& InGizmoTransform,
 	const FLinearColor& InGizmoColor
-#endif
 )
 {
 	FRigControl NewControl;
@@ -71,12 +214,10 @@ FRigControl& FRigControlHierarchy::Add(
 	NewControl.SpaceIndex = INDEX_NONE;
 	NewControl.SpaceName = NAME_None;
 	NewControl.InitialValue = InValue;
-	NewControl.Value = InValue;
-#if WITH_EDITORONLY_DATA
+	NewControl.Value = FRigControlValue();
 	NewControl.GizmoName = InGizmoName;
 	NewControl.GizmoTransform = InGizmoTransform;
 	NewControl.GizmoColor = InGizmoColor;
-#endif
 
 	FName NewControlName = NewControl.Name;
 	Controls.Add(NewControl);
@@ -297,84 +438,209 @@ FTransform FRigControlHierarchy::GetGlobalTransform(int32 InIndex) const
 
 	if (Controls.IsValidIndex(InIndex))
 	{
-		const FRigControl& Control = Controls[InIndex];
-
 		FTransform ParentTransform = GetParentTransform(InIndex);
-		switch (Control.ControlType)
-		{
-			case ERigControlType::Bool:
-			case ERigControlType::Float:
-			case ERigControlType::Vector2D:
-			{
-				return ParentTransform;
-			}
-			case ERigControlType::Position:
-			{
-				FTransform Transform;
-				Transform.SetLocation(Control.Value.Get<FVector>());
-				Transform = Transform * ParentTransform;
-				Transform.NormalizeRotation();
-				return Transform;
-			}
-			case ERigControlType::Scale:
-			{
-				FTransform Transform;
-				Transform.SetScale3D(Control.Value.Get<FVector>());
-				Transform = Transform * ParentTransform;
-				Transform.NormalizeRotation();
-				return Transform;
-			}
-			case ERigControlType::Quat:
-			{
-				FTransform Transform;
-				Transform.SetRotation(Control.Value.Get<FQuat>());
-				Transform = Transform * ParentTransform;
-				Transform.NormalizeRotation();
-				return Transform;
-			}
-			case ERigControlType::Rotator:
-			{
-				FTransform Transform;
-				Transform.SetRotation(FQuat(Control.Value.Get<FRotator>()));
-				Transform = Transform * ParentTransform;
-				Transform.NormalizeRotation();
-				return Transform;
-			}
-			case ERigControlType::Transform:
-			{
-				FTransform Transform = Control.Value.Get<FTransform>() * ParentTransform;
-				Transform.NormalizeRotation();
-				return Transform;
-			}
-			default:
-			{
-				ensure(false);
-				break;
-			}
-		}
+		FTransform Transform = GetLocalTransform(InIndex) * ParentTransform;
+		Transform.NormalizeRotation();
+		return Transform;
 	}
 
 	return FTransform::Identity;
 }
 
-void FRigControlHierarchy::SetLocalTransform(const FName& InName, const FTransform& InTransform)
+void FRigControlHierarchy::SetLocalTransform(const FName& InName, const FTransform& InTransform, ERigControlValueType InValueType)
 {
-	SetValue<FTransform>(InName, InTransform);
+	SetLocalTransform(GetIndex(InName), InTransform, InValueType);
 }
 
-void FRigControlHierarchy::SetLocalTransform(int32 InIndex, const FTransform& InTransform)
+void FRigControlHierarchy::SetLocalTransform(int32 InIndex, const FTransform& InTransform, ERigControlValueType InValueType)
 {
-	SetValue<FTransform>(InIndex, InTransform);
+	const FRigControl& Control = Controls[InIndex];
+	switch (Control.ControlType)
+	{
+		case ERigControlType::Bool:
+		{
+			SetValue<bool>(InIndex, InTransform.GetLocation().X > SMALL_NUMBER, InValueType);
+			break;
+		}
+		case ERigControlType::Float:
+		{
+			switch (Control.PrimaryAxis)
+			{
+				case ERigControlAxis::X:
+				{
+					SetValue<float>(InIndex, InTransform.GetLocation().X, InValueType);
+					break;
+				}
+				case ERigControlAxis::Y:
+				{
+					SetValue<float>(InIndex, InTransform.GetLocation().Y, InValueType);
+					break;
+				}
+				case ERigControlAxis::Z:
+				{
+					SetValue<float>(InIndex, InTransform.GetLocation().Z, InValueType);
+					break;
+				}
+			}
+			break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			FVector Location = InTransform.GetLocation();
+			switch (Control.PrimaryAxis)
+			{
+				case ERigControlAxis::X:
+				{
+					SetValue<FVector2D>(InIndex, FVector2D(Location.Y, Location.Z), InValueType);
+					break;
+				}
+				case ERigControlAxis::Y:
+				{
+					SetValue<FVector2D>(InIndex, FVector2D(Location.X, Location.Z), InValueType);
+					break;
+				}
+				case ERigControlAxis::Z:
+				{
+					SetValue<FVector2D>(InIndex, FVector2D(Location.X, Location.Y), InValueType);
+					break;
+				}
+			}
+			break;
+		}
+		case ERigControlType::Position:
+		{
+			SetValue<FVector>(InIndex, InTransform.GetLocation(), InValueType);
+			break;
+		}
+		case ERigControlType::Scale:
+		{
+			SetValue<FVector>(InIndex, InTransform.GetScale3D(), InValueType);
+			break;
+		}
+		case ERigControlType::Rotator:
+		{
+			SetValue<FRotator>(InIndex, InTransform.GetRotation().Rotator(), InValueType);
+			break;
+		}
+		case ERigControlType::Transform:
+		{
+			SetValue<FTransform>(InIndex, InTransform, InValueType);
+			break;
+		}
+		case ERigControlType::TransformNoScale:
+		{
+			FTransformNoScale NoScale = InTransform;
+			SetValue<FTransformNoScale>(InIndex, NoScale, InValueType);
+			break;
+		}
+		default:
+		{
+			ensure(false);
+			break;
+		}
+	}
 }
 
-FTransform FRigControlHierarchy::GetLocalTransform(const FName& InName) const
+FTransform FRigControlHierarchy::GetLocalTransform(const FName& InName, ERigControlValueType InValueType) const
 {
-	return GetValue<FTransform>(InName);
+	return GetLocalTransform(GetIndex(InName), InValueType);
 }
 
-FTransform FRigControlHierarchy::GetLocalTransform(int32 InIndex) const
+FTransform FRigControlHierarchy::GetLocalTransform(int32 InIndex, ERigControlValueType InValueType) const
 {
-	return GetValue<FTransform>(InIndex);
+	const FRigControl& Control = Controls[InIndex];
+	switch (Control.ControlType)
+	{
+		case ERigControlType::Bool:
+		{
+			FTransform Transform;
+			Transform.SetLocation(FVector(Control.GetValue(InValueType).Get<bool>() ? 1.f : 0.f, 0.f, 0.f));
+			return Transform;
+		}
+		case ERigControlType::Float:
+		{
+			float Value = Control.GetValue(InValueType).Get<float>();
+			FTransform Transform = FTransform::Identity;
+			switch (Control.PrimaryAxis)
+			{
+				case ERigControlAxis::X:
+				{
+					Transform.SetLocation(FVector(Value, 0.f, 0.f));
+					break;
+				}
+				case ERigControlAxis::Y:
+				{
+					Transform.SetLocation(FVector(0.f, Value, 0.f));
+					break;
+				}
+				case ERigControlAxis::Z:
+				{
+					Transform.SetLocation(FVector(0.f, 0.f, Value));
+					break;
+				}
+			}
+			return Transform;
+		}
+		case ERigControlType::Vector2D:
+		{
+			FVector2D Value = Control.GetValue(InValueType).Get<FVector2D>();
+			FTransform Transform = FTransform::Identity;
+			switch (Control.PrimaryAxis)
+			{
+				case ERigControlAxis::X:
+				{
+					Transform.SetLocation(FVector(0.f, Value.X, Value.Y));
+					break;
+				}
+				case ERigControlAxis::Y:
+				{
+					Transform.SetLocation(FVector(Value.X, 0.f, Value.Y));
+					break;
+				}
+				case ERigControlAxis::Z:
+				{
+					Transform.SetLocation(FVector(Value.X, Value.Y, 0.f));
+					break;
+				}
+			}
+			return Transform;
+		}
+		case ERigControlType::Position:
+		{
+			FTransform Transform;
+			Transform.SetLocation(Control.GetValue(InValueType).Get<FVector>());
+			return Transform;
+		}
+		case ERigControlType::Scale:
+		{
+			FTransform Transform;
+			Transform.SetScale3D(Control.GetValue(InValueType).Get<FVector>());
+			return Transform;
+		}
+		case ERigControlType::Rotator:
+		{
+			FTransform Transform;
+			Transform.SetRotation(FQuat(Control.GetValue(InValueType).Get<FRotator>()));
+			return Transform;
+		}
+		case ERigControlType::Transform:
+		{
+			return Control.GetValue(InValueType).Get<FTransform>();
+		}
+		case ERigControlType::TransformNoScale:
+		{
+			FTransformNoScale TransformNoScale = Control.GetValue(InValueType).Get<FTransformNoScale>();
+			FTransform Transform = TransformNoScale;
+			Transform.NormalizeRotation();
+			return Transform;
+		}
+		default:
+		{
+			ensure(false);
+			break;
+		}
+	}
+	return FTransform::Identity;
 }
 
 FTransform FRigControlHierarchy::GetParentTransform(int32 InIndex) const
@@ -391,81 +657,50 @@ FTransform FRigControlHierarchy::GetParentTransform(int32 InIndex) const
 		ParentTransform = GetGlobalTransform(Control.ParentIndex);
 	}
 
-	return ParentTransform;
+	return GetLocalTransform(InIndex, ERigControlValueType::Initial) * ParentTransform;
 }
 
-void FRigControlHierarchy::SetValue(const FName& InName, const FRigControlValue& InValue)
+void FRigControlHierarchy::SetValue(const FName& InName, const FRigControlValue& InValue, ERigControlValueType InValueType)
 {
-	SetValue(GetIndex(InName), InValue);
+	SetValue(GetIndex(InName), InValue, InValueType);
 }
 
-void FRigControlHierarchy::SetValue(int32 InIndex, const FRigControlValue& InValue)
-{
-	if (Controls.IsValidIndex(InIndex))
-	{
-		FRigControl& Control = Controls[InIndex];
-		Control.Value = InValue;
-
-		if (Control.ControlType == ERigControlType::Transform)
-		{
-			Control.Value.GetRef<FTransform>().NormalizeRotation();
-		}
-		else if (Control.ControlType == ERigControlType::Quat)
-		{
-			Control.Value.GetRef<FQuat>().Normalize();
-		}
-	}
-}
-
-FRigControlValue FRigControlHierarchy::GetValue(const FName& InName) const
-{
-	return GetValue(GetIndex(InName));
-}
-
-FRigControlValue FRigControlHierarchy::GetValue(int32 InIndex) const
-{
-	if (Controls.IsValidIndex(InIndex))
-	{
-		return Controls[InIndex].Value;
-	}
-
-	return FRigControlValue();
-}
-
-void FRigControlHierarchy::SetInitialValue(const FName& InName, const FRigControlValue& InValue)
-{
-	SetInitialValue(GetIndex(InName), InValue);
-}
-
-void FRigControlHierarchy::SetInitialValue(int32 InIndex, const FRigControlValue& InValue)
+void FRigControlHierarchy::SetValue(int32 InIndex, const FRigControlValue& InValue, ERigControlValueType InValueType)
 {
 	if (Controls.IsValidIndex(InIndex))
 	{
 		FRigControl& Control = Controls[InIndex];
-		Control.InitialValue = InValue;
+
+		Control.GetValue(InValueType) = InValue;
+
+		if (InValueType == ERigControlValueType::Current)
+		{
+			Control.ApplyLimits(Control.GetValue(InValueType));
+		}
 
 		if (Control.ControlType == ERigControlType::Transform)
 		{
-			Control.InitialValue.GetRef<FTransform>().NormalizeRotation();
+			Control.GetValue(InValueType).GetRef<FTransform>().NormalizeRotation();
 		}
-		else if (Control.ControlType == ERigControlType::Quat)
+		else if (Control.ControlType == ERigControlType::TransformNoScale)
 		{
-			Control.InitialValue.GetRef<FQuat>().Normalize();
+			Control.GetValue(InValueType).GetRef<FTransformNoScale>().Rotation.Normalize();
 		}
 	}
 }
 
-FRigControlValue FRigControlHierarchy::GetInitialValue(const FName& InName) const
+FRigControlValue FRigControlHierarchy::GetValue(const FName& InName, ERigControlValueType InValueType) const
 {
-	return GetInitialValue(GetIndex(InName));
+	return GetValue(GetIndex(InName), InValueType);
 }
 
-FRigControlValue FRigControlHierarchy::GetInitialValue(int32 InIndex) const
+FRigControlValue FRigControlHierarchy::GetValue(int32 InIndex, ERigControlValueType InValueType) const
 {
 	if (Controls.IsValidIndex(InIndex))
 	{
-		return Controls[InIndex].InitialValue;
+		return Controls[InIndex].GetValue(InValueType);
 	}
+
 	return FRigControlValue();
 }
 
@@ -527,38 +762,82 @@ FTransform FRigControlHierarchy::GetInitialGlobalTransform(int32 InIndex) const
 		switch (Control.ControlType)
 		{
 			case ERigControlType::Bool:
+			{
+				break;
+			}
 			case ERigControlType::Float:
+			{
+				float Value = Control.InitialValue.Get<float>();
+				FTransform Transform = FTransform::Identity;
+				switch (Control.PrimaryAxis)
+				{
+					case ERigControlAxis::X:
+					{
+						Transform.SetLocation(FVector(Value, 0.f, 0.f));
+						break;
+					}
+					case ERigControlAxis::Y:
+					{
+						Transform.SetLocation(FVector(0.f, Value, 0.f));
+						break;
+					}
+					case ERigControlAxis::Z:
+					{
+						Transform.SetLocation(FVector(0.f, 0.f, Value));
+						break;
+					}
+				}
+				return Transform * ParentTransform;
+			}
 			case ERigControlType::Vector2D:
 			{
-				return ParentTransform;
+				FVector2D Value = Control.InitialValue.Get<FVector2D>();
+				FTransform Transform = FTransform::Identity;
+				switch (Control.PrimaryAxis)
+				{
+					case ERigControlAxis::X:
+					{
+						Transform.SetLocation(FVector(0.f, Value.X, Value.Y));
+						break;
+					}
+					case ERigControlAxis::Y:
+					{
+						Transform.SetLocation(FVector(Value.X, 0.f, Value.Y));
+						break;
+					}
+					case ERigControlAxis::Z:
+					{
+						Transform.SetLocation(FVector(Value.X, Value.Y, 0.f));
+						break;
+					}
+				}
+				return Transform * ParentTransform;
 			}
 			case ERigControlType::Position:
 			{
-				FTransform Transform;
+				FTransform Transform = FTransform::Identity;
 				Transform.SetLocation(Control.InitialValue.Get<FVector>());
 				return Transform * ParentTransform;
 			}
 			case ERigControlType::Scale:
 			{
-				FTransform Transform;
+				FTransform Transform = FTransform::Identity;
 				Transform.SetScale3D(Control.InitialValue.Get<FVector>());
-				return Transform * ParentTransform;
-			}
-			case ERigControlType::Quat:
-			{
-				FTransform Transform;
-				Transform.SetRotation(Control.InitialValue.Get<FQuat>());
 				return Transform * ParentTransform;
 			}
 			case ERigControlType::Rotator:
 			{
-				FTransform Transform;
+				FTransform Transform = FTransform::Identity;
 				Transform.SetRotation(FQuat(Control.InitialValue.Get<FRotator>()));
 				return Transform * ParentTransform;
 			}
 			case ERigControlType::Transform:
 			{
 				return Control.InitialValue.Get<FTransform>() * ParentTransform;
+			}
+			case ERigControlType::TransformNoScale:
+			{
+				return Control.InitialValue.Get<FTransformNoScale>().ToFTransform() * ParentTransform;
 			}
 		}
 	}
@@ -629,7 +908,7 @@ void FRigControlHierarchy::RefreshMapping()
 	}
 }
 
-void FRigControlHierarchy::Initialize()
+void FRigControlHierarchy::Initialize(bool bResetTransforms)
 {
 	RefreshMapping();
 
@@ -646,7 +925,17 @@ void FRigControlHierarchy::Initialize()
 	// initialize transform
 	for (int32 Index = 0; Index < Controls.Num(); ++Index)
 	{
-		Controls[Index].Value = Controls[Index].InitialValue;
+		if (bResetTransforms)
+		{
+			if (Controls[Index].ControlType == ERigControlType::Bool)
+			{
+				Controls[Index].Value = Controls[Index].InitialValue;
+			}
+			else
+			{
+				SetLocalTransform(Index, FTransform::Identity, ERigControlValueType::Current);
+			}
+		}
 
 		// update children
 		GetChildren(Index, Controls[Index].Dependents, false);
@@ -663,7 +952,14 @@ void FRigControlHierarchy::ResetValues()
 	// initialize transform
 	for (int32 Index = 0; Index < Controls.Num(); ++Index)
 	{
-		Controls[Index].Value = Controls[Index].InitialValue;
+		if (Controls[Index].ControlType == ERigControlType::Bool)
+		{
+			Controls[Index].Value = Controls[Index].InitialValue;
+		}
+		else
+		{
+			SetLocalTransform(Index, FTransform::Identity, ERigControlValueType::Current);
+		}
 	}
 }
 

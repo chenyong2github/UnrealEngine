@@ -224,6 +224,7 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 
 	// Create the view's uniform buffer.
 	FViewUniformShaderParameters ViewUniformShaderParameters;
+	ViewUniformShaderParameters.VTFeedbackBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI; 
 
 	View->SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
@@ -1103,22 +1104,19 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							{
 								uint32 InstanceCount = RenderBatch.InstanceCount;
 
-								if (GRHISupportsInstancing)
-								{
-									RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
+								RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
 
-									// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
-									if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))
-									{
-										RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
-										RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
-									}
-									else
-									{
-										uint32 VertexOffset = bAbsoluteIndices ? 0 : RenderBatch.VertexOffset;
-										RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
-										RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, VertexOffset, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
-									}
+								// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
+								if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))
+								{
+									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
+									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
+								}
+								else
+								{
+									uint32 VertexOffset = bAbsoluteIndices ? 0 : RenderBatch.VertexOffset;
+									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
+									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, VertexOffset, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
 								}
 							}
 							else

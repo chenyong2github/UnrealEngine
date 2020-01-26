@@ -59,7 +59,6 @@ struct FOpenGLESDeferred : public FOpenGLBase
 	static FORCEINLINE bool SupportsTextureCompare()					{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsTextureBaseLevel()					{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsTextureMaxLevel()					{ return !bES2Fallback; }
-	static FORCEINLINE bool SupportsInstancing()						{ return !bES2Fallback; }
 	static FORCEINLINE bool SupportsVertexAttribInteger()				{ return true; }
 	static FORCEINLINE bool SupportsVertexAttribShort()					{ return true; }
 	static FORCEINLINE bool SupportsVertexAttribByte()					{ return true; }
@@ -609,6 +608,11 @@ struct FOpenGLESDeferred : public FOpenGLBase
 	static FORCEINLINE void TexBuffer(GLenum Target, GLenum InternalFormat, GLuint Buffer)
 	{
 		glTexBufferEXT(Target, InternalFormat, Buffer);
+	}
+
+	static FORCEINLINE void TexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Buffer, GLintptr Offset, GLsizeiptr Size)
+	{
+		glTexBufferRangeEXT(Target, InternalFormat, Buffer, Offset, Size);
 	}
 
 	static FORCEINLINE void TexSubImage3D(GLenum Target, GLint Level, GLint XOffset, GLint YOffset, GLint ZOffset, GLsizei Width, GLsizei Height, GLsizei Depth, GLenum Format, GLenum Type, const GLvoid* PixelData)

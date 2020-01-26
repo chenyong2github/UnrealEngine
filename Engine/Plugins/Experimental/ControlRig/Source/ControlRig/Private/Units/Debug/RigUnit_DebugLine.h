@@ -34,12 +34,12 @@ struct FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };

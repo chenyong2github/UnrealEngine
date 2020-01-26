@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/InputScaleBias.h"
-#include "Animation/AnimSequenceDecompressionContext.h"
 #include "Animation/AnimSequenceBase.h"
 #include "AnimNode_SequencePlayer.generated.h"
 

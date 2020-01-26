@@ -6682,8 +6682,7 @@ void SSCSEditor::OnResetToBlueprintDefaults() const
 
 void SSCSEditor::PromoteToBlueprint() const
 {
-	bool bHarvest = false;
-	FCreateBlueprintFromActorDialog::OpenDialog(bHarvest, GetActorContext());
+	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Subclass, GetActorContext());
 }
 
 FReply SSCSEditor::OnPromoteToBlueprintClicked()

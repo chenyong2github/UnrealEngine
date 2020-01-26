@@ -229,6 +229,5 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 
 private:
 	/** Helper function for concrete types. */
-	template<bool bExtraBoneInfluencesT>
 	bool VertInfluencedByActiveBoneTyped(FSkeletalMeshLODRenderData& LODData, int32 LODIndex, const FSkelMeshRenderSection& Section, int32 VertIndex, USkeletalMeshComponent* InSkelMeshComponent, FModuleLocationVertSurfaceInstancePayload* InstancePayload, int32* OutBoneIndex);
 };

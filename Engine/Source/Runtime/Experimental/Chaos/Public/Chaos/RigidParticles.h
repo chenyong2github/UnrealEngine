@@ -171,10 +171,17 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		SleepData.Particle = Particle;
 		SleepData.Sleeping = Sleeping;
 
-		SleepDataLock.Lock();
+		SleepDataLock.WriteLock();
 		MSleepData.Add(SleepData);
-		SleepDataLock.Unlock();
+		SleepDataLock.WriteUnlock();
 	}
+	void ClearSleepData()
+	{
+		SleepDataLock.WriteLock();
+		MSleepData.Empty();
+		SleepDataLock.WriteUnlock();
+	}
+	FRWLock& GetSleepDataLock() { return SleepDataLock; }
 
 	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
 	FORCEINLINE EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
@@ -227,7 +234,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<EObjectStateType> MObjectState;
 
 	TArray<TSleepData<T, d>> MSleepData;
-	FCriticalSection SleepDataLock;
+	FRWLock SleepDataLock;
 };
 
 

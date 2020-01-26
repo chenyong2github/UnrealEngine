@@ -718,6 +718,13 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 			LOCTEXT("LockEdges_RowNameContentTooltip", "Preserve cuts in the mesh surface by locking vertices in place.  Increases the quality of the simplified mesh at edges at the cost of more triangles."),
 			FGetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetLockEdges),
 			FSetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetLockEdges));
+
+		AddBoolRow(ChildrenBuilder,
+			LOCTEXT("LockColorBoundaries_Row", "LockColorBoundaries"),
+			LOCTEXT("LockColorBoundaries_RowNameContent", "Lock Vertex Color Boundaries"),
+			LOCTEXT("LockColorBoundaries_RowNameContentTooltip", "Locking edges that connect two vertex colors.  Increases the quality of the simplified mesh at edges at the cost of more triangles."),
+			FGetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetLockColorBounaries),
+			FSetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetLockColorBounaries));
 	}
 
 	AddBaseLODRow(ChildrenBuilder);
@@ -1206,6 +1213,20 @@ void FSkeletalMeshReductionSettingsLayout::SetLockEdges(ECheckBoxState NewState)
 	ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
 	ReductionSettings.bLockEdges = (NewState == ECheckBoxState::Checked) ? true : false;
+}
+
+ECheckBoxState FSkeletalMeshReductionSettingsLayout::GetLockColorBounaries() const
+{
+	return ReductionSettings.bLockColorBounaries ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FSkeletalMeshReductionSettingsLayout::SetLockColorBounaries(ECheckBoxState NewState)
+{
+	FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetLockColorBounariesLOD", "LOD{0} reduction settings: lock color boundaries changed"), LODIndex);
+	FScopedTransaction Transaction(TransactionText);
+	ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+	ReductionSettings.bLockColorBounaries = (NewState == ECheckBoxState::Checked) ? true : false;
 }
 
 ECheckBoxState FSkeletalMeshReductionSettingsLayout::GetEnforceBoneBoundaries() const

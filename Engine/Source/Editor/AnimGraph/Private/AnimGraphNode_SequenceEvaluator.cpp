@@ -6,6 +6,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "GraphEditorActions.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 #include "AnimGraphNode_SequenceEvaluator.h"
 
 /////////////////////////////////////////////////////

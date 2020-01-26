@@ -16,6 +16,7 @@
 
 #if WITH_EDITOR
 
+	#include "Modules/ModuleManager.h"
 	#include "TextureCompressorModule.h"
 
 	// NOTE: We're only counting the top-level mip-map for the following variables.

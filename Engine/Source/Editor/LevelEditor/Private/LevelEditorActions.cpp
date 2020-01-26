@@ -2333,8 +2333,7 @@ bool FLevelEditorActionCallbacks::CanHarvestSelectedActorsIntoBlueprintClass()
 
 void FLevelEditorActionCallbacks::HarvestSelectedActorsIntoBlueprintClass()
 {
-	const bool bHarvest = true;
-	FCreateBlueprintFromActorDialog::OpenDialog(bHarvest);
+	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Harvest);
 }
 
 bool FLevelEditorActionCallbacks::CanSubclassSelectedActorIntoBlueprintClass()
@@ -2350,8 +2349,7 @@ bool FLevelEditorActionCallbacks::CanSubclassSelectedActorIntoBlueprintClass()
 
 void FLevelEditorActionCallbacks::SubclassSelectedActorIntoBlueprintClass()
 {
-	const bool bHarvest = false;
-	FCreateBlueprintFromActorDialog::OpenDialog(bHarvest);
+	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Subclass);
 }
 
 void FLevelEditorActionCallbacks::CheckOutProjectSettingsConfig( )

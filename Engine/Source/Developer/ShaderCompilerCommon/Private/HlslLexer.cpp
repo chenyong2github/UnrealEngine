@@ -386,6 +386,7 @@ namespace CrossCompiler
 				InsertToken(TEXT("RW_Texture3D"), EHlslToken::RWTexture3D);	// PSSL
 				InsertToken(TEXT("StructuredBuffer"), EHlslToken::StructuredBuffer);
 				InsertToken(TEXT("RegularBuffer"), EHlslToken::StructuredBuffer);	// PSSL
+				InsertToken(TEXT("ConstantBuffer"), EHlslToken::ConstantBuffer);
 				InsertToken(TEXT("RaytracingAccelerationStructure"), EHlslToken::RaytracingAccelerationStructure);
 
 				// Modifiers
@@ -405,12 +406,13 @@ namespace CrossCompiler
 				InsertToken(TEXT("."), EHlslToken::Dot);
 				InsertToken(TEXT("struct"), EHlslToken::Struct);
 				InsertToken(TEXT("cbuffer"), EHlslToken::CBuffer);
-				InsertToken(TEXT("ConstantBuffer"), EHlslToken::CBuffer);	// PSSL
+				InsertToken(TEXT("ConstantBuffer"), EHlslToken::ConstantBuffer);
 				InsertToken(TEXT("groupshared"), EHlslToken::GroupShared);
 				InsertToken(TEXT("row_major"), EHlslToken::RowMajor);
 				InsertToken(TEXT("register"), EHlslToken::Register);
 				InsertToken(TEXT("inline"), EHlslToken::Inline);
 				InsertToken(TEXT("typedef"), EHlslToken::Typedef);
+				InsertToken(TEXT("packoffset"), EHlslToken::PackOffset);
 			}
 		} GStaticInitializer;
 	}
@@ -617,10 +619,11 @@ namespace CrossCompiler
 			}
 		}
 
-		bool MatchFloatNumber(FString& OutLiteral)
+		bool MatchLiteralFloat(FString& OutLiteral, ELiteralType& OutType)
 		{
 			auto* Original = Current;
 			TCHAR Char = Peek();
+			ELiteralType Type = ELiteralType::Float;
 
 			// \.[0-9]+([eE][+-]?[0-9]+)?[fF]?			-> Dot Digits+ Exp? F?
 			// [0-9]+\.([eE][+-]?[0-9]+)?[fF]?			-> Digits+ Dot Exp? F?
@@ -673,8 +676,9 @@ namespace CrossCompiler
 				}
 				else
 				{
-					if (Match('f') || Match('F'))
+					if (IsValidFloatSuffix(Char))
 					{
+						Type = ELiteralType::FloatSuffix;
 						goto Done;
 					}
 
@@ -711,13 +715,15 @@ namespace CrossCompiler
 
 			// [fF]
 			Char = Peek();
-			if (Char == 'F' || Char == 'f')
+			if (IsValidFloatSuffix(Char))
 			{
 				++Current;
+				Type = ELiteralType::FloatSuffix;
 			}
 
 		Done:
 			OutLiteral = FString(static_cast<int32>(Current - Original), Original);
+			OutType = Type;
 			return true;
 
 		NotFloat:
@@ -830,19 +836,17 @@ namespace CrossCompiler
 			return String;
 		}
 
-		bool RuleDecimalInteger(uint32& OutValue)
+		bool RuleDecimalInteger(FString& OutValue)
 		{
 			// [1-9][0-9]*
 			auto Char = Peek();
+			if (Char < '1' || Char > '9')
 			{
-				if (Char < '1' || Char > '9')
-				{
-					return false;
-				}
-
-				++Current;
-				OutValue = Char - '0';
+				return false;
 			}
+			OutValue = TEXT("");
+			++Current;
+			OutValue += Char;
 
 			while (HasCharsAvailable())
 			{
@@ -851,14 +855,26 @@ namespace CrossCompiler
 				{
 					break;
 				}
-				OutValue = OutValue * 10 + Char - '0';
 				++Current;
+				OutValue += Char;
 			}
 
 			return true;
 		}
 
-		bool RuleOctalInteger(uint32& OutValue)
+		bool RuleDecimalIntegerValue(uint32& OutValue)
+		{
+			FString String;
+			if (RuleDecimalInteger(String))
+			{
+				OutValue = (uint32)FCString::Atoi(*String);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool RuleOctalInteger(FString& OutValue)
 		{
 			// 0[0-7]*
 			auto Char = Peek();
@@ -867,14 +883,14 @@ namespace CrossCompiler
 				return false;
 			}
 
-			OutValue = 0;
+			OutValue = TEXT("0");
 			++Current;
 			while (HasCharsAvailable())
 			{
 				Char = Peek();
 				if (Char >= '0' && Char <= '7')
 				{
-					OutValue = OutValue * 8 + Char - '0';
+					OutValue += Char;
 				}
 				else
 				{
@@ -886,7 +902,7 @@ namespace CrossCompiler
 			return true;
 		}
 
-		bool RuleHexadecimalInteger(uint32& OutValue)
+		bool RuleHexadecimalInteger(FString& OutValue)
 		{
 			// 0[xX][0-9a-zA-Z]+
 			auto Char = Peek();
@@ -895,21 +911,14 @@ namespace CrossCompiler
 			if (Char == '0' && (Char1 == 'x' || Char1 == 'X') && IsHexDigit(Char2))
 			{
 				Current += 2;
-				OutValue = 0;
+				OutValue = TEXT("0");
+				OutValue += Char1;
 				do
 				{
 					Char = Peek();
-					if (IsDigit(Char))
+					if (IsDigit(Char) || (Char >= 'a' && Char <= 'f') || (Char >= 'A' && Char <= 'F'))
 					{
-						OutValue = OutValue * 16 + Char - '0';
-					}
-					else if (Char >= 'a' && Char <= 'f')
-					{
-						OutValue = OutValue * 16 + Char - 'a' + 10;
-					}
-					else if (Char >= 'A' && Char <= 'F')
-					{
-						OutValue = OutValue * 16 + Char - 'A' + 10;
+						OutValue += Char;
 					}
 					else
 					{
@@ -925,21 +934,100 @@ namespace CrossCompiler
 			return false;
 		}
 
-		bool RuleInteger(uint32& OutValue)
+		static bool IsValidIntegerSuffix(TCHAR Char)
 		{
-			return RuleDecimalInteger(OutValue) || RuleHexadecimalInteger(OutValue) || RuleOctalInteger(OutValue);
+			switch (Char)
+			{
+			case (TCHAR)'u':
+			case (TCHAR)'U':
+			case (TCHAR)'l':
+			case (TCHAR)'L':
+				return true;
+			default:
+				break;
+			}
+
+			return false;
 		}
 
-		bool MatchLiteralInteger(uint32& OutValue)
+		static bool IsValidFloatSuffix(TCHAR Char)
 		{
-			if (RuleInteger(OutValue))
+			switch (Char)
+			{
+			case (TCHAR)'F':
+			case (TCHAR)'f':
+				return true;
+			default:
+				break;
+			}
+
+			return false;
+		}
+
+		bool MatchLiteral(FString& OutValue, ELiteralType& OutLiteralType)
+		{
+			if (MatchLiteralFloat(OutValue, OutLiteralType))
+			{
+				return true;
+			}
+			else
+			{
+				return MatchLiteralInteger(OutValue, OutLiteralType);
+			}
+		}
+
+		bool MatchLiteralInteger(FString& OutValue, ELiteralType& OutLiteralType)
+		{
+			if (RuleHexadecimalInteger(OutValue))
 			{
 				auto Char = Peek();
-				if (Char == 'u' || Char == 'U')
+				if (IsValidIntegerSuffix(Char))
 				{
 					++Current;
+					OutValue += Char;
+					OutLiteralType = ELiteralType::HexSuffix;
 				}
-
+				else
+				{
+					OutLiteralType = ELiteralType::Hex;
+				}
+				return true;
+			}
+			else if (RuleOctalInteger(OutValue))
+			{
+				if (OutValue.Len() == 1 && OutValue[0] == (TCHAR)'0')
+				{
+					auto Char = Peek();
+					if (IsValidIntegerSuffix(Char))
+					{
+						++Current;
+						OutValue += Char;
+						OutLiteralType = ELiteralType::IntegerSuffix;
+					}
+					else
+					{
+						OutLiteralType = ELiteralType::Integer;
+					}
+				}
+				else
+				{
+					OutLiteralType = ELiteralType::Octal;
+				}
+				return true;
+			}
+			else if (RuleDecimalInteger(OutValue))
+			{
+				auto Char = Peek();
+				if (IsValidIntegerSuffix(Char))
+				{
+					++Current;
+					OutValue += Char;
+					OutLiteralType = ELiteralType::IntegerSuffix;
+				}
+				else
+				{
+					OutLiteralType = ELiteralType::Integer;
+				}
 				return true;
 			}
 
@@ -995,24 +1083,16 @@ namespace CrossCompiler
 			{
 				FString Identifier;
 				EHlslToken SymbolToken;
-				uint32 UnsignedInteger;
-				if (Tokenizer.MatchFloatNumber(Identifier))
+				ELiteralType LiteralType = ELiteralType::Unknown;
+				if (Tokenizer.MatchLiteral(Identifier, LiteralType))
 				{
-					AddToken(FHlslToken(EHlslToken::FloatConstant, Identifier), Tokenizer);
-				}
-				else if (Tokenizer.MatchLiteralInteger(UnsignedInteger))
-				{
-					AddToken(FHlslToken(UnsignedInteger), Tokenizer);
+					AddToken(FHlslToken(Identifier, LiteralType), Tokenizer);
 				}
 				else if (Tokenizer.MatchIdentifier(Identifier))
 				{
-					if (!FCString::Strcmp(*Identifier, TEXT("true")))
+					if (!FCString::Strcmp(*Identifier, TEXT("true")) || !FCString::Strcmp(*Identifier, TEXT("false")))
 					{
-						AddToken(FHlslToken(true), Tokenizer);
-					}
-					else if (!FCString::Strcmp(*Identifier, TEXT("false")))
-					{
-						AddToken(FHlslToken(false), Tokenizer);
+						AddToken(FHlslToken(*Identifier, ELiteralType::Bool), Tokenizer);
 					}
 					else if (MatchSymbolToken(*Identifier, nullptr, SymbolToken, nullptr, true))
 					{
@@ -1059,12 +1139,8 @@ namespace CrossCompiler
 			auto& Token = Tokens[Index];
 			switch (Token.Token)
 			{
-			case EHlslToken::UnsignedIntegerConstant:
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("** %d: UnsignedIntegerConstant '%d'\n"), Index, Token.UnsignedInteger);
-				break;
-
-			case EHlslToken::FloatConstant:
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("** %d: FloatConstant '%s'\n"), Index, *Token.String);
+			case EHlslToken::Literal:
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("** %d: Literal Type %d '%s'\n"), Index, (int32)Token.LiteralType, *Token.String);
 				break;
 
 			default:
@@ -1083,6 +1159,24 @@ namespace CrossCompiler
 			{
 				++CurrentToken;
 				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool FHlslScanner::MatchIntegerLiteral()
+	{
+		const auto* Token = GetCurrentToken();
+		if (Token)
+		{
+			if (Token->Token == EHlslToken::Literal)
+			{
+				if (IsIntegerType(Token->LiteralType))
+				{
+					++CurrentToken;
+					return true;
+				}
 			}
 		}
 
@@ -1152,7 +1246,7 @@ namespace CrossCompiler
 		{
 			Tokenizer.SkipWhitespaceInLine();
 			uint32 Line = 0;
-			if (Tokenizer.RuleInteger(Line))
+			if (Tokenizer.RuleDecimalIntegerValue(Line))
 			{
 				Tokenizer.Line = Line - 1;
 				Tokenizer.SkipWhitespaceInLine();

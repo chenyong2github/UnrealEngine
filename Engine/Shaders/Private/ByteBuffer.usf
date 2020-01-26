@@ -2,88 +2,162 @@
 
 #include "Common.ush"
 
-float4 Value;
+uint Value;
 uint Size;
+uint Float4sPerLine;
+uint NumScatters;
 uint SrcOffset;
 uint DstOffset;
-uint FloatsPerLine;
+uint DstHeight;
 
+StructuredBuffer< float4 >		SrcStructuredBuffer;
+StructuredBuffer< uint >		ScatterStructuredBuffer;
+RWStructuredBuffer< float4 >	DstStructuredBuffer;
 
-StructuredBuffer<float4> SrcBuffer;
-RWStructuredBuffer<float4> DstBuffer;
+ByteAddressBuffer				SrcByteAddressBuffer;
+ByteAddressBuffer				ScatterByteAddressBuffer;
+RWByteAddressBuffer				DstByteAddressBuffer;
+
 Texture2D<float4>	SrcTexture;
 RWTexture2D<float4>	DstTexture;
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void MemsetBufferCS( uint3 DispatchThreadId : SV_DispatchThreadID ) 
+[numthreads(64, 1, 1)]
+void MemsetBufferCS( uint ThreadId : SV_DispatchThreadID ) 
 {
-	uint DestIndex = DstOffset + DispatchThreadId.x;
-
-	if (DispatchThreadId.x < Size)
+#if FLOAT4_BUFFER
+	// Size is in float4s
+	if( ThreadId < Size )
 	{
-		DstBuffer[DestIndex] = Value;
+		DstStructuredBuffer[ DstOffset + ThreadId ] = asfloat( Value );
 	}
+#else
+	// Size and offset is in dwords
+	uint DstIndex = DstOffset + ThreadId * 4;
+
+	if( ThreadId * 4 + 3 < Size )
+	{
+		DstByteAddressBuffer.Store4( DstIndex * 4, uint4( Value, Value, Value, Value ) );
+	}
+	else if( ThreadId * 4 + 2 < Size )
+	{
+		DstByteAddressBuffer.Store3( DstIndex * 4, uint3( Value, Value, Value ) );
+	}
+	else if( ThreadId * 4 + 1 < Size )
+	{
+		DstByteAddressBuffer.Store2( DstIndex * 4, uint2( Value, Value ) );
+	}
+	else if( ThreadId * 4 < Size )
+	{
+		DstByteAddressBuffer.Store( DstIndex * 4, Value );
+	}
+#endif
 }
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void MemcpyBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID) 
+[numthreads(64, 1, 1)]
+void MemcpyBufferCS( uint ThreadId : SV_DispatchThreadID ) 
 {
-	uint SrcIndex = SrcOffset + DispatchThreadId.x;
-	uint DestIndex = DstOffset + DispatchThreadId.x;
-
-	if (DispatchThreadId.x < Size)
+#if FLOAT4_BUFFER
+	// Size is in float4s
+	if( ThreadId < Size )
 	{
-		DstBuffer[DestIndex] = SrcBuffer[SrcIndex];
+		DstStructuredBuffer[ DstOffset + ThreadId ] = SrcStructuredBuffer[ SrcOffset + ThreadId ];
 	}
+#else
+	// Size and offsets are in dwords
+	uint SrcIndex = SrcOffset + ThreadId * 4;
+	uint DstIndex = DstOffset + ThreadId * 4;
+
+	if( ThreadId * 4 + 3 < Size )
+	{
+		uint4 SrcData = SrcByteAddressBuffer.Load4( SrcIndex * 4 );
+		DstByteAddressBuffer.Store4( DstIndex * 4, SrcData );
+	}
+	else if( ThreadId * 4 + 2 < Size )
+	{
+		uint3 SrcData = SrcByteAddressBuffer.Load3( SrcIndex * 4 );
+		DstByteAddressBuffer.Store3( DstIndex * 4, SrcData );
+	}
+	else if( ThreadId * 4 + 1 < Size )
+	{
+		uint2 SrcData = SrcByteAddressBuffer.Load2( SrcIndex * 4 );
+		DstByteAddressBuffer.Store2( DstIndex * 4, SrcData );
+	}
+	else if( ThreadId * 4 < Size )
+	{
+		uint SrcData = SrcByteAddressBuffer.Load( SrcIndex * 4 );
+		DstByteAddressBuffer.Store( DstIndex * 4, SrcData );
+	}
+#endif
 }
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
+[numthreads(64, 1, 1)]
 void MemcpyTextureToTextureCS(uint3 DispatchThreadId : SV_DispatchThreadID) 
 {
 	uint2 IndexTexture;
-	IndexTexture.y = DispatchThreadId.x / (FloatsPerLine);
-	IndexTexture.x = DispatchThreadId.x % (FloatsPerLine);
+	IndexTexture.y = DispatchThreadId.x / (Float4sPerLine);
+	IndexTexture.x = DispatchThreadId.x % (Float4sPerLine);
 
-	if (IndexTexture.x * IndexTexture.y  < Size)
+	if( IndexTexture.y < DstHeight )
 	{
-		float4 SrcValue = SrcTexture.Load(float3(IndexTexture.x, IndexTexture.y, 0)); 
+		float4 SrcValue = SrcTexture.Load(float3(IndexTexture.x, IndexTexture.y, 0));
 		DstTexture[IndexTexture.xy] = SrcValue;
 	}
 }
 
-uint NumScatters;
-Buffer<float4> UploadBuffer;
-Buffer<uint> ScatterBuffer;
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void ScatterCopyCS( uint3 DispatchThreadId : SV_DispatchThreadID ) 
+[numthreads(64, 1, 1)]
+void ScatterCopyCS( uint ThreadId : SV_DispatchThreadID ) 
 {
-	uint ScatterIndex = DispatchThreadId.x;
-	
-	if (ScatterIndex < NumScatters)
+	uint ScatterIndex = ThreadId / Size;
+	uint ScatterOffset = ThreadId - ScatterIndex * Size;
+	if( ScatterIndex < NumScatters )
 	{
-		uint DestIndex = ScatterBuffer.Load(ScatterIndex);
-		uint SrcIndex = ScatterIndex;
-		DstBuffer[DestIndex] = UploadBuffer.Load(SrcIndex);
+#if FLOAT4_BUFFER
+		uint DstIndex = ScatterStructuredBuffer[ ScatterIndex ] * Size + ScatterOffset;
+		uint SrcIndex = ThreadId;
+		DstStructuredBuffer[ DstIndex ] = SrcStructuredBuffer[ SrcIndex ];
+#elif UINT4_ALIGNED
+		uint DstIndex = ScatterByteAddressBuffer.Load( ScatterIndex * 4 ) * Size + ScatterOffset;
+		uint SrcIndex = ThreadId;
+		uint4 SrcData = SrcByteAddressBuffer.Load4( SrcIndex * 16 );
+		DstByteAddressBuffer.Store4( DstIndex * 16, SrcData );
+#else
+		uint DstIndex = ScatterByteAddressBuffer.Load( ScatterIndex * 4 ) * Size + ScatterOffset;
+		uint SrcIndex = ThreadId;
+		uint SrcData = SrcByteAddressBuffer.Load( SrcIndex * 4 );
+		DstByteAddressBuffer.Store( DstIndex * 4, SrcData );
+#endif
 	}
 }
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
+[numthreads(64, 1, 1)]
 void ScatterCopyTextureCS( uint3 DispatchThreadId : SV_DispatchThreadID ) 
 {
-	uint ScatterIndex = DispatchThreadId.x;
-	
-	if (ScatterIndex < NumScatters)
-	{
-		uint DestIndex = ScatterBuffer.Load(ScatterIndex);
-		uint2 IndexTexture;
-		IndexTexture.y = DestIndex / (FloatsPerLine);
-		IndexTexture.x = DestIndex % (FloatsPerLine);
-		uint SrcIndex = ScatterIndex;
+	uint ThreadId = DispatchThreadId.x;
+	uint ScatterIndex = ThreadId / Size;
+	uint ScatterOffset = ThreadId - ScatterIndex * Size;
 
-		if (IndexTexture.x * IndexTexture.y  < Size)
+	if( ScatterIndex < NumScatters )
+	{
+#if FLOAT4_BUFFER
+		uint DstIndex = ScatterStructuredBuffer[ScatterIndex] * Size + ScatterOffset;
+#else // FLOAT4_BUFFER
+		uint DstIndex = ScatterByteAddressBuffer.Load(ScatterIndex * 4) * Size + ScatterOffset;
+#endif // FLOAT4_BUFFER
+		uint SrcIndex = ThreadId;
+
+		uint2 IndexTexture;
+		IndexTexture.y = DstIndex / (Float4sPerLine);
+		IndexTexture.x = DstIndex % (Float4sPerLine);
+
+		if( IndexTexture.y < DstHeight )
 		{
-			DstTexture[IndexTexture.xy] = UploadBuffer.Load(SrcIndex);
+#if FLOAT4_BUFFER
+			DstTexture[IndexTexture.xy] = SrcStructuredBuffer[SrcIndex];
+#else // FLOAT4_BUFFER
+			DstTexture[IndexTexture.xy] = SrcByteAddressBuffer.Load(SrcIndex * 4);
+#endif // FLOAT4_BUFFER
 		}
 	}
 }
+
+

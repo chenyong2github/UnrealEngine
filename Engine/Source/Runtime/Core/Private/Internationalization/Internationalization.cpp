@@ -351,7 +351,7 @@ FString& FInternationalization::Leetify(FString& SourceString)
 				const TCHAR* ArgumentEndPtr = FCString::Strchr(RawSourceStringPtr + SourceCharIndex + 1, SourceArgumentEndMarker);
 				if (ArgumentEndPtr)
 				{
-					const int32 ArgumentEndIndex = ArgumentEndPtr - RawSourceStringPtr;
+					const int32 ArgumentEndIndex = UE_PTRDIFF_TO_INT32(ArgumentEndPtr - RawSourceStringPtr);
 
 					// Inject a marker before the argument block
 					LeetifiedString.AppendChar(LeetifyArgumentStartMarker);

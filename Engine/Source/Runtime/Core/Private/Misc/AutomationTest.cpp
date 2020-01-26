@@ -164,7 +164,7 @@ bool FAutomationTestFramework::RunSmokeTests()
 			TMap<FString, FAutomationTestExecutionInfo> OutExecutionInfoMap;
 
 			// Run each valid test
-			FScopedSlowTask SlowTask(TestInfo.Num());
+			FScopedSlowTask SlowTask((float)TestInfo.Num());
 
 			// We disable capturing the stack when running smoke tests, it adds too much overhead to do it at startup.
 			FAutomationTestFramework::Get().SetCaptureStack(false);
@@ -1304,7 +1304,7 @@ bool FAutomationTestBase::TestNull(const TCHAR* What, const void* Pointer)
 {
 	if ( Pointer != nullptr )
 	{
-		AddError(FString::Printf(TEXT("Expected '%s' to be null."), *What), 1);
+		AddError(FString::Printf(TEXT("Expected '%s' to be null."), What), 1);
 		return false;
 	}
 	return true;

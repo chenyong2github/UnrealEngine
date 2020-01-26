@@ -181,6 +181,12 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 	}
 }
 
+void FVirtualTextureUploadCache::ReleaseRHI()
+{
+	Pools.Empty();
+	Tiles.Empty();
+}
+
 FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTileBuffer& OutBuffer, EPixelFormat InFormat, uint32 InTileSize)
 {
 	SCOPE_CYCLE_COUNTER(STAT_VTP_StageTile)

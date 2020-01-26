@@ -49,7 +49,7 @@ public:
 		
 		if( Num )
 		{
-			FMemory::Memcpy( &Bytes[Offset], Data, Num );
+			FMemory::Memcpy( &Bytes[(int32)Offset], Data, Num );
 			Offset+=Num;
 		}
 	}

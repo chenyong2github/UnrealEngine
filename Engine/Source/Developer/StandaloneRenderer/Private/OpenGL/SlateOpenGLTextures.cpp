@@ -91,7 +91,7 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 
 	if (bHasPendingResize || Dirty.Area() == 0)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
 		bHasPendingResize = false;
 	}
 	else
@@ -101,7 +101,7 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	}
 #else
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8_EXT, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
 #endif
 	CHECK_GL_ERRORS;
 #if PLATFORM_MAC

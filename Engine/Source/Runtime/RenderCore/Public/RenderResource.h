@@ -401,11 +401,16 @@ public:
 	/** SRV that views the entire texture */
 	FShaderResourceViewRHIRef ShaderResourceViewRHI;
 
+	/** *optional* UAV that views the entire texture */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+
+
 	virtual ~FTextureWithSRV() {}
 
 	virtual void ReleaseRHI() override
 	{
 		ShaderResourceViewRHI.SafeRelease();
+		UnorderedAccessViewRHI.SafeRelease();
 		FTexture::ReleaseRHI();
 	}
 };

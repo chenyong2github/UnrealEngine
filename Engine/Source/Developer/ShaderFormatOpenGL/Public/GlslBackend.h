@@ -43,8 +43,6 @@ public:
 	virtual void SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, exec_list* ir) override;
 
 	virtual bool AllowsImageLoadsForNonScalar() const { return !bIsES2; }
-
-	virtual bool EmulateStructuredWithTypedBuffers() const override { return bIsES31; }
 };
 
 class ir_variable;
@@ -57,7 +55,8 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 {
 	FGlslCodeBackend(unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, bool bInIsWebGL) :
 		FCodeBackend(InHlslCompileFlags, InTarget),
-		bIsWebGL(bInIsWebGL)
+		bIsWebGL(bInIsWebGL),
+		bExplicitDepthWrites(false)
 	{
 	}
 
@@ -100,6 +99,7 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 	}
 
 	bool bIsWebGL;
+	bool bExplicitDepthWrites;
 };
 
 

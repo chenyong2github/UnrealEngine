@@ -26,6 +26,10 @@
 	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTOUT_sRGB)
 #endif
 
+
+
+
+
 // 0 / 1(slower, visualize multiple internals side by side for the same image portion, see DebugTile)
 #define DEBUG_TONEMAPPER 0
 
@@ -45,11 +49,12 @@ SamplerState BloomSampler;
 
 // xyz:SceneColorTint.rgb, w:unused
 float4 ColorScale0;
+
 // xyz:Bloom1Tint.rgb, w:unused
 float4 ColorScale1;
 
 // from the postprocess settings, x:VignetteIntensity, y:SharpenDiv6
-float2 TonemapperParams;
+float4 TonemapperParams;
 
 // Fine film grain
 float3 GrainRandomFull;

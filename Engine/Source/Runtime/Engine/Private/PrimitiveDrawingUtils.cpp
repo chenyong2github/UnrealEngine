@@ -19,7 +19,7 @@
 /** Emits draw events for a given FMeshBatch and the FPrimitiveSceneProxy corresponding to that mesh element. */
 #if WANTS_DRAW_MESH_EVENTS
 
-void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMeshBatch& Mesh, TDrawEvent<FRHICommandList>& MeshEvent)
+void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMeshBatch& Mesh, FDrawEvent& MeshEvent)
 {
 	// Only show material and resource name at the top level
 	if (PrimitiveSceneProxy)

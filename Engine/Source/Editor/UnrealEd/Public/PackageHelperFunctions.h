@@ -18,7 +18,7 @@
 
 class Error;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogPackageHelperFunctions, Log, All);
+UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogPackageHelperFunctions, Log, All);
 
 /**
  * Flags which modify the way that NormalizePackageNames works.

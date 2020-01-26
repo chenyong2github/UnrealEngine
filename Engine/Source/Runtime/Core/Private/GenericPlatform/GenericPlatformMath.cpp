@@ -148,11 +148,11 @@ public:
 		check(MathPlatform::IsFinite(One));
 		check(!MathPlatform::IsNaN(MinusOneE37));
 		check(MathPlatform::IsFinite(MinusOneE37));
-		check(MathPlatform::FloorLog2(Zero) == 0);
-		check(MathPlatform::FloorLog2(One) == 0);
-		check(MathPlatform::FloorLog2(Two) == 1);
-		check(MathPlatform::FloorLog2(Twelve) == 3);
-		check(MathPlatform::FloorLog2(Sixteen) == 4);
+		check(MathPlatform::FloorLog2((uint32)Zero) == 0);
+		check(MathPlatform::FloorLog2((uint32)One) == 0);
+		check(MathPlatform::FloorLog2((uint32)Two) == 1);
+		check(MathPlatform::FloorLog2((uint32)Twelve) == 3);
+		check(MathPlatform::FloorLog2((uint32)Sixteen) == 4);
 	}
 };
 

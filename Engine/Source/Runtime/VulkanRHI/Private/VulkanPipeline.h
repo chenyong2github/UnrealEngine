@@ -24,11 +24,12 @@ using FVulkanRHIGraphicsPipelineStateLRUNode = FVulkanRHIGraphicsPipelineStateLR
 
 class FVulkanPSOKey : public TDataKey<FVulkanPSOKey, true> {};
 
-template <typename T>
-static inline uint64 GetShaderKey(T* ShaderType)
+template <typename TVulkanShader>
+static inline uint64 GetShaderKey(FRHIGraphicsShader* ShaderType)
 {
-	auto* VulkanShader = ResourceCast(ShaderType);
-	return VulkanShader ? VulkanShader->GetShaderKey() : 0;
+	TVulkanShader* VulkanShader = static_cast<TVulkanShader*>(ShaderType);
+	FVulkanShader* BaseVulkanShader = static_cast<FVulkanShader*>(VulkanShader);
+	return BaseVulkanShader ? BaseVulkanShader->GetShaderKey() : 0;
 }
 
 inline uint64 GetShaderKeyForGfxStage(const FBoundShaderStateInput& BSI, ShaderStage::EStage Stage)
@@ -36,25 +37,26 @@ inline uint64 GetShaderKeyForGfxStage(const FBoundShaderStateInput& BSI, ShaderS
 	switch (Stage)
 	{
 	case ShaderStage::Vertex:
-		return GetShaderKey(BSI.VertexShaderRHI);
+		return GetShaderKey<FVulkanVertexShader>(BSI.VertexShaderRHI);
 	case ShaderStage::Pixel:
-		return GetShaderKey(BSI.PixelShaderRHI);
+		return GetShaderKey<FVulkanPixelShader>(BSI.PixelShaderRHI);
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	case ShaderStage::Geometry:
-		return GetShaderKey(BSI.GeometryShaderRHI);
+		return GetShaderKey<FVulkanGeometryShader>(BSI.GeometryShaderRHI);
 #endif
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	case ShaderStage::Hull:
-		return GetShaderKey(BSI.HullShaderRHI);
+		return GetShaderKey<FVulkanHullShader>(BSI.HullShaderRHI);
 	case ShaderStage::Domain:
-		return GetShaderKey(BSI.DomainShaderRHI);
+		return GetShaderKey<FVulkanDomainShader>(BSI.DomainShaderRHI);
 #endif
 	default:
 		check(0);
 	}
-	
+
 	return 0;
 }
+
 
 void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShaders[ShaderStage::NumStages]);
 void GetVulkanShaders(FVulkanDevice* Device, const FVulkanRHIGraphicsPipelineState& GfxPipelineState, FVulkanShader* OutShaders[ShaderStage::NumStages]);

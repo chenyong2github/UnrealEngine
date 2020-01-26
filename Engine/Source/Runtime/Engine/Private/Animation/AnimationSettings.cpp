@@ -10,7 +10,6 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	, RotationCompressionFormat(ACF_Float96NoW)
 	, TranslationCompressionFormat(ACF_None)
 	, MaxCurveError(0.f)
-	, AlternativeCompressionThreshold(1.f)
 	, ForceRecompression(false)
 	, bOnlyCheckForMissingSkeletalMeshes(false)
 	, bForceBelowThreshold(false)

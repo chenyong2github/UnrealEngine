@@ -233,6 +233,13 @@ void UTimeSynthComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 
 		for (FTimeSynthClipHandle& ClipHandle : VolumeGroup.Clips)
 		{
+			if (FMath::IsNearlyEqual(VolumeGroup.CurrentVolumeDb, VolumeGroup.LastVolumeDb, KINDA_SMALL_NUMBER))
+			{
+				continue;
+			}
+
+			VolumeGroup.LastVolumeDb = VolumeGroup.CurrentVolumeDb;
+
 			float LinearVolume = Audio::ConvertToLinear(VolumeGroup.CurrentVolumeDb);
 
 			SynthCommand([this, ClipHandle, LinearVolume]
@@ -597,6 +604,17 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 
 	// Get the distance to nearest listener using this transform
 	const FAudioDevice* OwningAudioDevice = GetAudioDevice();
+
+	// Validate audio device since it might not be available (i.e. -nosound)
+	if (OwningAudioDevice == nullptr)
+	{
+		static bool bShouldWarn = true;
+		UE_CLOG(bShouldWarn, LogTimeSynth, Warning, TEXT("Failed to play clip: no audio device. Running -nosound?"));
+		bShouldWarn = false;
+
+		return FTimeSynthClipHandle();
+	}
+
 	const float DistanceToListener = OwningAudioDevice->GetDistanceToNearestListener(ThisComponentTransform.GetTranslation());
 
 	TArray<FTimeSynthClipSound> ValidSounds;

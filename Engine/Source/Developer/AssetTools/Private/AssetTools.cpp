@@ -38,6 +38,7 @@
 #include "AssetTypeActions/AssetTypeActions_VectorField.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
+#include "AssetTypeActions/AssetTypeActions_AnimBoneCompressionSettings.h"
 #include "AssetTypeActions/AssetTypeActions_AnimComposite.h"
 #include "AssetTypeActions/AssetTypeActions_AnimStreamable.h"
 #include "AssetTypeActions/AssetTypeActions_AnimCurveCompressionSettings.h"
@@ -157,6 +158,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
 	, AssetClassBlacklist(MakeShared<FBlacklistNames>())
 	, FolderBlacklist(MakeShared<FBlacklistPaths>())
+	, WritableFolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
@@ -185,6 +187,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	// Register the built-in asset type actions
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimationAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprint));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimComposite));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimStreamable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimCurveCompressionSettings));
@@ -1020,6 +1023,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const FString& DestinationPath)
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialog(const FString& DestinationPath)
 {
+	if (!GetWritableFolderBlacklist()->PassesStartsWithFilter(DestinationPath))
+	{
+		NotifyBlockedByWritableFolderFilter();
+		return TArray<UObject*>();
+	}
+
 	TArray<UObject*> ReturnObjects;
 	FString FileTypes, AllExtensions;
 	TArray<UFactory*> Factories;
@@ -2573,7 +2582,12 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 			if ( !AllPackageNamesToMove.Contains(*PackageIt) )
 			{
 				AllPackageNamesToMove.Add(*PackageIt);
-				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove);
+				FString Path = (*PackageIt).ToString();
+				FString OriginalRootString;
+				Path.RemoveFromStart(TEXT("/"));
+				Path.Split("/", &OriginalRootString, &Path, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+				OriginalRootString = TEXT("/") + OriginalRootString;
+				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove, OriginalRootString);
 			}
 		}
 	}
@@ -2830,7 +2844,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 	MigrateLog.Notify(LogMessage, Severity, true);
 }
 
-void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies) const
+void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, const FString& OriginalRoot) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
@@ -2840,13 +2854,14 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 	{
 		if ( !AllDependencies.Contains(*DependsIt) )
 		{
-			// @todo Make this skip all packages whose root is different than the source package list root. For now we just skip engine content.
 			const bool bIsEnginePackage = (*DependsIt).ToString().StartsWith(TEXT("/Engine"));
 			const bool bIsScriptPackage = (*DependsIt).ToString().StartsWith(TEXT("/Script"));
-			if ( !bIsEnginePackage && !bIsScriptPackage )
+			// Skip all packages whose root is different than the source package list root
+			const bool bIsInSamePackage = (*DependsIt).ToString().StartsWith(OriginalRoot);
+			if ( !bIsEnginePackage && !bIsScriptPackage && bIsInSamePackage )
 			{
 				AllDependencies.Add(*DependsIt);
-				RecursiveGetDependencies(*DependsIt, AllDependencies);
+				RecursiveGetDependencies(*DependsIt, AllDependencies, OriginalRoot);
 			}
 		}
 	}
@@ -3157,6 +3172,32 @@ void UAssetToolsImpl::AssetClassBlacklistChanged()
 TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
 {
 	return FolderBlacklist;
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetWritableFolderBlacklist()
+{
+	return WritableFolderBlacklist;
+}
+
+bool UAssetToolsImpl::AllPassWritableFolderFilter(const TArray<FString>& InPaths) const
+{
+	if (WritableFolderBlacklist->HasFiltering())
+	{
+		for (const FString& Path : InPaths)
+		{
+			if (!WritableFolderBlacklist->PassesStartsWithFilter(Path))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void UAssetToolsImpl::NotifyBlockedByWritableFolderFilter() const
+{
+	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("NotifyBlockedByWritableFolderFilter", "Folder is locked")));
 }
 
 #undef LOCTEXT_NAMESPACE

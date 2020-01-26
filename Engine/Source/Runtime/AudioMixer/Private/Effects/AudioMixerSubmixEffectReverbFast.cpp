@@ -5,6 +5,7 @@
 #include "Sound/ReverbEffect.h"
 #include "Audio.h"
 #include "AudioMixer.h"
+#include "DSP/BufferVectorOperations.h"
 #include "DSP/ReverbFast.h"
 
 
@@ -34,11 +35,11 @@ static FAutoConsoleVariableRef CVarDisableQuadReverbCVarFast(
 	ECVF_Default);
 
 
-
-class UReverbEffect;
+const float FSubmixEffectReverbFast::MinWetness = 0.0f;
+const float FSubmixEffectReverbFast::MaxWetness = 10.f;
 
 FSubmixEffectReverbFast::FSubmixEffectReverbFast()
-	: bBypass(false)
+	: CurrentWetDry(-1.0f, -1.0f)
 {
 }
 
@@ -57,9 +58,6 @@ void FSubmixEffectReverbFast::Init(const FSoundEffectSubmixInitData& InitData)
 	 */
 	Audio::FPlateReverbFastSettings NewSettings;
 
-
-	NewSettings.Wetness = 1.0f;
-
 	NewSettings.EarlyReflections.Decay = 0.9f;
 	NewSettings.EarlyReflections.Absorption = 0.7f;
 	NewSettings.EarlyReflections.Gain = 1.0f;
@@ -74,7 +72,7 @@ void FSubmixEffectReverbFast::Init(const FSoundEffectSubmixInitData& InitData)
 	NewSettings.LateReflections.Decay = 0.15f;
 	NewSettings.LateReflections.Density = 0.85f;
 
-	Params.SetParams(NewSettings);
+	ReverbParams.SetParams(NewSettings);
 
 	DecayCurve.AddKey(0.0f, 0.99f);
 	DecayCurve.AddKey(2.0f, 0.45f);
@@ -108,11 +106,15 @@ void FSubmixEffectReverbFast::OnPresetChanged()
 	ReverbEffect.LateDelay = Settings.LateDelay;
 	ReverbEffect.AirAbsorptionGainHF = Settings.AirAbsorptionGainHF;
 	ReverbEffect.RoomRolloffFactor = 0.0f; // not used
-	ReverbEffect.Volume = Settings.WetLevel;
+	ReverbEffect.Volume = Settings.bBypass ? 0.0f : Settings.WetLevel;
 
-	bBypass = Settings.bBypass;
+	SetParameters(ReverbEffect);
 
-	SetEffectParameters(ReverbEffect);
+	Audio::FWetDry NewWetDryParams;
+	NewWetDryParams.DryLevel = Settings.bBypass ? 1.0f : Settings.DryLevel;
+	NewWetDryParams.WetLevel = Settings.bBypass ? 0.0f : FMath::Clamp(Settings.WetLevel, MinWetness, MaxWetness);
+
+	WetDryParams.SetParams(NewWetDryParams);
 }
 
 void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -126,19 +128,32 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 		return;
 	}
 
-	if (bBypass)
-	{
-		return;
-	}
-
 	UpdateParameters();
 
+	float LastWet = CurrentWetDry.WetLevel;
+	float LastDry = CurrentWetDry.DryLevel;
+	WetDryParams.GetParams(&CurrentWetDry);
+
+	// Set to most recent if uninitialized (less than 0.0f)
+	if (LastWet < 0.0f)
+	{
+		LastWet = CurrentWetDry.WetLevel;
+	}
+	if (LastDry < 0.0f)
+	{
+		LastDry = CurrentWetDry.DryLevel;
+	}
+
 	PlateReverb->ProcessAudio(*InData.AudioBuffer, InData.NumChannels, *OutData.AudioBuffer, OutData.NumChannels);
+	Audio::FadeBufferFast(*OutData.AudioBuffer, LastWet, CurrentWetDry.WetLevel);
+	Audio::MixInBufferFast(*InData.AudioBuffer, *OutData.AudioBuffer, LastDry, CurrentWetDry.DryLevel);
 }
 
-void FSubmixEffectReverbFast::SetEffectParameters(const FAudioReverbEffect& InParams)
+bool FSubmixEffectReverbFast::SetParameters(const FAudioEffectParameters& InParams)
 {
 	LLM_SCOPE(ELLMTag::AudioMixer);
+
+	const FAudioReverbEffect& ReverbEffectParams = static_cast<const FAudioReverbEffect&>(InParams);
 
 	/* `FPlateReverbFast` produces slightly different quality effect than `FPlateReverb`. Comparing the 
 	 * settings between FSubmixEffectReverb and FSubmixEffectReverbFast slight differences will arise.
@@ -151,37 +166,36 @@ void FSubmixEffectReverbFast::SetEffectParameters(const FAudioReverbEffect& InPa
 	 */
 	Audio::FPlateReverbFastSettings NewSettings;
 
-	// General reverb settings
-	NewSettings.Wetness = FMath::GetMappedRangeValueClamped({ 0.0f, 10.0f }, { 0.0f, 10.0f }, InParams.Volume);
-
 	// Early Reflections
-	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, InParams.ReflectionsGain);
-	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, InParams.ReflectionsDelay);
-	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.GainHF);
+	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, ReverbEffectParams.ReflectionsGain);
+	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, ReverbEffectParams.ReflectionsDelay);
+	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbEffectParams.GainHF);
 
 	// LateReflections
-	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, InParams.LateDelay);
-	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.Gain);
-	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.1f, 0.6f }, InParams.AirAbsorptionGainHF);
-	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped({ 0.05f, 1.0f }, { 0.0f, 0.95f }, InParams.Diffusion);
-	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped({ 0.05f, 1.95f }, { 0.0f, 0.999f }, InParams.DecayHFRatio);
-	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 0.95f }, { 0.06f, 1.0f }, InParams.Density);
+	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, ReverbEffectParams.LateDelay);
+	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbEffectParams.Gain);
+	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.1f, 0.6f }, ReverbEffectParams.AirAbsorptionGainHF);
+	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped({ 0.05f, 1.0f }, { 0.0f, 0.95f }, ReverbEffectParams.Diffusion);
+	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped({ 0.05f, 1.95f }, { 0.0f, 0.999f }, ReverbEffectParams.DecayHFRatio);
+	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 0.95f }, { 0.06f, 1.0f }, ReverbEffectParams.Density);
 
 	// Use mapping function to get decay time in seconds to internal linear decay scale value
-	const float DecayValue = DecayCurve.Eval(InParams.DecayTime);
+	const float DecayValue = DecayCurve.Eval(ReverbEffectParams.DecayTime);
 	NewSettings.LateReflections.Decay = DecayValue;
 
 	// Convert to db
 	NewSettings.LateReflections.LateGainDB = Audio::ConvertToDecibels(NewSettings.LateReflections.LateGainDB);
 
 	// Apply the settings the thread safe settings object
-	Params.SetParams(NewSettings);
+	ReverbParams.SetParams(NewSettings);
+
+	return true;
 }
 
 void FSubmixEffectReverbFast::UpdateParameters()
 {
 	Audio::FPlateReverbFastSettings NewSettings;
-	if (Params.GetParams(&NewSettings))
+	if (ReverbParams.GetParams(&NewSettings))
 	{
 		PlateReverb->SetSettings(NewSettings);
 	}
@@ -215,7 +229,7 @@ void FSubmixEffectReverbFast::UpdateParameters()
 	}
 }
 
-void USubmixEffectReverbFastPreset::SetSettingsWithReverbEffect(const UReverbEffect* InReverbEffect, const float WetLevel, const float DryLevel)
+void USubmixEffectReverbFastPreset::SetSettingsWithReverbEffect(const UReverbEffect* InReverbEffect, const float InWetLevel, const float InDryLevel)
 {
 	if (InReverbEffect)
 	{
@@ -230,8 +244,8 @@ void USubmixEffectReverbFastPreset::SetSettingsWithReverbEffect(const UReverbEff
 		Settings.LateGain = InReverbEffect->LateGain;
 		Settings.LateDelay = InReverbEffect->LateDelay;
 		Settings.AirAbsorptionGainHF = InReverbEffect->AirAbsorptionGainHF;
-		Settings.WetLevel = WetLevel;
-		Settings.DryLevel = DryLevel;
+		Settings.WetLevel = InWetLevel;
+		Settings.DryLevel = InDryLevel;
 
 		Update();
 	}

@@ -53,6 +53,7 @@ public class DisplayCluster : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 
 		// 3rd party dependencies
 		AddThirdPartyDependencies(ROTargetRules);

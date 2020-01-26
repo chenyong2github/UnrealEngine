@@ -1259,7 +1259,6 @@ struct FFoliageElementParams
 	bool BatchRenderSelection[2];
 	bool bIsWireframe;
 	bool bUseHoveredMaterial;
-	bool bInstanced;
 	bool bUseInstanceRuns;
 	bool bBlendLODs;
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -1301,26 +1300,13 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 				int32 RemainingInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
 				int32 RemainingRuns = RunArray.Num() / 2;
 
-				if (!ElementParams.bInstanced)
-				{
-					NumBatches = FMath::DivideAndRoundUp(RemainingInstances, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
-					if (NumBatches)
-					{
-						check(RunArray.Num());
-						CurrentInstance = RunArray[CurrentRun];
-					}
-				}
-				else if (!ElementParams.bUseInstanceRuns)
+				if (!ElementParams.bUseInstanceRuns)
 				{
 					NumBatches = FMath::DivideAndRoundUp(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
 				}
 
 #if STATS
 				INC_DWORD_STAT_BY(STAT_FoliageInstances, RemainingInstances);
-				if (!ElementParams.bInstanced)
-				{
-					INC_DWORD_STAT_BY(STAT_FoliageRuns, NumBatches);
-				}
 #endif
 				bool bDidStats = false;
 				for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
@@ -1343,7 +1329,6 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					BatchElement0.MinScreenSize = 0.0;
 					BatchElement0.InstancedLODIndex = LODIndex;
 					BatchElement0.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
-					BatchElement0.bIsInstancedMesh = true;
 					BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
 					MeshElement.bCanApplyViewModeOverrides = true;
 					MeshElement.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
@@ -1377,62 +1362,27 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 						}
 #endif
 					}
-					if (ElementParams.bInstanced)
+					if (ElementParams.bUseInstanceRuns)
 					{
-						if (ElementParams.bUseInstanceRuns)
-						{
-							BatchElement0.NumInstances = RunArray.Num() / 2;
-							BatchElement0.InstanceRuns = &RunArray[0];
-							BatchElement0.bIsInstanceRuns = true;
+						BatchElement0.NumInstances = RunArray.Num() / 2;
+						BatchElement0.InstanceRuns = &RunArray[0];
+						BatchElement0.bIsInstanceRuns = true;
 #if STATS
-							INC_DWORD_STAT_BY(STAT_FoliageRuns, BatchElement0.NumInstances);
+						INC_DWORD_STAT_BY(STAT_FoliageRuns, BatchElement0.NumInstances);
 #endif
-						}
-						else
-						{
-							const uint32 NumElementsThisBatch = FMath::Min(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
-
-							MeshElement.Elements.Reserve(NumElementsThisBatch);
-							check(NumElementsThisBatch);
-
-							for (uint32 InstanceRun = 0; InstanceRun < NumElementsThisBatch; ++InstanceRun)
-							{
-								FMeshBatchElement* NewBatchElement; 
-
-								if (InstanceRun == 0)
-								{
-									NewBatchElement = &MeshElement.Elements[0];
-								}
-								else
-								{
-									NewBatchElement = new(MeshElement.Elements) FMeshBatchElement();
-									*NewBatchElement = MeshElement.Elements[0];
-								}
-
-								const int32 InstanceOffset = RunArray[CurrentRun];
-								NewBatchElement->UserIndex = InstanceOffset;
-								NewBatchElement->NumInstances = 1 + RunArray[CurrentRun + 1] - InstanceOffset;
-
-								if (--RemainingRuns)
-								{
-									CurrentRun += 2;
-									check(CurrentRun + 1 < RunArray.Num());
-								}
-							}
-						}
 					}
 					else
 					{
-						uint32 NumInstancesThisBatch = FMath::Min(RemainingInstances, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
+						const uint32 NumElementsThisBatch = FMath::Min(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
 
-						MeshElement.Elements.Reserve(NumInstancesThisBatch);
-						check(NumInstancesThisBatch);
+						MeshElement.Elements.Reserve(NumElementsThisBatch);
+						check(NumElementsThisBatch);
 
-						for (uint32 Instance = 0; Instance < NumInstancesThisBatch; ++Instance)
+						for (uint32 InstanceRun = 0; InstanceRun < NumElementsThisBatch; ++InstanceRun)
 						{
 							FMeshBatchElement* NewBatchElement; 
 
-							if (Instance == 0)
+							if (InstanceRun == 0)
 							{
 								NewBatchElement = &MeshElement.Elements[0];
 							}
@@ -1442,22 +1392,18 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 								*NewBatchElement = MeshElement.Elements[0];
 							}
 
-							NewBatchElement->UserIndex = CurrentInstance;
-							if (--RemainingInstances)
+							const int32 InstanceOffset = RunArray[CurrentRun];
+							NewBatchElement->UserIndex = InstanceOffset;
+							NewBatchElement->NumInstances = 1 + RunArray[CurrentRun + 1] - InstanceOffset;
+
+							if (--RemainingRuns)
 							{
-								if ((uint32)CurrentInstance >= RunArray[CurrentRun + 1])
-								{
-									CurrentRun += 2;
-									check(CurrentRun + 1 < RunArray.Num());
-									CurrentInstance = RunArray[CurrentRun];
-								}
-								else
-								{
-									CurrentInstance++;
-								}
+								CurrentRun += 2;
+								check(CurrentRun + 1 < RunArray.Num());
 							}
 						}
 					}
+
 					if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
 					{
 						Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
@@ -1505,8 +1451,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 			ElementParams.BatchRenderSelection[1] = false;
 			ElementParams.bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 			ElementParams.bUseHoveredMaterial = IsHovered();
-			ElementParams.bInstanced = GRHISupportsInstancing;
-			ElementParams.bUseInstanceRuns = ElementParams.bInstanced && (CVarFoliageUseInstanceRuns.GetValueOnRenderThread() > 0);
+			ElementParams.bUseInstanceRuns = (CVarFoliageUseInstanceRuns.GetValueOnRenderThread() > 0);
 			ElementParams.FeatureLevel = InstancedRenderData.FeatureLevel;
 			ElementParams.ViewIndex = ViewIndex;
 			ElementParams.View = View;
@@ -2502,9 +2447,10 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UHierarchicalInstancedStaticMeshComponent_BuildTree);
 
 	// upload instance edits to GPU, before validing if the mesh is valid, as it's possible that PerInstanceSMData.Num() == 0, so we have to hide everything before doing the build
-	if (GIsEditor && InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData.IsValid())
+	if (InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData.IsValid() && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
 	{
-		// this is allowed only in editor, at runtime upload will happen when buffer is built from component data
+		// if instance data was modified, update GPU copy
+		// if InstanceBuffer was initialized with RequireCPUAccess (always true in editor))
 		PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer);
 		MarkRenderStateDirty();
 	}
@@ -2813,9 +2759,10 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 	check(BuildTreeAsyncTasks.Num() == 0);
 
 	// upload instance edits to GPU, before validing if the mesh is valid, as it's possible that PerInstanceSMData.Num() == 0, so we have to hide everything before doing the build
-	if (GIsEditor && InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData.IsValid())
+	if (InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData.IsValid() && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
 	{
-		// this is allowed only in editor, at runtime upload will happen when buffer is built from component data
+		// if instance data was modified, update GPU copy
+		// if InstanceBuffer was initialized with RequireCPUAccess (always true in editor))
 		PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer);
 		MarkRenderStateDirty();
 	}
@@ -2995,8 +2942,8 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		check(InstancingRandomSeed != 0);
 
 		// if instance data was modified, update GPU copy
-		// generally happens only in editor 
-		if (GIsEditor && InstanceUpdateCmdBuffer.NumInlineCommands() > 0)
+		// if InstanceBuffer was initialized with RequireCPUAccess (always true in editor))
+		if (InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
 		{
 			PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer);
 		}

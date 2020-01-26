@@ -80,14 +80,18 @@ FString GetMaterialShaderMapDDCKey()
 	return FString(MATERIALSHADERMAP_DERIVEDDATA_VER);
 }
 
-// this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerInputVersion = 10;
-// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerOutputVersion = 6;
-// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerSingleJobHeader = 'S';
-// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
+// The Id of 0 is reserved for global shaders
+FThreadSafeCounter FShaderCommonCompileJob::JobIdCounter(2);
+
+uint32 FShaderCommonCompileJob::GetNextJobId()
+{
+	uint32 Id = JobIdCounter.Increment();
+	if (Id == UINT_MAX)
+	{
+		JobIdCounter.Set(2);
+	}
+	return Id;
+}
 
 static float GRegularWorkerTimeToLive = 20.0f;
 static float GBuildWorkerTimeToLive = 600.0f;
@@ -362,6 +366,11 @@ namespace SCWErrorCode
 	void HandleCantCompileForSpecificFormat(const TCHAR* Data)
 	{
 		ModalErrorOrLog(FString::Printf(TEXT("ShaderCompileWorker failed:\n%s\n"), Data));
+	}
+
+	void HandleOutputFileEmpty(const TCHAR* Filename)
+	{
+		ModalErrorOrLog(FString::Printf(TEXT("Output file %s size is 0. Are you out of disk space?"), Filename));
 	}
 
 	void HandleOutputFileCorrupted(const TCHAR* Filename, int64 ExpectedSize, int64 ActualSize)
@@ -770,6 +779,11 @@ PRAGMA_ENABLE_OPTIMIZATION;
 // Process results from Worker Process
 void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompileJob*>& QueuedJobs, FArchive& OutputFile)
 {
+	if (OutputFile.TotalSize() == 0)
+	{
+		SCWErrorCode::HandleOutputFileEmpty(*OutputFile.GetArchiveName());
+	}
+
 	int32 OutputVersion = ShaderCompileWorkerOutputVersion;
 	OutputFile << OutputVersion;
 
@@ -1958,7 +1972,7 @@ bool FShaderCompilingManager::GetDumpShaderDebugInfo() const
 	return GDumpShaderDebugInfo != 0;
 }
 
-void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, const FString PermutationString)
+void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, const FString PermutationString, bool bSkipResultProcessing)
 {
 	check(!FPlatformProperties::RequiresCookedData());
 	// Lock CompileQueueSection so we can access the input and output queues
@@ -2013,6 +2027,7 @@ void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs,
 		NewJobs[JobIndex]->bOptimizeForLowLatency = bOptimizeForLowLatency;
 		FShaderMapCompileResults& ShaderMapInfo = ShaderMapJobs.FindOrAdd(NewJobs[JobIndex]->Id);
 		ShaderMapInfo.bRecreateComponentRenderStateOnCompletion = bRecreateComponentRenderStateOnCompletion;
+		ShaderMapInfo.bSkipResultProcessing = bSkipResultProcessing;
 		auto* PipelineJob = NewJobs[JobIndex]->GetShaderPipelineJob();
 		if (PipelineJob)
 		{
@@ -2260,12 +2275,21 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	// Which can happen if a material is edited while a background compile is going on
 	for (TMap<int32, FShaderMapFinalizeResults>::TIterator ProcessIt(CompiledShaderMaps); ProcessIt; ++ProcessIt)
 	{
+		int32 ShaderMapId = ProcessIt.Key();
+		FShaderMapFinalizeResults& CompileResults = ProcessIt.Value();
 		TRefCountPtr<FMaterialShaderMap> ShaderMap = NULL;
 		TArray<FMaterial*>* Materials = NULL;
 
+		if (CompileResults.bSkipResultProcessing)
+		{
+			ProcessIt.RemoveCurrent();
+			continue;
+		}
+
 		for (TMap<TRefCountPtr<FMaterialShaderMap>, TArray<FMaterial*> >::TIterator ShaderMapIt(FMaterialShaderMap::ShaderMapsBeingCompiled); ShaderMapIt; ++ShaderMapIt)
 		{
-			if (ShaderMapIt.Key()->CompilingId == ProcessIt.Key())
+			int32 CompileId = ShaderMapIt.Key()->CompilingId;
+			if (CompileId == ShaderMapId)
 			{
 				ShaderMap = ShaderMapIt.Key();
 				Materials = &ShaderMapIt.Value();
@@ -2278,7 +2302,6 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 		if (ShaderMap && Materials)
 		{
 			TArray<FString> Errors;
-			FShaderMapFinalizeResults& CompileResults = ProcessIt.Value();
 			const TArray<FShaderCommonCompileJob*>& ResultArray = CompileResults.FinishedJobs;
 
 			// Make a copy of the array as this entry of FMaterialShaderMap::ShaderMapsBeingCompiled will be removed below
@@ -2399,7 +2422,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 					delete ResultArray[JobIndex];
 				}
 
-				CompiledShaderMaps.Remove(ShaderMap->CompilingId);
+				ProcessIt.RemoveCurrent();
 			}
 
 			if (TimeBudget < 0)
@@ -2422,7 +2445,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 					delete CompilationResults[ResultIndex];
 				}
 
-				CompiledShaderMaps.Remove(GlobalShaderMapId);
+				ProcessIt.RemoveCurrent();
 			}
 		}
 	}
@@ -2456,7 +2479,6 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	}
 #endif // WITH_EDITOR
 }
-
 
 
 
@@ -2728,8 +2750,9 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 
 void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const TArray<int32>& ShaderMapIdsToCancel)
 {
+	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
-	UE_LOG(LogShaders, Log, TEXT("CancelCompilation %s "), MaterialName ? MaterialName : TEXT(""));
+	UE_LOG(LogShaders, Display, TEXT("CancelCompilation %s "), MaterialName ? MaterialName : TEXT(""));
 
 	// Lock CompileQueueSection so we can access the input and output queues
 	FScopeLock Lock(&CompileQueueSection);
@@ -2782,6 +2805,7 @@ void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const
 
 void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const TArray<int32>& ShaderMapIdsToFinishCompiling)
 {
+	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -2816,11 +2840,12 @@ void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const
 
 	const double EndTime = FPlatformTime::Seconds();
 
-	UE_LOG(LogShaders, Log, TEXT("FinishCompilation %s %.3fs"), MaterialName ? MaterialName : TEXT(""), (float)(EndTime - StartTime));
+	UE_LOG(LogShaders, Verbose, TEXT("FinishCompilation %s %.3fs"), MaterialName ? MaterialName : TEXT(""), (float)(EndTime - StartTime));
 }
 
 void FShaderCompilingManager::FinishAllCompilation()
 {
+	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -2841,12 +2866,13 @@ void FShaderCompilingManager::FinishAllCompilation()
 
 	const double EndTime = FPlatformTime::Seconds();
 
-	UE_LOG(LogShaders, Log, TEXT("FinishAllCompilation %.3fs"), (float)(EndTime - StartTime));
+	UE_LOG(LogShaders, Verbose, TEXT("FinishAllCompilation %.3fs"), (float)(EndTime - StartTime));
 }
 
 void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool bBlockOnGlobalShaderCompletion)
 {
 	COOK_STAT(FScopedDurationTimer Timer(ShaderCompilerCookStats::ProcessAsyncResultsTimeSec));
+	check(IsInGameThread());
 	if (bAllowAsynchronousShaderCompiling)
 	{
 		Thread->CheckHealth();
@@ -2929,7 +2955,7 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 			}
 			else if (NumPendingShaderMaps - PendingFinalizeShaderMaps.Num() > 0)
 			{
-				UE_LOG(LogShaders, Log, TEXT("Completed %u async shader maps, %u more pending, %u being compiled"), 
+				UE_LOG(LogShaders, Verbose, TEXT("Completed %u async shader maps, %u more pending, %u being compiled"),
 					NumPendingShaderMaps - PendingFinalizeShaderMaps.Num(), 
 					PendingFinalizeShaderMaps.Num(),
 					NumCompilingShaderMaps);
@@ -2947,43 +2973,47 @@ bool FShaderCompilingManager::IsShaderCompilerWorkerRunning(FProcHandle & Worker
 	return FPlatformProcess::IsProcRunning(WorkerHandle);
 }
 
+static void GenerateShaderParameterType(FString& Result, const FShaderParametersMetadata::FMember& Member)
+{
+	switch (Member.GetBaseType())
+	{
+	case UBMT_INT32:   Result = TEXT("int"); break;
+	case UBMT_UINT32:  Result = TEXT("uint"); break;
+	case UBMT_FLOAT32:
+		if (Member.GetPrecision() == EShaderPrecisionModifier::Float)
+		{
+			Result = TEXT("float");
+		}
+		else if (Member.GetPrecision() == EShaderPrecisionModifier::Half)
+		{
+			Result = TEXT("half");
+		}
+		else if (Member.GetPrecision() == EShaderPrecisionModifier::Fixed)
+		{
+			Result = TEXT("fixed");
+		}
+		break;
+	default:
+		UE_LOG(LogShaders, Fatal, TEXT("Unrecognized uniform buffer struct member base type."));
+	};
+
+	// Generate the type dimensions for vectors and matrices.
+	if (Member.GetNumRows() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%ux%u"), *Result, Member.GetNumRows(), Member.GetNumColumns());
+	}
+	else if (Member.GetNumColumns() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%u"), *Result, Member.GetNumColumns());
+	}
+}
+
 /* Generates a uniform buffer struct member hlsl declaration using the member's metadata. */
 static void GenerateUniformBufferStructMember(FString& Result, const FShaderParametersMetadata::FMember& Member)
 {
 	// Generate the base type name.
-	FString BaseTypeName;
-	switch (Member.GetBaseType())
-	{
-		case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
-		case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
-		case UBMT_FLOAT32:
-			if (Member.GetPrecision() == EShaderPrecisionModifier::Float)
-			{
-				BaseTypeName = TEXT("float");
-			}
-			else if (Member.GetPrecision() == EShaderPrecisionModifier::Half)
-			{
-				BaseTypeName = TEXT("half");
-			}
-			else if (Member.GetPrecision() == EShaderPrecisionModifier::Fixed)
-			{
-				BaseTypeName = TEXT("fixed");
-			}
-			break;
-		default:
-			UE_LOG(LogShaders, Fatal, TEXT("Unrecognized uniform buffer struct member base type."));
-	};
-
-	// Generate the type dimensions for vectors and matrices.
-	FString TypeDim;
-	if (Member.GetNumRows() > 1)
-	{
-		TypeDim = FString::Printf(TEXT("%ux%u"), Member.GetNumRows(), Member.GetNumColumns());
-	}
-	else if (Member.GetNumColumns() > 1)
-	{
-		TypeDim = FString::Printf(TEXT("%u"), Member.GetNumColumns());
-	}
+	FString TypeName;
+	GenerateShaderParameterType(TypeName, Member);
 
 	// Generate array dimension post fix
 	FString ArrayDim;
@@ -2992,7 +3022,7 @@ static void GenerateUniformBufferStructMember(FString& Result, const FShaderPara
 		ArrayDim = FString::Printf(TEXT("[%u]"), Member.GetNumElements());
 	}
 
-	Result = FString::Printf(TEXT("%s%s %s%s"), *BaseTypeName, *TypeDim, Member.GetName(), *ArrayDim);
+	Result = FString::Printf(TEXT("%s %s%s"), *TypeName, Member.GetName(), *ArrayDim);
 }
 
 /* Generates the instanced stereo hlsl code that's dependent on view uniform declarations. */
@@ -3110,6 +3140,7 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 		{
 			FShaderCompilerInput::FRootParameterBinding RootParameterBinding;
 			RootParameterBinding.Name = FString::Printf(TEXT("%s%s"), *Prefix, Member.GetName());
+			GenerateShaderParameterType(RootParameterBinding.ExpectedShaderType, Member);
 			RootParameterBinding.ByteOffset = MemberOffset;
 			CompileInput.RootParameterBindings.Add(RootParameterBinding);
 		}
@@ -4141,7 +4172,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 	check(!FPlatformProperties::IsServerOnly());
 	check(GGlobalShaderMap[Platform]);
 
-	UE_LOG(LogMaterial, Log, TEXT("Verifying Global Shaders for %s"), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+	UE_LOG(LogMaterial, Verbose, TEXT("Verifying Global Shaders for %s"), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
 
 	// Ensure that the global shader map contains all global shader types.
 	TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(Platform);

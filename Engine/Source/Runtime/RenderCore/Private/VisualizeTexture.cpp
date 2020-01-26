@@ -345,11 +345,11 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 			// Save the contents of the array to a bitmap file. (24bit only so alpha channel is dropped)
 			FFileHelper::CreateBitmap(*ScreenFileName, ExtendXWithMSAA, Extent.Y, Bitmap.GetData());
 
-			UE_LOG(LogConsoleResponse, Display, TEXT("Content was saved to \"%s\""), *FPaths::ScreenShotDir());
+			UE_LOG(LogRendererCore, Display, TEXT("Content was saved to \"%s\""), *FPaths::ScreenShotDir());
 		}
 		else
 		{
-			UE_LOG(LogConsoleResponse, Error, TEXT("Failed to save BMP for VisualizeTexture, format or texture type is not supported"));
+			UE_LOG(LogRendererCore, Error, TEXT("Failed to save BMP for VisualizeTexture, format or texture type is not supported"));
 		}
 	}
 #endif
@@ -408,6 +408,12 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooled
 
 	const TCHAR* DebugName = PooledRenderTarget->GetDesc().DebugName;
 
+	if (!ensureMsgf(PooledRenderTarget->GetDesc().TargetableFlags & TexCreate_ShaderResource, TEXT("%s"), DebugName))
+	{
+		UE_LOG(LogRendererCore, Error, TEXT("\"%s\" not created with TexCreate_ShaderResource and will fail to visualize."), DebugName);
+		return;
+	}
+
 	int32 CaptureId = ShouldCapture(DebugName);
 	if (CaptureId == FVisualizeTexture::kInvalidCaptureId)
 	{
@@ -417,12 +423,12 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooled
 	FRHICommandListImmediate& RHICmdListIm = FRHICommandListExecutor::GetImmediateCommandList();
 	if (RHICmdListIm.IsExecuting())
 	{
-		UE_LOG(LogConsoleResponse, Fatal, TEXT("We can't create a checkpoint because that requires the immediate commandlist, which is currently executing. You might try disabling parallel rendering."));
+		UE_LOG(LogRendererCore, Fatal, TEXT("We can't create a checkpoint because that requires the immediate commandlist, which is currently executing. You might try disabling parallel rendering."));
 	}
 
 	if (&RHICmdList != &RHICmdListIm)
 	{
-		UE_LOG(LogConsoleResponse, Warning, TEXT("Attempt to checkpoint a render target from a non-immediate command list. We will flush it and hope that works. If it doesn't you might try disabling parallel rendering."));
+		UE_LOG(LogRendererCore, Warning, TEXT("Attempt to checkpoint a render target from a non-immediate command list. We will flush it and hope that works. If it doesn't you might try disabling parallel rendering."));
 		RHICmdList.Flush();
 	}
 

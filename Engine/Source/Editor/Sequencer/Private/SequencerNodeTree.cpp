@@ -19,6 +19,7 @@
 #include "CurveEditor.h"
 #include "SequencerNodeSortingMethods.h"
 #include "SequencerTrackFilters.h"
+#include "Channels/MovieSceneChannel.h"
 
 FSequencerNodeTree::~FSequencerNodeTree()
 {
@@ -928,7 +929,24 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 		case ESequencerNode::Track:
 		{
 			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
-			if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
+			TSharedPtr<FSequencerSectionKeyAreaNode> TopLevelKeyArea = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTopLevelKeyNode();
+			if (TopLevelKeyArea.IsValid())
+			{
+				for (const TSharedRef<IKeyArea>& KeyArea : TopLevelKeyArea->GetAllKeyAreas())
+				{
+					FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+					if (Channel)
+					{
+						if (Filters->Num() == 0 || Filters->PassesAnyFilters(Channel))
+						{
+							bPasssedAnyFilters = true;
+							break;
+						}
+					}
+				}
+			}
+		
+			if (bPasssedAnyFilters || Filters->Num() == 0 || Filters->PassesAnyFilters(Track, StartNode->GetDisplayName()))
 			{
 				bPasssedAnyFilters = true;
 
@@ -993,7 +1011,7 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 			const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
 			for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
 			{
-				if (Object.IsValid() && (Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get()))
+				if (Object.IsValid() && (Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get(), StartNode->GetDisplayName()))
 					&& LevelTrackFilter->PassesFilter(Object.Get()))
 				{
 					bPasssedAnyFilters = true;
@@ -1013,8 +1031,85 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 			break;
 		}
 		case ESequencerNode::Category:
-		case ESequencerNode::Folder:
+		{
+			if (TSharedPtr<FSequencerTrackNode> TrackNode = StartNode->FindParentTrackNode())
+			{
+				UMovieSceneTrack* Track = TrackNode->GetTrack();
+				if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track, StartNode->GetDisplayName()))
+				{
+					bPasssedAnyFilters = true;
+				}
+			}
+			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+			{
+				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+				while (ParentNode.IsValid())
+				{
+					// Pinned tracks should be visible whether selected or not
+					if (ParentNode->IsPinned())
+					{
+						break;
+					}
+
+					if (ParentNode->GetType() == ESequencerNode::Object)
+					{
+						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
+						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
+						{
+							bPasssedAnyFilters = false;
+						}
+
+						break;
+					}
+					ParentNode = ParentNode->GetParent();
+				}
+			}
+			break;
+		}
 		case ESequencerNode::KeyArea:
+		{
+			const FSequencerSectionKeyAreaNode KeyAreaNode = static_cast<const FSequencerSectionKeyAreaNode&>(StartNode.Get());
+			for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode.GetAllKeyAreas())
+			{
+				FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+				if (Channel)
+				{
+					if (Filters->Num() == 0 || Filters->PassesAnyFilters(Channel))
+					{
+						bPasssedAnyFilters = true;
+						break;
+					}
+				}
+			}
+			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+			{
+				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+				while (ParentNode.IsValid())
+				{
+					// Pinned tracks should be visible whether selected or not
+					if (ParentNode->IsPinned())
+					{
+						break;
+					}
+
+					if (ParentNode->GetType() == ESequencerNode::Object)
+					{
+						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
+						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
+						{
+							bPasssedAnyFilters = false;
+						}
+
+						break;
+					}
+					ParentNode = ParentNode->GetParent();
+				}
+			}
+			break;
+		}
+		case ESequencerNode::Folder:
 		{
 			// If no active filters, pass organizational nodes to be text filtered
 			if (Filters->Num() == 0)
@@ -1024,7 +1119,6 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 			break;
 		}
 	}
-
 
 	if (bPasssedAnyFilters)
 	{
@@ -1175,7 +1269,7 @@ void FSequencerNodeTree::UpdateCurveEditorTree()
 	for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
 	{
 		TSharedPtr<FSequencerDisplayNode> Node = It->Key.Pin();
-		if (!Node.IsValid() || Node->TreeSerialNumber != SerialNumber)
+		if (!Node.IsValid() || Node->TreeSerialNumber != SerialNumber || !Node->IsVisible())
 		{
 			CurveEditor->RemoveTreeItem(It->Value);
 			It.RemoveCurrent();

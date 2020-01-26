@@ -41,16 +41,6 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Compression)
 	float MaxCurveError;
 
-	/** The alternate error threshold (0.0 means don't try anything other than the current / default scheme) 
-	* 
-	* Determines the current setting for world-space error tolerance in the animation compressor.
-	* When requested, animation being compressed will also consider an alternative compression
-	* method if the end result of that method produces less error than the AlternativeCompressionThreshold.
-	* Also known as "Max End Effector Error"
-	*/
-	UPROPERTY(config, EditAnywhere, Category = Compression, meta=(ClampMin = "0", UIMin = "0"))
-	float AlternativeCompressionThreshold;
-
 	UPROPERTY(config, EditAnywhere, Category = Compression)
 	bool ForceRecompression;
 

@@ -63,9 +63,6 @@ namespace NiagaraShaderCookStats
 TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> FNiagaraShaderMap::GIdToNiagaraShaderMap[SP_NumPlatforms];
 TArray<FNiagaraShaderMap*> FNiagaraShaderMap::AllNiagaraShaderMaps;
 
-// The Id of 0 is reserved for global shaders
-uint32 FNiagaraShaderMap::NextCompilingId = 2;
-
 
 /** 
  * Tracks FNiagaraShaderScripts and their shader maps that are being compiled.
@@ -422,7 +419,7 @@ void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 		{
 			if (It.Key() == StructIt->GetShaderVariableName())
 			{
-				StructIt->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.ResourceTableLayoutHashes);
+				StructIt->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.ResourceTableLayoutHashes, OutEnvironment.ResourceTableLayoutSlots);
 			}
 		}
 	}
@@ -840,11 +837,8 @@ void FNiagaraShaderMap::Compile(
 		{
 			Script->RemoveOutstandingCompileId(CompilingId);
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
-			CompilingId = NextCompilingId;
+			CompilingId = FShaderCommonCompileJob::GetNextJobId();
 			Script->AddCompileId(CompilingId);
-
-			check(NextCompilingId < UINT_MAX);
-			NextCompilingId++;
   
 			TArray<FNiagaraShaderScript*> NewCorrespondingScripts;
 			NewCorrespondingScripts.Add(Script);
@@ -913,14 +907,14 @@ void FNiagaraShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			FNiagaraShaderCompilationManager::Get().AddJobs(NewJobs);
+			GNiagaraShaderCompilationManager.AddJobs(NewJobs);
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
 			{
 				TArray<int32> CurrentShaderMapId;
 				CurrentShaderMapId.Add(CompilingId);
-				FNiagaraShaderCompilationManager::Get().FinishCompilation(*FriendlyName, CurrentShaderMapId);
+				GNiagaraShaderCompilationManager.FinishCompilation(*FriendlyName, CurrentShaderMapId);
 			}
 		}
 	}
@@ -1287,7 +1281,6 @@ const FNiagaraShaderMap* FNiagaraShaderMap::GetShaderMapBeingCompiled(const FNia
 
 FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer)
 	: FShader(Initializer)
-	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	, DebugDescription(Initializer.DebugDescription)
 {
 	check(!DebugDescription.IsEmpty());
@@ -1335,8 +1328,19 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
-	EmitterConstantBufferParam.Bind(ParameterMap, TEXT("FEmitterParameters"));
 	ViewUniformBufferParam.Bind(ParameterMap, TEXT("View"));
+
+	GlobalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraExternalParameters"));
+
+	GlobalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
 
 	// params for event buffers
 	// this is horrendous; need to do this in a uniform buffer instead.
@@ -1416,7 +1420,18 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 
 	Ar << DataInterfaceParameters;
 
-	Ar << EmitterConstantBufferParam;
+	Ar << GlobalConstantBufferParam[0];
+	Ar << SystemConstantBufferParam[0];
+	Ar << OwnerConstantBufferParam[0];
+	Ar << EmitterConstantBufferParam[0];
+	Ar << ExternalConstantBufferParam[0];
+
+	Ar << GlobalConstantBufferParam[1];
+	Ar << SystemConstantBufferParam[1];
+	Ar << OwnerConstantBufferParam[1];
+	Ar << EmitterConstantBufferParam[1];
+	Ar << ExternalConstantBufferParam[1];
+
 	Ar << DataInterfaceUniformBufferParam;
 	Ar << NumEventsPerParticleParam;
 	Ar << NumParticlesPerEventParam;

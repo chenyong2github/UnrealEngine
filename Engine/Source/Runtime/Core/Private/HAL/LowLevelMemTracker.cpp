@@ -85,6 +85,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Particles"), STAT_ParticlesLLM, STATGROUP_LLMFULL)
 DECLARE_LLM_MEMORY_STAT(TEXT("Niagara"), STAT_NiagaraLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("GC"), STAT_GCLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("UI"), STAT_UILLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("NavigationRecast"), STAT_NavigationRecastLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Physics"), STAT_PhysicsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysX"), STAT_PhysXLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysXGeometry"), STAT_PhysXGeometryLLM, STATGROUP_LLMFULL);
@@ -139,6 +140,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Materials"), STAT_MaterialsSummaryLLM, STATGROUP_L
 DECLARE_LLM_MEMORY_STAT(TEXT("Particles"), STAT_ParticlesSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("Niagara"), STAT_NiagaraSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("UI"), STAT_UISummaryLLM, STATGROUP_LLM);
+DECLARE_LLM_MEMORY_STAT(TEXT("Navigation"), STAT_NavigationSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("Textures"), STAT_TexturesSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("MediaStreaming"), STAT_MediaStreamingSummaryLLM, STATGROUP_LLM);
 
@@ -864,10 +866,10 @@ bool FLowLevelMemTracker::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 
 			TArray<void*> Spam;
 			Spam.Reserve(NumAllocs);
-			uint32 TotalSize = 0;
+			SIZE_T TotalSize = 0;
 			for (int32 Index = 0; Index < NumAllocs; Index++)
 			{
-				int32 Size = (FPlatformMath::Rand() % MaxSize / 2) + MaxSize / 2;
+				SIZE_T Size = (FPlatformMath::Rand() % MaxSize / 2) + MaxSize / 2;
 				TotalSize += Size;
 				Spam.Add(FMemory::Malloc(Size));
 			}
@@ -1299,23 +1301,25 @@ void FLLMTracker::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultT
 	if (Ptr != nullptr)
 	{
 		// remember the size and tag info
-		int64 tag = State->GetTopTag();
-		if (tag == (int64)ELLMTag::Untagged)
-			tag = (int64)DefaultTag;
+		int64 Tag = State->GetTopTag();
+		if (Tag == (int64)ELLMTag::Untagged)
+		{
+			Tag = (int64)DefaultTag;
+		}
 
 		FLLMTracker::FLowLevelAllocInfo AllocInfo;
 		#if LLM_USE_ALLOC_INFO_STRUCT
-		AllocInfo.Tag = tag;
+		AllocInfo.Tag = Tag;
 			#if LLM_ALLOW_ASSETS_TAGS
 		AllocInfo.AssetTag = State->GetTopAssetTag();
 			#endif
 		#else
-		LLMCheck(tag >= 0 && tag < (int64)LLM_TAG_COUNT);
-		AllocInfo = (ELLMTag)tag;
+		LLMCheck(Tag >= 0 && Tag < (int64)LLM_TAG_COUNT);
+		AllocInfo = (ELLMTag)Tag;
 		#endif
 
-		LLMCheck(Size <= 0xffffffff);
-		GetAllocationMap().Add(Ptr, Size, AllocInfo);
+		LLMCheck(Size <= 0xffffffffu);
+		GetAllocationMap().Add(Ptr, (uint32)Size, AllocInfo);
 	}
 }
 

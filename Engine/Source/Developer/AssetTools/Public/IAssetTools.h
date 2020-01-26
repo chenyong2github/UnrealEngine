@@ -425,6 +425,15 @@ public:
 
 	/** Get folder blacklist for content browser and other systems */
 	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() = 0;
+
+	/** Get writable folder blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistPaths>& GetWritableFolderBlacklist() = 0;
+
+	/** Returns true if all in list pass writable folder filter */
+	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const = 0;
+
+	/** Show notification that writable folder filter blocked an action */
+	virtual void NotifyBlockedByWritableFolderFilter() const = 0;
 };
 
 UCLASS(transient)

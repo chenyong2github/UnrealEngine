@@ -12,43 +12,47 @@
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 
+#define ENABLE_REVERB_SETTINGS_PRINTING 0
+
 /** 
  * Default settings for a null reverb effect
  */
-FAudioReverbEffect::FAudioReverbEffect( void )
+FAudioReverbEffect::FAudioReverbEffect()
 {
 	Time = 0.0;
 	Volume = 0.0f;
 
-	Density = 1.0f;					
-	Diffusion = 1.0f;				
-	Gain = 0.32f;					
-	GainHF = 0.89f;					
-	DecayTime = 1.49f;				
-	DecayHFRatio = 0.83f;			
-	ReflectionsGain = 0.05f;		
-	ReflectionsDelay = 0.007f;		
-	LateGain = 1.26f;				
-	LateDelay = 0.011f;				
-	AirAbsorptionGainHF = 0.994f;	
-	RoomRolloffFactor = 0.0f;		
+	Density = 1.0f;
+	Diffusion = 1.0f;
+	Gain = 0.32f;
+	GainHF = 0.89f;
+	DecayTime = 1.49f;
+	DecayHFRatio = 0.83f;
+	ReflectionsGain = 0.05f;
+	ReflectionsDelay = 0.007f;
+	LateGain = 1.26f;
+	LateDelay = 0.011f;
+	AirAbsorptionGainHF = 0.994f;
+	RoomRolloffFactor = 0.0f;
 }
 
 /** 
  * Construct generic reverb settings based in the I3DL2 standards
  */
-FAudioReverbEffect::FAudioReverbEffect( float InRoom, 
-								 		float InRoomHF, 
-								 		float InRoomRolloffFactor,	
-								 		float InDecayTime,			
-								 		float InDecayHFRatio,		
-								 		float InReflections,		
-								 		float InReflectionsDelay,	
-								 		float InReverb,				
-								 		float InReverbDelay,		
-								 		float InDiffusion,			
-								 		float InDensity,			
-								 		float InAirAbsorption )
+FAudioReverbEffect::FAudioReverbEffect(
+	float InRoom,
+	float InRoomHF,
+	float InRoomRolloffFactor,
+	float InDecayTime,
+	float InDecayHFRatio,
+	float InReflections,
+	float InReflectionsDelay,
+	float InReverb,
+	float InReverbDelay,
+	float InDiffusion,
+	float InDensity,
+	float InAirAbsorption
+)
 {
 	Time = 0.0;
 	Volume = 0.0f;
@@ -88,26 +92,90 @@ FAudioReverbEffect& FAudioReverbEffect::operator=(class UReverbEffect* InReverbE
 	return *this;
 }
 
+void FAudioReverbEffect::PrintSettings() const
+{
+#if ENABLE_REVERB_SETTINGS_PRINTING
+	const char* FmtText =
+		"\nVolume: %.4f\n"
+		"Density: %.4f\n"
+		"Diffusion: %.4f\n"
+		"Gain: %.4f\n"
+		"GainHF: %.4f\n"
+		"DecayTime: %.4f\n"
+		"DecayHFRatio: %.4f\n"
+		"ReflectionsGain: %.4f\n"
+		"ReflectionsDelay: %.4f\n"
+		"LateGain: %.4f\n"
+		"LateDelay: %.4f\n"
+		"AirAbsorptionGainHF: %.4f\n"
+		"RoomRolloffFactor: %.4f\n";
+
+	FString FmtString(FmtText);
+
+	FString Params = FString::Printf(
+		*FmtString,
+		Settings.Volume,
+		Settings.Density,
+		Settings.Diffusion,
+		Settings.Gain,
+		Settings.GainHF,
+		Settings.DecayTime,
+		Settings.DecayHFRatio,
+		Settings.ReflectionsGain,
+		Settings.ReflectionsDelay,
+		Settings.LateGain,
+		Settings.LateDelay,
+		Settings.AirAbsorptionGainHF,
+		Settings.RoomRolloffFactor
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Params);
+#endif // ENABLE_REVERB_SETTINGS_PRINTING
+}
+
 /** 
  * Get interpolated reverb parameters
  */
-void FAudioReverbEffect::Interpolate( float InterpValue, const FAudioReverbEffect& Start, const FAudioReverbEffect& End )
+bool FAudioReverbEffect::Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd)
 {
+	const FAudioReverbEffect& Start = static_cast<const FAudioReverbEffect&>(InStart);
+	const FAudioReverbEffect& End = static_cast<const FAudioReverbEffect&>(InEnd);
+
+	float InterpValue = 1.0f;
+	if (End.Time - Start.Time > 0.0)
+	{
+		InterpValue = (float)((FApp::GetCurrentTime() - Start.Time) / (End.Time - Start.Time));
+	}
+
+	if (InterpValue >= 1.0f)
+	{
+		*this = End;
+		return true;
+	}
+
+	if (InterpValue <= 0.0f)
+	{
+		*this = Start;
+		return false;
+	}
+
 	float InvInterpValue = 1.0f - InterpValue;
 	Time = FApp::GetCurrentTime();
-	Volume = ( Start.Volume * InvInterpValue ) + ( End.Volume * InterpValue );
-	Density = ( Start.Density * InvInterpValue ) + ( End.Density * InterpValue );				
-	Diffusion = ( Start.Diffusion * InvInterpValue ) + ( End.Diffusion * InterpValue );				
-	Gain = ( Start.Gain * InvInterpValue ) + ( End.Gain * InterpValue );					
-	GainHF = ( Start.GainHF * InvInterpValue ) + ( End.GainHF * InterpValue );					
-	DecayTime = ( Start.DecayTime * InvInterpValue ) + ( End.DecayTime * InterpValue );				
-	DecayHFRatio = ( Start.DecayHFRatio * InvInterpValue ) + ( End.DecayHFRatio * InterpValue );			
-	ReflectionsGain = ( Start.ReflectionsGain * InvInterpValue ) + ( End.ReflectionsGain * InterpValue );		
-	ReflectionsDelay = ( Start.ReflectionsDelay * InvInterpValue ) + ( End.ReflectionsDelay * InterpValue );		
-	LateGain = ( Start.LateGain * InvInterpValue ) + ( End.LateGain * InterpValue );				
-	LateDelay = ( Start.LateDelay * InvInterpValue ) + ( End.LateDelay * InterpValue );				
-	AirAbsorptionGainHF = ( Start.AirAbsorptionGainHF * InvInterpValue ) + ( End.AirAbsorptionGainHF * InterpValue );	
-	RoomRolloffFactor = ( Start.RoomRolloffFactor * InvInterpValue ) + ( End.RoomRolloffFactor * InterpValue );		
+	Volume = (Start.Volume * InvInterpValue) + (End.Volume * InterpValue);
+	Density = (Start.Density * InvInterpValue) + (End.Density * InterpValue);
+	Diffusion = (Start.Diffusion * InvInterpValue) + (End.Diffusion * InterpValue);
+	Gain = (Start.Gain * InvInterpValue) + (End.Gain * InterpValue);
+	GainHF = (Start.GainHF * InvInterpValue) + (End.GainHF * InterpValue);
+	DecayTime = (Start.DecayTime * InvInterpValue) + (End.DecayTime * InterpValue);
+	DecayHFRatio = (Start.DecayHFRatio * InvInterpValue) + (End.DecayHFRatio * InterpValue);
+	ReflectionsGain = (Start.ReflectionsGain * InvInterpValue) + (End.ReflectionsGain * InterpValue);
+	ReflectionsDelay = (Start.ReflectionsDelay * InvInterpValue) + (End.ReflectionsDelay * InterpValue);
+	LateGain = (Start.LateGain * InvInterpValue) + (End.LateGain * InterpValue);
+	LateDelay = (Start.LateDelay * InvInterpValue) + (End.LateDelay * InterpValue);
+	AirAbsorptionGainHF = (Start.AirAbsorptionGainHF * InvInterpValue) + (End.AirAbsorptionGainHF * InterpValue);
+	RoomRolloffFactor = (Start.RoomRolloffFactor * InvInterpValue) + (End.RoomRolloffFactor * InterpValue);
+
+	return false;
 }
 
 /** 
@@ -132,11 +200,73 @@ void FAudioEQEffect::ClampValues( void )
 
 }
 
+#define ENABLE_EQ_SETTINGS_PRINTING 0
+
+void FAudioEQEffect::PrintSettings() const
+{
+#if ENABLE_EQ_SETTINGS_PRINTING
+	const char* FmtText =
+		"\nFrequencyCenter0: %.4f\n"
+		"Gain0: %.4f\n"
+		"Bandwidth0: %.4f\n"
+		"FrequencyCenter1: %.4f\n"
+		"Gain1: %.4f\n"
+		"Bandwidth1: %.4f\n"
+		"FrequencyCenter2: %.4f\n"
+		"Gain2: %.4f\n"
+		"Bandwidth2: %.4f\n"
+		"FrequencyCenter3: %.4f\n"
+		"Gain3: %.4f\n"
+		"Bandwidth3: %.4f\n";
+
+	FString FmtString(FmtText);
+
+	FString Params = FString::Printf(
+		*FmtString,
+		Settings.FrequencyCenter0,
+		Settings.Gain0,
+		Settings.Bandwidth0,
+		Settings.FrequencyCenter1,
+		Settings.Gain1,
+		Settings.Bandwidth1,
+		Settings.FrequencyCenter2,
+		Settings.Gain2,
+		Settings.Bandwidth2,
+		Settings.FrequencyCenter3,
+		Settings.Gain3,
+		Settings.Bandwidth3
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Params);
+#endif
+}
+
 /** 
  * Interpolate EQ settings based on time
  */
-void FAudioEQEffect::Interpolate(float InterpValue, const FAudioEQEffect& Start, const FAudioEQEffect& End )
+bool FAudioEQEffect::Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd)
 {
+	const FAudioEQEffect& Start = static_cast<const FAudioEQEffect&>(InStart);
+	const FAudioEQEffect& End = static_cast<const FAudioEQEffect&>(InEnd);
+
+	float InterpValue = 1.0f;
+	if (End.RootTime - Start.RootTime > 0.0)
+	{
+		InterpValue = (float)((FApp::GetCurrentTime() - Start.RootTime) / (End.RootTime - Start.RootTime));
+	}
+
+	if (InterpValue >= 1.0f)
+	{
+		*this = End;
+		return true;
+	}
+
+	if (InterpValue <= 0.0f)
+	{
+		*this = Start;
+		return false;
+	}
+
 	RootTime = FApp::GetCurrentTime();
 
 	FrequencyCenter0 = FMath::Lerp(Start.FrequencyCenter0, End.FrequencyCenter0, InterpValue);
@@ -153,6 +283,8 @@ void FAudioEQEffect::Interpolate(float InterpValue, const FAudioEQEffect& Start,
 	Bandwidth1 = FMath::Lerp(Start.Bandwidth1, End.Bandwidth1, InterpValue);
 	Bandwidth2 = FMath::Lerp(Start.Bandwidth2, End.Bandwidth2, InterpValue);
 	Bandwidth3 = FMath::Lerp(Start.Bandwidth3, End.Bandwidth3, InterpValue);
+
+	return false;
 }
 
 /**
@@ -184,60 +316,6 @@ int64 FAudioEffectsManager::VolumeToMilliBels( float Volume, int32 MaxMilliBels 
 	}
 
 	return( MilliBels );
-}
-
-/** 
- * Gets the parameters for reverb based on settings and time
- */
-bool FAudioEffectsManager::Interpolate( FAudioReverbEffect& Current, const FAudioReverbEffect& Start, const FAudioReverbEffect& End )
-{
-	float InterpValue = 1.0f;
-	if( End.Time - Start.Time > 0.0 )
-	{
-		InterpValue = ( float )( ( FApp::GetCurrentTime() - Start.Time ) / ( End.Time - Start.Time ) );
-	}
-
-	if( InterpValue >= 1.0f )
-	{
-		Current = End;
-		return true;
-	}
-
-	if( InterpValue <= 0.0f )
-	{
-		Current = Start;
-		return false;
-	}
-
-	Current.Interpolate( InterpValue, Start, End );
-	return false;
-}
-
-/** 
- * Gets the parameters for EQ based on settings and time
- */
-bool FAudioEffectsManager::Interpolate( FAudioEQEffect& Current, const FAudioEQEffect& Start, const FAudioEQEffect& End )
-{
-	float InterpValue = 1.0f;
-	if( End.RootTime - Start.RootTime > 0.0 )
-	{
-		InterpValue = ( float )( ( FApp::GetCurrentTime() - Start.RootTime ) / ( End.RootTime - Start.RootTime ) );
-	}
-
-	if( InterpValue >= 1.0f )
-	{
-		Current = End;
-		return true;
-	}
-
-	if( InterpValue <= 0.0f )
-	{
-		Current = Start;
-		return false;
-	}
-
-	Current.Interpolate( InterpValue, Start, End );
-	return false;
 }
 
 /** 
@@ -447,7 +525,7 @@ void FAudioEffectsManager::Update()
 
 #endif
 
-	const bool bIsReverbDone = Interpolate(CurrentReverbEffect, SourceReverbEffect, DestinationReverbEffect);
+	const bool bIsReverbDone = CurrentReverbEffect.Interpolate(SourceReverbEffect, DestinationReverbEffect);
 	if (!bIsReverbDone || bReverbActive || bReverbChanged)
 	{
 		bReverbChanged = false;
@@ -456,7 +534,7 @@ void FAudioEffectsManager::Update()
 		SetReverbEffectParameters(CurrentReverbEffect);
 	}
 
-	const bool bIsEQDone = Interpolate(CurrentEQEffect, SourceEQEffect, DestinationEQEffect);
+	const bool bIsEQDone = CurrentEQEffect.Interpolate(SourceEQEffect, DestinationEQEffect);
 	if (!bIsEQDone || bEQActive || bEQChanged)
 	{
 		bEQChanged = false;

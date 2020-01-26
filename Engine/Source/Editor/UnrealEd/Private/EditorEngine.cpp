@@ -217,6 +217,7 @@
 #include "ToolMenus.h"
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "StudioAnalytics.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
@@ -1340,6 +1341,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	}
 
 	FEngineAnalytics::Tick(DeltaSeconds);
+	FStudioAnalytics::Tick(DeltaSeconds);
 
 	// Look for realtime flags.
 	bool IsRealtime = false;
@@ -1823,7 +1825,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					continue;
 				}
 
-				if ( ViewportClient->IsVisible() && (!bAllWindowsHidden || ViewportClient->WantsDrawWhenAppIsHidden()) )
+				if (ViewportClient->IsVisible() && (!bAllWindowsHidden || ViewportClient->WantsDrawWhenAppIsHidden()) && ViewportClient->GetScene())
 				{
 					// Only update ortho viewports if that mode is turned on, the viewport client we are about to update is orthographic and the current editing viewport is orthographic and tracking mouse movement.
 					bUpdateLinkedOrthoViewports = GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports && ViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient->IsTracking();
@@ -2060,7 +2062,10 @@ bool UEditorEngine::UpdateSingleViewportClient(FEditorViewportClient* InViewport
 		// Add view information for perspective viewports.
 		if( InViewportClient->IsPerspective() )
 		{
-			InViewportClient->GetWorld()->ViewLocationsRenderedLastFrame.Add(InViewportClient->GetViewLocation());
+			if (UWorld* ViewportClientWorld = InViewportClient->GetWorld())
+			{
+				ViewportClientWorld->ViewLocationsRenderedLastFrame.Add(InViewportClient->GetViewLocation());
+			}
 	
 			// If we're currently simulating in editor, then we'll need to make sure that sub-levels are streamed in.
 			// When using PIE, this normally happens by UGameViewportClient::Draw().  But for SIE, we need to do
@@ -4288,6 +4293,12 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 
 bool UEditorEngine::IsPackageOKToSave(UPackage* InPackage, const FString& InFilename, FOutputDevice* Error)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (InPackage && !AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPackage->GetName()))
+	{
+		return false;
+	}
+
 	return true;
 }
 

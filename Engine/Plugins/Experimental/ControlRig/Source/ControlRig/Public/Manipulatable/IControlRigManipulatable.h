@@ -10,6 +10,14 @@
 #include "UObject/Interface.h"
 #include "IControlRigManipulatable.generated.h"
 
+/** When setting control values what to do with regards to setting key.*/
+enum class EControlRigSetKey : uint8
+{
+	DoNotCare = 0x0,    //Don't care if a key is set or not, may get set, say if auto key is on somewhere.
+	Always,				//Always set a key here
+	Never				//Never set a key here.
+};
+
 /**
  *
  * IControlRigManipulatable provides an interface for subjects who desire to be 
@@ -39,7 +47,7 @@ public:
 	DECLARE_EVENT_ThreeParams(IControlRigManipulatable, FFilterControlEvent, IControlRigManipulatable*, const FRigControl&, FRigControlValue&);
 
 	/** Bindable event for external objects to be notified of Control changes */
-	DECLARE_EVENT_TwoParams(IControlRigManipulatable, FControlModifiedEvent, IControlRigManipulatable*, const FRigControl&);
+	DECLARE_EVENT_ThreeParams(IControlRigManipulatable, FControlModifiedEvent, IControlRigManipulatable*, const FRigControl&, EControlRigSetKey);
 #if WITH_EDITOR
 	/** Bindable event for external objects to be notified that a Control is Selected */
 	DECLARE_EVENT_ThreeParams(IControlRigManipulatable, FControlSelectedEvent, IControlRigManipulatable*, const FRigControl&,  bool);
@@ -93,23 +101,27 @@ public:
 	}
 
 	// Sets the relative value of a Control
-	FORCEINLINE void SetControlValue(const FName& InControlName, const FRigControlValue& InValue, bool bNotify = true)
+	FORCEINLINE void SetControlValue(const FName& InControlName, const FRigControlValue& InValue, bool bNotify = true,
+		EControlRigSetKey InSetKey = EControlRigSetKey::DoNotCare)
 	{
 		FRigControl* Control = FindControl(InControlName);
 		check(Control);
+
 		Control->Value = InValue;
+		Control->ApplyLimits(Control->Value);
 
 		if (bNotify && OnControlModified.IsBound())
 		{
-			OnControlModified.Broadcast(this, *Control);
+			OnControlModified.Broadcast(this, *Control, InSetKey);
 		}
 	}
 
 	// Sets the relative value of a Control
 	template<class T>
-	FORCEINLINE void SetControlValue(const FName& InControlName, T InValue, bool bNotify = true)
+	FORCEINLINE void SetControlValue(const FName& InControlName, T InValue, bool bNotify = true,
+		EControlRigSetKey InSetKey = EControlRigSetKey::DoNotCare)
 	{
-		SetControlValue(InControlName, FRigControlValue::Make<T>(InValue), bNotify);
+		SetControlValue(InControlName, FRigControlValue::Make<T>(InValue), bNotify, InSetKey);
 	}
 
 	// Returns the global / world transform of a Control
@@ -117,7 +129,8 @@ public:
 
 	// Sets the global / world transform of a Control. This should be called from the interaction
 	// layer / edit mode. Returns true when successful.
-	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
+	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, 
+		EControlRigSetKey InSetKey = EControlRigSetKey::DoNotCare);
 
 	// Returns the value given a global transform
 	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform) = 0;
@@ -163,6 +176,8 @@ public:
 	//Get bindings to a runtime object 
 	virtual TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const {	return nullptr;}
 
+	//Create RigControls for Curves, they will get added to the AvailableControls
+	virtual void CreateRigControlsForCurveContainer()  {};
 
 private:
 

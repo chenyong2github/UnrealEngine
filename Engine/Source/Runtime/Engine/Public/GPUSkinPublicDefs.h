@@ -9,7 +9,10 @@
 #include "CoreMinimal.h"
 
 /** Max number of bone influences that a single skinned vert can have. */
-#define MAX_TOTAL_INFLUENCES		8
+#define MAX_TOTAL_INFLUENCES		12
+
+/** Number of bone influences when using extra bone influences. */
+#define EXTRA_BONE_INFLUENCES		8
 
 /** Max number of bone influences that a single skinned vert can have per vertex stream. */
 #define MAX_INFLUENCES_PER_STREAM	4

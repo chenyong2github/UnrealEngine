@@ -846,6 +846,11 @@ void FIOSPlatformMisc::RequestStoreReview()
 #endif
 }
 
+bool FIOSPlatformMisc::IsUpdateAvailable()
+{
+	return [[IOSAppDelegate GetDelegate] IsUpdateAvailable];
+}
+
 /**
 * Returns a unique string for advertising identification
 *

@@ -65,8 +65,6 @@ private:
 	int32 IndexOfBlock(const FName InName) const;
 	int32 FindBlockInsertIndex(const FToolMenuEntry& InBlock) const;
 
-	void AssembleBlock(const FToolMenuEntry& InBlock);
-
 	bool IsNonLegacyDynamic() const;
 
 	bool IsRegistering() const;

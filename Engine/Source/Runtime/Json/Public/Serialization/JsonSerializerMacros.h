@@ -150,8 +150,9 @@
 
 struct FJsonSerializerBase;
 
-/** Array of string data */
+/** Array of data */
 typedef TArray<FString> FJsonSerializableArray;
+typedef TArray<int32> FJsonSerializableArrayInt;
 
 /** Maps a key to a value */
 typedef TMap<FString, FString> FJsonSerializableKeyValueMap;
@@ -182,6 +183,7 @@ struct FJsonSerializerBase
 	virtual void Serialize(const TCHAR* Name, FDateTime& Value) = 0;
 	virtual void SerializeArray(FJsonSerializableArray& Array) = 0;
 	virtual void SerializeArray(const TCHAR* Name, FJsonSerializableArray& Value) = 0;
+	virtual void SerializeArray(const TCHAR* Name, FJsonSerializableArrayInt& Value) = 0;
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMap& Map) = 0;
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapInt& Map) = 0;
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapInt64& Map) = 0;
@@ -382,6 +384,22 @@ public:
 		JsonWriter->WriteArrayStart(Name);
 		// Iterate all of values
 		for (FJsonSerializableArray::ElementType& Item :  Array)
+		{
+			JsonWriter->WriteValue(Item);
+		}
+		JsonWriter->WriteArrayEnd();
+	}
+	/**
+	 * Serializes an array of values with an identifier
+	 *
+	 * @param Name the name of the property to serialize
+	 * @param Array the array to serialize
+	 */
+	virtual void SerializeArray(const TCHAR* Name, FJsonSerializableArrayInt& Array) override
+	{
+		JsonWriter->WriteArrayStart(Name);
+		// Iterate all of values
+		for (FJsonSerializableArrayInt::ElementType& Item : Array)
 		{
 			JsonWriter->WriteValue(Item);
 		}
@@ -616,7 +634,7 @@ public:
 	{
 		if (JsonObject->HasTypedField<EJson::Number>(Name))
 		{
-			Value = JsonObject->GetNumberField(Name);
+			Value = (float)JsonObject->GetNumberField(Name);
 		}
 	}
 	/**
@@ -675,6 +693,24 @@ public:
 		}
 	}
 	/**
+	 * Serializes an array of values with an identifier
+	 *
+	 * @param Name the name of the property to serialize
+	 * @param Array the array to serialize
+	 */
+	virtual void SerializeArray(const TCHAR* Name, FJsonSerializableArrayInt& Array) override
+	{
+		if (JsonObject->HasTypedField<EJson::Array>(Name))
+		{
+			TArray< TSharedPtr<FJsonValue> > JsonArray = JsonObject->GetArrayField(Name);
+			// Iterate all of the keys and their values
+			for (TSharedPtr<FJsonValue>& Value : JsonArray)
+			{
+				Array.Add(Value->AsNumber());
+			}
+		}
+	}
+	/**
 	 * Serializes the keys & values for map
 	 *
 	 * @param Name the name of the property to serialize
@@ -707,7 +743,7 @@ public:
 			// Iterate all of the keys and their values
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonMap->Values)
 			{
-				const int32 Value = Pair.Value->AsNumber();
+				const int32 Value = (int32)Pair.Value->AsNumber();
 				Map.Add(Pair.Key, Value);
 			}
 		}
@@ -727,7 +763,7 @@ public:
 			// Iterate all of the keys and their values
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonMap->Values)
 			{
-				const int64 Value = Pair.Value->AsNumber();
+				const int64 Value = (int64)Pair.Value->AsNumber();
 				Map.Add(Pair.Key, Value);
 			}
 		}
