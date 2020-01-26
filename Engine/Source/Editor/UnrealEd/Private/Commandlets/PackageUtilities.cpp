@@ -37,10 +37,6 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 
-#include "Animation/AnimCompress_BitwiseCompressOnly.h"
-#include "Animation/AnimCompress_Automatic.h"
-
-
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
@@ -1779,12 +1775,8 @@ struct CompressAnimationsFunctor
 
 		const bool bSkipCinematicPackages = Switches.Contains(TEXT("SKIPCINES"));
 		const bool bSkipLongAnimations = Switches.Contains(TEXT("SKIPLONGANIMS"));
-		// Reset compression, don't do incremental compression, start from scratch
-		const bool bResetCompression = Switches.Contains(TEXT("RESETCOMPRESSION"));
 		/** Clear bDoNotOverrideCompression flag in animations */
 		const bool bClearNoCompressionOverride = Switches.Contains(TEXT("CLEARNOCOMPRESSIONOVERRIDE"));
-		/** If we're analyzing, we're not actually going to recompress, so we can skip some significant work. */
-		const bool bAnalyze = Switches.Contains(TEXT("ANALYZE"));
 		// See if we can save this package. If we can't, don't bother...
 		/** if we should auto checkout packages that need to be saved **/
 		const bool bAutoCheckOut = Switches.Contains(TEXT("AUTOCHECKOUTPACKAGES"));
@@ -1792,7 +1784,7 @@ struct CompressAnimationsFunctor
 		FSourceControlStatePtr SourceControlState = SourceControl.GetProvider().GetState(PackageFileName, EStateCacheUsage::ForceUpdate);
 
 		// check to see if we need to check this package out
-		if( !bAnalyze && SourceControlState.IsValid() && SourceControlState->CanCheckout() )
+		if( SourceControlState.IsValid() && SourceControlState->CanCheckout() )
 		{
 			// Cant check out, check to see why
 			if (bAutoCheckOut == true)
@@ -1854,13 +1846,13 @@ struct CompressAnimationsFunctor
 
 			// If animation has already been compressed with the commandlet and version is the same. then skip.
 			// We're only interested in new animations.
-			if( !bAnalyze && !bForceCompression && AnimSeq->CompressCommandletVersion == CompressCommandletVersion )
+			if( !bForceCompression && AnimSeq->CompressCommandletVersion == CompressCommandletVersion )
 			{
 				UE_LOG(LogPackageUtilities, Warning, TEXT("Same CompressCommandletVersion (%i) skip animation: %s (%s)"), CompressCommandletVersion, *AnimSeq->GetName(), *AnimSeq->GetFullName());
 				continue;
 			}
 
-			if( !bAnalyze && !bForceCompression && bSkipLongAnimations && (AnimSeq->GetRawNumberOfFrames() > 300) )
+			if( !bForceCompression && bSkipLongAnimations && (AnimSeq->GetRawNumberOfFrames() > 300) )
 			{
 				UE_LOG(LogPackageUtilities, Warning, TEXT("Animation (%s) has more than 300 frames (%i frames) and SKIPLONGANIMS switch is set. Skipping."), *AnimSeq->GetName(), AnimSeq->GetRawNumberOfFrames());
 				continue;
@@ -1871,349 +1863,6 @@ struct CompressAnimationsFunctor
 			if (Skeleton->HasAnyFlags(RF_NeedLoad))
 			{
 				Skeleton->GetLinker()->Preload(Skeleton);
-			}
-
-			if( bAnalyze )
-			{
-				static int32 NumTotalAnimations = 0;
-				static int32 NumTotalSize = 0;
-				static int32 Trans96Savings = 0;
-				static int32 Trans48Savings = 0;
-				static int32 Rot96Savings = 0;
-				static int32 Rot48Savings = 0;
-				static int32 Scale96Savings = 0;
-				static int32 Scale48Savings = 0;
-				static int32 Num96TransTracks = 0;
-				static int32 Num96RotTracks = 0;
-				static int32 Num96ScaleTracks = 0;
-				static int32 Num48TransTracks = 0;
-				static int32 Num48RotTracks = 0;
-				static int32 Num48ScaleTracks = 0;
-				static int32 Num32TransTracks = 0;
-				static int32 Num32ScaleTracks = 0;
-				static int32 UnknownTransTrack = 0;
-				static int32 UnknownRotTrack = 0;
-				static int32 UnknownScaleTrack = 0;
-				static int32 RotationOnlySavings = 0;
-				static int32 RotationOnlyManyKeys = 0;
-
-				NumTotalAnimations++;
-
-				FArchiveCountMem CountBytesSize( AnimSeq );
-				int32 ResourceSize = CountBytesSize.GetNum();
-
-				NumTotalSize += ResourceSize;
-				
-				FUECompressedAnimData& CompressedData = AnimSeq->CompressedData.CompressedDataStructure;
-
-				// Looking for PerTrackCompression using 96bit translation compression.
-				if( CompressedData.KeyEncodingFormat == AKF_PerTrackCompression && CompressedData.CompressedByteStream.Num() > 0 )
-				{
-					bool bCandidate = false;
-
-					for (int32 i = 0; i<AnimSeq->GetCompressedTrackToSkeletonMapTable().Num(); i++)
- 					{
- 						const int32 TrackIndex = i;
-						const int32 BoneTreeIndex = AnimSeq->GetCompressedTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex;
-						const FName BoneTreeName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-
- 						// Translation
-						{
-							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32* RESTRICT TrackDataForTransKey = CompressedData.CompressedTrackOffsets.GetData() + (TrackIndex * 2);
-							const int32 TransKeysOffset = TrackDataForTransKey[0];
- 							if( TransKeysOffset != INDEX_NONE )
- 							{
-								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + TransKeysOffset + 4;
-								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + TransKeysOffset));
-	 
- 								int32 KeyFormat;
- 								int32 NumKeys;
- 								int32 FormatFlags;
- 								int32 BytesPerKey;
- 								int32 FixedBytes;
- 								FAnimationCompression_PerTrackUtils::DecomposeHeader(Header, /*OUT*/ KeyFormat, /*OUT*/ NumKeys, /*OUT*/ FormatFlags, /*OUT*/BytesPerKey, /*OUT*/ FixedBytes);
- 								if( KeyFormat == ACF_Float96NoW )
- 								{
-									Num96TransTracks++;
-
- 									// Determine which components we could let go, and bytes we could save.
-									const FBox KeyBounds((FVector*)(TrackData + FixedBytes), NumKeys);
-									const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.X) >= 0.0002f);
-									const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Y) >= 0.0002f);
-									const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Z) >= 0.0002f);
-
-									if( !bHasX )
-									{
-										Trans96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasY )
-									{
-										Trans96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasZ )
-									{
-										Trans96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-								}
-								// Measure savings on 48bits translations
-								else if( KeyFormat == ACF_Fixed48NoW )
-								{
-									Num48TransTracks++;
-
-									const int32 SavedBytes = (6 - BytesPerKey) * NumKeys;
-									if( SavedBytes > 0 )
-									{
-										bCandidate = true;
-										Trans48Savings += SavedBytes;
-									}
-								}
-								else if( KeyFormat == ACF_IntervalFixed32NoW )
-								{
-									Num32TransTracks++;
-								}
-								else
-								{
-									UnknownTransTrack++;
-								}
-
-								// Measure how much we'd save if we used "rotation only" for compression
-								// root bone is true if BoneTreeIndex == 0 
-								// @todoanim : @fixmelh : AnimRotationOnly fix
-								if( BoneTreeIndex > 0 )
-// 									&& ((AnimSet->UseTranslationBoneNames.Num() > 0 && AnimSet->UseTranslationBoneNames.FindItemIndex(BoneName) == INDEX_NONE) 
-// 										|| (AnimSet->ForceMeshTranslationBoneNames.FindItemIndex(BoneName) != INDEX_NONE)) 
-// 									)
-								{
-									RotationOnlySavings += (BytesPerKey * NumKeys);
-									if( NumKeys > 1 )
-									{
-										const uint8* RESTRICT KeyData0 = TrackData + FixedBytes;
-										FVector V0;
-										FAnimationCompression_PerTrackUtils::DecompressTranslation(KeyFormat, FormatFlags, V0, TrackData, KeyData0);
-
-										float MaxErrorFromFirst = 0.f;
-										float MaxErrorFromDefault = 0.f;
-										const TArray<FTransform> & LocalRefPoses = Skeleton->GetRefLocalPoses();
-										for(int32 KeyIdx=0; KeyIdx<NumKeys; KeyIdx++)
-										{
-											const uint8* RESTRICT KeyDataN = TrackData + FixedBytes + KeyIdx * BytesPerKey;
-											FVector VN;
-											FAnimationCompression_PerTrackUtils::DecompressTranslation(KeyFormat, FormatFlags, VN, TrackData, KeyDataN);
-
-											// @todoanim: we will need more discussion, but we might use Skeleton->RefLocalPoses for compression
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.X - LocalRefPoses[BoneTreeIndex].GetLocation().X));
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.Y - LocalRefPoses[BoneTreeIndex].GetLocation().Y));
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.Z - LocalRefPoses[BoneTreeIndex].GetLocation().Z));
-
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.X - V0.X));
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.Y - V0.Y));
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.Z - V0.Z));
-										}
-
-										UE_LOG(LogPackageUtilities, Warning, TEXT("RotationOnly translation track that is animated! %s, %s (%s) NumKeys: %i, MaxErrorFromDefault: %f, MaxErrorFromFirst: %f"), 
-											*BoneTreeName.ToString(), *AnimSeq->GetName(), *AnimSeq->GetFullName(), NumKeys, MaxErrorFromDefault, MaxErrorFromFirst);
-										RotationOnlyManyKeys += (BytesPerKey * (NumKeys-1));
-									}
-								}
- 							}
-						}
-
-						// Rotation
-						{
-							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32* RESTRICT TrackDataForRotKey = CompressedData.CompressedTrackOffsets.GetData() + (TrackIndex * 2);
-							const int32 RotKeysOffset = TrackDataForRotKey[1];
-							if( RotKeysOffset != INDEX_NONE )
-							{
-								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + RotKeysOffset + 4;
-								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + RotKeysOffset));
-
-								int32 KeyFormat;
-								int32 NumKeys;
-								int32 FormatFlags;
-								int32 BytesPerKey;
-								int32 FixedBytes;
-								FAnimationCompression_PerTrackUtils::DecomposeHeader(Header, /*OUT*/ KeyFormat, /*OUT*/ NumKeys, /*OUT*/ FormatFlags, /*OUT*/BytesPerKey, /*OUT*/ FixedBytes);
-								if( KeyFormat == ACF_Float96NoW )
-								{
-									Num96RotTracks++;
-
-									// Determine which components we could let go, and bytes we could save.
-									const FBox KeyBounds((FVector*)(TrackData + FixedBytes), NumKeys);
-									const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.X) >= 0.0002f);
-									const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Y) >= 0.0002f);
-									const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Z) >= 0.0002f);
-
-									if( !bHasX )
-									{
-										Rot96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasY )
-									{
-										Rot96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasZ )
-									{
-										Rot96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-								}
-								// Measure savings on 48bits rotations.
-								else if( KeyFormat == ACF_Fixed48NoW )
-								{
-									Num48RotTracks++;
-
-									const int32 SavedBytes = (6 - BytesPerKey) * NumKeys;
-									if( SavedBytes > 0 )
-									{
-										bCandidate = true;
-										Rot48Savings += SavedBytes;
-									}
-								}
-								else
-								{
-									UnknownRotTrack++;
-								}
-							}
-						}
-
-						// Scale
-						{
-							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32 ScaleKeysOffset = CompressedData.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-							if( ScaleKeysOffset != INDEX_NONE )
-							{
-								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + ScaleKeysOffset + 4;
-								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + ScaleKeysOffset));
-
-								int32 KeyFormat;
-								int32 NumKeys;
-								int32 FormatFlags;
-								int32 BytesPerKey;
-								int32 FixedBytes;
-								FAnimationCompression_PerTrackUtils::DecomposeHeader(Header, /*OUT*/ KeyFormat, /*OUT*/ NumKeys, /*OUT*/ FormatFlags, /*OUT*/BytesPerKey, /*OUT*/ FixedBytes);
-								if( KeyFormat == ACF_Float96NoW )
-								{
-									Num96ScaleTracks++;
-
-									// Determine which components we could let go, and bytes we could save.
-									const FBox KeyBounds((FVector*)(TrackData + FixedBytes), NumKeys);
-									const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.X) >= 0.0002f);
-									const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Y) >= 0.0002f);
-									const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= 0.0002f) || (FMath::Abs(KeyBounds.Min.Z) >= 0.0002f);
-
-									if( !bHasX )
-									{
-										Scale96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasY )
-									{
-										Scale96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-									if( !bHasZ )
-									{
-										Scale96Savings += (4 * NumKeys);
-										bCandidate = true;
-									}
-								}
-								// Measure savings on 48bits Scales
-								else if( KeyFormat == ACF_Fixed48NoW )
-								{
-									Num48ScaleTracks++;
-
-									const int32 SavedBytes = (6 - BytesPerKey) * NumKeys;
-									if( SavedBytes > 0 )
-									{
-										bCandidate = true;
-										Scale48Savings += SavedBytes;
-									}
-								}
-								else if( KeyFormat == ACF_IntervalFixed32NoW )
-								{
-									Num32ScaleTracks++;
-								}
-								else
-								{
-									UnknownScaleTrack++;
-								}
-
-								// Measure how much we'd save if we used "rotation only" for compression
-								// root bone is true if BoneTreeIndex == 0 
-								// @todoanim : @fixmelh : AnimRotationOnly fix
-								if( BoneTreeIndex > 0 )
-									// 									&& ((AnimSet->UseScaleBoneNames.Num() > 0 && AnimSet->UseScaleBoneNames.FindItemIndex(BoneName) == INDEX_NONE) 
-										// 										|| (AnimSet->ForceMeshScaleBoneNames.FindItemIndex(BoneName) != INDEX_NONE)) 
-											// 									)
-								{
-									RotationOnlySavings += (BytesPerKey * NumKeys);
-									if( NumKeys > 1 )
-									{
-										const uint8* RESTRICT KeyData0 = TrackData + FixedBytes;
-										FVector V0;
-										FAnimationCompression_PerTrackUtils::DecompressScale(KeyFormat, FormatFlags, V0, TrackData, KeyData0);
-
-										float MaxErrorFromFirst = 0.f;
-										float MaxErrorFromDefault = 0.f;
-										const TArray<FTransform> & LocalRefPoses = Skeleton->GetRefLocalPoses();
-										for(int32 KeyIdx=0; KeyIdx<NumKeys; KeyIdx++)
-										{
-											const uint8* RESTRICT KeyDataN = TrackData + FixedBytes + KeyIdx * BytesPerKey;
-											FVector VN;
-											FAnimationCompression_PerTrackUtils::DecompressScale(KeyFormat, FormatFlags, VN, TrackData, KeyDataN);
-
-											// @todoanim: we will need more discussion, but we might use Skeleton->RefLocalPoses for compression
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.X - LocalRefPoses[BoneTreeIndex].GetLocation().X));
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.Y - LocalRefPoses[BoneTreeIndex].GetLocation().Y));
-											MaxErrorFromDefault = FMath::Max(MaxErrorFromDefault, FMath::Abs(VN.Z - LocalRefPoses[BoneTreeIndex].GetLocation().Z));
-
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.X - V0.X));
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.Y - V0.Y));
-											MaxErrorFromFirst = FMath::Max(MaxErrorFromFirst, FMath::Abs(VN.Z - V0.Z));
-										}
-
-										UE_LOG(LogPackageUtilities, Warning, TEXT("RotationOnly Scale track that is animated! %s, %s (%s) NumKeys: %i, MaxErrorFromDefault: %f, MaxErrorFromFirst: %f"), 
-											*BoneTreeName.ToString(), *AnimSeq->GetName(), *AnimSeq->GetFullName(), NumKeys, MaxErrorFromDefault, MaxErrorFromFirst);
-										RotationOnlyManyKeys += (BytesPerKey * (NumKeys-1));
-									}
-								}
-							}
-						}
- 					}
-
-					if( bCandidate )
-					{
-						++AnalyzeCompressionCandidates;
-						UE_LOG(LogPackageUtilities, Warning, TEXT("[%i] Animation could be recompressed: %s (%s), Trans96Savings: %i, Rot96Savings: %i, Scale96Savings: %i, Trans48Savings: %i, Rot48Savings: %i, Scale48Savings: %i, RotationOnlySavings: %i, RotationOnlyManyKeys: %i (bytes)"), 
-							AnalyzeCompressionCandidates, *AnimSeq->GetName(), *AnimSeq->GetFullName(), Trans96Savings, Rot96Savings, Scale96Savings, Trans48Savings, Rot48Savings, Scale48Savings, RotationOnlySavings, RotationOnlyManyKeys);
-						UE_LOG(LogPackageUtilities, Warning, TEXT("Translation Track Count, Num96TransTracks: %i, Num48TransTracks: %i, Num32TransTracks: %i, UnknownTransTrack: %i"), 
-							Num96TransTracks, Num48TransTracks, Num32TransTracks, UnknownTransTrack);
-						UE_LOG(LogPackageUtilities, Warning, TEXT("Rotation Track Count, Num96RotTracks: %i, Num48RotTracks: %i, UnknownRotTrack: %i"), 
-							Num96RotTracks, Num48RotTracks, UnknownRotTrack);
-						UE_LOG(LogPackageUtilities, Warning, TEXT("Scale Track Count, Num96ScaleTracks: %i, Num48ScaleTracks: %i, Num32ScaleTracks: %i, UnknownScaleTrack: %i"), 
-							Num96ScaleTracks, Num48ScaleTracks, Num32ScaleTracks, UnknownScaleTrack);
-					}
-				}
-
-// 				if( AnimSeq->NumFrames > 1 && AnimSeq->KeyEncodingFormat != AKF_PerTrackCompression )
-// 				{
-// 					++AnalyzeCompressionCandidates;
-// 
-// 					FArchiveCountMem CountBytesSize( AnimSeq );
-// 					int32 ResourceSize = CountBytesSize.GetNum();
-// 
-// 					UE_LOG(LogPackageUtilities, Warning, TEXT("[%i] Animation could be recompressed: %s (%s), frames: %i, length: %f, size: %i bytes, compression scheme: %s"), 
-// 						AnalyzeCompressionCandidates, *AnimSeq->GetName(), *AnimSet->GetFullName(),  AnimSeq->NumFrames, AnimSeq->SequenceLength, ResourceSize, AnimSeq->CompressionScheme ? *AnimSeq->CompressionScheme->GetClass()->GetName() : TEXT("NULL"));
-// 				}
-
-				continue;
 			}
 
 			float HighestRatio = 0.f;
@@ -2289,24 +1938,9 @@ struct CompressAnimationsFunctor
 				bDirtyPackage = true;
 			}
 
-			// Reset to default compressor
-			if( bResetCompression )
-			{
-				UE_LOG(LogPackageUtilities, Warning, TEXT("%s (%s) Resetting with BitwiseCompressOnly."), *AnimSeq->GetName(), *AnimSeq->GetFullName());
-				UAnimCompress* CompressionAlgorithm = NewObject<UAnimCompress_BitwiseCompressOnly>();
-				CompressionAlgorithm->RotationCompressionFormat = ACF_Float96NoW;
-				CompressionAlgorithm->TranslationCompressionFormat = ACF_None;
-				CompressionAlgorithm->ScaleCompressionFormat = ACF_Float96NoW;
-				AnimSeq->CompressionScheme = CompressionAlgorithm;
-				AnimSeq->RequestSyncAnimRecompression();
-
-				// Force an update.
-				AnimSeq->CompressCommandletVersion = 0;
-			}
-			
-			// Do not perform automatic recompression on animations marked as 'bDoNotOverrideCompression'
-			// Unless they have no compression scheme, or they're using automatic compression.
-			if (AnimSeq->bDoNotOverrideCompression && (AnimSeq->CompressionScheme != nullptr) && !AnimSeq->CompressionScheme->IsA(UAnimCompress_Automatic::StaticClass()))
+			// Do not perform recompression on animations marked as 'bDoNotOverrideCompression'
+			// Unless they have no compression scheme.
+			if (AnimSeq->bDoNotOverrideCompression && AnimSeq->BoneCompressionSettings != nullptr)
 			{
 				continue;
 			}
@@ -2317,16 +1951,13 @@ struct CompressAnimationsFunctor
 				NumAnimationsInPackage,
 				*PackageFileName);
 
-			// First set automatic compressor and call it.
-			// This will run through a bunch of compressors and pick the best.
-			// Problem is this is going to create a DDC key with 'Automatic Compressor'
-			UAnimCompress* CompressionAlgorithm = NewObject<UAnimCompress_Automatic>();
-			AnimSeq->CompressionScheme = static_cast<UAnimCompress*>(StaticDuplicateObject(CompressionAlgorithm, AnimSeq));
+			UE_LOG(LogPackageUtilities, Warning, TEXT("%s (%s) Resetting with to default compression settings."), *AnimSeq->GetName(), *AnimSeq->GetFullName());
+			AnimSeq->BoneCompressionSettings = nullptr;
+			AnimSeq->CurveCompressionSettings = nullptr;
 			AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, true, false));
 
-			// Automatic compression should have picked a suitable compressor that is not UAnimCompress_Automatic
-			// May still be automatic if we read the data from the DDC
-			if (!AnimSeq->CompressionScheme->IsA(UAnimCompress_Automatic::StaticClass()))
+			// Automatic compression should have picked a suitable compressor
+			if (!AnimSeq->IsCompressedDataValid())
 			{
 				// Update CompressCommandletVersion in that case, and create a proper DDC entry
 				// (with actual compressor)
@@ -2394,7 +2025,7 @@ struct CompressAnimationsFunctor
 /*		bDirtyPackage = bDirtyPackage || Package->IsDirty();*/
 
 		// If we need to save package, do so.
-		if( bDirtyPackage && !bAnalyze )
+		if( bDirtyPackage )
 		{
 			bool bCorrectlySaved = false;
 

@@ -668,7 +668,7 @@ public:
 		return RequestedOffset;
 	}
 
-	uint32 GetSize() const
+	uint64 GetSize() const
 	{
 		return RequestedSize;
 	}

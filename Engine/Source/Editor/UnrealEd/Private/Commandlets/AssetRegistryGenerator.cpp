@@ -441,7 +441,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 			}
 
 			// Allow the extra data generation steps to run and add their output to the manifest
-			if (ChunkDataGenerators.Num() > 0)
+			if (ChunkDataGenerators.Num() > 0 && SubChunkIndex == 0)
 			{
 				TSet<FName> PackagesInChunk;
 				PackagesInChunk.Reserve(Manifest->Num());

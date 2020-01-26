@@ -832,6 +832,10 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 					{
 						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), FoundProperty->GetFName());
 					}
+					else
+					{
+						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), Pin->GetFName());
+					}
 				}
 			}
 		}

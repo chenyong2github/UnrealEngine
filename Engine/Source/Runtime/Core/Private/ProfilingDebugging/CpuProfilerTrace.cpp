@@ -124,7 +124,7 @@ void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 	uint8* BufferPtr = ThreadBuffer->Buffer + ThreadBuffer->BufferSize; \
 	FTraceUtils::Encode7bit((CycleDiff << 1) | 1ull, BufferPtr); \
 	FTraceUtils::Encode7bit(SpecId, BufferPtr); \
-	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer; \
+	ThreadBuffer->BufferSize = (uint16)(BufferPtr - ThreadBuffer->Buffer); \
 	if (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold) \
 	{ \
 		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer); \
@@ -187,7 +187,7 @@ void FCpuProfilerTrace::OutputEndEvent(const Trace::FChannel& Channel)
 	ThreadBuffer->LastCycle = Cycle;
 	uint8* BufferPtr = ThreadBuffer->Buffer + ThreadBuffer->BufferSize;
 	FTraceUtils::Encode7bit(CycleDiff << 1, BufferPtr);
-	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer;
+	ThreadBuffer->BufferSize = (uint16)(BufferPtr - ThreadBuffer->Buffer);
 	if ((FCpuProfilerTraceInternal::ThreadDepth == 0) | (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold))
 	{
 		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer);

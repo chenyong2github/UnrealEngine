@@ -289,6 +289,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay)
 	TArray<FString> LocalizationTargetsToChunk;
 
+	/** The chunk ID that should be used as the catch-all chunk for any non-asset localized strings */
+	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay)
+	int32 LocalizationTargetCatchAllChunkId = 0;
+
 	/**
 	 * Cook all things in the project content directory
 	 */

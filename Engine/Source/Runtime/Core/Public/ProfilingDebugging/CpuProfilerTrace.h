@@ -78,7 +78,7 @@ struct FCpuProfilerTrace
 	FCpuProfilerTrace::Shutdown();
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(NameStr, Channel) \
-	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
+	static uint32 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
 	if (bool(Channel) && PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
 		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerTrace::OutputEventType(NameStr); \
 	} \

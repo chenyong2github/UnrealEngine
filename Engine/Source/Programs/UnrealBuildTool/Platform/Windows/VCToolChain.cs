@@ -499,8 +499,6 @@ namespace UnrealBuildTool
 				}
 
 				Arguments.Add("/wd4463"); // 4463 - overflow; assigning 1 to bit-field that can only hold values from -1 to 0
-
-				Arguments.Add("/wd4838"); // 4838: conversion from 'type1' to 'type2' requires a narrowing conversion
 			}
 
 			if(CompileEnvironment.bEnableUndefinedIdentifierWarnings)
@@ -514,6 +512,30 @@ namespace UnrealBuildTool
 					Arguments.Add("/w44668");
 				}
 			}
+
+			// The unsafe type cast warnings setting controls the following warnings currently:
+			//   4244: conversion from 'type1' to 'type2', possible loss of data
+			//   4838: conversion from 'type1' to 'type2' requires a narrowing conversion
+			//@TODO: FLOATPRECISION: Consider doing the following as well:
+			//   4267: 'var' : conversion from 'size_t' to 'type', possible loss of data
+			//   4305: 'identifier' : truncation from 'type1' to 'type2'
+			WarningLevel EffectiveCastWarningLevel = (Target.Platform == UnrealTargetPlatform.Win64) ? CompileEnvironment.UnsafeTypeCastWarningLevel : WarningLevel.Off;
+			if (EffectiveCastWarningLevel == WarningLevel.Error)
+ 			{
+ 				Arguments.Add("/we4244");
+				Arguments.Add("/we4838");
+ 			}
+ 			else if (EffectiveCastWarningLevel == WarningLevel.Warning)
+ 			{
+				// Note: The extra 4 is not a typo, /wLXXXX sets warning XXXX to level L
+ 				Arguments.Add("/w44244");
+				Arguments.Add("/w44838");
+			}
+			else
+ 			{
+ 				Arguments.Add("/wd4244");
+				Arguments.Add("/wd4838");
+ 			}
 		}
 
 		void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -1302,7 +1324,8 @@ namespace UnrealBuildTool
 
 				// Resource tool can run remotely if possible
 				CompileAction.bCanExecuteRemotely = true;
-
+				CompileAction.bCanExecuteRemotelyWithSNDBS = false;	// no tool template for SN-DBS results in warnings
+			
 				List<string> Arguments = new List<string>();
 
 				// Suppress header spew
@@ -1343,7 +1366,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intemediate directory (and not for the shared editor executable, for example).
+				// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intermediate directory (and not for the shared editor executable, for example).
 				FileReference IconFile;
 				if(Target.ProjectFile != null && !CompileEnvironment.bUseSharedBuildEnvironment)
 				{

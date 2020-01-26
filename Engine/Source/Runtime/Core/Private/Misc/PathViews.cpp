@@ -16,7 +16,7 @@ FStringView FPathViews::GetCleanFilename(const FStringView& InPath)
 {
 	if (const TCHAR* StartPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslash))
 	{
-		return InPath.RightChop(StartPos - InPath.GetData() + 1);
+		return InPath.RightChop(UE_PTRDIFF_TO_INT32(StartPos - InPath.GetData() + 1));
 	}
 	return InPath;
 }
@@ -41,7 +41,7 @@ FStringView FPathViews::GetPath(const FStringView& InPath)
 {
 	if (const TCHAR* EndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslash))
 	{
-		return InPath.Left(EndPos - InPath.GetData());
+		return InPath.Left((FStringView::SizeType)(EndPos - InPath.GetData()));
 	}
 	return FStringView();
 }
@@ -51,7 +51,7 @@ FStringView FPathViews::GetExtension(const FStringView& InPath, bool bIncludeDot
 	if (const TCHAR* Dot = Algo::FindLast(GetCleanFilename(InPath), TEXT('.')))
 	{
 		const TCHAR* Extension = bIncludeDot ? Dot : Dot + 1;
-		return FStringView(Extension, InPath.GetData() + InPath.Len() - Extension);
+		return FStringView(Extension, (FStringView::SizeType)(InPath.GetData() + InPath.Len() - Extension));
 	}
 	return FStringView();
 }
@@ -61,7 +61,7 @@ FStringView FPathViews::GetPathLeaf(const FStringView& InPath)
 	if (const TCHAR* EndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsNotSlashOrBackslash))
 	{
 		++EndPos;
-		return GetCleanFilename(InPath.Left(EndPos - InPath.GetData()));
+		return GetCleanFilename(InPath.Left((FStringView::SizeType)(EndPos - InPath.GetData())));
 	}
 	return FStringView();
 }
@@ -70,7 +70,7 @@ void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringV
 {
 	const FStringView CleanName = GetCleanFilename(InPath);
 	const TCHAR* DotPos = Algo::FindLast(CleanName, TEXT('.'));
-	const FStringView::SizeType NameLen = DotPos ? DotPos - CleanName.GetData() : CleanName.Len();
+	const FStringView::SizeType NameLen = DotPos ? (FStringView::SizeType)(DotPos - CleanName.GetData()) : CleanName.Len();
 	OutPath = InPath.LeftChop(CleanName.Len() + 1);
 	OutName = CleanName.Left(NameLen);
 	OutExt = CleanName.RightChop(NameLen + 1);

@@ -57,7 +57,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 
 static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 
-int32 ParseChunkIDFromFilename(const FString& InFilename)
+int32 GetPakchunkIDFromPakFile(const FString& InFilename)
 {
 	FString ChunkIdentifier(TEXT("pakchunk"));
 	FString BaseFilename = FPaths::GetBaseFilename(InFilename);
@@ -181,11 +181,13 @@ FPakCustomEncryptionDelegate& FPakPlatformFile::GetPakCustomEncryptionDelegate()
 	return Delegate;
 }
 
+// Needs to be a global as multiple threads may try to access the failed delegate
+static FPakChunkSignatureCheckFailedHandler SignatureFailedDelegate;
 FPakChunkSignatureCheckFailedHandler& FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler()
 {
-	static FPakChunkSignatureCheckFailedHandler Delegate;
-	return Delegate;
+	return SignatureFailedDelegate;
 }
+
 FPakMasterSignatureTableCheckFailureHandler& FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler()
 {
 	static FPakMasterSignatureTableCheckFailureHandler Delegate;
@@ -445,6 +447,13 @@ static FAutoConsoleVariableRef CVar_PakCache_TimeToTrim(
 	TEXT("pakcache.TimeToTrim"),
 	GPakCache_TimeToTrim,
 	TEXT("Controls how long to hold onto a cached but unreferenced block for.")
+);
+
+int32 GPakCache_EnableNoCaching = 0;
+static FAutoConsoleVariableRef CVar_EnableNoCaching(
+	TEXT("pakcache.EnableNoCaching"),
+	GPakCache_EnableNoCaching,
+	TEXT("if > 0, then we'll allow a read requests pak cache memory to be ditched early")
 );
 
 class FPakPrecacher;
@@ -1157,6 +1166,7 @@ class FPakPrecacher
 			, Index(IntervalTreeInvalidIndex)
 			, Next(IntervalTreeInvalidIndex)
 			, Status(EBlockStatus::InFlight)
+			, TimeNoLongerReferenced(0)
 		{
 		}
 	};
@@ -1789,7 +1799,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 					break;
 				}
 			}
-			if(GPakCache_TimeToTrim != 0.0f)
+			if (GPakCache_TimeToTrim != 0.0f)
 			{
 				// we'll trim based on time rather than trying to keep within a memory budget
 				double CurrentTime = FPlatformTime::Seconds();
@@ -1808,7 +1818,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 							uint16 PakIndex = GetRequestPakIndex(OffsetAndPakIndex);
 							int64 Offset = GetRequestOffset(OffsetAndPakIndex);
 							FPakData& Pak = CachedPakData[PakIndex];
-							bool removedall = true;
+							bool bRemovedAll = true;
 							MaybeRemoveOverlappingNodesInIntervalTree<FCacheBlock>(
 								&Pak.CacheBlocks[(int32)EBlockStatus::Complete],
 								CacheBlockAllocator,
@@ -1818,7 +1828,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 								Pak.MaxNode,
 								Pak.StartShift,
 								Pak.MaxShift,
-								[this, CurrentTime, &removedall](TIntervalTreeIndex BlockIndex) -> bool
+								[this, CurrentTime, &bRemovedAll](TIntervalTreeIndex BlockIndex) -> bool
 							{
 								FCacheBlock &Block = CacheBlockAllocator.Get(BlockIndex);
 								if (!Block.InRequestRefCount && (CurrentTime - Block.TimeNoLongerReferenced >= GPakCache_TimeToTrim))
@@ -1827,11 +1837,11 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 									ClearBlock(Block);
 									return true;
 								}
-								removedall = false;
+								bRemovedAll = false;
 								return false;
 							}
 							);
-							if (!removedall)
+							if (!bRemovedAll)
 								break;
 							NumToRemove++;
 						}
@@ -1908,6 +1918,9 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		FPakData& Pak = CachedPakData[PakIndex];
 		check(Offset + Request.Size <= Pak.TotalSize && Request.Size > 0 && Request.GetPriority() >= AIOP_MIN && Request.GetPriority() <= AIOP_MAX && int32(Request.Status) >= 0 && int32(Request.Status) < int32(EInRequestStatus::Num));
 
+		bool RequestDontCache = (Request.PriorityAndFlags & AIOP_FLAG_DONTCACHE) != 0;
+
+
 		if (RemoveFromIntervalTree<FPakInRequest>(&Pak.InRequests[Request.GetPriority()][(int32)Request.Status], InRequestAllocator, Index, Pak.StartShift, Pak.MaxShift))
 		{
 
@@ -1921,7 +1934,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 				Pak.MaxNode,
 				Pak.StartShift,
 				Pak.MaxShift,
-				[this, OffsetOfLastByte](TIntervalTreeIndex BlockIndex) -> bool
+				[this, OffsetOfLastByte, RequestDontCache](TIntervalTreeIndex BlockIndex) -> bool
 			{
 				FCacheBlock &Block = CacheBlockAllocator.Get(BlockIndex);
 				check(Block.InRequestRefCount);
@@ -1929,11 +1942,23 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 				{
 					if (GPakCache_NumUnreferencedBlocksToCache && GetRequestOffset(Block.OffsetAndPakIndex) + Block.Size > OffsetOfLastByte) // last block
 					{
-						uint16 BlocksPakIndex = GetRequestPakIndexLow(Block.OffsetAndPakIndex);
-						int32 BlocksCacheIndex = CachedPakData[BlocksPakIndex].ActualPakFile->GetCacheIndex();
-						Block.TimeNoLongerReferenced = FPlatformTime::Seconds();
-						OffsetAndPakIndexOfSavedBlocked[BlocksCacheIndex].Remove(Block.OffsetAndPakIndex);
-						OffsetAndPakIndexOfSavedBlocked[BlocksCacheIndex].Add(Block.OffsetAndPakIndex);
+						if (RequestDontCache && GPakCache_EnableNoCaching != 0)
+						{
+							uint16 BlocksPakIndex = GetRequestPakIndexLow(Block.OffsetAndPakIndex);
+							int32 BlocksCacheIndex = CachedPakData[BlocksPakIndex].ActualPakFile->GetCacheIndex();
+							Block.TimeNoLongerReferenced = 0.0;
+							OffsetAndPakIndexOfSavedBlocked[BlocksCacheIndex].Remove(Block.OffsetAndPakIndex);
+							ClearBlock(Block);
+							return true;
+						}
+						else
+						{
+							uint16 BlocksPakIndex = GetRequestPakIndexLow(Block.OffsetAndPakIndex);
+							int32 BlocksCacheIndex = CachedPakData[BlocksPakIndex].ActualPakFile->GetCacheIndex();
+							Block.TimeNoLongerReferenced = FPlatformTime::Seconds();
+							OffsetAndPakIndexOfSavedBlocked[BlocksCacheIndex].Remove(Block.OffsetAndPakIndex);
+							OffsetAndPakIndexOfSavedBlocked[BlocksCacheIndex].Add(Block.OffsetAndPakIndex);
+						}
 						return false;
 					}
 					ClearBlock(Block);
@@ -4749,7 +4774,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, ChunkID(GetPakchunkIDFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
  	, MappedFileHandle(nullptr)
@@ -4779,7 +4804,7 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, ChunkID(GetPakchunkIDFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
 	, MappedFileHandle(nullptr)
@@ -6068,10 +6093,10 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 					// if a platform supports chunk style installs, make sure that the chunk a pak file resides in is actually fully installed before accepting pak files from it
 					if (ChunkInstall)
 					{
-						int32 ChunkID = ParseChunkIDFromFilename(Filename);
-						if (ChunkID != INDEX_NONE)
+						int32 PakchunkID = GetPakchunkIDFromPakFile(Filename);
+						if (PakchunkID != INDEX_NONE)
 						{
-							if (ChunkInstall->GetChunkLocation(ChunkID) == EChunkLocation::NotAvailable)
+							if (ChunkInstall->GetPakchunkLocation(PakchunkID) == EChunkLocation::NotAvailable)
 							{
 								return true;
 							}
@@ -6590,7 +6615,7 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 				UE_LOG(LogPakFile, Log, TEXT("Successfully mounted deferred pak file '%s'"), *Entry.Filename);
 				NumMounted++;
 
-				int32 ChunkID = ParseChunkIDFromFilename(Entry.Filename);
+				int32 ChunkID = GetPakchunkIDFromPakFile(Entry.Filename);
 				if (ChunkID != INDEX_NONE)
 				{
 					ChunksToNotify.Add(ChunkID);

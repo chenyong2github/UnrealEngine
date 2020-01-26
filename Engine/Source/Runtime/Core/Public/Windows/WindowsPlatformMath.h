@@ -22,7 +22,9 @@ struct FWindowsPlatformMath : public TUnrealPlatformMathSSE4Base<FGenericPlatfor
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	static FORCEINLINE bool IsNaN( float A ) { return _isnan(A) != 0; }
+	static FORCEINLINE bool IsNaN(double A) { return _isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return _finite(A) != 0; }
+	static FORCEINLINE bool IsFinite(double A) { return _finite(A) != 0; }
 
 	#pragma intrinsic( _BitScanReverse )
 	static FORCEINLINE uint32 FloorLog2(uint32 Value) 

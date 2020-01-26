@@ -1663,34 +1663,34 @@ bool UAssetManager::FindMissingChunkList(const TArray<FSoftObjectPath>& AssetLis
 		GetAssetDataForPath(Asset, FoundData);
 		TSet<int32> FoundChunks, MissingChunks, ErrorChunks;
 
-		for (int32 ChunkId : FoundData.ChunkIDs)
+		for (int32 PakchunkId : FoundData.ChunkIDs)
 		{
-			if (!ChunkLocationCache.Contains(ChunkId))
+			if (!ChunkLocationCache.Contains(PakchunkId))
 			{
-				EChunkLocation::Type Location = ChunkInstall->GetChunkLocation(ChunkId);
+				EChunkLocation::Type Location = ChunkInstall->GetPakchunkLocation(PakchunkId);
 
 				// If chunk install thinks the chunk is available, we need to double check with the pak system that it isn't
 				// pending decryption
 				if (Location >= EChunkLocation::LocalSlow && Pak->AnyChunksAvailable())
 				{
-					Location = Pak->GetPakChunkLocation(ChunkId);
+					Location = Pak->GetPakChunkLocation(PakchunkId);
 				}
 
-				ChunkLocationCache.Add(ChunkId, Location);
+				ChunkLocationCache.Add(PakchunkId, Location);
 			}
-			EChunkLocation::Type ChunkLocation = ChunkLocationCache[ChunkId];
+			EChunkLocation::Type ChunkLocation = ChunkLocationCache[PakchunkId];
 
 			switch (ChunkLocation)
 			{			
 			case EChunkLocation::DoesNotExist:
-				ErrorChunks.Add(ChunkId);
+				ErrorChunks.Add(PakchunkId);
 				break;
 			case EChunkLocation::NotAvailable:
-				MissingChunks.Add(ChunkId);
+				MissingChunks.Add(PakchunkId);
 				break;
 			case EChunkLocation::LocalSlow:
 			case EChunkLocation::LocalFast:
-				FoundChunks.Add(ChunkId);
+				FoundChunks.Add(PakchunkId);
 				break;
 			}
 		}
@@ -1753,7 +1753,7 @@ void UAssetManager::AcquireChunkList(const TArray<int32>& ChunkList, FAssetManag
 
 	for (int32 MissingChunk : PendingChunkInstall->PendingChunks)
 	{
-		ChunkInstall->PrioritizeChunk(MissingChunk, Priority);
+		ChunkInstall->PrioritizePakchunk(MissingChunk, Priority);
 	}
 }
 
@@ -1847,9 +1847,9 @@ void UAssetManager::OnChunkDownloaded(uint32 ChunkId, bool bSuccess)
 			TArray<int32> NewPendingList;
 			
 			// Check all chunks if they are done or failed
-			for (int32 PendingChunkId : PendingChunkInstall.PendingChunks)
+			for (int32 PendingPakchunkId : PendingChunkInstall.PendingChunks)
 			{
-				EChunkLocation::Type ChunkLocation = ChunkInstall->GetChunkLocation(PendingChunkId);
+				EChunkLocation::Type ChunkLocation = ChunkInstall->GetPakchunkLocation(PendingPakchunkId);
 
 				switch (ChunkLocation)
 				{
@@ -1857,7 +1857,7 @@ void UAssetManager::OnChunkDownloaded(uint32 ChunkId, bool bSuccess)
 					bFailed = true;
 					break;
 				case EChunkLocation::NotAvailable:
-					NewPendingList.Add(PendingChunkId);
+					NewPendingList.Add(PendingPakchunkId);
 					break;
 				}
 			}
