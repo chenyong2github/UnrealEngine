@@ -61,6 +61,7 @@ public:
 private:
 	FTrace*				GetTrace(uint32 Id);
 	FTrace*				AddTrace(const TCHAR* Path);
+	void				ClearTraces();
 	FString				StoreDir;
 	TArray<FTrace*>		Traces;
 #if 0
