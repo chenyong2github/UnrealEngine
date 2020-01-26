@@ -11,26 +11,30 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-const FStringView& FAsioStore::FTrace::GetName() const
+FAsioStore::FTrace::FTrace(const TCHAR* InPath)
+: Path(InPath)
+, Id(QuickStoreHash(InPath))
 {
-	if (Name.Len() == 0)
+	// Extract the trace's name
+	const TCHAR* Dot = FCString::Strrchr(*Path, '.');
+	if (Dot == nullptr)
 	{
-		const TCHAR* Dot = FCString::Strrchr(*Path, '.');
-		if (Dot == nullptr)
-		{
-			Dot = *Path;
-		}
-
-		for (const TCHAR* c = Dot; c > *Path; --c)
-		{
-			if (c[-1] == '\\' || c[-1] == '/')
-			{
-				Name = FStringView(c, int32(Dot - c));
-				break;
-			}
-		}
+		Dot = *Path;
 	}
 
+	for (const TCHAR* c = Dot; c > *Path; --c)
+	{
+		if (c[-1] == '\\' || c[-1] == '/')
+		{
+			Name = FStringView(c, int32(Dot - c));
+			break;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FStringView& FAsioStore::FTrace::GetName() const
+{
 	return Name;
 }
 
@@ -161,9 +165,7 @@ FAsioStore::FTrace* FAsioStore::AddTrace(const TCHAR* Path)
 	}
 #endif
 
-	FTrace* Trace = new FTrace();
-	Trace->Path = Path;
-	Trace->Id = QuickStoreHash(Trace->GetName());
+	FTrace* Trace = new FTrace(Path);
 	Trace->Handle = UPTRINT(Handle);
 
 	Traces.Add(Trace);

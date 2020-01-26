@@ -30,6 +30,7 @@ public:
 	class FTrace
 	{
 	public:
+							FTrace(const TCHAR* InPath);
 		const FStringView&	GetName() const;
 		uint32				GetId() const;
 		uint64				GetSize() const;
@@ -38,10 +39,10 @@ public:
 	private:
 		friend				FAsioStore;
 		FString				Path;
-		mutable FStringView	Name;
+		FStringView			Name;
 		uint64				Timestamp;
 		UPTRINT				Handle;
-		uint32		        Id;
+		uint32				Id = 0;
 	};
 
 	struct FNewTrace
