@@ -89,6 +89,16 @@ public:
 	virtual ~TPBDCollisionConstraints() {}
 
 	/**
+	 * Whether this container provides constraint handles (simple solvers do not need them)
+	 */
+	bool GetHandlesEnabled() const { return bHandlesEnabled; }
+
+	/**
+	 * Put the container in "no handles" mode for use with simple solver. Must be called when empty of constraints (ideally right after creation).
+	 */
+	void DisableHandles();
+
+	/**
 	*  Add the constraint to the container. 
 	*
 	*  @todo(chaos) : Collision Constraints 
@@ -250,16 +260,29 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return Handles.Num();
+		return PointConstraints.Num() + IterativeConstraints.Num();
 	}
 
 	FHandles& GetConstraintHandles()
 	{
 		return Handles;
 	}
+
 	const FHandles& GetConstConstraintHandles() const
 	{
 		return Handles;
+	}
+
+	const FConstraintBase& GetConstraint(int32 Index) const 
+	{
+		check(Index < NumConstraints());
+		
+		if (Index < PointConstraints.Num())
+		{
+			return PointConstraints[Index];
+		}
+		
+		return IterativeConstraints[Index - PointConstraints.Num()];
 	}
 
 
@@ -291,7 +314,7 @@ private:
 	T MAngularFriction;
 	bool bUseCCD;
 	bool bEnableCollisions;
-	bool bEnableParallelFor;
+	bool bHandlesEnabled;
 
 	int32 LifespanCounter;
 

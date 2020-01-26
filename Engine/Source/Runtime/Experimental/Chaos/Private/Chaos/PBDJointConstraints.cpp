@@ -635,25 +635,23 @@ namespace Chaos
 	//
 	//////////////////////////////////////////////////////////////////////////
 
-	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity)
+	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& PrevP, const FRotation3& PrevQ, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity)
 	{
 		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
+			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 			if (bUpdateVelocity && (Dt > SMALL_NUMBER))
 			{
-				FVec3 PCoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
-				FRotation3 QCoM = FParticleUtilities::GetCoMWorldRotation(Rigid);
-				FVec3 DV = FVec3::CalculateVelocity(PCoM, P, Dt);
-				FVec3 DW = FRotation3::CalculateAngularVelocity(QCoM, Q, Dt);
+				const FVec3 DV = FVec3::CalculateVelocity(PrevP, P, Dt);
+				const FVec3 DW = FRotation3::CalculateAngularVelocity(PrevQ, Q, Dt);
 				Rigid->SetV(Rigid->V() + DV);
 				Rigid->SetW(Rigid->W() + DW);
 			}
-			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 		}
 	}
 
 
-	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W)
+	void FPBDJointConstraints::UpdateParticleStateExplicit(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W)
 	{
 		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
@@ -679,14 +677,19 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
+		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+
 		Solver.Update(
 			Dt,
-			FParticleUtilities::GetCoMWorldPosition(Particle0),
-			FParticleUtilities::GetCoMWorldRotation(Particle0),
+			P0,
+			Q0,
 			Particle0->V(),
 			Particle0->W(),
-			FParticleUtilities::GetCoMWorldPosition(Particle1),
-			FParticleUtilities::GetCoMWorldRotation(Particle1),
+			P1,
+			Q1,
 			Particle1->V(),
 			Particle1->W());
 
@@ -702,8 +705,8 @@ namespace Chaos
 			}
 		}
 
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1));
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0, Solver.GetP(0), Solver.GetQ(0));
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1, Solver.GetP(1), Solver.GetQ(1));
 
 		return NetResult;
 	}
@@ -743,8 +746,8 @@ namespace Chaos
 			}
 		}
 
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
+		UpdateParticleStateExplicit(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
+		UpdateParticleStateExplicit(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
 
 		return NetResult;
 	}
