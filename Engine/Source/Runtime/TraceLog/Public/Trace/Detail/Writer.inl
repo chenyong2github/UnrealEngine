@@ -34,12 +34,10 @@ struct FWriteTlsContext
 							~FWriteTlsContext();
 	bool					HasValidBuffer() const;
 	void					SetBuffer(FWriteBuffer*);
-	uint32					GetThreadId() const;
 	FWriteBuffer*			GetBuffer() const { return Buffer; }
 
 private:
 	FWriteBuffer*			Buffer;
-	uint32					ThreadId;
 	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
 	static uint32 volatile	ThreadIdCounter;
 };

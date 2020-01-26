@@ -86,9 +86,6 @@ FWriteTlsContext::FWriteTlsContext()
 	}
 
 	Buffer = Target;
-
-	// Assign a new id to this thread.
-	ThreadId = AtomicIncrementRelaxed(&ThreadIdCounter) + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,13 +107,18 @@ bool FWriteTlsContext::HasValidBuffer() const
 ////////////////////////////////////////////////////////////////////////////////
 inline void FWriteTlsContext::SetBuffer(FWriteBuffer* InBuffer)
 {
-	Buffer = InBuffer;
-}
+	uint32 ThreadId;
+	if (!Buffer->ThreadId)
+	{
+		ThreadId = AtomicIncrementRelaxed(&ThreadIdCounter) + 1;
+	}
+	else
+	{
+		ThreadId = Buffer->ThreadId;
+	}
 
-////////////////////////////////////////////////////////////////////////////////
-inline uint32 FWriteTlsContext::GetThreadId() const
-{
-	return ThreadId;
+	Buffer = InBuffer;
+	Buffer->ThreadId = ThreadId;
 }
 
 
@@ -249,7 +251,6 @@ TRACELOG_API FWriteBuffer* Writer_NextBuffer(uint16 Size)
 	}
 
 	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
-	NextBuffer->ThreadId = TlsContext.GetThreadId();
 
 	NextBuffer->Cursor += Size;
 	return NextBuffer;
