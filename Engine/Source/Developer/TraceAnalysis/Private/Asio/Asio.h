@@ -32,6 +32,7 @@ void throw_exception(const ExceptionType& Exception)
 
 #if PLATFORM_WINDOWS
 #	include "asio/windows/random_access_handle.hpp"
+#	include "asio/windows/object_handle.hpp"
 #endif
 
 THIRD_PARTY_INCLUDES_END

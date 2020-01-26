@@ -59,12 +59,15 @@ public:
 	FAsioReadable*		OpenTrace(uint32 Id);
 
 private:
+	class				FDirWatcher;
 	FTrace*				GetTrace(uint32 Id);
 	FTrace*				AddTrace(const TCHAR* Path);
 	void				ClearTraces();
+	void				WatchDir();
 	void				Refresh();
 	FString				StoreDir;
 	TArray<FTrace*>		Traces;
+	FDirWatcher*		DirWatcher = nullptr;
 #if 0
 	int32				LastTraceId = -1;
 #endif // 0

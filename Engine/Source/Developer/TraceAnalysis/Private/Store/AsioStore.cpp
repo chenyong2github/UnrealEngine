@@ -7,8 +7,33 @@
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 
+#if PLATFORM_WINDOWS
+#	include "Windows/AllowWindowsPlatformTypes.h"
+#	include <Windows.h>
+#	include "Windows/HideWindowsPlatformTypes.h"
+#endif // PLATFORM_WINDOWS
+
 namespace Trace
 {
+
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_WINDOWS
+class FAsioStore::FDirWatcher
+	: public asio::windows::object_handle
+{
+public:
+	using asio::windows::object_handle::object_handle;
+};
+#else
+class FAsioStore::FDirWatcher
+	//: public asio::posix::stream_descriptor
+{
+public:
+	void async_wait(...) {}
+};
+#endif // PLATFORM_WINDOWS
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::FTrace::FTrace(const TCHAR* InPath)
@@ -111,11 +136,23 @@ FAsioStore::FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir)
 , StoreDir(InStoreDir)
 {
 	Refresh();
+
+#if PLATFORM_WINDOWS
+	HANDLE DirWatchHandle = FindFirstChangeNotificationW(InStoreDir, false, FILE_NOTIFY_CHANGE_FILE_NAME);
+	if (DirWatchHandle == INVALID_HANDLE_VALUE)
+	{
+		DirWatchHandle = 0;
+	}
+	DirWatcher = new FDirWatcher(IoContext, DirWatchHandle);
+#endif
+
+	WatchDir();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::~FAsioStore()
 {
+	delete DirWatcher;
 	ClearTraces();
 }
 
@@ -128,6 +165,24 @@ void FAsioStore::ClearTraces()
 	}
 
 	Traces.Empty();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStore::WatchDir()
+{
+	if (DirWatcher == nullptr)
+	{
+		return;
+	}
+	
+	DirWatcher->async_wait([this] (asio::error_code ErrorCode)
+	{
+#if PLATFORM_WINDOWS
+		FindNextChangeNotification(DirWatcher->native_handle());
+#endif
+		Refresh();
+		WatchDir();
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
