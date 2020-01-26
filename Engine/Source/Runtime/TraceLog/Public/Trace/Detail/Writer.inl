@@ -41,7 +41,7 @@ private:
 	FWriteBuffer*			Buffer;
 	uint32					ThreadId;
 	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
-	static UPTRINT volatile	ThreadIdCounter;
+	static uint32 volatile	ThreadIdCounter;
 };
 
 
