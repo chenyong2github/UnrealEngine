@@ -1385,7 +1385,7 @@ UClass* FBlueprintEditorUtils::RegenerateBlueprintClass(UBlueprint* Blueprint, U
 			&& BPGClassToRegenerate
 			&& SupportsConstructionScript(Blueprint) 
 			&& BPGClassToRegenerate->SimpleConstructionScript
-			&& (nullptr == BPGClassToRegenerate->SimpleConstructionScript->GetSceneRootComponentTemplate());
+			&& (nullptr == BPGClassToRegenerate->SimpleConstructionScript->GetSceneRootComponentTemplate(true));
 		const bool bShouldBeRecompiled = bHasCode || bDataOnlyClassThatMustBeRecompiled || bHasPendingUberGraphFrame || bDefaultComponentMustBeAdded;
 
 		if (bShouldBeRecompiled)

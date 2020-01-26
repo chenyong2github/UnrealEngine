@@ -617,7 +617,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			if(UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(QueuedBP->GeneratedClass))
 			{
 				if( BPGC->SimpleConstructionScript &&
-					BPGC->SimpleConstructionScript->GetSceneRootComponentTemplate() == nullptr)
+					BPGC->SimpleConstructionScript->GetSceneRootComponentTemplate(true) == nullptr)
 				{
 					bDefaultComponentMustBeAdded = true;
 				}
