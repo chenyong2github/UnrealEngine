@@ -214,13 +214,10 @@ void USoundSubmix::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Use the main/default audio device for storing and retrieving sound class properties
-	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
 	// Force the properties to be initialized for this SoundClass on all active audio devices
-	if (AudioDeviceManager)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		AudioDeviceManager->UnregisterSoundSubmix(this);
+		DeviceManager->UnregisterSoundSubmix(this);
 	}
 }
 
@@ -228,13 +225,10 @@ void USoundSubmix::PostLoad()
 {
 	Super::PostLoad();
 
-	// Use the main/default audio device for storing and retrieving sound class properties
-	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
 	// Force the properties to be initialized for this SoundClass on all active audio devices
-	if (AudioDeviceManager)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		AudioDeviceManager->RegisterSoundSubmix(this);
+		DeviceManager->RegisterSoundSubmix(this);
 	}
 }
 
@@ -325,10 +319,9 @@ void USoundSubmix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == NAME_OutputVolume)
 		{
-			FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-			if (AudioDeviceManager)
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 			{
-				AudioDeviceManager->UpdateSubmix(this);
+				DeviceManager->UpdateSubmix(this);
 			}
 			bReinitSubmix = false;
 		}
@@ -337,9 +330,9 @@ void USoundSubmix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	if (GEngine && bReinitSubmix)
 	{
 		// Force the properties to be initialized for this SoundSubmix on all active audio devices
-		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 		{
-			AudioDeviceManager->RegisterSoundSubmix(this);
+			DeviceManager->RegisterSoundSubmix(this);
 		}
 	}
 

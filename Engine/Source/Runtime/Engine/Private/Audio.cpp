@@ -178,9 +178,13 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 FSoundBuffer::~FSoundBuffer()
 {
 	// remove ourselves from the set of waves that are tracked by the audio device
-	if (ResourceID && GEngine && GEngine->GetAudioDeviceManager())
+	if (!ResourceID)
 	{
-		GEngine->GetAudioDeviceManager()->RemoveSoundBufferForResourceID(ResourceID);
+		return;
+	}
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+	{
+		AudioDeviceManager->RemoveSoundBufferForResourceID(ResourceID);
 	}
 }
 
@@ -467,13 +471,14 @@ float FSoundSource::GetDebugVolume(const float InVolume)
 #if ENABLE_AUDIO_DEBUG
 
 	// Bail if we don't have a device manager.
-	if (!GEngine || !GEngine->GetAudioDeviceManager() || !WaveInstance || !DebugInfo.IsValid() )
+	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	if (!DeviceManager || !WaveInstance || !DebugInfo.IsValid() )
 	{
 		return OutVolume;
 	}
 
 	// Solos/Mutes (dev only).
-	FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();	
+	FAudioDebugger& Debugger = DeviceManager->GetDebugger();
 	FDebugInfo Info;
 				
 	// SoundWave Solo/Mutes.
@@ -987,27 +992,24 @@ float FWaveInstance::GetDynamicVolume() const
 {
 	float OutVolume = 1.0f;
 
-	if (GEngine)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+		if (WaveData)
 		{
-			if (WaveData)
-			{
-				OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Wave, WaveData->GetFName());
-			}
+			OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Wave, WaveData->GetFName());
+		}
 
-			if (ActiveSound)
+		if (ActiveSound)
+		{
+			if (const USoundCue* Sound = Cast<USoundCue>(ActiveSound->GetSound()))
 			{
-				if (const USoundCue* Sound = Cast<USoundCue>(ActiveSound->GetSound()))
-				{
-					OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Cue, Sound->GetFName());
-				}
+				OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Cue, Sound->GetFName());
 			}
+		}
 
-			if (SoundClass)
-			{
-				OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Class, SoundClass->GetFName());
-			}
+		if (SoundClass)
+		{
+			OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Class, SoundClass->GetFName());
 		}
 	}
 

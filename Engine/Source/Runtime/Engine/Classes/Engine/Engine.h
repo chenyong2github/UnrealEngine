@@ -1553,7 +1553,7 @@ public:
 
 protected:
 
-	/** Whether the engine should be playing sounds.  If false at initialization time the AudioDevice will not be created */
+	/** Whether the engine should be playing sounds.  If false at initialization time, the AudioDeviceManager will not be created */
 	uint32 bUseSound:1;
 
 private:
@@ -1765,14 +1765,6 @@ private:
 		/** Enable/Disable dynamic resolution state according to ShouldEnableDynamicResolutionState(). */
 		void UpdateDynamicResolutionStatus();
 	#endif
-
-protected:
-
-	/** The audio device manager */
-	FAudioDeviceManager* AudioDeviceManager;
-
-	/** Audio device handle to the main audio device. */
-	uint32 MainAudioDeviceHandle;
 
 public:
 
@@ -2436,15 +2428,19 @@ public:
 	bool IsEditor();
 
 	/** @return the audio device manager of the UEngine, this allows the creation and management of multiple audio devices. */
+	UE_DEPRECATED(4.25, "FAudioDeviceManager::Get and FAudioDeviceManager::GetChecked have replaced UEngine::GetAudioDeviceManager.")
 	FAudioDeviceManager* GetAudioDeviceManager();
 
 	/** @return the main audio device handle used by the engine. */
+	UE_DEPRECATED(4.25, "FAudioDeviceManager::GetMainDevice has replaced UEngine::GetAudioDeviceHandle.")
 	uint32 GetAudioDeviceHandle() const;
 
 	/** @return the main audio device. */
+	UE_DEPRECATED(4.25, "FAudioDeviceManager::GetMainDevice has replaced UEngine::GetMainAudioDevice.")
 	class FAudioDevice* GetMainAudioDevice();
 
 	/** @return the currently active audio device */
+	UE_DEPRECATED(4.25, "FAudioDeviceManager::GetActiveDevice has replaced UEngine::GetActiveAudioDevice.")
 	class FAudioDevice* GetActiveAudioDevice();
 
 	/** @return whether we're currently running in split screen (more than one local player) */

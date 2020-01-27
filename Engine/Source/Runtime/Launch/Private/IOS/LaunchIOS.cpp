@@ -60,9 +60,9 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 	// if background audio is active, then we don't want to do suspend any audio
 	if ([[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio] == false)
 	{
-		if (GEngine && GEngine->GetMainAudioDevice() && !IsEngineExitRequested())
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
+		if (AudioDevice && !IsEngineExitRequested())
 		{
-			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
 			{
 				if (FTaskGraphInterface::IsRunning() && !IsEngineExitRequested())
@@ -71,14 +71,14 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 					{
 						FAudioThread::RunCommandOnAudioThread([]()
 						{
-							if (GEngine && GEngine->GetMainAudioDevice())
+							if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
 							{
-								GEngine->GetMainAudioDevice()->SetTransientMasterVolume(0.0f);
+								MainDevice->SetTransientMasterVolume(0.0f);
 							}
 						}, TStatId());
 					}, TStatId(), NULL, ENamedThreads::GameThread);
 				}
-				else
+				else if (AudioDevice)
 				{
 					AudioDevice->SetTransientMasterVolume(0.0f);
 				}
@@ -103,12 +103,12 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 					{
 						FAudioThread::RunCommandOnAudioThread([]()
 						{
-							if (GEngine && GEngine->GetMainAudioDevice())
+							if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
 							{
-								GEngine->GetMainAudioDevice()->SuspendContext();
+								MainDevice->SuspendContext();
 							}
 						}, TStatId());
-                
+
 						FAudioCommandFence AudioCommandFence;
 						AudioCommandFence.BeginFence();
 						AudioCommandFence.Wait();
@@ -129,7 +129,7 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 					}
 					FEmbeddedCommunication::AllowSleep(TEXT("Background"));
 				}
-				else
+				else if (AudioDevice)
 				{
 					AudioDevice->SuspendContext();
 				}
@@ -137,8 +137,8 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 		}
 		else
 		{
-            // Increment
-            IncrementAudioSuspendCounters();
+			// Increment
+			IncrementAudioSuspendCounters();
 		}
 	}
 }
@@ -154,10 +154,8 @@ void FAppEntry::Resume(bool bIsInterrupt)
 	// @todo: should this check if we were suspended, in case this changes while in the background? (suspend with background off, but resume with background audio on? is that a thing?)
 	if ([[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio] == false)
 	{
-		if (GEngine && GEngine->GetMainAudioDevice())
+		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 		{
-			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-        
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
 			{
 				if (FTaskGraphInterface::IsRunning())
@@ -166,9 +164,9 @@ void FAppEntry::Resume(bool bIsInterrupt)
 					{
 						FAudioThread::RunCommandOnAudioThread([]()
 						{
-							if (GEngine && GEngine->GetMainAudioDevice())
+							if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 							{
-								GEngine->GetMainAudioDevice()->SetTransientMasterVolume(1.0f);
+								AudioDevice->SetTransientMasterVolume(1.0f);
 							}
 						}, TStatId());
 					}, TStatId(), NULL, ENamedThreads::GameThread);
@@ -194,8 +192,8 @@ void FAppEntry::Resume(bool bIsInterrupt)
 		}
 		else
 		{
-            // Decrement
-            DecrementAudioSuspendCounters();
+			// Decrement
+			DecrementAudioSuspendCounters();
 		}
 	}
 }
@@ -203,50 +201,44 @@ void FAppEntry::Resume(bool bIsInterrupt)
 
 void FAppEntry::ResumeAudioContext()
 {
-	if (GEngine && GEngine->GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 	{
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-		if (AudioDevice)
+		if (FTaskGraphInterface::IsRunning())
 		{
-			if (FTaskGraphInterface::IsRunning())
+			FFunctionGraphTask::CreateAndDispatchWhenReady([]()
 			{
-				FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+				FAudioThread::RunCommandOnAudioThread([]()
 				{
-					FAudioThread::RunCommandOnAudioThread([]()
+					if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
 					{
-						if (GEngine && GEngine->GetMainAudioDevice())
-						{
-							GEngine->GetMainAudioDevice()->ResumeContext();
-						}
-					}, TStatId());
-				}, TStatId(), NULL, ENamedThreads::GameThread);
-			}
-			else
-			{
-				AudioDevice->ResumeContext();
-			}
+						MainDevice->ResumeContext();
+					}
+				}, TStatId());
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+		}
+		else
+		{
+			AudioDevice->ResumeContext();
 		}
 	}
 }
 
 void FAppEntry::RestartAudio()
 {
-	if (GEngine && GEngine->GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 	{
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-
 		if (FTaskGraphInterface::IsRunning())
 		{
-            //increment the counter, otherwise ResumeContext won't work
-            IncrementAudioSuspendCounters();
+			//increment the counter, otherwise ResumeContext won't work
+			IncrementAudioSuspendCounters();
 
 			FFunctionGraphTask::CreateAndDispatchWhenReady([]()
 			{
 				FAudioThread::RunCommandOnAudioThread([]()
 				{
-					if (GEngine && GEngine->GetMainAudioDevice())
+					if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
 					{
-						GEngine->GetMainAudioDevice()->ResumeContext();
+						MainDevice->ResumeContext();
 					}
 				}, TStatId());
 			}, TStatId(), NULL, ENamedThreads::GameThread);

@@ -44,7 +44,7 @@ UObject* USoundModImporterFactory::FactoryCreateBinary
 
 	// TODO - Audio Threading. This needs to be sent to the audio device and wait on stopping the sounds
 	TArray<UAudioComponent*> ComponentsToRestart;
-	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 	if (AudioDeviceManager && ExistingSound)
 	{
 		// TODO: Generalize the stop sounds function

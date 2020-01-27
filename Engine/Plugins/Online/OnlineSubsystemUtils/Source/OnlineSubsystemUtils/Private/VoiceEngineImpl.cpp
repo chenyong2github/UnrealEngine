@@ -1021,9 +1021,7 @@ IOnlineSubsystem* FVoiceEngineImpl::GetOnlineSubSystem()
 FVoiceEndpoint::FVoiceEndpoint(const FString& InEndpointName, float InSampleRate, int32 InNumChannels)
 	: NumChannelsComingIn(InNumChannels)
 {
-	check(GEngine && GEngine->GetAudioDeviceManager());
-
-	IAudioDeviceModule* AudioModule = GEngine->GetAudioDeviceManager()->GetAudioDeviceModule();
+	IAudioDeviceModule* AudioModule = FAudioDeviceManager::GetChecked().GetAudioDeviceModule();
 	check(AudioModule);
 
 	PlatformEndpoint.Reset(AudioModule->CreateAudioMixerPlatformInterface());

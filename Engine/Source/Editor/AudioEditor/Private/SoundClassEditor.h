@@ -118,9 +118,6 @@ private:
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
-	/** Cache the audio debugger instance */
-	class FAudioDebugger* Debugger;
-
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;
 	static const FName PropertiesTabId;

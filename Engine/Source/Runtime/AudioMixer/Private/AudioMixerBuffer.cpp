@@ -181,8 +181,6 @@ namespace Audio
 		InWave->InvalidateSoundWaveIfNeccessary();
 #endif // WITH_EDITOR
 
-		FAudioDeviceManager* AudioDeviceManager = FAudioDevice::GetAudioDeviceManager();
-
 		FMixerBuffer* Buffer = nullptr;
 
 		EDecompressionType DecompressionType = InWave->DecompressionType;
@@ -209,7 +207,7 @@ namespace Audio
 				// Find any existing buffers
 				if (InWave->ResourceID)
 				{
-					Buffer = (FMixerBuffer*)AudioDeviceManager->GetSoundBufferForResourceID(InWave->ResourceID);
+					Buffer = (FMixerBuffer*)FAudioDeviceManager::GetChecked().GetSoundBufferForResourceID(InWave->ResourceID);
 				}
 
 				// Override with any new PCM data even if the buffer already exists
@@ -218,14 +216,14 @@ namespace Audio
 					// If we already have a buffer for this wave resource, free it
 					if (Buffer)
 					{
-						AudioDeviceManager->FreeBufferResource(Buffer);
+						FAudioDeviceManager::GetChecked().FreeBufferResource(Buffer);
 					}
 
 					// Create a new preview buffer
 					Buffer = FMixerBuffer::CreatePreviewBuffer(InAudioDevice, InWave);
 
 					// Track the new created buffer
-					AudioDeviceManager->TrackResource(InWave, Buffer);
+					FAudioDeviceManager::GetChecked().TrackResource(InWave, Buffer);
 				}
 			}
 			break;
@@ -248,7 +246,7 @@ namespace Audio
 			{
 				if (InWave->ResourceID)
 				{
-					Buffer = (FMixerBuffer*)AudioDeviceManager->GetSoundBufferForResourceID(InWave->ResourceID);
+					Buffer = (FMixerBuffer*)FAudioDeviceManager::GetChecked().GetSoundBufferForResourceID(InWave->ResourceID);
 				}
 
 				if (Buffer == nullptr)
@@ -256,7 +254,7 @@ namespace Audio
 					Buffer = FMixerBuffer::CreateNativeBuffer(InAudioDevice, InWave);
 
 					// Track the resource with the audio device manager
-					AudioDeviceManager->TrackResource(InWave, Buffer);
+					FAudioDeviceManager::GetChecked().TrackResource(InWave, Buffer);
 					InWave->RemoveAudioResource();
 				}
 			}

@@ -84,7 +84,7 @@ public:
 
 		// Stop all sounds currently playing on the Audio Device. This helps kill looping or long audio clips. When the sequence evaluates again,
 		// these clips will resume play at the correct location.
-		if (FAudioDevice* AudioDevice = GEngine->GetActiveAudioDevice())
+		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetActiveDevice())
 		{
 			AudioDevice->StopAllSounds(true);
 		}

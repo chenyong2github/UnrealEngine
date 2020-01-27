@@ -2108,8 +2108,7 @@ namespace ObjectTools
 		GEditor->ClearPreviewComponents();
 
 		// Ensure the audio manager is not holding on to any sounds
-		FAudioDeviceManager* AudioDeviceManager = GEditor->GetAudioDeviceManager();
-		if (AudioDeviceManager != nullptr)
+		if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 		{
 			AudioDeviceManager->UpdateActiveAudioDevices(false);
 

@@ -10,14 +10,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogSlateSoundDevice, Log, All);
 
 void FSlateSoundDevice::PlaySound(const FSlateSound& Sound, int32 UserIndex) const
 {
-	if( GEngine && Sound.GetResourceObject() != nullptr )
+	if (Sound.GetResourceObject())
 	{
-		FAudioDevice* const AudioDevice = GEngine->GetActiveAudioDevice();
-		if(AudioDevice)
+		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetActiveDevice())
 		{
 			UObject* const Object = Sound.GetResourceObject();
 			USoundBase* const SoundResource = Cast<USoundBase>(Object);
-			if(SoundResource)
+			if (SoundResource)
 			{
 				FActiveSound NewActiveSound;
 				NewActiveSound.SetSound(SoundResource);
@@ -27,7 +26,7 @@ void FSlateSoundDevice::PlaySound(const FSlateSound& Sound, int32 UserIndex) con
 
 				AudioDevice->AddNewActiveSound(NewActiveSound);
 			}
-			else if(Object)
+			else if (Object)
 			{
 				// An Object but no SoundResource means that the FSlateSound is holding an invalid object; report that as an error
 				UE_LOG(LogSlateSoundDevice, Error, TEXT("A sound contains a non-sound resource '%s'"), *Object->GetName());

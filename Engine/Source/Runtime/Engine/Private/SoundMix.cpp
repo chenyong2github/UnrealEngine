@@ -32,12 +32,11 @@ USoundMix::USoundMix(const FObjectInitializer& ObjectInitializer)
 
 void USoundMix::BeginDestroy()
 {
-	if (!GExitPurge && GEngine)
+	if (!GExitPurge)
 	{
-		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-		if (AudioDeviceManager)
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 		{
-			AudioDeviceManager->RemoveSoundMix(this);
+			DeviceManager->RemoveSoundMix(this);
 		}
 	}
 
