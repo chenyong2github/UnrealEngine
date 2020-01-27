@@ -13,6 +13,7 @@
 
 DEFINE_LOG_CATEGORY(LogNavigation);
 DEFINE_LOG_CATEGORY(LogNavigationDataBuild);
+DEFINE_LOG_CATEGORY(LogNavLink);
 
 #if !UE_BUILD_SHIPPING
 #include "CoreGlobals.h"

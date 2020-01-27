@@ -76,5 +76,8 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 	/** Helper function: create modifier for navigation data export */
 	static FNavigationLink GetModifier(const INavLinkCustomInterface* CustomNavLink);
 
+	static void OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
+	static void ResetUniqueId();
+
 	static uint32 NextUniqueId;
 };
