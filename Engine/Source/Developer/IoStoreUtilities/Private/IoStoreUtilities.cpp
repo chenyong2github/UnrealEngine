@@ -776,7 +776,7 @@ static void AddPostLoadDependencies(
 		}
 	}
 
-	if (Package.bHasCircularImportDependencies)
+	// if (Package.bHasCircularImportDependencies /* || Package.bHasExternalReadDependencies*/)
 	{
 		for (FPackage* ImportedPackage : Package.ImportedPackages)
 		{
