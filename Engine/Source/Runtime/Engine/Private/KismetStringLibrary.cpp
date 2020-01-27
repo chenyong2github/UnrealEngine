@@ -46,6 +46,11 @@ int32 UKismetStringLibrary::Len(const FString& S)
 	return S.Len();
 }
 
+bool UKismetStringLibrary::IsEmpty(const FString& InString)
+{
+	return InString.IsEmpty();
+}
+
 FString UKismetStringLibrary::Conv_FloatToString(float InFloat)
 {
 	return FString::SanitizeFloat(InFloat);
