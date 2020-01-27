@@ -94,7 +94,7 @@
  * That code is responsible for creating the main Game Net Driver, parsing out settings, and calling UNetDriver::InitListen.
  * Ultimately, that code will be responsible for figuring out what how exactly we listen for client connections.
  * For example, in IpNetDriver, that is where we determine the IP / Port we will bind to by calls to our configured Socket Subsystem
- * (see ISocketSubsystem::GetLocalBindAddr and ISocketSubsystem::BindNextPort).
+ * (see ISocketSubsystem::GetLocalBindAddresses and ISocketSubsystem::BindNextPort).
  *
  * Once the server is listening, it's ready to start accepting client connections.
  *

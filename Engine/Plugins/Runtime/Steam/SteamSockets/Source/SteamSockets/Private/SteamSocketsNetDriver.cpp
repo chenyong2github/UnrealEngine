@@ -128,17 +128,17 @@ bool USteamSocketsNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNoti
 		UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Looking for a binding address that matches protocol %s"), *SocketAddressType.ToString());
 
 		// Set the binding address.
-		TArray<TSharedPtr<FInternetAddr>> Addresses;
-		if (SocketSub->GetLocalAdapterAddresses(Addresses))
+		TArray<TSharedRef<FInternetAddr>> BindAddresses = SocketSub->GetLocalBindAddresses();
+		if (BindAddresses.Num() > 0)
 		{
 			// Attempt to find a binding address that matches protocol of the connection destination
-			for (int32 i = 0; i < Addresses.Num(); ++i)
+			for (int32 i = 0; i < BindAddresses.Num(); ++i)
 			{
-				UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Looking at binding address %s"), *Addresses[i]->ToString(true));
-				if (Addresses[i]->GetProtocolType() == SocketAddressType)
+				UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Looking at binding address %s"), *BindAddresses[i]->ToString(true));
+				if (BindAddresses[i]->GetProtocolType() == SocketAddressType)
 				{
 					UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Picked this binding address."));
-					LocalAddr = Addresses[i]->Clone();
+					LocalAddr = BindAddresses[i]->Clone();
 					break;
 				}
 			}
