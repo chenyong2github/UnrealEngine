@@ -1302,6 +1302,9 @@ protected:
 	void CollectPureUpstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
 	void HideUnrelatedNodes();
 
+	/** Register Menus */
+	void RegisterMenus();
+
 public:
 	/** Make nodes which are unrelated to the selected nodes fade out */
 	void ToggleHideUnrelatedNodes();
