@@ -178,6 +178,7 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				{
 					bDrawPose = !bDrawPose;
 					UpdateComponentVisibility();
+					SharedData.InvalidateViewports();
 				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return bDrawPose; })),
@@ -190,7 +191,11 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("ToggleDrawSkeleton_Tooltip", "Draw the skeleton for poses in this track (when pose drawing is also enabled)"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawSkeleton = !bDrawSkeleton; }),
+				FExecuteAction::CreateLambda([this]()
+				{ 
+					bDrawSkeleton = !bDrawSkeleton; 
+					SharedData.InvalidateViewports();
+				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return bDrawSkeleton; })),
 			NAME_None,
@@ -242,6 +247,8 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										InTrack->UpdateComponentVisibility();
 									}
 								});
+
+								SharedData.InvalidateViewports();
 							}),
 							FCanExecuteAction(),
 							FIsActionChecked::CreateLambda([this, ActorObjectInfo, GameplayProvider]()
@@ -292,6 +299,8 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										InTrack->UpdateComponentVisibility();
 									}
 								});
+
+								SharedData.InvalidateViewports();
 							}),
 							FCanExecuteAction(),
 							FIsActionChecked::CreateLambda([this, ActorObjectInfo, GameplayProvider]()

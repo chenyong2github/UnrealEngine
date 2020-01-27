@@ -251,89 +251,115 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 
 void FAnimationSharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 {
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleAnimationTracks", "Animation Tracks"),
-		LOCTEXT("ToggleAnimationTracks_Tooltip", "Show/hide all animation tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimationTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateRaw(this, &FAnimationSharedData::AreAnimationTracksEnabled)),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+	InMenuBuilder.BeginSection("AnimationTracks", LOCTEXT("AnimationHeader", "Animation"));
+	{
+#if WITH_EDITOR
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowAllMeshes", "Show All Mesh Poses"),
+			LOCTEXT("ShowAllMeshes_Tooltip", "Show all skeletal mesh poses"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ShowAllMeshes)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleSkelMeshPoseTracks", "Pose Tracks"),
-		LOCTEXT("ToggleSkelMeshPoseTracks_Tooltip", "Show/hide the skeletal mesh pose tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleSkeletalMeshPoseTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bSkeletalMeshPoseTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("HideAllMeshes", "Hide All Mesh Poses"),
+			LOCTEXT("HideAllMeshes_Tooltip", "Hide all skeletal mesh poses"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::HideAllMeshes)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+#endif
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleSkelMeshCurveTracks", "Curve Tracks"),
-		LOCTEXT("ToggleSkelMeshCurveTracks_Tooltip", "Show/hide the skeletal mesh curve tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleSkeletalMeshCurveTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bSkeletalMeshCurveTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleAnimationTracks", "Animation Tracks"),
+			LOCTEXT("ToggleAnimationTracks_Tooltip", "Show/hide all animation tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimationTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FAnimationSharedData::AreAnimationTracksEnabled)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleAnimTickRecordTracks", "Blend Weights Tracks"),
-		LOCTEXT("ToggleAnimTickRecordTracks_Tooltip", "Show/hide the blend weights (tick records) tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleTickRecordTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bTickRecordTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleSkelMeshPoseTracks", "Pose Tracks"),
+			LOCTEXT("ToggleSkelMeshPoseTracks_Tooltip", "Show/hide the skeletal mesh pose tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleSkeletalMeshPoseTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bSkeletalMeshPoseTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleAnimNodeTracks", "Graph Tracks"),
-		LOCTEXT("ToggleAnimNodeTracks_Tooltip", "Show/hide the animation graph tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimNodeTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bAnimNodeTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleSkelMeshCurveTracks", "Curve Tracks"),
+			LOCTEXT("ToggleSkelMeshCurveTracks_Tooltip", "Show/hide the skeletal mesh curve tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleSkeletalMeshCurveTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bSkeletalMeshCurveTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleAnimNotifyTracks", "Notify Tracks"),
-		LOCTEXT("ToggleAnimNotifyTracks_Tooltip", "Show/hide the animation notify/sync marker tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimNotifyTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bAnimNotifyTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleAnimTickRecordTracks", "Blend Weights Tracks"),
+			LOCTEXT("ToggleAnimTickRecordTracks_Tooltip", "Show/hide the blend weights (tick records) tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleTickRecordTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bTickRecordTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleMontageTracks", "Montage Tracks"),
-		LOCTEXT("ToggleMontageTracks_Tooltip", "Show/hide the montage tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleMontageTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this](){ return bMontageTracksEnabled; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleAnimNodeTracks", "Graph Tracks"),
+			LOCTEXT("ToggleAnimNodeTracks_Tooltip", "Show/hide the animation graph tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimNodeTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bAnimNodeTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleAnimNotifyTracks", "Notify Tracks"),
+			LOCTEXT("ToggleAnimNotifyTracks_Tooltip", "Show/hide the animation notify/sync marker tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleAnimNotifyTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bAnimNotifyTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleMontageTracks", "Montage Tracks"),
+			LOCTEXT("ToggleMontageTracks_Tooltip", "Show/hide the montage tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FAnimationSharedData::ToggleMontageTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this](){ return bMontageTracksEnabled; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InMenuBuilder.EndSection();
 }
 
 void FAnimationSharedData::ToggleAnimationTracks()
@@ -469,7 +495,7 @@ void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFla
 }
 
 #if WITH_EDITOR
-void FAnimationSharedData::InvalidateViewports()
+void FAnimationSharedData::InvalidateViewports() const
 {
 	UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
 	if (GIsEditor && Engine != nullptr)
@@ -560,6 +586,26 @@ void FAnimationSharedData::GetCustomDebugObjects(const IAnimationBlueprintEditor
 			AnimNodesTrack->GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
 		}
 	}
+}
+
+void FAnimationSharedData::ShowAllMeshes()
+{
+	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
+	{
+		PoseTrack->SetDrawPose(true);
+	}
+
+	InvalidateViewports();
+}
+
+void FAnimationSharedData::HideAllMeshes()
+{
+	for(TSharedRef<FSkeletalMeshPoseTrack> PoseTrack : SkeletalMeshPoseTracks)
+	{
+		PoseTrack->SetDrawPose(false);
+	}
+
+	InvalidateViewports();
 }
 
 #endif

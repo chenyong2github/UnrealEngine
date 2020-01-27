@@ -38,6 +38,7 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 	// Access drawing flags
+	void SetDrawPose(bool bInDrawPose) { bDrawPose = bInDrawPose; }
 	bool ShouldDrawPose() const { return bDrawPose; }
 	bool ShouldDrawSkeleton() const { return bDrawSkeleton; }
 

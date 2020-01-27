@@ -40,7 +40,13 @@ public:
 	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
 
 	// Helper function to invalidate all viewports so non-realtime viewports update correctly.
-	void InvalidateViewports();
+	void InvalidateViewports() const;
+
+	// Show all the meshes
+	void ShowAllMeshes();
+
+	// Hide all the meshes
+	void HideAllMeshes();
 #endif
 
 	// Check whether animation tracks are enabled

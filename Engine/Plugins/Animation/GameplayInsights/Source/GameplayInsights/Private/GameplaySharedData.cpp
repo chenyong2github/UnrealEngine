@@ -148,33 +148,38 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 
 void FGameplaySharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 {
-	InMenuBuilder.AddSubMenu(
-		LOCTEXT("ToggleGameplayTracks", "Gameplay Tracks"),
-		LOCTEXT("ToggleGameplayTracks_Tooltip", "Show/hide individual gameplay tracks"),
-		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-		{ 
-			InSubMenuBuilder.AddWidget(
-				SNew(SBox)
-				.MaxDesiredHeight(300.0f)
-				.MinDesiredWidth(300.0f)
-				[
-					SNew(SGameplayTrackTree, *this)
-				],
-				FText(), true);
-		})
-	);
+	InMenuBuilder.BeginSection("GameplayTracks", LOCTEXT("GameplayTracksSection", "Gameplay Tracks"));
+	{
+		InMenuBuilder.AddSubMenu(
+			LOCTEXT("ToggleGameplayTracks", "Gameplay Tracks"),
+			LOCTEXT("ToggleGameplayTracks_Tooltip", "Show/hide individual gameplay tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+			{ 
+				InSubMenuBuilder.AddWidget(
+					SNew(SBox)
+					.MaxDesiredHeight(300.0f)
+					.MinDesiredWidth(300.0f)
+					.MaxDesiredWidth(300.0f)
+					[
+						SNew(SGameplayTrackTree, *this)
+					],
+					FText(), true);
+			})
+		);
 
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleEventTracks", "Event Tracks"),
-		LOCTEXT("ToggleEventTracks_Tooltip", "Show/hide the gameplay event tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleGameplayTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreGameplayTracksEnabled)),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleEventTracks", "Event Tracks"),
+			LOCTEXT("ToggleEventTracks_Tooltip", "Show/hide the gameplay event tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleGameplayTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreGameplayTracksEnabled)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InMenuBuilder.EndSection();
 }
 
 void FGameplaySharedData::SortTracks()
