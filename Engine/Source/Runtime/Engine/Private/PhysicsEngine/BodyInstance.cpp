@@ -1410,20 +1410,6 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
 	}
 
-	// @TODO UE4: Release spring body here
-
-	CurrentSceneState = BodyInstanceSceneState::NotAdded;
-	BodySetup = NULL;
-	OwnerComponent = NULL;
-	ExternalCollisionProfileBodySetup = nullptr;
-
-	if (DOFConstraint)
-	{
-		DOFConstraint->TermConstraint();
-		FConstraintInstance::Free(DOFConstraint);
-			DOFConstraint = NULL;
-	}
-	
 #if WITH_CHAOS
 	if (UPrimitiveComponent* PrimComp = OwnerComponent.Get())
 	{
@@ -1441,6 +1427,21 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		}
 	}
 #endif // WITH_CHAOS
+
+	// @TODO UE4: Release spring body here
+
+	CurrentSceneState = BodyInstanceSceneState::NotAdded;
+	BodySetup = NULL;
+	OwnerComponent = NULL;
+	ExternalCollisionProfileBodySetup = nullptr;
+
+	if (DOFConstraint)
+	{
+		DOFConstraint->TermConstraint();
+		FConstraintInstance::Free(DOFConstraint);
+			DOFConstraint = NULL;
+	}
+	
 }
 
 bool FBodyInstance::Weld(FBodyInstance* TheirBody, const FTransform& TheirTM)
