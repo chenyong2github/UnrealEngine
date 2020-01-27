@@ -13,10 +13,17 @@ namespace Chaos
 	void Chaos::TGeometryParticle<T, d>::MapImplicitShapes()
 	{
 		ImplicitShapeMap.Reset();
-		int32 ShapeIndex = 0;
-		for (TUniquePtr<TPerShapeData<T, d>>& ShapeData : MShapesArray)
+
+		for (int32 ShapeIndex = 0; ShapeIndex < MShapesArray.Num(); ++ ShapeIndex)
 		{
-			ImplicitShapeMap.Add(ShapeData->Geometry.Get(), ShapeIndex++);
+			const FImplicitObject* ImplicitObject = MShapesArray[ShapeIndex]->Geometry.Get();
+			ImplicitShapeMap.Add(ImplicitObject, ShapeIndex);
+
+			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
+			if (ImplicitChildObject != ImplicitObject)
+			{
+				ImplicitShapeMap.Add(ImplicitChildObject, ShapeIndex);
+			}
 		}
 
 		if (MGeometry)
