@@ -83,7 +83,7 @@ protected:
 			if (!NewField && ClassIterator)
 			{
 				++ClassIterator;
-				if (ClassIterator)
+				if(ClassIterator)
 				{
 					Struct = *ClassIterator;
 					NewField = Struct->ChildProperties;
