@@ -35,6 +35,9 @@ public:
 	// Get the last cached analysis session
 	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
 
+	// Get the timing view session
+	Insights::ITimingViewSession& GetTimingViewSession() { return *TimingViewSession; }
+
 	// Enumerate object tracks
 	void EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const;
 

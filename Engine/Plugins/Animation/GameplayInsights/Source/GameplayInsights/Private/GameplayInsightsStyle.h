@@ -45,6 +45,16 @@ public:
 
 		Set("SchematicViewViewButtonIcon", new IMAGE_BRUSH("view_button", Icon20x20));
 
+		Set("TransportControls.HyperlinkSpinBox", FSpinBoxStyle()
+			.SetTextPadding(FMargin(0))
+			.SetBackgroundBrush(BORDER_BRUSH("HyperlinkDotted", FMargin(0, 0, 0, 3 / 16.0f), FSlateColor::UseSubduedForeground()))
+			.SetHoveredBackgroundBrush(FSlateNoResource())
+			.SetInactiveFillBrush(FSlateNoResource())
+			.SetActiveFillBrush(FSlateNoResource())
+			.SetForegroundColor(FSlateColor::UseSubduedForeground())
+			.SetArrowsImage(FSlateNoResource())
+		);
+
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 

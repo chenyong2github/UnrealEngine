@@ -7,6 +7,11 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+#if WITH_EDITOR
+#include "SGameplayInsightsTransportControls.h"
+#include "Widgets/Layout/SBorder.h"
+#endif
+
 #if WITH_ENGINE
 #include "Engine/World.h"
 #include "Editor/EditorEngine.h"
@@ -22,6 +27,21 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 		PerSessionData = &PerSessionDataMap.Add(&InSession);
 		PerSessionData->GameplaySharedData = new FGameplaySharedData();
 		PerSessionData->AnimationSharedData = new FAnimationSharedData(*PerSessionData->GameplaySharedData);
+
+		InSession.AddOverlayWidget(
+			SNew(SOverlay)
+			.Visibility(EVisibility::SelfHitTestInvisible)
+			+SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Bottom)
+			.Padding(20.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				[
+					SAssignNew(PerSessionData->TransportControls, SGameplayInsightsTransportControls, *PerSessionData->GameplaySharedData)
+				]
+			]);
 	}
 
 	PerSessionData->GameplaySharedData->OnBeginSession(InSession);
@@ -40,6 +60,8 @@ void FGameplayTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InS
 		PerSessionData->GameplaySharedData = nullptr;
 		delete PerSessionData->AnimationSharedData;
 		PerSessionData->AnimationSharedData = nullptr;
+
+		PerSessionData->TransportControls.Reset();
 	}
 
 	PerSessionDataMap.Remove(&InSession);
@@ -60,12 +82,8 @@ void FGameplayTimingViewExtender::ExtendFilterMenu(Insights::ITimingViewSession&
 	FPerSessionData* PerSessionData = PerSessionDataMap.Find(&InSession);
 	if(PerSessionData != nullptr)
 	{
-		InMenuBuilder.BeginSection("GameplayTracks", LOCTEXT("GameplayTracksSection", "Gameplay Tracks"));
-		{
-			PerSessionData->GameplaySharedData->ExtendFilterMenu(InMenuBuilder);
-			PerSessionData->AnimationSharedData->ExtendFilterMenu(InMenuBuilder);
-		}
-		InMenuBuilder.EndSection();
+		PerSessionData->GameplaySharedData->ExtendFilterMenu(InMenuBuilder);
+		PerSessionData->AnimationSharedData->ExtendFilterMenu(InMenuBuilder);
 	}
 }
 
