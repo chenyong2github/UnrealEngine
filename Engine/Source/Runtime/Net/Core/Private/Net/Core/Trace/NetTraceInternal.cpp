@@ -495,7 +495,7 @@ FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 
 FNetDebugNameId FNetTrace::TraceName(FName Name)
 {
-	if ((GNetTraceRuntimeVerbosity == 0U) | Name.IsNone())
+	if ((GNetTraceRuntimeVerbosity == 0U) || Name.IsNone())
 	{
 		return 0U;
 	}
