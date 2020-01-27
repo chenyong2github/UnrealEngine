@@ -105,7 +105,7 @@
 
 #define TRACE_PRIVATE_CHANNEL(ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_EXTERN(ModuleApi, ChannelName)
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName)
 
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
 
