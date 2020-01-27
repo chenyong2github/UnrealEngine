@@ -1771,7 +1771,6 @@ void FVulkanCommandListContext::RHIEndRenderPass()
 		}
 	}
 	RHIPopEvent();
-	bUniformBufferUploadRenderPassDirty = true;
 }
 
 void FVulkanCommandListContext::RHINextSubpass()

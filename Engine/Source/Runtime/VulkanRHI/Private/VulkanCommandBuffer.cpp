@@ -39,6 +39,7 @@ FVulkanCmdBuffer::FVulkanCmdBuffer(FVulkanDevice* InDevice, FVulkanCommandBuffer
 	, bHasScissor(0)
 	, bHasStencilRef(0)
 	, bIsUploadOnly(bInIsUploadOnly ? 1 : 0)
+	, bIsUniformBufferBarrierAdded(0)
 	, Device(InDevice)
 	, CommandBufferHandle(VK_NULL_HANDLE)
 	, Fence(nullptr)
@@ -122,8 +123,44 @@ void FVulkanCmdBuffer::FreeMemory()
 	State = EState::NotAllocated;
 }
 
+void FVulkanCmdBuffer::BeginUniformUpdateBarrier()
+{
+	if(!bIsUniformBufferBarrierAdded)
+	{
+		VkMemoryBarrier Barrier;
+		ZeroVulkanStruct(Barrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER);
+		Barrier.srcAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+		Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		VulkanRHI::vkCmdPipelineBarrier(GetHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &Barrier, 0, nullptr, 0, nullptr);
+		bIsUniformBufferBarrierAdded = true;
+	}
+}
+
+void FVulkanCmdBuffer::EndUniformUpdateBarrier()
+{
+	if(bIsUniformBufferBarrierAdded)
+	{
+		VkMemoryBarrier Barrier;
+		ZeroVulkanStruct(Barrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER);
+		Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		Barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+		VulkanRHI::vkCmdPipelineBarrier(GetHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &Barrier, 0, nullptr, 0, nullptr);
+		bIsUniformBufferBarrierAdded = false;
+	}
+}
+void FVulkanCmdBuffer::EndRenderPass()
+{
+	checkf(IsInsideRenderPass(), TEXT("Can't EndRP as we're NOT inside one! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
+	VulkanRHI::vkCmdEndRenderPass(CommandBufferHandle);
+	State = EState::IsInsideBegin;
+}
+
 void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, FVulkanRenderPass* RenderPass, FVulkanFramebuffer* Framebuffer, const VkClearValue* AttachmentClearValues)
 {
+	if(bIsUniformBufferBarrierAdded)
+	{
+		EndUniformUpdateBarrier();
+	}
 	checkf(IsOutsideRenderPass(), TEXT("Can't BeginRP as already inside one! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
 
 	VkRenderPassBeginInfo Info;
