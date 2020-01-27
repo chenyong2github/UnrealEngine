@@ -2,6 +2,7 @@
 
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ClothConfig_Legacy.h"
+#include "ChaosClothConfigCustomVersion.h"
 #include "ChaosClothSharedConfigCustomVersion.h"
 #include "ClothingSimulationInteractor.h"
 
@@ -67,6 +68,23 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 
 	const float Damping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
 	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
+}
+
+void UChaosClothConfig::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FChaosClothConfigCustomVersion::GUID);
+}
+
+void UChaosClothConfig::PostLoad()
+{
+	Super::PostLoad();
+	const int32 ChaosClothConfigCustomVersion = GetLinkerCustomVersion(FChaosClothConfigCustomVersion::GUID);
+
+	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::UpdateDragDefault)
+	{
+		DragCoefficient = 0.07f;  // Reset to a more appropirate default for chaos cloth assets saved before this custom version
+	}
 }
 
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()

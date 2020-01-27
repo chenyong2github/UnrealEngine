@@ -19,6 +19,12 @@ public:
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
+	/** Serialize override used to set the current custom version. */
+	virtual void Serialize(FArchive& Ar) override;
+
+	/** PostLoad override used to deal with updates/changes in properties. */
+	virtual void PostLoad() override;
+
 	/**
 	 * How cloth particle mass is determined
 	 * -	Uniform Mass: Every particle's mass will be set to the value specified in the UniformMass setting
