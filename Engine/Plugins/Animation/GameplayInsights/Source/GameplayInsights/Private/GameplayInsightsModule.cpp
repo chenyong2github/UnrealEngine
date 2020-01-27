@@ -41,6 +41,13 @@ void FGameplayInsightsModule::StartupModule()
 	});
 
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	UnrealInsightsModule.OnMajorTabCreated().AddLambda([this](const FName& InMajorTabId, TSharedPtr<FTabManager> InTabManager)
+	{
+		if (InMajorTabId == FInsightsManagerTabs::TimingProfilerTabId)
+		{
+			WeakTimingProfilerTabManager = InTabManager;
+		}
+	});
 
 #if WITH_EDITOR
 	if (!IsRunningCommandlet())
@@ -131,14 +138,6 @@ void FGameplayInsightsModule::StartupModule()
 	FOnRegisterMajorTabExtensions& TimingProfilerExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
 	TimingProfilerExtension.AddRaw(this, &FGameplayInsightsModule::RegisterTimingProfilerLayoutExtensions);
 #endif
-
-	UnrealInsightsModule.OnMajorTabCreated().AddLambda([this](const FName& InMajorTabId, TSharedPtr<FTabManager> InTabManager)
-	{
-		if (InMajorTabId == FInsightsManagerTabs::TimingProfilerTabId)
-		{
-			WeakTimingProfilerTabManager = InTabManager;
-		}
-	});
 }
 
 void FGameplayInsightsModule::ShutdownModule()
