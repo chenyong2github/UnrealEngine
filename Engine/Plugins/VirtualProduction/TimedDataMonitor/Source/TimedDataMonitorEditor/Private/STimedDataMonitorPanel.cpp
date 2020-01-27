@@ -6,6 +6,7 @@
 #include "EditorFontGlyphs.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Engine/Engine.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IMessageLogListing.h"
 #include "ISettingsModule.h"
 #include "ITimedDataInput.h"
