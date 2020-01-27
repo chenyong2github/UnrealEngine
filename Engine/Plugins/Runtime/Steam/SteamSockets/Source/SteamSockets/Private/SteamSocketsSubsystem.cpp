@@ -412,13 +412,6 @@ const TCHAR* FSteamSocketsSubsystem::GetSocketAPIName() const
 
 bool FSteamSocketsSubsystem::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
 {
-	// Add Multihome
-	TSharedRef<FInternetAddr> MultihomeAddress = CreateInternetAddr(FNetworkProtocolTypes::SteamSocketsIP);
-	if (GetMultihomeAddress(MultihomeAddress))
-	{
-		OutAddresses.Add(MultihomeAddress);
-	}
-
 	// Add the account addresses
 	if (IsUsingRelayNetwork())
 	{
@@ -437,15 +430,26 @@ bool FSteamSocketsSubsystem::GetLocalAdapterAddresses(TArray<TSharedPtr<FInterne
 	return true;
 }
 
-TSharedRef<FInternetAddr> FSteamSocketsSubsystem::GetLocalBindAddr(FOutputDevice& Out)
+TArray<TSharedRef<FInternetAddr>> FSteamSocketsSubsystem::GetLocalBindAddresses()
 {
-	TArray<TSharedPtr<FInternetAddr>> Adapters;
-	if (GetLocalAdapterAddresses(Adapters))
+	TArray<TSharedRef<FInternetAddr>> OutAddresses;
+	TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
+	GetLocalAdapterAddresses(AdapterAddresses);
+
+	// Add Multihome
+	TSharedRef<FInternetAddr> MultihomeAddress = CreateInternetAddr(FNetworkProtocolTypes::SteamSocketsIP);
+	if (GetMultihomeAddress(MultihomeAddress))
 	{
-		return Adapters[0].ToSharedRef();
+		OutAddresses.Add(MultihomeAddress);
 	}
 
-	return CreateInternetAddr(FNetworkProtocolTypes::SteamSocketsIP);
+	// Add all the adapter addresses
+	for (const auto& AdapterAddress : AdapterAddresses)
+	{
+		OutAddresses.Add(AdapterAddress.ToSharedRef());
+	}
+
+	return OutAddresses;
 }
 
 void FSteamSocketsSubsystem::CleanSocketInformation(bool bForceClean)
@@ -537,36 +541,6 @@ bool FSteamSocketsSubsystem::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutp
 		bIsHandled = true;
 		bShouldTestPeek = !bShouldTestPeek;
 		UE_LOG(LogSockets, Log, TEXT("SteamSockets: Set Peek Messaging to %d"), bShouldTestPeek);
-	}
-	else if (FParse::Command(&Cmd, TEXT("TestSteamRawAddresses")))
-	{
-		UE_LOG(LogSockets, Log, TEXT("SteamSockets: Testing Raw addresses..."));
-		bIsHandled = true;
-		TSharedRef<FInternetAddrSteamSockets> SteamAddr = StaticCastSharedRef<FInternetAddrSteamSockets>(GetLocalBindAddr(*GLog));
-		TArray<uint8> RawAddress = SteamAddr->GetRawIp();
-		UE_LOG(LogSockets, Log, TEXT("SteamSockets: Address before %s"), *SteamAddr->ToString(false));
-		if (RawAddress.Num() <= 0)
-		{
-			UE_LOG(LogSockets, Warning, TEXT("SteamSockets: Raw address array is empty!"));
-			return true;
-		}
-		SteamAddr->SetRawIp(RawAddress);
-		UE_LOG(LogSockets, Log, TEXT("SteamSockets: Address after %s"), *SteamAddr->ToString(false));
-
-		TSharedPtr<FInternetAddrSteamSockets> SteamIPAddr = StaticCastSharedPtr<FInternetAddrSteamSockets>(GetAddressFromString(TEXT("8.8.8.8")));
-		if (SteamIPAddr)
-		{
-			TArray<uint8> RawIPAddress = SteamIPAddr->GetRawIp();
-			UE_LOG(LogSockets, Log, TEXT("SteamSockets: Address before %s"), *SteamIPAddr->ToString(false));
-			if (RawAddress.Num() <= 0)
-			{
-				UE_LOG(LogSockets, Warning, TEXT("SteamSockets: Raw address array is empty!"));
-				return true;
-			}
-			SteamIPAddr->SetRawIp(RawIPAddress);
-			UE_LOG(LogSockets, Log, TEXT("SteamSockets: Address after %s"), *SteamIPAddr->ToString(false));
-		}
-		UE_LOG(LogSockets, Log, TEXT("SteamSockets: Test complete"));
 	}
 #endif
 

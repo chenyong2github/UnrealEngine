@@ -56,19 +56,10 @@ public:
 
 	virtual TSharedPtr<FInternetAddr> GetAddressFromString(const FString& InAddress) override;
 
+	virtual bool GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr) override;
+
 	virtual bool GetHostName(FString& HostName) override;
 	virtual ESocketErrors GetLastErrorCode() override;
-
-	virtual bool GetLocalAdapterAddresses( TArray<TSharedPtr<FInternetAddr> >& OutAdresses ) override
-	{
-		bool bCanBindAll;
-
-		OutAdresses.Add(GetLocalHostAddr(*GLog, bCanBindAll));
-
-		return true;
-	}
-
-	virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out) override;
 
 	virtual const TCHAR* GetSocketAPIName() const override;
 

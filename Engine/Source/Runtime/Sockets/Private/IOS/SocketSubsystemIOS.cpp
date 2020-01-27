@@ -80,10 +80,7 @@ FSocket* FSocketSubsystemIOS::CreateSocket(const FName& SocketType, const FStrin
 	FSocketBSD* NewSocket = (FSocketBSD*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
 	if (NewSocket)
 	{
-		if (ProtocolType != FNetworkProtocolTypes::IPv4)
-		{
-			NewSocket->SetIPv6Only(false);
-		}
+		NewSocket->SetIPv6Only(false);
 
 		// disable the SIGPIPE exception 
 		int bAllow = 1;
@@ -92,86 +89,176 @@ FSocket* FSocketSubsystemIOS::CreateSocket(const FName& SocketType, const FStrin
 	return NewSocket;
 }
 
-TSharedRef<FInternetAddr> FSocketSubsystemIOS::GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll)
+/** Priority values for iOS adapters. */
+enum class EAdapterPriorityValues : uint8
 {
-	TSharedRef<FInternetAddrBSDIOS> HostAddr = MakeShareable(new FInternetAddrBSDIOS(this));
-	HostAddr->SetAnyAddress();
+	None = 0,
+	IPv6Wifi = 1,
+	IPv4Wifi = 2,
+	IPv6Cell = 3,
+	IPv4Cell = 4,
+};
 
-	ifaddrs* Interfaces = NULL;
-	bool bWasWifiSet = false;
-	bool bWasCellSet = false;
-	bool bWasIPv6Set = false;
+/** Helper struct to sort our adapters based off of interface information */
+struct FSortedPriorityAddresses
+{
+	FSortedPriorityAddresses(FSocketSubsystemIOS* SocketSub) :
+		Priority(EAdapterPriorityValues::None)
+	{
+		Address = StaticCastSharedRef<FInternetAddrBSDIOS>(SocketSub->CreateInternetAddr());
+	}
 
-	// get all of the addresses
+	TSharedPtr<FInternetAddrBSDIOS> Address;
+	EAdapterPriorityValues Priority;
+	FString InterfaceName;
+
+	bool operator<(const FSortedPriorityAddresses& Other) const
+	{
+		// Lower values are better than higher values
+		return Priority < Other.Priority;
+	}
+
+	FString ToString() const
+	{
+		FString AdapterPriorityValue;
+		switch (Priority)
+		{
+		default:
+		case EAdapterPriorityValues::None:
+			AdapterPriorityValue = TEXT("Invalid/Any");
+			break;
+		case EAdapterPriorityValues::IPv6Wifi:
+			AdapterPriorityValue = TEXT("IPv6 Wifi");
+			break;
+		case EAdapterPriorityValues::IPv6Cell:
+			AdapterPriorityValue = TEXT("IPv6 Cell");
+			break;
+		case EAdapterPriorityValues::IPv4Wifi:
+			AdapterPriorityValue = TEXT("IPv4 Wifi");
+			break;
+		case EAdapterPriorityValues::IPv4Cell:
+			AdapterPriorityValue = TEXT("IPv4 Cell");
+			break;
+		}
+
+		return FString::Printf(TEXT("%s [Interface: %s] %s (%d)"), *Address->ToString(true), *InterfaceName, *AdapterPriorityValue, (int32)Priority);
+	}
+};
+
+bool FSocketSubsystemIOS::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
+{
+	// Since getifaddrs does not return the addresses in a sorted priority list, we need to do that ourselves.
+	// This does lead to us processing a lot of information, however we get a massive benefit in making sure the adapters we use are the best
+	TArray<FSortedPriorityAddresses> SortedAddresses;
+
+	// Grow the array to a largish size. We don't know how many interfaces we could have, and there's no way to tell ahead of time.
+	SortedAddresses.Reserve(12);
+
+	// Get all of the addresses this device has
+	ifaddrs* Interfaces = nullptr;
 	if (getifaddrs(&Interfaces) == 0)
 	{
 		// Loop through linked list of interfaces
-		for (ifaddrs* Travel = Interfaces; Travel != NULL; Travel = Travel->ifa_next)
+		for (ifaddrs* Travel = Interfaces; Travel != nullptr; Travel = Travel->ifa_next)
 		{
-			if (Travel->ifa_addr == NULL)
+			// Skip over anything that does not have valid data, is the loopback interface, or is currently not in use
+			if (Travel->ifa_addr == nullptr || (Travel->ifa_flags & (IFF_LOOPBACK)) != 0 || (Travel->ifa_flags & (IFF_RUNNING | IFF_UP)) == 0)
 			{
 				continue;
 			}
 
-			sockaddr_storage* AddrData = reinterpret_cast<sockaddr_storage*>(Travel->ifa_addr);
-			uint32 ScopeInterfaceId = ntohl(if_nametoindex(Travel->ifa_name));
-			if (Travel->ifa_addr->sa_family == AF_INET6)
+			// Also drop any interface that's not a wifi or mobile adapter
+			bool bIsWifi = strncmp(Travel->ifa_name, "en", 2) == 0;
+			bool bIsMobile = strncmp(Travel->ifa_name, "pdp_ip", 6) == 0;
+			if (!bIsWifi && !bIsMobile)
 			{
-				if (strcmp(Travel->ifa_name, "en0") == 0)
-				{
-					HostAddr->SetIp(*AddrData);
-					HostAddr->SetScopeId(ScopeInterfaceId);
-					bWasWifiSet = true;
-					bWasIPv6Set = true;
-					UE_LOG(LogSockets, Verbose, TEXT("Set IP to WIFI %s"), *HostAddr->ToString(false));
-				}
-				else if (!bWasWifiSet && strcmp(Travel->ifa_name, "pdp_ip0") == 0)
-				{
-					HostAddr->SetIp(*AddrData);
-					HostAddr->SetScopeId(ScopeInterfaceId);
-					bWasCellSet = true;
-					UE_LOG(LogSockets, Verbose, TEXT("Set IP to CELL %s"), *HostAddr->ToString(false));
-				}
+				continue;
 			}
-			else if (!bWasIPv6Set && Travel->ifa_addr->sa_family == AF_INET)
+
+			// Otherwise, this is an address we can consider.
+			FSortedPriorityAddresses NewAddress(this);
+			sockaddr_storage* AddrData = reinterpret_cast<sockaddr_storage*>(Travel->ifa_addr);
+
+			// Set in the address data.
+			NewAddress.Address->SetIp(*AddrData);
+			// Make sure to set the scope id as it will not be in the AddrData by default.
+			NewAddress.Address->SetScopeId(ntohl(if_nametoindex(Travel->ifa_name)));
+
+			// Ignore anything that is not a valid address that we can use.
+			if (NewAddress.Address->IsValid())
 			{
-				if (strcmp(Travel->ifa_name, "en0") == 0)
+				// Assign priority as needed. IPv6 is always better than IPv4, and WIFI is better than Cellular
+				if (Travel->ifa_addr->sa_family == AF_INET6)
 				{
-					HostAddr->SetIp(*AddrData);
-					HostAddr->SetScopeId(ScopeInterfaceId);
-					bWasWifiSet = true;
-					UE_LOG(LogSockets, Verbose, TEXT("Set IP to WIFI IPv4 %s"), *HostAddr->ToString(false));
+					NewAddress.Priority = (bIsWifi) ?
+						EAdapterPriorityValues::IPv6Wifi : EAdapterPriorityValues::IPv6Cell;
 				}
-				else if (!bWasWifiSet && strcmp(Travel->ifa_name, "pdp_ip0") == 0)
+				else if (Travel->ifa_addr->sa_family == AF_INET)
 				{
-					HostAddr->SetIp(*AddrData);
-					HostAddr->SetScopeId(ScopeInterfaceId);
-					bWasCellSet = true;
-					UE_LOG(LogSockets, Verbose, TEXT("Set IP to CELL IPv4 %s"), *HostAddr->ToString(false));
+					NewAddress.Priority = (bIsWifi) ?
+						EAdapterPriorityValues::IPv4Wifi : EAdapterPriorityValues::IPv4Cell;
 				}
+				else
+				{
+					continue;
+				}
+
+				NewAddress.InterfaceName = ANSI_TO_TCHAR(Travel->ifa_name);
+				UE_LOG(LogIOS, Verbose, TEXT("Added address %s with interface %s"), *NewAddress.ToString(), *NewAddress.InterfaceName);
+				SortedAddresses.Add(NewAddress);
 			}
 		}
 
-		// Free memory
+		// Free interface memory
 		freeifaddrs(Interfaces);
 
-		if (bWasWifiSet)
+		// Sort the addresses based on priority now that all of them are added
+		SortedAddresses.Sort();
+
+		// With the now sorted list, add them to our output addresses.
+		for (const auto& AddressInterface : SortedAddresses)
 		{
-			UE_LOG(LogIOS, Log, TEXT("Host addr is WIFI: %s"), *HostAddr->ToString(false));
+			UE_LOG(LogIOS, Verbose, TEXT("Ordered Address: %s"), *AddressInterface.ToString());
+			OutAddresses.Add(AddressInterface.Address);
 		}
-		else if (bWasCellSet)
+
+		return true;
+	}
+	return false;
+}
+
+TArray<TSharedRef<FInternetAddr>> FSocketSubsystemIOS::GetLocalBindAddresses()
+{
+	TArray<TSharedRef<FInternetAddr>> BindingAddresses = FSocketSubsystemBSD::GetLocalBindAddresses();
+
+	uint32 AdapterScopeId = 0;
+	TSharedRef<FInternetAddr> MultihomeAddr = CreateInternetAddr();
+	if (!GetMultihomeAddress(MultihomeAddr))
+	{
+		TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
+		if (GetLocalAdapterAddresses(AdapterAddresses))
 		{
-			UE_LOG(LogIOS, Log, TEXT("Host addr is CELL: %s"), *HostAddr->ToString(false));
+			AdapterScopeId = StaticCastSharedPtr<FInternetAddrBSDIOS>(AdapterAddresses[0])->GetScopeId();
 		}
 		else
 		{
-			UE_LOG(LogIOS, Log, TEXT("Host addr is INVALID"));
+			UE_LOG(LogIOS, Warning, TEXT("Unable to grab the local adapters on this device in order to write scope id on binding addreesses!"));
 		}
 	}
+	else
+	{
+		AdapterScopeId = StaticCastSharedRef<FInternetAddrBSDIOS>(MultihomeAddr)->GetScopeId();
+	}
 
-	// return the newly created address
-	bCanBindAll = true;
-	return HostAddr;
+	UE_LOG(LogIOS, Verbose, TEXT("Using scope id %u for binding addresses"), AdapterScopeId);
+
+	// For iOS, we pull the best scope id that we know of and use that to bind with.
+	for (auto& BindAddress : BindingAddresses)
+	{
+		StaticCastSharedRef<FInternetAddrBSDIOS>(BindAddress)->SetScopeId(AdapterScopeId);
+	}
+
+	return BindingAddresses;
 }
 
 TSharedRef<FInternetAddr> FSocketSubsystemIOS::CreateInternetAddr()

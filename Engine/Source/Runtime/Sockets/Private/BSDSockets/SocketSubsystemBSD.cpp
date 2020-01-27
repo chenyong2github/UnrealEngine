@@ -6,8 +6,14 @@
 
 #include "BSDSockets/IPAddressBSD.h"
 #include "BSDSockets/SocketsBSD.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/CString.h"
 #include <errno.h>
+
+TAutoConsoleVariable<int32> CVarDisableIPv6Resolution(
+	TEXT("net.DisableIPv6Resolution"),
+	0,
+	TEXT("If true, any address resolution results that are of an IPv6 protocol will be dropped."));
 
 FSocketBSD* FSocketSubsystemBSD::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
 {
@@ -87,7 +93,7 @@ FAddressInfoResult FSocketSubsystemBSD::GetAddressInfo(const TCHAR* HostName, co
 
 	// Make sure we filter out IPv6 if the platform is not officially supported
 	// (if it isn't supported but we explicitly ask for it, allow it).
-	bool bCanUseIPv6 = (PLATFORM_HAS_BSD_IPV6_SOCKETS || ProtocolTypeName == FNetworkProtocolTypes::IPv6) ? true : false;
+	bool bCanUseIPv6 = ((PLATFORM_HAS_BSD_IPV6_SOCKETS || ProtocolTypeName == FNetworkProtocolTypes::IPv6) && CVarDisableIPv6Resolution.GetValueOnAnyThread() == 0) ? true : false;
 
 	// Determine if we can save time with numericserv
 	if (ServiceName != nullptr && FString(ServiceName).IsNumeric())
@@ -192,6 +198,38 @@ TSharedPtr<FInternetAddr> FSocketSubsystemBSD::GetAddressFromString(const FStrin
 	return nullptr;
 }
 
+bool FSocketSubsystemBSD::GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr)
+{
+	// This function is overwritten to make sure that functions that use GetLocalHostAddr/GetLocalBindAddr
+	// are able to use that function to pull something like the adapter interface from all code paths.
+	if (ISocketSubsystem::GetMultihomeAddress(Addr))
+	{
+		// Only IPv6 protocols need to handle the scope id.
+		if (Addr->GetProtocolType() == FNetworkProtocolTypes::IPv6)
+		{
+			TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
+			if (GetLocalAdapterAddresses(AdapterAddresses))
+			{
+				uint32 ScopeId = 0;
+				for (const TSharedPtr<FInternetAddr>& AdapterAddress : AdapterAddresses)
+				{
+					// If the endpoint is the same, then we want to make sure that we write the scope id into it
+					if (Addr->CompareEndpoints(*AdapterAddress))
+					{
+						ScopeId = StaticCastSharedPtr<FInternetAddrBSD>(AdapterAddress)->GetScopeId();
+						break;
+					}
+				}
+
+				StaticCastSharedRef<FInternetAddrBSD>(Addr)->SetScopeId(ScopeId);
+			}
+		}
+		return true;
+	}
+
+	return false;
+}
+
 bool FSocketSubsystemBSD::GetHostName(FString& HostName)
 {
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_GETHOSTNAME
@@ -206,32 +244,6 @@ bool FSocketSubsystemBSD::GetHostName(FString& HostName)
 	UE_LOG(LogSockets, Error, TEXT("Platform has no gethostname(), but did not override FSocketSubsystem::GetHostName()"));
 	return false;
 #endif
-}
-
-TSharedRef<FInternetAddr> FSocketSubsystemBSD::GetLocalBindAddr(FOutputDevice& Out)
-{
-	bool bCanBindAll;
-	// look up the local host address
-	TSharedRef<FInternetAddr> BindAddr = GetLocalHostAddr(Out, bCanBindAll);
-	if (bCanBindAll)
-	{
-		// Pass in the result from looking up the machine name as the protocol 
-		// to use for the any address.
-		// The idea behind this is if your platform has a default of IPv4 addresses,
-		// but the runtime machine has a IPv6 address, then the wrong address protocol
-		// will be used when using the any address.
-		TSharedRef<FInternetAddrBSD> BSDAddr = StaticCastSharedRef<FInternetAddrBSD>(BindAddr);
-		if (BindAddr->GetProtocolType() == FNetworkProtocolTypes::IPv6)
-		{
-			BSDAddr->SetAnyIPv6Address();
-		}
-		else
-		{
-			BSDAddr->SetAnyIPv4Address();
-		}
-	}
-
-	return BindAddr;
 }
 
 const TCHAR* FSocketSubsystemBSD::GetSocketAPIName() const
