@@ -213,6 +213,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogBridge, Log, All);
 
 #endif // BUILD_EMBEDDED_APP
 
+void FEmbeddedCommunication::UELogFatal(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GWarn && UE_LOG_ACTIVE(LogBridge, Fatal))
+	{
+		GWarn->Log("LogBridge", ELogVerbosity::Fatal, String);
+	}
+#endif
+}
+
 void FEmbeddedCommunication::UELogError(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
