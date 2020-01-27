@@ -1958,6 +1958,11 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 			const float Phi = Shape.Shape->Geometry->PhiWithNormal(LocalPoint, Normal);
 			if (Phi <= 0)
 			{
+				OutDistanceSquared = 0;
+				if (OutOptPointOnBody)
+				{
+					*OutOptPointOnBody = InPoint;
+				}
 				break;
 			}
 			else if (Phi < MinPhi)
