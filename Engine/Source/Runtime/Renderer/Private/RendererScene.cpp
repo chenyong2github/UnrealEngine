@@ -2431,9 +2431,6 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 		{
 			// Recreate PrimitiveUniformBuffer on the frame after the primitive moved, since it contains PreviousLocalToWorld
 			VelocityData.PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
-
-			check(VelocityData.PrimitiveSceneInfo->IsIndexValid());
-			AddPrimitiveToUpdateGPU(*Scene, VelocityData.PrimitiveSceneInfo->GetIndex());
 		}
 
 		if (bTrimOld && (InternalFrameIndex - VelocityData.LastFrameUsed) > 10)
@@ -3946,16 +3943,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
 		PrimitiveSceneProxy->CustomPrimitiveData = CustomParams.Value;
 
-		// No need to do any of this if GPUScene isn't used (the custom primitive data will make it to the primitive uniform buffer through FPrimitiveSceneProxy::UpdateUniformBuffer if that's the case)
-		if (UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel()))
-		{
-			AddPrimitiveToUpdateGPU(*this, PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex);
-		}
-		else
-		{
-			// Make sure the uniform buffer is updated before rendering
-			PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
-		}
+		// Make sure the uniform buffer is updated before rendering
+		PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
 	}
 
 	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DistanceFieldSceneDataUpdates)

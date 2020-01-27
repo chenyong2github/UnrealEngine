@@ -576,6 +576,20 @@ void FPrimitiveSceneProxy::SetHovered_GameThread(const bool bInHovered)
 		});
 }
 
+void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels LightingChannels)
+{
+	check(IsInGameThread());
+
+	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
+	const uint8 LocalLightingChannelMask = GetLightingChannelMaskForStruct(LightingChannels);
+	ENQUEUE_RENDER_COMMAND(SetLightingChannelsCmd)(
+		[PrimitiveSceneProxy, LocalLightingChannelMask](FRHICommandListImmediate& RHICmdList)
+	{
+		PrimitiveSceneProxy->LightingChannelMask = LocalLightingChannelMask;
+		PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
+	});
+}
+
 #if !UE_BUILD_SHIPPING
 void FPrimitiveSceneProxy::FDebugMassData::DrawDebugMass(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM) const
 {
