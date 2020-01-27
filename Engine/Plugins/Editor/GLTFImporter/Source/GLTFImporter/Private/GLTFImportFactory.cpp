@@ -90,6 +90,7 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
                                                const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Parms);
+	AdditionalImportedObjects.Empty();
 
 	Warn->Log(Filename);
 
@@ -131,6 +132,7 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
 		else if (CreatedMeshes.Num() != 0)
 		{
 			Object = CreatedMeshes[0]->GetOutermost();
+			AdditionalImportedObjects.Append(CreatedMeshes);
 		}
 	}
 
@@ -149,6 +151,7 @@ void UGLTFImportFactory::CleanUp()
 	Context.StaticMeshFactory.CleanUp();
 
 	Context.Asset.Clear(8 * 1024, 512);
+	Super::CleanUp();
 }
 
 void UGLTFImportFactory::UpdateMeshes() const

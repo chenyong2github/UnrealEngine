@@ -39,8 +39,8 @@ public:
 	void InitVariantManager(ULevelVariantSets* InLevelVariantSets);
 
 	void CaptureNewProperties(const TArray<UVariantObjectBinding*>& Bindings);
-	void GetCapturableProperties(const TArray<AActor*>& Actors, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath = FString());
-	void GetCapturableProperties(const TArray<UClass*>& Classes, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath = FString());
+	void GetCapturableProperties(const TArray<AActor*>& Actors, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath = FString(), bool bCaptureAllArrayIndices = true);
+	void GetCapturableProperties(const TArray<UClass*>& Classes, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath = FString(), bool bCaptureAllArrayIndices = true);
 
 	// Sets up the blueprint class deriving from the function director that we'll use.
 	// Do this here as it uses editor-only code

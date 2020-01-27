@@ -62,7 +62,7 @@ struct FDataprepProducerContext
 /**
  * Abstract class to derived from to be a producer in the Dataprep asset
  */
-UCLASS(Experimental, Abstract)
+UCLASS(Experimental, Abstract, BlueprintType)
 class DATAPREPCORE_API UDataprepContentProducer : public UObject
 {
 	GENERATED_BODY()
@@ -113,6 +113,15 @@ public:
 	 * @remark Each sub-class must implement this method
 	 */
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const { unimplemented(); return true; }
+
+	/**
+	 * Allow a producer to pop a ui after being created.
+	 * @return false to cancel the insertion of the new producer
+	 */
+	virtual bool CanAddToProducersArray(bool bIsAutomated)
+	{
+		return true;
+	}
 
 	/** Returns true if the producer was cancelled during execution */
 	bool IsCancelled() { return Context.ProgressReporterPtr.IsValid() ? Context.ProgressReporterPtr->IsWorkCancelled() : false; }

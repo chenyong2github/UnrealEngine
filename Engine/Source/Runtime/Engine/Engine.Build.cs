@@ -143,7 +143,6 @@ public class Engine : ModuleRules
 		{
 			// for now we depend on this
 			PrivateDependencyModuleNames.Add("RawMesh");
-			PrivateDependencyModuleNames.Add("MeshDescriptionOperations");
 		}
 
 		bool bVariadicTemplatesSupported = true;

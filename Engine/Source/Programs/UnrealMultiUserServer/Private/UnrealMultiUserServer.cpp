@@ -7,7 +7,7 @@
 
 IMPLEMENT_APPLICATION(UnrealMultiUserServer, "UnrealMultiUserServer");
 
-int32 RunUnrealMutilUserServer(int ArgC, TCHAR* ArgV[])
+int32 RunUnrealMultiUserServer(int ArgC, TCHAR* ArgV[])
 {
 	FString Role(TEXT("MultiUser"));
 	FConcertSyncServerLoopInitArgs ServerLoopInitArgs;
@@ -88,9 +88,9 @@ static CommandLineArguments GSavedCommandLine;
 {
 	FPlatformMisc::SetGracefulTerminationHandler();
 	FPlatformMisc::SetCrashHandler(nullptr);
-	
-	RunUnrealMutilUserServer(GSavedCommandLine.ArgC, GSavedCommandLine.ArgV);
-	
+
+	RunUnrealMultiUserServer(GSavedCommandLine.ArgC, GSavedCommandLine.ArgV);
+
 	[NSApp terminate: self];
 }
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
-	return RunUnrealMutilUserServer(ArgC, ArgV);
+	return RunUnrealMultiUserServer(ArgC, ArgV);
 }
 
 #endif

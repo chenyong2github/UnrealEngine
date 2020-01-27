@@ -421,7 +421,7 @@ struct FLightMapPendingTexture : public FTextureLayout
 		, OwningWorld(InWorld)
 		, Bounds(FBox(ForceInit))
 		, LightmapFlags(LMF_None)
-		, UnallocatedTexels(InSizeX * InSizeY)
+		, UnallocatedTexels(static_cast<int64>(InSizeX) * InSizeY)
 		, NumOutstandingAsyncTasks(0)
 		, bUObjectsCreated(false)
 		, NumNonPower2Texels(0)

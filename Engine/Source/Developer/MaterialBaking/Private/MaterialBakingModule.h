@@ -39,10 +39,10 @@ protected:
 
 	/* Creates and adds (or reuses a ExportMaterialProxy from the pool if MaterialBaking.UseMaterialProxyCaching is set to 1) */
 	FExportMaterialProxy* CreateMaterialProxy(UMaterialInterface* Material, const EMaterialProperty Property );
-	
-	/** Helper function to read pixel data from the given render target to Output */
-	void ReadTextureOutput(FTextureRenderTargetResource* RenderTargetResource, EMaterialProperty Property, FBakeOutput& Output);	
-	
+
+	/** Helper for emissive color conversion to Output */
+	static void ProcessEmissiveOutput(const FFloat16Color* Color16, const FIntPoint& OutputSize, TArray<FColor>& Output, float& EmissiveScale);
+
 	/** Cleans up all cached material proxies in MaterialProxyPool */
 	void CleanupMaterialProxies();
 

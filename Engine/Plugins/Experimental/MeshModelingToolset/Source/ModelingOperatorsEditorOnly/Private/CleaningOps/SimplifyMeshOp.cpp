@@ -12,14 +12,12 @@
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
 
-#include "Operations/MergeCoincidentMeshEdges.h"
-#include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
-#include "OverlappingCorners.h"
 #include "IMeshReductionInterfaces.h"
-
+#include "MeshDescription.h"
 #include "MeshNormals.h"
-
+#include "Operations/MergeCoincidentMeshEdges.h"
+#include "OverlappingCorners.h"
+#include "StaticMeshOperations.h"
 
 template <typename SimplificationType>
 void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject, int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial, const ESimplifyTargetType TargetMode, const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
@@ -101,7 +99,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		}
 
 		FOverlappingCorners OverlappingCorners;
-		FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, *SrcMeshDescription, 1.e-5);
+		FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, *SrcMeshDescription, 1.e-5);
 
 		if (Progress->Cancelled())
 		{

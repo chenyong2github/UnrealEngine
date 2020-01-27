@@ -49,7 +49,6 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"Engine",
 
 				"MeshBuilder",
-                "MeshDescriptionOperations",
 				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE4 standard simplification 
 			}

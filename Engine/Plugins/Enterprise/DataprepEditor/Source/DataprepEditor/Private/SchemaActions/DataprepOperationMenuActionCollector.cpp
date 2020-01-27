@@ -46,7 +46,7 @@ TSharedPtr<FDataprepSchemaAction> FDataprepOperationMenuActionCollector::CreateM
 			UDataprepActionAsset* Action = InContext.DataprepActionPtr.Get();
 			if ( Action )
 			{
-				int32 NewOperationIndex = Action->AddOperation( TSubclassOf<UDataprepOperation>( Class ) );
+				int32 NewOperationIndex = Action->AddStep( Class );
 				if ( InContext.StepIndex != INDEX_NONE && InContext.StepIndex != NewOperationIndex )
 				{
 					Action->MoveStep( NewOperationIndex, InContext.StepIndex);

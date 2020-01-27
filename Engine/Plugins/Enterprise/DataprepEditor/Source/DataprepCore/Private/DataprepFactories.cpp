@@ -39,7 +39,15 @@ bool UDataprepAssetFactory::ShouldShowInNewMenu() const
 
 UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext *Warn)
 {
-	check( InClass->IsChildOf( UDataprepAsset::StaticClass() ) );
+	if ( !InClass )
+	{
+		// Default to dataprep asset
+		InClass = UDataprepAsset::StaticClass();
+	}
+	else if ( !InClass->IsChildOf( UDataprepAsset::StaticClass() ) )
+	{
+		return nullptr;
+	}
 
 	// Find potential Consumer classes
 	TArray<UClass*> ConsumerClasses;
@@ -100,13 +108,13 @@ UDataprepAssetInstanceFactory::UDataprepAssetInstanceFactory()
 
 UObject* UDataprepAssetInstanceFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	if(UDataprepAssetInterface* DataprepAssetParent = Cast<UDataprepAssetInterface>(InitialParent))
+	if( Parent )
 	{
 		UDataprepAssetInstance* DataprepAssetInstance = NewObject<UDataprepAssetInstance>(InParent, InClass, InName, Flags);
 
-		if(DataprepAssetInstance && DataprepAssetParent->GetConsumer())
+		if(DataprepAssetInstance && Parent->GetConsumer())
 		{
-			if(DataprepAssetInstance->SetParent(DataprepAssetParent, /* bNotifyChanges = */ false))
+			if(DataprepAssetInstance->SetParent(Parent, /* bNotifyChanges = */ false))
 			{
 				FAssetRegistryModule::AssetCreated( DataprepAssetInstance );
 				DataprepAssetInstance->MarkPackageDirty();

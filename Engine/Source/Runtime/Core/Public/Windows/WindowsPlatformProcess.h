@@ -129,11 +129,13 @@ public:
 	static void FreeDllHandle( void* DllHandle );
 	static void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
 	static void AddDllDirectory(const TCHAR* Directory);
+	static void GetDllDirectories(TArray<FString>& OutDllDirectories);
 	static void PushDllDirectory(const TCHAR* Directory);
 	static void PopDllDirectory(const TCHAR* Directory);
 	static uint32 GetCurrentProcessId();
 	static uint32 GetCurrentCoreNumber();
 	static void SetThreadAffinityMask( uint64 AffinityMask );
+	static void SetThreadName( const TCHAR* ThreadName );
 	static const TCHAR* BaseDir();
 	static const TCHAR* UserDir();
 	static const TCHAR* UserTempDir();

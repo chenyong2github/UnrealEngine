@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "DatasmithCADWorker.h"
 
 #include "CADOptions.h"
 #include "DatasmithCommands.h"
 #include "DatasmithDispatcherNetworking.h"
 
 #include "HAL/PlatformTime.h"
-#include "Logging/LogMacros.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithCADWorker, Log, All);
 
 
 struct FFileStatData;

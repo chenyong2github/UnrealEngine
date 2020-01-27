@@ -1104,7 +1104,7 @@ UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, U
 	// Duplicate is used only to move our object from its temporary package into its final package replacing any asset
 	// already at that location. This function also takes care of fixing internal dependencies among the object's children.
 	// Since Duplicate has some rather heavy consequence, like calling PostLoad and doing all kind of stuff on an object
-	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future 
+	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future
 	// releases but keep it for the current release cycle.
 	UObject* Duplicate = ::DuplicateObject< UObject >( SourceObject, Outer, Name );
 
@@ -1152,7 +1152,7 @@ FScopedLogger::~FScopedLogger()
 TSharedRef<FTokenizedMessage> FScopedLogger::Push(EMessageSeverity::Type Severity, const FText& Message)
 {
 	TokenizedMessages.Add(FTokenizedMessage::Create(Severity, Message));
-	
+
 	return TokenizedMessages.Last();
 }
 

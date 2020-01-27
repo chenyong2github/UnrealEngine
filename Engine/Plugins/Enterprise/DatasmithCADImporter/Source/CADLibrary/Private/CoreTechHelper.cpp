@@ -68,8 +68,17 @@ bool IsTriangleDegenerated(const int32_t* Indices, const TArray<FVertexID>& Rema
 	return (VertexIDs[0] == VertexIDs[1] || VertexIDs[0] == VertexIDs[2] || VertexIDs[1] == VertexIDs[2]);
 }
 
-void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, int32 TriangleCount, TArray<FTessellationData>& FaceTessellationSet, FMeshDescription& MeshDescription)
+void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
 {
+	int32 TriangleCount = Body.TriangleCount;
+	TArray<FTessellationData>& FaceTessellationSet = Body.Faces;
+
+	// Add offset on the bbox to avoid to remove good vertex
+	FVector Size = Body.BBox.GetSize();
+	FBox BBox = Body.BBox.ExpandBy(Size.Size());
+	BBox.Min *= ImportParams.ScaleFactor;
+	BBox.Max *= ImportParams.ScaleFactor;
+
 	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
 	// Create a list of vertex Z/index pairs
@@ -93,7 +102,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 	// Sort the vertices by z value
 	VertexDataSet.Sort(FCompareVertexZ());
 
-	TArray<uint32> NewIndexOf;
+	TArray<int32> NewIndexOf;
 	NewIndexOf.SetNumZeroed(GlobalVertexCount);
 
 	TArray<int32> IndexOfCoincidentNode;
@@ -113,6 +122,14 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 		int32 Index_i = VertexDataSet[i].Index;
 		IndexOfCoincidentNode[Index_i] = Index_i;
 
+		// Check if mesh vertex is not outside body bbox
+		const FVector& PositionA = VertexDataSet[i].Coordinates;
+		if (!BBox.IsInside(PositionA))
+		{
+			VertexDataSet[i].Index = -1;
+			continue;
+		}
+
 		// only need to search forward, since we add pairs both ways
 		for (int32 j = i + 1; j < VertexDataSet.Num(); j++)
 		{
@@ -121,9 +138,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 				break; // can't be any more duplicated
 			}
 
-			const FVector& PositionA = VertexDataSet[i].Coordinates;
 			const FVector& PositionB = VertexDataSet[j].Coordinates;
-
 			if (PositionA.Equals(PositionB, KINDA_SMALL_NUMBER))
 			{
 				VertexDataSet[j].bIsMerged = true;
@@ -149,7 +164,14 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 
 	for (uint32 VertexIndex = 0; VertexIndex < GlobalVertexCount; ++VertexIndex)
 	{
-		uint32 RealIndex = VertexDataSet[VertexIndex].Index;
+		int32 RealIndex = VertexDataSet[VertexIndex].Index;
+
+		// Vertex is outside bbox
+		if (RealIndex < 0)
+		{
+			continue;
+		}
+
 		if (IndexOfCoincidentNode[RealIndex] != RealIndex)
 		{
 			continue;
@@ -164,7 +186,14 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 	{
 		for (uint32 VertexIndex = 0; VertexIndex < GlobalVertexCount; ++VertexIndex)
 		{
-			uint32 RealIndex = VertexDataSet[VertexIndex].Index;
+			int32 RealIndex = VertexDataSet[VertexIndex].Index;
+
+			// Vertex is outside bbox
+			if (RealIndex < 0)
+			{
+				continue;
+			}
+
 			if (IndexOfCoincidentNode[RealIndex] != RealIndex)
 			{
 				continue;
@@ -185,7 +214,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 		CTTessellation.VertexIdSet.SetNum(CTTessellation.VertexCount);
 		for (uint32 VertexIndex = 0; VertexIndex < CTTessellation.VertexCount; ++VertexIndex, ++GlobalVertexIndex)
 		{
-			uint32 NewIndex = NewIndexOf[IndexOfCoincidentNode[GlobalVertexIndex]];
+			int32 NewIndex = NewIndexOf[IndexOfCoincidentNode[GlobalVertexIndex]];
 			CTTessellation.VertexIdSet[VertexIndex] = VertexDataSet[NewIndex].VertexID.GetValue();
 		}
 	}
@@ -200,44 +229,19 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 			for (uint32 VertexIndex = 0; VertexIndex < CTTessellation.VertexCount; ++VertexIndex, ++GlobalVertexIndex)
 			{
 				uint32 NewIndex = NewIndexOf[IndexOfCoincidentNode[GlobalVertexIndex]];
-				CTTessellation.SymVertexIdSet[VertexIndex] = VertexDataSet[NewIndex].SymVertexID.GetValue();;
+				CTTessellation.SymVertexIdSet[VertexIndex] = VertexDataSet[NewIndex].SymVertexID.GetValue();
 			}
 		}
 	}
 }
 
-void UpdatePolygonGroup(TMap<uint32, FPolygonGroupID>& MaterialToPolygonGroupMapping, TPolygonGroupAttributesRef<FName>& PolygonGroupImportedMaterialSlotNames, FMeshDescription& MeshDescription)
-{
-	if (MeshDescription.PolygonGroups().Num() > 0)
-	{
-		for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
-		{
-			FName initialSlotName = PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
-			uint32 MaterialHash = StaticCast<uint32>(FCString::Atoi64(*initialSlotName.ToString()));
-			MaterialToPolygonGroupMapping.Add(MaterialHash, PolygonGroupID);
-		}
-	}
-
-	for (auto& Material : MaterialToPolygonGroupMapping)
-	{
-		if (Material.Value == FPolygonGroupID::Invalid)
-		{
-			uint32 MaterialHash = Material.Key;
-			FName ImportedSlotName = *LexToString<uint32>(MaterialHash);
-
-			FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
-			PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
-			Material.Value = PolyGroupID;
-		}
-	}
-}
-
-bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& ImportParams, TArray<FTessellationData>& FaceTessellations, TMap<uint32, FPolygonGroupID> MaterialToPolygonGroupMapping, FMeshDescription& MeshDescription)
+bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& ImportParams, TArray<FTessellationData>& FaceTessellations, FMeshDescription& MeshDescription)
 {
 	const int32 UVChannel = 0;
 	const int32 TriangleCount = 3;
 	const TriangleIndex Clockwise = { 0, 1, 2 };
 	const TriangleIndex CounterClockwise = { 0, 2, 1 };
+    const int32 InvalidID = FVertexID::Invalid.GetValue();
 
 
 	TArray<FVertexInstanceID> TriangleVertexInstanceIDs;
@@ -275,12 +279,10 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 
 		for (FTessellationData& Tessellation : FaceTessellations)
 		{
-			// Get the polygonGroup
-			const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(Tessellation.ColorName);
-			if (PolygonGroupID == nullptr)
-			{
-				continue;
-			}
+			FPolygonGroupID PolygonGroupID = MeshDescription.CreatePolygonGroup();
+			CADUUID MaterialUUID = Tessellation.ColorName;
+			FName ImportedSlotName = *LexToString<uint32>(MaterialUUID);
+			PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = ImportedSlotName;
 
 			//int32 TriangleCount = IndicesCount / 3;
 			int32 VertexIDs[3];
@@ -302,6 +304,11 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 				VertexIDs[Orientation[1]] = VertexIdSet[IndicesVertex[1]];
 				VertexIDs[Orientation[2]] = VertexIdSet[IndicesVertex[2]];
 
+				if (VertexIDs[0] == InvalidID || VertexIDs[1] == InvalidID || VertexIDs[2] == InvalidID)
+				{
+					continue;
+				}
+
 				// Verify the 3 input indices are not defining a degenerated triangle
 				if (VertexIDs[0] == VertexIDs[1] || VertexIDs[0] == VertexIDs[2] || VertexIDs[1] == VertexIDs[2])
 				{
@@ -317,12 +324,10 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 				TriangleVertexInstanceIDs[2] = MeshVertexInstanceIDs[NewIndex++] = MeshDescription.CreateVertexInstance((FVertexID) VertexIDs[2]);
 
 				// Add the triangle as a polygon to the mesh description
-				const FPolygonID NewPolygonID = MeshDescription.CreatePolygon(*PolygonGroupID, TriangleVertexInstanceIDs);
+				MeshDescription.CreateTriangle(PolygonGroupID, TriangleVertexInstanceIDs);
 			}
 
 			// finalization of the mesh by setting colors, tangents, bi-normals, UV
-			// for (uint32 Index = 0; Index <: CTFaceIndex)  // pour toutes les index des faces non degeneres de CT
-
 			for (int32 IndexFace = 0; IndexFace < CTFaceIndex.Num(); IndexFace += 3)
 			{
 				for (int32 Index = 0; Index < TriangleCount; Index++)
@@ -406,20 +411,9 @@ bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, co
 
 	// CoreTech is generating position duplicates. make sure to remove them before filling the mesh description
 	TArray<FVertexID> RemapVertexPosition;
-	FillVertexPosition(ImportParams, MeshParameters, Body.TriangleCount, Body.Faces, MeshDescription);
+	FillVertexPosition(ImportParams, MeshParameters, Body, MeshDescription);
 
-	TMap<uint32, FPolygonGroupID> MaterialToPolygonGroupMapping;
-	for (const FTessellationData& FaceTessellation : Body.Faces)
-	{
-		// we assume that face has only color
-		MaterialToPolygonGroupMapping.Add(FaceTessellation.ColorName, FPolygonGroupID::Invalid);
-	}
-
-	// Add the mesh's materials as polygon groups
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	UpdatePolygonGroup(MaterialToPolygonGroupMapping, PolygonGroupImportedMaterialSlotNames, MeshDescription);
-
-	if (!FillMesh(MeshParameters, ImportParams, Body.Faces, MaterialToPolygonGroupMapping, MeshDescription))
+	if (!FillMesh(MeshParameters, ImportParams, Body.Faces, MeshDescription))
 	{
 		return false;
 	}

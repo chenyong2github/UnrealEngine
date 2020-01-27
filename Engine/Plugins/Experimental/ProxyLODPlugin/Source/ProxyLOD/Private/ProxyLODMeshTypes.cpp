@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProxyLODMeshTypes.h"
-#include "MeshDescriptionOperations.h"
+#include "Async/ParallelFor.h"
 
 // --- FMeshDescriptionAdapter ----
 
@@ -60,6 +60,59 @@ void FMeshDescriptionAdapter::getIndexSpacePoint(size_t FaceNumber, size_t Corne
 	pos = Transform.worldToIndex(openvdb::Vec3d(Position.X, Position.Y, Position.Z));
 };
 
+void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction)
+{
+	PointCount = 0;
+	PolyCount = 0;
+
+	PolyOffsetArray.push_back(PolyCount);
+	for (int32 MeshIdx = 0; MeshIdx < MeshCount; ++MeshIdx)
+	{
+		const FMeshMergeData* MergeData = GetMeshFunction(MeshIdx);
+		FMeshDescription *RawMesh = MergeData->RawMesh;
+
+		PointCount += size_t(RawMesh->Vertices().Num());
+		// Sum up all the polys in this mesh.
+		int32 MeshPolyCount = RawMesh->Triangles().Num();
+
+		// Construct local index buffer for this mesh
+		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
+		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
+		IndexBuffer.reserve(MeshPolyCount * 3);
+		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
+		{
+			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
+			{
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
+			}
+		}
+
+		PolyCount += MeshPolyCount;
+		PolyOffsetArray.push_back(PolyCount);
+		RawMeshArray.push_back(RawMesh);
+		MergeDataArray.push_back(MergeData);
+	}
+
+	RawMeshArrayData.SetNumUninitialized(MeshCount);
+
+	// The getter constructor is doing expensive operations
+	ParallelFor(
+		RawMeshArrayData.Num(),
+		[this, &GetMeshFunction](int32 MeshIdx)
+		{
+			const FMeshMergeData* MergeData = GetMeshFunction(MeshIdx);
+			FMeshDescription *RawMesh = MergeData->RawMesh;
+			new (&RawMeshArrayData[MeshIdx]) FMeshDescriptionAttributesGetter(RawMesh);
+		},
+		EParallelForFlags::Unbalanced
+	);
+
+	// Compute the bbox
+	ComputeAABB(this->BBox);
+}
 
 // --- FMeshDescriptionArrayAdapter ----
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<const FMeshMergeData*>& InMergeDataPtrArray)
@@ -67,132 +120,21 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<const FM
 	// Make a default transform.
 	Transform = openvdb::math::Transform::createLinearTransform(1.);
 
-	PointCount = 0;
-	PolyCount = 0;
-
-	PolyOffsetArray.push_back(PolyCount);
-	for (int32 MeshIdx = 0, MeshCount = InMergeDataPtrArray.Num(); MeshIdx < MeshCount; ++MeshIdx)
-	{
-		const FMeshMergeData* MergeData = InMergeDataPtrArray[MeshIdx];
-		FMeshDescription *RawMesh = MergeData->RawMesh;
-
-		PointCount += size_t(RawMesh->Vertices().Num());
-		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = RawMesh->Triangles().Num();
-
-		// Construct local index buffer for this mesh
-		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
-		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
-		IndexBuffer.reserve(MeshPolyCount * 3);
-		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-			for (const FTriangleID TriangleID : TriangleIDs)
-			{
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
-			}
-		}
-
-
-		PolyCount += MeshPolyCount;
-		PolyOffsetArray.push_back(PolyCount);
-		RawMeshArray.push_back(RawMesh);
-		RawMeshArrayData.push_back(FMeshDescriptionAttributesGetter(RawMesh));
-		MergeDataArray.push_back(MergeData);
-	}
-
-	// Compute the bbox
-	ComputeAABB(this->BBox);
+	Construct(InMergeDataPtrArray.Num(), [&InMergeDataPtrArray](uint32 Index) { return InMergeDataPtrArray[Index]; });
 }
 
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMergeData>& InMergeDataArray)
 {
 	// Make a default transform.
 	Transform = openvdb::math::Transform::createLinearTransform(1.);
-	
-	PointCount = 0;
-	PolyCount = 0;
 
-	PolyOffsetArray.push_back(PolyCount);
-	for (int32 MeshIdx = 0, MeshCount = InMergeDataArray.Num(); MeshIdx < MeshCount; ++MeshIdx)
-	{
-		const FMeshMergeData* MergeData = &InMergeDataArray[MeshIdx];
-		
-		FMeshDescription *RawMesh = MergeData->RawMesh;
-		PointCount += size_t(RawMesh->Vertices().Num());
-
-		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = RawMesh->Triangles().Num();
-		PolyCount += MeshPolyCount;
-		// Construct local index buffer for this mesh
-		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
-		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
-		IndexBuffer.reserve(MeshPolyCount * 3);
-		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-			for (const FTriangleID TriangleID : TriangleIDs)
-			{
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
-			}
-		}
-
-
-		PolyOffsetArray.push_back(PolyCount);
-		RawMeshArray.push_back(RawMesh);
-		RawMeshArrayData.push_back(FMeshDescriptionAttributesGetter(RawMesh));
-		MergeDataArray.push_back(MergeData);
-	}
-
-	// Compute the bbox
-	ComputeAABB(this->BBox);
+	Construct(InMergeDataArray.Num(), [&InMergeDataArray](uint32 Index) { return &InMergeDataArray[Index]; });
 }
 
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMergeData>& InMergeDataArray, const openvdb::math::Transform::Ptr InTransform)
-	:Transform(InTransform)
+	: Transform(InTransform)
 {
-	PointCount = 0;
-	PolyCount = 0;
-
-	PolyOffsetArray.push_back(PolyCount);
-	for (int32 MeshIdx = 0, MeshCount = InMergeDataArray.Num(); MeshIdx < MeshCount; ++MeshIdx)
-	{
-		const FMeshMergeData* MergeData = &InMergeDataArray[MeshIdx];
-		
-		FMeshDescription *RawMesh = MergeData->RawMesh;
-		PointCount += size_t(RawMesh->Vertices().Num());
-		
-		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = RawMesh->Triangles().Num();
-
-		// Construct local index buffer for this mesh
-		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
-		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
-		IndexBuffer.reserve(MeshPolyCount * 3);
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-			for (const FTriangleID TriangleID : TriangleIDs)
-			{
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
-				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
-			}
-		}
-
-		PolyCount += MeshPolyCount;
-		PolyOffsetArray.push_back(PolyCount);
-		RawMeshArray.push_back(RawMesh);
-		RawMeshArrayData.push_back(FMeshDescriptionAttributesGetter(RawMesh));
-		MergeDataArray.push_back(MergeData);
-	}
-
-	// Compute the bbox
-	ComputeAABB(this->BBox);
+	Construct(InMergeDataArray.Num(), [&InMergeDataArray](uint32 Index) { return &InMergeDataArray[Index]; });
 }
 
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const FMeshDescriptionArrayAdapter& other)
@@ -202,10 +144,17 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const FMeshDescriptio
 	PolyOffsetArray = other.PolyOffsetArray;
 	MergeDataArray = other.MergeDataArray;
 
-	for (const FMeshDescription* RawMesh : RawMeshArray)
-	{
-		RawMeshArrayData.push_back(FMeshDescriptionAttributesGetter(RawMesh));
-	}
+	RawMeshArrayData.SetNumUninitialized(RawMeshArray.size());
+
+	// The getter constructor is doing expensive operations
+	ParallelFor(
+		RawMeshArray.size(),
+		[this](int32 MeshIdx)
+		{
+			new (&RawMeshArrayData[MeshIdx]) FMeshDescriptionAttributesGetter(RawMeshArray[MeshIdx]);
+		},
+		EParallelForFlags::Unbalanced
+	);
 
 	IndexBufferArray.reserve(other.IndexBufferArray.size());
 	for (const auto& IndexBuffer : other.IndexBufferArray)
@@ -219,7 +168,7 @@ FMeshDescriptionArrayAdapter::~FMeshDescriptionArrayAdapter()
 {
 	RawMeshArray.clear();
 
-	RawMeshArrayData.clear();
+	RawMeshArrayData.Empty();
 	MergeDataArray.clear();
 	PolyOffsetArray.clear();
 }
@@ -274,11 +223,11 @@ void FMeshDescriptionArrayAdapter::UpdateMaterialsID()
 			}
 		}
 		//Remap the polygon group with the correct ID
-		FMeshDescriptionOperations::RemapPolygonGroups(*MeshDescription, RemapGroup);
+		MeshDescription->RemapPolygonGroups(RemapGroup);
 	}
 }
 
-FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutLocalFaceNumber) const
+FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutLocalFaceNumber, const ERawPolyValues RawPolyValues ) const
 {
 	checkSlow(FaceNumber < PolyCount);
 
@@ -292,12 +241,6 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 
 	checkSlow(LocalFaceNumber < AttributesGetter->TriangleCount);
 
-	FVertexInstanceID WedgeIdx[3];
-	WedgeIdx[0] = FVertexInstanceID(3 * LocalFaceNumber);
-	WedgeIdx[1] = FVertexInstanceID((3 * LocalFaceNumber) + 1);
-	WedgeIdx[2] = FVertexInstanceID((3 * LocalFaceNumber) + 2);
-
-
 	FRawPoly RawPoly;
 	RawPoly.MeshIdx = MeshIdx;
 	FPolygonID PolygonID(LocalFaceNumber);
@@ -307,40 +250,60 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 	for (const FTriangleID TriangleID : RawMesh.GetPolygonTriangleIDs(PolygonID))
 	{
 		TArrayView<const FVertexInstanceID> VertexInstanceIDs = RawMesh.GetTriangleVertexInstances(TriangleID);
-		for (int32 i = 0; i < 3; ++i)
+
+		if ((RawPolyValues & ERawPolyValues::VertexPositions) == ERawPolyValues::VertexPositions)
 		{
-			RawPoly.VertexPositions[i] = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceIDs[i])];
+			for (int32 i = 0; i < 3; ++i)
+			{
+				RawPoly.VertexPositions[i] = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceIDs[i])];
+			}
 		}
 
-
-		for (int32 i = 0; i < 3; ++i)
+		if ((RawPolyValues & ERawPolyValues::WedgeTangents) == ERawPolyValues::WedgeTangents)
 		{
-			RawPoly.WedgeTangentX[i] = AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]];
-			RawPoly.WedgeTangentY[i] = FVector::CrossProduct(AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]], AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]]).GetSafeNormal() * AttributesGetter->VertexInstanceBinormalSigns[VertexInstanceIDs[i]];
-			RawPoly.WedgeTangentZ[i] = AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]];
-			
-			RawPoly.WedgeColors[i] = FLinearColor(AttributesGetter->VertexInstanceColors[VertexInstanceIDs[i]]).ToFColor(true);
-			// Copy Texture coords
-			for (int Idx = 0; Idx < MAX_MESH_TEXTURE_COORDS_MD; ++Idx)
+			for (int32 i = 0; i < 3; ++i)
 			{
-				if (AttributesGetter->VertexInstanceUVs.GetNumIndices() > Idx)
+				RawPoly.WedgeTangentX[i] = AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]];
+				RawPoly.WedgeTangentY[i] = FVector::CrossProduct(AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]], AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]]).GetSafeNormal() * AttributesGetter->VertexInstanceBinormalSigns[VertexInstanceIDs[i]];
+				RawPoly.WedgeTangentZ[i] = AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]];
+			}
+		}
+
+		if ((RawPolyValues & ERawPolyValues::WedgeColors) == ERawPolyValues::WedgeColors)
+		{
+			for (int32 i = 0; i < 3; ++i)
+			{
+				RawPoly.WedgeColors[i] = FLinearColor(AttributesGetter->VertexInstanceColors[VertexInstanceIDs[i]]).ToFColor(true);
+			}
+		}
+
+		if ((RawPolyValues & ERawPolyValues::WedgeTexCoords) == ERawPolyValues::WedgeTexCoords)
+		{
+			for (int32 i = 0; i < 3; ++i)
+			{
+				// Copy Texture coords
+				for (int Idx = 0; Idx < MAX_MESH_TEXTURE_COORDS_MD; ++Idx)
 				{
-					RawPoly.WedgeTexCoords[Idx][i] = AttributesGetter->VertexInstanceUVs.Get(VertexInstanceIDs[i], Idx);
-				}
-				else
-				{
-					RawPoly.WedgeTexCoords[Idx][i] = FVector2D(0.f, 0.f);
+					if (AttributesGetter->VertexInstanceUVs.GetNumIndices() > Idx)
+					{
+						RawPoly.WedgeTexCoords[Idx][i] = AttributesGetter->VertexInstanceUVs.Get(VertexInstanceIDs[i], Idx);
+					}
+					else
+					{
+						RawPoly.WedgeTexCoords[Idx][i] = FVector2D(0.f, 0.f);
+					}
 				}
 			}
 		}
 	}
+
 	return RawPoly;
 }
 
-FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber) const
+FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, const ERawPolyValues RawPolyValues) const
 {
 	int32 IgnoreMeshId, IgnoreLocalFaceNumber;
-	return GetRawPoly(FaceNumber, IgnoreMeshId, IgnoreLocalFaceNumber);
+	return GetRawPoly(FaceNumber, IgnoreMeshId, IgnoreLocalFaceNumber, RawPolyValues);
 }
 
 // protected functions
@@ -349,9 +312,19 @@ const FMeshDescription& FMeshDescriptionArrayAdapter::GetRawMesh(const size_t Fa
 {
 	// Find the correct raw mesh
 	MeshIdx = 0;
-	while (FaceNumber >= PolyOffsetArray[MeshIdx + 1])
+
+	// Binary Search into poly offset will help a lot for big meshes
+	auto it = std::lower_bound(PolyOffsetArray.begin(), PolyOffsetArray.end(), FaceNumber);
+	if (it != PolyOffsetArray.end())
 	{
-		MeshIdx++;
+		MeshIdx = std::distance(PolyOffsetArray.begin(), it);
+
+		// lower_bound will always get us a little bit farther than we wish
+		// we might need to backtrack an iteration or two.
+		while (FaceNumber < PolyOffsetArray[MeshIdx])
+		{
+			MeshIdx--;
+		}
 	}
 
 	// Offset the face number to get the correct index into this mesh.

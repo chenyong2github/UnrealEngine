@@ -35,7 +35,6 @@ public class AlembicLibrary : ModuleRules
                 "UnrealEd",
                 "MeshDescription",
 				"StaticMeshDescription",
-                "MeshDescriptionOperations",
             }
         );
 

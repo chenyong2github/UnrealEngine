@@ -4,14 +4,15 @@
 
 // Dataprep include
 #include "DataprepAsset.h"
-#include "DataprepOperation.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepOperation.h"
 #include "DataprepParameterizableObject.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 #include "Parameterization/DataprepParameterization.h"
+#include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
 
 // Engine include
@@ -31,13 +32,28 @@
 #include "Editor.h"
 #endif //WITH_EDITOR
 
+void UDataprepActionStep::PostLoad()
+{
+	Super::PostLoad();
+
+	if ( Operation_DEPRECATED )
+	{
+		StepObject = Operation_DEPRECATED;
+		PathOfStepObjectClass = StepObject->GetClass();
+		Operation_DEPRECATED = nullptr;
+	}
+
+	if ( Filter_DEPRECATED )
+	{
+		StepObject = Filter_DEPRECATED;
+		PathOfStepObjectClass = StepObject->GetClass();
+		Filter_DEPRECATED = nullptr;
+	}
+}
+
 UDataprepActionAsset::UDataprepActionAsset()
 	: ContextPtr( nullptr )
 {
-#ifdef WITH_EDITOR
-	OnAssetDeletedHandle = FEditorDelegates::OnAssetsDeleted.AddUObject( this, &UDataprepActionAsset::OnClassesRemoved );
-#endif //WITH_EDITOR
-
 	bExecutionInterrupted = false;
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
@@ -82,12 +98,16 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 	{
 		if ( Step && Step->bIsEnabled )
 		{
-			if ( UDataprepOperation* Operation = Step->Operation )
+			UDataprepParameterizableObject* StepObject = Step->GetStepObject();
+			UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep( StepObject );
+			if ( StepType == UDataprepOperation::StaticClass() )
 			{
+				UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
 				Operation->Execute( OperationContext->Context->Objects );
 			}
-			else if ( UDataprepFilter* Filter = Step->Filter )
+			else if ( StepType == UDataprepFilter::StaticClass() )
 			{
+				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 				OperationContext->Context->Objects = Filter->FilterObjects( OperationContext->Context->Objects );
 			}
 		}
@@ -101,55 +121,59 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 
 int32 UDataprepActionAsset::AddOperation(const TSubclassOf<UDataprepOperation>& OperationClass)
 {
-	UClass* Class = OperationClass;
-	if ( Class )
-	{
-		Modify();
-		UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >( this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional );
-		ActionStep->Operation = NewObject< UDataprepOperation >( ActionStep, Class, NAME_None, RF_Transactional );
-		ActionStep->bIsEnabled = true;
-		Steps.Add( ActionStep );
-		OnStepsChanged.Broadcast();
-		return Steps.Num() - 1;
-	}
-
-	ensure( false );
-	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddOperation: The Operation Class is invalid") );
-	// Invalid subclass
-	return INDEX_NONE;
+	return AddStep( OperationClass );
 }
 
 int32 UDataprepActionAsset::AddFilterWithAFetcher(const TSubclassOf<UDataprepFilter>& InFilterClass, const TSubclassOf<UDataprepFetcher>& InFetcherClass)
 {
-	UClass* FilterClass = InFilterClass;
-	UClass* FetcherClass = InFetcherClass;
+	return AddStep( InFetcherClass );
+}
 
-	if ( FilterClass && FetcherClass )
+int32 UDataprepActionAsset::AddStep(TSubclassOf<UDataprepParameterizableObject> StepType)
+{
+	FText ErrorMessage;
+	UClass* ValidRootClass = nullptr;
+
+	if ( FDataprepCoreUtils::IsClassValidForStepCreation( StepType, ValidRootClass, ErrorMessage ) )
 	{
-		UDataprepFilter* Filter = FilterClass->GetDefaultObject<UDataprepFilter>();
-		if ( Filter && FetcherClass->IsChildOf( Filter->GetAcceptedFetcherClass() ) )
+		if ( ValidRootClass == UDataprepOperation::StaticClass() )
 		{
 			Modify();
-			UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >( this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional );
-			ActionStep->Filter = NewObject< UDataprepFilter >( ActionStep, FilterClass, NAME_None, RF_Transactional );
-			ActionStep->Filter->SetFetcher( InFetcherClass );
+			UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >(this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional);
+			ActionStep->StepObject = NewObject< UDataprepOperation >(ActionStep, StepType.Get(), NAME_None, RF_Transactional);
+			ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
 			ActionStep->bIsEnabled = true;
-			Steps.Add( ActionStep );
+			Steps.Add(ActionStep);
 			OnStepsChanged.Broadcast();
 			return Steps.Num() - 1;
 		}
-		else
+		else if ( ValidRootClass == UDataprepFetcher::StaticClass() )
 		{
-			UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddFilterWithAFetcher: The Fetcher Class is not compatible with the Filter Class") );
+			if ( UClass* FilterClass = UDataprepFilter::GetFilterTypeForFetcherType( StepType.Get() ) )
+			{
+				Modify();
+				UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >( this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional );
+				UDataprepFilter* Filter = NewObject< UDataprepFilter >( ActionStep, FilterClass, NAME_None, RF_Transactional );
+				Filter->SetFetcher( StepType.Get() );
+				ActionStep->StepObject = Filter;
+				ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
+				ActionStep->bIsEnabled = true;
+				Steps.Add( ActionStep );
+				OnStepsChanged.Broadcast();
+				return Steps.Num() - 1;
+			}
+			else
+			{
+				UE_LOG(LogDataprepCore, Error, TEXT("The fetcher type (%s) is not used by a filter."), *StepType->GetPathName() )
+			}
 		}
-	}
-	else
-	{
-		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddFilterWithAFetcher: At least one of the class arguments is invalid") );
+
+		// Please keep this function up to date with FDataprepCoreUtils::IsClassValidForStepCreation
+		check( false );
 	}
 
-	ensure( false );
-	// Invalid
+	UE_LOG( LogDataprepCore, Error, TEXT("%s"), *(ErrorMessage.ToString()) );
+
 	return INDEX_NONE;
 }
 
@@ -158,7 +182,7 @@ int32 UDataprepActionAsset::AddStep(const UDataprepActionStep* InActionStep)
 	if ( InActionStep )
 	{
 		Modify();
-		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this);
+		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
 		Steps.Add( ActionStep );
 		OnStepsChanged.Broadcast();
 		return Steps.Num() - 1;
@@ -168,6 +192,56 @@ int32 UDataprepActionAsset::AddStep(const UDataprepActionStep* InActionStep)
 	ensure(false);
 	// Invalid
 	return INDEX_NONE;
+}
+
+int32 UDataprepActionAsset::AddStep(const UDataprepParameterizableObject* StepObject)
+{
+	if (!StepObject)
+	{
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddStep: The Step Object is null"));
+	}
+	else if (FDataprepCoreUtils::GetTypeOfActionStep(StepObject))
+	{
+		Modify();
+		UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >(this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional);
+		ActionStep->StepObject = DuplicateObject<UDataprepParameterizableObject>(StepObject, ActionStep);
+		ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
+		ActionStep->bIsEnabled = true;
+		Steps.Add(ActionStep);
+		OnStepsChanged.Broadcast();
+		return Steps.Num() - 1;
+	}
+	else
+	{
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddStep: The Step Object is invalid"));
+	}
+
+	// Invalid
+	return INDEX_NONE;
+}
+
+bool UDataprepActionAsset::InsertStep(const UDataprepActionStep* InActionStep, int32 Index)
+{
+	if ( !Steps.IsValidIndex( Index ) )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::InsertStep: The Index is out of range") );
+		ensure( false );
+		return false;
+	}
+
+	if ( InActionStep )
+	{
+		Modify();
+		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this);
+		Steps.Insert( ActionStep, Index );
+		OnStepsChanged.Broadcast();
+		return true;
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::InsertStep: The action step is invalid") );
+	ensure(false);
+	// Invalid
+	return false;
 }
 
 TWeakObjectPtr<UDataprepActionStep> UDataprepActionAsset::GetStep(int32 Index)
@@ -183,7 +257,6 @@ const TWeakObjectPtr<UDataprepActionStep> UDataprepActionAsset::GetStep(int32 In
 		return Steps[ Index ];
 	}
 
-	ensure( false );
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::GetStep: The Index is out of range") );
 	return nullptr;
 }
@@ -245,7 +318,35 @@ bool UDataprepActionAsset::MoveStep(int32 StepIndex, int32 DestinationIndex)
 		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::MoveStep: a Step shouldn't be move at the location it currently is") );
 	}
 
-	ensure( false );
+	return false;
+}
+
+bool UDataprepActionAsset::SwapSteps(int32 FirstIndex, int32 SecondIndex)
+{
+	if ( Steps.IsValidIndex( FirstIndex ) && Steps.IsValidIndex( SecondIndex ) )
+	{
+		Modify();
+
+		UDataprepActionStep* FirstStep = Steps[FirstIndex];
+		Steps[FirstIndex] = Steps[SecondIndex];
+		Steps[SecondIndex] = FirstStep;
+		OnStepsChanged.Broadcast();
+		return true;
+	}
+
+	if ( !Steps.IsValidIndex( FirstIndex ) )
+	{
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::SwapStep: The First Index is out of range"));
+	}
+	if ( !Steps.IsValidIndex( SecondIndex ) )
+	{
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::SwapStep: The Second Index is out of range"));
+	}
+	if ( FirstIndex == SecondIndex )
+	{
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::SwapStep: a Step shouldn't be swap whit himself"));
+	}
+
 	return false;
 }
 
@@ -280,7 +381,6 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 		return true;
 	}
 
-	ensure( false );
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveStep: The Index is out of range") );
 	return false;
 }
@@ -315,38 +415,6 @@ void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
 	}
 }
 
-void UDataprepActionAsset::OnClassesRemoved(const TArray<UClass *>& DeletedClasses)
-{
-	for ( UClass* Class : DeletedClasses )
-	{
-		if ( Class->IsChildOf<UDataprepOperation>() )
-		{
-			RemoveInvalidOperations();
-			break;
-		}
-	}
-}
-
-void UDataprepActionAsset::RemoveInvalidOperations()
-{
-	bool bWasOperationsModified = false;
-	for ( int32 i = 0; i < Steps.Num(); i++ )
-	{
-		UDataprepOperation* Operation = Steps[ i ]->Operation;
-		if ( !Operation || Operation->IsPendingKill() )
-		{
-			Steps.RemoveAt( i );
-			i--;
-			bWasOperationsModified = true;
-		}
-	}
-
-	if ( bWasOperationsModified )
-	{
-		OnStepsChanged.Broadcast();
-	}
-}
-
 void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext>& InActionsContext, UDataprepActionStep* SpecificStep, bool bSpecificStepOnly)
 {
 	ContextPtr = InActionsContext;
@@ -372,8 +440,12 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 
 	auto ExecuteOneStep = [this, &SelectedObjects](UDataprepActionStep* Step)
 	{
-		if ( UDataprepOperation* Operation = Step->Operation )
+		UDataprepParameterizableObject* StepObject = Step->GetStepObject();
+		UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep( StepObject );
+		if ( StepType == UDataprepOperation::StaticClass() )
 		{
+			UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
+
 			// Cache number of assets and objects before execution
 			int32 AssetsDiffCount = ContextPtr->Assets.Num();
 			int32 ActorsDiffCount = OperationContext->Context->Objects.Num();
@@ -384,8 +456,9 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 			// Process the changes in the context if applicable
 			this->ProcessWorkingSetChanged();
 		}
-		else if ( UDataprepFilter* Filter = Step->Filter )
+		else if ( StepType == UDataprepFilter::StaticClass() )
 		{
+			UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 			SelectedObjects = Filter->FilterObjects( SelectedObjects );
 		}
 	};
@@ -416,7 +489,7 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 					break;
 				}
 
-				if( ContextPtr->ContinueCallback && !ContextPtr->ContinueCallback( this, Step->Operation, Step->Filter ) )
+				if( ContextPtr->ContinueCallback && !ContextPtr->ContinueCallback( this ) )
 				{
 					break;
 				}

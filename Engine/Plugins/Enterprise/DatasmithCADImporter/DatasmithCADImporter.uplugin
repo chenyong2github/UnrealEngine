@@ -21,13 +21,13 @@
 	"Modules": [
 		{
 			"Name": "CADLibrary",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "DatasmithCADTranslator",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -35,7 +35,7 @@
 		},
 		{
 			"Name": "DatasmithOpenNurbsTranslator",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -43,7 +43,7 @@
 		},
 		{
 			"Name": "DatasmithDispatcher",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -51,7 +51,7 @@
 		},
 		{
 			"Name": "CADInterfaces",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -59,7 +59,7 @@
 		},
 		{
 			"Name": "CADTools",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -67,7 +67,7 @@
 		},
 		{
 			"Name": "DatasmithWireTranslator",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -83,7 +83,7 @@
 		},
 		{
 			"Name": "DatasmithCoreTechParametricSurfaceData",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"

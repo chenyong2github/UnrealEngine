@@ -73,6 +73,9 @@ private:
 	// Delegate implementation of FOnInstancedPropertyIteration used during DataImport UI construction
 	void OnInstancedFbxStaticMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const;
 
+	// Delegate to ensure the lightmap settings are always valid.
+	void OnLightmapSettingsChanged();
+
 	// Delegate used at runtime to determine the state of the VertexOverrideColor property
 	bool GetVertexOverrideColorEnabledState() const;
 };

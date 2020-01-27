@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 					"KismetCompiler",
 					"LevelSequence",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MessageLog",
 					"PropertyEditor",
 					"RenderCore",

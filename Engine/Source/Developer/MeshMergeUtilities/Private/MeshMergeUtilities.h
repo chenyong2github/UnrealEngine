@@ -70,7 +70,12 @@ protected:
 	/** Conditionally resizes the source data into OutImage */
 	FIntPoint ConditionalImageResize(const FIntPoint& SrcSize, const FIntPoint& DesiredSize, TArray<FColor>& InOutImage, bool bLinearSpace) const;
 	/** Converts bake output structure data to flatten material format */
+	UE_DEPRECATED(4.25, "Use TransferOutputToFlatMaterials instead for improved efficiency")
 	void ConvertOutputToFlatMaterials(const TArray<FBakeOutput>& BakeOutputs, const TArray<FMaterialData>& MaterialData, TArray<FFlattenMaterial> &FlattenedMaterials) const;
+	/** Transfer bake output structure data to flatten material format.
+	  * @warning This is a destructive operation for InOutBakeOutputs
+	  */
+	void TransferOutputToFlatMaterials(const TArray<FMaterialData>& InMaterialData, TArray<FBakeOutput>& InOutBakeOutputs, TArray<FFlattenMaterial> &OutFlattenedMaterials) const;
 	/** Converts new material property value to old legacy enum values */
 	EFlattenMaterialProperties NewToOldProperty(int32 OldProperty) const;
 private:

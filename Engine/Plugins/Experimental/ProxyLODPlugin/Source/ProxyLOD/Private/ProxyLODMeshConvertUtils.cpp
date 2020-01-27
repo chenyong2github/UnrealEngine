@@ -3,7 +3,7 @@
 #include "ProxyLODMeshConvertUtils.h" 
 #include "ProxyLODMeshUtilities.h"
 
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 
 
 static void ResetStaticMeshDescription(FMeshDescription& MeshDecription)
@@ -16,6 +16,8 @@ static void ResetStaticMeshDescription(FMeshDescription& MeshDecription)
 // Convert QuadMesh to Triangles by splitting
 void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDescription& DstRawMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::MixedPolyMeshToRawMesh)
+
 	ResetStaticMeshDescription(DstRawMesh);
 
 	TVertexAttributesRef<FVector> VertexPositions = DstRawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
@@ -365,7 +367,7 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 		}
 	}
 
-	FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(FaceSmoothingMasks, OutRawMesh);
+	FStaticMeshOperations::ConvertSmoothGroupToHardEdges(FaceSmoothingMasks, OutRawMesh);
 }
 
 
@@ -456,7 +458,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 	TArray<uint32> FaceSmoothingMasks;
 	FaceSmoothingMasks.AddZeroed(NumTriangles);
 
-	FMeshDescriptionOperations::ConvertHardEdgesToSmoothGroup(SrcRawMesh, FaceSmoothingMasks);
+	FStaticMeshOperations::ConvertHardEdgesToSmoothGroup(SrcRawMesh, FaceSmoothingMasks);
 
 	TArray<uint32>& DstFacePartition = DstVertexDataMesh.FacePartition;
 	ResizeArray(DstFacePartition, NumTriangles);
@@ -558,6 +560,7 @@ static void CopyNormals(const TAOSMesh<AOSVertexType>& AOSMesh, FVertexDataMesh&
 template <typename  AOSVertexType>
 static void AOSMeshToVertexDataMesh(const TAOSMesh<AOSVertexType>& AOSMesh, FVertexDataMesh& VertexDataMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AOSMeshToVertexDataMesh)
 
 	// Copy the topology and geometry of the mesh
 

@@ -261,8 +261,8 @@ inline FFrameTime ConvertFrameTime(FFrameTime SourceTime, FFrameRate SourceRate,
 	}
 	//We want NewTime =SourceTime * (DestinationRate/SourceRate);
 	//And want to limit conversions and keep int precision as much as possible
-	int64 NewNumerator = DestinationRate.Numerator * SourceRate.Denominator;
-	int64 NewDenominator = DestinationRate.Denominator * SourceRate.Numerator;
+	int64 NewNumerator = static_cast<int64>(DestinationRate.Numerator) * SourceRate.Denominator;
+	int64 NewDenominator = static_cast<int64>(DestinationRate.Denominator) * SourceRate.Numerator;
 	double NewNumerator_d = double(NewNumerator);
 	double NewDenominator_d = double(NewDenominator);
 	//Now the IntegerPart may have a Float Part, and then the FloatPart may have an IntegerPart,

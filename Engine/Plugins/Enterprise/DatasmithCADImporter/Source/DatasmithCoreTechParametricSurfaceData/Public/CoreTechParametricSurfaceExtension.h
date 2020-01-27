@@ -46,7 +46,7 @@ struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechMeshParameters
 };
 
 
-UCLASS()
+UCLASS(meta = (DisplayName = "Parametric Surface Data"))
 class DATASMITHCORETECHPARAMETRICSURFACEDATA_API UCoreTechParametricSurfaceData : public UDatasmithAdditionalData
 {
 	GENERATED_BODY()
@@ -55,7 +55,7 @@ public:
 	UPROPERTY()
 	FString SourceFile;
 
-	UPROPERTY()
+	// Too costly to serialize as a UPROPERTY, will use custom serialization.
 	TArray<uint8> RawData;
 
 	UPROPERTY()
@@ -66,4 +66,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category=NURBS)
 	FDatasmithTessellationOptions LastTessellationOptions;
+
+private:
+	UPROPERTY()
+	TArray<uint8> RawData_DEPRECATED;
+
+	virtual void Serialize(FArchive& Ar) override;
 };

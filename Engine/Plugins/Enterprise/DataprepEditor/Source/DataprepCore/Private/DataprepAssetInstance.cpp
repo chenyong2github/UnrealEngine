@@ -62,6 +62,14 @@ TArray<UDataprepActionAsset*> UDataprepAssetInstance::GetCopyOfActions(TMap<UObj
 	return Parent ? Parent->GetCopyOfActions( OutOriginalToCopy ) : TArray<UDataprepActionAsset*>();
 }
 
+const TArray<UDataprepActionAsset*>& UDataprepAssetInstance::GetActions() const
+{
+	static TArray<UDataprepActionAsset*> Dummy;
+
+	return Parent ? Parent->GetActions() : Dummy;
+}
+
+
 bool UDataprepAssetInstance::SetParent(UDataprepAssetInterface* InParent, bool bNotifyChanges )
 {
 	// #ueent_remark: Setting a null parent is not supported yet.

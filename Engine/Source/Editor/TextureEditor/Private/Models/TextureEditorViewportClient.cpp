@@ -205,11 +205,11 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	{
 		const uint32 Mip = (uint32)MipLevel;
 		const FIntPoint SizeOnMip = { Texture2D->GetSizeX() >> Mip,Texture2D->GetSizeY() >> Mip };
-		const uint64 NumPixels = SizeOnMip.X * SizeOnMip.Y;
+		const uint64 NumPixels = static_cast<uint64>(SizeOnMip.X) * SizeOnMip.Y;
 
 		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->Resource;
 		const FIntPoint PhysicalTextureSize = Resource->GetPhysicalTextureSize(0u);
-		const uint64 NumPhysicalPixels = PhysicalTextureSize.X * PhysicalTextureSize.Y;
+		const uint64 NumPhysicalPixels = static_cast<uint64>(PhysicalTextureSize.X) * PhysicalTextureSize.Y;
 
 		if (NumPixels >= NumPhysicalPixels)
 		{

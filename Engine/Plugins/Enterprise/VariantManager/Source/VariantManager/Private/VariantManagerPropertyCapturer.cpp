@@ -19,13 +19,11 @@
 #include "SwitchActor.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerPropertyCapturer"
-#define CAPTURE_OBJECT_PROPERTIES true
-#define CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS false
 
 class FPropertyCaptureHelper
 {
 public:
-	FPropertyCaptureHelper(const TArray<UObject*>& InObject, EPropertyValueCategory CategoriesToCapture, FString InTargetPropertyPath = FString());
+	FPropertyCaptureHelper(const TArray<UObject*>& InObject, EPropertyValueCategory CategoriesToCapture, FString InTargetPropertyPath = FString(), bool bCaptureAllArrayIndices = false);
 
 	// Captures properties that fit set categories from the given objects (both set in constructor)
 	TArray<TSharedPtr<FCapturableProperty>>& CaptureProperties();
@@ -40,14 +38,6 @@ private:
 
 	void GetAllPropertyPathsRecursive(const void* ValuePtr, const UStruct* PropertySource, FPropertyPath PropertyPath, FString PrettyPathString, TArray<FString> ComponentNames);
 
-	static FArrayProperty* GetMeshComponentOverloadMaterials();
-	static FStructProperty* GetSceneComponentRelativeLocation();
-	static FStructProperty* GetSceneComponentRelativeRotation();
-	static FStructProperty* GetSceneComponentRelativeScale3D();
-	static FBoolProperty* GetSceneComponentbVisible();
-	static FStructProperty* GetLightComponentLightColor();
-	static FStructProperty* GetFogComponentDefaultLightColor();
-
 private:
 
 	// If this is not None, we will only capture the property corresponding to this path, if it can
@@ -57,6 +47,10 @@ private:
 
 	// If true, we won't capture the property of or step into components that are not the root component
 	bool bJustRootComponent;
+
+	// If true and if we have a TargetPropertyPath, a path like 'Tags[2]' will lead to the capturing of all
+	// array indices of 'Tags', so 'Tags[0]', 'Tags[1]', 'Tags[2]', etc. If false, only 'Tags[2]' will be captured.
+	bool bCaptureAllArrayIndices;
 
 	// Points to the parent instance object. We use this to determine if a component we stumble upon is
 	// on our object's component hierarchy or on some other object's
@@ -75,8 +69,9 @@ private:
 	TSet<FString> CapturedPaths;
 };
 
-FPropertyCaptureHelper::FPropertyCaptureHelper(const TArray<UObject*>& InObjects, EPropertyValueCategory InCategoriesToCapture, FString InTargetPropertyPath)
+FPropertyCaptureHelper::FPropertyCaptureHelper(const TArray<UObject*>& InObjects, EPropertyValueCategory InCategoriesToCapture, FString InTargetPropertyPath, bool bInCaptureAllArrayIndices)
 	: TargetPropertyPath(InTargetPropertyPath)
+	, bCaptureAllArrayIndices(bInCaptureAllArrayIndices)
 	, CategoriesToCapture(InCategoriesToCapture)
 	, TargetObjects(InObjects)
 {
@@ -347,7 +342,34 @@ void FPropertyCaptureHelper::CaptureProp(FPropertyPath& PropertyPath, FString& P
 		return;
 	}
 
-	if (TargetPropertyPath.IsEmpty() || PrettyPathString == TargetPropertyPath)
+	// Slight hack here: We need the bCaptureAllArrayIndices trick because the events that we use to auto-expose
+	// property captures don't give granularity as to which array index it was that was modified, meaning we must
+	// capture them all. It is more annoying to determine the array information when constructing the path though, so we
+	// just pass along the base path (e.g. 'Tags') and bCaptureAllArrayIndices=true, and FPropertyCaptureHelper is
+	// in charge of capturing 'Tags[0]', 'Tags[1]', etc
+	bool bFitsTarget = false;
+	if (!TargetPropertyPath.IsEmpty())
+	{
+		FString StringToCompare;
+
+		if (bCaptureAllArrayIndices && PropertyPath.GetLeafMostProperty().ArrayIndex != INDEX_NONE)
+		{
+			int32 OpenBracketIndex;
+			PrettyPathString.FindLastChar(TEXT('['), OpenBracketIndex);
+			if (OpenBracketIndex != INDEX_NONE)
+			{
+				StringToCompare = PrettyPathString.Left(OpenBracketIndex);
+			}
+		}
+		else
+		{
+			StringToCompare = PrettyPathString;
+		}
+
+		bFitsTarget = (StringToCompare == TargetPropertyPath);
+	}
+
+	if (TargetPropertyPath.IsEmpty() || bFitsTarget)
 	{
 		TSharedPtr<FCapturableProperty> NewCapture = MakeShared<FCapturableProperty>(PrettyPathString, PropertyPath, ComponentNames, false, PropertySetterName, InCaptureType);
 		CapturedPropertyPaths.Add(NewCapture);
@@ -366,23 +388,34 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 
 		if (Property)
 		{
-			// Update current path position
-			FPropertyInfo PropInfo = FPropertyInfo(Property);
-			PropertyPath.AddProperty(PropInfo);
-
 			FString PrettyString = Property->GetDisplayNameText().ToString();
+
+			// Add category if we're a inside a UStruct (completely arbitrary decision, but helps to handle
+			// the properties inside the structs we do support: FPostProcessSettings and the CineCamera structs)
 			if (const UScriptStruct* Struct = Cast<UScriptStruct>(PropertySource))
 			{
-				if (!FVariantManagerUtils::IsBuiltInStructProperty(Property))
-				{
 					FString Category = Property->GetMetaData(TEXT("Category"));
 					if (!Category.IsEmpty())
 					{
-						Category = Category.Replace(TEXT("|"), PATH_DELIMITER);
+					Category = Category.Replace(TEXT("|"), PATH_DELIMITER);
+
+					int32 LastDelimiterIndex = Category.Find(PATH_DELIMITER, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+					FString LastCategorySegment = (LastDelimiterIndex == INDEX_NONE)? Category : Category.RightChop(LastDelimiterIndex+1);
+
+					// Some categories have the exact same name as the struct or the property, which is not helpful
+					// e.g. Component / Focus Settings / Focus Settings / Property
+					// or Component / Focus Method / Focus Method
+					if (!PrettyPathString.EndsWith(PATH_DELIMITER + Category + PATH_DELIMITER) &&
+						LastCategorySegment != PrettyString)
+					{
 						PrettyString = Category + PATH_DELIMITER + PrettyString;
 					}
 				}
 			}
+
+			// Update current path position
+			FPropertyInfo PropInfo = FPropertyInfo(Property);
+			PropertyPath.AddProperty(PropInfo);
 
 			PrettyPathString += PrettyString;
 			ComponentNames.Add(FString());
@@ -404,7 +437,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 					{
 						// Check the UArrayProperty's flags. The Inner's flags are unused for this
 						if (CanCaptureProperty(PropertySource, ArrayProperty, PropertySetterName) &&
-							(FVariantManagerUtils::IsBuiltInStructProperty(ArrayProperty->Inner) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
+							FVariantManagerUtils::IsBuiltInStructProperty(ArrayProperty->Inner))
 						{
 							CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 						}
@@ -448,7 +481,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 							}
 						}
 						// Check the UArrayProperty's flags. The Inner's flags are unused for this
-						else if (CanCaptureProperty(PropertySource, ArrayProperty, PropertySetterName) && CAPTURE_OBJECT_PROPERTIES)
+						else if (CanCaptureProperty(PropertySource, ArrayProperty, PropertySetterName))
 						{
 							CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 						}
@@ -468,20 +501,22 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 			// Structs
 			else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
-				if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && (FVariantManagerUtils::IsBuiltInStructProperty(Property) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
+				bool bIsBuiltIn = FVariantManagerUtils::IsBuiltInStructProperty(Property);
+				if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && bIsBuiltIn)
 				{
 					CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 				}
-				else
+				else if(!bIsBuiltIn)
 				{
 					UScriptStruct* Struct = StructProperty->Struct;
 					const void* StructAddressInValuePtr = StructProperty->ContainerPtrToValuePtr<const void>(ValuePtr);
 
-					FName StructName = Struct->GetFName();
-					if (StructName == TEXT("PostProcessSettings"))
+					if (FVariantManagerUtils::IsWalkableStructProperty(Property) &&
+						!Property->HasAnyPropertyFlags(CPF_EditorOnly | CPF_Deprecated | CPF_DisableEditOnInstance))
 					{
 						PrettyPathString += PATH_DELIMITER;
 						GetAllPropertyPathsRecursive(StructAddressInValuePtr, Struct, PropertyPath, PrettyPathString, ComponentNames);
+						PrettyPathString.RemoveFromEnd(PATH_DELIMITER);
 					}
 				}
 			}
@@ -540,7 +575,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 						}
 					}
 				}
-				else if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && CAPTURE_OBJECT_PROPERTIES)
+				else if (CanCaptureProperty(PropertySource, Property, PropertySetterName))
 				{
 					CaptureProp(PropertyPath, PrettyPathString, ComponentNames, PropertySetterName);
 				}
@@ -601,11 +636,11 @@ TArray<TSharedPtr<FCapturableProperty>>& FPropertyCaptureHelper::CaptureProperti
 	return CapturedPropertyPaths;
 }
 
-void FVariantManagerPropertyCapturer::CaptureProperties(const TArray<UObject*>& InObjectsToCapture, TArray<TSharedPtr<FCapturableProperty>>& OutCapturedProps, FString TargetPropertyPath)
+void FVariantManagerPropertyCapturer::CaptureProperties(const TArray<UObject*>& InObjectsToCapture, TArray<TSharedPtr<FCapturableProperty>>& OutCapturedProps, FString TargetPropertyPath, bool bCaptureAllArrayIndices)
 {
 	EPropertyValueCategory All = (EPropertyValueCategory)~0;
 
-	FPropertyCaptureHelper Helper = FPropertyCaptureHelper(InObjectsToCapture, All, TargetPropertyPath);
+	FPropertyCaptureHelper Helper = FPropertyCaptureHelper(InObjectsToCapture, All, TargetPropertyPath, bCaptureAllArrayIndices);
 	OutCapturedProps = Helper.CaptureProperties();
 }
 

@@ -68,7 +68,7 @@
 #include "FbxExporter.h"
 
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 
 #include "Components/BrushComponent.h"
 #include "CineCameraComponent.h"
@@ -1130,7 +1130,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 	{
 		if( It.Value().Mesh.Vertices().Num() )
 		{
-			FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(It.Value().SmoothGroups, It.Value().Mesh);
+			FStaticMeshOperations::ConvertSmoothGroupToHardEdges(It.Value().SmoothGroups, It.Value().Mesh);
 
 			UStaticMesh* NewMesh = CreateStaticMesh( It.Value().Mesh, It.Value().Materials, GetTransientPackage(), It.Key()->GetFName() );
 

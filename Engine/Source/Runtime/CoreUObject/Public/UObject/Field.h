@@ -156,6 +156,10 @@ public: \
 		new (Mem) TClass(EC_InternalUseOnlyConstructor, TClass::StaticClass()); \
 		return Mem; \
 	} \
+	inline void operator delete(void* Ptr) \
+	{ \
+		FMemory::Free(Ptr); \
+	} \
 	friend FArchive &operator<<( FArchive& Ar, ThisClass*& Res ) \
 	{ \
 		return Ar << (FField*&)Res; \

@@ -19,11 +19,11 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "UObject/SoftObjectPath.h"
 
 #include "USDIncludesStart.h"
@@ -234,7 +234,7 @@ namespace UsdGeomMeshTranslatorImpl
 	{
 		UStaticMesh* StaticMesh = nullptr;
 
-		FSHAHash MeshHash = FMeshDescriptionOperations::ComputeSHAHash( MeshDescription );
+		FSHAHash MeshHash = FStaticMeshOperations::ComputeSHAHash( MeshDescription );
 
 		StaticMesh = Cast< UStaticMesh >( Context.AssetsCache.FindRef( MeshHash.ToString() ) );
 

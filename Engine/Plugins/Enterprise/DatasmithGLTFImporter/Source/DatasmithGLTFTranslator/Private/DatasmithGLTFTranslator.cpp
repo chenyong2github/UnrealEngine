@@ -11,11 +11,13 @@
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "IMessageLogListing.h"
 #include "Logging/LogMacros.h"
 #include "Logging/TokenizedMessage.h"
-#include "MessageLogModule.h"
 #include "Templates/TypeHash.h"
+#if WITH_EDITOR
+#include "IMessageLogListing.h"
+#include "MessageLogModule.h"
+#endif //WITH_EDITOR
 
 #include "GLTFAsset.h"
 #include "GLTFNode.h"
@@ -25,6 +27,7 @@ void ShowLogMessages(const TArray<GLTF::FLogMessage>& Errors)
 {
 	if (Errors.Num() > 0)
 	{
+#if WITH_EDITOR
 		FMessageLogModule&             MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 		TSharedRef<IMessageLogListing> LogListing       = MessageLogModule.GetLogListing("LoadErrors");
 		LogListing->ClearMessages();
@@ -35,6 +38,19 @@ void ShowLogMessages(const TArray<GLTF::FLogMessage>& Errors)
 			LogListing->AddMessage(FTokenizedMessage::Create(Severity, FText::FromString(Error.Get<1>())));
 		}
 		MessageLogModule.OpenMessageLog("LoadErrors");
+#else
+		for (const GLTF::FLogMessage& LogError : Errors)
+		{
+			if (LogError.Get<0>() == GLTF::EMessageSeverity::Error)
+			{
+				UE_LOG(LogDatasmithGLTFImport, Error, TEXT("%s"), *LogError.Get<1>());
+			}
+			else
+			{
+				UE_LOG(LogDatasmithGLTFImport, Warning, TEXT("%s"), *LogError.Get<1>());
+			}
+		}
+#endif //!WITH_EDIOR
 	}
 }
 

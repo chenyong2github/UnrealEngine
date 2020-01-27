@@ -174,6 +174,12 @@ struct CORE_API FGenericPlatformProcess
 
 	}
 
+	/** Get the list of registered directories to search in when resolving implicitly loaded or filename-only DLLs. **/
+	FORCEINLINE static void GetDllDirectories(TArray<FString>& OutDllDirectories)
+	{
+
+	}
+
 	/**
 	 * Retrieves the ProcessId of this process.
 	 *
@@ -194,6 +200,12 @@ struct CORE_API FGenericPlatformProcess
 	 * @param AffinityMask A bitfield indicating what processors the thread is allowed to run on.
 	 */
 	static void SetThreadAffinityMask( uint64 AffinityMask );
+
+	/**
+	 * Helper function to set thread name of the current thread.
+	 * @param ThreadName   Name to set
+	 */
+	static void SetThreadName( const TCHAR* ThreadName ) { }
 
 	/** Allow the platform to do anything it needs for game thread */
 	static void SetupGameThread() { }

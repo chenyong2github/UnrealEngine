@@ -309,4 +309,44 @@ void UDataprepSetMeshOperation::OnExecution_Implementation(const FDataprepContex
 	UDataprepOperationsLibrary::SetMesh( InContext.Objects, StaticMesh );
 }
 
+void UDataprepAddTagsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("AddTags"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	UDataprepOperationsLibrary::AddTags(InContext.Objects, Tags);
+}
+
+void UDataprepSetMetadataOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("AddMetadata"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	UDataprepOperationsLibrary::AddMetadata(InContext.Objects, Metadata);
+}
+
+void UDataprepConsolidateObjectsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("ConsolidateObjects"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	UDataprepOperationsLibrary::ConsolidateObjects(InContext.Objects);
+}
+
+void UDataprepRandomizeTransformOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("RandomizeTransform"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	UDataprepOperationsLibrary::RandomizeTransform(InContext.Objects, TransformType, Mode, Min, Max);
+}
+
 #undef LOCTEXT_NAMESPACE

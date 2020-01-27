@@ -8,7 +8,6 @@
 
 #include "FbxImporter.h"
 #include "FileHelpers.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshUtilities.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"

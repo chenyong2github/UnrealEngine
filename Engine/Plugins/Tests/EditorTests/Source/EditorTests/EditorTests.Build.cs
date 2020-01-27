@@ -65,7 +65,6 @@ public class EditorTests : ModuleRules
 				"MaterialBaking",
                 "MeshDescription",
 				"StaticMeshDescription",
-                "MeshDescriptionOperations",
                 "MeshBuilder",
                 "RawMesh",
 			}

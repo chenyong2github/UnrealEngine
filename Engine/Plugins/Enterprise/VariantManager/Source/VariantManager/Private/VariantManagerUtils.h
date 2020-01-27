@@ -18,6 +18,10 @@ public:
 	// of type FVector, FColor, FRotator, FQuat, etc
 	static bool IsBuiltInStructProperty(const FProperty* Property);
 
+	// Returns true if Property is a FStructProperty with a Struct
+	// that the Variant Manager is allowed to capture specific properties from
+	static bool IsWalkableStructProperty(const FProperty* Property);
+
 	// Returns the OverrideMaterials property of the UMeshComponent class
 	static FArrayProperty* GetOverrideMaterialsProperty();
 

@@ -3,6 +3,7 @@
 #include "DataprepOperationsLibrary.h"
 
 #include "DataprepCoreUtils.h"
+#include "DatasmithAssetUserData.h"
 
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
@@ -23,7 +24,6 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "StaticMeshAttributes.h"
@@ -672,6 +672,179 @@ void UDataprepOperationsLibrary::SubstituteMesh(const TArray<UObject*>& Selected
 				if( MeshesToReplace.Contains( MeshComponent->GetStaticMesh() ) )
 				{
 					MeshComponent->SetStaticMesh( MeshSubstitute );
+				}
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::AddTags(const TArray< UObject* >& SelectedObjects, const TArray<FName>& InTags)
+{
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			for (int TagIndex = 0; TagIndex < InTags.Num(); ++TagIndex)
+			{
+				if (!InTags[TagIndex].IsNone() && (INDEX_NONE == Actor->Tags.Find(InTags[TagIndex])))
+				{
+					Actor->Tags.Add(InTags[TagIndex]);
+				}
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::AddMetadata(const TArray<UObject*>& SelectedObjects, const TMap<FName, FString>& InMetadata)
+{
+	UDatasmithAssetUserData::FMetaDataContainer Metadata;
+
+	// Add Datasmith meta data
+	int32 ValueCount = InMetadata.Num();
+	Metadata.Reserve(ValueCount);
+
+	for (auto& Elem : InMetadata)
+	{
+		Metadata.Add(Elem.Key, *Elem.Value);
+	}
+
+	Metadata.KeySort(FNameLexicalLess());
+
+	if (Metadata.Num() > 0)
+	{
+		for (UObject* Object : SelectedObjects)
+		{
+			if (AActor* Actor = Cast< AActor >(Object))
+			{
+				UActorComponent* ActorComponent = Actor->GetRootComponent();
+				if (ActorComponent)
+				{
+					Object = ActorComponent;
+				}
+			}
+
+			if (Object->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+			{
+				IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Object);
+
+				UDatasmithAssetUserData* DatasmithUserData = AssetUserData->GetAssetUserData< UDatasmithAssetUserData >();
+
+				if (!DatasmithUserData)
+				{
+					DatasmithUserData = NewObject<UDatasmithAssetUserData>(Object, NAME_None, RF_Public | RF_Transactional);
+					AssetUserData->AddAssetUserData(DatasmithUserData);
+				}
+
+				DatasmithUserData->MetaData.Append(Metadata);
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::ConsolidateObjects(const TArray< UObject* >& SelectedObjects)
+{
+	if (SelectedObjects.Num() < 2)
+	{
+		return;
+	}
+
+	// Use the first object as the consolidation object.
+	UObject* ObjectToConsolidateTo = SelectedObjects[0];
+	check(ObjectToConsolidateTo);
+
+	const UClass* ComparisonClass = ObjectToConsolidateTo->GetClass();
+	check(ComparisonClass);
+
+	TArray<UObject*> OutCompatibleObjects;
+
+	// Iterate over each proposed consolidation object, checking if each shares a common class with the consolidation objects, or at least, a common base that
+	// is allowed as an exception (currently only exceptions made for textures and materials).
+	for (int32 ObjectIndex = 1; ObjectIndex < SelectedObjects.Num(); ++ObjectIndex)
+	{
+		UObject* CurProposedObj = SelectedObjects[ObjectIndex];
+		check(CurProposedObj);
+
+		// You may not consolidate object redirectors
+		if (CurProposedObj->GetClass()->IsChildOf(UObjectRedirector::StaticClass()))
+		{
+			continue;
+		}
+
+		if (CurProposedObj->GetClass() != ComparisonClass)
+		{
+			const UClass* NearestCommonBase = CurProposedObj->FindNearestCommonBaseClass(ComparisonClass);
+
+			// If the proposed object doesn't share a common class or a common base that is allowed as an exception, it is not a compatible object
+			if (!(NearestCommonBase->IsChildOf(UTexture::StaticClass())) && !(NearestCommonBase->IsChildOf(UMaterialInterface::StaticClass())))
+			{
+				continue;
+			}
+		}
+
+		// If execution has gotten this far, the current proposed object is compatible
+		OutCompatibleObjects.Add(CurProposedObj);
+	}
+
+	// Perform the object consolidation
+	ObjectTools::FConsolidationResults ConsResults = ObjectTools::ConsolidateObjects(ObjectToConsolidateTo, OutCompatibleObjects, false);
+}
+
+void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformMode Mode, const FVector& Min, const FVector& Max)
+{
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			if (!Actor->GetRootComponent())
+			{
+				continue;
+			}
+
+			// Generate random offset for X/Y/Z and apply depending on selected transform component
+			const FVector Offset(FMath::RandRange(Min.X, Max.X),
+								 FMath::RandRange(Min.Y, Max.Y),
+								 FMath::RandRange(Min.Z, Max.Z));
+
+			USceneComponent* RootComponent = Actor->GetRootComponent();
+
+			switch (TransformType)
+			{
+				case ERandomizeTransformType::Rotation:
+				{
+					const FRotator OffsetRotation = FRotator::MakeFromEuler(Offset);
+					if (Mode == ERandomizeTransformMode::World)
+					{
+						RootComponent->SetWorldRotation(RootComponent->GetComponentRotation() + OffsetRotation);
+					}
+					else
+					{
+						RootComponent->SetRelativeRotation(RootComponent->GetRelativeRotation() + OffsetRotation);
+					}
+					break;
+				}
+				case ERandomizeTransformType::Scale:
+				{
+					if (Mode == ERandomizeTransformMode::World)
+					{
+						RootComponent->SetWorldScale3D(RootComponent->GetComponentScale() + Offset);
+					}
+					else
+					{
+						RootComponent->SetRelativeScale3D(RootComponent->GetRelativeScale3D() + Offset);
+					}
+					break;
+				}
+				case ERandomizeTransformType::Translation:
+				{
+					if (Mode == ERandomizeTransformMode::World)
+					{
+						RootComponent->SetWorldLocation(RootComponent->GetComponentLocation() + Offset);
+					}
+					else
+					{
+						RootComponent->SetRelativeLocation(RootComponent->GetRelativeLocation() + Offset);
+					}
+					break;
 				}
 			}
 		}

@@ -6,7 +6,7 @@
 #include "DataprepAsset.h"
 #include "DataprepActionAsset.h"
 #include "DataprepEditorUtils.h"
-#include "Widgets/Action/SGraphNodeK2DataprepAction.h"
+#include "Widgets/DataprepGraph/SGraphNodeK2DataprepAction.h"
 
 // Engine includes
 #include "BlueprintActionDatabaseRegistrar.h"

@@ -8,6 +8,31 @@
 #include "CTSession.h"
 
 class ON_Brep;
+class ON_NurbsSurface;
+class ON_BrepFace;
+class ON_BoundingBox;
+
+class BRepToKernelIOBodyTranslator
+{
+public:
+	BRepToKernelIOBodyTranslator(ON_Brep& InBRep)
+		: BRep(InBRep)
+	{}
+
+	CT_OBJECT_ID CreateBody();
+private:
+	CT_OBJECT_ID CreateCTSurface(ON_NurbsSurface& Surface);
+	void CreateCTFace(const ON_BrepFace& Face, CT_LIST_IO& dest);
+	void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner);
+
+private:
+	ON_Brep& BRep;
+
+	// BRep.m_T is an array that store all Trims, so we can also use an array to make the map between Trim index to Coedge Id
+	TArray<CT_OBJECT_ID> BrepTrimToCoedge;
+};
+
+
 
 class FRhinoCoretechWrapper : public CADLibrary::CTSession
 {

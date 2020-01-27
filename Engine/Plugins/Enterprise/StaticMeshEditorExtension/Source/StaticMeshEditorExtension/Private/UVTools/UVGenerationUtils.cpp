@@ -4,10 +4,10 @@
 
 #include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshUtilitiesCommon.h"
 #include "OverlappingCorners.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 
 
 int32 UVGenerationUtils::GetNextOpenUVChannel(UStaticMesh* StaticMesh, int32 LODIndex)
@@ -58,10 +58,10 @@ void UVGenerationUtils::SetupGeneratedLightmapUVResolution(UStaticMesh* StaticMe
 	// Determine the absolute minimum lightmap resolution that can be used for packing
 	float ComparisonThreshold = BuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 	FOverlappingCorners OverlappingCorners;
-	FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, Mesh, ComparisonThreshold);
+	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, Mesh, ComparisonThreshold);
 
 	// Packing expects at least one texel per chart. This is the absolute minimum to generate valid UVs.
-	int32 ChartCount = FMeshDescriptionOperations::GetUVChartCount(Mesh, BuildSettings.SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
+	int32 ChartCount = FStaticMeshOperations::GetUVChartCount(Mesh, BuildSettings.SrcLightmapIndex, ELightmapUVVersion::Latest, OverlappingCorners);
 	const int32 AbsoluteMinResolution = 1 << FMath::CeilLogTwo(FMath::Sqrt(ChartCount));
 	const int32 LightmapResolution = FMath::Clamp(BuildSettings.MinLightmapResolution, AbsoluteMinResolution, 512);
 

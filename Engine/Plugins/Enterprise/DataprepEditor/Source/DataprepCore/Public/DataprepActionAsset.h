@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "DataprepParameterizableObject.h"
 
+#include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
-#include "Engine/World.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Engine/World.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -34,7 +35,7 @@ namespace DataprepActionAsset
 	 * @param OperationExecuted		Executed operation if not null 
 	 * @param FilterExecuted		Executed filter if not null
 	 */
-	typedef TFunction<bool(UDataprepActionAsset* /* ActionAsset */, UDataprepOperation* /* OperationExecuted */, UDataprepFilter* /* FilterExecuted */)> FCanExecuteNextStepFunc;
+	typedef TFunction<bool(UDataprepActionAsset* /* ActionAsset */)> FCanExecuteNextStepFunc;
 
 	/**
 	 * Callback used to report a global change to the content it is working on
@@ -52,16 +53,44 @@ class UDataprepActionStep : public UObject
 	GENERATED_BODY()
 
 public:
-	// The operation will only be not null if the step is a operation
-	UPROPERTY()
-	UDataprepOperation* Operation;
 
-	// The Filter will only be not null if the step is a Filter/Selector
-	UPROPERTY()
-	UDataprepFilter* Filter;
+	// Begin UObject Interface
+	virtual void PostLoad() override;
+	// End UObject Interface
 
 	UPROPERTY()
 	bool bIsEnabled;
+
+	UDataprepParameterizableObject* GetStepObject()
+	{
+		return StepObject;
+	}
+
+	TSoftClassPtr<UDataprepParameterizableObject> GetPathOfStepObjectClass()
+	{
+		return PathOfStepObjectClass;
+	}
+
+private:
+	// Only the dataprep action has the right to change the step object.
+	friend class UDataprepActionAsset;
+
+	// The actual object of the step
+	UPROPERTY()
+	UDataprepParameterizableObject* StepObject;
+
+	// Will be used for future error message if the step object can't be loaded
+	UPROPERTY()
+	TSoftClassPtr<UDataprepParameterizableObject> PathOfStepObjectClass;
+
+	// The operation will only be not null if the step is a operation
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the step and step type instead."))
+	UDataprepOperation* Operation_DEPRECATED;
+
+	
+	// The Filter will only be not null if the step is a Filter/Selector
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the step and step type instead."))
+	UDataprepFilter* Filter_DEPRECATED;
 };
 
 /** Structure to pass execution context to action */
@@ -165,20 +194,11 @@ public:
 	void ExecuteAction(const TSharedPtr<FDataprepActionContext>& InActionsContext, UDataprepActionStep* SpecificStep = nullptr, bool bSpecificStepOnly = true);
 
 	/**
-	 * Add an operation to the action
-	 * @param OperationClass The class of the operation
-	 * @return The index of the added operation or index none if the class is 
+	 * Add a new step base on the type of step
+	 * @param StepType This type of operation or fetcher(filter) we want to use
+	 * @return The index of the added step or index none if the StepType is invalid
 	 */
-	int32 AddOperation(const TSubclassOf<UDataprepOperation>& OperationClass);
-
-	/**
-	 * Add a filter and setup it's fetcher
-	 * @param FilterClass The type of filter we want
-	 * @param FetcherClass The type of fetcher that we want. 
-	 * @return The index of the added filter or index none if the classes are incompatible or invalid
-	 * Note that fetcher most be compatible with the filter
-	 */
-	int32 AddFilterWithAFetcher(const TSubclassOf<UDataprepFilter>& FilterClass, const TSubclassOf<UDataprepFetcher>& FetcherClass);
+	int32 AddStep(TSubclassOf<UDataprepParameterizableObject> StepType);
 
 	/**
 	 * Add a copy of the step to the action
@@ -186,6 +206,21 @@ public:
 	 * @return The index of the added step or index none if the step is invalid
 	 */
 	int32 AddStep(const UDataprepActionStep* ActionStep);
+
+	/**
+	 * Add a copy of the step object to the action
+	 * @param StepObject The step object we want to duplicate in the action
+	 * @return The index of the added step or index none if the step is invalid
+	 */
+	int32 AddStep(const UDataprepParameterizableObject* StepObject);
+
+	/**
+	 * Insert a copy of the step into the action at the requested index
+	 * @param Index Index to insert the action step at
+	 * @param ActionStep The step to duplicate in the action
+	 * @return The index of the added step or index none if the step is invalid
+	 */
+	bool InsertStep(const UDataprepActionStep* ActionStep, int32 Index);
 
 	/**
 	 * Access to a step of the action
@@ -231,6 +266,13 @@ public:
 	bool MoveStep(int32 StepIndex, int32 DestinationIndex);
 
 	/**
+	 * Swap the steps
+	 * @param FirstIndex The index of the first step
+	 * @param SecondIndex The index of the seconds step
+	 */
+	bool SwapSteps(int32 FirstIndex, int32 SecondIndex);
+
+	/**
 	 * Remove a step from the action
 	 * @param Index The index of the step to remove
 	 * @return True if a step was removed
@@ -255,12 +297,25 @@ public:
 	 */
 	void NotifyDataprepSystemsOfRemoval();
 
+	/**
+	 * Add an operation to the action
+	 * @param OperationClass The class of the operation
+	 * @return The index of the added operation or index none if the class is 
+	 */
+	UE_DEPRECATED( 4.26, "Please use the function add step and simply pass the OperationClass" )
+	int32 AddOperation(const TSubclassOf<UDataprepOperation>& OperationClass);
+
+	/**
+	 * Add a filter and setup it's fetcher
+	 * @param FilterClass The type of filter we want
+	 * @param FetcherClass The type of fetcher that we want. 
+	 * @return The index of the added filter or index none if the classes are incompatible or invalid
+	 * Note that fetcher most be compatible with the filter
+	 */
+	UE_DEPRECATED( 4.26, "Please use the function add step and simply pass the FetcherClass" )
+	int32 AddFilterWithAFetcher(const TSubclassOf<UDataprepFilter>& FilterClass, const TSubclassOf<UDataprepFetcher>& FetcherClass);
+
 private:
-
-	void OnClassesRemoved(const TArray<UClass*>& DeletedClasses);
-
-	void RemoveInvalidOperations();
-
 	/**
 	 * Duplicate and add an asset to the Dataprep's and action's working set
 	 * @param Asset			If not null, the asset will be duplicated

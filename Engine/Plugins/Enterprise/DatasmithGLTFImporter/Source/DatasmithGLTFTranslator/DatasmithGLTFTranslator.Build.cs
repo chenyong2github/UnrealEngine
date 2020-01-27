@@ -20,12 +20,16 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "Json",
                     "MeshDescription",
-                    "MessageLog",
                     "RawMesh",
                     "Slate",
                     "SlateCore",
                 }
             );
+
+			if(Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.Add("MessageLog");
+			}
 
             PublicDependencyModuleNames.AddRange(
                 new string[]

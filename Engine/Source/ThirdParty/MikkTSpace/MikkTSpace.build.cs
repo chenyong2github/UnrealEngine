@@ -6,6 +6,7 @@ public class MikkTSpace : ModuleRules
 	public MikkTSpace(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
+		bool bWithMikkTSpace = true;
 
 		string MikkTSpacePath = Target.UEThirdPartySourceDirectory + "MikkTSpace/";
 
@@ -27,5 +28,11 @@ public class MikkTSpace : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(MikkTSpacePath + "/lib/Mac/libMikkTSpace.a");
 		}
+		else
+		{
+			bWithMikkTSpace = false;
+		}
+
+		PublicDefinitions.Add(bWithMikkTSpace ? "WITH_MIKKTSPACE=1" : "WITH_MIKKTSPACE=0");
 	}
 }

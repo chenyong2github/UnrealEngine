@@ -2038,6 +2038,11 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 					FAssetRegistryModule::AssetCreated(Result);
 					GEditor->BroadcastObjectReimported(Result);
 
+					for (UObject* AdditionalResult : Factory->GetAdditionalImportedObjects())
+					{
+						ReturnObjects.Add(Result);
+					}
+
 					bImportSucceeded = true;
 				}
 				else

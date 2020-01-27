@@ -87,14 +87,14 @@ public:
 	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured UObject property"))
 	UObject* CapturedObjectProperty;
 
-	//UPROPERTY(Transient, EditAnywhere, Category="Template")
-	//FWeakObjectPtr CapturedWeakObjectProperty;
+	//UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured Weak UObject property"))
+	//TWeakObjectPtr<UObject> CapturedWeakObjectProperty;
 
-	//UPROPERTY(Transient, EditAnywhere, Category="Template")
-	//FLazyObjectPtr CapturedLazyObjectProperty;
+	//UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured Lazy UObject property"))
+	//TLazyObjectPtr<UObject> CapturedLazyObjectProperty;
 
-	//UPROPERTY(Transient, EditAnywhere, Category="Template")
-	//FSoftObjectPtr CapturedSoftObjectProperty;
+	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured Soft UObject property"))
+	TSoftObjectPtr<UObject> CapturedSoftObjectProperty;
 
 	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured UInterface property"))
 	FScriptInterface CapturedInterfaceProperty;
@@ -107,12 +107,6 @@ public:
 
 	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured FText property"))
 	FText CapturedTextProperty;
-
-	//UPROPERTY(Transient, EditAnywhere, Category="Template")
-	//FScriptArray CapturedArrayProperty;
-
-	//UPROPERTY(Transient, EditAnywhere, Category="Template")
-	//FScriptMap CapturedMapProperty;
 
 	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured FVector property"))
 	FVector CapturedVectorProperty;

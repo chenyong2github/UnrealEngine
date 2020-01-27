@@ -65,24 +65,36 @@ bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext
 	return bSuccessful;
 }
 
-bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
+bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutFailureReason)
+{
+	constexpr bool bIsAutomated = false;
+	return SetTargetContentFolderImplementation( InTargetContentFolder, OutFailureReason, bIsAutomated );
+}
+
+bool UDataprepContentConsumer::SetTargetContentFolderAutomated(const FString& InTargetContentFolder, FText& OutFailureReason)
+{
+	constexpr bool bIsAutomated = true;
+	return SetTargetContentFolderImplementation(InTargetContentFolder, OutFailureReason, bIsAutomated);
+}
+
+bool UDataprepContentConsumer::SetTargetContentFolderImplementation(const FString& InTargetContentFolder, FText& OutFailureReason, const bool bIsAutomated)
 {
 	bool bValidContentFolder = true;
 
-	if( !InTargetContentFolder.IsEmpty() )
+	if (!InTargetContentFolder.IsEmpty())
 	{
 		// Pretend creating a dummy package to verify packages could be created under this content folder.
-		bValidContentFolder = FPackageName::IsValidLongPackageName( InTargetContentFolder / TEXT("DummyPackageName"), false, &OutReason );
+		bValidContentFolder = FPackageName::IsValidLongPackageName(InTargetContentFolder / TEXT("DummyPackageName"), false, &OutFailureReason);
 	}
 
-	if(bValidContentFolder)
+	if (bValidContentFolder)
 	{
 		Modify();
 
-		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath( GetOutermost()->GetPathName() );
+		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath(GetOutermost()->GetPathName());
 
 		// Remove ending '/' if applicable
-		if(TargetContentFolder[TargetContentFolder.Len() - 1] == L'/')
+		if (TargetContentFolder[TargetContentFolder.Len() - 1] == L'/')
 		{
 			TargetContentFolder.RemoveAt(TargetContentFolder.Len() - 1, 1);
 		}
@@ -118,9 +130,22 @@ FString UDataprepContentConsumer::GetTargetPackagePath() const
 	return TargetPackagePath;
 }
 
-bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutReason)
+bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutFailureReason)
 {
-	OutReason = LOCTEXT( "DataprepContentConsumer_SetLevelName", "Not implemented" );
+	constexpr bool bIsAutomated = false;
+	return SetLevelNameImplementation( InLevelName, OutFailureReason, bIsAutomated );
+}
+
+bool UDataprepContentConsumer::SetLevelNameAutomated(const FString& InLevelName, FText& OutFailureReason)
+{
+	constexpr bool bIsAutomated = true;
+	return SetLevelNameImplementation( InLevelName, OutFailureReason, bIsAutomated );
+}
+
+bool UDataprepContentConsumer::SetLevelNameImplementation(const FString& InLevelName, FText& OutFailureReason, const bool bIsAutomated)
+{
+	OutFailureReason = LOCTEXT("DataprepContentConsumer_SetLevelName", "Not implemented");
+	ensure( false );
 	return false;
 }
 

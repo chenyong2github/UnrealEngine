@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 			// For managing direct function entry nodes for FunctionCallers
 			// Necessary when in the editor as the functions may get recompiled/renamed/deleted
 			// and tracking them just by name would not work
+			// Also for converting old thumbnails to new format
 			if (Target.bBuildWithEditorOnlyData)
 			{
 				PublicDependencyModuleNames.AddRange(

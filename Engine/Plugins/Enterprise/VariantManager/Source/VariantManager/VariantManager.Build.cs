@@ -22,11 +22,14 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AppFramework", // For color pickers (for color and linear color properties)
                     "BlueprintGraph", // For function director
+					"DesktopPlatform",
 					"EditorStyle", // For standard styles on most of UI
 					"GraphEditor", // For DragDropOp, might be removed later
 					"InputCore", // For ListView keyboard control
 					"PropertyEditor",  // For functions that create the property widgets
+					"CinematicCamera",  // So we can check the CineCamera structs exist
 					"SceneOutliner",
 					"Slate",
 					"SlateCore",

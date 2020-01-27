@@ -119,8 +119,10 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	/** If enabled, we are using the existing settings for a texture that already existed. */
 	UPROPERTY(Transient)
 	uint32 bUsingExistingSettings:1;
-	
-	
+
+	/** If enabled, we are using the texture content hash as the guid. */
+	UPROPERTY(Transient)
+	uint32 bUseHashAsGuid:1;
 
 public:
 	UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());

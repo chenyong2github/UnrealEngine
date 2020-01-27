@@ -11,8 +11,8 @@
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "HAL/FileManager.h"
-#include "MeshDescriptionOperations.h"
 #include "Serialization/MemoryReader.h"
+#include "StaticMeshOperations.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/StrongObjectPtr.h"
@@ -104,7 +104,7 @@ namespace DatasmithNativeTranslatorImpl
 
 		FMeshDescription MeshDescription;
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
-		FMeshDescriptionOperations::ConvertFromRawMesh(RawMesh, MeshDescription, GroupNamePerGroupIndex);
+		FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, GroupNamePerGroupIndex);
 		return MeshDescription;
 	}
 

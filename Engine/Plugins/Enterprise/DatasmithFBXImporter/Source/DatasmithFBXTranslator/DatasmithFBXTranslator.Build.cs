@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 					"LevelSequence",
 					"MeshDescription",
 					"StaticMeshDescription",
-					"MeshDescriptionOperations",
 					"UnrealEd", // For UnFbx
 				}
 			);

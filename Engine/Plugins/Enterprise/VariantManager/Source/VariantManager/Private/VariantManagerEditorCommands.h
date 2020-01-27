@@ -22,6 +22,7 @@ public:
 	TSharedPtr<FUICommandInfo> AddSelectedActorsCommand;
 	TSharedPtr<FUICommandInfo> SwitchOnSelectedVariantCommand;
 	TSharedPtr<FUICommandInfo> CreateThumbnailVariantCommand;
+	TSharedPtr<FUICommandInfo> LoadThumbnailVariantCommand;
 	TSharedPtr<FUICommandInfo> ClearThumbnailVariantCommand;
 	TSharedPtr<FUICommandInfo> AddPropertyCaptures;
 	TSharedPtr<FUICommandInfo> AddFunction;

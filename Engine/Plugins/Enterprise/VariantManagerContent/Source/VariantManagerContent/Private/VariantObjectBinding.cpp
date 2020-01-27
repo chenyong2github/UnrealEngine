@@ -6,6 +6,7 @@
 #include "LevelVariantSetsFunctionDirector.h"
 #include "PropertyValue.h"
 #include "Variant.h"
+#include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
 
 #include "Algo/Sort.h"
