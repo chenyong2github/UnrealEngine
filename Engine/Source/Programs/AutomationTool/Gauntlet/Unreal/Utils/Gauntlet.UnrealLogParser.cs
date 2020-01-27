@@ -522,8 +522,12 @@ namespace Gauntlet
 					if (Backtrace.Count > 0)
 					{
 						NewTrace.Callstack = Backtrace.ToArray();
-						Traces.Add(NewTrace);
 					}
+					else
+					{
+						NewTrace.Callstack = new[] { "Unable to parse callstack from log" };
+					}
+					Traces.Add(NewTrace);
 				}
 			}
 
