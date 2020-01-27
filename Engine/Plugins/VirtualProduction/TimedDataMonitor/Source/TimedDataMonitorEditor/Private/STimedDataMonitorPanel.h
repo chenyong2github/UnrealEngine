@@ -9,7 +9,9 @@
 #include "Widgets/SCompoundWidget.h"
 #include "SlateOptMacros.h"
 
+#include "Framework/Commands/UIAction.h
 #include "Input/Reply.h"
+#include "Textures/SlateIcon.h"
 #include "TimedDataMonitorEditorSettings.h"
 
 
