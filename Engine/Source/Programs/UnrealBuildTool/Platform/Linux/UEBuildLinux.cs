@@ -60,6 +60,7 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableUndefinedBehaviorSanitizer")]
 		public bool bEnableUndefinedBehaviorSanitizer = false;
 
+		/// <summary>
 		/// Enables memory sanitizer (MSan)
 		/// </summary>
 		[CommandLine("-EnableMSan")]
