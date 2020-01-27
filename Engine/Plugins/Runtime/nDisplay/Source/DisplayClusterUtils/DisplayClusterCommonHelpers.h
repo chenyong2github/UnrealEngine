@@ -11,7 +11,7 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterTypesConverter.h"
+#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
 class AActor;
 class UDisplayClusterCameraComponent;

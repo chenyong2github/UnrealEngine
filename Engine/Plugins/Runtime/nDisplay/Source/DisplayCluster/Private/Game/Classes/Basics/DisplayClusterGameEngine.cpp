@@ -12,7 +12,6 @@
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/Parse.h"
 #include "Misc/QualifiedFrameTime.h"
-
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterGlobals.h"
