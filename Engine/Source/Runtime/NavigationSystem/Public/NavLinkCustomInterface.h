@@ -8,6 +8,7 @@
 #include "UObject/Interface.h"
 #include "NavAreas/NavArea.h"
 #include "AI/Navigation/NavLinkDefinition.h"
+#include "Engine/World.h"
 #include "NavLinkCustomInterface.generated.h"
 
 /** 
