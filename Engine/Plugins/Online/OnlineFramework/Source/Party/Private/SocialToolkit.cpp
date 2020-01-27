@@ -1053,9 +1053,10 @@ void USocialToolkit::HandleGameDestroyed(const FName SessionName, bool bWasSucce
 	// Update the recent player list whenever a game session ends
 }
 
-void USocialToolkit::HandleUserInvalidated(USocialUser* InvalidUser)
+void USocialToolkit::HandleUserInvalidated(USocialUser& InvalidUser)
 {
-	AllUsers.Remove(InvalidUser);
+	AllUsers.Remove(&InvalidUser);
+	OnSocialUserInvalidated().Broadcast(InvalidUser);
 }
 
 void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
