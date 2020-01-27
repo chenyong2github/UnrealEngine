@@ -7,6 +7,7 @@
 class FBaseTimingTrack;
 class FTimingEventsTrack;
 class ITimingEvent;
+class SWidget;
 
 namespace Insights
 {
@@ -82,6 +83,12 @@ public:
 
 	/** Get the current marker time */
 	virtual double GetTimeMarker() const = 0;
+
+	/** Set the current marker time */
+	virtual void SetTimeMarker(double InMarkerTime) = 0;
+
+	/** Add a slot to the overlay */
+	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) = 0;
 };
 
 } // namespace Insights

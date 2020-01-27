@@ -90,6 +90,8 @@ STimingView::STimingView()
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FileActivitySharedState.Get());
 
+	ExtensionOverlay = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible);
+
 	Reset();
 }
 
@@ -186,6 +188,13 @@ void STimingView::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			ExtensionOverlay.ToSharedRef()
+		]
 	];
 
 	UpdateHorizontalScrollBar();
@@ -235,6 +244,10 @@ void STimingView::Reset()
 	GraphTrack->AddDefaultFrameSeries();
 	GraphTrack->SetVisibilityFlag(false);
 	AddTopDockedTrack(GraphTrack);
+
+	//////////////////////////////////////////////////
+
+	ExtensionOverlay->ClearChildren();
 
 	//////////////////////////////////////////////////
 
@@ -2593,6 +2606,28 @@ void STimingView::RaiseTimeMarkerChanging()
 void STimingView::RaiseTimeMarkerChanged()
 {
 	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, TimeMarker);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetTimeMarker(double InMarkerTime)
+{ 
+	TimeMarker = InMarkerTime; 
+
+	RaiseTimeMarkerChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::AddOverlayWidget(const TSharedRef<SWidget>& InWidget)
+{
+	if(ExtensionOverlay.IsValid())
+	{
+		ExtensionOverlay->AddSlot()
+		[
+			InWidget
+		];
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
