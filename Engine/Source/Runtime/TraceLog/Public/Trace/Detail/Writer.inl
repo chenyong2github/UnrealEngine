@@ -29,33 +29,16 @@ struct FWriteBuffer
 
 
 ////////////////////////////////////////////////////////////////////////////////
-struct FWriteTlsContext
-{
-							FWriteTlsContext();
-							~FWriteTlsContext();
-	bool					HasValidBuffer() const;
-	FWriteBuffer*			SetBuffer(FWriteBuffer*);
-	FWriteBuffer*			GetBuffer() const { return Buffer; }
-
-private:
-	FWriteBuffer*			Buffer;
-	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
-	static uint32 volatile	ThreadIdCounter;
-};
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 extern TRACELOG_API uint32 volatile	GLogSerial;
 TRACELOG_API FWriteBuffer*			Writer_NextBuffer(int32);
 TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
 ////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
-extern thread_local FWriteTlsContext TlsContext;
+extern thread_local FWriteBuffer* GTlsWriteBuffer;
 inline FWriteBuffer* Writer_GetBuffer()
 {
-	return TlsContext.GetBuffer();
+	return GTlsWriteBuffer;
 }
 #endif // IS_MONOLITHIC
 
