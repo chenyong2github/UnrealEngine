@@ -70,6 +70,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_USES_MICROSOFT_LIBC_FUNCTIONS				1
 #define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					1
 #define PLATFORM_SUPPORTS_TBB								1
+#define PLATFORM_SUPPORTS_MIMALLOC							PLATFORM_64BITS
 #define PLATFORM_SUPPORTS_NAMED_PIPES						1
 #define PLATFORM_COMPILER_HAS_TCHAR_WMAIN					1
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK				(!WITH_EDITOR) // movies will start before engine is initalized
@@ -79,7 +80,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS						1
 #define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO					1
-#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					1
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
 
