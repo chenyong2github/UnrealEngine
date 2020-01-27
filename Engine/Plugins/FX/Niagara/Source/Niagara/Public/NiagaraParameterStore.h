@@ -138,49 +138,49 @@ struct NIAGARA_API FNiagaraParameterStore
 	GENERATED_USTRUCT_BODY()
 
 private:
-/** Owner of this store. Used to provide an outer to data interfaces in this store. */
-UPROPERTY(Transient)
-UObject* Owner;
-
+	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
+	UPROPERTY(Transient)
+	UObject* Owner;
+	
 #if WITH_EDITORONLY_DATA
-/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
-UPROPERTY()
-TMap<FNiagaraVariable, int32> ParameterOffsets;
+	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
+	UPROPERTY()
+	TMap<FNiagaraVariable, int32> ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 
-UPROPERTY()
-TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
+	UPROPERTY()
+	TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
 
-/** Buffer containing parameter data. Indexed using offsets in ParameterOffsets */
-UPROPERTY()
-TArray<uint8> ParameterData;
+	/** Buffer containing parameter data. Indexed using offsets in ParameterOffsets */
+	UPROPERTY()
+	TArray<uint8> ParameterData;
+	
+	/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
+	UPROPERTY()
+	TArray<UNiagaraDataInterface*> DataInterfaces;
 
-/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
-UPROPERTY()
-TArray<UNiagaraDataInterface*> DataInterfaces;
+	/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
+	UPROPERTY()
+	TArray<UObject*> UObjects;
 
-/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
-UPROPERTY()
-TArray<UObject*> UObjects;
+	/** Bindings between this parameter store and others we push data into when we tick. */
+	TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
 
-/** Bindings between this parameter store and others we push data into when we tick. */
-TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
+	/** Parameter stores we've been bound to and are feeding data into us. */
+	TArray<FNiagaraParameterStore*> SourceStores;
 
-/** Parameter stores we've been bound to and are feeding data into us. */
-TArray<FNiagaraParameterStore*> SourceStores;
+	/** Marks our parameters as dirty. They will be pushed to any bound stores on tick if true. */
+	uint32 bParametersDirty : 1;
+	/** Marks our interfaces as dirty. They will be pushed to any bound stores on tick if true. */
+	uint32 bInterfacesDirty : 1;
+	/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
+	uint32 bUObjectsDirty : 1;
 
-/** Marks our parameters as dirty. They will be pushed to any bound stores on tick if true. */
-uint32 bParametersDirty : 1;
-/** Marks our interfaces as dirty. They will be pushed to any bound stores on tick if true. */
-uint32 bInterfacesDirty : 1;
-/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
-uint32 bUObjectsDirty : 1;
-
-/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
-uint32 LayoutVersion;
+	/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
+	uint32 LayoutVersion;
 
 #if WITH_EDITOR
-FOnChanged OnChangedDelegate;
+	FOnChanged OnChangedDelegate;
 #endif
 
 public:
@@ -189,10 +189,10 @@ public:
 	FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
 
 	virtual ~FNiagaraParameterStore();
-
+	
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-		FString DebugName;
+	FString DebugName;
 #endif
 
 	void SetOwner(UObject* InOwner);
@@ -223,7 +223,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void Tick();
 	/** Unbinds this store from all stores it's being driven by. */
 	void UnbindFromSourceStores();
-
+	
 	bool VerifyBinding(const FNiagaraParameterStore* InDestStore) const;
 
 	void CheckForNaNs() const;
