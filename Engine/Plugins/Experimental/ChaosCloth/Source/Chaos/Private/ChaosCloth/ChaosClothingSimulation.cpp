@@ -57,7 +57,7 @@ namespace ClothingSimulationDefault
 	static const int32 NumIterations = 1;
 	static const float SelfCollisionThickness = 2.f;
 	static const float CollisionThickness = 1.2f;
-	static const float FrictionCoefficient = 0.f;
+	static const float FrictionCoefficient = 0.2f;
 	static const float DampingCoefficient = 0.01f;
 	static const float WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
 }
