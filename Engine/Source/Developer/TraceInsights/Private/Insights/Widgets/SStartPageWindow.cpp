@@ -13,6 +13,8 @@
 #include "Internationalization/Text.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
+#include "Trace/Analysis.h"
+#include "Trace/Analyzer.h"
 #include "Trace/ControlClient.h"
 #include "Trace/StoreClient.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -22,6 +24,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
@@ -39,13 +42,13 @@
 #endif // WITH_EDITOR
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
-#include "Insights/TimingProfilerCommon.h" // for UE_LOG(TimingProfiler, ...
+#include "Insights/Log.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SInsightsSettings.h"
-#include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -377,11 +380,7 @@ SStartPageWindow::SStartPageWindow()
 	, ActiveTimerHandle()
 	, MainContentPanel()
 	, LiveSessionCount(0)
-#if WITH_EDITOR
 	, bAutoStartAnalysisForLiveSessions(false)
-#else
-	, bAutoStartAnalysisForLiveSessions(true)
-#endif
 	, AutoStartedSessions()
 	, AutoStartPlatformFilter()
 	, AutoStartAppNameFilter()
@@ -433,85 +432,56 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 			// Overlay slot for the main window area
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Vertical)
+				SAssignNew(MainContentPanel, SVerticalBox)
 
-				+ SScrollBox::Slot()
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.FillHeight(1.0f)
+				.Padding(3.0f, 3.0f)
 				[
-					SAssignNew(MainContentPanel, SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.HAlign(HAlign_Center)
-					.Padding(3.0f, 3.0f)
+					SNew(SBox)
 					[
-						SNew(SBox)
-						.WidthOverride(1024.0f)
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.Padding(8.0f)
 						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
-							.HAlign(HAlign_Fill)
-							[
-								ConstructSessionsPanel()
-							]
+							ConstructSessionsPanel()
 						]
 					]
+				]
 
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(3.0f, 3.0f)
-						[
-							SNew(SBox)
-							.WidthOverride(1024.0f)
-							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-								.Padding(8.0f)
-								.HAlign(HAlign_Fill)
-								[
-									ConstructAutoStartPanel()
-								]
-							]
-						]
-
-					//+ SVerticalBox::Slot()
-					//.AutoHeight()
-					//.HAlign(HAlign_Center)
-					//.Padding(3.0f, 3.0f)
-					//[
-					//	SNew(SBox)
-					//	.WidthOverride(256.0f)
-					//	[
-					//		SNew(SBorder)
-					//		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-					//		.Padding(8.0f)
-					//		.HAlign(HAlign_Fill)
-					//		[
-					//			ConstructRecorderPanel()
-					//		]
-					//	]
-					//]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.HAlign(HAlign_Center)
-					.Padding(3.0f, 3.0f)
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.AutoHeight()
+				.Padding(3.0f, 3.0f)
+				[
+					SNew(SBox)
 					[
-						SNew(SBox)
-						.WidthOverride(512.0f)
-						.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.Padding(8.0f)
 						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
-							.HAlign(HAlign_Fill)
-							[
-								ConstructConnectPanel()
-							]
+							ConstructLocalSessionDirectoryPanel()
+						]
+					]
+				]
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.AutoHeight()
+				.Padding(3.0f, 3.0f)
+				[
+					SNew(SBox)
+					.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+					[
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.Padding(8.0f)
+						[
+							ConstructConnectPanel()
 						]
 					]
 				]
@@ -575,86 +545,88 @@ TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		.Padding(0.0f, 2.0f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("SessionsPanelTitle", "Trace Sessions"))
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-			.ColorAndOpacity(FLinearColor::Gray)
-		]
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 2.0f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("SessionsPanelTitle", "Trace Sessions"))
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+		.ColorAndOpacity(FLinearColor::Gray)
+	]
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding(0.0f, 1.0f, 0.0f, 2.0f)
-		.MaxHeight(22.0f + 20 * 14.0f) // max 20 rows
-		[
-			SAssignNew(TraceSessionsListView, SListView<TSharedPtr<FTraceSession>>)
-			.IsFocusable(true)
-			.ItemHeight(20.0f)
-			.SelectionMode(ESelectionMode::Single)
-			.OnSelectionChanged(this, &SStartPageWindow::TraceSessions_OnSelectionChanged)
-			.OnMouseButtonDoubleClick(this, &SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick)
-			.ListItemsSource(&TraceSessions)
-			.OnGenerateRow(this, &SStartPageWindow::TraceSessions_OnGenerateRow)
-			.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-			//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::TraceSessions_GetContextMenu))
-			.HeaderRow
-			(
-				SNew(SHeaderRow)
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Fill)
+	.Padding(0.0f, 1.0f, 0.0f, 2.0f)
+	[
+		SAssignNew(TraceSessionsListView, SListView<TSharedPtr<FTraceSession>>)
+		.IsFocusable(true)
+		.ItemHeight(20.0f)
+		.SelectionMode(ESelectionMode::Single)
+		.OnSelectionChanged(this, &SStartPageWindow::TraceSessions_OnSelectionChanged)
+		.OnMouseButtonDoubleClick(this, &SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick)
+		.ListItemsSource(&TraceSessions)
+		.OnGenerateRow(this, &SStartPageWindow::TraceSessions_OnGenerateRow)
+		.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+		//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::TraceSessions_GetContextMenu))
+		.HeaderRow
+		(
+			SNew(SHeaderRow)
 
-				+ SHeaderRow::Column(FName(TEXT("Name")))
-				.FillWidth(0.25f)
-				.DefaultLabel(LOCTEXT("NameColumn", "Name"))
+			+ SHeaderRow::Column(FName(TEXT("Name")))
+			.FillWidth(0.25f)
+			.DefaultLabel(LOCTEXT("NameColumn", "Name"))
 
-				+ SHeaderRow::Column(FName(TEXT("Platform")))
-				.FillWidth(0.1f)
-				.DefaultLabel(LOCTEXT("PlatformColumn", "Platform"))
+			+ SHeaderRow::Column(FName(TEXT("Platform")))
+			.FillWidth(0.1f)
+			.DefaultLabel(LOCTEXT("PlatformColumn", "Platform"))
 
-				+ SHeaderRow::Column(FName(TEXT("AppName")))
-				.FillWidth(0.1f)
-				.DefaultLabel(LOCTEXT("AppNameColumn", "App Name"))
+			+ SHeaderRow::Column(FName(TEXT("AppName")))
+			.FillWidth(0.1f)
+			.DefaultLabel(LOCTEXT("AppNameColumn", "App Name"))
 
-				+ SHeaderRow::Column(FName(TEXT("BuildConfig")))
-				.FillWidth(0.1f)
-				.DefaultLabel(LOCTEXT("BuildConfigColumn", "Build Config"))
+			+ SHeaderRow::Column(FName(TEXT("BuildConfig")))
+			.FillWidth(0.1f)
+			.DefaultLabel(LOCTEXT("BuildConfigColumn", "Build Config"))
 
-				+ SHeaderRow::Column(FName(TEXT("BuildTarget")))
-				.FillWidth(0.1f)
-				.DefaultLabel(LOCTEXT("BuildTargetColumn", "Build Target"))
+			+ SHeaderRow::Column(FName(TEXT("BuildTarget")))
+			.FillWidth(0.1f)
+			.DefaultLabel(LOCTEXT("BuildTargetColumn", "Build Target"))
 
-				+ SHeaderRow::Column(FName(TEXT("Size")))
-				.FixedWidth(100.0f)
-				.HAlignHeader(HAlign_Right)
-				.HAlignCell(HAlign_Right)
-				.DefaultLabel(LOCTEXT("SizeColumn", "File Size"))
+			+ SHeaderRow::Column(FName(TEXT("Size")))
+			.FixedWidth(100.0f)
+			.HAlignHeader(HAlign_Right)
+			.HAlignCell(HAlign_Right)
+			.DefaultLabel(LOCTEXT("SizeColumn", "File Size"))
 
-				+ SHeaderRow::Column(FName(TEXT("Status")))
-				.FixedWidth(60.0f)
-				.HAlignHeader(HAlign_Right)
-				.HAlignCell(HAlign_Right)
-				.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
-			)
-		]
-
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Right)
-		.Padding(0.0f, 2.0f)
-		[
-			ConstructLoadPanel()
-		]
+			+ SHeaderRow::Column(FName(TEXT("Status")))
+			.FixedWidth(60.0f)
+			.HAlignHeader(HAlign_Right)
+			.HAlignCell(HAlign_Right)
+			.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
+		)
+	]
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0f, 2.0f)
-		[
-			ConstructLocalSessionDirectoryPanel()
-		]
-	;
+	.AutoHeight()
+	.HAlign(HAlign_Fill)
+	.Padding(0.0f, 4.0f, 0.0f, 6.0f)
+	[
+		SNew(SSeparator)
+		.Orientation(Orient_Horizontal)
+		.SeparatorImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+		.ColorAndOpacity(FLinearColor::Black)
+		.Thickness(1.0f)
+	]
+
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.HAlign(HAlign_Fill)
+	.Padding(0.0f, 2.0f)
+	[
+		ConstructLoadPanel()
+	];
 
 	return Widget;
 }
@@ -666,44 +638,53 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
+	.FillWidth(1.0f)
+	[
+		SNew(SBox)
+		.HAlign(HAlign_Left)
 		[
-			SNew(SButton)
-			.IsEnabled(this, &SStartPageWindow::Open_IsEnabled)
-			.OnClicked(this, &SStartPageWindow::Open_OnClicked)
-			.ToolTipText(LOCTEXT("OpenButtonTooltip", "Start analysis for selected trace session."))
-			.ContentPadding(FMargin(4.0f, 1.0f))
-			.Content()
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SImage)
-						.Image(FInsightsStyle::GetBrush("Open.Icon.Small"))
-					]
-
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("OpenButtonText", "Open"))
-					]
-			]
+			ConstructAutoStartPanel()
 		]
+	]
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.IsEnabled(this, &SStartPageWindow::Open_IsEnabled)
+		.OnClicked(this, &SStartPageWindow::Open_OnClicked)
+		.ToolTipText(LOCTEXT("OpenButtonTooltip", "Start analysis for selected trace session."))
+		.ContentPadding(FMargin(4.0f, 1.0f))
+		.Content()
 		[
-			SNew(SComboButton)
-			.ToolTipText(LOCTEXT("MRU_Tooltip", "Open a trace file or choose a trace session."))
-			.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
-			.HasDownArrow(true)
-			.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::GetBrush("Open.Icon.Small"))
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("OpenButtonText", "Open"))
+				]
 		]
-	;
+	]
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		SNew(SComboButton)
+		.ToolTipText(LOCTEXT("MRU_Tooltip", "Open a trace file or choose a trace session."))
+		.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
+		.HasDownArrow(true)
+		.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+	];
 
 	return Widget;
 }
@@ -714,43 +695,42 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0f, 0.0f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
-			.ColorAndOpacity(FLinearColor::Gray)
-		]
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 0.0f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
+		.ColorAndOpacity(FLinearColor::Gray)
+	]
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 0.0f)
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
 		.Padding(0.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.Padding(0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
-					.Justification(ETextJustify::Right)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
-					.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
-					.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
-				]
+			SNew(STextBlock)
+			.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
+			.Justification(ETextJustify::Right)
 		]
-	;
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
+			.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
+			.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
+		]
+	];
 
 	return Widget;
 }
@@ -762,40 +742,42 @@ TSharedRef<SWidget> SStartPageWindow::ConstructAutoStartPanel()
 	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
+	.AutoWidth()
+	.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Center)
+	[
+		SNew(SCheckBox)
+		.ToolTipText(LOCTEXT("AutoStart_Tooltip", "Enable auto-start analysis for LIVE sessions."))
+		.IsChecked(this, &SStartPageWindow::AutoStart_IsChecked)
+		.OnCheckStateChanged(this, &SStartPageWindow::AutoStart_OnCheckStateChanged)
 		[
-			SNew(SCheckBox)
-			.ToolTipText(LOCTEXT("AutoStart_Tooltip", "Enable auto-start analysis for LIVE sessions."))
-			.IsChecked(this, &SStartPageWindow::AutoStart_IsChecked)
-			.OnCheckStateChanged(this, &SStartPageWindow::AutoStart_OnCheckStateChanged)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("AutoStart_Text", "Auto Start Analysis for LIVE Sessions"))
-			]
+			SNew(STextBlock)
+			.Text(LOCTEXT("AutoStart_Text", "Auto Start Analysis for LIVE Sessions"))
 		]
+	]
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			SAssignNew(AutoStartPlatformFilter, SSearchBox)
-			.HintText(LOCTEXT("AutoStartPlatformFilter_Hint", "Platform"))
-			.ToolTipText(LOCTEXT("AutoStartPlatformFilter_Tooltip", "Type here to specify the Platform filter.\nAuto-start analysis will be enabled only for live sessions with this specified Platform."))
-		]
+	.AutoWidth()
+	.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Center)
+	[
+		SAssignNew(AutoStartPlatformFilter, SSearchBox)
+		.HintText(LOCTEXT("AutoStartPlatformFilter_Hint", "Platform"))
+		.ToolTipText(LOCTEXT("AutoStartPlatformFilter_Tooltip", "Type here to specify the Platform filter.\nAuto-start analysis will be enabled only for live sessions with this specified Platform."))
+	]
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			SAssignNew(AutoStartAppNameFilter, SSearchBox)
-			.HintText(LOCTEXT("AutoStartAppNameFilter_Hint", "AppName"))
-			.ToolTipText(LOCTEXT("AutoStartAppNameFilter_Tooltip", "Type here to specify the AppName filter.\nAuto-start analysis will be enabled only for live sessions with this specified AppName."))
-		]
-	;
+	.AutoWidth()
+	.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Center)
+	[
+		SAssignNew(AutoStartAppNameFilter, SSearchBox)
+		.HintText(LOCTEXT("AutoStartAppNameFilter_Hint", "AppName"))
+		.ToolTipText(LOCTEXT("AutoStartAppNameFilter_Tooltip", "Type here to specify the AppName filter.\nAuto-start analysis will be enabled only for live sessions with this specified AppName."))
+	];
 
 	return Widget;
 }
@@ -807,89 +789,88 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecorderPanel()
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		.Padding(0.0f, 2.0f)
+	.AutoHeight()
+	.HAlign(HAlign_Center)
+	.Padding(0.0f, 2.0f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("RecorderPanelTitle", "Trace Recorder"))
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+		.ColorAndOpacity(FLinearColor::Gray)
+	]
+
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 2.0f)
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("RecorderPanelTitle", "Trace Recorder"))
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+			.Text(LOCTEXT("RecorderStatusTitle", "Status:"))
 			.ColorAndOpacity(FLinearColor::Gray)
 		]
 
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0f, 2.0f)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("RecorderStatusTitle", "Status:"))
-					.ColorAndOpacity(FLinearColor::Gray)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(this, &SStartPageWindow::GetRecorderStatusText)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("StartRecorder", "Start"))
-					.ToolTipText(LOCTEXT("StartRecorderToolTip", "Start the Trace Recorder"))
-					.OnClicked(this, &SStartPageWindow::StartTraceRecorder_OnClicked)
-					.Visibility(this, &SStartPageWindow::StartTraceRecorder_Visibility)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("StopRecorder", "Stop"))
-					.ToolTipText(LOCTEXT("StopRecorderToolTip", "Stop the Trace Recorder"))
-					.OnClicked(this, &SStartPageWindow::StopTraceRecorder_OnClicked)
-					.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
-				]
+			SNew(STextBlock)
+			.Text(this, &SStartPageWindow::GetRecorderStatusText)
 		]
 
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0f, 2.0f, 0.0f, 1.0f)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
+			SNew(SButton)
+			.Text(LOCTEXT("StartRecorder", "Start"))
+			.ToolTipText(LOCTEXT("StartRecorderToolTip", "Start the Trace Recorder"))
+			.OnClicked(this, &SStartPageWindow::StartTraceRecorder_OnClicked)
+			.Visibility(this, &SStartPageWindow::StartTraceRecorder_Visibility)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("StopRecorder", "Stop"))
+			.ToolTipText(LOCTEXT("StopRecorderToolTip", "Stop the Trace Recorder"))
+			.OnClicked(this, &SStartPageWindow::StopTraceRecorder_OnClicked)
 			.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() -> FText
-					{
-						return FText::Format(LOCTEXT("ConnectionCountFormat", "Connections / live sessions: {0}"), FText::AsNumber(LiveSessionCount));
-					})
-					.ColorAndOpacity(FLinearColor::Gray)
-				]
 		]
-	;
+	]
+
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 2.0f, 0.0f, 1.0f)
+	[
+		SNew(SHorizontalBox)
+		.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([this]() -> FText
+			{
+				return FText::Format(LOCTEXT("ConnectionCountFormat", "Connections / live sessions: {0}"), FText::AsNumber(LiveSessionCount));
+			})
+			.ColorAndOpacity(FLinearColor::Gray)
+		]
+	];
 
 	return Widget;
 }
@@ -901,52 +882,55 @@ TSharedRef<SWidget> SStartPageWindow::ConstructConnectPanel()
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 
 	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		.Padding(0.0f, 2.0f)
+	.AutoHeight()
+	.HAlign(HAlign_Left)
+	.Padding(0.0f, 2.0f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("ConnectPanelTitle", "New Connection"))
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+		.ColorAndOpacity(FLinearColor::Gray)
+	]
+
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.HAlign(HAlign_Fill)
+	.Padding(0.0f, 2.0f)
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("ConnectPanelTitle", "New Connection"))
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+			.Text(LOCTEXT("HostTitle", "Running instance IP:"))
 			.ColorAndOpacity(FLinearColor::Gray)
 		]
 
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding(0.0f, 2.0f)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HostTitle", "Running instance IP:"))
-					.ColorAndOpacity(FLinearColor::Gray)
-				]
-
-			+ SHorizontalBox::Slot()
-				.FillWidth(1.0)
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew(HostTextBox, SEditableTextBox)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("Connect", "Connect"))
-					.ToolTipText(LOCTEXT("ConnectToolTip", "Try connecting to host."))
-					.OnClicked(this, &SStartPageWindow::Connect_OnClicked)
-				]
+			SNew(SBox)
+			.MinDesiredWidth(120.0f)
+			[
+				SAssignNew(HostTextBox, SEditableTextBox)
+			]
 		]
-	;
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Connect", "Connect"))
+			.ToolTipText(LOCTEXT("ConnectToolTip", "Connect the running instance at specified ip with the local trace recorder."))
+			.OnClicked(this, &SStartPageWindow::Connect_OnClicked)
+		]
+	];
 
 	return Widget;
 }
@@ -1129,6 +1113,11 @@ void SStartPageWindow::RefreshTraceSessionList()
 	// If trace list has changed on store side, recreate the TraceSessions list view widget.
 	if (bTraceListChanged)
 	{
+		UE_LOG(TraceInsights, Log, TEXT("List of trace sessions has changed. Updating..."));
+
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
+
 		TSharedPtr<FTraceSession> NewSelectedTraceSession;
 
 		TraceSessions.Reset();
@@ -1146,6 +1135,7 @@ void SStartPageWindow::RefreshTraceSessionList()
 			const TSharedRef<FTraceSession> TraceSession = MakeShared<FTraceSession>(TraceInfo);
 			TraceSession->TraceIndex = TraceIndex;
 			TraceSession->Uri = FText::FromString(FInsightsManager::Get()->GetStoreDir() + TEXT("/") + TraceSession->Name.ToString() + TEXT(".utrace"));
+			UpdateMetadata(*TraceSession);
 			TraceSessions.Add(TraceSession);
 			TraceSessionsMap.Add(TraceSession->TraceId, TraceSession);
 
@@ -1174,6 +1164,9 @@ void SStartPageWindow::RefreshTraceSessionList()
 			TraceSessionsListView->SetItemSelection(NewSelectedTraceSession, true);
 			TraceSessionsListView->RequestScrollIntoView(NewSelectedTraceSession);
 		}
+
+		Stopwatch.Stop();
+		UE_LOG(TraceInsights, Log, TEXT("List of trace sessions updated in %llu ms."), Stopwatch.GetAccumulatedTimeMs());
 	}
 
 	// Process the connected recorder sessions.
@@ -1211,6 +1204,7 @@ void SStartPageWindow::RefreshTraceSessionList()
 						(AutoStartConfigurationTypeFilter == EBuildConfiguration::Unknown || AutoStartConfigurationTypeFilter == TraceSession.ConfigurationType) &&
 						(AutoStartTargetTypeFilter == EBuildTargetType::Unknown || AutoStartTargetTypeFilter == TraceSession.TargetType))
 					{
+						UE_LOG(TraceInsights, Log, TEXT("Auto starting analysis for trace with id 0x%08X..."), TraceSession.TraceId);
 						AutoStartedSessions.Add(TraceSession.TraceId);
 						LoadTrace(TraceSession.TraceId);
 					}
@@ -1453,7 +1447,7 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 {
 	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
+		UE_LOG(TraceInsights, Log, TEXT("Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
@@ -1478,7 +1472,7 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 	}
 	else
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Start analysis for trace file: \"%s\""), *InTraceFile);
+		UE_LOG(TraceInsights, Log, TEXT("Start analysis for trace file: \"%s\""), *InTraceFile);
 		FInsightsManager::Get()->LoadTraceFile(InTraceFile);
 	}
 }
@@ -1489,7 +1483,7 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 {
 	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
+		UE_LOG(TraceInsights, Log, TEXT("Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
@@ -1520,7 +1514,7 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 	}
 	else
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Start analysis for trace id: 0x%08X"), InTraceId);
+		UE_LOG(TraceInsights, Log, TEXT("Start analysis for trace id: 0x%08X"), InTraceId);
 		FInsightsManager::Get()->LoadTrace(InTraceId);
 	}
 }
@@ -1546,7 +1540,7 @@ TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Top 10 Most Recently Created Sessions"));
+	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Top Most Recently Created Sessions"));
 	{
 		Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 		if (StoreClient != nullptr)
@@ -1683,6 +1677,111 @@ void SStartPageWindow::CloseSettings()
 		SNullWidget::NullWidget
 	];
 	MainContentPanel->SetEnabled(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FDiagnosticsSessionAnalyzer : public Trace::IAnalyzer
+{
+	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override
+	{
+		Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
+	}
+
+	virtual bool OnEvent(uint16, const FOnEventContext& Context) override
+	{
+		const FEventData& EventData = Context.EventData;
+
+		const uint8* Attachment = EventData.GetAttachment();
+		if (Attachment == nullptr)
+		{
+			return false;
+		}
+
+		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
+		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
+
+		Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameOffset;
+		int32 AppNameLength = CommandLineOffset - AppNameOffset;
+		AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameLength;
+		int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
+		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
+
+		ConfigurationType = EventData.GetValue<int8>("ConfigurationType");
+		TargetType = EventData.GetValue<int8>("TargetType");
+
+		return false;
+	}
+
+	FString Platform;
+	FString AppName;
+	FString CommandLine;
+	int8 ConfigurationType = 0;
+	int8 TargetType = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
+{
+	if (TraceSession.bIsMetadataUpdated)
+	{
+		return;
+	}
+
+	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	if (StoreClient == nullptr)
+	{
+		return;
+	}
+
+	Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(TraceSession.TraceId);
+	if (!TraceData)
+	{
+		return;
+	}
+
+	struct FDataStream : public Trace::IInDataStream
+	{
+		virtual int32 Read(void* Data, uint32 Size) override
+		{
+			if (BytesRead >= 48 * 1024)
+			{
+				return 0;
+			}
+
+			int32 InnerBytesRead = Inner->Read(Data, Size);
+			BytesRead += InnerBytesRead;
+			return InnerBytesRead;
+		}
+
+		int32 BytesRead = 0;
+		Trace::IInDataStream* Inner;
+	};
+
+	FDataStream DataStream;
+	DataStream.Inner = TraceData.Get();
+
+	FDiagnosticsSessionAnalyzer Analyzer;
+	Trace::FAnalysisContext Context;
+	Context.AddAnalyzer(Analyzer);
+	Context.Process(DataStream).Wait();
+
+	if (Analyzer.Platform.Len() != 0)
+	{
+		TraceSession.Platform = FText::FromString(Analyzer.Platform);
+		TraceSession.AppName = FText::FromString(Analyzer.AppName);
+		TraceSession.CommandLine = FText::FromString(Analyzer.CommandLine);
+		TraceSession.ConfigurationType = static_cast<EBuildConfiguration>(Analyzer.ConfigurationType);
+
+		TraceSession.TargetType = static_cast<EBuildTargetType>(Analyzer.TargetType);
+	}
+
+	TraceSession.bIsMetadataUpdated = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

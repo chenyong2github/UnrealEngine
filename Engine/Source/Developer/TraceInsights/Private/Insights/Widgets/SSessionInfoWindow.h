@@ -125,15 +125,17 @@ private:
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
-	//Trace::FSessionHandle SessionHandle;
+	//uint32 TraceId;
 	//FText Name;
-	//FText Uri;
+
 	//FText Platform;
 	//FText AppName;
 	//FText CommandLine;
 	//EBuildConfiguration ConfigurationType;
 	//EBuildTargetType TargetType;
-	//FDateTime TimeStamp;
+
+	//FText Uri;
+	//FDateTime Timestamp;
 	//uint64 Size;
 	//bool bIsLive;
 };

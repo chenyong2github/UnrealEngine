@@ -31,25 +31,29 @@ public:
 		return false;
 	}
 
-	virtual bool ConnectToStore(const TCHAR* Host, uint32 Port) override;
 	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
+
+	virtual Trace::FStoreClient* GetStoreClient() override;
+	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) override;
+
+	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
+	virtual void StartAnalysisForTrace(uint32 InTraceId) override;
+	virtual void StartAnalysisForLastLiveSession() override;
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;
-	virtual void StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId) override;
-	virtual void StartAnalysisForLastLiveSession(/*StoreClient*/) override;
-	//virtual void StartAnalysisForTrace(StoreClient or FTraceData..) override;
+
 	virtual void ShutdownUserInterface() override;
+
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) override;
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) override;
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() override { return OnInsightsMajorTabCreatedDelegate; }
-	virtual Trace::FStoreClient* GetStoreClient() override;
-	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) override;
 
 	/** Find a major tab config for the specified ID */
 	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
 
 	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
+
 protected:
 	void InitTraceStore();
 

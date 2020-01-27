@@ -2621,7 +2621,7 @@ void STimingView::SetTimeMarker(double InMarkerTime)
 
 void STimingView::AddOverlayWidget(const TSharedRef<SWidget>& InWidget)
 {
-	if(ExtensionOverlay.IsValid())
+	if (ExtensionOverlay.IsValid())
 	{
 		ExtensionOverlay->AddSlot()
 		[

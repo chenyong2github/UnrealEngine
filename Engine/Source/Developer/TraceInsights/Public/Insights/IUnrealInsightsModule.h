@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 
 class FExtender;
@@ -107,12 +107,13 @@ struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 struct TRACEINSIGHTS_API FInsightsMajorTabExtender
 {
 	FInsightsMajorTabExtender(TSharedPtr<FTabManager>& InTabManager) : MenuExtender(MakeShared<FExtender>()), TabManager(InTabManager) {}
-	
+
 	TSharedPtr<FExtender>& GetMenuExtender() { return MenuExtender; }
 	FLayoutExtender& GetLayoutExtender() { return LayoutExtender; }
-	FInsightsMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }	
+	FInsightsMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 	const TArray<FInsightsMinorTabConfig>& GetMinorTabs() const { return MinorTabs; }
+
 protected:
 	/** Extender used to add to the menu for this tab */
 	TSharedPtr<FExtender> MenuExtender;
@@ -134,12 +135,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterMajorTabExtensions, FInsightsMajo
 class IUnrealInsightsModule : public IModuleInterface
 {
 public:
-
-	/**
-	 * Connect to specific store.
-	 */
-	virtual bool ConnectToStore(const TCHAR* Host, uint32 Port) = 0;
-
 	/**
 	 * Called when the application starts in "Browser" mode.
 	 */
@@ -151,25 +146,42 @@ public:
 	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
 
 	/**
-	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
-	 *
-	 * @param InTraceFile The filename (*.utrace) of the trace to analyze.
+	 * Gets the store client.
 	 */
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
+	virtual Trace::FStoreClient* GetStoreClient() = 0;
+
+	/**
+	 * Connects to a specified store.
+	 *
+	 * @param InStoreHost The host of the store to connect to.
+	 * @param InStorePort The port of the store to connect to.
+	 * @return If connected succesfully or not.
+	 */
+	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) = 0;
+
+	/**
+	 * Gets the current analysis session.
+	 */
+	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const = 0;
 
 	/**
 	 * Starts analysis of the specified trace. Called when the application starts in "Viewer" mode.
 	 *
-	 * @param InStoreHost The host of the store to connect to.
-	 * @param InStorePort The port of the store to connect to.
 	 * @param InTraceId The id of the trace to analyze.
 	 */
-	virtual void StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId) = 0;
+	virtual void StartAnalysisForTrace(uint32 InTraceId) = 0;
 
 	/**
 	 * Starts analysis of the last live session. Called when the application starts in "Viewer" mode.
 	 */
 	virtual void StartAnalysisForLastLiveSession() = 0;
+
+	/**
+	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
+	 *
+	 * @param InTraceFile The filename (*.utrace) of the trace to analyze.
+	 */
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
 
 	/**
 	 * Called when the application shutsdown.
@@ -179,33 +191,23 @@ public:
 	/**
 	 * Registers a major tab layout. This defines how the major tab will appear when spawned.
 	 * If this is not called prior to tabs being spawned then the built-in default layout will be used.
-	 * @param	InMajorTabId	The major tab ID we are supplying a layout to
-	 * @param	InConfig		The config to use when spawning the major tab
+	 * @param InMajorTabId The major tab ID we are supplying a layout to
+	 * @param InConfig The config to use when spawning the major tab
 	 */
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) = 0;
 
 	/**
 	 * Unregisters a major tab layout. This will revert the major tab to spawning with its default layout
-	 * @param	InMajorTabId	The major tab ID we are supplying a layout to
+	 * @param InMajorTabId The major tab ID we are supplying a layout to
 	 */
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) = 0;
-	
+
 	/**
-	 * Allows for registering a delegate callback for populating a FInsightsMajorTabExtender structure	 
-	 * @param	InMajorTabId	The major tab ID to register the delegate for
+	 * Allows for registering a delegate callback for populating a FInsightsMajorTabExtender structure.
+	 * @param InMajorTabId The major tab ID to register the delegate for
 	 */
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) = 0;
 
-
-	/**
-	 * Expose the session service directly
-	 */
-	virtual Trace::FStoreClient* GetStoreClient() = 0;
-
-	/**
-	 * Get the session service.
-	 */
-	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const = 0;
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;
 };

@@ -191,7 +191,7 @@ private:
 	TSharedRef<Trace::ISessionService> SessionService;
 	TSharedRef<Trace::IModuleService> ModuleService;
 
-	/** The location of the trace files managed by trace store. */
+	/** The location of the trace files managed by the trace store. */
 	FString StoreDir;
 
 	/** The client used to connect to the trace store. */
@@ -203,7 +203,7 @@ private:
 	/** The id of the trace being analyzed. */
 	uint32 CurrentTraceId;
 
-	/** The filename of trace being analyzed. */
+	/** The filename of the trace being analyzed. */
 	FString CurrentTraceFilename;
 
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */

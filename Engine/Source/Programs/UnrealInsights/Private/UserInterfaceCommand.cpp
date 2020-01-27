@@ -225,7 +225,8 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 		FParse::Value(FCommandLine::Get(), TEXT("-StorePort="), StorePort);
 
 		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
-		TraceInsightsModule.StartAnalysisForTrace(StoreHost, StorePort, TraceId);
+		TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
+		TraceInsightsModule.StartAnalysisForTrace(TraceId);
 
 		delete[] StoreHost;
 	}

@@ -280,14 +280,19 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const Trace::FLogMessage& Message)
 			[this](const Trace::FLogMessage& Message) { AddLogMessage(Message); });
 	}
 
-	if (!Track.bUseOnlyBookmarks || FCString::Strcmp(Message.Category->Name, TEXT("LogBookmark")) == 0)
+	check(Message.Category != nullptr);
+	//check(Message.Category->Name != nullptr);
+
+	const TCHAR* CategoryName = Message.Category->Name != nullptr ? Message.Category->Name : TEXT("");
+
+	if (!Track.bUseOnlyBookmarks || FCString::Strcmp(CategoryName, TEXT("LogBookmark")) == 0)
 	{
 		float X = Viewport.TimeToSlateUnitsRounded(Message.Time);
-		if (X < 0)
+		if (X < 0.0f)
 		{
 			X = -1.0f;
 		}
-		AddTimeMarker(X, Message.Index, Message.Verbosity, Message.Category->Name, Message.Message);
+		AddTimeMarker(X, Message.Index, Message.Verbosity, CategoryName, Message.Message);
 	}
 }
 
@@ -318,14 +323,14 @@ FLinearColor FTimeMarkerTrackBuilder::GetColorByVerbosity(const ELogVerbosity::T
 {
 	static FLinearColor Colors[] =
 	{
-		FLinearColor(0.0, 0.0, 0.0, 1.0), // NoLogging
-		FLinearColor(1.0, 0.0, 0.0, 1.0), // Fatal
-		FLinearColor(1.0, 0.3, 0.0, 1.0), // Error
-		FLinearColor(0.7, 0.5, 0.0, 1.0), // Warning
-		FLinearColor(0.0, 0.7, 0.0, 1.0), // Display
-		FLinearColor(0.0, 0.7, 1.0, 1.0), // Log
-		FLinearColor(0.7, 0.7, 0.7, 1.0), // Verbose
-		FLinearColor(1.0, 1.0, 1.0, 1.0), // VeryVerbose
+		FLinearColor(0.0f, 0.0f, 0.0f, 1.0f), // NoLogging
+		FLinearColor(1.0f, 0.0f, 0.0f, 1.0f), // Fatal
+		FLinearColor(1.0f, 0.3f, 0.0f, 1.0f), // Error
+		FLinearColor(0.7f, 0.5f, 0.0f, 1.0f), // Warning
+		FLinearColor(0.0f, 0.7f, 0.0f, 1.0f), // Display
+		FLinearColor(0.0f, 0.7f, 1.0f, 1.0f), // Log
+		FLinearColor(0.7f, 0.7f, 0.7f, 1.0f), // Verbose
+		FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), // VeryVerbose
 	};
 	static_assert(sizeof(Colors) / sizeof(FLinearColor) == (int)ELogVerbosity::Type::All + 1, "ELogVerbosity::Type has changed!?");
 	//return Colors[Verbosity & ELogVerbosity::VerbosityMask];

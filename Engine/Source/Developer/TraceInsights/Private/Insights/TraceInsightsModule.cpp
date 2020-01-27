@@ -22,6 +22,7 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Log.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
 #include "Insights/TimingProfilerManager.h"
@@ -30,6 +31,8 @@
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+DEFINE_LOG_CATEGORY(TraceInsights);
 
 IMPLEMENT_MODULE(FTraceInsightsModule, TraceInsights);
 
@@ -201,13 +204,6 @@ void FTraceInsightsModule::UnregisterTabSpawners()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTraceInsightsModule::ConnectToStore(const TCHAR* Host, uint32 Port)
-{
-	return FInsightsManager::Get()->ConnectToStore(Host, Port);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess)
 {
 	FInsightsManager::Get()->SetOpenAnalysisInSeparateProcess(!bSingleProcess);
@@ -361,19 +357,6 @@ FOnRegisterMajorTabExtensions& FTraceInsightsModule::OnRegisterMajorTabExtension
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
-{
-	return FInsightsManager::Get()->GetStoreClient();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedPtr<const Trace::IAnalysisSession> FTraceInsightsModule::GetAnalysisSession() const
-{
-	return FInsightsManager::Get()->GetSession();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FName& InMajorTabId) const
 {
@@ -396,20 +379,29 @@ const FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExt
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::StartAnalysisForTraceFile(const TCHAR* InTraceFile)
+Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
 {
-	if (InTraceFile != nullptr)
-	{
-		FInsightsManager::Get()->LoadTraceFile(FString(InTraceFile));
-	}
+	return FInsightsManager::Get()->GetStoreClient();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::StartAnalysisForTrace(const TCHAR* InStoreHost, uint32 InStorePort, uint32 InTraceId)
+bool FTraceInsightsModule::ConnectToStore(const TCHAR* Host, uint32 Port)
 {
-	FInsightsManager::Get()->ConnectToStore(InStoreHost, InStorePort);
+	return FInsightsManager::Get()->ConnectToStore(Host, Port);
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<const Trace::IAnalysisSession> FTraceInsightsModule::GetAnalysisSession() const
+{
+	return FInsightsManager::Get()->GetSession();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::StartAnalysisForTrace(uint32 InTraceId)
+{
 	if (InTraceId != 0)
 	{
 		FInsightsManager::Get()->LoadTrace(InTraceId);
@@ -421,6 +413,16 @@ void FTraceInsightsModule::StartAnalysisForTrace(const TCHAR* InStoreHost, uint3
 void FTraceInsightsModule::StartAnalysisForLastLiveSession()
 {
 	FInsightsManager::Get()->LoadLastLiveSession();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::StartAnalysisForTraceFile(const TCHAR* InTraceFile)
+{
+	if (InTraceFile != nullptr)
+	{
+		FInsightsManager::Get()->LoadTraceFile(FString(InTraceFile));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

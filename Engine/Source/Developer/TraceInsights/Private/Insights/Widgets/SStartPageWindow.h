@@ -54,6 +54,7 @@ struct FTraceSession
 	bool bIsLive = false;
 	uint32 IpAddress = 0;
 
+	bool bIsMetadataUpdated = false;
 	FText Platform;
 	FText AppName;
 	FText CommandLine;
@@ -70,6 +71,7 @@ struct FTraceSession
 		, Size(InTraceInfo->GetSize())
 		, bIsLive(false)
 		, IpAddress(0)
+		, bIsMetadataUpdated(false)
 		, Platform()
 		, AppName()
 		, CommandLine()
@@ -112,9 +114,9 @@ public:
 
 private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
-	TSharedRef<SWidget> ConstructAutoStartPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
 	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
+	TSharedRef<SWidget> ConstructAutoStartPanel();
 	TSharedRef<SWidget> ConstructRecorderPanel();
 	TSharedRef<SWidget> ConstructConnectPanel();
 
@@ -151,6 +153,7 @@ private:
 	void TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession);
 	EVisibility TraceSessions_Visibility() const;
 	FReply RefreshTraceSessions_OnClicked();
+	void UpdateMetadata(FTraceSession& TraceSession);
 
 	ECheckBoxState AutoStart_IsChecked() const;
 	void AutoStart_OnCheckStateChanged(ECheckBoxState NewState);

@@ -3,9 +3,9 @@
 #include "STimingProfilerWindow.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Docking/LayoutExtender.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -27,6 +27,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/TraceInsightsModule.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SInsightsSettings.h"
@@ -36,7 +37,6 @@
 #include "Insights/Widgets/STimerTreeView.h"
 #include "Insights/Widgets/STimingProfilerToolbar.h"
 #include "Insights/Widgets/STimingView.h"
-#include "Insights/TraceInsightsModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -373,7 +373,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 
 	TSharedPtr<FTabManager::FLayout> Layout;
 
-	// Check for layout overrides
+	// Check for layout overrides.
 	FTraceInsightsModule& TraceInsightsModule = FModuleManager::GetModuleChecked<FTraceInsightsModule>("TraceInsights");
 	FInsightsMajorTabConfig TabConfig = TraceInsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
 
@@ -383,8 +383,8 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		ExtensionDelegate->Broadcast(*Extension);
 	}
 
-	// Register any new minor tabs
-	for(const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
+	// Register any new minor tabs.
+	for (const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
 	{
 		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab);
 
@@ -394,13 +394,13 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(MinorTabConfig.TabIcon)
 		.SetReuseTabMethod(MinorTabConfig.OnFindTabToReuse);
 
-		if(MinorTabConfig.WorkspaceGroup.IsValid())
+		if (MinorTabConfig.WorkspaceGroup.IsValid())
 		{
 			TabSpawnerEntry.SetGroup(MinorTabConfig.WorkspaceGroup.ToSharedRef());
 		}
 	}
 
-	if(TabConfig.Layout.IsValid())
+	if (TabConfig.Layout.IsValid())
 	{
 		Layout = TabConfig.Layout;
 	}

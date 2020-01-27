@@ -31,8 +31,8 @@ class FThreadTimingSharedState;
 class FTimeRulerTrack; 
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
-class SScrollBar;
 class SOverlay;
+class SScrollBar;
 namespace Insights { class ITimingViewExtender; }
 
 /** A custom widget used to display timing events. */
@@ -222,6 +222,9 @@ public:
 	virtual void InvalidateScrollableTracksOrder() override;
 	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
 
+	virtual double GetTimeMarker() const override { return TimeMarker; }
+	virtual void SetTimeMarker(double InMarkerTime) override;
+
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
 	virtual Insights::FHoveredTrackChangedDelegate& OnHoveredTrackChanged() override { return OnHoveredTrackChangedDelegate; }
@@ -230,8 +233,6 @@ public:
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 
 	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) override;
-	virtual void SetTimeMarker(double InMarkerTime) override;
-	virtual double GetTimeMarker() const override { return TimeMarker; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
