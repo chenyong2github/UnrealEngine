@@ -473,6 +473,16 @@ const int32 FAbcFile::GetFramerate() const
 	return FramesPerSecond;
 }
 
+int32 FAbcFile::GetFrameIndex(float Time)
+{
+	if (SecondsPerFrame > 0.f)
+	{
+		int32 FrameIndex = (int32) (Time / SecondsPerFrame);
+		return FMath::Clamp(FrameIndex, StartFrameIndex, EndFrameIndex);
+	}
+	return 0;
+}
+
 const FBoxSphereBounds& FAbcFile::GetArchiveBounds() const
 {
 	return ArchiveBounds;
