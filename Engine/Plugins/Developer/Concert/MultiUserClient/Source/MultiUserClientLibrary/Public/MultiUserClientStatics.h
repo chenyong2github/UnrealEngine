@@ -36,7 +36,7 @@ struct FMultiUserClientInfo
  * Enum of the known Multi-User connection error, their value needs to match the internally returned error code.
  * @see FConcertConnectionError
  */
-UENUM()
+UENUM(meta=(ScriptName="MultiUserConnectionErrorType"))
 enum class EMultiUserConnectionError
 {
 	None								= 0,
