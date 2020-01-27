@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
+struct FInsightsMajorTabExtender;
+
 class FTraceFilteringModule : public IModuleInterface
 {
 public:
@@ -14,5 +16,6 @@ public:
 
 	static FString TraceFiltersIni;
 protected:
+	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 	static FName InsightsFilterTabName;	
 };
