@@ -10,10 +10,14 @@
 #include "SlateOptMacros.h"
 
 #include "Input/Reply.h"
+#include "TimedDataMonitorEditorSettings.h"
+
 
 
 class FWorkspaceItem;
+class IMessageLogListing;
 class STimedDataInputListView;
+class SWidget;
 
 
 class STimedDataMonitorPanel : public SCompoundWidget
@@ -34,10 +38,29 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	FReply OnResetErrors();
+	FReply OnCalibrateClicked();
+	TSharedRef<SWidget> OnCalibrateBuildMenu();
+	FText GetCalibrateButtonTooltip() const;
+	FText GetCalibrateButtonText() const;
+	FReply OnResetErrorsClicked();
+
+	EVisibility ShowMessageLog() const;
+	EVisibility ShowEditorPerformanceThrottlingWarning() const;
+	FReply DisableEditorPerformanceThrottling();
+
+	void BuildCalibrationArray();
+	void CalibrateWithTimecode();
+	void Jam(bool bWithTimecode);
 
 private:
 	TSharedPtr<STimedDataInputListView> TimedDataSourceList;
+	TSharedPtr<IMessageLogListing> MessageLogListing;
+
+	static const int32 CalibrationArrayCount = (int32)ETimedDataMonitorEditorCalibrationType::Max;
+	FUIAction CalibrationUIAction[CalibrationArrayCount];
+	FSlateIcon CalibrationSlateIcon[CalibrationArrayCount];
+	FText CalibrationName[CalibrationArrayCount];
+	FText CalibrationTooltip[CalibrationArrayCount];
 
 	static FDelegateHandle LevelEditorTabManagerChangedHandle;
 

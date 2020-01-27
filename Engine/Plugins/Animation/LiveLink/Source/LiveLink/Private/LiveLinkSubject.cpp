@@ -906,7 +906,7 @@ bool FLiveLinkSubject::IsTimeSynchronized() const
 		 switch (SourceMode)
 		 {
 		 case ELiveLinkSourceMode::EngineTime:
-			 return ETimedDataInputEvaluationType::EngineTime;
+			 return ETimedDataInputEvaluationType::PlatformTime;
 		 case ELiveLinkSourceMode::Timecode:
 			 return ETimedDataInputEvaluationType::Timecode;
 		 case ELiveLinkSourceMode::Latest:
@@ -920,7 +920,7 @@ bool FLiveLinkSubject::IsTimeSynchronized() const
 	 {
 		 switch (EvaluationType)
 		 {
-		 case ETimedDataInputEvaluationType::EngineTime:
+		 case ETimedDataInputEvaluationType::PlatformTime:
 			 return ELiveLinkSourceMode::EngineTime;
 		 case ETimedDataInputEvaluationType::Timecode:
 			 return ELiveLinkSourceMode::Timecode;

@@ -28,7 +28,7 @@ enum class ETimedDataInputEvaluationType : uint8
 	/** The input is evaluated from the engine's timecode. */
 	Timecode,
 	/** The input is evaluated from the engine's time. Note that the engine's time is relative to FPlatformTime::Seconds. */
-	EngineTime,
+	PlatformTime,
 };
 
 

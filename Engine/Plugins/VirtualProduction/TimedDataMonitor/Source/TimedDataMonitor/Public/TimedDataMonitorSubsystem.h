@@ -51,11 +51,72 @@ public:
 
 
 UENUM()
-enum class ETimedDataMonitorGroupEnabled
+enum class ETimedDataMonitorGroupEnabled : uint8
 {
 	Disabled,
 	Enabled,
 	MultipleValues,
+};
+
+
+UENUM()
+enum class ETimedDataMonitorCallibrationReturnCode : uint8
+{
+	/** Success. The values were synchronized. */
+	Succeeded,
+	/** Failed. The timecode provider doesn't have a proper timecode value. */
+	Failed_NoTimecode,
+	/** Failed. At least one input is unresponsive. */
+	Failed_UnresponsiveInput,
+	/** Failed. At least one input doesn't have a defined frame rate. */
+	Failed_InvalidFrameRate,
+	/** Failed. At least one input doesn't have data buffered. */
+	Failed_NoDataBuffered,
+	/** Failed. We tried to find a valid offset for the timecode provider and failed. */
+	Failed_CanNotCallibrateWithoutJam,
+	/** It failed but, we increased the number of buffer for you of at least one source. You may retry to see if it works now. */
+	Retry_BufferSizeHasBeenIncreased,
+};
+
+
+USTRUCT(BlueprintType)
+struct FTimedDataMonitorCallibrationResult
+{
+	GENERATED_BODY();
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Result")
+	ETimedDataMonitorCallibrationReturnCode ReturnCode;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
+	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
+};
+
+
+UENUM()
+enum class ETimedDataMonitorJamReturnCode : uint8
+{
+	/** Success. The values were synchronized. */
+	Succeeded,
+	/** Failed. The timecode provider was not existing or not synchronized. */
+	Failed_NoTimecode,
+	/** Failed. At least one input is unresponsive. */
+	Failed_UnresponsiveInput,
+	/** Failed. The evaluation type of at least of input doesn't match with what was requested. */
+	Failed_EvaluationTypeDoNotMatch,
+	/** Failed. The input doesn't have any data in it's buffer to synchronized with. */
+	Failed_NoDataBuffered,
+};
+
+USTRUCT(BlueprintType)
+struct FTimedDataMonitorJamResult
+{
+	GENERATED_BODY();
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Result")
+	ETimedDataMonitorJamReturnCode ReturnCode;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
+	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
 };
 
 
@@ -123,7 +184,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	TArray<FTimedDataMonitorInputIdentifier> GetAllInputs();
 
-	/** Reset the stat of all the input of that group. */
+	/**
+	 * Set evaluation offset for all inputs and the engine's timecode provider to align all the buffers.
+	 * If there is no data available, it may increase the buffer size of an input.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	FTimedDataMonitorCallibrationResult CalibrateWithTimecodeProvider();
+
+	/** Assume all data samples were produce at the same time and align them with the current platform's time */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	FTimedDataMonitorJamResult JamInputs(ETimedDataInputEvaluationType EvaluationType);
+
+	/** Reset the stat of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	void ResetAllBufferStats();
 
@@ -147,7 +219,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
 	ETimedDataInputState GetGroupState (const FTimedDataMonitorGroupIdentifier& Identifier);
 
-	/** Reset the stat of all the input of that group. */
+	/** Reset the stat of all the inputs of that group. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
 	void ResetGroupBufferStats(const FTimedDataMonitorGroupIdentifier& Identifier);
 

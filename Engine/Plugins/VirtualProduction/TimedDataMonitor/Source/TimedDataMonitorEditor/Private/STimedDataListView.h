@@ -48,6 +48,7 @@ private:
 	FSlateColor GetStateColorAndOpacity() const;
 
 	FText GetDescription() const;
+	FText GetEvaluationOffsetText() const;
 	TOptional<int32> GetBufferSize() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;

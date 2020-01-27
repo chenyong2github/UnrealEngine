@@ -8,6 +8,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
+#include "TimedDataMonitorEditorSettings.h"
 #include "TimedDataMonitorSubsystem.h"
 
 #include "EditorFontGlyphs.h"
@@ -84,6 +85,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 		{
 			CachedEnabled = TimedDataMonitorSubsystem->IsInputEnabled(InputId) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputId);
+			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputId);
 			CachedState = TimedDataMonitorSubsystem->GetInputState(InputId);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputId);
 
@@ -98,7 +100,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 					CachedDescription = FText::Format(LOCTEXT("TimecodeDescription", "{0}@{1}"), FText::FromString(Timecode.ToString()), NewestDataTime.Timecode.Rate.ToPrettyText());
 				}
 				break;
-				case ETimedDataInputEvaluationType::EngineTime:
+				case ETimedDataInputEvaluationType::PlatformTime:
 				{
 					FTimedDataInputSampleTime NewestDataTime = TimedDataMonitorSubsystem->GetInputNewestDataTime(InputId);
 					FTimespan PlatformSecond = TimedDataListView::FromPlatformSeconds(NewestDataTime.PlatformSecond);
@@ -158,6 +160,7 @@ public:
 
 	ECheckBoxState CachedEnabled = ECheckBoxState::Undetermined;
 	ETimedDataInputEvaluationType CachedInputEvaluationType = ETimedDataInputEvaluationType::None;
+	float CachedInputEvaluationOffset = 0.f;
 	ETimedDataInputState CachedState = ETimedDataInputState::Disconnected;
 	FText CachedDescription;
 	int32 CachedBufferSize = 0;
@@ -253,12 +256,11 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	}
 	if (TimedDataListView::HeaderIdName_TimeCorrection == ColumnName)
 	{
-		//@todo put offset widget
 		if (Item->bIsInput)
 		{
 			return SNew(STextBlock)
-				.Text(LOCTEXT("Tmp3", "[PH]Offset widget"))
-				.TextStyle(ItemTextBlockStyle);
+				.TextStyle(ItemTextBlockStyle)
+				.Text(this, &STimedDataInputTableRow::GetEvaluationOffsetText);
 		}
 		return SNullWidget::NullWidget;
 	}
@@ -357,6 +359,16 @@ FSlateColor STimedDataInputTableRow::GetStateColorAndOpacity() const
 FText STimedDataInputTableRow::GetDescription() const
 {
 	return Item->CachedDescription;
+}
+
+
+FText STimedDataInputTableRow::GetEvaluationOffsetText() const
+{
+	if (Item->bIsInput)
+	{
+		return FText::AsNumber(Item->CachedInputEvaluationOffset);
+	}
+	return FText::GetEmpty();
 }
 
 
@@ -507,7 +519,7 @@ void STimedDataInputListView::Tick(const FGeometry& AllottedGeometry, const doub
 		bRebuildListRequested = false;
 	}
 
-	double RefreshTimer = 0.5; //todo: move to setting
+	double RefreshTimer = GetDefault<UTimedDataMonitorEditorSettings>()->RefreshRate;
 	if (FApp::GetCurrentTime() - LastCachedValueUpdateTime > RefreshTimer)
 	{
 		LastCachedValueUpdateTime = FApp::GetCurrentTime();

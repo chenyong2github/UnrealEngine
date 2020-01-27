@@ -2,7 +2,12 @@
 
 #include "TimedDataMonitorSubsystem.h"
 
+#include "Engine/Engine.h"
+#include "Engine/TimecodeProvider.h"
+#include "HAL/PlatformTime.h"
 #include "ITimeManagementModule.h"
+#include "Misc/App.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "TimedDataInputCollection.h"
 
 #define LOCTEXT_NAMESPACE "TimedDataMonitorSubsystem"
@@ -127,6 +132,301 @@ TArray<FTimedDataMonitorInputIdentifier> UTimedDataMonitorSubsystem::GetAllInput
 
 	TArray<FTimedDataMonitorInputIdentifier> Result;
 	InputMap.GenerateKeyArray(Result);
+	return Result;
+}
+
+
+FTimedDataMonitorCallibrationResult UTimedDataMonitorSubsystem::CalibrateWithTimecodeProvider()
+{
+	BuildSourcesListIfNeeded();
+
+	FTimedDataMonitorCallibrationResult Result;
+	Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_CanNotCallibrateWithoutJam;
+
+
+	UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
+	if (CurrentTimecodeProvider == nullptr
+		|| CurrentTimecodeProvider->GetSynchronizationState() != ETimecodeProviderSynchronizationState::Synchronized
+		|| !FApp::GetCurrentFrameTime().IsSet())
+	{
+		Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_NoTimecode;
+		return Result;
+	}
+	FQualifiedFrameTime CurrentFrameTime = CurrentTimecodeProvider->GetQualifiedFrameTime();
+
+	struct FCollectedDataTimes
+	{
+		FTimedDataMonitorInputIdentifier InputId;
+		TArray<FTimedDataInputSampleTime> DataTimes;
+	};
+
+	// Collect all DataTimes
+	TArray<FCollectedDataTimes> AllCollectedDataTimes;
+	AllCollectedDataTimes.Reset(InputMap.Num());
+	for (const auto& InputItt : InputMap)
+	{
+		if (InputItt.Value.bEnabled)
+		{
+			if (InputItt.Value.Input->GetState() != ETimedDataInputState::Connected)
+			{
+				Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_UnresponsiveInput;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			if (InputItt.Value.Input->GetEvaluationType() != ETimedDataInputEvaluationType::Timecode)
+			{
+				Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_NoTimecode;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			FFrameRate FrameRate = InputItt.Value.Input->GetFrameRate();
+			if (FrameRate == ITimedDataInput::UnknowedFrameRate)
+			{
+				Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_InvalidFrameRate;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			TArray<FTimedDataInputSampleTime> DataTimes = InputItt.Value.Input->GetDataTimes();
+			if (DataTimes.Num() == 0)
+			{
+				Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_NoDataBuffered;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			FCollectedDataTimes Element;
+			Element.InputId = InputItt.Key;
+			Element.DataTimes = MoveTemp(DataTimes);
+			AllCollectedDataTimes.Emplace(MoveTemp(Element));
+		}
+	}
+
+	if (AllCollectedDataTimes.Num() == 0)
+	{
+		Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Succeeded;
+		return Result;
+	}
+
+	// Is there a range of data that everyone is happy with
+	{
+		// With [A-C] it will return [10-11], with [A-D] it should not be able to find anything
+		//TC == 12
+		//A    10  11  12  13
+		//B 9  10  11
+		//C    10  11  12
+		//D            12  13
+
+		FFrameTime RangeMin;
+		FFrameTime RangeMax;
+		bool bFirstItem = true;
+		bool bFoundRange = true;
+
+		for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+		{
+			check(DataTimesItt.DataTimes.Num() > 0);
+
+			// On purpose do not use the evaluation offset
+			//const FFrameTime FirstFrameTime = DataTimesItt.DataTimes[0].Timecode.ConvertTo(CurrentFrameTime.Rate) - DataTimesItt.EvaluationOffset.ConvertTo(CurrentFrameTime.Rate);
+
+			const FFrameTime FirstFrameTime = DataTimesItt.DataTimes[0].Timecode.ConvertTo(CurrentFrameTime.Rate);
+			const FFrameTime LastFrameTime = DataTimesItt.DataTimes.Last().Timecode.ConvertTo(CurrentFrameTime.Rate);
+
+			if (!bFirstItem)
+			{
+				if (FirstFrameTime <= RangeMax && LastFrameTime >= RangeMin)
+				{
+
+					RangeMin = FMath::Max(RangeMin, FirstFrameTime);
+					RangeMax = FMath::Min(RangeMax, LastFrameTime);
+				}
+				else
+				{
+					// Return an unset value
+					bFoundRange = false;
+					break;
+				}
+			}
+			else
+			{
+				bFirstItem = false;
+				RangeMin = FirstFrameTime;
+				RangeMax = LastFrameTime;
+			}
+		}
+
+		if (bFoundRange)
+		{
+			FFrameTime TimecodeProviderOffset = RangeMax - CurrentFrameTime.Time;
+			if (RangeMin <= CurrentFrameTime.Time && CurrentFrameTime.Time <= RangeMax)
+			{
+				// TC in the range, if so use the TC provider value
+
+				// Reset the FrameDelay
+				check(CurrentTimecodeProvider);
+				CurrentTimecodeProvider->FrameDelay = 0.f;
+
+				// Reset previous evaluation offset
+				for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+				{
+					InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(0.0);
+				}
+				Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Succeeded;
+				return Result;
+			}
+			else if (CurrentFrameTime.Time < RangeMin)
+			{
+				// We need to increase buffer size of all inputs if possible
+//@TODO
+				//Is it possible
+				//else set TimecodeProviderOffset to offset the TC provider
+
+				//if (UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider())
+				//{
+				//	TimecodeProvider->FrameDelay = 0.f;
+				//}
+				//Result.FailureInputIdentifiers.Reset(AllCollectedDataTimes.Num());
+				//for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+				//{
+				//	InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(0.0);
+				//	InputMap[DataTimesItt.InputId].Input->SetDataBufferSize(0);
+				//}
+				//Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Retry_BufferSizeHasBeenIncreased;
+				//return Result;
+			}
+
+
+			// When we can't resize the buffer (because they would be too big, then offset the TC provider.
+			//Or when the TC Provider is over all the input, then offset the TC provider
+			check(CurrentTimecodeProvider);
+			CurrentTimecodeProvider->FrameDelay = TimecodeProviderOffset.AsDecimal();
+	
+			// Reset previous evaluation offset
+			for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+			{
+				InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(0.0);
+			}
+			Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Succeeded;
+			return Result;
+		}
+	}
+
+	// No range was found. What is the smallest acceptable LastFrameTime. Can we increase a buffer?
+	{
+		// It will return 11, and we will try to increase the buffer size of E by 1 and jam (A, F, G). We want to be closer to TC as possible.
+		// TC == 50.
+		//A 1  2
+		//B                  48  49  50  51
+		//C              47  48  49
+		//D                  48  49  50
+		//E                          50  51
+		//F 1
+		//G                                                     100
+
+
+		//@todo. complete the algo
+	}
+
+	Result.ReturnCode = ETimedDataMonitorCallibrationReturnCode::Failed_CanNotCallibrateWithoutJam;
+	return Result;
+}
+
+
+FTimedDataMonitorJamResult UTimedDataMonitorSubsystem::JamInputs(ETimedDataInputEvaluationType InEvaluationType)
+{
+	BuildSourcesListIfNeeded();
+
+	FTimedDataMonitorJamResult Result;
+	Result.ReturnCode = ETimedDataMonitorJamReturnCode::Succeeded;
+
+	UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
+	TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+	if (InEvaluationType == ETimedDataInputEvaluationType::Timecode && (CurrentTimecodeProvider == nullptr || CurrentTimecodeProvider->GetSynchronizationState() != ETimecodeProviderSynchronizationState::Synchronized))
+	{
+		Result.ReturnCode = ETimedDataMonitorJamReturnCode::Failed_NoTimecode;
+		return Result;
+	}
+
+	struct FCollectedDataTimes
+	{
+		FTimedDataMonitorInputIdentifier InputId;
+		TArray<FTimedDataInputSampleTime> DataTimes;
+	};
+
+	// Collect all DataTimes
+	TArray<FCollectedDataTimes> AllCollectedDataTimes;
+	AllCollectedDataTimes.Reset(InputMap.Num());
+	for (const auto& InputItt : InputMap)
+	{
+		if (InputItt.Value.bEnabled)
+		{
+			if (InputItt.Value.Input->GetState() != ETimedDataInputState::Connected)
+			{
+				Result.ReturnCode = ETimedDataMonitorJamReturnCode::Failed_UnresponsiveInput;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			// The UI show have make sure that all evaluation type are correct
+			if (InputItt.Value.Input->GetEvaluationType() != InEvaluationType)
+			{
+				Result.ReturnCode = ETimedDataMonitorJamReturnCode::Failed_EvaluationTypeDoNotMatch;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			TArray<FTimedDataInputSampleTime> DataTimes = InputItt.Value.Input->GetDataTimes();
+			if (DataTimes.Num() == 0)
+			{
+				Result.ReturnCode = ETimedDataMonitorJamReturnCode::Failed_NoDataBuffered;
+				Result.FailureInputIdentifiers.Add(InputItt.Key);
+				return Result;
+			}
+
+			FCollectedDataTimes Element;
+			Element.InputId = InputItt.Key;
+			Element.DataTimes = MoveTemp(DataTimes);
+			AllCollectedDataTimes.Emplace(MoveTemp(Element));
+		}
+	}
+
+	if (InEvaluationType == ETimedDataInputEvaluationType::None)
+	{
+		// Set the evaluation offset of everyone to 0(InEvaluationType == ETimedDataInputEvaluationType::None)
+		for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+		{
+			InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(0.0);
+		}
+	}
+	else if (InEvaluationType == ETimedDataInputEvaluationType::PlatformTime)
+	{
+		// set the evaluation offset of everyone to FApp::GetSeconds() - LastFrame
+		const double NowSeconds = FPlatformTime::Seconds();
+		for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+		{
+			const double LastFrameTime = DataTimesItt.DataTimes.Last().PlatformSecond;
+			const double EvaluationOffset = NowSeconds - LastFrameTime;
+			InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(EvaluationOffset);
+		}
+	}
+	else if (InEvaluationType == ETimedDataInputEvaluationType::Timecode)
+	{
+		// set offset of TC provider to 0
+		check(CurrentTimecodeProvider);
+		CurrentTimecodeProvider->FrameDelay = 0.f;
+		FQualifiedFrameTime NowFrameTime = CurrentTimecodeProvider->GetQualifiedFrameTime();
+
+		// set evaluation offset of everyone to TCProvider->GetFrameTime() - LastFrame (with Rate in mind)
+		for (const FCollectedDataTimes& DataTimesItt : AllCollectedDataTimes)
+		{
+			const FQualifiedFrameTime LastFrameTime = FQualifiedFrameTime(DataTimesItt.DataTimes.Last().Timecode.ConvertTo(NowFrameTime.Rate), NowFrameTime.Rate);
+			const double EvaluationOffset = NowFrameTime.AsSeconds() - LastFrameTime.AsSeconds();
+			InputMap[DataTimesItt.InputId].Input->SetEvaluationOffsetInSeconds(EvaluationOffset);
+		}
+	}
+
 	return Result;
 }
 

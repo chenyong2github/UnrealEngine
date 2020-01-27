@@ -13,11 +13,14 @@ public class TimedDataMonitorEditor : ModuleRules
 				"Engine",
 				"EditorStyle",
 				"InputCore",
+				"MessageLog",
+				"Settings",
 				"SlateCore",
 				"Slate",
 				"TimedDataMonitor",
 				"TimeManagement",
 				"TimeManagementEditor",
+				"UnrealEd",
 				"WorkspaceMenuStructure",
 			});
 	}
