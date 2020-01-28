@@ -13,13 +13,14 @@ namespace Chaos
 template <typename IdxType>
 struct FTriangleMeshRaycastVisitor
 {
-	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const TParticles<FReal,3>& InParticles, const TArray<TVector<IdxType, 3>>& InElements)
+	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const TParticles<FReal,3>& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
 	: Particles(InParticles)
 	, Elements(InElements)
 	, StartPoint(InStart)
 	, Dir(InDir)
 	, Thickness(InThickness)
 	, OutTime(TNumericLimits<FReal>::Max())
+	, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
 	{
 	}
 
@@ -51,6 +52,12 @@ struct FTriangleMeshRaycastVisitor
 		if (!CHAOS_ENSURE(NormalLength > Epsilon))
 		{
 			//hitting degenerate triangle so keep searching - should be fixed before we get to this stage
+			return true;
+		}
+
+		const bool bBackFace = (FVec3::DotProduct(Dir, TriNormal) > 0.0f);
+		if (bCullsBackFaceRaycast && bBackFace)
+		{
 			return true;
 		}
 
@@ -185,6 +192,7 @@ struct FTriangleMeshRaycastVisitor
 	FVec3 OutPosition;
 	FVec3 OutNormal;
 	int32 OutFaceIndex;
+	bool bCullsBackFaceRaycast;
 };
 
 FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) const
@@ -200,7 +208,7 @@ FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) 
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::RaycastImp(const TArray<TVector<IdxType, 3>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 {
-	FTriangleMeshRaycastVisitor<IdxType> SQVisitor(StartPoint, Dir, Thickness, MParticles, Elements);
+	FTriangleMeshRaycastVisitor<IdxType> SQVisitor(StartPoint, Dir, Thickness, MParticles, Elements, bCullsBackFaceRaycast);
 
 	if (Thickness > 0)
 	{
@@ -366,6 +374,16 @@ int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 Intern
 	}
 
 	return -1;
+}
+
+bool FTriangleMeshImplicitObject::GetCullsBackFaceRaycast() const
+{
+	return bCullsBackFaceRaycast;
+}
+
+void FTriangleMeshImplicitObject::SetCullsBackFaceRaycast(const bool bInCullsBackFace)
+{
+	bCullsBackFaceRaycast = bInCullsBackFace;
 }
 
 template <typename IdxType>
