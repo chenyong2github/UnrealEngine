@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "ITimedDataInput.h"
 #include "Subsystems/EngineSubsystem.h"
 
