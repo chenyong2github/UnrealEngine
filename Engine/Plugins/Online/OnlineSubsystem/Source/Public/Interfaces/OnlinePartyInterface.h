@@ -524,6 +524,9 @@ public:
 	 * @return whether or not the join info has the info to request an invite
 	 */
 	virtual bool CanRequestAnInvite() const = 0;
+
+	ONLINESUBSYSTEM_API virtual FString ToDebugString() const;
+
 };
 
 typedef TSharedRef<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstRef;
