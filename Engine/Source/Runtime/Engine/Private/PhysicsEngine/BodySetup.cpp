@@ -179,6 +179,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 	bNeverNeedsCookedCollisionData = false;
 	bGenerateMirroredCollision = true;
 	bGenerateNonMirroredCollision = true;
+	bSupportUVsAndFaceRemap = false;
 	DefaultInstance.SetObjectType(ECC_PhysicsBody);
 #if WITH_EDITORONLY_DATA
 	BuildScale_DEPRECATED = 1.0f;
@@ -353,13 +354,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 
 			OutCookInfo.TriMeshCookFlags = CookFlags;
 
-			// If outer is a static mesh with physical material mask enabled, set retain UV and face remap table to true
-			/*
-			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CDPObj))
-			{
-				OutCookInfo.bSupportFaceRemap = StaticMesh->GetEnablePhysicalMaterialMask();
-			}
-			*/
+			OutCookInfo.bSupportFaceRemap = bSupportUVsAndFaceRemap;
 		}
 		else
 		{
@@ -367,7 +362,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 		}
 	}
 
-	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults || OutCookInfo.bSupportFaceRemap;
+	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults || bSupportUVsAndFaceRemap;
 
 #endif // WITH_PHYSX
 }
@@ -822,7 +817,8 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	FBodyInstance* OwningInstance, 
 	FVector& Scale3D, 
 	UPhysicalMaterial* SimpleMaterial,
-	TArray<UPhysicalMaterial*>& ComplexMaterials, 
+	TArray<UPhysicalMaterial*>& ComplexMaterials,
+	TArray<FPhysicalMaterialMaskParams>& ComplexMaterialMasks,
 	const FBodyCollisionData& BodyCollisionData,
 	const FTransform& RelativeTM, 
 	TArray<FPhysicsShapeHandle>* NewShapes)
@@ -848,6 +844,9 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	AddParams.Scale = Scale3D;
 	AddParams.SimpleMaterial = SimpleMaterial;
 	AddParams.ComplexMaterials = TArrayView<UPhysicalMaterial*>(ComplexMaterials);
+#if WITH_CHAOS
+	AddParams.ComplexMaterialMasks = TArrayView<FPhysicalMaterialMaskParams>(ComplexMaterialMasks);
+#endif
 	AddParams.LocalTransform = RelativeTM;
 	AddParams.WorldTransform = OwningInstance->GetUnrealWorldTransform();
 	AddParams.Geometry = &AggGeom;
@@ -1400,6 +1399,11 @@ void UBodySetup::GetGeometryDDCKey(FString& OutString) const
 		(int32)UPhysicsSettings::Get()->bSupportUVFromHitResults,
 		(int32)GetCollisionTraceFlag(),
 		(int32)BODY_SETUP_GEOMETRY_KEY_VER);
+
+	if (bSupportUVsAndFaceRemap)
+	{
+		OutString += FString(TEXT("_1"));
+	}
 }
 
 void UBodySetup::PostInitProperties()
@@ -1502,6 +1506,8 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		const FByteBulkData& FmtData = CookedFormatData.GetFormat(FPlatformProperties::GetPhysicsFormat());
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FmtData.GetBulkDataSize());
 	}
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FaceRemap.GetAllocatedSize());
 	
 	// Count any UV info
 	UVInfo.GetResourceSizeEx(CumulativeResourceSize);

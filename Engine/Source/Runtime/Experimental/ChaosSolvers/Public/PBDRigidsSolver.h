@@ -285,10 +285,15 @@ namespace Chaos
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void DestroyMaterial(Chaos::FMaterialHandle InHandle);
+		void UpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		void CreateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		void DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
-		/** Access to the intenal material mirrors */
+		/** Access to the internal material mirrors */
 		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials() const { return QueryMaterials; }
+		const THandleArray<FChaosPhysicsMaterialMask>& GetQueryMaterialMasks() const { return QueryMaterialMasks; }
 		const THandleArray<FChaosPhysicsMaterial>& GetSimMaterials() const { return SimMaterials; }
+		const THandleArray<FChaosPhysicsMaterialMask>& GetSimMaterialMasks() const { return SimMaterialMasks; }
 
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
@@ -366,8 +371,10 @@ namespace Chaos
 		// instead of having to lock the entire physics state of the runtime.
 		FRWLock QueryMaterialLock;
 		THandleArray<FChaosPhysicsMaterial> QueryMaterials;
+		THandleArray<FChaosPhysicsMaterialMask> QueryMaterialMasks;
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
-				
+		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
+
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
 	};

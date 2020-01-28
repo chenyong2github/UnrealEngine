@@ -98,6 +98,7 @@
 #include "Factories/PackageFactory.h"
 #include "Factories/ParticleSystemFactoryNew.h"
 #include "Factories/PhysicalMaterialFactoryNew.h"
+#include "Factories/PhysicalMaterialMaskFactory.h"
 #include "Factories/PolysFactory.h"
 #include "Factories/ReverbEffectFactory.h"
 #include "Factories/SoundAttenuationFactory.h"
@@ -155,6 +156,8 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/ObjectLibrary.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicalMaterials/PhysicalMaterialMask.h"
+#include "PhysicalMaterialMaskImport.h"
 #include "Engine/Polys.h"
 #include "Sound/ReverbEffect.h"
 #include "Sound/SoundCue.h"
@@ -1986,6 +1989,118 @@ UObject* UPhysicalMaterialFactoryNew::FactoryCreateNew(UClass* Class, UObject* I
 		check(Class->IsChildOf(UPhysicalMaterial::StaticClass()));
 		return NewObject<UPhysicalMaterial>(InParent, Class, Name, Flags);
 	}
+}
+
+/*------------------------------------------------------------------------------
+	UPhysicalMaterialMaskFactory.
+------------------------------------------------------------------------------*/
+UPhysicalMaterialMaskFactory::UPhysicalMaterialMaskFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = UPhysicalMaterialMask::StaticClass();
+
+	bCreateNew = true;
+	bText = false;
+	bEditAfterNew = false;
+	bEditorImport = true;
+
+	// Required to allow texture factory to take priority when importing new image files
+	ImportPriority = DefaultImportPriority - 1;
+}
+
+bool UPhysicalMaterialMaskFactory::ConfigureProperties()
+{
+	// nullptr the DataAssetClass so we can check for selection
+	PhysicalMaterialMaskClass = nullptr;
+
+	// Load the classviewer module to display a class picker
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+
+	// Fill in options
+	FClassViewerInitializationOptions Options;
+	Options.Mode = EClassViewerMode::ClassPicker;
+
+	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
+	Options.ClassFilter = Filter;
+
+	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
+	Filter->AllowedChildrenOfClasses.Add(UPhysicalMaterialMask::StaticClass());
+
+	const FText TitleText = LOCTEXT("CreatePhysicalMaterialMask", "Pick Physical Material Mask Class");
+	UClass* ChosenClass = nullptr;
+	const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, UPhysicalMaterialMask::StaticClass());
+
+	if (bPressedOk)
+	{
+		PhysicalMaterialMaskClass = ChosenClass;
+	}
+
+	return bPressedOk;
+}
+UObject* UPhysicalMaterialMaskFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	if (PhysicalMaterialMaskClass != nullptr)
+	{
+		return NewObject<UPhysicalMaterialMask>(InParent, PhysicalMaterialMaskClass, Name, Flags | RF_Transactional);
+	}
+	else
+	{
+		// if we have no data asset class, use the passed-in class instead
+		check(Class->IsChildOf(UPhysicalMaterialMask::StaticClass()));
+		return NewObject<UPhysicalMaterialMask>(InParent, Class, Name, Flags);
+	}
+}
+
+bool UPhysicalMaterialMaskFactory::CanReimport( UObject* Obj, TArray<FString>& OutFilenames )
+{	
+	UPhysicalMaterialMask* PhysMatMask = Cast<UPhysicalMaterialMask>(Obj);
+	if (PhysMatMask)
+	{
+		if (PhysMatMask->AssetImportData)
+		{
+			FString FileExtension = FPaths::GetExtension(PhysMatMask->AssetImportData->GetFirstFilename());
+			if (FileExtension.Equals(TEXT("png"), ESearchCase::IgnoreCase) || FileExtension.Equals("jpg", ESearchCase::IgnoreCase))
+			{
+				OutFilenames.Add(PhysMatMask->AssetImportData->GetFirstFilename());
+			}
+		}
+
+		return true;
+	}
+	return false;
+}
+
+void UPhysicalMaterialMaskFactory::SetReimportPaths( UObject* Obj, const TArray<FString>& NewReimportPaths )
+{	
+	UPhysicalMaterialMask* PhysMatMask = Cast<UPhysicalMaterialMask>(Obj);
+	if (PhysMatMask && ensure(NewReimportPaths.Num() == 1))
+	{
+		PhysMatMask->Modify();
+
+		if (!PhysMatMask->AssetImportData)
+		{
+			PhysMatMask->AssetImportData = NewObject<UAssetImportData>(PhysMatMask, TEXT("AssetImportData"), RF_NoFlags);
+		}
+
+		PhysMatMask->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+	}
+}
+
+EReimportResult::Type UPhysicalMaterialMaskFactory::Reimport( UObject* Obj )
+{
+	if (!Obj || !Obj->IsA(UPhysicalMaterialMask::StaticClass()))
+	{
+		return EReimportResult::Failed;
+	}
+
+	UPhysicalMaterialMask* PhysMatMask = Cast<UPhysicalMaterialMask>(Obj);
+
+	return FPhysicalMaterialMaskImport::ReimportMaskTexture(PhysMatMask);
+}
+
+int32 UPhysicalMaterialMaskFactory::GetPriority() const
+{
+	return ImportPriority;
 }
 
 /*------------------------------------------------------------------------------

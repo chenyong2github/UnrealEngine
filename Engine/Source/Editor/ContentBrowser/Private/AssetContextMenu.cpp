@@ -443,7 +443,7 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteReimport, (int32)INDEX_NONE),
-						FCanExecuteAction()
+						FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
 					)
 				);
 				if (ValidSelectedAssetCount == 1)
@@ -456,7 +456,7 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 						FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteReimportWithNewFile, (int32)INDEX_NONE),
-							FCanExecuteAction()
+							FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
 						)
 					);
 				}
@@ -1874,10 +1874,34 @@ bool FAssetContextMenu::AreImportedAssetActionsVisible() const
 
 bool FAssetContextMenu::CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const
 {
+	if (ResolvedFilePaths.Num() == 0)
+	{
+		return false;
+	}
+
 	// Verify that all the file paths are legitimate
 	for (const auto& SourceFilePath : ResolvedFilePaths)
 	{
 		if (!SourceFilePath.Len() || IFileManager::Get().FileSize(*SourceFilePath) == INDEX_NONE)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FAssetContextMenu::CanExecuteReimportAssetActions(const TArray<FString> ResolvedFilePaths) const
+{
+	if (ResolvedFilePaths.Num() == 0)
+	{
+		return false;
+	}
+
+	// Verify that all the file paths are non-empty
+	for (const auto& SourceFilePath : ResolvedFilePaths)
+	{
+		if (!SourceFilePath.Len())
 		{
 			return false;
 		}

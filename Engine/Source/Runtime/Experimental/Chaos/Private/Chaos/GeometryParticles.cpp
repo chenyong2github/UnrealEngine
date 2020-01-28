@@ -60,6 +60,9 @@ namespace Chaos
 		, Geometry()
 		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
 		, Materials()
+		, MaterialMasks()
+		, MaterialMaskMaps()
+		, MaterialMaskMapMaterials()
 		, bDisable(false)
 		, bSimulate(true)
 		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
@@ -96,6 +99,7 @@ namespace Chaos
 	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
 
 		Ar << Geometry;
 		Ar << QueryData;
@@ -132,6 +136,12 @@ namespace Chaos
 			Ar << Data;
 			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
 		}
+
+		if (Ar.CustomVer(FExternalPhysicsMaterialCustomObjectVersion::GUID) >= FExternalPhysicsMaterialCustomObjectVersion::AddedMaterialMasks)
+		{
+			Ar << MaterialMasks << MaterialMaskMaps << MaterialMaskMapMaterials;
+		}
+
 	}
 
 

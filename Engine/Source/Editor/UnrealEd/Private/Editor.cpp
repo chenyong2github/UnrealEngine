@@ -18,6 +18,7 @@
 #include "Factories/ReimportSoundFactory.h"
 #include "Factories/ReimportSoundSurroundFactory.h"
 #include "Factories/ReimportTextureFactory.h"
+#include "Factories/PhysicalMaterialMaskFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/UObjectIterator.h"
@@ -775,6 +776,9 @@ FReimportManager::FReimportManager()
 
 	// Create reimport handler for FBX scene
 	UReimportFbxSceneFactory::StaticClass();
+
+	// Create reimport handler for PhysicalMaterialMasks
+	UPhysicalMaterialMaskFactory::StaticClass();
 }
 
 FReimportManager::~FReimportManager()
