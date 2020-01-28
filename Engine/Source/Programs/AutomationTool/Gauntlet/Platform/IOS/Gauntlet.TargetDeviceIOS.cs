@@ -326,7 +326,7 @@ namespace Gauntlet
 			{
 				Log.Verbose("Cleaning device artifacts");
 
-				string CleanCommand = String.Format("--bundle_id {0} --rm_r {1}", Build.PackageName, DeviceArtifactPath);
+				string CleanCommand = String.Format("--bundle_id {0} --rmtree {1}", Build.PackageName, DeviceArtifactPath);
 				IProcessResult Result = ExecuteIOSDeployCommand(CleanCommand, 120);
 
 				if (Result.ExitCode != 0)
