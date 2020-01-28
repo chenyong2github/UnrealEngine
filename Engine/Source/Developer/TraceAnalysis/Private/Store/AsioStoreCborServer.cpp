@@ -389,12 +389,12 @@ void FAsioStoreCborServer::OnTick()
 		FAsioStoreCborPeer* Peer = Peers[i];
 		if (Peer->IsOpen())
 		{
+			Peers[FinalNum] = Peer;
 			++FinalNum;
 			continue;
 		}
 
 		delete Peer;
-		Peers[FinalNum] = Peer;
 	}
 
 	Peers.SetNum(FinalNum);

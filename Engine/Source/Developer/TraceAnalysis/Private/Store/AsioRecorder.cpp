@@ -177,12 +177,12 @@ void FAsioRecorder::OnTick()
 		FSession& Session = Sessions[i];
 		if (Session.Relay->IsOpen())
 		{
+			Sessions[FinalNum] = Session;
 			++FinalNum;
 			continue;
 		}
 
 		delete Session.Relay;
-		Sessions[FinalNum] = Session;
 	}
 
 	Sessions.SetNum(FinalNum);
