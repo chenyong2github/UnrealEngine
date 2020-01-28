@@ -97,7 +97,7 @@ namespace Chaos
 				return CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
 				{
 					FVec3 LocalA,LocalB,LocalNormal;
-					if(GJKPenetration<FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
+					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
 					{
 						OutMTD->Normal = ATM.TransformVectorNoScale(LocalNormal);
 						return true;

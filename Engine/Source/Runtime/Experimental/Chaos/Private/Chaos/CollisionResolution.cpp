@@ -65,7 +65,7 @@ namespace Chaos
 			TVec3<T> ClosestA, ClosestB, Normal;
 			int32 NumIterations = 0;
 
-			if (ensure(GJKPenetration(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (T)0, InitialDir, (T)0, true, &NumIterations)))
+			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (T)0, InitialDir, (T)0, &NumIterations)))
 			{
 				Contact.Location = ATM.TransformPosition(ClosestA);
 				Contact.Normal = -ATM.TransformVector(Normal);
