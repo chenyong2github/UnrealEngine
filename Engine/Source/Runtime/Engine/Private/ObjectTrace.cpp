@@ -14,6 +14,7 @@
 #include "Misc/CommandLine.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
+#include "TraceFilter.h"
 
 UE_TRACE_CHANNEL(ObjectChannel)
 
@@ -35,12 +36,6 @@ UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint8, Event)
 UE_TRACE_EVENT_END()
-
-TAutoConsoleVariable<int32> CVarRecordAllWorldTypes(
-	TEXT("Insights.RecordAllWorldTypes"),
-	0,
-	TEXT("Gameplay Insights recording by default only records Game and PIE worlds.")
-	TEXT("Toggle this value to 1 to record other world types."));
 
 // Object annotations used for tracing
 struct FTracedObjectAnnotation
@@ -65,16 +60,6 @@ struct FTracedObjectAnnotation
 
 // Object annotations used for tracing
 FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
-
-static bool ShouldTraceObjectsWorld(const  UObject* InObject)
-{
-	UWorld* World = InObject->GetWorld();
-	return 
-		CVarRecordAllWorldTypes.GetValueOnAnyThread() != 0 ||
-		World == nullptr || 
-		World->WorldType == EWorldType::Game ||
-		World->WorldType == EWorldType::PIE;
-}
 
 void FObjectTrace::Init()
 {
@@ -166,6 +151,11 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 		return;
 	}
 
+	if (CANNOT_TRACE_OBJECT(InObject->GetWorld()))
+	{
+		return;
+	}
+
 	FTracedObjectAnnotation Annotation = GObjectTraceAnnotations.GetAnnotation(InObject);
 	if(Annotation.bTraced)
 	{
@@ -175,11 +165,6 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 
 	Annotation.bTraced = true;
 	GObjectTraceAnnotations.AddAnnotation(InObject, Annotation);
-
-	if(!ShouldTraceObjectsWorld(InObject))
-	{
-		return;
-	}
 
 	// Trace the object's class first
 	TRACE_CLASS(InObject->GetClass());
@@ -214,7 +199,7 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 		return;
 	}
 
-	if(!ShouldTraceObjectsWorld(InObject))
+	if (CANNOT_TRACE_OBJECT(InObject->GetWorld()))
 	{
 		return;
 	}

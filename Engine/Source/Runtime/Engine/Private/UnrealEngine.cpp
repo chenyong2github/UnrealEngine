@@ -229,6 +229,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "StudioAnalytics.h"
+#include "TraceFilter.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -265,10 +266,18 @@ void FEngineModule::StartupModule()
 #if WITH_EDITOR
 	USkinnedMeshComponent::BindWorldDelegates();
 #endif
+
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Init();
+#endif
 }
 
 void FEngineModule::ShutdownModule()
 {
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Destroy();
+#endif
+
 	FParticleSystemWorldManager::OnShutdown();
 }
 

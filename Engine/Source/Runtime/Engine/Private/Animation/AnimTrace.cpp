@@ -19,6 +19,7 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimTypes.h"
+#include "TraceFilter.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
 
@@ -360,6 +361,11 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 		return;
 	}
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	if(InTickRecord.SourceAsset)
@@ -478,6 +484,11 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 		return;
 	}
 
+	if (CANNOT_TRACE_OBJECT(InComponent))
+	{
+		return;
+	}
+
 	int32 BoneCount = InComponent->GetComponentSpaceTransforms().Num();
 	int32 CurveCount = 0;
 	UAnimInstance* AnimInstance = InComponent->GetAnimInstance();
@@ -546,6 +557,11 @@ void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 
 		return;
 	}
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	check(InContext.AnimInstanceProxy);
 
 	const UAnimInstance* AnimInstance = Cast<UAnimInstance>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
@@ -571,6 +587,11 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 	}
 
 	if(InNodeId == INDEX_NONE)
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
 	{
 		return;
 	}
@@ -624,6 +645,11 @@ void FAnimTrace::OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint6
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	UE_TRACE_LOG(Animation, AnimNodeEnd, AnimationChannel)
@@ -640,6 +666,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	}
 
 	check(InContext.AnimInstanceProxy);
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
@@ -665,6 +696,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
@@ -688,6 +724,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	}
 
 	check(InContext.AnimInstanceProxy);
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
@@ -745,6 +786,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
@@ -770,6 +816,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	}
 
 	check(InContext.AnimInstanceProxy);
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
@@ -801,6 +852,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	int32 KeyLength = FCString::Strlen(InKey) + 1;
@@ -831,6 +887,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 	TRACE_OBJECT(InValue);
 
@@ -855,6 +916,11 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	}
 
 	check(InContext.AnimInstanceProxy);
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 	TRACE_CLASS(InValue);
@@ -881,6 +947,11 @@ void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	UE_TRACE_LOG(Animation, AnimSequencePlayer, AnimationChannel)
@@ -902,6 +973,11 @@ void FAnimTrace::OutputStateMachineState(const FAnimationBaseContext& InContext,
 
 	check(InContext.AnimInstanceProxy);
 
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 	UE_TRACE_LOG(Animation, StateMachineState, AnimationChannel)
@@ -918,6 +994,11 @@ void FAnimTrace::OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNoti
 {
 	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
 	if (!bChannelEnabled)
+	{
+		return;
+	}
+	
+	if (CANNOT_TRACE_OBJECT(InAnimInstance->GetSkelMeshComponent()))
 	{
 		return;
 	}
@@ -961,6 +1042,11 @@ void FAnimTrace::OutputAnimSyncMarker(UAnimInstance* InAnimInstance, const FPass
 		return;
 	}
 
+	if (CANNOT_TRACE_OBJECT(InAnimInstance->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
 	TRACE_OBJECT(InAnimInstance);
 
 	const uint32 NameId = OutputName(InPassedSyncMarker.PassedMarkerName);
@@ -981,6 +1067,11 @@ void FAnimTrace::OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontage
 
 	if(InMontageInstance.Montage != nullptr)
 	{
+		if (CANNOT_TRACE_OBJECT(InAnimInstance->GetSkelMeshComponent()))
+		{
+			return;
+		}
+
 		TRACE_OBJECT(InAnimInstance);
 		TRACE_OBJECT(InMontageInstance.Montage);
 
