@@ -22,6 +22,7 @@ public:
 
 	void UpdateNow();
 	void SetAllowAutoUpdate(bool bIsEnabled);
+	void SetAllowSortDuringUpdate(bool bIsEnabled);
 	const TArray<USocialUser*>& GetUsers() const { return Users; }
 
 	bool HasPresenceFilters() const;
@@ -82,8 +83,6 @@ private:
 
 	FSocialUserListConfig ListConfig;
 
-	// give external access to disable list update for perf
-	bool bAllowAutoUpdate = true;
 	bool bNeedsSort = false;
 	float AutoUpdatePeriod = 5.f;
 	FDelegateHandle UpdateTickerHandle;
