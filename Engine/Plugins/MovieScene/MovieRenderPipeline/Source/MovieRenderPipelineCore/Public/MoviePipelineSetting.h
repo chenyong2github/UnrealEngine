@@ -7,7 +7,15 @@
 
 class UMoviePipeline;
 struct FSlateBrush;
+struct FMoviePipelineFormatArgs;
 class UMoviePipelineExecutorJob;
+
+enum class EMoviePipelineValidationState : uint8
+{
+	Valid = 0,
+	Warnings = 1,
+	Errors = 2
+};
 
 /**
 * A base class for all Movie Render Pipeline settings.
@@ -23,20 +31,28 @@ public:
 	/**
 	* This is called once on a setting when the movie pipeline is first set up. If the setting
 	* only exists as part of a shot override, it will be called once when the shot is initialized.
-	* 
-	* This should be used for resource initialization if needed, if you need to change settings
-	* see shot-related callbacks so that they work properly with shot-overrides.
 	*/
 	void OnMoviePipelineInitialized(UMoviePipeline* InPipeline);
 
 	/**
 	* This is called once on a setting when the movie pipeline is shut down. If the setting
 	* only exists as part of a shot override, it will be called once the shot is finished.
-	*
-	* This should be used for releasing resources if needed, if you need to change settings
 	* see shot-related callbacks so that they work properly with shot-overrides.
 	*/
 	void OnMoviePipelineShutdown(UMoviePipeline* InPipeline) { TeardownForPipelineImpl(InPipeline); }
+
+	/**
+	* When rendering in a new process some settings may need to provide command line arguments
+	* to affect engine settings that need to be set before most of the engine boots up. This function
+	* allows a setting to provide these when the user wants to run in a separate process. This won't
+	* be used when running in the current process because it is too late to modify the command line.
+	*/
+	void BuildNewProcessCommandLine(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const { BuildNewProcessCommandLineImpl(InOutUnrealURLParams, InOutCommandLineArgs); }
+
+	/**
+	* Attempt to validate the configuration the user has chosen for this setting. Caches results for fast lookup in UI later.
+	*/
+	void ValidateState() { ValidateStateImpl(); }
 
 	// UObject Interface
 	virtual UWorld* GetWorld() const override;
@@ -50,40 +66,71 @@ protected:
 	
 public:
 #if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	/** Warning: This gets called on the CDO of the object */
 	virtual FText GetDisplayText() const { return this->GetClass()->GetDisplayNameText(); }
 	/** Warning: This gets called on the CDO of the object */
-	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "DefaultCategoryName_Text", "Default"); }
+	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "DefaultCategoryName_Text", "Settings"); }
 
 	/** Return a string to show in the footer of the details panel. Will be combined with other selected settings. */
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const { return FText(); }
+
+	/** Can this setting be disabled? UI only. */
+	virtual bool CanBeDisabled() const { return true; }
+
+	/** What icon should this setting use when displayed in the tree list. */
+	const FSlateBrush* GetDisplayIcon() { return nullptr; }
+
+	/** What tooltip should be displayed for this setting when hovered in the tree list? */
+	FText GetDescriptionText() { return FText(); }
 #endif
 	/** Can this configuration setting be added to shots? If not, it will throw an error when trying to add it to a shot config. */
 	virtual bool IsValidOnShots() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnShots, return false; );
 	/** Can this configuration setting be added to the master configuration? If not, it will throw an error when trying to add it to the master configuration. */
 	virtual bool IsValidOnMaster() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnMaster, return false; );
 
-	virtual void GetFilenameFormatArguments(FFormatNamedArguments& OutArguments, const UMoviePipelineExecutorJob* InJob) const {}
+	// Validation
+	/** What is the result of the last validation? Only valid if the setting has had ValidateState() called on it. */
+	virtual EMoviePipelineValidationState GetValidationState() const { return ValidationState; }
 
-	/** Should the Pipeline automatically create an instance of this under the hood so calling code can rely on it existing? */
-	virtual bool IsRequired() const { return false; }
+	/** Attempt to validate the configuration the user has chosen for this setting. Caches results for fast lookup in UI later. */
+	virtual void ValidateStateImpl() { ValidationResults.Reset(); ValidationState = EMoviePipelineValidationState::Valid; }
+
+	/** Get a human-readable text describing what validation errors (if any) the call to ValidateState() produced. */
+	virtual TArray<FText> GetValidationResults() const;
+
+	/** Return Key/Value pairs that you wish to be usable in the Output File Name format string. This allows settings to add format strings based on their values. */
+	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const {}
 	
+	/** Modify the Unreal URL and Command Line Arguments when preparing the setting to be run in a new process. */
+	virtual void BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const { }
+
 	/** Can only one of these settings objects be active in a valid pipeline? */
 	virtual bool IsSolo() const { return true; }
 	
-	/** Is this setting valid? Return false and add a reason it's not valid to the array if not. */
-	virtual bool ValidatePipeline(TArray<FText>& OutValidationErrors) const { return true; }
-	
-	/** What icon should this setting use when displayed in the tree list. */
-	const FSlateBrush* GetDisplayIcon() { return nullptr; }
-	
-	/** What tooltip should be displayed for this setting when hovered in the tree list? */
-	FText GetDescriptionText() { return FText(); }
-	
-	/** Is this setting currently enabled? Disabled settings are like they never existed. */
-	bool bEnabled;
+	/** Is this setting enabled by the user in the UI? */
+	virtual bool IsEnabled() const { return bEnabled; }
+	virtual void SetIsEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
 
+	virtual void SetIsUserCustomized(bool bIsUserCustomized) { bUserCustomized = bIsUserCustomized; }
+	virtual bool GetIsUserCustomized() const { return bUserCustomized; }
 private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UMoviePipeline> CachedPipeline;
+
+	/** Is this setting currently enabled? Disabled settings are like they never existed. */
+	UPROPERTY()
+	bool bEnabled;
+
+	/** Was this setting added by the user (either through UI or the FindorAdd API) or false if it was transiently added. */
+	UPROPERTY()
+	bool bUserCustomized;
+
+protected:
+	/** What was the result of the last call to ValidateState() */
+	EMoviePipelineValidationState ValidationState;
+
+	/** If ValidationState isn't valid, what text do we want to show the user to explain to them why? */
+	TArray<FText> ValidationResults;
 };

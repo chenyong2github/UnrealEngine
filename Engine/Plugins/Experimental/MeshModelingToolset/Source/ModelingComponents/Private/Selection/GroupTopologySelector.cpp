@@ -203,7 +203,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 	}
 	else if (bHitSurface)
 	{
-		ResultOut.SelectedGroupIDs.Add(Mesh->GetTriangleGroup(HitTriangleID));
+		ResultOut.SelectedGroupIDs.Add(Topology->GetGroupID(HitTriangleID));
 		SelectedPositionOut = TriangleHitPos;
 		SelectedNormalOut = Mesh->GetTriNormal(HitTriangleID);
 		return true;

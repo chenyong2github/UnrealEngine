@@ -10,6 +10,20 @@
 
 struct FMeshDescription;
 
+enum class EParamOpUnwrapType
+{
+	MinStretch = 0,
+	ExpMap = 1
+};
+
+
+
+enum class EParamOpIslandMode
+{
+	Auto = 0,
+	PolyGroups = 1
+};
+
 
 class MODELINGOPERATORSEDITORONLY_API FParameterizeMeshOp : public FDynamicMeshOperator
 {
@@ -36,8 +50,8 @@ public:
 	int32 Width = 512;
 	float Gutter = 2.5;
 
-	// Align UV boundaries with current poly group boundaries
-	bool bRespectPolygroups = true;
+	EParamOpUnwrapType UnwrapType = EParamOpUnwrapType::ExpMap;
+	EParamOpIslandMode IslandMode = EParamOpIslandMode::PolyGroups;
 
 	// set ability on protected transform.
 	void SetTransform(FTransform3d& XForm)
@@ -73,6 +87,7 @@ protected:
 	};
 
 	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter, const bool bUsePolygroups = false, float GlobalScale = 1.0f);
+	bool ComputeUVs_ExpMap(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
 
-	void NormalizeUVAreas(const FDynamicMesh3* Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
+	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
 };

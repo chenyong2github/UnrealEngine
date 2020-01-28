@@ -23,7 +23,8 @@ public:
 	UEdModeInteractiveToolsContext();
 
 
-	virtual void InitializeContextFromEdMode(FEdMode* EditorMode);
+	virtual void InitializeContextFromEdMode(FEdMode* EditorMode, 
+		IToolsContextAssetAPI* UseAssetAPI = nullptr);
 	virtual void ShutdownContext();
 
 	// default behavior is to accept active tool
@@ -73,6 +74,8 @@ public:
 	virtual void EndTool(EToolShutdownType ShutdownType);
 
 	virtual bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
+
+	virtual FRay GetLastWorldRay() const;
 
 protected:
 	// we hide these 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
@@ -13,7 +14,6 @@ class FDynamicMesh3;
 template <class TriangleMeshType>
 class TMeshAABBTree3;
 typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
-
 
 /** Remeshing modes */
 UENUM()
@@ -29,10 +29,6 @@ enum class ERemeshSmoothingType : uint8
 	MeanValue = 2 UMETA(DisplayName = "Mixed")
 };
 
-
-
-
-
 class MODELINGOPERATORS_API FRemeshMeshOp : public FDynamicMeshOperator
 {
 public:
@@ -42,11 +38,11 @@ public:
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
 
-	int TargetTriangleCount, RemeshIterations;
-	float SmoothingSpeed, TargetEdgeLength;
+	int RemeshIterations;
+	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
-
+	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 	void SetTransform(const FTransform& Transform);
 
 	//

@@ -23,6 +23,18 @@ enum class EToolShutdownType
 };
 
 
+
+
+/**
+ * FInteractiveToolInfo provides information about a tool (name, tooltip, etc)
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolInfo
+{
+	/** Name of Tool. May be FText::Empty(), but will default to Tool->GetClass()->GetDisplayNameText() in InteractiveTool constructor */
+	FText ToolDisplayName = FText::GetEmpty();
+};
+
+
 /** This delegate is used by UInteractiveToolPropertySet */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractiveToolPropertySetModifiedSignature, UObject*, FProperty*);
 
@@ -76,12 +88,18 @@ public:
 	 * GetPropertyCache() can be used to return an instance of subclasses that is an easy
 	 * place to save/restore these properties
 	 */
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) {}
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) 
+	{ 
+		SaveRestoreProperties(SaveFromTool, true); 
+	}
 
 	/**
 	 * Restore saved property values
 	 */
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) {}
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) 
+	{ 
+		SaveRestoreProperties(RestoreToTool, false);
+	}
 
 protected:
 	/**
@@ -90,7 +108,7 @@ protected:
 	 */
 	template<typename ObjType>
 	ObjType* GetPropertyCache()
-	{
+	{ 
 		ObjType* CDO = GetMutableDefault<ObjType>();
 		if (CDO->CachedProperties == nullptr)
 		{
@@ -99,11 +117,52 @@ protected:
 		return CastChecked<ObjType>(CDO->CachedProperties);
 	}
 
+	/**
+	 * Subclass this to save and restore in a single function. Use the SaveRestoryProperty function for each member:
+	 *   UMyPropertySetSubclass* PropertyCache = GetPropertyCache<UMyPropertySetSubclass>();
+	 *	 SaveRestoreProperty(PropertyCache->PropSetMember, this->PropSetMember, bSaving);
+	 */
+	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) {}
+
+	/**
+	 * Call this from SaveRestoreProperties to either save or restore a given property value
+	 */
+	template<typename T>
+	void SaveRestoreProperty(T& CacheValue, T& PropsValue, bool bSaving)
+	{
+		if (bSaving)
+		{
+			CacheValue = PropsValue;
+		}
+		else
+		{
+			PropsValue = CacheValue;
+		}
+	}
+
+
 private:
 	// CachedProperties should only ever be set to an instance of the subclass, ideally via GetPropertyCache().
 	UPROPERTY()
 	UObject* CachedProperties = nullptr;
 
+
+	//
+	// Visibility, enable/disable, etc
+	//
+
+private:
+	UPROPERTY()
+	bool bIsPropertySetEnabled = true;
+
+	friend class UInteractiveTool;	// so that tool can enable/disable
+
+public:
+	/** Return true if this property set is enabled. Enabled/Disable state is intended to be used to control things like visibility in UI/etc. */
+	bool IsPropertySetEnabled() const
+	{
+		return bIsPropertySetEnabled;
+	}
 };
 
 
@@ -205,8 +264,13 @@ public:
 	/**
 	 * @return list of property UObjects for this tool (ie to add to a DetailsViewPanel, for example)
 	 */
-	virtual const TArray<UObject*>& GetToolProperties() const;
+	virtual TArray<UObject*> GetToolProperties(bool bEnabledOnly = true) const;
 
+	/**
+	 * OnPropertySetsModified is broadcast whenever the contents of the ToolPropertyObjects array is modified
+	 */
+	DECLARE_MULTICAST_DELEGATE(OnInteractiveToolPropertySetsModified);
+	OnInteractiveToolPropertySetsModified OnPropertySetsModified;
 
 	/**
 	 * Automatically called by UInteractiveToolPropertySet.OnModified delegate to notify Tool of child property set changes
@@ -240,7 +304,29 @@ protected:
 	 */
 	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 
+	/**
+	 * Remove a PropertySet object from this Tool. If found, will broadcast OnPropertySetsModified
+	 * @param PropertySet property set to remove.
+	 * @return true if PropertySet is found and removed
+	 */
+	virtual bool RemoveToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 
+	/**
+	 * Replace a PropertySet object on this Tool with another property set. If replaced, will broadcast OnPropertySetsModified
+	 * @param CurPropertySet property set to remove
+	 * @param ReplaceWith property set to add
+	 * @param bSetToEnabled if true, ReplaceWith property set is explicitly enabled (otherwise enable/disable state is unmodified)
+	 * @return true if CurPropertySet is found and replaced
+	 */
+	virtual bool ReplaceToolPropertySource(UInteractiveToolPropertySet* CurPropertySet, UInteractiveToolPropertySet* ReplaceWith, bool bSetToEnabled = true);
+
+	/**
+	 * Enable/Disable a PropertySet object for this Tool. If found and state was modified, will broadcast OnPropertySetsModified
+	 * @param PropertySet Property Set object to modify
+	 * @param bEnabled whether to enable or disable
+	 * @return true if PropertySet was found
+	 */
+	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 
 
 	//
@@ -268,7 +354,8 @@ public:
 protected:
 	/**
 	 * Override this function to register the set of Actions this Tool supports, using FInteractiveToolActionSet::RegisterAction.
-	 * Note that 
+	 * Note that for the actions to be triggered, you will also need to add corresponding registration per tool
+	 *  -- see Engine\Plugins\Experimental\ModelingToolsEditorMode\Source\ModelingToolsEditorMode\Public\ModelingToolsActions.h for examples
 	 */
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet);
 
@@ -280,6 +367,50 @@ private:
 	 */
 	FInteractiveToolActionSet* ToolActionSet = nullptr;
 
+
+
+	//
+	// Tool Information (name, icon, help text, etc)
+	//
+
+
+public:
+	/**
+	 * @return ToolInfo structure for this Tool
+	 */
+	virtual FInteractiveToolInfo GetToolInfo() const
+	{
+		return DefaultToolInfo;
+	}
+
+	/**
+	 * Replace existing ToolInfo with new data
+	 */
+	virtual void SetToolInfo(const FInteractiveToolInfo& NewInfo)
+	{
+		DefaultToolInfo = NewInfo;
+	}
+
+	/**
+	 * Set Tool name
+	 */
+	virtual void SetToolDisplayName(const FText& NewName)
+	{
+		DefaultToolInfo.ToolDisplayName = NewName;
+	}
+
+private:
+	/**
+	 * ToolInfo for this Tool
+	 */
+	FInteractiveToolInfo DefaultToolInfo;
+
+
+
+private:
+
+	// InteractionMechanic needs to be able to talk to Tool internals, eg property sets, behaviors, etc
+	friend class UInteractionMechanic;
 };
 
 

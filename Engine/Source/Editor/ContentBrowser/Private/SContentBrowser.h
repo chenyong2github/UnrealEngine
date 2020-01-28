@@ -114,6 +114,9 @@ public:
 	/** Sets the content browser to show the specified paths */
 	void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false);
 
+	/** Gets the current path if one exists, otherwise returns empty string. */
+	FString GetCurrentPath() const;
+
 	/**
 	 * Forces the content browser to show plugin content
 	 *
@@ -172,9 +175,6 @@ private:
 
 	/** Handler for when a path has been selected in the favorite path view */
 	void FavoritePathSelected(const FString& FolderPath);
-
-	/** Gets the current path if one exists, otherwise returns empty string. */
-	FString GetCurrentPath() const;
 
 	/** Get the asset tree context menu */
 	TSharedRef<FExtender> GetPathContextMenuExtender(const TArray<FString>& SelectedPaths) const;

@@ -167,6 +167,16 @@ public:
 	}
 
 
+	/**
+	 * Show/Hide the secondary triangle buffers. Does not invalidate SceneProxy.
+	 */
+	virtual void SetSecondaryBuffersVisibility(bool bVisible);
+
+	/**
+	 * @return true if secondary buffers are currently set to be visible
+	 */
+	virtual bool GetSecondaryBuffersVisibility() const;
+
 
 protected:
 
@@ -174,6 +184,8 @@ protected:
 
 	UMaterialInterface* OverrideRenderMaterial = nullptr;
 	UMaterialInterface* SecondaryRenderMaterial = nullptr;
+
+	bool bDrawSecondaryBuffers = true;
 
 public:
 

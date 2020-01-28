@@ -3018,12 +3018,15 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		BroadcastNavCollisionChange();
 	}
 
-	// Only unbuild lighting for properties which affect static lighting
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex))
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		FStaticMeshComponentRecreateRenderStateContext Context(this, true);		
-		SetLightingGuid();
+		// Only unbuild lighting for properties which affect static lighting
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex))
+		{
+			FStaticMeshComponentRecreateRenderStateContext Context(this, true);
+			SetLightingGuid();
+		}
 	}
 	
 	UpdateUVChannelData(true);

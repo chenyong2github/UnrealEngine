@@ -249,6 +249,8 @@ public:
 	/** @return true if the given vertex is a seam vertex in any overlay */
 	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
+	/** @return true if the given edge is a material ID boundary */
+	virtual bool IsMaterialBoundaryEdge(int EdgeID) const;
 
 	//
 	// UV Layers 

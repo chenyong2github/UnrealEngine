@@ -17,11 +17,10 @@ FTemplateSequenceSectionTemplate::FTemplateSequenceSectionTemplate(const UTempla
 	{
 		if (InnerSequence->GetMovieScene() != nullptr)
 		{
-			const TArray<FMovieSceneBinding>& InnerSequenceBindings = InnerSequence->GetMovieScene()->GetBindings();
-			if (InnerSequenceBindings.Num() > 0)
+			const FGuid RootBindingID = InnerSequence->GetRootObjectBindingID();
+			if (RootBindingID.IsValid())
 			{
-				const FMovieSceneBinding& Binding = InnerSequenceBindings[0];
-				InnerOperand = FMovieSceneEvaluationOperand(Section.GetSequenceID(), Binding.GetObjectGuid());
+				InnerOperand = FMovieSceneEvaluationOperand(Section.GetSequenceID(), RootBindingID);
 			}
 		}
 	}

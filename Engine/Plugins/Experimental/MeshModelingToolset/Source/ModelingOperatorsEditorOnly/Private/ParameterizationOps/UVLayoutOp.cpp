@@ -8,6 +8,8 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
+#include "Selections/MeshConnectedComponents.h"
+
 
 void FUVLayoutOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;
@@ -110,6 +112,7 @@ FOverlappingCorners OverlappingCornersFromUVs(const FDynamicMesh3* Mesh, int UVL
 	return Overlaps;
 }
 
+
 void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 {
 	if (Progress->Cancelled())
@@ -129,6 +132,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
+
 	int UVLayerInput = 0, UVLayerOutput = 0;
 	ResultMesh->Attributes()->GetUVLayer(UVLayerInput)->SplitBowties();
 
@@ -137,25 +141,88 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	FCompactDynamicMeshWithAttributesLayoutView MeshView(ResultMesh.Get(), UVLayerInput, UVLayerOutput);
-	FLayoutUV LayoutUV(MeshView);
-	FOverlappingCorners Overlaps = OverlappingCornersFromUVs(ResultMesh.Get(), UVLayerInput);
-	if (Progress->Cancelled())
+	if (!bSeparateUVIslands)
 	{
-		return;
-	}
+		// The FLayoutUV class doesn't let us access the charts so this code path just finds them directly
 
-	LayoutUV.FindCharts(Overlaps);
-	if (Progress->Cancelled())
+		FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerOutput);
+		FMeshConnectedComponents UVComponents(ResultMesh.Get());
+		UVComponents.FindConnectedTriangles([&UVLayer](int32 Triangle0, int32 Triangle1) {
+			return UVLayer->AreTrianglesConnected(Triangle0, Triangle1);
+		});
+		TArray<FAxisAlignedBox2f> ComponentBounds; ComponentBounds.SetNum(UVComponents.Num());
+		TArray<int32> ElToComponent; ElToComponent.SetNum(UVLayer->ElementCount());
+		for (int32 ComponentIdx = 0; ComponentIdx < UVComponents.Num(); ComponentIdx++)
+		{
+			FMeshConnectedComponents::FComponent& Component = UVComponents.GetComponent(ComponentIdx);
+			FAxisAlignedBox2f& BoundsUV = ComponentBounds[ComponentIdx];
+			BoundsUV = FAxisAlignedBox2f::Empty();
+
+			for (int TID : Component.Indices)
+			{
+				if (UVLayer->IsSetTriangle(TID))
+				{
+					FIndex3i TriEls = UVLayer->GetTriangle(TID);
+					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+					{
+						int ElID = TriEls[SubIdx];
+						BoundsUV.Contain(UVLayer->GetElement(ElID));
+						ElToComponent[ElID] = ComponentIdx;
+					}
+				}
+			}
+		}
+		float MaxDim = 0;
+		for (FAxisAlignedBox2f& BoundsUV : ComponentBounds)
+		{
+			MaxDim = FMath::Max(MaxDim, BoundsUV.MaxDim());
+		}
+		float Scale = 1;
+		if (MaxDim >= FLT_MIN)
+		{
+			Scale = 1.0 / MaxDim;
+		}
+
+		Scale *= UVScaleFactor; // apply global scale factor
+		for (int ElID : UVLayer->ElementIndicesItr())
+		{
+			UVLayer->SetElement(ElID, (UVLayer->GetElement(ElID) - ComponentBounds[ElToComponent[ElID]].Min) * Scale);
+		}
+	}
+	else
 	{
-		return;
-	}
+		// use FLayoutUV to do the layout
 
-	LayoutUV.FindBestPacking(1024); // TODO: make this a parameter
-	if (Progress->Cancelled())
-	{
-		return;
-	}
+		FCompactDynamicMeshWithAttributesLayoutView MeshView(ResultMesh.Get(), UVLayerInput, UVLayerOutput);
+		FLayoutUV LayoutUV(MeshView);
+		FOverlappingCorners Overlaps = OverlappingCornersFromUVs(ResultMesh.Get(), UVLayerInput);
+		if (Progress->Cancelled())
+		{
+			return;
+		}
 
-	LayoutUV.CommitPackedUVs();
+		LayoutUV.FindCharts(Overlaps);
+		if (Progress->Cancelled())
+		{
+			return;
+		}
+
+		LayoutUV.FindBestPacking(TextureResolution);
+		if (Progress->Cancelled())
+		{
+			return;
+		}
+
+		LayoutUV.CommitPackedUVs();
+
+		// Add global scaling as a postprocess
+		if (UVScaleFactor != 1.0)
+		{
+			FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerOutput);
+			for (int ElID : UVLayer->ElementIndicesItr())
+			{
+				UVLayer->SetElement(ElID, UVLayer->GetElement(ElID) * UVScaleFactor);
+			}
+		}
+	}
 }

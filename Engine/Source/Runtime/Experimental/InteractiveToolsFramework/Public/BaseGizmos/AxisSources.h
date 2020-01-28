@@ -37,6 +37,50 @@ public:
 
 
 
+
+
+/**
+ * UGizmoConstantFrameAxisSource is an IGizmoAxisSource implementation that
+ * internally stores the Origin, Direction, and X/Y Tangent constants.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoConstantFrameAxisSource : public UObject, public IGizmoAxisSource
+{
+	GENERATED_BODY()
+public:
+	virtual FVector GetOrigin() const
+	{
+		return Origin;
+	}
+
+	virtual FVector GetDirection() const
+	{
+		return Direction;
+	}
+
+	virtual bool HasTangentVectors() const override { return true; }
+
+	virtual void GetTangentVectors(FVector& TangentXOut, FVector& TangentYOut) const override
+	{
+		TangentXOut = TangentX;
+		TangentYOut = TangentY;
+	}
+
+	UPROPERTY()
+	FVector Origin = FVector::ZeroVector;
+
+	UPROPERTY()
+	FVector Direction = FVector(0, 0, 1);
+
+	UPROPERTY()
+	FVector TangentX = FVector(1, 0, 0);
+
+	UPROPERTY()
+	FVector TangentY = FVector(0, 1, 0);
+};
+
+
+
 /**
  * UGizmoWorldAxisSource is an IGizmoAxisSource that provides one of the World axes
  * (ie X/Y/Z axes) based on an integer AxisIndex in range [0,2]. The Orgin is

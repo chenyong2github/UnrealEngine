@@ -144,7 +144,7 @@ public:
 	/** @return iterator at beginning of vector */
 	FIterator begin()
 	{
-		return IsEmpty() ? end() : FIterator{this};
+		return IsEmpty() ? end() : FIterator{this, 0};
 	}
 	/** @return iterator at end of vector */
 	FIterator end()

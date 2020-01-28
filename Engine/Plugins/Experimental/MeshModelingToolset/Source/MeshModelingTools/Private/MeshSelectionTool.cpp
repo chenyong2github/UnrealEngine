@@ -15,6 +15,9 @@
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Selections/MeshFaceSelection.h"
+
+#include "Algo/MaxElement.h"
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"
 
@@ -47,7 +50,6 @@ void UMeshSelectionToolProperties::SaveProperties(UInteractiveTool* SaveFromTool
 	UMeshSelectionToolProperties* PropertyCache = GetPropertyCache<UMeshSelectionToolProperties>();
 	PropertyCache->SelectionMode = this->SelectionMode;
 	PropertyCache->AngleTolerance = this->AngleTolerance;
-	PropertyCache->bVolumetricBrush = this->bVolumetricBrush;
 	PropertyCache->bHitBackFaces = this->bHitBackFaces;
 	PropertyCache->bShowWireframe = this->bShowWireframe;
 	PropertyCache->FaceColorMode = this->FaceColorMode;
@@ -58,7 +60,6 @@ void UMeshSelectionToolProperties::RestoreProperties(UInteractiveTool* RestoreTo
 	UMeshSelectionToolProperties* PropertyCache = GetPropertyCache<UMeshSelectionToolProperties>();
 	this->SelectionMode = PropertyCache->SelectionMode;
 	this->AngleTolerance = PropertyCache->AngleTolerance;
-	this->bVolumetricBrush = PropertyCache->bVolumetricBrush;
 	this->bHitBackFaces = PropertyCache->bHitBackFaces;
 	this->bShowWireframe = PropertyCache->bShowWireframe;
 	this->FaceColorMode = PropertyCache->FaceColorMode;
@@ -92,6 +93,7 @@ void UMeshSelectionTool::Setup()
 
 	// hide strength and falloff
 	BrushProperties->bShowFullSettings = false;
+	BrushProperties->RestoreProperties(this);
 
 	SelectionProps = NewObject<UMeshSelectionToolProperties>(this);
 	SelectionProps->RestoreProperties(this);
@@ -107,7 +109,7 @@ void UMeshSelectionTool::Setup()
 	AddToolPropertySource(EditActions);
 
 	// enable wireframe on component
-	PreviewMesh->EnableWireframe(true);
+	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
 
 	// disable shadows
 	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
@@ -150,7 +152,9 @@ void UMeshSelectionTool::Setup()
 		[this]() { return SelectionProps->FaceColorMode; },
 		[this](EMeshFacesColorMode NewValue) { bColorsUpdatePending = true; UpdateVisualization(false); }, SelectionProps->FaceColorMode );
 	bColorsUpdatePending = (SelectionProps->FaceColorMode != EMeshFacesColorMode::None);
-	
+
+	RecalculateBrushRadius();
+	UpdateVisualization(true);
 }
 
 
@@ -167,6 +171,7 @@ UMeshSelectionToolActionPropertySet* UMeshSelectionTool::CreateEditActions()
 void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	SelectionProps->SaveProperties(this);
+	BrushProperties->SaveProperties(this);
 
 	if (bHaveModifiedMesh && ShutdownType == EToolShutdownType::Accept)
 	{
@@ -202,6 +207,59 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("ToggleWireframeTooltip", "Toggle visibility of wireframe overlay"),
 		EModifierKey::Alt, EKeys::W,
 		[this]() { SelectionProps->bShowWireframe = !SelectionProps->bShowWireframe; });
+
+#if WITH_EDITOR  	// enum HasMetaData()  is not available at runtime
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::CycleSelectionMode,
+		TEXT("CycleSelectionMode"),
+		LOCTEXT("CycleSelectionMode", "Cycle Selection Mode"),
+		LOCTEXT("CycleSelectionModeTooltip", "Cycle through selection modes"),
+		EModifierKey::None, EKeys::Q,
+		[this]() {
+			const UEnum* SelectionModeEnum = StaticEnum<EMeshSelectionToolPrimaryMode>();
+			check(SelectionModeEnum);
+			int32 NumEnum = SelectionModeEnum->NumEnums() - 1;
+			do {
+				SelectionProps->SelectionMode = (EMeshSelectionToolPrimaryMode)(((int32)SelectionProps->SelectionMode + 1) % NumEnum);
+			} while (SelectionModeEnum->HasMetaData(TEXT("Hidden"), (int32)SelectionProps->SelectionMode));
+		}
+	);
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::CycleViewMode,
+		TEXT("CycleViewMode"),
+		LOCTEXT("CycleViewMode", "Cycle View Mode"),
+		LOCTEXT("CycleViewModeTooltip", "Cycle through face coloring modes"),
+		EModifierKey::None, EKeys::A,
+		[this]() {
+			const UEnum* ViewModeEnum = StaticEnum<EMeshFacesColorMode>();
+			check(ViewModeEnum);
+			int32 NumEnum = ViewModeEnum->NumEnums() - 1;
+			do {
+				SelectionProps->FaceColorMode = (EMeshFacesColorMode)(((int32)SelectionProps->FaceColorMode + 1) % NumEnum);
+			} while (ViewModeEnum->HasMetaData(TEXT("Hidden"), (int32)SelectionProps->FaceColorMode));
+		}
+	);
+#endif
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::ShrinkSelection,
+		TEXT("ShrinkSelection"),
+		LOCTEXT("ShrinkSelection", "Shrink Selection"),
+		LOCTEXT("ShrinkSelectionTooltip", "Shrink selection"),
+		EModifierKey::None, EKeys::Comma,
+		[this]() { GrowShrinkSelection(false); });
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::GrowSelection,
+		TEXT("GrowSelection"),
+		LOCTEXT("GrowSelection", "Grow Selection"),
+		LOCTEXT("GrowSelectionTooltip", "Grow selection"),
+		EModifierKey::None, EKeys::Period,
+		[this]() { GrowShrinkSelection(true); });
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::OptimizeSelection,
+		TEXT("OptimizeSelection"),
+		LOCTEXT("OptimizeSelection", "Optimize Selection"),
+		LOCTEXT("OptimizeSelectionTooltip", "Optimize selection"),
+		EModifierKey::None, EKeys::O,
+		[this]() { OptimizeSelection(); });
 }
 
 
@@ -327,7 +385,7 @@ void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArr
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 
 	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
-	if (SelectionProps->bVolumetricBrush)
+	if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::VolumetricBrush)
 	{
 		if (Mesh->IsTriangle(Stamp.HitResult.FaceIndex))
 		{
@@ -456,6 +514,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		int AngleTol = SelectionProps->AngleTolerance;
 		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
 			[Mesh, AngleTol, StartNormal](int t1, int t2) { return Mesh->GetTriNormal(t2).AngleD(StartNormal) < AngleTol; });
+
 		UseROI = &LocalROI;
 	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AngleFiltered)
@@ -729,6 +788,10 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 {
 	switch (ActionType)
 	{
+		case EMeshSelectionToolActions::SelectAll:
+			SelectAll();
+			break;
+	
 		case EMeshSelectionToolActions::ClearSelection:
 			ClearSelection();
 			break;
@@ -746,6 +809,17 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 			GrowShrinkSelection(false);
 			break;
 
+		case EMeshSelectionToolActions::SelectLargestComponentByArea:
+			SelectLargestComponent(true);
+			break;
+
+		case EMeshSelectionToolActions::SelectLargestComponentByTriCount:
+			SelectLargestComponent(false);
+			break;
+
+		case EMeshSelectionToolActions::OptimizeSelection:
+			OptimizeSelection();
+			break;
 
 		case EMeshSelectionToolActions::ExpandToConnected:
 			ExpandToConnected();
@@ -774,6 +848,30 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 }
 
 
+
+void UMeshSelectionTool::SelectAll()
+{
+	BeginChange(true);
+	
+	TArray<int32> AddFaces;
+	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
+	for (int tid : Mesh->TriangleIndicesItr())
+	{
+		if (SelectedTriangles[tid] == false)
+		{
+			AddFaces.Add(tid);
+		}
+	}
+	
+	ActiveSelectionChange->Add(AddFaces);
+	Selection->AddIndices(EMeshSelectionElementType::Face, AddFaces);
+	
+	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+
+	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("SelectAll", "Select All"));
+
+	OnExternalSelectionChange();
+}
 
 
 
@@ -882,11 +980,27 @@ void UMeshSelectionTool::GrowShrinkSelection(bool bGrow)
 			}
 		}
 	}
+	if( Mesh->HasTriangleGroups() && (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllInGroup) )
+	{
+		TSet<int32> AdjacentFaces{ChangeFaces};
+		TSet<int32> AdjacentGroups{};
+		ChangeFaces.Empty();
+		for ( int32 TID : AdjacentFaces )
+		{
+			AdjacentGroups.Add(Mesh->GetTriangleGroup(TID));
+		}
+		for ( int32 TID : Mesh->TriangleIndicesItr() )
+		{
+			if ( AdjacentGroups.Contains(Mesh->GetTriangleGroup(TID)) )
+			{
+				ChangeFaces.Add(TID);
+			}
+		}
+	}
 	if (ChangeFaces.Num() == 0)
 	{
 		return;
 	}
-
 	BeginChange(bGrow);
 	ActiveSelectionChange->Add(ChangeFaces);
 	if (bGrow)
@@ -951,6 +1065,123 @@ void UMeshSelectionTool::ExpandToConnected()
 }
 
 
+void UMeshSelectionTool::SelectLargestComponent(bool bWeightByArea)
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() == 0)
+	{
+		return;
+	}
+
+	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
+
+	// each component gets its own group id
+	FMeshConnectedComponents Components(Mesh);
+	Components.FindConnectedTriangles(SelectedFaces);
+
+	if (Components.Num() == 0) // no triangles?
+	{
+		ClearSelection();
+		return;
+	}
+
+
+	int BestComponent = 0;
+	FMeshConnectedComponents::FComponent* MaxComponent = Algo::MaxElementBy(Components, [bWeightByArea, &Mesh](const FMeshConnectedComponents::FComponent& Component)
+	{
+		if (bWeightByArea)
+		{
+			double AreaSum = 0;
+			for (int TID : Component.Indices)
+			{
+				AreaSum += Mesh->GetTriArea(TID);
+			}
+			return AreaSum;
+		}
+		else
+		{
+			return (double)Component.Indices.Num();
+		}
+	});
+
+	BeginChange(false);
+	for (FMeshConnectedComponents::FComponent& Component : Components)
+	{
+		if (&Component != MaxComponent)
+		{
+			ActiveSelectionChange->Add(Component.Indices);
+			Selection->RemoveIndices(EMeshSelectionElementType::Face, Component.Indices);
+		}
+	}
+	
+	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+
+	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("SelectLargestComponentByArea", "Select Largest Component By Area"));
+
+	OnExternalSelectionChange();
+}
+
+
+void UMeshSelectionTool::OptimizeSelection()
+{
+	check(SelectionType == EMeshSelectionElementType::Face);
+	if (Selection->Faces.Num() == 0)
+	{
+		return;
+	}
+
+	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
+
+	FMeshFaceSelection FaceSelection(Mesh);
+	TSet<int> OriginalSelection(Selection->Faces);
+	FaceSelection.Select(Selection->Faces);
+	FaceSelection.LocalOptimize(true);
+
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("OptimizeSelection", "Optimize Selection"));
+
+	// remove faces from the current selection that are not in the optimized one
+	BeginChange(false);
+
+	for (int32 FaceSelIdx = Selection->Faces.Num() - 1; FaceSelIdx >= 0; FaceSelIdx--)
+	{
+		int32 TID = Selection->Faces[FaceSelIdx];
+		if (!FaceSelection.IsSelected(TID))
+		{
+			Selection->Faces.RemoveAtSwap(FaceSelIdx, 1, false);
+			ActiveSelectionChange->Add(TID);
+		}
+	}
+	Selection->NotifySelectionSetModified();
+
+	TUniquePtr<FMeshSelectionChange> DeselectChange = EndChange();
+
+	GetToolManager()->EmitObjectChange(Selection, MoveTemp(DeselectChange), LOCTEXT("OptimizeSelection", "Optimize Selection"));
+
+	// add faces from the optimized selection to the current selection, if they were not in the original
+	BeginChange(true);
+
+	Selection->Faces.Reserve(FaceSelection.Num());
+	for (int32 TID : FaceSelection.AsSet())
+	{
+		if (!OriginalSelection.Contains(TID))
+		{
+			ActiveSelectionChange->Add(TID);
+			Selection->Faces.Add(TID);
+		}
+	}
+	Selection->NotifySelectionSetModified();
+
+	check(Selection->Faces.Num() == FaceSelection.Num());
+	
+	TUniquePtr<FMeshSelectionChange> AddChange = EndChange();
+
+	GetToolManager()->EmitObjectChange(Selection, MoveTemp(AddChange), LOCTEXT("OptimizeSelection", "Optimize Selection"));
+
+	GetToolManager()->EndUndoTransaction();
+
+	OnExternalSelectionChange();
+}
 
 
 void UMeshSelectionTool::DeleteSelectedTriangles()
@@ -1067,9 +1298,6 @@ void UMeshSelectionTool::DisconnectSelectedTriangles()
 
 void UMeshSelectionTool::SeparateSelectedTriangles()
 {
-#if WITH_EDITOR
-	// currently AssetGenerationUtil::GenerateStaticMeshActor only defined in editor
-
 	check(SelectionType == EMeshSelectionElementType::Face);
 	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
 	if (SelectedFaces.Num() == 0)
@@ -1096,16 +1324,17 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	FTransform3d Transform(PreviewMesh->GetTransform());
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolSeparate", "Separate"));
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, &SeparatedMesh, Transform, TEXT("Submesh"),
-		AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath());
-	AssignMaterial(NewActor, ComponentTarget);
+		AssetAPI, TargetWorld, &SeparatedMesh, Transform, TEXT("Submesh"));
+	if (NewActor != nullptr)
+	{
+		AssignMaterial(NewActor, ComponentTarget);
+	}
 	GetToolManager()->EndUndoTransaction();
 
 	// todo: undo won't remove this asset...
 
 	// delete selected triangles from this mesh
 	DeleteSelectedTriangles();
-#endif
 }
 
 

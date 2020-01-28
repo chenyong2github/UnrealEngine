@@ -23,6 +23,12 @@
 #include "InteractiveGizmoManager.h"
 #include "ToolContextInterfaces.h"
 #include "Engine/StaticMesh.h"
+#include "BaseTools/BaseBrushTool.h"
+
+bool UMeshPaintingToolset::HasPaintableMesh(UActorComponent* Component)
+{
+	return Cast<UMeshComponent>(Component) != nullptr;
+}
 
 void UMeshPaintingToolset::RemoveInstanceVertexColors(UObject* Obj)
 {
@@ -1157,7 +1163,7 @@ bool UMeshPaintingToolset::ApplyPerVertexPaintAction(FPerVertexPaintActionArgs& 
 	return (InfluencedVertices.Num() > 0);
 }
 
-bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action)
+bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UBrushBaseProperties* Settings, FPerTrianglePaintAction Action, bool bOnlyFrontFacingTriangles)
 {
 	// Retrieve components world matrix
 	const FMatrix& ComponentToWorldMatrix = Adapter->GetComponentToWorldMatrix();
@@ -1167,7 +1173,7 @@ bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapte
 	const FVector ComponentSpaceBrushPosition(ComponentToWorldMatrix.InverseTransformPosition(HitPosition));
 
 	// @todo MeshPaint: Input vector doesn't work well with non-uniform scale
-	const float BrushRadius = 10.0f; // Settings->GetBrushRadius();
+	const float BrushRadius = Settings->BrushRadius;
 	const float ComponentSpaceBrushRadius = ComponentToWorldMatrix.InverseTransformVector(FVector(BrushRadius, 0.0f, 0.0f)).Size();
 	const float ComponentSpaceSquaredBrushRadius = ComponentSpaceBrushRadius * ComponentSpaceBrushRadius;
 
@@ -1176,7 +1182,7 @@ bool UMeshPaintingToolset::ApplyPerTrianglePaintAction(IMeshPaintComponentAdapte
 		ComponentSpaceSquaredBrushRadius,
 		ComponentSpaceBrushPosition,
 		ComponentSpaceCameraPosition,
-		Settings->bOnlyFrontFacingTriangles);
+		bOnlyFrontFacingTriangles);
 
 	int32 TriangleIndices[3];
 
@@ -1426,7 +1432,7 @@ TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> UMeshToolManager::
 	return ComponentToAdapterMap;
 }
 
-TSharedPtr<IMeshPaintComponentAdapter> UMeshToolManager::GetAdapterForComponent(UMeshComponent* InComponent)
+TSharedPtr<IMeshPaintComponentAdapter> UMeshToolManager::GetAdapterForComponent(const UMeshComponent* InComponent)
 {
 	TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(InComponent);
 	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintComponentAdapter>();

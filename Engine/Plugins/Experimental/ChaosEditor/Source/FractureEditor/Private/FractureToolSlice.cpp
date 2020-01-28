@@ -41,12 +41,12 @@ UFractureToolSlice::UFractureToolSlice(const FObjectInitializer& ObjInit)
 
 FText UFractureToolSlice::GetDisplayText() const
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolSlice", "Slice")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolSlice", "Slice Fracture")); 
 }
 
 FText UFractureToolSlice::GetTooltipText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolSliceTooltip", "Uniformly Slice Mesh")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolSliceTooltip", "The Slice Voronoi fracture method enables you to define the number of X, Y, and Z slices, along with providing random angle and offset variation.  Click the Fracture Button to commit the fracture to the geometry collection.")); 
 }
 
 FSlateIcon UFractureToolSlice::GetToolIcon() const 

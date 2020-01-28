@@ -28,8 +28,8 @@
 #include "ISequencerObjectChangeListener.h"
 #include "SequencerSelection.h"
 #include "SequencerSelectionPreview.h"
+#include "SequencerCustomizationManager.h"
 #include "Editor/EditorWidgets/Public/ITransportControl.h"
-#include "SequencerLabelManager.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "Evaluation/MovieScenePlayback.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -463,6 +463,9 @@ public:
 	/** Called to save the current movie scene */
 	void SaveCurrentMovieScene();
 
+	/** Called to save the current movie scene under a new name */
+	void SaveCurrentMovieSceneAs();
+
 	/** Called when a user executes the assign actor to track menu item */
 	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 	FGuid DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid ObjectBinding);
@@ -531,11 +534,6 @@ public:
 	void Rekey();
 
 	void SelectKey(UMovieSceneSection* InSection, TSharedPtr<IKeyArea> InKeyArea, FKeyHandle KeyHandle, bool bToggle);
-
-	FSequencerLabelManager& GetLabelManager()
-	{
-		return LabelManager;
-	}
 
 	/** Updates the external selection to match the current sequencer selection. */
 	void SynchronizeExternalSelectionWithSequencerSelection();
@@ -724,7 +722,7 @@ public:
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) override;
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) override;
 	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas)  override;
-	virtual void GetSelectedObjects(TArray<FGuid>& OutObjects);
+	virtual void GetSelectedObjects(TArray<FGuid>& OutObjects) override;
 	virtual void SelectObject(FGuid ObjectBinding) override;
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
@@ -771,7 +769,7 @@ public:
 
 	// IMovieScenePlayer interface
 
-	virtual void UpdateCameraCut(UObject* CameraObject, UObject* UnlockIfCameraObject, bool bJumpCut) override;
+	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override;
 	virtual void NotifyBindingsChanged() override;
 	virtual void SetViewportSettings(const TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) override;
 	virtual void GetViewportSettings(TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) const override;
@@ -958,7 +956,7 @@ protected:
 	void OnSelectedOutlinerNodesChanged();
 
 	/** Updates a viewport client from camera cut data */
-	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, bool bJumpCut) const;
+	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, const EMovieSceneCameraCutParams& CameraCutParams);
 
 	/** Expands Possessables with multiple bindings into indidual Possessables for each binding */
 	TArray<FGuid> ExpandMultiplePossessableBindings(FGuid PossessableGuid);
@@ -982,7 +980,7 @@ protected:
 	void OnLoadRecordedData();
 
 	/** Adds the track to the selected folder (if FGuid is invalid) and selects the track, throbs it, and notifies the sequence to rebuild any necessary data. */
-	void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding);
+	void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding) override;
 
 	/** Determines the selected parent folders and returns the node path to the first folder. Also expands the first folder. */
 	void CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutSelectedParentFolders, FString& OutNewNodePath);
@@ -1012,10 +1010,13 @@ protected:
 	TSharedRef<SWidget> OnCreateTransportRecord();
 
 	/** Possess PIE viewports with the specified camera settings (a mirror of level viewport possession, but for game viewport clients) */
-	void PossessPIEViewports(UObject* CameraObject, UObject* UnlockIfCameraObject, bool bJumpCut);
+	void PossessPIEViewports(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams);
 
 	/** Update the locked subsequence range (displayed as playback range for subsequences), and root to local transform */
 	void UpdateSubSequenceData();
+
+	/** Adjust sequencer customizations based on the currently focused sequence */
+	void UpdateSequencerCustomizations();
 
 	/** Rerun construction scripts on bound actors */
 	void RerunConstructionScripts();
@@ -1049,6 +1050,9 @@ private:
 	/** Update the time bases for the current movie scene */
 	void UpdateTimeBases();
 
+	/** View modifier for level editor viewports. */
+	void ModifyViewportClientView(FMinimalViewInfo& ViewInfo);
+
 	/** User-supplied settings object for this sequencer */
 	USequencerSettings* Settings;
 
@@ -1081,6 +1085,9 @@ private:
 
 	/** A copy of the supported features/capabilities we were initialized with. */
 	FSequencerHostCapabilities HostCapabilities;
+	
+	/** Active customizations. */
+	TArray<TUniquePtr<ISequencerCustomization>> ActiveCustomizations;
 
 	TWeakObjectPtr<UMovieSceneSequence> RootSequence;
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
@@ -1177,7 +1184,6 @@ private:
 	/** Stores the playback status to be restored on refresh. */
 	EMovieScenePlayerStatus::Type StoredPlaybackState;
 
-	FSequencerLabelManager LabelManager;
 	FSequencerSelection Selection;
 	FSequencerSelectionPreview SelectionPreview;
 
@@ -1283,4 +1289,34 @@ private:
 	TOptional<TTuple<TWeakObjectPtr<UMovieSceneSequence>, FGuid>> SuppressAutoEvalSignature;
 
 	TUniquePtr<FObjectBindingTagCache> ObjectBindingTagCache;
+
+	struct FCachedViewState
+	{
+		FCachedViewState()
+			: bValid(false)
+			, bIsViewportUIHidden(false) {}
+
+	public:
+		void StoreViewState();
+		void RestoreViewState();
+
+	private:
+		bool bValid;
+		bool bIsViewportUIHidden;
+		TArray<TPair<int32, bool> > GameViewStates;
+	};
+
+	FCachedViewState CachedViewState;
+	
+	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
+	bool bApplyViewModifier;
+	FVector ViewModifierLocation;
+	FRotator ViewModifierRotation;
+	float ViewModifierFOV;
+	
+	/** Original editor camera info, for when previewing a sequence with a blend from/to gameplay. */
+	bool bHasPreAnimatedInfo;
+	FVector PreAnimatedViewportLocation;
+	FRotator PreAnimatedViewportRotation;
+	float PreAnimatedViewportFOV;
 };

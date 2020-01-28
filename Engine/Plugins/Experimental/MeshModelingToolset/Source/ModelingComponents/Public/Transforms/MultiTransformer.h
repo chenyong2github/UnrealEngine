@@ -34,16 +34,23 @@ public:
 
 	virtual void Tick(float DeltaTime);
 
-	virtual void SetGizmoPositionFromWorldFrame(const FFrame3d& Frame);
-	virtual void SetGizmoPositionFromWorldPos(const FVector& Position, const FVector& Normal);
+	virtual void SetGizmoPositionFromWorldFrame(const FFrame3d& Frame, bool bResetScale = true);
+	virtual void SetGizmoPositionFromWorldPos(const FVector& Position, const FVector& Normal, bool bResetScale = true);
+
+	virtual void ResetScale();
 
 	virtual const FFrame3d& GetCurrentGizmoFrame() const { return ActiveGizmoFrame; }
+	virtual const FVector3d& GetCurrentGizmoScale() const { return ActiveGizmoScale; }
 	virtual bool InGizmoEdit() const { return bInGizmoEdit;	}
 
 	virtual EMultiTransformerMode GetMode() const { return ActiveMode; }
 	virtual void SetMode(EMultiTransformerMode NewMode);
 
 	virtual void SetGizmoVisibility(bool bVisible);
+
+	virtual void SetOverrideGizmoCoordinateSystem(EToolContextCoordinateSystem CoordSystem);
+
+	virtual void SetEnabledGizmoSubElements(ETransformGizmoSubElements EnabledSubElements);
 
 	void SetSnapToWorldGridSourceFunc(TUniqueFunction<bool()> EnableSnapFunc);
 
@@ -65,8 +72,14 @@ public:
 
 	EMultiTransformerMode ActiveMode;
 
+	ETransformGizmoSubElements ActiveGizmoSubElements = ETransformGizmoSubElements::FullTranslateRotateScale;
+
+	EToolContextCoordinateSystem GizmoCoordSystem = EToolContextCoordinateSystem::World;
+	bool bForceGizmoCoordSystem = false;
+
 	bool bShouldBeVisible = true;
 	FFrame3d ActiveGizmoFrame;
+	FVector3d ActiveGizmoScale;
 
 	UPROPERTY()
 	UTransformGizmo* TransformGizmo;

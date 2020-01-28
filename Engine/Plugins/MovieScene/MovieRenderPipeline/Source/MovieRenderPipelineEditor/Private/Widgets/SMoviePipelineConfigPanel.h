@@ -64,6 +64,8 @@ private:
 
 	FReply OnCancelChanges();
 	FReply OnConfirmChanges();
+	bool CanAcceptChanges() const;
+
 
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
 	UMoviePipelineConfigBase* AllocateTransientPreset();
@@ -75,6 +77,8 @@ private:
 	void OnImportPreset(const FAssetData& InPresetAsset);
 	/** Save the current configuration out to an asset. */
 	void OnSaveAsPreset();
+
+	FText GetValidationWarningText() const;
 
 private:
 	/** The transient preset that we use - kept alive by AddReferencedObjects */

@@ -71,6 +71,29 @@ void FMeshConnectedComponents::FindConnectedTriangles(const TArray<int>& Triangl
 
 
 
+
+void FMeshConnectedComponents::FindTrianglesConnectedToSeeds(const TArray<int>& SeedTriangles, TFunction<bool(int32, int32)> TrisConnectedPredicate)
+{
+	// initial active set contains all valid triangles
+	// active values are as follows:   0: unprocessed,  1: in queue,  2: done,  3: invalid
+	TArray<uint8> ActiveSet;
+	int32 NumTriangles = Mesh->MaxTriangleID();
+	ActiveSet.Init(255, NumTriangles);
+	for (int32 tid = 0; tid < NumTriangles; ++tid)
+	{
+		if (Mesh->IsTriangle(tid))
+		{
+			ActiveSet[tid] = 0;
+		}
+	}
+
+	FindTriComponents(SeedTriangles, ActiveSet, TrisConnectedPredicate);
+}
+
+
+
+
+
 void FMeshConnectedComponents::FindTriComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
 	Components.Empty();
@@ -106,6 +129,47 @@ void FMeshConnectedComponents::FindTriComponents(FInterval1i ActiveRange, TArray
 		}
 	}
 }
+
+
+
+
+void FMeshConnectedComponents::FindTriComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TrisConnectedPredicate)
+{
+	Components.Empty();
+
+	// temporary queue
+	TArray<int32> ComponentQueue;
+	ComponentQueue.Reserve(256);
+
+	// keep finding valid seed triangles and growing connected components
+	// until we are done
+	for ( int32 SeedTri : SeedList )
+	{
+		if (ActiveSet[SeedTri] != 255)
+		{
+			ComponentQueue.Add(SeedTri);
+			ActiveSet[SeedTri] = 1;      // in ComponentQueue
+
+			FComponent* Component = new FComponent();
+			if (TrisConnectedPredicate)
+			{
+				FindTriComponent(Component, ComponentQueue, ActiveSet, TrisConnectedPredicate);
+			}
+			else
+			{
+				FindTriComponent(Component, ComponentQueue, ActiveSet);
+			}
+			Components.Add(Component);
+
+			RemoveFromActiveSet(Component, ActiveSet);
+
+			ComponentQueue.Reset(0);
+		}
+	}
+}
+
+
+
 
 
 

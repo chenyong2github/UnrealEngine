@@ -9,9 +9,10 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshOpPreviewHelpers.h"
+#include "Changes/ValueWatcher.h"
 #include "CleaningOps/SimplifyMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
-
+#include "Properties/RemeshProperties.h"
 #include "SimplifyMeshTool.generated.h"
 
 
@@ -39,7 +40,7 @@ public:
  * Standard properties of the Simplify operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UMeshConstraintProperties
 {
 	GENERATED_BODY()
 public:
@@ -69,14 +70,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bDiscardAttributes;
 
+	/** If true, display wireframe */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowWireframe;
+
+	/** Display colors corresponding to the mesh's polygon groups */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowGroupColors = false;
+
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;
-
-	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bPreventNormalFlips;
-
 };
 
 
@@ -109,7 +113,7 @@ public:
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
-protected:
+private:
 	UPROPERTY()
 	USimplifyMeshToolProperties* SimplifyProperties;
 
@@ -119,9 +123,11 @@ protected:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
-protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
+
+	TValueWatcher<bool> ShowWireFrameWatcher;
+	TValueWatcher<bool> ShowGroupsWatcher;
 
 	TSharedPtr<FMeshDescription> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)
@@ -129,4 +135,5 @@ protected:
 	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
 
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
+	void UpdateVisualization();
 };

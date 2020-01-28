@@ -66,6 +66,15 @@ namespace UnrealBuildTool
 					VCEnvironment Environment = VCEnvironment.Create(WindowsCompiler.Clang, Target.Platform, Target.Rules.WindowsPlatform.Architecture, null, Target.Rules.WindowsPlatform.WindowsSdkVersion);
 					FileReference ClangPath = FileReference.Combine(Environment.CompilerDir, "bin", "clang++.exe");
 
+					// Convince each module to output its generated code include path
+					foreach (UEBuildBinary Binary in Target.Binaries)
+					{
+						foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
+						{
+							Module.bAddGeneratedCodeIncludePath = true;
+						}
+					}
+
 					// Create all the binaries and modules
 					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
 					foreach (UEBuildBinary Binary in Target.Binaries)

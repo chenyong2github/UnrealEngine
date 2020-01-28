@@ -3,6 +3,7 @@
 #include "ModelingToolsEditorModeToolkit.h"
 #include "ModelingToolsEditorMode.h"
 #include "ModelingToolsManagerActions.h"
+#include "ModelingToolsEditorModeSettings.h"
 #include "Engine/Selection.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -10,11 +11,14 @@
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "IDetailRootObjectCustomization.h"
+#include "ISettingsModule.h"
+#include "EditorModeManager.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-
-#include "EditorModeManager.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SExpandableArea.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
 
@@ -30,6 +34,11 @@ FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 {
 }
 
+FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
+{
+	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
+	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
+}
 
 
 /**
@@ -62,7 +71,6 @@ public:
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 {
-
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FDetailsViewArgs DetailsViewArgs(
@@ -85,29 +93,26 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		= MakeShared<FModelingToolsDetailRootObjectCustomization>();
 	DetailsView->SetRootObjectCustomizationInstance(RootObjectCustomization);
 
-	ToolHeaderLabel = SNew(STextBlock)
+	ModeWarningArea = SNew(STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+		.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f)));
+	ModeWarningArea->SetText(FText::GetEmpty());
+	ModeWarningArea->SetVisibility(EVisibility::Collapsed);
+
+	ModeHeaderArea = SNew(STextBlock)
 		.AutoWrapText(true)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12));
-	ToolHeaderLabel->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
-	ToolHeaderLabel->SetJustification(ETextJustify::Center);
+	ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
+	ModeHeaderArea->SetJustification(ETextJustify::Center);
 
-	//const FTextBlockStyle DefaultText = FTextBlockStyle()
-	//	.SetFont(DEFAULT_FONT("Bold", 10));
-
-	ToolMessageArea = SNew(STextBlock)
-		.AutoWrapText(true)
-		.Font(FCoreStyle::GetDefaultFontStyle("Italic", 9))
-		.ColorAndOpacity(FSlateColor(FLinearColor::White * 0.7f));
-	ToolMessageArea->SetText(LOCTEXT("ToolMessageLabel", ""));
 
 	ToolWarningArea = SNew(STextBlock)
 		.AutoWrapText(true)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
 		.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f)));
-	ToolWarningArea->SetText(LOCTEXT("ToolMessageLabel", ""));
+	ToolWarningArea->SetText(FText::GetEmpty());
 
-
-	
 
 	SAssignNew(ToolkitWidget, SBorder)
 		.HAlign(HAlign_Fill)
@@ -117,15 +122,15 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
 				[
-					ToolHeaderLabel->AsShared()
+					ModeWarningArea->AsShared()
 				]
 
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 10, 10, 15)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
 				[
-					ToolMessageArea->AsShared()
+					ModeHeaderArea->AsShared()
 				]
 
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 5, 10, 15)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(5)
 				[
 					ToolWarningArea->AsShared()
 				]
@@ -135,6 +140,10 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 					DetailsView->AsShared()
 				]
 
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
+				[
+					MakeAssetConfigPanel()->AsShared()
+				]
 		];
 		
 	FModeToolkit::Init(InitToolkitHost);
@@ -142,20 +151,25 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	ClearNotification();
 	ClearWarning();
 
+	ActiveToolName = FText::GetEmpty();
+	ActiveToolMessage = FText::GetEmpty();
 
 	GetToolsEditorMode()->GetToolManager()->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
-		// Update properties panel
-		UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
-		DetailsView->SetObjects(CurTool->GetToolProperties());
+		UpdateActiveToolProperties();
 
-		ToolHeaderLabel->SetText(CurTool->GetClass()->GetDisplayNameText());
-		//ToolHeaderLabel->SetText(FString("(Tool Name Here)"));
+		UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+		CurTool->OnPropertySetsModified.AddLambda([this]() { UpdateActiveToolProperties(); });
+
+		ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
+		ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;
 	});
 	GetToolsEditorMode()->GetToolManager()->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
 		DetailsView->SetObject(nullptr);
-		ToolHeaderLabel->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
+		ActiveToolName = FText::GetEmpty();
+		ModeHeaderArea->SetVisibility(EVisibility::Visible);
+		ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 		ClearNotification();
 		ClearWarning();
 	});
@@ -173,16 +187,126 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 
 
+TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
+{
+	AssetLocationModes.Add(MakeShared<FString>(TEXT("AutoGen Folder")));
+	AssetLocationModes.Add(MakeShared<FString>(TEXT("Current Folder")));
+	AssetLocationMode = SNew(STextComboBox)
+		.OptionsSource(&AssetLocationModes)
+		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type) { UpdateAssetLocationMode(String); });
+	AssetSaveModes.Add(MakeShared<FString>(TEXT("AutoSave")));
+	AssetSaveModes.Add(MakeShared<FString>(TEXT("No Save")));
+	AssetSaveModes.Add(MakeShared<FString>(TEXT("Interactive")));
+	AssetSaveMode = SNew(STextComboBox)
+		.OptionsSource(&AssetSaveModes)
+		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type) { UpdateAssetSaveMode(String); });
+	
+	// initialize combos
+	UpdateAssetPanelFromSettings();
+	
+	// register callback
+	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
+	AssetSettingsModifiedHandle = Settings->OnModified.AddLambda([this](UObject*, FProperty*) { OnAssetSettingsModified(); });
+
+
+	TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
+	//+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(0)
+	//	[
+	//		SNew(SSeparator)
+	//	]
+	+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(0, 4, 0, 5)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().Padding(0).HAlign(HAlign_Left).VAlign(VAlign_Center).AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AssetPanelHeaderLabel", "Generated Asset Settings"))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+				]
+			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0).FillWidth(1.0f)
+				[
+					SNew(SBox).MaxDesiredHeight(16).MaxDesiredWidth(17)
+					[
+						SNew(SButton)
+						.ContentPadding(0)
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+						.OnClicked_Lambda( [this]() {OnShowAssetSettings(); return FReply::Handled(); } )
+						[
+							SNew(SImage)
+							.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings").GetIcon())
+						]
+					]
+				]
+		]
+	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill).Padding(0)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AssetLocationLabel", "Location"))
+				]
+			+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
+				[
+					AssetLocationMode->AsShared()
+				]
+			+ SHorizontalBox::Slot().Padding(10, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AssetSaveModeLabel", "Save Mode"))
+				]
+			+ SHorizontalBox::Slot().Padding(0).FillWidth(3.0f)
+				[
+					AssetSaveMode->AsShared()
+				]
+		];
+
+	//return Content;
+
+
+	TSharedPtr<SExpandableArea> AssetConfigPanel = SNew(SExpandableArea)
+		.HeaderPadding(FMargin(2.0f))
+		.Padding(FMargin(2.f))
+		.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+		.BodyBorderBackgroundColor(FLinearColor::Transparent)
+		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+		.BodyContent()
+		[
+			Content->AsShared()
+		]
+		.HeaderContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ModelingSettingsPanelHeader", "Modeling Mode Quick Settings"))
+			.Justification(ETextJustify::Center)
+			.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+		];
+
+	return AssetConfigPanel;
+
+}
+
+
+
+void FModelingToolsEditorModeToolkit::UpdateActiveToolProperties()
+{
+	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (CurTool != nullptr)
+	{
+		DetailsView->SetObjects(CurTool->GetToolProperties(true));
+	}
+}
+
+
 void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
 {
-	ToolMessageArea->SetText(Message);
-	ToolMessageArea->SetVisibility(EVisibility::Visible);
+	ActiveToolMessage = Message;
 }
 
 void FModelingToolsEditorModeToolkit::ClearNotification()
 {
-	ToolMessageArea->SetText(FText());
-	ToolMessageArea->SetVisibility(EVisibility::Collapsed);
+	ActiveToolMessage = FText::GetEmpty();
 }
 
 
@@ -225,9 +349,19 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 	return GetToolsEditorMode()->GetToolsContext();
 }
 
+static const FName CreateTabName(TEXT("Create"));
+static const FName EditTabName(TEXT("Edit"));
+static const FName SculptTabName(TEXT("Sculpt"));
+static const FName TrianglesTabName(TEXT("Triangles"));
+static const FName PolyGroupsTabName(TEXT("PolyGroups"));
+static const FName UVNormalTabName(TEXT("UVs/Normals"));
+static const FName TransformTabName(TEXT("Transform"));
+static const FName DeformTabName(TEXT("Deform"));
+static const FName PrototypesTabName(TEXT("Prototypes"));
+
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { FName(TEXT("Modeling")), FName(TEXT("Utilities")) };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")), FName(TEXT("Prototypes")) };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, PrototypesTabName };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -306,6 +440,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 	}
 }
 
+
 void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder)
 {
 	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
@@ -317,66 +452,213 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 	ToolbarBuilder.AddSeparator();
 
 
-	if (PaletteIndex == FName(TEXT("Create")) )
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
-	} 
-	else if ( PaletteIndex == FName(TEXT("Edit")) ) 
+	if (PaletteIndex == CreateTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
-
 		ToolbarBuilder.AddSeparator();
-
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolyPathTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+	}
+	else if (PaletteIndex == TransformTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAlignObjectsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditPivotTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeTransformTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginCombineMeshesTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
+	else if (PaletteIndex == DeformTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSculptMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
-
 		ToolbarBuilder.AddSeparator();
-
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonCutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
-
 		ToolbarBuilder.AddSeparator();
-
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonOnMeshTool);
-
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
-	else if (PaletteIndex == FName(TEXT("UVs/Normals")))
+	else if (PaletteIndex == TrianglesTabName)
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginParameterizeMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
-	}
-	else if (PaletteIndex == FName(TEXT("Utilities")))
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTriEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSimplifyMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemoveOccludedTrianglesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEditPivotTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeTransformTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
+	else if (PaletteIndex == PolyGroupsTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
+		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
-	else if (PaletteIndex == FName(TEXT("Prototypes")))
+	else if (PaletteIndex == UVNormalTabName)
 	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginGlobalUVGenerateTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupUVGenerateTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformUVIslandsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
+	else if (PaletteIndex == PrototypesTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
 	}
 }
 
 void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 
 {
+}
+
+
+
+void FModelingToolsEditorModeToolkit::EnableShowRealtimeWarning(bool bEnable)
+{
+	if (bShowRealtimeWarning != bEnable)
+	{
+		bShowRealtimeWarning = bEnable;
+		UpdateShowWarnings();
+	}
+}
+
+void FModelingToolsEditorModeToolkit::UpdateShowWarnings()
+{
+	if (bShowRealtimeWarning )
+	{
+		if (ModeWarningArea->GetVisibility() == EVisibility::Collapsed)
+		{
+			ModeWarningArea->SetText(LOCTEXT("ModelingModeToolkitRealtimeWarning", "Realtime Mode is required for Modeling Tools to work correctly. Please enable Realtime Mode in the Viewport Options or with the Ctrl+r hotkey."));
+			ModeWarningArea->SetVisibility(EVisibility::Visible);
+		}
+	}
+	else
+	{
+		ModeWarningArea->SetText(FText());
+		ModeWarningArea->SetVisibility(EVisibility::Collapsed);
+	}
+
+}
+
+
+void FModelingToolsEditorModeToolkit::UpdateAssetLocationMode(TSharedPtr<FString> NewString)
+{
+	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
+	if (NewString == AssetLocationModes[0])
+	{
+		Settings->AssetGenerationLocation = EModelingModeAssetGenerationLocation::AutoGeneratedAssetPath;
+	}
+	else if ( NewString == AssetLocationModes[1])
+	{
+		Settings->AssetGenerationLocation = EModelingModeAssetGenerationLocation::CurrentAssetBrowserPathIfAvailable;
+	}
+	else
+	{
+		ensure(false);
+	}
+}
+
+void FModelingToolsEditorModeToolkit::UpdateAssetSaveMode(TSharedPtr<FString> NewString)
+{
+	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
+	if (NewString == AssetSaveModes[0])
+	{
+		Settings->AssetGenerationMode = EModelingModeAssetGenerationBehavior::AutoGenerateAndAutosave;
+	}
+	else if (NewString == AssetSaveModes[1])
+	{
+		Settings->AssetGenerationMode = EModelingModeAssetGenerationBehavior::AutoGenerateButDoNotAutosave;
+	}
+	else if (NewString == AssetSaveModes[2])
+	{
+		Settings->AssetGenerationMode = EModelingModeAssetGenerationBehavior::InteractivePromptToSave;
+	}
+	else
+	{
+		ensure(false);
+	}
+}
+
+void FModelingToolsEditorModeToolkit::UpdateAssetPanelFromSettings()
+{
+	const UModelingToolsEditorModeSettings* Settings = GetDefault<UModelingToolsEditorModeSettings>();
+
+	switch (Settings->AssetGenerationLocation)
+	{
+	case EModelingModeAssetGenerationLocation::CurrentAssetBrowserPathIfAvailable:
+		AssetLocationMode->SetSelectedItem(AssetLocationModes[1]);
+		break;
+	default:
+		AssetLocationMode->SetSelectedItem(AssetLocationModes[0]);
+		break;
+	}
+
+	switch (Settings->AssetGenerationMode)
+	{
+	case EModelingModeAssetGenerationBehavior::AutoGenerateButDoNotAutosave:
+		AssetSaveMode->SetSelectedItem(AssetSaveModes[1]);
+		break;
+	case EModelingModeAssetGenerationBehavior::InteractivePromptToSave:
+		AssetSaveMode->SetSelectedItem(AssetSaveModes[2]);
+		break;
+	default:
+		AssetSaveMode->SetSelectedItem(AssetSaveModes[0]);
+		break;
+	}
+}
+
+
+void FModelingToolsEditorModeToolkit::OnAssetSettingsModified()
+{
+	UpdateAssetPanelFromSettings();
+}
+
+void FModelingToolsEditorModeToolkit::OnShowAssetSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->ShowViewer("Project", "Plugins", "ModelingMode");
+	}
 }
 
 

@@ -13,6 +13,7 @@
 
 #include "MovieSceneFloatChannel.generated.h"
 
+
 USTRUCT()
 struct FMovieSceneTangentData
 {
@@ -21,9 +22,10 @@ struct FMovieSceneTangentData
 	FMovieSceneTangentData()
 		: ArriveTangent(0.f)
 		, LeaveTangent(0.f)
-		, TangentWeightMode(RCTWM_WeightedNone)
 		, ArriveTangentWeight(0.f)
 		, LeaveTangentWeight(0.f)
+		, TangentWeightMode(RCTWM_WeightedNone)
+
 	{}
 
 	bool Serialize(FArchive& Ar);
@@ -36,24 +38,24 @@ struct FMovieSceneTangentData
 	}
 
 	/** If RCIM_Cubic, the arriving tangent at this key */
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, Category = "Key")
 	float ArriveTangent;
 
 	/** If RCIM_Cubic, the leaving tangent at this key */
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, Category = "Key")
 	float LeaveTangent;
+
+	/** If RCTWM_WeightedArrive or RCTWM_WeightedBoth, the weight of the left tangent */
+	UPROPERTY(EditAnywhere, Category = "Key")
+	float ArriveTangentWeight;
+
+	/** If RCTWM_WeightedLeave or RCTWM_WeightedBoth, the weight of the right tangent */
+	UPROPERTY(EditAnywhere, Category = "Key")
+	float LeaveTangentWeight;
 
 	/** If RCIM_Cubic, the tangent weight mode */
 	UPROPERTY(EditAnywhere, Category = "Key")
 	TEnumAsByte<ERichCurveTangentWeightMode> TangentWeightMode;
-
-	/** If RCTWM_WeightedArrive or RCTWM_WeightedBoth, the weight of the left tangent */
-	UPROPERTY(EditAnywhere, Category="Key")
-	float ArriveTangentWeight;
-
-	/** If RCTWM_WeightedLeave or RCTWM_WeightedBoth, the weight of the right tangent */
-	UPROPERTY(EditAnywhere, Category="Key")
-	float LeaveTangentWeight;
 
 };
 
@@ -82,11 +84,11 @@ struct FMovieSceneFloatValue
 	GENERATED_BODY()
 
 	FMovieSceneFloatValue()
-		: Value(0.f), InterpMode(RCIM_Cubic), TangentMode(RCTM_Auto)
+		: Value(0.f), InterpMode(RCIM_Cubic), TangentMode(RCTM_Auto), PaddingByte(0)
 	{}
 
 	explicit FMovieSceneFloatValue(float InValue)
-		: Value(InValue), InterpMode(RCIM_Cubic), TangentMode(RCTM_Auto)
+		: Value(InValue), InterpMode(RCIM_Cubic), TangentMode(RCTM_Auto), PaddingByte(0)
 	{}
 
 	bool Serialize(FArchive& Ar);
@@ -98,18 +100,22 @@ struct FMovieSceneFloatValue
 		return Ar;
 	}
 
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, Category = "Key")
 	float Value;
 
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, Category = "Key")
+	FMovieSceneTangentData Tangent;
+
+	UPROPERTY(EditAnywhere, Category = "Key")
 	TEnumAsByte<ERichCurveInterpMode> InterpMode;
 
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, Category = "Key")
 	TEnumAsByte<ERichCurveTangentMode> TangentMode;
 
-	UPROPERTY(EditAnywhere, Category="Key")
-	FMovieSceneTangentData Tangent;
+	UPROPERTY()
+	uint8 PaddingByte;
 };
+
 
 template<>
 struct TIsPODType<FMovieSceneFloatValue>

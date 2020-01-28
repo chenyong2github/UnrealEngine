@@ -20,6 +20,7 @@ enum class ETonemapperOutputDevice
 	ACES2000nitScRGB,
 	LinearEXR,
 	LinearNoToneCurve,
+	LinearWithToneCurve,
 
 	MAX
 };

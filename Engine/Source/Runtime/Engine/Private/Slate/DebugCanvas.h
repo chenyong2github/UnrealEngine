@@ -94,6 +94,11 @@ private:
 	*/
 	void ReleaseTexture();
 
+	/**
+	 * Called after a font cache has released its rendering resources
+	 */
+	void HandleReleaseFontResources(const class FSlateFontCache& InFontCache);
+
 private:
 	/** The canvas that can be used by the game thread */
 	FCanvasPtr GameThreadCanvas;

@@ -95,7 +95,16 @@ void FFoliageEdModeToolkit::OnToolPaletteChanged(FName PaletteName)
 
 }
 
+FText FFoliageEdModeToolkit::GetActiveToolDisplayName() const
+{
+	return FoliageEdWidget->GetActiveToolName();
+}
 
+FText FFoliageEdModeToolkit::GetActiveToolMessage() const
+{
+
+	return FoliageEdWidget->GetActiveToolMessage();
+}
 
 
 #undef LOCTEXT_NAMESPACE

@@ -18,10 +18,12 @@ public:
 	TSharedPtr<FUICommandInfo> BeginAddPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddPatchTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolygonTool;
+	TSharedPtr<FUICommandInfo> BeginDrawPolyPathTool;
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginPolyEditTool;
+	TSharedPtr<FUICommandInfo> BeginTriEditTool;
 	TSharedPtr<FUICommandInfo> BeginPolyDeformTool;
 	TSharedPtr<FUICommandInfo> BeginSmoothMeshTool;
 	TSharedPtr<FUICommandInfo> BeginDisplaceMeshTool;
@@ -29,6 +31,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginTransformMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginEditPivotTool;
 	TSharedPtr<FUICommandInfo> BeginBakeTransformTool;
+	TSharedPtr<FUICommandInfo> BeginCombineMeshesTool;
+	TSharedPtr<FUICommandInfo> BeginAlignObjectsTool;
 
 	TSharedPtr<FUICommandInfo> BeginRemeshSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginRemeshMeshTool;
@@ -38,16 +42,18 @@ public:
 	TSharedPtr<FUICommandInfo> BeginUVProjectionTool;
 	TSharedPtr<FUICommandInfo> BeginUVLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginPlaneCutTool;
-	TSharedPtr<FUICommandInfo> BeginPolygonOnMeshTool;
+	TSharedPtr<FUICommandInfo> BeginPolygonCutTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMergeTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBooleanTool;
 	TSharedPtr<FUICommandInfo> BeginMeshSelectionTool;
 
 	TSharedPtr<FUICommandInfo> BeginMeshInspectorTool;
-	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
+	TSharedPtr<FUICommandInfo> BeginGlobalUVGenerateTool;
+	TSharedPtr<FUICommandInfo> BeginGroupUVGenerateTool;
 	TSharedPtr<FUICommandInfo> BeginWeldEdgesTool;
 	TSharedPtr<FUICommandInfo> BeginPolyGroupsTool;
 	TSharedPtr<FUICommandInfo> BeginEditMeshMaterialsTool;
+	TSharedPtr<FUICommandInfo> BeginTransformUVIslandsTool;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;

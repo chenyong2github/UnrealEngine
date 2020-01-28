@@ -67,6 +67,28 @@ bool FSlateD3DTextureManager::IsAtlasPageResourceAlphaOnly(const int32 InIndex) 
 	return false;
 }
 
+#if WITH_ATLAS_DEBUGGING
+FAtlasSlotInfo FSlateD3DTextureManager::GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const
+{
+	if (TextureAtlases.IsValidIndex(AtlasIndex))
+	{
+		FAtlasSlotInfo NewInfo;
+
+		const FAtlasedTextureSlot* Slot = TextureAtlases[AtlasIndex]->GetSlotAtPosition(InPosition);
+		if (Slot)
+		{
+			NewInfo.AtlasSlotRect = FSlateRect(FVector2D(Slot->X, Slot->Y), FVector2D(Slot->X + Slot->Width, Slot->Y + Slot->Height));
+
+			NewInfo.TextureName = AtlasDebugData.FindRef(Slot);
+
+			return NewInfo;
+		}
+	}
+
+	return FAtlasSlotInfo();
+}
+#endif
+
 void FSlateD3DTextureManager::LoadUsedTextures()
 {
 	TArray< const FSlateBrush* > Resources;
@@ -145,7 +167,7 @@ void FSlateD3DTextureManager::CreateTextures( const TArray< const FSlateBrush* >
 		FName TextureName = It.Key();
 		FString NameStr = TextureName.ToString();
 
-		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info );
+		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info, TextureName );
 
 		ResourceMap.Add( TextureName, NewTexture );
 	}
@@ -170,7 +192,7 @@ void FSlateD3DTextureManager::CreateTextureNoAtlas( const FSlateBrush& InBrush )
 		{
 			Info.TextureData = MakeShareable( new FSlateTextureData( Width, Height, Stride, RawData ) );
 
-			FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info );
+			FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info, NAME_None );
 
 			ResourceMap.Add( TextureName, NewTexture );
 		}
@@ -267,7 +289,7 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::CreateColorTexture( const FN
 	Info.TextureData = MakeShareable( new FSlateTextureData( Width, Height, Stride, RawData ) );
 
 
-	FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info );
+	FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info, TextureName );
 	checkSlow( !ResourceMap.Contains( TextureName ) );
 	ResourceMap.Add( TextureName, NewTexture );
 
@@ -362,7 +384,7 @@ void FSlateD3DTextureManager::ReleaseDynamicTextureResource( const FSlateBrush& 
 	}
 }
 
-FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( const FNewTextureInfo& Info )
+FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( const FNewTextureInfo& Info, FName TextureName )
 {
 	FSlateShaderResourceProxy* NewProxy = NULL;
 
@@ -402,6 +424,9 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( con
 
 		check( Atlas && NewSlot );
 
+#if WITH_ATLAS_DEBUGGING
+		AtlasDebugData.Add(NewSlot, TextureName);
+#endif
 		// Create a proxy representing this texture in the atlas
 		NewProxy = new FSlateShaderResourceProxy;
 		NewProxy->Resource = Atlas->GetAtlasTexture();

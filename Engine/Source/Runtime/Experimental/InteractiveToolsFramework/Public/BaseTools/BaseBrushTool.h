@@ -32,11 +32,11 @@ public:
 	float BrushRadius;
 
 	/** Strength of the brush (0.0 - 1.0) */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditConditionHides, EditCondition = "bShowFullSettings"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowFullSettings"))
 	float BrushStrength;
 
 	/** Amount of falloff to apply (0.0 - 1.0) */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditConditionHides, EditCondition="bShowFullSettings"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition="bShowFullSettings"))
 	float BrushFalloffAmount;
 
 	/** If false, then BrushStrength and BrushFalloffAmount will not be shown in DetailsView panels (otherwise no effect)*/

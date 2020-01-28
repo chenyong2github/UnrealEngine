@@ -338,6 +338,10 @@ bool FToolChangeWrapperChange::HasExpired(UObject* Object) const
 {
 	if (ToolChange.IsValid() && ToolManager.IsValid() && ActiveTool.IsValid())
 	{
+		if (ToolChange->HasExpired(Object))
+		{
+			return true;
+		}
 		if (ToolManager->GetActiveTool(EToolSide::Left) == ActiveTool.Get())
 		{
 			return false;

@@ -210,7 +210,7 @@ public:
 	/**
 	 * Update the vertex position/normal/color buffers
 	 */
-	virtual void FastUpdateVertices(bool bPositions, bool bNormals, bool bColors)
+	virtual void FastUpdateVertices(bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
@@ -224,20 +224,35 @@ public:
 			check(Mesh->HasAttributes());
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		}
+		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
+		if (bUVs)
+		{
+			check(Mesh->HasAttributes());
+			UVOVerlay = Mesh->Attributes()->PrimaryUV();
+		}
 
 		if (bIsSingleBuffer)
 		{
 			check(RenderBufferSets.Num() == 1);
 			FMeshRenderBufferSet* Buffers = RenderBufferSets[0];
-			UpdateVertexBuffersFromOverlays(Buffers, Mesh,
-				Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-				NormalOverlay,
-				bPositions, bNormals, bColors);
+			if (bPositions || bNormals || bColors)
+			{
+				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
+					Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
+					NormalOverlay,
+					bPositions, bNormals, bColors);
+			}
+			if (bUVs)
+			{
+				UpdateVertexUVBufferFromOverlays(Buffers, Mesh,
+					Mesh->TriangleCount(), Mesh->TriangleIndicesItr(), UVOVerlay, 0);
+			}
+
 
 			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
-				[Buffers, bPositions, bNormals, bColors](FRHICommandListImmediate& RHICmdList)
+				[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 			{
-				Buffers->UploadVertexUpdate(bPositions, bNormals, bColors);
+				Buffers->UploadVertexUpdate(bPositions, bNormals || bUVs, bColors);
 			});
 		}
 		else
@@ -250,21 +265,59 @@ public:
 					return;
 				}
 				check(Buffers->Triangles.IsSet());
-				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
-					Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
-					NormalOverlay,
-					bPositions, bNormals, bColors);
+				if (bPositions || bNormals || bColors)
+				{
+					UpdateVertexBuffersFromOverlays(Buffers, Mesh,
+						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
+						NormalOverlay,
+						bPositions, bNormals, bColors);
+				}
+				if (bUVs)
+				{
+					UpdateVertexUVBufferFromOverlays(Buffers, Mesh,
+						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOVerlay, 0);
+				}
 
 				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
-					[Buffers, bPositions, bNormals, bColors](FRHICommandListImmediate& RHICmdList)
+					[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 				{
-					Buffers->UploadVertexUpdate(bPositions, bNormals, bColors);
+					Buffers->UploadVertexUpdate(bPositions, bNormals || bUVs, bColors);
 				});
 			});
 		}
 
 	}
 
+
+	/**
+	 * Update index buffers inside each RenderBuffer set
+	 */
+	virtual void FastUpdateAllIndexBuffers()
+	{
+		const FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+
+		// have to wait for all outstanding rendering to finish because the index buffers we are about to edit might be in-use
+		FlushRenderingCommands();
+
+		ParallelFor(RenderBufferSets.Num(), [&](int i)
+		{
+			FMeshRenderBufferSet* Buffers = RenderBufferSets[i];
+
+			FScopeLock BuffersLock(&Buffers->BuffersLock);
+
+			if (Buffers->TriangleCount > 0)
+			{
+				FastUpdateIndexBuffers(Buffers, Mesh);
+			}
+
+			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateAllIndexBuffers)(
+				[Buffers](FRHICommandListImmediate& RHICmdList)
+			{
+				Buffers->UploadIndexBufferUpdate();
+			});
+			
+		});
+	}
 
 
 

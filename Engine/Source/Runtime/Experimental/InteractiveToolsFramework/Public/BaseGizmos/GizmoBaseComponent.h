@@ -20,9 +20,18 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseComponent : public UPrimitiveCompo
 public:
 	UGizmoBaseComponent()
 	{
-		bUseEditorCompositing = true;
+		bUseEditorCompositing = false;
 	}
 
+	/**
+	 * Currently this must be called if you change UProps on Base or subclass,
+	 * to recreate render proxy which has a local copy of those settings
+	 */
+	void NotifyExternalPropertyUpdates()
+	{
+		MarkRenderStateDirty();
+		UpdateBounds();
+	}
 
 public:
 	UPROPERTY(EditAnywhere, Category = Options)

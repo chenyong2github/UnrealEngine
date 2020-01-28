@@ -218,8 +218,6 @@ void AVREditorFloatingUI::CleanupWidgetReferences()
 		WidgetComponent = nullptr;
 	}
 
-	this->SlateWidget = nullptr;
-
 	// @todo vreditor unreal: UMG has a bug that prevents you from re-using the user widget for a new widget component
 	// after a previous widget component that was using it was destroyed
 	if (UserWidget != nullptr)

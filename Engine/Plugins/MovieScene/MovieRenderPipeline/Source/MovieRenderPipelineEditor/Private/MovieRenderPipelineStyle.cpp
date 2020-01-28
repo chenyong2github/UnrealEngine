@@ -98,7 +98,7 @@ FMovieRenderPipelineStyle::FMovieRenderPipelineStyle()
 		.SetColorAndOpacity(FSlateColor::UseSubduedForeground())
 	);
 
-	Set("MovieRenderPipeline.TabIcon", new FSlateImageBrush(RootToContentDir(TEXT("TabIcon_16x.png")), Icon16x16));
+	Set("MovieRenderPipeline.TabIcon", new FSlateImageBrush(RootToContentDir(TEXT("TabIcon_24x.png")), Icon16x16));
 
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);

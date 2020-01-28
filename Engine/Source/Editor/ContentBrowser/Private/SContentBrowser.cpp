@@ -64,6 +64,7 @@
 
 
 #include "Brushes/SlateColorBrush.h"
+#include "IVREditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
@@ -2523,6 +2524,11 @@ void SContentBrowser::HandleSaveAssetCommand()
 
 bool SContentBrowser::HandleDeleteCommandCanExecute() const
 {
+	if (IVREditorModule::Get().IsVREditorModeActive())
+	{
+		return false;
+	}
+
 	const TArray<TSharedPtr<FAssetViewItem>>& SelectedItems = AssetViewPtr->GetSelectedItems();
 	if (SelectedItems.Num() > 0)
 	{
@@ -2541,17 +2547,28 @@ bool SContentBrowser::HandleDeleteCommandCanExecute() const
 
 void SContentBrowser::HandleDeleteCommandExecute()
 {
-	const TArray<TSharedPtr<FAssetViewItem>>& SelectedItems = AssetViewPtr->GetSelectedItems();
-	if (SelectedItems.Num() > 0)
-	{
-		AssetContextMenu->ExecuteDelete();
-	}
-	else
+	if (PathViewPtr->HasFocusedDescendants())
 	{
 		const TArray<FString>& SelectedPaths = PathViewPtr->GetSelectedPaths();
 		if (SelectedPaths.Num() > 0)
 		{
 			PathContextMenu->ExecuteDelete();
+		}
+	}
+	else
+	{
+		const TArray<TSharedPtr<FAssetViewItem>>& SelectedItems = AssetViewPtr->GetSelectedItems();
+		if (SelectedItems.Num() > 0)
+		{
+			AssetContextMenu->ExecuteDelete();
+		}
+		else
+		{
+			const TArray<FString>& SelectedPaths = PathViewPtr->GetSelectedPaths();
+			if (SelectedPaths.Num() > 0)
+			{
+				PathContextMenu->ExecuteDelete();
+			}
 		}
 	}
 }
@@ -2871,11 +2888,7 @@ void SContentBrowser::OnOpenedFolderDeleted()
 	TArray<FString> DefaultSelectedPaths;
 	DefaultSelectedPaths.Add(TEXT("/Game"));
 	PathViewPtr->SetSelectedPaths(DefaultSelectedPaths);
-	FavoritePathViewPtr->SetSelectedPaths(DefaultSelectedPaths);
-	FSourcesData DefaultSourcesData(FName("/Game"));
-	AssetViewPtr->SetSourcesData(DefaultSourcesData);
-
-	UpdatePath();
+	PathSelected(TEXT("/Game"));
 }
 
 void SContentBrowser::OnDuplicateRequested(const TWeakObjectPtr<UObject>& OriginalObject)

@@ -217,8 +217,21 @@ public:
 	/** Set the triangle to the given Element index tuple, and increment element reference counts */
 	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements);
 
+	/**
+	 * Set the triangle to have InvalidID element IDs, decrementing element reference counts if needed.
+	 * Deletes elements that are no longer used after the triangle is unset.
+	 */
+	void UnsetTriangle(int TriangleID);
+
 	/** @return true if this triangle was set */
-	bool IsSetTriangle(int TID) const { return ElementTriangles[3 * TID] >= 0; }
+	bool IsSetTriangle(int TID) const
+	{
+		bool bIsSet = ElementTriangles[3 * TID] >= 0;
+		// we require that triangle elements either be all set or all unset
+		checkSlow(ElementTriangles[3 * TID + 1] >= 0 == bIsSet);
+		checkSlow(ElementTriangles[3 * TID + 2] >= 0 == bIsSet);
+		return bIsSet;
+	}
 
 
 	/**

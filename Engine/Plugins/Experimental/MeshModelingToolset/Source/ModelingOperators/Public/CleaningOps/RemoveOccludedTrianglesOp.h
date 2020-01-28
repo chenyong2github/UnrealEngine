@@ -42,6 +42,8 @@ public:
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 	TSharedPtr<IndexMeshWithAcceleration> CombinedMeshTrees;
 
+	TArray<FTransform3d> MeshTransforms;
+
 	EOcclusionTriangleSampling TriangleSamplingMethod =
 		EOcclusionTriangleSampling::Centroids;
 

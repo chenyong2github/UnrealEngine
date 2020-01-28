@@ -69,7 +69,6 @@ void UMeshSelectionSet::AddIndices(EMeshSelectionElementType ElementType, const 
 }
 
 
-
 void UMeshSelectionSet::RemoveIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices)
 {
 	TArray<int32>& CurElements = GetElements(ElementType);

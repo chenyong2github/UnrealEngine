@@ -23,6 +23,7 @@ UTakeRecorderLiveLinkSource::UTakeRecorderLiveLinkSource(const FObjectInitialize
 	, bReduceKeys(false)
 	, SubjectName(NAME_None)
 	, bSaveSubjectSettings(true)
+	, bUseSourceTimecode(true)
 {
 	TrackTint = FColor(74, 108, 164);
 }
@@ -31,7 +32,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PreRecording(class ULe
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 	TrackRecorder = NewObject<UMovieSceneLiveLinkTrackRecorder>();
-	TrackRecorder->CreateTrack(MovieScene, SubjectName, bSaveSubjectSettings, nullptr);
+	TrackRecorder->CreateTrack(MovieScene, SubjectName, bSaveSubjectSettings, bUseSourceTimecode, nullptr);
 
 	return TArray<UTakeRecorderSource*>();
 }

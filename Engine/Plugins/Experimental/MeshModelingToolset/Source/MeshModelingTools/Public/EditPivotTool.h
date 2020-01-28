@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseBehaviors//BehaviorTargetInterfaces.h"
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Changes/TransformChange.h"
 #include "FrameTypes.h"
+#include "BoxTypes.h"
 #include "EditPivotTool.generated.h"
 
 class UBaseAxisTranslationGizmo;
@@ -28,23 +29,6 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
-
-
-
-/** Snap-Drag Source Point */
-UENUM()
-enum class EEditPivotSnapDragSource : uint8
-{
-	/** Snap-Drag moves the Clicked Point to the Target Location */
-	ClickPoint = 0 UMETA(DisplayName = "Click Point"),
-
-	/** Snap-Drag moves the Gizmo/Pivot to the Target Location */
-	Pivot = 1 UMETA(DisplayName = "Pivot"),
-
-
-	LastValue UMETA(Hidden)
-
-};
 
 
 
@@ -75,13 +59,9 @@ class MESHMODELINGTOOLS_API UEditPivotToolProperties : public UInteractiveToolPr
 	GENERATED_BODY()
 public:
 
-	/** Click-drag starting on the target objects to reposition them on the rest of the scene */
+	/** When enabled, click-drag to reposition the Pivot */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bEnableSnapDragging = false;
-
-
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
-	EEditPivotSnapDragSource SnapDragSource = EEditPivotSnapDragSource::ClickPoint;
 
 	/** When Snap-Dragging, align source and target normals */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
@@ -100,6 +80,63 @@ struct FEditPivotTarget
 	UPROPERTY()
 	UTransformGizmo* TransformGizmo;
 };
+
+
+
+
+UENUM()
+enum class EEditPivotToolActions
+{
+	NoAction,
+
+	Center,
+	Bottom,
+	Top,
+	Left,
+	Right,
+	Front,
+	Back
+};
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UEditPivotToolActionPropertySet : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	TWeakObjectPtr<UEditPivotTool> ParentTool;
+
+	void Initialize(UEditPivotTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	void PostAction(EEditPivotToolActions Action);
+
+	UPROPERTY(EditAnywhere, Category = BoxPositions)
+	bool bUseWorldBox = false;
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 1))
+	void Center() { PostAction(EEditPivotToolActions::Center); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 2))
+	void Bottom() { PostAction(EEditPivotToolActions::Bottom ); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 2))
+	void Top() { PostAction(EEditPivotToolActions::Top); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 3))
+	void Left() { PostAction(EEditPivotToolActions::Left); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 3))
+	void Right() { PostAction(EEditPivotToolActions::Right); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 4))
+	void Front() { PostAction(EEditPivotToolActions::Front); }
+
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 4))
+	void Back() { PostAction(EEditPivotToolActions::Back); }
+
+};
+
 
 
 /**
@@ -137,13 +174,25 @@ public:
 	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
 	virtual void OnTerminateDragSequence() override;
 
-protected:
+public:
 	UPROPERTY()
 	UEditPivotToolProperties* TransformProps;
+
+	UPROPERTY()
+	UEditPivotToolActionPropertySet* EditPivotActions;
+
+	virtual void RequestAction(EEditPivotToolActions ActionType);
 
 protected:
 	UWorld* TargetWorld;
 	UInteractiveGizmoManager* GizmoManager;
+
+	TArray<int> MapToFirstOccurrences;
+
+	FTransform3d Transform;
+	FAxisAlignedBox3d ObjectBounds;
+	FAxisAlignedBox3d WorldBounds;
+	void Precompute();
 
 	UPROPERTY()
 	TArray<FEditPivotTarget> ActiveGizmos;
@@ -155,6 +204,10 @@ protected:
 	FFrame3d StartDragFrameWorld;
 	FTransform StartDragTransform;
 	int ActiveSnapDragIndex = -1;
+
+	EEditPivotToolActions PendingAction;
+	virtual void ApplyAction(EEditPivotToolActions ActionType);
+	virtual void SetPivotToBoxPoint(EEditPivotToolActions ActionPoint);
 
 	void UpdateAssets(const FFrame3d& NewPivotWorldFrame);
 };

@@ -4939,16 +4939,43 @@ bool UEngine::HandleKismetEventCommand(UWorld* InWorld, const TCHAR* Cmd, FOutpu
 	FString const ObjectName = FParse::Token(Cmd, 0);
 	if (ObjectName == TEXT("*"))
 	{
+		// TObjectIterator excludes RF_ClassDefaultObjects but not default SubObjects which belong to them, so we'll see if this object belongs to a CDO.
+		const auto IsCDOOwnedArchtype = [](UObject* InObject)
+		{
+			if (!InObject->HasAnyFlags(RF_ArchetypeObject))
+			{
+				return false;
+			}
+
+			InObject = InObject->GetOuter();
+			while (InObject)
+			{
+				if (InObject->HasAnyFlags(RF_ClassDefaultObject))
+				{
+					return true;
+				}
+
+				InObject = InObject->GetOuter();
+			}
+
+			return false;
+		};
+
 		// Send the command to everything in the world we're dealing with...
 		int32 NumInstanceCallsSucceeded = 0;
 		for (TObjectIterator<UObject> It; It; ++It)
 		{
 			UObject* const Obj = *It;
-			UWorld const* const ObjWorld = Obj->GetWorld();
-			if (ObjWorld == InWorld)
+
+			const bool bIsCDOOwnedArchtype = IsCDOOwnedArchtype(Obj);
+			if (!bIsCDOOwnedArchtype)
 			{
-				const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
-				NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
+				UWorld const* const ObjWorld = Obj->GetWorld();
+				if (ObjWorld == InWorld)
+				{
+					const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
+					NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
+				}
 			}
 		}
 

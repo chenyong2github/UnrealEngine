@@ -4,7 +4,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/FrameRate.h"
 #include "MoviePipelineOutputBase.h"
-#include "MoviePipelineAccumulationSetting.h"
+#include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineRenderPass.h"
 #include "MoviePipelineOutputBuilder.h"
@@ -78,7 +78,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	* LeftOffset = floor((1925-1920)/2) = 2
 	* RightOffset = (1925-1920-LeftOffset)
 	*/
-	UMoviePipelineAccumulationSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAccumulationSetting>(Shot);
+	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
@@ -150,7 +150,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	int32 NumOutputPasses = 0;
 	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), Shot))
 	{
-		RenderPass->Setup(ActiveRenderPasses);
+		RenderPass->Setup(ActiveRenderPasses, RenderPassInitSettings);
 		NumOutputPasses++;
 	}
 
@@ -181,15 +181,20 @@ void UMoviePipeline::RenderFrame()
 
 	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
 	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
+	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
 
-	// We render a frame during motion blur fixes (but don't try to submit it for output) to allow seeding
-	// the view histories with data. We want to do this all in one tick so that the motion is correct.
-	const bool bIsHistoryOnlyFrame = CurrentCameraCut.State == EMovieRenderShotState::MotionBlur;
-	const bool bIsRenderFrame = CurrentCameraCut.State == EMovieRenderShotState::Rendering;
-
-	if(!(bIsHistoryOnlyFrame || bIsRenderFrame))
+	// Capture the camera location if this is a motion blur frame, so that we get camera motion blur on next frame.
+	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
 	{
-		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Skipping RenderFrame() call due to state being ineligable for rendering. State: %d"), GFrameCounter, CurrentCameraCut.State);
+		LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
+		LocalPlayerController->GetPlayerViewPoint(FrameInfo.PrevViewLocation, FrameInfo.PrevViewRotation);
+	}
+
+	// If we don't want to render this frame, then we will skip processing - engine warmup frames,
+	// render every nTh frame, etc. In other cases, we may wish to render the frame but discard the
+	// result and not send it to the output merger (motion blur frames, gpu feedback loops, etc.)
+	if (CachedOutputState.bSkipRendering)
+	{
 		return;
 	}
 	
@@ -205,11 +210,11 @@ void UMoviePipeline::RenderFrame()
 	// 
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
-	UMoviePipelineAccumulationSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAccumulationSetting>(CurrentShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentShot);
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(CurrentShot);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(CurrentShot);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
-	check(AccumulationSettings);
+	check(AntiAliasingSettings);
 	check(CameraSettings);
 	check(HighResSettings);
 	check(OutputSettings);
@@ -217,27 +222,49 @@ void UMoviePipeline::RenderFrame()
 	FIntPoint TileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 	FIntPoint OutputResolution = OutputSettings->OutputResolution;
 
-	int32 NumSpatialSamples = AccumulationSettings->SpatialSampleCount;
-	int32 NumTemporalSamples = CameraSettings->TemporalSampleCount;
+	int32 NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
+	int32 NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
 	ensure(TileCount.X > 0 && TileCount .Y> 0 && NumSpatialSamples > 0);
 
 	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
 
-	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+	// Update our current view location
 	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
 
-	// if it is the first frame, then motion blur is disabled, and we just use the current frame camera position/rotation
-	if (bIsHistoryOnlyFrame)
+	if (!CurrentCameraCut.bHasEvaluatedMotionBlurFrame)
 	{
+		// There won't be a valid Previous if we haven't done motion blur.
 		FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+	}
+
+	if (CurrentCameraCut.State != EMovieRenderShotState::Rendering)
+	{
+		// We can optimize some of the settings for 'special' frames we may be rendering, ie: we render once for motion vectors, but
+		// we don't need that per-tile so we can set the tile count to 1, and spatial sample count to 1 for that particular frame.
+		{
+			// Tiling is only needed when actually producing frames.
+			TileCount.X = 1;
+			TileCount.Y = 1;
+
+			// Spatial Samples aren't needed when not producing frames (caveat: Render Warmup Frame, handled below)
+			NumSpatialSamples = 1;
+		}
+	}
+
+	int32 NumWarmupSamples = 0;
+	if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp)
+	{
+		// We should only get this far if we want to render samples, so we'll always overwrite it with NumRenderWarmUpSamples. We should
+		// not change the NumSpatialSamples because that causes side effects to other parts of the rendering.
+		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
 	}
 
 	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(GetPipelineMasterConfig(), CurrentShot);
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
-	if (CachedOutputState.TemporalSampleIndex == 0)
+	if (CachedOutputState.IsFirstTemporalSample())
 	{
 		// This happens before any data is queued for this frame.
 		FMoviePipelineMergerOutputFrame& OutputFrame = OutputBuilder->QueueOutputFrame_GameThread(CachedOutputState);
@@ -253,126 +280,120 @@ void UMoviePipeline::RenderFrame()
 	{
 		for (int32 TileX = 0; TileX < TileCount.X; TileX++)
 		{
-			/*
-			* Two different features need to move the viewport and need to work in combination with each other.
-			* Ultra-high resolution rendering and single-frame anti-aliasing both work by moving the viewport
-			* by a small amount to create new samples for each render pass which generates more usable data.
-			*
-			* High resolution rendering is referred to as "tiles" but it is not actually a tile based render.
-			* Splitting the view into many smaller rectangles and using an off-center camera projection on them
-			* wouldn't work due to post-processing effects (such as vignette) as you would end up with many copies
-			* of the effect on your final image. Instead, it renders the entire screen for every 'tile', but shifts
-			* the camera position a portion of a pixel to cause new, unique data to be captured in the next tile.
-			*
-			* Single-frame anti-aliasing works in a similar way, by shifting the view by less than a pixel for each
-			* sample in the anti-aliasing. While the high-resolution rendering is a specific grid pattern, the
-			* anti-aliasing uses a more nuanced technique for picking offsets. It uses a deterministic Halton
-			* sequence to pick the offset, weighted by a Gaussian curve to mostly focus on samples around the
-			* center, but occasionally picking an offset which would be a sample outside of it's current sub-pixel.
-			*
-			* In the example below we're looking at one render target pixel, split into a 2x2 tiling. To gain
-			* 2x resolution, we shift the viewport so that the center of the pixel is no longer 'o', but now
-			* 'v'. Since this shift is less than a whole pixel we can interlace the resulting images and they
-			* won't be duplicates-but-shifted-by-one of each other. This is how we end up with new unique data.
-			*
-			* |-------------|-------------|
-			* |        a    |             |
-			* |    a        |             |
-			* |      v      |      v      |
-			* |   a         |             |
-			* |a       a    |             |
-			* |-------------o-------------|
-			* |             |             |
-			* |             |             |
-			* |      v      |      v      |
-			* |             |             |
-			* |             |             |
-			* |-------------|-------------|
-			*
-			* Now that a given render target pixel |v| has been shifted to it's correct location, we need to randomly
-			* sample within that box (perhaps with a slight overshoot) for the anti-aliasing samples. These samples
-			* ('a') are added together to create one |v| pixel and then only the |v| pixels are interleaved.
-			* Interleaving is performed on the CPU to support > 16k output sizes which is the maximum texture resolution
-			* for most GPUs.
-			*/
-
-			// Calculate the sub-pixel shift to get this pass into the right portion of the main pixel. Assuming the
-			// pixel coordinates are [0-1], the size of a sub-pixel (for tiles) is 1/NumTiles. To get to the right
-			// 'quadrant' we need to take our current tile index and multiply it by the size of each tile, so
-			// for the top right quadrant (in above example) size=(1/2), offset=(size*1). Finally we add half
-			// of the size to put us in the center of that pixel.
-			double TilePixelSizeFractionX;
-			double TilePixelSizeFractionY; 
-			double TileShiftX; 
-			double TileShiftY;
-
-			{
-				TileShiftX = 0.5f;
-				TileShiftY = 0.5f;
-
-				TilePixelSizeFractionX = 1.0f;
-				TilePixelSizeFractionY = 1.0f;
-			}
-
-			// If they're trying to seed the histories, then we'll just override the NumSpatialSamples since they don't need all samples as
-			// this isn't output.
-			if (bIsHistoryOnlyFrame)
-			{
-				NumSpatialSamples = 1;
-			}
+			int NumSamplesToRender = (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp) ? NumWarmupSamples : NumSpatialSamples;
 
 			// Now we want to render a user-configured number of spatial jitters to come up with the final output for this tile. 
-			for (int32 SpatialSample = 0; SpatialSample < NumSpatialSamples; SpatialSample++)
+			for (int32 RenderSampleIndex = 0; RenderSampleIndex < NumSamplesToRender; RenderSampleIndex++)
 			{
-				// Count this as a sample rendered for the current work.
-				CurrentCameraCut.CurrentWorkInfo.NumSamples++;
+				int32 SpatialSampleIndex = (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp) ? 0 : RenderSampleIndex;
 
-				float OffsetX = 0.5f;
-				float OffsetY = 0.5f; 
-
-				// Only jitter when required, as jitter requires TAA to be off. 
-				// Also, we want jitter if either time samples or spatial samples are > 1, otherwise not.
-				if (!bIsHistoryOnlyFrame &&
-					(NumSpatialSamples > 1 || NumTemporalSamples > 1))
+				if (CurrentCameraCut.State == EMovieRenderShotState::Rendering)
 				{
-					OffsetX = Halton((SpatialSample + 1) + (CachedOutputState.TemporalSampleIndex * NumSpatialSamples), 2);
-					OffsetY = Halton((SpatialSample + 1) + (CachedOutputState.TemporalSampleIndex * NumSpatialSamples), 3);
+					// Count this as a sample rendered for the current work.
+					CurrentCameraCut.WorkMetrics.OutputSubSampleIndex++;
 				}
 
-				// Our spatial sample can only move within a +/- range within the tile we're in.
-				double SpatialShiftX = FMath::GetMappedRangeValueClamped(FVector2D(0, 1), FVector2D(-TilePixelSizeFractionX / 2.f, TilePixelSizeFractionX / 2.f), OffsetX);
-				double SpatialShiftY = FMath::GetMappedRangeValueClamped(FVector2D(0, 1), FVector2D(-TilePixelSizeFractionY / 2.f, TilePixelSizeFractionY / 2.f), OffsetY);
+				// We freeze views for all spatial samples except the last so that nothing in the FSceneView tries to update.
+				// Our spatial samples need to be different positional takes on the same world, thus pausing it.
+				const bool bAllowPause = CurrentCameraCut.State == EMovieRenderShotState::Rendering;
+				const bool bIsLastTile = FIntPoint(TileX, TileY) == FIntPoint(TileCount.X - 1, TileCount.Y - 1);
+				const bool bWorldIsPaused = bAllowPause && !(bIsLastTile && CachedOutputState.IsLastTemporalSample());
 
-				double FinalSubPixelShiftX = - (TileShiftX + SpatialShiftX - 0.5);
-				double FinalSubPixelShiftY = (TileShiftY + SpatialShiftY - 0.5);
+				// We need to pass camera cut flag on the first sample that gets rendered for a given camera cut. If you don't have any render
+				// warm up frames, we do this on the first render sample because we no longer render the motion blur frame (just evaluate it).
+				const bool bCameraCut = CachedOutputState.ShotSamplesRendered == 0;
+				CachedOutputState.ShotSamplesRendered++;
 
-				FIntPoint BackbufferResolution = OutputSettings->OutputResolution;
+				EAntiAliasingMethod AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA; // temp
+
+				// Anti-aliasing appears to reasonably work with temporal and spatial sampling so we want it on by default 
+				// (otherwise going from 1 sample > 2 is a 4x reduction in quality due to TAA being turned off).
+				if (AntiAliasingSettings->bOverrideAntiAliasing)
+				{
+					AntiAliasingMethod = AntiAliasingSettings->AntiAliasingMethod;
+				}
+
+				// Now to check if we have to force it off (at which point we warn the user).
+				bool bMultipleTiles = (TileCount.X > 1) || (TileCount.Y > 1);
+				if (bMultipleTiles && AntiAliasingMethod == EAntiAliasingMethod::AAM_TemporalAA)
+				{
+					// Temporal Anti-Aliasing isn't supported when using tiled rendering because it relies on having history, and
+					// the tiles use the previous tile as the history which is incorrect. 
+					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Temporal AntiAliasing is not supported when using tiling!"));
+					AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+				}
+
+
+				// We Abs this so that negative numbers on the first frame of a cut (warm ups) don't go into Halton which will assign 0.
+				int32 ClampedFrameNumber = FMath::Max(0, CachedOutputState.OutputFrameNumber);
+				int32 ClampedTemporalSampleIndex = FMath::Max(0, CachedOutputState.TemporalSampleIndex);
+				int32 FrameIndex = FMath::Abs((ClampedFrameNumber * (NumTemporalSamples * NumSpatialSamples)) + (ClampedTemporalSampleIndex * NumSpatialSamples) + SpatialSampleIndex);
+
+				// if we are warming up, we will just use the RenderSampleIndex as the FrameIndex so the samples jump around a bit.
+				if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp)
+				{
+					FrameIndex = RenderSampleIndex;
+				}
+				
+
+				// Repeat the Halton Offset equally on each output frame so non-moving objects don't have any chance to crawl between frames.
+				int32 HaltonIndex = (FrameIndex % (NumSpatialSamples*NumTemporalSamples)) + 1;
+				float HaltonOffsetX = Halton(HaltonIndex, 2);
+				float HaltonOffsetY = Halton(HaltonIndex, 3);
+
+				// only allow a spatial jitter if we have more than one sample
+				bool bAllowSpatialJitter = !(NumSpatialSamples == 1 && NumTemporalSamples == 1);
+
+				UE_LOG(LogTemp, Warning, TEXT("FrameIndex: %d HaltonIndex: %d Offset: (%f,%f)"), FrameIndex, HaltonIndex, HaltonOffsetX, HaltonOffsetY);
+				float SpatialShiftX = 0.0f;
+				float SpatialShiftY = 0.0f;
+
+				if (bAllowSpatialJitter)
+				{
+					static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TemporalAAFilterSize"));
+					float FilterSize = CVar->GetFloat();
+
+					// Scale distribution to set non-unit variance
+					// Variance = Sigma^2
+					float Sigma = 0.47f * FilterSize;
+
+					// Window to [-0.5, 0.5] output
+					// Without windowing we could generate samples far away on the infinite tails.
+					float OutWindow = 0.5f;
+					float InWindow = FMath::Exp(-0.5 * FMath::Square(OutWindow / Sigma));
+
+					// Box-Muller transform
+					float Theta = 2.0f * PI * HaltonOffsetY;
+					float r = Sigma * FMath::Sqrt(-2.0f * FMath::Loge((1.0f - HaltonOffsetX) * InWindow + HaltonOffsetX));
+
+					UE_LOG(LogTemp, Log, TEXT("r: %f t: %f"), r, Theta);
+					SpatialShiftX = r * FMath::Cos(Theta);
+					SpatialShiftY = r * FMath::Sin(Theta);
+				}
+
+				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputSettings->OutputResolution.X / TileCount.X), FMath::CeilToInt(OutputSettings->OutputResolution.Y / TileCount.Y));
 				FIntPoint TileResolution = BackbufferResolution;
 
-				{
-					BackbufferResolution = FIntPoint(
-						FMath::CeilToInt(BackbufferResolution.X / TileCount.X),
-						FMath::CeilToInt(BackbufferResolution.Y / TileCount.Y));
-
-					// Cache tile resolution before we add padding.
-					TileResolution = BackbufferResolution;
-
-					// Apply size padding.
-					BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
-				}
+				// Apply size padding.
+				BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
 
 				// We take all of the information needed to render a single sample and package it into a struct.
 				FMoviePipelineRenderPassMetrics SampleState;
+				SampleState.FrameIndex = FrameIndex;
+				SampleState.bWorldIsPaused = bWorldIsPaused;
+				SampleState.bCameraCut = bCameraCut;
+				SampleState.AntiAliasingMethod = AntiAliasingMethod;
+				SampleState.SceneCaptureSource = OutputSettings->bDisableToneCurve ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
-				SampleState.SpatialShift = FVector2D((float)( FinalSubPixelShiftX) * 2.0f / BackbufferResolution.X, (float)FinalSubPixelShiftY * 2.0f / BackbufferResolution.X);
+				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;
-				SampleState.bIsHistoryOnlyFrame = bIsHistoryOnlyFrame;
-				SampleState.SpatialSampleIndex = SpatialSample;
+				SampleState.bDiscardResult = CachedOutputState.bDiscardRenderResult;
+				SampleState.SpatialSampleIndex = SpatialSampleIndex;
 				SampleState.SpatialSampleCount = NumSpatialSamples;
 				SampleState.TemporalSampleIndex = CachedOutputState.TemporalSampleIndex;
-				SampleState.TemporalSampleCount = CameraSettings->TemporalSampleCount;
-				SampleState.AccumulationGamma = AccumulationSettings->AccumulationGamma;
+				SampleState.TemporalSampleCount = AntiAliasingSettings->TemporalSampleCount;
+				SampleState.AccumulationGamma = AntiAliasingSettings->AccumulationGamma;
 				SampleState.BackbufferSize = BackbufferResolution;
 				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
@@ -380,11 +401,14 @@ void UMoviePipeline::RenderFrame()
 				SampleState.ExposureCompensation = CameraSettings->bManualExposure ? CameraSettings->ExposureCompensation : TOptional<float>();
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
 				{
-					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapPercentage), 
-														   FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapPercentage));
+					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapRatio), 
+														   FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapRatio));
 					SampleState.OverlappedOffset = FIntPoint(TileX * TileResolution.X - SampleState.OverlappedPad.X,
 															  TileY * TileResolution.Y - SampleState.OverlappedPad.Y);
-					SampleState.OverlappedSubpixelShift = FVector2D(1.0f - OffsetX,OffsetY);
+
+					// Move the final render by this much in the accumulator to counteract the offset put into the view matrix.
+					// Note that when bAllowSpatialJitter is false, SpatialShiftX/Y will always be zero.
+					SampleState.OverlappedSubpixelShift = FVector2D(0.5f - SpatialShiftX, 0.5f - SpatialShiftY);
 				}
 
 				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
@@ -395,6 +419,12 @@ void UMoviePipeline::RenderFrame()
 				for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
 				{
 					EnginePass->RenderSample_GameThread(SampleState);
+				}
+
+				// We give a chance for each individual render pass to render as well. This should be used if they're not trying to share data from an Engine Pass.
+				for (UMoviePipelineRenderPass* RenderPass : InputBuffers)
+				{
+					RenderPass->RenderSample_GameThread(SampleState);
 				}
 			}
 		}
@@ -411,7 +441,7 @@ void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&&
 	
 	for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 	{
-		OutputContainer->OnRecieveImageDataImpl(&OutputFrame);
+		OutputContainer->OnRecieveImageData(&OutputFrame);
 	}
 }
 
@@ -420,31 +450,10 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
+	// This is for debug output, writing every individual sample to disk that comes off of the GPU (that isn't discarded).
 	TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 
-	// Fill alpha for now 
-	/*switch (OutputSample->GetType())
-	{
-		case EImagePixelType::Color:
-		{
-			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-			break;
-		}
-		case EImagePixelType::Float16:
-		{
 
-			break;
-		}
-		case EImagePixelType::Float32:
-		{
-			TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(255));
-			break;
-		}
-		default:
-			check(false);
-	}*/
-
-	// JPEG output
 	TileImageTask->Format = EImageFormat::EXR;
 	TileImageTask->CompressionQuality = 100;
 

@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Internationalization/Internationalization.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStringTable, Log, All);
 
@@ -184,7 +185,8 @@ public:
 	 */
 	static bool CanFindOrLoadStringTableAsset()
 	{
-		return !InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl();
+		return FInternationalization::IsAvailable()
+			&& (!InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl());
 	}
 
 	/**
@@ -256,7 +258,7 @@ public:
 	}
 
 protected:
-	virtual ~IStringTableEngineBridge() {}
+	virtual ~IStringTableEngineBridge() = default;
 
 	virtual bool CanFindOrLoadStringTableAssetImpl() = 0;
 	virtual int32 LoadStringTableAssetImpl(const FName InTableId, FLoadStringTableAssetCallback InLoadedCallback) = 0;

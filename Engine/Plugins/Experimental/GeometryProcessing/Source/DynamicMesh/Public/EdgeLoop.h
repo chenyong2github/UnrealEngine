@@ -135,9 +135,32 @@ public:
 	}
 
 	/**
+	 * @return vertex position in loop at the vertex previous to LoopIndex
+	 */
+	inline FVector3d GetPrevVertex(int32 LoopIndex) const
+	{
+		return Mesh->GetVertex(Vertices[ (LoopIndex == 0) ? (Vertices.Num()-1) : (LoopIndex-1) ]);
+	}
+
+	/**
+	 * @return vertex position in loop at the vertex after LoopIndex
+	 */
+	inline FVector3d GetNextVertex(int32 LoopIndex) const
+	{
+		return Mesh->GetVertex(Vertices[ (LoopIndex + 1) % Vertices.Num() ]);
+	}
+
+
+
+	/**
 	 * @return bounding box of the vertices of the EdgeLoop
 	 */
 	FAxisAlignedBox3d GetBounds() const;
+
+	/**
+	 * Add the vertices of the loop to the Vertices array
+	 */
+	void GetVertices(TArray<FVector3d>& Vertices) const;
 
 
 	/**

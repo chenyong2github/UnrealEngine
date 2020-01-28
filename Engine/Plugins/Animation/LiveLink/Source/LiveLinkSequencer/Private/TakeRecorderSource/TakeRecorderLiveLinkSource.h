@@ -67,6 +67,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Subjects")
 	bool bSaveSubjectSettings;
 
+	/** If true we use timecode even if not synchronized, else we use world time*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Subjects")
+	bool bUseSourceTimecode;
+
 	/**
 	* The master track recorder we created.
 	*/

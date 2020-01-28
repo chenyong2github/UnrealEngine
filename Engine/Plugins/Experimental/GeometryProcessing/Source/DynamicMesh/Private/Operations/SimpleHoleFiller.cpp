@@ -2,6 +2,10 @@
 
 #include "Operations/SimpleHoleFiller.h"
 #include "DynamicMeshEditor.h"
+#include "CompGeom/PolygonTriangulation.h"
+
+
+
 
 bool FSimpleHoleFiller::Fill(int GroupID)
 {
@@ -26,6 +30,28 @@ bool FSimpleHoleFiller::Fill(int GroupID)
 
 	// [TODO] 4-case? could check nbr normals to figure out best internal edge...
 
+	bool bOK = false;
+	if (FillType == EFillType::PolygonEarClipping)
+	{
+		bOK = Fill_EarClip(GroupID);
+	}
+	else
+	{
+		bOK = Fill_Fan(GroupID);
+	}
+
+	if (bOK && Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
+	{
+		FDynamicMeshEditor Editor(Mesh);
+		Editor.SetTriangleNormals(NewTriangles);
+	}
+
+	return bOK;
+}
+
+
+bool FSimpleHoleFiller::Fill_Fan(int GroupID)
+{
 	// compute centroid
 	FVector3d c = FVector3d::Zero();
 	for (int i = 0; i < Loop.GetVertexCount(); ++i)
@@ -47,6 +73,37 @@ bool FSimpleHoleFiller::Fill(int GroupID)
 		return false;
 	}
 	NewTriangles = AddFanResult.NewTriangles;
+
+	return true;
+}
+
+
+
+
+bool FSimpleHoleFiller::Fill_EarClip(int GroupID)
+{
+	TArray<FVector3d> Vertices;
+	int32 NumVertices = Loop.GetVertexCount();
+	for (int32 i = 0; i < NumVertices; ++i)
+	{
+		Vertices.Add(Mesh->GetVertex(Loop.Vertices[i]));
+	}
+
+	TArray<FIndex3i> Triangles;
+	PolygonTriangulation::TriangulateSimplePolygon(Vertices, Triangles);
+
+	for (FIndex3i PolyTriangle : Triangles)
+	{
+		FIndex3i MeshTriangle(
+			Loop.Vertices[PolyTriangle.A],
+			Loop.Vertices[PolyTriangle.C],
+			Loop.Vertices[PolyTriangle.B]);  // Reversing orientation here!!
+		int32 NewTriangle = Mesh->AppendTriangle(MeshTriangle, GroupID);
+		if (NewTriangle >= 0)
+		{
+			NewTriangles.Add(NewTriangle);
+		}
+	}
 
 	return true;
 }

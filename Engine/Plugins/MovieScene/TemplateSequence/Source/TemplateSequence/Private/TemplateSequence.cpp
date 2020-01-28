@@ -29,6 +29,17 @@ void UTemplateSequence::Initialize()
 	MovieScene->SetDisplayRate(DisplayRate);
 }
 
+FGuid UTemplateSequence::GetRootObjectBindingID() const
+{
+	if (MovieScene != nullptr && MovieScene->GetSpawnableCount() > 0)
+	{
+		const FMovieSceneSpawnable& FirstSpawnable = MovieScene->GetSpawnable(0);
+		return FirstSpawnable.GetGuid();
+	}
+
+	return FGuid();
+}
+
 void UTemplateSequence::BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context)
 {
 	if (UActorComponent* Component = Cast<UActorComponent>(&PossessedObject))

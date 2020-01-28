@@ -4,6 +4,7 @@
 #include "PlayLevel.h"
 #include "HeadMountedDisplayTypes.h"
 #include "Editor.h"
+#include "GameFramework/GameModeBase.h"
 
 void UEditorEngine::StartPlayInNewProcessSession(FRequestPlaySessionParams& InRequestParams)
 {
@@ -66,6 +67,11 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 	// Apply various launch arguments based on their settings.
 	FString CommandLine;
 	FString UnrealURLParams;
+
+	if (InParams.GameModeOverride)
+	{
+		UnrealURLParams += FString::Printf(TEXT("?game=%s"), *InParams.GameModeOverride->GetName());
+	}
 
 	if (bIsDedicatedServer)
 	{

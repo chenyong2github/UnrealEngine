@@ -71,6 +71,7 @@ void UTransformProxy::UpdateObjects()
 			CombinedTransform = Obj.StartTransform;
 			CombinedTransform.AddToTranslation(Temp.GetTranslation());
 			CombinedTransform.ConcatenateRotation(Temp.GetRotation());
+			CombinedTransform.SetScale3D(CombinedTransform.GetScale3D() * Temp.GetScale3D());
 		}
 		else
 		{

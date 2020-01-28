@@ -135,6 +135,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/TextProperty.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/MetaData.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -1835,6 +1836,9 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		MaterialFunction->ParentFunction->ThumbnailInfo = NULL;
 		MaterialFunction->ThumbnailInfo = NULL;
 
+		// Cache any metadata
+		const TMap<FName, FString>* MetaData = UMetaData::GetMapForObject(MaterialFunction->ParentFunction);
+
 		// overwrite the original material function in place by constructing a new one with the same name
 		MaterialFunction->ParentFunction = (UMaterialFunction*)StaticDuplicateObject(
 			MaterialFunction, 
@@ -1846,6 +1850,13 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		// Restore the thumbnail info
 		MaterialFunction->ParentFunction->ThumbnailInfo = OriginalThumbnailInfo;
 		MaterialFunction->ThumbnailInfo = ThumbnailInfo;
+
+		// Restore the metadata
+		if (MetaData)
+		{
+			UMetaData* PackageMetaData = MaterialFunction->ParentFunction->GetOutermost()->GetMetaData();
+			PackageMetaData->SetObjectValues(MaterialFunction->ParentFunction, *MetaData);
+		}
 
 		// Restore RF_Standalone on the original material function, as it had been removed from the preview material so that it could be GC'd.
 		MaterialFunction->ParentFunction->SetFlags( RF_Standalone );
@@ -1899,6 +1910,9 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		OriginalMaterial->ThumbnailInfo = NULL;
 		Material->ThumbnailInfo = NULL;
 
+		// Cache any metadata
+		const TMap<FName, FString>* MetaData = UMetaData::GetMapForObject(OriginalMaterial);
+
 		// A bit hacky, but disable material compilation in post load when we duplicate the material.
 		UMaterial::ForceNoCompilationInPostLoad(true);
 
@@ -1913,6 +1927,13 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		// Restore the thumbnail info
 		OriginalMaterial->ThumbnailInfo = OriginalThumbnailInfo;
 		Material->ThumbnailInfo = ThumbnailInfo;
+
+		// Restore the metadata
+		if (MetaData)
+		{
+			UMetaData* PackageMetaData = OriginalMaterial->GetOutermost()->GetMetaData();
+			PackageMetaData->SetObjectValues(OriginalMaterial, *MetaData);
+		}
 
 		// Change the original material object to the new original material
 		OriginalMaterialObject = OriginalMaterial;
@@ -4403,6 +4424,7 @@ void FMaterialEditor::UndoGraphAction()
 	{
 		Material->BuildEditorParameterList();
 	}
+	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
 void FMaterialEditor::RedoGraphAction()
@@ -4419,7 +4441,7 @@ void FMaterialEditor::RedoGraphAction()
 	{
 		Material->BuildEditorParameterList();
 	}
-
+	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
 void FMaterialEditor::OnAlignTop()

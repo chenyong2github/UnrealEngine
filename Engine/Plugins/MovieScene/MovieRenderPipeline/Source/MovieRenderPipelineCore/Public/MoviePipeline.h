@@ -76,21 +76,41 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineMasterConfig* GetPipelineMasterConfig() const;
-public:
 
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+public:
 	ULevelSequence* GetTargetSequence() const { return TargetSequence; }
 
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	const TArray<FMoviePipelineShotInfo>& GetShotList() const { return ShotList; }
 
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	int32 GetCurrentShotIndex() const { return CurrentShotIndex; }
+	const FMoviePipelineFrameOutputState& GetOutputState() const { return CachedOutputState; }
 
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
+	EMovieRenderPipelineState GetPipelineState() const { return PipelineState; }
+
+	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
 	void OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
+	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
+public:
+	template<typename SettingType>
+	SettingType* FindOrAddSetting(const FMoviePipelineShotInfo& InShot) const
+	{
+		return (SettingType*)FindOrAddSetting(SettingType::StaticClass(), InShot);
+	}
+
+	UMoviePipelineSetting* FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const FMoviePipelineShotInfo& InShot) const;
+	
+	/**
+	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
+	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
+	* @param	InOutputState		The output state for frame information.
+	* @param	InFormatOverrides	A series of Key/Value pairs to override particular format keys. Useful for things that
+	*								change based on the caller such as filename extensions.
+	*/
+	FString ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides) const;
+
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -145,13 +165,15 @@ private:
 	/** Flush any async resources in the engine that need to be finalized before submitting anything to the GPU, ie: Streaming Levels and Shaders */
 	void FlushAsyncEngineSystems();
 
-	template<typename SettingType>
-	SettingType* FindOrAddSetting(const FMoviePipelineShotInfo& InShot) const
-	{
-		return (SettingType*)FindOrAddSetting(SettingType::StaticClass(), InShot);
-	}
 
-	UMoviePipelineSetting* FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const FMoviePipelineShotInfo& InShot) const;
+	/** Tell our submixes to start capturing the data they are generating. Should only be called once output frames are being produced. */
+	void StartAudioRecording();
+	/** Tell our submixes to stop capturing the data, and then store a copy of it. */
+	void StopAudioRecording();
+	/** Attempt to process the audio thread work. This is complicated by our non-linear time steps */
+	void ProcessAudioTick();
+	void SetupAudioRendering();
+	void TeardownAudioRendering();
 	
 	/** 
 	* Renders the next frame in the Pipeline. This updates/ticks all scene view render states
@@ -164,8 +186,7 @@ private:
 	/** Allow any Settings to modify the (already duplicated) sequence. This allows inserting automatic pre-roll, etc. */
 	void ModifySequenceViaExtensions(ULevelSequence* InSequence);
 
-	/** Calculate the expected amount of total work that this Movie Pipeline is expected to do. */
-	FMoviePipelineWorkInfo CalculateExpectedOutputMetrics();
+
 private:
 	/** Initialize a new Level Sequence Actor to evaluate our target sequence. Disables any existing Level Sequences pointed at our original sequence. */
 	void InitializeLevelSequenceActor(ULevelSequence* OriginalLevelSequence, ULevelSequence* InSequenceToApply);
@@ -213,29 +234,20 @@ private:
 	UMovieRenderDebugWidget* DebugWidget;
 
 	/** A list of all of the shots we are going to render out from this sequence. */
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	TArray<FMoviePipelineShotInfo> ShotList;
 
 	/** What state of the overall flow are we in? See enum for specifics. */
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	EMovieRenderPipelineState PipelineState;
 
 	/** What is the index of the shot we are working on. -1 if not initialized, may be greater than ShotList.Num() if we've reached the end. */
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	int32 CurrentShotIndex;
 
 	/** The time (in UTC) that Initialize was called. Used to track elapsed time. */
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	FDateTime InitializationTime;
 
-	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = true), Category = "Movie Render Pipeline")
 	FMoviePipelineFrameOutputState CachedOutputState;
 
-	/** 
-	* Cache the overall expected work for the entire Movie Pipeline. Used to compare current progress against total for progress.
-	* Current Progress is tracked by individual shots.
-	*/
-	FMoviePipelineWorkInfo TotalExpectedWork;
+	MoviePipeline::FAudioState AudioState;
 
 	/** 
 	* Have we hit the callback for the BeginFrame at least once? This solves an issue where the delegates
@@ -255,7 +267,7 @@ private:
 	FMoviePipelineErrored OnMoviePipelineErroredDelegate;
 
 	/**
-	 * We have to apply camera motion vectors manually. So we keep the current and previous fram'es camera view and rotation.
+	 * We have to apply camera motion vectors manually. So we keep the current and previous frame's camera view and rotation.
 	 * Then we render a sequence of the same movement, and update after running the game sim.
 	 **/
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;

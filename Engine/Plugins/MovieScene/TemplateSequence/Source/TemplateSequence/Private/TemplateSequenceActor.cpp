@@ -170,11 +170,10 @@ void ATemplateSequenceActor::SetBinding(AActor* Actor)
 	UTemplateSequence* TemplateSequenceObject = GetSequence();
 	if (SequencePlayer && TemplateSequenceObject)
 	{
-		UMovieScene* MovieScene = TemplateSequenceObject->GetMovieScene();
-		if (MovieScene != nullptr && MovieScene->GetBindings().Num() > 0)
+		const FGuid RootBindingID = TemplateSequenceObject->GetRootObjectBindingID();
+		if (RootBindingID.IsValid())
 		{
-			const FMovieSceneBinding& Binding = MovieScene->GetBindings()[0];
-			SequencePlayer->State.Invalidate(Binding.GetObjectGuid(), MovieSceneSequenceID::Root);
+			SequencePlayer->State.Invalidate(RootBindingID, MovieSceneSequenceID::Root);
 		}
 	}
 }

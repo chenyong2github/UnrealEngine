@@ -75,14 +75,15 @@ struct FMovieSceneTrackFieldData
 		return true;
 	}
 
-	friend bool operator==(const FMovieSceneTrackFieldData& A, const FMovieSceneTrackFieldData& B)
+	/** Only called for serialization. Returns false to always serialize. */
+	bool Identical(const FMovieSceneTrackFieldData* Other, uint32 PortFlags) const
 	{
-		return A.Field == B.Field;
+		return false;
 	}
 
 	TMovieSceneEvaluationTree<FMovieSceneTrackIdentifier> Field;
 };
-template<> struct TStructOpsTypeTraits<FMovieSceneTrackFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneTrackFieldData> { enum { WithSerializer = true, WithIdenticalViaEquality = true }; };
+template<> struct TStructOpsTypeTraits<FMovieSceneTrackFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneTrackFieldData> { enum { WithSerializer = true, WithIdentical = true }; };
 
 /** Data that represents a single sub-section */
 USTRUCT()
@@ -129,9 +130,15 @@ struct FMovieSceneSubSectionFieldData
 		return true;
 	}
 
+	/** Only called for serialization. Returns false to always serialize. */
+	bool Identical(const FMovieSceneSubSectionFieldData* Other, uint32 PortFlags) const
+	{
+		return false;
+	}
+
 	TMovieSceneEvaluationTree<FMovieSceneSubSectionData> Field;
 };
-template<> struct TStructOpsTypeTraits<FMovieSceneSubSectionFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneSubSectionFieldData> { enum { WithSerializer = true }; };
+template<> struct TStructOpsTypeTraits<FMovieSceneSubSectionFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneSubSectionFieldData> { enum { WithSerializer = true, WithIdentical = true }; };
 
 
 /**

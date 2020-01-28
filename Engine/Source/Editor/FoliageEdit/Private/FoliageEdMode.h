@@ -74,6 +74,8 @@ struct FFoliageUISettings
 	void SetPaintBucketToolSelected(bool InbPaintBucketToolSelected) { bPaintBucketToolSelected = InbPaintBucketToolSelected; }
 	bool GetReapplyPaintBucketToolSelected() const { return bReapplyPaintBucketToolSelected ? true : false; }
 	void SetReapplyPaintBucketToolSelected(bool InbReapplyPaintBucketToolSelected) { bReapplyPaintBucketToolSelected = InbReapplyPaintBucketToolSelected; }
+	bool GetEraseToolSelected() const { return bEraseToolSelected ? true : false; }
+	void SetEraseToolSelected(bool InbEraseToolSelected) { bEraseToolSelected = InbEraseToolSelected; }
 
 	float GetRadius() const { return (IsInAnySingleInstantiationMode()) ? SingleInstanceModeBrushSize : Radius; }
 	void SetRadius(float InRadius) { if (!IsInAnySingleInstantiationMode()) Radius = InRadius; }
@@ -99,6 +101,10 @@ struct FFoliageUISettings
 
 	bool GetIsInQuickSingleInstantiationMode() const { return IsInQuickSingleInstantiationMode; }
 	void SetIsInQuickSingleInstantiationMode(bool InIsInQuickSingleInstantiationMode) { IsInQuickSingleInstantiationMode = InIsInQuickSingleInstantiationMode; }
+
+	bool IsInAnyEraseMode() const { return GetEraseToolSelected() || GetIsInQuickEraseMode(); }
+	bool GetIsInQuickEraseMode() const { return IsInQuickEraseMode; }
+	void SetIsInQuickEraseMode(bool InIsInQuickEraseMode) { IsInQuickEraseMode = InIsInQuickEraseMode; }
 
 	EFoliageSingleInstantiationPlacementMode::Type GetSingleInstantiationPlacementMode() const { return SingleInstantiationPlacementMode; }
 	void SetSingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type InSingleInstantiationPlacementMode) { SingleInstantiationPlacementMode = InSingleInstantiationPlacementMode; }
@@ -129,6 +135,7 @@ struct FFoliageUISettings
 		, bLassoSelectToolSelected(false)
 		, bPaintBucketToolSelected(false)
 		, bReapplyPaintBucketToolSelected(false)
+		, bEraseToolSelected(false)
 		, bShowPaletteItemDetails(true)
 		, bShowPaletteItemTooltips(true)
 		, ActivePaletteViewMode(EFoliagePaletteViewMode::Thumbnail)
@@ -138,6 +145,7 @@ struct FFoliageUISettings
 		, UnpaintDensity(0.f)
 		, IsInSingleInstantiationMode(false)
 		, IsInQuickSingleInstantiationMode(false)
+		, IsInQuickEraseMode(false)
 		, SingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type::All)
 		, SingleInstantiationCycleThroughIndex(0)
 		, IsInSpawnInCurrentLevelMode(false)
@@ -165,6 +173,7 @@ private:
 	bool bLassoSelectToolSelected;
 	bool bPaintBucketToolSelected;
 	bool bReapplyPaintBucketToolSelected;
+	bool bEraseToolSelected;
 
 	bool bShowPaletteItemDetails;
 	bool bShowPaletteItemTooltips;
@@ -177,6 +186,7 @@ private:
 
 	bool IsInSingleInstantiationMode;
 	bool IsInQuickSingleInstantiationMode;
+	bool IsInQuickEraseMode;
 	EFoliageSingleInstantiationPlacementMode::Type SingleInstantiationPlacementMode;
 	int32 SingleInstantiationCycleThroughIndex;
 	bool IsInSpawnInCurrentLevelMode;
@@ -544,6 +554,12 @@ public:
 
 	/** Sets the tool mode to Paint Bucket. */
 	void OnSetPaintFill();
+
+	/** Sets the tool mode to Erase */
+	void OnSetErase();
+
+	/** Sets the tool mode to Place Single Instance*/
+	void OnSetPlace();
 
 	/** Remove currently selected instances*/
 	void RemoveSelectedInstances(UWorld* InWorld);

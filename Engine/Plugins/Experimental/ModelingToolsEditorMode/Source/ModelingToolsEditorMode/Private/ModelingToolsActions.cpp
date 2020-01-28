@@ -10,16 +10,46 @@
 #include "MeshSpaceDeformerTool.h"
 #include "MeshSelectionTool.h"
 #include "TransformMeshesTool.h"
-
+#include "PlaneCutTool.h"
+#include "EditMeshPolygonsTool.h"
 
 #define LOCTEXT_NAMESPACE "ModelingToolsCommands"
+
+
+
+FModelingModeActionCommands::FModelingModeActionCommands() :
+	TCommands<FModelingModeActionCommands>(
+		"ModelingModeCommands", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingModeCommands", "Modeling Mode Shortcuts"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+
+void FModelingModeActionCommands::RegisterCommands()
+{
+	UI_COMMAND(FocusViewCommand, "Focus View at Cursor", "Focuses the camera at the scene hit location under the cursor", EUserInterfaceActionType::None, FInputChord(EKeys::C));
+}
+
+
+void FModelingModeActionCommands::RegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList, TFunction<void(EModelingModeActionCommands)> OnCommandExecuted)
+{
+	const FModelingModeActionCommands& Commands = FModelingModeActionCommands::Get();
+
+	UICommandList->MapAction(
+		Commands.FocusViewCommand,
+		FExecuteAction::CreateLambda([OnCommandExecuted]() { OnCommandExecuted(EModelingModeActionCommands::FocusViewToCursor); }));
+}
+
 
 
 
 FModelingToolActionCommands::FModelingToolActionCommands() : 
 	TInteractiveToolCommands<FModelingToolActionCommands>(
 		"ModelingToolsEditMode", // Context name for fast lookup
-		NSLOCTEXT("Contexts", "ModelingToolsEditMode", "Modeling Tools Mode"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "ModelingToolsEditMode", "Modeling Tools - Shared Shortcuts"), // Localized context name for displaying
 		NAME_None, // Parent
 		FEditorStyle::GetStyleSetName() // Icon Style Set
 	)
@@ -30,10 +60,11 @@ FModelingToolActionCommands::FModelingToolActionCommands() :
 void FModelingToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
 {
 	ToolCDOs.Add(GetMutableDefault<UMeshInspectorTool>());
-	ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
-	ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
+	//ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
+	//ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSpaceDeformerTool>());
 	ToolCDOs.Add(GetMutableDefault<UShapeSprayTool>());
+	//ToolCDOs.Add(GetMutableDefault<UPlaneCutTool>());
 }
 
 
@@ -45,6 +76,8 @@ void FModelingToolActionCommands::RegisterAllToolActions()
 	FDrawPolygonToolActionCommands::Register();
 	FTransformToolActionCommands::Register();
 	FMeshSelectionToolActionCommands::Register();
+	FMeshPlaneCutToolActionCommands::Register();
+	FEditMeshPolygonsToolActionCommands::Register();
 }
 
 void FModelingToolActionCommands::UnregisterAllToolActions()
@@ -54,6 +87,8 @@ void FModelingToolActionCommands::UnregisterAllToolActions()
 	FDrawPolygonToolActionCommands::Unregister();
 	FTransformToolActionCommands::Unregister();
 	FMeshSelectionToolActionCommands::Unregister();
+	FMeshPlaneCutToolActionCommands::Unregister();
+	FEditMeshPolygonsToolActionCommands::Unregister();
 }
 
 
@@ -78,6 +113,14 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 	else if (Cast<UMeshSelectionTool>(Tool) != nullptr)
 	{
 		UPDATE_BINDING(FMeshSelectionToolActionCommands);
+	}
+	else if (Cast<UPlaneCutTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FMeshPlaneCutToolActionCommands);
+	}
+	else if (Cast<UEditMeshPolygonsTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FEditMeshPolygonsToolActionCommands);
 	}
 	else
 	{
@@ -153,6 +196,41 @@ void FMeshSelectionToolActionCommands::GetToolDefaultObjectList(TArray<UInteract
 {
 	ToolCDOs.Add(GetMutableDefault<UMeshSelectionTool>());
 }
+
+
+
+FMeshPlaneCutToolActionCommands::FMeshPlaneCutToolActionCommands() :
+	TInteractiveToolCommands<FMeshPlaneCutToolActionCommands>(
+		"ModelingToolsMeshPlaneCutTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsMeshPlaneCutTool", "Modeling Tools - Mesh Plane Cut Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+void FMeshPlaneCutToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UPlaneCutTool>());
+}
+
+
+
+FEditMeshPolygonsToolActionCommands::FEditMeshPolygonsToolActionCommands() :
+	TInteractiveToolCommands<FEditMeshPolygonsToolActionCommands>(
+		"ModelingToolsEditMeshPolygonsTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsEditMeshPolygonsTool", "Modeling Tools - Edit Mesh Polygons Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+void FEditMeshPolygonsToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
+}
+
+
 
 
 

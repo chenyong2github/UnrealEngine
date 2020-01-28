@@ -47,6 +47,8 @@ public class ModelingToolsEditorMode : ModuleRules
                 "LevelEditor",
 				"EditorStyle",
                 "Projects",
+				"MeshDescription",
+				"StaticMeshDescription",
                 "InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"MeshModelingTools",
@@ -64,8 +66,9 @@ public class ModelingToolsEditorMode : ModuleRules
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
-				// ... add any modules that your module loads dynamically here ...
+				"Settings"
 			}
 			);
+
 	}
 }

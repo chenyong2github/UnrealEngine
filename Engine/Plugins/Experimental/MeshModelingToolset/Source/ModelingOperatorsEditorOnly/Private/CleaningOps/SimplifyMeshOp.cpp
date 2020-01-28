@@ -3,6 +3,7 @@
 #include "CleaningOps/SimplifyMeshOp.h"
 
 #include "DynamicMeshAttributeSet.h"
+#include "MeshConstraints.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 
@@ -20,19 +21,29 @@
 #include "StaticMeshOperations.h"
 
 template <typename SimplificationType>
-void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject, int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial, const ESimplifyTargetType TargetMode, const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
+void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
+					 int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial,
+					 EEdgeRefineFlags MeshBoundaryConstraint,
+					 EEdgeRefineFlags GroupBoundaryConstraint,
+					 EEdgeRefineFlags MaterialBoundaryConstraint,
+					 bool bPreserveSharpEdges,
+					 const ESimplifyTargetType TargetMode,
+					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
 {
 	SimplificationType Reducer(TargetMesh);
 
-	Reducer.ProjectionMode = (bReproject) ? 
+	Reducer.ProjectionMode = (bReproject) ?
 		SimplificationType::ETargetProjectionMode::AfterRefinement : SimplificationType::ETargetProjectionMode::NoProjection;
 
 	Reducer.DEBUG_CHECK_LEVEL = 0;
 
 	FMeshConstraints constraints;
-	FMeshConstraintsUtil::ConstrainAllSeams(constraints, *TargetMesh, true, false);
-	//FMeshConstraintsUtil::ConstrainAllSeamJunctions(constraints, *TargetMesh, true, false);
-	Reducer.SetExternalConstraints(&constraints);
+	FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(constraints, *TargetMesh,
+														 MeshBoundaryConstraint,
+														 GroupBoundaryConstraint,
+														 MaterialBoundaryConstraint,
+														 true, !bPreserveSharpEdges);
+	Reducer.SetExternalConstraints(MoveTemp(constraints));
 
 	FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
 	Reducer.SetProjectionTarget(&ProjTarget);
@@ -42,7 +53,7 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject, int Origi
 		double Ratio = (double)TargetPercentage / 100.0;
 		int UseTarget = FMath::Max(4, (int)(Ratio * (double)OriginalTriCount));
 		Reducer.SimplifyToTriangleCount(UseTarget);
-	} 
+	}
 	else if (TargetMode == ESimplifyTargetType::TriangleCount)
 	{
 		Reducer.SimplifyToTriangleCount(TargetCount);
@@ -79,13 +90,21 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 
 		if (SimplifierType == ESimplifyType::QEM)
 		{
-			ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial, 
-				TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
+			ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+												MeshBoundaryConstraint,
+												GroupBoundaryConstraint,
+												MaterialBoundaryConstraint,
+												bPreserveSharpEdges,
+												TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
 		}
 		else if (SimplifierType == ESimplifyType::Attribute)
 		{
 			ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
-				TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
+													 MeshBoundaryConstraint,
+													 GroupBoundaryConstraint,
+													 MaterialBoundaryConstraint,
+													 bPreserveSharpEdges,
+													 TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
 		}
 	}
 	else // SimplifierType == ESimplifyType::UE4Standard

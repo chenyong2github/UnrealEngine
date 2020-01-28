@@ -70,7 +70,10 @@ public:
 		: _Style(&FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
 		, _Value(0)
 		, _MinValue(0)
-		, _MaxValue(10)
+		, _MaxValue(0)
+		, _MinFractionalDigits(DefaultMinFractionalDigits)
+		, _MaxFractionalDigits(DefaultMaxFractionalDigits)
+		, _AlwaysUsesDeltaSnap(false)
 		, _Delta(0)
 		, _ShiftMouseMovePixelPerDelta(1)
 		, _SupportDynamicSliderMaxValue(false)
@@ -98,6 +101,12 @@ public:
 		SLATE_ATTRIBUTE( TOptional< NumericType >, MinSliderValue )
 		/** The maximum value that can be specified by using the slider, defaults to MaxValue */
 		SLATE_ATTRIBUTE( TOptional< NumericType >, MaxSliderValue )
+		/** The minimum fractional digits the spin box displays, defaults to 1 */
+		SLATE_ATTRIBUTE(TOptional< int32 >, MinFractionalDigits)
+		/** The maximum fractional digits the spin box displays, defaults to 7 */
+		SLATE_ATTRIBUTE(TOptional< int32 >, MaxFractionalDigits)
+		/** Whether typed values should use delta snapping, defaults to false */
+		SLATE_ATTRIBUTE(bool, AlwaysUsesDeltaSnap)
 		/** Delta to increment the value as the slider moves.  If not specified will determine automatically */
 		SLATE_ATTRIBUTE( NumericType, Delta )
 		/** How many pixel the mouse must move to change the value of the delta step */
@@ -174,6 +183,11 @@ public:
 		MaxValue = InArgs._MaxValue;
 		MinSliderValue = (InArgs._MinSliderValue.Get().IsSet()) ? InArgs._MinSliderValue : MinValue;
 		MaxSliderValue = (InArgs._MaxSliderValue.Get().IsSet()) ? InArgs._MaxSliderValue : MaxValue;
+
+		MinFractionalDigits = (InArgs._MinFractionalDigits.Get().IsSet()) ? InArgs._MinFractionalDigits : DefaultMinFractionalDigits;
+		MaxFractionalDigits = (InArgs._MaxFractionalDigits.Get().IsSet()) ? InArgs._MaxFractionalDigits : DefaultMaxFractionalDigits;
+
+		AlwaysUsesDeltaSnap = InArgs._AlwaysUsesDeltaSnap;
 
 		SupportDynamicSliderMaxValue = InArgs._SupportDynamicSliderMaxValue;
 		SupportDynamicSliderMinValue = InArgs._SupportDynamicSliderMinValue;
@@ -742,6 +756,24 @@ public:
 		UpdateIsSpinRangeUnlimited();
 	}
 
+	/** See the MinFractionalDigits attribute */
+	int32 GetMinFractionalDigits() const { return Interface->GetMinFractionalDigits(); }
+	void SetMinFractionalDigits(const TAttribute<TOptional<int32>>& InMinFractionalDigits)
+	{
+		Interface->SetMinFractionalDigits((InMinFractionalDigits.Get().IsSet()) ? InMinFractionalDigits.Get() : MinFractionalDigits);
+	}
+
+	/** See the MaxFractionalDigits attribute */
+	int32 GetMaxFractionalDigits() const { return Interface->GetMaxFractionalDigits(); }
+	void SetMaxFractionalDigits(const TAttribute<TOptional<int32>>& InMaxFractionalDigits)
+	{
+		Interface->SetMaxFractionalDigits((InMaxFractionalDigits.Get().IsSet()) ? InMaxFractionalDigits.Get() : MaxFractionalDigits);
+	}
+
+	/** See the AlwaysUsesDeltaSnap attribute */
+	bool GetAlwaysUsesDeltaSnap() const { return AlwaysUsesDeltaSnap.Get(); }
+	void SetAlwaysUsesDeltaSnap(bool bNewValue) { AlwaysUsesDeltaSnap.Set(bNewValue); }
+
 	/** See the Delta attribute */
 	NumericType GetDelta() const { return Delta.Get(); }
 	void SetDelta(NumericType InDelta) { Delta.Set( InDelta ); }
@@ -879,8 +911,9 @@ protected:
 		// Update the internal value, this needs to be done before rounding.
 		InternalValue = NewValue;
 
+		const bool bAlwaysUsesDeltaSnap = GetAlwaysUsesDeltaSnap();
 		// If needed, round this value to the delta. Internally the value is not held to the Delta but externally it appears to be.
-		if ( CommitMethod == CommittedViaSpin || CommitMethod == CommittedViaArrowKey )
+		if ( CommitMethod == CommittedViaSpin || CommitMethod == CommittedViaArrowKey || bAlwaysUsesDeltaSnap)
 		{
 			NumericType CurrentDelta = Delta.Get();
 			if( CurrentDelta != 0 )
@@ -905,6 +938,11 @@ protected:
 		}
 
 		OnValueChanged.ExecuteIfBound( RoundIfIntegerValue( NewValue ) );
+
+		if (!ValueAttribute.IsBound())
+		{
+			ValueAttribute.Set(NewValue);
+		}
 
 		// Update the cache of the external value to what the user believes the value is now.
 		CachedExternalValue = ValueAttribute.Get();
@@ -950,6 +988,13 @@ protected:
 	}
 
 private:
+
+	/** The default minimum fractional digits */
+	static const int32 DefaultMinFractionalDigits;
+
+	/** The default maximum fractional digits */
+	static const int32 DefaultMaxFractionalDigits;
+
 	TAttribute<NumericType> ValueAttribute;
 	FOnValueChanged OnValueChanged;
 	FOnValueCommitted OnValueCommitted;
@@ -985,6 +1030,9 @@ private:
 	TAttribute< TOptional<NumericType> > MaxValue;
 	TAttribute< TOptional<NumericType> > MinSliderValue;
 	TAttribute< TOptional<NumericType> > MaxSliderValue;
+	TAttribute< TOptional<int32> > MinFractionalDigits;
+	TAttribute< TOptional<int32> > MaxFractionalDigits;
+	TAttribute<bool> AlwaysUsesDeltaSnap;
 	TAttribute<bool> SupportDynamicSliderMaxValue;
 	TAttribute<bool> SupportDynamicSliderMinValue;
 	FOnDynamicSliderMinMaxValueChanged OnDynamicSliderMaxValueChanged;
@@ -1039,3 +1087,9 @@ private:
 	// When true, the viewport will be updated with every single change to the value during dragging
 	bool bPreventThrottling;
 };
+
+template<typename NumericType>
+const int32 SSpinBox<NumericType>::DefaultMinFractionalDigits = 1;
+
+template<typename NumericType>
+const int32 SSpinBox<NumericType>::DefaultMaxFractionalDigits = 6;

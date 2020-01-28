@@ -686,7 +686,7 @@ public:
 	uint32 CompressionNone:1;
 
 	/** If enabled, defer compression of the texture until save. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(NoResetToDefault))
 	uint32 DeferCompression:1;
 
 	/** How aggressively should any relevant lossy compression be applied. */

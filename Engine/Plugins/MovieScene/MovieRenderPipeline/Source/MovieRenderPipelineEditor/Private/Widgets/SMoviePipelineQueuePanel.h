@@ -42,7 +42,10 @@ private:
 	FReply OnRenderRemoteRequested();
 	bool IsRenderRemoteEnabled() const;
 
+	/** When they want to edit the current configuration for the job */
 	void OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot);
+	/** When an existing preset is chosen for the specified job. */
+	void OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot);
 	void OnConfigUpdatedForJob(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig);
 	void OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig);
 	void OnConfigWindowClosed();

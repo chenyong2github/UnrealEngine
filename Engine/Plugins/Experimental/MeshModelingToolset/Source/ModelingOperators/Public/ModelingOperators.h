@@ -30,6 +30,15 @@ public:
 	}
 
 	/**
+	 * Set the output transform
+	 */
+	virtual void SetResultTransform(const FTransform3d& Transform)
+	{
+		ResultTransform = Transform;
+	}
+
+
+	/**
 	 * @return ownership of the internal mesh that CalculateResult() produced
 	 */
 	TUniquePtr<FDynamicMesh3> ExtractResult()

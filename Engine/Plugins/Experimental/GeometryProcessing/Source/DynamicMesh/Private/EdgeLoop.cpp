@@ -82,11 +82,22 @@ void FEdgeLoop::CalculateBowtieVertices()
 FAxisAlignedBox3d FEdgeLoop::GetBounds() const
 {
 	FAxisAlignedBox3d box = FAxisAlignedBox3d::Empty();
-	for (int i = 0; i < Vertices.Num(); ++i)
+	int NumV = Vertices.Num();
+	for (int i = 0; i < NumV; ++i)
 	{
 		box.Contain(Mesh->GetVertex(Vertices[i]));
 	}
 	return box;
+}
+
+
+void FEdgeLoop::GetVertices(TArray<FVector3d>& VerticesIn) const
+{
+	int NumV = Vertices.Num();
+	for (int i = 0; i < NumV; ++i)
+	{
+		VerticesIn.Add(Mesh->GetVertex(Vertices[i]));
+	}
 }
 
 

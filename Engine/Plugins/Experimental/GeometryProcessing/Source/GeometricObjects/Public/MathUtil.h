@@ -134,7 +134,7 @@ public:
 	static inline RealType ACos(const RealType Value);
 	static inline RealType Floor(const RealType Value);
 	static inline RealType Ceil(const RealType Value);
-
+	static inline RealType Lerp(const RealType A, const RealType B, RealType Alpha);
 
 
 	/**
@@ -255,6 +255,12 @@ RealType TMathUtil<RealType>::Ceil(const RealType Value)
 	return ceil(Value);
 }
 
+template<typename RealType>
+RealType TMathUtil<RealType>::Lerp(const RealType A, const RealType B, RealType Alpha)
+{
+	Alpha = Clamp(Alpha, (RealType)0, (RealType)1);
+	return ((RealType)1 - Alpha)*A + (Alpha)*B;
+}
 
 template<typename RealType>
 RealType TMathUtil<RealType>::Atan2Positive(const RealType Y, const RealType X)

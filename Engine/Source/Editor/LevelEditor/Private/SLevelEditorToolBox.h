@@ -72,6 +72,9 @@ private:
 	/** The container holding the mode toolbar */
 	TSharedPtr<SBorder> ModeToolBarContainer;
 
+	/** The active tool header area **/
+	TSharedPtr<SBorder> ModeToolHeader;
+
 	/** The display name that the parent tab should have as its label */
 	FText TabName;
 

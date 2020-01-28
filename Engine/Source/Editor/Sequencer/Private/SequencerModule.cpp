@@ -10,6 +10,7 @@
 #include "SequencerCommands.h"
 #include "ISequencerObjectChangeListener.h"
 #include "Sequencer.h"
+#include "SequencerCustomizationManager.h"
 #include "SequencerEdMode.h"
 #include "SequencerObjectChangeListener.h"
 #include "IDetailKeyframeHandler.h"
@@ -233,6 +234,8 @@ public:
 		ObjectBindingContextMenuExtensibilityManager = MakeShareable( new FExtensibilityManager );
 		AddTrackMenuExtensibilityManager = MakeShareable( new FExtensibilityManager );
 		ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
+
+		SequencerCustomizationManager = MakeShareable(new FSequencerCustomizationManager);
 	}
 
 	virtual void ShutdownModule() override
@@ -299,6 +302,8 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetAddTrackMenuExtensibilityManager() const override { return AddTrackMenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() const override { return ToolBarExtensibilityManager; }
 
+	virtual TSharedPtr<FSequencerCustomizationManager> GetSequencerCustomizationManager() const override { return SequencerCustomizationManager; }
+
 private:
 
 	TSet<FAnimatedPropertyKey> PropertyAnimators;
@@ -327,6 +332,8 @@ private:
 	TSharedPtr<FExtensibilityManager> ObjectBindingContextMenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> AddTrackMenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
+
+	TSharedPtr<FSequencerCustomizationManager> SequencerCustomizationManager;
 };
 
 IMPLEMENT_MODULE(FSequencerModule, Sequencer);

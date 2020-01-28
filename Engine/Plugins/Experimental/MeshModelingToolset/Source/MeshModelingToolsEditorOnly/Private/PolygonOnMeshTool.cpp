@@ -3,22 +3,17 @@
 #include "PolygonOnMeshTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-
 #include "ToolSetupUtil.h"
-
 #include "DynamicMesh3.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "Selection/SelectClickedAction.h"
+#include "ToolSceneQueriesUtil.h"
+#include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
+#include "ToolDataVisualizer.h"
+#include "Util/ColorConstants.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "InteractiveGizmoManager.h"
-
-#include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
-
-#include "AssetGenerationUtil.h"
 
 
 #define LOCTEXT_NAMESPACE "UPolygonOnMeshTool"
@@ -44,7 +39,6 @@ UInteractiveTool* UPolygonOnMeshToolBuilder::BuildTool(const FToolBuilderState& 
 	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
 
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -55,23 +49,20 @@ UInteractiveTool* UPolygonOnMeshToolBuilder::BuildTool(const FToolBuilderState& 
  * Tool
  */
 
-UPolygonOnMeshToolProperties::UPolygonOnMeshToolProperties()
+void UPolygonOnMeshToolActionPropertySet::PostAction(EPolygonOnMeshToolActions Action)
 {
-	PolygonOperation = EEmbeddedPolygonOpMethod::CutThrough;
-	PolygonScale = 10;
-	// ExtrudeDistance = 10;
-	bDiscardAttributes = false;
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
 }
 
-UPolygonOnMeshAdvancedProperties::UPolygonOnMeshAdvancedProperties()
-{
-}
+
 
 
 UPolygonOnMeshTool::UPolygonOnMeshTool()
 {
-	EmbedPolygonOrigin = FVector::ZeroVector;
-	EmbedPolygonOrientation = FQuat::Identity;
+	SetToolDisplayName(LOCTEXT("PolygonOnMeshToolName", "Polygon Cut"));
 }
 
 void UPolygonOnMeshTool::SetWorld(UWorld* World)
@@ -83,211 +74,260 @@ void UPolygonOnMeshTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+
+	// register click and hover behaviors
+	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>(this);
+	ClickBehavior->Initialize(this);
+	AddInputBehavior(ClickBehavior);
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+	AddInputBehavior(HoverBehavior);
+
+	WorldTransform = FTransform3d(ComponentTarget->GetWorldTransform());
+
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
 
-	// click to set plane behavior
-	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
-	SetPlaneAction->World = this->TargetWorld;
-	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit)
-	{
-		SetPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal);
-		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-		{
-			Preview->InvalidateResult();
-		}
-	};
-	SetPointInWorldConnector = SetPlaneAction;
-
-	USingleClickInputBehavior* ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
-	ClickToSetPlaneBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
-	ClickToSetPlaneBehavior->Initialize(SetPointInWorldConnector);
-	AddInputBehavior(ClickToSetPlaneBehavior);
-
-
-	// create proxy and gizmo (but don't attach yet)
-	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-	PlaneTransformProxy = NewObject<UTransformProxy>(this);
-	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
-
-	BasicProperties = NewObject<UPolygonOnMeshToolProperties>(this, TEXT("Polygon On Mesh Settings"));
-	AdvancedProperties = NewObject<UPolygonOnMeshAdvancedProperties>(this, TEXT("Advanced Settings"));
-
-	// initialize our properties
+	BasicProperties = NewObject<UPolygonOnMeshToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
-	AddToolPropertySource(AdvancedProperties);
 
+	ActionProperties = NewObject<UPolygonOnMeshToolActionPropertySet>(this);
+	ActionProperties->Initialize(this);
+	AddToolPropertySource(ActionProperties);
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
 
-	// set initial cut plane (also attaches gizmo/proxy)
-	FVector DefaultOrigin, Extents;
-	ComponentTarget->GetOwnerActor()->GetActorBounds(false, DefaultOrigin, Extents);
-	SetPlaneFromWorldPos(DefaultOrigin, FVector::UpVector);
-	// hook up callback so further changes trigger recut
-	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UPolygonOnMeshTool::TransformChanged);
+	DrawPlaneWorld = FFrame3d(WorldTransform.GetTranslation());
 
+	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
+	PlaneMechanic->Setup(this);
+	PlaneMechanic->Initialize(TargetWorld, DrawPlaneWorld);
+	//PlaneMechanic->UpdateClickPriority(ClickBehavior->GetPriority().MakeHigher());
+	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
+		DrawPlaneWorld = PlaneMechanic->Plane;
+		UpdateDrawPlane();
+	});
 
 	// Convert input mesh description to dynamic mesh
 	OriginalDynamicMesh = MakeShared<FDynamicMesh3>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
 	// TODO: consider adding an AABB tree construction here?  tradeoff vs doing a raycast against full every time a param change happens ...
 
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	LastDrawnPolygon = FPolygon2d();
+	UpdatePolygonType();
+	UpdateDrawPlane();
+}
+
+
+
+
+void UPolygonOnMeshTool::UpdatePolygonType()
+{
+	if (BasicProperties->Shape == EPolygonType::Circle)
 	{
-		Preview->InvalidateResult();
+		ActivePolygon = FPolygon2d::MakeCircle(BasicProperties->Width*0.5, BasicProperties->Subdivisions);
 	}
+	else if (BasicProperties->Shape == EPolygonType::Square)
+	{
+		ActivePolygon = FPolygon2d::MakeRectangle(FVector2d::Zero(), BasicProperties->Width, BasicProperties->Width);
+	}
+	else if (BasicProperties->Shape == EPolygonType::Rectangle)
+	{
+		ActivePolygon = FPolygon2d::MakeRectangle(FVector2d::Zero(), BasicProperties->Width, BasicProperties->Height);
+	}
+	else if (BasicProperties->Shape == EPolygonType::RoundRect)
+	{
+		double Corner = BasicProperties->CornerRatio * FMath::Min(BasicProperties->Width, BasicProperties->Height) * 0.49;
+		ActivePolygon = FPolygon2d::MakeRoundedRectangle(FVector2d::Zero(), BasicProperties->Width, BasicProperties->Height, Corner, BasicProperties->Subdivisions);
+	}
+	else if (BasicProperties->Shape == EPolygonType::Custom)
+	{
+		if (LastDrawnPolygon.VertexCount() == 0)
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("PolygonOnMeshDrawMessage", "Click the Draw Polygon button to draw a custom polygon"), EToolMessageLevel::UserWarning);
+			ActivePolygon = FPolygon2d::MakeCircle(BasicProperties->Width*0.5, BasicProperties->Subdivisions);
+		}
+		else
+		{
+			ActivePolygon = LastDrawnPolygon;
+		}
+	}
+}
+
+void UPolygonOnMeshTool::UpdateDrawPlane()
+{
+	Preview->InvalidateResult();
 }
 
 
 void UPolygonOnMeshTool::UpdateNumPreviews()
 {
-	int32 CurrentNumPreview = Previews.Num();
-	int32 TargetNumPreview = 1; // currently only have single preview use case; TODO consider cases where multiple meshes are generated with separate preview objects
-	if (TargetNumPreview < CurrentNumPreview)
-	{
-		for (int32 PreviewIdx = CurrentNumPreview - 1; PreviewIdx >= TargetNumPreview; PreviewIdx--)
-		{
-			Previews[PreviewIdx]->Cancel();
-		}
-		Previews.SetNum(TargetNumPreview);
-	}
-	else
-	{
-		for (int32 PreviewIdx = CurrentNumPreview; PreviewIdx < TargetNumPreview; PreviewIdx++)
-		{
-			UPolygonOnMeshOperatorFactory *OpFactory = NewObject<UPolygonOnMeshOperatorFactory>();
-			OpFactory->Tool = this;
-			// TODO: give the OpFactory more info about what specifically it is doing differently vs the other previews
-			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
-			Preview->Setup(this->TargetWorld, OpFactory);
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
+	Preview->Setup(this->TargetWorld, this);
 
-			FComponentMaterialSet MaterialSet;
-			ComponentTarget->GetMaterialSet(MaterialSet);
-			Preview->ConfigureMaterials(MaterialSet.Materials,
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	Preview->ConfigureMaterials(MaterialSet.Materials,
+		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+	);
 
-			Preview->SetVisibility(true);
-		}
-	}
+	Preview->SetVisibility(true);
 }
 
 
 void UPolygonOnMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	PlaneMechanic->Shutdown();
+	if (DrawPolygonMechanic != nullptr)
+	{
+		DrawPolygonMechanic->Shutdown();
+	}
+
 	// Restore (unhide) the source meshes
 	ComponentTarget->SetOwnerVisibility(true);
 
 	TArray<FDynamicMeshOpResult> Results;
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Results.Emplace(Preview->Shutdown());
-	}
+	Results.Emplace(Preview->Shutdown());
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GenerateAsset(Results);
 	}
-
-	if (SetPointInWorldConnector != nullptr)
-	{
-		delete SetPointInWorldConnector;
-	}
-	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
-void UPolygonOnMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
 
-TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 {
 	TUniquePtr<FEmbedPolygonsOp> EmbedOp = MakeUnique<FEmbedPolygonsOp>();
-	EmbedOp->bDiscardAttributes = Tool->BasicProperties->bDiscardAttributes;
-	EmbedOp->Operation = Tool->BasicProperties->PolygonOperation;
-	EmbedOp->PolygonScale = Tool->BasicProperties->PolygonScale;
-	// EmbedOp->ExtrudeDistance = Tool->BasicProperties->ExtrudeDistance;
-	// TODO: also put the polygon info, etc, into the EmbedOp
+	EmbedOp->bDiscardAttributes = false;
+	EmbedOp->Operation = BasicProperties->Operation;
+	EmbedOp->EmbedPolygon = ActivePolygon;
+	double Scale = BasicProperties->PolygonScale;
+	EmbedOp->EmbedPolygon.Scale(FVector2d(Scale, Scale), ActivePolygon.Bounds().Center());
 
-	FTransform LocalToWorld = Tool->ComponentTarget->GetWorldTransform();
-	FTransform WorldToLocal = LocalToWorld.Inverse();
-	FVector LocalOrigin = WorldToLocal.TransformPosition(Tool->EmbedPolygonOrigin);
-	FVector WorldNormal = Tool->EmbedPolygonOrientation.GetAxisZ();
-	FVector LocalNormal = WorldToLocal.TransformVectorNoScale(WorldNormal);
-	EmbedOp->LocalPlaneOrigin = LocalOrigin;
-	EmbedOp->LocalPlaneNormal = LocalNormal;
-	EmbedOp->OriginalMesh = Tool->OriginalDynamicMesh;
+	// EmbedOp->ExtrudeDistance = Tool->BasicProperties->ExtrudeDistance;
 	
-	EmbedOp->SetTransform(LocalToWorld);
+	FFrame3d LocalFrame = DrawPlaneWorld;
+	FTransform3d ToLocal = WorldTransform.Inverse();
+	LocalFrame.Transform(ToLocal);
+	EmbedOp->PolygonFrame = LocalFrame;
+	EmbedOp->OriginalMesh = OriginalDynamicMesh;
+	EmbedOp->SetResultTransform(WorldTransform);
 
 	return EmbedOp;
 }
 
 
 
+
 void UPolygonOnMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	PlaneMechanic->Render(RenderAPI);
+	
+	if (DrawPolygonMechanic != nullptr)
+	{
+		DrawPolygonMechanic->Render(RenderAPI);
+	}
+	else
+	{
+		FToolDataVisualizer Visualizer;
+		Visualizer.BeginFrame(RenderAPI);
+		double Scale = BasicProperties->PolygonScale;
+		const TArray<FVector2d>& Vertices = ActivePolygon.GetVertices();
+		int32 NumVertices = Vertices.Num();
+		FVector3d PrevPosition = DrawPlaneWorld.FromPlaneUV(Scale * Vertices[0]);
+		for (int32 k = 1; k <= NumVertices; ++k)
+		{
+			FVector3d NextPosition = DrawPlaneWorld.FromPlaneUV(Scale * Vertices[k%NumVertices]);
+			Visualizer.DrawLine(PrevPosition, NextPosition, LinearColors::VideoRed3f(), 3.0f, false);
+			PrevPosition = NextPosition;
+		}
+	}
 }
 
 void UPolygonOnMeshTool::Tick(float DeltaTime)
 {
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	PlaneMechanic->Tick(DeltaTime);
+	Preview->Tick(DeltaTime);
+
+	if (PendingAction != EPolygonOnMeshToolActions::NoAction)
 	{
-		Preview->Tick(DeltaTime);
+		if (PendingAction == EPolygonOnMeshToolActions::DrawPolygon)
+		{
+			BeginDrawPolygon();
+		}
+		PendingAction = EPolygonOnMeshToolActions::NoAction;
 	}
 }
 
 
-
-void UPolygonOnMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	UpdateNumPreviews();
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
-}
 
 void UPolygonOnMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	UpdateNumPreviews();
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
+	UpdatePolygonType();
+	Preview->InvalidateResult();
 }
 
-
-
-
-
-void UPolygonOnMeshTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
+void UPolygonOnMeshTool::RequestAction(EPolygonOnMeshToolActions ActionType)
 {
-	// TODO: if multi-select is re-enabled, only invalidate the preview that actually needs it?
-	EmbedPolygonOrientation = Transform.GetRotation();
-	EmbedPolygonOrigin = (FVector)Transform.GetTranslation();
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	if (PendingAction != EPolygonOnMeshToolActions::NoAction || DrawPolygonMechanic != nullptr)
 	{
-		Preview->InvalidateResult();
+		return;
 	}
+	PendingAction = ActionType;
 }
 
 
-void UPolygonOnMeshTool::SetPlaneFromWorldPos(const FVector& Position, const FVector& Normal)
+
+void UPolygonOnMeshTool::BeginDrawPolygon()
 {
-	EmbedPolygonOrigin = Position;
+	check(DrawPolygonMechanic == nullptr);
 
-	FFrame3f CutPlane(Position, Normal);
-	EmbedPolygonOrientation = (FQuat)CutPlane.Rotation;
+	GetToolManager()->DisplayMessage(LOCTEXT("PolygonOnMeshBeginDrawMessage", "Click repeatedly on the plane to draw a polygon, and on start point to finish."), EToolMessageLevel::UserWarning);
 
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
-	PlaneTransformGizmo->SetNewGizmoTransform(CutPlane.ToFTransform());
+	DrawPolygonMechanic = NewObject<UCollectSurfacePathMechanic>(this);
+	DrawPolygonMechanic->Setup(this);
+	double SnapTol = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
+	DrawPolygonMechanic->SpatialSnapPointsFunc = [this, SnapTol](FVector3d Position1, FVector3d Position2)
+	{
+		return true && ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2) < SnapTol;
+	};
+	DrawPolygonMechanic->SetDrawClosedLoopMode();
+
+	DrawPolygonMechanic->InitializePlaneSurface(DrawPlaneWorld);
 }
+
+
+void UPolygonOnMeshTool::CompleteDrawPolygon()
+{
+	check(DrawPolygonMechanic != nullptr);
+
+	GetToolManager()->DisplayMessage(FText::GetEmpty(), EToolMessageLevel::UserWarning);
+
+	FFrame3d DrawFrame = DrawPlaneWorld;
+	FPolygon2d TmpPolygon;
+	for (const FFrame3d& Point : DrawPolygonMechanic->HitPath)
+	{
+		TmpPolygon.AppendVertex(DrawFrame.ToPlaneUV(Point.Origin));
+	}
+	if (TmpPolygon.IsClockwise() == true)
+	{
+		TmpPolygon.Reverse();
+	}
+
+	// check for self-intersections and other invalids
+
+	LastDrawnPolygon = TmpPolygon;
+	BasicProperties->Shape = EPolygonType::Custom;
+	BasicProperties->PolygonScale = 1.0;
+	UpdatePolygonType();
+	Preview->InvalidateResult();
+
+	DrawPolygonMechanic->Shutdown();
+	DrawPolygonMechanic = nullptr;
+}
+
 
 
 bool UPolygonOnMeshTool::HasAccept() const
@@ -297,24 +337,14 @@ bool UPolygonOnMeshTool::HasAccept() const
 
 bool UPolygonOnMeshTool::CanAccept() const
 {
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		if (!Preview->HaveValidResult())
-		{
-			return false;
-		}
-	}
-	return true;
+	return Preview != nullptr && Preview->HaveValidResult();
 }
 
 
 void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolygonOnMeshToolTransactionName", "Polygon On Mesh Tool"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolygonOnMeshToolTransactionName", "Cut Hole"));
 	
-
-	// first preview always replaces, and any subsequent previews can add new actors
-	// TODO: options to support other choices re what should be a new actor
 	check(Results.Num() > 0);
 	check(Results[0].Mesh.Get() != nullptr);
 	ComponentTarget->CommitMesh([&Results](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
@@ -323,26 +353,85 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Resul
 		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescription);
 	});
 
-	// currently nothing generates more than the single result for this tool
-	if (Results.Num() > 1)
-	{
-		unimplemented();
-		//FSelectedOjectsChangeList NewSelection;
-		//NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
-		//NewSelection.Actors.Add(ComponentTarget->GetOwnerActor());
-
-		//check(Results[1]->Mesh.Get() != nullptr);
-		//// TODO: copy over material?
-		//AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		//	AssetAPI, TargetWorld,
-		//	Results[1]->Mesh.Get(), Results[1]->Transform, TEXT("Additional Polygon On Mesh Result"),
-		//	AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath());
-		//NewSelection.Actors.Add(NewActor);
-		//GetToolManager()->RequestSelectionChange(NewSelection);
-	}
-
 	GetToolManager()->EndUndoTransaction();
 }
+
+
+
+
+
+bool UPolygonOnMeshTool::HitTest(const FRay& Ray, FHitResult& OutHit)
+{
+	if (DrawPolygonMechanic != nullptr)
+	{
+		FFrame3d HitPoint;
+		if (DrawPolygonMechanic->IsHitByRay(FRay3d(Ray), HitPoint))
+		{
+			OutHit.Distance = FRay3d(Ray).Project(HitPoint.Origin);
+			OutHit.ImpactPoint = (FVector)HitPoint.Origin;
+			OutHit.ImpactNormal = (FVector)HitPoint.Z();
+			return true;
+		}
+		return false;
+	}
+
+	return false;
+}
+
+
+FInputRayHit UPolygonOnMeshTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+{
+	FHitResult OutHit;
+	if (HitTest(ClickPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return (DrawPolygonMechanic != nullptr) ? FInputRayHit(TNumericLimits<float>::Max()) : FInputRayHit();
+}
+
+void UPolygonOnMeshTool::OnClicked(const FInputDeviceRay& ClickPos)
+{
+	if (DrawPolygonMechanic != nullptr)
+	{
+		if (DrawPolygonMechanic->TryAddPointFromRay(ClickPos.WorldRay))
+		{
+			if (DrawPolygonMechanic->IsDone())
+			{
+				CompleteDrawPolygon();
+				//GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginOffset", "Set Offset"));
+				//OnCompleteSurfacePath();
+			}
+			else
+			{
+				//GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginPath", "Begin Path"));
+			}
+		}
+	}
+
+}
+
+
+
+FInputRayHit UPolygonOnMeshTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	if (HitTest(PressPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return (DrawPolygonMechanic != nullptr) ? FInputRayHit(TNumericLimits<float>::Max()) : FInputRayHit();
+}
+
+
+bool UPolygonOnMeshTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	if (DrawPolygonMechanic != nullptr)
+	{
+		DrawPolygonMechanic->UpdatePreviewPoint(DevicePos.WorldRay);
+	}
+	return true;
+}
+
 
 
 
