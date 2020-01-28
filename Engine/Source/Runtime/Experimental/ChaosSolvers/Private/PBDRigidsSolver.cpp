@@ -493,6 +493,10 @@ namespace Chaos
 
 				Proxy->ClearAccumulatedData();
 			}
+			else
+			{
+				delete ProxyData;
+			}
 		}
 	}
 
