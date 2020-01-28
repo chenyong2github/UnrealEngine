@@ -301,9 +301,36 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 				FText ModuleScriptDeprecationShort = LOCTEXT("ModuleScriptDeprecationShort", "Deprecated module");
 				if (CanMoveAndDelete())
 				{
-					FText LongMessage = FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(FunctionCallNode->GetFunctionName()), FText::FromString(FunctionCallNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(FunctionCallNode->GetFunctionName()));
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("ScriptName"), FText::FromString(FunctionCallNode->GetFunctionName()));
+
+					if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						Args.Add(TEXT("Recommendation"), FText::FromString(FunctionCallNode->FunctionScript->DeprecationRecommendation->GetPathName()));
+					}
+
+					if (FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->DeprecationMessage);
+					}
+
+					FText FormatString = LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {ScriptName} has been deprecated.");
+
+					if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr &&
+						FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+					}
+					else if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Suggested replacement: {Recommendation}");
+					}
+					else if (FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}");
+					}
+
+					FText LongMessage = FText::Format(FormatString, Args);
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
@@ -343,7 +370,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			if (FunctionCallNode->FunctionScript->bExperimental)
 			{
 				FText ErrorMessage;
-				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmpty())
+				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
 				{
 					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for this module is experimental, use with care!"), FText::FromString(FunctionCallNode->GetFunctionName()));
 				}
