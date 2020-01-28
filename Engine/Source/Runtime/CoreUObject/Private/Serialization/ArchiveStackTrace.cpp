@@ -492,7 +492,11 @@ namespace
 
 		if (FStructProperty* StructProp = CastField<FStructProperty>(Prop))
 		{
-			return true;
+			if (StructProp->Struct == TBaseStructure<FVector>::Get()
+				|| StructProp->Struct == TBaseStructure<FGuid>::Get())
+			{
+				return true;
+			}
 		}
 
 		return false;
