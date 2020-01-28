@@ -84,6 +84,7 @@ namespace BuildPatchServices
 		virtual TArray<FString> GetAllFilenames() const override;
 		virtual uint64 GetBuildSize() const override;
 		virtual TArray<FFileSpan> GetAllFiles() const override;
+		virtual bool HasAborted() const override;
 		// IDirectoryBuildStreamer interface end.
 
 	private:
@@ -274,6 +275,11 @@ namespace BuildPatchServices
 		return AllFiles;
 	}
 
+	bool FDirectoryBuildStreamer::HasAborted() const
+	{
+		return bShouldAbort;
+	}
+
 	void FDirectoryBuildStreamer::ReadData()
 	{
 		// Stats
@@ -331,7 +337,13 @@ namespace BuildPatchServices
 			FString SymlinkTarget = GetSymlinkTarget(*SourceFile);
 			FStatsCollector::AccumulateTimeEnd(StatFileOpenTime, TempValue);
 			// Not being able to load a required file from the build would be fatal, hard fault.
-			checkf(FileReader.IsValid(), TEXT("Could not open file from build! %s"), *SourceFile);
+			if(!FileReader.IsValid())
+			{
+				UE_LOG(LogBuildStreamer, Error, TEXT("Failed to open file reader for %s"), *SourceFile);
+				bShouldAbort = true;
+				break;
+			}
+
 			// Make SourceFile the format we want it in and start a new file.
 			FPaths::MakePathRelativeTo(SourceFile, *(Config.BuildRoot + TEXT("/")));
 			int64 FileSize = FileReader->TotalSize();

@@ -418,7 +418,7 @@ namespace BuildPatchServices
 			FOptimisedDeltaDependencies OptimisedDeltaDependencies;
 			OptimisedDeltaDependencies.DownloadService = DownloadService.Get();
 			TUniquePtr<IOptimisedDelta> OptimisedDelta(FOptimisedDeltaFactory::Create(OptimisedDeltaConfiguration, OptimisedDeltaDependencies));
-			ManifestB = OptimisedDelta->GetDestinationManifest();
+			ManifestB = OptimisedDelta->GetResult().GetValue();
 			const int32 MetaDownloadBytes = OptimisedDelta->GetMetaDownloadSize();
 
 			TSet<FString> TagsA, TagsB;

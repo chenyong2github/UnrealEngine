@@ -1196,9 +1196,10 @@ namespace BuildPatchServices
 					}
 				}
 				DeltaManifest.InitLookups();
-				// Currently we just save out as the first version for delta support. If we change the delta version later we'd take this as commandline selection.
+				// For save format, we'll pick the newest of two input manifests, or EFeatureLevel::FirstOptimisedDelta if manifests are older.
+				EFeatureLevel DeltaOutputFormat = FMath::Max3(EFeatureLevel::FirstOptimisedDelta, ManifestA->GetFeatureLevel(), ManifestB->GetFeatureLevel());
 				const FString TmpOutputDeltaFilename = OutputDeltaFilename + TEXT("tmp");
-				DeltaManifest.SaveToFile(TmpOutputDeltaFilename, EFeatureLevel::FirstOptimisedDelta);
+				DeltaManifest.SaveToFile(TmpOutputDeltaFilename, DeltaOutputFormat);
 				FileSystem->MoveFile(*OutputDeltaFilename, *TmpOutputDeltaFilename);
 				FinalStatLogs.Add(FString::Printf(TEXT("Saved new optimised delta file %s"), *OutputDeltaFilename));
 			}

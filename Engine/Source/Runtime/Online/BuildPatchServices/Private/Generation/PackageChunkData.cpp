@@ -115,15 +115,15 @@ namespace BuildPatchServices
 	private:
 		void HandleDownloadComplete(int32 RequestId, const FDownloadRef& Download);
 		void HandleManifestComplete();
-		void HandleManifestSelection(FBuildPatchAppManifestPtr DeltaManifest);
+		void HandleManifestSelection(const IOptimisedDelta::FResultValueOrError& ResultValueOrError);
 		void BeginPackageProcess();
 		void OnPackageComplete(bool bInSuccess);
 
 		typedef void(FPackageChunks::*PromiseCompleteFunc)();
 		TFunction<void()> MakePromiseCompleteDelegate(PromiseCompleteFunc OnComplete);
 
-		typedef void(FPackageChunks::*OptimiseCompleteFunc)(FBuildPatchAppManifestPtr);
-		TFunction<void(FBuildPatchAppManifestPtr)> MakeOptimiseCompleteDelegate(OptimiseCompleteFunc OnComplete);
+		typedef void(FPackageChunks::*OptimiseCompleteFunc)(const IOptimisedDelta::FResultValueOrError&);
+		TFunction<void(const IOptimisedDelta::FResultValueOrError&)> MakeOptimiseCompleteDelegate(OptimiseCompleteFunc OnComplete);
 
 	private:
 		// Configuration.
@@ -133,28 +133,6 @@ namespace BuildPatchServices
 		FTicker& CoreTicker;
 		FDownloadCompleteDelegate DownloadCompleteDelegate;
 		FDownloadProgressDelegate DownloadProgressDelegate;
-		TUniquePtr<IPlatform> Platform;
-		TUniquePtr<IHttpManager> HttpManager;
-		TUniquePtr<IFileSystem> FileSystem;
-		TUniquePtr<IMessagePump> MessagePump;
-		TUniquePtr<IInstallerError> InstallerError;
-		TUniquePtr<ISpeedRecorder> DownloadSpeedRecorder;
-		TUniquePtr<IChunkDataSizeProvider> ChunkDataSizeProvider;
-		TUniquePtr<IInstallerAnalytics> InstallerAnalytics;
-		TUniquePtr<IDownloadServiceStatistics> DownloadServiceStatistics;
-		TUniquePtr<IDownloadService> DownloadService;
-		TUniquePtr<IChunkReferenceTracker> ChunkReferenceTracker;
-		TUniquePtr<IFileOperationTracker> FileOperationTracker;
-		TUniquePtr<IOptimisedDelta> OptimisedDelta;
-		FBuildPatchProgress BuildProgress;
-		TUniquePtr<IMemoryChunkStoreStatistics> MemoryChunkStoreStatistics;
-		TUniquePtr<ICloudChunkSourceStatistics> CloudChunkSourceStatistics;
-		TUniquePtr<IChunkDataSerialization> ChunkDataSerialization;
-		TUniquePtr<IChunkEvictionPolicy> MemoryEvictionPolicy;
-		TUniquePtr<IMemoryChunkStore> CloudChunkStore;
-		TUniquePtr<IDownloadConnectionCount> DownloadConnectionCount;
-		TUniquePtr<ICloudChunkSource> CloudChunkSource;
-		TUniquePtr<IChunkDatabaseWriter> ChunkDatabaseWriter;
 
 		// Process control.
 		TArray<FMessageHandler*> MessageHandlers;
@@ -177,6 +155,30 @@ namespace BuildPatchServices
 		// Packaging.
 		TArray<FChunkDatabaseFile> ChunkDbFiles;
 		TArray<TArray<int32>> TagSetLookupTable;
+
+		// Declare constructed systems last, to ensure they are destructed before our data members.
+		TUniquePtr<IPlatform> Platform;
+		TUniquePtr<IHttpManager> HttpManager;
+		TUniquePtr<IFileSystem> FileSystem;
+		TUniquePtr<IMessagePump> MessagePump;
+		TUniquePtr<IInstallerError> InstallerError;
+		TUniquePtr<ISpeedRecorder> DownloadSpeedRecorder;
+		TUniquePtr<IChunkDataSizeProvider> ChunkDataSizeProvider;
+		TUniquePtr<IInstallerAnalytics> InstallerAnalytics;
+		TUniquePtr<IDownloadServiceStatistics> DownloadServiceStatistics;
+		TUniquePtr<IDownloadService> DownloadService;
+		TUniquePtr<IChunkReferenceTracker> ChunkReferenceTracker;
+		TUniquePtr<IFileOperationTracker> FileOperationTracker;
+		TUniquePtr<IOptimisedDelta> OptimisedDelta;
+		FBuildPatchProgress BuildProgress;
+		TUniquePtr<IMemoryChunkStoreStatistics> MemoryChunkStoreStatistics;
+		TUniquePtr<ICloudChunkSourceStatistics> CloudChunkSourceStatistics;
+		TUniquePtr<IChunkDataSerialization> ChunkDataSerialization;
+		TUniquePtr<IChunkEvictionPolicy> MemoryEvictionPolicy;
+		TUniquePtr<IMemoryChunkStore> CloudChunkStore;
+		TUniquePtr<IDownloadConnectionCount> DownloadConnectionCount;
+		TUniquePtr<ICloudChunkSource> CloudChunkSource;
+		TUniquePtr<IChunkDatabaseWriter> ChunkDatabaseWriter;
 	};
 
 	FPackageChunks::FPackageChunks(const FPackageChunksConfiguration& InConfiguration)
@@ -184,6 +186,16 @@ namespace BuildPatchServices
 		, CoreTicker(FTicker::GetCoreTicker())
 		, DownloadCompleteDelegate(FDownloadCompleteDelegate::CreateRaw(this, &FPackageChunks::HandleDownloadComplete))
 		, DownloadProgressDelegate()
+		, bManifestsProcessed(false)
+		, bShouldRun(true)
+		, bSuccess(true)
+		, RequestIdManifestFile(INDEX_NONE)
+		, RequestIdPrevManifestFile(INDEX_NONE)
+		, PromiseManifestFile(MakePromiseCompleteDelegate(&FPackageChunks::HandleManifestComplete))
+		, PromisePrevManifestFile(MakePromiseCompleteDelegate(&FPackageChunks::HandleManifestComplete))
+		, FutureManifestFile(PromiseManifestFile.GetFuture())
+		, FuturePrevManifestFile(PromisePrevManifestFile.GetFuture())
+		, bUsingOptimisedDelta(false)
 		, Platform(FPlatformFactory::Create())
 		, HttpManager(FHttpManagerFactory::Create())
 		, FileSystem(FFileSystemFactory::Create())
@@ -195,17 +207,18 @@ namespace BuildPatchServices
 		, DownloadServiceStatistics(FDownloadServiceStatisticsFactory::Create(DownloadSpeedRecorder.Get(), ChunkDataSizeProvider.Get(), InstallerAnalytics.Get()))
 		, DownloadService(FDownloadServiceFactory::Create(CoreTicker, HttpManager.Get(), FileSystem.Get(), DownloadServiceStatistics.Get(), InstallerAnalytics.Get()))
 		, FileOperationTracker(FFileOperationTrackerFactory::Create(CoreTicker))
-		, bManifestsProcessed(false)
-		, bShouldRun(true)
-		, bSuccess(true)
-		, RequestIdManifestFile(INDEX_NONE)
-		, RequestIdPrevManifestFile(INDEX_NONE)
-		, PromiseManifestFile(MakePromiseCompleteDelegate(&FPackageChunks::HandleManifestComplete))
-		, PromisePrevManifestFile(MakePromiseCompleteDelegate(&FPackageChunks::HandleManifestComplete))
-		, FutureManifestFile(PromiseManifestFile.GetFuture())
-		, FuturePrevManifestFile(PromisePrevManifestFile.GetFuture())
-		, bUsingOptimisedDelta(false)
 	{
+		// Make sure the cloud chunk source gets the abort signal if an error occurred.
+		InstallerError->RegisterForErrors([this]()
+		{
+			AsyncHelpers::ExecuteOnGameThread<void>([this]()
+			{
+				if (CloudChunkSource.IsValid())
+				{
+					CloudChunkSource->Abort();
+				}
+			}).Wait();
+		});
 	}
 
 	FPackageChunks::~FPackageChunks()
@@ -320,8 +333,9 @@ namespace BuildPatchServices
 		}
 	}
 
-	void FPackageChunks::HandleManifestSelection(FBuildPatchAppManifestPtr DeltaManifest)
+	void FPackageChunks::HandleManifestSelection(const IOptimisedDelta::FResultValueOrError& ResultValueOrError)
 	{
+		FBuildPatchAppManifestPtr DeltaManifest = ResultValueOrError.IsValid() ? ResultValueOrError.GetValue() : nullptr;
 		bUsingOptimisedDelta = Manifest.Get() != DeltaManifest.Get();
 		if (DeltaManifest.IsValid())
 		{
@@ -599,11 +613,16 @@ namespace BuildPatchServices
 		return GameThreadWrapper;
 	}
 
-	TFunction<void(FBuildPatchAppManifestPtr)> FPackageChunks::MakeOptimiseCompleteDelegate(OptimiseCompleteFunc OnComplete)
+	TFunction<void(const IOptimisedDelta::FResultValueOrError&)> FPackageChunks::MakeOptimiseCompleteDelegate(OptimiseCompleteFunc OnComplete)
 	{
-		typedef TMemberFunctionCaller<FPackageChunks, OptimiseCompleteFunc> FOptimiseCompleteCaller;
-		TFunction<void(FBuildPatchAppManifestPtr)> OnCompleteDelegate = [this, OnComplete](FBuildPatchAppManifestPtr ManifestPtr) { FOptimiseCompleteCaller(this, OnComplete)(ManifestPtr); };
-		TFunction<void(FBuildPatchAppManifestPtr)> GameThreadWrapper = [OnCompleteDelegate](FBuildPatchAppManifestPtr ManifestPtr) { AsyncHelpers::ExecuteOnGameThread<void, FBuildPatchAppManifestPtr>(OnCompleteDelegate, ManifestPtr); };
+		TFunction<void(const IOptimisedDelta::FResultValueOrError&)> GameThreadWrapper = [this, OnComplete](const IOptimisedDelta::FResultValueOrError& Result)
+		{
+			// This is boiler plate overcoming IOptimisedDelta::FResultValueOrError being non-copyable, and interface between async thread and main game thread.
+			typedef TMemberFunctionCaller<FPackageChunks, OptimiseCompleteFunc> FOptimiseCompleteCaller;
+			TSharedPtr<IOptimisedDelta::FResultValueOrError> NewResult = Result.IsValid() ? MakeShared<IOptimisedDelta::FResultValueOrError>(MakeValue(Result.GetValue())) : MakeShared<IOptimisedDelta::FResultValueOrError>(MakeError(Result.GetError()));
+			TFunction<void()> OnCompleteDelegate = [this, OnComplete, NewResult = MoveTemp(NewResult)]() { FOptimiseCompleteCaller(this, OnComplete)(*NewResult); };
+			AsyncHelpers::ExecuteOnGameThread<void>(OnCompleteDelegate);
+		};
 		return GameThreadWrapper;
 	}
 
