@@ -236,6 +236,14 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 	Ar << Section.bEnableCollision;
 	Ar << Section.bCastShadow;
 
+	if(
+		!(Ar.IsLoading() && 
+		  Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::StaticMeshSectionForceOpaqueField)
+	  )
+	{
+		Ar << Section.bForceOpaque;
+	}
+
 #if WITH_EDITORONLY_DATA
 	if((!Ar.IsCooking() && !Ar.IsFilterEditorOnly()) || (Ar.IsCooking() && Ar.CookingTarget()->HasEditorOnlyData()))
 	{
@@ -1208,6 +1216,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 					Segment.VertexBufferOffset = 0;
 					Segment.FirstPrimitive = Section.FirstIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
+					Segment.bForceOpaque = Section.bForceOpaque;
 					GeometrySections.Add(Segment);
 					Initializer.TotalPrimitiveCount += Section.NumTriangles;
 				}
@@ -1405,7 +1414,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-					check(LOD.DistanceFieldData != nullptr);
+						check(LOD.DistanceFieldData != nullptr);
 
 						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
 
@@ -1419,19 +1428,19 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 							Ar << DownSampledDFVolumeData;
 						}
 						else
-					{
-						Ar << *(LOD.DistanceFieldData);
-					}
+						{
+							Ar << *(LOD.DistanceFieldData);
+						}
 					}
 					else
 #endif
 					{
-					if (LOD.DistanceFieldData == nullptr)
-					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-					}
+						if (LOD.DistanceFieldData == nullptr)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
 
-					Ar << *(LOD.DistanceFieldData);
+						Ar << *(LOD.DistanceFieldData);
 					}
 				}
 			}
@@ -1510,6 +1519,8 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 
 void FStaticMeshRenderData::ReleaseResources()
 {
+	bIsInitialized = false;
+
 	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
 	{
 		if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
@@ -1655,6 +1666,7 @@ void FStaticMeshRenderData::ResolveSectionInfo(UStaticMesh* Owner)
 			Section.MaterialIndex = Info.MaterialIndex;
 			Section.bEnableCollision = Info.bEnableCollision;
 			Section.bCastShadow = Info.bCastShadow;
+			Section.bForceOpaque = Info.bForceOpaque;
 		}
 
 		// Arbitrary constant used as a base in Pow(K, LODIndex) that achieves much the same progression as a
@@ -2066,7 +2078,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define STATICMESH_DERIVEDDATA_VER TEXT("D819AE82DB6A4CE0891F68BD81CFC2A8")
+#define STATICMESH_DERIVEDDATA_VER TEXT("AC59C886D91E43A1A5EC4DC250ED0E6A")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2958,6 +2970,16 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		if (BodySetup)
 		{
+			BodySetup->InvalidatePhysicsData();
+			BodySetup->CreatePhysicsMeshes();
+		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, bSupportPhysicalMaterialMasks))
+	{
+		if (BodySetup)
+		{
+			BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 			BodySetup->InvalidatePhysicsData();
 			BodySetup->CreatePhysicsMeshes();
 		}
@@ -3923,7 +3945,7 @@ FMeshDescription* UStaticMesh::CreateMeshDescription(int32 LodIndex, FMeshDescri
 }
 
 
-void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams & Params)
+void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CommitMeshDescription);
 
@@ -3942,47 +3964,25 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 			SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
 		}
 
-		// Handle ConvertToRawMesh and SaveMeshDescription in parallel
-		// Something like ParallelInvoke would be cleaner here, but we need the ParallelFor ability to join work on the current thread
-		ParallelFor(2,
-			[this, &SourceModel, &Params](int32 Num)
-			{
-				if (Num == 0)
-				{
-		TMap<FName, int32> MaterialMap;
-		for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
+		SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
+		if (Params.bUseHashAsGuid)
 		{
-			MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+			SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
 		}
-
-					FRawMesh TempRawMesh;
-		FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-		SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
-				}
-				else
-				{
-					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
-
-					if (Params.bUseHashAsGuid)
-		{
-						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
-					}
-				}
-		}
-		);
 	}
 	else
 	{
 		SourceModel.MeshDescriptionBulkData.Reset();
-
-		// Mesh description is null, remove the rawmesh data
-		SourceModel.RawMeshBulkData->Empty();
 	}
+
+	// Clear RawMeshBulkData and mark as invalid.
+	// If any legacy tool needs the RawMesh at this point, it will do a conversion from MD at that moment.
+	SourceModel.RawMeshBulkData->Empty();
 
 	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
 	if (Params.bMarkPackageDirty)
 	{
-	MarkPackageDirty();
+		MarkPackageDirty();
 	}
 }
 
@@ -5015,6 +5015,12 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill vertex buffers
 
 	int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
+	int32 NumTriangles = MeshDescription.Triangles().Num();
+
+	if (NumVertexInstances == 0 || NumTriangles == 0)
+	{
+		return;
+	}
 
 	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
 	StaticMeshBuildVertices.SetNum(NumVertexInstances);
@@ -5074,7 +5080,6 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill index buffer and sections array
 
 	int32 NumPolygonGroups = MeshDescription.PolygonGroups().Num();
-	int32 NumTriangles = MeshDescription.Triangles().Num();
 
 	TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 
@@ -5661,8 +5666,7 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	TMap<int32, int32> MeshToCollisionVertMap; // map of static mesh verts to collision verts
 
 	// If the mesh enables physical material masks, override the physics setting since UVs are always required 
-	// bool bCopyUVs = GetEnablePhysicalMaterialMask() || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
-	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
+	bool bCopyUVs = bSupportPhysicalMaterialMasks || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
 
 	// If copying UVs, allocate array for storing them
 	if (bCopyUVs)
@@ -5807,6 +5811,7 @@ void UStaticMesh::CreateBodySetup()
 	{
 		BodySetup = NewObject<UBodySetup>(this);
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 	}
 }
 
@@ -5968,7 +5973,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
 	LightMapResolution = FMath::Max(LightMapResolution, 4);
 
-	// Lightmass only supports 4 UVs
+	// Lightmass only supports 4 UVs from Lightmass::MAX_TEXCOORDS
 	int32 NumUVs = 4;
 
 #if !WITH_EDITORONLY_DATA
@@ -6003,28 +6008,35 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 	{
 		for (int32 LODIndex = 0; LODIndex < GetNumSourceModels(); ++LODIndex)
 		{
-			if (const FMeshDescription* MeshDescription = GetMeshDescription(LODIndex))
-			{
-				const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			//If the LOD is generated we validate the BaseLODModel instead as the generated LOD is not available before the build and has the same UV properties as its base LOD.
+			const bool bIsGeneratedLOD = !IsMeshDescriptionValid(LODIndex) || IsReductionActive(LODIndex);
+			const int32 SourceLOD = bIsGeneratedLOD ? GetSourceModel(LODIndex).ReductionSettings.BaseLODModel : LODIndex;
 
-				// skip empty LODs
-				if (UVChannels.GetNumElements() > 0)
+			if (!bIsGeneratedLOD || LODIndex == SourceLOD)
+			{
+				if (const FMeshDescription* MeshDescription = GetMeshDescription(SourceLOD))
 				{
-					int NumChannelsInLOD = UVChannels.GetNumIndices();
-					const FStaticMeshSourceModel& SourceModel = GetSourceModel(LODIndex);
+					const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-					if (SourceModel.BuildSettings.bGenerateLightmapUVs)
+					// skip empty/stripped LODs
+					if (UVChannels.GetNumElements() > 0)
 					{
-						NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
-					}
+						int NumChannelsInLOD = UVChannels.GetNumIndices();
+						const FStaticMeshSourceModel& SourceModel = GetSourceModel(SourceLOD);
 
-					NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
+						if (SourceModel.BuildSettings.bGenerateLightmapUVs)
+						{
+							NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
+						}
+
+						NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
+					}
 				}
-			}
-			else
-			{
-				NumUVs = 1;
-				break;
+				else
+				{
+					NumUVs = 1;
+					break;
+				}
 			}
 		}
 

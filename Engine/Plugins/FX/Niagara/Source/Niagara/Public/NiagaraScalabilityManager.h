@@ -131,6 +131,7 @@ struct FNiagaraScalabilityManager
 	void Unregister(UNiagaraComponent* Component);
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
+	void PreGarbageCollectBeginDestroy();
 
 #if DEBUG_SCALABILITY_STATE
 	void Dump();

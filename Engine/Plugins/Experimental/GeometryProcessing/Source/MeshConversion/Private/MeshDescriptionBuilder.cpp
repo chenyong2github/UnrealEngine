@@ -267,5 +267,5 @@ FBox FMeshDescriptionBuilder::ComputeBoundingBox() const
 	{
 		bounds.Contain(VertexPositions.Get(VertexID));
 	}
-	return bounds;
+	return (FBox)bounds;
 }

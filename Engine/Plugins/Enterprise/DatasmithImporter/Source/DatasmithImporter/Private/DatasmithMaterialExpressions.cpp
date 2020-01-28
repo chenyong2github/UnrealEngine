@@ -892,7 +892,6 @@ EMaterialProperty FDatasmithMaterialExpressions::DatasmithTextureSlotToMaterialP
 {
 	switch (InSlot)
 	{
-	default:
 	case EDatasmithTextureSlot::DIFFUSE:				return MP_BaseColor;
 	case EDatasmithTextureSlot::METALLIC:				return MP_Metallic;
 	case EDatasmithTextureSlot::SPECULAR:				return MP_Specular;
@@ -911,6 +910,12 @@ EMaterialProperty FDatasmithMaterialExpressions::DatasmithTextureSlotToMaterialP
 	case EDatasmithTextureSlot::PIXELDEPTHOFFSET:		return MP_PixelDepthOffset;
 	case EDatasmithTextureSlot::SHADINGMODEL:			return MP_ShadingModel;
 	case EDatasmithTextureSlot::MATERIALATTRIBUTES:		return MP_MaterialAttributes;
+	case EDatasmithTextureSlot::AMBIANTOCCLUSION:		return MP_AmbientOcclusion;
+	case EDatasmithTextureSlot::NOSLOT:
+		return MP_MAX;
+	default:
+		ensure(false);
+		return MP_MAX;
 	}
 }
 
@@ -983,6 +988,9 @@ FExpressionInput* FDatasmithMaterialExpressions::GetMaterialOrFunctionSlot( UObj
 			break;
 		case EDatasmithTextureSlot::SHADINGMODEL:
 			ExpressionInput = &Attrib->ShadingModel;
+			break;
+		case EDatasmithTextureSlot::AMBIANTOCCLUSION:
+			ExpressionInput = &Attrib->AmbientOcclusion;
 			break;
 		default:
 			break;
@@ -3228,6 +3236,8 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 	}
 
 	UDatasmithMaterialInstanceTemplate* MaterialInstanceTemplate = NewObject< UDatasmithMaterialInstanceTemplate >( MaterialInstance );
+
+	MaterialInstanceTemplate->ParentMaterial = ParentMaterial;
 
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{

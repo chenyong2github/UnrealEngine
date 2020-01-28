@@ -12,18 +12,18 @@
 #include "DatasmithLevelVariantSetsImporter.h"
 #include "DatasmithLightImporter.h"
 #include "DatasmithMaterialImporter.h"
+#include "DatasmithPayload.h"
 #include "DatasmithPostProcessImporter.h"
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithTextureImporter.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithAnimationElements.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
-#include "Translators/DatasmithPayload.h"
-#include "Translators/DatasmithTranslator.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithTextureResize.h"
 
@@ -36,8 +36,8 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "EditorLevelUtils.h"
 #include "Editor/UnrealEdEngine.h"
+#include "EditorLevelUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -51,8 +51,8 @@
 #include "LevelSequence.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialShared.h"
-#include "Materials/MaterialFunction.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
@@ -66,8 +66,9 @@
 #include "Serialization/ObjectWriter.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "SourceControlOperations.h"
-#include "UnrealEdGlobals.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
+#include "UnrealEdGlobals.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -75,6 +76,32 @@ extern UNREALED_API UEditorEngine* GEditor;
 
 namespace DatasmithImporterImpl
 {
+	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, const FText& Text)
+	{
+		if (SlowTask)
+		{
+			SlowTask->EnterProgressFrame(ExpectedWorkThisFrame, Text);
+		}
+	}
+
+	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, FText&& Text)
+	{
+		if (SlowTask)
+		{
+			SlowTask->EnterProgressFrame(ExpectedWorkThisFrame, Text);
+		}
+	}
+
+	static bool HasUserCancelledTask(FFeedbackContext* FeedbackContext)
+	{
+		if (FeedbackContext)
+		{
+			return FeedbackContext->ReceivedUserCancel();
+		}
+
+		return false;
+	}
+
 	static UObject* PublicizeAsset( UObject* SourceAsset, const TCHAR* DestinationPath, UObject* ExistingAsset )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeAsset);
@@ -106,7 +133,7 @@ namespace DatasmithImporterImpl
 		{
 			OldAssetPathName = ExistingAsset->GetPathName();
 
-			DestinationAsset = DuplicateObject< UObject >( SourceAsset, DestinationPackage, ExistingAsset->GetFName() );
+			DestinationAsset = FDatasmithImporterUtils::DuplicateObject( SourceAsset, DestinationPackage, ExistingAsset->GetFName() );
 
 			// If mesh's label has changed, update its name
 			if ( ExistingAsset->GetFName() != SourceAsset->GetFName() )
@@ -269,9 +296,10 @@ namespace DatasmithImporterImpl
 		const int32 TexturesCount = ImportContext.FilteredScene->GetTexturesCount();
 		const int32 MaterialsCount = ImportContext.FilteredScene->GetMaterialsCount();
 
+		FFeedbackContext* FeedbackContext = ImportContext.FeedbackContext;
 		for ( int32 TextureIndex = 0; TextureIndex < TexturesCount && !ImportContext.bUserCancelled; ++TextureIndex )
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr< IDatasmithTextureElement > TextureElement = ImportContext.FilteredScene->GetTexture( TextureIndex );
 			const FString TextureName = ObjectTools::SanitizeObjectName( TextureElement->GetName() );
@@ -874,8 +902,13 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportStaticMeshes);
 
-	FScopedSlowTask Progress(StaticMeshesCount, LOCTEXT("ImportStaticMeshes", "Importing Static Meshes..."), true, *ImportContext.Warn );
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+
+	if ( ImportContext.FeedbackContext )
+	{
+		ProgressPtr = MakeUnique<FScopedSlowTask>(StaticMeshesCount, LOCTEXT("ImportStaticMeshes", "Importing Static Meshes..."), true, *ImportContext.FeedbackContext );
+		ProgressPtr->MakeDialog(true);
+	}
 
 	TMap<TSharedRef<IDatasmithMeshElement>, TFuture<FDatasmithMeshElementPayload*>> MeshElementPayloads;
 
@@ -890,7 +923,8 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	{
 		for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex)
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+
 
 			if (!ImportContext.AssetsContext.StaticMeshesFinalPackage || ImportContext.AssetsContext.StaticMeshesFinalPackage->GetFName() == NAME_None || ImportContext.SceneTranslator == nullptr)
 			{
@@ -926,14 +960,16 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		}
 	}
 
+	FScopedSlowTask* Progress = ProgressPtr.Get();
+
 	// This pass will wait on the futures we got from the first pass async tasks
 	for ( int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex )
 	{
-		ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.FilteredScene->GetMesh( MeshIndex ).ToSharedRef();
 
-		Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing static mesh %d/%d (%s) ..."), MeshIndex + 1, StaticMeshesCount, MeshElement->GetLabel() ) ) );
+		DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing static mesh %d/%d (%s) ..."), MeshIndex + 1, StaticMeshesCount, MeshElement->GetLabel() ) ) );
 
 		UStaticMesh* ExistingStaticMesh = nullptr;
 
@@ -1086,8 +1122,13 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 	const int32 TexturesCount = ImportContext.FilteredScene->GetTexturesCount();
 
-	FScopedSlowTask Progress( (float)TexturesCount, LOCTEXT("ImportingTextures", "Importing Textures..."), true, *ImportContext.Warn );
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+
+	if ( ImportContext.FeedbackContext )
+	{
+		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)TexturesCount, LOCTEXT("ImportingTextures", "Importing Textures..."), true, *ImportContext.FeedbackContext );
+		ProgressPtr->MakeDialog(true);
+	}
 
 	if (ImportContext.Options->TextureConflictPolicy != EDatasmithImportAssetConflictPolicy::Ignore && TexturesCount > 0)
 	{
@@ -1119,7 +1160,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			AsyncData[TextureIndex].Result = 
 				Async(
@@ -1136,9 +1177,14 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				);
 		}
 
+		// Avoid a call to IsValid for each item
+		FScopedSlowTask* Progress = ProgressPtr.Get();
+
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 		{
-			if ((ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel()))
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+
+			if ( ImportContext.bUserCancelled )
 			{
 				// If operation has been canceled, just wait for other threads to also cancel
 				AsyncData[TextureIndex].Result.Wait();
@@ -1147,7 +1193,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 			{
 				const TSharedPtr< IDatasmithTextureElement >& TextureElement = FilteredTextureElements[TextureIndex];
 
-				Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), TextureIndex + 1, FilteredTextureElements.Num(), TextureElement->GetLabel() ) ) );
+				DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), TextureIndex + 1, FilteredTextureElements.Num(), TextureElement->GetLabel() ) ) );
 
 				UTexture* ExistingTexture = nullptr;
 
@@ -1308,7 +1354,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 	return ImportedMaterial;
 }
 
-UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap )
+UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
 
@@ -1326,18 +1372,22 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 	{
 		if ( UMaterialInterface* SourceMaterialParent = SourceMaterialInstance->Parent )
 		{
-			FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
-			FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
-
-			if ( SourceParentPath.StartsWith( SourceMaterialPath ) )
+			// Do not finalize parent material more than once by verifying it is not already in ReferencesToRemap
+			if (!ReferencesToRemap->Contains(SourceMaterialParent))
 			{
-				// Simply finalize the source parent material.
-				// Note that the parent material will be overridden on the existing material instance
-				FString DestinationParentPath = SourceParentPath;
-				DestinationParentPath.RemoveFromStart( SourceMaterialPath );
-				DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+				FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
+				FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
 
-				FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+				if (SourceParentPath.StartsWith( SourceMaterialPath ) )
+				{
+					// Simply finalize the source parent material.
+					// Note that the parent material will be overridden on the existing material instance
+					FString DestinationParentPath = SourceParentPath;
+					DestinationParentPath.RemoveFromStart( SourceMaterialPath );
+					DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+
+					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+				}
 			}
 		}
 	}
@@ -1393,8 +1443,15 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 
 	const int32 ActorsCount = ImportContext.Scene->GetActorsCount();
 
-	FScopedSlowTask Progress( (float)ActorsCount, LOCTEXT("ImportActors", "Spawning actors..."), true, *ImportContext.Warn );
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+
+	if ( ImportContext.FeedbackContext )
+	{
+		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)ActorsCount, LOCTEXT("ImportActors", "Spawning actors..."), true, *ImportContext.FeedbackContext );
+		ProgressPtr->MakeDialog(true);
+	}
+
+	FScopedSlowTask* Progress = ProgressPtr.Get();
 
 	if ( ImportSceneActor )
 	{
@@ -1402,13 +1459,13 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
 			if ( ActorElement.IsValid() )
 			{
-				Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Spawning actor %d/%d (%s) ..."), ( i + 1 ), ActorsCount, ActorElement->GetLabel() ) ) );
+				DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Spawning actor %d/%d (%s) ..."), ( i + 1 ), ActorsCount, ActorElement->GetLabel() ) ) );
 
 				if ( ActorElement->IsAComponent() )
 				{
@@ -1431,7 +1488,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 		// After all actors were imported, perform a post import step so that any dependencies can be resolved
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
@@ -1515,7 +1572,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 
 	for (int32 i = 0; i < ActorElement->GetChildrenCount() && !ImportContext.bUserCancelled; ++i)
 	{
-		ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		const TSharedPtr< IDatasmithActorElement >& ChildActorElement = ActorElement->GetChild(i);
 
@@ -1886,8 +1943,12 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		return;
 	}
 
-	FScopedSlowTask Progress( (float)SequencesCount, LOCTEXT("ImportingLevelSequences", "Importing Level Sequences..."), true, *ImportContext.Warn );
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+	if ( ImportContext.FeedbackContext )
+	{ 
+		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)SequencesCount, LOCTEXT("ImportingLevelSequences", "Importing Level Sequences..."), true, *ImportContext.FeedbackContext );
+		ProgressPtr->MakeDialog(true);
+	}
 
 	// We can only parse a IDatasmithLevelSequenceElement with IDatasmithSubsequenceAnimationElements if their target
 	// subsequences' LevelSequenceElement have been parsed. We solve that with a structure we can repeatedly loop over,
@@ -1896,7 +1957,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 	SequencesToImport.Reserve(SequencesCount);
 	for ( int32 SequenceIndex = 0; SequenceIndex < SequencesCount && !ImportContext.bUserCancelled; ++SequenceIndex )
 	{
-		ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedPtr< IDatasmithLevelSequenceElement > SequenceElement = ImportContext.FilteredScene->GetLevelSequence( SequenceIndex );
 		if ( !SequenceElement )
@@ -1907,6 +1968,9 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		SequencesToImport.Add(SequenceElement);
 	}
 
+
+	FScopedSlowTask* Progress = ProgressPtr.Get();
+
 	// If the scene is ok we will do at most HardLoopCounter passes
 	int32 HardLoopCounter = SequencesToImport.Num();
 	int32 NumImported = 0;
@@ -1916,7 +1980,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		// Scan remaining sequences and import the ones we can, removing from this array
 		for ( int32 SequenceIndex = SequencesToImport.Num() - 1; SequenceIndex >= 0 && !ImportContext.bUserCancelled; --SequenceIndex )
 		{
-			ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr<IDatasmithLevelSequenceElement>& SequenceElement = SequencesToImport[SequenceIndex];
 
@@ -1936,8 +2000,8 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 			}
 		}
 
-			FString SequenceName = ObjectTools::SanitizeObjectName( SequenceElement->GetName() );
-			Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
+		FString SequenceName = ObjectTools::SanitizeObjectName(SequenceElement->GetName());
+		DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf(TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
 
 		ULevelSequence*& ImportedLevelSequence = ImportContext.ImportedLevelSequences.FindOrAdd( SequenceElement.ToSharedRef() );
 		if (ImportContext.SceneTranslator)
@@ -1989,12 +2053,18 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportLevelVariantSets);
 
-	FScopedSlowTask Progress( (float)LevelVariantSetsCount, LOCTEXT("ImportingLevelVariantSets", "Importing Level Variant Sets..."), true, *ImportContext.Warn );
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+	if ( ImportContext.FeedbackContext )
+	{
+		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)LevelVariantSetsCount, LOCTEXT("ImportingLevelVariantSets", "Importing Level Variant Sets..."), true, *ImportContext.FeedbackContext );
+		ProgressPtr->MakeDialog(true);
+	}
+
+	FScopedSlowTask* Progress = ProgressPtr.Get();
 
 	for ( int32 LevelVariantSetIndex = 0; LevelVariantSetIndex < LevelVariantSetsCount && !ImportContext.bUserCancelled; ++LevelVariantSetIndex )
 	{
-		ImportContext.bUserCancelled |= ImportContext.Warn->ReceivedUserCancel();
+		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedPtr< IDatasmithLevelVariantSetsElement > LevelVariantSetsElement = ImportContext.FilteredScene->GetLevelVariantSets( LevelVariantSetIndex );
 		if ( !LevelVariantSetsElement )
@@ -2013,8 +2083,9 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 			}
 		}
 
-		FString LevelVariantSetsName = ObjectTools::SanitizeObjectName( LevelVariantSetsElement->GetName() );
-		Progress.EnterProgressFrame( 1.f, FText::FromString( FString::Printf( TEXT("Importing level variant sets %d/%d (%s) ..."), LevelVariantSetIndex + 1, LevelVariantSetsCount, *LevelVariantSetsName ) ) );
+
+		FString LevelVariantSetsName = ObjectTools::SanitizeObjectName(LevelVariantSetsElement->GetName());
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Importing level variant sets %d/%d (%s) ..."), LevelVariantSetIndex + 1, LevelVariantSetsCount, *LevelVariantSetsName)));
 
 		ULevelVariantSets*& ImportedLevelVariantSets = ImportContext.ImportedLevelVariantSets.FindOrAdd( LevelVariantSetsElement.ToSharedRef() );
 		ImportedLevelVariantSets = FDatasmithLevelVariantSetsImporter::ImportLevelVariantSets( LevelVariantSetsElement.ToSharedRef(), ImportContext, ExistingLevelVariantSets );
@@ -2206,8 +2277,13 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	const int32 NumAssetsToFinalize = ValidAssets.Num() == 0 ? NumImportedObjects : ValidAssets.Num() + ImportContext.ImportedLevelSequences.Num() + ImportContext.ImportedLevelVariantSets.Num();
 	const int32 NumStaticMeshToBuild = ImportContext.ImportedStaticMeshes.Num();
 
-	FScopedSlowTask Progress((float)NumAssetsToFinalize + NumStaticMeshToBuild, LOCTEXT("FinalizingAssets", "Finalizing Assets"), true, *ImportContext.Warn);
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+
+	if ( ImportContext.FeedbackContext )
+	{ 
+		ProgressPtr = MakeUnique<FScopedSlowTask>((float)NumAssetsToFinalize + NumStaticMeshToBuild, LOCTEXT("FinalizingAssets", "Finalizing Assets"), true, *ImportContext.FeedbackContext);
+		ProgressPtr->MakeDialog(true);
+	}
 
 	TMap<UObject*, UObject*> ReferencesToRemap;
 
@@ -2218,6 +2294,8 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 	const FString& RootFolderPath = ImportContext.AssetsContext.RootFolderPath;
 	const FString& TransientFolderPath = ImportContext.AssetsContext.TransientFolderPath;
+
+	FScopedSlowTask* Progress = ProgressPtr.Get();
 
 	// Needs to be done in dependencies order (textures -> materials -> static meshes)
 	for (const TPair< TSharedRef< IDatasmithTextureElement >, UTexture* >& ImportedTexturePair : ImportContext.ImportedTextures)
@@ -2236,7 +2314,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName TextureId = ImportedTexturePair.Key->GetName();
 
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Texture %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceTexture->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Texture %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceTexture->GetName())));
 
 		TSoftObjectPtr< UTexture >& ExistingTexturePtr = ImportContext.SceneAsset->Textures.FindOrAdd(TextureId);
 		UTexture* ExistingTexture = ExistingTexturePtr.Get();
@@ -2272,8 +2350,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		}
 
 		FName MaterialFunctionId = ImportedMaterialFunctionPair.Key->GetName();
-
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
 
 		TSoftObjectPtr< UMaterialFunction >& ExistingMaterialFunctionPtr = ImportContext.SceneAsset->MaterialFunctions.FindOrAdd(MaterialFunctionId);
 		UMaterialFunction* ExistingMaterialFunction = ExistingMaterialFunctionPtr.Get();
@@ -2285,6 +2362,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunctionPtr.Get(), ImportContext);
 	}
 
+	TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
 	for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& ImportedMaterialPair : ImportContext.ImportedMaterials)
 	{
 		if (ImportContext.bUserCancelled)
@@ -2301,7 +2379,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName MaterialId = ImportedMaterialPair.Key->GetName();
 
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
 
 		TSoftObjectPtr< UMaterialInterface >& ExistingMaterialPtr = ImportContext.SceneAsset->Materials.FindOrAdd(MaterialId);
 		UMaterialInterface* ExistingMaterial = ExistingMaterialPtr.Get();
@@ -2312,6 +2390,17 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
 		{
 			SourceMaterial->RebuildExpressionTextureReferences();
+			
+			TArray<UObject*> ReferencedTextures;
+			SourceMaterial->AppendReferencedTextures(ReferencedTextures);
+			for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
+			{
+				if (ReferencedTextures.Contains(VirtualTexture))
+				{
+					MaterialsToRefreshAfterVirtualTextureConversion.Add(SourceMaterial);
+					break;
+				}
+			}
 
 			for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
 			{
@@ -2361,7 +2450,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName StaticMeshId = ImportedStaticMeshPair.Key->GetName();
 
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Static Mesh %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceStaticMesh->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Static Mesh %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceStaticMesh->GetName())));
 
 		TSoftObjectPtr< UStaticMesh >& ExistingStaticMeshPtr = ImportContext.SceneAsset->StaticMeshes.FindOrAdd(StaticMeshId);
 		UStaticMesh* ExistingStaticMesh = ExistingStaticMeshPtr.Get();
@@ -2379,7 +2468,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	int32 StaticMeshIndex = 0;
 	auto ProgressFunction = [&](UStaticMesh* StaticMesh)
 	{
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Building Static Mesh %d/%d (%s) ..."), ++StaticMeshIndex, StaticMeshes.Num(), *StaticMesh->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Building Static Mesh %d/%d (%s) ..."), ++StaticMeshIndex, StaticMeshes.Num(), *StaticMesh->GetName())));
 		return !ImportContext.bUserCancelled;
 	};
 
@@ -2401,7 +2490,8 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName LevelSequenceId = ImportedLevelSequencePair.Key->GetName();
 
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Sequence %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelSequence->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Sequence %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelSequence->GetName())));
+
 
 		TSoftObjectPtr< ULevelSequence >& ExistingLevelSequencePtr = ImportContext.SceneAsset->LevelSequences.FindOrAdd(LevelSequenceId);
 		ULevelSequence* ExistingLevelSequence = ExistingLevelSequencePtr.Get();
@@ -2429,7 +2519,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName LevelVariantSetsId = ImportedLevelVariantSetsPair.Key->GetName();
 
-		Progress.EnterProgressFrame(1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Variant Sets %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelVariantSets->GetName())));
+		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Variant Sets %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelVariantSets->GetName())));
 
 		TSoftObjectPtr< ULevelVariantSets >& ExistingLevelVariantSetsPtr = ImportContext.SceneAsset->LevelVariantSets.FindOrAdd(LevelVariantSetsId);
 		ULevelVariantSets* ExistingLevelVariantSets = ExistingLevelVariantSetsPtr.Get();
@@ -2457,11 +2547,11 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 	if ( ImportContext.ShouldImportActors() )
 	{
-		FinalizeActors(ImportContext, &ReferencesToRemap);
+		FinalizeActors( ImportContext, &ReferencesToRemap );
 	}
 
 	// Everything has been finalized, make sure the UDatasmithScene is set to dirty
-	if (ImportContext.SceneAsset)
+	if ( ImportContext.SceneAsset )
 	{
 		ImportContext.SceneAsset->MarkPackageDirty();
 	}
@@ -2473,5 +2563,31 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	GEditor->ResetTransaction(LOCTEXT("Reset Transaction Buffer", "Datasmith Import Finalization"));
 }
 
+void FDatasmithImporter::ConvertUnsupportedVirtualTexture(FDatasmithImportContext& ImportContext, TArray<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion, const TMap<UObject*, UObject*>& ReferencesToRemap)
+{
+	if (VirtualTexturesToConvert.Num() != 0)
+	{
+		for (int32 TextureIndex = 0; TextureIndex < VirtualTexturesToConvert.Num(); ++TextureIndex)
+		{
+			UTexture2D*& TextureToConvert = VirtualTexturesToConvert[TextureIndex];
+			if (UObject* const* RemappedTexture = ReferencesToRemap.Find(TextureToConvert))
+			{
+				TextureToConvert = Cast<UTexture2D>(*RemappedTexture);
+			}
+
+			ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithVirtualTextureConverted", "The imported texture {0} could not be imported as virtual texture as it is not supported in all the materials using it."), FText::FromString(TextureToConvert->GetName())));
+		}
+		for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToRefreshAfterVirtualTextureConversion.Num(); ++MaterialIndex)
+		{
+			if (UObject* const* RemappedMaterial = ReferencesToRemap.Find(MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex]))
+			{
+				MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex] = Cast<UMaterial>(*RemappedMaterial);
+			}
+		}
+
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		AssetTools.ConvertVirtualTextures(VirtualTexturesToConvert, true, &MaterialsToRefreshAfterVirtualTextureConversion);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

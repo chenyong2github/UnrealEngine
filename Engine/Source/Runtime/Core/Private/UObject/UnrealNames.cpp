@@ -27,6 +27,8 @@
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 // Page protection to catch FNameEntry stomps
 #ifndef FNAME_WRITE_PROTECT_PAGES
 #define FNAME_WRITE_PROTECT_PAGES 0
@@ -1700,7 +1702,7 @@ static int32 GetLengthAndWidth(const WIDECHAR* Str, bool& bOutIsWide)
 
 	bOutIsWide = UserCharBits & 0xffffff80u;
 
-	return It - Str;
+	return UE_PTRDIFF_TO_INT32(It - Str);
 }
 
 static FWideStringViewWithWidth MakeUnconvertedView(const WIDECHAR* Str, int32 Len)
@@ -1789,7 +1791,7 @@ struct FNameHelper
 		{
 			// Consider _mm_packus_epi16 or similar if this proves too slow
 			ANSICHAR AnsiName[NAME_SIZE];
-			for (int32 I = 0; I < View.Len; ++I)
+			for (int32 I = 0, Len = FMath::Min<int32>(View.Len, NAME_SIZE); I < Len; ++I)
 			{
 				AnsiName[I] = View.Str[I];
 			}
@@ -1803,8 +1805,12 @@ struct FNameHelper
 
 	static FName Make(FNameStringView View, EFindName FindType, int32 InternalNumber)
 	{
-		checkf(View.Len < NAME_SIZE, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator."), NAME_SIZE - 1, View.Len);
-
+		if (View.Len >= NAME_SIZE)
+		{
+			checkf(false, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator."), NAME_SIZE - 1, View.Len);
+			return FName("ERROR_NAME_SIZE_EXCEEDED");
+		}
+		
 		FNamePool& Pool = GetNamePool();
 
 		FNameEntryId DisplayId, ComparisonId;
@@ -3166,3 +3172,5 @@ uint8** FNameDebugVisualizer::GetBlocks()
 
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

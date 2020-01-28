@@ -14,8 +14,8 @@
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTranslatorManager.h"
 #include "IDatasmithSceneElements.h"
-#include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "Async/ParallelFor.h"
@@ -172,7 +172,8 @@ bool UDatasmithFileProducer::Initialize()
 	TSharedRef< IDatasmithScene > SceneElement = FDatasmithSceneFactory::CreateScene( *Source.GetSceneName() );
 
 	constexpr EObjectFlags LocalObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
-	if ( !ImportContextPtr->Init( SceneElement, RootPath, LocalObjectFlags, Context.ProgressReporterPtr->GetFeedbackContext(), TSharedPtr< FJsonObject >(), true ) )
+	FFeedbackContext* InFeedbackContext = Context.ProgressReporterPtr ? Context.ProgressReporterPtr->GetFeedbackContext() : nullptr;
+	if ( !ImportContextPtr->Init( SceneElement, RootPath, LocalObjectFlags, InFeedbackContext, TSharedPtr< FJsonObject >(), true ) )
 	{
 		LogError( LOCTEXT( "DatasmithFileProducer_Initialization", "Initialization of producer failed." ) );
 		return false;

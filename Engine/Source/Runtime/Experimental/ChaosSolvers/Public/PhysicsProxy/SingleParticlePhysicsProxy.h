@@ -136,8 +136,14 @@ public:
 	/**/
 	void PullFromPhysicsState();
 
-
+	/**/
 	bool IsDirty();
+
+	/**/
+	bool HasAwakeEvent() const;
+
+	/**/
+	void ClearEvents();
 
 private:
 	bool bInitialized;
@@ -171,6 +177,11 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType();
 
+template< >
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const;
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvents();
 
 // TKinematicGeometryParticle specialization prototypes
 
@@ -192,6 +203,11 @@ bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::I
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ConcreteType();
 
+template< >
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const;
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearEvents();
 
 // TPBDRigidParticles specialization prototypes
 
@@ -212,6 +228,14 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType();
+
+template< >
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::HasAwakeEvent() const;
+
+template< >
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearEvents();
+
+
 extern template class FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >;
 extern template class FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >;
 extern template class FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >;

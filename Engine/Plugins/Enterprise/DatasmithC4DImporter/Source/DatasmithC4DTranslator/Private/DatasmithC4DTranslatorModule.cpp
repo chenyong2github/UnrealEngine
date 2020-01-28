@@ -6,10 +6,6 @@
 
 #include "DatasmithC4DTranslator.h"
 #include "DatasmithC4DImporterMaterialSelector.h"
-#include "DatasmithImporterEditorSettings.h"
-#include "DatasmithImporterHelper.h"
-#include "DatasmithImporterModule.h"
-#include "UI/DatasmithUIManager.h"
 
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
@@ -40,7 +36,7 @@ public:
 	virtual void StartupModule() override
 	{
 		// Make sure the DatasmithImporter module exists and has been initialized before adding FDatasmithC4DTranslator's material selector
-		FModuleManager::Get().LoadModule(TEXT("DatasmithImporter"));
+		FModuleManager::Get().LoadModule(TEXT("DatasmithTranslator"));
 
 		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("C4DTranslator"), MakeShared< FDatasmithC4DImporterMaterialSelector >());
 

@@ -23,7 +23,6 @@ static FAutoConsoleVariableRef CVarNumTranscodeRequests(
 	TEXT("Number of transcode request that can be in flight. default 32\n"),
 	ECVF_Default);
 
-
 /** 
  * FVirtualTextureChunkStreamingManager is a treated as a singleton referenced by multiple FUploadingVirtualTexture objects.
  * Use RefCount to ensure it is unregistered and destroyed on shutdown.
@@ -48,10 +47,12 @@ FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->Initialize();
 #endif
+	BeginInitResource(&UploadCache);
 }
 
 FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()
 {
+	UploadCache.ReleaseResource(); // Must be called from rendering thread
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->ShutDown();
 #endif
@@ -105,16 +106,6 @@ void FVirtualTextureChunkStreamingManager::CancelForcedResources()
 
 }
 
-static EAsyncIOPriorityAndFlags GetAsyncIOPriority(EVTRequestPagePriority Priority)
-{
-	switch (Priority)
-	{
-	case EVTRequestPagePriority::High: return AIOP_High;
-	case EVTRequestPagePriority::Normal: return AIOP_Normal;
-	default: check(false); return AIOP_Normal;
-	}
-}
-
 FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadingVirtualTexture* VTexture, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority)
 {
 	SCOPE_CYCLE_COUNTER(STAT_VTP_RequestTile);
@@ -149,9 +140,8 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 		return EVTRequestPageStatus::Saturated;
 	}
 
-	const EAsyncIOPriorityAndFlags AsyncIOPriority = GetAsyncIOPriority(Priority);
 	FGraphEventArray GraphCompletionEvents;
-	const FVTCodecAndStatus CodecResult = VTexture->GetCodecForChunk(GraphCompletionEvents, ChunkIndex, AsyncIOPriority);
+	const FVTCodecAndStatus CodecResult = VTexture->GetCodecForChunk(GraphCompletionEvents, ChunkIndex, Priority);
 	if (!VTRequestPageStatus_HasData(CodecResult.Status))
 	{
 		// May fail to get codec if the file cache is saturated
@@ -174,7 +164,7 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 	const uint32 OffsetEnd = VTData->GetTileOffset(ChunkIndex, TileIndex + MaxLayerIndex + 1u);
 	const uint32 RequestSize = OffsetEnd - OffsetStart;
 
-	const FVTDataAndStatus TileDataResult = VTexture->ReadData(GraphCompletionEvents, ChunkIndex, OffsetStart, RequestSize, AsyncIOPriority);
+	const FVTDataAndStatus TileDataResult = VTexture->ReadData(GraphCompletionEvents, ChunkIndex, OffsetStart, RequestSize, Priority);
 	if (!VTRequestPageStatus_HasData(TileDataResult.Status))
 	{
 		return TileDataResult.Status;

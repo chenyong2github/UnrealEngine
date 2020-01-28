@@ -65,15 +65,15 @@ public:
 	EVoxelCSGOperation Operation;
 
 	/** The size of the geometry bounding box major axis measured in voxels.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "8", UIMax = "512", ClampMin = "8", ClampMax = "512"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024"))
 	int32 VoxelCount = 128;
 
-	/** Remeshing adaptivity */
+	/** Remeshing adaptivity, prior to optional simplification */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float MeshAdaptivity = 0.001f;
 
-	/** Offset when remeshing, measured in voxels units */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-2", UIMax = "2", ClampMin = "-2", ClampMax = "2"))
+	/** Offset when remeshing, note large offsets with high voxels counts will be slow */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-10", UIMax = "10", ClampMin = "-10", ClampMax = "10"))
 	float OffsetDistance = 0;
 
 	/** Automatically simplify the result of voxel-based merge.*/
@@ -115,7 +115,7 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 
 protected:
@@ -139,5 +139,5 @@ protected:
 	/** quickly generate a low-quality result for display while the actual result is being computed. */
 	void CreateLowQualityPreview();
 
-	void GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Result);
+	void GenerateAsset(const FDynamicMeshOpResult& Result);
 };

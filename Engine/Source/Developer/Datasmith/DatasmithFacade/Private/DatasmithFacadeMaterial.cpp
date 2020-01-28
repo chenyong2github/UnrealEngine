@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithFacadeMaterial.h"
+#include "DatasmithUtils.h"
 
 #include "Misc/Paths.h"
 
@@ -64,8 +65,9 @@ void FDatasmithFacadeMaterial::AddTexture(
 {
 	if (!FString(InTextureFilePath).IsEmpty())
 	{
-		// Make a unique Datasmith texture name.
-		FString TextureName = FString::Printf(TEXT("%ls_%d"), *FMD5::HashAnsiString(InTextureFilePath), int(InTextureMode));
+		// Make Datasmith texture name from file name.
+		FString FileName = FDatasmithUtils::SanitizeFileName(FPaths::GetBaseFilename(InTextureFilePath));
+		FString TextureName = FString::Printf(TEXT("%ls_%d"), *FileName, int(InTextureMode));
 
 		// Create a new Datasmith material texture property.
 		TSharedPtr<IDatasmithKeyValueProperty> MaterialPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(InPropertyName);

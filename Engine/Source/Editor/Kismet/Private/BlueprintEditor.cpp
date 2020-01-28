@@ -1720,7 +1720,6 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 		InitBlueprint->OnSetObjectBeingDebugged().AddSP(this, &FBlueprintEditor::HandleSetObjectBeingDebugged);
 	}
 
-	CreateDefaultCommands();
 	CreateDefaultTabContents(InitBlueprints);
 
 	FKismetEditorUtilities::OnBlueprintUnloaded.AddSP(this, &FBlueprintEditor::OnBlueprintUnloaded);
@@ -1840,6 +1839,10 @@ void FBlueprintEditor::InitBlueprintEditor(
 
 	GetToolkitCommands()->Append(FPlayWorldCommands::GlobalPlayWorldActions.ToSharedRef());
 
+	CreateDefaultCommands();
+
+	RegisterMenus();
+
 	// Initialize the asset editor and spawn nothing (dummy layout)
 	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	const bool bCreateDefaultStandaloneMenu = true;
@@ -1909,16 +1912,21 @@ void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 
 void FBlueprintEditor::InitalizeExtenders()
 {
-	TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender);
-	FKismet2Menu::SetupBlueprintEditorMenu(MenuExtender, *this);
-	AddMenuExtender(MenuExtender);
-
 	FBlueprintEditorModule* BlueprintEditorModule = &FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 	TSharedPtr<FExtender> CustomExtenders = BlueprintEditorModule->GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects());
 	BlueprintEditorModule->OnGatherBlueprintMenuExtensions().Broadcast(CustomExtenders, GetBlueprintObj());
 
 	AddMenuExtender(CustomExtenders);
 	AddToolbarExtender(CustomExtenders);
+}
+
+void FBlueprintEditor::RegisterMenus()
+{
+	const FName MainMenuName = GetToolMenuName();
+	if (!UToolMenus::Get()->IsMenuRegistered(MainMenuName))
+	{
+		FKismet2Menu::SetupBlueprintEditorMenu(MainMenuName);
+	}
 }
 
 void FBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated/* = false*/)
@@ -3096,6 +3104,16 @@ bool FBlueprintEditor::CanNavigateToChildGraph() const
 	return FocusedGraphEdPtr.IsValid() && (FocusedGraphEdPtr.Pin()->GetCurrentGraph()->SubGraphs.Num() > 0);
 }
 
+bool FBlueprintEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedObject)
+{
+	check(InTransactedObject);
+
+	UBlueprint* BlueprintObj = GetBlueprintObj();
+	check(BlueprintObj);
+
+	return InTransactedObject->GetOutermost() == BlueprintObj->GetOutermost();
+}
+
 void FBlueprintEditor::HandleUndoTransaction(const FTransaction* Transaction)
 {
 	UBlueprint* BlueprintObj = GetBlueprintObj();
@@ -3107,9 +3125,10 @@ void FBlueprintEditor::HandleUndoTransaction(const FTransaction* Transaction)
 		// Look at the transaction this function is responding to, see if any object in it has an outermost of the Blueprint
 		TArray<UObject*> TransactionObjects;
 		Transaction->GetTransactionObjects(TransactionObjects);
+
 		for (UObject* Object : TransactionObjects)
 		{
-			if (Object->GetOutermost() == BlueprintOutermost)
+			if(TransactionObjectAffectsBlueprint(Object))
 			{
 				bAffectsBlueprint = true;
 				break;

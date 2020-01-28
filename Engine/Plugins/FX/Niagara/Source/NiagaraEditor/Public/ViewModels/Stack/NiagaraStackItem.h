@@ -18,7 +18,8 @@ class NIAGARAEDITOR_API UNiagaraStackItem : public UNiagaraStackEntry
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnModifiedGroupItems);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRequestPaste, const UNiagaraClipboardContent* /* ClipboardContent */, int32 /* PasteIndex */);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRequestCanPaste, const UNiagaraClipboardContent* /* ClipboardContent */, FText& /* OutCanPasteMessage */);
+	DECLARE_DELEGATE_ThreeParams(FOnRequestPaste, const UNiagaraClipboardContent* /* ClipboardContent */, int32 /* PasteIndex */, FText& /* OutPasteWarning */);
 
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey);
@@ -26,7 +27,9 @@ public:
 	virtual EStackRowStyle GetStackRowStyle() const override;
 
 	FOnModifiedGroupItems& OnModifiedGroupItems();
-	FOnRequestPaste& OnRequestPaste();
+
+	void SetOnRequestCanPaste(FOnRequestCanPaste InOnRequestCanPaste);
+	void SetOnRequestPaste(FOnRequestPaste InOnRequestCanPaste);
 
 	virtual bool SupportsChangeEnabled() const { return false; }
 	void SetIsEnabled(bool bInIsEnabled);
@@ -57,6 +60,7 @@ private:
 
 protected:
 	FOnModifiedGroupItems ModifiedGroupItemsDelegate;
+	FOnRequestCanPaste RequestCanPasteDelegete;
 	FOnRequestPaste RequestPasteDelegate;
 
 private:

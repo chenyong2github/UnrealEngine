@@ -15,6 +15,9 @@
 #include "Engine/Polys.h"
 #include "PhysXIncludes.h"
 #include "Chaos/Convex.h"
+#if INTEL_ISPC
+#include "KAggregateGeom.ispc.generated.h"
+#endif
 
 #if WITH_CHAOS
 #include "Chaos/ImplicitObject.h"
@@ -309,14 +312,34 @@ EAggCollisionShape::Type FKBoxElem::StaticShapeType = EAggCollisionShape::Box;
 
 FBox FKBoxElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
-	FTransform ElemTM = GetTransform();
-	ElemTM.ScaleTranslation( FVector(Scale) );
-	ElemTM *= BoneTM;
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		FBox LocalBox(ForceInit);
+		ispc::BoxCalcAABB(
+			(ispc::FBox&)LocalBox,
+			(ispc::FTransform&)BoneTM,
+			Scale,
+			(ispc::FRotator&)Rotation,
+			(ispc::FVector&)Center,
+			X,
+			Y,
+			Z);
 
-	FVector Extent(0.5f * Scale * X, 0.5f * Scale * Y, 0.5f * Scale * Z);
-	FBox LocalBox(-Extent, Extent);
+		return LocalBox;
+#endif
+	}
+	else
+	{
+		FTransform ElemTM = GetTransform();
+		ElemTM.ScaleTranslation(FVector(Scale));
+		ElemTM *= BoneTM;
 
-	return LocalBox.TransformBy(ElemTM);
+		FVector Extent(0.5f * Scale * X, 0.5f * Scale * Y, 0.5f * Scale * Z);
+		FBox LocalBox(-Extent, Extent);
+
+		return LocalBox.TransformBy(ElemTM);
+	}
 }
 
 
@@ -328,26 +351,45 @@ EAggCollisionShape::Type FKSphylElem::StaticShapeType = EAggCollisionShape::Sphy
 
 FBox FKSphylElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
-	FTransform ElemTM = GetTransform();
-	ElemTM.ScaleTranslation( FVector(Scale) );
-	ElemTM *= BoneTM;
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		FBox Result(ForceInit);
+		ispc::SPhylCalcAABB(
+			(ispc::FBox&)Result,
+			(ispc::FTransform&)BoneTM,
+			Scale,
+			(ispc::FRotator&)Rotation,
+			(ispc::FVector&)Center,
+			Radius,
+			Length);
 
-	const FVector SphylCenter = ElemTM.GetLocation();
+		return Result;
+#endif
+	}
+	else
+	{
+		FTransform ElemTM = GetTransform();
+		ElemTM.ScaleTranslation( FVector(Scale) );
+		ElemTM *= BoneTM;
 
-	// Get sphyl axis direction
-	const FVector Axis = ElemTM.GetScaledAxis( EAxis::Z );
-	// Get abs of that vector
-	const FVector AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
-	// Scale by length of sphyl
-	const FVector AbsDist = (Scale * 0.5f * Length) * AbsAxis;
+		const FVector SphylCenter = ElemTM.GetLocation();
 
-	const FVector MaxPos = SphylCenter + AbsDist;
-	const FVector MinPos = SphylCenter - AbsDist;
-	const FVector Extent(Scale * Radius);
+		// Get sphyl axis direction
+		const FVector Axis = ElemTM.GetScaledAxis( EAxis::Z );
+		// Get abs of that vector
+		const FVector AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
+		// Scale by length of sphyl
+		const FVector AbsDist = (Scale * 0.5f * Length) * AbsAxis;
 
-	FBox Result(MinPos - Extent, MaxPos + Extent);
+		const FVector MaxPos = SphylCenter + AbsDist;
+		const FVector MinPos = SphylCenter - AbsDist;
+		const FVector Extent(Scale * Radius);
 
-	return Result;
+		FBox Result(MinPos - Extent, MaxPos + Extent);
+
+		return Result;
+	}
 }
 
 
@@ -541,7 +583,6 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 		// Do nothing if poly was completely clipped away.
 		if(Polygon.Vertices.Num() > 0)
 		{
-			const int32 BaseIndex = VertexData.Num();
 			TArray<int32> Remap;
 			Remap.AddUninitialized(Polygon.Vertices.Num());
 
@@ -578,12 +619,13 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 				}
 			}
 
-			int32 NumTriangles = Polygon.Vertices.Num() - 2;
-			for(int32 Index = 1; Index < NumTriangles; ++Index)
+			const int32 NumTriangles = Polygon.Vertices.Num() - 2;
+			const int32 BaseIndex = Remap[0];
+			for(int32 Index = 0; Index < NumTriangles; ++Index)
 			{
 				IndexData.Add(BaseIndex);
-				IndexData.Add(Remap[Index]);
 				IndexData.Add(Remap[Index + 1]);
+				IndexData.Add(Remap[Index + 2]);
 			}
 		}
 	}

@@ -57,15 +57,17 @@ namespace ClothingSimulationDefault
 	static const int32 NumIterations = 1;
 	static const float SelfCollisionThickness = 2.f;
 	static const float CollisionThickness = 1.2f;
-	static const float CoefficientOfFriction = 0.f;
-	static const float Damping = 0.01f;
-	static const float SolverFrequency = 60.f;
+	static const float FrictionCoefficient = 0.2f;
+	static const float DampingCoefficient = 0.01f;
+	static const float WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
 }
 
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
+	, bOverrideGravity(false)
 	, Gravity(ClothingSimulationDefault::Gravity)
+	, WindVelocity(FVector::ZeroVector)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -88,8 +90,8 @@ void ClothingSimulation::Initialize()
 			ClothingSimulationDefault::NumIterations,
 			ClothingSimulationDefault::CollisionThickness,
 			ClothingSimulationDefault::SelfCollisionThickness,
-			ClothingSimulationDefault::CoefficientOfFriction,
-			ClothingSimulationDefault::Damping));
+			ClothingSimulationDefault::FrictionCoefficient,
+			ClothingSimulationDefault::DampingCoefficient));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
     Evolution->GetGravityForces().SetAcceleration(Gravity);
@@ -138,12 +140,14 @@ void ClothingSimulation::Shutdown()
 	AnimationPositions.Reset();
 	AnimationNormals.Reset();
 	IndexToRangeMap.Reset();
+	RootBoneWorldTransforms.Reset();
 	Meshes.Reset();
 	FaceNormals.Reset();
 	PointNormals.Reset();
 	Evolution.Reset();
 	ExternalCollisionsOffset = 0;
 	ClothSharedSimConfig = nullptr;
+	LongRangeConstraints.Reset();
 }
 
 void ClothingSimulation::DestroyActors()
@@ -182,6 +186,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		Meshes.SetNum(InSimDataIndex + 1);
 		FaceNormals.SetNum(InSimDataIndex + 1);
 		PointNormals.SetNum(InSimDataIndex + 1);
+		LongRangeConstraints.SetNum(InSimDataIndex + 1);
 	}
 
 	check(Asset->GetNumLods() > 0);
@@ -194,13 +199,15 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	// Add particles
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
 	const uint32 Offset = Particles.Size();
-	Particles.AddParticles(PhysMesh.Vertices.Num());
+	Evolution->AddParticles(PhysMesh.Vertices.Num(), (uint32)InSimDataIndex);
 
 	if (IndexToRangeMap.Num() <= InSimDataIndex)
 	{
 		IndexToRangeMap.SetNum(InSimDataIndex + 1);
+		RootBoneWorldTransforms.SetNum(InSimDataIndex + 1);
 	}
 	IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
+	RootBoneWorldTransforms[InSimDataIndex] = Context.BoneTransforms[Asset->ReferenceBoneIndex] * Context.ComponentToWorld;
 
 	// ClothSharedSimConfig should either be a nullptr, or point to an object common to the whole skeletal mesh
 	if (ClothSharedSimConfig == nullptr)
@@ -235,6 +242,27 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	AddConstraints(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
+	// Set damping
+	if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
+	{
+		Evolution->SetDamping(InSimDataIndex, ClothSharedSimConfig->Damping);
+	}
+	else
+	{
+		Evolution->SetDamping(InSimDataIndex, ChaosClothSimConfig->DampingCoefficient);
+	}
+
+	// Add velocity field
+	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+	{
+		return WindVelocity;
+	};
+	Evolution->GetVelocityFields().Emplace(
+		*Meshes[InSimDataIndex],
+		GetVelocity,
+		/*bInIsUniform =*/ true,
+		ChaosClothSimConfig->DragCoefficient);
+
 	// Add Self Collisions
 	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
@@ -261,6 +289,9 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		ExternalCollisions.Convexes.Num() == 0 &&
 		ExternalCollisions.Boxes.Num() == 0, TEXT("There cannot be any external collisions added before all the cloth assets collisions are processed."));
 	ExtractCollisions(Asset);
+
+	// Update collision transforms, including initial state for particles' X & R
+	UpdateCollisionTransforms(Context, /*bReinit =*/ false);  // Reinit is false, since we only need to update the new collision particles
 }
 
 void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset)
@@ -288,8 +319,6 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
-		Evolution->SetDamping(ClothSharedSimConfig->Damping);
-		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
 
@@ -323,7 +352,7 @@ void ClothingSimulation::ResetParticles(int32 InSimDataIndex)
 
 	for (uint32 i = Offset; i < Range; ++i)
 	{
-		Evolution->Particles().X(i) = AnimationPositions[i];
+		Evolution->Particles().P(i) = Evolution->Particles().X(i) = AnimationPositions[i];
 		Evolution->Particles().V(i) = Chaos::TVector<float, 3>(0.f);
 		Evolution->Particles().M(i) = 0.f;
 	}
@@ -336,43 +365,52 @@ void ClothingSimulation::SetParticleMasses(const UChaosClothConfig* ChaosClothCo
 
 	// Assign per particle mass proportional to connected area.
 	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
-	float TotalArea = 0.0;
+	float TotalArea = 0.f;
 	for (const Chaos::TVector<int32, 3>& Tri : SurfaceElements)
 	{
-		const float TriArea = 0.5 * Chaos::TVector<float, 3>::CrossProduct(
+		const float TriArea = 0.5f * Chaos::TVector<float, 3>::CrossProduct(
 			Particles.X(Tri[1]) - Particles.X(Tri[0]),
 			Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
 		TotalArea += TriArea;
-		const float ThirdTriArea = TriArea / 3.0;
+		const float ThirdTriArea = TriArea / 3.f;
 		Particles.M(Tri[0]) += ThirdTriArea;
 		Particles.M(Tri[1]) += ThirdTriArea;
 		Particles.M(Tri[2]) += ThirdTriArea;
 	}
 	const TSet<int32> Vertices = Mesh.GetVertices();
+	float TotalMass = 0.f;
 	switch (ChaosClothConfig->MassMode)
 	{
 	case EClothMassMode::UniformMass:
 		for (const int32 Vertex : Vertices)
 		{
 			Particles.M(Vertex) = ChaosClothConfig->UniformMass;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
 	case EClothMassMode::TotalMass:
 	{
-		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothConfig->TotalMass / TotalArea : 1.0;
+		const float MassPerUnitArea = TotalArea > 0.f ? ChaosClothConfig->TotalMass / TotalArea : 1.f;
 		for (const int32 Vertex : Vertices)
 		{
 			Particles.M(Vertex) *= MassPerUnitArea;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
 	}
 	case EClothMassMode::Density:
+	{
+		const float Density = ChaosClothConfig->Density / FMath::Square(ClothingSimulationDefault::WorldScale);
 		for (const int32 Vertex : Vertices)
 		{
-			Particles.M(Vertex) *= ChaosClothConfig->Density;
+			Particles.M(Vertex) *= Density;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
+	}
 	};
+	UE_LOG(LogChaosCloth, Verbose, TEXT("Density: %f, Total surface: %f, Total mass: %f, "), TotalArea > 0.f ? TotalMass / TotalArea : 1.f, TotalArea, TotalMass);
+	UE_LOG(LogChaosCloth, Verbose, TEXT("SI Density: %f, SI Total surface: %f, SI Total mass: %f, "), (TotalArea > 0.f ? TotalMass / TotalArea : 1.f) * FMath::Square(ClothingSimulationDefault::WorldScale), TotalArea / FMath::Square(ClothingSimulationDefault::WorldScale), TotalMass);
 
 	// Clamp and enslave
 	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
@@ -552,33 +590,35 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		// There might be a cross-over point where the PerParticle version is faster: To be determined
 		if (bUseXPBDConstraints)
 		{
-			const TSharedPtr<Chaos::TXPBDLongRangeConstraints<float, 3>> LongRangeConstraints = MakeShared<Chaos::TXPBDLongRangeConstraints<float, 3>>(
+			LongRangeConstraints[InSimDataIndex] = MakeShared<Chaos::TXPBDLongRangeConstraints<float, 3>>(
 				Evolution->Particles(),
 				Mesh.GetPointToNeighborsMap(),
 				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-				ChaosClothSimConfig->StrainLimitingStiffness);
+				ChaosClothSimConfig->StrainLimitingStiffness);  // TODO(Kriss.Gossart): Add LimitScale and Geodesic mode if ever of use
 
 			Evolution->AddXPBDConstraintFunctions(
-				[LongRangeConstraints]()
+				[this, InSimDataIndex]()
 				{
-					LongRangeConstraints->Init();
+					static_cast<Chaos::TXPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints[InSimDataIndex]).Init();
 				},
-				[LongRangeConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+				[this, InSimDataIndex](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
-					LongRangeConstraints->Apply(InParticles, Dt);
+					static_cast<Chaos::TXPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints[InSimDataIndex]).Apply(InParticles, Dt);
 				});
 		}
 		else
 		{
-			Chaos::TPBDLongRangeConstraints<float, 3> LongRangeConstraints(
+			LongRangeConstraints[InSimDataIndex] = MakeShared<Chaos::TPBDLongRangeConstraints<float, 3>>(
 				Evolution->Particles(),
 				Mesh.GetPointToNeighborsMap(),
 				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-				ChaosClothSimConfig->StrainLimitingStiffness);
+				ChaosClothSimConfig->StrainLimitingStiffness,
+				ChaosClothSimConfig->LimitScale,
+				ChaosClothSimConfig->bUseGeodesicDistance);
 
-			Evolution->AddPBDConstraintFunction([LongRangeConstraints = MoveTemp(LongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			Evolution->AddPBDConstraintFunction([this, InSimDataIndex](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
-				LongRangeConstraints.Apply(InParticles, Dt);
+				static_cast<Chaos::TPBDLongRangeConstraints<float, 3>&>(*LongRangeConstraints[InSimDataIndex]).Apply(InParticles, Dt);
 			});
 		}
 	}
@@ -647,7 +687,7 @@ void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex)
 	}
 }
 
-void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context)
+void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothUpdateCollisionTransforms);
 
@@ -683,13 +723,28 @@ void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationConte
 		}
 	}
 
-	// Set the new collision particles and transforms initial state
-	for (int32 Index = PrevNumCollisions; Index < NumCollisions; ++Index)
-	{
-		CollisionParticles.X(Index) = CollisionTransforms[Index].GetTranslation();
-		CollisionParticles.R(Index) = CollisionTransforms[Index].GetRotation();
+	// External collisions are reinitialized at every frame, but don't affect the size of the arrays if the same amount has been added/removed
+	const int32 Offset = FMath::Min((int32)ExternalCollisionsOffset, PrevNumCollisions);
 
-		OldCollisionTransforms[Index] = CollisionTransforms[Index];
+	// Reinit old collisions particles and transforms
+	if (bReinit)
+	{
+		for (int32 Index = 0; Index < Offset; ++Index)
+		{
+			const Chaos::TRigidTransform<float, 3>& CollisionTransform = CollisionTransforms[Index];
+			CollisionParticles.X(Index) = CollisionTransform.GetTranslation();
+			CollisionParticles.R(Index) = CollisionTransform.GetRotation();
+			OldCollisionTransforms[Index] = CollisionTransform;
+		}
+	}
+
+	// Set the new collision particles and transforms initial state
+	for (int32 Index = Offset; Index < NumCollisions; ++Index)
+	{
+		const Chaos::TRigidTransform<float, 3>& CollisionTransform = CollisionTransforms[Index];
+		CollisionParticles.X(Index) = CollisionTransform.GetTranslation();
+		CollisionParticles.R(Index) = CollisionTransform.GetRotation();
+		OldCollisionTransforms[Index] = CollisionTransform;
 	}
 }
 
@@ -843,9 +898,9 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 				const Chaos::FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::FConvex>();
 
 				// Copy planes
-				const TArray<TPlane<float, 3>>& Planes = ChaosConvex.GetFaces();
+				const TArray<TPlaneConcrete<float, 3>>& Planes = ChaosConvex.GetFaces();
 				Convex.Planes.Reserve(Planes.Num());
-				for (const TPlane<float, 3>& Plane : Planes)
+				for (const TPlaneConcrete<float, 3>& Plane : Planes)
 				{
 					Convex.Planes.Add(FPlane(Plane.X(), Plane.Normal()));
 				}
@@ -997,7 +1052,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			const FClothCollisionPrim_Sphere& Sphere = ClothCollisionData.Spheres[i];
 
 			BoneIndices[j] = GetMappedBoneIndex(UsedBoneIndices, Sphere.BoneIndex);
-			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[i]);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[j]);
 
 			BaseTransforms[j] = Chaos::TRigidTransform<float, 3>(FTransform::Identity);
 
@@ -1040,7 +1095,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			else
 			{
 				// Retrieve convex planes
-				TArray<TPlane<float, 3>> Planes;
+				TArray<TPlaneConcrete<float, 3>> Planes;
 				Planes.Reserve(Convex.Planes.Num());
 				for (const FPlane& Plane : Convex.Planes)
 				{
@@ -1050,7 +1105,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 						const Chaos::TVector<float, 3> Normal(static_cast<FVector>(NormalizedPlane));
 						const Chaos::TVector<float, 3> Base = Normal * NormalizedPlane.W;
 
-						Planes.Add(Chaos::TPlane<float, 3>(Base, Normal));
+						Planes.Add(Chaos::TPlaneConcrete<float, 3>(Base, Normal));
 					}
 					else
 					{
@@ -1091,8 +1146,6 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 		for (uint32 i = Offset; i < CollisionParticles.Size(); ++i)
 		{
 			const FClothCollisionPrim_Box& Box = ClothCollisionData.Boxes[i - Offset];
-			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
-			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
 			
 			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Box.LocalPosition, Box.LocalRotation);
 			
@@ -1115,19 +1168,30 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		return;
 	}
 
-	// Set gravity
+	// Set gravity, using the legacy priority: 1) config override, 2) game override, 3) world gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		(ClothSharedSimConfig && !ClothSharedSimConfig->bUseGravityOverride) ?
-			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
-			Gravity));
+		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
+		bOverrideGravity ? Gravity :
+		ClothSharedSimConfig ? Context->WorldGravity * ClothSharedSimConfig->GravityScale :
+		Context->WorldGravity));
 
-	// Get New Animation Positions and Normals
+	// Set wind velocity, used by the velocity field lambda
+	WindVelocity = Context->WindVelocity * ClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
+
+	// Check teleport modes
+	const bool bTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+	const bool bTeleportAndReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+	UE_CLOG(bTeleport, LogChaosCloth, Verbose, TEXT("Teleport, reset: %d"), bTeleportAndReset);
+
+	// Get New Animation Positions and Normals + deal with teleportation
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetAnimationData);
 
 		Swap(OldAnimationPositions, AnimationPositions);
 		check(OldAnimationPositions.Num() == AnimationPositions.Num());
-		
+
+		TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
 		for (int32 Index = 0; Index < IndexToRangeMap.Num(); ++Index)
 		{
 			const UClothingAssetCommon* const Asset = Assets[Index];
@@ -1155,29 +1219,48 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 				Context->RefToLocals.Num(),
 				reinterpret_cast<TArray<FVector>&>(AnimationPositions),
 				reinterpret_cast<TArray<FVector>&>(AnimationNormals), Offset);
+
+			// Teleport
+			const FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
+			const FTransform RootBoneWorldTransform = RootBoneTransform * Context->ComponentToWorld;
+
+			if (bTeleport)
+			{
+				UE_LOG(LogChaosCloth, Verbose, TEXT("Teleport before: %s, after: %s"), *RootBoneWorldTransforms[Index].ToString(), *RootBoneWorldTransform.ToString());
+				const uint32 Range = IndexToRangeMap[Index][1];
+				if (bTeleportAndReset)
+				{
+					// Teleport & reset
+					for (uint32 i = Offset; i < Range; ++i)
+					{
+						Particles.P(i) = Particles.X(i) = AnimationPositions[i];
+						Particles.V(i) = Chaos::TVector<float, 3>(0.f);
+					}
+				}
+				else
+				{
+					// Teleport only
+					const FTransform Delta = RootBoneWorldTransforms[Index].GetRelativeTransformReverse(RootBoneWorldTransform);
+					for (uint32 i = Offset; i < Range; ++i)
+					{
+						Particles.X(i) = Delta.TransformPositionNoScale(Particles.X(i));
+						Particles.V(i) = Delta.TransformVectorNoScale(Particles.V(i));
+					}
+				}
+			}
+
+			RootBoneWorldTransforms[Index] = RootBoneWorldTransform;
 		}
 	}
 
 	// Update collision transforms
-	UpdateCollisionTransforms(*Context);
+	UpdateCollisionTransforms(*Context, bTeleport);
 
 	// Advance Sim
 	DeltaTime = Context->DeltaSeconds;
-
-	const float SolverFrequency = ClothSharedSimConfig ?
-		ClothSharedSimConfig->SolverFrequency :
-		ClothingSimulationDefault::SolverFrequency;
-
-	const int32 NumSubSteps = FMath::Max(1, FMath::RoundToInt(DeltaTime * SolverFrequency));  // Start substepping once deltatime is more than 50% above the expected simulation deltatime
-	const float SubDeltaTime = DeltaTime / float(NumSubSteps);
-
-	for (int32 i = 0; i < NumSubSteps; ++i)
-	{
-		Evolution->AdvanceOneTimeStep(SubDeltaTime);
-	}
-	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, SubDeltaTime: %.6f, NumSubSteps = %d"), DeltaTime, SubDeltaTime, NumSubSteps);
-
+	Evolution->AdvanceOneTimeStep(DeltaTime);
 	Time += DeltaTime;
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
 }
 
 void ClothingSimulation::GetSimulationData(
@@ -1288,6 +1371,7 @@ void ClothingSimulation::RefreshClothConfig()
 
 	Evolution->ResetConstraintRules();
 	Evolution->ResetSelfCollision();
+	Evolution->ResetVelocityFields();
 
 	for (int32 SimDataIndex = 0; SimDataIndex < Assets.Num(); ++SimDataIndex)
 	{
@@ -1303,6 +1387,27 @@ void ClothingSimulation::RefreshClothConfig()
 				SetParticleMasses(ChaosClothConfig, PhysMesh, SimDataIndex);
 
 				AddConstraints(ChaosClothConfig, PhysMesh, SimDataIndex);
+
+				// Set damping
+				if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
+				{
+					Evolution->SetDamping(SimDataIndex, ClothSharedSimConfig->Damping);
+				}
+				else
+				{
+					Evolution->SetDamping(SimDataIndex, ChaosClothConfig->DampingCoefficient);
+				}
+
+				// Add Velocity field
+				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+				{
+					return WindVelocity;
+				};
+				Evolution->GetVelocityFields().Emplace(
+					*Meshes[SimDataIndex],
+					GetVelocity,
+					/*bInIsUniform =*/ true,
+					ChaosClothConfig->DragCoefficient);
 
 				// Add Self Collisions
 				if (ChaosClothConfig->bUseSelfCollisions)
@@ -1342,12 +1447,13 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 
 void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
+	bOverrideGravity = true;
 	Gravity = InGravityOverride;
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	Gravity = !ClothSharedSimConfig ? ClothingSimulationDefault::Gravity : ClothSharedSimConfig->Gravity;
+	bOverrideGravity = false;
 }
 
 #if WITH_EDITOR
@@ -1585,14 +1691,14 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 
 	auto DrawConvex = [&PDI](const Chaos::FConvex& Convex, const TRotation<float, 3>& Rotation, const Chaos::TVector<float, 3>& Position, const FLinearColor& Color)
 	{
-		const TArray<Chaos::TPlane<float, 3>>& Planes = Convex.GetFaces();
+		const TArray<Chaos::TPlaneConcrete<float, 3>>& Planes = Convex.GetFaces();
 		for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
 		{
-			const Chaos::TPlane<float, 3>& Plane1 = Planes[PlaneIndex1];
+			const Chaos::TPlaneConcrete<float, 3>& Plane1 = Planes[PlaneIndex1];
 
 			for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < Planes.Num(); ++PlaneIndex2)
 			{
-				const Chaos::TPlane<float, 3>& Plane2 = Planes[PlaneIndex2];
+				const Chaos::TPlaneConcrete<float, 3>& Plane2 = Planes[PlaneIndex2];
 
 				// Find the two surface points that belong to both Plane1 and Plane2
 				uint32 ParticleIndex1 = INDEX_NONE;
@@ -1799,6 +1905,62 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* OwnerCompone
 			const uint32 WeightMapIndex = ParticleIndex - IndexToRangeMap[i][0];
 			const float Multiplier = AnimDriveMultipliers[WeightMapIndex];
 			PDI->DrawLine(AnimationPositions[ParticleIndex], Particles.X(ParticleIndex), Multiplier * AnimDriveSpringStiffness[i] * FColor::Cyan, SDPG_World, 0.0f, 0.001f);
+		}
+	}
+}
+
+void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
+	{
+		if (!LongRangeConstraints[i])
+		{
+			continue;
+		}
+
+		const TArray<TArray<uint32>>& Constraints = LongRangeConstraints[i]->GetConstraints();
+		const TArray<float>& Dists = LongRangeConstraints[i]->GetDists();
+
+		for (int32 j = 0; j < Constraints.Num(); ++j)
+		{
+			const TArray<uint32>& Path = Constraints[j];
+			const float RefDist = Dists[j];
+			const float CurDist = TPBDLongRangeConstraintsBase<float, 3>::ComputeGeodesicDistance(Particles, Path);
+			const float Offset = CurDist - RefDist;
+
+			const Chaos::TVector<float, 3> P0 = Particles.X(Path[0]);  // Kinematic particle
+			const Chaos::TVector<float, 3> P1 = Particles.X(Path[Path.Num() - 1]);  // Target particle
+
+			const Chaos::TVector<float, 3> Direction = (Particles.X(Path[Path.Num() - 2]) - P1).GetSafeNormal();
+			const Chaos::TVector<float, 3> P2 = P1 + Direction * Offset;
+
+			PDI->DrawLine(P0, P1, FColor::Purple, SDPG_World, 0.0f, 0.001f);
+			PDI->DrawLine(P1, P2, FColor::Black, SDPG_World, 0.0f, 0.001f);
+		}
+	}
+}
+
+void ClothingSimulation::DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	const TArray<TVelocityField<float, 3>>& VelocityFields = Evolution->GetVelocityFields();
+
+	for (const TVelocityField<float, 3>& VelocityField : VelocityFields)
+	{
+		const TArray<TVector<int32, 3>>& Elements = VelocityField.GetElements();
+		const TArray<TVector<float, 3>>& Forces = VelocityField.GetForces();
+
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVector<float, 3> Position = (1.f / 3.f ) * (
+				Particles.X(Element[0]) +
+				Particles.X(Element[1]) +
+				Particles.X(Element[2]));
+			const TVector<float, 3>& Force = Forces[ElementIndex];
+			PDI->DrawLine(Position, Position + Force, FColor::Green, SDPG_World, 0.0f, 0.001f);
 		}
 	}
 }

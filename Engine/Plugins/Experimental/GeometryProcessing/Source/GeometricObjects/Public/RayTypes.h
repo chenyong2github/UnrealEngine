@@ -98,14 +98,14 @@ public:
 
 	// conversion operators
 
-	inline operator FRay() const
+	explicit inline operator FRay() const
 	{
 		return FRay((FVector)Origin, (FVector)Direction);
 	}
 	inline TRay3(const FRay & RayIn)
 	{
-		Origin = (FVector3<RealType>)RayIn.Origin;
-		Direction = (FVector3<RealType>)RayIn.Direction;
+		Origin = FVector3<RealType>(RayIn.Origin);
+		Direction = FVector3<RealType>(RayIn.Direction);
 	}
 
 

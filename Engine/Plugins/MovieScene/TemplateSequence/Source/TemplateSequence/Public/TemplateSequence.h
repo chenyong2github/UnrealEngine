@@ -34,6 +34,9 @@ public:
 
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override;
+
+	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
 
 public:

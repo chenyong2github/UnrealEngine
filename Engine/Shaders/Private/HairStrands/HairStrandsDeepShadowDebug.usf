@@ -92,7 +92,7 @@ void VisualizeDomPS(
 }
 #endif
 
-// Display screen space rect for vizualizing projected viewrect of each hair cluster 
+// Display screen space rect for vizualizing projected viewrect of each hair macro group
 #if PERMUTATION_OUTPUT_TYPE == 1
 void VisualizeDomPS(
 	in FScreenVertexOutput Input,

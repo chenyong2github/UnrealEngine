@@ -59,6 +59,7 @@
 #include "ImathMatrix.h"
 #include "ImathNamespace.h"
 
+#include <algorithm>
 #include <iostream>
 
 IMATH_INTERNAL_NAMESPACE_HEADER_ENTER

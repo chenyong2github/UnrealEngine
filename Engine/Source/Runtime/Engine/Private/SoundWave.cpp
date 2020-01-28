@@ -33,7 +33,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
-
+#include "Async/Async.h"
 #include "Misc/CommandLine.h"
 
 static int32 SoundWaveDefaultLoadingBehaviorCVar = 0;
@@ -1746,7 +1746,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
 		WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
 		WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
-		WaveInstance->StereoBleed = SoundClassProperties->StereoBleed;
 		WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
 
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
@@ -1757,8 +1756,8 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 		if (SoundClassProperties->bApplyEffects)
 		{
-			const UAudioSettings* Settings = GetDefault<UAudioSettings>();
-			WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->EQSubmix.TryLoad());
+			UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
+			WaveInstance->SoundSubmix = Cast<USoundSubmix>(FSoftObjectPtr(Settings->EQSubmix).Get());
 		}
 		else if (SoundClassProperties->DefaultSubmix)
 		{
@@ -1780,7 +1779,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->VoiceCenterChannelVolume = 0.f;
 		WaveInstance->RadioFilterVolume = 0.f;
 		WaveInstance->RadioFilterVolumeThreshold = 0.f;
-		WaveInstance->StereoBleed = 0.f;
 		WaveInstance->LFEBleed = 0.f;
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound;
 		WaveInstance->bIsMusic = ActiveSound.bIsMusic;
@@ -1793,8 +1791,8 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->bIsAmbisonics = bIsAmbisonics;
 	if (bIsAmbisonics)
 	{
-		const UAudioSettings* Settings = GetDefault<UAudioSettings>();
-		WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->AmbisonicSubmix.TryLoad());
+		UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
+		WaveInstance->SoundSubmix = Cast<USoundSubmix>(FSoftObjectPtr(Settings->AmbisonicSubmix).Get());
 	}
 	else if (ParseParams.SoundSubmix)
 	{
@@ -2002,7 +2000,7 @@ bool USoundWave::ShouldUseStreamCaching() const
 	return  FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && IsStreaming();
 }
 
-TArrayView<const uint8> USoundWave::GetZerothChunk()
+TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 {
 	if (ShouldUseStreamCaching())
 	{
@@ -2017,7 +2015,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 		if (GetNumChunks() > 1)
 		{
 			// Prime first chunk for playback.
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
 		}
 
 		return ZerothChunkData.GetView();
@@ -2434,13 +2432,19 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	{
 		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle OutHandle)
 		{
-			check(IsInGameThread());
-			
-			if (WeakThis.IsValid())
+			if (OutHandle.IsValid())
 			{
-				WeakThis->FirstChunk = OutHandle;
+				AsyncTask(ENamedThreads::GameThread, [WeakThis, OutHandle]() {
+					check(IsInGameThread());
+
+					if (WeakThis.IsValid())
+					{
+						WeakThis->FirstChunk = OutHandle;
+					}
+				});
+				
 			}
-		}, false, 1, ENamedThreads::GameThread);
+		}, false, 1);
 	}
 }
 
@@ -2448,6 +2452,11 @@ void USoundWave::ReleaseCompressedAudio()
 {
 	// Here we release the USoundWave's handle to the compressed asset by resetting it.
 	FirstChunk = FAudioChunkHandle();
+}
+
+bool USoundWave::IsRetainingAudio()
+{
+	return FirstChunk.IsValid();
 }
 
 void USoundWave::CacheInheritedLoadingBehavior()

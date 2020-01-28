@@ -24,8 +24,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogVectorVM, All, All);
 //I don't expect us to ever be waiting long
 #define FREE_TABLE_LOCK_CONTENTION_WARN_THRESHOLD_MS (0.01)
 
-//#define VM_FORCEINLINE
+#if UE_BUILD_DEBUG
+#define VM_FORCEINLINE FORCENOINLINE
+#else
 #define VM_FORCEINLINE FORCEINLINE
+#endif
 
 #define OP_REGISTER (0)
 #define OP0_CONST (1 << 0)
@@ -228,7 +231,7 @@ struct FVectorVMCodeOptimizerContext
 		, OptimizedCode(InOptimizedCode)
 		, ExternalFunctionRegisterCounts(InExternalFunctionRegisterCounts)
 	{
-		BaseContext.PrepareForExec(0, nullptr, nullptr, nullptr, TArrayView<FDataSetMeta>(), 0, false);
+		BaseContext.PrepareForExec(0, 0, nullptr, nullptr, nullptr, nullptr, TArrayView<FDataSetMeta>(), 0, false);
 		BaseContext.PrepareForChunk(ByteCode, 0, 0);
 	}
 	FVectorVMCodeOptimizerContext(const FVectorVMCodeOptimizerContext&) = delete;
@@ -292,6 +295,11 @@ struct FConstantHandlerBase
 	{
 		Context.Write(Context.DecodeU16());
 	}
+
+	static void OptimizeSkip(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.DecodeU16();
+	}
 };
 
 template<typename T>
@@ -300,36 +308,51 @@ struct FConstantHandler : public FConstantHandlerBase
 	const T Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
-		, Constant(*((T*)(Context.ConstantTable + ConstantIndex)))
-	{}
+		, Constant(*Context.GetConstant<T>(ConstantIndex))
+	{
+	}
 
-	FORCEINLINE const T& Get() { return Constant; }
+	FORCEINLINE const T& Get() const { return Constant; }
 	FORCEINLINE const T& GetAndAdvance() { return Constant; }
 };
 
 template<>
 struct FConstantHandler<VectorRegister> : public FConstantHandlerBase
 {
+	static VectorRegister LoadConstant(const FVectorVMContext& Context, uint16 ConstantIndex)
+	{
+		float ConstantValue = *Context.GetConstant<float>(ConstantIndex);
+
+		return MakeVectorRegister(ConstantValue, ConstantValue, ConstantValue, ConstantValue);
+	}
+
 	const VectorRegister Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
-		, Constant(VectorLoadFloat1(&Context.ConstantTable[ConstantIndex]))
+		, Constant(LoadConstant(Context, ConstantIndex))
 	{}
 
-	FORCEINLINE const VectorRegister Get() { return Constant; }
+	FORCEINLINE const VectorRegister Get() const { return Constant; }
 	FORCEINLINE const VectorRegister GetAndAdvance() { return Constant; }
 };
 
 template<>
 struct FConstantHandler<VectorRegisterInt> : public FConstantHandlerBase
 {
+	static VectorRegisterInt LoadConstant(const FVectorVMContext& Context, uint16 ConstantIndex)
+	{
+		int32 ConstantValue = *Context.GetConstant<int32>(ConstantIndex);
+
+		return MakeVectorRegisterInt(ConstantValue, ConstantValue, ConstantValue, ConstantValue);
+	}
+
 	const VectorRegisterInt Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
-		, Constant(VectorIntLoad1(&Context.ConstantTable[ConstantIndex]))
+		, Constant(LoadConstant(Context, ConstantIndex))
 	{}
 
-	FORCEINLINE const VectorRegisterInt Get() { return Constant; }
+	FORCEINLINE const VectorRegisterInt Get() const { return Constant; }
 	FORCEINLINE const VectorRegisterInt GetAndAdvance() { return Constant; }
 };
 
@@ -395,7 +418,9 @@ FVectorVMContext::FVectorVMContext()
 
 void FVectorVMContext::PrepareForExec(
 	int32 InNumTempRegisters,
-	const uint8* InConstantTable,
+	int32 InConstantTableCount,
+	const uint8* const* InConstantTable,
+	const int32* InConstantTableSizes,
 	FVMExternalFunction* InExternalFunctionTable,
 	void** InUserPtrTable,
 	TArrayView<FDataSetMeta> InDataSetMetaTable,
@@ -404,6 +429,8 @@ void FVectorVMContext::PrepareForExec(
 )
 {
 	NumTempRegisters = InNumTempRegisters;
+	ConstantTableCount = InConstantTableCount;
+	ConstantTableSizes = InConstantTableSizes;
 	ConstantTable = InConstantTable;
 	ExternalFunctionTable = InExternalFunctionTable;
 	UserPtrTable = InUserPtrTable;
@@ -1070,7 +1097,7 @@ struct FVectorKernelEnterStatScope
 		FConstantHandler<int32>::Optimize(Context);
 #else
 		// just skip the op if we don't have stats enabled
-		FConstantHandler<int32>(Context.BaseContext);
+		FConstantHandler<int32>::OptimizeSkip(Context);
 #endif
 	}
 
@@ -2233,7 +2260,9 @@ void VectorVM::Exec(
 	uint8 const* ByteCode,
 	uint8 const* OptimizedByteCode,
 	int32 NumTempRegisters,
-	uint8 const* ConstantTable,
+	int32 ConstantTableCount,
+	const uint8* const* ConstantTable,
+	const int32* ConstantTableSizes,
 	TArrayView<FDataSetMeta> DataSetMetaTable,
 	FVMExternalFunction* ExternalFunctionTable,
 	void** UserPtrTable,
@@ -2258,7 +2287,7 @@ void VectorVM::Exec(
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
-		Context.PrepareForExec(NumTempRegisters, ConstantTable, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances, bParallel);
+		Context.PrepareForExec(NumTempRegisters, ConstantTableCount, ConstantTable, ConstantTableSizes, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances, bParallel);
 #if STATS
 		Context.SetStatScopes(&StatScopes);
 #endif

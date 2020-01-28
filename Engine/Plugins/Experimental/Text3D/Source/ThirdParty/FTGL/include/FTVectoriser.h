@@ -276,12 +276,41 @@ class FTVectoriser
 
     private:
         /**
+         * Contour and contours that are inside it
+         */
+        struct ContourNode;
+
+
+        /**
          * Process the freetype outline data into contours of points
          *
          * @param front front outset distance
          * @param back back outset distance
          */
         void ProcessContours();
+
+        /**
+         * Add nodeA to list of nodes inside nodeB
+         *
+         * @param nodeA inserted node
+         * @param nodeB node to which nodeA is inserted
+         */
+        void Insert(ContourNode* nodeA, ContourNode* nodeB);
+        /**
+         * Set parity of a contour and contours inside it (highest level of hierarchy)
+         *
+         * @param nodeA node that contains contour
+         * @param clockwise parity
+         */
+        void SetParity(ContourNode* nodeA, const bool clockwise);
+        /**
+         * Check if contourA is inside contourB
+         *
+         * @param contourA contour that is checked to be inside contourB
+         * @param contourB contour that is checked to contain contourA
+         * @return is contourA inside contourB?
+         */
+        bool Inside(const FTContour* contourA, const FTContour* contourB);
 
         /**
          * The list of contours in the glyph

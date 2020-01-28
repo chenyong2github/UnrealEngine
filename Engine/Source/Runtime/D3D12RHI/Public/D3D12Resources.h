@@ -660,17 +660,53 @@ struct FD3D12LockedResource : public FD3D12DeviceChild
 	uint32 bHasNeverBeenLocked : 1;
 };
 
+class FD3D12BaseShaderResourceView
+{
+protected:
+	void Remove();
+
+	friend class FD3D12BaseShaderResource;
+	FD3D12BaseShaderResource* DynamicResource = nullptr;
+};
+
 /** The base class of resources that may be bound as shader resources. */
 class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
 {
+protected:
+	FCriticalSection DynamicSRVsCS;
+	TArray<class FD3D12BaseShaderResourceView*> DynamicSRVs;
+
 public:
 	FD3D12Resource* GetResource() const { return ResourceLocation.GetResource(); }
+
+	void AddDynamicSRV(FD3D12BaseShaderResourceView* InSRV)
+	{
+		FScopeLock Lock(&DynamicSRVsCS);
+		check(InSRV->DynamicResource == nullptr);
+		InSRV->DynamicResource = this;
+		DynamicSRVs.Add(InSRV);
+		if (DynamicSRVs.Num() == 4)
+		{
+			static int dbg = 0;
+			dbg++;
+		}
+	}
+
+	void RemoveDynamicSRV(FD3D12BaseShaderResourceView* InSRV)
+	{
+		FScopeLock Lock(&DynamicSRVsCS);
+		check(InSRV->DynamicResource == this);
+		InSRV->DynamicResource = nullptr;
+		uint32 Removed = DynamicSRVs.Remove(InSRV);
+		check(Removed == 1);
+	}
 
 	void Swap(FD3D12BaseShaderResource& Other)
 	{
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
 		::Swap(BufferAlignment, Other.BufferAlignment);
+		::Swap(DynamicSRVs, Other.DynamicSRVs);
 	}
 
 	FD3D12ResourceLocation ResourceLocation;
@@ -683,7 +719,24 @@ public:
 		, BufferAlignment(0)
 	{
 	}
+
+	~FD3D12BaseShaderResource()
+	{
+		for (FD3D12BaseShaderResourceView* DynamicSRV : DynamicSRVs)
+		{
+			check(DynamicSRV->DynamicResource == this);
+			DynamicSRV->DynamicResource = nullptr;
+		}
+	}
 };
+
+inline void FD3D12BaseShaderResourceView::Remove()
+{
+	if (DynamicResource)
+	{
+		DynamicResource->RemoveDynamicSRV(this);
+	}
+}
 
 /** Updates tracked stats for a buffer. */
 #define D3D12_BUFFER_TYPE_CONSTANT   1
@@ -789,23 +842,16 @@ class FD3D12StructuredBuffer : public FRHIStructuredBuffer, public FD3D12BaseSha
 {
 public:
 	// Current SRV
-	FD3D12ShaderResourceView* DynamicSRV;
 
 	FD3D12StructuredBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
 		: FRHIStructuredBuffer(InStride, InSize, InUsage)
 		, FD3D12BaseShaderResource(InParent)
-		, DynamicSRV(nullptr)
 		, LockedData(InParent)
 	{
 	}
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
-
-	void SetDynamicSRV(FD3D12ShaderResourceView* InSRV)
-	{
-		DynamicSRV = InSRV;
-	}
 
 	virtual ~FD3D12StructuredBuffer();
 
@@ -830,19 +876,14 @@ public:
 class FD3D12VertexBuffer : public FRHIVertexBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12VertexBuffer>
 {
 public:
-	// Current SRV
-	FD3D12ShaderResourceView* DynamicSRV;
-
 	FD3D12VertexBuffer()
 		: FD3D12BaseShaderResource(nullptr)
-		, DynamicSRV(nullptr)
 		, LockedData(nullptr)
 	{}
 
 	FD3D12VertexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
 		: FRHIVertexBuffer(InSize, InUsage)
 		, FD3D12BaseShaderResource(InParent)
-		, DynamicSRV(nullptr)
 		, LockedData(InParent)
 	{
 		UNREFERENCED_PARAMETER(InStride);
@@ -852,11 +893,6 @@ public:
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
-
-	void SetDynamicSRV(FD3D12ShaderResourceView* InSRV)
-	{
-		DynamicSRV = InSRV;
-	}
 
 	void Swap(FD3D12VertexBuffer& Other);
 

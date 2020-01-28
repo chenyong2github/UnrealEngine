@@ -76,7 +76,19 @@ FText FPerforceSourceControlProvider::GetStatusText() const
 	Args.Add( TEXT("UserName"), FText::FromString( Settings.GetUserName() ) );
 	Args.Add( TEXT("ClientSpecName"), FText::FromString( Settings.GetWorkspace() ) );
 
-	return FText::Format( LOCTEXT("PerforceStatusText", "Enabled: {IsEnabled}\nConnected: {IsConnected}\n\nPort: {PortNumber}\nUser name: {UserName}\nClient name: {ClientSpecName}"), Args );
+	FText FormattedError;
+	TArray<FText> RecentErrors = GetLastErrors();
+	if (RecentErrors.Num() > 0)
+	{
+		FFormatNamedArguments ErrorArgs;
+		ErrorArgs.Add( TEXT("ErrorText"), RecentErrors[0] );
+
+		FormattedError = FText::Format( LOCTEXT("PerforceErrorStatusText", "Error: {ErrorText}\n\n"), ErrorArgs );
+	}
+
+	Args.Add( TEXT("ErrorText"), FormattedError);
+
+	return FText::Format( LOCTEXT("PerforceStatusText", "{ErrorText}Enabled: {IsEnabled}\nConnected: {IsConnected}\n\nPort: {PortNumber}\nUser name: {UserName}\nClient name: {ClientSpecName}"), Args );
 }
 
 bool FPerforceSourceControlProvider::IsEnabled() const
@@ -86,7 +98,7 @@ bool FPerforceSourceControlProvider::IsEnabled() const
 
 bool FPerforceSourceControlProvider::IsAvailable() const
 {
-	return bServerAvailable;
+	return bServerAvailable && !IsLoginError();
 }
 
 bool FPerforceSourceControlProvider::EstablishPersistentConnection()
@@ -147,6 +159,7 @@ void FPerforceSourceControlProvider::ParseCommandLineSettings(bool bForceConnect
 
 	if (bForceConnection)
 	{
+		bLoginError = false;
 		FPerforceConnectionInfo ConnectionInfo = P4Settings.GetConnectionInfo();
 		if(FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, ConnectionInfo))
 		{
@@ -178,6 +191,44 @@ const FString& FPerforceSourceControlProvider::GetTicket() const
 const FName& FPerforceSourceControlProvider::GetName() const
 {
 	return ProviderName;
+}
+
+void FPerforceSourceControlProvider::SetLastErrors(const TArray<FText>& InErrors)
+{
+	static FString SessionExpiredMessage(TEXT("Your session has expired, please login again.\n"));
+
+	bool bContainsLoginError = false;
+	for (const FText& It : InErrors)
+	{
+		if (It.ToString() == SessionExpiredMessage)
+		{
+			bContainsLoginError = true;
+			break;
+		}
+	}
+
+	bLoginError = bContainsLoginError;
+
+	FScopeLock Lock(&LastErrorsCriticalSection);
+	LastErrors = InErrors;
+}
+
+bool FPerforceSourceControlProvider::IsLoginError() const
+{
+	return bLoginError;
+}
+
+TArray<FText> FPerforceSourceControlProvider::GetLastErrors() const
+{
+	FScopeLock Lock(&LastErrorsCriticalSection);
+	TArray<FText> Result = LastErrors;
+	return Result;
+}
+
+int32 FPerforceSourceControlProvider::GetNumLastErrors() const
+{
+	FScopeLock Lock(&LastErrorsCriticalSection);
+	return LastErrors.Num();
 }
 
 ECommandResult::Type FPerforceSourceControlProvider::GetState( const TArray<FString>& InFiles, TArray< TSharedRef<ISourceControlState, ESPMode::ThreadSafe> >& OutState, EStateCacheUsage::Type InStateCacheUsage )

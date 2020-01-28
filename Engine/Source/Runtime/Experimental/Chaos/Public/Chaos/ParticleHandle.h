@@ -10,6 +10,8 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "ChaosCheck.h"
 
+
+
 class IPhysicsProxyBase;
 
 namespace Chaos
@@ -50,7 +52,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
-	Concrete.SetHashResultLowLevel(FMath::RandRange(0, FMath::RandHelper(TNumericLimits<int32>::Max())));
+	Concrete.SetUserData(nullptr);
 }
 
 template <typename T, int d, typename FConcrete>
@@ -107,6 +109,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
+	Concrete.ClearEvents();
 }
 
 
@@ -164,30 +167,19 @@ public:
 		return !(*this == Rhs);
 	}
 
-	bool operator<(const TAccelerationStructureHandle<T, d>& Rhs) const
-	{
-		return HashResult < Rhs.HashResult;
-	}
-
-	uint32 GetTypeHash() const
-	{
-		return HashResult;
-	}
-
 	void Serialize(FChaosArchive& Ar);
+
+	FUniqueIdx UniqueIdx() const
+	{
+		return CachedUniqueIdx;
+	}
 
 private:
 	TGeometryParticle<T, d>* ExternalGeometryParticle;
 	TGeometryParticleHandle<T, d>* GeometryParticleHandle;
 
-	uint32 HashResult;
+	FUniqueIdx CachedUniqueIdx;
 };
-
-template <typename T, int d>
-uint32 GetTypeHash(const TAccelerationStructureHandle<T, d>& A)
-{
-	return A.GetTypeHash();
-}
 
 template <typename T, int d>
 class TParticleHandleBase
@@ -243,6 +235,7 @@ public:
 		GeometryParticles = InParticles;
 	}
 
+	EParticleType GetParticleType() const { return Type; }
 protected:
 	union
 	{
@@ -368,6 +361,12 @@ public:
 	TVector<T, d>& X() { return GeometryParticles->X(ParticleIdx); }
 	void SetX(const TVector<T, d>& InX) { GeometryParticles->X(ParticleIdx) = InX; }
 
+	FUniqueIdx UniqueIdx() const { return GeometryParticles->UniqueIdx(ParticleIdx); }
+	void SetUniqueIdx(const FUniqueIdx UniqueIdx) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
+
+	void* UserData() const { return GeometryParticles->UserData(ParticleIdx); }
+	void SetUserData(void* InUserData) { GeometryParticles->UserData(ParticleIdx) = InUserData; }
+
 	const TRotation<T, d>& R() const { return GeometryParticles->R(ParticleIdx); }
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
@@ -397,9 +396,6 @@ public:
 
 	FSpatialAccelerationIdx SpatialIdx() const { return GeometryParticles->SpatialIdx(ParticleIdx); }
 	void SetSpatialIdx(FSpatialAccelerationIdx Idx) { GeometryParticles->SpatialIdx(ParticleIdx) = Idx; }
-
-	void SetHashResultLowLevel(uint32 Value) { GeometryParticles->HashResultLowLevel(ParticleIdx) = Value; }
-	uint32 GetHashResultLowLevel() const { return GeometryParticles->HashResultLowLevel(ParticleIdx); }
 
 #if CHAOS_CHECKED
 	const FName& DebugName() const { return GeometryParticles->DebugName(ParticleIdx); }
@@ -1244,6 +1240,8 @@ public:
 
 	void Reset() { Type = EParticleType::Static; }
 
+	virtual ~FParticleData() = default;
+
 	EParticleType Type;
 };
 
@@ -1269,6 +1267,7 @@ public:
 	static constexpr bool AlwaysSerializable = true;
 
 protected:
+
 	TGeometryParticle(const TGeometryParticleParameters<T, d>& StaticParams = TGeometryParticleParameters<T, d>())
 		: MUserData(nullptr)
 	{
@@ -1324,6 +1323,13 @@ public:
 		this->MX = InX;
 	}
 
+	FUniqueIdx UniqueIdx() const { return this->MUniqueIdx; }
+	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true)
+	{
+		this->MarkDirty(EParticleFlags::UniqueIdx,bInvalidate);
+		this->MUniqueIdx = UniqueIdx;
+	}
+
 	const TRotation<T, d>& R() const { return this->MR; }
 	void SetR(const TRotation<T, d>& InR, bool bInvalidate = true)
 	{
@@ -1361,6 +1367,7 @@ public:
 	void* UserData() const { return this->MUserData; }
 	void SetUserData(void* InUserData)
 	{
+		this->MarkDirty(EParticleFlags::UserData);
 		this->MUserData = InUserData;
 	}
 
@@ -1384,14 +1391,6 @@ public:
 	}
 #endif
 
-	void SetHashResultLowLevel(uint32 Value)
-	{
-		MarkDirty(EParticleFlags::HashResult);
-		MHashResult = Value;
-	}
-
-	uint32 GetHashResultLowLevel() const { return MHashResult; }
-
 	//Note: this must be called after setting geometry. This API seems bad. Should probably be part of setting geometry
 	void SetShapesArray(TShapesArray<T, d>&& InShapesArray)
 	{
@@ -1405,6 +1404,7 @@ public:
 	const TShapesArray<T,d>& ShapesArray() const { return MShapesArray; }
 
 	EObjectStateType ObjectState() const;
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false);
 
 	EParticleType ObjectType() const
 	{
@@ -1432,6 +1432,26 @@ public:
 		{
 			MShapesArray[InShapeIndex]->bDisable = bInDisable;
 			MarkDirty(EParticleFlags::ShapeDisableCollision);
+		}
+	}
+
+	void SetShapeCollisionTraceType(int32 InShapeIndex, EChaosCollisionTraceFlag TraceType)
+	{
+		const EChaosCollisionTraceFlag Current = MShapesArray[InShapeIndex]->CollisionTraceType;
+		if (Current != TraceType)
+		{
+			MShapesArray[InShapeIndex]->CollisionTraceType = TraceType;
+			MarkDirty(EParticleFlags::CollisionTraceType);
+		}
+	}
+
+	void SetShapeSimData(int32 InShapeIndex, const FCollisionFilterData& SimData)
+	{
+		const FCollisionFilterData& Current = MShapesArray[InShapeIndex]->SimData;
+		if (Current != SimData)
+		{
+			MShapesArray[InShapeIndex]->SimData = SimData;
+			MarkDirty(EParticleFlags::ShapeSimData);
 		}
 	}
 
@@ -1483,17 +1503,18 @@ public:
 	// Right now it's exposed to lubricate the creation of the whole proxy system.
 	class IPhysicsProxyBase* Proxy;
 
+	// TODO: This is an awful side effect of housing the dirty flag for shape data
+	//       inside the particle, but not setting the shape data through it.
+	void MarkShapeSimDataDirty() { MarkDirty(EParticleFlags::ShapeSimData); }
+
 private:
 	TVector<T, d> MX;
+	FUniqueIdx MUniqueIdx;
 	TRotation<T, d> MR;
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
 	TShapesArray<T,d> MShapesArray;
 	TMap<const FImplicitObject*, int32> ImplicitShapeMap;
 	FSpatialAccelerationIdx MSpatialIdx;
-
-	// This value is generated and used in AccelerationStructureHandle for a hash, as that handle
-	// sometimes only has a particle pointer from game thread or phys thread, no easy way to get stable hash from that.
-	uint32 MHashResult;
 
 	// Pointer to some arbitrary data associated with the particle, but not used by Chaos. External systems may use this for whatever.
 	void* MUserData;
@@ -1521,15 +1542,7 @@ protected:
 		MapImplicitShapes();
 	}
 
-	void MapImplicitShapes()
-	{
-		ImplicitShapeMap.Reset();
-		int32 ShapeIndex = 0;
-		for(TUniquePtr<TPerShapeData<T, d>>& ShapeData : MShapesArray)
-		{
-			ImplicitShapeMap.Add(ShapeData->Geometry.Get(), ShapeIndex++);
-		}
-	}
+	void MapImplicitShapes();
 };
 
 template <typename T, int d>
@@ -1550,7 +1563,7 @@ public:
 		, X(TVector<T, d>(0))
 		, R(TRotation<T, d>())
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
-		, HashResult(0)
+		, UserData(nullptr)
 		, DirtyFlags()
 #if CHAOS_CHECKED
 		, DebugName(NAME_None)
@@ -1563,7 +1576,8 @@ public:
 		, R(InParticle.R())
 		, Geometry(InParticle.GeometrySharedLowLevel())
 		, SpatialIdx(InParticle.SpatialIdx())
-		, HashResult(InParticle.GetHashResultLowLevel())
+		, UniqueIdx(InParticle.UniqueIdx())
+		, UserData(InParticle.UserData())
 		, DirtyFlags(InParticle.DirtyFlags())
 #if CHAOS_CHECKED
 		, DebugName(InParticle.DebugName())
@@ -1571,11 +1585,14 @@ public:
 	{
 		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
 		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		CollisionTraceType.Empty(Shapes.Num());
+		ShapeSimData.Empty(Shapes.Num());
 		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
 		{
 			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+			CollisionTraceType.Add(ShapePtr->CollisionTraceType);
+			ShapeSimData.Add(ShapePtr->SimData);
 		}
-
 	}
 
 	void Reset() 
@@ -1585,9 +1602,12 @@ public:
 		R = TRotation<T, d>(); 
 		Geometry = TSharedPtr<FImplicitObjectUnion, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
-		HashResult = 0;
+		UniqueIdx = FUniqueIdx();
+		UserData = nullptr;
 		DirtyFlags.Clear();
 		ShapeCollisionDisableFlags.Reset();
+		CollisionTraceType.Reset();
+		ShapeSimData.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1597,9 +1617,12 @@ public:
 	TRotation<T, d> R;
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
-	uint32 HashResult;
+	FUniqueIdx UniqueIdx;
+	void* UserData;
 	FParticleDirtyFlags DirtyFlags;
 	TBitArray<> ShapeCollisionDisableFlags;
+	TArray<EChaosCollisionTraceFlag> CollisionTraceType;
+	TArray < FCollisionFilterData > ShapeSimData;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
@@ -1734,7 +1757,7 @@ public:
 protected:
 	friend TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
 	TPBDRigidParticle<T, d>(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
-		: TKinematicGeometryParticle<T, d>(DynamicParams)
+		: TKinematicGeometryParticle<T, d>(DynamicParams), MAwakeEvent(false)
 	{
 		Type = EParticleType::Rigid;
 		MIsland = INDEX_NONE;
@@ -1929,12 +1952,18 @@ public:
 	}
 
 	EObjectStateType ObjectState() const { return MObjectState; }
-	void SetObjectState(EObjectStateType InState)
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false)
 	{
-		//todo: look at physics thread logic
+		if (bAllowEvents && MObjectState != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
+		{
+			MAwakeEvent |= true;
+		}
 		MObjectState = InState;
 		this->MarkDirty(EParticleFlags::ObjectState);
 	}
+
+	void ClearEvents() { MAwakeEvent = false; }
+	bool HasAwakeEvent() { return MAwakeEvent; }
 
 	FParticleData* NewData() const
 	{
@@ -1964,6 +1993,7 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MAwakeEvent;
 };
 
 template <typename T, int d>
@@ -2143,6 +2173,15 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 	return nullptr;
 }
 
+template <typename T, int d>
+void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents)
+{
+	TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+	if (Dyn)
+	{
+		Dyn->SetObjectState(InState, bAllowEvents);
+	}
+}
 
 template <typename T, int d>
 EObjectStateType TGeometryParticle<T, d>::ObjectState() const
@@ -2182,16 +2221,18 @@ template <typename T, int d>
 TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle)
 	: ExternalGeometryParticle(InHandle->GTGeometryParticle())
 	, GeometryParticleHandle(InHandle)
-	, HashResult(InHandle->GetHashResultLowLevel())
+	, CachedUniqueIdx(InHandle->UniqueIdx())
 {
+	ensure(CachedUniqueIdx.IsValid());
 }
 
 template <typename T, int d>
 TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticle<T, d>* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InGeometryParticle ? InGeometryParticle->Handle() : nullptr)
-	, HashResult(InGeometryParticle ? InGeometryParticle->GetHashResultLowLevel() : 0)
+	, CachedUniqueIdx(InGeometryParticle ? InGeometryParticle->UniqueIdx() : FUniqueIdx())
 {
+	ensure(!InGeometryParticle || CachedUniqueIdx.IsValid());
 }
 
 template <typename T, int d>
@@ -2199,8 +2240,9 @@ template <bool bPersistent>
 TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>& InHandle)
 	: ExternalGeometryParticle(InHandle.GTGeometryParticle())
 	, GeometryParticleHandle(InHandle.Handle())
-	, HashResult(InHandle.GetHashResultLowLevel())
+	, CachedUniqueIdx(InHandle.UniqueIdx())
 {
+	ensure(CachedUniqueIdx.IsValid());
 }
 
 template <typename T, int d>
@@ -2208,21 +2250,23 @@ template <bool bPersistent>
 TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>* InHandle, TGeometryParticle<T, d>* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InHandle)
-	, HashResult(0)
 {
 	if (GeometryParticleHandle)
 	{
-		HashResult = GeometryParticleHandle->GetHashResultLowLevel();
+		CachedUniqueIdx = GeometryParticleHandle->UniqueIdx();
 	}
 	else if (ExternalGeometryParticle)
 	{
-		HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
+		CachedUniqueIdx = ExternalGeometryParticle->UniqueIdx();
 	}
 
 	if (GeometryParticleHandle && ExternalGeometryParticle)
 	{
-		CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
+		ensure(GeometryParticleHandle->UniqueIdx() == ExternalGeometryParticle->UniqueIdx());
 	}
+
+	//If either handle or particle are valid, we must have a valid idx
+	ensure((!GeometryParticleHandle && !ExternalGeometryParticle) || CachedUniqueIdx.IsValid());
 }
 
 template <typename T, int d>
@@ -2232,30 +2276,28 @@ void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)
 	Ar << AsAlwaysSerializable(GeometryParticleHandle);
 
 	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
-	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult && Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::UniquePayloadIdx)
 	{
-		if (GeometryParticleHandle)
-		{
-			HashResult = GeometryParticleHandle->GetHashResultLowLevel();
-		}
-		else if (ExternalGeometryParticle)
-		{
-			HashResult = ExternalGeometryParticle->GetHashResultLowLevel();
-		}
-		else
-		{
-			HashResult = 0;
-		}
-
-		if (GeometryParticleHandle && ExternalGeometryParticle)
-		{
-			CHAOS_ENSURE(GeometryParticleHandle->GetHashResultLowLevel() == ExternalGeometryParticle->GetHashResultLowLevel());
-		}
+		uint32 DummyHash;
+		Ar << DummyHash;
 	}
-	else
+	
+	if(GeometryParticleHandle)
 	{
-		Ar << HashResult;
+		CachedUniqueIdx = GeometryParticleHandle->UniqueIdx();
 	}
+	else if(ExternalGeometryParticle)
+	{
+		CachedUniqueIdx = ExternalGeometryParticle->UniqueIdx();
+	}
+	
+	if (GeometryParticleHandle && ExternalGeometryParticle)
+	{
+		ensure(GeometryParticleHandle->UniqueIdx() == ExternalGeometryParticle->UniqueIdx());
+	}
+	
+	ensure(!GeometryParticleHandle || CachedUniqueIdx.IsValid());
+	ensure(!ExternalGeometryParticle || CachedUniqueIdx.IsValid());
 }
 
 template <typename T, int d>
@@ -2264,7 +2306,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	AccelerationHandle.Serialize(Ar);
 	return Ar;
 }
-
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<float, 3>;
 extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;

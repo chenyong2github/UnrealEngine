@@ -41,6 +41,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, ScaleDataOffset)
 	SHADER_PARAMETER(int, SizeDataOffset)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
+	SHADER_PARAMETER(int, SubImageDataOffset)
 	SHADER_PARAMETER(int, MaterialParamDataOffset)
 	SHADER_PARAMETER(int, MaterialParam1DataOffset)
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
@@ -48,6 +49,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
 	SHADER_PARAMETER(FVector4, DefaultPos)
+	SHADER_PARAMETER(int, SubImageBlendMode)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -69,7 +71,6 @@ public:
 		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
-		, FloatDataOffset(0)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
 	{}
@@ -79,7 +80,6 @@ public:
 		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
-		, FloatDataOffset(0)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
 	{}
@@ -103,10 +103,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
 	}
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataOffset, uint32 InFloatDataStride)
+	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
 	{
 		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataOffset = InFloatDataOffset;
 		FloatDataStride = InFloatDataStride;
 	}
 
@@ -119,11 +118,6 @@ public:
 	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataOffset()
-	{
-		return FloatDataOffset;
 	}
 
 	FORCEINLINE int32 GetFloatDataStride()
@@ -197,7 +191,6 @@ protected:
 	FNiagaraMeshInstanceVertices* InstanceVerticesCPU;
 
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
@@ -210,10 +203,12 @@ class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEmulatedInstancing : p
 	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing);
 
 public:
+	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
 	FNiagaraMeshVertexFactoryEmulatedInstancing(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
 	{}
 
+	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
 	FNiagaraMeshVertexFactoryEmulatedInstancing()
 		: FNiagaraMeshVertexFactory()
 	{}
@@ -234,24 +229,10 @@ public:
 
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory()
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FNiagaraMeshVertexFactory();
-	}
-	else
-	{
-		return new FNiagaraMeshVertexFactoryEmulatedInstancing();
-	}
+	return new FNiagaraMeshVertexFactory();
 }
 
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FNiagaraMeshVertexFactory(InType, InFeatureLevel);
-	}
-	else
-	{
-		return new FNiagaraMeshVertexFactoryEmulatedInstancing(InType, InFeatureLevel);
-	}
+	return new FNiagaraMeshVertexFactory(InType, InFeatureLevel);
 }

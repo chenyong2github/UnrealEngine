@@ -13,6 +13,7 @@
 class FEditorComponentSourceFactory;
 class FEditorToolAssetAPI;
 class FUICommandList;
+class FStylusStateTracker;		// for stylus events
 
 class FModelingToolsEditorMode : public FEdMode
 {
@@ -157,6 +158,7 @@ protected:
 	/** Command list lives here so that the key bindings on the commands can be processed in the viewport. */
 	TSharedPtr<FUICommandList> UICommandList;
 
+	TUniquePtr<FStylusStateTracker> StylusStateTracker;
 
 public:
 	/** Cached pointer to the viewport world interaction object we're using to interact with mesh elements */

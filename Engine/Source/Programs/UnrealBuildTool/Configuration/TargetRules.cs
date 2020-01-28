@@ -359,13 +359,17 @@ namespace UnrealBuildTool
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileChaos = true;
+		[CommandLine("-NoCompileChaos", Value = "false")]
+		[CommandLine("-CompileChaos", Value = "true")]
+		public bool bCompileChaos = false;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bUseChaos = true;
+		[CommandLine("-NoUseChaos", Value = "false")]
+		[CommandLine("-UseChaos", Value = "true")]
+		public bool bUseChaos = false;
 
 		/// <summary>
 		/// Whether to compile in checked chaos features for debugging
@@ -581,6 +585,12 @@ namespace UnrealBuildTool
 			set { bWithServerCodeOverride = value; }
 		}
 		private bool? bWithServerCodeOverride;
+
+		/// <summary>
+		/// When enabled, Push Model Networking will be used on the server. This can help reduce CPU overhead of networking, at the cost of more memory.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithPushModel = false;
 
 		/// <summary>
 		/// Whether to include stats support even without the engine.
@@ -857,6 +867,12 @@ namespace UnrealBuildTool
 			get { return ShadowVariableWarningLevel == WarningLevel.Error; }
 			set { ShadowVariableWarningLevel = (value? WarningLevel.Error : WarningLevel.Warning); }
 		}
+
+		/// <summary>
+		/// Indicates what warning/error level to treat unsafe type casts as on platforms that support it (e.g., double->float or int64->int32)
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel UnsafeTypeCastWarningLevel = WarningLevel.Off;
 
 		/// <summary>
 		/// Forces the use of undefined identifiers in conditional expressions to be treated as errors.
@@ -2051,6 +2067,11 @@ namespace UnrealBuildTool
 			get { return Inner.bWithServerCode; }
 		}
 
+		public bool bWithPushModel
+		{
+			get { return Inner.bWithPushModel; }
+		}
+
 		public bool bCompileWithStatsWithoutEngine
 		{
 			get { return Inner.bCompileWithStatsWithoutEngine; }
@@ -2232,6 +2253,11 @@ namespace UnrealBuildTool
 		public WarningLevel ShadowVariableWarningLevel
 		{
 			get { return Inner.ShadowVariableWarningLevel; }
+		}
+
+		public WarningLevel UnsafeTypeCastWarningLevel
+		{
+			get { return Inner.UnsafeTypeCastWarningLevel; }
 		}
 
 		public bool bUndefinedIdentifierErrors

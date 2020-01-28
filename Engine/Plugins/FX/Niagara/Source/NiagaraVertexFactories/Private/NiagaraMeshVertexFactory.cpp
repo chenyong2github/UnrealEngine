@@ -18,8 +18,19 @@ public:
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
 		//PrevTransformBuffer.Bind(ParameterMap, TEXT("PrevTransformBuffer"));
-		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
-		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
+		NiagaraParticleDataPosition.Bind(ParameterMap, TEXT("NiagaraParticleDataPosition"));
+		NiagaraParticleDataVelocity.Bind(ParameterMap, TEXT("NiagaraParticleDataVelocity"));
+		NiagaraParticleDataColor.Bind(ParameterMap, TEXT("NiagaraParticleDataColor"));
+		NiagaraParticleDataScale.Bind(ParameterMap, TEXT("NiagaraParticleDataScale"));
+		NiagaraParticleDataTransform.Bind(ParameterMap, TEXT("NiagaraParticleDataTransform"));
+		NiagaraParticleDataNormalizedAge.Bind(ParameterMap, TEXT("NiagaraParticleDataNormalizedAge"));
+		NiagaraParticleDataMaterialRandom.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialRandom"));
+		NiagaraParticleDataMaterialParam0.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam0"));
+		NiagaraParticleDataMaterialParam1.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam1"));
+		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
+		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
+		NiagaraParticleDataSubImage.Bind(ParameterMap, TEXT("NiagaraParticleDataSubImage"));
+
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 
 		// 		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
@@ -29,14 +40,23 @@ public:
 		MeshFacingMode.Bind(ParameterMap, TEXT("MeshFacingMode"));
 		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
-
 	}
 
 	virtual void Serialize(FArchive& Ar) override
 	{
 		//Ar << PrevTransformBuffer;
-		Ar << NiagaraParticleDataFloat;
-		Ar << FloatDataOffset;
+		Ar << NiagaraParticleDataPosition;
+		Ar << NiagaraParticleDataVelocity;
+		Ar << NiagaraParticleDataColor;
+		Ar << NiagaraParticleDataScale;
+		Ar << NiagaraParticleDataTransform;
+		Ar << NiagaraParticleDataNormalizedAge;
+		Ar << NiagaraParticleDataMaterialRandom;
+		Ar << NiagaraParticleDataMaterialParam0;
+		Ar << NiagaraParticleDataMaterialParam1;
+		Ar << NiagaraParticleDataMaterialParam2;
+		Ar << NiagaraParticleDataMaterialParam3;
+		Ar << NiagaraParticleDataSubImage;
 		Ar << FloatDataStride;
 
 		// 		Ar << NiagaraParticleDataInt;
@@ -60,14 +80,24 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const override
 	{
-		const bool bInstanced = GRHISupportsInstancing;
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 
 		ShaderBindings.Add(MeshFacingMode, NiagaraMeshVF->GetMeshFacingMode());
 
-		ShaderBindings.Add(NiagaraParticleDataFloat, NiagaraMeshVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(FloatDataOffset, NiagaraMeshVF->GetFloatDataOffset());
+		ShaderBindings.Add(NiagaraParticleDataPosition, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataVelocity, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataColor, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataScale, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataTransform, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataNormalizedAge, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialRandom, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam0, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataSubImage, NiagaraMeshVF->GetParticleDataFloatSRV());
+
 		ShaderBindings.Add(FloatDataStride, NiagaraMeshVF->GetFloatDataStride());
 
 		FRHIShaderResourceView* SortedSRV = NiagaraMeshVF->GetSortedIndicesSRV();
@@ -79,8 +109,18 @@ private:
 
 	//FShaderResourceParameter PrevTransformBuffer;
 
-	FShaderResourceParameter NiagaraParticleDataFloat;
-	FShaderParameter FloatDataOffset;
+	FShaderResourceParameter NiagaraParticleDataPosition;
+	FShaderResourceParameter NiagaraParticleDataVelocity;
+	FShaderResourceParameter NiagaraParticleDataColor;
+	FShaderResourceParameter NiagaraParticleDataScale;
+	FShaderResourceParameter NiagaraParticleDataTransform;
+	FShaderResourceParameter NiagaraParticleDataNormalizedAge;
+	FShaderResourceParameter NiagaraParticleDataMaterialRandom;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam0;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
+	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
+	FShaderResourceParameter NiagaraParticleDataSubImage;
 	FShaderParameter FloatDataStride;
 
 	// 	FShaderResourceParameter NiagaraParticleDataInt;
@@ -122,8 +162,6 @@ public:
 void FNiagaraMeshVertexFactory::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-
-	check(GRHISupportsInstancing);
 
 	{
 		if (Data.PositionComponent.VertexBuffer != NULL)

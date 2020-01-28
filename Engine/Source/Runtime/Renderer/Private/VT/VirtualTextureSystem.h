@@ -48,7 +48,7 @@ public:
 	uint32 RemoveAllProducerDestroyedCallbacks(const void* Baton);
 	FVirtualTextureProducer* FindProducer(const FVirtualTextureProducerHandle& Handle);
 
-	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded);
+	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, FAllocatedVirtualTexture* AllocatedVT);
 	void ReleaseSpace(FVirtualTextureSpace* Space);
 
 	FVirtualTexturePhysicalSpace* AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc);

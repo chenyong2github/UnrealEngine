@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 //
+#include "SteamVRStereoLayers.h"
 #include "CoreMinimal.h"
 #include "SteamVRPrivate.h"
 #include "StereoLayerManager.h"
 #include "SteamVRHMD.h"
 #include "Misc/ScopeLock.h"
 #include "DefaultXRCamera.h"
+
+const FName FSteamVRHQLayer::ShapeName = FName("SteamVRHQLayer");
 
 #if STEAMVR_SUPPORTED_PLATFORMS
 
@@ -15,6 +18,10 @@ static vr::EVROverlayError sOvrError;
 #define OVR_VERIFY(x) sOvrError = x; ensure(sOvrError == vr::VROverlayError_None)
 #else
 #define OVR_VERIFY(x) x
+#endif
+
+#if !PLATFORM_MAC
+#include "VulkanRHIPrivate.h"
 #endif
 
 /*=============================================================================
@@ -95,20 +102,52 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
 	{
 		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer flag. SteamVR StereoLayers do not support disabling alpha renderding. Make the texture opaque instead."));
 	}
-	if (Layer.LayerDesc.ShapeType != IStereoLayers::QuadLayer)
+
+	const float WorldToMeterScale = GetWorldToMetersScale();
+	check(WorldToMeterScale > 0.f);
+
+	if (Layer.LayerDesc.HasShape<FSteamVRHQLayer>())
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer shape. SteamVR StereoLayers can only be Quads."));
+		vr::VROverlayHandle_t ExistingHQLayer = VROverlay->GetHighQualityOverlay();
+		if (ExistingHQLayer != vr::k_ulOverlayHandleInvalid && ExistingHQLayer != Layer.OverlayHandle)
+		{
+			UE_LOG(LogHMD, Warning, TEXT("There can only be one high-quality stereo layer active at a time. Please disable or change one or more layers to non-high-quality."));
+		}
+		else
+		{
+			VROverlay->SetHighQualityOverlay(Layer.OverlayHandle);
+
+			const auto& HQSettings = Layer.LayerDesc.GetShape<FSteamVRHQLayer>();
+			VROverlay->SetOverlayFlag(Layer.OverlayHandle, vr::VROverlayFlags_Curved, HQSettings.bCurved);
+			VROverlay->SetOverlayFlag(Layer.OverlayHandle, vr::VROverlayFlags_RGSS4X, HQSettings.bAntiAlias);
+			if (HQSettings.bCurved)
+			{
+				VROverlay->SetOverlayAutoCurveDistanceRangeInMeters(Layer.OverlayHandle, HQSettings.AutoCurveMinDistance / WorldToMeterScale, HQSettings.AutoCurveMaxDistance / WorldToMeterScale);
+			}
+		}
+	}
+	else if (!Layer.LayerDesc.HasShape<FQuadLayer>())
+	{
+		UE_LOG(LogHMD, Warning, TEXT("Unsupported StereoLayer shape. SteamVR StereoLayers can only be Quads or High Quality Quads."));
 	}
 
 	// UVs
 	vr::VRTextureBounds_t TextureBounds;
     TextureBounds.uMin = Layer.LayerDesc.UVRect.Min.X;
     TextureBounds.uMax = Layer.LayerDesc.UVRect.Max.X;
-    TextureBounds.vMin = Layer.LayerDesc.UVRect.Min.Y;
-    TextureBounds.vMax = Layer.LayerDesc.UVRect.Max.Y;
+
+	if ( IsOpenGLPlatform( GMaxRHIShaderPlatform ) )
+	{
+		TextureBounds.vMin = Layer.LayerDesc.UVRect.Max.Y;
+		TextureBounds.vMax = Layer.LayerDesc.UVRect.Min.Y;
+	}
+	else
+	{
+		TextureBounds.vMin = Layer.LayerDesc.UVRect.Min.Y;
+		TextureBounds.vMax = Layer.LayerDesc.UVRect.Max.Y;
+	}
+
 	OVR_VERIFY(VROverlay->SetOverlayTextureBounds(Layer.OverlayHandle, &TextureBounds));
-	const float WorldToMeterScale = GetWorldToMetersScale();
-	check(WorldToMeterScale > 0.f);
 	OVR_VERIFY(VROverlay->SetOverlayWidthInMeters(Layer.OverlayHandle, Layer.LayerDesc.QuadSize.X / WorldToMeterScale));
 	
 	float TexelAspect = 1.0f;
@@ -211,18 +250,43 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 			if (Layer.bUpdateTexture || (Layer.LayerDesc.Flags & LAYER_FLAG_TEX_CONTINUOUS_UPDATE))
 			{
 				vr::Texture_t Texture;
-				Texture.handle = Layer.LayerDesc.Texture->GetNativeResource();
+				vr::VRVulkanTextureData_t VulkanTexture{};
 				if ( IsVulkanPlatform( GMaxRHIShaderPlatform ) )
 				{
+#if PLATFORM_MAC
+					check( 0 );
+#else
+					auto vlkRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+					FRHITexture2D* TextureRHI2D = Layer.LayerDesc.Texture->GetTexture2D();
+					check(TextureRHI2D);
+					FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
+
+					VulkanTexture.m_pInstance = vlkRHI->GetInstance();
+					VulkanTexture.m_pDevice = vlkRHI->GetDevice()->GetInstanceHandle();
+					VulkanTexture.m_pPhysicalDevice = vlkRHI->GetDevice()->GetPhysicalHandle();
+					VulkanTexture.m_pQueue = vlkRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+					VulkanTexture.m_nQueueFamilyIndex = vlkRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+					VulkanTexture.m_nImage = (uint64_t)Texture2D->Surface.Image;
+					VulkanTexture.m_nWidth = Texture2D->Surface.Width;
+					VulkanTexture.m_nHeight = Texture2D->Surface.Height;
+					VulkanTexture.m_nFormat = (uint32_t)Texture2D->Surface.ViewFormat;
+					VulkanTexture.m_nSampleCount = 1;
+
+					Texture.handle = &VulkanTexture;
 					Texture.eType = vr::TextureType_Vulkan;
+#endif
 				}
 				else if ( IsOpenGLPlatform( GMaxRHIShaderPlatform ) )
 				{
+					// We need to dereference the pointer to the real handle
+					uintptr_t TextureID = *reinterpret_cast<uint32*>(Layer.LayerDesc.Texture->GetNativeResource());
+					Texture.handle = reinterpret_cast<void*>(TextureID);
 					Texture.eType = vr::TextureType_OpenGL;
 				}
 				else
 				{
 #if PLATFORM_WINDOWS
+					Texture.handle = Layer.LayerDesc.Texture->GetNativeResource();
 					Texture.eType = vr::TextureType_DirectX;
 #else
 					check( 0 );
@@ -278,36 +342,6 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 		}
 
 	}
-}
-
-void FSteamVRHMD::GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture)
-{
-	Texture = LeftTexture = nullptr;
-	FSteamVRLayer* LayerFound = nullptr;
-	check(IsInRenderingThread()); // Not strictly necessary, as WithLayer uses a scope lock
-
-	WithLayer(LayerId, [&](FSteamVRLayer* LayerFound)
-	{
-		if (LayerFound && LayerFound->LayerDesc.Texture)
-		{
-			switch (LayerFound->LayerDesc.ShapeType)
-			{
-			case IStereoLayers::CubemapLayer:
-				Texture = LayerFound->LayerDesc.Texture->GetTextureCube();
-				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTextureCube() : nullptr;
-				break;
-
-			case IStereoLayers::CylinderLayer:
-			case IStereoLayers::QuadLayer:
-				Texture = LayerFound->LayerDesc.Texture->GetTexture2D();
-				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTexture2D() : nullptr;
-				break;
-
-			default:
-				break;
-			}
-		}
-	});
 }
 
 //=============================================================================

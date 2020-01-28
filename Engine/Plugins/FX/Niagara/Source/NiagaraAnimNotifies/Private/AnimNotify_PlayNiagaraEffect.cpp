@@ -75,8 +75,13 @@ void UAnimNotify_PlayNiagaraEffect::ValidateAssociatedAssets()
 
 void UAnimNotify_PlayNiagaraEffect::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
-	// Don't call super to avoid unnecessary call in to blueprints
-	SpawnEffect(MeshComp, Animation);
+	//Store the spawned effect in a protected variable
+	SpawnedEffect = SpawnEffect(MeshComp, Animation);
+	
+	//Call to BP to allows setting of Niagara User Variables
+	Super::Notify(MeshComp, Animation);
+	
+	
 }
 
 FString UAnimNotify_PlayNiagaraEffect::GetNotifyName_Implementation() const
@@ -119,4 +124,9 @@ UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::SpawnEffect(USkeletalMeshComp
 	}
 
 	return ReturnComp;
+}
+
+UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::GetSpawnedEffect() 
+{
+	return SpawnedEffect;
 }

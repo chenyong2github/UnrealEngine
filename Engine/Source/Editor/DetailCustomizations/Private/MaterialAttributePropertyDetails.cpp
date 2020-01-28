@@ -20,7 +20,7 @@ TSharedRef<IDetailCustomization> FMaterialAttributePropertyDetails::MakeInstance
 void FMaterialAttributePropertyDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	// Populate combo boxes with material property list
-	FMaterialAttributeDefinitionMap::GetDisplayNameToIDList(AttributeNameToIDList);
+	FMaterialAttributeDefinitionMap::GetAttributeNameToIDList(AttributeNameToIDList);
 
 	AttributeDisplayNameList.Empty(AttributeNameToIDList.Num());
 	for (const TPair<FString, FGuid>& NameGUIDPair : AttributeNameToIDList)
@@ -103,7 +103,7 @@ void FMaterialAttributePropertyDetails::OnBuildChild(TSharedRef<IPropertyHandle>
 						ChildHandle->GetValueAsFormattedString(IDString);
 						FGuid::ParseExact(IDString, EGuidFormats::Digits, IDValue);
 
-						FString AttributeName = FMaterialAttributeDefinitionMap::GetDisplayName(IDValue);
+						FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName(IDValue);
 						return FText::FromString(AttributeName);
 					}
 

@@ -29,7 +29,8 @@ DECLARE_DELEGATE_TwoParams( FOnViewRangeChanged, TRange<double>, EViewRangeInter
 DECLARE_DELEGATE_OneParam( FOnTimeRangeChanged, TRange<double> )
 DECLARE_DELEGATE_OneParam( FOnFrameRangeChanged, TRange<FFrameNumber> )
 DECLARE_DELEGATE_TwoParams(FOnSetMarkedFrame, int32, FFrameNumber)
-DECLARE_DELEGATE_TwoParams(FOnMarkedFrameChanged, FFrameNumber, bool)
+DECLARE_DELEGATE_OneParam(FOnAddMarkedFrame, FFrameNumber)
+DECLARE_DELEGATE_OneParam(FOnDeleteMarkedFrame, int32)
 DECLARE_DELEGATE_RetVal_TwoParams( FFrameNumber, FOnGetNearestKey, FFrameTime, bool )
 
 /** Structure used to wrap up a range, and an optional animation target */
@@ -151,11 +152,14 @@ struct FTimeSliderArgs
 	/** Called when the marked frame needs to be set */
 	FOnSetMarkedFrame OnSetMarkedFrame;
 
-	/** Called when a marked frame is added/removed */
-	FOnMarkedFrameChanged OnMarkedFrameChanged;
+	/** Called when a marked frame is added */
+	FOnAddMarkedFrame OnAddMarkedFrame;
 
-	/** Called when all marked frames should be cleared */
-	FSimpleDelegate OnClearAllMarkedFrames;
+	/** Called when a marked frame is deleted */
+	FOnDeleteMarkedFrame OnDeleteMarkedFrame;
+
+	/** Called when all marked frames should be deleted */
+	FSimpleDelegate OnDeleteAllMarkedFrames;
 
 	/** Round the scrub position to an integer during playback */
 	TAttribute<EMovieScenePlayerStatus::Type> PlaybackStatus;

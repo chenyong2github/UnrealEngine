@@ -2,7 +2,6 @@
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
-#include "Chaos/Joint/PBDJointSolverCholesky.h"
 #include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
@@ -15,17 +14,14 @@
 
 //#pragma optimize("", off)
 
+bool bChaos_Joint_EarlyOut_Enabled = true;
+FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
+
 namespace Chaos
 {
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Sort"), STAT_Joints_Sort, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_Joints_Apply, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::SolveCholesky"), STAT_Joints_Solve_Cholesky, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::SolveGaussSeidel"), STAT_Joints_Solve_GaussSeidel, STATGROUP_Chaos);
-
-	bool ChaosJoint_UseCholeskySolver = false;
-	FAutoConsoleVariableRef CVarChaosImmPhysDeltaTime(TEXT("p.Chaos.Joint.UseCholeskySolver"), ChaosJoint_UseCholeskySolver, TEXT("Whether to use the new solver"));
-
+	DECLARE_CYCLE_STAT(TEXT("Joints::Sort"), STAT_Joints_Sort, STATGROUP_ChaosJoint);
+	DECLARE_CYCLE_STAT(TEXT("Joints::Apply"), STAT_Joints_Apply, STATGROUP_ChaosJoint);
+	DECLARE_CYCLE_STAT(TEXT("Joints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_ChaosJoint);
 
 	//
 	// Constraint Handle
@@ -64,6 +60,11 @@ namespace Chaos
 	const FPBDJointSettings& FPBDJointConstraintHandle::GetSettings() const
 	{
 		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
+	}
+
+	void FPBDJointConstraintHandle::SetSettings(const FPBDJointSettings& Settings)
+	{
+		ConstraintContainer->SetConstraintSettings(ConstraintIndex, Settings);
 	}
 
 	TVector<TGeometryParticleHandle<float,3>*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
@@ -156,6 +157,8 @@ namespace Chaos
 		: ApplyPairIterations(1)
 		, ApplyPushOutPairIterations(1)
 		, SwingTwistAngleTolerance(1.0e-6f)
+		, PositionTolerance(0)
+		, AngleTolerance(0)
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
 		, AngularConstraintPositionCorrection(1.0f)
@@ -185,9 +188,9 @@ namespace Chaos
 	
 	FPBDJointConstraints::FPBDJointConstraints(const FPBDJointSolverSettings& InSettings)
 		: Settings(InSettings)
+		, bRequiresSort(false)
 		, PreApplyCallback(nullptr)
 		, PostApplyCallback(nullptr)
-		, bRequiresSort(false)
 	{
 	}
 
@@ -391,6 +394,12 @@ namespace Chaos
 		return ConstraintSettings[ConstraintIndex];
 	}
 
+
+	void FPBDJointConstraints::SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings)
+	{
+		ConstraintSettings[ConstraintIndex] = InConstraintSettings;
+	}
+
 	
 	int32 FPBDJointConstraints::GetConstraintLevel(int32 ConstraintIndex) const
 	{
@@ -406,7 +415,7 @@ namespace Chaos
 		ConstraintStates[ConstraintIndex].ParticleLevels = ParticleLevels;
 		bRequiresSort = bRequiresSort || (NewLevel != PreviousLevel);
 	}
-
+	
 
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
@@ -415,43 +424,44 @@ namespace Chaos
 			SortConstraints();
 			bRequiresSort = false;
 		}
-
-		PrepareConstraints(Dt);
 	}
 
 
 	void FPBDJointConstraints::PrepareConstraints(FReal Dt)
 	{
-		if (!ChaosJoint_UseCholeskySolver)
+		ConstraintSolvers.SetNum(NumConstraints());
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
-			ConstraintSolvers.SetNum(NumConstraints());
-			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-			{
-				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-				const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
-				FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
+			const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+			const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
+			FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
 
-				int32 Index0, Index1;
-				GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
-				TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
-				TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+			int32 Index0, Index1;
+			GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-				Solver.Init(
-					Dt,
-					Settings,
-					JointSettings,
-					FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
-					FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
-					FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
-					FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
-					Particle0->InvM(),
-					Particle0->InvI().GetDiagonal(),
-					Particle1->InvM(),
-					Particle1->InvI().GetDiagonal(),
-					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
-					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
-			}
+			Solver.Init(
+				Dt,
+				Settings,
+				JointSettings,
+				FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
+				FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
+				Particle0->InvM(),
+				Particle0->InvI().GetDiagonal(),
+				Particle1->InvM(),
+				Particle1->InvI().GetDiagonal(),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
 		}
+	}
+
+
+	void FPBDJointConstraints::UnprepareConstraints(FReal Dt)
+	{
+		ConstraintSolvers.Empty();
 	}
 
 	
@@ -489,25 +499,16 @@ namespace Chaos
 			PreApplyCallback(Dt, Handles);
 		}
 
+		FJointSolverResult NetResult;
 		if (Settings.ApplyPairIterations > 0)
 		{
-			if (ChaosJoint_UseCholeskySolver)
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_Cholesky);
-				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-				{
-					SolvePosition_Cholesky(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
-				}
-			}
-			else
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_GaussSeidel);
-				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-				{
-					SolvePosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
-				}
+				NetResult += SolvePosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
 			}
 		}
+
+		//UE_LOG(LogChaosJoint, Warning, TEXT("Apply %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostApplyCallback != nullptr)
 		{
@@ -522,20 +523,16 @@ namespace Chaos
 		// @todo(ccaulfield): track whether we are sufficiently solved
 		bool bNeedsAnotherIteration = true;
 
+		FJointSolverResult NetResult;
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
-			if (ChaosJoint_UseCholeskySolver)
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
-				// TODO
-			}
-			else
-			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-				{
-					ProjectPosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
-				}
+				NetResult += ProjectPosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
+
+		//UE_LOG(LogChaosJoint, Warning, TEXT("Push  %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostProjectCallback != nullptr)
 		{
@@ -582,21 +579,9 @@ namespace Chaos
 
 		if (Settings.ApplyPairIterations > 0)
 		{
-			if (ChaosJoint_UseCholeskySolver)
+			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_Cholesky);
-				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
-				{
-					SolvePosition_Cholesky(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
-				}
-			}
-			else
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_GaussSeidel);
-				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
-				{
-					SolvePosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
-				}
+				SolvePosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
 			}
 		}
 
@@ -623,16 +608,9 @@ namespace Chaos
 
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
-			if (ChaosJoint_UseCholeskySolver)
+			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				// TODO
-			}
-			else
-			{
-				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
-				{
-					ProjectPosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
-				}
+				ProjectPosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
 
@@ -657,25 +635,23 @@ namespace Chaos
 	//
 	//////////////////////////////////////////////////////////////////////////
 
-	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity)
+	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& PrevP, const FRotation3& PrevQ, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity)
 	{
 		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
+			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 			if (bUpdateVelocity && (Dt > SMALL_NUMBER))
 			{
-				FVec3 PCoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
-				FRotation3 QCoM = FParticleUtilities::GetCoMWorldRotation(Rigid);
-				FVec3 DV = FVec3::CalculateVelocity(PCoM, P, Dt);
-				FVec3 DW = FRotation3::CalculateAngularVelocity(QCoM, Q, Dt);
+				const FVec3 DV = FVec3::CalculateVelocity(PrevP, P, Dt);
+				const FVec3 DW = FRotation3::CalculateAngularVelocity(PrevQ, Q, Dt);
 				Rigid->SetV(Rigid->V() + DV);
 				Rigid->SetW(Rigid->W() + DW);
 			}
-			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 		}
 	}
 
 
-	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W)
+	void FPBDJointConstraints::UpdateParticleStateExplicit(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W)
 	{
 		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
@@ -686,52 +662,9 @@ namespace Chaos
 	}
 
 
-	// This position solver solves all (active) inner position and angular constraints simultaneously by building the Jacobian and solving [JMJt].DX = C
-	// where DX(6x1) are the unknown position and rotation corrections, C(Nx1) is the current constraint error, J(Nx6) the Jacobian, M(6x6) the inverse mass matrix, 
-	// and N the number of active constraints. "Active constraints" are all bilateral constraints plus any violated unilateral constraints.
-	void FPBDJointConstraints::SolvePosition_Cholesky(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
-	{
-		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
-		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
-
-		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-		const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
-
-		int32 Index0, Index1;
-		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
-		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
-		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
-
-		FJointSolverCholesky Solver;
-		Solver.InitConstraints(
-			Dt, 
-			Settings, 
-			JointSettings, 
-			FParticleUtilities::GetCoMWorldPosition(Particle0),
-			FParticleUtilities::GetCoMWorldRotation(Particle0),
-			FParticleUtilities::GetCoMWorldPosition(Particle1),
-			FParticleUtilities::GetCoMWorldRotation(Particle1),
-			Particle0->InvM(), 
-			Particle0->InvI(), 
-			Particle1->InvM(), 
-			Particle1->InvI(), 
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
-		
-		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
-		{
-			Solver.ApplyDrives(Dt, JointSettings);
-			Solver.ApplyConstraints(Dt, JointSettings);
-		}
-
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1));
-	}
-
-
 	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
-	void FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	FJointSolverResult FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -744,28 +677,41 @@ namespace Chaos
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
+		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+
 		Solver.Update(
 			Dt,
-			FParticleUtilities::GetCoMWorldPosition(Particle0),
-			FParticleUtilities::GetCoMWorldRotation(Particle0),
+			P0,
+			Q0,
 			Particle0->V(),
 			Particle0->W(),
-			FParticleUtilities::GetCoMWorldPosition(Particle1),
-			FParticleUtilities::GetCoMWorldRotation(Particle1),
+			P1,
+			Q1,
 			Particle1->V(),
 			Particle1->W());
 
+		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyConstraints(Dt, Settings, JointSettings);
-			Solver.ApplyDrives(Dt, Settings, JointSettings);
+			NetResult += Solver.ApplyConstraints(Dt, Settings, JointSettings);
+			NetResult +=  Solver.ApplyDrives(Dt, Settings, JointSettings);
+
+			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			{
+				break;
+			}
 		}
 
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1));
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0, Solver.GetP(0), Solver.GetQ(0));
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1, Solver.GetP(1), Solver.GetQ(1));
+
+		return NetResult;
 	}
 
-	void FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	FJointSolverResult FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -789,13 +735,21 @@ namespace Chaos
 			Particle1->V(),
 			Particle1->W());
 
+		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyProjections(Dt, Settings, JointSettings);
+			NetResult = Solver.ApplyProjections(Dt, Settings, JointSettings);
+			
+			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			{
+				break;
+			}
 		}
 
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
+		UpdateParticleStateExplicit(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
+		UpdateParticleStateExplicit(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
+
+		return NetResult;
 	}
 }
 

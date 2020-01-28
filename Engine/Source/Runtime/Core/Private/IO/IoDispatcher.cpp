@@ -192,7 +192,7 @@ public:
 		for (const FIoStoreInstallManifest::FEntry& InstallManifestEntry : InstallManifest.ReadEntries())
 		{
 			FIoStoreEnvironment PartitionEnvironment(InitialEnvironment, InstallManifestEntry.PartitionName);
-			if (ChunkInstall && ChunkInstall->GetChunkLocation(InstallManifestEntry.InstallChunkId) == EChunkLocation::NotAvailable)
+			if (ChunkInstall && ChunkInstall->GetPakchunkLocation(InstallManifestEntry.InstallChunkId) == EChunkLocation::NotAvailable)
 			{
 				PendingInstallChunks.Add(MakeTuple(InstallManifestEntry.InstallChunkId, PartitionEnvironment));
 			}

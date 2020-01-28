@@ -120,7 +120,6 @@ private:
 	// Sync events - data
 	FClusterEventsContainer                      ClusterEventsPoolMain;
 	mutable FClusterEventsContainer              ClusterEventsPoolOut;
-	mutable FDisplayClusterMessage::DataType     ClusterEventsCacheOut;
 	mutable FCriticalSection                     ClusterEventsCritSec;
 	FOnClusterEvent                              OnClusterEvent;
 	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;

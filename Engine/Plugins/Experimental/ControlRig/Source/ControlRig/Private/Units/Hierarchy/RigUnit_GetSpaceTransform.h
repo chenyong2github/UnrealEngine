@@ -14,7 +14,7 @@ struct FRigUnit_GetSpaceTransform : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetSpaceTransform()
-		: SpaceType(EBoneGetterSetterMode::LocalSpace)
+		: SpaceType(EBoneGetterSetterMode::GlobalSpace)
 		, CachedSpaceIndex(INDEX_NONE)
 	{}
 
@@ -25,7 +25,7 @@ struct FRigUnit_GetSpaceTransform : public FRigUnit
 	/**
 	 * The name of the Space to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, SpaceName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "SpaceName", Constant))
 	FName Space;
 
 	/**

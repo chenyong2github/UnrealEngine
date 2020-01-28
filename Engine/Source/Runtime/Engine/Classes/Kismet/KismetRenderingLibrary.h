@@ -28,7 +28,7 @@ struct FDrawToRenderTargetContext
 	UPROPERTY()
 	UTextureRenderTarget2D* RenderTarget;
 
-	TDrawEvent<FRHICommandList>* DrawEvent;
+	FDrawEvent* DrawEvent;
 };
 
 UCLASS(MinimalAPI, meta=(ScriptName="RenderingLibrary"))

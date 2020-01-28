@@ -7376,7 +7376,6 @@ bool UParticleSystemComponent::GetVectorParameter(const FName InName,FVector& Ou
 			}
 			else if (Param.ParamType == PSPT_VectorUnitRand)
 			{
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 		}
@@ -7412,7 +7411,6 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 			}
 			else if (Param.ParamType == PSPT_VectorUnitRand)
 			{
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 			if (Param.ParamType == PSPT_Scalar)

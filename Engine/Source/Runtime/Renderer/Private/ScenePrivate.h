@@ -42,11 +42,12 @@
 #include "SceneSoftwareOcclusion.h"
 #include "CommonRenderResources.h"
 #include "VisualizeTexture.h"
-#include "ByteBuffer.h"
+#include "UnifiedBuffer.h"
 #include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
 #include "PrecomputedVolumetricLightmap.h"
+#include "RayTracing/RaytracingOptions.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
@@ -929,6 +930,16 @@ public:
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;
 
+	// Ray Traced Reflection Imaginary GBuffer Data containing a pseudo-geometric representation of the reflected surface(s)
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionGBufferA;
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionDepthZ;
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionVelocity;
+
+	// Ray Traced Sky Light Sample Direction Data
+	TRefCountPtr<FPooledRDGBuffer> SkyLightVisibilityRaysBuffer;
+	FIntVector SkyLightVisibilityRaysDimensions;
+
+	// Ray Traced Global Illumination Gather Point Data
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
 	FIntVector GatherPointsResolution;
 #endif
@@ -1657,9 +1668,6 @@ public:
 	{
 	}
 
-	FReadBuffer	PrimitivesUploadScatterBuffer;
-	FReadBuffer	PrimitivesUploadDataBuffer;
-
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
@@ -1672,12 +1680,11 @@ public:
 	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FRWBufferStructured PrimitiveBuffer;
 	FTextureRWBuffer2D PrimitiveTexture;
+	FScatterUploadBuffer PrimitiveUploadBuffer;
 
-	FGrowOnlySpanAllocator LightmapDataAllocator;
-
-	FReadBuffer	LightmapUploadScatterBuffer;
-	FReadBuffer	LightmapUploadDataBuffer;
-	FRWBufferStructured LightmapDataBuffer;
+	FGrowOnlySpanAllocator	LightmapDataAllocator;
+	FRWBufferStructured		LightmapDataBuffer;
+	FScatterUploadBuffer	LightmapUploadBuffer;
 };
 
 class FPrimitiveSurfelFreeEntry
@@ -1745,6 +1752,19 @@ public:
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
 };
 
+class FHeightFieldPrimitiveRemoveInfo : public FPrimitiveRemoveInfo
+{
+public:
+	FHeightFieldPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive)
+		: FPrimitiveRemoveInfo(InPrimitive)
+	{
+		const FBoxSphereBounds Bounds = InPrimitive->Proxy->GetBounds();
+		SphereBound = FVector4(Bounds.Origin, Bounds.SphereRadius);
+	}
+
+	FVector4 SphereBound;
+};
+
 class FSurfelBufferAllocator
 {
 public:
@@ -1786,11 +1806,29 @@ public:
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
 	}
 
+	bool HasPendingHeightFieldOperations() const
+	{
+		return PendingHeightFieldAddOps.Num() > 0 || PendingHeightFieldUpdateOps.Num() > 0 || PendingHeightFieldRemoveOps.Num() > 0;
+	}
+
 	bool HasPendingRemovePrimitive(const FPrimitiveSceneInfo* Primitive) const
 	{
-		for (int32 RemoveIndex = 0; RemoveIndex < PendingRemoveOperations.Num(); RemoveIndex++)
+		for (int32 RemoveIndex = 0; RemoveIndex < PendingRemoveOperations.Num(); ++RemoveIndex)
 		{
 			if (PendingRemoveOperations[RemoveIndex].Primitive == Primitive)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool HasPendingRemoveHeightFieldPrimitive(const FPrimitiveSceneInfo* Primitive) const
+	{
+		for (int32 RemoveIndex = 0; RemoveIndex < PendingHeightFieldRemoveOps.Num(); ++RemoveIndex)
+		{
+			if (PendingHeightFieldRemoveOps[RemoveIndex].Primitive == Primitive)
 			{
 				return true;
 			}
@@ -1804,18 +1842,30 @@ public:
 		return bCanUse16BitObjectIndices && (NumObjectsInBuffer < (1 << 16));
 	}
 
+	bool CanUse16BitHeightFieldObjectIndices() const
+	{
+		return bCanUse16BitObjectIndices && (NumHeightFieldObjectsInBuffer < 65536);
+	}
+
 	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
 	{
 		return ObjectBuffers[ObjectBufferIndex];
 	}
 
+	const class FHeightFieldObjectBuffers* GetHeightFieldObjectBuffers() const
+	{
+		return HeightFieldObjectBuffers;
+	}
+
 	int32 NumObjectsInBuffer;
+	int32 NumHeightFieldObjectsInBuffer;
 	class FDistanceFieldObjectBuffers* ObjectBuffers[2];
+	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
 	int ObjectBufferIndex;
 
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
-	TArray<const FPrimitiveSceneInfo*> HeightfieldPrimitives;
+	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
 
 	class FSurfelBuffers* SurfelBuffers;
 	FSurfelBufferAllocator SurfelAllocations;
@@ -1830,8 +1880,14 @@ public:
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
 	TArray<FVector4> PrimitiveModifiedBounds[GDF_Num];
 
+	TArray<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
+	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
+	TArray<FHeightFieldPrimitiveRemoveInfo> PendingHeightFieldRemoveOps;
+
 	/** Used to detect atlas reallocations, since objects store UVs into the atlas and need to be updated when it changes. */
 	int32 AtlasGeneration;
+	int32 HeightFieldAtlasGeneration;
+	int32 HFVisibilityAtlasGenerattion;
 
 	bool bTrackAllPrimitives;
 	bool bCanUse16BitObjectIndices;
@@ -2859,7 +2915,7 @@ public:
 
 	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
 	{
-		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !SkyLight->bCastRayTracedShadow;
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !(ShouldRenderRayTracingSkyLight(SkyLight) && !IsForwardShadingEnabled(GetShaderPlatform()));
 
 		if (IsTranslucentBlendMode(BlendMode))
 		{

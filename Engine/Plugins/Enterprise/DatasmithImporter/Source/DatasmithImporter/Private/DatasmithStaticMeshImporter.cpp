@@ -5,12 +5,12 @@
 #include "DatasmithImportContext.h"
 #include "DatasmithImporterModule.h"
 #include "DatasmithMaterialImporter.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithMeshUObject.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Translators/DatasmithPayload.h"
+#include "DatasmithPayload.h"
 #include "Utility/DatasmithImporterUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "Algo/AnyOf.h"
 #include "Async/Async.h"
@@ -125,7 +125,7 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 	{
 		if ( ExistingMesh->GetOuter() != Outer )
 		{
-			ResultStaticMesh = DuplicateObject< UStaticMesh >( ExistingMesh, Outer, *StaticMeshName );
+			ResultStaticMesh = FDatasmithImporterUtils::DuplicateObject< UStaticMesh >( ExistingMesh, Outer, *StaticMeshName );
 			IDatasmithImporterModule::Get().ResetOverrides( ResultStaticMesh ); // Don't copy the existing overrides
 		}
 		else
@@ -134,6 +134,17 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 		}
 
 		ResultStaticMesh->SetFlags( ObjectFlags );
+
+		// Get rid of data that is going to be recreated anyway
+		for (FStaticMeshSourceModel& SourceModel : ResultStaticMesh->GetSourceModels())
+		{
+			SourceModel.MeshDescription.Reset();
+			SourceModel.MeshDescriptionBulkData.Reset();
+			if (SourceModel.RawMeshBulkData)
+			{
+				SourceModel.RawMeshBulkData->Empty();
+			}
+		}
 	}
 	else
 	{
@@ -306,8 +317,12 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::PreBuildStaticMeshes);
 
-	FScopedSlowTask Progress(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.Warn);
-	Progress.MakeDialog(true);
+	TUniquePtr<FScopedSlowTask> ProgressPtr;
+	if ( ImportContext.FeedbackContext )
+	{ 
+		ProgressPtr = MakeUnique<FScopedSlowTask>(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.FeedbackContext);
+		ProgressPtr->MakeDialog(true);
+	}
 
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
 
@@ -345,12 +360,17 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 		);
 	}
 
+	FScopedSlowTask* Progress = ProgressPtr.Get();
+
 	// Ensure UI stays responsive by updating the progress even when the number of tasks hasn't changed
 	for (int32 OldTasksDone = 0, NewTasksDone = 0; OldTasksDone != SortedMesh.Num(); OldTasksDone = NewTasksDone)
 	{
 		NewTasksDone = TasksDone.Load();
-		Progress.EnterProgressFrame(NewTasksDone - OldTasksDone, FText::FromString(FString::Printf(TEXT("Packing UVs and computing tangents for static mesh %d/%d ..."), NewTasksDone, SortedMesh.Num())));
-		FPlatformProcess::Sleep(0.1);
+		if ( Progress )
+		{
+			Progress->EnterProgressFrame(NewTasksDone - OldTasksDone, FText::FromString(FString::Printf(TEXT("Packing UVs and computing tangents for static mesh %d/%d ..."), NewTasksDone, SortedMesh.Num())));
+			FPlatformProcess::Sleep(0.01);
+		}
 	}
 
 	for (int32 Index = 0; Index < TasksIsMeshValidResult.Num(); ++Index)

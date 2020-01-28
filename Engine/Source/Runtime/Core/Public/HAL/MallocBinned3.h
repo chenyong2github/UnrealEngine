@@ -90,6 +90,8 @@
 	#define BINNED3_ALLOCATOR_PER_BIN_STATS 0
 #endif
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 //
 // Optimized virtual memory allocator.
 //
@@ -112,7 +114,7 @@ class CORE_API FMallocBinned3 final : public FMalloc
 			CANARY_VALUE = 0xe7
 		};
 
-		FORCEINLINE FFreeBlock(uint32 InPageSize, uint32 InBlockSize, uint32 InPoolIndex)
+		FORCEINLINE FFreeBlock(uint32 InPageSize, uint32 InBlockSize, uint8 InPoolIndex)
 			: BlockSizeShifted(InBlockSize >> BINNED3_MINIMUM_ALIGNMENT_SHIFT)
 			, PoolIndex(InPoolIndex)
 			, Canary(CANARY_VALUE)
@@ -470,7 +472,7 @@ class CORE_API FMallocBinned3 final : public FMalloc
 	{
 		uint64 Result = PoolIndexFromPtr(Ptr);
 		check(Result < BINNED3_SMALL_POOL_COUNT);
-		return Result;
+		return (uint32)Result;
 	}
 
 	FORCEINLINE bool IsOSAllocation(const void* Ptr)
@@ -708,6 +710,8 @@ public:
 	static void* AllocateMetaDataMemory(SIZE_T Size);
 };
 
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+
 #define BINNED3_INLINE (1)
 #if BINNED3_INLINE // during development, it helps with iteration time to not include these here, but rather in the .cpp
 	#if PLATFORM_USES_FIXED_GMalloc_CLASS && !FORCE_ANSI_ALLOCATOR && 0/*USE_MALLOC_BINNED3*/
@@ -717,3 +721,4 @@ public:
 	#endif
 #endif
 #endif
+

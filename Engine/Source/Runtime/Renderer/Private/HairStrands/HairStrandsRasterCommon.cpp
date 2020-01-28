@@ -11,8 +11,55 @@
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 
-// this is temporary until we split the voxelize and DOM path
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeepShadowPassUniformParameters, "DeepShadowPass");
+/////////////////////////////////////////////////////////////////////////////////////////
+// Deep shadow global parameters
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, )
+	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
+	SHADER_PARAMETER(FVector4, SliceValue)
+	SHADER_PARAMETER(FIntRect, AtlasRect)
+	SHADER_PARAMETER(FIntPoint, ViewportResolution)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float>, FrontDepthTexture)
+	END_GLOBAL_SHADER_PARAMETER_STRUCT()
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, "DeepRasterPass");
+
+static FHairDeepShadowRasterGlobalParameters ConvertToGlobalPassParameter(const FHairDeepShadowRasterPassParameters* In)
+{
+	FHairDeepShadowRasterGlobalParameters Out;
+	Out.WorldToClipMatrix	= In->WorldToClipMatrix;
+	Out.SliceValue			= In->SliceValue;
+	Out.AtlasRect			= In->AtlasRect;
+	Out.ViewportResolution	= In->ViewportResolution;
+	Out.FrontDepthTexture	= In->FrontDepthTexture ? In->FrontDepthTexture->GetRHI() : (FRHITexture*)(GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture);
+	return Out;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Voxelization global parameters
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterGlobalParameters, )
+	SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
+	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
+	SHADER_PARAMETER(FVector, VoxelMinAABB)
+	SHADER_PARAMETER(FVector, VoxelMaxAABB)
+	SHADER_PARAMETER(FIntVector, VoxelResolution)
+	SHADER_PARAMETER(uint32, MacroGroupId)
+	SHADER_PARAMETER(FIntPoint, ViewportResolution)
+	SHADER_PARAMETER_SRV(StructuredBuffer<FVoxelizationViewInfo>, VoxelizationViewInfoBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterGlobalParameters, "VoxelRasterPass");
+
+static FHairVoxelizationRasterGlobalParameters ConvertToGlobalPassParameter(const FHairVoxelizationRasterPassParameters* In)
+{
+	FHairVoxelizationRasterGlobalParameters Out;
+	Out.VirtualVoxel	   = In->VirtualVoxel;
+	Out.WorldToClipMatrix  = In->WorldToClipMatrix;
+	Out.VoxelMinAABB	   = In->VoxelMinAABB;
+	Out.VoxelMaxAABB	   = In->VoxelMaxAABB;
+	Out.VoxelResolution	   = In->VoxelResolution;
+	Out.MacroGroupId	   = In->MacroGroupId;
+	Out.ViewportResolution = In->ViewportResolution;
+	Out.VoxelizationViewInfoBuffer = In->VoxelizationViewInfoBuffer->GetRHI();
+	return Out;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,7 +75,7 @@ protected:
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
 		// deferred
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDepthMeshVS() {}
@@ -42,6 +89,7 @@ protected:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MESH_RENDER_MODE"), 0);
+		OutEnvironment.SetDefine(TEXT("USE_CULLED_CLUSTER"), 1);
 	}
 };
 
@@ -61,7 +109,7 @@ protected:
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
 		// deferred
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDomMeshVS() {}
@@ -75,6 +123,7 @@ protected:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MESH_RENDER_MODE"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_CULLED_CLUSTER"), 1);
 	}
 };
 
@@ -95,7 +144,7 @@ protected:
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
 		// deferred
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVoxelizationRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FVoxelMeshVS() {}
@@ -111,6 +160,7 @@ protected:
 		OutEnvironment.SetDefine(TEXT("MESH_RENDER_MODE"), 2);
 		OutEnvironment.SetDefine(TEXT("SUPPORT_TANGENT_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("SUPPORT_MATERIAL_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("USE_CULLED_CLUSTER"), 1);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshVS<false>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowVS.usf"), TEXT("Main"), SF_Vertex);
@@ -129,7 +179,7 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDepthMeshPS() {}
@@ -154,7 +204,7 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairDeepShadowRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	FDeepShadowDomMeshPS() {}
@@ -174,7 +224,13 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeepShadowDomMeshPS, TEXT("/Engine/Private/Hai
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-template<bool bVoxelizeMaterial>
+enum class EVoxelMeshPSType
+{
+	Density,
+	Material,
+	DensityVirtual
+};
+template<EVoxelMeshPSType VoxelizationType>
 class FVoxelMeshPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FVoxelMeshPS, MeshMaterial);
@@ -186,9 +242,9 @@ public:
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
 		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDeepShadowPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FHairVoxelizationRasterGlobalParameters::StaticStructMetadata.GetShaderVariableName());
 		DensityTexture.Bind(Initializer.ParameterMap, TEXT("DensityTexture"));
-		if (bVoxelizeMaterial)
+		if (VoxelizationType == EVoxelMeshPSType::Material)
 		{
 			TangentXTexture.Bind(Initializer.ParameterMap, TEXT("TangentXTexture"));
 			TangentYTexture.Bind(Initializer.ParameterMap, TEXT("TangentYTexture"));
@@ -207,15 +263,16 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_TANGENT_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_MATERIAL_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("SUPPORT_TANGENT_PROPERTY"), VoxelizationType == EVoxelMeshPSType::Material ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("SUPPORT_MATERIAL_PROPERTY"), VoxelizationType == EVoxelMeshPSType::Material ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("SUPPORT_SPARSE"), VoxelizationType == EVoxelMeshPSType::DensityVirtual ? 1 : 0);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
 		Ar << DensityTexture;
-		if (bVoxelizeMaterial)
+		if (VoxelizationType == EVoxelMeshPSType::Material)
 		{
 			Ar << TangentXTexture;
 			Ar << TangentYTexture;
@@ -231,16 +288,17 @@ private:
 	FRWShaderParameter TangentZTexture;
 	FRWShaderParameter MaterialTexture;
 };
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<true>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<false>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Density>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Material>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::DensityVirtual>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-class FDeepShadowMeshProcessor : public FMeshPassProcessor
+class FHairRasterMeshProcessor : public FMeshPassProcessor
 {
 public:
 
-	FDeepShadowMeshProcessor(
+	FHairRasterMeshProcessor(
 		const FScene* Scene,
 		const FSceneView* InViewIfDynamicMeshCommand,
 		const FMeshPassProcessorRenderState& InPassDrawRenderState,
@@ -261,11 +319,11 @@ private:
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
 
-	EHairStrandsRasterPassType DeepShadowPassType;
+	EHairStrandsRasterPassType RasterPassType;
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
-void FDeepShadowMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
+void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	// Determine the mesh's material and blend mode.
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
@@ -278,23 +336,25 @@ void FDeepShadowMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	{
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-		const ERasterizerCullMode MeshCullMode = DeepShadowPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material) : CM_None;
+		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material) : CM_None;
 
-		if (DeepShadowPassType == EHairStrandsRasterPassType::FrontDepth)
+		if (RasterPassType == EHairStrandsRasterPassType::FrontDepth)
 			Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
-		else if (DeepShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap)
+		else if (RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap)
 			Process<FDeepShadowDomMeshVS, FDeepShadowDomMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
-		else if (DeepShadowPassType == EHairStrandsRasterPassType::Voxelization)
-			Process<FVoxelMeshVS<false>, FVoxelMeshPS<false>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
-		else if (DeepShadowPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
-			Process<FVoxelMeshVS<true>, FVoxelMeshPS<true>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
+		else if (RasterPassType == EHairStrandsRasterPassType::Voxelization)
+			Process<FVoxelMeshVS<false>, FVoxelMeshPS<EVoxelMeshPSType::Density>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
+		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
+			Process<FVoxelMeshVS<true>, FVoxelMeshPS<EVoxelMeshPSType::Material>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
+		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationVirtual)
+			Process<FVoxelMeshVS<false>, FVoxelMeshPS<EVoxelMeshPSType::DensityVirtual>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 	}
 }
 
 // Vertex is either FDeepShadowDepthMeshVS, FDeepShadowDomMeshVS, or FVoxelMeshVS
 // Pixel  is either FDeepShadowDepthMeshPS, FDeepShadowDomMeshPS, or FVoxelMeshPS
 template<typename VertexShaderType, typename PixelShaderType>
-void FDeepShadowMeshProcessor::Process(
+void FHairRasterMeshProcessor::Process(
 	const FMeshBatch& MeshBatch,
 	uint64 BatchElementMask,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -345,80 +405,171 @@ void FDeepShadowMeshProcessor::Process(
 		ShaderElementData);
 }
 
-FDeepShadowMeshProcessor::FDeepShadowMeshProcessor(
+FHairRasterMeshProcessor::FHairRasterMeshProcessor(
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	const FMeshPassProcessorRenderState& InPassDrawRenderState,
 	FDynamicPassMeshDrawListContext* InDrawListContext,
 	const EHairStrandsRasterPassType PType)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
-	, DeepShadowPassType(PType)
+	, RasterPassType(PType)
 	, PassDrawRenderState(InPassDrawRenderState)
 {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-void RasterHairStrands(
-	FRHICommandList& RHICmdList,
+template<typename TPassParameter, typename TGlobalParameter>
+void AddHairStrandsRasterPass(
+	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
-	const FHairStrandsClusterData::TPrimitiveInfos& PrimitiveSceneInfos,
-	const EHairStrandsRasterPassType ShadowPassType,
-	const FIntRect& AtlasRect,
-	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformShaderParameters,
-	const TUniformBufferRef<FDeepShadowPassUniformParameters>& DeepShadowPassUniformParameters)
+	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
+	const EHairStrandsRasterPassType RasterPassType,
+	const FIntRect& ViewportRect,
+	const FVector4& HairRenderInfo,
+	const FVector& RasterDirection,
+	TPassParameter* PassParameters)
 {
-	check(RHICmdList.IsInsideRenderPass());
-	check(IsInRenderingThread());
-
-	SCOPE_CYCLE_COUNTER(STAT_RenderPerObjectShadowDepthsTime);
-
-	FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, DeepShadowPassUniformParameters);
-	DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
-
-	RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
-
-	if (ShadowPassType == EHairStrandsRasterPassType::DeepOpacityMap)
+	auto GetPassName = [](EHairStrandsRasterPassType Type)
 	{
-		DrawRenderState.SetBlendState(TStaticBlendState<
-			CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
-			CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-	}
-	else if (ShadowPassType == EHairStrandsRasterPassType::FrontDepth)
+		switch (Type)
+		{
+		case EHairStrandsRasterPassType::DeepOpacityMap:		return RDG_EVENT_NAME("HairStrandsRasterDeepOpacityMap");
+		case EHairStrandsRasterPassType::FrontDepth:			return RDG_EVENT_NAME("HairStrandsRasterFrontDepth");
+		case EHairStrandsRasterPassType::Voxelization:			return RDG_EVENT_NAME("HairStrandsRasterVoxelization");
+		case EHairStrandsRasterPassType::VoxelizationMaterial:	return RDG_EVENT_NAME("HairStrandsRasterVoxelizationMaterial");
+		case EHairStrandsRasterPassType::VoxelizationVirtual:	return RDG_EVENT_NAME("HairStrandsRasterVoxelizationVirtual");
+		default:												return RDG_EVENT_NAME("Noname");
+		}
+	};
+
+	GraphBuilder.AddPass(
+		GetPassName(RasterPassType),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, ViewportRect, HairRenderInfo, RasterDirection](FRHICommandListImmediate& RHICmdList)
 	{
-		DrawRenderState.SetBlendState(TStaticBlendState<
-			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
-			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-	}
-	else if (ShadowPassType == EHairStrandsRasterPassType::Voxelization || ShadowPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
-	{
-		DrawRenderState.SetBlendState(TStaticBlendState<
-			CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-	}
+		check(RHICmdList.IsInsideRenderPass());
+		check(IsInRenderingThread());
 
-	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
-	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-	FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
+		check(RHICmdList.IsInsideRenderPass());
+		check(IsInRenderingThread());
 
+		SCOPE_CYCLE_COUNTER(STAT_RenderPerObjectShadowDepthsTime);
 
-	FDeepShadowMeshProcessor DeepShadowMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, ShadowPassType);
+		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
+		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo = HairRenderInfo;
 
-	for (const FHairStrandsClusterData::PrimitiveInfo& PrimitveInfo : PrimitiveSceneInfos)
-	{
-		const FMeshBatch& MeshBatch = *PrimitveInfo.MeshBatchAndRelevance.Mesh;
-		const uint64 BatchElementMask = ~0ull;
-		DeepShadowMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy);
-	}
+		const FVector SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;	
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = RasterDirection;
+		ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
 
-	if (VisibleMeshDrawCommands.Num() > 0)
-	{
-		FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
-		SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
-		SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
-	}
+		TGlobalParameter GlobalPassParameters = ConvertToGlobalPassParameter(PassParameters);
+		TUniformBufferRef<TGlobalParameter> GlobalPassParametersBuffer = TUniformBufferRef<TGlobalParameter>::CreateUniformBufferImmediate(GlobalPassParameters, UniformBuffer_SingleFrame);
+
+		FMeshPassProcessorRenderState DrawRenderState(*ViewInfo, GlobalPassParametersBuffer);
+		DrawRenderState.SetViewUniformBuffer(ViewUniformShaderParameters);
+
+		RHICmdList.SetViewport(ViewportRect.Min.X, ViewportRect.Min.Y, 0.0f, ViewportRect.Max.X, ViewportRect.Max.Y, 1.0f);
+
+		if (RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap)
+		{
+			DrawRenderState.SetBlendState(TStaticBlendState<
+				CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+				CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+		}
+		else if (RasterPassType == EHairStrandsRasterPassType::FrontDepth)
+		{
+			DrawRenderState.SetBlendState(TStaticBlendState<
+				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
+				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+		}
+		else if (RasterPassType == EHairStrandsRasterPassType::Voxelization || RasterPassType == EHairStrandsRasterPassType::VoxelizationMaterial)
+		{
+			DrawRenderState.SetBlendState(TStaticBlendState<
+				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+		}
+		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationVirtual)
+		{
+			DrawRenderState.SetBlendState(TStaticBlendState<
+				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+		}
+
+		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
+		FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+		FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
+
+		FHairRasterMeshProcessor HairRasterMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, RasterPassType);
+
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitveInfo : PrimitiveSceneInfos)
+		{
+			const FMeshBatch& MeshBatch = *PrimitveInfo.MeshBatchAndRelevance.Mesh;
+			const uint64 BatchElementMask = ~0ull;
+			HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy);
+		}
+
+		if (VisibleMeshDrawCommands.Num() > 0)
+		{
+			FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+			SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
+			SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
+		}
+	});
+}
+
+void AddHairDeepShadowRasterPass(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo* ViewInfo,
+	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
+	const EHairStrandsRasterPassType PassType,
+	const FIntRect& ViewportRect,
+	const FVector4& HairRenderInfo,
+	const FVector& LightDirection,
+	FHairDeepShadowRasterPassParameters* PassParameters)
+{
+	check(PassType == EHairStrandsRasterPassType::FrontDepth || PassType == EHairStrandsRasterPassType::DeepOpacityMap);
+
+	AddHairStrandsRasterPass<FHairDeepShadowRasterPassParameters, FHairDeepShadowRasterGlobalParameters>(
+		GraphBuilder, 
+		Scene, 
+		ViewInfo, 
+		PrimitiveSceneInfos, 
+		PassType, 
+		ViewportRect, 
+		HairRenderInfo, 
+		LightDirection,
+		PassParameters);
+}
+
+void AddHairVoxelizationRasterPass(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo* ViewInfo,
+	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
+	const EHairStrandsRasterPassType PassType,
+	const FIntRect& ViewportRect,
+	const FVector4& HairRenderInfo,
+	const FVector& RasterDirection,
+	FHairVoxelizationRasterPassParameters* PassParameters)
+{
+	check(PassType == EHairStrandsRasterPassType::Voxelization || PassType == EHairStrandsRasterPassType::VoxelizationMaterial || PassType == EHairStrandsRasterPassType::VoxelizationVirtual);
+
+	AddHairStrandsRasterPass<FHairVoxelizationRasterPassParameters, FHairVoxelizationRasterGlobalParameters>(
+		GraphBuilder, 
+		Scene, 
+		ViewInfo, 
+		PrimitiveSceneInfos, 
+		PassType, 
+		ViewportRect, 
+		HairRenderInfo, 
+		RasterDirection,
+		PassParameters);
 }

@@ -5,6 +5,7 @@
 #include "Chaos/GJK.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/GeometryQueries.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Chaos/Triangle.h"
@@ -143,11 +144,22 @@ namespace Chaos
 				{
 					if(Time < OutTime)
 					{
-						OutPosition = ResultPosition;
-						OutNormal = ResultNormal;
-						OutTime = Time;
-						OutFaceIndex = FaceIndex;
-						CurrentLength = Time;
+						bool bHole = false;
+
+						const int32 CellIndex = FaceIndex / 2;
+						if(GeomData->MaterialIndices.IsValidIndex(CellIndex))
+						{
+							bHole = GeomData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max();
+						}
+
+						if(!bHole)
+						{
+							OutPosition = ResultPosition;
+							OutNormal = ResultNormal;
+							OutTime = Time;
+							OutFaceIndex = FaceIndex;
+							CurrentLength = Time;
+						}
 					}
 				}
 
@@ -217,27 +229,42 @@ namespace Chaos
 				{
 					return false;
 				}
-				TTriangle<T> Convex(A, B, C);
+
+				//Convert into local space of A to get better precision
+
+				TTriangle<T> Triangle(TVec3<T>(0), B-A, C-A);
 
 				T Time;
-				TVector<T, 3> HitPosition;
+				TVector<T, 3> LocalHitPosition;
 				TVector<T, 3> HitNormal;
-				if(GJKRaycast2<T>(Convex, OtherGeom, StartTM, Dir, CurrentLength, Time, HitPosition, HitNormal, Thickness, bComputeMTD))
+				const TRigidTransform<T,3> LocalStartTM(StartTM.GetTranslation() - A,StartTM.GetRotation());
+				if(GJKRaycast2<T>(Triangle, OtherGeom, LocalStartTM, Dir, CurrentLength, Time, LocalHitPosition, HitNormal, Thickness, bComputeMTD))
 				{
 					if(Time < OutTime)
 					{
-						OutNormal = HitNormal;
-						OutPosition = HitPosition;
-						OutTime = Time;
-						OutFaceIndex = FaceIndex;
+						bool bHole = false;
 
-						if(Time <= 0)	//initial overlap or MTD, so stop
+						const int32 CellIndex = FaceIndex / 2;
+						if(HfData->MaterialIndices.IsValidIndex(CellIndex))
 						{
-							CurrentLength = 0;
-							return false;
+							bHole = HfData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max();
 						}
 
-						CurrentLength = Time;
+						if(!bHole)
+						{
+							OutNormal = HitNormal;
+							OutPosition = LocalHitPosition + A;
+							OutTime = Time;
+							OutFaceIndex = FaceIndex;
+
+							if(Time <= 0) //initial overlap or MTD, so stop
+							{
+								CurrentLength = 0;
+								return false;
+							}
+
+							CurrentLength = Time;
+						}
 					}
 				}
 
@@ -530,21 +557,18 @@ namespace Chaos
 	}
 
 	template<typename T>
-	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocation) const
+	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const
 	{
-		const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
-		const TVector<T, 2> UnscaledLocation = InGridLocation / Scale2D;
-
-		if(UnscaledLocation == FlatGrid.Clamp(UnscaledLocation))
+		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
 		{
-			TVector<int32, 2> CellCoord = FlatGrid.Cell(UnscaledLocation);
+			TVector<int32, 2> CellCoord = FlatGrid.Cell(InGridLocationLocal);
 
 			const int32 SingleIndex = CellCoord[1] * (GeomData.NumCols) + CellCoord[0];
 			TVector<T, 3> Pts[4];
 			GeomData.GetPoints(SingleIndex, Pts);
 
-			float FractionX = FMath::Frac(UnscaledLocation[0]);
-			float FractionY = FMath::Frac(UnscaledLocation[1]);
+			float FractionX = FMath::Frac(InGridLocationLocal[0]);
+			float FractionY = FMath::Frac(InGridLocationLocal[1]);
 
 			if(FractionX > FractionY)
 			{
@@ -563,7 +587,7 @@ namespace Chaos
 				
 				FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
 
-				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+				return Pts[0].Z * Bary[0] + Pts[3].Z * Bary[1] + Pts[2].Z * Bary[2];
 			}
 			else
 			{
@@ -583,7 +607,7 @@ namespace Chaos
 
 				FVector Bary = FMath::GetBaryCentric2D({FractionX, FractionY, 0.0f}, Tri[0], Tri[1], Tri[2]);
 
-				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] + Pts[3].Z * Bary[2];
 			}
 		}
 
@@ -595,8 +619,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -629,8 +657,12 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
+			//todo: just compute max height, avoid extra work since this is called from tight loop
+			TVec3<T> Min,Max;
+			CalcCellBounds3D(InCoord,Min,Max);
+
 			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -670,13 +702,18 @@ namespace Chaos
 	template <typename T>
 	bool THeightField<T>::GridCast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, THeightfieldRaycastVisitor<T>& Visitor) const
 	{
+		//Is this check needed?
+		if(Length < 1e-4)
+		{
+			return false;
+		}
+
 		T CurrentLength = Length;
 		TVector<T, 2> ClippedFlatRayStart;
 		TVector<T, 2> ClippedFlatRayEnd;
 
 		// Data for fast box cast
 		TVector<T, 3> Min, Max, HitPoint;
-		float ToI;
 		bool bParallel[3];
 		TVector<T, 3> InvDir;
 
@@ -687,135 +724,98 @@ namespace Chaos
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
+		T TOI;
+		const FBounds2D FlatBounds = GetFlatBounds();
+		TAABB<T,3> Bounds(
+			TVec3<T>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
+			TVec3<T>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
+			);
+		TVector<T,3> NextStart;
 
-
-		if(GetFlatBounds().ClipLine(StartPoint, StartPoint + Dir * Length, ClippedFlatRayStart, ClippedFlatRayEnd))
+		if(Bounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, TOI, NextStart))
 		{
-			// The line is now valid and is entirely enclosed by the bounds (and thus, the grid)
-			if(FMath::Abs((ClippedFlatRayEnd - ClippedFlatRayStart).SizeSquared()) < SMALL_NUMBER)
+			const TVector<T,2> Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
+			TVector<int32,2> CellIdx = FlatGrid.Cell(TVector<int32,2>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
+
+			// Boundaries might push us one cell over
+			CellIdx = FlatGrid.ClampIndex(CellIdx);
+			const T ZDx = Bounds.Extents()[2];
+			const T ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
+			const TVector<T,3> ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
+			const TVector<T,2> ScaledDx2D(ScaledDx[0],ScaledDx[1]);
+			const TVector<T,2> ScaledMin = FlatGrid.MinCorner() * Scale2D;
+
+			//START
+			do
 			{
-				// This is a cast down the Z axis, handle in a simpler way as this is the common case
-				const int32 QueryX = (int32)(ClippedFlatRayStart[0] / GeomData.Scale[0]);
-				const int32 QueryY = (int32)(ClippedFlatRayStart[1] / GeomData.Scale[1]);
-				const TVector<int32, 2> Cell = FlatGrid.ClampIndex({QueryX, QueryY});
-
-				if (GetCellBounds3DScaled(Cell, Min, Max))
+				if(GetCellBounds3DScaled(CellIdx,Min,Max))
 				{
-					if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+					// Check cell bounds
+					//todo: can do it without raycast
+					if(TAABB<T,3>(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
 					{
-						Visitor.VisitRaycast(Cell[1] * (GeomData.NumCols - 1) + Cell[0], CurrentLength);
-					}
-				}
-			}
-			else
-			{
-				// Rasterize the line over the grid
-				const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
-				TVector<int32, 2> StartCell = FlatGrid.Cell(ClippedFlatRayStart/Scale2D);
-				TVector<int32, 2> EndCell = FlatGrid.Cell(ClippedFlatRayEnd/Scale2D);
-
-				// Boundaries might push us one cell over
-				StartCell = FlatGrid.ClampIndex(StartCell);
-				EndCell = FlatGrid.ClampIndex(EndCell);
-
-				int32 DeltaX = FMath::Abs(EndCell[0] - StartCell[0]);
-				int32 DeltaY = -FMath::Abs(EndCell[1] - StartCell[1]);
-				int32 DirX = StartCell[0] < EndCell[0] ? 1 : -1;
-				int32 DirY = StartCell[1] < EndCell[1] ? 1 : -1;
-				int32 Error =  DeltaX + DeltaY;
-
-
-				if(StartCell == EndCell)
-				{
-					// Visit the selected cell, in this case no need to rasterize because we never
-					// leave the initial cell
-					if (GetCellBounds3DScaled(StartCell, Min, Max))
-					{
-						// Check cell bounds
-						if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						// Visit the selected cell
+						bool bContinue = Visitor.VisitRaycast(CellIdx[1] * (GeomData.NumCols - 1) + CellIdx[0],CurrentLength);
+						if(!bContinue)
 						{
-							Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
+							return false;
 						}
 					}
 				}
-				else
+
+
+				//find next cell
+
+				//We want to know which plane we used to cross into next cell
+				const TVector<T,2> ScaledCellCenter2D = ScaledMin + TVector<T,2>(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
+				const TVector<T,3> ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
+
+				T Times[3];
+				T BestTime = CurrentLength;
+				bool bTerminate = true;
+				for(int Axis = 0; Axis < 3; ++Axis)
 				{
-
-					if (GetCellBounds3DScaled(StartCell, Min, Max))
+					if(!bParallel[Axis])
 					{
-						// Check cell bounds
-						if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						const T CrossPoint = Dir[Axis] > 0 ? ScaledCellCenter[Axis] + ScaledDx[Axis] / 2 : ScaledCellCenter[Axis] - ScaledDx[Axis] / 2;
+						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+						const T Time = Distance * InvDir[Axis];
+						Times[Axis] = Time;
+						if(Time < BestTime)
 						{
-							Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
+							bTerminate = false;	//found at least one plane to pass through
+							BestTime = Time;
 						}
+					} else
+					{
+						Times[Axis] = TNumericLimits<T>::Max();
 					}
-
-					do 
-					{
-						const int32 DoubleError = Error * 2;
-
-						if(DoubleError >= DeltaY)
-						{
-							Error += DeltaY;
-							StartCell[0] += DirX;
-						}
-
-						if(DoubleError <= DeltaX)
-						{
-							Error += DeltaX;
-							StartCell[1] += DirY;
-						}
-
-						if (GetCellBounds3DScaled(StartCell, Min, Max))
-						{
-							// Check cell bounds
-							if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-							{
-								// Visit the selected cell
-								bool bContinue = Visitor.VisitRaycast(StartCell[1] * (GeomData.NumCols - 1) + StartCell[0], CurrentLength);
-								if (!bContinue)
-								{
-									return true;
-								}
-							}
-						}
-
-						// When traversing diagonally, there is a possibility of cutting corners on adjacent cell w/ current algorithm.
-						// Visit both adjacent cells to cover this issue.
-						// To visit minimal amount of cells, need to choose cell based on whichever cell boundary (vertical/horizontal) is
-						// next intersected using real value position within cells. (MaxW has a shelf in progress, holding off to not introduce bugs).
-						if (DoubleError >= DeltaY && DoubleError <= DeltaX)
-						{
-							TVector<int32, 2> TestCell = StartCell + TVector<int32, 2>(0, -DirY); // subtract because StartCell was incremented already
-							if (GetCellBounds3DScaled(TestCell, Min, Max))
-							{
-								if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-								{
-									bool bContinue = Visitor.VisitRaycast(TestCell[1] * (GeomData.NumCols - 1) + TestCell[0], CurrentLength);
-									if (!bContinue)
-									{
-										return true;
-									}
-								}
-							}
-
-							TestCell = StartCell + TVector<int32, 2>(-DirX, 0);  // subtract because StartCell was incremented already
-							if (GetCellBounds3DScaled(TestCell, Min, Max))
-							{
-								if (TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
-								{
-									bool bContinue = Visitor.VisitRaycast(TestCell[1] * (GeomData.NumCols - 1) + TestCell[0], CurrentLength);
-									if (!bContinue)
-									{
-										return true;
-									}
-								}
-							}
-						}
-
-					} while(StartCell != EndCell);
 				}
-			}
+
+				if(bTerminate)
+				{
+					return false;
+				}
+
+				const TVector<int32,2> PrevIdx = CellIdx;
+
+				for(int Axis = 0; Axis < 2; ++Axis)
+				{
+					CellIdx[Axis] += (Times[Axis] <= BestTime) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
+					if(CellIdx[Axis] < 0 || CellIdx[Axis] >= FlatGrid.Counts()[Axis])
+					{
+						return false;
+					}
+				}
+
+				if(PrevIdx == CellIdx)
+				{
+					//crossed on z plane which means no longer in heightfield bounds
+					return false;
+				}
+
+				NextStart = NextStart + Dir * BestTime;
+			} while(true);
 		}
 
 		return false;
@@ -828,9 +828,9 @@ namespace Chaos
 			, NumY(Size[1])
 		{
 			int32 BitsNeeded = NumX * NumY;
-			int32 BytesNeeded = 1 + (BitsNeeded) / 8;
-			Data = MakeUnique<uint8[]>(BytesNeeded);
-			FMemory::Memzero(Data.Get(), BytesNeeded);
+			DataSize = 1 + (BitsNeeded) / 8;
+			Data = MakeUnique<uint8[]>(DataSize);
+			FMemory::Memzero(Data.Get(), DataSize);
 		}
 
 		bool Contains(const TVector<int32, 2>& Coordinate)
@@ -838,6 +838,7 @@ namespace Chaos
 			int32 Idx = Coordinate[1] * NumX + Coordinate[0];
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
+			check(ByteIdx >= 0 && ByteIdx < DataSize);
 			bool bContains = (Data[ByteIdx] >> BitIdx) & 0x1;
 			return bContains;
 		}
@@ -848,6 +849,7 @@ namespace Chaos
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
 			uint8 Mask = 1 << BitIdx;
+			check(ByteIdx >= 0 && ByteIdx < DataSize);
 			Data[ByteIdx] |= Mask;
 		}
 
@@ -855,6 +857,7 @@ namespace Chaos
 		int32 NumX;
 		int32 NumY;
 		TUniquePtr<uint8[]> Data;
+		int32 DataSize;
 	};
 
 	template<typename T>
@@ -982,7 +985,7 @@ namespace Chaos
 							CurrentCell += Direction;
 
 							// Fail if we leave the grid
-							if(Begin[0] < 0 || Begin[1] < 0 || Begin[0] > FlatGrid.Counts()[0] - 1 || Begin[1] > FlatGrid.Counts()[1] - 1)
+							if(CurrentCell[0] < 0 || CurrentCell[1] < 0 || CurrentCell[0] > FlatGrid.Counts()[0] - 1 || CurrentCell[1] > FlatGrid.Counts()[1] - 1)
 							{
 								break;
 							}
@@ -1235,6 +1238,15 @@ namespace Chaos
 		for (const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
+			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
+			
+			// Check for holes and skip checking if we'll never collide
+			if(GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
+			{
+				continue;
+			}
+
+			// The triangle is solid so proceed to test it
 			GeomData.GetPointsScaled(SingleIndex, Points);
 
 			if (OverlapTriangle(Points[0], Points[1], Points[3], LocalContactLocation, LocalContactNormal, LocalContactPhi))
@@ -1258,7 +1270,7 @@ namespace Chaos
 			}
 		}
 
-		if (ContactPhi < 0)
+		if(ContactPhi < 0)
 			return true;
 		return false;
 	}
@@ -1314,9 +1326,15 @@ namespace Chaos
 
 	template <typename T>
 	template <typename QueryGeomType>
-	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
+		if (OutMTD)
+		{
+			OutMTD->Normal = TVec3<T>(0);
+			OutMTD->Penetration = TNumericLimits<T>::Lowest();
+		}
+
+		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C, FMTDInfo* InnerMTD) -> bool
 		{
 			const TVector<T, 3> AB = B - A;
 			const TVector<T, 3> AC = C - A;
@@ -1326,7 +1344,29 @@ namespace Chaos
 			const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
 
 			TTriangle<T> TriangleConvex(A, B, C);
-			return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
+			if (InnerMTD)
+			{
+				TVec3<T> TriangleNormal(0);
+				T Penetration = 0;
+				TVec3<T> ClosestA(0);
+				TVec3<T> ClosestB(0);
+				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
+				{
+					// Use Deepest MTD.
+					if (Penetration > InnerMTD->Penetration)
+					{
+						InnerMTD->Penetration = Penetration;
+						InnerMTD->Normal = TriangleNormal;
+					}
+					return true;
+				}
+
+				return false;
+			}
+			else
+			{
+				return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
+			}
 		};
 
 		bool bResult = false;
@@ -1343,71 +1383,80 @@ namespace Chaos
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
+		bool bOverlaps = false;
 		for(const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
 			GeomData.GetPointsScaled(SingleIndex, Points);
 
-			if(OverlapTriangle(Points[0], Points[1], Points[3]))
+			if(OverlapTriangle(Points[0], Points[1], Points[3], OutMTD))
 			{
-				return true;
+				bOverlaps = true;
+				if (!OutMTD)
+				{
+					return true;
+				}
 			}
 
-			if(OverlapTriangle(Points[0], Points[3], Points[2]))
+			if(OverlapTriangle(Points[0], Points[3], Points[2], OutMTD))
 			{
-				return true;
+				bOverlaps = true;
+				if (!OutMTD)
+				{
+					return true;
+				}
 			}
 		}
 
-		return false;
+		return bOverlaps;
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
+	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
 	{
-		return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
 	template <typename T>
@@ -1594,19 +1643,6 @@ namespace Chaos
 		// Cache per-cell bounds
 		const int32 NumX = GeomData.NumCols - 1;
 		const int32 NumY = GeomData.NumRows - 1;
-		//GeomData.CellBounds.SetNum(NumX * NumY);
-		GeomData.CellHeights.SetNum(NumX*NumY);
-		for(int32 XIndex = 0; XIndex < NumX; ++XIndex)
-		{
-			for(int32 YIndex = 0; YIndex < NumY; ++YIndex)
-			{
-				const TVector<int32, 2> Cell(XIndex, YIndex);
-				TVector<T, 3> Min, Max;
-				CalcCellBounds3D(Cell, Min, Max);
-				//GeomData.CellBounds[YIndex * NumX + XIndex] = TAABB<T, 3>(Min, Max);
-				GeomData.CellHeights[YIndex * NumX + XIndex] = Max.Z;
-			}
-		}
 	}
 
 	template<typename T>

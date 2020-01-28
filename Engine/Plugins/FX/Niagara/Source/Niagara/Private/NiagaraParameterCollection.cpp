@@ -2,6 +2,7 @@
 
 #include "NiagaraParameterCollection.h"
 #include "NiagaraDataInterface.h"
+#include "Misc/SecureHash.h"
 #if WITH_EDITORONLY_DATA
 	#include "IAssetTools.h"
 #endif
@@ -11,8 +12,8 @@
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, ParameterStorage(this)
 {
+	ParameterStorage.SetOwner(this);
 	//Bind(ParameterStorage);
 }
 
@@ -297,7 +298,7 @@ FNiagaraCompileHash UNiagaraParameterCollection::GetCompileHash() const
 	CompileHash.Final();
 
 	TArray<uint8> DataHash;
-	DataHash.AddUninitialized(20);
+	DataHash.AddUninitialized(FSHA1::DigestSize);
 	CompileHash.GetHash(DataHash.GetData());
 
 	return FNiagaraCompileHash(DataHash);
@@ -369,6 +370,9 @@ void UNiagaraParameterCollection::MakeNamespaceNameUnique()
 void UNiagaraParameterCollection::PostLoad()
 {
 	Super::PostLoad();
+
+	DefaultInstance->ConditionalPostLoad();
+
 	if (CompileId.IsValid() == false)
 	{
 		CompileId = FGuid::NewGuid();

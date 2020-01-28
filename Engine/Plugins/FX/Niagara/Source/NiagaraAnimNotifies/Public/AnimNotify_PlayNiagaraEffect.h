@@ -5,7 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+
+
 #include "AnimNotify_PlayNiagaraEffect.generated.h"
+
+
 
 class UAnimSequenceBase;
 class UNiagaraSystem;
@@ -55,12 +59,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = "AnimNotify")
 	FVector Scale;
 
+	// Return FXSystemComponent created from SpawnEffect
+	UFUNCTION(BlueprintCallable, Category = "AnimNotify")
+	UFXSystemComponent* GetSpawnedEffect();
+
 protected:
+
+	//FXSystem Pointer to Spawned Effect called from Notify.
+	UFXSystemComponent* SpawnedEffect;
+
 	// Cached version of the Rotation Offset already in Quat form
 	FQuat RotationOffsetQuat;
 
 	// Spawns the NiagaraSystemComponent. Called from Notify.
 	virtual UFXSystemComponent* SpawnEffect(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
+
 
 public:
 

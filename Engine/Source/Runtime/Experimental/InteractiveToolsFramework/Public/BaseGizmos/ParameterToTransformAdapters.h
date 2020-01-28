@@ -6,6 +6,7 @@
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/ParameterSourcesFloat.h"
 #include "BaseGizmos/ParameterSourcesVec2.h"
+#include "BaseGizmos/GizmoMath.h"
 #include "ParameterToTransformAdapters.generated.h"
 
 
@@ -28,6 +29,15 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisTranslationParameterSource : publi
 {
 	GENERATED_BODY()
 public:
+
+	/**
+	 * Optional position constraint function. Called during interaction with the new transform origin.
+	 * To snap the transform to a new position, return as second value, and return true from your lambda.
+	 * Note that returned snap point will be projected onto the current translation origin/axis.
+	 * @return true if constraint point was found and should be used, false to ignore
+	 */
+	TUniqueFunction<bool(const FVector&, FVector&)> PositionConstraintFunction = [](const FVector&, FVector&) { return false; };
+
 	virtual float GetParameter() const override
 	{
 		return Parameter;
@@ -44,6 +54,15 @@ public:
 		// translate the initial transform
 		FTransform NewTransform = InitialTransform;
 		NewTransform.AddToTranslation(Translation);
+
+		// apply position constraint
+		FVector SnappedPos;
+		if (PositionConstraintFunction(NewTransform.GetTranslation(), SnappedPos))
+		{
+			FVector SnappedLinePos = GizmoMath::ProjectPointOntoLine(SnappedPos, CurTranslationOrigin, CurTranslationAxis);
+			NewTransform.SetTranslation(SnappedLinePos);
+		}
+
 		TransformSource->SetTransform(NewTransform);
 
 		OnParameterChanged.Broadcast(this, LastChange);
@@ -129,6 +148,16 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoPlaneTranslationParameterSource : publ
 {
 	GENERATED_BODY()
 public:
+
+	/**
+	 * Optional position constraint function. Called during interaction with the new transform origin.
+	 * To snap the transform to a new position, return as second value, and return true from your lambda.
+	 * Note that returned snap point will be projected onto the current translation origin/axis.
+	 * @return true if constraint point was found and should be used, false to ignore
+	 */
+	TUniqueFunction<bool(const FVector&, FVector&)> PositionConstraintFunction = [](const FVector&, FVector&) { return false; };
+
+
 	virtual FVector2D GetParameter() const override
 	{
 		return Parameter;
@@ -146,6 +175,15 @@ public:
 		// apply translation to initial transform
 		FTransform NewTransform = InitialTransform;
 		NewTransform.AddToTranslation(Translation);
+
+		// apply position constraint
+		FVector SnappedPos;
+		if (PositionConstraintFunction(NewTransform.GetTranslation(), SnappedPos))
+		{
+			FVector PlanePos = GizmoMath::ProjectPointOntoPlane(SnappedPos, CurTranslationOrigin, CurTranslationNormal);
+			NewTransform.SetTranslation(PlanePos);
+		}
+
 		TransformSource->SetTransform(NewTransform);
 
 		OnParameterChanged.Broadcast(this, LastChange);

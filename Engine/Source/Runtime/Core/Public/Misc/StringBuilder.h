@@ -96,7 +96,7 @@ public:
 	inline const C* ToString() const	{ EnsureNulTerminated(); return Base; }
 	inline const C* operator*() const	{ EnsureNulTerminated(); return Base; }
 
-	inline operator ViewType() const	{ return ViewType(Base, CurPos - Base); }
+	inline operator ViewType() const	{ return ViewType(Base, Len()); }
 
 	inline const C	LastChar() const	{ return *(CurPos - 1); }
 
@@ -333,14 +333,16 @@ protected:
 		// for the existing string including NUL terminator
 
 		if ((CurPos + RequiredAdditionalCapacity) < End)
+		{
 			return;
+		}
 
 		Extend(RequiredAdditionalCapacity);
 	}
 
-	CORE_API void	Extend(int32 extraCapacity);
-	CORE_API void*	AllocBuffer(int32 byteCount);
-	CORE_API void	FreeBuffer(void* buffer, int32 byteCount);
+	CORE_API void	Extend(SIZE_T extraCapacity);
+	CORE_API void*	AllocBuffer(SIZE_T byteCount);
+	CORE_API void	FreeBuffer(void* buffer, SIZE_T byteCount);
 
 	C*			Base;
 	C* 			CurPos;

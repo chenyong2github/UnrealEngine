@@ -1246,8 +1246,8 @@ void CutWithPlanarCellsHelper(
 				return false;
 			}
 			int sides[3] = { 0,0,0 };
-			sides[PlaneSide(Plane, Box.Min) + 1]++;
-			sides[PlaneSide(Plane, Box.Max) + 1]++;
+			sides[PlaneSide(Plane, (FVector)Box.Min) + 1]++;
+			sides[PlaneSide(Plane, (FVector)Box.Max) + 1]++;
 			sides[PlaneSide(Plane, FVector(Box.Max.X, Box.Min.Y, Box.Min.Z)) + 1]++;
 			sides[PlaneSide(Plane, FVector(Box.Min.X, Box.Max.Y, Box.Min.Z)) + 1]++;
 			sides[PlaneSide(Plane, FVector(Box.Max.X, Box.Max.Y, Box.Min.Z)) + 1]++;
@@ -1575,7 +1575,7 @@ void CutWithPlanarCellsHelper(
 		PlaneTriangulationInfo& Triangulation = PlaneTriangulations[PlaneIdx];
 		int32 NumBoundary = BoundaryIndices.Num();
 		FVector PlaneNormal(Plane.X, Plane.Y, Plane.Z);
-		FVector Origin = PlaneFrames[PlaneIdx].Origin;
+		FVector Origin = (FVector)PlaneFrames[PlaneIdx].Origin;
 
 		// check if constrained Delaunay triangulation problem needed for plane (false if no geometry was touching the planar facet)
 		bool bAnyElementsOnPlane = EdgesOnPlane[PlaneIdx].Num() + TrianglesOnPlane[PlaneIdx].Num() > 0;
@@ -1884,7 +1884,7 @@ void CutWithPlanarCellsHelper(
 			ensure(Arrangement.Graph.IsCompact());
 			for (int32 VertIdx = 0; VertIdx < Arrangement.Graph.MaxVertexID(); VertIdx++)
 			{
-				Triangulation.LocalVertices.Add(PlaneFrames[PlaneIdx].UnProject(Arrangement.Graph.GetVertex(VertIdx)));
+				Triangulation.LocalVertices.Add((FVector)PlaneFrames[PlaneIdx].UnProject(Arrangement.Graph.GetVertex(VertIdx)));
 			}
 			
 			for (FIntVector& Face : PlaneTriangulation)
@@ -1915,14 +1915,14 @@ void CutWithPlanarCellsHelper(
 				FVector3d Z = PlaneNormal * Amplitude;
 				for (int32 VertexIdx : NoiseVertexIndices)
 				{
-					FVector2D V = Arrangement.Graph.GetVertex(VertexIdx) * Frequency;
+					FVector2D V = (FVector2D)(Arrangement.Graph.GetVertex(VertexIdx) * Frequency);
 					float NoiseValue = 0;
 					float OctaveScale = 1;
 					for (int32 Octave = 0; Octave < Octaves; Octave++, OctaveScale *= 2)
 					{
 						NoiseValue += FMath::PerlinNoise2D(V * OctaveScale * AverageGlobalScale) / OctaveScale;
 					}
-					Triangulation.LocalVertices[VertexIdx] += Z * NoiseValue * AverageGlobalScaleInv;
+					Triangulation.LocalVertices[VertexIdx] += (FVector)(Z * NoiseValue * AverageGlobalScaleInv);
 				}
 			}
 		}
@@ -1964,8 +1964,8 @@ void CutWithPlanarCellsHelper(
 		if (NumLocalVertices > 0)
 		{
 			Triangulation.LocalUVs.SetNum(NumLocalVertices);
-			FVector FrameX = PlaneFrames[PlaneIdx].X;
-			FVector FrameY = PlaneFrames[PlaneIdx].Y;
+			FVector FrameX = (FVector)PlaneFrames[PlaneIdx].X;
+			FVector FrameY = (FVector)PlaneFrames[PlaneIdx].Y;
 			FVector LocalOrigin = Triangulation.LocalVertices[0];
 			float MinX = FMathf::MaxReal;
 			float MinY = FMathf::MaxReal;
@@ -2064,10 +2064,10 @@ void CutWithPlanarCellsHelper(
 			AddedVerticesCollection.Normal[AddIdx] = PlaneNormal;
 			AddedVerticesCollection.Normal[AddIdx + NumLocalVertices] = -AddedVerticesCollection.Normal[AddIdx];
 
-			AddedVerticesCollection.TangentU[AddIdx] = PlaneFrames[PlaneIdx].X;
+			AddedVerticesCollection.TangentU[AddIdx] = (FVector)PlaneFrames[PlaneIdx].X;
 			AddedVerticesCollection.TangentU[AddIdx + NumLocalVertices] = -AddedVerticesCollection.TangentU[AddIdx];
 
-			AddedVerticesCollection.TangentV[AddIdx] = PlaneFrames[PlaneIdx].Y;
+			AddedVerticesCollection.TangentV[AddIdx] = (FVector)PlaneFrames[PlaneIdx].Y;
 			AddedVerticesCollection.TangentV[AddIdx + NumLocalVertices] = AddedVerticesCollection.TangentV[AddIdx];
 
 			// TODO: also set color?
@@ -2114,7 +2114,7 @@ void TransformPlanes(const FTransform& Transform, const FPlanarCells& Ref, TArra
 		ScaleVec /= ScaleMaxAbs;
 	}
 	FVector3d NormalScale(ScaleVec.Y*ScaleVec.Z*ScaleDetSign, ScaleVec.X*ScaleVec.Z*ScaleDetSign, ScaleVec.X*ScaleVec.Y*ScaleDetSign);
-	NormalTransform.SetScale3D(NormalScale);
+	NormalTransform.SetScale3D((FVector)NormalScale);
 	
 	Planes.SetNum(Ref.Planes.Num());
 	for (int32 PlaneIdx = 0, PlanesNum = Planes.Num(); PlaneIdx < PlanesNum; PlaneIdx++)
@@ -2475,7 +2475,7 @@ int32 CutMultipleWithMultiplePlanes(
 									FTransform NbrToLocalTransform = GlobalTransforms[NbrTransformIdx] * GlobalTransforms[ChildTransformIdx].Inverse();
 									auto NbrToLocal = [&](const FVector3d& V)
 									{
-										return FVector3d(NbrToLocalTransform.TransformPosition(V));
+										return FVector3d(NbrToLocalTransform.TransformPosition((FVector)V));
 									};
 									double OutDist;
 									ChildTree->FindNearestTriangles(*NbrTree, NbrToLocal, OutDist, ProximityThresholdDist);
@@ -2513,7 +2513,7 @@ int32 CutMultipleWithMultiplePlanes(
 								FTransform NbrToLocalTransform = GlobalTransforms[NbrTransformIdx] * GlobalTransforms[ChildTransformIdx].Inverse();
 								auto NbrToLocal = [&](const FVector3d& V)
 								{
-									return FVector3d(NbrToLocalTransform.TransformPosition(V));
+									return FVector3d(NbrToLocalTransform.TransformPosition((FVector)V));
 								};
 								double OutDist;
 								ChildTree->FindNearestTriangles(*NbrTree, NbrToLocal, OutDist, ProximityThresholdDist);

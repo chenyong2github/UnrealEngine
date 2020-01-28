@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 struct FAccessibleWidgetData
 {

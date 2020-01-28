@@ -56,17 +56,19 @@ public:
 	using EProcessResult = ECoretechParsingResult;
 
 	/**
-	 * @param InCTFullPath Full path of the CAD file to parse
-	 * @param InCachePath Full path of the cache in which the data will be saved
 	 * @param ImportParams Parameters that setting import data like mesh SAG...
-	 * @param KernelIOPath Full Path of KernelIO libraries (oda_translator.exe, ...). Mandatory to import DWG, or DGN files
+	 * @param EnginePluginsPath Full Path of EnginePlugins. Mandatory to set KernelIO to import DWG, or DGN files
+	 * @param InCachePath Full path of the cache in which the data will be saved
 	 */
-	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, const TCHAR* KernelIOPath = TEXT(""));
+	FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath = TEXT(""), const FString& InCachePath = TEXT(""));
 
 	double GetMetricUnit() const { return 0.01; }
 
-	EProcessResult ProcessFile();
-	void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, const FImportParameters& ImportParams, uint32 ParentMaterialHash);
+	/**
+	 * @param InCTFullPath Full path of the CAD file to parse
+	 */
+	EProcessResult ProcessFile(const FString& InCTFullPath);
+	void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash);
 
 
 	const TSet<FString>& GetExternalRefSet()
@@ -88,7 +90,7 @@ public:
 	}
 
 private:
-	EProcessResult ReadFileWithKernelIO();
+	EProcessResult ReadFileWithKernelIO(const FString& FullPath);
 	bool ReadNode(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadInstance(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadComponent(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
@@ -115,9 +117,8 @@ private:
 	void ExportMeshArchiveFile();
 
 protected:
-	const FString& CachePath;
+	FString CachePath;
 
-	FString FullPath;
 	FString CADFile;
 
 	FString FileConfiguration;

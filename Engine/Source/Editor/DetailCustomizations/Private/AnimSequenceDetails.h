@@ -73,7 +73,6 @@ private:
 	// cache all anim sequences that are selected
 	// but I need to know them before compress
 	TArray< TWeakObjectPtr<UAnimSequence> > SelectedAnimSequences;
-	FReply OnEditCompression();
 };
 
 ///////////////////////////////////////////////////

@@ -36,6 +36,8 @@
 
 #pragma comment(lib, "psapi.lib")
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 // static variables
 TArray<FString> FWindowsPlatformProcess::DllDirectoryStack;
 TArray<FString> FWindowsPlatformProcess::DllDirectories;
@@ -47,6 +49,11 @@ void FWindowsPlatformProcess::AddDllDirectory(const TCHAR* Directory)
 	FPaths::NormalizeDirectoryName(NormalizedDirectory);
 	FPaths::MakePlatformFilename(NormalizedDirectory);
 	DllDirectories.AddUnique(NormalizedDirectory);
+}
+
+void FWindowsPlatformProcess::GetDllDirectories(TArray<FString>& OutDllDirectories)
+{
+	OutDllDirectories = DllDirectories;
 }
 
 void* FWindowsPlatformProcess::GetDllHandle( const TCHAR* FileName )
@@ -499,8 +506,8 @@ bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float&
 {
 	bool bSuccess = true;
 
-	static float LastProcessTime = 0.f;
-	static float LastIdleTime = 0.f;
+	static double LastProcessTime = 0.f;
+	static double LastIdleTime = 0.f;
 	static uint32 LastFrameNumber = 0;
 
 	if (LastFrameNumber != GFrameNumber)
@@ -1918,5 +1925,7 @@ FString FWindowsPlatformProcess::FProcEnumInfo::GetFullPath() const
 {
 	return GetApplicationName(GetPID());
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #include "Windows/HideWindowsPlatformTypes.h"

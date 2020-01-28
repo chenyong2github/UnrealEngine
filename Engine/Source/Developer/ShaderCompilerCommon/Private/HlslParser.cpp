@@ -11,8 +11,9 @@
 namespace CrossCompiler
 {
 	EParseResult ParseExpressionStatement(class FHlslParser& Parser, FLinearAllocator* Allocator, AST::FNode** OutStatement);
-	EParseResult ParseStructBody(FHlslScanner& Scanner, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutTypeSpecifier);
+	EParseResult ParseStructBody(FHlslParser& Parser, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutTypeSpecifier);
 	EParseResult TryParseAttribute(FHlslParser& Parser, FLinearAllocator* Allocator, AST::FAttribute** OutAttribute);
+	EParseResult ParseFunctionDeclaration(FHlslParser& Parser, FLinearAllocator* Allocator, TLinearArray<AST::FAttribute*>& Attributes, AST::FNode** OutFunction);
 
 	typedef EParseResult(*TTryRule)(class FHlslParser& Scanner, FLinearAllocator* Allocator, AST::FNode** OutStatement);
 	struct FRulePair
@@ -111,7 +112,7 @@ namespace CrossCompiler
 	{
 		if (Scanner.MatchToken(EHlslToken::LeftSquareBracket))
 		{
-			auto ExpressionResult = ParseExpression(Scanner, SymbolScope, EEF_ALLOW_SEQUENCE, Allocator, OutExpression);
+			auto ExpressionResult = ParseExpression(Scanner, SymbolScope, 0, Allocator, OutExpression);
 			if (ExpressionResult == EParseResult::Error)
 			{
 				Scanner.SourceError(TEXT("Expected expression!"));
@@ -173,31 +174,38 @@ namespace CrossCompiler
 	// Multi declaration parser flags
 	enum EDeclarationFlags
 	{
-		EDF_CONST_ROW_MAJOR = (1 << 0),
-		EDF_STATIC = (1 << 1),
-		EDF_UNIFORM = (1 << 2),
-		EDF_TEXTURE_SAMPLER_OR_BUFFER = (1 << 3),
-		EDF_INITIALIZER = (1 << 4),
-		EDF_INITIALIZER_LIST = (1 << 5) | EDF_INITIALIZER,
-		EDF_SEMANTIC = (1 << 6),
-		EDF_SEMICOLON = (1 << 7),
-		EDF_IN_OUT = (1 << 8),
-		EDF_MULTIPLE = (1 << 9),
-		EDF_PRIMITIVE_DATA_TYPE = (1 << 10),
-		EDF_SHARED = (1 << 11),
-		EDF_INTERPOLATION = (1 << 12),
-		EDF_REGISTER = (1 << 13),
+		EDF_CONST_ROW_MAJOR				= (1 << 0),
+		EDF_STATIC						= (1 << 1),
+		EDF_UNIFORM						= (1 << 2),
+		EDF_TEXTURE_SAMPLER_OR_BUFFER	= (1 << 3),
+		EDF_INITIALIZER					= (1 << 4),
+		EDF_INITIALIZER_LIST			= (1 << 5) | EDF_INITIALIZER,
+		EDF_SEMANTIC					= (1 << 6),
+		EDF_SEMICOLON					= (1 << 7),
+		EDF_IN_OUT						= (1 << 8),
+		EDF_MULTIPLE					= (1 << 9),
+		EDF_PRIMITIVE_DATA_TYPE			= (1 << 10),
+		EDF_SHARED						= (1 << 11),
+		EDF_INTERPOLATION				= (1 << 12),
+		EDF_REGISTER					= (1 << 13),
+		EDF_PACKOFFSET					= (1 << 14),
 	};
 
 	EParseResult ParseInitializer(FHlslScanner& Scanner, FSymbolScope* SymbolScope, bool bAllowLists, FLinearAllocator* Allocator, AST::FExpression** OutList)
 	{
 		if (bAllowLists && Scanner.MatchToken(EHlslToken::LeftBrace))
 		{
-			*OutList = new(Allocator) AST::FInitializerListExpression(Allocator, Scanner.GetCurrentToken()->SourceInfo);
-			EParseResult Result = ParseExpressionList(EHlslToken::RightBrace, Scanner, SymbolScope, EHlslToken::LeftBrace, Allocator, *OutList);
+			EParseResult Result = ParseExpressionList2(Scanner, SymbolScope, Allocator, AST::FExpressionList::EType::Braced, OutList);
 			if (Result != EParseResult::Matched)
 			{
 				Scanner.SourceError(TEXT("Invalid initializer list\n"));
+				return ParseResultError();
+			}
+
+			if (!Scanner.MatchToken(EHlslToken::RightBrace))
+			{
+				Scanner.SourceError(TEXT("Expected '}'\n"));
+				return ParseResultError();
 			}
 
 			return EParseResult::Matched;
@@ -217,10 +225,37 @@ namespace CrossCompiler
 		return EParseResult::NotMatched;
 	}
 
-	EParseResult ParseRegisterSpecifier(FHlslScanner& Scanner, FLinearAllocator* Allocator, AST::FRegisterSpecifier** OutSpecifier)
+	EParseResult ParseColonSpecifier(FHlslScanner& Scanner, FLinearAllocator* Allocator, int32 EDFFlags, AST::FSemanticSpecifier** OutSpecifier)
 	{
 		const auto* Token = Scanner.GetCurrentToken();
-		if (Scanner.MatchToken(EHlslToken::Register))
+
+		bool bFound = false;
+		AST::FSemanticSpecifier::ESpecType Type = AST::FSemanticSpecifier::ESpecType::Semantic;
+		bool bTryRegister = (EDFFlags & EDF_REGISTER) == EDF_REGISTER;
+		bool bTryPackOffset = (EDFFlags & EDF_PACKOFFSET) == EDF_PACKOFFSET;
+		if (bTryRegister && Scanner.MatchToken(EHlslToken::Register))
+		{
+			bFound = true;
+			Type = AST::FSemanticSpecifier::ESpecType::Register;
+		}
+		else if (bTryPackOffset && Scanner.MatchToken(EHlslToken::PackOffset))
+		{
+			bFound = true;
+			Type = AST::FSemanticSpecifier::ESpecType::PackOffset;
+		}
+		else if ((EDFFlags & EDF_SEMANTIC) == EDF_SEMANTIC)
+		{
+			if (!Scanner.MatchToken(EHlslToken::Identifier))
+			{
+				Scanner.SourceError(TEXT("Expected identifier for semantic!"));
+				return ParseResultError();
+			}
+
+			*OutSpecifier = new(Allocator) AST::FSemanticSpecifier(Allocator, *Token->String, Token->SourceInfo);
+			return EParseResult::Matched;
+		}
+
+		if (bFound)
 		{
 			if (!Scanner.MatchToken(EHlslToken::LeftParenthesis))
 			{
@@ -228,7 +263,7 @@ namespace CrossCompiler
 				return ParseResultError();
 			}
 
-			auto* Specifier = new(Allocator) AST::FRegisterSpecifier(Allocator, Token->SourceInfo);
+			auto* Specifier = new(Allocator) AST::FSemanticSpecifier(Allocator, Type, Token->SourceInfo);
 
 			// Parse argument expressions of 'register'-specifier
 			do
@@ -278,12 +313,12 @@ namespace CrossCompiler
 				if (Scanner.MatchToken(EHlslToken::Comma))
 				{
 					auto* Integer = Scanner.GetCurrentToken();
-					if (!Scanner.MatchToken(EHlslToken::UnsignedIntegerConstant))
+					if (!Scanner.MatchIntegerLiteral())
 					{
 						Scanner.SourceError(TEXT("Expected constant!"));
 						return ParseResultError();
 					}
-					FullType->Specifier->TextureMSNumSamples = Integer->UnsignedInteger;
+					FullType->Specifier->TextureMSNumSamples = FCString::Atoi(*Integer->String);
 				}
 
 				if (!Scanner.MatchToken(EHlslToken::Greater))
@@ -329,7 +364,7 @@ namespace CrossCompiler
 				{
 					if (Scanner.MatchToken(EHlslToken::Colon))
 					{
-						if (ParseRegisterSpecifier(Scanner, Allocator, &Declaration->Register) != EParseResult::Matched)
+						if (ParseColonSpecifier(Scanner, Allocator, EDF_REGISTER, &Declaration->Semantic) != EParseResult::Matched)
 						{
 							Scanner.SourceError(TEXT("Invalid register specifier"));
 							return ParseResultError();
@@ -599,12 +634,12 @@ namespace CrossCompiler
 			: EParseResult::NotMatched;
 	}
 
-	EParseResult ParseGeneralDeclarationNoSemicolon(FHlslScanner& Scanner, FSymbolScope* SymbolScope, int32 TypeFlags, int32 DeclarationFlags, FLinearAllocator* Allocator, AST::FDeclaratorList** OutDeclaratorList)
+	EParseResult ParseGeneralDeclarationNoSemicolon(FHlslParser& Parser, FSymbolScope* SymbolScope, int32 TypeFlags, int32 DeclarationFlags, FLinearAllocator* Allocator, AST::FDeclaratorList** OutDeclaratorList)
 	{
-		auto OriginalToken = Scanner.GetCurrentTokenIndex();
+		auto OriginalToken = Parser.Scanner.GetCurrentTokenIndex();
 		bool bPrimitiveFound = false;
-		auto* FullType = new(Allocator) AST::FFullySpecifiedType(Allocator, Scanner.GetCurrentToken()->SourceInfo);
-		auto ParseResult = ParseDeclarationStorageQualifiers(Scanner, TypeFlags, DeclarationFlags, bPrimitiveFound, Allocator, &FullType->Qualifier);
+		auto* FullType = new(Allocator) AST::FFullySpecifiedType(Allocator, Parser.Scanner.GetCurrentToken()->SourceInfo);
+		auto ParseResult = ParseDeclarationStorageQualifiers(Parser.Scanner, TypeFlags, DeclarationFlags, bPrimitiveFound, Allocator, &FullType->Qualifier);
 		if (ParseResult == EParseResult::Error)
 		{
 			return ParseResultError();
@@ -616,7 +651,7 @@ namespace CrossCompiler
 
 		if (!bPrimitiveFound && (DeclarationFlags & EDF_PRIMITIVE_DATA_TYPE))
 		{
-			const auto* StreamToken = Scanner.GetCurrentToken();
+			const auto* StreamToken = Parser.Scanner.GetCurrentToken();
 			if (StreamToken)
 			{
 				if (StreamToken->Token == EHlslToken::Identifier)
@@ -630,51 +665,51 @@ namespace CrossCompiler
 						StreamToken->String == TEXT("InputPatch") ||
 						StreamToken->String == TEXT("OutputPatch"))
 					{
-						Scanner.Advance();
+						Parser.Scanner.Advance();
 						bCanBeUnmatched = false;
 
-						if (!Scanner.MatchToken(EHlslToken::Lower))
+						if (!Parser.Scanner.MatchToken(EHlslToken::Lower))
 						{
-							Scanner.SourceError(TEXT("Expected '<'!"));
+							Parser.Scanner.SourceError(TEXT("Expected '<'!"));
 							return ParseResultError();
 						}
 
 						AST::FTypeSpecifier* TypeSpecifier = nullptr;
-						if (ParseGeneralType(Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &TypeSpecifier) != EParseResult::Matched)
+						if (ParseGeneralType(Parser.Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &TypeSpecifier) != EParseResult::Matched)
 						{
-							Scanner.SourceError(TEXT("Expected type!"));
+							Parser.Scanner.SourceError(TEXT("Expected type!"));
 							return ParseResultError();
 						}
 
 						if (StreamToken->String == TEXT("InputPatch") || StreamToken->String == TEXT("OutputPatch"))
 						{
-							if (!Scanner.MatchToken(EHlslToken::Comma))
+							if (!Parser.Scanner.MatchToken(EHlslToken::Comma))
 							{
-								Scanner.SourceError(TEXT("Expected ','!"));
+								Parser.Scanner.SourceError(TEXT("Expected ','!"));
 								return ParseResultError();
 							}
 
 							//@todo-rco: Save this value!
-							auto* Elements = Scanner.GetCurrentToken();
-							if (!Scanner.MatchToken(EHlslToken::UnsignedIntegerConstant))
+							auto* Elements = Parser.Scanner.GetCurrentToken();
+							if (!Parser.Scanner.MatchIntegerLiteral())
 							{
-								Scanner.SourceError(TEXT("Expected number!"));
+								Parser.Scanner.SourceError(TEXT("Expected number!"));
 								return ParseResultError();
 							}
 
-							TypeSpecifier->TextureMSNumSamples = Elements->UnsignedInteger;
+							TypeSpecifier->TextureMSNumSamples = FCString::Atoi(*Elements->String);
 						}
 
-						if (!Scanner.MatchToken(EHlslToken::Greater))
+						if (!Parser.Scanner.MatchToken(EHlslToken::Greater))
 						{
-							Scanner.SourceError(TEXT("Expected '>'!"));
+							Parser.Scanner.SourceError(TEXT("Expected '>'!"));
 							return ParseResultError();
 						}
 
-						auto* IdentifierToken = Scanner.GetCurrentToken();
-						if (!Scanner.MatchToken(EHlslToken::Identifier))
+						auto* IdentifierToken = Parser.Scanner.GetCurrentToken();
+						if (!Parser.Scanner.MatchToken(EHlslToken::Identifier))
 						{
-							Scanner.SourceError(TEXT("Expected identifier!"));
+							Parser.Scanner.SourceError(TEXT("Expected identifier!"));
 							return ParseResultError();
 						}
 
@@ -699,7 +734,7 @@ namespace CrossCompiler
 			bool bInitializer = ((DeclarationFlags & EDF_INITIALIZER) == EDF_INITIALIZER);
 			bool bRegister = ((DeclarationFlags & EDF_REGISTER) == EDF_REGISTER);
 
-			auto Result = ParseTextureOrBufferSimpleDeclaration(Scanner, SymbolScope, bMultiple, bInitializer, bRegister, Allocator, &DeclaratorList);
+			auto Result = ParseTextureOrBufferSimpleDeclaration(Parser.Scanner, SymbolScope, bMultiple, bInitializer, bRegister, Allocator, &DeclaratorList);
 			if (Result == EParseResult::Matched)
 			{
 				*OutDeclaratorList = DeclaratorList;
@@ -713,9 +748,9 @@ namespace CrossCompiler
 
 		const bool bAllowInitializerList = (DeclarationFlags & EDF_INITIALIZER_LIST) == EDF_INITIALIZER_LIST;
 
-		if (Scanner.MatchToken(EHlslToken::Struct))
+		if (Parser.Scanner.MatchToken(EHlslToken::Struct))
 		{
-			auto Result = ParseStructBody(Scanner, SymbolScope, Allocator, &FullType->Specifier);
+			auto Result = ParseStructBody(Parser, SymbolScope, Allocator, &FullType->Specifier);
 			if (Result != EParseResult::Matched)
 			{
 				return ParseResultError();
@@ -723,26 +758,26 @@ namespace CrossCompiler
 
 			do
 			{
-				auto* IdentifierToken = Scanner.GetCurrentToken();
-				if (Scanner.MatchToken(EHlslToken::Identifier))
+				auto* IdentifierToken = Parser.Scanner.GetCurrentToken();
+				if (Parser.Scanner.MatchToken(EHlslToken::Identifier))
 				{
 					//... Instance
 
 					auto* Declaration = new(Allocator) AST::FDeclaration(Allocator, IdentifierToken->SourceInfo);
 					Declaration->Identifier = Allocator->Strdup(IdentifierToken->String);
 
-					if (ParseDeclarationMultiArrayBracketsAndIndex(Scanner, SymbolScope, false, Allocator, Declaration) == EParseResult::Error)
+					if (ParseDeclarationMultiArrayBracketsAndIndex(Parser.Scanner, SymbolScope, false, Allocator, Declaration) == EParseResult::Error)
 					{
 						return ParseResultError();
 					}
 
 					if (DeclarationFlags & EDF_INITIALIZER)
 					{
-						if (Scanner.MatchToken(EHlslToken::Equal))
+						if (Parser.Scanner.MatchToken(EHlslToken::Equal))
 						{
-							if (ParseInitializer(Scanner, SymbolScope, bAllowInitializerList, Allocator, &Declaration->Initializer) != EParseResult::Matched)
+							if (ParseInitializer(Parser.Scanner, SymbolScope, bAllowInitializerList, Allocator, &Declaration->Initializer) != EParseResult::Matched)
 							{
-								Scanner.SourceError(TEXT("Invalid initializer\n"));
+								Parser.Scanner.SourceError(TEXT("Invalid initializer\n"));
 								return ParseResultError();
 							}
 						}
@@ -751,25 +786,25 @@ namespace CrossCompiler
 					DeclaratorList->Declarations.Add(Declaration);
 				}
 			}
-			while ((DeclarationFlags & EDF_MULTIPLE) == EDF_MULTIPLE && Scanner.MatchToken(EHlslToken::Comma));
+			while ((DeclarationFlags & EDF_MULTIPLE) == EDF_MULTIPLE && Parser.Scanner.MatchToken(EHlslToken::Comma));
 			*OutDeclaratorList = DeclaratorList;
 		}
 		else
 		{
-			auto Result = ParseGeneralType(Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &FullType->Specifier);
+			auto Result = ParseGeneralType(Parser.Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &FullType->Specifier);
 			if (Result == EParseResult::Matched)
 			{
 				bool bMatched = false;
 				do
 				{
-					auto* IdentifierToken = Scanner.GetCurrentToken();
-					if (Scanner.MatchToken(EHlslToken::Texture) || Scanner.MatchToken(EHlslToken::Sampler) || Scanner.MatchToken(EHlslToken::Buffer))
+					auto* IdentifierToken = Parser.Scanner.GetCurrentToken();
+					if (Parser.Scanner.MatchToken(EHlslToken::Texture) || Parser.Scanner.MatchToken(EHlslToken::Sampler) || Parser.Scanner.MatchToken(EHlslToken::Buffer))
 					{
 						// Continue, handles the case of 'float3 Texture'...
 					}
-					else if (!Scanner.MatchToken(EHlslToken::Identifier))
+					else if (!Parser.Scanner.MatchToken(EHlslToken::Identifier))
 					{
-						Scanner.SetCurrentTokenIndex(OriginalToken);
+						Parser.Scanner.SetCurrentTokenIndex(OriginalToken);
 						return EParseResult::NotMatched;
 					}
 
@@ -777,35 +812,32 @@ namespace CrossCompiler
 					Declaration->Identifier = Allocator->Strdup(IdentifierToken->String);
 					//AddVar
 
-					if (ParseDeclarationMultiArrayBracketsAndIndex(Scanner, SymbolScope, false, Allocator, Declaration) == EParseResult::Error)
+					if (ParseDeclarationMultiArrayBracketsAndIndex(Parser.Scanner, SymbolScope, false, Allocator, Declaration) == EParseResult::Error)
 					{
 						return ParseResultError();
 					}
 
 					bool bSemanticFound = false;
-					if (DeclarationFlags & EDF_SEMANTIC)
+					if ((DeclarationFlags & (EDF_REGISTER | EDF_PACKOFFSET | EDF_SEMANTIC)) != 0)
 					{
-						if (Scanner.MatchToken(EHlslToken::Colon))
+						if (Parser.Scanner.MatchToken(EHlslToken::Colon))
 						{
-							auto* Semantic = Scanner.GetCurrentToken();
-							if (!Scanner.MatchToken(EHlslToken::Identifier))
+							if (ParseColonSpecifier(Parser.Scanner, Allocator, (DeclarationFlags & (EDF_SEMANTIC | EDF_REGISTER | EDF_PACKOFFSET)), &Declaration->Semantic) != EParseResult::Matched)
 							{
-								Scanner.SourceError(TEXT("Expected identifier for semantic!"));
+								Parser.Scanner.SourceError(TEXT("Expected semantic, register or packoffset!\n"));
 								return ParseResultError();
 							}
-
-							Declaration->Semantic = Allocator->Strdup(Semantic->String);
 							bSemanticFound = true;
 						}
 					}
-					
+
 					if ((DeclarationFlags & EDF_INITIALIZER) && !bSemanticFound)
 					{
-						if (Scanner.MatchToken(EHlslToken::Equal))
+						if (Parser.Scanner.MatchToken(EHlslToken::Equal))
 						{
-							if (ParseInitializer(Scanner, SymbolScope, bAllowInitializerList, Allocator, &Declaration->Initializer) != EParseResult::Matched)
+							if (ParseInitializer(Parser.Scanner, SymbolScope, bAllowInitializerList, Allocator, &Declaration->Initializer) != EParseResult::Matched)
 							{
-								Scanner.SourceError(TEXT("Invalid initializer\n"));
+								Parser.Scanner.SourceError(TEXT("Invalid initializer\n"));
 								return ParseResultError();
 							}
 						}
@@ -813,13 +845,13 @@ namespace CrossCompiler
 
 					DeclaratorList->Declarations.Add(Declaration);
 				}
-				while ((DeclarationFlags & EDF_MULTIPLE) == EDF_MULTIPLE && Scanner.MatchToken(EHlslToken::Comma));
+				while ((DeclarationFlags & EDF_MULTIPLE) == EDF_MULTIPLE && Parser.Scanner.MatchToken(EHlslToken::Comma));
 
 				*OutDeclaratorList = DeclaratorList;
 			}
 			else if (bCanBeUnmatched && Result == EParseResult::NotMatched)
 			{
-				Scanner.SetCurrentTokenIndex(OriginalToken);
+				Parser.Scanner.SetCurrentTokenIndex(OriginalToken);
 				return EParseResult::NotMatched;
 			}
 		}
@@ -827,9 +859,9 @@ namespace CrossCompiler
 		return EParseResult::Matched;
 	}
 
-	EParseResult ParseGeneralDeclaration(FHlslScanner& Scanner, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FDeclaratorList** OutDeclaration, int32 TypeFlags, int32 DeclarationFlags)
+	EParseResult ParseGeneralDeclaration(FHlslParser& Parser, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FDeclaratorList** OutDeclaration, int32 TypeFlags, int32 DeclarationFlags)
 	{
-		auto Result = ParseGeneralDeclarationNoSemicolon(Scanner, SymbolScope, TypeFlags, DeclarationFlags, Allocator, OutDeclaration);
+		auto Result = ParseGeneralDeclarationNoSemicolon(Parser, SymbolScope, TypeFlags, DeclarationFlags, Allocator, OutDeclaration);
 		if (Result == EParseResult::NotMatched || Result == EParseResult::Error)
 		{
 			return Result;
@@ -837,9 +869,9 @@ namespace CrossCompiler
 
 		if (DeclarationFlags & EDF_SEMICOLON)
 		{
-			if (!Scanner.MatchToken(EHlslToken::Semicolon))
+			if (!Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 			{
-				Scanner.SourceError(TEXT("';' expected!\n"));
+				Parser.Scanner.SourceError(TEXT("';' expected!\n"));
 				return ParseResultError();
 			}
 		}
@@ -879,7 +911,7 @@ namespace CrossCompiler
 				}
 
 				AST::FDeclaratorList* Declaration = nullptr;
-				auto Result = ParseGeneralDeclaration(Parser.Scanner, Parser.CurrentScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_SEMICOLON | EDF_TEXTURE_SAMPLER_OR_BUFFER);
+				auto Result = ParseGeneralDeclaration(Parser, Parser.CurrentScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_SEMICOLON | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_PACKOFFSET);
 				if (Result == EParseResult::Error)
 				{
 					return ParseResultError();
@@ -896,37 +928,37 @@ namespace CrossCompiler
 		return ParseResultError();
 	}
 
-	EParseResult ParseStructBody(FHlslScanner& Scanner, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutTypeSpecifier)
+	EParseResult ParseStructBody(FHlslParser& Parser, FSymbolScope* SymbolScope, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutTypeSpecifier)
 	{
-		const auto* Name = Scanner.GetCurrentToken();
+		const auto* Name = Parser.Scanner.GetCurrentToken();
 		if (!Name)
 		{
 			return ParseResultError();
 		}
 
 		bool bAnonymous = true;
-		if (Scanner.MatchToken(EHlslToken::Identifier))
+		if (Parser.Scanner.MatchToken(EHlslToken::Identifier))
 		{
 			bAnonymous = false;
 			SymbolScope->Add(Name->String);
 		}
 
 		const TCHAR* Parent = nullptr;
-		if (Scanner.MatchToken(EHlslToken::Colon))
+		if (Parser.Scanner.MatchToken(EHlslToken::Colon))
 		{
-			const auto* ParentToken = Scanner.GetCurrentToken();
-			if (!Scanner.MatchToken(EHlslToken::Identifier))
+			const auto* ParentToken = Parser.Scanner.GetCurrentToken();
+			if (!Parser.Scanner.MatchToken(EHlslToken::Identifier))
 			{
-				Scanner.SourceError(TEXT("Identifier expected!\n"));
+				Parser.Scanner.SourceError(TEXT("Identifier expected!\n"));
 				return ParseResultError();
 			}
 
 			Parent = Allocator->Strdup(ParentToken->String);
 		}
 
-		if (!Scanner.MatchToken(EHlslToken::LeftBrace))
+		if (!Parser.Scanner.MatchToken(EHlslToken::LeftBrace))
 		{
-			Scanner.SourceError(TEXT("Expected '{'!"));
+			Parser.Scanner.SourceError(TEXT("Expected '{'!"));
 			return ParseResultError();
 		}
 
@@ -936,30 +968,74 @@ namespace CrossCompiler
 		Struct->Name = bAnonymous ? nullptr : Allocator->Strdup(Name->String);
 
 		bool bFoundRightBrace = false;
-		while (Scanner.HasMoreTokens())
+		while (Parser.Scanner.HasMoreTokens())
 		{
-			if (Scanner.MatchToken(EHlslToken::RightBrace))
+			if (Parser.Scanner.MatchToken(EHlslToken::RightBrace))
 			{
 				bFoundRightBrace = true;
 				break;
 			}
 
+			// Greedily eat a member declaration, and backtrack if it's a member function
+			auto OriginalToken = Parser.Scanner.GetCurrentTokenIndex();
 			AST::FDeclaratorList* Declaration = nullptr;
-			auto Result = ParseGeneralDeclaration(Scanner, SymbolScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_SEMICOLON | EDF_SEMANTIC | EDF_MULTIPLE | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INTERPOLATION);
+			auto Result = ParseGeneralDeclarationNoSemicolon(Parser, SymbolScope, 0, EDF_CONST_ROW_MAJOR | EDF_SEMANTIC | EDF_MULTIPLE | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INTERPOLATION, Allocator, &Declaration);
+			bool bTryMemberFunction = false;
 			if (Result == EParseResult::Error)
 			{
 				return ParseResultError();
 			}
 			else if (Result == EParseResult::NotMatched)
 			{
+				bTryMemberFunction = true;
+			}
+			else
+			{
+				check(Result == EParseResult::Matched);
+				if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
+				{
+					// Regular member
+					Struct->Members.Add(Declaration);
+					continue;
+				}
+				else
+				{
+					// Member function, so try again?
+					if (Parser.Scanner.MatchToken(EHlslToken::LeftParenthesis))
+					{
+						Parser.Scanner.SetCurrentTokenIndex(OriginalToken);
+						bTryMemberFunction = true;
+					}
+				}
+			}
+
+			if (bTryMemberFunction)
+			{
+				CrossCompiler::AST::FNode* Function = nullptr;
+				TLinearArray<AST::FAttribute*> Attributes(Allocator);
+				Result = ParseFunctionDeclaration(Parser, Allocator, Attributes, &Function);
+				if (Result == EParseResult::Matched)
+				{
+					Swap(Function->Attributes, Attributes);
+					Struct->Members.Add(Function);
+					continue;
+				}
+				else
+				{
+					return ParseResultError();
+				}
+			}
+			else
+			{
+				// Badness. How can did get here?
+				check(Result == EParseResult::NotMatched);
 				break;
 			}
-			Struct->Declarations.Add(Declaration);
 		}
 
 		if (!bFoundRightBrace)
 		{
-			Scanner.SourceError(TEXT("Expected '}'!"));
+			Parser.Scanner.SourceError(TEXT("Expected '}'!"));
 			return ParseResultError();
 		}
 
@@ -976,7 +1052,7 @@ namespace CrossCompiler
 		while (Parser.Scanner.HasMoreTokens())
 		{
 			AST::FDeclaratorList* Declaration = nullptr;
-			auto Result = ParseGeneralDeclaration(Parser.Scanner, Parser.CurrentScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_IN_OUT | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_SEMANTIC | EDF_PRIMITIVE_DATA_TYPE | EDF_INTERPOLATION | EDF_UNIFORM);
+			auto Result = ParseGeneralDeclaration(Parser, Parser.CurrentScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_IN_OUT | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_SEMANTIC | EDF_PRIMITIVE_DATA_TYPE | EDF_INTERPOLATION | EDF_UNIFORM);
 			if (Result == EParseResult::NotMatched)
 			{
 				auto* Token = Parser.Scanner.PeekToken();
@@ -1170,7 +1246,7 @@ Done:
 					Parser.Scanner.SourceError(TEXT("Identifier for semantic expected"));
 					return ParseResultError();
 				}
-				Function->ReturnSemantic = Allocator->Strdup(Semantic->String);
+				Function->ReturnSemantic = new(Allocator) AST::FSemanticSpecifier(Allocator, *Semantic->String, Semantic->SourceInfo);
 			}
 
 			if (!Parser.Scanner.MatchToken(EHlslToken::LeftBrace))
@@ -1202,7 +1278,7 @@ Done:
 	{
 		AST::FDeclaratorList* List = nullptr;
 		auto Result = ParseGeneralDeclaration(
-			Parser.Scanner, Parser.CurrentScope, Allocator, &List, 0,
+			Parser, Parser.CurrentScope, Allocator, &List, 0,
 			EDF_CONST_ROW_MAJOR | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_INITIALIZER_LIST | EDF_SEMICOLON | EDF_MULTIPLE | EDF_STATIC
 		);
 		*OutDeclaration = List;
@@ -1213,8 +1289,8 @@ Done:
 	{
 		AST::FDeclaratorList* List = nullptr;
 		auto Result = ParseGeneralDeclaration(
-			Parser.Scanner, Parser.CurrentScope, Allocator, &List, ETF_USER_TYPES | ETF_ERROR_IF_NOT_USER_TYPE,
-			EDF_CONST_ROW_MAJOR | EDF_STATIC | EDF_SHARED | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_INITIALIZER_LIST | EDF_SEMICOLON | EDF_MULTIPLE | EDF_UNIFORM | EDF_INTERPOLATION | EDF_REGISTER
+			Parser, Parser.CurrentScope, Allocator, &List, ETF_USER_TYPES | ETF_ERROR_IF_NOT_USER_TYPE,
+			EDF_CONST_ROW_MAJOR | EDF_STATIC | EDF_SHARED | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_INITIALIZER_LIST | EDF_SEMICOLON | EDF_MULTIPLE | EDF_UNIFORM | EDF_INTERPOLATION | EDF_REGISTER | EDF_PACKOFFSET
 		);
 		*OutDeclaration = List;
 		return Result;
@@ -1230,7 +1306,7 @@ Done:
 			return EParseResult::Matched;
 		}
 
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &Statement->OptionalExpression) != EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &Statement->OptionalExpression) != EParseResult::Matched)
 		{
 			Parser.Scanner.SourceError(TEXT("Expression expected"));
 			return ParseResultError();
@@ -1270,7 +1346,7 @@ Done:
 		}
 
 		AST::FExpression* ConditionExpression = nullptr;
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &ConditionExpression) != EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &ConditionExpression) != EParseResult::Matched)
 		{
 			Parser.Scanner.SourceError(TEXT("Expression expected"));
 			return ParseResultError();
@@ -1306,7 +1382,7 @@ Done:
 		}
 
 		AST::FExpression* ConditionExpression = nullptr;
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &ConditionExpression) != EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &ConditionExpression) != EParseResult::Matched)
 		{
 			Parser.Scanner.SourceError(TEXT("Expression expected"));
 			return ParseResultError();
@@ -1345,10 +1421,11 @@ Done:
 		AST::FNode* InitExpression = nullptr;
 		if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 		{
-			// Do nothing...
+			// Do nothing!
 		}
 		else
 		{
+			auto OriginalToken = Parser.Scanner.GetCurrentTokenIndex();
 			auto Result = ParseLocalDeclaration(Parser, Allocator, &InitExpression);
 			if (Result == EParseResult::Error)
 			{
@@ -1357,45 +1434,69 @@ Done:
 			}
 			else if (Result == EParseResult::NotMatched)
 			{
-				Result = ParseExpressionStatement(Parser, Allocator, &InitExpression);
+				Parser.Scanner.SetCurrentTokenIndex(OriginalToken);
+				AST::FExpression* Expr = nullptr;
+				Result = ParseExpressionList2(Parser.Scanner, Parser.CurrentScope, Allocator, AST::FExpressionList::EType::FreeForm, &Expr);
 				if (Result == EParseResult::Error)
 				{
 					Parser.Scanner.SourceError(TEXT("Expected expression or declaration!\n"));
+					return ParseResultError();
+				}
+				InitExpression = Expr;
+
+				AST::FExpression* ConditionExpression = nullptr;
+				if (!Parser.Scanner.MatchToken(EHlslToken::Semicolon))
+				{
+					Parser.Scanner.SourceError(TEXT("Expected ';'!\n"));
 					return ParseResultError();
 				}
 			}
 		}
 
 		AST::FExpression* ConditionExpression = nullptr;
-		auto Result = ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &ConditionExpression);
-		if (Result == EParseResult::Error)
+		if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 		{
-			Parser.Scanner.SourceError(TEXT("Expected expression or declaration!\n"));
-			return ParseResultError();
+			// Do nothing!
 		}
-
-		if (!Parser.Scanner.MatchToken(EHlslToken::Semicolon))
+		else
 		{
-			Parser.Scanner.SourceError(TEXT("Expected ';'!\n"));
-			return ParseResultError();
+			auto Result = ParseExpressionList2(Parser.Scanner, Parser.CurrentScope, Allocator, AST::FExpressionList::EType::FreeForm, &ConditionExpression);
+			if (Result == EParseResult::Error)
+			{
+				Parser.Scanner.SourceError(TEXT("Expected expression or declaration!\n"));
+				return ParseResultError();
+			}
+
+			if (!Parser.Scanner.MatchToken(EHlslToken::Semicolon))
+			{
+				Parser.Scanner.SourceError(TEXT("Expected ';'!\n"));
+				return ParseResultError();
+			}
 		}
 
 		AST::FExpression* RestExpression = nullptr;
-		Result = ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &RestExpression);
-		if (Result == EParseResult::Error)
+		if (Parser.Scanner.MatchToken(EHlslToken::RightParenthesis))
 		{
-			Parser.Scanner.SourceError(TEXT("Expected expression or declaration!\n"));
-			return ParseResultError();
+			// Do nothing!
 		}
-
-		if (!Parser.Scanner.MatchToken(EHlslToken::RightParenthesis))
+		else
 		{
-			Parser.Scanner.SourceError(TEXT("Expected ')'!\n"));
-			return ParseResultError();
+			auto Result = ParseExpressionList2(Parser.Scanner, Parser.CurrentScope, Allocator, AST::FExpressionList::EType::FreeForm, &RestExpression);
+			if (Result == EParseResult::Error)
+			{
+				Parser.Scanner.SourceError(TEXT("Expected expression or declaration!\n"));
+				return ParseResultError();
+			}
+
+			if (!Parser.Scanner.MatchToken(EHlslToken::RightParenthesis))
+			{
+				Parser.Scanner.SourceError(TEXT("Expected ')'!\n"));
+				return ParseResultError();
+			}
 		}
 
 		AST::FNode* Body = nullptr;
-		Result = ParseStatement(Parser, Allocator, &Body);
+		auto Result = ParseStatement(Parser, Allocator, &Body);
 		if (Result != EParseResult::Matched)
 		{
 			return ParseResultError();
@@ -1422,7 +1523,7 @@ Done:
 			return ParseResultError();
 		}
 
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &Statement->Condition) != EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &Statement->Condition) != EParseResult::Matched)
 		{
 			Parser.Scanner.SourceError(TEXT("Expression expected"));
 			return ParseResultError();
@@ -1597,7 +1698,7 @@ Done:
 				else if (Parser.Scanner.MatchToken(EHlslToken::Case))
 				{
 					AST::FExpression* CaseExpression = nullptr;
-					if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &CaseExpression) != EParseResult::Matched)
+					if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &CaseExpression) != EParseResult::Matched)
 					{
 						Parser.Scanner.SourceError(TEXT("Expression expected on case label!"));
 						return ParseResultError();
@@ -1677,7 +1778,7 @@ Done:
 		}
 
 		AST::FExpression* Condition = nullptr;
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_SEQUENCE, Allocator, &Condition) != EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, 0, Allocator, &Condition) != EParseResult::Matched)
 		{
 			Parser.Scanner.SourceError(TEXT("Expression expected"));
 			return ParseResultError();
@@ -1705,7 +1806,7 @@ Done:
 	{
 		auto OriginalToken = Parser.Scanner.GetCurrentTokenIndex();
 		auto* Statement = new(Allocator) AST::FExpressionStatement(Allocator, nullptr, Parser.Scanner.GetCurrentToken()->SourceInfo);
-		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, (EEF_ALLOW_ASSIGNMENT | EEF_ALLOW_SEQUENCE), Allocator, &Statement->Expression) == EParseResult::Matched)
+		if (ParseExpression(Parser.Scanner, Parser.CurrentScope, EEF_ALLOW_ASSIGNMENT, Allocator, &Statement->Expression) == EParseResult::Matched)
 		{
 			if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 			{
@@ -1772,6 +1873,21 @@ Done:
 				if (DeclList)
 				{
 					DeclList->bTypedef = true;
+					for (auto* DeclNode : DeclList->Declarations)
+					{
+						CrossCompiler::AST::FDeclaration* Decl = DeclNode->AsDeclaration();
+						if (Decl)
+						{
+							if (Decl->Identifier && Decl->Identifier[0])
+							{
+								Parser.CurrentScope->Add(Decl->Identifier);
+							}
+						}
+						else
+						{
+							Parser.Scanner.SourceError(TEXT("Internal error on typedef declaration"));
+						}
+					}
 				}
 				else
 				{
@@ -1920,6 +2036,8 @@ Done:
 			{
 				return false;
 			}
+
+			//Parser.Scanner.Dump();
 
 			IR::FIRCreator IRCreator(&Allocator);
 

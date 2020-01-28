@@ -27,6 +27,12 @@ public:
 	virtual class FEdMode* GetEditorMode() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override;
 
+	/** Mode Toolbar Palettes **/
+	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const;
+	virtual FText GetToolPaletteDisplayName(FName PaletteName) const; 
+	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
+	virtual void OnToolPaletteChanged(FName PaletteName) override;
+
 	void RefreshFullList();
 	void NotifyFoliageTypeMeshChanged(class UFoliageType* FoliageType);
 

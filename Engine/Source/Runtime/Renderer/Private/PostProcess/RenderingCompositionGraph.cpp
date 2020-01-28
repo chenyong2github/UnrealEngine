@@ -407,8 +407,10 @@ TUniquePtr<FImagePixelData> FRenderingCompositionGraph::GetDumpOutput(FRendering
 	{
 		case PF_FloatRGBA:
 		{
-			TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(SourceRect.Size());
-			Context.RHICmdList.ReadSurfaceFloatData(Texture, SourceRect, PixelData->Pixels, (ECubeFace)0, 0, 0);
+			TArray<FFloat16Color> RawPixels;
+			RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+			Context.RHICmdList.ReadSurfaceFloatData(Texture, SourceRect, RawPixels, (ECubeFace)0, 0, 0);
+			TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(SourceRect.Size(), TArray64<FFloat16Color>(MoveTemp(RawPixels)));
 
 			check(PixelData->IsDataWellFormed());
 
@@ -420,8 +422,10 @@ TUniquePtr<FImagePixelData> FRenderingCompositionGraph::GetDumpOutput(FRendering
 			FReadSurfaceDataFlags ReadDataFlags(RCM_MinMax);
 			ReadDataFlags.SetLinearToGamma(false);
 
-			TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(SourceRect.Size());
-			Context.RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+			TArray<FLinearColor> RawPixels;
+			RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+			Context.RHICmdList.ReadSurfaceData(Texture, SourceRect, RawPixels, ReadDataFlags);
+			TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(SourceRect.Size(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
 
 			check(PixelData->IsDataWellFormed());
 
@@ -434,8 +438,10 @@ TUniquePtr<FImagePixelData> FRenderingCompositionGraph::GetDumpOutput(FRendering
 			FReadSurfaceDataFlags ReadDataFlags;
 			ReadDataFlags.SetLinearToGamma(false);
 
-			TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size());
-			Context.RHICmdList.ReadSurfaceData(Texture, SourceRect, PixelData->Pixels, ReadDataFlags);
+			TArray<FColor> RawPixels;
+			RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
+			Context.RHICmdList.ReadSurfaceData(Texture, SourceRect, RawPixels, ReadDataFlags);
+			TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(SourceRect.Size(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 			check(PixelData->IsDataWellFormed());
 

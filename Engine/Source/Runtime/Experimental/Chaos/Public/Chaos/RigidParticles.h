@@ -170,8 +170,18 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TSleepData<T, d> SleepData;
 		SleepData.Particle = Particle;
 		SleepData.Sleeping = Sleeping;
-		MSleepData.Add(SleepData); 
+
+		SleepDataLock.WriteLock();
+		MSleepData.Add(SleepData);
+		SleepDataLock.WriteUnlock();
 	}
+	void ClearSleepData()
+	{
+		SleepDataLock.WriteLock();
+		MSleepData.Empty();
+		SleepDataLock.WriteUnlock();
+	}
+	FRWLock& GetSleepDataLock() { return SleepDataLock; }
 
 	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
 	FORCEINLINE EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
@@ -193,7 +203,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
-		LLM_SCOPE(ELLMTag::ChaosParticles);
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
 		Ar << MF << MT << MLinearImpulse << MAngularImpulse << MI << MInvI << MM << MInvM;
 
@@ -223,7 +232,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
+
 	TArray<TSleepData<T, d>> MSleepData;
+	FRWLock SleepDataLock;
 };
 
 

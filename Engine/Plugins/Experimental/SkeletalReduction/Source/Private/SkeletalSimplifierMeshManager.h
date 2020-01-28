@@ -89,6 +89,8 @@ namespace SkeletalSimplifier
 		// Apply a flag to all verts that are identified as being at the corner of a box.
 		void        FlagBoxCorners(const ESimpElementFlags Flag);
 
+		// Apply flag to edges when the IsDifferent(AVert, BVert) == true
+		void        FlagEdges(const TFunction<bool(const SimpVertType*, const SimpVertType*)> IsDifferent, const ESimpElementFlags Flag);
 
 		// Change the attributes on a given simplifier vert.
 		void UpdateVertexAttributes(SimpVertType& Vertex, const MeshVertType& AttributeVert)

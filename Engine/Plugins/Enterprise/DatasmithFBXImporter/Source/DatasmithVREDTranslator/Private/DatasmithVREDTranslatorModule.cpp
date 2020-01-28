@@ -7,8 +7,7 @@
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
 #include "CoreMinimal.h"
-#include "DatasmithImporterModule.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 class FVREDTranslatorModule : public IDatasmithVREDTranslatorModule
 {

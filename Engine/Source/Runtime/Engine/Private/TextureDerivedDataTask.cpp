@@ -24,10 +24,13 @@
 #if WITH_EDITOR
 
 #include "DerivedDataCacheInterface.h"
+#include "Engine/TextureCube.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
-#include "Engine/TextureCube.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VT/VirtualTextureDataBuilder.h"
 
@@ -435,6 +438,28 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			else
 			{
 				bSucceeded = DerivedData->AreDerivedMipsAvailable();
+
+				if (bSucceeded && BuildSettingsPerLayer.Num() > 0)
+				{
+					// Code inspired by the texture compressor module as a hot fix for the bad data that might have been push into the ddc in 4.23 or 4.24 
+					const bool bLongLatCubemap = DerivedData->IsCubemap() && DerivedData->GetNumSlices() == 1;
+					int32 MaximunNumberOfMipMap = TNumericLimits<int32>::Max();
+					if (bLongLatCubemap)
+					{
+						MaximunNumberOfMipMap = FMath::CeilLogTwo(FMath::Clamp<uint32>(uint32(1 << FMath::FloorLog2(DerivedData->SizeX / 2)), uint32(32), BuildSettingsPerLayer[0].MaxTextureResolution)) + 1;
+					}
+					else
+					{
+						MaximunNumberOfMipMap = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, BuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
+					}
+
+					bSucceeded = DerivedData->Mips.Num() <= MaximunNumberOfMipMap;
+				}
+
+				if (!bSucceeded)
+				{
+					UE_LOG(LogTexture, Warning, TEXT("The data retrieved from the derived data cache for the texture %s was invalid. The texture will be rebuild."), *Texture.GetFullName())
+				}
 			}
 		}
 		bLoadedFromDDC = true;

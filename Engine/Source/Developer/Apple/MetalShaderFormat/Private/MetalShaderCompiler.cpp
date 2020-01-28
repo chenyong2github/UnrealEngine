@@ -52,15 +52,20 @@ static FString	GRemoteBuildServerUser;
 static FString	GRemoteBuildServerSSHKey;
 static FString	GSSHPath;
 static FString	GRSyncPath;
-static FString	GMetalToolsPath[2];
-static FString	GMetalBinaryPath[2];
-static FString	GMetalLibraryPath[2];
-static FString	GMetalCompilerVers[2];
+
+static FString	GMetalToolsPath[AppleSDKCount];
+static FString	GMetalBinaryPath[AppleSDKCount];
+static FString	GMetalLibraryPath[AppleSDKCount];
+static FString	GMetalCompilerVers[AppleSDKCount];
 static FString	GTempFolderPath;
 static bool		GMetalLoggedRemoteCompileNotConfigured;	// This is used to reduce log spam, its not perfect because there is not a place to reset this flag so a log msg will only be given once per editor run
 static bool		GRemoteBuildConfigured = false;
 
+EShaderPlatform MetalShaderFormatToLegacyShaderPlatform(FName ShaderFormat);
 FString GetXcodePath();
+
+
+// Remote Building Utility
 
 // Add (|| PLATFORM_MAC) to enable Mac to Mac remote building
 #define UNIXLIKE_TO_MAC_REMOTE_BUILDING (PLATFORM_LINUX)
@@ -310,58 +315,6 @@ bool ExecRemoteProcess(const TCHAR* Command, const TCHAR* Params, int32* OutRetu
 #endif
 }
 
-FString GetXcodePath()
-{
-#if PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING
-	return FPlatformMisc::GetXcodePath();
-#else
-	FString XcodePath;
-	if (ExecRemoteProcess(TEXT("/usr/bin/xcode-select"),TEXT("--print-path"), nullptr, &XcodePath, nullptr) && XcodePath.Len() > 0)
-	{
-		XcodePath.RemoveAt(XcodePath.Len() - 1); // Remove \n at the end of the string
-	}
-	return XcodePath;
-#endif
-}
-
-FString GetMetalStdLibPath(FString const& PlatformPath)
-{
-	FString Result;
-	bool bOK = false;
-	FString Exec = FString::Printf(TEXT("\"%s/clang\" -name metal_stdlib"), *PlatformPath);
-	bOK = ExecRemoteProcess(TEXT("/usr/bin/find"), *Exec, nullptr, &Result, nullptr);
-	if (bOK && Result.Len() > 0)
-	{
-		Result.RemoveAt(Result.Len() - 1); // Remove \n at the end of the string
-	}
-	return Result;
-}
-
-FString GetMetalCompilerVers(FString const& PlatformPath)
-{
-	FString Result;
-	bool bOK = false;
-	bOK = ExecRemoteProcess(*PlatformPath, TEXT("-v"), nullptr, &Result, &Result);
-	if (bOK && Result.Len() > 0)
-	{
-		ANSICHAR Buffer[256];
-#if !PLATFORM_WINDOWS
-		if(sscanf(TCHAR_TO_ANSI(*Result), "Apple LLVM version %*s (%s)", Buffer))
-#else
-		if(sscanf_s(TCHAR_TO_ANSI(*Result), "Apple LLVM version %*s (%s)", Buffer, 256))
-#endif
-		{
-			Result = (&Buffer[0]);
-			Result.RemoveFromEnd(TEXT(")"));
-		}
-		else
-		{
-			Result = TEXT("");
-		}
-	}
-	return Result;
-}
-
 bool RemoteFileExists(const FString& Path)
 {
 #if PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING
@@ -476,86 +429,315 @@ bool CopyRemoteFileToLocal(FString const& RemotePath, FString const& LocalPath)
 #endif
 }
 
-FString GetMetalBinaryPath(uint32 ShaderPlatform)
+bool ChecksumRemoteFile(FString const& RemotePath, uint32* CRC, uint32* Len)
 {
-	const bool bIsMobile = (ShaderPlatform == SP_METAL || ShaderPlatform == SP_METAL_MRT || ShaderPlatform == SP_METAL_TVOS || ShaderPlatform == SP_METAL_MRT_TVOS);
-	if(GMetalBinaryPath[bIsMobile].Len() == 0 || GMetalToolsPath[bIsMobile].Len() == 0)
+	int32 ReturnCode = -1;
+	FString Output;
+	bool bOK = ExecRemoteProcess(TEXT("/usr/bin/cksum"), *RemotePath, &ReturnCode, &Output, nullptr);
+	if (bOK)
 	{
-		FString XcodePath = GetXcodePath();
-		if (XcodePath.Len() > 0)
+#if !PLATFORM_WINDOWS
+		if(swscanf(TCHAR_TO_WCHAR(*Output), WTEXT("%u %u"), CRC, Len) != 2)
+#else
+		if(swscanf_s(*Output, TEXT("%u %u"), CRC, Len) != 2)
+#endif
 		{
-			FString MetalToolsPath = bIsMobile ? FString::Printf(TEXT("%s/Platforms/iPhoneOS.platform/usr/bin"), *XcodePath) : FString::Printf(TEXT("%s/Toolchains/XcodeDefault.xctoolchain/usr/metal/macos/bin"), *XcodePath);
-			FString MetalPath = MetalToolsPath + TEXT("/metal");
-			
-			// Also consider the alternative metal path for iOS in XCode 11 beta
-			if (!RemoteFileExists(MetalPath) && bIsMobile)
-			{
-				MetalToolsPath = FString::Printf(TEXT("%s/Toolchains/XcodeDefault.xctoolchain/usr/metal/ios/bin"), *XcodePath);
-				MetalPath = MetalToolsPath + TEXT("/metal");
-			}
-			
-			if (!RemoteFileExists(MetalPath))
-			{
-				if (bIsMobile)
-				{
-					MetalToolsPath = FString::Printf(TEXT("%s/Platforms/iPhoneOS.platform/usr/bin"), *XcodePath);
-				}
-				else
-				{
-					MetalToolsPath = FString::Printf(TEXT("%s/Platforms/MacOSX.platform/usr/bin"), *XcodePath);
-				}
-				MetalPath = MetalToolsPath + TEXT("/metal");
-
-				if (!RemoteFileExists(MetalPath) && bIsMobile)
-				{
-					MetalToolsPath = FString::Printf(TEXT("%s/Toolchains/XcodeDefault.xctoolchain/usr/metal/ios/bin"), *XcodePath);
-					MetalPath = MetalToolsPath + TEXT("/metal");
-				}
-			}
-
-			if (RemoteFileExists(MetalPath))
-			{
-				GMetalBinaryPath[bIsMobile] = MetalPath;
-				GMetalToolsPath[bIsMobile] = MetalToolsPath;
-				
-				GMetalCompilerVers[bIsMobile] = GetMetalCompilerVers(MetalPath);
-				
-				FString MetalLibraryPath = FString::Printf(TEXT("%s/../lib"), *MetalToolsPath);
-				
-				FString MetalStdLibPath = GetMetalStdLibPath(MetalLibraryPath);
-				if (RemoteFileExists(MetalStdLibPath))
-				{
-					GMetalLibraryPath[bIsMobile] = MetalStdLibPath;
-				}
-			}
+			bOK = false;
 		}
 	}
-
-	return GMetalBinaryPath[bIsMobile];
+	return bOK;
 }
 
-FString GetMetalToolsPath(uint32 ShaderPlatform)
+bool ModificationTimeRemoteFile(FString const& RemotePath, uint64& Time)
 {
-	GetMetalBinaryPath(ShaderPlatform);
-	
-	const bool bIsMobile = (ShaderPlatform == SP_METAL || ShaderPlatform == SP_METAL_MRT || ShaderPlatform == SP_METAL_TVOS || ShaderPlatform == SP_METAL_MRT_TVOS);
-	return GMetalToolsPath[bIsMobile];
+	int32 ReturnCode = -1;
+	FString Output;
+	FString Args = TEXT(" -f \"%Sm\" -t \"%s\" ") + RemotePath;
+	bool bOK = ExecRemoteProcess(TEXT("/usr/bin/stat"), *Args, &ReturnCode, &Output, nullptr);
+	if (bOK)
+	{
+		LexFromString(Time, *Output);
+	}
+	return bOK;
 }
 
-FString GetMetalLibraryPath(uint32 ShaderPlatform)
+bool RemoveRemoteFile(FString const& RemotePath)
 {
-	GetMetalBinaryPath(ShaderPlatform);
-	
-	const bool bIsMobile = (ShaderPlatform == SP_METAL || ShaderPlatform == SP_METAL_MRT || ShaderPlatform == SP_METAL_TVOS || ShaderPlatform == SP_METAL_MRT_TVOS);
-	return GMetalLibraryPath[bIsMobile];
+	int32 ReturnCode = -1;
+	FString Output;
+	bool bOK = ExecRemoteProcess(TEXT("/bin/rm"), *RemotePath, &ReturnCode, &Output, nullptr);
+	if (bOK)
+	{
+		bOK = (ReturnCode == 0);
+	}
+	return bOK;
 }
 
-FString GetMetalCompilerVersion(uint32 ShaderPlatform)
+// SDK Utility
+
+// Returns the SDK name for a given ShaderPlatform
+// Note: This is NOT CORRECT
+// We may want to compile SM5 stuff for ios but we are not using the correct compiler.
+// This has always been broken.
+const TCHAR* GetAppleSDKName(EShaderPlatform ShaderPlatform)
 {
-	GetMetalBinaryPath(ShaderPlatform);
+	static const TCHAR _MacOSXSDK[] = TEXT("macosx");
+	static const TCHAR _IOSSDK[] = TEXT("iphoneos");
+	static const TCHAR _TVOSSDK[] = TEXT("appletvos");
 	
-	const bool bIsMobile = (ShaderPlatform == SP_METAL || ShaderPlatform == SP_METAL_MRT || ShaderPlatform == SP_METAL_TVOS || ShaderPlatform == SP_METAL_MRT_TVOS);
-	return GMetalCompilerVers[bIsMobile];
+	switch(ShaderPlatform)
+	{
+		case SP_METAL:
+		case SP_METAL_MRT:
+			return _IOSSDK;
+		case SP_METAL_SM5:
+		case SP_METAL_SM5_NOTESS:
+		case SP_METAL_MACES3_1:
+		case SP_METAL_MRT_MAC:
+			return _MacOSXSDK;
+		case SP_METAL_TVOS:
+		case SP_METAL_MRT_TVOS:
+			return _TVOSSDK;
+		default:
+			// fall through and die
+			break;
+	}
+	
+	// We can't proceed without an sdk, of course.
+	UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Invalid Shader Platform %u"), ShaderPlatform);
+	return nullptr;
+}
+
+EShaderPlatform AppleSDKToBaseShaderPlatform(EAppleSDKType SDK)
+{
+	switch(SDK)
+	{
+		case AppleSDKMac:
+			return SP_METAL_SM5;
+		case AppleSDKIOS:
+			return SP_METAL;
+		case AppleSDKTVOS:
+			return SP_METAL_TVOS;
+		default:
+			break;
+	}
+	
+	UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("%u is not valid apple sdk type"), SDK);
+	return SP_NumPlatforms;
+}
+
+EAppleSDKType ShaderPlatformToAppleSDK(EShaderPlatform ShaderPlatform)
+{
+	switch(ShaderPlatform)
+	{
+		case SP_METAL:
+		case SP_METAL_MRT:
+			return AppleSDKIOS;
+		case SP_METAL_SM5:
+		case SP_METAL_SM5_NOTESS:
+		case SP_METAL_MACES3_1:
+		case SP_METAL_MRT_MAC:
+			return AppleSDKMac;
+		case SP_METAL_TVOS:
+		case SP_METAL_MRT_TVOS:
+			return AppleSDKTVOS;
+		default:
+			// fall through and die
+			UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Passed in weird ShaderPlatform %u"), ShaderPlatform);
+			return AppleSDKMac;
+			break;
+	}
+	
+	UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("%u is not a Metal shader platform"), ShaderPlatform);
+	return AppleSDKCount;
+}
+
+// Because all the tools included with xcode are liable to move anywhere at anytime we need to invoke them via xcrun.
+bool ExecXcodeCommand(EShaderPlatform ShaderPlatform, const TCHAR* Command, const TCHAR* Parameters, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr)
+{
+	const TCHAR* SDKName = GetAppleSDKName(ShaderPlatform);
+	
+	FString Params = FString::Printf(TEXT("-sdk %s %s %s"), SDKName, Command, Parameters);
+	return ExecRemoteProcess(TEXT("/usr/bin/xcrun"), *Params, OutReturnCode, OutStdOut, OutStdErr);
+}
+
+FString GetXcodePath()
+{
+#if PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING
+	return FPlatformMisc::GetXcodePath();
+#else
+	FString XcodePath;
+	if (ExecRemoteProcess(TEXT("/usr/bin/xcode-select"),TEXT("--print-path"), nullptr, &XcodePath, nullptr) && XcodePath.Len() > 0)
+	{
+		XcodePath.RemoveAt(XcodePath.Len() - 1); // Remove \n at the end of the string
+	}
+	return XcodePath;
+#endif
+}
+
+bool ExtractCompilerInfo(EShaderPlatform ShaderPlatform, FString* OutVersion, FString* OutInstalledDirectory, FString* OutLibDirectory)
+{
+	{
+		// Fetch the version of the metal frontend for ShaderPlatform
+		// We are only interested in the (metalfe-XXX.X.XX) part.
+		// xcrun -sdk <sdk> metal -v
+		// For example (in xcode 11.1):
+		// xcrun -sdk macosx metal --version
+		// Apple LLVM version 902.9 (metalfe-902.9.58)
+		// Target: air64-apple-darwin19.0.0
+		// Thread model: posix
+		// InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/metal/macos/bin
+		
+		bool bOK = false;
+		FString OutputString;
+		bOK = ExecXcodeCommand(ShaderPlatform, TEXT("metal"), TEXT("-v"), nullptr, &OutputString, &OutputString);
+
+		if(bOK && OutputString.Len() > 0)
+		{
+			int32 VersionStart = OutputString.Find(TEXT("(metalfe"));
+			
+			if(VersionStart != -1)
+			{
+				// this should be something in the form of metalfe-XXX.X.XX
+				*OutVersion = OutputString.RightChop(VersionStart+1);
+				int32 End = OutVersion->Find(TEXT(")"));
+				*OutVersion = OutVersion->Left(End);
+			}
+			else
+			{
+				UE_LOG(LogMetalShaderCompiler, Warning, TEXT("Malformed result from metal -v.\nOutput\n%s"), *OutputString);
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogMetalShaderCompiler, Warning, TEXT("Malformed result from metal -v.\nOutput\n%s"), *OutputString);
+			return false;
+		}
+	}
+	
+	{
+		// Fetch the directories where the binaries live and where metal_stdlib lives
+		// xcrun -sdk <sdk> metal -print-search-dirs
+		// For example (Xcode 11.1):
+		// xcrun -sdk macosx metal -print-search-dirs
+		// programs: =/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/metal/macos/bin
+		// libraries: =/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/metal/macos/lib/clang/902.9
+		FString OutputString;
+		bool bOk = ExecXcodeCommand(ShaderPlatform, TEXT("metal"), TEXT("--print-search-dirs"), nullptr, &OutputString, &OutputString);
+		if(bOk && OutputString.Len() > 0)
+		{
+			// split into lines and look for the output
+			TArray<FString> Lines;
+			OutputString.ParseIntoArrayLines(Lines, true);
+
+			if(Lines[0].Contains(TEXT("programs:")))
+			{
+				int32 Index = Lines[0].Find(TEXT("="));
+				*OutInstalledDirectory = Lines[0].RightChop(Index+1);
+			}
+			
+			if(Lines[1].Contains(TEXT("libraries:")))
+			{
+				int32 Index = Lines[1].Find(TEXT("="));
+				*OutLibDirectory = Lines[1].RightChop(Index+1);
+				
+				// ends up pointing to the clang version base. we want the metal headers.
+				*OutLibDirectory /= TEXT("include/metal");
+			}
+		}
+		else
+		{
+			UE_LOG(LogMetalShaderCompiler, Warning, TEXT("Malformed result from metal --print-search-dirs.\nOutput\n%s"), *OutputString);
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+static bool SingleCompilerSetup(EAppleSDKType SDK)
+{
+	FString Version;
+	FString BinaryDirectory;
+	FString LibraryDirectory;
+	
+	EShaderPlatform ShaderPlatform = AppleSDKToBaseShaderPlatform(SDK);
+	if (!ExtractCompilerInfo(ShaderPlatform, &Version, &BinaryDirectory, &LibraryDirectory))
+	{
+		UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("BAD"));
+		return false;
+	}
+	
+	FString MetalCompilerPath = BinaryDirectory / TEXT("metal");
+	FString MetalStdlibPath = LibraryDirectory / TEXT("metal_stdlib");
+	
+//	UE_LOG(LogMetalShaderCompiler, Log, TEXT("Ver %s"), *Version);
+//	UE_LOG(LogMetalShaderCompiler, Log, TEXT("BinDir %s"), *BinaryDirectory);
+//	UE_LOG(LogMetalShaderCompiler, Log, TEXT("LibDir %s"), *LibraryDirectory);
+	
+	bool bMetalExists = RemoteFileExists(MetalCompilerPath);
+	bool bLibExists = RemoteFileExists(MetalStdlibPath);
+	
+	if(!bMetalExists)
+	{
+		UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Missing Metal frontend at %s"), *MetalCompilerPath)
+	}
+	
+	if(!bLibExists)
+	{
+		UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Missing Metal headers at %s"), *MetalStdlibPath)
+	}
+	
+	GMetalToolsPath[SDK] = *BinaryDirectory;
+	GMetalBinaryPath[SDK] = *MetalCompilerPath;
+	GMetalLibraryPath[SDK] = *MetalStdlibPath;
+	GMetalCompilerVers[SDK] = *Version;
+	
+	return true;
+}
+
+static void DoMetalCompilerSetup()
+{
+	// should technically be atomic or dispatch_once.
+	static bool bSetupComplete = false;
+	
+	if(!bSetupComplete)
+	{
+		// Does the compiler exist?
+		SingleCompilerSetup(AppleSDKMac);
+		SingleCompilerSetup(AppleSDKIOS);
+		SingleCompilerSetup(AppleSDKTVOS);
+		bSetupComplete = true;
+	}
+}
+
+static bool IsMetalCompilerAvailable(EShaderPlatform ShaderPlatform)
+{
+	DoMetalCompilerSetup();
+	EAppleSDKType SDK = ShaderPlatformToAppleSDK(ShaderPlatform);
+	return GMetalCompilerVers[SDK].Len() > 0;
+}
+
+const FString& GetMetalToolsPath(EShaderPlatform ShaderPlatform)
+{
+	DoMetalCompilerSetup();
+	EAppleSDKType SDK = ShaderPlatformToAppleSDK(ShaderPlatform);
+	return GMetalToolsPath[SDK];
+}
+
+const FString& GetMetalCompilerVersion(EShaderPlatform ShaderPlatform)
+{
+	DoMetalCompilerSetup();
+	EAppleSDKType SDK = ShaderPlatformToAppleSDK(ShaderPlatform);
+	return GMetalCompilerVers[SDK];
+}
+
+const FString& GetMetalLibraryPath(EShaderPlatform ShaderPlatform)
+{
+	DoMetalCompilerSetup();
+	EAppleSDKType SDK = ShaderPlatformToAppleSDK(ShaderPlatform);
+	return GMetalLibraryPath[SDK];
 }
 
 uint16 GetXcodeVersion(uint64& BuildVersion)
@@ -611,50 +793,6 @@ uint16 GetXcodeVersion(uint64& BuildVersion)
 	}
 	BuildVersion = Build;
 	return Version;
-}
-
-bool ChecksumRemoteFile(FString const& RemotePath, uint32* CRC, uint32* Len)
-{
-	int32 ReturnCode = -1;
-	FString Output;
-	bool bOK = ExecRemoteProcess(TEXT("/usr/bin/cksum"), *RemotePath, &ReturnCode, &Output, nullptr);
-	if (bOK)
-	{
-#if !PLATFORM_WINDOWS
-		if(swscanf(TCHAR_TO_WCHAR(*Output), WTEXT("%u %u"), CRC, Len) != 2)
-#else
-		if(swscanf_s(*Output, TEXT("%u %u"), CRC, Len) != 2)
-#endif
-		{
-			bOK = false;
-		}
-	}
-	return bOK;
-}
-
-bool ModificationTimeRemoteFile(FString const& RemotePath, uint64& Time)
-{
-	int32 ReturnCode = -1;
-	FString Output;
-	FString Args = TEXT(" -f \"%Sm\" -t \"%s\" ") + RemotePath;
-	bool bOK = ExecRemoteProcess(TEXT("/usr/bin/stat"), *Args, &ReturnCode, &Output, nullptr);
-	if (bOK)
-	{
-		LexFromString(Time, *Output);
-	}
-	return bOK;
-}
-
-bool RemoveRemoteFile(FString const& RemotePath)
-{
-	int32 ReturnCode = -1;
-	FString Output;
-	bool bOK = ExecRemoteProcess(TEXT("/bin/rm"), *RemotePath, &ReturnCode, &Output, nullptr);
-	if (bOK)
-	{
-		bOK = (ReturnCode == 0);
-	}
-	return bOK;
 }
 
 /*------------------------------------------------------------------------------
@@ -1476,12 +1614,13 @@ void BuildMetalShaderOutput(
 
 		bool bRemoteBuildingConfigured = IsRemoteBuildingConfigured(&ShaderInput.Environment);
 		
-		FString MetalPath = GetMetalBinaryPath(ShaderInput.Target.Platform);
-		FString MetalToolsPath = GetMetalToolsPath(ShaderInput.Target.Platform);
+		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderInput.Target.Platform);
+		
+		const FString& MetalToolsPath = GetMetalToolsPath(ShaderPlatform);
 		
 		bool bMetalCompilerAvailable = false;
 
-		if (((PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING) || bRemoteBuildingConfigured) && (MetalPath.Len() > 0 && MetalToolsPath.Len() > 0))
+		if (((PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING) || bRemoteBuildingConfigured) && IsMetalCompilerAvailable(ShaderPlatform))
 		{
 			bMetalCompilerAvailable = true;
 		}
@@ -1530,7 +1669,7 @@ void BuildMetalShaderOutput(
 			TCHAR const* CompileType = bRemoteBuildingConfigured ? TEXT("remotely") : TEXT("locally");
 			
 			bool bFoundStdLib = false;
-			FString StdLibPath = GetMetalLibraryPath(ShaderInput.Target.Platform);
+			const FString& StdLibPath = GetMetalLibraryPath(ShaderPlatform);
 			bFoundStdLib = RemoteFileExists(*StdLibPath);
 			
 			// PCHs need the same checksum to ensure that the result can be used with the current version of the file
@@ -1541,7 +1680,7 @@ void BuildMetalShaderOutput(
 			// PCHs need the modifiction time (in secs. since UTC Epoch) to ensure that the result can be used with the current version of the file
 			uint64 ModTime = 0;
 			bool const bModTime = ModificationTimeRemoteFile(StdLibPath, ModTime);
-			FString CompilerVersion = GetMetalCompilerVersion(ShaderInput.Target.Platform);
+			const FString& CompilerVersion = GetMetalCompilerVersion(ShaderPlatform);
 
 			static uint32 UE4StdLibCRCLen = ue4_stdlib_metal_len;
 			static uint32 UE4StdLibCRC = 0;
@@ -1990,7 +2129,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	static FName NAME_SF_METAL_SM5_NOTESS(TEXT("SF_METAL_SM5_NOTESS"));
 	static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
 	static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
-	static FName NAME_SF_METAL_MACES2(TEXT("SF_METAL_MACES2"));
 	static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 	
     EMetalGPUSemantics Semantics = EMetalGPUSemanticsMobile;
@@ -2024,14 +2162,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		VersionEnum = VersionEnum >= 2 ? VersionEnum : 2;
 		MetalCompilerTarget = HCT_FeatureLevelSM5;
 		Semantics = EMetalGPUSemanticsTBDRDesktop;
-	}
-	else if (Input.ShaderFormat == NAME_SF_METAL_MACES2)
-	{
-        UE_CLOG(VersionEnum < 3, LogShaders, Warning, TEXT("Metal shader version must be Metal v2.0 or higher for format %s!"), VersionEnum, *Input.ShaderFormat.ToString());
-		AdditionalDefines.SetDefine(TEXT("METAL_ES2_PROFILE"), 1);
-		VersionEnum = VersionEnum >= 3 ? VersionEnum : 3;
-		MetalCompilerTarget = HCT_FeatureLevelES2;
-		Semantics = EMetalGPUSemanticsImmediateDesktop;
 	}
 	else if (Input.ShaderFormat == NAME_SF_METAL_MACES3_1)
 	{
@@ -2305,9 +2435,16 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		return;
 	}
 
+	FShaderParameterParser ShaderParameterParser;
+	if (!ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer(
+		Input, Output, PreprocessedShader, /* ConstantBufferType = */ nullptr))
+	{
+		// The FShaderParameterParser will add any relevant errors.
+		return;
+	}
 
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
-    RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
+	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
 	
 	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_RetainSizes | HLSLCC_KeepSamplerAndImageNames;
 	if (!bDirectCompile || UE_BUILD_DEBUG)
@@ -2461,6 +2598,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			Output.UsedAttributes = TestOutput.UsedAttributes;
 		}
 	}
+
+	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
 }
 
 bool StripShader_Metal(TArray<uint8>& Code, class FString const& DebugPath, bool const bNative)
@@ -2577,7 +2716,6 @@ EShaderPlatform MetalShaderFormatToLegacyShaderPlatform(FName ShaderFormat)
 	static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
 	static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 	static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
-	static FName NAME_SF_METAL_MACES2(TEXT("SF_METAL_MACES2"));
 	
 	if (ShaderFormat == NAME_SF_METAL)				return SP_METAL;
 	if (ShaderFormat == NAME_SF_METAL_MRT)			return SP_METAL_MRT;
@@ -2587,7 +2725,6 @@ EShaderPlatform MetalShaderFormatToLegacyShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_SF_METAL_SM5)			return SP_METAL_SM5;
 	if (ShaderFormat == NAME_SF_METAL_SM5_NOTESS)	return SP_METAL_SM5_NOTESS;
 	if (ShaderFormat == NAME_SF_METAL_MACES3_1)		return SP_METAL_MACES3_1;
-	if (ShaderFormat == NAME_SF_METAL_MACES2)		return SP_METAL_MACES2;
 	
 	return SP_NumPlatforms;
 }
@@ -2600,9 +2737,8 @@ uint64 AppendShader_Metal(FName const& Format, FString const& WorkingDir, const 
 	bool bRemoteBuildingConfigured = IsRemoteBuildingConfigured();
 	
 	EShaderPlatform Platform = MetalShaderFormatToLegacyShaderPlatform(Format);
-	FString MetalPath = GetMetalBinaryPath(Platform);
-	FString MetalToolsPath = GetMetalToolsPath(Platform);
-	if (MetalPath.Len() > 0 && MetalToolsPath.Len() > 0)
+	
+	if (IsMetalCompilerAvailable(Platform))
 	{
 		// Parse the existing data and extract the source code. We have to recompile it
 		FShaderCodeReader ShaderCode(InShaderCode);
@@ -2711,9 +2847,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 	bool bRemoteBuildingConfigured = IsRemoteBuildingConfigured();
 
 	EShaderPlatform Platform = MetalShaderFormatToLegacyShaderPlatform(Format);
-	FString MetalPath = GetMetalBinaryPath(Platform);
-	FString MetalToolsPath = GetMetalToolsPath(Platform);
-	if (MetalPath.Len() > 0 && MetalToolsPath.Len() > 0)
+	if (IsMetalCompilerAvailable(Platform))
 	{
 		int32 ReturnCode = 0;
 		FString Results;
@@ -2745,11 +2879,10 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 			}
 			
 			int32 Index = 0;
-			FString MetalArPath = MetalToolsPath + TEXT("/metal-ar");
 			FString Params = FString::Printf(TEXT("q \"%s\""), *ArchivePath);
 			
 			const uint32 ArgCommandMax = GetMaxArgLength();
-			const uint32 ArchiveOperationCommandLength = bBuildingRemotely ? GSSHPath.Len() + MetalArPath.Len() : MetalArPath.Len();  
+			const uint32 ArchiveOperationCommandLength = bBuildingRemotely ? GSSHPath.Len() + GetMetalToolsPath(Platform).Len() : GetMetalToolsPath(Platform).Len();
 
 			for (auto Shader : Shaders)
 			{
@@ -2776,7 +2909,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 				// Have we gone past sensible argument length - incremently archive
 				if (Params.Len() + SourceFileNameParam.Len() + ArchiveOperationCommandLength + 3 >= (ArgCommandMax / 2))
 				{
-					ExecRemoteProcess( *MetalArPath, *Params, &ReturnCode, &Results, &Errors );
+					ExecXcodeCommand(Platform, TEXT("metal-ar"), *Params, &ReturnCode, &Results, &Errors);
 					bArchiveFileValid = RemoteFileExists(*ArchivePath);
 					
 					if (ReturnCode != 0 || !bArchiveFileValid)
@@ -2798,7 +2931,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 			// Any left over files - incremently archive again
 			if (!Params.IsEmpty())
 			{
-				ExecRemoteProcess( *MetalArPath, *Params, &ReturnCode, &Results, &Errors );
+				ExecXcodeCommand(Platform, TEXT("metal-ar"), *Params, &ReturnCode, &Results, &Errors);
                 bArchiveFileValid = RemoteFileExists(*ArchivePath);
 				
 				if (ReturnCode != 0 || !bArchiveFileValid)
@@ -2816,9 +2949,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 			if (ReturnCode == 0 && bArchiveFileValid)
 			{
 				UE_LOG(LogShaders, Display, TEXT("Post-processing archive for shader platform: %s"), *Format.GetPlainNameString());
-				
-				FString MetalLibPath = MetalToolsPath + TEXT("/metallib");
-				
+								
 				FString RemoteLibPath = LocalPathToRemote(LibraryPath, RemoteDestination);
 				FString OriginalRemoteLibPath = RemoteLibPath;
 				FString Params;
@@ -2840,7 +2971,8 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 				ReturnCode = 0;
 				Results = TEXT("");
 				Errors = TEXT("");
-				ExecRemoteProcess( *MetalLibPath, *Params, &ReturnCode, &Results, &Errors );
+				
+				ExecXcodeCommand(Platform, TEXT("metallib"), *Params, &ReturnCode, &Results, &Errors);
 	
 				// handle compile error
 				if (ReturnCode == 0)

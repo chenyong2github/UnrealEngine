@@ -278,7 +278,7 @@ void IStatsWriteFile::Stop()
 
 FText IStatsWriteFile::GetFileMetaDesc() const
 {
-	const FTimespan Duration = FTimespan( 0, 0, FPlatformTime::Seconds() - StartTime );
+	const FTimespan Duration = FTimespan( 0, 0, (int32)(FPlatformTime::Seconds() - StartTime) );
 
 	const FText FileMetaDesc = FText::Format( LOCTEXT( "FileMetaDesc_Fmt", "STATS FILE: Duration: {0}, Filesize: {1}" ), FText::AsTimespan( Duration ), FText::AsMemory( (SIZE_T)FileSize ) );
 	return FileMetaDesc;
@@ -758,7 +758,7 @@ void FStatsReadFile::ReadRawStats()
 		else
 		{
 			Frame.Packets.Add( StatPacket );
-			FileInfo.MaximumPacketSize = FMath::Max<int32>( FileInfo.MaximumPacketSize, StatPacket->StatMessages.GetAllocatedSize() );
+			FileInfo.MaximumPacketSize = FMath::Max<int32>( FileInfo.MaximumPacketSize, (int32)StatPacket->StatMessages.GetAllocatedSize() );
 		}
 
 		UpdateReadStageProgress();
@@ -925,7 +925,7 @@ void FStatsReadFile::ProcessStats()
 									// Read OperationSequenceTag.
 									Index++; CurrentStatMessageIndex++;
 									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = SequenceTagMessage.GetValue_int64();
+									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
 
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Alloc );
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocSize ), Size );
@@ -949,7 +949,7 @@ void FStatsReadFile::ProcessStats()
 									// Read OperationSequenceTag.
 									Index++; CurrentStatMessageIndex++;
 									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = SequenceTagMessage.GetValue_int64();
+									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
 
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)OldPtr | (uint64)EMemoryOperation::Realloc );
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)NewPtr | (uint64)EMemoryOperation::Realloc );
@@ -962,7 +962,7 @@ void FStatsReadFile::ProcessStats()
 									// Read OperationSequenceTag.
 									Index++; CurrentStatMessageIndex++;
 									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = SequenceTagMessage.GetValue_int64();
+									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
 
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Free );	// 16 bytes total				
 									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
@@ -1086,7 +1086,7 @@ void FStatsReadFile::UpdateCombinedHistoryStats()
 		int32 FramePackets = It.Value.Packets.Num(); // Threads
 		for (const auto& It2 : It.Value.Packets)
 		{
-			FramePacketsSize += It2->StatMessages.GetAllocatedSize();
+			FramePacketsSize += (int32)It2->StatMessages.GetAllocatedSize();
 			FrameStatMessages += It2->StatMessages.Num();
 		}
 

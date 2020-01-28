@@ -1758,9 +1758,10 @@ namespace OculusHMD
 		if (LayerFound && (*LayerFound)->GetSwapChain().IsValid())
 		{
 			bool bRightTexture = (*LayerFound)->GetRightSwapChain().IsValid();
-			switch ((*LayerFound)->GetDesc().ShapeType)
+			const IStereoLayers::FLayerDesc& Desc = (*LayerFound)->GetDesc();
+			
+			if (Desc.HasShape<FCubemapLayer>())
 			{
-			case IStereoLayers::CubemapLayer:
 				if (bRightTexture)
 				{
 					Texture = (*LayerFound)->GetRightSwapChain()->GetTextureCube();
@@ -1769,10 +1770,10 @@ namespace OculusHMD
 				else
 				{
 					Texture = LeftTexture = (*LayerFound)->GetSwapChain()->GetTextureCube();
-				}				break;
-
-			case IStereoLayers::CylinderLayer:
-			case IStereoLayers::QuadLayer:
+				}
+			}
+			else if (Desc.HasShape<FCylinderLayer>() || Desc.HasShape<FQuadLayer>())
+			{
 				if (bRightTexture)
 				{
 					Texture = (*LayerFound)->GetRightSwapChain()->GetTexture2D();
@@ -1782,24 +1783,16 @@ namespace OculusHMD
 				{
 					Texture = LeftTexture = (*LayerFound)->GetSwapChain()->GetTexture2D();
 				}
-				break;
-
-			default:
-				break;
 			}
 		}
 	}
 
 	IStereoLayers::FLayerDesc FOculusHMD::GetDebugCanvasLayerDesc(FTextureRHIRef Texture)
 	{
-		IStereoLayers::FLayerDesc StereoLayerDesc;
+		IStereoLayers::FLayerDesc StereoLayerDesc(FCylinderLayer(180.f, 488.f / 4, 100.f));
 		StereoLayerDesc.Transform = FTransform(FVector(0.f, 0, 0)); //100/0/0 for quads
-		StereoLayerDesc.CylinderHeight = 180.f;
-		StereoLayerDesc.CylinderOverlayArc = 488.f/4;
-		StereoLayerDesc.CylinderRadius = 100.f;
 		StereoLayerDesc.QuadSize = FVector2D(180.f, 180.f);
 		StereoLayerDesc.PositionType = IStereoLayers::ELayerType::FaceLocked;
-		StereoLayerDesc.ShapeType = IStereoLayers::ELayerShape::CylinderLayer;
 		StereoLayerDesc.LayerSize = Texture->GetTexture2D()->GetSizeXY();
 		StereoLayerDesc.Flags = IStereoLayers::ELayerFlags::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		StereoLayerDesc.Flags |= IStereoLayers::ELayerFlags::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO;

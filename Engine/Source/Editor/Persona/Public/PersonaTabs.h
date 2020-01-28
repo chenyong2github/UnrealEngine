@@ -38,6 +38,7 @@ struct PERSONA_API FPersonaTabs
 	static const FName SkeletonSlotGroupNamesID;
 	static const FName CurveNameManagerID;
 	static const FName BlendProfileManagerID;
+	static const FName AnimMontageSectionsID;
 
 	// Advanced Preview Scene
 	static const FName AdvancedPreviewSceneSettingsID;

@@ -72,16 +72,7 @@ public:
 	virtual void StartTool(const FString& ToolTypeIdentifier);
 	virtual void EndTool(EToolShutdownType ShutdownType);
 
-
-public:
-	// forwards message to OnToolNotificationMessage delegate
-	virtual void PostToolNotificationMessage(const FText& Message);
-	virtual void PostToolWarningMessage(const FText& Message);
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FEdModeToolsContextToolNotification, const FText&);
-	FEdModeToolsContextToolNotification OnToolNotificationMessage;
-	FEdModeToolsContextToolNotification OnToolWarningMessage;
-
+	virtual bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
 
 protected:
 	// we hide these 
@@ -120,11 +111,13 @@ protected:
 	// Copy-pasted from other Editor code, seems kind of expensive?
 	static FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 
+	/** This will be set to true if user is in right-mouse "fly mode", which requires special handling to intercept hotkeys/etc */
+	bool bInFlyMode = false;
 
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
 	bool bHaveSavedEditorState = false;
-	bool bSavedAntiAliasingState = false;
+	FLevelEditorViewportClient* SavedViewportClient;
 	void SaveEditorStateAndSetForTool();
 	void RestoreEditorState();
 

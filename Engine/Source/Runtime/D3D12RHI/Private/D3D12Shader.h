@@ -39,6 +39,9 @@ public:
 struct FD3D12ShaderData
 {
 	TArray<FShaderCodeVendorExtension> VendorExtensions;
+
+	/** The static slot associated with the resource table index in ShaderResourceTable. */
+	TArray<FUniformBufferStaticSlot> StaticSlots;
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */

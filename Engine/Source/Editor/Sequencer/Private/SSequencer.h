@@ -15,6 +15,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Sequencer.h"
 
 class FActorDragDropGraphEdOp;
@@ -194,11 +195,14 @@ public:
 		/** Called when the user sets a marked frame */
 		SLATE_EVENT(FOnSetMarkedFrame, OnSetMarkedFrame)
 
-		/** Called when the user changes on the set of marked frames */
-		SLATE_EVENT(FOnMarkedFrameChanged, OnMarkedFrameChanged)
+		/** Called when the user adds a marked frame */
+		SLATE_EVENT(FOnAddMarkedFrame, OnAddMarkedFrame)
 
-		/** Called when all marked frames should be cleared */
-		SLATE_EVENT( FSimpleDelegate, OnClearAllMarkedFrames)
+		/** Called when the user deletes a marked frame */
+		SLATE_EVENT(FOnDeleteMarkedFrame, OnDeleteMarkedFrame)
+
+		/** Called when all marked frames should be deleted */
+		SLATE_EVENT( FSimpleDelegate, OnDeleteAllMarkedFrames)
 
 		/** Called when the user changes the clamp range */
 		SLATE_EVENT( FOnTimeRangeChanged, OnClampRangeChanged )
@@ -314,6 +318,10 @@ public:
 
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
+
+	/** Set's the specified filter to be on or off*/
+	void SetFilterOn(const FText& InName, bool bOn);
+
 public:
 
 	// FNotifyHook overrides
@@ -596,8 +604,11 @@ private:
 	/** The search widget for filtering curves in the Curve Editor tree. */
 	TSharedPtr<SWidget> CurveEditorSearchBox;
 
-	/** The current playback time display.*/
+	/** The current playback time display. */
 	TSharedPtr<STemporarilyFocusedSpinBox<double>> PlayTimeDisplay;
+
+	/** The current loop display for when editing a looping sub-sequence. */
+	TSharedPtr<STextBlock> LoopIndexDisplay;
 
 	/** The sequencer tree view responsible for the outliner and track areas */
 	TSharedPtr<SSequencerTreeView> TreeView;

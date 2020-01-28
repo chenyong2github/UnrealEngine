@@ -11,7 +11,7 @@
 #include "/Engine/Generated/VertexFactory.ush" 
 
 #define SUPPORT_MATERIAL_PROPERTY 1
-uint MaterialPass_ClusterId;
+uint MaterialPass_MacroGroupId;
 uint MaterialPass_MaterialId;  
 uint MaterialPass_PrimitiveId;
 RWStructuredBuffer<FNodeData>	OutNodeData;
@@ -167,7 +167,7 @@ FEvaluateOutput Evaluate(
 	FVisibilityData OutVisibilityData = (FVisibilityData)0;	
 	OutVisibilityData.Coverage8bit = SampleCoverage8bit;
 	OutVisibilityData.PrimitiveId = SampleCoverage8bit;
-	OutVisibilityData.ClusterId = MaterialPass_ClusterId;
+	OutVisibilityData.MacroGroupId = MaterialPass_MacroGroupId;
 
 	half3 OutBaseColor = 0;
 	float OutRoughness = 0;
@@ -191,7 +191,7 @@ FEvaluateOutput Evaluate(
 
 		//OutVisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
 		//OutVisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
-		//OutVisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+		//OutVisibilityData.MacroGroupId = HairVisibilityPass_HairMacroGroupIndex;
 		//OutVisibilityData.Coverage8bit = To8bitCoverage(Coverage);
 
 		// Material computation
@@ -313,7 +313,7 @@ void Main(
 	VisibilityData.Tangent = float3(0, 0, 1);
 	VisibilityData.PrimitiveId = 0;
   #endif
-	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+	VisibilityData.MacroGroupId = HairVisibilityPass_HairMacroGroupIndex;
 	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
 
 	half3 BaseColor = 0;

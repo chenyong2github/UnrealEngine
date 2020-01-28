@@ -20,6 +20,8 @@ struct FVariantManagerObjectVersion
 
 		SerializePropertiesAsNames,
 
+		StoreDisplayOrder,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

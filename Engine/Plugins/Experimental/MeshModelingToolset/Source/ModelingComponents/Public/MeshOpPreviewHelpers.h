@@ -14,18 +14,7 @@
  * FBackgroundDynamicMeshComputeSource is an instantiation of the TBackgroundModelingComputeSource
  * template for FDynamicMeshOperator / IDynamicMeshOperatorFactory
  */
-class MODELINGCOMPONENTS_API FBackgroundDynamicMeshComputeSource
-	: public TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>
-{
-public:
-	using BaseType = TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>;
-
-	FBackgroundDynamicMeshComputeSource(IDynamicMeshOperatorFactory* OperatorSourceIn)
-		: BaseType(OperatorSourceIn)
-	{
-	}
-};
-
+using FBackgroundDynamicMeshComputeSource = TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>;
 
 
 /**
@@ -74,7 +63,7 @@ public:
 	/**
 	 * Terminate any active computation and return the current Preview Mesh/Transform
 	 */
-	TUniquePtr<FDynamicMeshOpResult> Shutdown();
+	FDynamicMeshOpResult Shutdown();
 
 	/**
 	* Terminate any active computation without returning anything
@@ -115,6 +104,12 @@ public:
 	void ConfigureMaterials(UMaterialInterface* StandardMaterial, UMaterialInterface* InProgressMaterial);
 
 	/**
+	 * Configure the Standard and In-Progress materials
+	 */
+	void ConfigureMaterials(TArray<UMaterialInterface*> StandardMaterials, UMaterialInterface* InProgressMaterial);
+
+
+	/**
 	 * Set the visibility of the Preview mesh
 	 */
 	void SetVisibility(bool bVisible);
@@ -136,9 +131,13 @@ public:
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh = nullptr;
 
-	// material used on PreviewMesh
+	// input set of materials to assign to PreviewMesh
 	UPROPERTY()
-	UMaterialInterface* StandardMaterial = nullptr;
+	TArray<UMaterialInterface*> StandardMaterials;
+
+	// override material to forward to PreviewMesh if set
+	UPROPERTY()
+	UMaterialInterface* OverrideMaterial = nullptr;
 
 	// if non-null, this material is swapped in when a background compute is active
 	UPROPERTY()

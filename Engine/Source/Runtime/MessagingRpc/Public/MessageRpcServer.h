@@ -13,9 +13,11 @@ class FMessageEndpoint;
 class FMessagingRpcModule;
 class IAsyncProgress;
 class IAsyncTask;
+class IMessageBus;
 class IMessageRpcHandler;
 
 struct FMessageRpcCancel;
+struct FMessageEndpointBuilder;
 
 
 /**
@@ -25,6 +27,9 @@ class MESSAGINGRPC_API FMessageRpcServer
 	: public IMessageRpcServer
 {
 public:
+	/** Default constructor. */
+	FMessageRpcServer();
+	FMessageRpcServer(const FString& InDebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus);
 
 	/** Virtual destructor. */
 	virtual ~FMessageRpcServer();
@@ -36,11 +41,9 @@ public:
 	virtual void AddHandler(const FName& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) override;
 	virtual const FMessageAddress& GetAddress() const override;
 	virtual FOnMessageRpcNoHandler& OnNoHandler() override;
-
+	virtual void SetSendProgressUpdate(bool InSendProgress) override;
 protected:
-
-	/** Default constructor. */
-	FMessageRpcServer();
+	explicit FMessageRpcServer(FMessageEndpointBuilder&& InEndpointBuilder);
 
 	struct FReturnInfo
 	{
@@ -92,5 +95,6 @@ private:
 	/** Handle to the registered ticker. */
 	FDelegateHandle TickerHandle;
 
-	friend FMessagingRpcModule;
+	/** If the server sends progress updates. */
+	bool bSendProgress = true;
 };

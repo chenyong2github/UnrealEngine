@@ -49,19 +49,24 @@ class LIVELINKCOMPONENTS_API ULiveLinkTransformController : public ULiveLinkCont
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category="LiveLink", meta=(UseComponentPicker, AllowedClasses="SceneComponent"))
-	FComponentReference ComponentToControl;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FComponentReference ComponentToControl_DEPRECATED;
+#endif //WITH_EDITORONLY_DATA
 	
 	UPROPERTY(EditAnywhere, Category="LiveLink", meta=(ShowOnlyInnerProperties))
 	FLiveLinkTransformControllerData TransformData;
 
 public:
+	//~Begin ULiveLinkControllerBase interface
 	virtual void OnEvaluateRegistered() override;
-	virtual void Tick(float DeltaTime, const FLiveLinkSubjectRepresentation& SubjectRepresentation) override;
+	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
 	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
+	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
+	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
+	//~End ULiveLinkControllerBase interface
 
-public:
-#if WITH_EDITOR
-	virtual void InitializeInEditor() override;
-#endif
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
 };

@@ -22,8 +22,8 @@ public:
 	FVariantManagerSelection();
 
 	/** Gets a set of the selected outliner nodes. */
-	const TSet<TSharedRef<FVariantManagerDisplayNode>>& GetSelectedOutlinerNodes() const;
-	const TSet<TSharedRef<FVariantManagerActorNode>>& GetSelectedActorNodes() const;
+	TSet<TSharedRef<FVariantManagerDisplayNode>>& GetSelectedOutlinerNodes();
+	TSet<TSharedRef<FVariantManagerActorNode>>& GetSelectedActorNodes();
 
 	void GetSelectedVariantsAndVariantSets(TArray<UVariant*>& OutVariants, TArray<UVariantSet*>& OutVariantSets);
 

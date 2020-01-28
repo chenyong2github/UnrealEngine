@@ -180,6 +180,8 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 }
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 TSharedPtr<FJsonValue> FJsonObjectConverter::ObjectJsonCallback(FProperty* Property, const void* Value)
 {
 	if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
@@ -203,6 +205,8 @@ TSharedPtr<FJsonValue> FJsonObjectConverter::ObjectJsonCallback(FProperty* Prope
 	// invalid
 	return TSharedPtr<FJsonValue>();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TSharedPtr<FJsonValue> FJsonObjectConverter::UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb)
 {

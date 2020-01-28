@@ -58,6 +58,14 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	ECVF_Default
 );
 
+static int32 GNiagaraComponentWarnNullAsset = 0;
+static FAutoConsoleVariableRef CVarNiagaraComponentWarnNullAsset(
+	TEXT("fx.Niagara.ComponentWarnNullAsset"),
+	GNiagaraComponentWarnNullAsset,
+	TEXT("When enabled we will warn if a NiagaraComponent is activate with a null asset.  This is sometimes useful for tracking down components that can be removed."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -371,7 +379,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
-		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::ES3_1))
+		if (Renderer && (Renderer->GetSimTarget() != ENiagaraSimTarget::GPUComputeSim || FNiagaraUtilities::AllowGPUParticles(ViewFamily.GetShaderPlatform())))
 		{
 			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, this);
 		}
@@ -424,7 +432,6 @@ void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, 
 
 UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, OverrideParameters(this)
 	, bForceSolo(false)
 	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
 	, DesiredAge(0.0f)
@@ -449,6 +456,8 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, OwnerLOD(0)
 {
+	OverrideParameters.SetOwner(this);
+
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics;
 	PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
@@ -782,7 +791,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (Asset == nullptr)
 	{
 		DestroyInstance();
-		if (!HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject | RF_ClassDefaultObject))
+		if (GNiagaraComponentWarnNullAsset && !HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject | RF_ClassDefaultObject))
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara Component due to missing or invalid asset! (%s)"), *GetFullName());
 		}
@@ -913,41 +922,31 @@ void UNiagaraComponent::Deactivate()
 
 void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */)
 {
-	if (IsActive())
+	// Unregister with the scalability manager if this is a genuine deactivation from outside.
+	// The scalability manager itself can call this function when culling systems.
+	if (bIsScalabilityCull == false)
+	{
+		UnregisterWithScalabilityManager();
+	}
+
+	if (IsActive() && SystemInstance)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
 		//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
 
-		if (SystemInstance)
-		{
-			// Don't deactivate in solo mode as we are not ticked by the world but rather the component
-			// Deactivating will cause the system to never Complete
-			if (SystemInstance->IsSolo() == false)
-			{
-				Super::Deactivate();
-			}
-
-			SystemInstance->Deactivate();
-
-			// We are considered active until we are complete
-			SetActiveFlag(!SystemInstance->IsComplete());
-		}
-		else
+		// Don't deactivate in solo mode as we are not ticked by the world but rather the component
+		// Deactivating will cause the system to never Complete
+		if (SystemInstance->IsSolo() == false)
 		{
 			Super::Deactivate();
-			SetActiveFlag(false);
-		}
-
-		//Unregister with the scalability manager if this is a genuine deactivation from outside.
-		//The scalability manager itself can call this function when culling systems.
-		if (bIsScalabilityCull == false)
-		{
-			UnregisterWithScalabilityManager();
 		}
 
 		SystemInstance->Deactivate();
+
+		// We are considered active until we are complete
+		SetActiveFlag(!SystemInstance->IsComplete());
 	}
 	else
 	{
@@ -1125,6 +1124,8 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
 	//DestroyInstance();//Can't do this here as we can call this from inside the system instance currently during completion 
 
+	UnregisterWithScalabilityManager();
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
@@ -1152,7 +1153,11 @@ void UNiagaraComponent::OnUnregister()
 
 void UNiagaraComponent::BeginDestroy()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP  %s\n"), this, *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+
+	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
+	ScalabilityManagerHandle = INDEX_NONE;
+
 	DestroyInstance();
 
 	Super::BeginDestroy();
@@ -1173,7 +1178,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if ( SystemInstance )
 	{
-		SystemInstance->WaitForAsyncTick();
+		SystemInstance->WaitForAsyncTickAndFinalize();
 	}
 }
 
@@ -1634,6 +1639,7 @@ void UNiagaraComponent::PreEditChange(FProperty* PropertyAboutToChange)
 	if (PropertyAboutToChange != nullptr && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, Asset) && Asset != nullptr)
 	{
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
+		DestroyInstance();
 	}
 }
 

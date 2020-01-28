@@ -16,6 +16,7 @@ public:
 	UMovieSceneAnimationTrackRecorderEditorSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
 	, AnimationTrackName(NSLOCTEXT("UMovieSceneAnimationTrackRecorderSettings", "DefaultAnimationTrackName", "RecordedAnimation"))
+	, AnimationAssetName(TEXT("{actor}_{slate}_{take}"))
 	, AnimationSubDirectory(TEXT("Animation"))
 	, bRemoveRootAnimation(true)
 	{
@@ -24,6 +25,10 @@ public:
 	/** Name of the recorded animation track. */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings")
 	FText AnimationTrackName;
+
+	/** The name of the animation asset. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings")
+	FString AnimationAssetName;
 
 	/** The name of the subdirectory animations will be placed in. Leave this empty to place into the same directory as the sequence base path. */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings")

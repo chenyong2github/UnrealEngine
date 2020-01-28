@@ -208,7 +208,6 @@ public:
 
 	virtual void RemoveElement(const TPayloadType& Payload) override
 	{
-		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeRemoveElement);
 		if (const FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
 		{
@@ -233,7 +232,6 @@ public:
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T,d>& NewBounds, bool bHasBounds) override
 	{
-		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeUpdateElement);
 		if (FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
 		{
@@ -317,7 +315,6 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
-		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::GlobalElementsHaveBounds)
 		{
@@ -341,19 +338,28 @@ public:
 		Ar << MDirtyElements;
 		Ar << bIsEmpty;
 
-		TArray<TPayloadType> Payloads;
-		if (!Ar.IsLoading())
-		{
-			MPayloadInfo.GenerateKeyArray(Payloads);
-		}
-		Ar << Payloads;
+		Ar << MPayloadInfo;
+		
 
-		for (auto Payload : Payloads)
+	}
+
+	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
+	{
+		OutElements.Append(MGlobalPayloads);
+		OutElements.Reserve(OutElements.Num() + MDirtyElements.Num());
+		for(const FCellElement& Elem : MDirtyElements)
 		{
-			auto& Info = MPayloadInfo.FindOrAdd(Payload);
-			Ar << Info;
+			OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
 		}
 
+		for(int32 Idx = 0; Idx < MElements.Num(); ++Idx)
+		{
+			const TArray<FCellElement>& Elems = MElements[Idx];
+			for(const FCellElement& Elem : Elems)
+			{
+				OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
+			}
+		}
 	}
 
 private:
@@ -778,7 +784,7 @@ private:
 
 		const TVector<int32, d> StartIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Min()));
 		const TVector<int32, d> EndIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Max()));
-		TSet<TPayloadType> InstancesSeen;
+		TSet<FUniqueIdx> InstancesSeen;
 
 		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
 		{
@@ -791,11 +797,11 @@ private:
 					{
 						if (bPruneDuplicates)
 						{
-							if (InstancesSeen.Contains(Elem.Payload))
+							if (InstancesSeen.Contains(GetUniqueIdx(Elem.Payload)))
 							{
 								continue;
 							}
-							InstancesSeen.Add(Elem.Payload);
+							InstancesSeen.Add(GetUniqueIdx(Elem.Payload));
 						}
 						const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 						if (QueryBounds.Intersects(InstanceBounds))
@@ -817,7 +823,6 @@ private:
 	template <typename ParticleView>
 	void GenerateTree(const ParticleView& Particles, const bool bUseVelocity, const T Dt, const int32 MaxCells)
 	{
-		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		MGlobalPayloads.Reset();
 		MPayloadInfo.Reset();
 		bIsEmpty = true;
@@ -1114,8 +1119,10 @@ private:
 			}
 		}
 
-
-		Algo::Sort(Intersections);
+		Algo::Sort(Intersections,[](const TPayloadType& A,const TPayloadType& B)
+		{
+			return GetUniqueIdx(A) < GetUniqueIdx(B);
+		});
 
 		for (int32 i = Intersections.Num() - 1; i > 0; i--)
 		{
@@ -1178,7 +1185,7 @@ private:
 	TUniformGrid<T, d> MGrid;
 	TArrayND<TArray<FCellElement>, d> MElements;
 	TArray<FCellElement> MDirtyElements;
-	TMap<TPayloadType, FPayloadInfo> MPayloadInfo;
+	TArrayAsMap<TPayloadType, FPayloadInfo> MPayloadInfo;
 	T MaxPayloadBounds;
 	bool bIsEmpty;
 };

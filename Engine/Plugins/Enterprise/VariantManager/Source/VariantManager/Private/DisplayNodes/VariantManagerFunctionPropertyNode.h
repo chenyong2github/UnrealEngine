@@ -29,6 +29,16 @@ public:
 	TWeakObjectPtr<UVariantObjectBinding> GetObjectBinding() const;
 	FFunctionCaller& GetFunctionCaller() const;
 
+	/**
+	* Get the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	*/
+	virtual uint32 GetDisplayOrder() const override;
+
+	/**
+	* Set the order with which the VariantManager should display this in a property list. Lower values will be shown higher up
+	*/
+	virtual void SetDisplayOrder(uint32 InDisplayOrder) override;
+
 private:
 
 	// Set the target function as the selected option both for this node as well as for the underlying binding

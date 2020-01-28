@@ -15,6 +15,7 @@
 #include "Widgets/Images/SImage.h"
 #include "AnimGraphNode_Root.h"
 #include "ScopedTransaction.h"
+#include "ObjectEditorUtils.h"
 #include "SKismetInspector.h"
 #include "AnimationGraph.h"
 #include "AnimationGraphSchema.h"
@@ -403,7 +404,7 @@ void FAnimGraphDetails::RefreshGroupSource()
 				
 		if(Function->HasMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction))
 		{
-			FText Group = Function->GetMetaDataText(FBlueprintMetadata::MD_FunctionCategory, TEXT("UObjectCategory"), Function->GetFullGroupName(false));
+			FText Group = FObjectEditorUtils::GetCategoryText(Function);
 
 			if (!Group.IsEmpty())
 			{

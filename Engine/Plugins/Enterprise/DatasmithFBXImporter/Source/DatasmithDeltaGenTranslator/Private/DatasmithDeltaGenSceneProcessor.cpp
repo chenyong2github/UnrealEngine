@@ -54,7 +54,7 @@ namespace FDeltaGenProcessorImpl
 				NewAnimation->TargetNode = *Dummy->Name;
 				NewAnimation->Tracks = MoveTemp(NewTracks);
 
-				Dummy->MarkMovableNode();
+				Dummy->KeepNode();
 			}
 		}
 	}

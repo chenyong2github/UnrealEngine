@@ -9,6 +9,8 @@
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
+DECLARE_CYCLE_STAT(TEXT("Render Asset Incremental Update"), FStaticComponentRenderAssetManager_IncrementalUpdate, STATGROUP_StreamingDetailsVerbose);
+
 FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: Level(InLevel)
 	, bIsInitialized(false)
@@ -270,7 +272,7 @@ void FLevelRenderAssetManager::IncrementalUpdate(
 	float Percentage, 
 	bool bUseDynamicStreaming) 
 {
-	QUICK_SCOPE_CYCLE_COUNTER(FStaticComponentRenderAssetManager_IncrementalUpdate);
+	SCOPE_CYCLE_COUNTER(FStaticComponentRenderAssetManager_IncrementalUpdate);
 
 	check(Level);
 

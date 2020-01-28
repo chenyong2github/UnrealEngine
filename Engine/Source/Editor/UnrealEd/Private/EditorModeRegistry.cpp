@@ -15,6 +15,7 @@
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
 #include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
 #include "Tools/UEdMode.h"
+#include "Classes/EditorStyleSettings.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)
@@ -49,8 +50,20 @@ void FEditorModeRegistry::Initialize()
 {
 	Get();
 
-	// Add default editor modes
-	GModeRegistry->RegisterMode<FEdModeDefault>(FBuiltinEditorModes::EM_Default);
+	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+	{
+		// Add default editor modes
+		FEditorModeRegistry::Get().RegisterMode<FEdModeDefault>(
+			FBuiltinEditorModes::EM_Default,
+			NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
+			true, 0);
+	}
+	else
+	{
+		GModeRegistry->RegisterMode<FEdModeDefault>(FBuiltinEditorModes::EM_Default);
+	}
+
 	GModeRegistry->RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
 
 	// Load editor mode modules that will automatically register their editor modes, and clean themselves up on unload.

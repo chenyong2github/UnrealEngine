@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnalyzedMaterialNodeWidgetItem.h"
 #include "Widgets/Views/STreeView.h"

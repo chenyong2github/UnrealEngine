@@ -43,9 +43,7 @@ DEFINE_LOG_CATEGORY(LogDatasmithDeltaGenImport);
 #define REVERSE_ATTACH_ORDER 1
 
 // Asset paths of blueprints used here
-#define SWITCH_BLUEPRINT_ASSET		TEXT("/DatasmithContent/Blueprints/FBXImporter/BP_Switch")
-#define TOGGLE_BLUEPRINT_ASSET		TEXT("/DatasmithContent/Blueprints/FBXImporter/BP_Toggle")
-#define SHARED_NODE_BLUEPRINT_ASSET	TEXT("/DatasmithContent/Blueprints/FBXImporter/BP_SharedNode")
+#define SWITCH_ACTOR_CLASS TEXT("/Script/VariantManagerContent.SwitchActor")
 
 class FAsyncReleaseFbxScene : public FNonAbandonableTask
 {
@@ -87,29 +85,12 @@ void FDatasmithDeltaGenImporter::SetImportOptions(UDatasmithDeltaGenImportOption
 
 bool FDatasmithDeltaGenImporter::OpenFile(const FString& FilePath)
 {
-	FString Extension = FPaths::GetExtension(FilePath);
-	bool bIsFromIntermediate = Extension.Compare(TEXT(DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT), ESearchCase::IgnoreCase) == 0;
-	if (bIsFromIntermediate)
-	{
-		if (!ParseIntermediateFile(FilePath))
-		{
-			return false;
-		}
-	}
-	else
-	{
-		if (!ParseFbxFile(FilePath))
-		{
-			return false;
-		}
-	}
-
-	ParseAuxFiles(FilePath);
-
-	if (!SerializeScene(FilePath))
+	if (!ParseFbxFile(FilePath))
 	{
 		return false;
 	}
+
+	ParseAuxFiles(FilePath);
 
 	FDatasmithFBXScene::FStats Stats = IntermediateScene->GetStats();
 	UE_LOG(LogDatasmithDeltaGenImport, Log, TEXT("Scene %s has %d nodes, %d geometries, %d meshes, %d materials"),
@@ -153,34 +134,6 @@ bool FDatasmithDeltaGenImporter::ParseFbxFile(const FString& FBXPath)
 	}
 
 	( new FAutoDeleteAsyncTask< FAsyncReleaseFbxScene >( FbxImporter ) )->StartBackgroundTask();
-	return true;
-}
-
-bool FDatasmithDeltaGenImporter::ParseIntermediateFile(const FString& FBXPath)
-{
-	TUniquePtr<FArchive> SceneReader(IFileManager::Get().CreateFileReader(*FBXPath));
-	if (!SceneReader)
-	{
-		return false;
-	}
-
-	if (SceneReader && IntermediateScene->Serialize(*SceneReader))
-	{
-		// ok
-	}
-	else
-	{
-		UE_LOG(LogDatasmithDeltaGenImport, Log, TEXT("Failed deserializing scene from intermediate file %s"), *FBXPath);
-		return false;
-	}
-
-#if WITH_DELTAGEN_DEBUG_CODE
-	if (ImportOptions->IntermediateSerialization == EDatasmithFBXIntermediateSerializationType::SaveLoadSkipFurtherImport)
-	{
-		// signal to stop further import
-		return false;
-	}
-#endif
 	return true;
 }
 
@@ -338,55 +291,14 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 
 	Processor.RemoveEmptyNodes();
 
-	if (ImportOptions->bOptimizeDuplicatedNodes)
-	{
-		Processor.OptimizeDuplicatedNodes();
-	}
-
 	Processor.FixMeshNames();
-
-	return true;
-}
-
-bool FDatasmithDeltaGenImporter::SerializeScene(const FString& FBXPath)
-{
-#if WITH_DELTAGEN_DEBUG_CODE
-	if (ImportOptions->IntermediateSerialization != EDatasmithFBXIntermediateSerializationType::Disabled)
-	{
-		FString FilePath = FBXPath;
-		if (FPaths::GetExtension(FilePath, false) != TEXT(DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT))
-		{
-			FilePath = FilePath + "." + DATASMITH_FBXIMPORTER_INTERMEDIATE_FORMAT_EXT;
-		}
-
-		TUniquePtr<FArchive> SceneWriter(IFileManager::Get().CreateFileWriter(*FilePath));
-		if (SceneWriter && IntermediateScene->Serialize(*SceneWriter))
-		{
-			UE_LOG(LogDatasmithDeltaGenImport, Log, TEXT("Serialized scene to intermediate file %s"), *FilePath);
-		}
-		else
-		{
-			UE_LOG(LogDatasmithDeltaGenImport, Warning, TEXT("Failed serializing scene to intermediate file %s"), *FilePath);
-		}
-	}
-	if (ImportOptions->IntermediateSerialization == EDatasmithFBXIntermediateSerializationType::SaveLoadSkipFurtherImport)
-	{
-		// signal to stop further import
-		return false;
-	}
-#endif
 
 	return true;
 }
 
 bool FDatasmithDeltaGenImporter::CheckNodeType(const TSharedPtr<FDatasmithFBXSceneNode>& Node)
 {
-	if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::SharedNode) && (Node->Mesh.IsValid() || Node->Camera.IsValid() || Node->Light.IsValid()))
-	{
-		UE_LOG(LogDatasmithDeltaGenImport, Error, TEXT("Node '%s' can't be a SharedNode and have a mesh, camera or light!"), *Node->Name);
-		return false;
-	}
-	else if (Node->Mesh.IsValid() && Node->Camera.IsValid())
+	if (Node->Mesh.IsValid() && Node->Camera.IsValid())
 	{
 		UE_LOG(LogDatasmithDeltaGenImport, Error, TEXT("Node '%s' can't have a mesh and a camera at the same time!"), *Node->Name);
 		return false;
@@ -575,26 +487,9 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 	{
 		if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::Switch))
 		{
-			// Add switch blueprint
-			TSharedPtr<IDatasmithCustomActorElement> SwitchBlueprint = FDatasmithSceneFactory::CreateCustomActor(*Node->Name);
-			SwitchBlueprint->SetClassOrPathName(SWITCH_BLUEPRINT_ASSET);
-			TSharedPtr<IDatasmithKeyValueProperty> Property = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Name"));
-			Property->SetValue(*Node->OriginalName);
-			Property->SetPropertyType(EDatasmithKeyValuePropertyType::String);
-			SwitchBlueprint->AddProperty(Property);
-			ActorElement = SwitchBlueprint;
-		}
-		else if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::SharedNode))
-		{
-			TSharedPtr<IDatasmithCustomActorElement> SharedNodeBlueprint = FDatasmithSceneFactory::CreateCustomActor(*Node->Name);
-			SharedNodeBlueprint->SetClassOrPathName(SHARED_NODE_BLUEPRINT_ASSET);
-			ActorElement = SharedNodeBlueprint;
-		}
-		else if (EnumHasAnyFlags(Node->GetNodeType(), ENodeType::Toggle))
-		{
-			TSharedPtr<IDatasmithCustomActorElement> Blueprint = FDatasmithSceneFactory::CreateCustomActor(*Node->Name);
-			Blueprint->SetClassOrPathName(TOGGLE_BLUEPRINT_ASSET);
-			ActorElement = Blueprint;
+			TSharedPtr<IDatasmithCustomActorElement> SwitchActorClass = FDatasmithSceneFactory::CreateCustomActor(*Node->Name);
+			SwitchActorClass->SetClassOrPathName(SWITCH_ACTOR_CLASS);
+			ActorElement = SwitchActorClass;
 		}
 		else
 		{
@@ -783,80 +678,60 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithDeltaGenImporter::ConvertMat
 	TSharedRef<IDatasmithMasterMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateMasterMaterial(*Material->Name);
 	ImportedMaterials.Add(Material, MaterialElement);
 
-	if (ImportOptions->bColorizeMaterials)
+	IDatasmithMasterMaterialElement* El = &MaterialElement.Get();
+	AddStringProperty(El, TEXT("Type"), Material->Type);
+	AddBoolProperty(El, TEXT("ReflectionIsActive"), true);
+
+	for (const auto& Pair : Material->TextureParams)
 	{
-		// Compute some color based on material's name hash, so they'll appear differently
-		FMD5 Md5;
-		Md5.Update((const uint8*)*Material->Name, Material->Name.Len() * sizeof(TCHAR));
-		FMD5Hash NameHash;
-		NameHash.Set(Md5);
-		int32 ColorIndex = NameHash.GetBytes()[15];
+		const FString& TexName = Pair.Key;
+		const FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
 
-		static const uint8 Colors[] = { 0, 32, 128, 255 };
+		FString FoundTexturePath = DeltaGenImporterImpl::SearchForFile(Tex.Path, ImportOptions->TextureDirs);
+		if (FoundTexturePath.IsEmpty())
+		{
+			continue;
+		}
+		TSharedPtr<IDatasmithTextureElement> CreatedTexture = CreateTextureAndTextureProperties(El, TexName, Tex, ImportOptions->ShadowTextureMode);
 
-		uint8 R = Colors[ColorIndex & 3];
-		uint8 G = Colors[(ColorIndex >> 2) & 3];
-		uint8 B = Colors[(ColorIndex >> 4) & 3];
-
-		AddColorProperty(&MaterialElement.Get(), TEXT("DiffuseColor"), FVector4(R / 255.0f, G / 255.0f, B / 255.0f, 1.0f));
+		// Only add the texture element to the scene once (so the asset is only created once). We need
+		// to let CreateTextureAndTextureProperties run regardless though, as it will add to the material element
+		// the properties describing how this material will use this texture
+		if (CreatedTexture.IsValid() && !CreatedTextureElementPaths.Contains(FoundTexturePath))
+		{
+			DatasmithScene->AddTexture(CreatedTexture);
+			CreatedTextureElementPaths.Add(FoundTexturePath);
+		}
 	}
-	else
+
+	for (const auto& Pair : Material->BoolParams)
 	{
-		IDatasmithMasterMaterialElement* El = &MaterialElement.Get();
-		AddStringProperty(El, TEXT("Type"), Material->Type);
-		AddBoolProperty(El, TEXT("ReflectionIsActive"), true);
+		const FString& ParamName = Pair.Key;
+		const bool bValue = Pair.Value;
 
-		for (const auto& Pair : Material->TextureParams)
-		{
-			const FString& TexName = Pair.Key;
-			const FDatasmithFBXSceneMaterial::FTextureParams& Tex = Pair.Value;
+		AddBoolProperty(El, ParamName, bValue);
+	}
 
-			FString FoundTexturePath = DeltaGenImporterImpl::SearchForFile(Tex.Path, ImportOptions->TextureDirs);
-			if (FoundTexturePath.IsEmpty())
-			{
-				continue;
-			}
-			TSharedPtr<IDatasmithTextureElement> CreatedTexture = CreateTextureAndTextureProperties(El, TexName, Tex, ImportOptions->ShadowTextureMode);
+	for (const auto& Pair : Material->ScalarParams)
+	{
+		const FString& ParamName = Pair.Key;
+		const float Value = Pair.Value;
 
-			// Only add the texture element to the scene once (so the asset is only created once). We need
-			// to let CreateTextureAndTextureProperties run regardless though, as it will add to the material element
-			// the properties describing how this material will use this texture
-			if (CreatedTexture.IsValid() && !CreatedTextureElementPaths.Contains(FoundTexturePath))
-			{
-				DatasmithScene->AddTexture(CreatedTexture);
-				CreatedTextureElementPaths.Add(FoundTexturePath);
-			}
-		}
+		AddFloatProperty(El, ParamName, Value);
+	}
 
-		for (const auto& Pair : Material->BoolParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const bool bValue = Pair.Value;
+	for (const auto& Pair : Material->VectorParams)
+	{
+		const FString& ParamName = Pair.Key;
+		const FVector4& Value = Pair.Value;
 
-			AddBoolProperty(El, ParamName, bValue);
-		}
-
-		for (const auto& Pair : Material->ScalarParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const float Value = Pair.Value;
-
-			AddFloatProperty(El, ParamName, Value);
-		}
-
-		for (const auto& Pair : Material->VectorParams)
-		{
-			const FString& ParamName = Pair.Key;
-			const FVector4& Value = Pair.Value;
-
-			AddColorProperty(El, ParamName, Value);
-		}
+		AddColorProperty(El, ParamName, Value);
 	}
 
 	return MaterialElement;
 }
 
-void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track)
+void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track, float Framerate)
 {
 	if (Track.Zeroed)
 	{
@@ -922,7 +797,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 		Curves[2].AddKey(Key, Value.Z, bUnwindRotation);
 	}
 
-	FFrameRate FrameRate = FFrameRate(30, 1);
+	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
 	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
 
 	// If we use AsFrameNumber it will floor, and we might lose the very end of the animation
@@ -974,7 +849,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 
 		for (const FDeltaGenTmlDataAnimationTrack& Track : Animation.Tracks)
 		{
-			PopulateTransformAnimation(TransformAnimation.Get(), Track);
+			PopulateTransformAnimation(TransformAnimation.Get(), Track, TmlTimeline.Framerate);
 		}
 
 		if (TransformAnimation->GetFramesCount(EDatasmithTransformType::Translation) > 0 ||
@@ -982,6 +857,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 			TransformAnimation->GetFramesCount(EDatasmithTransformType::Scale) > 0)
 		{
 			SequenceElement->AddAnimation(TransformAnimation);
+			SequenceElement->SetFrameRate(TmlTimeline.Framerate);
 		}
 	}
 

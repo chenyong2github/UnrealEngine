@@ -51,10 +51,20 @@ void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id
 	if (NodeGraph)
 	{
 		NodeGraph->RebuildCachedCompileIds(bForceRebuild);
-		Id.BaseScriptID = NodeGraph->GetBaseId(InUsage, InUsageId);
 		Id.BaseScriptCompileHash = FNiagaraCompileHash(NodeGraph->GetCompileDataHash(InUsage, InUsageId));
-		NodeGraph->GatherExternalDependencyData(InUsage, InUsageId, Id.ReferencedCompileHashes, Id.ReferencedObjects);
+		NodeGraph->GatherExternalDependencyData(InUsage, InUsageId, Id.ReferencedCompileHashes, Id.DebugReferencedObjects);
 	}
+
+	// Add in any referenced HLSL files.
+	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf")), EShaderPlatform::SP_PCD3D_SM5);
+	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash)/sizeof(uint8));
+	Id.DebugReferencedObjects.Emplace(TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"));
+	Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraShaderVersion.ush")), EShaderPlatform::SP_PCD3D_SM5);
+	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash) / sizeof(uint8));
+	Id.DebugReferencedObjects.Emplace(TEXT("/Plugin/FX/Niagara/Private/NiagaraShaderVersion.ush"));
+	Hash = GetShaderFileHash((TEXT("/Engine/Public/ShaderVersion.ush")), EShaderPlatform::SP_PCD3D_SM5);
+	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash) / sizeof(uint8));
+	Id.DebugReferencedObjects.Emplace(TEXT("/Engine/Public/ShaderVersion.ush"));
 }
 
 FGuid UNiagaraScriptSource::GetCompileBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
@@ -67,9 +77,9 @@ FNiagaraCompileHash UNiagaraScriptSource::GetCompileHash(ENiagaraScriptUsage InU
 	return NodeGraph->GetCompileDataHash(InUsage, InUsageId);
 }
 
-void UNiagaraScriptSource::InvalidateCachedCompileIds() 
+void UNiagaraScriptSource::ForceGraphToRecompileOnNextCheck()
 {
-	NodeGraph->InvalidateCachedCompileIds();
+	NodeGraph->ForceGraphToRecompileOnNextCheck();
 }
 
 void UNiagaraScriptSource::RefreshFromExternalChanges()

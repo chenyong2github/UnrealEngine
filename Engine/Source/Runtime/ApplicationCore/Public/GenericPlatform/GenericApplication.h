@@ -10,7 +10,7 @@
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
 #if WITH_ACCESSIBILITY
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #endif
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "GenericPlatform/GenericWindowDefinition.h"
@@ -442,7 +442,6 @@ public:
 	{
 
 	}
-
 	virtual ~GenericApplication() {}
 
 	virtual void SetMessageHandler( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler ) { MessageHandler = InMessageHandler; }
@@ -562,7 +561,9 @@ protected:
 
 #if WITH_ACCESSIBILITY
 	TSharedRef<FGenericAccessibleMessageHandler> AccessibleMessageHandler;
+	
 #endif
+
 	
 	/** Trigger the OnDisplayMetricsChanged event with the argument 'InMetrics' */
 	void BroadcastDisplayMetricsChanged( const FDisplayMetrics& InMetrics ){ OnDisplayMetricsChangedEvent.Broadcast( InMetrics ); }

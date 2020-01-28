@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PhysicalMaterials.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace Chaos
 {
@@ -22,8 +23,27 @@ namespace Chaos
 		return nullptr;
 	}
 
+	FChaosPhysicsMaterialMask* FMaterialMaskHandle::Get() const
+	{
+		if (InnerHandle.IsValid())
+		{
+			return FPhysicalMaterialManager::Get().Resolve(InnerHandle);
+		}
+		return nullptr;
+	}
+
+	const FChaosPhysicsMaterialMask* FConstMaterialMaskHandle::Get() const
+	{
+		if (InnerHandle.IsValid())
+		{
+			return FPhysicalMaterialManager::Get().Resolve(InnerHandle);
+		}
+		return nullptr;
+	}
+
 	FPhysicalMaterialManager::FPhysicalMaterialManager()
 		: Materials(InitialCapacity)
+		, MaterialMasks()
 	{
 
 	}
@@ -44,6 +64,16 @@ namespace Chaos
 		return Materials.Get(InHandle);
 	}
 
+	FChaosPhysicsMaterialMask* FPhysicalMaterialManager::Resolve(FChaosMaterialMaskHandle InHandle) const
+	{
+		return MaterialMasks.Get(InHandle);
+	}
+
+	const FChaosPhysicsMaterialMask* FPhysicalMaterialManager::Resolve(FChaosConstMaterialMaskHandle InHandle) const
+	{
+		return MaterialMasks.Get(InHandle);
+	}
+	
 	void FPhysicalMaterialManager::UpdateMaterial(FMaterialHandle InHandle)
 	{
 		check(IsInGameThread());
@@ -51,13 +81,27 @@ namespace Chaos
 		OnMaterialUpdated.Broadcast(InHandle);
 	}
 
+	void FPhysicalMaterialManager::UpdateMaterialMask(FMaterialMaskHandle InHandle)
+	{
+		check(IsInGameThread());
+
+		OnMaterialMaskUpdated.Broadcast(InHandle);
+	}
+
 	const Chaos::THandleArray<FChaosPhysicsMaterial>& FPhysicalMaterialManager::GetMasterMaterials() const
 	{
 		return Materials;
 	}
 
+	const Chaos::THandleArray<FChaosPhysicsMaterialMask>& FPhysicalMaterialManager::GetMasterMaterialMasks() const
+	{
+		return MaterialMasks;
+	}
+
 	FMaterialHandle FPhysicalMaterialManager::Create()
 	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
 		check(IsInGameThread());
 		FMaterialHandle OutHandle;
 		OutHandle.InnerHandle = Materials.Create();
@@ -67,9 +111,21 @@ namespace Chaos
 		return OutHandle;
 	}
 
+	FMaterialMaskHandle FPhysicalMaterialManager::CreateMask()
+	{
+		check(IsInGameThread());
+		FMaterialMaskHandle OutHandle;
+		OutHandle.InnerHandle = MaterialMasks.Create();
+
+		OnMaterialMaskCreated.Broadcast(OutHandle);
+
+		return OutHandle;
+	}
 
 	void FPhysicalMaterialManager::Destroy(FMaterialHandle InHandle)
 	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
 		check(IsInGameThread());
 		if(InHandle.InnerHandle.IsValid())
 		{
@@ -79,4 +135,14 @@ namespace Chaos
 		}
 	}
 
+	void FPhysicalMaterialManager::Destroy(FMaterialMaskHandle InHandle)
+	{
+		check(IsInGameThread());
+		if (InHandle.InnerHandle.IsValid())
+		{
+			OnMaterialMaskDestroyed.Broadcast(InHandle);
+
+			MaterialMasks.Destroy(InHandle.InnerHandle);
+		}
+	}
 }

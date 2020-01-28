@@ -185,7 +185,6 @@ private:
 
 public:
 	FNiagaraParameterStore();
-	FNiagaraParameterStore(UObject* InOwner);
 	FNiagaraParameterStore(const FNiagaraParameterStore& Other);
 	FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
 
@@ -196,6 +195,7 @@ public:
 	FString DebugName;
 #endif
 
+	void SetOwner(UObject* InOwner);
 	UObject* GetOwner()const { return Owner; }
 
 	void Dump();
@@ -233,7 +233,18 @@ public:
 	Does nothing if this parameter is already present.
 	Returns true if we added a new parameter.
 	*/
-	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize=true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
+	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
+
+#if WITH_EDITORONLY_DATA
+	template<typename BufferType>
+	void AddConstantBuffer()
+	{
+		for (const FNiagaraVariable& BufferVariable : BufferType::GetVariables())
+		{
+			AddParameter(BufferVariable, true, false);
+		}
+	}
+#endif
 
 	/** Removes the passed parameter if it exists in the store. */
 	virtual bool RemoveParameter(const FNiagaraVariable& Param);

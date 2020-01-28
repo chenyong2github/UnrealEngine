@@ -41,6 +41,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "ObjectTrace.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -1066,6 +1067,11 @@ bool AActor::ShouldTickIfViewportsOnly() const
 
 void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 {
+#if WITH_PUSH_MODEL
+	const AActor* const OldAttachParent = AttachmentReplication.AttachParent;
+	const UActorComponent* const OldAttachComponent = AttachmentReplication.AttachComponent;
+#endif
+
 	// Attachment replication gets filled in by GatherCurrentMovement(), but in the case of a detached root we need to trigger remote detachment.
 	AttachmentReplication.AttachParent = nullptr;
 	AttachmentReplication.AttachComponent = nullptr;
@@ -1078,6 +1084,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
+
+
+#if WITH_PUSH_MODEL
+	if (UNLIKELY(OldAttachParent != AttachmentReplication.AttachParent || OldAttachComponent != AttachmentReplication.AttachComponent))
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
+	}
+#endif
 
 	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
 	if (BPClass != nullptr)
@@ -1591,7 +1605,7 @@ void AActor::SetOwner(AActor* NewOwner)
 		}
 
 		Owner = NewOwner;
-		// MARK_PROPERTY_DIRTY_BY_NAME(AActor, Owner, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Owner, this);
 
 		if (Owner != nullptr)
 		{
@@ -1769,7 +1783,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Clear AttachmentReplication struct
 		AttachmentReplication = FRepAttachment();
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 	}
 }
 
@@ -2226,7 +2240,7 @@ void AActor::TearOff()
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
 	{
 		bTearOff = true;
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
 		
 		FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
 		if (Context != nullptr)
@@ -3270,7 +3284,7 @@ void AActor::SetReplicates(bool bInReplicates)
 			}
 		}
 
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 	}
 	else
 	{
@@ -3293,7 +3307,12 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 
 		if (bAllowForcePropertyCompare && RemoteRole != OldRemoteRole)
 		{
-			// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+			// We intentionally only mark RemoteRole dirty after this check, because Networking Code
+			// for swapping roles will call SetAutonomousProxy to downgrade RemoteRole.
+			// However, that's the only code that should pass bAllowForcePropertyCompare=false.
+			// Everywhere else should use bAllowForcePropertyCompare=true.
+			// TODO: Maybe split these methods up to make it clearer.
+			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 
 			// We have to do this so the role change above will replicate (turn off shadow state sharing for a frame)
 			// This is because RemoteRole is special since it will change between connections, so we have to special case
@@ -3309,7 +3328,7 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 void AActor::CopyRemoteRoleFrom(const AActor* CopyFromActor)
 {
 	RemoteRole = CopyFromActor->GetRemoteRole();
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 
 	if (RemoteRole != ROLE_None)
 	{
@@ -3358,8 +3377,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Swap(Role, RemoteRole);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
 
 	ForcePropertyCompare();
 }
@@ -4969,19 +4988,19 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 
 void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance)
 {
-	if (InLODParent)
+	if (InLODParent && InLODParent->MinDrawDistance != InParentDrawDistance)
 	{
 		InLODParent->MinDrawDistance = InParentDrawDistance;
 		InLODParent->MarkRenderStateDirty();
 	}
 
-	TArray<UPrimitiveComponent*> ComponentsToBeReplaced;
-	GetComponents(ComponentsToBeReplaced);
-
-	for (UPrimitiveComponent* Component : ComponentsToBeReplaced)
+	for (UActorComponent* Component : GetComponents())
 	{
-		// parent primitive will be null if no LOD parent is selected
-		Component->SetLODParentPrimitive(InLODParent);
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component))
+		{
+			// parent primitive will be null if no LOD parent is selected
+			PrimitiveComponent->SetLODParentPrimitive(InLODParent);
+		}
 	}
 }
 
@@ -4990,7 +5009,7 @@ void AActor::SetHidden(bool bInHidden)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bHidden = bInHidden;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -4998,7 +5017,7 @@ void AActor::SetReplicatingMovement(bool bInReplicateMovement)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bReplicateMovement = bInReplicateMovement;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -5006,7 +5025,7 @@ void AActor::SetCanBeDamaged(bool bInCanBeDamaged)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bCanBeDamaged = bInCanBeDamaged;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -5014,14 +5033,14 @@ void AActor::SetRole(ENetRole InRole)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Role = InRole;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FRepMovement& AActor::GetReplicatedMovement_Mutable()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
 	return ReplicatedMovement;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -5035,7 +5054,7 @@ void AActor::SetInstigator(APawn* InInstigator)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Instigator = InInstigator;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

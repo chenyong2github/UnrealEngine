@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
+#include "DynamicMeshAttributeSet.h"
 
 
 struct FMeshDescription;
@@ -26,10 +27,17 @@ public:
 	float Stretch;
 	int32 NumCharts;
 
+	// area scaling
+	bool bNormalizeAreas = true;
+	float AreaScaling = 1.0;
+
 	// Atlas Packing parameters
 	int32 Height = 512;
 	int32 Width = 512;
 	float Gutter = 2.5;
+
+	// Align UV boundaries with current poly group boundaries
+	bool bRespectPolygroups = true;
 
 	// set ability on protected transform.
 	void SetTransform(FTransform3d& XForm)
@@ -49,7 +57,7 @@ protected:
 	// dense index/vertex buffer based representation of the data needed for parameterization
 	struct FLinearMesh
 	{
-		FLinearMesh(const FDynamicMesh3& Mesh);
+		FLinearMesh(const FDynamicMesh3& Mesh, const bool bRespectPolygroups);
 
 		// Stripped down mesh
 		TArray<int32>   IndexBuffer;
@@ -64,5 +72,7 @@ protected:
 		
 	};
 
-	bool ComputeUVs(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter);
+	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter, const bool bUsePolygroups = false, float GlobalScale = 1.0f);
+
+	void NormalizeUVAreas(const FDynamicMesh3* Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
 };

@@ -334,6 +334,25 @@ bool FDisplayClusterDeviceBase::EnableStereo(bool stereo /*= true*/)
 void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+
+	if (!bIsCustomPresentSet)
+	{
+		// Set up our new present handler
+		if (MainViewport)
+		{
+			// Current sync policy
+			TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
+			check(SyncPolicy.IsValid());
+
+			// Create present handler
+			FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
+			check(CustomPresentHandler);
+
+			MainViewport->GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
+		}
+
+		bIsCustomPresentSet = true;
+	}
 }
 
 void FDisplayClusterDeviceBase::AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
@@ -584,15 +603,6 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	{
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
-		// Current sync policy
-		TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
-
-		// Create present handler
-		FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
-		check(CustomPresentHandler);
-
-		// Set up our new present handler
-		Viewport.GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
 	}
 }
 

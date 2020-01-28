@@ -596,12 +596,21 @@ COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* In
 
 COREUOBJECT_API FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bExistSkip = true);
 
+UE_DEPRECATED(4.25, "No longer used; use version that takes a UPackage* and call EnsureLoadingComplete separately.")
+COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);
 
 /**
  * 
- * Ensure thumbnails are loaded and then reset the loader in preparation for a package save
+ * Reset the loader for the given package if it is using the given filename, so we can write to the file
  *
- * @param	InOuter			The outer for the package we are saving
+ * @param	Package			The package we are saving
  * @param	Filename		The filename we are saving too
  */
-COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);
+COREUOBJECT_API void ResetLoadersForSave(UPackage* Package, const TCHAR *Filename);
+
+/*
+ * Ensure all data that can be loaded from the linker (thumbnails, bulk data) is loaded, in preparation for saving out the given package
+ *
+ * @param Package	The the package for which the linker should be fully loaded
+ */
+COREUOBJECT_API void EnsureLoadingComplete(UPackage* Package);

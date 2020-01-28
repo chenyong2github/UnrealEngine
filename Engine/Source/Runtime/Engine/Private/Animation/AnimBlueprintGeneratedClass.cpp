@@ -7,6 +7,7 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
+#include "ObjectEditorUtils.h"
 #include "BonePose.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstance.h"
@@ -307,7 +308,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 				{
 					LinkedAnimLayerNodeProperties.Add(StructProp);
 				}
-				else if(StructProp->Struct == FAnimNode_StateMachine::StaticStruct())
+				else if(StructProp->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 				{
 					StateMachineNodeProperties.Add(StructProp);
 				}
@@ -399,7 +400,7 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 		bool bFoundOutput = false;
 #if WITH_EDITOR
 		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
-		FText CategoryText = It->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), It->GetFullGroupName(false));
+		FText CategoryText = FObjectEditorUtils::GetCategoryText((*It)->GetAssociatedFField());
 		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
 #endif
 		FStructProperty* OutputPoseNodeProperty = nullptr;

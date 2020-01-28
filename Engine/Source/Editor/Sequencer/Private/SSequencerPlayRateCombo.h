@@ -45,7 +45,10 @@ private:
 	TSharedRef<SWidget> OnCreateMenu();
 	void PopulateIncompatibleRatesMenu(FMenuBuilder& MenuBuilder);
 	void PopulateClockSourceMenu(FMenuBuilder& MenuBuilder);
+	void PopulateCustomClockSourceMenu(FMenuBuilder& MenuBuilder);
 	void AddMenuEntry(FMenuBuilder& MenuBuilder, const FCommonFrameRateInfo& Info);
+
+	void SetCustomClockSource(UObject* Object);
 
 	void OnToggleFrameLocked();
 	ECheckBoxState OnGetFrameLockedCheckState() const;

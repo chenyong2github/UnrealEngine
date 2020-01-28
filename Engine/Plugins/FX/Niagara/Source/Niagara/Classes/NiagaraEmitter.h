@@ -237,13 +237,15 @@ public:
 
 public:
 #if WITH_EDITOR
-	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as it's owner. */
+	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as its owner. */
 	NIAGARA_API static UNiagaraEmitter* CreateWithParentAndOwner(UNiagaraEmitter& InParentEmitter, UObject* InOwner, FName InName, EObjectFlags FlagMask);
 
-	/** Creates a new emitter by duplicating an existing emitter.  The new emitter  will reference the same parent emitter if one is available. */
+	/** Creates a new emitter by duplicating an existing emitter. The new emitter will reference the same parent emitter if one is available. */
 	static UNiagaraEmitter* CreateAsDuplicate(const UNiagaraEmitter& InEmitterToDuplicate, FName InDuplicateName, UNiagaraSystem& InDuplicateOwnerSystem);
 
 	//Begin UObject Interface
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
@@ -393,6 +395,10 @@ public:
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
 
+	/* If this emitter is exposed to the library. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	bool bExposeToLibrary;
+
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bIsTemplateAsset;
 
@@ -474,6 +480,8 @@ public:
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+
+	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 #endif
 
 	void InitFastPathAttributeNames();

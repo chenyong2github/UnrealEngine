@@ -2139,6 +2139,12 @@ FVector4 UKismetMathLibrary::Vector4_MirrorByVector3(const FVector4& Direction, 
 	return Direction.Reflect3(SurfaceNormal);
 }
 
+KISMET_MATH_FORCEINLINE
+FVector4 UKismetMathLibrary::TransformVector4(const FMatrix& Matrix, const FVector4& Vec4)
+{
+	return Matrix.TransformFVector4(Vec4);
+}
+
 
 /* FName
 *****************************************************************************/

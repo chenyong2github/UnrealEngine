@@ -5,17 +5,147 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/FrameTime.h"
+#include "MovieSceneTimeTransform.h"
+#include "MovieSceneTimeWarping.h"
 #include "MovieSceneSequenceTransform.generated.h"
+
+
+/**
+ * Converts a range from one type of bounds to another. The output bounds type must be implicitely 
+ * constructable from the input bounds type.
+ */
+template<typename InBoundType, typename OutBoundType>
+inline TRange<OutBoundType> ConvertRange(const TRange<InBoundType>& Range)
+{
+	const TRangeBound<InBoundType> SourceLower = Range.GetLowerBound();
+	TRangeBound<OutBoundType> DestLower = SourceLower.IsOpen() ?
+		TRangeBound<OutBoundType>() :
+		SourceLower.IsInclusive() ?
+			TRangeBound<OutBoundType>::Inclusive(SourceLower.GetValue()) :
+			TRangeBound<OutBoundType>::Exclusive(SourceLower.GetValue());
+
+	const TRangeBound<InBoundType> SourceUpper = Range.GetUpperBound();
+	TRangeBound<OutBoundType> DestUpper = SourceUpper.IsOpen() ?
+		TRangeBound<OutBoundType>() :
+		SourceUpper.IsInclusive() ?
+			TRangeBound<OutBoundType>::Inclusive(SourceUpper.GetValue()) :
+			TRangeBound<OutBoundType>::Exclusive(SourceUpper.GetValue());
+
+	return TRange<OutBoundType>(DestLower, DestUpper);
+}
+
+// Specialization of ConvertRange for round down FFrameTime to FFrameNumber.
+template<>
+inline TRange<FFrameNumber> ConvertRange(const TRange<FFrameTime>& Range)
+{
+	const TRangeBound<FFrameTime> SourceLower = Range.GetLowerBound();
+	TRangeBound<FFrameNumber> DestLower = SourceLower.IsOpen() ?
+		TRangeBound<FFrameNumber>() :
+		SourceLower.IsInclusive() ?
+			TRangeBound<FFrameNumber>::Inclusive(SourceLower.GetValue().FloorToFrame()) :
+			TRangeBound<FFrameNumber>::Exclusive(SourceLower.GetValue().FloorToFrame());
+
+	const TRangeBound<FFrameTime> SourceUpper = Range.GetUpperBound();
+	TRangeBound<FFrameNumber> DestUpper = SourceUpper.IsOpen() ?
+		TRangeBound<FFrameNumber>() :
+		SourceUpper.IsInclusive() ?
+			TRangeBound<FFrameNumber>::Inclusive(SourceUpper.GetValue().FloorToFrame()) :
+			TRangeBound<FFrameNumber>::Exclusive(SourceUpper.GetValue().FloorToFrame());
+
+	return TRange<FFrameNumber>(DestLower, DestUpper);
+}
+
+/**
+ * Struct that tracks warp counts in a way that works with the FMovieSceneTimeWarping struct.
+ */
+USTRUCT()
+struct FMovieSceneWarpCounter
+{
+	GENERATED_BODY()
+
+	void AddWarpingLevel(uint32 WarpCount)
+	{
+		if (WarpCount != FMovieSceneTimeWarping::InvalidWarpCount)
+		{
+			WarpCounts.Add(WarpCount);
+		}
+		else if (WarpCounts.Num() > 0)
+		{
+			if (WarpCounts.Last() != FMovieSceneTimeWarping::InvalidWarpCount)
+			{
+				WarpCounts.Add(FMovieSceneTimeWarping::InvalidWarpCount);
+			}
+		}
+		// else: ignore, non-warping sub-sequences have their transforms compressed into a single
+		//       linear transform until the point we meet the first looping sub-sequence.
+	}
+
+	void AddNonWarpingLevel()
+	{
+		AddWarpingLevel(FMovieSceneTimeWarping::InvalidWarpCount);
+	}
+
+	UPROPERTY()
+	TArray<uint32> WarpCounts;
+};
+
+/**
+ * Time transform information for a nested sequence.
+ */
+USTRUCT()
+struct FMovieSceneNestedSequenceTransform
+{
+	GENERATED_BODY()
+
+	FMovieSceneNestedSequenceTransform()
+	{}
+
+	FMovieSceneNestedSequenceTransform(FMovieSceneTimeTransform InLinearTransform)
+		: LinearTransform(InLinearTransform)
+	{}
+
+	FMovieSceneNestedSequenceTransform(FMovieSceneTimeTransform InLinearTransform, FMovieSceneTimeWarping InWarping)
+		: LinearTransform(InLinearTransform)
+		, Warping(InWarping)
+	{}
+
+	bool IsWarping() const { return Warping.IsValid(); }
+
+	/**
+	 * Linear time transform for this sub-sequence.
+	 */
+	UPROPERTY()
+	FMovieSceneTimeTransform LinearTransform;
+
+	/**
+	 * Time warping information for this sub-sequence.
+	 */
+	UPROPERTY()
+	FMovieSceneTimeWarping Warping;
+
+	friend bool operator==(const FMovieSceneNestedSequenceTransform& A, const FMovieSceneNestedSequenceTransform& B)
+	{
+		return A.LinearTransform == B.LinearTransform && A.Warping == B.Warping;
+	}
+
+	friend bool operator!=(const FMovieSceneNestedSequenceTransform& A, const FMovieSceneNestedSequenceTransform& B)
+	{
+		return A.LinearTransform != B.LinearTransform || A.Warping != B.Warping;
+	}
+
+	FMovieSceneTimeTransform InverseLinearOnly() const
+	{
+		return LinearTransform.Inverse();
+	}
+
+	FMovieSceneTimeTransform InverseFromWarp(uint32 WarpCount) const
+	{
+		return LinearTransform.Inverse() * Warping.InverseFromWarp(WarpCount);
+	}
+};
 
 /**
  * Movie scene sequence transform class that transforms from one time-space to another.
- *
- * @note The transform can be thought of as the top row of a 2x2 matrix, where the bottom row is the identity:
- * 			| TimeScale	Offset	|
- *			| 0			1		|
- *
- * As such, traditional matrix mathematics can be applied to transform between different sequence's time-spaces.
- * Transforms apply offset first, then time scale.
  */
 USTRUCT()
 struct FMovieSceneSequenceTransform
@@ -26,8 +156,6 @@ struct FMovieSceneSequenceTransform
 	 * Default construction to the identity transform
 	 */
 	FMovieSceneSequenceTransform()
-		: TimeScale(1.f)
-		, Offset(0)
 	{}
 
 	/**
@@ -36,37 +164,262 @@ struct FMovieSceneSequenceTransform
 	 * @param InOffset 			The offset to translate by
 	 * @param InTimeScale 		The timescale. For instance, if a sequence is playing twice as fast, pass 2.f
 	 */
-	FMovieSceneSequenceTransform(FFrameTime InOffset, float InTimeScale = 1.f)
-		: TimeScale(InTimeScale)
-		, Offset(InOffset)
+	explicit FMovieSceneSequenceTransform(FFrameTime InOffset, float InTimeScale = 1.f)
+		: LinearTransform(InOffset, InTimeScale)
+	{}
+
+	/**
+	 * Construction from a linear time transform.
+	 *
+	 * @param InLinearTransform	The linear transform
+	 */
+	FMovieSceneSequenceTransform(FMovieSceneTimeTransform InLinearTransform)
+		: LinearTransform(InLinearTransform)
 	{}
 
 	friend bool operator==(const FMovieSceneSequenceTransform& A, const FMovieSceneSequenceTransform& B)
 	{
-		return A.TimeScale == B.TimeScale && A.Offset == B.Offset;
+		return A.LinearTransform == B.LinearTransform && A.NestedTransforms == B.NestedTransforms;
 	}
 
 	friend bool operator!=(const FMovieSceneSequenceTransform& A, const FMovieSceneSequenceTransform& B)
 	{
-		return A.TimeScale != B.TimeScale || A.Offset != B.Offset;
+		return A.LinearTransform != B.LinearTransform || A.NestedTransforms != B.NestedTransforms;
 	}
 
 	/**
-	 * Retrieve the inverse of this transform
+	 * Returns whether this sequence transform includes any time warping.
 	 */
-	FMovieSceneSequenceTransform Inverse() const
+	bool IsWarping() const
 	{
-		const FFrameTime NewOffset = -Offset/TimeScale;
-		return FMovieSceneSequenceTransform(NewOffset, 1.f/TimeScale);
+		// Since we compress any linear transforms, we know that there will be warping as soon as we
+		// use the nested transform array.
+		return NestedTransforms.Num() > 0;
 	}
 
-	/** The sequence's time scale (or play rate) */
-	UPROPERTY()
-	float TimeScale;
+	/**
+	 * Returns whether this sequence transform is purely linear (i.e. doesn't involve time warping).
+	 */
+	bool IsLinear() const
+	{
+		return NestedTransforms.Num() == 0;
+	}
 
-	/** Scalar frame offset applied before the scale */
+	/**
+	 * Returns the total time-scale of this transform.
+	 */
+	float GetTimeScale() const
+	{
+		float TimeScale = LinearTransform.TimeScale;
+		for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+		{
+			if (NestedTransform.LinearTransform.TimeScale != 1.f)
+			{
+				TimeScale *= NestedTransform.LinearTransform.TimeScale;
+			}
+		}
+		return TimeScale;
+	}
+
+	/**
+	 * Transforms the given time, returning the transformed time along with a series of loop indices that
+	 * indicate which loops each nested level is in.
+	 */
+	void TransformTime(FFrameTime InTime, FFrameTime& OutTime, FMovieSceneWarpCounter& OutWarpCounter) const
+	{
+		OutWarpCounter.WarpCounts.Reset();
+
+		OutTime = InTime * LinearTransform;
+		
+		if (NestedTransforms.Num() > 0)
+		{
+			for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+			{
+				OutTime = OutTime * NestedTransform.LinearTransform;
+
+				if (NestedTransform.IsWarping())
+				{
+					uint32 WarpIndex;
+					NestedTransform.Warping.TransformTime(OutTime, OutTime, WarpIndex);
+					OutWarpCounter.WarpCounts.Add(WarpIndex);
+				}
+				else
+				{
+					OutWarpCounter.WarpCounts.Add(FMovieSceneTimeWarping::InvalidWarpCount);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Transforms the given range using the "pure" warping transformation.
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameTime> TransformRangePure(const TRange<FFrameTime>& Range) const
+	{
+		TRange<FFrameTime> Result = Range * LinearTransform;
+		for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+		{
+			Result = Result * NestedTransform.LinearTransform;
+			if (NestedTransform.IsWarping())
+			{
+				Result = NestedTransform.Warping.TransformRangePure(Result);
+			}
+		}
+		return Result;
+	}
+
+	/**
+	 * Transforms the given range using the "unwarped" warping transformation. 
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameTime> TransformRangeUnwarped(const TRange<FFrameTime>& Range) const
+	{
+		TRange<FFrameTime> Result = Range * LinearTransform;
+		for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+		{
+			Result = Result * NestedTransform.LinearTransform;
+			if (NestedTransform.IsWarping())
+			{
+				Result = NestedTransform.Warping.TransformRangeUnwarped(Result);
+			}
+		}
+		return Result;
+	}
+
+	/**
+	 * Transforms the given range using the "constrained" warping transformation. 
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameTime> TransformRangeConstrained(const TRange<FFrameTime>& Range) const
+	{
+		TRange<FFrameTime> Result = Range * LinearTransform;
+		for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+		{
+			Result = Result * NestedTransform.LinearTransform;
+			if (NestedTransform.IsWarping())
+			{
+				Result = NestedTransform.Warping.TransformRangeConstrained(Result);
+			}
+		}
+		return Result;
+	}
+
+	/**
+	 * Transforms the given range using the "pure" warping transformation.
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameNumber> TransformRangePure(const TRange<FFrameNumber>& Range) const
+	{
+		TRange<FFrameTime> TimeRange = ConvertRange<FFrameNumber, FFrameTime>(Range);
+		TimeRange = TransformRangePure(TimeRange);
+		return ConvertRange<FFrameTime, FFrameNumber>(TimeRange);
+	}
+
+	/**
+	 * Transforms the given range using the "unwarped" warping transformation. 
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameNumber> TransformRangeUnwarped(const TRange<FFrameNumber>& Range) const
+	{
+		TRange<FFrameTime> TimeRange = ConvertRange<FFrameNumber, FFrameTime>(Range);
+		TimeRange = TransformRangeUnwarped(TimeRange);
+		return ConvertRange<FFrameTime, FFrameNumber>(TimeRange);
+	}
+
+	/**
+	 * Transforms the given range using the "constrained" warping transformation. 
+	 * See FMovieSceneTimeWarping for more information.
+	 */
+	TRange<FFrameNumber> TransformRangeConstrained(const TRange<FFrameNumber>& Range) const
+	{
+		TRange<FFrameTime> TimeRange = ConvertRange<FFrameNumber, FFrameTime>(Range);
+		TimeRange = TransformRangeConstrained(TimeRange);
+		return ConvertRange<FFrameTime, FFrameNumber>(TimeRange);
+	}
+
+	/**
+	 * Retrieve the inverse of the linear part of this transform.
+	 */
+	FMovieSceneTimeTransform InverseLinearOnly() const
+	{
+		return LinearTransform.Inverse();
+	}
+
+	/**
+	 * Retrieve the inverse of this transform assuming the local times would all belong to
+	 * the first warp inside each nested time range.
+	 */
+	FMovieSceneTimeTransform InverseFromAllFirstWarps() const
+	{
+		const size_t NestedTransformsSize = NestedTransforms.Num();
+		if (NestedTransformsSize == 0)
+		{
+			return LinearTransform.Inverse();
+		}
+		else
+		{
+			TArray<uint32> WarpCounts;
+			WarpCounts.Reserve(NestedTransforms.Num());
+			for (const FMovieSceneNestedSequenceTransform& NestedTransform : NestedTransforms)
+			{
+				WarpCounts.Add(NestedTransform.IsWarping() ? 0 : FMovieSceneTimeWarping::InvalidWarpCount);
+			}
+			return InverseFromWarp(WarpCounts);
+		}
+	}
+
+	/**
+	 * Retrieve the inverse of this transform assuming the local times would belong to the
+	 * n'th warp inside the time range. As such, this method requires that the warp counts
+	 * in the counter object is equal to the number of nested loops in this transform.
+	 */
+	FMovieSceneTimeTransform InverseFromWarp(const FMovieSceneWarpCounter& WarpCounter) const
+	{
+		return InverseFromWarp(WarpCounter.WarpCounts);
+	}
+
+	/**
+	 * Retrieve the inverse of this transform assuming the local times would belong to the
+	 * n'th warp inside the time range. As such, this method takes as parameter an array with
+	 * as many items as there currently have nested loops in this transform.
+	 */
+	FMovieSceneTimeTransform InverseFromWarp(const TArrayView<const uint32>& WarpCounts) const
+	{
+		const size_t NestedTransformsSize = NestedTransforms.Num();
+		check(WarpCounts.Num() == NestedTransformsSize);
+
+		if (NestedTransformsSize > 0)
+		{
+			// Start accumulating the inverse transforms in reverse order.
+			const FMovieSceneNestedSequenceTransform& LastNesting = NestedTransforms.Last();
+			FMovieSceneTimeTransform Result = LastNesting.InverseFromWarp(WarpCounts.Last());
+
+			// If there's a tail linear transform, the WarpCounts array has one less item than the
+			// NestedTransforms array, and we need to iterate with different indices that are offset by 1.
+			// Otherwise, we can iterate with the same index.
+			size_t Index = NestedTransformsSize - 1;
+			while (Index > 0)
+			{
+				--Index;
+				
+				const uint32 CurWarpCount = WarpCounts[Index];
+				const FMovieSceneNestedSequenceTransform& CurNesting = NestedTransforms[Index];
+				Result = CurNesting.InverseFromWarp(CurWarpCount) * Result;
+			}
+			return Result;
+		}
+		else
+		{
+			return FMovieSceneTimeTransform(LinearTransform.Inverse());
+		}
+	}
+
 	UPROPERTY()
-	FFrameTime Offset;
+	FMovieSceneTimeTransform LinearTransform;
+
+	UPROPERTY()
+	TArray<FMovieSceneNestedSequenceTransform> NestedTransforms;
 };
 
 /**
@@ -77,13 +430,27 @@ struct FMovieSceneSequenceTransform
  */
 inline FFrameTime operator*(FFrameTime InTime, const FMovieSceneSequenceTransform& RHS)
 {
-	// Avoid floating point conversion when in the same time-space
-	if (RHS.TimeScale == 1.f)
+	const uint32 NestedTransformsSize = RHS.NestedTransforms.Num();
+	if (NestedTransformsSize == 0)
 	{
-		return InTime + RHS.Offset;
+		return InTime * RHS.LinearTransform;
 	}
-
-	return RHS.Offset + InTime * RHS.TimeScale;
+	else
+	{
+		FFrameTime OutTime = InTime * RHS.LinearTransform;
+		for (const FMovieSceneNestedSequenceTransform& NestedTransform : RHS.NestedTransforms)
+		{
+			if (NestedTransform.IsWarping())
+			{
+				OutTime = OutTime * NestedTransform.LinearTransform * NestedTransform.Warping;
+			}
+			else
+			{
+				OutTime = OutTime * NestedTransform.LinearTransform;
+			}
+		}
+		return OutTime;
+	}
 }
 
 /**
@@ -96,55 +463,6 @@ inline FFrameTime& operator*=(FFrameTime& InTime, const FMovieSceneSequenceTrans
 {
 	InTime = InTime * RHS;
 	return InTime;
-}
-
-/**
- * Transform a time range by a sequence transform
- *
- * @param LHS 				The time range to transform
- * @param RHS 				The transform
- */
-template<typename T>
-TRange<T> operator*(const TRange<T>& LHS, const FMovieSceneSequenceTransform& RHS)
-{
-	TRangeBound<T> SourceLower = LHS.GetLowerBound();
-	TRangeBound<T> TransformedLower =
-		SourceLower.IsOpen() ? 
-			TRangeBound<T>() : 
-			SourceLower.IsInclusive() ?
-				TRangeBound<T>::Inclusive(SourceLower.GetValue() * RHS) :
-				TRangeBound<T>::Exclusive(SourceLower.GetValue() * RHS);
-
-	TRangeBound<T> SourceUpper = LHS.GetUpperBound();
-	TRangeBound<T> TransformedUpper =
-		SourceUpper.IsOpen() ? 
-			TRangeBound<T>() : 
-			SourceUpper.IsInclusive() ?
-				TRangeBound<T>::Inclusive(SourceUpper.GetValue() * RHS) :
-				TRangeBound<T>::Exclusive(SourceUpper.GetValue() * RHS);
-
-	return TRange<T>(TransformedLower, TransformedUpper);
-}
-
-inline TRange<FFrameNumber> operator*(const TRange<FFrameNumber>& LHS, const FMovieSceneSequenceTransform& RHS)
-{
-	TRangeBound<FFrameNumber> SourceLower = LHS.GetLowerBound();
-	TRangeBound<FFrameNumber> TransformedLower =
-		SourceLower.IsOpen() ? 
-			TRangeBound<FFrameNumber>() : 
-			SourceLower.IsInclusive() ?
-				TRangeBound<FFrameNumber>::Inclusive((SourceLower.GetValue() * RHS).FloorToFrame()) :
-				TRangeBound<FFrameNumber>::Exclusive((SourceLower.GetValue() * RHS).FloorToFrame());
-
-	TRangeBound<FFrameNumber> SourceUpper = LHS.GetUpperBound();
-	TRangeBound<FFrameNumber> TransformedUpper =
-		SourceUpper.IsOpen() ? 
-			TRangeBound<FFrameNumber>() : 
-			SourceUpper.IsInclusive() ?
-				TRangeBound<FFrameNumber>::Inclusive((SourceUpper.GetValue() * RHS).FloorToFrame()) :
-				TRangeBound<FFrameNumber>::Exclusive((SourceUpper.GetValue() * RHS).FloorToFrame());
-
-	return TRange<FFrameNumber>(TransformedLower, TransformedUpper);
 }
 
 /**
@@ -166,14 +484,63 @@ TRange<T>& operator*=(TRange<T>& LHS, const FMovieSceneSequenceTransform& RHS)
  */
 inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform& LHS, const FMovieSceneSequenceTransform& RHS)
 {
-	// The matrix multiplication occurs as follows:
-	//
-	// | TimeScaleA	, OffsetA	|	.	| TimeScaleB, OffsetB	|
-	// | 0			, 1			|		| 0			, 1			|
-
-	const FFrameTime ScaledOffsetRHS = LHS.TimeScale == 1.f ? RHS.Offset : RHS.Offset*LHS.TimeScale;
-	return FMovieSceneSequenceTransform(
-		LHS.Offset + ScaledOffsetRHS,		// New Offset
-		LHS.TimeScale * RHS.TimeScale		// New TimeScale
-		);
+	if (!LHS.IsWarping())
+	{
+		if (!RHS.IsWarping())
+		{
+			// None of the transforms are warping... we can combine them into another linear transform.
+			return FMovieSceneSequenceTransform(LHS.LinearTransform * RHS.LinearTransform);
+		}
+		else
+		{
+			// LHS is linear, but RHS is warping. Since transforms are supposed to apply from right to left,
+			// We need to append LHS at the "bottom" of RHS, i.e. add a new nested transform that's LHS.
+			FMovieSceneSequenceTransform Result(RHS);
+			Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+			return Result;
+		}
+	}
+	else // LHS is warping
+	{
+		if (!RHS.IsWarping())
+		{
+			// RHS isn't warping, but LHS is, so we combine the linear transform parts and start looping
+			// from there.
+			FMovieSceneSequenceTransform Result;
+			Result.LinearTransform = LHS.LinearTransform * RHS.LinearTransform;
+			Result.NestedTransforms = LHS.NestedTransforms;
+			return Result;
+		}
+		else
+		{
+			// Both are looping, we need to combine them. Usually, a warping transform doesn't use its linear part,
+			// because whatever linear placement/scaling it has would be in the linear part of the nested transform
+			// struct.
+			FMovieSceneSequenceTransform Result(RHS);
+			const bool bHasOnlyNested = LHS.LinearTransform.Offset == 0 && LHS.LinearTransform.TimeScale == 1.f;
+			ensure(bHasOnlyNested);
+			if (!bHasOnlyNested)
+			{
+				Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+			}
+			Result.NestedTransforms.Append(LHS.NestedTransforms);
+			return Result;
+		}
+	}
 }
+
+/** Convert a FMovieSceneSequenceTransform into a string */
+inline FString LexToString(const FMovieSceneSequenceTransform& InTransform)
+{
+	if (InTransform.NestedTransforms.Num() == 0)
+	{
+		return LexToString(InTransform.LinearTransform);
+	}
+	else
+	{
+		return *FString::Printf(TEXT("%s (+%d nested loops)"),
+				*LexToString(InTransform.LinearTransform),
+				InTransform.NestedTransforms.Num());
+	}
+}
+

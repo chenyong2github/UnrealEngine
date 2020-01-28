@@ -86,7 +86,7 @@ public:
 	void Setup();
 
 	void UpdateMaterials();
-	void SetMaterialIfChanged(UMaterialInterface* OriginalMaterial, UMaterialInterface* CurrentMaterial, TFunctionRef<void(UMaterialInterface* Material)> SetMaterialFn);
+	UMaterialInterface* GetActiveOverrideMaterial() const;
 };
 
 

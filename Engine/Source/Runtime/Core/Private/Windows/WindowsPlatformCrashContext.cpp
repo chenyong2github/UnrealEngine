@@ -97,7 +97,7 @@ namespace {
 		// CrashContext.runtime-xml is now a part of the minidump file.
 		MINIDUMP_USER_STREAM CrashContextStream = { 0 };
 		CrashContextStream.Type = UE4_MINIDUMP_CRASHCONTEXT;
-		CrashContextStream.BufferSize = InContext.GetBuffer().GetAllocatedSize();
+		CrashContextStream.BufferSize = (ULONG)InContext.GetBuffer().GetAllocatedSize();
 		CrashContextStream.Buffer = (void*)*InContext.GetBuffer();
 
 		MINIDUMP_USER_STREAM_INFORMATION CrashContextStreamInformation = { 0 };
@@ -1135,6 +1135,8 @@ private:
 		// Generic exception description is stored in GErrorExceptionDescription
 		else if (ExceptionInfo->ExceptionRecord->ExceptionCode != 1)
 		{
+			// When a generic exception is thrown, it is important to get all the stack frames
+			NumStackFramesToIgnore = 0;
 			CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
 			ErrorMessage = GErrorExceptionDescription;
 		}

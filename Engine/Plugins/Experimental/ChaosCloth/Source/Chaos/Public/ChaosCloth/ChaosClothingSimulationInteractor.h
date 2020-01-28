@@ -19,19 +19,10 @@ public:
 	virtual void PhysicsAssetUpdated() override;
 	virtual void ClothConfigUpdated() override;
 	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
+	virtual void SetAnimDriveSpringStiffness(float InStiffness) override;
+	virtual void EnableGravityOverride(const FVector& InVector) override;
+	virtual void DisableGravityOverride() override;
 	//////////////////////////////////////////////////////////////////////////
-
-	// Set the stiffness of the spring force for the animation drive
-	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
-	void SetAnimDriveSpringStiffness(float InStiffness);
-
-	// Set a new gravity override and enable the override
-	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
-	void EnableGravityOverride(const FVector& InVector);
-
-	// Disable any currently set gravity override
-	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	void DisableGravityOverride();
 
 private:
 

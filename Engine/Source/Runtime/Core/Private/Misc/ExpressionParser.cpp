@@ -33,7 +33,7 @@ TCHAR FTokenStream::PeekChar(int32 Offset) const
 
 int32 FTokenStream::CharsRemaining() const
 {
-	return End - ReadPos;
+	return UE_PTRDIFF_TO_INT32(End - ReadPos);
 }
 
 bool FTokenStream::IsEmpty() const
@@ -43,7 +43,7 @@ bool FTokenStream::IsEmpty() const
 
 int32 FTokenStream::GetPosition() const
 {
-	return ReadPos - Start;
+	return UE_PTRDIFF_TO_INT32(ReadPos - Start);
 }
 
 FString FTokenStream::GetErrorContext() const
@@ -82,7 +82,7 @@ TOptional<FStringToken> FTokenStream::ParseToken(TFunctionRef<EParseState(TCHAR)
 		return TOptional<FStringToken>();
 	}
 
-	FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+	FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 
 	while (Token.GetTokenEndPos() != End)
 	{
@@ -126,7 +126,7 @@ TOptional<FStringToken> FTokenStream::ParseSymbol(FStringToken* Accumulate) cons
 		return TOptional<FStringToken>();
 	}
 	
-	FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+	FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 	++Token.TokenEnd;
 
 	if (Accumulate)
@@ -146,7 +146,7 @@ TOptional<FStringToken> FTokenStream::ParseSymbol(TCHAR Symbol, FStringToken* Ac
 		return TOptional<FStringToken>();
 	}
 	
-	FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+	FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 
 	if (*Token.TokenEnd == Symbol)
 	{
@@ -178,7 +178,7 @@ TOptional<FStringToken> FTokenStream::ParseToken(const TCHAR* Symbol, FStringTok
 		return TOptional<FStringToken>();		
 	}
 
-	FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+	FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 	
 	if (FCString::Strncmp(Token.GetTokenEndPos(), Symbol, Len) == 0)
 	{
@@ -205,7 +205,7 @@ TOptional<FStringToken> FTokenStream::ParseTokenIgnoreCase(const TCHAR* Symbol, 
 		return TOptional<FStringToken>();
 	}
 
-	FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+	FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 	
 	if (FCString::Strnicmp(OptReadPos, Symbol, Len) == 0)
 	{
@@ -240,7 +240,7 @@ TOptional<FStringToken> FTokenStream::GenerateToken(int32 NumChars, FStringToken
 
 	if (IsReadPosValid(OptReadPos, NumChars))
 	{
-		FStringToken Token(OptReadPos, 0, OptReadPos - Start);
+		FStringToken Token(OptReadPos, 0, UE_PTRDIFF_TO_INT32(OptReadPos - Start));
 		Token.TokenEnd += NumChars;
 		if (Accumulate)
 		{

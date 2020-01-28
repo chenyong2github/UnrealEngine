@@ -78,6 +78,9 @@ public:
 	/** Gets the function call node which owns this input. */
 	const UNiagaraNodeFunctionCall& GetInputFunctionCallNode() const;
 
+	/** Gets the script that the function call node was referencing when this input was initialized. */
+	UNiagaraScript* GetInputFunctionCallInitialScript() const;
+
 	/** Gets the current value mode */
 	EValueMode GetValueMode();
 
@@ -100,7 +103,7 @@ public:
 	virtual bool SupportsPaste() const override { return true; }
 	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 
 	FText GetTooltipText(EValueMode InValueMode) const;
 
@@ -393,6 +396,9 @@ private:
 
 	/** The function call which this entry is an input to. NOTE: This node can be a module function call node or a dynamic input node. */
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> OwningFunctionCallNode;
+
+	/** The script which the owning function call is referencing. */
+	TWeakObjectPtr<UNiagaraScript> OwningFunctionCallInitialScript;
 
 	/** The assignment node which owns this input.  This is only valid for inputs of assignment modules. */
 	TWeakObjectPtr<UNiagaraNodeAssignment> OwningAssignmentNode;

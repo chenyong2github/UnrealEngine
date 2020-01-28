@@ -304,6 +304,8 @@ public:
 		{
 			return Data;
 		}
+
+		//@TODO: FLOATPRECISION: Takes SIZE_T input but doesn't actually support it
 		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements,SIZE_T NumBytesPerElement)
 		{
 			void* OldData = Data;
@@ -311,7 +313,7 @@ public:
 			{
 				// Allocate memory from the stack.
 				Data = (ElementType*)FMemStack::Get().PushBytes(
-					NumElements * NumBytesPerElement,
+					(int32)(NumElements * NumBytesPerElement),
 					FMath::Max(Alignment,(uint32)alignof(ElementType))
 					);
 

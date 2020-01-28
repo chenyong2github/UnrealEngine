@@ -63,6 +63,8 @@ protected:
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
+
+	FString SelectedPrimPath;
 };
 
 #endif // #if USE_USD_SDK

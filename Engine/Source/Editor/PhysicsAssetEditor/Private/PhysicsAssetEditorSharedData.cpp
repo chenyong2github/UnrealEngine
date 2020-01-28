@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditorSharedData.h"
-#include "PhysicsEngine/PhysicsHandleComponent.h"
+#include "PhysicsAssetEditorPhysicsHandleComponent.h"
 #include "PhysicsEngine/RigidBodyIndexPair.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
@@ -68,7 +68,12 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	bManipulating = false;
 	
 	// Construct mouse handle
-	MouseHandle = NewObject<UPhysicsHandleComponent>();
+	MouseHandle = NewObject<UPhysicsAssetEditorPhysicsHandleComponent>();
+
+	// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
+#if PHAT_USE_RBAN_SIMULATION
+	MouseHandle->SetAnimInstanceMode(true);
+#endif
 
 	// Construct sim options.
 	EditorOptions = NewObject<UPhysicsAssetEditorOptions>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UPhysicsAssetEditorOptions::StaticClass(), FName(TEXT("EditorOptions"))), RF_Transactional);
@@ -1916,7 +1921,10 @@ void FPhysicsAssetEditorSharedData::AddReferencedObjects(FReferenceCollector& Co
 	Collector.AddReferencedObject(CopiedBodySetup);
 	Collector.AddReferencedObject(CopiedConstraintTemplate);
 
-	PreviewScene.Pin()->AddReferencedObjects(Collector);
+	if (PreviewScene != nullptr)
+	{
+		PreviewScene.Pin()->AddReferencedObjects(Collector);
+	}
 }
 
 void FPhysicsAssetEditorSharedData::ForceDisableSimulation()

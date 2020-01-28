@@ -3298,6 +3298,7 @@ IMPLEMENT_PROPERTY_VALUE( FPropertyHandleArray )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleText )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleSet )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleMap )
+IMPLEMENT_PROPERTY_VALUE( FPropertyHandleFieldPath )
 
 // int32 
 bool FPropertyHandleInt::Supports( TSharedRef<FPropertyNode> PropertyNode )
@@ -3804,45 +3805,6 @@ FPropertyAccess::Result FPropertyHandleObject::SetValue( UObject* const& NewValu
 }
 
 FPropertyAccess::Result FPropertyHandleObject::SetValue( const UObject* const& NewValue, EPropertyValueSetFlags::Type Flags )
-{
-	const TSharedPtr<FPropertyNode>& PropertyNode = Implementation->GetPropertyNode();
-
-	if (!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew))
-	{
-		FString ObjectPathName = NewValue ? NewValue->GetPathName() : TEXT("None");
-		return SetValueFromFormattedString(ObjectPathName, Flags);
-	}
-
-	return FPropertyAccess::Fail;
-}
-
-FPropertyAccess::Result FPropertyHandleObject::GetValue(FProperty*& OutValue) const
-{
-	return FPropertyHandleObject::GetValue((const FProperty*&)OutValue);
-}
-
-FPropertyAccess::Result FPropertyHandleObject::GetValue(const FProperty*& OutValue) const
-{
-	void* PropValue = nullptr;
-	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
-
-	if (Res == FPropertyAccess::Success)
-	{
-		FProperty* Property = GetProperty();
-		check(Property->IsA(FFieldPathProperty::StaticClass()));
-		check(false); // @todo FProp: verify this
-		OutValue = reinterpret_cast<const FProperty*>(PropValue);
-	}
-
-	return Res;
-}
-
-FPropertyAccess::Result FPropertyHandleObject::SetValue(FProperty* const& NewValue, EPropertyValueSetFlags::Type Flags)
-{
-	return FPropertyHandleObject::SetValue((const FProperty*)NewValue);
-}
-
-FPropertyAccess::Result FPropertyHandleObject::SetValue(const FProperty* const& NewValue, EPropertyValueSetFlags::Type Flags)
 {
 	const TSharedPtr<FPropertyNode>& PropertyNode = Implementation->GetPropertyNode();
 
@@ -4856,6 +4818,60 @@ bool FPropertyHandleMap::IsEditable() const
 {
 	// Property is editable if its a non-const dynamic array
 	return Implementation->HasValidPropertyNode() && !Implementation->IsEditConst() && Implementation->IsPropertyTypeOf(FMapProperty::StaticClass());
+}
+
+// FieldPath
+
+bool FPropertyHandleFieldPath::Supports(TSharedRef<FPropertyNode> PropertyNode)
+{
+	FProperty* Property = PropertyNode->GetProperty();
+
+	if (Property == nullptr)
+	{
+		return false;
+	}
+
+	// The value is a field path
+	return Property->IsA<FFieldPathProperty>();
+}
+
+FPropertyAccess::Result FPropertyHandleFieldPath::GetValue(FProperty*& OutValue) const
+{
+	return FPropertyHandleFieldPath::GetValue((const FProperty*&)OutValue);
+}
+
+FPropertyAccess::Result FPropertyHandleFieldPath::GetValue(const FProperty*& OutValue) const
+{
+	void* PropValue = nullptr;
+	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
+
+	if (Res == FPropertyAccess::Success)
+	{
+		FProperty* Property = GetProperty();
+		check(Property->IsA(FFieldPathProperty::StaticClass()));
+		const TFieldPath<FProperty>* FieldPathValue = (const TFieldPath<FProperty>*)(PropValue);
+		OutValue = FieldPathValue->Get();
+	}
+
+	return Res;
+}
+
+FPropertyAccess::Result FPropertyHandleFieldPath::SetValue(FProperty* const& NewValue, EPropertyValueSetFlags::Type Flags)
+{
+	return FPropertyHandleFieldPath::SetValue((const FProperty*)NewValue);
+}
+
+FPropertyAccess::Result FPropertyHandleFieldPath::SetValue(const FProperty* const& NewValue, EPropertyValueSetFlags::Type Flags)
+{
+	const TSharedPtr<FPropertyNode>& PropertyNode = Implementation->GetPropertyNode();
+
+	if (!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew))
+	{
+		FString ObjectPathName = NewValue ? NewValue->GetPathName() : TEXT("None");
+		return SetValueFromFormattedString(ObjectPathName, Flags);
+	}
+
+	return FPropertyAccess::Fail;
 }
 
 #undef LOCTEXT_NAMESPACE

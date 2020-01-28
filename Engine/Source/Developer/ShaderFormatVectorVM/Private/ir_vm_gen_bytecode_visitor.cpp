@@ -1227,7 +1227,7 @@ struct op_external_func : public op_base
 		//We also add this call to the compiler output here as we're now sure it's been called.
 		function_index = CompilationOutput.CalledVMFunctionTable.AddDefaulted();
 		check(function_index != INDEX_NONE);
-		FVectorVMCompilationOutput::FCalledVMFunction& CalledFunc = CompilationOutput.CalledVMFunctionTable[function_index];
+		FCalledVMFunction& CalledFunc = CompilationOutput.CalledVMFunctionTable[function_index];
 		CalledFunc.Name = sig->function_name();
 		CalledFunc.NumOutputs = outputs.Num();
 		for (variable_info_node* input : inputs)

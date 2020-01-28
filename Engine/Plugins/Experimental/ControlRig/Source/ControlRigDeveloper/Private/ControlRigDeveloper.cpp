@@ -8,6 +8,8 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigDeveloperModule"
 
+DEFINE_LOG_CATEGORY(LogControlRigDeveloper);
+
 class FControlRigDeveloperModule : public IControlRigDeveloperModule
 {
 public:

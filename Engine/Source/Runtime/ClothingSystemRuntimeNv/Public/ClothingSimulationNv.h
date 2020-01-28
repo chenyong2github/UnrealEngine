@@ -9,6 +9,7 @@
 #include "ClothConfigNv.h"
 #include "ClothCollisionData.h"
 
+class FPrimitiveDrawInterface;
 class UClothingAssetBase;
 class UClothingAssetCommon;
 
@@ -53,9 +54,6 @@ public:
 	// Wind adaption, a measure of how quickly to adapt to the wind speed
 	// when using the legacy wind calculation mode
 	float WindAdaption;
-
-	// Whether and how we should teleport the simulation this tick
-	EClothingTeleportMode TeleportMode;
 
 	// Scale for the max distance constraints of the simulation mesh
 	float MaxDistanceScale;

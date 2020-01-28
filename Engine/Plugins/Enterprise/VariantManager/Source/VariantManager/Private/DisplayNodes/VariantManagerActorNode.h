@@ -2,69 +2,59 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
-#include "PropertyPath.h"
 
+#include "CoreMinimal.h"
+#include "PropertyPath.h"
+#include "Widgets/SWidget.h"
+
+class FDragDropEvent;
 class FMenuBuilder;
-struct FSlateBrush;
+class SVariantManagerTableRow;
 class UVariantObjectBinding;
 enum class EItemDropZone;
-class FDragDropEvent;
-class SVariantManagerTableRow;
+struct FSlateBrush;
 
 /**
 * A node for displaying an object binding
 */
-class FVariantManagerActorNode
-	: public FVariantManagerDisplayNode
+class FVariantManagerActorNode : public FVariantManagerDisplayNode
 {
 public:
-
 	FVariantManagerActorNode(UVariantObjectBinding* InObjectBinding, TSharedPtr<FVariantManagerDisplayNode> InParentNode, TWeakPtr<FVariantManager> InVariantManager);
 
-	/** @return The object binding on this node */
-	TWeakObjectPtr<UVariantObjectBinding> GetObjectBinding() const
-	{
-		return ObjectBinding;
-	}
+	/** Gets the UVariantObjectBinding held by this actor node */
+	TWeakObjectPtr<UVariantObjectBinding> GetObjectBinding() const;
 
-	// FVariantManagerDisplayNode interface
+	// Begin FVariantManagerDisplayNode interface
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 	virtual FText GetDisplayNameToolTipText() const override;
 	virtual const FSlateBrush* GetIconBrush() const override;
 	virtual const FSlateBrush* GetIconOverlayBrush() const override;
-	virtual FText GetIconToolTipText() const override;
 	virtual EVariantManagerNodeType GetType() const override;
 	virtual FText GetDisplayName() const override;
+	virtual FSlateColor GetDisplayNameColor() const override;
 	virtual void SetDisplayName(const FText& NewDisplayName) override;
 	virtual bool IsSelectable() const override;
 	virtual bool CanDrag() const override;
-	virtual TWeakPtr<FVariantManager> GetVariantManager() const override
-	{
-		return VariantManager;
-	}
-
+	virtual TWeakPtr<FVariantManager> GetVariantManager() const override;
 	virtual TOptional<EItemDropZone> CanDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) const override;
 	virtual void Drop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow) override;
-
-protected:
-
-	const UClass* GetClassForObjectBinding() const;
+	// End FVariantManagerDisplayNode interface
 
 private:
+	/** Gets the tooltip to show on the 'RebindToSelected' button */
+	FText GetRebindToSelectedTooltip() const;
 
-	void HandleAddTrackSubMenuNew(FMenuBuilder& AddTrackMenuBuilder, TArray<FPropertyPath> KeyablePropertyPath, int32 PropertyNameIndexStart = 0);
-	void HandleLabelsSubMenuCreate(FMenuBuilder& MenuBuilder);
-	void HandlePropertyMenuItemExecute(FPropertyPath PropertyPath);
-	TSharedRef<SWidget> HandleAddTrackComboButtonGetMenuContent();
+	/** Gets the class of the UObject that is bound to our ObjectBinding, or nullptr */
+	const UClass* GetClassForObjectBinding() const;
+
+	/** Creates the floating submenu that is shown when mousing over the "Rebind to other actor" right-click option */
+	void AddAssignActorSubMenu(FMenuBuilder& MenuBuilder);
 
 	TWeakObjectPtr<UVariantObjectBinding> ObjectBinding;
 	mutable FText OldDisplayText;
-
 	FText DefaultDisplayName;
-
 	TWeakPtr<FVariantManager> VariantManager;
 };

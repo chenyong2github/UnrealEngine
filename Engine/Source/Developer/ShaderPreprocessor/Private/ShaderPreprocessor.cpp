@@ -52,6 +52,11 @@ public:
 		return Loader;
 	}
 
+	bool HasIncludedMendatoryHeaders() const
+	{
+		return CachedFileContents.Contains(TEXT("/Engine/Public/Platform.ush"));
+	}
+
 private:
 	/** Holder for shader contents (string + size). */
 	typedef TArray<ANSICHAR> FShaderContents;
@@ -232,6 +237,7 @@ bool PreprocessShader(
 
 	static FCriticalSection McppCriticalSection;
 
+	bool bHasIncludedMendatoryHeaders;
 	{
 		FMcppFileLoader FileLoader(ShaderInput, ShaderOutput);
 
@@ -275,6 +281,8 @@ bool PreprocessShader(
 
 		McppOutput = McppOutAnsi;
 		McppErrors = McppErrAnsi;
+
+		bHasIncludedMendatoryHeaders = FileLoader.HasIncludedMendatoryHeaders();
 	}
 
 	if (!ParseMcppErrors(ShaderOutput.Errors, ShaderOutput.PragmaDirectives, McppErrors))
@@ -289,6 +297,17 @@ bool PreprocessShader(
 		CompilerError->ErrorVirtualFilePath = ShaderInput.VirtualSourceFilePath;
 		CompilerError->ErrorLineString = TEXT("0");
 		CompilerError->StrippedErrorMessage = FString::Printf(TEXT("PreprocessShader mcpp_run failed with error code %d"), McppResult);
+		return false;
+	}
+
+	if (!bHasIncludedMendatoryHeaders)
+	{
+		FShaderCompilerError Error;
+		Error.ErrorVirtualFilePath = ShaderInput.VirtualSourceFilePath;
+		Error.ErrorLineString = TEXT("1");
+		Error.StrippedErrorMessage = TEXT("Error: Shader is required to include /Engine/Public/Platform.ush");
+
+		ShaderOutput.Errors.Add(Error);
 		return false;
 	}
 

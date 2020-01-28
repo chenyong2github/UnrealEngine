@@ -32,7 +32,10 @@ public:
 		, _PackageColumnVisibility(EVisibility::Collapsed)
 		, _DetailsAreaVisibility(EVisibility::Collapsed)
 		, _IsConnectionActivityFilteringEnabled(false)
-		, _IsLockActivityFilteringEnabled(false) { }
+		, _IsLockActivityFilteringEnabled(false)
+		, _IsPackageActivityFilteringEnabled(true)
+		, _IsTransactionActivityFilteringEnabled(true)
+		, _IsIgnoredActivityFilteringEnabled(false) { }
 
 		/** An introduction text to put the user in context. */
 		SLATE_ARGUMENT(FText, IntroductionText)
@@ -69,6 +72,15 @@ public:
 
 		/** Show/hide the check box in the 'View Options' to filter lock activities (lock/unlock assets). */
 		SLATE_ARGUMENT(bool, IsLockActivityFilteringEnabled)
+
+		/** Show/hide the check box in the 'View Options' to filter package activities (create/delete/save/rename). */
+		SLATE_ARGUMENT(bool, IsPackageActivityFilteringEnabled)
+
+		/** Show/hide the check box in the 'View Options' to filter transaction activities. */
+		SLATE_ARGUMENT(bool, IsTransactionActivityFilteringEnabled)
+
+		/** Show/hide the check box in the 'View Options' to filter unrecoverable activities. */
+		SLATE_ARGUMENT(bool, IsIgnoredActivityFilteringEnabled)
 	SLATE_END_ARGS();
 
 	/**
@@ -89,6 +101,8 @@ private:
 	FReply OnRecoverAllClicked();
 
 	EVisibility GetRecoverThroughButtonVisibility(TSharedPtr<FConcertClientSessionActivity> Activity);
+	FText GetRecoverThroughButtonTooltip() const;
+	FText GetRecoverAllButtonTooltip() const;
 	TSharedPtr<SWidget> MakeRecoverThroughWidget(TWeakPtr<FConcertClientSessionActivity>, const FName&);
 	void RecoverThrough(TSharedPtr<FConcertClientSessionActivity> Item);
 

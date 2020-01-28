@@ -286,5 +286,121 @@ namespace Chaos
 			return OutTA >= 0 && OutTA <= 1 && OutTB > 0 && OutTB < 1;
 		}
 
+		/**
+		 * Clip a line segment to inside a plane (plane normal pointing outwards).
+		 * @return false if the line is completely outside the plane, true otherwise.
+		 */
+		inline bool ClipLineSegmentToPlane(FVec3& V0, FVec3& V1, const FVec3& PlaneNormal, const FVec3& PlanePos)
+		{
+			FReal Dist0 = FVec3::DotProduct(V0 - PlanePos, PlaneNormal);
+			FReal Dist1 = FVec3::DotProduct(V1 - PlanePos, PlaneNormal);
+			if ((Dist0 > 0.0f) && (Dist1 > 0.0f))
+			{
+				// Whole line segment is outside of face - reject it
+				return false;
+			}
+			
+			if ((Dist0 > 0.0f) && (Dist1 < 0.0f))
+			{
+				// We must move vert 0 to the plane
+				FReal ClippedT = -Dist1 / (Dist0 - Dist1);
+				V0 = FMath::Lerp(V1, V0, ClippedT);
+			}
+			else if ((Dist1 > 0.0f) && (Dist0 < 0.0f))
+			{
+				// We must move vert 1 to the plane
+				FReal ClippedT = -Dist0 / (Dist1 - Dist0);
+				V1 = FMath::Lerp(V0, V1, ClippedT);
+			}
+
+			return true;
+		}
+
+		/**
+		 * Clip a line segment to the inside of an axis aligned plane (normal pointing outwards).
+		 */
+		inline bool ClipLineSegmentToAxisAlignedPlane(FVec3& V0, FVec3& V1, const int32 AxisIndex, const FReal PlaneDir, const FReal PlanePos)
+		{
+			FReal Dist0 = (V0[AxisIndex] - PlanePos) * PlaneDir;
+			FReal Dist1 = (V1[AxisIndex] - PlanePos) * PlaneDir;
+			if ((Dist0 > 0.0f) && (Dist1 > 0.0f))
+			{
+				// Whole line segment is outside of face - reject it
+				return false;
+			}
+
+			if ((Dist0 > 0.0f) && (Dist1 < 0.0f))
+			{
+				// We must move vert 0 to the plane
+				FReal ClippedT = -Dist1 / (Dist0 - Dist1);
+				V0 = FMath::Lerp(V1, V0, ClippedT);
+			}
+			else if ((Dist1 > 0.0f) && (Dist0 < 0.0f))
+			{
+				// We must move vert 1 to the plane
+				FReal ClippedT = -Dist0 / (Dist1 - Dist0);
+				V1 = FMath::Lerp(V0, V1, ClippedT);
+			}
+
+			return true;
+		}
+
+		/**
+		 * Project a point V along direction Dir onto an axis aligned plane.
+		 * /note Does not check for division by zero (Dir parallel to plane).
+		 */
+		inline void ProjectPointOntoAxisAlignedPlane(FVec3& V, const FVec3& Dir, int32 AxisIndex, FReal PlaneDir, FReal PlanePos)
+		{
+			// V -> V + ((PlanePos - V) | PlaneNormal) / (Dir | PlaneNormal)
+			FReal Denominator = Dir[AxisIndex] * PlaneDir;
+			FReal Numerator = (PlanePos - V[AxisIndex]) * PlaneDir;
+			FReal F = Numerator / Denominator;
+			V = V + F * Dir;
+		}
+
+		/**
+		 * Project a point V along direction Dir onto an axis aligned plane.
+		 * /return true if the point was successfully projected onto the plane; false if the direction is parallel to the plane.
+		 */
+		inline bool ProjectPointOntoAxisAlignedPlaneSafe(FVec3& V, const FVec3& Dir, int32 AxisIndex, FReal PlaneDir, FReal PlanePos, FReal Epsilon)
+		{
+			// V -> V + ((PlanePos - V) | PlaneNormal) / (Dir | PlaneNormal)
+			FReal Denominator = Dir[AxisIndex] * PlaneDir;
+			if (Denominator > Epsilon)
+			{
+				FReal Numerator = (PlanePos - V[AxisIndex]) * PlaneDir;
+				FReal F = Numerator / Denominator;
+				V = V + F * Dir;
+				return true;
+			}
+			return false;
+		}
+
+		inline bool NormalizeSafe(FVec3& V, FReal EpsilonSq = SMALL_NUMBER)
+		{
+			FReal VLenSq = V.SizeSquared();
+			if (VLenSq > EpsilonSq)
+			{
+				V = V * FMath::InvSqrt(VLenSq);
+				return true;
+			}
+			return false;
+		}
+
+		/**
+		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
+		 */
+		inline FVec3 ScaleInertia(const FVec3& Inertia, const FVec3& Scale, const bool bScaleMass)
+		{
+			FVec3 XYZSq = (FVec3(0.5f * (Inertia.X + Inertia.Y + Inertia.Z)) - Inertia) * Scale * Scale;
+			FReal XX = XYZSq.Y + XYZSq.Z;
+			FReal YY = XYZSq.X + XYZSq.Z;
+			FReal ZZ = XYZSq.X + XYZSq.Y;
+			FVec3 ScaledInertia = FVec3(XX, YY, ZZ);
+			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
+			return MassScale * ScaledInertia;
+		}
+
 	} // namespace Utilities
 } // namespace Chaos

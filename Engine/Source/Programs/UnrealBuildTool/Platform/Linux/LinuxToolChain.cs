@@ -38,9 +38,19 @@ namespace UnrealBuildTool
 		EnableUndefinedBehaviorSanitizer = 0x4,
 
 		/// <summary>
+		/// Enable memory sanitizer
+		/// </summary>
+		EnableMemorySanitizer = 0x8,
+
+		/// <summary>
 		/// Enable thin LTO
 		/// </summary>
-		EnableThinLTO = 0x8,
+		EnableThinLTO = 0x10,
+
+		/// <summary>
+		/// Enable Shared library for the Sanitizers otherwise defaults to Statically linked
+		/// </summary>
+		EnableSharedSanitizer = 0x20,
 	}
 
 	class LinuxToolChain : ISPCToolChain
@@ -547,6 +557,15 @@ namespace UnrealBuildTool
 				Result += " -fsanitize=undefined";
 			}
 
+			// MSan
+			if (Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+			{
+				// Force using the ANSI allocator if MSan is enabled
+				// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow down ontop of MSan normal amount of overhead
+				// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
+				Result += " -fsanitize=memory -fsanitize-memory-track-origins -DFORCE_ANSI_ALLOCATOR=1";
+			}
+
 			Result += " -Wall -Werror";
 
 			if (!CompileEnvironment.Architecture.StartsWith("x86_64") && !CompileEnvironment.Architecture.StartsWith("i686"))
@@ -910,9 +929,18 @@ namespace UnrealBuildTool
 				Result += string.Format(" -Wl,--unresolved-symbols=ignore-in-shared-libs");
 			}
 
-			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 			{
-				Result += " -g -shared-libsan";
+				Result += " -g";
+
+				if (Options.HasFlag(LinuxToolChainOptions.EnableSharedSanitizer))
+				{
+					Result += " -shared-libsan";
+				}
+
 				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
 				{
 					Result += " -fsanitize=address";
@@ -924,6 +952,12 @@ namespace UnrealBuildTool
 				else if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Result += " -fsanitize=undefined";
+				}
+				else if (Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+				{
+					// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow ontop of MSan normal amount of overhead
+					// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
+					Result += " -fsanitize=memory -fsanitize-memory-track-origins";
 				}
 
 				if (CrossCompiling())
@@ -946,6 +980,11 @@ namespace UnrealBuildTool
 				// x86_64 is now using updated ICU that doesn't need extra .so
 				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Linux/" + LinkEnvironment.Architecture;
 			}
+
+			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/OpenVR/OpenVRv1_5_17/linux64";
+
+			// @FIXME: Workaround for generating RPATHs for launching on devices UE-54136
+			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Linux/x86_64-unknown-linux-gnu";
 
 			// Some OS ship ld with new ELF dynamic tags, which use DT_RUNPATH vs DT_RPATH. Since DT_RUNPATH do not propagate to dlopen()ed DSOs,
 			// this breaks the editor on such systems. See https://kenai.com/projects/maxine/lists/users/archive/2011-01/message/12 for details
@@ -1137,13 +1176,18 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Using {0}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
 			}
 
-			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
+				Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 			{
 				string SanitizerInfo = "Building with:";
+				string StaticOrShared = Options.HasFlag(LinuxToolChainOptions.EnableSharedSanitizer) ? " dynamically" : " statically";
 
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ? " AddressSanitizer" : "";
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ? " ThreadSanitizer" : "";
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ? " UndefinedBehaviorSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ? StaticOrShared + " linked AddressSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ? StaticOrShared + " linked ThreadSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ? StaticOrShared + " linked UndefinedBehaviorSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer) ? StaticOrShared + " linked MemorySanitizer" : "";
 
 				Log.TraceInformation(SanitizerInfo);
 			}

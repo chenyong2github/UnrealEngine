@@ -77,6 +77,14 @@ namespace UsdUtils
 	USDUTILITIES_API UClass* GetComponentTypeForPrim( const pxr::UsdPrim& Prim );
 
 	USDUTILITIES_API TUsdStore< pxr::TfToken > GetUVSetName( int32 UVChannelIndex );
+
+	USDUTILITIES_API bool IsAnimated( const pxr::UsdPrim& Prim );
+
+	/**
+	 * Returns all prims of type SchemaType (or a descendant type) in the subtree of prims rooted at StartPrim.
+	 * Stops going down the subtrees when it hits a schema type to exclude.
+	 */
+	USDUTILITIES_API TArray< TUsdStore< pxr::UsdPrim > > GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes = {} );
 }
 
 #endif // #if USE_USD_SDK

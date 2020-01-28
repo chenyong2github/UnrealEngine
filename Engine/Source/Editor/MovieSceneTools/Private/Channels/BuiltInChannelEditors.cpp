@@ -20,7 +20,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"
-#include "FloatChannelCurveModel.h"
+#include "Channels/FloatChannelCurveModel.h"
 #include "EventChannelCurveModel.h"
 #include "PropertyCustomizationHelpers.h"
 

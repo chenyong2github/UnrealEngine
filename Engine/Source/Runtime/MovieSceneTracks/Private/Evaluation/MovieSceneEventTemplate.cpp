@@ -199,6 +199,12 @@ struct FEventTriggerExecutionToken
 					EventContexts.Add(EventContext);
 				}
 			}
+
+			// If there aren't any bound objects (ie. spawnable hasn't been spawned), no need to trigger the event
+			if (EventContexts.Num() == 0)
+			{
+				return;
+			}
 		}
 
 		// If we have specified event receivers
@@ -428,7 +434,7 @@ void FMovieSceneEventSectionTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 	const int32 Last = bBackwards ? 0 : KeyTimes.Num() - 1;
 	const int32 Inc = bBackwards ? -1 : 1;
 
-	const float PositionInSeconds = Context.GetTime() * Context.GetRootToSequenceTransform().Inverse() / Context.GetFrameRate();
+	const float PositionInSeconds = Context.GetTime() * Context.GetRootToSequenceTransform().InverseLinearOnly() / Context.GetFrameRate();
 
 	if (bBackwards)
 	{
@@ -502,7 +508,7 @@ void FMovieSceneEventTriggerTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 	const int32 Last = bBackwards ? 0 : EventTimes.Num() - 1;
 	const int32 Inc = bBackwards ? -1 : 1;
 
-	const float PositionInSeconds = Context.GetTime() * Context.GetRootToSequenceTransform().Inverse() / Context.GetFrameRate();
+	const float PositionInSeconds = Context.GetTime() * Context.GetRootToSequenceTransform().InverseLinearOnly() / Context.GetFrameRate();
 
 	if (bBackwards)
 	{

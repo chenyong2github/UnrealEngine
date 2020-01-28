@@ -130,7 +130,7 @@ void FDatasmithVREDSceneProcessor::DecomposeRotationPivotsForNode(TSharedPtr<FDa
 				{
 					NewAnimNode = new(NewAnimNodes) FDatasmithFBXSceneAnimNode;
 					NewAnimNode->Name = Dummy->Name;
-					Dummy->MarkMovableNode();
+					Dummy->KeepNode();
 				}
 
 				FDatasmithFBXSceneAnimBlock* NewBlock = new(NewAnimNode->Blocks) FDatasmithFBXSceneAnimBlock;
@@ -231,7 +231,7 @@ void FDatasmithVREDSceneProcessor::DecomposeScalingPivotsForNode(TSharedPtr<FDat
 				{
 					NewAnimNode = new(NewAnimNodes) FDatasmithFBXSceneAnimNode;
 					NewAnimNode->Name = Dummy->Name;
-					Dummy->MarkMovableNode();
+					Dummy->KeepNode();
 				}
 
 				FDatasmithFBXSceneAnimBlock* NewBlock = new(NewAnimNode->Blocks) FDatasmithFBXSceneAnimBlock;

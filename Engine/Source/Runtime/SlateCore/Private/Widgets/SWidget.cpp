@@ -141,7 +141,7 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 	// Account for the case when the widget gets a new handle for some reason.  This should really never happen
 	if (PersistentState.CachedElementHandle.IsValid() && PersistentState.CachedElementHandle != CacheHandle)
 	{
-		ensure(false);
+		ensureMsgf(!CacheHandle.IsValid(), TEXT("Widget was assigned a new cache handle.  This is not expected to happen."));
 		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 	PersistentState.CachedElementHandle = CacheHandle;
@@ -695,7 +695,7 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 		return false;
 	}
 
-	FWidgetProxy MyProxy(this);
+	FWidgetProxy MyProxy(*this);
 	MyProxy.Index = FastPathList.Num();
 	MyProxy.ParentIndex = ParentIndex;
 	MyProxy.Visibility = GetVisibility();
@@ -1403,7 +1403,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget();
+	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget(*this);
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);

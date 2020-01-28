@@ -97,7 +97,7 @@ void FVectorTypesSpec::Define()
 			{
 				constexpr float initialValues[3]{0.5f, 0.5f, 0.5f};
 				Vec testVec{initialValues};
-				FLinearColor converted = {testVec};
+				FLinearColor converted = {(FVector)testVec};
 				TestEqual("Color.R", testVec.X, converted.R);
 				TestEqual("Color.G", testVec.Y, converted.G);
 				TestEqual("Color.B", testVec.Z, converted.B);

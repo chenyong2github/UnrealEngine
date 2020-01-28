@@ -12,9 +12,6 @@
 
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/Texture2D.h"
-#include "Factories/TextureFactory.h"
-#include "ObjectTools.h"
-#include "PackageTools.h"
 
 namespace DatasmithGLTFImporterImpl
 {
@@ -96,10 +93,14 @@ GLTF::ITextureElement* FDatasmithGLTFTextureFactory::CreateTexture(const GLTF::F
 	using namespace DatasmithGLTFImporterImpl;
 
 	if (GltfTexture.Name.IsEmpty())
+	{
 		return nullptr;
+	}
 
 	if (GltfTexture.Source.FilePath.IsEmpty() && GltfTexture.Source.DataByteLength == 0)
+	{
 		return nullptr;
+	}
 
 	FString TextureName = GltfTexture.Name;
 	if (CreatedTextures.Contains(TextureName))
@@ -112,13 +113,16 @@ GLTF::ITextureElement* FDatasmithGLTFTextureFactory::CreateTexture(const GLTF::F
 	Texture->SetTextureFilter(ConvertFilter(GltfTexture.Sampler.MinFilter));
 	Texture->SetTextureAddressX(ConvertWrap(GltfTexture.Sampler.WrapS));
 	Texture->SetTextureAddressY(ConvertWrap(GltfTexture.Sampler.WrapT));
-	if (TextureMode != GLTF::ETextureMode::Color)
-		Texture->SetRGBCurve(1.f);
+	Texture->SetSRGB(TextureMode == GLTF::ETextureMode::Color ? EDatasmithColorSpace::sRGB : EDatasmithColorSpace::Linear);
 
 	if (GltfTexture.Source.DataByteLength > 0)
+	{
 		Texture->SetData(GltfTexture.Source.Data, GltfTexture.Source.DataByteLength, ConvertFormat(GltfTexture.Source.Format));
+	}
 	else
+	{
 		Texture->SetFile(*GltfTexture.Source.FilePath);
+	}
 
 	CurrentScene->AddTexture(Texture);
 

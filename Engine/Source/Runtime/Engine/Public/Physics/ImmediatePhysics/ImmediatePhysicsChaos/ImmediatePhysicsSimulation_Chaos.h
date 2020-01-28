@@ -67,10 +67,14 @@ namespace ImmediatePhysics_Chaos
 		void Simulate(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
 		void Simulate_AssumesLocked(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
 
-		void SetSimulationSpaceTransform(const FTransform& Transform) { SimulationSpaceTransform = Transform; }
+		void SetSimulationSpaceTransform(const FTransform& Transform);
+
+		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
+		void SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
 
 	private:
 		void ConditionConstraints();
+		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
@@ -84,7 +88,7 @@ namespace ImmediatePhysics_Chaos
 		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
 
 		// @todo(ccaulfield): Look into these...
-		TArray<FParticlePair> PotentiallyCollidingPairs;
+		TArray<FParticlePair> ActivePotentiallyCollidingPairs;
 		Chaos::TArrayCollectionArray<bool> CollidedParticles;
 		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
 		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
@@ -111,11 +115,16 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): Optimize
 		TMap<const FParticleHandle*, TSet<const FParticleHandle*>> IgnoreCollisionParticlePairTable;
 
+		TArray<FParticlePair> PotentiallyCollidingPairs;
+
 		FTransform SimulationSpaceTransform;
 
 		FReal RollingAverageStepTime;
 		int32 NumRollingAverageStepTimes;
 		int32 MaxNumRollingAverageStepTimes;
+
+		bool bActorsDirty;
+		bool bJointsDirty;
 	};
 
 }

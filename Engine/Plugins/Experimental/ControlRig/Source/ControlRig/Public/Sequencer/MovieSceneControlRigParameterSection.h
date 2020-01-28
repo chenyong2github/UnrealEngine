@@ -24,6 +24,17 @@ struct FFloatInterrogationData
 	FName ParameterName;
 };
 
+struct FBoolInterrogationData
+{
+	bool Val;
+	FName ParameterName;
+};
+
+struct FVector2DInterrogationData
+{
+	FVector2D Val;
+	FName ParameterName;
+};
 
 struct FVectorInterrogationData
 {
@@ -37,6 +48,19 @@ struct FTransformInterrogationData
 	FName ParameterName;
 };
 
+USTRUCT()
+struct CONTROLRIG_API FChannelMapInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	FChannelMapInfo() = default;
+
+	FChannelMapInfo(int32 InControlIndex, int32 InChannelIndex) : ControlIndex(InControlIndex), ChannelIndex(InChannelIndex) {};
+	UPROPERTY()
+	int32 ControlIndex;
+	UPROPERTY()
+	int32 ChannelIndex;
+};
 
 /**
  * Movie scene section that controls animation controller animation
@@ -76,6 +100,14 @@ public:
 	UPROPERTY()
 	FMovieSceneFloatChannel Weight;
 
+	/** Map from the control name to where it starts as a channel*/
+	UPROPERTY()
+	TMap<FName, FChannelMapInfo> ControlChannelMap;
+
+private:
+	/** Copy of Mask for controls, checked when reconstructing*/
+	TArray<bool> OldControlsMask;
+
 public:
 
 	UMovieSceneControlRigParameterSection();
@@ -97,7 +129,7 @@ public:
 	void SetControlsMask(const TArray<bool>& InMask)
 	{
 		ControlsMask = InMask;
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 	void SetControlsMask(int32 Index, bool Val)
@@ -106,14 +138,14 @@ public:
 		{
 			ControlsMask[Index] = Val;
 		}
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 
 	void FillControlsMask(bool Val)
 	{
 		ControlsMask.Init(Val, ControlsMask.Num());
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 
 	}
 
@@ -131,7 +163,7 @@ public:
 	void SetTransformMask(FMovieSceneTransformMask NewMask)
 	{
 		TransformMask = NewMask;
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 public:
@@ -144,44 +176,57 @@ public:
 	/**  Whether or not this section his scalar*/
 	bool HasScalarParameter(FName InParameterName) const;
 
+	/**  Whether or not this section his bool*/
+	bool HasBoolParameter(FName InParameterName) const;
+
+	/**  Whether or not this section his scalar*/
+	bool HasVector2DParameter(FName InParameterName) const;
+
 	/**  Whether or not this section his scalar*/
 	bool HasVectorParameter(FName InParameterName) const;
 
 	/**  Whether or not this section his scalar*/
 	bool HasColorParameter(FName InParameterName) const;
 
-		/**  Whether or not this section his scalar*/
+	/**  Whether or not this section his scalar*/
 	bool HasTransformParameter(FName InParameterName) const;
 
 	/** Adds specified scalar parameter. */
-	void AddScalarParameter(FName InParameterName,  TOptional<float> DefaultValue);
+	void AddScalarParameter(FName InParameterName,  TOptional<float> DefaultValue, bool bReconstructChannel);
+
+	/** Adds specified bool parameter. */
+	void AddBoolParameter(FName InParameterName, TOptional<bool> DefaultValue, bool bReconstructChannel);
 
 	/** Adds a a key for a specific vector parameter. */
-	void AddVectorParameter(FName InParameterName, TOptional<FVector> DefaultValue);
+	void AddVectorParameter(FName InParameterName, TOptional<FVector> DefaultValue, bool bReconstructChannel);
+
+	/** Adds a a key for a specific vector2D parameter. */
+	void AddVector2DParameter(FName InParameterName, TOptional<FVector2D> DefaultValue, bool bReconstructChannel);
 
 	/** Adds a a key for a specific color parameter. */
-	void AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue);
+	void AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue, bool bReconstructChannel);
 
 	/** Adds a a key for a specific color parameter*/
-	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue);
+	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel);
 
 public:
 	/**
 	* Access the interrogation key for control rig data 
 	*/
 	 static FMovieSceneInterrogationKey GetFloatInterrogationKey();
+	 static FMovieSceneInterrogationKey GetVector2DInterrogationKey();
+	 static FMovieSceneInterrogationKey GetVector4InterrogationKey();
 	 static FMovieSceneInterrogationKey GetVectorInterrogationKey();
 	 static FMovieSceneInterrogationKey GetTransformInterrogationKey();
 
-
-protected:
-	virtual void ReconstructChannelProxy();
+	virtual void ReconstructChannelProxy(bool bForce ) override;
 
 protected:
 
 	//~ UMovieSceneSection interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
+	virtual void PostLoad() override;
 
 	// When true we do not set a key on the section, since it will be set because we changed the value
 	// We need this because control rig notifications are set on every change even when just changing sequencer time

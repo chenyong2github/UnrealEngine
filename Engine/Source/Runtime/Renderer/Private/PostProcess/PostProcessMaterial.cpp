@@ -356,7 +356,12 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	}
 
 	FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
-	FRHIBlendState* BlendState = GetMaterialBlendState(Material);
+	FRHIBlendState* BlendState = DefaultBlendState;
+	
+	if (IsMaterialBlendEnabled(Material))
+	{
+		BlendState = GetMaterialBlendState(Material);
+	}
 
 	// Blend / Depth Stencil usage requires that the render target have primed color data.
 	const bool bIsCompositeWithInput = DepthStencilState != DefaultDepthStencilState || BlendState != DefaultBlendState;
@@ -406,7 +411,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		if (bPrimeOutputColor || bForceIntermediateRT)
 		{
 			// Copy existing contents to new output and use load-action to preserve untouched pixels.
-			AddDrawTexturePass(GraphBuilder, View, SceneColor.Texture, Output.Texture);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
 			Output.LoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
@@ -418,7 +423,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
 
-	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(SceneColorViewport);
+	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(OutputViewport);
 	PostProcessMaterialParameters->CustomDepth = DepthStencilTexture;
 	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
@@ -462,6 +467,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	FPostProcessMaterialVS* VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
 	FPostProcessMaterialPS* PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
+	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
 	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
 
@@ -573,7 +579,8 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer)
 	{
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterialInterface* VisMaterial = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterial* Material = VisMaterial ? VisMaterial->GetMaterial() : nullptr;
 
 		if (Material && Material->BlendableLocation == Location)
 		{
@@ -766,9 +773,11 @@ FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 
 	static_assert(UE_ARRAY_COUNT(PassNames) == static_cast<uint32>(EPass::MAX), "Pass names array doesn't match pass enum");
 
+	const bool bHighResScreenshotMask = View.Family->EngineShowFlags.HighResScreenshotMask != 0;
+
 	TOverridePassSequence<EPass> PassSequence(Inputs.OverrideOutput);
-	PassSequence.SetEnabled(EPass::Material, Inputs.Material != nullptr);
-	PassSequence.SetEnabled(EPass::MaskMaterial, Inputs.MaskMaterial != nullptr && GIsHighResScreenshot);
+	PassSequence.SetEnabled(EPass::Material, bHighResScreenshotMask && Inputs.Material != nullptr);
+	PassSequence.SetEnabled(EPass::MaskMaterial, bHighResScreenshotMask && Inputs.MaskMaterial != nullptr && GIsHighResScreenshot);
 	PassSequence.SetEnabled(EPass::CaptureRegionMaterial, Inputs.CaptureRegionMaterial != nullptr);
 	PassSequence.Finalize();
 

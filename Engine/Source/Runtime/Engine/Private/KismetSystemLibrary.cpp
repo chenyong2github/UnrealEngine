@@ -10,7 +10,6 @@
 #include "Misc/Paths.h"
 #include "Misc/RuntimeErrors.h"
 #include "UObject/GCObject.h"
-#include "UObject/PropertyAccessUtil.h"
 #include "EngineGlobals.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
@@ -2486,6 +2485,12 @@ bool UKismetSystemLibrary::GetVolumeButtonsHandledBySystem()
 	return FPlatformMisc::GetVolumeButtonsHandledBySystem();
 }
 
+void UKismetSystemLibrary::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	FPlatformApplicationMisc::SetGamepadsBlockDeviceFeedback(bBlock);
+
+}
+
 void UKismetSystemLibrary::ResetGamepadAssignments()
 {
 	FPlatformApplicationMisc::ResetGamepadAssignments();
@@ -2674,7 +2679,7 @@ bool UKismetSystemLibrary::IsUnattended()
 
 #if WITH_EDITOR
 
-bool UKismetSystemLibrary::GetEditorProperty(UObject* Object, const FName PropertyName, int32& OutValuePtr)
+bool UKismetSystemLibrary::GetEditorProperty(UObject* Object, const FName PropertyName, int32& PropertyValue)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
@@ -2699,7 +2704,7 @@ bool UKismetSystemLibrary::Generic_GetEditorProperty(const UObject* Object, cons
 
 	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ConversionFailed))
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' (%s) on '%s' (%s) tried to read into a property value of the incorrect type (%s)"), *ObjectProp->GetName(), *ObjectProp->GetClass()->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' (%s) on '%s' (%s) tried to get to a property value of the incorrect type (%s)"), *ObjectProp->GetName(), *ObjectProp->GetClass()->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertyGetFailedWarning);
 		return false;
 	}
 
@@ -2755,16 +2760,16 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execGetEditorProperty)
 	*(bool*)RESULT_PARAM = bResult;
 }
 
-bool UKismetSystemLibrary::SetEditorProperty(UObject* Object, const FName PropertyName, const int32& OutValuePtr)
+bool UKismetSystemLibrary::SetEditorProperty(UObject* Object, const FName PropertyName, const int32& PropertyValue, const EPropertyAccessChangeNotifyMode ChangeNotifyMode)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
 	return false;
 }
 
-bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const FProperty* ObjectProp, const void* ValuePtr, const FProperty* ValueProp)
+bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const FProperty* ObjectProp, const void* ValuePtr, const FProperty* ValueProp, const EPropertyAccessChangeNotifyMode ChangeNotifyMode)
 {
-	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::SetPropertyValue_Object(ObjectProp, Object, ValueProp, ValuePtr, INDEX_NONE, PropertyAccessUtil::EditorReadOnlyFlags);
+	const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::SetPropertyValue_Object(ObjectProp, Object, ValueProp, ValuePtr, INDEX_NONE, PropertyAccessUtil::EditorReadOnlyFlags, ChangeNotifyMode);
 
 	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 	{
@@ -2798,7 +2803,7 @@ bool UKismetSystemLibrary::Generic_SetEditorProperty(UObject* Object, const FPro
 
 	if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ConversionFailed))
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' (%s) on '%s' (%s) tried to write into a property value of the incorrect type (%s)"), *ObjectProp->GetName(), *ObjectProp->GetClass()->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Property '%s' (%s) on '%s' (%s) tried to set from a property value of the incorrect type (%s)"), *ObjectProp->GetName(), *ObjectProp->GetClass()->GetName(), *Object->GetPathName(), *Object->GetClass()->GetName(), *ValueProp->GetClass()->GetName()), ELogVerbosity::Warning, PropertySetFailedWarning);
 		return false;
 	}
 
@@ -2813,6 +2818,8 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execSetEditorProperty)
 	Stack.StepCompiledIn<FProperty>(nullptr);
 	const FProperty* ValueProp = Stack.MostRecentProperty;
 	const void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	P_GET_ENUM(EPropertyAccessChangeNotifyMode, ChangeNotifyMode);
 
 	P_FINISH;
 
@@ -2842,7 +2849,7 @@ DEFINE_FUNCTION(UKismetSystemLibrary::execSetEditorProperty)
 		if (ObjectProp)
 		{
 			P_NATIVE_BEGIN;
-			bResult = Generic_SetEditorProperty(Object, ObjectProp, ValuePtr, ValueProp);
+			bResult = Generic_SetEditorProperty(Object, ObjectProp, ValuePtr, ValueProp, ChangeNotifyMode);
 			P_NATIVE_END;
 		}
 		else

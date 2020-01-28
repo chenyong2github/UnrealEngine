@@ -5,7 +5,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "Util/BufferUtil.h"
 #include "MeshRegionBoundaryLoops.h"
-
+#include "DynamicSubmesh3.h"
 
 
 void FMeshIndexMappings::Initialize(FDynamicMesh3* Mesh)
@@ -306,8 +306,7 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	// find the region boundary loops
 	FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, false);
 	bool bOK = RegionLoops.Compute();
-	check(bOK);
-	if (!bOK)
+	if (!ensure(bOK))
 	{
 		return false;
 	}
@@ -378,6 +377,220 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	return true;
 }
 
+
+void FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties)
+{
+	TSet<int> TriSet, BoundaryVerts;
+	TArray<int> NewVerts, OldVertsThatSplit;
+	TArray<int> FilteredTriangles;
+	DynamicMeshInfo::FVertexSplitInfo SplitInfo;
+
+	TriSet.Append(Triangles);
+	for (int TID : Triangles)
+	{
+		FIndex3i Nbrs = Mesh->GetTriNeighbourTris(TID);
+		FIndex3i Tri = Mesh->GetTriangle(TID);
+		for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+		{
+			int NeighborTID = Nbrs[SubIdx];
+			if (!TriSet.Contains(NeighborTID))
+			{
+				BoundaryVerts.Add(Tri[SubIdx]);
+				BoundaryVerts.Add(Tri[(SubIdx + 1) % 3]);
+			}
+		}
+	}
+	for (int VID : BoundaryVerts)
+	{
+		FilteredTriangles.Reset();
+		int TriRingCount = 0;
+		for (int RingTID : Mesh->VtxTrianglesItr(VID))
+		{
+			if (TriSet.Contains(RingTID))
+			{
+				FilteredTriangles.Add(RingTID);
+			}
+			TriRingCount++;
+		}
+
+		if (FilteredTriangles.Num() < TriRingCount)
+		{
+			checkSlow(!Mesh->SplitVertexWouldLeaveIsolated(VID, FilteredTriangles));
+			ensure(EMeshResult::Ok == Mesh->SplitVertex(VID, FilteredTriangles, SplitInfo));
+			NewVerts.Add(SplitInfo.NewVertex);
+			OldVertsThatSplit.Add(SplitInfo.OriginalVertex);
+		}
+	}
+	if (bPreventBowties)
+	{
+		FDynamicMeshEditResult Result;
+		for (int VID : OldVertsThatSplit)
+		{
+			SplitBowties(VID, Result);
+			Result.Reset(); // don't actually keep results; they are not used in this fn
+		}
+		for (int VID : NewVerts)
+		{
+			SplitBowties(VID, Result);
+			Result.Reset(); // don't actually keep results; they are not used in this fn
+		}
+	}
+}
+
+
+
+
+void FDynamicMeshEditor::SplitBowties(FDynamicMeshEditResult& ResultOut)
+{
+	ResultOut.Reset();
+	TSet<int> AddedVerticesWithIDLessThanMax; // added vertices that we can't filter just by checking against original max id; this will be empty for compact meshes
+	for (int VertexID = 0, OriginalMaxID = Mesh->MaxVertexID(); VertexID < OriginalMaxID; VertexID++)
+	{
+		if (!Mesh->IsVertex(VertexID) || AddedVerticesWithIDLessThanMax.Contains(VertexID))
+		{
+			continue;
+		}
+		int32 NumVertsBefore = ResultOut.NewVertices.Num();
+		// TODO: may be faster to inline this call to reuse the contiguous triangle arrays?
+		SplitBowties(VertexID, ResultOut);
+		for (int Idx = NumVertsBefore; Idx < ResultOut.NewVertices.Num(); Idx++)
+		{
+			if (ResultOut.NewVertices[Idx] < OriginalMaxID)
+			{
+				AddedVerticesWithIDLessThanMax.Add(ResultOut.NewVertices[Idx]);
+			}
+		}
+	}
+}
+
+
+
+void FDynamicMeshEditor::SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut)
+{
+	TArray<int> TrianglesOut, ContiguousGroupLengths;
+	TArray<bool> GroupIsLoop;
+	DynamicMeshInfo::FVertexSplitInfo SplitInfo;
+	check(Mesh->IsVertex(VertexID));
+	if (ensure(EMeshResult::Ok == Mesh->GetVtxContiguousTriangles(VertexID, TrianglesOut, ContiguousGroupLengths, GroupIsLoop)))
+	{
+		if (ContiguousGroupLengths.Num() > 1)
+		{
+			// is bowtie
+			for (int GroupIdx = 1, GroupStartIdx = ContiguousGroupLengths[0]; GroupIdx < ContiguousGroupLengths.Num(); GroupStartIdx += ContiguousGroupLengths[GroupIdx++])
+			{
+				ensure(EMeshResult::Ok == Mesh->SplitVertex(VertexID, TArrayView<const int>(TrianglesOut.GetData() + GroupStartIdx, ContiguousGroupLengths[GroupIdx]), SplitInfo));
+				ResultOut.NewVertices.Add(SplitInfo.NewVertex);
+			}
+		}
+	}
+}
+
+
+bool FDynamicMeshEditor::ReinsertSubmesh(const FDynamicSubmesh3& Region, FOptionallySparseIndexMap& SubToNewV, TArray<int>* new_tris, EDuplicateTriBehavior DuplicateBehavior)
+{
+	check(Region.GetBaseMesh() == Mesh);
+	const FDynamicMesh3& Sub = Region.GetSubmesh();
+	bool bAllOK = true;
+
+	FIndexFlagSet done_v(Sub.MaxVertexID(), Sub.TriangleCount()/2);
+	SubToNewV.Initialize(Sub.MaxVertexID(), Sub.VertexCount());
+
+	int NT = Sub.MaxTriangleID();
+	for (int ti = 0; ti < NT; ++ti )
+	{
+		if (Sub.IsTriangle(ti) == false)
+		{
+			continue;
+		}
+
+		FIndex3i sub_t = Sub.GetTriangle(ti);
+		int gid = Sub.GetTriangleGroup(ti);
+
+		FIndex3i new_t = FIndex3i::Zero();
+		for ( int j = 0; j < 3; ++j )
+		{
+			int sub_v = sub_t[j];
+			int new_v = -1;
+			if (done_v[sub_v] == false)
+			{
+				// first check if this is a boundary vtx on submesh and maps to a bdry vtx on base mesh
+				if (Sub.IsBoundaryVertex(sub_v))
+				{
+					int base_v = Region.MapVertexToBaseMesh(sub_v);
+					if (base_v >= 0 && Mesh->IsVertex(base_v) && Region.InBaseBorderVertices(base_v) == true)
+					{
+						// [RMS] this should always be true, but assert in tests to find out
+						if (ensure(Mesh->IsBoundaryVertex(base_v)))
+						{
+							new_v = base_v;
+						}
+					}
+				}
+
+				// if that didn't happen, append new vtx
+				if (new_v == -1)
+				{
+					new_v = Mesh->AppendVertex(Sub, sub_v);
+				}
+
+				SubToNewV.Set(sub_v, new_v);
+				done_v.Add(sub_v);
+
+			}
+			else
+			{
+				new_v = SubToNewV[sub_v];
+			}
+
+			new_t[j] = new_v;
+		}
+
+		// try to handle duplicate-tri case
+		if (DuplicateBehavior == EDuplicateTriBehavior::EnsureContinue)
+		{
+			ensure(Mesh->FindTriangle(new_t.A, new_t.B, new_t.C) == FDynamicMesh3::InvalidID);
+		}
+		else
+		{
+			int existing_tid = Mesh->FindTriangle(new_t.A, new_t.B, new_t.C);
+			if (existing_tid != FDynamicMesh3::InvalidID)
+			{
+				if (DuplicateBehavior == EDuplicateTriBehavior::EnsureAbort)
+				{
+					ensure(false);
+					return false;
+				}
+				else if (DuplicateBehavior == EDuplicateTriBehavior::UseExisting)
+				{
+					if (new_tris)
+					{
+						new_tris->Add(existing_tid);
+					}
+					continue;
+				}
+				else if (DuplicateBehavior == EDuplicateTriBehavior::Replace)
+				{
+					Mesh->RemoveTriangle(existing_tid, false);
+				}
+			}
+		}
+
+
+		int new_tid = Mesh->AppendTriangle(new_t, gid);
+		ensure(new_tid != FDynamicMesh3::InvalidID && new_tid != FDynamicMesh3::NonManifoldID);
+		if (!Mesh->IsTriangle(new_tid))
+		{
+			bAllOK = false;
+		}
+
+		if (new_tris)
+		{
+			new_tris->Add(new_tid);
+		}
+	}
+
+	return bAllOK;
+}
 
 
 
@@ -725,6 +938,13 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 		NormalOverlay->SetTriangle(ToTriangleID, ToElemTri);
 		NormalLayerIndex++;
 	}
+
+	if (Mesh->Attributes()->HasMaterialID())
+	{
+		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
+		MaterialIDs->SetValue(ToTriangleID, MaterialIDs->GetValue(FromTriangleID));
+	}
+
 }
 
 
@@ -808,6 +1028,9 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 	TFunction<FVector3d(int, const FVector3d&)> PositionTransform,
 	TFunction<FVector3d(int, const FVector3d&)> NormalTransform)
 {
+	// todo: handle this case by making a copy?
+	check(AppendMesh != Mesh);
+
 	IndexMapsOut.Reset();
 	IndexMapsOut.Initialize(Mesh);
 
@@ -895,10 +1118,20 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			FDynamicMeshUVOverlay* ToUVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
 			if (FromUVs != nullptr && ToUVs != nullptr)
 			{
-				FIndexMapi& UVMap = IndexMapsOut.GetUVMap(0);
+				FIndexMapi& UVMap = IndexMapsOut.GetUVMap(UVLayerIndex);
 				UVMap.Reserve(FromUVs->ElementCount());
 				AppendUVs(AppendMesh, FromUVs, ToUVs,
 					VertexMap, TriangleMap, UVMap);
+			}
+		}
+
+		if (AppendMesh->Attributes()->HasMaterialID() && Mesh->Attributes()->HasMaterialID())
+		{
+			const FDynamicMeshMaterialAttribute* FromMaterialIDs = AppendMesh->Attributes()->GetMaterialID();
+			FDynamicMeshMaterialAttribute* ToMaterialIDs = Mesh->Attributes()->GetMaterialID();
+			for (int TriID : AppendMesh->TriangleIndicesItr())
+			{
+				ToMaterialIDs->SetValue(TriangleMap.GetTo(TriID), FromMaterialIDs->GetValue(TriID));
 			}
 		}
 	}
@@ -1048,7 +1281,7 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		{
 			if (FromElemTri[j] != FDynamicMesh3::InvalidID)
 			{
-				int NewElemID = AppendTriangleUVAttribute(FromMesh, FromElemTri[j], ToMesh, 0, IndexMaps);
+				int NewElemID = AppendTriangleUVAttribute(FromMesh, FromElemTri[j], ToMesh, UVLayerIndex, IndexMaps);
 				ToElemTri[j] = NewElemID;
 			}
 		}
@@ -1072,6 +1305,13 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		}
 		ToNormalOverlay->SetTriangle(ToTriangleID, ToElemTri);
 	}
+
+	if (FromMesh->Attributes()->HasMaterialID() && ToMesh->Attributes()->HasMaterialID())
+	{
+		const FDynamicMeshMaterialAttribute* FromMaterialIDs = FromMesh->Attributes()->GetMaterialID();
+		FDynamicMeshMaterialAttribute* ToMaterialIDs = ToMesh->Attributes()->GetMaterialID();
+		ToMaterialIDs->SetValue(ToTriangleID, FromMaterialIDs->GetValue(FromTriangleID));
+	}
 }
 
 
@@ -1079,7 +1319,7 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 
 
 
-void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const TArray<int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut)
+void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const TArrayView<const int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut, bool bComputeTriangleMap)
 {
 	ResultOut.Reset();
 	IndexMaps.Initialize(Mesh);
@@ -1120,11 +1360,102 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		}
 
 		int NewTriangleID = Mesh->AppendTriangle(NewTri, NewGroupID);
-		IndexMaps.SetTriangle(SourceTriangleID, NewTriangleID);
+		if (bComputeTriangleMap)
+		{
+			IndexMaps.SetTriangle(SourceTriangleID, NewTriangleID);
+		}
 		ResultOut.NewTriangles.Add(NewTriangleID);
 
 		AppendAttributes(SourceMesh, SourceTriangleID, Mesh, NewTriangleID, IndexMaps, ResultOut);
 
 		//Mesh->CheckValidity(true);
 	}
+}
+
+
+bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID)
+{
+	TMap<int, int> MeshIDToIndex;
+	int NumMeshes = 0;
+	bool bAlsoDelete = false;
+	for (int TID : SourceMesh->TriangleIndicesItr())
+	{
+		int MeshID = TriIDToMeshID(TID);
+		if (MeshID == DeleteMeshID)
+		{
+			bAlsoDelete = true;
+			continue;
+		}
+		if (!MeshIDToIndex.Contains(MeshID))
+		{
+			MeshIDToIndex.Add(MeshID, NumMeshes++);
+		}
+	}
+
+	if (!bAlsoDelete && NumMeshes < 2)
+	{
+		return false; // nothing to do, so don't bother filling the split meshes array
+	}
+
+	SplitMeshes.Reset();
+	SplitMeshes.SetNum(NumMeshes);
+	// enable matching attributes
+	for (FDynamicMesh3& M : SplitMeshes)
+	{
+		if (SourceMesh->HasAttributes())
+		{
+			M.EnableAttributes();
+			M.Attributes()->EnableMatchingAttributes(*SourceMesh->Attributes());
+		}
+	}
+
+	if (NumMeshes == 0) // full delete case, just leave the empty mesh
+	{
+		return true;
+	}
+
+	TArray<FMeshIndexMappings> Mappings; Mappings.Reserve(NumMeshes);
+	FDynamicMeshEditResult UnusedInvalidResultAccumulator; // only here because some functions require it
+	for (int Idx = 0; Idx < NumMeshes; Idx++)
+	{
+		FMeshIndexMappings& Map = Mappings.Emplace_GetRef();
+		Map.Initialize(&SplitMeshes[Idx]);
+	}
+
+	for (int SourceTID : SourceMesh->TriangleIndicesItr())
+	{
+		int MeshID = TriIDToMeshID(SourceTID);
+		if (MeshID == DeleteMeshID)
+		{
+			continue; // just skip triangles w/ the Delete Mesh ID
+		}
+		int MeshIndex = MeshIDToIndex[MeshID];
+		FDynamicMesh3& Mesh = SplitMeshes[MeshIndex];
+		FMeshIndexMappings& IndexMaps = Mappings[MeshIndex];
+
+		FIndex3i Tri = SourceMesh->GetTriangle(SourceTID);
+
+		// FindOrCreateDuplicateGroup
+		int SourceGID = SourceMesh->GetTriangleGroup(SourceTID);
+		int NewGID = IndexMaps.GetNewGroup(SourceGID);
+
+		FIndex3i NewTri;
+		for (int j = 0; j < 3; ++j)
+		{
+			int SourceVID = Tri[j];
+			int NewVID = IndexMaps.GetNewVertex(SourceVID);
+			if (NewVID == IndexMaps.InvalidID())
+			{
+				NewVID = Mesh.AppendVertex(*SourceMesh, SourceVID);
+				IndexMaps.SetVertex(SourceVID, NewVID);
+			}
+			NewTri[j] = NewVID;
+		}
+
+		int NewTID = Mesh.AppendTriangle(NewTri, NewGID);
+		IndexMaps.SetTriangle(SourceTID, NewTID);
+		AppendAttributes(SourceMesh, SourceTID, &Mesh, NewTID, IndexMaps, UnusedInvalidResultAccumulator);
+	}
+	
+	return true;
 }

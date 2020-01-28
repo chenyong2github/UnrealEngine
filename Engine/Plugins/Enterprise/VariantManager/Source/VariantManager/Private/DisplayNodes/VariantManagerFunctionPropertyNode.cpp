@@ -62,6 +62,16 @@ FFunctionCaller& FVariantManagerFunctionPropertyNode::GetFunctionCaller() const
 	return FunctionCaller;
 }
 
+uint32 FVariantManagerFunctionPropertyNode::GetDisplayOrder() const
+{
+	return FunctionCaller.GetDisplayOrder();
+}
+
+void FVariantManagerFunctionPropertyNode::SetDisplayOrder(uint32 InDisplayOrder)
+{
+	FunctionCaller.SetDisplayOrder(InDisplayOrder);
+}
+
 void FVariantManagerFunctionPropertyNode::SetBindingTargetFunction(UK2Node_FunctionEntry* NewFunctionEntry)
 {
 	FScopedTransaction Transaction(LOCTEXT("SetFunctionCallerFunction", "Set a new function to be called by a FunctionCaller"));

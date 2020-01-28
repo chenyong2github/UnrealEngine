@@ -14,12 +14,14 @@ void FAdvancedPreviewSceneModule::ShutdownModule()
 {
 }
 
-TSharedRef<SWidget> FAdvancedPreviewSceneModule::CreateAdvancedPreviewSceneSettingsWidget(const TSharedRef<FAdvancedPreviewScene>& InPreviewScene, UObject* InAdditionalSettings, const TArray<FDetailCustomizationInfo>& InDetailCustomizations, const TArray<FPropertyTypeCustomizationInfo>& InPropertyTypeCustomizations)
+TSharedRef<SWidget> FAdvancedPreviewSceneModule::CreateAdvancedPreviewSceneSettingsWidget(const TSharedRef<FAdvancedPreviewScene>& InPreviewScene, UObject* InAdditionalSettings, const TArray<FDetailCustomizationInfo>& InDetailCustomizations, const TArray<FPropertyTypeCustomizationInfo>& InPropertyTypeCustomizations, const TArray<FDetailDelegates>& InDelegates)
 {
 	return SNew(SAdvancedPreviewDetailsTab, InPreviewScene)
 		.AdditionalSettings(InAdditionalSettings)
 		.DetailCustomizations(InDetailCustomizations)
-		.PropertyTypeCustomizations(InPropertyTypeCustomizations);
+		.PropertyTypeCustomizations(InPropertyTypeCustomizations)
+		.Delegates(InDelegates);
+
 }
 
 IMPLEMENT_MODULE(FAdvancedPreviewSceneModule, AdvancedPreviewScene);

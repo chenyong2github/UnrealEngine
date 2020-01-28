@@ -6,7 +6,7 @@
 #include "Windows/Accessibility/WindowsUIAWidgetProvider.h"
 #include "Windows/Accessibility/WindowsUIAPropertyGetters.h"
 #include "Windows/Accessibility/WindowsUIAManager.h"
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 // FWindowsUIATextRangeProvider
 
@@ -66,15 +66,16 @@ ULONG STDCALL FWindowsUIATextRangeProvider::Release()
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::Clone(ITextRangeProvider** pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = new FWindowsUIATextRangeProvider(*UIAManager, Widget, TextRange);
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = new FWindowsUIATextRangeProvider(*UIAManager, Widget, TextRange);
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::Compare(ITextRangeProvider* range, BOOL* pRetVal)
@@ -82,7 +83,11 @@ HRESULT STDCALL FWindowsUIATextRangeProvider::Compare(ITextRangeProvider* range,
 	// The documentation states that different endpoints that produce the same text are not equal,
 	// but doesn't say anything about the same endpoints that come from different control providers.
 	// Perhaps we can assume that comparing text ranges from different Widgets is not valid.
-	*pRetVal = TextRange == static_cast<FWindowsUIATextRangeProvider*>(range)->TextRange;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &range, &pRetVal]() {
+
+		*pRetVal = TextRange == static_cast<FWindowsUIATextRangeProvider*>(range)->TextRange;
+	});
 	return S_OK;
 }
 
@@ -97,34 +102,39 @@ HRESULT STDCALL FWindowsUIATextRangeProvider::CompareEndpoints(TextPatternRangeE
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::ExpandToEnclosingUnit(TextUnit unit)
 {
-	if (IsValid())
-	{
-		switch (unit)
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &unit]() {
+		if (IsValid())
 		{
-		case TextUnit_Character:
-			TextRange.EndIndex = FMath::Min(TextRange.BeginIndex + 1, Widget->AsText()->GetText().Len());
-			break;
-		case TextUnit_Format:
-			return E_NOTIMPL;
-		case TextUnit_Word:
-			return E_NOTIMPL;
-		case TextUnit_Line:
-			return E_NOTIMPL;
-		case TextUnit_Paragraph:
-			return E_NOTIMPL;
-		case TextUnit_Page:
-			return E_NOTIMPL;
-		case TextUnit_Document:
-			TextRange = FTextRange(0, Widget->AsText()->GetText().Len());
-			break;
+			switch (unit)
+			{
+			case TextUnit_Character:
+				TextRange.EndIndex = FMath::Min(TextRange.BeginIndex + 1, Widget->AsText()->GetText().Len());
+				break;
+			case TextUnit_Format:
+				ReturnValue = E_NOTIMPL;
+				break;
+			case TextUnit_Word:
+				ReturnValue = E_NOTIMPL;
+				break;
+			case TextUnit_Line:
+				ReturnValue = E_NOTIMPL;
+				break;
+			case TextUnit_Paragraph:
+				ReturnValue = E_NOTIMPL;
+				break;
+			case TextUnit_Page:
+				ReturnValue = E_NOTIMPL;
+				break;
+			case TextUnit_Document:
+				TextRange = FTextRange(0, Widget->AsText()->GetText().Len());
+				break;
+			}
+			ReturnValue = S_OK;
 		}
-
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeId, VARIANT val, BOOL backward, ITextRangeProvider** pRetVal)
@@ -134,25 +144,26 @@ HRESULT STDCALL FWindowsUIATextRangeProvider::FindAttribute(TEXTATTRIBUTEID attr
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::FindText(BSTR text, BOOL backward, BOOL ignoreCase, ITextRangeProvider** pRetVal)
 {
-	if (IsValid())
-	{
-		FString TextToSearch(text);
-		int32 FoundIndex = TextFromTextRange().Find(TextToSearch, ignoreCase ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive, backward ? ESearchDir::FromEnd : ESearchDir::FromStart);
-		if (FoundIndex == INDEX_NONE)
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &text, &backward, &ignoreCase, &pRetVal]() {
+		if (IsValid())
 		{
-			*pRetVal = nullptr;
+			FString TextToSearch(text);
+			int32 FoundIndex = TextFromTextRange().Find(TextToSearch, ignoreCase ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive, backward ? ESearchDir::FromEnd : ESearchDir::FromStart);
+			if (FoundIndex == INDEX_NONE)
+			{
+				*pRetVal = nullptr;
+			}
+			else
+			{
+				const int32 StartIndex = TextRange.BeginIndex + FoundIndex;
+				*pRetVal = new FWindowsUIATextRangeProvider(*UIAManager, Widget, FTextRange(StartIndex, StartIndex + TextToSearch.Len()));
+			}
+			ReturnValue = S_OK;
 		}
-		else
-		{
-			const int32 StartIndex = TextRange.BeginIndex + FoundIndex;
-			*pRetVal = new FWindowsUIATextRangeProvider(*UIAManager, Widget, FTextRange(StartIndex, StartIndex + TextToSearch.Len()));
-		}
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attributeId, VARIANT* pRetVal)
@@ -167,28 +178,30 @@ HRESULT STDCALL FWindowsUIATextRangeProvider::GetBoundingRectangles(SAFEARRAY** 
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::GetEnclosingElement(IRawElementProviderSimple** pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = static_cast<IRawElementProviderSimple*>(&UIAManager->GetWidgetProvider(Widget));
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = static_cast<IRawElementProviderSimple*>(&UIAManager->GetWidgetProvider(Widget));
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::GetText(int maxLength, BSTR* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = SysAllocString(*TextFromTextRange().Left(maxLength));
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &maxLength, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = SysAllocString(*TextFromTextRange().Left(maxLength));
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::Move(TextUnit unit, int count, int* pRetVal)
@@ -203,24 +216,28 @@ HRESULT STDCALL FWindowsUIATextRangeProvider::MoveEndpointByUnit(TextPatternRang
 
 HRESULT STDCALL FWindowsUIATextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint, ITextRangeProvider* targetRange, TextPatternRangeEndpoint targetEndpoint)
 {
-	FWindowsUIATextRangeProvider* CastedRange = static_cast<FWindowsUIATextRangeProvider*>(targetRange);
-	int32 NewIndex = (targetEndpoint == TextPatternRangeEndpoint_Start) ? CastedRange->TextRange.BeginIndex : CastedRange->TextRange.EndIndex;
-	if (endpoint == TextPatternRangeEndpoint_Start)
-	{
-		TextRange.BeginIndex = NewIndex;
-		if (TextRange.BeginIndex > TextRange.EndIndex)
+	UIAManager->RunInGameThreadBlocking(
+		[this, &endpoint, &targetRange, &targetEndpoint]() {
+
+		FWindowsUIATextRangeProvider* CastedRange = static_cast<FWindowsUIATextRangeProvider*>(targetRange);
+		int32 NewIndex = (targetEndpoint == TextPatternRangeEndpoint_Start) ? CastedRange->TextRange.BeginIndex : CastedRange->TextRange.EndIndex;
+		if (endpoint == TextPatternRangeEndpoint_Start)
 		{
-			TextRange.EndIndex = TextRange.BeginIndex;
+			TextRange.BeginIndex = NewIndex;
+			if (TextRange.BeginIndex > TextRange.EndIndex)
+			{
+				TextRange.EndIndex = TextRange.BeginIndex;
+			}
 		}
-	}
-	else
-	{
-		TextRange.EndIndex = NewIndex;
-		if (TextRange.BeginIndex > TextRange.EndIndex)
+		else
 		{
-			TextRange.BeginIndex = TextRange.EndIndex;
+			TextRange.EndIndex = NewIndex;
+			if (TextRange.BeginIndex > TextRange.EndIndex)
+			{
+				TextRange.BeginIndex = TextRange.EndIndex;
+			}
 		}
-	}
+	});
 	return S_OK;
 }
 
@@ -315,119 +332,132 @@ ULONG STDCALL FWindowsUIAControlProvider::Release()
 
 HRESULT STDCALL FWindowsUIAControlProvider::Invoke()
 {
-	if (IsValid())
-	{
-		Widget->AsActivatable()->Activate();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue]() {
+		if (IsValid())
+		{
+			Widget->AsActivatable()->Activate();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
+	
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::SetValue(double val)
 {
-	if (IsValid())
-	{
-		Widget->AsProperty()->SetValue(FString::SanitizeFloat(val));
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &val]() {
+		if (IsValid())
+		{
+			Widget->AsProperty()->SetValue(FString::SanitizeFloat(val));
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_Value(double* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueValuePropertyId).GetValue<double>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueValuePropertyId).GetValue<double>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_IsReadOnly(BOOL* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ValueIsReadOnlyPropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ValueIsReadOnlyPropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_Maximum(double* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueMaximumPropertyId).GetValue<double>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueMaximumPropertyId).GetValue<double>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_Minimum(double* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueMinimumPropertyId).GetValue<double>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueMinimumPropertyId).GetValue<double>();
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_LargeChange(double* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueLargeChangePropertyId).GetValue<double>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueLargeChangePropertyId).GetValue<double>();
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_SmallChange(double* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueSmallChangePropertyId).GetValue<double>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_RangeValueSmallChangePropertyId).GetValue<double>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_DocumentRange(ITextRangeProvider** pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = static_cast<ITextRangeProvider*>(new FWindowsUIATextRangeProvider(*UIAManager, Widget, FTextRange(0, Widget->AsText()->GetText().Len())));
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = static_cast<ITextRangeProvider*>(new FWindowsUIATextRangeProvider(*UIAManager, Widget, FTextRange(0, Widget->AsText()->GetText().Len())));
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_SupportedTextSelection(SupportedTextSelection* pRetVal)
@@ -472,67 +502,73 @@ HRESULT STDCALL FWindowsUIAControlProvider::get_ToggleState(ToggleState* pRetVal
 	//	*pRetVal = ToggleState_Indeterminate;
 	//	break;
 	//}
-	if (IsValid())
-	{
-		*pRetVal = static_cast<ToggleState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ToggleToggleStatePropertyId).GetValue<int32>());
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = static_cast<ToggleState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ToggleToggleStatePropertyId).GetValue<int32>());
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::Toggle()
 {
-	if (IsValid())
-	{
-		Widget->AsActivatable()->Activate();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue]() {
+		if (IsValid())
+		{
+			Widget->AsActivatable()->Activate();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_CanMove(BOOL *pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanMovePropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanMovePropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_CanResize(BOOL *pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanResizePropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanResizePropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_CanRotate(BOOL *pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanRotatePropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_TransformCanRotatePropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::Move(double x, double y)
@@ -552,28 +588,31 @@ HRESULT STDCALL FWindowsUIAControlProvider::Rotate(double degrees)
 
 HRESULT STDCALL FWindowsUIAControlProvider::SetValue(LPCWSTR val)
 {
-	if (IsValid())
-	{
-		Widget->AsProperty()->SetValue(FString(val));
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &val]() {
+		if (IsValid())
+		{
+			Widget->AsProperty()->SetValue(FString(val));
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_Value(BSTR* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = SysAllocString(*WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ValueValuePropertyId).GetValue<FString>());
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = SysAllocString(*WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_ValueValuePropertyId).GetValue<FString>());
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 //HRESULT STDCALL FWindowsUIAControlProvider::get_IsReadOnly(BOOL* pRetVal)
@@ -584,112 +623,130 @@ HRESULT STDCALL FWindowsUIAControlProvider::get_Value(BSTR* pRetVal)
 
 HRESULT STDCALL FWindowsUIAControlProvider::Close()
 {
-	if (IsValid())
-	{
-		Widget->AsWindow()->Close();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue]() {
+		if (IsValid())
+		{
+			Widget->AsWindow()->Close();
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_CanMaximize(BOOL* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowCanMaximizePropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowCanMaximizePropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_CanMinimize(BOOL* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowCanMinimizePropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowCanMinimizePropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_IsModal(BOOL* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowIsModalPropertyId).GetValue<bool>();
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowIsModalPropertyId).GetValue<bool>();
+			ReturnValue = S_OK;
+		}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_IsTopmost(BOOL* pRetVal)
 {
-	// todo: not 100% sure what this is looking for. top window in hierarchy of child windows? on top of all other windows in Windows OS?
-	*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowIsTopmostPropertyId).GetValue<bool>();
-	return E_NOTIMPL;
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		// todo: not 100% sure what this is looking for. top window in hierarchy of child windows? on top of all other windows in Windows OS?
+		*pRetVal = WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowIsTopmostPropertyId).GetValue<bool>();
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_WindowInteractionState(WindowInteractionState* pRetVal)
 {
-	if (IsValid())
-	{
-		// todo: do we have a way to identify if the app is processing data vs idling?
-		*pRetVal = static_cast<WindowInteractionState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowWindowInteractionStatePropertyId).GetValue<int32>());
-	}
-	else
-	{
-		*pRetVal = WindowInteractionState_Closing;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &pRetVal]() {
+		if (IsValid())
+		{
+			// todo: do we have a way to identify if the app is processing data vs idling?
+			*pRetVal = static_cast<WindowInteractionState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowWindowInteractionStatePropertyId).GetValue<int32>());
+		}
+		else
+		{
+			*pRetVal = WindowInteractionState_Closing;
+		}
+
+	});
 	return S_OK;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::get_WindowVisualState(WindowVisualState* pRetVal)
 {
-	if (IsValid())
-	{
-		*pRetVal = static_cast<WindowVisualState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowWindowVisualStatePropertyId).GetValue<int32>());
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+		if (IsValid())
+		{
+			*pRetVal = static_cast<WindowVisualState>(WindowsUIAPropertyGetters::GetPropertyValue(Widget, UIA_WindowWindowVisualStatePropertyId).GetValue<int32>());
+			ReturnValue = S_OK;
+		}
+
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::SetVisualState(WindowVisualState state)
 {
-	if (IsValid())
-	{
-		switch (state)
+	HRESULT ReturnValue = UIA_E_ELEMENTNOTAVAILABLE;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &state]() {
+		if (IsValid())
 		{
-		case WindowVisualState_Normal:
-			Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Normal);
-			break;
-		case WindowVisualState_Minimized:
-			Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Minimize);
-			break;
-		case WindowVisualState_Maximized:
-			Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Maximize);
-			break;
+			switch (state)
+			{
+			case WindowVisualState_Normal:
+				Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Normal);
+				break;
+			case WindowVisualState_Minimized:
+				Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Minimize);
+				break;
+			case WindowVisualState_Maximized:
+				Widget->AsWindow()->SetDisplayState(IAccessibleWindow::EWindowDisplayState::Maximize);
+				break;
+			}
+			ReturnValue = S_OK;
 		}
-		return S_OK;
-	}
-	else
-	{
-		return UIA_E_ELEMENTNOTAVAILABLE;
-	}
+	});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::WaitForInputIdle(int milliseconds, BOOL* pRetVal)

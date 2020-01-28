@@ -714,6 +714,31 @@ void FGenericPlatformMisc::CreateGuid(FGuid& Guid)
 	Guid = FGuid(RandBits | (SequentialBits << 16), EstimatedCurrentDateTime.GetTicks() >> 32, EstimatedCurrentDateTime.GetTicks() & 0xffffffff, FPlatformTime::Cycles());
 }
 
+const TCHAR* LexToString( EAppReturnType::Type Value )
+{
+	switch (Value)
+	{
+	case EAppReturnType::No:
+		return TEXT("No");
+	case EAppReturnType::Yes:
+		return TEXT("Yes");
+	case EAppReturnType::YesAll:
+		return TEXT("YesAll");
+	case EAppReturnType::NoAll:
+		return TEXT("NoAll");
+	case EAppReturnType::Cancel:
+		return TEXT("Cancel");
+	case EAppReturnType::Ok:
+		return TEXT("Ok");
+	case EAppReturnType::Retry:
+		return TEXT("Retry");
+	case EAppReturnType::Continue:
+		return TEXT("Continue");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
 EAppReturnType::Type FGenericPlatformMisc::MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption )
 {
 	if (GWarn)
@@ -831,7 +856,7 @@ const TCHAR* FGenericPlatformMisc::EngineDir()
 		{
 			EngineDirectory = DefaultEngineDir;
 		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / FString(GForeignEngineDir) / TEXT("Binaries"))))
+		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
 		{
 			EngineDirectory = GForeignEngineDir;
 		}
@@ -1029,6 +1054,21 @@ const TCHAR* FGenericPlatformMisc::GetUBTTarget()
 	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
 }
 
+/** The name of the UBT target that the current executable was built from. Defaults to the UE4 default target for this type to make content only projects work, 
+	but will be overridden by the primary game module if it exists */
+TCHAR GUBTTargetName[128] = TEXT("UE4" PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+
+void FGenericPlatformMisc::SetUBTTargetName(const TCHAR* InTargetName)
+{
+	check(FCString::Strlen(InTargetName) < (UE_ARRAY_COUNT(GUBTTargetName) - 1));
+	FCString::Strcpy(GUBTTargetName, InTargetName);
+}
+
+const TCHAR* FGenericPlatformMisc::GetUBTTargetName()
+{
+	return GUBTTargetName;
+}
+
 const TCHAR* FGenericPlatformMisc::GetDefaultDeviceProfileName()
 {
 	return TEXT("Default");
@@ -1182,14 +1222,14 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 	float HandleEnsurePercentInConfig = 100.0f;
 	if (GConfig && GConfig->GetFloat(TEXT("Core.System"), TEXT("HandleEnsurePercent"), HandleEnsurePercentInConfig, GEngineIni))
 	{
-		GenericPlatformMisc::GEnsureChance = HandleEnsurePercentInConfig / 100.0;
+		GenericPlatformMisc::GEnsureChance = HandleEnsurePercentInConfig / 100.0f;
 	}
 	else
 	{
 		float HandleEnsurePercentOnCmdLine = 100.0f;
 		if (!FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
 		{
-			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0;
+			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0f;
 		}
 	}
 

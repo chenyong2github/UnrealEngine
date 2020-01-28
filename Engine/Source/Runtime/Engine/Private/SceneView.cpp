@@ -635,6 +635,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, SpecularOverrideParameter(FVector4(0,0,0,1))
 	, NormalOverrideParameter(FVector4(0,0,0,1))
 	, RoughnessOverrideParameter(FVector2D(0,1))
+	, MaterialTextureMipBias(0.f)
 	, HiddenPrimitives(InitOptions.HiddenPrimitives)
 	, ShowOnlyPrimitives(InitOptions.ShowOnlyPrimitives)
 	, OriginOffsetThisFrame(InitOptions.OriginOffsetThisFrame)
@@ -647,6 +648,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bIsSceneCapture(false)
 	, bIsReflectionCapture(false)
 	, bIsPlanarReflection(false)
+	, bIsOfflineRender(false)
 	, bRenderSceneTwoSided(false)
 	, bIsLocked(false)
 	, bStaticSceneOnly(false)
@@ -656,7 +658,9 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bIsMobileMultiViewDirectEnabled(false)
 	, bShouldBindInstancedViewUB(false)
 	, UnderwaterDepth(-1.0f)
+	, bForceCameraVisibilityReset(false)
 	, GlobalClippingPlane(FPlane(0, 0, 0, 0))
+	, LensPrincipalPointOffsetScale(0.0f, 0.0f, 1.0f, 1.0f)
 #if WITH_EDITOR
 	, OverrideLODViewOrigin(InitOptions.OverrideLODViewOrigin)
 	, bAllowTranslucentPrimitivesInHitProxy( true )
@@ -1344,7 +1348,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(AutoExposureHighPercent);
 		LERP_PP(AutoExposureMinBrightness);
 		LERP_PP(AutoExposureMaxBrightness);
-		LERP_PP(AutoExposureCalibrationConstant);
 		LERP_PP(AutoExposureSpeedUp);
 		LERP_PP(AutoExposureSpeedDown);
 		LERP_PP(AutoExposureBias);
@@ -1547,6 +1550,12 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.AutoExposureBiasCurve = Src.AutoExposureBiasCurve;
 		}
 
+		// Texture asset isn't blended
+		IF_PP(AutoExposureMeterMask)
+		{
+			Dest.AutoExposureMeterMask = Src.AutoExposureMeterMask;
+		}
+
 		// actual texture cannot be blended but the intensity can be blended
 		IF_PP(LensFlareBokehShape)
 		{
@@ -1579,6 +1588,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		if (Src.bOverride_MotionBlurTargetFPS)
 		{
 			Dest.MotionBlurTargetFPS = Src.MotionBlurTargetFPS;
+		}
+
+		if (Src.bOverride_AutoExposureApplyPhysicalCameraExposure)
+		{
+			Dest.AutoExposureApplyPhysicalCameraExposure = Src.AutoExposureApplyPhysicalCameraExposure;
 		}
 	}
 
@@ -2074,7 +2088,7 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 
 				// Lookup this material from the list that was parsed out of the global ini file
 				Left.TrimStartInline();
-				UMaterial* Material = BufferVisualizationData.GetMaterial(*Left);
+				UMaterialInterface* Material = BufferVisualizationData.GetMaterial(*Left);
 
 				if (Material == NULL && Left.Len() > 0)
 				{
@@ -2090,7 +2104,7 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 		}
 
 		// Copy current material list into settings material list
-		for (TArray<UMaterial*>::TConstIterator It = BufferVisualizationData.GetOverviewMaterials().CreateConstIterator(); It; ++It)
+		for (TArray<UMaterialInterface*>::TConstIterator It = BufferVisualizationData.GetOverviewMaterials().CreateConstIterator(); It; ++It)
 		{
 			FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(*It);
 		}
@@ -2326,6 +2340,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 		InViewMatrices.GetTemporalAAJitter().X,		InViewMatrices.GetTemporalAAJitter().Y,
 		InPrevViewMatrices.GetTemporalAAJitter().X, InPrevViewMatrices.GetTemporalAAJitter().Y );
 
+	ViewUniformShaderParameters.DebugViewModeMask = Family->UseDebugViewPS() ? 1 : 0;
 	ViewUniformShaderParameters.UnlitViewmodeMask = !Family->EngineShowFlags.Lighting ? 1 : 0;
 	ViewUniformShaderParameters.OutOfBoundsMask = Family->EngineShowFlags.VisualizeOutOfBoundsPixels ? 1 : 0;
 
@@ -2347,7 +2362,6 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 
 	ViewUniformShaderParameters.CameraCut = bCameraCut ? 1 : 0;
 
-	ViewUniformShaderParameters.VirtualTextureParams = FVector4(ForceInitToZero);
 	ViewUniformShaderParameters.MinRoughness = FMath::Clamp(CVarGlobalMinRoughnessOverride.GetValueOnRenderThread(), 0.02f, 1.0f);
 
 	//to tail call keep the order and number of parameters of the caller function

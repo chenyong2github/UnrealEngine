@@ -8,9 +8,14 @@
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"EnabledByDefault": false,
+	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Modules":
 	[
+		{
+			"Name": "GLTFCore",
+			"Type": "Runtime"
+		},
 		{
 			"Name": "GLTFImporter",
 			"Type": "Editor"

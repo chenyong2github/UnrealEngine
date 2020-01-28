@@ -35,7 +35,7 @@ void FEmptyDynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Argume
 
 }
 
-void FEmptyDynamicRHI::RHISetViewport(uint32 MinX,uint32 MinY,float MinZ,uint32 MaxX,uint32 MaxY,float MaxZ)
+void FEmptyDynamicRHI::RHISetViewport(float MinX, float MinY,float MinZ, float MaxX, float MaxY,float MaxZ)
 {
 
 }
@@ -56,6 +56,11 @@ void FEmptyDynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 
 }
 
+void FEmptyDynamicRHI::RHISetUAVParameter(FRHIPixelShader* PixelShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
+{
+	FEmptyUnorderedAccessView* UAV = ResourceCast(UAVRHI);
+
+}
 
 void FEmptyDynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
 {
@@ -101,27 +106,7 @@ void FEmptyDynamicRHI::RHISetShaderTexture(FRHIComputeShader* ComputeShader, uin
 }
 
 
-void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIVertexShader* VertexShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
-{
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIHullShader* HullShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
-{
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIDomainShader* DomainShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
-{
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIGeometryShader* GeometryShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
-{
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIPixelShader* PixelShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
+void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 
 }
@@ -132,35 +117,9 @@ void FEmptyDynamicRHI::RHISetShaderResourceViewParameter(FRHIComputeShader* Comp
 }
 
 
-void FEmptyDynamicRHI::RHISetShaderSampler(FRHIVertexShader* VertexShaderRHI, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
+void FEmptyDynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
 {
 	FEmptySamplerState* NewState = ResourceCast(NewStateRHI);
-	FEmptyVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderSampler(FRHIHullShader* HullShader, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
-{
-	FEmptySamplerState* NewState = ResourceCast(NewStateRHI);
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderSampler(FRHIDomainShader* DomainShader, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
-{
-	FEmptySamplerState* NewState = ResourceCast(NewStateRHI);
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderSampler(FRHIGeometryShader* GeometryShader, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
-{
-	FEmptySamplerState* NewState = ResourceCast(NewStateRHI);
-
-}
-
-void FEmptyDynamicRHI::RHISetShaderSampler(FRHIPixelShader* PixelShader, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
-{
-	FEmptySamplerState* NewState = ResourceCast(NewStateRHI);
-
 }
 
 void FEmptyDynamicRHI::RHISetShaderSampler(FRHIComputeShader* ComputeShader, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
@@ -247,7 +206,7 @@ void FEmptyDynamicRHI::RHISetBlendState(FRHIBlendState* NewStateRHI, const FLine
 
 
 void FEmptyDynamicRHI::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, 
-	FRHITexture* NewDepthStencilTargetRHI, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs)
+	FRHITexture* NewDepthStencilTargetRHI)
 {
 
 }
@@ -378,7 +337,7 @@ void FEmptyDynamicRHI::RHIBlockUntilGPUIdle()
 
 }
 
-uint32 FEmptyDynamicRHI::RHIGetGPUFrameCycles()
+uint32 FEmptyDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
 	return GGPUFrameTime;
 }

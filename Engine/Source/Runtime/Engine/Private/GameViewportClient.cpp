@@ -420,6 +420,14 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 		}
 	}
 	MouseLockMode = GetDefault<UInputSettings>()->DefaultViewportMouseLockMode;
+
+	// Don't capture mouse when headless
+	if(!FApp::CanEverRender())
+	{
+		MouseCaptureMode = EMouseCaptureMode::NoCapture;
+		MouseLockMode = EMouseLockMode::DoNotLock;
+	}
+
 	// In off-screen rendering mode don't lock mouse to the viewport, as we don't want mouse to lock to an invisible window
 	if (FSlateApplication::Get().IsRenderingOffScreen()) {
 		MouseLockMode = EMouseLockMode::DoNotLock;
@@ -825,11 +833,7 @@ bool UGameViewportClient::GetMousePosition(FVector2D& MousePosition) const
 {
 	bool bGotMousePosition = false;
 
-#ifdef USE_CONSOLE_CONTROLLER
 	if (Viewport && FSlateApplication::Get().IsMouseAttached())
-#else
-	if (Viewport)
-#endif
 	{
 		FIntPoint MousePos;
 		Viewport->GetMousePos(MousePos);
@@ -2628,7 +2632,8 @@ void UGameViewportClient::VerifyPathRenderingComponents()
 
 bool UGameViewportClient::CaptureMouseOnLaunch()
 {
-	return GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
+	// Capture mouse unless headless
+	return !FApp::CanEverRender() ? false : GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
 }
 
 bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
@@ -2957,7 +2962,7 @@ void UGameViewportClient::ToggleShowCollision()
 	if (World != nullptr)
 	{
 		// Tell engine to create proxies for hidden components, so we can still draw collision
-		World->bCreateRenderStateForHiddenComponents = bIsShowingCollision;
+		World->bCreateRenderStateForHiddenComponentsWithCollsion = bIsShowingCollision;
 
 		// Need to recreate scene proxies when this flag changes.
 		FGlobalComponentRecreateRenderStateContext Recreate;
@@ -3833,6 +3838,11 @@ bool UGameViewportClient::GetUseMouseForTouch() const
 
 void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot)
 {
+	if (!PlatformCursor.IsCreateCursorFromRGBABufferSupported())
+	{
+		return nullptr;
+	}
+
 	TArray<TSharedPtr<FPngFileData>> CursorPngFiles;
 	if (!LoadAvailableCursorPngs(CursorPngFiles, InPathToCursorWithoutExtension))
 	{
@@ -3856,13 +3866,13 @@ void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FSt
 
 	if (PngImageWrapper.IsValid() && PngImageWrapper->SetCompressed(NearestCursor->FileData.GetData(), NearestCursor->FileData.Num()))
 	{
-		const TArray<uint8>* RawImageData = nullptr;
+		TArray64<uint8> RawImageData;
 		if (PngImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData))
 		{
 			const int32 Width = PngImageWrapper->GetWidth();
 			const int32 Height = PngImageWrapper->GetHeight();
 
-			return PlatformCursor.CreateCursorFromRGBABuffer((FColor*) RawImageData->GetData(), Width, Height, InHotSpot);
+			return PlatformCursor.CreateCursorFromRGBABuffer((FColor*) RawImageData.GetData(), Width, Height, InHotSpot);
 		}
 	}
 

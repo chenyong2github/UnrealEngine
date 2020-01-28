@@ -32,7 +32,7 @@ public:
 
 	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
 
-	void SendFreezeFrame(const TArray<uint8>& JpegBytes);
+	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 	void SendUnfreezeFrame();
 
 private:
@@ -94,7 +94,7 @@ private:
 
 	// When we send a freeze frame we retain the data to handle connection
 	// scenarios.
-	TArray<uint8> CachedJpegBytes;
+	TArray64<uint8> CachedJpegBytes;
 
 	FThreadSafeBool bStreamingStarted = false;
 };

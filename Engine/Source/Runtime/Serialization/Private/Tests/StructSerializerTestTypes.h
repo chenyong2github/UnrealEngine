@@ -243,6 +243,48 @@ FORCEINLINE uint32 GetTypeHash(const FStructSerializerBuiltinTestStruct& S)
 }
 
 /**
+ * Test structure for byte array properties.
+ */
+USTRUCT()
+struct FStructSerializerByteArray
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 Dummy1; // To test 'skip array'.
+
+	UPROPERTY()
+	TArray<uint8> ByteArray;
+
+	UPROPERTY()
+	int32 Dummy2; // To test 'skip array'.
+
+	UPROPERTY()
+	TArray<int8> Int8Array;
+
+	UPROPERTY()
+	int32 Dummy3; // To test 'skip array'.
+
+	FStructSerializerByteArray()
+	{
+		Dummy1 = 1;
+		Dummy2 = 2;
+		Dummy3 = 3;
+
+		ByteArray.Add(0);
+		ByteArray.Add(127);
+		ByteArray.Add(255);
+
+		Int8Array.Add(-128);
+		Int8Array.Add(0);
+		Int8Array.Add(127);
+	}
+
+	FStructSerializerByteArray(ENoInit) { }
+};
+
+
+/**
  * Test structure for array properties.
  */
 USTRUCT()
@@ -252,6 +294,9 @@ struct FStructSerializerArrayTestStruct
 
 	UPROPERTY()
 	TArray<int32> Int32Array;
+
+	UPROPERTY()
+	TArray<uint8> ByteArray;
 
 	UPROPERTY()
 	int32 StaticSingleElement[1];
@@ -274,6 +319,10 @@ struct FStructSerializerArrayTestStruct
 		Int32Array.Add(-1);
 		Int32Array.Add(0);
 		Int32Array.Add(1);
+
+		ByteArray.Add(0);
+		ByteArray.Add(127);
+		ByteArray.Add(255);
 
 		StaticSingleElement[0] = 42;
 

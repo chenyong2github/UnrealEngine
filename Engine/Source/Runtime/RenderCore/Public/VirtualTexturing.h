@@ -284,21 +284,19 @@ public:
 	static const uint32 LayersPerPageTableTexture = 4u;
 
 	inline IAllocatedVirtualTexture(const FAllocatedVTDescription& InDesc,
-		uint32 InSpaceID,
-		EVTPageTableFormat InPageTableFormat,
 		uint32 InBlockWidthInTiles,
 		uint32 InBlockHeightInTiles,
 		uint32 InWidthInBlocks,
 		uint32 InHeightInBlocks,
 		uint32 InDepthInTiles)
 		: Description(InDesc)
-		, SpaceID(InSpaceID)
 		, BlockWidthInTiles(InBlockWidthInTiles)
 		, BlockHeightInTiles(InBlockHeightInTiles)
 		, WidthInBlocks(InWidthInBlocks)
 		, HeightInBlocks(InHeightInBlocks)
 		, DepthInTiles(InDepthInTiles)
-		, PageTableFormat(InPageTableFormat)
+		, PageTableFormat(EVTPageTableFormat::UInt32)
+		, SpaceID(~0u)
 		, MaxLevel(0u)
 		, VirtualAddress(~0u)
 	{}
@@ -344,15 +342,16 @@ protected:
 	virtual ~IAllocatedVirtualTexture() {}
 
 	FAllocatedVTDescription Description;
-	uint32 SpaceID;
 	uint32 BlockWidthInTiles;
 	uint32 BlockHeightInTiles;
 	uint32 WidthInBlocks;
 	uint32 HeightInBlocks;
 	uint32 DepthInTiles;
-	EVTPageTableFormat PageTableFormat;
+	
 
 	// should be set explicitly by derived class constructor
+	EVTPageTableFormat PageTableFormat;
+	uint32 SpaceID;
 	uint32 MaxLevel;
 	uint32 VirtualAddress;
 };

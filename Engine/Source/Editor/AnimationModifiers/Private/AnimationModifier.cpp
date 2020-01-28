@@ -8,7 +8,7 @@
 #include "UObject/UObjectIterator.h"
 
 #include "UObject/ReleaseObjectVersion.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "Editor/Transactor.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/AnimObjectVersion.h"
@@ -69,7 +69,8 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 
 		EAppMsgType::Type MessageType = OutputLog.ContainsErrors() ? EAppMsgType::Ok : EAppMsgType::YesNo;
 		const FText& MessageFormat = OutputLog.ContainsErrors() ? ErrorMessageFormat : WarningMessageFormat;
-		bShouldRevert = (OpenMsgDlgInt(MessageType, FText::FormatOrdered(MessageFormat, FText::FromString(OutputLog)), FText::FromString("Modifier has Generated Warnings/Errors")) != EAppReturnType::Yes);
+		const FText MessageTitle = FText::FromString("Modifier has Generated Warnings/Errors");
+		bShouldRevert = (FMessageDialog::Open(MessageType, FText::FormatOrdered(MessageFormat, FText::FromString(OutputLog)), &MessageTitle) != EAppReturnType::Yes);
 	}
 
 	// Revert changes if necessary, otherwise post edit and refresh animation data

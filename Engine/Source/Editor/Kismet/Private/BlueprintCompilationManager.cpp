@@ -617,7 +617,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			if(UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(QueuedBP->GeneratedClass))
 			{
 				if( BPGC->SimpleConstructionScript &&
-					BPGC->SimpleConstructionScript->GetSceneRootComponentTemplate() == nullptr)
+					BPGC->SimpleConstructionScript->GetSceneRootComponentTemplate(true) == nullptr)
 				{
 					bDefaultComponentMustBeAdded = true;
 				}
@@ -935,6 +935,20 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					if(!Data.ShouldSkipIfDependenciesAreUnchanged())
 					{
 						return false;
+					}
+
+					// if our parent is still being compiled, then we still need to be compiled:
+					UClass* Iter = Data.BP->ParentClass;
+					while(Iter)
+					{
+						if(UBlueprint* BP = Cast<UBlueprint>(Iter->ClassGeneratedBy))
+						{
+							if(BP->bBeingCompiled)
+							{
+								return false;
+							}
+						}
+						Iter = Iter->GetSuperClass();
 					}
 
 					// look for references to a function with a signature change

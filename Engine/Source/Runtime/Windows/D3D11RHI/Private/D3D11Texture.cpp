@@ -2437,7 +2437,12 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateAliasedD3D11Texture2D
 
 	// We'll be the same size, since we're the same thing. Avoid the check in D3D11Resources.h (AliasResources).
 	Texture2D->SetMemorySize(SourceTexture->GetMemorySize());
+
+	// Disable deprecation warning; when the DynamicRHI raw-pointer method is fully deprecated, the D3D11 class will still provide a raw pointer version
+	// since this is required in this path.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RHIAliasTextureResources(Texture2D, SourceTexture);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return Texture2D;
 }
@@ -2482,6 +2487,22 @@ FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceText
 	UE_LOG(LogD3D11RHI, Error, TEXT("Currently FD3D11DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
 	return nullptr;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
+{
+	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
+	RHIAliasTextureResources((FRHITexture*)DestTextureRHI, (FRHITexture*)SrcTextureRHI);
+}
+
+FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
+{
+	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
+	return RHICreateAliasedTexture((FRHITexture*)SourceTexture);
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {

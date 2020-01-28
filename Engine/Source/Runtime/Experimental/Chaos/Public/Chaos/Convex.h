@@ -36,7 +36,7 @@ namespace Chaos
 		// NOTE: This constructor will result in approximate COM and volume calculations, since it does
 		// not have face indices for surface particles.
 		// TODO: Keep track of invalid state and ensure on volume or COM access?
-		FConvex(TArray<TPlane<FReal, 3>>&& InPlanes, TParticles<FReal, 3>&& InSurfaceParticles)
+		FConvex(TArray<TPlaneConcrete<FReal, 3>>&& InPlanes, TParticles<FReal, 3>&& InSurfaceParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
@@ -148,7 +148,7 @@ namespace Chaos
 			// passes in a valid face index.
 			if (CHAOS_ENSURE(FaceIndex != INDEX_NONE))
 			{
-				const TPlane<FReal, 3>& OpposingFace = GetFaces()[FaceIndex];
+				const TPlaneConcrete<FReal, 3>& OpposingFace = GetFaces()[FaceIndex];
 				return OpposingFace.Normal();
 			}
 			return FVec3(0.f, 0.f, 1.f);
@@ -195,7 +195,7 @@ namespace Chaos
 			return SurfaceParticles;
 		}
 
-		const TArray<TPlane<FReal, 3>>& GetFaces() const
+		const TArray<TPlaneConcrete<FReal, 3>>& GetFaces() const
 		{
 			return Planes;
 		}
@@ -222,7 +222,7 @@ namespace Chaos
 
 			Result = HashCombine(Result, SurfaceParticles.GetTypeHash());
 
-			for(const TPlane<FReal, 3>& Plane : Planes)
+			for(const TPlaneConcrete<FReal, 3>& Plane : Planes)
 			{
 				Result = HashCombine(Result, Plane.GetTypeHash());
 			}
@@ -232,11 +232,28 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
-			Ar << Planes << SurfaceParticles;
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ConvexUsesTPlaneConcrete)
+			{
+				TArray<TPlane<FReal, 3>> TmpPlanes;
+				Ar << TmpPlanes;
+
+				Planes.SetNum(TmpPlanes.Num());
+				for(int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+				{
+					Planes[Idx] = TmpPlanes[Idx].PlaneConcrete();
+				}
+			}
+			else
+			{
+				Ar << Planes;
+			}
+
+			Ar << SurfaceParticles;
 			TBox<FReal,3>::SerializeAsAABB(Ar, LocalBoundingBox);
 
-			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
 			{
 				Ar << Volume;
@@ -299,7 +316,7 @@ namespace Chaos
 		}
 
 	private:
-		TArray<TPlane<FReal, 3>> Planes;
+		TArray<TPlaneConcrete<FReal, 3>> Planes;
 		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
 		TAABB<FReal, 3> LocalBoundingBox;
 		float Volume;

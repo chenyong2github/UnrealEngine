@@ -1754,18 +1754,6 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	checkf(!IsUnreachable(),TEXT("%s  Function: '%s'"), *GetFullName(), *Function->GetPathName());
 	checkf(!FUObjectThreadContext::Get().IsRoutingPostLoad, TEXT("Cannot call UnrealScript (%s - %s) while PostLoading objects"), *GetFullName(), *Function->GetFullName());
 
-#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 0);
-	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter+1);
-#endif
-
-#if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
-	TGuardValue<int32> EntryCounter( BlueprintExceptionTracker.ScriptEntryTag, BlueprintExceptionTracker.ScriptEntryTag+1);
-
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintExceptionTracker.ScriptEntryTag == 1);
-#endif
-
 #if TOTAL_OVERHEAD_SCRIPT_STATS
 	FBlueprintEventTimer::FScopedVMTimer VMTime;
 #endif // TOTAL_OVERHEAD_SCRIPT_STATS
@@ -1816,6 +1804,18 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 #if STATS || ENABLE_STATNAMEDEVENTS
 	const bool bShouldTrackObject = GVerboseScriptStats && Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
+#endif
+
+#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 0);
+	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
+#endif
+
+#if DO_BLUEPRINT_GUARD
+	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
+	TGuardValue<int32> EntryCounter(BlueprintExceptionTracker.ScriptEntryTag, BlueprintExceptionTracker.ScriptEntryTag + 1);
+
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintExceptionTracker.ScriptEntryTag == 1);
 #endif
 
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS

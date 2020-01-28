@@ -430,7 +430,7 @@ TSharedRef<const INiagaraMessage> FNiagaraMessageJobPostCompileSummary::Generate
 	default:
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
 	case ENiagaraScriptCompileStatus::NCS_Dirty:
-		MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} warning(s) and {2} error(s).");
+		MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status dirty with {1} warning(s) and {2} error(s).");
 		MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(NumCompileWarnings)), FText::FromString(FString::FromInt(NumCompileErrors)));
 		//MessageSeverity = EMessageSeverity::Warning;
 		break;

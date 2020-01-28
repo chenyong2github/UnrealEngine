@@ -96,8 +96,10 @@ void FGlobalDynamicReadBuffer::ReleaseRHI()
 FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateFloat(uint32 Num)
 {
 	FScopeLock ScopeLock(&FloatBufferPool->CriticalSection);
-
 	FAllocation Allocation;
+
+	// The codepath using FShaderResourceViewInitializer, requires the SRV to be aligned on 16 bytes on some platforms.
+	Num = Align(Num, 4);
 
 	TotalAllocatedSinceLastCommit += Num;
 	if (IsRenderAlarmLoggingEnabled())
@@ -144,7 +146,8 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateFloat(ui
 	checkf(Buffer->AllocatedByteCount + SizeInBytes <= Buffer->NumBytes, TEXT("Global dynamic read buffer float buffer allocation failed: BufferSize=%d AllocatedByteCount=%d SizeInBytes=%d"), Buffer->NumBytes, Buffer->AllocatedByteCount, SizeInBytes);
 	Allocation.Buffer = Buffer->MappedBuffer + Buffer->AllocatedByteCount;
 	Allocation.ReadBuffer = Buffer;
-	Allocation.FirstIndex = Buffer->AllocatedByteCount;
+	Buffer->SubAllocations.Emplace(RHICreateShaderResourceView(FShaderResourceViewInitializer(Buffer->Buffer, PF_R32_FLOAT, Buffer->AllocatedByteCount / sizeof(float), Num)));
+	Allocation.SRV = Buffer->SubAllocations.Last();
 	Buffer->AllocatedByteCount += SizeInBytes;
 
 	return Allocation;
@@ -154,6 +157,9 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(ui
 {
 	FScopeLock ScopeLock(&Int32BufferPool->CriticalSection);
 	FAllocation Allocation;
+
+	// The codepath using FShaderResourceViewInitializer, requires the SRV to be aligned on 16 bytes on some platforms.
+	Num = Align(Num, 4);
 
 	TotalAllocatedSinceLastCommit += Num;
 	if (IsRenderAlarmLoggingEnabled())
@@ -200,7 +206,8 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(ui
 	checkf(Buffer->AllocatedByteCount + SizeInBytes <= Buffer->NumBytes, TEXT("Global dynamic read buffer int32 buffer allocation failed: BufferSize=%d AllocatedByteCount=%d SizeInBytes=%d"), Buffer->NumBytes, Buffer->AllocatedByteCount, SizeInBytes);
 	Allocation.Buffer = Buffer->MappedBuffer + Buffer->AllocatedByteCount;
 	Allocation.ReadBuffer = Buffer;
-	Allocation.FirstIndex = Buffer->AllocatedByteCount;
+	Buffer->SubAllocations.Emplace(RHICreateShaderResourceView(FShaderResourceViewInitializer(Buffer->Buffer, PF_R32_SINT, Buffer->AllocatedByteCount / sizeof(int), Num)));
+	Allocation.SRV = Buffer->SubAllocations.Last();
 	Buffer->AllocatedByteCount += SizeInBytes;
 
 	return Allocation;

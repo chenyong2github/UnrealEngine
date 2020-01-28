@@ -64,6 +64,10 @@
 #include "Engine/LevelStreaming.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
+#include "Misc/BlacklistNames.h"
+#include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
+#include "AnalyticsEventAttribute.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
@@ -202,7 +206,31 @@ namespace FileDialogHelpers
 	}
 }
 
+namespace FileHelperPackageUtil
+{
+	/**
+	 * DoesPackageExist helper that rely on the AssetRegistry to validate if a package exists instead of hitting the FS
+	 * Fallback to the FS if the asset registry initial scan isn't done or we aren't in Editor
+	 */
+	bool DoesPackageExist(UPackage* Package, FString* OutFilename = nullptr)
+	{
+		// Test using asset registry to figure out existence
+		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+		if (!AssetRegistry.IsLoadingAssets() || !GIsEditor)
+		{
+			TArray<FAssetData> Data;
+			FAssetRegistryModule::GetRegistry().GetAssetsByPackageName(Package->GetFName(), Data, true);
 
+			if (Data.Num() > 0 && OutFilename)
+			{
+				*OutFilename = FPackageName::LongPackageNameToFilename(Package->GetName(), Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
+			}
+
+			return Data.Num() > 0;
+		}
+		return FPackageName::DoesPackageExist(Package->GetName(), nullptr, OutFilename);
+	}
+}
 
 /**
  * Queries the user if they want to quit out of interpolation editing before save.
@@ -290,7 +318,9 @@ static bool ConfirmPackageBranchCheckOutStatus(const TArray<UPackage*>& Packages
 			const FText Message = SourceControlState->IsModifiedInOtherBranch() ? FText::Format(LOCTEXT("WarningModifiedOtherBranch", "WARNING: Package {3} modified in {0} CL {1}\n\n{2}\n\nCheck out packages anyway?"), FText::FromString(HeadBranch), FText::AsNumber(HeadCL, &NoCommas), InfoText, PackageNameText)
 				: FText::Format(LOCTEXT("WarningCheckedOutOtherBranch", "WARNING: Package {2} checked out in {0}\n\n{1}\n\nCheck out packages anyway?"), FText::FromString(SourceControlState->GetOtherUserBranchCheckedOuts()), InfoText, PackageNameText);
 
-			return OpenMsgDlgInt(EAppMsgType::YesNo, Message, SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts")) == EAppReturnType::Yes;
+			const FText Title = SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts");
+
+			return FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes;
 		}
 	}
 
@@ -537,6 +567,8 @@ static bool SaveWorld(UWorld* World,
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(SaveWorld);
+
 	FString PackageName = Package->GetName();
 
 	FString	ExistingFilename;
@@ -544,7 +576,7 @@ static bool SaveWorld(UWorld* World,
 	FString	CleanFilename;
 
 	// Does a filename already exist for this package?
-	const bool bPackageExists = FPackageName::DoesPackageExist( PackageName, NULL, &ExistingFilename );
+	const bool bPackageExists = FileHelperPackageUtil::DoesPackageExist(Package, &ExistingFilename );
 
 	if ( ForceFilename )
 	{
@@ -1364,7 +1396,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 				}
 				
 				FString Filename;
-				if (FPackageName::DoesPackageExist(Package->GetName(), NULL, &Filename))
+				if (FileHelperPackageUtil::DoesPackageExist(Package, &Filename))
 				{
 					if (IFileManager::Get().IsReadOnly(*Filename))
 					{
@@ -1418,7 +1450,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 		bool bPkgReadOnly = true;
 		bool bCareAboutReadOnly = SourceControlProvider.UsesLocalReadOnlyState();
 		// Find the filename for this package
-		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), NULL, &Filename);
+		bool bFoundFile = FileHelperPackageUtil::DoesPackageExist(CurPackage, &Filename);
 		if (bFoundFile)
 		{
 			// determine if the package file is read only
@@ -1600,11 +1632,6 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 		
 		// Prepare the buttons for the checkout dialog
 
-		if (OutPackagesNotNeedingCheckout != nullptr && OutPackagesNotNeedingCheckout->Num() > 0)
-		{
-			CheckoutPackagesDialogModule.AddButton(DRT_Save, NSLOCTEXT("PackagesDialogModule", "Dlg_SaveCheckedOutButton", "Save Checked Out"), NSLOCTEXT("PackagesDialogModule", "Dlg_SaveCheckedOutTooltip", "Save already checked out packages, but not the packages in this dialog."));
-		}
-
 		// The checkout button should be disabled if no packages can be checked out.
 		CheckoutPackagesDialogModule.AddButton(DRT_CheckOut, NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutButtonp", "Check Out Selected"), NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutTooltip", "Attempt to Check Out Checked Assets"), CheckOutSelectedDisabledAttrib );
 		
@@ -1655,7 +1682,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 					UPackage* PackageToMakeWritable = *PkgsToMakeWritableIter;
 					FString Filename;
 
-					bool bFoundFile = FPackageName::DoesPackageExist( PackageToMakeWritable->GetName(), NULL, &Filename );
+					bool bFoundFile = FileHelperPackageUtil::DoesPackageExist( PackageToMakeWritable, &Filename );
 					if( bFoundFile )
 					{
 						// If we're ignoring the package due to the user ignoring it for saving, remove it from the ignore list
@@ -1693,8 +1720,8 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 					FText MessageFormatting = NSLOCTEXT("FileHelper", "FailedMakingWritableDlgMessageFormatting", "The following assets could not be made writable:{Packages}");
 					FText Message = FText::Format( MessageFormatting, Arguments );
 
-					FText Tile = NSLOCTEXT("FileHelper", "FailedMakingWritableDlg_Title", "Unable to make assets writable");
-					FMessageDialog::Open(EAppMsgType::Ok, Message, &Tile);
+					FText Title = NSLOCTEXT("FileHelper", "FailedMakingWritableDlg_Title", "Unable to make assets writable");
+					FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 				}
 
 				bPerformedOperation = true;
@@ -1704,7 +1731,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 				bResult = true;
 				bPerformedOperation = true;
 			}
-			else if (UserResponse == DRT_Cancel)
+			else if (UserResponse == DRT_Cancel || UserResponse == DRT_None)
 			{
 				// Handle the case of the user canceling out of the dialog
 				bResult = false;
@@ -1836,8 +1863,8 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from source control:{Packages}");
 		FText Message = FText::Format( MessageFormat, Arguments );
 
-		FText Tile = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Tile);
+		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 	}
 
 	return CheckOutResult;
@@ -2404,7 +2431,7 @@ static void NotifyBSPNeedsRebuild(const FString& PackageName)
  */
 bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, bool bShowProgress)
 {
-	double LoadStartTime = FPlatformTime::Seconds();
+	double LoadStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	
 	if (GEditor->WarnIfLightingBuildIsCurrentlyRunning())
 	{
@@ -2513,7 +2540,10 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	}
 
 	// Track time spent loading map.
-	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), FPlatformTime::Seconds() - LoadStartTime );
+	const double MapLoadTime = FStudioAnalytics::GetAnalyticSeconds() - LoadStartTime;
+	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), MapLoadTime);
+
+	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, { FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename)) });
 
 	if (GUnrealEd)
 	{
@@ -2780,6 +2810,8 @@ enum class InternalSavePackageResult : int8
  */
 static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bool bUseDialog, bool& bOutPackageLocallyWritable, FOutputDevice &SaveOutput)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackage);
+
 	// What we will be returning. Assume for now that everything will go fine
 	InternalSavePackageResult ReturnCode = InternalSavePackageResult::Success;
 
@@ -2808,7 +2840,7 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 	if( bIsValidPath )
 	{
 		FString ExistingFilename;
-		const bool bPackageAlreadyExists = FPackageName::DoesPackageExist(PackageName, NULL, &ExistingFilename);
+		const bool bPackageAlreadyExists = FileHelperPackageUtil::DoesPackageExist(PackageToSave, &ExistingFilename);
 		if (!bPackageAlreadyExists)
 		{
 			// Construct a filename from long package name.
@@ -3129,6 +3161,8 @@ static void InternalNotifyNoPackagesSaved(const bool bUseDialog)
  */
 static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bool bUseDialog, TArray<UPackage*>& OutFailedPackages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackagesFast);
+
 	bool bReturnCode = true;
 
 	FSaveErrorOutputDevice SaveErrors;
@@ -3140,7 +3174,7 @@ static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bo
 
 		// Check if a file exists for this package
 		FString Filename;
-		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), NULL, &Filename);
+		bool bFoundFile = FileHelperPackageUtil::DoesPackageExist(CurPackage, &Filename);
 		if (bFoundFile)
 		{
 			// determine if the package file is read only
@@ -3327,6 +3361,8 @@ bool FEditorFileUtils::SaveLevel(ULevel* Level, const FString& DefaultFilename, 
 
 bool FEditorFileUtils::SaveDirtyPackages(const bool bPromptUserToSave, const bool bSaveMapPackages, const bool bSaveContentPackages, const bool bFastSave, const bool bNotifyNoPackagesSaved, const bool bCanBeDeclined, bool* bOutPackagesNeededSaving )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils::SaveDirtyPackages);
+
 	bool bReturnCode = true;
 
 	if (bOutPackagesNeededSaving != NULL)
@@ -3999,11 +4035,17 @@ FString FEditorFileUtils::ExtractPackageName(const FString& ObjectPath)
 
 void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 	{
 		UPackage* WorldPackage = WorldIt->GetOutermost();
 		if (!WorldPackage->HasAnyPackageFlags(PKG_PlayInEditor)
-			&& !WorldPackage->HasAnyFlags(RF_Transient))
+			&& !WorldPackage->HasAnyFlags(RF_Transient)
+			&& (!bHasWritableFolderFilter || WritableFolderFilter->PassesStartsWithFilter(WorldPackage->GetName()))
+			)
 		{
 			if (WorldPackage->IsDirty())
 			{
@@ -4039,6 +4081,10 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 
 void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	// Make a list of all content packages that we should save
 	for (TObjectIterator<UPackage> It; It; ++It)
 	{
@@ -4064,8 +4110,19 @@ void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackag
 			// Ignore map packages, they are caught above.
 			bShouldIgnorePackage |= bIsMapPackage;
 
-			// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
-			bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(Package->GetName(), /*bIncludeReadOnlyRoots=*/false));
+			if (!bShouldIgnorePackage)
+			{
+				FString PackageName = Package->GetName();
+
+				// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
+				bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(PackageName, /*bIncludeReadOnlyRoots=*/false));
+
+				// Ignore packages that cannot be saved due to a custom filter
+				if (!bShouldIgnorePackage && bHasWritableFolderFilter)
+				{
+					bShouldIgnorePackage |= (!WritableFolderFilter->PassesStartsWithFilter(PackageName));
+				}
+			}
 		}
 
 		if (!bShouldIgnorePackage)

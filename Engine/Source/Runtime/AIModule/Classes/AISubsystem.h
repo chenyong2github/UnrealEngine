@@ -22,6 +22,7 @@ private:
 			
 public:
 	UAISubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	~UAISubsystem();
 
 	virtual UWorld* GetWorld() const override;
 

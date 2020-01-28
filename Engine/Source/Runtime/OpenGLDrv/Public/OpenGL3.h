@@ -772,27 +772,15 @@ struct FOpenGL3 : public FOpenGLBase
 		ERHIFeatureLevel::Type PreviewFeatureLevel;
 		if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
 		{
-			check(PreviewFeatureLevel == ERHIFeatureLevel::ES2 || PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
-			if (PreviewFeatureLevel == ERHIFeatureLevel::ES2)
-			{
-				return SP_OPENGL_PCES2;
-			}
-			else if (PreviewFeatureLevel == ERHIFeatureLevel::ES3_1)
+			check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
+			if (PreviewFeatureLevel == ERHIFeatureLevel::ES3_1)
 			{
 				return bAndroidGLESCompatibilityMode ? SP_OPENGL_ES3_1_ANDROID : SP_OPENGL_PCES3_1;
 			}
 		}
 
 		// Shader platform
-		switch(GetMajorVersion())
-		{
-		case 3:
-			return SP_OPENGL_SM4;
-		case 4:
-			return GetMinorVersion() > 2 ? SP_OPENGL_SM5 : SP_OPENGL_SM4;
-		default:
-			return SP_OPENGL_SM4;
-		}
+		return SP_OPENGL_SM5;
 	}
 
 	static FORCEINLINE FString GetAdapterName()

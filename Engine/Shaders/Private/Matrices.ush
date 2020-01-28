@@ -1,0 +1,44 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Creates an ortho projection matrix
+//
+// Similar to Core\Public\Math\OrthoMatrix.h
+float4x4 ReversedZOrthoMatrix(float Width, float Height, float ZScale, float ZOffset)
+{
+	float4x4 O;
+	O[0] = float4((Width) ? (1.0f / Width) : 1.0f, 0.0f, 0.0f, 0.0f);
+	O[1] = float4(0.0f, (Height) ? (1.0f / Height) : 1.f, 0.0f, 0.0f);
+	O[2] = float4(0.0f, 0.0f, -ZScale, 0.0f);
+	O[3] = float4(0.0f, 0.0f, 1.0 - ZOffset * ZScale, 1.0f);
+	return O;	
+}
+
+// Creates a view matrix given an eye position, a position to look at, and an up vector. 
+// This does the same thing as D3DXMatrixLookAtLH.
+//
+// Similar to Core\Public\Math\Matrix.inl
+float4x4 LookAtMatrix(const float3 EyePosition, const float3 LookAtPosition, const float3 UpVector)
+{
+	float4x4 O;
+
+	const float3 ZAxis = normalize(LookAtPosition - EyePosition);
+	const float3 XAxis = normalize(cross(UpVector, ZAxis));
+	const float3 YAxis = cross(ZAxis, XAxis);
+
+	for (uint RowIndex = 0; RowIndex < 3; RowIndex++)
+	{
+		O[RowIndex][0] = XAxis[RowIndex];
+		O[RowIndex][1] = YAxis[RowIndex];
+		O[RowIndex][2] = ZAxis[RowIndex];
+		O[RowIndex][3] = 0.0f;
+	}
+
+	O[3][0] = dot(-EyePosition, XAxis);
+	O[3][1] = dot(-EyePosition, YAxis);
+	O[3][2] = dot(-EyePosition, ZAxis);
+	O[3][3] = 1.0f;
+
+	return O;
+}

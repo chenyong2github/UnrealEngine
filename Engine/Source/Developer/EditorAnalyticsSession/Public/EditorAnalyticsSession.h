@@ -57,6 +57,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsInPIE : 1;
 	bool bIsInEnterprise : 1;
 	bool bIsInVRMode : 1;
+	bool bIsLowDriveSpace : 1;
 
 	FEditorAnalyticsSession();
 

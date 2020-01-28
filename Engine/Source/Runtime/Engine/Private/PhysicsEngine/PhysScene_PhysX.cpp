@@ -435,6 +435,7 @@ FPhysScene_PhysX::FPhysScene_PhysX(const AWorldSettings* Settings)
 #endif
 #endif 
 {
+	LLM_SCOPE(ELLMTag::PhysX);
 	LineBatcher = NULL;
 	OwningWorld = NULL;
 #if WITH_PHYSX

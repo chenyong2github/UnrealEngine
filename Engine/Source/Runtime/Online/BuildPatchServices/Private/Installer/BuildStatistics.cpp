@@ -53,6 +53,7 @@ namespace BuildPatchServices
 		virtual double GetDiskReadByteSpeed() const override;
 		virtual double GetChunkDbReadByteSpeed() const override;
 		virtual double GetDiskWriteByteSpeed() const override;
+		virtual int32 GetNumVerifyErrors() const override;
 		virtual TMap<EVerifyError, int32> GetVerifyErrorCounts() const override;
 		// IBuildStatistics interface end.
 
@@ -165,6 +166,11 @@ namespace BuildPatchServices
 	double FBuildStatistics::GetDiskWriteByteSpeed() const
 	{
 		return Installer->GetDiskWriteSpeedRecorder()->GetAverageSpeed(10.0f);
+	}
+
+	int32 FBuildStatistics::GetNumVerifyErrors() const
+	{
+		return Installer->GetVerifierStatistics()->GetNumFailedFilesVerified();
 	}
 
 	TMap<EVerifyError, int32> FBuildStatistics::GetVerifyErrorCounts() const

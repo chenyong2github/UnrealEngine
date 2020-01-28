@@ -24,7 +24,8 @@ enum EAsyncIOPriorityAndFlags
 	AIOP_PRIORITY_MASK = 0x000000ff,
 
 	// Flags - combine with priorities if needed
-	AIOP_FLAG_PRECACHE = 0x00000100,
+	AIOP_FLAG_PRECACHE	=	0x00000100,
+	AIOP_FLAG_DONTCACHE	=	0x00000200,
 
 	// Priorities
 	AIOP_MIN = 0,

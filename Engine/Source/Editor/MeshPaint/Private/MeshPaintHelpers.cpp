@@ -51,6 +51,8 @@
 #include "Async/ParallelFor.h"
 #include "Rendering/SkeletalMeshModel.h"
 
+extern void PropagateVertexPaintToAsset(USkeletalMesh* SkeletalMesh, int32 LODIndex);
+
 void MeshPaintHelpers::RemoveInstanceVertexColors(UObject* Obj)
 {
 	// Currently only static mesh component supports per instance vertex colors so only need to retrieve those and remove colors
@@ -912,6 +914,7 @@ void MeshPaintHelpers::FillSkeletalMeshVertexColors(USkeletalMeshComponent* Mesh
 			for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
 				MeshPaintHelpers::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
+				PropagateVertexPaintToAsset(Mesh, LODIndex);
 			}
 			Mesh->InitResources();
 		}
@@ -1775,6 +1778,8 @@ void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& Geo
 				const FSkeletalMeshLODRenderData& BaseLOD = Resource->LODRenderData[0];
 				GeometryInfo.PreEdit();				
 
+				PropagateVertexPaintToAsset(Mesh, 0);
+
 				FBox BaseBounds(ForceInitToZero);
 
 				TArray<FPaintedMeshVertex> PaintedVertices;
@@ -1916,8 +1921,8 @@ void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& Geo
 							SrcLOD.Sections[SectionIndex].SoftVertices[SectionVertexIndex].Color = PointsToConsider[BestVertexIndex].Color;
 						}
 					}
+					PropagateVertexPaintToAsset(Mesh, LODIndex);
 				}
-				
 				GeometryInfo.PostEdit();
 			}
 		}

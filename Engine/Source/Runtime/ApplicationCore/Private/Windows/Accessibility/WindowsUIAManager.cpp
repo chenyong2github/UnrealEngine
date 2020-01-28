@@ -18,6 +18,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 
+
 TMap<EAccessibleWidgetType, ULONG> FWindowsUIAManager::WidgetTypeToWindowsTypeMap;
 TMap<EAccessibleWidgetType, FText> FWindowsUIAManager::WidgetTypeToTextMap;
 
@@ -277,6 +278,12 @@ void FWindowsUIAManager::UpdateCachedCurrentLocaleLCID()
 		CachedCurrentLocaleLCID = FInternationalization::Get().GetDefaultLocale()->GetLCID();
 	}
 }
+
+void FWindowsUIAManager::RunInGameThreadBlocking(CONST TFunction<void()>& Function) const
+{
+		WindowsApplication.GetAccessibleMessageHandler()->RunInThread(Function, true, ENamedThreads::GameThread);
+}
+
 #if !UE_BUILD_SHIPPING
 void FWindowsUIAManager::DumpAccessibilityStats() const
 {

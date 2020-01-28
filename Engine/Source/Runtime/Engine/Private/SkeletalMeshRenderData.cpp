@@ -58,8 +58,8 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // If skeletal mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("1DE2DE4E9ADC40C494436E7729B14D5F")
+// and set this new GUID as the version.
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("BAD8180EFB1543D79AA1D10F3F5945A2")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -151,7 +151,6 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData))
 		{
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
-			
 
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 
@@ -163,6 +162,50 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 			{
 				FSkeletalMeshModel* SkelMeshModel = Owner->GetImportedModel();
 				check(SkelMeshModel);
+
+				int32 MorphTargetNumber = 0;
+				Ar << MorphTargetNumber;
+				TArray<UMorphTarget*> ToDeleteMorphTargets;
+				ToDeleteMorphTargets.Append(Owner->MorphTargets);
+				Owner->MorphTargets.Empty();
+				//Rebuild the MorphTarget object
+				//We cannot serialize directly the UMorphTarget with a FMemoryArchive. This is not supported.
+				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
+				{
+					FName MorphTargetName = NAME_None;
+					Ar << MorphTargetName;
+					UMorphTarget* MorphTarget = Cast<UMorphTarget>(StaticFindObjectFast(nullptr, Owner, MorphTargetName));
+					if (!MorphTarget)
+					{
+						MorphTarget = NewObject<UMorphTarget>(Owner, MorphTargetName);
+						check(MorphTarget);
+					}
+					else
+					{
+						ToDeleteMorphTargets.Remove(MorphTarget);
+					}
+					MorphTarget->MorphLODModels.Empty();
+					Owner->MorphTargets.Add(MorphTarget);
+					check(MorphTargetIndex == Owner->MorphTargets.Num() - 1);
+					int32 MorphLODModelNumber = 0;
+					Ar << MorphLODModelNumber;
+					MorphTarget->MorphLODModels.AddDefaulted(MorphLODModelNumber);
+					for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
+					{
+						Ar << MorphTarget->MorphLODModels[MorphDataIndex];
+					}
+				}
+				//Rebuild the mapping and rehook the curve data
+				Owner->InitMorphTargets();
+				for (int32 DeleteMorphIndex = 0; DeleteMorphIndex < ToDeleteMorphTargets.Num(); ++DeleteMorphIndex)
+				{
+					ToDeleteMorphTargets[DeleteMorphIndex]->BaseSkelMesh = nullptr;
+					ToDeleteMorphTargets[DeleteMorphIndex]->MorphLODModels.Empty();
+					//Move the unused asset in the transient package and mark it pending kill
+					ToDeleteMorphTargets[DeleteMorphIndex]->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+					ToDeleteMorphTargets[DeleteMorphIndex]->MarkPendingKill();
+				}
+
 				//Serialize the LODModel sections since they are dependent on the reduction
 				for (int32 LODIndex = 0; LODIndex < SkelMeshModel->LODModels.Num(); LODIndex++)
 				{
@@ -211,9 +254,11 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 				FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
 				FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
 				check(LODInfo);
+				bool bRawDataEmpty = Owner->IsLODImportedDataEmpty(LODIndex);
+				bool bRawBuildDataAvailable = Owner->IsLODImportedDataBuildAvailable(LODIndex);
 				//Build the source model before the render data, if we are a purely generated LOD we do not need to be build
 				IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>("MeshBuilder");
-				if (!LODModel->RawSkeletalMeshBulkData.IsEmpty() && LODModel->RawSkeletalMeshBulkData.IsBuildDataAvailable())
+				if (!bRawDataEmpty && bRawBuildDataAvailable)
 				{
 					MeshBuilderModule.BuildSkeletalMesh(Owner, LODIndex, true);
 					LODModel = &(SkelMeshModel->LODModels[LODIndex]);
@@ -254,6 +299,21 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 			//So we do not serialize the LODModel sections.
 			if (!Owner->UseLegacyMeshDerivedDataKey)
 			{
+				int32 MorphTargetNumber = Owner->MorphTargets.Num();
+				Ar << MorphTargetNumber;
+				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
+				{
+					FName MorphTargetName = Owner->MorphTargets[MorphTargetIndex]->GetFName();
+					Ar << MorphTargetName;
+					int32 MorphLODModelNumber = Owner->MorphTargets[MorphTargetIndex]->MorphLODModels.Num();
+					Ar << MorphLODModelNumber;
+					for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
+					{
+						Ar << Owner->MorphTargets[MorphTargetIndex]->MorphLODModels[MorphIndex];
+					}
+				}
+				//No need to serialize the morph target mapping since we will rebuild the mapping when loading a ddc
+
 				//Serialize the LODModel sections since they are dependent on the reduction
 				for (int32 LODIndex = 0; LODIndex < SkelMeshModel->LODModels.Num(); LODIndex++)
 				{
@@ -387,18 +447,16 @@ void FSkeletalMeshRenderData::ReleaseResources()
 	}
 }
 
-bool FSkeletalMeshRenderData::HasExtraBoneInfluences() const
+uint32 FSkeletalMeshRenderData::GetNumBoneInfluences() const
 {
+	uint32 NumBoneInfluences = 0;
 	for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
 	{
 		const FSkeletalMeshLODRenderData& Data = LODRenderData[LODIndex];
-		if (Data.DoesVertexBufferHaveExtraBoneInfluences())
-		{
-			return true;
-		}
+		NumBoneInfluences = FMath::Max(NumBoneInfluences, Data.GetVertexBufferMaxBoneInfluences());
 	}
 
-	return false;
+	return NumBoneInfluences;
 }
 
 bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel) const
@@ -406,7 +464,7 @@ bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type Feature
 	const int32 MaxGPUSkinBones = FMath::Min(GetFeatureLevelMaxNumberOfBones(FeatureLevel), FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
 	const int32 MaxBonesPerChunk = GetMaxBonesPerSection();
 	// Do CPU skinning if we need too many bones per chunk, or if we have too many influences per vertex on lower end
-	return (MaxBonesPerChunk > MaxGPUSkinBones) || (HasExtraBoneInfluences() && FeatureLevel < ERHIFeatureLevel::ES3_1);
+	return (MaxBonesPerChunk > MaxGPUSkinBones) || (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM && FeatureLevel < ERHIFeatureLevel::ES3_1);
 }
 
 void FSkeletalMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)

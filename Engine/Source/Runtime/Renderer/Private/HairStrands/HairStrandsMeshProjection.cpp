@@ -100,7 +100,7 @@ static void AddHairStrandMeshProjectionPass(
 		Parameters->OutRootTriangleBarycentrics = RootData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->UAV;
 		Parameters->OutRootTriangleDistance		= DistanceUAV;
 
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 32);
+		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 128);
 		check(DispatchGroupCount.X < 65536);
 		TShaderMapRef<FHairMeshProjectionCS> ComputeShader(ShaderMap);
 		FComputeShaderUtils::AddPass(
@@ -116,18 +116,17 @@ void ProjectHairStrandsOntoMesh(
 	FRHICommandListImmediate& RHICmdList, 
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
-	FHairStrandsProjectionMeshData& ProjectionMeshData, 
+	const FHairStrandsProjectionMeshData& ProjectionMeshData, 
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	if (LODIndex < 0 || LODIndex >= ProjectionHairData.LODDatas.Num())
 		return;
 
 	FRDGBuilder GraphBuilder(RHICmdList);
-
 	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float),  ProjectionHairData.RootCount),	TEXT("HairStrandsTriangleDistance"));
 
 	bool ClearDistance = true;
-	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
+	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.LODs[LODIndex].Sections)
 	{
 		check(ProjectionHairData.LODDatas[LODIndex].LODIndex == LODIndex);
 		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, ProjectionHairData, RootDistanceBuffer);
@@ -136,8 +135,6 @@ void ProjectHairStrandsOntoMesh(
 	}
 	GraphBuilder.Execute();
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairUpdateMeshTriangleCS : public FGlobalShader
@@ -195,20 +192,21 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 
 	if (Type == HairStrandsTriangleType::RestPose)
 	{
-		Parameters->RootTrianglePositionOffset = LODData.RestPositionOffset;
+		Parameters->RootTrianglePositionOffset = *LODData.RestPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.RestRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.RestRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.RestRootTrianglePosition2Buffer->UAV;
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
-		Parameters->RootTrianglePositionOffset = LODData.DeformedPositionOffset;
+		Parameters->RootTrianglePositionOffset = *LODData.DeformedPositionOffset;
 		Parameters->OutRootTrianglePosition0 = LODData.DeformedRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.DeformedRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.DeformedRootTrianglePosition2Buffer->UAV;
+		if (LODData.Status) (*LODData.Status) = FHairStrandsProjectionHairData::LODData::EStatus::Completed;
 	}
 
-	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 32);
+	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootData.RootCount, 128);
 	check(DispatchGroupCount.X < 65536);
 	TShaderMapRef<FHairUpdateMeshTriangleCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
@@ -224,12 +222,12 @@ void UpdateHairStrandsMeshTriangles(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
-	FHairStrandsProjectionMeshData& ProjectionMeshData,
+	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
 {
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	for (FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
+	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.Sections)
 	{
 		AddHairStrandUpdateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, Type, MeshSection, ProjectionHairData);
 	}

@@ -19,7 +19,6 @@
 
 #include "AnimSequence.generated.h"
 
-#define USE_SEGMENTING_CONTEXT 0 // Uses segmenting in anim compression + context in decompression
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -194,8 +193,6 @@ struct ENGINE_API FRequestAnimCompressionParams
 	void InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform);
 };
 
-FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D);
-
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
 class ENGINE_API UAnimSequence : public UAnimSequenceBase
 {
@@ -251,12 +248,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/**
-	 * The compression scheme that was most recently used to compress this animation.
-	 */
-	UPROPERTY(Category=Compression, VisibleAnywhere)
-	class UAnimCompress* CompressionScheme;
-
-	/**
 	 * Allow frame stripping to be performed on this animation if the platform requests it
 	 * Can be disabled if animation has high frequency movements that are being lost.
 	 */
@@ -270,11 +261,14 @@ public:
 	 */
 	UPROPERTY(Category = Compression, EditAnywhere)
 	float CompressionErrorThresholdScale;
-
 #endif
 
+	/** The bone compression settings used to compress bones in this sequence. */
+	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
+	class UAnimBoneCompressionSettings* BoneCompressionSettings;
+
 	/** The curve compression settings used to compress curves in this sequence. */
-	UPROPERTY(Category=Compression, EditAnywhere)
+	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
 	class UAnimCurveCompressionSettings* CurveCompressionSettings;
 
 	FCompressedAnimSequence CompressedData;
@@ -459,9 +453,6 @@ public:
 	
 	// Adds a new track (if no track of the supplied name is found) to the raw animation data, optionally setting it to TrackData.
 	int32 AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* TrackData = nullptr);
-
-	// Get the Alternate compression error threshold 
-	float GetAltCompressionErrorThreshold() const;
 #endif
 
 	const TArray<FTrackToSkeletonMap>& GetRawTrackToSkeletonMapTable() const { return TrackToSkeletonMapTable; }
@@ -585,10 +576,25 @@ public:
 	bool CompressRawAnimData();
 
 	// Get compressed data for this UAnimSequence. May be built directly or pulled from DDC
+#if WITH_EDITOR
+	bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
+	FString GetDDCCacheKeySuffix(const bool bPerformStripping) const;
+	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data);
+#endif
+	void WaitOnExistingCompression(const bool bCancelIfNotStarted=false);
 	void RequestAnimCompression(FRequestAnimCompressionParams Params);
 	void RequestSyncAnimRecompression(bool bOutput = false) { RequestAnimCompression(FRequestAnimCompressionParams(false, false, bOutput)); }
+	void RequestAsyncAnimRecompression(bool bOutput = false) { RequestAnimCompression(FRequestAnimCompressionParams(true, false, bOutput)); }
+
+protected:
+	void ApplyCompressedData(const TArray<uint8>& Data);
+
+public:
 	bool IsCompressedDataValid() const;
 	bool IsCurveCompressedDataValid() const;
+
+	void ClearCompressedBoneData();
+	void ClearCompressedCurveData();
 
 	// Write the compressed data to the supplied FArchive
 	void SerializeCompressedData(FArchive& Ar, bool bDDCData);
@@ -813,7 +819,7 @@ private:
 
 	/** Retargeting functions */
 	bool ConvertAnimationDataToRiggingData(FAnimSequenceTrackContainer & RiggingAnimationData);
-	bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData);
+	bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData, bool bPerformPostProcess=true);
 	int32 GetSpaceBasedAnimationData(TArray< TArray<FTransform> > & AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const;
 
 	/** Verify Track Map is valid, if not, fix up */
@@ -850,13 +856,17 @@ private:
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	bool bUseRawDataOnly;
 
-public:
+#if WITH_EDITOR
 	// Are we currently compressing this animation
 	bool bCompressionInProgress;
+#endif
+
+public:
 
 	friend class UAnimationAsset;
 	friend struct FScopedAnimSequenceRawDataCache;
 	friend class UAnimationBlueprintLibrary;
+	friend class UAnimBoneCompressionSettings;
 };
 
 

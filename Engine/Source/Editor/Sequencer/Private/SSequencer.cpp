@@ -363,8 +363,9 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
 		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
-		TimeSliderArgs.OnMarkedFrameChanged = InArgs._OnMarkedFrameChanged;
-		TimeSliderArgs.OnClearAllMarkedFrames = InArgs._OnClearAllMarkedFrames;
+		TimeSliderArgs.OnAddMarkedFrame = InArgs._OnAddMarkedFrame;
+		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
+		TimeSliderArgs.OnDeleteAllMarkedFrames = InArgs._OnDeleteAllMarkedFrames;
 
 		TimeSliderArgs.Settings = Settings;
 		TimeSliderArgs.NumericTypeInterface = GetNumericTypeInterface();
@@ -709,6 +710,23 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.Delta(this, &SSequencer::GetSpinboxDelta)
 									.LinearDeltaSensitivity(25)
 									.MinDesiredWidth(this, &SSequencer::GetPlayTimeMinDesiredWidth)
+								]
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Right)
+							.Padding(FMargin(CommonPadding + 2.0, 0.f, 0.f, 0.f))
+							[
+								SNew(SBorder)
+								.BorderImage(nullptr)
+								[
+									// Current loop index, if any
+									SAssignNew(LoopIndexDisplay, STextBlock)
+									.Text_Lambda([this]() -> FText {
+										uint32 LoopIndex = SequencerPtr.Pin()->GetLocalLoopIndex();
+										return (LoopIndex != FMovieSceneTimeWarping::InvalidWarpCount) ? FText::AsNumber(LoopIndex + 1) : FText();
+									})
 								]
 							]
 						]
@@ -1092,6 +1110,7 @@ void SSequencer::InitializeTrackFilters()
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CameraObjects>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LightObjects>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_SkeletalMeshObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_Animated>());
 
 	// Add any global user-defined frontend filters
 	for (TObjectIterator<USequencerTrackFilterExtension> ExtensionIt(RF_NoFlags); ExtensionIt; ++ExtensionIt)
@@ -1189,7 +1208,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 		if (Settings->ShouldSyncCurveEditorSelection())
 		{
 			TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-
+			CurveEditor->SuspendBroadcast();
 			// Clear the tree selection
 			CurveEditorTree->ClearSelection();
 			for (TSharedRef<FSequencerDisplayNode> Node : SelectedDisplayNodes)
@@ -1200,6 +1219,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 					CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
 				}
 			}
+			CurveEditor->ResumeBroadcast();
 		}
 	}
 }
@@ -1661,6 +1681,31 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
+		}
+	}
+}
+
+
+void SSequencer::SetFilterOn(const FText& InName, bool bOn)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			if (InName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
+			{
+				if (bOn && !IsTrackFilterActive(TrackFilter))
+				{
+					Sequencer->GetNodeTree()->AddFilter(TrackFilter);
+				}
+				else if (!bOn && IsTrackFilterActive(TrackFilter))
+				{
+					Sequencer->GetNodeTree()->RemoveFilter(TrackFilter);
+				}
+			}
 		}
 	}
 }
@@ -3470,6 +3515,8 @@ void SSequencer::SetPlayTimeClampedByWorkingRange(double Frame)
 		Sequencer->SetLocalTime(FFrameTime::FromDecimal(Frame));
 	}
 }
+
+
 
 #undef LOCTEXT_NAMESPACE
 

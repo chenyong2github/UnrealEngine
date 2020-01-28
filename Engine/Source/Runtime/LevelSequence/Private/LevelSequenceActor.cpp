@@ -86,6 +86,14 @@ void ALevelSequenceActor::PostInitProperties()
 	SequencePlayer->SetPlaybackClient(this);
 }
 
+void ALevelSequenceActor::RewindForReplay()
+{
+	if (SequencePlayer)
+	{
+		SequencePlayer->RewindForReplay();
+	}
+}
+
 bool ALevelSequenceActor::RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const
 {
 	return BindingOverrides->LocateBoundObjects(InBindingId, InSequenceID, OutObjects);

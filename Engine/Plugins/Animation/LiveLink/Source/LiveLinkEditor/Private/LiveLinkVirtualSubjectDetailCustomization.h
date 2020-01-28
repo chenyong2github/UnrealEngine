@@ -8,6 +8,7 @@
 
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
+#include "Styling/SlateColor.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/Views/SListView.h"
 
@@ -41,6 +42,11 @@ private:
 	
 	// Creates subject tree entry widget
 	TSharedRef<ITableRow> OnGenerateWidgetForSubjectItem(FSubjectEntryPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+	// If Item doesn't exist in Client subject's list, mark it as red
+	FSlateColor HandleSubjectItemColor(FSubjectEntryPtr InItem) const;
+
+	FText HandleSubjectItemToolTip(FSubjectEntryPtr InItem) const;
 
 	// The tile set being edited
 	TWeakObjectPtr<ULiveLinkVirtualSubject> SubjectPtr;

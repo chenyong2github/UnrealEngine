@@ -135,7 +135,7 @@ struct FRayTracingGeometrySegment
 
 	// Indicates whether any-hit shader could be invoked when hitting this geometry segment.
 	// Setting this to `false` turns off any-hit shaders, making the section "opaque" and improving ray tracing performance.
-	bool bAllowAnyHitShader = true;
+	bool bForceOpaque = false;
 
 	// Any-hit shader may be invoked multiple times for the same primitive during ray traversal.
 	// Setting this to `false` guarantees that only a single instance of any-hit shader will run per primitive, at some performance cost.
@@ -186,9 +186,103 @@ struct FRayTracingSceneInitializer
 	// Shaders and resources are assigned to slots in the scene using SetRayTracingCallableShader().
 	uint32 NumCallableShaderSlots = 0;
 
+	// At least one miss shader must be present in a ray tracing scene.
+	// Default miss shader is always in slot 0. Default shader must not use local resources.
+	// Custom miss shaders can be bound to other slots using SetRayTracingMissShader().
+	uint32 NumMissShaderSlots = 1;
+
 	// Defines whether data in this scene should persist between frames.
 	// Currently only single-frame lifetime is supported.
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
+};
+
+struct FShaderResourceViewInitializer
+{
+	struct FVertexBufferShaderResourceViewInitializer
+	{
+		FRHIVertexBuffer* VertexBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+		uint8 Format;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat);
+
+	const FVertexBufferShaderResourceViewInitializer& AsVertexBufferSRV() const
+	{
+		check(Type == EType::VertexBufferSRV);
+		return VertexBufferInitializer;
+	}
+
+	struct FStructuredBufferShaderResourceViewInitializer
+	{
+		FRHIStructuredBuffer* StructuredBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer);
+
+	const FStructuredBufferShaderResourceViewInitializer& AsStructuredBufferSRV() const
+	{
+		check(Type == EType::StructuredBufferSRV);
+		return StructuredBufferInitializer;
+	}
+
+	struct FIndexBufferShaderResourceViewInitializer
+	{
+		FRHIIndexBuffer* IndexBuffer;
+		uint32 StartElement;
+		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartElement == 0 && NumElements == UINT32_MAX; 
+		}
+	};
+
+	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer, uint32 InStartElement, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer);
+
+	const FIndexBufferShaderResourceViewInitializer& AsIndexBufferSRV() const
+	{
+		check(Type == EType::IndexBufferSRV);
+		return IndexBufferInitializer;
+	}
+
+	enum class EType : uint8
+	{
+		VertexBufferSRV,
+		StructuredBufferSRV,
+		IndexBufferSRV,
+	};
+
+	const EType GetType() const
+	{
+		return Type;
+	}
+
+private:
+	union
+	{
+		FVertexBufferShaderResourceViewInitializer VertexBufferInitializer;
+		FStructuredBufferShaderResourceViewInitializer StructuredBufferInitializer;
+		FIndexBufferShaderResourceViewInitializer IndexBufferInitializer;
+	};
+
+	const EType Type;
 };
 
 class FDynamicRHI;
@@ -363,11 +457,12 @@ public:
 	 * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
 	 * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
 	 * @param StagingBuffer The buffer to lock.
+	 * @param Fence An optional fence synchronized with the last buffer update.
 	 * @param Offset The offset in the buffer to return.
 	 * @param SizeRHI The length of the region in the buffer to lock.
 	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
 	 */
-	virtual void* RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI);
+	virtual void* RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI);
 
 	/**
 	 * Unlock a staging buffer previously locked with RHILockStagingBuffer.
@@ -380,11 +475,12 @@ public:
 	 * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
 	 * @param RHICmdList The command-list to execute on or synchronize with.
 	 * @param StagingBuffer The buffer to lock.
+	 * @param Fence An optional fence synchronized with the last buffer update.
 	 * @param Offset The offset in the buffer to return.
 	 * @param SizeRHI The length of the region in the buffer to lock.
 	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
 	 */
-	virtual void* LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI);
+	virtual void* LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI);
 
 	/**
 	 * Unlock a staging buffer previously locked with LockStagingBuffer_RenderThread.
@@ -528,6 +624,9 @@ public:
 	/** Creates a shader resource view of the given vertex buffer. */
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) = 0;
+
+	/** Creates a shader resource view **/
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) = 0;
 
 	/** Creates a shader resource view of the given index buffer. */
 	// FlushType: Wait RHI Thread
@@ -972,7 +1071,7 @@ public:
 
 	// CAUTION: Even though this is marked as threadsafe, it is only valid to call from the render thread. It is need not be threadsafe on platforms that do not support or aren't using an RHIThread
 	// FlushType: Thread safe, but varies by RHI
-	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait) = 0;
+	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE) = 0;
 
 	// FlushType: Thread safe
 	virtual uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport)
@@ -1004,17 +1103,31 @@ public:
 		return nullptr;
 	}
 
+	UE_DEPRECATED(4.25, "RHIAliasTextureResources now takes references to FTextureRHIRef objects as parameters")
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIAdvanceFrameFence(){};
+	UE_DEPRECATED(4.25, "RHICreateAliasedTexture now takes a reference to an FTextureRHIRef object")
 	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture)
 	{
 		checkNoEntry();
 		return nullptr;
 	}
+
+	virtual void RHIAliasTextureResources(FTextureRHIRef& DestTexture, FTextureRHIRef& SrcTexture)
+	{
+		checkNoEntry();
+	}
+
+	virtual FTextureRHIRef RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+
+	virtual void RHIAdvanceFrameFence() {};
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
 	// FlushType: Thread safe
@@ -1037,7 +1150,7 @@ public:
 	* Returns the total GPU time taken to render the last frame. Same metric as FPlatformTime::Cycles().
 	*/
 	// FlushType: Thread safe
-	virtual uint32 RHIGetGPUFrameCycles() = 0;
+	virtual uint32 RHIGetGPUFrameCycles(uint32 GPUIndex = 0) = 0;
 
 	//  must be called from the main thread.
 	// FlushType: Thread safe
@@ -1185,6 +1298,7 @@ public:
 	virtual FVertexBufferRHIRef CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual FStructuredBufferRHIRef CreateStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer);
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus);
 	virtual ETextureReallocationStatus FinalizeAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted);
@@ -1234,6 +1348,7 @@ public:
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
@@ -1457,9 +1572,9 @@ FORCEINLINE void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessV
 	GDynamicRHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
 }
 
-FORCEINLINE bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait)
+FORCEINLINE bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE)
 {
-	return GDynamicRHI->RHIGetRenderQueryResult(RenderQuery, OutResult, bWait);
+	return GDynamicRHI->RHIGetRenderQueryResult(RenderQuery, OutResult, bWait, GPUIndex);
 }
 
 FORCEINLINE uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport)
@@ -1492,9 +1607,9 @@ FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 	return GDynamicRHI->RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
 }
 
-FORCEINLINE uint32 RHIGetGPUFrameCycles()
+FORCEINLINE uint32 RHIGetGPUFrameCycles(uint32 GPUIndex = 0)
 {
-	return GDynamicRHI->RHIGetGPUFrameCycles();
+	return GDynamicRHI->RHIGetGPUFrameCycles(GPUIndex);
 }
 
 FORCEINLINE FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)

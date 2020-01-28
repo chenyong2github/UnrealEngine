@@ -496,24 +496,38 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 		return;
 	}
 
+	if(InNodeId == INDEX_NONE)
+	{
+		return;
+	}
+
 	check(InContext.AnimInstanceProxy);
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
+	FString DisplayNameString;
 	IAnimClassInterface* AnimBlueprintClass = InContext.GetAnimClass();
-	check(AnimBlueprintClass);
-	const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
-	check(AnimNodeProperties.IsValidIndex(InNodeId));
-	FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
-	check(LinkedProperty->Struct);
+	if(AnimBlueprintClass)
+	{
+		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+		check(AnimNodeProperties.IsValidIndex(InNodeId));
+		FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
+		check(LinkedProperty->Struct);
 
 #if WITH_EDITOR
-	FString DisplayNameString = LinkedProperty->Struct->GetDisplayNameText().ToString();
+		DisplayNameString = LinkedProperty->Struct->GetDisplayNameText().ToString();
 #else
-	FString DisplayNameString = LinkedProperty->Struct->GetName();
+		DisplayNameString = LinkedProperty->Struct->GetName();
 #endif
 
-	DisplayNameString.RemoveFromStart(TEXT("Anim Node "));
+		DisplayNameString.RemoveFromStart(TEXT("Anim Node "));
+	}
+	else
+	{
+		DisplayNameString = TEXT("Anim Node");
+	}
+
+	check(InPreviousNodeId != InNodeId);
 
 	UE_TRACE_LOG(Animation, AnimNodeStart, (DisplayNameString.Len() + 1) * sizeof(TCHAR))
 		<< AnimNodeStart.StartCycle(InStartCycle)

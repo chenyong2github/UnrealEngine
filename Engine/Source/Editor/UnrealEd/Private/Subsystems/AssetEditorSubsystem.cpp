@@ -22,6 +22,8 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
+#include "StudioAnalytics.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"
@@ -264,6 +266,8 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 
 bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {
+	const double OpenAssetStartTime = FStudioAnalytics::GetAnalyticSeconds();
+
 	if (!Asset)
 	{
 		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because asset is null"));
@@ -274,13 +278,21 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	//    being edited within, we should decide whether to disallow "Edit Here" in that case, or to close the old asset
 	//    editor and summon it in the new level editor, or to just foreground the old level editor (current behavior)
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
 	const bool bBringToFrontIfOpen = true;
 
-	// Don't open asset editors for cooked packages
 	if (UPackage* Package = Asset->GetOutermost())
 	{
+		// Don't open asset editors for cooked packages
 		if (Package->bIsCookedForEditor)
 		{
+			return false;
+		}
+
+		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(Package->GetName()))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 			return false;
 		}
 	}
@@ -301,8 +313,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	}
 
 	UE_LOG(LogAssetEditorSubsystem, Log, TEXT("Opening Asset editor for %s"), *Asset->GetFullName());
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 	TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Asset->GetClass());
 
@@ -363,16 +373,26 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	}
 	// Must check Asset here in addition to at the beginning of the function, because if the asset was destroyed and recreated it might not be found correctly
 	// Do not add to recently opened asset list if this is a level-associated asset like Level Blueprint or Built Data. Their naming is not compatible
-	if (Asset && Asset->IsAsset() && !Asset->IsA(UMapBuildDataRegistry::StaticClass()))
+	if (Asset)
 	{
-		FString AssetPath = Asset->GetOuter()->GetPathName();
-		FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-		FMainMRUFavoritesList* RecentlyOpenedAssets = CBModule.GetRecentlyOpenedAssets();
-		if (RecentlyOpenedAssets && FPackageName::IsValidLongPackageName(AssetPath))
+		if (Asset->IsAsset() && !Asset->IsA(UMapBuildDataRegistry::StaticClass()))
 		{
-			RecentlyOpenedAssets->AddMRUItem(AssetPath);
+			FString AssetPath = Asset->GetOuter()->GetPathName();
+			FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+			FMainMRUFavoritesList* RecentlyOpenedAssets = CBModule.GetRecentlyOpenedAssets();
+			if (RecentlyOpenedAssets && FPackageName::IsValidLongPackageName(AssetPath))
+			{
+				RecentlyOpenedAssets->AddMRUItem(AssetPath);
+			}
 		}
+
+		const double OpenTime = FStudioAnalytics::GetAnalyticSeconds() - OpenAssetStartTime;
+		FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
+			FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
+			FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
+		});
 	}
+
 	return true;
 }
 

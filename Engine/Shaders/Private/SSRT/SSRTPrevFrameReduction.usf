@@ -124,7 +124,7 @@ void MainCS(
 
 				float4 SampleColor = float4(
 					HigherMipTexture.SampleLevel(HigherMipTextureSampler, SampleUV, 0).rgb,
-					HigherAlphaMipTexture.SampleLevel(HigherAlphaMipTextureSampler, SampleUV, 0).a);
+					Texture2DSample_A8(HigherAlphaMipTexture,HigherAlphaMipTextureSampler, SampleUV));
 
 				PrevColor += SampleColor * SampleWeight;
 			}
@@ -192,6 +192,8 @@ void MainCS(
 			PrevColor = float4(PrevSceneColor.SampleLevel(PrevSceneColorSampler, PrevFrameUV, 0).rgb, 1.0);
 		}
 		#endif
+
+		PrevColor = -min(-PrevColor, 0.0);
 
 		#if CONFIG_COLOR_TILE_CLASSIFICATION
 		{

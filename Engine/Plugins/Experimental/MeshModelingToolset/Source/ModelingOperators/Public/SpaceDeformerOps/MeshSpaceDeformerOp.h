@@ -22,34 +22,14 @@ public:
 	/**
 	* \brief Updates the pointer to the target mesh
 	*/
-	virtual void UpdateMesh(FDynamicMesh3* Mesh);
+	virtual void CopySource(const FDynamicMesh3& Mesh, const FTransform& XFrom);
 
 
-	/**
-	* \brief Updates spatial data i.e. origin, orientation and other pertaining inputs needed by the operators
-	* \param ObjectSpaceToOpSpaceTransform Rotation matrix to rotate from object space to the space expected by the operator
-	* \param ObjectSpaceOrigin The location of the handle's origin, transformed from world space into the local coordinate system of the mesh
-	* \param AxesHalfExtents Each element of this vector is a scalar corresponding to the distance from the ObjectSpaceOrigin (centroid) to the farthest vertex in that respective direction
-	* \param LowerBounds The negative interval (only negative numbers) representing the range of effect in space this operator will have where -1 will utilize the entire half extent
-	* \param UpperBounds The positive interval (only positive numbers) representing the range of effect in space this operator will have where 1 will utilize the entire half extent
-	* \param ModifierValue Percent input from the tool (between -100 and 100), as each operator will have a min/max value i.e. the angle of curvature, twist or scale. This is the percent used to interpolate between the min/max value
-	*/
-	virtual void UpdateAxisData(const FMatrix3d& ObjectSpaceToOpSpaceTransform, const FVector3d& ObjectSpaceOrigin, const FVector3d& AxesHalfExtents, double LowerBounds, double UpperBounds, double ModifierValue);
+	// half the major axis of the bounding box for the source geometry
+	double AxesHalfLength;
 
-	//Array of the original positions of each vertex of the mesh
-	TArray<FVector3d> OriginalPositions;
-
-	//Origin of the transformation, given in the local coordinate system of the mesh
-	FVector3d AxisOriginObjectSpace;
-	
-	//Each element of this vector is a scalar corresponding to the distance from the ObjectSpaceOrigin (centroid) to the farthest vertex in that respective direction
-	FVector3d AxesHalfLengths;
-
-	//Rotation matrix to rotate from object space to the space expected by the operator
-	FMatrix3d ObjectSpaceToOpSpace;
-
-	//Precomputed inversion from the provided ObjectSpaceToOpSpace, used to convert back to the object's coordinate system
-	FMatrix3d OpSpaceToObjectSpace;
+	// transform, including translation, to gizmo space
+	FMatrix ObjectToGizmo;
 
 	//Percent input from the tool (between -100 and 100), as each operator will have a min/max value i.e. the angle of curvature, twist or scale. This is the percent used to interpolate between the min/max value
 	double ModifierPercent;

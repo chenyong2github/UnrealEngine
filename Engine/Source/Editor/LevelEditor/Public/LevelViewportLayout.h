@@ -11,7 +11,7 @@
 #include "Widgets/SWidget.h"
 #include "Editor/UnrealEdTypes.h"
 #include "Application/ThrottleManager.h"
-#include "AssetViewportLayout.h"
+#include "EditorViewportLayout.h"
 #include "TickableEditorObject.h"
 
 class FLevelEditorViewportClient;
@@ -46,7 +46,7 @@ struct FViewportConstructionArgs
 
 
 /** Interface that defines an entity within a viewport layout */
-class ILevelViewportLayoutEntity : public IAssetViewportLayoutEntity
+class ILevelViewportLayoutEntity : public IEditorViewportLayoutEntity
 {
 public:
 	/** Virtual destruction */
@@ -69,7 +69,7 @@ public:
  * Base class for level viewport layout configurations
  * Handles maximizing and restoring well as visibility of specific viewports.
  */
-class LEVELEDITOR_API FLevelViewportLayout : public TSharedFromThis<FLevelViewportLayout>, public FAssetViewportLayout, public FTickableEditorObject
+class LEVELEDITOR_API FLevelViewportLayout : public TSharedFromThis<FLevelViewportLayout>, public FEditorViewportLayout, public FTickableEditorObject
 {
 public:
 	/**

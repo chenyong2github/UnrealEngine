@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Containers/UnrealString.h"
 #include "Algo/Unique.h"
@@ -40,7 +40,7 @@ bool FUniqueTest::RunTest(const FString& Parameters)
 	}
 	{
 		int32 Array[] = {1};
-		int32 NewSize = Unique(Array);
+		int32 NewSize = (int32)Unique(Array);
 		TestEqual(TEXT("`Unique` must support C arrays"), NewSize, 1);
 	}
 	{

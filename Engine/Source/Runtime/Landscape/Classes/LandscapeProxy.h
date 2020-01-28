@@ -38,6 +38,10 @@ struct FLandscapeInfoLayerSettings;
 struct FMeshDescription;
 enum class ENavDataGatheringMode : uint8;
 
+#if WITH_EDITOR
+LANDSCAPE_API extern bool GLandscapeEditModeActive;
+#endif
+
 USTRUCT()
 struct FLandscapeEditorLayerSettings
 {
@@ -497,6 +501,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
 	UMaterialInterface* LandscapeMaterial;
 
+#if !WITH_EDITORONLY_DATA
+	/** Used to cache grass types from GetGrassTypes */
+	UMaterialInterface* LandscapeMaterialCached;
+
+	/** Cached grass types from GetGrassTypes */
+	TArray<ULandscapeGrassType*> LandscapeGrassTypes;
+
+	/** Cached grass max square discard distance for all grass in GetGrassTypes */
+	float GrassMaxSquareDiscardDistance;
+#endif
+
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
 	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
 	UMaterialInterface* LandscapeHoleMaterial;
@@ -517,6 +532,14 @@ public:
 	UPROPERTY(Transient)
 	bool bIsPerformingInteractiveActionOnLandscapeMaterialOverride;
 #endif 
+
+	/** Use unique geometry instead of material alpha tests for holes on mobile platforms. This requires additional memory and will render more vertices at lower LODs.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Mobile, meta = (DisplayName = "Unique Hole Meshes"))
+	bool bMeshHoles = false;
+
+	/** Maximum geometry LOD at which to render unique hole meshes.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Mobile, meta = (DisplayName = "Unique Hole Meshes Max LOD", UIMin = "1", UIMax = "6"))
+	uint8 MeshHolesMaxLod = 6;
 
 	/**
 	 * Array of runtime virtual textures into which we render this landscape.
@@ -816,8 +839,28 @@ public:
 	virtual ALandscape* GetLandscapeActor() PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 	virtual const ALandscape* GetLandscapeActor() const PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 
+	static void SetGrassUpdateInterval(int32 Interval) { GrassUpdateInterval = Interval; }
+
 	/* Per-frame call to update dynamic grass placement and render grassmaps */
-	void TickGrass();
+	FORCEINLINE bool ShouldTickGrass() const
+	{
+		if (!bHasLandscapeGrass)
+		{
+			return false;
+		}
+
+		const int32 UpdateInterval = GetGrassUpdateInterval();
+		if (UpdateInterval > 1)
+		{
+			if ((GFrameNumber + FrameOffsetForTickInterval) % uint32(UpdateInterval))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	void TickGrass(const TArray<FVector>& Cameras, int32& InOutNumCompsCreated);
 
 	/** Flush the grass cache */
 	LANDSCAPE_API void FlushGrassComponents(const TSet<ULandscapeComponent*>* OnlyForComponents = nullptr, bool bFlushGrassMaps = true);
@@ -825,8 +868,11 @@ public:
 	/**
 		Update Grass 
 		* @param Cameras to use for culling, if empty, then NO culling
+		* @param InOutNumComponentsCreated, value can increase if components were created, it is also used internally to limit the number of creations
 		* @param bForceSync if true, block and finish all work
 	*/
+	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumComponentsCreated, bool bForceSync = false);
+
 	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync = false);
 
 	LANDSCAPE_API static void AddExclusionBox(FWeakObjectPtr Owner, const FBox& BoxToRemove);
@@ -835,7 +881,7 @@ public:
 
 
 	/* Get the list of grass types on this landscape */
-	TArray<ULandscapeGrassType*> GetGrassTypes() const;
+	static void GetGrassTypes(const UWorld* World, UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut, float& OutMaxDiscardDistance);
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache = false);
@@ -864,11 +910,6 @@ public:
 	FDelegateHandle FeatureLevelChangedDelegateHandle;
 #endif
 
-	//~ Begin AActor Interface.
-	virtual void TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
-	virtual bool ShouldTickIfViewportsOnly() const override;
-	//~ End AActor Interface
-
 	//~ Begin UObject Interface.
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void Serialize(FArchive& Ar) override;
@@ -881,6 +922,8 @@ public:
 	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
 	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
 
+	/** Get landscape position in section space */
+	LANDSCAPE_API FIntPoint GetSectionBaseOffset() const;
 #if WITH_EDITOR
 	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
 
@@ -918,10 +961,7 @@ public:
 
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);
-	
-	/** Get landscape position in section space */
-	LANDSCAPE_API FIntPoint GetSectionBaseOffset() const;
-	
+
 	/** Recreate all components rendering and collision states */
 	LANDSCAPE_API void RecreateComponentsState();
 
@@ -1070,7 +1110,18 @@ protected:
 #endif
 private:
 	/** Returns Grass Update interval */
-	int32 GetGrassUpdateInterval() const;
+	FORCEINLINE int32 GetGrassUpdateInterval() const 
+	{
+#if WITH_EDITOR
+		// When editing landscape, force update interval to be every frame
+		if (GLandscapeEditModeActive)
+		{
+			return 1;
+		}
+#endif
+		return GrassUpdateInterval;
+	}
+	static int32 GrassUpdateInterval;
 
 #if WITH_EDITOR
 	void UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>& OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag);

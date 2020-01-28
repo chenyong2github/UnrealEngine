@@ -43,7 +43,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if USE_DYNAMIC_PARAMETERS
-	float4 DynamicParameter	: TEXCOORD1;
+	nointerpolation float4 DynamicParameter	: TEXCOORD1;
 #endif	//USE_DYNAMIC_PARAMETERS
 
 #if NEEDS_PARTICLE_COLOR
@@ -302,7 +302,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 float3 SafeNormalize(float3 V)
 {
-	return V * rsqrt(max(dot(V,V),0.01));
+	return V * rsqrt(max(dot(V,V),0.00000001));
 }
 
 void GetTangents(FVertexFactoryInput Input, float3 WorldPosition, float3 OldWorldPosition, out float3 OutRight, out float3 OutUp)

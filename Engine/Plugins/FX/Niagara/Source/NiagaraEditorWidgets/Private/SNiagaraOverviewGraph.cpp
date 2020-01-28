@@ -25,8 +25,12 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
+
+bool SNiagaraOverviewGraph::bShowLibraryOnly = false;
+bool SNiagaraOverviewGraph::bShowTemplateOnly = false;
 
 void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel)
 {
@@ -294,6 +298,8 @@ void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilde
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
+		AssetPickerConfig.OnShouldFilterAsset.BindSP(this, &SNiagaraOverviewGraph::ShouldFilterEmitter);
+		AssetPickerConfig.RefreshAssetViewDelegates.Add(&RefreshAssetView);
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -301,13 +307,51 @@ void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilde
 	TSharedRef<SWidget> EmitterAddSubMenu =
 		SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Padding(5.0f)
+		.Padding(0.0f)
 		[
-			SNew(SBox)
-			.WidthOverride(300.0f)
-			.HeightOverride(300.0f)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.Padding(3)
+			.AutoHeight()
 			[
-				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.FillWidth(1.0f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &SNiagaraOverviewGraph::TemplateCheckBoxStateChanged)
+					.IsChecked(this, &SNiagaraOverviewGraph::GetTemplateCheckBoxState)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("TemplateOnly", "Template Only"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &SNiagaraOverviewGraph::LibraryCheckBoxStateChanged)
+					.IsChecked(this, &SNiagaraOverviewGraph::GetLibraryCheckBoxState)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("LibraryOnly", "Library Only"))
+					]
+				]
+
+			]
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				SNew(SBox)
+				.WidthOverride(300.0f)
+				.HeightOverride(300.0f)
+				[
+					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+				]
 			]
 		];
 
@@ -364,5 +408,73 @@ void SNiagaraOverviewGraph::OnDistributeNodesV()
 		GraphEditor->OnDistributeNodesV();
 	}
 }
+
+void SNiagaraOverviewGraph::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
+{
+	SNiagaraOverviewGraph::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
+	RefreshAssetView.ExecuteIfBound(true);
+}
+
+ECheckBoxState SNiagaraOverviewGraph::GetLibraryCheckBoxState() const
+{
+	return SNiagaraOverviewGraph::bShowLibraryOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraOverviewGraph::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
+{
+	SNiagaraOverviewGraph::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
+	RefreshAssetView.ExecuteIfBound(true);
+}
+
+ECheckBoxState SNiagaraOverviewGraph::GetTemplateCheckBoxState() const
+{
+	return SNiagaraOverviewGraph::bShowTemplateOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+
+bool SNiagaraOverviewGraph::ShouldFilterEmitter(const FAssetData& AssetData)
+{
+	// Check if library script
+	bool bScriptAllowed = true;
+	bool bInLibrary = false;
+	bool bIsTemplate = false;
+	if (SNiagaraOverviewGraph::bShowLibraryOnly == true)
+	{
+		bool bFoundLibraryTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
+
+		if (bFoundLibraryTag == false)
+		{
+			if (AssetData.IsAssetLoaded())
+			{
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bInLibrary = EmitterAsset->bExposeToLibrary;
+				}
+			}
+		}
+		bScriptAllowed &= bFoundLibraryTag;
+	}
+	if (SNiagaraOverviewGraph::bShowTemplateOnly == true)
+	{
+		bool bFoundTemplateTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
+
+		if (bFoundTemplateTag == false)
+		{
+			if (AssetData.IsAssetLoaded())
+			{
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bIsTemplate = EmitterAsset->bIsTemplateAsset;
+				}
+			}
+		}
+		bScriptAllowed &= bIsTemplate;
+	}
+
+	return !bScriptAllowed;
+}
+
 
 #undef LOCTEXT_NAMESPACE // "NiagaraOverviewGraph"

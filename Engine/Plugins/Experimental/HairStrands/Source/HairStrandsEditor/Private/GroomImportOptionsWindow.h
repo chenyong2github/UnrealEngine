@@ -19,18 +19,21 @@ public:
 		: _ImportOptions(nullptr)
 		, _WidgetWindow()
 		, _FullPath()
+		, _ButtonLabel()
 	{}
 
 	SLATE_ARGUMENT(UGroomImportOptions*, ImportOptions)
 	SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 	SLATE_ARGUMENT(FText, FullPath)
+	SLATE_ARGUMENT(FText, ButtonLabel)
 	SLATE_END_ARGS()
 
 public:
 	void Construct(const FArguments& InArgs);
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	static TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath);
+	static TSharedPtr<SGroomImportOptionsWindow> DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath);
+	static TSharedPtr<SGroomImportOptionsWindow> DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath);
 
 	FReply OnImport()
 	{

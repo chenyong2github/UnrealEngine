@@ -446,7 +446,6 @@ void QuantizeBoundShaderState(
 	switch (ShaderFrequency)
 	{
 	case SF_RayGen:
-	case SF_RayMiss:
 
 		// Shared conservative root signature layout is used for all raygen and miss shaders.
 
@@ -461,6 +460,7 @@ void QuantizeBoundShaderState(
 
 	case SF_RayHitGroup:
 	case SF_RayCallable:
+	case SF_RayMiss:
 
 		// Local root signature is used for hit group shaders, using the exact number of resources to minimize shader binding table record size.
 

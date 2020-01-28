@@ -1,27 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//#include "HairStrandsShadowCommon.ush"
+#pragma once
 
-float3 HUEtoRGB(in float H)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FHairTransmittanceMask
 {
-	float R = abs(H * 6 - 3) - 1;
-	float G = 2 - abs(H * 6 - 2);
-	float B = 2 - abs(H * 6 - 4);
-	return saturate(float3(R, G, B));
+	float3 Transmittance;
+	float HairCount;
+	float Visibility;
+};
+
+struct FPackedHairTransmittanceMask
+{
+	float3 Transmittance;
+	uint PackedHairCountAndVisibility;
+};
+
+FHairTransmittanceMask InitHairTransmittanceMask()
+{
+	FHairTransmittanceMask Out;
+	Out.Transmittance = 1;
+	Out.HairCount = 0;
+	Out.Visibility = 1;
+	return Out;
 }
 
-float3 HSVtoRGB(in float3 HSV)
+FPackedHairTransmittanceMask PackTransmittanceMask(FHairTransmittanceMask In)
 {
-	float3 RGB = HUEtoRGB(HSV.x);
-	return ((RGB - 1) * HSV.y + 1) * HSV.z;
+	FPackedHairTransmittanceMask Out;
+	Out.Transmittance = In.Transmittance;
+	Out.PackedHairCountAndVisibility = min(uint(In.HairCount * 1000), 0x00FFFFFF) | (min(uint(In.Visibility * 0xFF), 0xFF) << 24);
+	return Out;
 }
 
-float3 ColorCode(float x)
+FHairTransmittanceMask UnpackTransmittanceMask(FPackedHairTransmittanceMask  In)
 {
-	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
-	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
+	FHairTransmittanceMask Out;
+	Out.Transmittance = In.Transmittance;
+	Out.HairCount = float(In.PackedHairCountAndVisibility & 0x00FFFFFF) / 1000.f;
+	Out.Visibility = float((In.PackedHairCountAndVisibility & 0xFF000000) >> 24) / 255.f;
+	return Out;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float3 ToLightPosition(float3 WorldPosition, float4x4 WorldToLightTransform)
 {
@@ -222,20 +244,24 @@ float3 ComputeHairCountDebugColor(
 	const float4 DOMValue = DomTexture.SampleLevel(LinearSampler, LightSpacePosition.xy, 0);
 	const float DistanceToFrontDepth = GetDomDistanceToFrontDepth(FrontDepth, LightSpacePosition.z);
 	const float HairCount = ComputeHairCount(DOMValue, DistanceToFrontDepth);
-	return ColorCode(HairCount / MaxHairCount);
+	return GetColorCode(HairCount / MaxHairCount);
 }
 
-float4 ComputeTransmittanceFromHairCount(float HairCount, FGBufferData GBuffer, float SinLightAngle, Texture3D<float4> InHairScatteringLUTTexture, SamplerState InHairLUTSampler)
+FHairTransmittanceMask ComputeTransmittanceFromHairCount(float HairCount, float HairVisibility, FGBufferData GBuffer, float SinLightAngle, Texture3D<float4> InHairScatteringLUTTexture, SamplerState InHairLUTSampler)
 {
-	HairAverageScattering AbsorptionData = SampleHairLUT(InHairScatteringLUTTexture, InHairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+	const HairAverageScattering AbsorptionData = SampleHairLUT(InHairScatteringLUTTexture, InHairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
 
 	// Always shift the hair count by one to remove self-occlusion/shadow aliasing and have smootheer transition
 	// This insure the the pow function always starts at 0 for front facing hair
-	HairCount = max(0, HairCount - 1);
-	return  float4(pow(AbsorptionData.A_front, HairCount), HairCount);
+	FHairTransmittanceMask Out;
+	Out.HairCount = max(0, HairCount - 1);
+	Out.Transmittance = pow(AbsorptionData.A_front, Out.HairCount);
+	Out.Visibility = HairVisibility;
+
+	return Out;
 }
 
-float4 ComputeTransmittance(
+FHairTransmittanceMask ComputeTransmittance(
 	float3 WorldPosition,
 	FGBufferData GBuffer, 
 	FTransmittanceSettings Settings,
@@ -246,7 +272,8 @@ float4 ComputeTransmittance(
 {
 	const bool bIsHairPixel = GBuffer.ShadingModelID == SHADINGMODELID_HAIR;
 
-	float4 Transmittance = float4(1,1,1,0);
+	FHairTransmittanceMask Out = InitHairTransmittanceMask();
+
 	if (bIsHairPixel)
 	{
 		const bool bIsDirectionalLight = Settings.LightPosition.w == 0;
@@ -288,13 +315,13 @@ float4 ComputeTransmittance(
 			HairCount = 0;
 		}
 
-		Transmittance = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+		Out = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, 1, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
 
 		if (Settings.DebugMode != 0)
 		{
-			Transmittance.xyz = ComputeDomDebugColor(WorldPosition, Settings.WorldToLightTransform, FrontDepthTexture, LinearSampler);
-			Transmittance.w = 1;
+			Out.Transmittance = ComputeDomDebugColor(WorldPosition, Settings.WorldToLightTransform, FrontDepthTexture, LinearSampler);
+			Out.HairCount = 1;
 		}
 	}
-	return Transmittance;
+	return Out;
 }

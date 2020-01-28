@@ -105,7 +105,7 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
-		TArray<FShaderCommonCompileJob*>& NewJobs,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		FString DebugDescription,
 		FString DebugExtension
 		);
@@ -119,7 +119,7 @@ public:
 		FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
 		const TArray<FMeshMaterialShaderType*>& ShaderStages,
-		TArray<FShaderCommonCompileJob*>& NewJobs,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		FString DebugDescription,
 		FString DebugExtension
 		);

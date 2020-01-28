@@ -18,6 +18,8 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Misc/ConfigManifest.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "Misc/StringBuilder.h"
 
 #if WITH_EDITOR
@@ -29,6 +31,15 @@
 #ifndef DISABLE_GENERATED_INI_WHEN_COOKED
 #define DISABLE_GENERATED_INI_WHEN_COOKED 0
 #endif
+
+namespace
+{
+	static FName VersionName("Version");
+	static FName PreserveName("Preserve");
+	static FString LegacyIniVersionString = TEXT("IniVersion");
+	static FString LegacyEngineString = TEXT("Engine.Engine");
+	static FString CurrentIniVersionString = TEXT("CurrentIniVersion");
+}
 
 DEFINE_LOG_CATEGORY(LogConfig);
 namespace 
@@ -133,7 +144,7 @@ bool FConfigValue::ExpandValue(const FString& InCollapsedValue, FString& OutExpa
 		const TCHAR* Begin;
 		const TCHAR* End;
 
-		int32 Len() const { return End - Begin; }
+		int32 Len() const { return UE_PTRDIFF_TO_INT32(End - Begin); }
 	};
 
 	// Find substrings of input and expansions to concatenate to final output string
@@ -319,6 +330,13 @@ bool FConfigSection::operator!=( const FConfigSection& Other ) const
 	return ! (FConfigSection::operator==(Other));
 }
 
+FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection)
+{
+	Ar << static_cast<FConfigSection::Super&>(ConfigSection);
+	Ar << ConfigSection.ArrayOfStructKeys;
+	return Ar;
+}
+
 // Pull out a property from a Struct property, StructKeyMatch should be in the form "MyProp=". This reduces
 // memory allocations for each attempted match
 static void ExtractPropertyValue(const FString& FullStructValue, const FString& StructKeyMatch, FString& Out)
@@ -349,7 +367,7 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 		}
 
 		// pull out the token
-		Out.AppendChars(*FullStructValue + MatchLoc, Travel - Start);
+		Out.AppendChars(*FullStructValue + MatchLoc, UE_PTRDIFF_TO_INT32(Travel - Start));
 	}
 }
 
@@ -1263,9 +1281,12 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 #endif
 
 	TArray<FDateTime> TimestampsOfInis;
+	
+	// Making a copy of the HierarchyToLoad so we can loop and make changes to ConfigFile without breaking the iteration.
+	const FConfigFileHierarchy TempHierarchyToLoad = HierarchyToLoad;
 
 	// Traverse ini list back to front, merging along the way.
-	for (auto& HierarchyIt : HierarchyToLoad)
+	for (auto& HierarchyIt : TempHierarchyToLoad)
 	{
 		if (FirstCacheIndex <= HierarchyIt.Key)
 		{
@@ -1328,7 +1349,7 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 	}
 
 	// Set this configs files source ini hierarchy to show where it was loaded from.
-	ConfigFile.SourceIniHierarchy = HierarchyToLoad;
+	ConfigFile.SourceIniHierarchy = TempHierarchyToLoad;
 
 	return true;
 }
@@ -1515,9 +1536,12 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 				const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
 				const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
 				const bool bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
+				
+				// We ALWAYS want to write CurrentIniVersion.
+				const bool bIsCurrentIniVersion = (SectionName == CurrentIniVersionString);
 
 				// Check if the property matches the source configs. We do not wanna write it out if so.
-				if ((bIsADefaultIniWrite || bDifferentNumberOfElements || !DoesConfigPropertyValueMatch(SourceConfigFile, SectionName, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
+				if ((bIsADefaultIniWrite || bDifferentNumberOfElements || bIsCurrentIniVersion || !DoesConfigPropertyValueMatch(SourceConfigFile, SectionName, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
 				{
 					// If this is the first property we are writing of this section, then print the section name
 					if( Text.Len() == 0 )
@@ -1819,18 +1843,11 @@ bool FConfigFile::GetBool(const TCHAR* Section, const TCHAR* Key, bool& Value ) 
 
 int32 FConfigFile::GetArray(const TCHAR* Section, const TCHAR* Key, TArray<FString>& Value) const
 {
+	Value.Empty();
 	const FConfigSection* Sec = Find(Section);
 	if (Sec != nullptr)
 	{
-		TArray<FConfigValue> RemapArray;
-		Sec->MultiFind(Key, RemapArray);
-
-		// TMultiMap::MultiFind will return the results in reverse order
-		Value.AddZeroed(RemapArray.Num());
-		for (int32 RemapIndex = RemapArray.Num() - 1, Index = 0; RemapIndex >= 0; RemapIndex--, Index++)
-		{
-			Value[Index] = RemapArray[RemapIndex].GetValue();
-		}
+		Sec->MultiFind(Key, Value, true);
 	}
 #if !UE_BUILD_SHIPPING
 	else
@@ -2583,8 +2600,7 @@ bool FConfigCacheIni::GetSectionNames( const FString& Filename, TArray<FString>&
 		out_SectionNames.Empty(Num());
 		for ( FConfigFile::TIterator It(*File); It; ++It )
 		{
-			// insert each item at the beginning of the array because TIterators return results in reverse order from which they were added
-			out_SectionNames.Insert(It.Key(),0);
+			out_SectionNames.Add(It.Key());
 
 			FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, *It.Key());
 		}
@@ -2758,25 +2774,7 @@ int32 FConfigCacheIni::GetArray
 	FConfigFile* File = Find( Filename, 0 );
 	if ( File != nullptr )
 	{
-		FConfigSection* Sec = File->Find( Section );
-		if ( Sec != nullptr )
-		{
-			TArray<FConfigValue> RemapArray;
-			Sec->MultiFind(Key, RemapArray);
-
-			// TMultiMap::MultiFind will return the results in reverse order
-			out_Arr.AddZeroed(RemapArray.Num());
-			for ( int32 RemapIndex = RemapArray.Num() - 1, Index = 0; RemapIndex >= 0; RemapIndex--, Index++ )
-			{
-				out_Arr[Index] = RemapArray[RemapIndex].GetValue();
-			}
-		}
-#if !UE_BUILD_SHIPPING
-		else
-		{
-			CheckLongSectionNames( Section, File );
-		}
-#endif
+		File->GetArray(Section, Key, out_Arr);
 	}
 
 	if (out_Arr.Num())
@@ -3111,8 +3109,8 @@ struct FConfigMemoryData
 		SIZE_T MaxMem = MemAr.GetMax();
 
 		NameIndent = FMath::Max(NameIndent, ConfigFilename.Len());
-		SizeIndent = FMath::Max(SizeIndent, FString::FromInt(TotalMem).Len());
-		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt(MaxMem).Len());
+		SizeIndent = FMath::Max(SizeIndent, FString::FromInt((int32)TotalMem).Len());
+		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt((int32)MaxMem).Len());
 		
 		new(MemoryData) FConfigFileMemoryData( ConfigFilename, TotalMem, MaxMem );
 	}
@@ -3306,29 +3304,83 @@ static bool GenerateDestIniFile(FConfigFile& DestConfigFile, const FString& Dest
 	bool bForceRegenerate = false;
 	bool bShouldUpdate = FPlatformProperties::RequiresCookedData();
 
+	// New versioning
+	int32 SourceConfigVersionNum = -1;
+	int32 CurrentIniVersion = -1;
+	bool bVersionChanged = false;
+
+	// Lambda for functionality that we can do in more than one place.
+	auto RegenerateFileLambda = [](const FConfigFileHierarchy& InSourceIniHierarchy, FConfigFile& InDestConfigFile, const bool bInUseCache)
+	{
+		// Regenerate the file.
+		bool bReturnValue = LoadIniFileHierarchy(InSourceIniHierarchy, InDestConfigFile, bInUseCache);
+		if (InDestConfigFile.SourceConfigFile)
+		{
+			delete InDestConfigFile.SourceConfigFile;
+			InDestConfigFile.SourceConfigFile = nullptr;
+		}
+		InDestConfigFile.SourceConfigFile = new FConfigFile(InDestConfigFile);
+
+		// mark it as dirty (caller may want to save)
+		InDestConfigFile.Dirty = true;
+
+		return bReturnValue;
+	};
+
 	// Don't try to load any generated files from disk in cooked builds. We will always use the re-generated INIs.
 	if (!FPlatformProperties::RequiresCookedData() || bAllowGeneratedINIs)
 	{
 		// We need to check if the user is using the version of the config system which had the entire contents of the coalesced
 		// Source ini hierarchy output, if so we need to update, as it will cause issues with the new way we handle saved config files.
+		
+		// Legacy
 		bool bIsLegacyConfigSystem = false;
+
 		for ( TMap<FString,FConfigSection>::TConstIterator It(DestConfigFile); It; ++It )
 		{
 			FString SectionName = It.Key();
-			if( SectionName == TEXT("IniVersion") || SectionName == TEXT("Engine.Engine") )
+			if (SectionName == LegacyEngineString || SectionName == LegacyIniVersionString)
 			{
 				bIsLegacyConfigSystem = true;
 				UE_LOG( LogInit, Warning, TEXT( "%s is out of date. It will be regenerated." ), *FPaths::ConvertRelativePathToFull(DestIniFilename) );
 				break;
 			}
+			else if (SectionName == CurrentIniVersionString)
+			{
+				FConfigSection ConfigSectionIniVersion = It.Value();
+				if (const FConfigValue* ConfigValue = ConfigSectionIniVersion.Find(VersionName))
+				{
+					FString VersionString = ConfigValue->GetSavedValue();
+					CurrentIniVersion = FCString::Atoi(*VersionString);
+				}
+			}
+		}
+
+		// Test the version of the source config file to see if we should update.
+		if (FConfigSection* SourceConfigSectionIniVersion = DestConfigFile.SourceConfigFile->Find(CurrentIniVersionString))
+		{
+			if (const FConfigValue* ConfigValue = SourceConfigSectionIniVersion->Find(VersionName))
+			{
+				FString VersionString = ConfigValue->GetSavedValue();
+				SourceConfigVersionNum = FCString::Atoi(*VersionString);
+				if (SourceConfigVersionNum > CurrentIniVersion)
+				{
+					UE_LOG(LogInit, Log, TEXT("%s version has been updated. It will be regenerated."), *FPaths::ConvertRelativePathToFull(DestIniFilename));
+					bVersionChanged = true;
+				}
+				else if (SourceConfigVersionNum < CurrentIniVersion)
+				{
+					UE_LOG(LogInit, Warning, TEXT("%s version is later than the source. Since the versions are out of sync, nothing will be done."), *FPaths::ConvertRelativePathToFull(DestIniFilename));
+				}
+			}
 		}
 
 		// Regenerate the ini file?
-		if( bIsLegacyConfigSystem || FParse::Param(FCommandLine::Get(),TEXT("REGENERATEINIS")) == true )
+		if (bIsLegacyConfigSystem || FParse::Param(FCommandLine::Get(), TEXT("REGENERATEINIS")) == true)
 		{
 			bForceRegenerate = true;
 		}
-		else if( FParse::Param(FCommandLine::Get(),TEXT("NOAUTOINIUPDATE")) )
+		else if (FParse::Param(FCommandLine::Get(), TEXT("NOAUTOINIUPDATE")))
 		{
 			// Flag indicating whether the user has requested 'Yes/No To All'.
 			static int32 GIniYesNoToAll = -1;
@@ -3339,11 +3391,11 @@ static bool GenerateDestIniFile(FConfigFile& DestConfigFile, const FString& Dest
 			// The file exists but is different.
 			// Prompt the user if they haven't already responded with a 'Yes/No To All' answer.
 			uint32 YesNoToAll;
-			if( GIniYesNoToAll != EAppReturnType::YesAll && GIniYesNoToAll != EAppReturnType::NoAll )
+			if (GIniYesNoToAll != EAppReturnType::YesAll && GIniYesNoToAll != EAppReturnType::NoAll)
 			{
-				YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format( NSLOCTEXT("Core", "IniFileOutOfDate", "Your ini ({0}) file is outdated. Do you want to automatically update it saving the previous version? Not doing so might cause crashes!"), FText::FromString( DestIniFilename ) ) );
+				YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format(NSLOCTEXT("Core", "IniFileOutOfDate", "Your ini ({0}) file is outdated. Do you want to automatically update it saving the previous version? Not doing so might cause crashes!"), FText::FromString(DestIniFilename)));
 				// Record whether the user responded with a 'Yes/No To All' answer.
-				if ( YesNoToAll == EAppReturnType::YesAll || YesNoToAll == EAppReturnType::NoAll )
+				if (YesNoToAll == EAppReturnType::YesAll || YesNoToAll == EAppReturnType::NoAll)
 				{
 					GIniYesNoToAll = YesNoToAll;
 				}
@@ -3359,30 +3411,85 @@ static bool GenerateDestIniFile(FConfigFile& DestConfigFile, const FString& Dest
 		}
 		else
 		{
-			bShouldUpdate = true;
+			// If the version changes, we regenerate, so no need to do this.
+			if (!bVersionChanged)
+			{
+				bShouldUpdate = true;
+			}
 		}
 	}
 	
+	// Order is important, we want to let force regenerate happen before version change, in case we're trying to wipe everything.
+	//	Version tries to save some info.
 	if (DestConfigFile.Num() == 0 && DestConfigFile.SourceConfigFile->Num() == 0)
 	{
 		// If both are empty, don't save
 		return false;
 	}
-	else if( bForceRegenerate )
+	else if (bForceRegenerate)
 	{
-		// Regenerate the file.
-		bResult = LoadIniFileHierarchy(SourceIniHierarchy, DestConfigFile, bUseHierarchyCache);
-		if (DestConfigFile.SourceConfigFile)
-		{
-			delete DestConfigFile.SourceConfigFile;
-			DestConfigFile.SourceConfigFile = nullptr;
-		}
-		DestConfigFile.SourceConfigFile = new FConfigFile( DestConfigFile );
-
-		// mark it as dirty (caller may want to save)
-		DestConfigFile.Dirty = true;
+		bResult = RegenerateFileLambda(SourceIniHierarchy, DestConfigFile, bUseHierarchyCache);
 	}
-	else if( bShouldUpdate )
+	else if (bVersionChanged)
+	{
+		// Clear out everything but the preserved sections with the properties in that section, then update the version.
+		//	The ini syntax is Preserve=Section=<section name, like /Scipt/FortniteGame.FortConsole>.
+		//	Go through and save the preserved sections before we regenerate the file. We'll re-add those after.
+		FConfigSection PreservedConfigSectionData;
+		if (FConfigSection* SourceConfigSectionIniVersion = DestConfigFile.SourceConfigFile->Find(CurrentIniVersionString))
+		{
+			for (FConfigSectionMap::TConstIterator ItSourceConfigSectionIniVersion(*SourceConfigSectionIniVersion); ItSourceConfigSectionIniVersion; ++ItSourceConfigSectionIniVersion)
+			{
+				if (ItSourceConfigSectionIniVersion.Key() == PreserveName)
+				{
+					PreservedConfigSectionData.Add(ItSourceConfigSectionIniVersion.Key(), ItSourceConfigSectionIniVersion.Value());
+				}
+			}
+		}
+
+		FConfigFile PreservedConfigFileData;
+		for (FConfigSectionMap::TConstIterator ItPreservedConfigSectionData(PreservedConfigSectionData); ItPreservedConfigSectionData; ++ItPreservedConfigSectionData)
+		{
+			FString SectionString = ItPreservedConfigSectionData.Value().GetSavedValue();
+			if (FConfigSection* FoundSection = DestConfigFile.Find(SectionString))
+			{
+				for (FConfigSectionMap::TConstIterator ItFoundSection(*FoundSection); ItFoundSection; ++ItFoundSection)
+				{
+					if (FConfigSection* CreatedSection = PreservedConfigFileData.FindOrAddSection(SectionString))
+					{
+						CreatedSection->Add(ItFoundSection.Key(), ItFoundSection.Value());
+					}
+				}
+			}
+		}
+
+		// Remove everything before we regenerate.
+		DestConfigFile.Empty();
+
+		// Regnerate.
+		bResult = RegenerateFileLambda(SourceIniHierarchy, DestConfigFile, bUseHierarchyCache);
+
+		// Add back the CurrentIniVersion section.
+		if (FConfigSection* DestConfigSectionIniVersion = DestConfigFile.FindOrAddSection(CurrentIniVersionString))
+		{
+			// Update the version. If it's already there then good but if not, we add it.
+			DestConfigSectionIniVersion->FindOrAdd(VersionName, FConfigValue(FString::FromInt(SourceConfigVersionNum)));
+		}
+
+		// Add back any preserved sections.
+		for (TMap<FString, FConfigSection>::TConstIterator ItPreservedConfigFileData(PreservedConfigFileData); ItPreservedConfigFileData; ++ItPreservedConfigFileData)
+		{
+			if (FConfigSection* DestConfigSectionPreserved = DestConfigFile.FindOrAddSection(ItPreservedConfigFileData.Key()))
+			{
+				FConfigSection PreservedConfigFileSection = ItPreservedConfigFileData.Value();
+				for (FConfigSectionMap::TConstIterator ItPreservedConfigFileSection(PreservedConfigFileSection); ItPreservedConfigFileSection; ++ItPreservedConfigFileSection)
+				{
+					DestConfigSectionPreserved->Add(ItPreservedConfigFileSection.Key(), ItPreservedConfigFileSection.Value());
+				}
+			}
+		}
+	}
+	else if (bShouldUpdate)
 	{
 		// Merge the .ini files by copying over properties that exist in the default .ini but are
 		// missing from the generated .ini
@@ -3651,8 +3758,73 @@ FString FConfigCacheIni::GetDestIniFilename(const TCHAR* BaseIniName, const TCHA
 	return IniFilename;
 }
 
+void FConfigCacheIni::SaveCurrentStateForBootstrap(const TCHAR* Filename)
+{
+	TArray<uint8> FileContent;
+	{
+		// Use FMemoryWriter because FileManager::CreateFileWriter doesn't serialize FName as string and is not overridable
+		FMemoryWriter MemoryWriter(FileContent, true);
+		SerializeStateForBootstrap_Impl(MemoryWriter);
+	}
+
+	FFileHelper::SaveArrayToFile(FileContent, Filename);
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni)
+{
+	Ar << static_cast<FConfigCacheIni::Super&>(ConfigCacheIni);
+	Ar << ConfigCacheIni.bAreFileOperationsDisabled;
+	Ar << ConfigCacheIni.bIsReadyForUse;
+	Ar << ConfigCacheIni.Type;
+	return Ar;
+}
+
+void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
+{
+	// This implementation is meant to stay private and be used for 
+	// bootstrapping another processes' config cache with a serialized state.
+	// It doesn't include any versioning as it is used with the
+	// the same binary executable for both the parent and 
+	// children processes. It also takes care of saving/restoring
+	// global ini variables.
+	Ar << *this;
+	Ar << GEditorIni;
+	Ar << GEditorKeyBindingsIni;
+	Ar << GEditorLayoutIni;
+	Ar << GEditorSettingsIni;
+	Ar << GEditorPerProjectIni;
+	Ar << GCompatIni;
+	Ar << GLightmassIni;
+	Ar << GScalabilityIni;
+	Ar << GHardwareIni;
+	Ar << GInputIni;
+	Ar << GGameIni;
+	Ar << GGameUserSettingsIni;
+	Ar << GRuntimeOptionsIni;
+}
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
+	// Bootstrap the Ini config cache
+	FString IniBootstrapFilename;
+	if (FParse::Value( FCommandLine::Get(), TEXT("IniBootstrap="), IniBootstrapFilename))
+	{
+		TArray<uint8> FileContent;
+		if (FFileHelper::LoadFileToArray(FileContent, *IniBootstrapFilename, FILEREAD_Silent))
+		{
+			FMemoryReader MemoryReader(FileContent, true);
+			GConfig = new FConfigCacheIni(EConfigCacheType::Temporary);
+			GConfig->SerializeStateForBootstrap_Impl(MemoryReader);
+			GConfig->bIsReadyForUse = true;
+			FCoreDelegates::ConfigReadyForUse.Broadcast();
+			return;
+		}
+		else
+		{
+			UE_LOG(LogInit, Display, TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization"), *IniBootstrapFilename);
+		}
+	}
+
 	// Perform any upgrade we need before we load any configuration files
 	FConfigManifest::UpgradeFromPreviousVersions();
 
@@ -3723,6 +3895,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GHardwareIni, TEXT("Hardware"));	
 	// Load runtime options
 	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
+	// Load install bundle config
+	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
 	
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
 #if PLATFORM_PS4
@@ -3944,6 +4118,34 @@ FString FConfigCacheIni::GetGameUserSettingsDir()
 #endif
 
 	return ConfigDir;
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)
+{
+	bool bHasSourceConfigFile = ConfigFile.SourceConfigFile != nullptr;
+
+	Ar << static_cast<FConfigFile::Super&>(ConfigFile);
+	Ar << ConfigFile.Dirty;
+	Ar << ConfigFile.NoSave;
+	Ar << ConfigFile.Name;
+	Ar << ConfigFile.SourceIniHierarchy;
+	Ar << ConfigFile.SourceEngineConfigDir;
+	Ar << bHasSourceConfigFile;
+	if (bHasSourceConfigFile)
+	{
+		// Handle missing instance for the loading case
+		if (ConfigFile.SourceConfigFile == nullptr)
+		{
+			ConfigFile.SourceConfigFile = new FConfigFile();
+		}
+
+		Ar << *ConfigFile.SourceConfigFile;
+	}
+	Ar << ConfigFile.SourceProjectConfigDir;
+	Ar << ConfigFile.CacheKey;
+	Ar << ConfigFile.PerObjectConfigArrayOfStructKeys;
+
+	return Ar;
 }
 
 void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRootName/*=nullptr*/, const TCHAR* OverridePlatform/*=nullptr*/)

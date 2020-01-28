@@ -217,7 +217,7 @@ void FGenerateMips::RenderMips(FRHICommandListImmediate& CommandList, FRHITextur
 		CommandList.BeginRenderPass(RPInfo, TEXT("GenMipsLevel"));
 		{
 			CommandList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			CommandList.SetViewport(0, 0, 0.0f, Width, Height, 1.0f);
+			CommandList.SetViewport(0.0f, 0.0f, 0.0f, (float)Width, (float)Height, 1.0f);
 
 			SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
 			CopyShader->SetParameters(CommandList, InTexture, CommandList.CreateSamplerState(GenMipsStruct->Sampler), FVector2D(0.5f / Width,  0.5f / Height), MipLevel - 1);
@@ -350,7 +350,7 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 
 
 //Public execute function for calling the generate mips compute shader. Handles everything per platform.
-void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams, TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache, bool bAllowRenderBasedGeneration)
+void FGenerateMips::ExecuteInternal(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams, TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache, bool bAllowRenderBasedGeneration)
 {
 	//Only executes if mips are required.
 	if (InTexture->GetNumMips() > 1)
@@ -371,16 +371,11 @@ void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* I
 			// Do we have an external cache for the parameters we will use?
 			if (!ExternalMipsStructCache)
 			{
-				// No: Old path to keep things compatible
-				//THIS WILL CAUSE CIRCULAR REFS BETWEEN THE PARAMETERS AND THE TEXTURE -> LEAK!
-			if (!InTexture->GenMipsStruct)
-			{
-					InTexture->GenMipsStruct = SetupTexture(InTexture, InParams);
+				// No: Old path to keep things compatible. This will not cache any setup, so some performance penalty might apply!
+				Compute(RHICmdList, InTexture, SetupTexture(InTexture, InParams));
 			}
-				Compute(RHICmdList, InTexture, InTexture->GenMipsStruct);
-		}
-		else
-		{
+			else
+			{
 				// Use external location to cache params etc.
 
 				// Already valid?

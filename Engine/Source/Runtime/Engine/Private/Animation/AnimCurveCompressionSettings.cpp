@@ -18,6 +18,16 @@ UAnimCurveCompressionCodec* UAnimCurveCompressionSettings::GetCodec(const FStrin
 }
 
 #if WITH_EDITORONLY_DATA
+void UAnimCurveCompressionSettings::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+{
+	Super::GetPreloadDependencies(OutDeps);
+
+	if (Codec != nullptr)
+	{
+		OutDeps.Add(Codec);
+	}
+}
+
 bool UAnimCurveCompressionSettings::AreSettingsValid() const
 {
 	return Codec != nullptr && Codec->IsCodecValid();
@@ -41,7 +51,7 @@ bool UAnimCurveCompressionSettings::Compress(const FCompressibleAnimData& AnimSe
 	return Success;
 }
 
-void UAnimCurveCompressionSettings::PopulateDDCKey(FArchive& Ar) const
+void UAnimCurveCompressionSettings::PopulateDDCKey(FArchive& Ar)
 {
 	if (Codec)
 	{

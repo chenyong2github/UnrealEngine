@@ -13,7 +13,7 @@ class FLocTextHelper;
 class FLocalizationChunkDataGenerator : public IChunkDataGenerator
 {
 public:
-	FLocalizationChunkDataGenerator(TArray<FString> InLocalizationTargetsToChunk, TArray<FString> InAllCulturesToCook);
+	FLocalizationChunkDataGenerator(const int32 InCatchAllChunkId, TArray<FString> InLocalizationTargetsToChunk, TArray<FString> InAllCulturesToCook);
 	virtual ~FLocalizationChunkDataGenerator() = default;
 
 	//~ IChunkDataGenerator
@@ -22,6 +22,9 @@ public:
 private:
 	/** Update CachedLocalizationTargetData if needed */
 	void ConditionalCacheLocalizationTargetData();
+
+	/** The chunk ID that should be used as the catch-all chunk for any non-asset localized strings */
+	int32 CatchAllChunkId;
 
 	/** List of localization targets that should be chunked */
 	TArray<FString> LocalizationTargetsToChunk;

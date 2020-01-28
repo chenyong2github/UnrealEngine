@@ -3340,6 +3340,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bEnableExceptions = Rules.bForceEnableExceptions || Rules.bBuildEditor;
 			GlobalCompileEnvironment.bEnableObjCExceptions = Rules.bForceEnableObjCExceptions || Rules.bBuildEditor;
 			GlobalCompileEnvironment.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
+			GlobalCompileEnvironment.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			GlobalCompileEnvironment.bUndefinedIdentifierWarningsAsErrors = Rules.bUndefinedIdentifierErrors;
 			GlobalCompileEnvironment.bOptimizeForSize = Rules.bCompileForSize;
 			GlobalCompileEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
@@ -3592,6 +3593,16 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_SERVER_CODE=0");
+			}
+
+			// Set the defines for Push Model
+			if (Rules.bWithPushModel)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_PUSH_MODEL=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_PUSH_MODEL=0");
 			}
 
 			// Set the define for whether we're compiling with CEF3

@@ -42,7 +42,7 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
-	TArray<FShaderCommonCompileJob*>& NewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 	FString DebugDescription,
 	FString DebugExtension)
 {
@@ -70,6 +70,7 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 	bool bAllowDevelopmentShaderCompile = Material->GetAllowDevelopmentShaderCompile();
 
 	// Compile the shader environment passed in with the shader type's source code.
+	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> ShaderJob(NewJob);
 	::GlobalBeginCompileShader(
 		Material->GetFriendlyName(),
 		VertexFactoryType,
@@ -78,7 +79,7 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 		GetShaderFilename(),
 		GetFunctionName(),
 		FShaderTarget(GetFrequency(),Platform),
-		NewJob,
+		ShaderJob,
 		NewJobs,
 		bAllowDevelopmentShaderCompile,
 		DebugDescription,
@@ -96,7 +97,7 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
 	const TArray<FMeshMaterialShaderType*>& ShaderStages,
-	TArray<FShaderCommonCompileJob*>& NewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 	FString DebugDescription,
 	FString DebugExtension)
 {
@@ -112,7 +113,7 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 		ShaderStage->BeginCompileShader(ShaderMapId, PermutationId, Platform, Material, MaterialEnvironment, VertexFactoryType, ShaderPipeline, NewPipelineJob->StageJobs, DebugDescription, DebugExtension);
 	}
 
-	NewJobs.Add(NewPipelineJob);
+	NewJobs.Add(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>(NewPipelineJob));
 }
 
 
@@ -183,7 +184,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 	const FMaterial* Material,
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<FShaderCommonCompileJob*>& NewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 	FString DebugDescription,
 	FString DebugExtension
 	)
@@ -221,7 +222,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 				if (!HasShader(ShaderType, PermutationId))
 				{
 					// Compile this mesh material shader for this material and vertex factory type.
-					auto* Job = ShaderType->BeginCompileShader(
+					FShaderCompileJob* Job = ShaderType->BeginCompileShader(
 						ShaderMapId,
 						PermutationId,
 						InPlatform,

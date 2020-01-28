@@ -21,6 +21,7 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/CoreObjectVersion.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -75,7 +76,7 @@ void UBlueprintGeneratedClass::PostInitProperties()
 
 void UBlueprintGeneratedClass::PostLoad()
 {
-	Super::PostLoad();	
+	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
 	UPackage* Package = GetOutermost();
@@ -205,7 +206,7 @@ UClass* UBlueprintGeneratedClass::GetAuthoritativeClass()
 
 struct FConditionalRecompileClassHepler
 {
-	enum ENeededAction
+	enum class ENeededAction : uint8
 	{
 		None,
 		StaticLink,
@@ -682,6 +683,11 @@ void UBlueprintGeneratedClass::InitArrayPropertyFromCustomList(const FArrayPrope
 
 		uint8* DstArrayItemValue = DstArrayValueHelper.GetRawPtr(ArrayIndex);
 		const uint8* SrcArrayItemValue = SrcArrayValueHelper.GetRawPtr(ArrayIndex);
+
+		if (DstArrayItemValue == nullptr && SrcArrayItemValue == nullptr)
+		{
+			continue;
+		}
 
 		if (const FStructProperty* InnerStructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 		{
@@ -1515,7 +1521,7 @@ void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties
 	Super::Link(Ar, bRelinkExistingProperties);
 
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	if (UsePersistentUberGraphFrame())
+	if(UsePersistentUberGraphFrame())
 	{
 		if (UberGraphFunction)
 		{
@@ -1680,7 +1686,7 @@ void UBlueprintGeneratedClass::GetLifetimeBlueprintReplicationList(TArray<FLifet
 		{
 			PropertiesLeft--;
 			
-			OutLifetimeProps.AddUnique(FLifetimeProperty(Prop->RepIndex, Prop->GetBlueprintReplicationCondition()));
+			OutLifetimeProps.AddUnique(FLifetimeProperty(Prop->RepIndex, Prop->GetBlueprintReplicationCondition(), REPNOTIFY_OnChanged, PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL()));
 		}
 	}
 
@@ -1817,12 +1823,12 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyDataFromTemplat
 	checkSlow(SourceTemplate != nullptr);
 	checkSlow(!SourceTemplate->HasAnyFlags(RF_NeedLoad));
 
-			// Cache source template attributes needed for instancing.
-			ComponentTemplateName = SourceTemplate->GetFName();
-			ComponentTemplateClass = SourceTemplate->GetClass();
-			ComponentTemplateFlags = SourceTemplate->GetFlags();
+	// Cache source template attributes needed for instancing.
+	ComponentTemplateName = SourceTemplate->GetFName();
+	ComponentTemplateClass = SourceTemplate->GetClass();
+	ComponentTemplateFlags = SourceTemplate->GetFlags();
 
-			// This will also load the cached property list, if necessary.
+	// This will also load the cached property list, if necessary.
 	const FCustomPropertyListNode* PropertyList = GetCachedPropertyList();
 
 	// Make sure we don't have any previously-built data.
@@ -1833,9 +1839,9 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyDataFromTemplat
 		CachedPropertyData.Empty();
 	}
 
-			// Write template data out to the "fast path" buffer. All dependencies will be loaded at this point.
+	// Write template data out to the "fast path" buffer. All dependencies will be loaded at this point.
 	FBlueprintComponentInstanceDataWriter InstanceDataWriter(CachedPropertyData, PropertyList);
-			SourceTemplate->Serialize(InstanceDataWriter);
+	SourceTemplate->Serialize(InstanceDataWriter);
 
 	INC_MEMORY_STAT_BY(STAT_BPCompInstancingFastPathMemory, CachedPropertyData.GetAllocatedSize());
 }

@@ -99,8 +99,9 @@ void USimplifyMeshTool::Setup()
 	ComponentTarget->SetOwnerVisibility(false);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
-	Preview->ConfigureMaterials(
-		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)),
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	Preview->ConfigureMaterials( MaterialSet.Materials,
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 	Preview->PreviewMesh->EnableWireframe(true);
@@ -154,10 +155,10 @@ void USimplifyMeshTool::Setup()
 void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 		ComponentTarget->SetOwnerVisibility(true);
-	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+	FDynamicMeshOpResult Result = Preview->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-		GenerateAsset(*Result);
+		GenerateAsset(Result);
 		}
 }
 
@@ -167,9 +168,9 @@ void USimplifyMeshTool::Tick(float DeltaTime)
 	Preview->Tick(DeltaTime);
 }
 
-TSharedPtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 {
-	TSharedPtr<FSimplifyMeshOp> Op = MakeShared<FSimplifyMeshOp>();
+	TUniquePtr<FSimplifyMeshOp> Op = MakeUnique<FSimplifyMeshOp>();
 
 	Op->bDiscardAttributes = SimplifyProperties->bDiscardAttributes;
 	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
@@ -212,7 +213,7 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 			{
 				FVector3d A, B;
 				TargetMesh->GetEdgeV(eid, A, B);
-				PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+				PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
 					LineColor, 0, 2.0, 1.0f, true);
 			}
 		}
@@ -240,12 +241,12 @@ void USimplifyMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("SimplifyMeshToolTransactionName", "Simplify Mesh"));
 
 	check(Result.Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Result](FMeshDescription* MeshDescription)
+	ComponentTarget->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
 
 		// full conversion if normal topology changed or faces were inverted
-		Converter.Convert(Result.Mesh.Get(), *MeshDescription);
+		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
 	});
 
 	GetToolManager()->EndUndoTransaction();

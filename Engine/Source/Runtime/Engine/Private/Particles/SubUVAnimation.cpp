@@ -138,10 +138,7 @@ void USubUVAnimation::PostLoad()
 	}
 
 	// The SRV is only needed for platforms that can render particles with instancing
-	if (GRHISupportsInstancing)
-	{
-		BeginInitResource(BoundingGeometryBuffer);
-	}
+	BeginInitResource(BoundingGeometryBuffer);
 }
 
 #if WITH_EDITOR
@@ -169,10 +166,7 @@ void USubUVAnimation::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	CacheDerivedData();
 
 	// The SRV is only needed for platforms that can render particles with instancing
-	if (GRHISupportsInstancing)
-	{
-		BeginInitResource(BoundingGeometryBuffer);
-	}
+	BeginInitResource(BoundingGeometryBuffer);
 }
 
 #endif // WITH_EDITOR

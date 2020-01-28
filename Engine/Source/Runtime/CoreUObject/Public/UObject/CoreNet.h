@@ -247,20 +247,46 @@ struct FPropertyRetirement
 class FLifetimeProperty
 {
 public:
-	uint16				RepIndex;
-	ELifetimeCondition	Condition;
+
+	uint16 RepIndex;
+	ELifetimeCondition Condition;
 	ELifetimeRepNotifyCondition RepNotifyCondition;
+	bool bIsPushBased;
 
-	FLifetimeProperty() : RepIndex( 0 ), Condition( COND_None ), RepNotifyCondition(REPNOTIFY_OnChanged) {}
-	FLifetimeProperty( int32 InRepIndex ) : RepIndex( InRepIndex ), Condition( COND_None ), RepNotifyCondition(REPNOTIFY_OnChanged) { check( InRepIndex <= 65535 ); }
-	FLifetimeProperty(int32 InRepIndex, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition=REPNOTIFY_OnChanged) : RepIndex(InRepIndex), Condition(InCondition), RepNotifyCondition(InRepNotifyCondition) { check(InRepIndex <= 65535); }
-
-	inline bool operator==( const FLifetimeProperty& Other ) const
+	FLifetimeProperty()
+		: RepIndex(0)
+		, Condition(COND_None)
+		, RepNotifyCondition(REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
 	{
-		if ( RepIndex == Other.RepIndex )
+	}
+
+	FLifetimeProperty(int32 InRepIndex)
+		: RepIndex(InRepIndex)
+		, Condition(COND_None)
+		, RepNotifyCondition(REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
+	{
+		check(InRepIndex <= 65535);
+	}
+
+	FLifetimeProperty(int32 InRepIndex, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition=REPNOTIFY_OnChanged, bool bInIsPushBased=false)
+		: RepIndex(InRepIndex)
+		, Condition(InCondition)
+		, RepNotifyCondition(InRepNotifyCondition)
+		, bIsPushBased(bInIsPushBased)
+	{
+		check(InRepIndex <= 65535);
+	}
+
+	inline bool operator==(const FLifetimeProperty& Other) const
+	{
+		if (RepIndex == Other.RepIndex)
 		{
-			check( Condition == Other.Condition );		// Can't have different conditions if the RepIndex matches, doesn't make sense
-			check( RepNotifyCondition == Other.RepNotifyCondition);
+			// Can't have different conditions if the RepIndex matches, doesn't make sense
+			check(Condition == Other.Condition);
+			check(RepNotifyCondition == Other.RepNotifyCondition);
+			check(bIsPushBased == Other.bIsPushBased);
 			return true;
 		}
 
@@ -432,9 +458,12 @@ class IRepChangedPropertyTracker
 public:
 	IRepChangedPropertyTracker() { }
 
-	virtual void SetCustomIsActiveOverride( const uint16 RepIndex, const bool bIsActive ) = 0;
+	virtual void SetCustomIsActiveOverride(
+		UObject* OwningObject,
+		const uint16 RepIndex,
+		const bool bIsActive) = 0;
 
-	virtual void SetExternalData( const uint8* Src, const int32 NumBits ) = 0;
+	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
 
 	virtual bool IsReplay() const = 0;
 

@@ -103,7 +103,7 @@ public:
 		, ShowInCurveEditor(false)
 #endif
 	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
+		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
 	}
 
 	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer)
@@ -118,7 +118,7 @@ public:
 		, ShowInCurveEditor(false)
 #endif
 	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
+		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
 	}
 
 	enum
@@ -151,7 +151,7 @@ public:
 	/** Gets information for all of the curves owned by this curve data interface. */
 	virtual void GetCurveData(TArray<FCurveData>& OutCurveData) { }
 
-	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
 	void SetDefaultLUT();

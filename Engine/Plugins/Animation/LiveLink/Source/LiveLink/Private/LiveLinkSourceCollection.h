@@ -27,6 +27,7 @@ struct FLiveLinkCollectionSourceItem
 	ULiveLinkSourceSettings* Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 	TSharedPtr<ILiveLinkSource> Source;
 	bool bPendingKill = false;
+	bool bIsVirtualSource = false;
 
 public:
 	bool IsVirtualSource() const;
@@ -36,7 +37,7 @@ public:
 struct FLiveLinkCollectionSubjectItem
 {
 	FLiveLinkCollectionSubjectItem(FLiveLinkSubjectKey InKey, TUniquePtr<FLiveLinkSubject> InLiveSubject, ULiveLinkSubjectSettings* InSettings, bool bInEnabled);
-	FLiveLinkCollectionSubjectItem(FLiveLinkSubjectName InSubjectName, ULiveLinkVirtualSubject* InVirtualSubject, bool bInEnabled);
+	FLiveLinkCollectionSubjectItem(FLiveLinkSubjectKey InKey, ULiveLinkVirtualSubject* InVirtualSubject, bool bInEnabled);
 
 public:
 	FLiveLinkSubjectKey Key;
@@ -71,7 +72,7 @@ class FLiveLinkSourceCollection : public FGCObject
 {
 public:
 	// "source guid" for virtual subjects
-	static const FGuid VirtualSubjectGuid;
+	static const FGuid DefaultVirtualSubjectGuid;
 	FLiveLinkSourceCollection();
 
 public:
@@ -91,6 +92,8 @@ public:
 	const FLiveLinkCollectionSourceItem* FindSource(TSharedPtr<ILiveLinkSource> Source) const;
 	FLiveLinkCollectionSourceItem* FindSource(FGuid SourceGuid);
 	const FLiveLinkCollectionSourceItem* FindSource(FGuid SourceGuid) const;
+	FLiveLinkCollectionSourceItem* FindVirtualSource(FName VirtualSourceName);
+	const FLiveLinkCollectionSourceItem* FindVirtualSource(FName VirtualSourceName) const;
 
 	void AddSubject(FLiveLinkCollectionSubjectItem Subject);
 	void RemoveSubject(FLiveLinkSubjectKey SubjectKey);

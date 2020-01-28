@@ -356,6 +356,11 @@ public:
 		return false;
 	}
 
+	bool operator!=(const FLiveLinkBaseDataStruct& Other) const
+	{
+		return !(*this == Other);
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FLiveLinkBaseDataStruct& InStruct)
 	{
 		if (Ar.IsLoading())

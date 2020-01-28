@@ -395,8 +395,15 @@ namespace EditorBuildPromotionTestUtils
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<class IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+		
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+		if (bSimulateInEditor)
+		{
+			SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		}
 
-		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+		GUnrealEd->RequestPlaySession(SessionParams);
 	}
 
 	/**

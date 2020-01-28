@@ -146,7 +146,7 @@ FText UNiagaraStackModuleItem::GetDisplayName() const
 	}
 	else
 	{
-		return FText::FromName(NAME_None);
+	return FText::FromName(NAME_None);
 	}
 }
 
@@ -260,13 +260,13 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::Can
 		TSharedPtr<const FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<const FNiagaraParameterAction>(ParameterDragDropOp->GetSourceAction());
 		if (ParameterAction.IsValid())
 		{
-			if (FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()))
+			if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()))
 			{
 				return FDropRequestResponse(EItemDropZone::OntoItem, LOCTEXT("DropParameterToAdd", "Add this parameter to this 'Set Variables' node."));
 			}
 			else
 			{
-				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit's not valid for this usage context."));
+				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit can't be written in this usage context."));
 			}
 		}
 	}
@@ -342,10 +342,23 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 			if (FunctionCallNode->FunctionScript->bExperimental)
 			{
+				FText ErrorMessage;
+				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmpty())
+				{
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for this module is experimental, use with care!"), FText::FromString(FunctionCallNode->GetFunctionName()));
+				}
+				else
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Module"), FText::FromString(FunctionCallNode->GetFunctionName()));
+					Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->ExperimentalMessage);
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason: {Message}."), Args);
+				}
+
 				NewIssues.Add(FStackIssue(
 					EStackIssueSeverity::Info,
 					LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
-					FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(FunctionCallNode->GetName())),
+					ErrorMessage,
 					GetStackEditorDataKey(),
 					true));
 			}
@@ -408,8 +421,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}));
 			FStackIssue InconsistentEnabledError(
 				EStackIssueSeverity::Error,
-				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for module is inconsistent."),
-				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled state is inconsistent.\nClick fix to make all of the functions for this module enabled."),
+				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for this module is inconsistent."),
+				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled states are inconsistent.\nClick \"Fix issue\" to make all of the functions for this module enabled."),
 				GetStackEditorDataKey(),
 				false,
 				EnableFix);
@@ -884,7 +897,7 @@ bool UNiagaraStackModuleItem::CanAddInput(FNiagaraVariable InputParameter) const
 	UNiagaraNodeAssignment* AssignmentModule = Cast<UNiagaraNodeAssignment>(FunctionCallNode);
 	return AssignmentModule != nullptr &&
 		AssignmentModule->GetAssignmentTargets().Contains(InputParameter) == false &&
-		FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(InputParameter, OutputNode->GetUsage());
+		FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(InputParameter, OutputNode->GetUsage());
 }
 
 void UNiagaraStackModuleItem::AddInput(FNiagaraVariable InputParameter)
@@ -913,8 +926,23 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		TEXT("Can not reassign the module script when the module isn't a valid function call module.")))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
+
+		const FString OldName = FunctionCallNode->GetFunctionName();
+		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+
 		FunctionCallNode->Modify();
 		FunctionCallNode->FunctionScript = ModuleScript;
+		
+		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
+		RefreshChildren();
+
+		FunctionCallNode->SuggestName(FString());
+
+		const FString NewName = FunctionCallNode->GetFunctionName();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();
@@ -1000,26 +1028,10 @@ bool UNiagaraStackModuleItem::TestCanPasteWithMessage(const UNiagaraClipboardCon
 		OutMessage = LOCTEXT("PasteInputs", "Paste inputs from the clipboard which match inputs on this module by name and type.");
 		return true;
 	}
-	if (ClipboardContent->Functions.Num() > 0)
+
+	if (RequestCanPasteDelegete.IsBound())
 	{
-		bool bValidUsage = false;
-		for (const UNiagaraClipboardFunction* Function : ClipboardContent->Functions)
-		{
-			if (Function != nullptr && Function->Script->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
-			{
-				bValidUsage = true;
-			}
-		}
-		if (bValidUsage)
-		{
-			OutMessage = LOCTEXT("PasteModules", "Paste modules from the clipboard which have a valid usage.");
-			return true;
-		}
-		else
-		{
-			OutMessage = LOCTEXT("CantPasteModulesForUsage", "Can't paste the copied modules because they don't support the correct usage.");
-			return false;
-		}
+		return RequestCanPasteDelegete.Execute(ClipboardContent, OutMessage);
 	}
 
 	OutMessage = FText();
@@ -1038,18 +1050,17 @@ FText UNiagaraStackModuleItem::GetPasteTransactionText(const UNiagaraClipboardCo
 	}
 }
 
-void UNiagaraStackModuleItem::Paste(const UNiagaraClipboardContent* ClipboardContent)
+void UNiagaraStackModuleItem::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
 {
 	if (ClipboardContent->FunctionInputs.Num() > 0)
 	{
 		SetInputValuesFromClipboardFunctionInputs(ClipboardContent->FunctionInputs);
 	}
-
-	if (ClipboardContent->Functions.Num() > 0)
+	else if (RequestCanPasteDelegete.IsBound())
 	{
 		// Pasted modules should go after this module, so add 1 to the index.
 		int32 PasteIndex = GetModuleIndex() + 1;
-		RequestPasteDelegate.Broadcast(ClipboardContent, PasteIndex);
+		RequestPasteDelegate.Execute(ClipboardContent, PasteIndex, OutPasteWarning);
 	}
 }
 

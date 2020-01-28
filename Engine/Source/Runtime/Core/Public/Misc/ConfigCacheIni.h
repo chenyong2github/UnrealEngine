@@ -236,12 +236,9 @@ public:
 	template<typename Allocator> 
 	void MultiFind(const FName Key, TArray<FString, Allocator>& OutValues, const bool bMaintainOrder = false) const
 	{
-		for (const TPair<FName, FConfigValue>& Pair : Pairs)
+		for (typename ElementSetType::TConstKeyIterator It(Pairs, Key); It; ++It)
 		{
-			if (Pair.Key == Key)
-			{
-				OutValues.Add(Pair.Value.GetValue());
-			}
+			OutValues.Add(It->Value.GetValue());
 		}
 
 		if (bMaintainOrder)
@@ -252,7 +249,11 @@ public:
 
 	// look for "array of struct" keys for overwriting single entries of an array
 	TMap<FName, FString> ArrayOfStructKeys;
+
+	friend FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
 };
+
+FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
 
 /**
  * FIniFilename struct.
@@ -273,6 +274,16 @@ struct FIniFilename
 		, bRequired(InIsRequired) 
 		, CacheKey(InCacheKey)
 	{}
+
+	FIniFilename() = default;
+
+	friend FArchive& operator<<(FArchive& Ar, FIniFilename& IniFilename)
+	{
+		Ar << IniFilename.Filename;
+		Ar << IniFilename.bRequired;
+		Ar << IniFilename.CacheKey;
+		return Ar;
+	}
 };
 
 
@@ -292,6 +303,13 @@ private:
 
 public:
 	FConfigFileHierarchy();
+
+	friend FArchive& operator<<(FArchive& Ar, FConfigFileHierarchy& ConfigFileHierarchy)
+	{
+		Ar << static_cast<FConfigFileHierarchy::Super&>(ConfigFileHierarchy);
+		Ar << ConfigFileHierarchy.KeyGen;
+		return Ar;
+	}
 
 private:
 	int32 GenerateDynamicKey();
@@ -429,6 +447,7 @@ public:
 	/** Appends a new INI file to the SourceIniHierarchy and combines it */
 	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename);
 
+	friend FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
 private:
 
 	// This holds per-object config class names, with their ArrayOfStructKeys. Since the POC sections are all unique,
@@ -467,6 +486,8 @@ private:
 	// for AddStaticLayersToHierarchy
 	friend class FConfigCacheIni;
 };
+
+FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
 
 /**
  * Declares a delegate type that's used by the config system to allow iteration of key value pairs.
@@ -898,7 +919,16 @@ public:
 	 */
 	static FString GetGameUserSettingsDir();
 
+	/**
+	 * Save the current config cache state into a file for bootstrapping other processes.
+	 */
+	void SaveCurrentStateForBootstrap(const TCHAR* Filename);
+
+	friend FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
 private:
+	/** Serialize a bootstrapping state into or from an archive */
+	void SerializeStateForBootstrap_Impl(FArchive& Ar);
+
 	/** true if file operations should not be performed */
 	bool bAreFileOperationsDisabled;
 
@@ -908,6 +938,8 @@ private:
 	/** The type of the cache (basically, do we call Flush in the destructor) */
 	EConfigCacheType Type;
 };
+
+FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
 
 UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
 CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);

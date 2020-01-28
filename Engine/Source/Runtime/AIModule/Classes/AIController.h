@@ -90,8 +90,13 @@ class AIMODULE_API AAIController : public AController, public IAIPerceptionListe
 protected:
 	FFocusKnowledge	FocusInformation;
 
-	/** By default AI's logic gets stopped when controlled Pawn is unpossesed. Setting this flag to false
-	 *	will make AI logic persist past loosing controll over a pawn */
+	/** By default AI's logic does not start when controlled Pawn is possessed. Setting this flag to true
+	 *	will make AI logic start when pawn is possessed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI)
+	uint32 bStartAILogicOnPossess : 1;
+
+	/** By default AI's logic gets stopped when controlled Pawn is unpossessed. Setting this flag to false
+	 *	will make AI logic persist past losing control over a pawn */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI)
 	uint32 bStopAILogicOnUnposses : 1;
 

@@ -13,13 +13,13 @@
 /// Hold deep shadow information for a given light.
 struct FHairStrandsDeepShadowData
 {
-	static const uint32 MaxClusterCount = 16u;
+	static const uint32 MaxMacroGroupCount = 16u;
 
 	TRefCountPtr<IPooledRenderTarget> DepthTexture;
 	TRefCountPtr<IPooledRenderTarget> LayersTexture;
 	FMatrix WorldToLightTransform;
 	FIntRect AtlasRect;
-	uint32 ClusterId = ~0;
+	uint32 MacroGroupId = ~0;
 
 	FIntPoint ShadowResolution = FIntPoint::ZeroValue;
 	uint32 LightId = ~0;
@@ -47,4 +47,4 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 	FRHICommandListImmediate& RHICmdList,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
-	const struct FHairStrandsClusterViews& ClusterViews);
+	const struct FHairStrandsMacroGroupViews& MacroGroupsViews);

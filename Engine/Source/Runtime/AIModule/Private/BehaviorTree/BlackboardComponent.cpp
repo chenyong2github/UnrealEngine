@@ -41,9 +41,31 @@ void UBlackboardComponent::InitializeComponent()
 		}
 	}
 
+	// Use DefaultBlackboardAsset if available.
+	if (DefaultBlackboardAsset)
+	{
+		if (BlackboardAsset == nullptr)
+		{
+			BlackboardAsset = DefaultBlackboardAsset;
+		}
+		else if (BlackboardAsset != DefaultBlackboardAsset)
+		{
+			UE_LOG(LogBehaviorTree, Warning, TEXT("Ignoring DefaultBlackboardAsset \'%s\', Blackboard asset already set to \'%s\'."),
+				*GetNameSafe(DefaultBlackboardAsset), *GetNameSafe(BlackboardAsset));
+		}
+	}
+
 	if (BlackboardAsset)
 	{
-		InitializeBlackboard(*BlackboardAsset);
+		// Here we expect that BlackboardAsset has been set via DefaultBlackboardAsset above
+		// or somewhere in derived class prior to call this function,
+		// and we expect that the blackboard is not yet initialized.
+		// The trick below ensures that the blackboard gets initialized,
+		// as the function InitializeBlackboard() treats BlackboardAsset
+		// as previously initialized blackboard and early outs if they are the same.
+		UBlackboardData* NewBlackboardAsset = BlackboardAsset;
+		BlackboardAsset = nullptr;
+		InitializeBlackboard(*NewBlackboardAsset);
 	}
 }
 
@@ -105,7 +127,7 @@ bool UBlackboardComponent::InitializeBlackboard(UBlackboardData& NewAsset)
 	// in reseting, since we'd lose all the accumulated knowledge
 	if (&NewAsset == BlackboardAsset)
 	{
-		return false;
+		return true;
 	}
 
 	UAISystem* AISystem = UAISystem::GetCurrentSafe(GetWorld());

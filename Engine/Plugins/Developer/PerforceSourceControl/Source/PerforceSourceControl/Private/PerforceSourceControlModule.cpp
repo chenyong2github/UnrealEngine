@@ -59,6 +59,15 @@ void FPerforceSourceControlModule::SaveSettings()
 	PerforceSourceControlSettings.SaveSettings();
 }
 
+void FPerforceSourceControlModule::SetLastErrors(const TArray<FText>& InErrors)
+{
+	FPerforceSourceControlModule* Module = FModuleManager::GetModulePtr<FPerforceSourceControlModule>("PerforceSourceControl");
+	if (Module)
+	{
+		Module->GetProvider().SetLastErrors(InErrors);
+	}
+}
+
 IMPLEMENT_MODULE(FPerforceSourceControlModule, PerforceSourceControl);
 
 #undef LOCTEXT_NAMESPACE

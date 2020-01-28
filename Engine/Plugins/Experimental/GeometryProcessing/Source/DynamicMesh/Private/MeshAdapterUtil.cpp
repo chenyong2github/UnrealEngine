@@ -2,6 +2,23 @@
 
 #include "MeshAdapterUtil.h"
 
+FPointSetAdapterd MeshAdapterUtil::MakePointsAdapter(const FDynamicPointSet3d* PointSet)
+{
+	FPointSetAdapterd Adapter;
+	Adapter.MaxPointID = [PointSet]() { return PointSet->MaxVertexID(); };
+	Adapter.PointCount = [PointSet]() { return PointSet->VertexCount(); };
+	Adapter.IsPoint = [PointSet](int Idx) { return PointSet->IsVertex(Idx); };
+	Adapter.GetPoint = [PointSet](int Idx) { return PointSet->GetVertex(Idx); };
+	Adapter.Timestamp = [PointSet] { return PointSet->GetTimestamp(); };
+
+	Adapter.HasNormals = [PointSet] { return false; };
+	Adapter.GetPointNormal = [PointSet](int Idx) {return FVector3f(0,0,1); };
+
+	return Adapter;
+}
+
+
+
 FPointSetAdapterd MeshAdapterUtil::MakeVerticesAdapter(const FDynamicMesh3* Mesh)
 {
 	FPointSetAdapterd Adapter;
@@ -78,9 +95,10 @@ FPointSetAdapterd MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(const FDynam
 FTriangleMeshAdapterd MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform)
 {
 	FTriangleMeshAdapterd Adapter = MakeDynamicMeshAdapter(Mesh);
-	Adapter.GetVertex = [Mesh, Transform](int32 Idx)
+	FTransform3d Transformd(Transform);
+	Adapter.GetVertex = [Mesh, Transformd](int32 Idx)
 	{
-		return FVector3d(Transform.TransformPosition(Mesh->GetVertex(Idx)));
+		return FVector3d(Transformd.TransformPosition(Mesh->GetVertex(Idx)));
 	};
 	return Adapter;
 }

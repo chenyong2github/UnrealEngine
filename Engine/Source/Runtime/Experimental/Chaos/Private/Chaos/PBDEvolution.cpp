@@ -4,7 +4,7 @@
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDCollisionSphereConstraints.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
-#include "Chaos/PerParticleDampVelocity.h"
+#include "Chaos/PerGroupDampVelocity.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticleInitForce.h"
@@ -17,6 +17,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Advance Time"), STAT_ChaosPBDVAdvanceTime, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping State Update"), STAT_ChaosPBDVelocityDampUpdateState, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Field Update Forces"), STAT_ChaosPBDVelocityFieldUpdateForces, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping"), STAT_ChaosPBDVelocityDampUpdate, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Pre Iteration Updates"), STAT_ChaosPBDPreIterationUpdates, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Constraint Rule"), STAT_ChaosPBDConstraintRule, STATGROUP_Chaos);
@@ -41,7 +42,9 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 	, MTime(0)
 {
 	MCollisionParticles.AddArray(&MCollided);
-	
+	MParticles.AddArray(&MParticleGroupIds);
+	MPerGroupDamping.Add(Damping);
+
 	SetParticleUpdateFunction(
 		[PBDUpdateRule = 
 			TPerParticlePBDUpdateFromDeltaPosition<float, 3>()](TPBDParticles<T, d>& MParticlesInput, const T Dt) 
@@ -55,18 +58,51 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 }
 
 template<class T, int d>
+void TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
+{
+	// Add new particles
+	const uint32 Offset = MParticles.Size();
+	MParticles.AddParticles(Num);
+
+	// Initialize the new particle's group id
+	for (uint32 i = Offset; i < MParticles.Size(); ++i)
+	{
+		MParticleGroupIds[i] = GroupId;
+	}
+
+	// Resize group parameter arrays
+	const uint32 GroupNum = (uint32)MPerGroupDamping.Num();
+	if (GroupId >= GroupNum)
+	{
+		MPerGroupDamping.SetNum((int32)GroupId + 1);
+		for (uint32 i = GroupNum; i <= GroupId; ++i)
+		{
+			MPerGroupDamping[i] = MDamping;
+		}
+	}
+}
+
+template<class T, int d>
 void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVAdvanceTime);
 	TPerParticleInitForce<T, d> InitForceRule;
 	TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
-	TPerParticleDampVelocity<T, d> DampVelocityRule(MDamping);
+	TPerGroupDampVelocity<T, d> DampVelocityRule(MParticleGroupIds, MPerGroupDamping);
 	TPerParticlePBDEulerStep<T, d> EulerStepRule;
 	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticles, MCollided, MCollisionThickness, MCoefficientOfFriction);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
 		DampVelocityRule.UpdatePositionBasedState(MParticles);
+	}	
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityFieldUpdateForces);
+		for (FVelocityField& VelocityField : VelocityFields)
+		{
+			VelocityField.UpdateForces(MParticles, Dt);
+		}
 	}	
 
 	// Don't bother with threaded execution if we don't have enough work to make it worth while.
@@ -86,6 +122,10 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 			for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
 			{
 				ForceRule(MParticles, Dt, Index); // F += M * A
+			}
+			for (FVelocityField& VelocityField : VelocityFields)
+			{
+				VelocityField.Apply(MParticles, Dt, Index);
 			}
 			if (MKinematicUpdate)
 			{
@@ -111,6 +151,13 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	for (TFunction<void()>& InitConstraintRule : MInitConstraintRules)
 	{
 		InitConstraintRule();  // Clear XPBD's Lambdas
+	}
+
+
+	// Do one extra collision pass at the start to decrease likelyhood of cloth penetrating- TODO: Add option for more collision passed interleaved between constraints
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
+		CollisionRule.ApplyPerParticle(MParticles, Dt);
 	}
 
 	for (int i = 0; i < MNumIterations; ++i)

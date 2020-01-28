@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Analytics",
+					"AssetRegistry",
 					"Projects",
 					"Python",
 					"Slate",
@@ -45,6 +46,7 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd",
 						"EditorSubsystem",
 						"BlueprintGraph",
+						"KismetCompiler",
 					}
 				);
 			}

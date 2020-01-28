@@ -5,6 +5,7 @@
 #include "Chaos/Triangle.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/GeometryQueries.h"
 
 namespace Chaos
 {
@@ -13,13 +14,14 @@ namespace Chaos
 template <typename IdxType>
 struct FTriangleMeshRaycastVisitor
 {
-	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const TParticles<FReal,3>& InParticles, const TArray<TVector<IdxType, 3>>& InElements)
+	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const TParticles<FReal,3>& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
 	: Particles(InParticles)
 	, Elements(InElements)
 	, StartPoint(InStart)
 	, Dir(InDir)
 	, Thickness(InThickness)
 	, OutTime(TNumericLimits<FReal>::Max())
+	, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
 	{
 	}
 
@@ -51,6 +53,12 @@ struct FTriangleMeshRaycastVisitor
 		if (!CHAOS_ENSURE(NormalLength > Epsilon))
 		{
 			//hitting degenerate triangle so keep searching - should be fixed before we get to this stage
+			return true;
+		}
+
+		const bool bBackFace = (FVec3::DotProduct(Dir, TriNormal) > 0.0f);
+		if (bCullsBackFaceRaycast && bBackFace)
+		{
 			return true;
 		}
 
@@ -185,18 +193,23 @@ struct FTriangleMeshRaycastVisitor
 	FVec3 OutPosition;
 	FVec3 OutNormal;
 	int32 OutFaceIndex;
+	bool bCullsBackFaceRaycast;
 };
 
 FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 {
-	ensure(false);	//not supported yet - might support it in the future or we may change the interface
-	return 0;
+	TSphere<FReal, 3> TestSphere(x, 0.0f);
+	FRigidTransform3 TestXf(TVector<float, 3>(0.0), TRotation<float, 3>::FromIdentity());
+	FVec3 TestLocation = x;
+	FReal Depth;
+	GJKContactPointImp(TestSphere, TestXf, 0.0f, TestLocation, Normal, Depth);
+	return Depth;
 }
 
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::RaycastImp(const TArray<TVector<IdxType, 3>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 {
-	FTriangleMeshRaycastVisitor<IdxType> SQVisitor(StartPoint, Dir, Thickness, MParticles, Elements);
+	FTriangleMeshRaycastVisitor<IdxType> SQVisitor(StartPoint, Dir, Thickness, MParticles, Elements, bCullsBackFaceRaycast);
 
 	if (Thickness > 0)
 	{
@@ -351,7 +364,28 @@ bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< F
 	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
 }
 
+int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const
+{
+	if (InternalFaceIndex > -1 && ExternalFaceIndexMap.Get())
+	{
+		if (ensure(InternalFaceIndex >= 0 && InternalFaceIndex < ExternalFaceIndexMap->Num()))
+		{
+			return (*ExternalFaceIndexMap)[InternalFaceIndex];
+		}
+	}
 
+	return -1;
+}
+
+bool FTriangleMeshImplicitObject::GetCullsBackFaceRaycast() const
+{
+	return bCullsBackFaceRaycast;
+}
+
+void FTriangleMeshImplicitObject::SetCullsBackFaceRaycast(const bool bInCullsBackFace)
+{
+	bCullsBackFaceRaycast = bInCullsBackFace;
+}
 
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const
@@ -468,9 +502,8 @@ void TransformOverlapInputsHelper(const TImplicitObjectScaled<QueryGeomType>& Qu
 	OutScaledQueryTM = TRigidTransform<FReal, 3>(QueryTM.GetLocation() * InvScale, QueryTM.GetRotation());
 }
 
-
 template <typename QueryGeomType>
-bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
 	bool bResult = false;
 	TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
@@ -478,87 +511,123 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 	QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
+	if (OutMTD)
+	{
+		OutMTD->Normal = FVec3(0.0);
+		OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
+	}
+
 	const auto& InnerQueryGeom = GetGeomHelper(QueryGeom);
 
 	TRigidTransform<FReal, 3> TransformedQueryTM;
 	TransformOverlapInputsHelper(QueryGeom, QueryTM, TransformedQueryTM);
 
-	auto LambdaHelper = [&](const auto& Elements)
+	auto LambdaHelper = [&](const auto& Elements, FMTDInfo* InnerMTD)
 	{
-		for(int32 TriIdx : PotentialIntersections)
+		if (InnerMTD)
 		{
-			TVec3<FReal> A,B,C;
-			TransformVertsHelper(QueryGeom,TriIdx,MParticles,Elements,A,B,C);
-
-			const FVec3 AB = B - A;
-			const FVec3 AC = C - A;
-
-			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
-			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
-			const FVec3 Offset = FVec3::CrossProduct(AB,AC);
-
-			if(GJKIntersection(TTriangle<FReal>(A,B,C),InnerQueryGeom,TransformedQueryTM,Thickness,Offset))
+			bool bOverlap = false;
+			for (int32 TriIdx : PotentialIntersections)
 			{
-				return true;
-			}
-		}
+				TVec3<FReal> A, B, C;
+				TransformVertsHelper(QueryGeom, TriIdx, MParticles, Elements, A, B, C);
 
-		return false;
+				FVec3 TriangleNormal(0.0);
+				FReal Penetration = 0.0;
+				FVec3 ClosestA(0.0);
+				FVec3 ClosestB(0.0);
+				if (GJKPenetration(TTriangle<FReal>(A, B, C), InnerQueryGeom, TransformedQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
+				{
+					bOverlap = true;
+
+					// Use Deepest MTD.
+					if (Penetration > InnerMTD->Penetration)
+					{
+						InnerMTD->Penetration = Penetration;
+						InnerMTD->Normal = TriangleNormal;
+					}
+				}
+			}
+
+			return bOverlap;
+		}
+		else
+		{
+			for (int32 TriIdx : PotentialIntersections)
+			{
+				TVec3<FReal> A, B, C;
+				TransformVertsHelper(QueryGeom, TriIdx, MParticles, Elements, A, B, C);
+
+				const FVec3 AB = B - A;
+				const FVec3 AC = C - A;
+
+				//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
+				//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
+				const FVec3 Offset = FVec3::CrossProduct(AB, AC);
+
+				if (GJKIntersection(TTriangle<FReal>(A, B, C), InnerQueryGeom, TransformedQueryTM, Thickness, Offset))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
 	};
 
 	if(MElements.RequiresLargeIndices())
 	{
-		return LambdaHelper(MElements.GetLargeIndexBuffer());
+		return LambdaHelper(MElements.GetLargeIndexBuffer(), OutMTD);
 	}
 	else
 	{
-		return LambdaHelper(MElements.GetSmallIndexBuffer());
+		return LambdaHelper(MElements.GetSmallIndexBuffer(), OutMTD);
 	}
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
-bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TImplicitObjectScaled<FConvex>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness) const
+bool FTriangleMeshImplicitObject::OverlapGeom(const TImplicitObjectScaled<TImplicitObjectScaled<FConvex>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 {
-	return OverlapGeomImp(QueryGeom, QueryTM, Thickness);
+	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
 
 

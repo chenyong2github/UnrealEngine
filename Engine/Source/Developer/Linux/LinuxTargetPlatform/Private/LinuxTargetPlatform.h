@@ -68,10 +68,8 @@ public:
 
 		// If we are targeting ES 2.0/3.1, we also must cook encoded HDR reflection captures
 		static FName NAME_SF_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
-		static FName NAME_OPENGL_150_ES2(TEXT("GLSL_150_ES2"));
 		static FName NAME_OPENGL_150_ES3_1(TEXT("GLSL_150_ES31"));
 		bRequiresEncodedHDRReflectionCaptures = TargetedShaderFormats.Contains(NAME_SF_VULKAN_ES31)
-			|| TargetedShaderFormats.Contains(NAME_OPENGL_150_ES2)
 			|| TargetedShaderFormats.Contains(NAME_OPENGL_150_ES3_1);
 #endif // WITH_ENGINE
 	}

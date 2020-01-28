@@ -30,6 +30,9 @@ class FStringView;
 struct FStringFormatArg;
 template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
+typedef TMap<FString, FStringFormatArg> FStringFormatNamedArguments;
+typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
+
 template <>
 struct TIsContiguousContainer<FString>
 {
@@ -38,7 +41,7 @@ struct TIsContiguousContainer<FString>
 
 TCHAR* GetData(FString& String);
 const TCHAR* GetData(const FString& String);
-SIZE_T GetNum(const FString& String);
+int32 GetNum(const FString& String);
 
 /**
  * A dynamically sizeable string.
@@ -246,7 +249,7 @@ public:
 	FORCEINLINE DataType::RangedForConstIteratorType end  () const { auto Result = Data.end();   if (Data.Num()) { --Result; }     return Result; }
 
 public:
-	FORCEINLINE uint32 GetAllocatedSize() const
+	FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
 		return Data.GetAllocatedSize();
 	}
@@ -1497,7 +1500,7 @@ public:
 	 * @param InNamedArguments		A map of named arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	static FString Format(const TCHAR* InFormatString, const TMap<FString, FStringFormatArg>& InNamedArguments);
+	static FString Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments);
 
 	/**
 	 * Format the specified string using the specified arguments. Replaces instances of {0} with indices from the given array matching the index specified in the token
@@ -1505,7 +1508,7 @@ public:
 	 * @param InOrderedArguments	An array of ordered arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	static FString Format(const TCHAR* InFormatString, const TArray<FStringFormatArg>& InOrderedArguments);
+	static FString Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments);
 
 	/** Returns a string containing only the Ch character */
 	static FString Chr( TCHAR Ch );
@@ -1986,7 +1989,7 @@ inline const TCHAR* GetData(const FString& String)
 	return String.GetCharArray().GetData();
 }
 
-inline SIZE_T GetNum(const FString& String)
+inline int32 GetNum(const FString& String)
 {
 	return String.Len();
 }
@@ -2103,13 +2106,13 @@ inline const uint8 TCharToNibble( const TCHAR Char )
 	check( CheckTCharIsHex( Char ) );
 	if( Char >= TEXT('0') && Char <= TEXT('9') )
 	{
-		return Char - TEXT('0');
+		return (uint8)(Char - TEXT('0'));
 	}
 	else if( Char >= TEXT('A') && Char <= TEXT('F') )
 	{
-		return ( Char - TEXT('A') ) + 10;
+		return (uint8)(( Char - TEXT('A') ) + 10);
 	}
-	return ( Char - TEXT('a') ) + 10;
+	return (uint8)(( Char - TEXT('a') ) + 10);
 }
 
 /** 
@@ -2155,13 +2158,13 @@ inline int32 HexToBytes( const FString& HexString, uint8* OutBytes )
  */
 
  /** Covert a string buffer to intrinsic types */
-inline void LexFromString(int8& OutValue, 		const TCHAR* Buffer)	{	OutValue = FCString::Atoi(Buffer);		}
-inline void LexFromString(int16& OutValue,		const TCHAR* Buffer)	{	OutValue = FCString::Atoi(Buffer);		}
-inline void LexFromString(int32& OutValue,		const TCHAR* Buffer)	{	OutValue = FCString::Atoi(Buffer);		}
+inline void LexFromString(int8& OutValue, 		const TCHAR* Buffer)	{	OutValue = (int8)FCString::Atoi(Buffer);		}
+inline void LexFromString(int16& OutValue,		const TCHAR* Buffer)	{	OutValue = (int16)FCString::Atoi(Buffer);		}
+inline void LexFromString(int32& OutValue,		const TCHAR* Buffer)	{	OutValue = (int32)FCString::Atoi(Buffer);		}
 inline void LexFromString(int64& OutValue,		const TCHAR* Buffer)	{	OutValue = FCString::Atoi64(Buffer);	}
-inline void LexFromString(uint8& OutValue,		const TCHAR* Buffer)	{	OutValue = FCString::Atoi(Buffer);		}
-inline void LexFromString(uint16& OutValue, 	const TCHAR* Buffer)	{	OutValue = FCString::Atoi(Buffer);		}
-inline void LexFromString(uint32& OutValue, 	const TCHAR* Buffer)	{	OutValue = FCString::Atoi64(Buffer);	}	//64 because this unsigned and so Atoi might overflow
+inline void LexFromString(uint8& OutValue,		const TCHAR* Buffer)	{	OutValue = (uint8)FCString::Atoi(Buffer);		}
+inline void LexFromString(uint16& OutValue, 	const TCHAR* Buffer)	{	OutValue = (uint16)FCString::Atoi(Buffer);		}
+inline void LexFromString(uint32& OutValue, 	const TCHAR* Buffer)	{	OutValue = (uint32)FCString::Atoi64(Buffer);	}	//64 because this unsigned and so Atoi might overflow
 inline void LexFromString(uint64& OutValue, 	const TCHAR* Buffer)	{	OutValue = FCString::Strtoui64(Buffer, nullptr, 0); }
 inline void LexFromString(float& OutValue,		const TCHAR* Buffer)	{	OutValue = FCString::Atof(Buffer);		}
 inline void LexFromString(double& OutValue, 	const TCHAR* Buffer)	{	OutValue = FCString::Atod(Buffer);		}
@@ -2230,7 +2233,7 @@ LexTryParseString(T& OutValue, const TCHAR* Buffer)
 	}
 
 	LexFromString(OutValue, Buffer);
-	if (OutValue == 0 && FMath::IsFinite(OutValue))
+	if (OutValue == 0 && FMath::IsFinite((float)OutValue)) //@TODO:FLOATPRECISION: ? huh ?
 	{
 		bool bSawZero = false;
 		TCHAR C = *Buffer;

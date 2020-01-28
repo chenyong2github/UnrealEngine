@@ -53,6 +53,7 @@
 #include "LevelSequence.h"
 #include "Lightmass/LightmassPortal.h"
 #include "Logging/TokenizedMessage.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/SecureHash.h"
@@ -1013,6 +1014,126 @@ TArray<TSharedPtr<IDatasmithBaseMaterialElement>> FDatasmithImporterUtils::GetOr
 	});
 
 	return ReferencedMaterials;
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImportIterator(const FDatasmithImportContext& InImportContext)
+	: ImportContext(InImportContext),
+	CurrentIndex(0)
+{
+	if (!ImportContext.bIsAReimport)
+	{
+		return;
+	}
+
+	SortedMaterials.Reserve(ImportContext.FilteredScene->GetMaterialsCount());
+	for (int32 MaterialIndex = 0; MaterialIndex < ImportContext.FilteredScene->GetMaterialsCount(); ++MaterialIndex)
+	{
+		SortedMaterials.Add(ImportContext.FilteredScene->GetMaterial(MaterialIndex));
+	}
+
+	SortedMaterials.Sort([this](TSharedPtr<IDatasmithBaseMaterialElement> MatA, TSharedPtr<IDatasmithBaseMaterialElement> MatB)
+	{
+		auto DoesParentWithSameNameExist = [this](TSharedPtr<IDatasmithBaseMaterialElement> Mat)
+		{
+			if (TSoftObjectPtr<UMaterialInterface>* MatInterface = ImportContext.SceneAsset->Materials.Find(Mat->GetName()))
+			{
+				if (UMaterialInstanceConstant* MaterialInstance = Cast< UMaterialInstanceConstant >(MatInterface->Get()))
+				{
+					return MaterialInstance->Parent && MaterialInstance->Parent->GetFName() == Mat->GetName();
+				}
+			}
+
+			return false;
+		};
+
+		//Materials that are already existing in the scene should be imported first otherwise we might create new parent materials instead of reusing the existing ones.
+		bool bMatAExists = DoesParentWithSameNameExist(MatA);
+		bool bMatBExists = DoesParentWithSameNameExist(MatB);
+
+		return bMatAExists && !bMatBExists;
+	});
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator& FDatasmithImporterUtils::FDatasmithMaterialImportIterator::operator++()
+{
+	++CurrentIndex;
+	return *this;
+}
+
+FDatasmithImporterUtils::FDatasmithMaterialImportIterator::operator bool() const
+{
+	if (ImportContext.bIsAReimport)
+	{
+		return CurrentIndex < SortedMaterials.Num();
+	}
+	else
+	{
+		return CurrentIndex < ImportContext.FilteredScene->GetMaterialsCount();
+	}
+}
+
+const TSharedPtr<IDatasmithBaseMaterialElement>& FDatasmithImporterUtils::FDatasmithMaterialImportIterator::Value() const
+{
+	if (ImportContext.bIsAReimport)
+	{
+		return SortedMaterials[CurrentIndex];
+	}
+	else
+	{
+		//We need to use a const IDatasmithScene to be able to use the const-ref version on GetMaterial().
+		const TSharedPtr<const IDatasmithScene>& DatasmithScene(ImportContext.FilteredScene);
+		return DatasmithScene->GetMaterial(CurrentIndex);
+	}
+}
+
+UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name)
+{
+	UStaticMesh* SourceMesh = Cast< UStaticMesh >( SourceObject );
+
+	TArray<FStaticMeshSourceModel> SourceModels;
+	if (SourceMesh)
+	{
+		// Since static mesh can be quite heavy, remove source models for cloning to
+		// reduce useless work. Will be reinserted on the new duplicated asset.
+		SourceModels = MoveTemp(SourceMesh->GetSourceModels());
+
+		// Temporary flag to skip Postload during DuplicateObject
+		SourceMesh->SetFlags(RF_ArchetypeObject);
+	}
+
+	// Duplicate is used only to move our object from its temporary package into its final package replacing any asset
+	// already at that location. This function also takes care of fixing internal dependencies among the object's children.
+	// Since Duplicate has some rather heavy consequence, like calling PostLoad and doing all kind of stuff on an object
+	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future 
+	// releases but keep it for the current release cycle.
+	UObject* Duplicate = ::DuplicateObject< UObject >( SourceObject, Outer, Name );
+
+	if ( SourceMesh )
+	{
+		UStaticMesh* DuplicateMesh = Cast< UStaticMesh >( Duplicate );
+
+		// Get rid of our temporary flag
+		SourceMesh->ClearFlags(RF_ArchetypeObject);
+		DuplicateMesh->ClearFlags(RF_ArchetypeObject);
+
+		// The source mesh is stripped from it's source model, it is not buildable anymore.
+		// -> MarkPendingKill to avoid use-after-move crash in the StaticMesh::Build()
+		SourceMesh->MarkPendingKill();
+
+		for (FStaticMeshSourceModel& SourceModel : SourceModels)
+		{
+			// Fixup the new SourceModels owner
+			SourceModel.StaticMeshOwner = DuplicateMesh;
+
+			// Restore settings to the SourceMesh since they are used for diffing templates
+			SourceMesh->AddSourceModel().BuildSettings = SourceModel.BuildSettings;
+		}
+
+		// Apply source models to the duplicated mesh
+		DuplicateMesh->GetSourceModels() = MoveTemp(SourceModels);
+	}
+
+	return Duplicate;
 }
 
 FScopedLogger::FScopedLogger(FName LogTitle, const FText& LogLabel)

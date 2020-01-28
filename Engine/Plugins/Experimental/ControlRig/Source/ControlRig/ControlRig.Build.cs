@@ -36,12 +36,21 @@ namespace UnrealBuildTool.Rules
 
             if (Target.bBuildEditor == true)
             {
+                PublicDependencyModuleNames.AddRange(
+				    new string[]
+					{
+						"RigVMDeveloper",
+                        "AnimGraph",
+                    }
+                );
+
                 PrivateDependencyModuleNames.AddRange(
                     new string[]
                     {
                         "UnrealEd",
                         "BlueprintGraph",
                         "PropertyEditor",
+                        "RigVMDeveloper",
                     }
                 );
 

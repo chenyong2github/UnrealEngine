@@ -2,6 +2,7 @@
 
 #include "FindPolygonsAlgorithm.h"
 #include "MeshNormals.h"
+#include "Selections/MeshConnectedComponents.h"
 
 
 
@@ -11,7 +12,32 @@ FFindPolygonsAlgorithm::FFindPolygonsAlgorithm(FDynamicMesh3* MeshIn)
 }
 
 
-bool FFindPolygonsAlgorithm::FindPolygons(double DotTolerance)
+
+bool FFindPolygonsAlgorithm::FindPolygonsFromUVIslands()
+{
+	PolygonGroupIDs.SetNum(Mesh->MaxTriangleID());
+	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(0);
+
+	FMeshConnectedComponents Components(Mesh);
+	Components.FindConnectedTriangles([&](int32 TriIdx0, int32 TriIdx1)
+	{
+		return UV->AreTrianglesConnected(TriIdx0, TriIdx1);
+	});
+
+	int32 NumComponents = Components.Num();
+	for (int32 ci = 0; ci < NumComponents; ++ci)
+	{
+		FoundPolygons.Add(Components.GetComponent(ci).Indices);
+	}
+
+	SetGroupsFromPolygons();
+
+	return (FoundPolygons.Num() > 0);
+}
+
+
+
+bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 {
 	DotTolerance = 1.0 - DotTolerance;
 
@@ -63,26 +89,49 @@ bool FFindPolygonsAlgorithm::FindPolygons(double DotTolerance)
 		FoundPolygons.Add(Polygon);
 	}
 
+	SetGroupsFromPolygons();
+
+	return (FoundPolygons.Num() > 0);
+}
+
+
+
+void FFindPolygonsAlgorithm::SetGroupsFromPolygons()
+{
 	Mesh->EnableTriangleGroups(0);
 
 	// set groups from polygons
 	int NumPolygons = FoundPolygons.Num();
 	PolygonTags.SetNum(NumPolygons);
 	PolygonNormals.SetNum(NumPolygons);
+	// can be parallel for
 	for (int PolyIdx = 0; PolyIdx < NumPolygons; PolyIdx++)
 	{
-		int Count = FoundPolygons[PolyIdx].Num();
-		for (int k = 0; k < Count; ++k)
+		const TArray<int>& Polygon = FoundPolygons[PolyIdx];
+		FVector3d AccumNormal(0, 0, 0);
+		int NumTriangles = Polygon.Num();
+		for (int k = 0; k < NumTriangles; ++k)
 		{
-			Mesh->SetTriangleGroup(FoundPolygons[PolyIdx][k], (PolyIdx + 1));
+			Mesh->SetTriangleGroup(Polygon[k], (PolyIdx + 1));
+			AccumNormal += Mesh->GetTriArea(k) * Mesh->GetTriNormal(Polygon[k]);
 		}
 		PolygonTags[PolyIdx] = (PolyIdx + 1);
-		PolygonNormals[PolyIdx] = Normals[FoundPolygons[PolyIdx][0]];
+
+		// find a normal if the average failed
+		AccumNormal.Normalize();
+		int pi = 0;
+		while (AccumNormal.Length() < 0.9 && pi < NumTriangles)
+		{
+			AccumNormal = Mesh->GetTriNormal(Polygon[pi++]);
+		}
+		if (AccumNormal.Length() < 0.9)
+		{
+			AccumNormal = FVector3d::UnitY();
+		}
+
+		PolygonNormals[PolyIdx] = AccumNormal;
 	}
-
-	return (NumPolygons > 0);
 }
-
 
 
 bool FFindPolygonsAlgorithm::FindPolygonEdges()

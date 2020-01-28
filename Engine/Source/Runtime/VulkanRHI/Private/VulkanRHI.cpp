@@ -147,6 +147,8 @@ FVulkanCommandListContext::FVulkanCommandListContext(FVulkanDynamicRHI* InRHI, F
 	PendingComputeState = new FVulkanPendingComputeState(Device, *this);
 
 	UniformBufferUploader = new FVulkanUniformBufferUploader(Device);
+
+	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
 
 FVulkanCommandListContext::~FVulkanCommandListContext()
@@ -190,6 +192,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 
 	GPoolSizeVRAMPercentage = 0;
 	GTexturePoolSize = 0;
+	GRHISupportsMultithreading = true;
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);
 }
 
@@ -713,22 +716,9 @@ void FVulkanDynamicRHI::InitInstance()
 
 		GUseTexture3DBulkDataRHI = true;
 
-		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-		{
-			ResourceIt->InitRHI();
-		}
-		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-		{
-			ResourceIt->InitDynamicRHI();
-		}
-
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
 		GProjectionSignY = 1.0f;
-
-		GIsRHIInitialized = true;
 
 		SavePipelineCacheCmd = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("r.Vulkan.SavePipelineCache"),
@@ -779,6 +769,11 @@ void FVulkanDynamicRHI::InitInstance()
 		);
 
 #endif
+
+		GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
+		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+		FRenderResource::InitPreRHIResources();
+		GIsRHIInitialized = true;
 	}
 }
 
@@ -1045,36 +1040,48 @@ FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFor
 
 void FVulkanDynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRHITexture* SrcTextureRHI)
 {
-	if (DestTextureRHI && SrcTextureRHI)
-	{
-		FVulkanTextureBase* DestTextureBase = (FVulkanTextureBase*) DestTextureRHI->GetTextureBaseRHI();
-		FVulkanTextureBase* SrcTextureBase = (FVulkanTextureBase*) SrcTextureRHI->GetTextureBaseRHI();
-
-		if (DestTextureBase && SrcTextureBase)
-		{
-			DestTextureBase->AliasTextureResources(SrcTextureBase);
-		}
-	}
+	check(false);
 }
 
 FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTexture)
 {
+	check(false);
+	return nullptr;
+}
+
+void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
+{
+	if (DestTextureRHI && SrcTextureRHI)
+	{
+		FVulkanTextureBase* DestTextureBase = (FVulkanTextureBase*)DestTextureRHI->GetTextureBaseRHI();
+		FVulkanTextureBase* SrcTextureBase = (FVulkanTextureBase*)SrcTextureRHI->GetTextureBaseRHI();
+
+		if (DestTextureBase && SrcTextureBase)
+		{
+			DestTextureBase->AliasTextureResources(SrcTextureRHI);
+		}
+	}
+}
+
+FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTextureRHI)
+{
+	FVulkanTextureBase* SourceTexture = (FVulkanTextureBase*)SourceTextureRHI->GetTextureBaseRHI();
 	FTextureRHIRef AliasedTexture;
-	if (SourceTexture->GetTexture2D() != nullptr)
+	if (SourceTextureRHI->GetTexture2D() != nullptr)
 	{
-		AliasedTexture = new FVulkanTexture2D(static_cast<FVulkanTexture2D*>(SourceTexture));
+		AliasedTexture = new FVulkanTexture2D(SourceTextureRHI, (FVulkanTexture2D*)SourceTexture);
 	}
-	else if (SourceTexture->GetTexture2DArray() != nullptr)
+	else if (SourceTextureRHI->GetTexture2DArray() != nullptr)
 	{
-		AliasedTexture = new FVulkanTexture2DArray(static_cast<FVulkanTexture2DArray*>(SourceTexture));
+		AliasedTexture = new FVulkanTexture2DArray(SourceTextureRHI, (FVulkanTexture2DArray*)SourceTexture);
 	}
-	else if (SourceTexture->GetTextureCube() != nullptr)
+	else if (SourceTextureRHI->GetTextureCube() != nullptr)
 	{
-		AliasedTexture = new FVulkanTextureCube(static_cast<FVulkanTextureCube*>(SourceTexture));
+		AliasedTexture = new FVulkanTextureCube(SourceTextureRHI, (FVulkanTextureCube*)SourceTexture);
 	}
 	else
 	{
-		UE_LOG(LogRHI, Error, TEXT("Currently FOpenGLDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+		UE_LOG(LogRHI, Error, TEXT("Currently FVulkanDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
 	}
 
 	return AliasedTexture;

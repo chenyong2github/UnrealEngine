@@ -263,8 +263,6 @@ FEdModeFoliage::FEdModeFoliage()
 	FName OpacityParamName("OpacityAmount");
 	BrushMID->GetScalarParameterValue(OpacityParamName, DefaultBrushOpacity);
 
-	UICommandList = MakeShareable(new FUICommandList);
-	BindCommands();
 }
 
 void FEdModeFoliage::BindCommands()
@@ -307,7 +305,7 @@ void FEdModeFoliage::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([=]
 	{
-		return UISettings.GetPaintToolSelected();
+		return UISettings.GetPaintToolSelected() && !UISettings.GetIsInSingleInstantiationMode();
 	}));
 
 	UICommandList->MapAction(
@@ -316,7 +314,7 @@ void FEdModeFoliage::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([=]
 	{
-		return UISettings.GetReapplyToolSelected();
+		return UISettings.GetReapplyToolSelected() && !UISettings.GetIsInSingleInstantiationMode();
 	}));
 
 	UICommandList->MapAction(
@@ -411,6 +409,9 @@ void FEdModeFoliage::Enter()
 	{
 		Toolkit = MakeShareable(new FFoliageEdModeToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
+
+		UICommandList = Toolkit->GetToolkitCommands();
+		BindCommands();
 	}
 
 	if (UISettings.GetSelectToolSelected() || UISettings.GetLassoSelectToolSelected())

@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "CommonFrameRates.h"
 
 #define LOCTEXT_NAMESPACE "MovieScene"
@@ -1243,6 +1244,11 @@ void UMovieScene::MoveBindingContents(const FGuid& SourceBindingId, const FGuid&
 	}
 }
 
+TSharedPtr<FMovieSceneTimeController> UMovieScene::MakeCustomTimeController(UObject* PlaybackContext)
+{
+	return MakeShared<FMovieSceneTimeController_Custom>(CustomClockSourcePath, PlaybackContext);
+}
+
 void UMovieScene::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
 {
 	if (InMarkIndex < 0 && InMarkIndex > MarkedFrames.Num()-1)
@@ -1298,12 +1304,12 @@ int32 UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 	return MarkedIndex;
 }
 
-void UMovieScene::RemoveMarkedFrame(int32 RemoveIndex)
+void UMovieScene::DeleteMarkedFrame(int32 DeleteIndex)
 {
-	MarkedFrames.RemoveAt(RemoveIndex);
+	MarkedFrames.RemoveAt(DeleteIndex);
 }
 
-void UMovieScene::ClearMarkedFrames()
+void UMovieScene::DeleteMarkedFrames()
 {
 	MarkedFrames.Empty();
 }

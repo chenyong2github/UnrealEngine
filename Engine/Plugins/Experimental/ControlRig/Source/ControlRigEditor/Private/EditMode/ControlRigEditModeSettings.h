@@ -7,10 +7,6 @@
 #include "UObject/LazyObjectPtr.h"
 #include "ControlRigEditModeSettings.generated.h"
 
-class AActor;
-class UControlRig;
-class UControlRigSequence;
-
 /** Settings object used to show useful information in the details panel */
 UCLASS()
 class UControlRigEditModeSettings : public UObject
@@ -22,6 +18,8 @@ class UControlRigEditModeSettings : public UObject
 		, bHideManipulators(false)
 		, bDisplayAxesOnSelection(true)
 		, AxisScale(10.f)
+		, bCoordSystemPerWidgetMode(true)
+		, bOnlySelectRigControls(false)
 	{}
 
 	// UObject interface
@@ -46,4 +44,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float AxisScale;
 
+	/** If true we restore the coordinate space when changing Widget Modes in the Viewport*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bCoordSystemPerWidgetMode;
+
+	/** If true we can only select Rig Controls in the scene not other Actors. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bOnlySelectRigControls;
+	
 };

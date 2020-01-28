@@ -37,6 +37,7 @@
 #include "CompositionLighting/PostProcessPassThrough.h"
 #include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "ShaderPrint.h"
+#include "GpuDebugRendering.h"
 #include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -46,6 +47,7 @@
 #include "MobileDistortionPass.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
+#include "ScreenSpaceRayTracing.h"
 
 /** The global center for all post processing activities. */
 FPostProcessing GPostProcessing;
@@ -436,6 +438,17 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				&HalfResolutionSceneColor.Texture,
 				&HalfResolutionSceneColor.ViewRect);
 		}
+		else if (ShouldRenderScreenSpaceReflections(View))
+		{
+			// If we need SSR, and TAA is enabled, then AddTemporalAAPass() has already handled the scene history.
+			// If we need SSR, and TAA is not enable, then we just need to extract the history.
+			if (!View.bStatePrevViewInfoIsReadOnly)
+			{
+				check(View.ViewState);
+				FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+				GraphBuilder.QueueTextureExtraction(SceneColor.Texture, &OutputHistory.RT[0]);
+			}
+		}
 
 		//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
 		SceneColor.ViewRect = SecondaryViewRect;
@@ -512,9 +525,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			FBloomInputs PassInputs;
 			PassInputs.SceneColor = SceneColor;
 
-			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > 0.0f;
+			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
 
-			// Reuse the main scene downsample chain if a threshold isn't required for bloom. 
+			// Reuse the main scene downsample chain if a threshold isn't required for bloom.
 			if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
 			{
 				PassInputs.SceneDownsampleChain = &SceneDownsampleChain;
@@ -818,6 +831,10 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		AddTestImagePass(GraphBuilder, View, SceneColor);
 	}
 
+	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
+	{
+		ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+	}
 	if (ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View))
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
@@ -1757,7 +1774,10 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			Desc.NumMips = 1;
 			Desc.DebugName = TEXT("OverriddenRenderTarget");
 			Desc.TargetableFlags |= TexCreate_RenderTargetable;
-
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			// for FVisualizeTexture
+			Desc.TargetableFlags |= TexCreate_ShaderResource;
+#endif
 			GRenderTargetPool.CreateUntrackedElement(Desc, Temp, Item);
 
 			OverrideRenderTarget(Context.FinalOutput, Temp, Desc);

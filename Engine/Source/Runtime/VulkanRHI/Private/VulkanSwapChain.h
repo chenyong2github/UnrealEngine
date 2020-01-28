@@ -23,7 +23,7 @@ struct FVulkanSwapChainRecreateInfo
 class FVulkanSwapChain
 {
 public:
-	FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height,
+	FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height, bool bIsFullscreen,
 		uint32* InOutDesiredNumBackBuffers, TArray<VkImage>& OutImages, int8 bLockToVsync, FVulkanSwapChainRecreateInfo* RecreateInfo);
 
 	void Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo);
@@ -52,6 +52,7 @@ protected:
 	uint32 NumAcquireCalls;
 	uint32 InternalWidth = 0;
 	uint32 InternalHeight = 0;
+	bool bInternalFullScreen = false;
 
 	uint32 RTPacingSampleCount = 0;
 	double RTPacingPreviousFrameCPUTime = 0;

@@ -582,6 +582,22 @@ TSharedPtr<FSequencerObjectBindingNode> FSequencerDisplayNode::FindParentObjectB
 	return nullptr;
 }
 
+TSharedPtr<FSequencerTrackNode> FSequencerDisplayNode::FindParentTrackNode() const
+{
+	TSharedPtr<FSequencerDisplayNode> CurrentParentNode = GetParent();
+	while (CurrentParentNode.IsValid())
+	{
+		if (CurrentParentNode->GetType() == ESequencerNode::Track)
+		{
+			return StaticCastSharedPtr<FSequencerTrackNode>(CurrentParentNode);
+		}
+		CurrentParentNode = CurrentParentNode->GetParent();
+	}
+
+	return nullptr;
+}
+
+
 FGuid FSequencerDisplayNode::GetObjectGuid() const
 {
 	TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindParentObjectBindingNode();
@@ -770,6 +786,12 @@ bool FSequencerDisplayNode::IsDimmed() const
 	return bDimLabel;
 }
 
+FSlateFontInfo FSequencerDisplayNode::GetDisplayNameFont() const
+{
+	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	return NodeFont;
+}
+
 FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 {
 	return IsDimmed() ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -785,6 +807,11 @@ bool FSequencerDisplayNode::ValidateDisplayName(const FText& NewDisplayName, FTe
 	if (NewDisplayName.IsEmpty())
 	{
 		OutErrorMessage = NSLOCTEXT("Sequencer", "RenameFailed_LeftBlank", "Labels cannot be left blank");
+		return false;
+	}
+	else if (NewDisplayName.ToString().Len() >= NAME_SIZE)
+	{
+		OutErrorMessage = FText::Format(NSLOCTEXT("Sequencer", "RenameFailed_TooLong", "Names must be less than {0} characters long"), NAME_SIZE);
 		return false;
 	}
 	return true;
@@ -1336,6 +1363,7 @@ TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const F
 			[
 				SNew(STextBlock)
 				.Text(this, &FSequencerDisplayNode::GetDisplayName)
+				.Font(this, &FSequencerDisplayNode::GetDisplayNameFont)
 				.HighlightText_Static(SequencerNodeConstants::GetCurveEditorHighlightText, InCurveEditor)
 				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
 			];

@@ -278,6 +278,14 @@ namespace EAppReturnType
 	};
 }
 
+/**
+ * Returns the string representation of the specified EAppReturnType::Type value.
+ *
+ * @param Value The value to get the string for.
+ * @return The string representation.
+ */
+CORE_API const TCHAR* LexToString(EAppReturnType::Type Value);
+
 /*
  * Holds a computed SHA256 hash.
  */
@@ -913,8 +921,11 @@ public:
 
 	static const TCHAR* GetUBTTarget();
 
+	static void SetUBTTargetName(const TCHAR* InTargetName);
+	static const TCHAR* GetUBTTargetName();
+
 	/** 
-	 * Determines the shader format for the plarform
+	 * Determines the shader format for the platform
 	 *
 	 * @return	Returns the shader format to be used by that platform
 	 */
@@ -1395,6 +1406,11 @@ public:
 
 	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
 	{
+	}
+
+	FORCEINLINE static int32 GetChunkIDFromPakchunkIndex(int32 PakchunkIndex)
+	{
+		return PakchunkIndex;
 	}
 
 #if !UE_BUILD_SHIPPING

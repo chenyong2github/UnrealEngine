@@ -99,6 +99,7 @@ namespace Audio
 		bool ResetXAudio2System();
 
 		// Handle to XAudio2DLL
+		FName DllName;
 		HMODULE XAudio2Dll;
 
 		// Bool indicating that the default audio device changed
@@ -112,7 +113,6 @@ namespace Audio
 		FCriticalSection AudioDeviceSwapCriticalSection;
 		FString OriginalAudioDeviceId;
 		FString NewAudioDeviceId;
-		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		double LastDeviceSwapTime;
 
 		// When we are running the null device,

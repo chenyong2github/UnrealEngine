@@ -14,6 +14,9 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Serialization/MemoryWriter.h"
 
+int32 EnableMeshClean = 1;
+FAutoConsoleVariableRef CVarEnableMeshClean(TEXT("p.EnableMeshClean"), EnableMeshClean, TEXT("Enable/Disable mesh cleanup during cook."));
+
 const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 {
 	return TEXT("ChaosGeometryData");
@@ -21,7 +24,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("41954A2DFA074735B0B409CF01F3598A");
+	return TEXT("CD1FE02F2AB9453FB6E173E28A076DC4");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -104,7 +107,10 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 		FinalIndices.Add(Tri.v2);
 	}
 
-	Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
+	if (EnableMeshClean)
+	{
+		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
+	}
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
 	Chaos::TParticles<Chaos::FReal, 3> TriMeshParticles;
@@ -146,18 +152,33 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 
 				if(bHasMaterials)
 				{
-				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+					if (EnableMeshClean)
 					{
-						MaterialIndices.Empty();
-						bHasMaterials = false;
+						if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+						{
+							MaterialIndices.Empty();
+							bHasMaterials = false;
+						}
+						else
+						{
+							const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+
+							if (ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+							{
+								MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+							}
+							else
+							{
+								MaterialIndices.Empty();
+								bHasMaterials = false;
+							}
+						}
 					}
 					else
 					{
-					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
-
-						if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+						if (ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(TriangleIndex)))
 						{
-							MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+							MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[TriangleIndex]);
 						}
 						else
 						{
@@ -165,11 +186,13 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 							bHasMaterials = false;
 						}
 					}
+
 				}
 			}
 		}
 
-		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+		TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
+		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr)));
 	};
 
 	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())

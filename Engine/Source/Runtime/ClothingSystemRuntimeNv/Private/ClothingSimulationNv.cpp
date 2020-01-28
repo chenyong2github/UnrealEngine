@@ -34,12 +34,6 @@ DECLARE_CYCLE_STAT(TEXT("Update Collisions"), STAT_NvClothUpdateCollisions, STAT
 DECLARE_CYCLE_STAT(TEXT("Fill Context"), STAT_NvClothFillContext, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Update Anim Drive"), STAT_NvClothUpdateAnimDrive, STATGROUP_Physics);
 
-static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
-	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
-	1.5f,
-	TEXT("A multiplier of the MaxPhysicsDelta time at which we will automatically just teleport cloth to its new location\n")
-	TEXT(" default: 1.5"));
-
 //=============================================================================
 // FClothingSimulationContextNv
 //=============================================================================
@@ -47,7 +41,6 @@ static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 FClothingSimulationContextNv::FClothingSimulationContextNv()
 	: PredictedLod(0)
 	, WindAdaption(0.0f)
-	, TeleportMode(EClothingTeleportMode::None)
 	, MaxDistanceScale(1.f)
 {
 }
@@ -64,10 +57,6 @@ void FClothingSimulationContextNv::Fill(const USkeletalMeshComponent* InComponen
 	FClothingSimulationContextCommon::Fill(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 
 	PredictedLod = InComponent->PredictedLODLevel;
-
-	TeleportMode = (InDeltaSeconds > InMaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()) ?
-		EClothingTeleportMode::Teleport :
-		InComponent->ClothTeleportMode;
 
 	MaxDistanceScale = InComponent->GetClothMaxDistanceScale();
 }
@@ -1053,8 +1042,22 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 			bool bOldLodMapped = LodMap.IsValidIndex(CurrentMeshLodIndex) && LodMap[CurrentMeshLodIndex] != INDEX_NONE;
 
 			// Get the clothing LOD mapped from the mesh predicted LOD
-			const int32 PredictedClothingLod = LodMap[InPredictedLod];
+
+
 			const int32 OldClothingLod = bOldLodMapped ? LodMap[CurrentMeshLodIndex] : INDEX_NONE;
+
+			// If potentialLod doesn't map to a valid LOD, we try higher LOD levels for a valid LOD.
+			// Asset might only have lod on LOD 1 and not 0, however if mesh doesn't force LOD to 1, 
+			// asset will not be assigned valid LOD index and will not generate sim data, breaking things.
+			int32 PredictedClothingLod = INDEX_NONE;
+			for (int32 PotentialLod = InPredictedLod; PotentialLod < LodMap.Num(); ++PotentialLod)
+			{
+				if (LodMap[PotentialLod] != INDEX_NONE)
+				{
+					PredictedClothingLod = LodMap[PotentialLod];
+					break;
+				}
+			}
 
 			if(PredictedClothingLod == Actor.CurrentLodIndex)
 			{

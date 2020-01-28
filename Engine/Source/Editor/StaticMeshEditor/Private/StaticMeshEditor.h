@@ -10,6 +10,8 @@
 #include "IStaticMeshEditor.h"
 #include "ISocketManager.h"
 #include "TickableEditorObject.h"
+#include "SEditorViewport.h"
+#include "AdvancedPreviewSceneModule.h"
 
 // Set USE_ASYNC_DECOMP to zero to go back to the fully synchronous; blocking version of V-HACD
 #ifndef USE_ASYNC_DECOMP
@@ -23,13 +25,13 @@ class IDecomposeMeshToHullsAsync;
 class FStaticMeshDetails;
 class FEditorViewportClient;
 class IDetailsView;
-class SAdvancedPreviewDetailsTab;
 class SConvexDecomposition;
 class SDockableTab;
 class SStaticMeshEditorViewport;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UStaticMeshSocket;
+class FViewportTabContent;
 struct FPropertyChangedEvent;
 struct FTabSpawnerEntry;
 
@@ -40,11 +42,23 @@ class FStaticMeshEditor : public IStaticMeshEditor, public FGCObject, public FEd
 {
 public:
 	FStaticMeshEditor()
-		: StaticMesh(NULL)
+		: StaticMesh(nullptr)
 		, MinPrimSize(0.5f)
 		, OverlapNudge(10.0f)
 		, CurrentViewedUVChannel(0)
 		, SecondaryToolbarEntry(nullptr)
+		, bDrawNormals(false)
+		, bDrawTangents(false)
+		, bDrawBinormals(false)
+		, bDrawPivots(false)
+		, bDrawVertices(false)
+		, bDrawGrids(false)
+		, bDrawBounds(false)
+		, bDrawSimpleCollisions(false)
+		, bDrawComplexCollisions(false)
+		, bDrawSockets(false)
+		, bDrawWireframes(false)
+		, bDrawVertexColors(false)
 	{}
 
 	~FStaticMeshEditor();
@@ -204,7 +218,90 @@ private:
 	TSharedRef<SDockTab> SpawnTab_PreviewSceneSettings(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SecondaryToolbar(const FSpawnTabArgs& Args);
 
+
+	/** Callback for toggling the normals show flag. */
+	void ToggleShowNormals();
+
+	/** Callback for checking the normals show flag. */
+	bool IsShowNormalsChecked() const;
+
+	/** Callback for toggling the tangents show flag. */
+	void ToggleShowTangents();
+
+	/** Callback for checking the tangents show flag. */
+	bool IsShowTangentsChecked() const;
+
+	/** Callback for toggling the binormals show flag. */
+	void ToggleShowBinormals();
+
+	/** Callback for checking the binormals show flag. */
+	bool IsShowBinormalsChecked() const;
+
+	/** Callback for toggling the pivots show flag. */
+	void ToggleShowPivots();
+
+	/** Callback for checking the pivots show flag. */
+	bool IsShowPivotsChecked() const;
+
+	/** Callback for toggling the vertices show flag. */
+	void ToggleShowVertices();
+
+	/** Callback for checking the vertices show flag. */
+	bool IsShowVerticesChecked() const;
+
+	/** Callback for toggling the grid show flag. */
+	void ToggleShowGrids();
+
+	/** Callback for checking the grid show flag. */
+	bool IsShowGridsChecked() const;
+
+	/** Callback for toggling the bounds show flag. */
+	void ToggleShowBounds();
+
+	/** Callback for checking the bounds show flag. */
+	bool IsShowBoundsChecked() const;
+
+	/** Callback for toggling the simple collisions show flag. */
+	void ToggleShowSimpleCollisions();
+
+	/** Callback for checking the simple collisions show flag. */
+	bool IsShowSimpleCollisionsChecked() const;
+
+	/** Callback for toggling the complex collisions show flag. */
+	void ToggleShowComplexCollisions();
+
+	/** Callback for checking the complex collisions show flag. */
+	bool IsShowComplexCollisionsChecked() const;
+
+	/** Callback for toggling the sockets show flag. */
+	void ToggleShowSockets();
+
+	/** Callback for checking the sockets show flag. */
+	bool IsShowSocketsChecked() const;
+
+	/** Callback for toggling the wireframes show flag. */
+	void ToggleShowWireframes();
+
+	/** Callback for checking the wireframes show flag. */
+	bool IsShowWireframesChecked() const;
+
+	/** Callback for toggling the vertex colors show flag. */
+	void ToggleShowVertexColors();
+
+	/** Callback for checking the vertex colors show flag. */
+	bool IsShowVertexColorsChecked() const;
+
 private:
+
+
+	/** Gets First Viewport from layout. */
+	TSharedPtr<class SStaticMeshEditorViewport> GetStaticMeshViewport() const;
+
+	FAdvancedPreviewSceneModule::FOnPreviewSceneChanged OnPreviewSceneChangedDelegate;
+
+	/** Called when the Viewport Layout has changed. */
+	void OnEditorLayoutChanged();
+
 	/** Binds commands associated with the Static Mesh Editor. */
 	void BindCommands();
 
@@ -355,11 +452,11 @@ private:
 	void GenerateSecondaryToolbar();
 
 private:
+	// Tracking the active viewports in this editor.
+	TSharedPtr<class FEditorViewportTabContent> ViewportTabContent;
+
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
-
-	/** Preview Viewport widget */
-	TSharedPtr<class SStaticMeshEditorViewport> Viewport;
 
 	/** Property View */
 	TSharedPtr<class IDetailsView> StaticMeshDetailsView;
@@ -438,4 +535,21 @@ private:
 
 	/** The text display name to override the default display name of the secondary toolbar*/
 	FText SecondaryToolbarDisplayName;
+	
+	/** Storage for our viewport creation function that will be passed to the viewport layout system*/
+	TFunction<TSharedRef<SEditorViewport>(void)> MakeViewportFunc;
+
+	/** Toolbar toggles */
+	bool bDrawNormals;
+	bool bDrawTangents;
+	bool bDrawBinormals;
+	bool bDrawPivots;
+	bool bDrawVertices;
+	bool bDrawGrids;
+	bool bDrawBounds;
+	bool bDrawSimpleCollisions;
+	bool bDrawComplexCollisions;
+	bool bDrawSockets;
+	bool bDrawWireframes;
+	bool bDrawVertexColors;
 };

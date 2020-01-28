@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "Translators/DatasmithTranslator.h"
 #include "DatasmithGLTFImporter.h"
 #include "DatasmithGLTFImportOptions.h"
+
 #include "CoreMinimal.h"
+#include "DatasmithTranslator.h"
 
 class FDatasmithGLTFTranslator : public IDatasmithTranslator
 {

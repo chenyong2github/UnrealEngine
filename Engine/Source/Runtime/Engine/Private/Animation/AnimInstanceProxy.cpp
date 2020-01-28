@@ -352,9 +352,10 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 	USkeletalMeshComponent* SkelMeshComp = InAnimInstance->GetSkelMeshComponent();
 	UWorld* World = SkelMeshComp ? SkelMeshComp->GetWorld() : nullptr;
+	AWorldSettings* WorldSettings = World ? World->GetWorldSettings() : nullptr;
 
 	CurrentDeltaSeconds = DeltaSeconds;
-	CurrentTimeDilation = World ? World->GetWorldSettings()->GetEffectiveTimeDilation() : 1.0f;
+	CurrentTimeDilation = WorldSettings ? WorldSettings->GetEffectiveTimeDilation() : 1.0f;
 	RootMotionMode = InAnimInstance->RootMotionMode;
 	bShouldExtractRootMotion = InAnimInstance->ShouldExtractRootMotion();
 
@@ -2648,6 +2649,46 @@ FAnimBlueprintDebugData* FAnimInstanceProxy::GetAnimBlueprintDebugData() const
 #endif
 
 	return nullptr;
+}
+
+void FAnimInstanceProxy::InitializeInputProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance)
+{
+	if (InAnimInstance && InputProxy)
+	{
+		InputProxy->Initialize(InAnimInstance);
+	}
+}
+
+void FAnimInstanceProxy::GatherInputProxyDebugData(FAnimInstanceProxy* InputProxy, FNodeDebugData& DebugData)
+{
+	if (InputProxy)
+	{
+		InputProxy->GatherDebugData(DebugData);
+	}
+}
+
+void FAnimInstanceProxy::CacheBonesInputProxy(FAnimInstanceProxy* InputProxy)
+{
+	if (InputProxy)
+	{
+		InputProxy->CacheBones();
+	}
+}
+
+void FAnimInstanceProxy::UpdateInputProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context)
+{
+	if (InputProxy)
+	{
+		InputProxy->UpdateAnimationNode(Context);
+	}
+}
+
+void FAnimInstanceProxy::EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output)
+{
+	if (InputProxy)
+	{
+		InputProxy->Evaluate(Output);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

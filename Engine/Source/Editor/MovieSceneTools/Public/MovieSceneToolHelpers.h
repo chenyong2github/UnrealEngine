@@ -14,6 +14,8 @@
 #include "Logging/TokenizedMessage.h"
 #include "MovieSceneTranslator.h"
 #include "MovieSceneCaptureSettings.h"
+#include "SEnumCombobox.h"
+#include "Animation/AnimSequence.h"
 
 
 class ISequencer;
@@ -46,8 +48,6 @@ struct FFBXInOutParameters
 	bool bConvertSceneUnitBackup;
 	bool bForceFrontXAxisBackup;
 };
-
-DECLARE_DELEGATE_TwoParams(FOnEnumSelectionChanged, int32 /*Selection*/, ESelectInfo::Type /*SelectionType*/);
 
 class MOVIESCENETOOLS_API MovieSceneToolHelpers
 {
@@ -157,7 +157,7 @@ public:
 	 * @param OnSelectionChanged Delegate fired when selection is changed
 	 * @return The new widget
 	 */
-	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, FOnEnumSelectionChanged OnSelectionChanged);
+	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, SEnumCombobox::FOnEnumSelectionChanged OnSelectionChanged);
 
 
 	/**
@@ -344,6 +344,14 @@ public:
 	 * @return The exported camera anim asset
 	 */
 	static UObject* ExportToCameraAnim(UMovieScene* InMovieScene, FGuid& InObjectBinding);
+
+	/*
+	
+	
+	*/
+	static bool ExportToAnimSequence(UAnimSequence* AnimSequence, UMovieScene* MovieScene, IMovieScenePlayer* Player,
+		USkeletalMeshComponent* SkelMesh, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform);
+
 
 	/*
 	 * @return Whether this object class has hidden mobility and can't be animated

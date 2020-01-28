@@ -282,6 +282,8 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 
 		UDatasmithMaterialInstanceTemplate* MaterialInstanceTemplate = NewObject< UDatasmithMaterialInstanceTemplate >( MaterialInstance );
 
+		MaterialInstanceTemplate->ParentMaterial = MaterialInstance->Parent;
+
 		// Find matching master material parameters
 		for (int i = 0; i < MaterialElement->GetPropertiesCount(); ++i)
 		{

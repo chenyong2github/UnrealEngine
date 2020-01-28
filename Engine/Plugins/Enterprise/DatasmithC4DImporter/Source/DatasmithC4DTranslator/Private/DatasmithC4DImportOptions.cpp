@@ -17,6 +17,7 @@ UDatasmithC4DImportOptions::UDatasmithC4DImportOptions(const FObjectInitializer&
 	ScaleVertices = 1.0;
 	bExportToUDatasmith = false;
 
+#if WITH_EDITOR
 	// In debug show all properties including the ones for debug
 	if (IDatasmithC4DTranslatorModule::Get().InDebugMode())
 	{
@@ -29,6 +30,7 @@ UDatasmithC4DImportOptions::UDatasmithC4DImportOptions(const FObjectInitializer&
 			}
 		}
 	}
+#endif //WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

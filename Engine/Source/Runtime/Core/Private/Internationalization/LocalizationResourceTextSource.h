@@ -26,7 +26,7 @@ public:
 	 */
 	void RegisterChunkId(const int32 InChunkId)
 	{
-		ChunkIds.Add(InChunkId);
+		ChunkIds.AddUnique(InChunkId);
 	}
 
 	/**

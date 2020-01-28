@@ -52,7 +52,7 @@ DECLARE_STATS_GROUP_MAYBE_COMPILED_OUT(TEXT("SlateVeryVerbose"), STATGROUP_Slate
 /** Whether or not we've enabled fast widget pathing which validates paths to widgets without arranging children. */
 extern SLATECORE_API int32 GSlateFastWidgetPath;
 
-extern SLATECORE_API int32 GSlateEnableGlobalInvalidation;
+extern SLATECORE_API bool GSlateEnableGlobalInvalidation;
 
 extern SLATECORE_API bool GSlateIsOnFastUpdatePath;
 

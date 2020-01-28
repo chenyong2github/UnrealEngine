@@ -22,8 +22,8 @@ namespace AlgoImpl
 	 * @param Projection	The projection to sort by when applied to the element.
 	 * @param Predicate		predicate class
 	 */
-	template <typename T, typename ProjectionType, typename PredicateType> 
-	void IntroSortInternal(T* First, SIZE_T Num, ProjectionType Projection, PredicateType Predicate)
+	template <typename T, typename IndexType, typename ProjectionType, typename PredicateType> 
+	void IntroSortInternal(T* First, IndexType Num, ProjectionType Projection, PredicateType Predicate)
 	{
 		struct FStack
 		{
@@ -37,13 +37,13 @@ namespace AlgoImpl
 			return;
 		}
 
-		FStack RecursionStack[32]={{First, First+Num-1, (uint32)(FMath::Loge(Num) * 2.f)}}, Current, Inner;
+		FStack RecursionStack[32]={{First, First+Num-1, (uint32)(FMath::Loge((float)Num) * 2.f)}}, Current, Inner;
 		for( FStack* StackTop=RecursionStack; StackTop>=RecursionStack; --StackTop ) //-V625
 		{
 			Current = *StackTop;
 
 		Loop:
-			PTRINT Count = Current.Max - Current.Min + 1;
+			IndexType Count = (IndexType)(Current.Max - Current.Min + 1);
 
 			if ( Current.MaxDepth == 0 )
 			{

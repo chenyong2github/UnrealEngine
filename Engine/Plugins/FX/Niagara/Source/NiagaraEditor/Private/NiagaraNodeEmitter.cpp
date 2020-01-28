@@ -88,6 +88,36 @@ bool UNiagaraNodeEmitter::CommitEditablePinName(const FText& InName, UEdGraphPin
 	return false;
 }
 
+bool UNiagaraNodeEmitter::GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (InClass == UNiagaraNodeEmitter::StaticClass())
+	{
+		// For emitters, we really just want the emitter name.
+		FName EmitterName;
+		if (OwnerSystem != nullptr && EmitterHandleId.IsValid())
+		{
+			for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+			{
+				if (EmitterHandle.GetId() == EmitterHandleId)
+				{
+					EmitterName = (EmitterHandle.GetName());
+					break;
+				}
+			}
+		}
+		else if (CachedUniqueName.IsValid())
+		{
+			EmitterName = (CachedUniqueName);
+		}
+
+		InVisitor->UpdateString(TEXT("EmitterName"), EmitterName.ToString());
+		return true;
+	}
+	else
+	{
+		return Super::GenerateCompileHashForClassMembers(InClass, InVisitor);
+	}
+}
 
 void UNiagaraNodeEmitter::AllocateDefaultPins()
 {
@@ -460,7 +490,7 @@ void UNiagaraNodeEmitter::Compile(FHlslNiagaraTranslator *Translator, TArray<int
 	}
 }
 
-void UNiagaraNodeEmitter::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const
+void UNiagaraNodeEmitter::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
 	UNiagaraGraph* CalledGraph = GetCalledGraph();
 
@@ -468,7 +498,7 @@ void UNiagaraNodeEmitter::GatherExternalDependencyData(ENiagaraScriptUsage InMas
 	{
 		ENiagaraScriptUsage TargetUsage = InMasterUsage == ENiagaraScriptUsage::SystemSpawnScript ? ENiagaraScriptUsage::EmitterSpawnScript : ENiagaraScriptUsage::EmitterUpdateScript;
 		InReferencedCompileHashes.Add(CalledGraph->GetCompileDataHash(TargetUsage, FGuid(0,0,0,0)));
-		InReferencedObjs.Add(CalledGraph);
+		InReferencedObjs.Add(CalledGraph->GetPathName());
 		CalledGraph->GatherExternalDependencyData(TargetUsage, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
 	}
 }

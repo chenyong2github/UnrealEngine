@@ -144,7 +144,7 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 		]
 	];
 
-	Reset();
+	Reset(EResetType::ResetAll);
 }
 
 void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -178,10 +178,13 @@ void SAddNewGameplayTagWidget::PopulateTagSources()
 	}
 }
 
-void SAddNewGameplayTagWidget::Reset()
+void SAddNewGameplayTagWidget::Reset(EResetType ResetType)
 {
 	SetTagName();
-	SelectTagSource();
+	if (ResetType != EResetType::DoNotResetSource)
+	{
+		SelectTagSource();
+	}
 	TagCommentTextBox->SetText(FText());
 }
 
@@ -275,7 +278,7 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 
 	OnGameplayTagAdded.ExecuteIfBound(TagName, TagComment, TagSource);
 
-	Reset();
+	Reset(EResetType::DoNotResetSource);
 }
 
 TSharedRef<SWidget> SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox(TSharedPtr<FName> InItem)

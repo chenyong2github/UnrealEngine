@@ -398,7 +398,11 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 #endif
 
+#if MATERIAL_USE_PREINTEGRATED_GF
+	SpecularColor = EnvBRDF(SpecularColor, Roughness, NoV);
+#else
 	SpecularColor = EnvBRDFApprox(SpecularColor, Roughness, NoV);
+#endif
 
 	float3 SpecularLighting = SpecularIBL.rgb;
 

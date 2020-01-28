@@ -1116,6 +1116,19 @@ void ULightComponent::SetForceCachedShadowsForMovablePrimitives(bool bNewValue)
 	}
 }
 
+void ULightComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2)
+{
+	if (bChannel0 != LightingChannels.bChannel0 ||
+		bChannel1 != LightingChannels.bChannel1 ||
+		bChannel2 != LightingChannels.bChannel2)
+	{
+		LightingChannels.bChannel0 = bChannel0;
+		LightingChannels.bChannel1 = bChannel1;
+		LightingChannels.bChannel2 = bChannel2;
+		MarkRenderStateDirty();
+	}
+}
+
 // GetDirection
 FVector ULightComponent::GetDirection() const 
 { 

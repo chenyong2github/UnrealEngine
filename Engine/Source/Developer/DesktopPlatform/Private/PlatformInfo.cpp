@@ -226,6 +226,9 @@ const FPlatformInfo* FindPlatformInfo(const FName& InPlatformName)
 			return &PlatformInfo;
 		}
 	}
+
+	UE_LOG(LogDesktopPlatform, Warning, TEXT("Unable to find platform info for '%s'"), *InPlatformName.ToString());
+
 	return nullptr;
 }
 

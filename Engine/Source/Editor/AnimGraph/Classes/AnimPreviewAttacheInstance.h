@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "AnimCustomInstance.h"
+#include "AnimCustomInstanceHelper.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimNodes/AnimNode_CopyPoseFromMesh.h"
 #include "AnimPreviewAttacheInstance.generated.h"
@@ -41,7 +41,7 @@ private:
  */
 
 UCLASS(transient, NotBlueprintable, noteditinlinenew)
-class ANIMGRAPH_API UAnimPreviewAttacheInstance : public UAnimCustomInstance
+class ANIMGRAPH_API UAnimPreviewAttacheInstance : public UAnimInstance
 {
 	GENERATED_UCLASS_BODY()
 

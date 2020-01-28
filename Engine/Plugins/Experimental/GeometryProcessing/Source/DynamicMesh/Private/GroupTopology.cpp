@@ -55,7 +55,7 @@ void FGroupTopology::RebuildTopology()
 	}
 	for (FGroup& Group : Groups)
 	{
-		Group.Faces.Reserve(GroupFaceCounts[Group.GroupID]);
+		Group.Triangles.Reserve(GroupFaceCounts[Group.GroupID]);
 	}
 
 
@@ -63,7 +63,7 @@ void FGroupTopology::RebuildTopology()
 	for (int tid : Mesh->TriangleIndicesItr())
 	{
 		int GroupID = GetGroupID(tid);
-		Groups[GroupIDToGroupIndexMap[GroupID]].Faces.Add(tid);
+		Groups[GroupIDToGroupIndexMap[GroupID]].Triangles.Add(tid);
 	}
 
 	// precompute junction vertices set
@@ -171,7 +171,7 @@ const TArray<int>& FGroupTopology::GetGroupFaces(int GroupID) const
 {
 	const FGroup* Found = FindGroupByID(GroupID);
 	ensure(Found != nullptr);
-	return (Found != nullptr) ? Found->Faces : EmptyArray;
+	return (Found != nullptr) ? Found->Triangles : EmptyArray;
 }
 
 const TArray<int>& FGroupTopology::GetGroupNbrGroups(int GroupID) const
@@ -281,7 +281,7 @@ void FGroupTopology::CollectGroupVertices(int GroupID, TSet<int>& Vertices) cons
 	ensure(Found != nullptr);
 	if (Found != nullptr)
 	{
-		for (int TriID : Found->Faces)
+		for (int TriID : Found->Triangles)
 		{
 			FIndex3i TriVerts = Mesh->GetTriangle(TriID);
 			Vertices.Add(TriVerts.A);
@@ -367,7 +367,7 @@ void FGroupTopology::ForGroupSetEdges(const TArray<int>& GroupIDs,
 
 void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 {
-	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Faces, true);
+	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Triangles, true);
 	int NumLoops = BdryLoops.Loops.Num();
 
 	Group.Boundaries.SetNum(NumLoops);
@@ -494,4 +494,49 @@ bool FGroupTopology::GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut)
 		TangentOut = FVector3d::UnitX();
 		return false;
 	}
+}
+
+
+
+FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Selection)
+{
+	int32 NumCorners = Selection.SelectedCornerIDs.Num();
+	int32 NumEdges = Selection.SelectedEdgeIDs.Num();
+	int32 NumFaces = Selection.SelectedGroupIDs.Num();
+
+	FFrame3d Accumulated;
+	int AccumCount = 0;
+	for (int32 CornerID : Selection.SelectedCornerIDs)
+	{
+		Accumulated.Origin += Mesh->GetVertex(GetCornerVertexID(CornerID));
+		AccumCount++;
+	}
+
+	for (int32 EdgeID : Selection.SelectedEdgeIDs)
+	{
+		const FGroupEdge& Edge = Edges[EdgeID];
+		FVector3d StartPos = Mesh->GetVertex(Edge.Span.Vertices[0]);
+		FVector3d EndPos = Mesh->GetVertex(Edge.Span.Vertices[Edge.Span.Vertices.Num() - 1]);
+		Accumulated.Origin +=  0.5*(StartPos + EndPos);
+		AccumCount++;
+	}
+
+	for (int32 GroupID : Selection.SelectedGroupIDs)
+	{
+		FVector3d Centroid = FVector3d::Zero();
+		const FGroup& Face = Groups[GroupIDToGroupIndexMap[GroupID]];
+		for (int tid : Face.Triangles)
+		{
+			Centroid += Mesh->GetTriCentroid(tid);
+		}
+		Accumulated.Origin += Centroid / (double)Face.Triangles.Num();
+		AccumCount++;
+	}
+
+	if (AccumCount > 0)
+	{
+		Accumulated.Origin /= (double)AccumCount;
+	}
+
+	return Accumulated;
 }

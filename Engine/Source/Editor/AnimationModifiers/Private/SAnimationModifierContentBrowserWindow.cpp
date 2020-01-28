@@ -15,7 +15,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "AnimationModifiersAssetUserData.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimationModifierContentBrowserWindow"
@@ -211,9 +211,15 @@ FReply SAnimationModifierContentBrowserWindow::OnApply()
 		for (UAnimationModifiersAssetUserData* UserData : AssetUserData)
 		{
 			const bool bAlreadyContainsModifier = UserData->GetAnimationModifierInstances().ContainsByPredicate([Modifier](UAnimationModifier* TestModifier) { return Modifier->GetClass() == TestModifier->GetClass(); });
-			static const FText MessageFormat = LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierDialogText", "{0} already contains Animation Modifier {1}, are you sure you want to add another instance?");
 
-			const bool bUserInputResult = bAlreadyContainsModifier ? OpenMsgDlgInt(EAppMsgType::YesNo, FText::FormatOrdered(MessageFormat, FText::FromString(UserData->GetOuter()->GetName()), FText::FromString(Modifier->GetClass()->GetName())), LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierTitle", "Already contains Animation Modifier!")) == EAppReturnType::Yes : true;
+			bool bUserInputResult = true;
+			if (bAlreadyContainsModifier)
+			{
+				FText MessageFormat = LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierDialogText", "{0} already contains Animation Modifier {1}, are you sure you want to add another instance?");
+				FText MessageTitle = LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierTitle", "Already contains Animation Modifier!");
+				bUserInputResult = FMessageDialog::Open(EAppMsgType::YesNo, FText::FormatOrdered(MessageFormat, FText::FromString(UserData->GetOuter()->GetName()), FText::FromString(Modifier->GetClass()->GetName())), &MessageTitle) == EAppReturnType::Yes;
+			}
+			
 			bCloseWindow = bUserInputResult;
 			if (!bAlreadyContainsModifier || bUserInputResult)
 			{

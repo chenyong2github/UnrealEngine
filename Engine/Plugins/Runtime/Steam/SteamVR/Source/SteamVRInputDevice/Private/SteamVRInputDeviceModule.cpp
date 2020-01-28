@@ -1,6 +1,6 @@
 /*
 Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
-This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+This code includes modifications by Epic Games.  Modifications (c) Epic Games, Inc.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -72,23 +72,6 @@ void FSteamVRInputDeviceModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
-#if WITH_EDITOR
-	EVRInitError SteamVRInitErrorOverlay = VRInitError_Driver_NotLoaded;
-	IVRSystem* SteamVRSystemOverlay = vr::VR_Init(&SteamVRInitErrorOverlay, vr::VRApplication_Overlay);
-
-	if (SteamVRInitErrorOverlay == VRInitError_None)
-	{
-		if (VRSettings() != nullptr)
-		{
-			EVRSettingsError BindingFlagError = VRSettingsError_None;
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
-			UE_LOG(LogTemp, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
-			UE_LOG(LogTemp, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-		}
-		VR_Shutdown();
-	}
-#endif
 
 	// Unload engine integrated controller modules if Valve's Input Plugin is present
 	FModuleManager& ModuleManager = FModuleManager::Get();

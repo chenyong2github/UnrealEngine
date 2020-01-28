@@ -13,7 +13,7 @@
 
 /*
  * Blocked array with fixed, power-of-two sized blocks.
- * 
+ *
  * Iterator functions suitable for use with range-based for are provided
  */
 template <class Type>
@@ -22,19 +22,29 @@ class TDynamicVector
 public:
 	TDynamicVector()
 	{
-		CurBlock = 0;
-		CurBlockUsed = 0;
 		Blocks.Add(new BlockType());
 	}
 
-	TDynamicVector(const TDynamicVector& Copy)
-	{
-		*this = Copy;
-	}
-
+	TDynamicVector(const TDynamicVector& Copy) = default;
 	TDynamicVector(TDynamicVector&& Moved)
 	{
-		*this = MoveTemp(Moved);
+		Blocks = MoveTemp(Moved.Blocks);
+		CurBlock = MoveTemp(Moved.CurBlock);
+		CurBlockUsed = MoveTemp(Moved.CurBlockUsed);
+		Moved.Blocks.Add(new BlockType());
+		Moved.CurBlock = 0;
+		Moved.CurBlockUsed = 0;
+	}
+	TDynamicVector& operator=(const TDynamicVector& Copy) = default;
+	TDynamicVector& operator=(TDynamicVector&& Moved)
+	{
+		Blocks = MoveTemp(Moved.Blocks);
+		CurBlock = MoveTemp(Moved.CurBlock);
+		CurBlockUsed = MoveTemp(Moved.CurBlockUsed);
+		Moved.Blocks.Add(new BlockType());
+		Moved.CurBlock = 0;
+		Moved.CurBlockUsed = 0;
+		return *this;
 	}
 
 	TDynamicVector(const TArray<Type>& Array)
@@ -54,11 +64,6 @@ public:
 		}
 	}
 
-	~TDynamicVector() {}
-
-	const TDynamicVector& operator=(const TDynamicVector& Copy);
-	const TDynamicVector& operator=(TDynamicVector&& Moved);
-
 	inline void Clear();
 	inline void Fill(const Type& Value);
 	inline void Resize(size_t Count);
@@ -72,7 +77,7 @@ public:
 	inline size_t GetByteCount() const { return Blocks.Num() * BlockSize * sizeof(Type); }
 
 	inline void Add(const Type& Data);
-	inline void Add(const TDynamicVector<Type>& Data);
+	inline void Add(const TDynamicVector& Data);
 	inline void PopBack();
 
 	inline void InsertAt(const Type& Data, unsigned int Index);
@@ -92,22 +97,6 @@ public:
 	// apply f() to each member sequentially
 	template <typename Func>
 	void Apply(const Func& f);
-
-
-protected:
-	// [RMS] BlockSize must be a power-of-two, so we can use bit-shifts in operator[]
-	static constexpr int BlockSize = 2048; // (1 << 11)
-	static constexpr int nShiftBits = 11;
-	static constexpr int BlockIndexBitmask = 2047; // low 11 bits
-
-	unsigned int CurBlock;
-	unsigned int CurBlockUsed;
-
-	using BlockType = TStaticArray<Type, BlockSize>;
-	TIndirectArray<BlockType> Blocks;
-
-	friend class FIterator;
-
 
 public:
 	/*
@@ -144,31 +133,24 @@ public:
 			return DVector != Itr2.DVector || Idx != Itr2.Idx;
 		}
 
-	protected:
-		TDynamicVector<Type>* DVector;
-		int Idx;
-		inline FIterator(TDynamicVector<Type>* Parent, int ICur)
-		{
-			DVector = Parent;
-			Idx = ICur;
-		}
-		friend class TDynamicVector<Type>;
+	private:
+		friend class TDynamicVector;
+		FIterator(TDynamicVector* DVectorIn, int IdxIn)
+			: DVector(DVectorIn), Idx(IdxIn){}
+		TDynamicVector* DVector{};
+		int Idx{0};
 	};
 
 	/** @return iterator at beginning of vector */
 	FIterator begin()
 	{
-		return IsEmpty() ? end() : FIterator(this, 0);
+		return IsEmpty() ? end() : FIterator{this};
 	}
 	/** @return iterator at end of vector */
 	FIterator end()
 	{
-		return FIterator(this, (int)GetLength());
+		return FIterator{this, (int)GetLength()};
 	}
-
-
-
-
 
 	/*
 	 * FConstIterator class iterates over values of vector
@@ -200,66 +182,47 @@ public:
 			return DVector != Itr2.DVector || Idx != Itr2.Idx;
 		}
 
-	protected:
-		const TDynamicVector<Type>* DVector;
-		int Idx;
-		inline FConstIterator(const TDynamicVector<Type>* Parent, int ICur)
-		{
-			DVector = Parent;
-			Idx = ICur;
-		}
-		friend class TDynamicVector<Type>;
+	private:
+		friend class TDynamicVector;
+		FConstIterator(const TDynamicVector* DVectorIn, int IdxIn)
+			: DVector(DVectorIn), Idx(IdxIn){}
+		const TDynamicVector* DVector{};
+		int Idx{0};
 	};
 
 	/** @return iterator at beginning of vector */
 	FConstIterator begin() const
 	{
-		return IsEmpty() ? end() : FConstIterator(this, 0);
+		return IsEmpty() ? end() : FConstIterator{this, 0};
 	}
 	/** @return iterator at end of vector */
 	FConstIterator end() const
 	{
-		return FConstIterator(this, (int)GetLength());
+		return FConstIterator{this, (int)GetLength()};
 	}
 
+private:
+	static constexpr int nShiftBits = 11;
+	static constexpr int BlockSize = 1 << nShiftBits;
+	static constexpr int BlockIndexBitmask = BlockSize - 1; // low 11 bits
+	static_assert( BlockSize && ((BlockSize & (BlockSize - 1)) == 0), "DynamicVector: BlockSize must be a power of two");
 
+	unsigned int CurBlock{0};
+	unsigned int CurBlockUsed{0};
 
+	using BlockType = TStaticArray<Type, BlockSize>;
+	TIndirectArray<BlockType> Blocks;
 };
-
-
-
-
-
 
 template <class Type, int N>
 class TDynamicVectorN
 {
 public:
-	TDynamicVectorN()
-	{
-	}
-	TDynamicVectorN(const TDynamicVectorN& Copy)
-		: Data(Copy.Data)
-	{
-	}
-	TDynamicVectorN(TDynamicVectorN&& Moved)
-		: Data(MoveTemp(Moved.Data))
-	{
-	}
-	~TDynamicVectorN()
-	{
-	}
-
-	const TDynamicVectorN& operator=(const TDynamicVectorN& Copy)
-	{
-		Data = Copy.Data;
-		return *this;
-	}
-	const TDynamicVectorN& operator=(TDynamicVectorN&& Moved)
-	{
-		Data = MoveTemp(Moved.Data);
-		return *this;
-	}
+	TDynamicVectorN() = default;
+	TDynamicVectorN(const TDynamicVectorN& Copy) = default;
+	TDynamicVectorN(TDynamicVectorN&& Moved) = default;
+	TDynamicVectorN& operator=(const TDynamicVectorN& Copy) = default;
+	TDynamicVectorN& operator=(TDynamicVectorN&& Moved) = default;
 
 	inline void Clear()
 	{
@@ -277,7 +240,6 @@ public:
 	{
 		Data.Resize(Count * N, InitValue);
 	}
-
 	inline bool IsEmpty() const
 	{
 		return Data.IsEmpty();
@@ -389,7 +351,7 @@ public:
 			Data[TopIndex * N + 3]);
 	}
 
-protected:
+private:
 	TDynamicVector<Type> Data;
 
 	friend class FIterator;
@@ -397,34 +359,12 @@ protected:
 
 template class TDynamicVectorN<double, 2>;
 
-typedef TDynamicVectorN<float, 3> TDynamicVector3f;
-typedef TDynamicVectorN<float, 2> TDynamicVector2f;
-typedef TDynamicVectorN<double, 3> TDynamicVector3d;
-typedef TDynamicVectorN<double, 2> TDynamicVector2d;
-typedef TDynamicVectorN<int, 3> TDynamicVector3i;
-typedef TDynamicVectorN<int, 2> TDynamicVector2i;
-
-
-
-
-
-template <class Type>
-const TDynamicVector<Type>& TDynamicVector<Type>::operator=(const TDynamicVector& Copy)
-{
-	Blocks = Copy.Blocks;
-	CurBlock = Copy.CurBlock;
-	CurBlockUsed = Copy.CurBlockUsed;
-	return *this;
-}
-
-template <class Type>
-const TDynamicVector<Type>& TDynamicVector<Type>::operator=(TDynamicVector&& Moved)
-{
-	Blocks = MoveTemp(Moved.Blocks);
-	CurBlock = Moved.CurBlock;
-	CurBlockUsed = Moved.CurBlockUsed;
-	return *this;
-}
+using  TDynamicVector3f = TDynamicVectorN<float, 3>;
+using  TDynamicVector2f = TDynamicVectorN<float, 2>;
+using  TDynamicVector3d = TDynamicVectorN<double, 3>;
+using  TDynamicVector2d = TDynamicVectorN<double, 2>;
+using  TDynamicVector3i = TDynamicVectorN<int, 3>;
+using  TDynamicVector2i = TDynamicVectorN<int, 2>;
 
 template <class Type>
 void TDynamicVector<Type>::Clear()

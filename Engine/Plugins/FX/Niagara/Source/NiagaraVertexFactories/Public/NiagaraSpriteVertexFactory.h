@@ -20,7 +20,6 @@ class FMaterial;
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FNiagaraSpriteUniformParameters, NIAGARAVERTEXFACTORIES_API)
 	SHADER_PARAMETER( uint32, bLocalSpace)
-	SHADER_PARAMETER_EX( FVector, CustomFacingVectorMask, EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX( FVector4, TangentSelector, EShaderPrecisionModifier::Half )
 	SHADER_PARAMETER_EX( FVector4, NormalsSphereCenter, EShaderPrecisionModifier::Half )
 	SHADER_PARAMETER_EX( FVector4, NormalsCylinderUnitDirection, EShaderPrecisionModifier::Half )
@@ -58,14 +57,29 @@ typedef TUniformBufferRef<FNiagaraSpriteUniformParameters> FNiagaraSpriteUniform
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, NIAGARAVERTEXFACTORIES_API)
 	SHADER_PARAMETER(uint32, NumCutoutVerticesPerFrame)
-	SHADER_PARAMETER(uint32, NiagaraFloatDataOffset)
 	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
 	SHADER_PARAMETER(uint32, ParticleAlignmentMode)
 	SHADER_PARAMETER(uint32, ParticleFacingMode)
 	SHADER_PARAMETER(uint32, SortedIndicesOffset)
 	SHADER_PARAMETER(uint32, IndirectArgsOffset)
 	SHADER_PARAMETER_SRV(Buffer<float2>, CutoutGeometry)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataPosition)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataVelocity)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataColor)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataRotation)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSize)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFacing)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataAlignment)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSubImage)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCameraOffset)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataUVScale)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataNormalizedAge)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialRandom)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCustomSorting)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam0)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam1)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam2)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam3)
 	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -89,8 +103,7 @@ public:
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
 		FacingMode(0),
-		FloatDataOffset(0),
-		FloatDataStride(0),		
+		FloatDataStride(0),
 		SortedIndicesOffset(0)
 	{}
 
@@ -101,7 +114,6 @@ public:
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
 		FacingMode(0),
-		FloatDataOffset(0),
 		FloatDataStride(0),
 		SortedIndicesOffset(0)
 		
@@ -149,10 +161,9 @@ public:
 	inline int32 GetNumCutoutVerticesPerFrame() const { return NumCutoutVerticesPerFrame; }
 	inline FRHIShaderResourceView* GetCutoutGeometrySRV() const { return CutoutGeometrySRV; }
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataOffset, uint32 InFloatDataStride)
+	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
 	{
 		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataOffset = InFloatDataOffset;
 		FloatDataStride = InFloatDataStride;
 	}
 
@@ -162,14 +173,9 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
+	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataOffset()
-	{
-		return FloatDataOffset;
 	}
 
 	FORCEINLINE int32 GetFloatDataStride()
@@ -177,7 +183,7 @@ public:
 		return FloatDataStride;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
 	{
 		return SortedIndicesSRV;
 	}
@@ -237,7 +243,6 @@ private:
 	
 	
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;

@@ -19,7 +19,7 @@ CORE_API void FHashTable::Resize( uint32 NewIndexSize )
 
 	if( IndexSize == 0 )
 	{
-		HashMask = HashSize - 1;
+		HashMask = (uint16)(HashSize - 1);
 		Hash = new uint32[ HashSize ];
 		FMemory::Memset( Hash, 0xff, HashSize * 4 );
 	}
@@ -43,7 +43,7 @@ CORE_API float FHashTable::AverageSearch() const
 	for( uint32 Key = 0; Key < HashSize; Key++ )
 	{
 		uint32 NumInBucket = 0;
-		for( uint32 i = First( Key ); IsValid( i ); i = Next( i ) )
+		for( uint32 i = First( (uint16)Key ); IsValid( i ); i = Next( i ) )
 		{
 			NumInBucket++;
 		}

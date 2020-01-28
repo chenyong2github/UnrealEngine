@@ -93,17 +93,9 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
-
-	/**
-	 * Hotfix 4.24.1 ( Continues the old and maybe invalid assumption that AssetImportData shouldn't be able to be null )
-	 * This will be removed in 4.25
-	 */
-	if( !StaticMeshEditor.GetStaticMesh()->AssetImportData )
-	{
-		StaticMeshEditor.GetStaticMesh()->AssetImportData = NewObject<UAssetImportData>(StaticMeshEditor.GetStaticMesh(), TEXT("AssetImportData"), RF_Transactional);
-	}
-
-	if (!StaticMeshEditor.GetStaticMesh() || !StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
+	if (!StaticMeshEditor.GetStaticMesh() || 
+		!StaticMeshEditor.GetStaticMesh()->AssetImportData ||
+		!StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
 	{
 		ImportSettings->MarkResetToDefaultCustomized();
 
@@ -2095,7 +2087,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 					.Text(LOCTEXT("CastShadow", "Cast Shadow"))
 			]
 		]
-		+SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(2,0,2,0)
 		[
@@ -2109,7 +2101,51 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
 					.Text(LOCTEXT("EnableCollision", "Enable Collision"))
 			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 2, 0)
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FMeshSectionSettingsLayout::IsSectionOpaque, SectionIndex)
+			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged, SectionIndex)
+			[
+				SNew(STextBlock)
+					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Text(LOCTEXT("ForceOpaque", "Force Opaque"))
+			]
 		];
+}
+
+ECheckBoxState FMeshSectionSettingsLayout::IsSectionOpaque( int32 SectionIndex ) const
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	return Info.bForceOpaque ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged( ECheckBoxState NewState, int32 SectionIndex )
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+
+	FText TransactionTest = LOCTEXT("StaticMeshEditorSetForceOpaqueSectionFlag", "Staticmesh editor: Set Force Opaque For section, the section will be considered opaque in ray tracing effects");
+	if (NewState == ECheckBoxState::Unchecked)
+	{
+		TransactionTest = LOCTEXT("StaticMeshEditorClearShadowCastingSectionFlag", "Staticmesh editor: Clear Force Opaque For section");
+	}
+	FScopedTransaction Transaction(TransactionTest);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		StaticMesh.PreEditChange(Property);
+	StaticMesh.Modify();
+
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	Info.bForceOpaque = (NewState == ECheckBoxState::Checked) ? true : false;
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
+	CallPostEditChange();
 }
 
 ECheckBoxState FMeshSectionSettingsLayout::DoesSectionCastShadow(int32 SectionIndex) const

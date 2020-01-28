@@ -113,6 +113,13 @@ public:
 	 */
 	virtual FOnMessageRpcNoHandler& OnNoHandler() = 0;
 
+
+	/** 
+	 * Set if the server sends progress updates
+	 * @param InSendProgress if the server send rpc progress update
+	 */
+	virtual void SetSendProgressUpdate(bool InSendProgress) = 0;
+
 public:
 
 	/**

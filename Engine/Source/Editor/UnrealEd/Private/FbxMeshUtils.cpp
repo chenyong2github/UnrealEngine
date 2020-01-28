@@ -204,6 +204,7 @@ namespace FbxMeshUtils
 					}
 
 					// Update mesh component
+					BaseStaticMesh->PostEditChange();
 					BaseStaticMesh->MarkPackageDirty();
 
 					// Import worked
@@ -366,10 +367,10 @@ namespace FbxMeshUtils
 			bool bUseLODs = true;
 			int32 MaxLODLevel = 0;
 			TArray<FString> LODStrings;
-			TArray<FbxNode*>* MeshObject = NULL;;
+			TArray<FbxNode*>* MeshObject = NULL;
 
 			//Set the build options if the BuildDat is not available so it is the same option we use to import the LOD
-			if (ImportedResource && ImportedResource->LODModels.IsValidIndex(LODLevel) && !ImportedResource->LODModels[LODLevel].RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			if (ImportedResource && ImportedResource->LODModels.IsValidIndex(LODLevel) && !SelectedSkelMesh->IsLODImportedDataBuildAvailable(LODLevel))
 			{
 				FSkeletalMeshLODInfo* LODInfo = SelectedSkelMesh->GetLODInfo(LODLevel);
 				if (LODInfo)
@@ -383,6 +384,7 @@ namespace FbxMeshUtils
 					LODInfo->BuildSettings.ThresholdPosition = ImportOptions->OverlappingThresholds.ThresholdPosition;
 					LODInfo->BuildSettings.ThresholdTangentNormal = ImportOptions->OverlappingThresholds.ThresholdTangentNormal;
 					LODInfo->BuildSettings.ThresholdUV = ImportOptions->OverlappingThresholds.ThresholdUV;
+					LODInfo->BuildSettings.MorphThresholdPosition = ImportOptions->OverlappingThresholds.MorphThresholdPosition;
 				}
 			}
 
@@ -531,6 +533,7 @@ namespace FbxMeshUtils
 					}
 
 					bSuccess = true;
+
 					// Set LOD source filename
 					SelectedSkelMesh->GetLODInfo(SelectedLOD)->SourceImportFilename = UAssetImportData::SanitizeImportFilename(Filename, nullptr);
 					SelectedSkelMesh->GetLODInfo(SelectedLOD)->bImportWithBaseMesh = false;

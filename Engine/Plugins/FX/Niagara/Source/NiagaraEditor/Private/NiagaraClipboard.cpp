@@ -136,7 +136,7 @@ const UNiagaraClipboardContent* FNiagaraClipboard::GetClipboardContent() const
 	FNiagaraClipboardContentTextObjectFactory ClipboardContentFactory;
 	if (ClipboardContentFactory.CanCreateObjectsFromText(ClipboardText))
 	{
-		ClipboardContentFactory.ProcessBuffer(GetTransientPackage(), RF_Transient, ClipboardText);
+		ClipboardContentFactory.ProcessBuffer(GetTransientPackage(), RF_Transactional, ClipboardText);
 		return ClipboardContentFactory.ClipboardContent;
 	}
 

@@ -184,7 +184,7 @@ public:
 	bool HandleTypeChar(const TCHAR InChar);
 
 	/** Called to handle a carriage return action acting on the current selection or at the cursor position */
-	bool HandleCarriageReturn();
+	bool HandleCarriageReturn(bool isRepeat);
 
 	/** Are we able to delete the currently selected text? */
 	bool CanExecuteDelete() const;

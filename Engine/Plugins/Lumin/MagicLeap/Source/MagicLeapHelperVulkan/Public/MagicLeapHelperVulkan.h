@@ -16,5 +16,5 @@ public:
 	static bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out);
 	static bool GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevice_T* pPhysicalDevice, TArray<const ANSICHAR*>& Out);
 	static bool GetMediaTexture(FTextureRHIRef& Result, FSamplerStateRHIRef& SamplerResult, const uint64 MediaTextureHandle);
-	static void AliasMediaTexture(FRHITexture* DestTexture, FRHITexture* SrcTexture);
+	static void AliasMediaTexture(FTextureRHIRef& DestTexture, FTextureRHIRef& SrcTexture);
 };

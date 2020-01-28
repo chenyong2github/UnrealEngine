@@ -19,6 +19,7 @@
 
 class ITargetPlatform;
 class UPhysicalMaterial;
+class UPhysicalMaterialMask;
 class UPrimitiveComponent;
 struct FShapeData;
 enum class EPhysXMeshCookFlags : uint8;
@@ -203,6 +204,13 @@ class UBodySetup : public UObject
 	 */
 	UPROPERTY()
 	uint8 bGenerateMirroredCollision:1;
+
+	/** 
+	 * If true, the physics triangle mesh will store UVs and the face remap table. This is needed
+	 * to support physical material masks in scene queries. 
+	 */
+	UPROPERTY()
+	uint8 bSupportUVsAndFaceRemap:1;
 
 	/** Flag used to know if we have created the physics convex and tri meshes from the cooked data yet */
 	uint8 bCreatedPhysicsMeshes:1;
@@ -394,7 +402,7 @@ public:
 	 * @param		bRemoveExisting			If true, clears any pre-existing collision
 	 * @return								true on success, false on failure because of vertex count overflow.
 	 */
-	ENGINE_API void CreateFromModel(class UModel* InModel, bool bRemoveExisting);
+	ENGINE_API bool CreateFromModel(class UModel* InModel, bool bRemoveExisting);
 
 	/**
 	 * Updates the tri mesh collision with new positions, and refits the BVH to match. 
@@ -458,7 +466,8 @@ public:
 		FBodyInstance* OwningInstance, 
 		FVector& Scale3D, 
 		UPhysicalMaterial* SimpleMaterial,
-		TArray<UPhysicalMaterial*>& ComplexMaterials, 
+		TArray<UPhysicalMaterial*>& ComplexMaterials,
+		TArray<FPhysicalMaterialMaskParams>& ComplexMaterialMasks,
 		const FBodyCollisionData& BodyCollisionData,
 		const FTransform& RelativeTM = FTransform::Identity, 
 		TArray<FPhysicsShapeHandle>* NewShapes = NULL);

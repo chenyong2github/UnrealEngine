@@ -43,6 +43,8 @@ void MainCS(
 	// Top left input texel for this group.
 	uint2 LeftTop = Input_ViewportMin + DispatchThreadId.xy * TileSize;
 
+	float2 InvViewSize = Input_ViewportSizeInverse.xy;
+
 	// Accumulate all pixels into THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms
 	LOOP for (uint y = 0; y < LOOP_SIZEY; ++y)
 	{
@@ -57,26 +59,32 @@ void MainCS(
 #if USE_PREEXPOSURE
 				SceneColor.xyz *= View.OneOverPreExposure;
 #endif
-				float LuminanceVal = max(SceneColor.r, max(SceneColor.g, SceneColor.b));
+				float LuminanceVal = max(dot(SceneColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+
 				float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
-			
+				float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
+				float ScreenWeight = AdaptationWeightTexture(ScreenUV);
+
 				// Map the normalized histogram position into texels.
-				float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE - 1) * 0.9999f;
+				float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE-1);// * 0.9999f;
 
 				// Find two discrete buckets that straddle the continuous histogram position.
 				uint Bucket0 = (uint)(fBucket);
 				uint Bucket1 = Bucket0 + 1;
+
+				Bucket0 = min(Bucket0, uint(HISTOGRAM_SIZE - 1));
+				Bucket1 = min(Bucket1, uint(HISTOGRAM_SIZE - 1));
 
 				// Weighted blend between the two buckets.
 				float Weight1 = frac(fBucket);
 				float Weight0 = 1.0f - Weight1;
 			
 				// Accumulate the weight to the nearby history buckets.
-				if (Bucket0 != 0) // Ignore entirely black pixels.
+				if (Bucket0 != 0)
 				{
-					SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0;
+					SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0 * ScreenWeight;
 				}
-				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1;
+				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1 * ScreenWeight;
 			}
 		}
 	}
@@ -100,10 +108,10 @@ void MainCS(
 			}
 		}
 
-		float2 MaxExtent = float2(THREADGROUP_SIZEX * LOOP_SIZEX, THREADGROUP_SIZEY * LOOP_SIZEY);
+		float2 MaxExtent = Input_ViewportSize;
 		float Area = MaxExtent.x * MaxExtent.y;
 	
-		// Doesn't take borders into account but the error should be minor
+		// Fixed to include borders.
 		float NormalizeFactor = 1.0f / Area;
 
 		// Output texture with one histogram per line, x and y unwrapped into all the lines

@@ -1012,20 +1012,23 @@ void SScrollBox::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const
 
 TSharedPtr<SWidget> SScrollBox::GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget)
 {
-	if (InWidget->SupportsKeyboardFocus() && EVisibility::DoesVisibilityPassFilter(InWidget->GetVisibility(), EVisibility::Visible))
+	if (EVisibility::DoesVisibilityPassFilter(InWidget->GetVisibility(), EVisibility::Visible))
 	{
-		return InWidget;
-	}
-	else
-	{
-		FChildren* Children = InWidget->GetChildren();
-		for (int32 i = 0; i < Children->Num(); ++i)
+		if (InWidget->SupportsKeyboardFocus())
 		{
-			TSharedPtr<SWidget> ChildWidget = Children->GetChildAt(i);
-			TSharedPtr<SWidget> FoucusableWidget = GetKeyboardFocusableWidget(ChildWidget);
-			if (FoucusableWidget.IsValid() && EVisibility::DoesVisibilityPassFilter(FoucusableWidget->GetVisibility(), EVisibility::Visible))
+			return InWidget;
+		}
+		else
+		{
+			FChildren* Children = InWidget->GetChildren();
+			for (int32 i = 0; i < Children->Num(); ++i)
 			{
-				return FoucusableWidget;
+				TSharedPtr<SWidget> ChildWidget = Children->GetChildAt(i);
+				TSharedPtr<SWidget> FoucusableWidget = GetKeyboardFocusableWidget(ChildWidget);
+				if (FoucusableWidget.IsValid() && EVisibility::DoesVisibilityPassFilter(FoucusableWidget->GetVisibility(), EVisibility::Visible))
+				{
+					return FoucusableWidget;
+				}
 			}
 		}
 	}

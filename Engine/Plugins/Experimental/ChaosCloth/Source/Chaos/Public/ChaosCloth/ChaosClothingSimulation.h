@@ -13,6 +13,7 @@
 namespace Chaos
 {
 	typedef FClothingSimulationContextCommon ClothingSimulationContext;
+	template<class T, int d> class TPBDLongRangeConstraintsBase;
 
 	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
@@ -50,6 +51,8 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
 
 	protected:
@@ -94,8 +97,8 @@ namespace Chaos
 		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset);
 		// Add collisions from a ClothCollisionData structure
 		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
-		// Update the collision transforms using the specified context
-		void UpdateCollisionTransforms(const ClothingSimulationContext& Context);
+		// Update the collision transforms using the specified context, also update old collision if bReinit is true
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit);
 		// Return the correct bone index based on the asset used bone index array
 		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
 		{
@@ -126,6 +129,7 @@ namespace Chaos
 
 		// Sim Data
 		TArray<Chaos::TVector<uint32, 2>> IndexToRangeMap;
+		TArray<FTransform> RootBoneWorldTransforms;  // Used for teleportation
 
 		TArray<TUniquePtr<Chaos::TTriangleMesh<float>>> Meshes;
 		mutable TArray<TArray<Chaos::TVector<float, 3>>> FaceNormals;
@@ -138,7 +142,11 @@ namespace Chaos
 		float Time;
 		float DeltaTime;
 
+		bool bOverrideGravity;
 		FVector Gravity;
+		FVector WindVelocity;
+
+		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
 #if WITH_EDITOR
 		// Visualization material

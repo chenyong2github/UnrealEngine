@@ -21,7 +21,7 @@ namespace GizmoMath
 	INTERACTIVETOOLSFRAMEWORK_API FVector ProjectPointOntoLine(
 		const FVector& Point,
 		const FVector& LineOrigin, const FVector& LineDirection);
-	
+
 	/**
 	 * Find the nearest point to QueryPoint on the line defined by LineOrigin and LineDirection.
 	 * Returns this point and the associated line-equation parameter
@@ -100,4 +100,19 @@ namespace GizmoMath
 		const FVector& Point,
 		const FVector& PlaneOrigin, const FVector& PlaneNormal,
 		const FVector& PlaneAxis1, const FVector& PlaneAxis2);
+
+	/**
+	 * Project the input Point onto the plane defined by PlaneOrigin and PlaneNormal,
+	 * @return Nearest position to Point lying in the plane
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API FVector ProjectPointOntoPlane(
+		const FVector& Point,
+		const FVector& PlaneOrigin, const FVector& PlaneNormal);
+
+
+	/**
+	 * Round Value to nearest step of Increment
+	 * @return snapped/rounded value
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API float SnapToIncrement(float Value, float Increment);
 }

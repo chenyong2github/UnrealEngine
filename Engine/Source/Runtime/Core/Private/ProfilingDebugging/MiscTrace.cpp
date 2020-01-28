@@ -129,7 +129,7 @@ void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
 	uint8 Buffer[9];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
-	uint16 BufferSize = BufferPtr - Buffer;
+	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
 	if (FrameType == TraceFrameType_Game)
 	{
 		UE_TRACE_LOG(Misc, BeginGameFrame, BufferSize)
@@ -150,7 +150,7 @@ void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 	uint8 Buffer[9];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
-	uint16 BufferSize = BufferPtr - Buffer;
+	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
 	if (FrameType == TraceFrameType_Game)
 	{
 		UE_TRACE_LOG(Misc, EndGameFrame, BufferSize)

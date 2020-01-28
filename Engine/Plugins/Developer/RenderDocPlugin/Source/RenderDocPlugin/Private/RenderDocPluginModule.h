@@ -44,6 +44,12 @@ private:
 
 	void ShowNotification(const FText& Message, bool bForceNewNotification);
 
+	/** Bind/Unbind RenderDoc to CaptureInterface for capturing single draw calls or render passes */
+	void BeginCaptureBracket(FRHICommandListImmediate* RHICommandList);
+	void EndCaptureBracket(FRHICommandListImmediate* RHICommandList);
+	void BindCaptureCallbacks();
+	void UnBindCaptureCallbacks();
+
 private:
 	FRenderDocPluginLoader Loader;
 	FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI;

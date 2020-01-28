@@ -39,6 +39,7 @@ public:
 	void WriteValue(double Value);
 	void WriteValue(const FString& Value);
 	void WriteValue(const char* CString, uint64 Length);
+	void WriteValue(const uint8* Bytes, uint64 Length);
 
 private:
 	/** Write a uint Value for Header in Ar and return the final generated cbor Header. */

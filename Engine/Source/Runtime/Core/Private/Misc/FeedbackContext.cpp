@@ -59,9 +59,9 @@ void FFeedbackContext::UpdateProgress( int32 Numerator, int32 Denominator )
 
 	if (LegacyAPIScopes.Num() != 0)
 	{
-		LegacyAPIScopes.Last()->TotalAmountOfWork = Denominator;
-		LegacyAPIScopes.Last()->CompletedWork = Numerator;
-		LegacyAPIScopes.Last()->CurrentFrameScope = Denominator - Numerator;
+		LegacyAPIScopes.Last()->TotalAmountOfWork = (float)Denominator;
+		LegacyAPIScopes.Last()->CompletedWork = (float)Numerator;
+		LegacyAPIScopes.Last()->CurrentFrameScope = (float)(Denominator - Numerator);
 		RequestUpdateUI();
 	}
 }

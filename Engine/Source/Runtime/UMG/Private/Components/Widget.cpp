@@ -455,7 +455,7 @@ void UWidget::SetKeyboardFocus()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if ( !SafeWidget->SupportsKeyboardFocus() )
 		{
-			FMessageLog("PIE").Warning(LOCTEXT("ThisWidgetDoesntSupportFocus", "This widget does not support focus.  If this is a UserWidget, you should set bIsFocusable to true."));
+			FMessageLog("PIE").Warning(FText::Format(LOCTEXT("ThisWidgetDoesntSupportFocus", "The widget {0} does not support focus. If this is a UserWidget, you should set bIsFocusable to true."), FText::FromString(GetNameSafe(this))));
 		}
 #endif
 

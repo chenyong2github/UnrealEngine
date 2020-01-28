@@ -445,8 +445,11 @@ void FDisasterRecoveryFSM::DisplayRecoveryUI()
 		.OperationColumnVisibility(EVisibility::Visible)
 		.PackageColumnVisibility(EVisibility::Visible)
 		.DetailsAreaVisibility(ShouldDisplayActivityDetails() ? EVisibility::Visible : EVisibility::Collapsed)
-		.IsConnectionActivityFilteringEnabled(false) // For disaster recovery, connection and lock events are meaningless, don't show the filtering options.
-		.IsLockActivityFilteringEnabled(false);
+		.IsConnectionActivityFilteringEnabled(false) // Not valuable and ignored by Disaster Recovery (DR). DR sessions are for the local user only and join/leave are not recoverable but this will also ignore when the local user joins/leaves a Multi-User session.
+		.IsLockActivityFilteringEnabled(false)       // Not valuable and ignored by Disaster Recovery (DR). DR sessions are for the local user only but lock/unlock are not recoverable but this will also ignore when the local user locks/unlocks assets in a Multi-User session.
+		.IsPackageActivityFilteringEnabled(true)     // Enabled and displayed by default.
+		.IsTransactionActivityFilteringEnabled(true) // Enabled and displayed by default.
+		.IsIgnoredActivityFilteringEnabled(true);    // Events ignored when restoring and not displayed by default. Enabled to inspect Multi-User transaction/package activities recorded (but not recoverable) by disaster recovery session in case the crash occurred during the Multi-User session.
 
 	NewWindow->SetContent(RecoveryWidget);
 	FSlateApplication::Get().AddModalWindow(NewWindow, nullptr);

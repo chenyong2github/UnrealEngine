@@ -508,7 +508,19 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 				{
 					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, SpawnBuffer->GetBufferTexCoordSRV());
 				}
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, SpawnBuffer->GetBufferColorSRV());
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+				}
+
+				if(SpawnBuffer->GetBufferColorSRV())
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, SpawnBuffer->GetBufferColorSRV());
+				}
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+				}
 
 				check(SpawnBuffer); // should always be allocated, we always need the GPU buffer for a GpuSimulation.
 				SetShaderValue(RHICmdList, ComputeShaderRHI, SectionCount, SpawnBuffer->GetValidSectionCount());
@@ -516,6 +528,10 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 				if (Data->bIsGpuUniformlyDistributedSampling)
 				{
 					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, SpawnBuffer->GetBufferUniformTriangleSamplingSRV());
+				}
+				else
+				{
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
 				}
 
 				const float InvDeltaTime = Data->DeltaSeconds > 0.0f ? 1.0f / Data->DeltaSeconds : 0.0f;
@@ -574,53 +590,20 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraDataInterfaceProxyStaticMesh::DeferredDestroy()
-{
-	//-TODO: This is incorrect, we could be destroying instance data for a batcher is yet to tick, we should only be destroying data for this batcher!
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToMeshData.Remove(Sys);
-		//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - DeferredDestroy %s"), *Sys.ToString());
-	}
-
-	DeferredDestroyList.Empty();
-}
-
 void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FStaticMeshGpuSpawnBuffer* MeshGPUSpawnBuffer)
 {
 	check(IsInRenderingThread());
+	check(!SystemInstancesToMeshData.Contains(SystemInstance));
 
-	FNiagaraStaticMeshData* Data = SystemInstancesToMeshData.Find(SystemInstance);
-	if (Data != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		Data = &SystemInstancesToMeshData.Add(SystemInstance);
-	}
-	//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - InitializePerInstanceData %s"), *SystemInstance.ToString());
-
-	// @todo-threadsafety We should not ever see this case! Though it's not really an error...
-	if (Data->MeshGpuSpawnBuffer)
-	{
-		Data->MeshGpuSpawnBuffer->ReleaseResource();
-		delete Data->MeshGpuSpawnBuffer;
-	}
-
-	Data->MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
+	FNiagaraStaticMeshData& Data = SystemInstancesToMeshData.Add(SystemInstance);
+	Data.MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
 }
 
 void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-
-	//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - DestroyPerInstanceData %s"), *SystemInstance.ToString());
-
-	// @todo-threadsafety verify this destroys the MeshGPUSpawnBuffer data. This thread owns it now.
-	//SystemInstancesToMeshData.Remove(SystemInstance);
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	//check(SystemInstancesToMeshData.Contains(SystemInstance));
+	SystemInstancesToMeshData.Remove(SystemInstance);
 }
 
 void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
@@ -655,7 +638,7 @@ UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitiali
 	//, bSupportingVertexColorSampling(0)//Vertex color filtering needs some more work.
 	//, bFilterInitialized(false)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyStaticMesh, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyStaticMesh());
 }
 
 void UNiagaraDataInterfaceStaticMesh::PostInitProperties()
@@ -1915,7 +1898,7 @@ void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* 
 	DefaultMesh = MeshToUse;
 }
 
-bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIStaticMeshParametersName ParamNames;
 	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
@@ -1923,7 +1906,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 	FString MeshTriCoordinateStructName = "MeshTriCoordinate";
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
-		{TEXT("InstanceFunctionName"), InstanceFunctionName},
+		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
 		{TEXT("MeshTriCoordinateStructName"), MeshTriCoordinateStructName},
 		{TEXT("SectionCountName"), ParamNames.SectionCountName},
 		{TEXT("MeshSectionBufferName"), ParamNames.MeshSectionBufferName},
@@ -1942,7 +1925,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		{TEXT("NumTexCoordName"), ParamNames.NumTexCoordName},
 	};
 
-	if (DefinitionFunctionName == StaticMeshHelpers::RandomSectionName)
+	if (FunctionInfo.DefinitionName == StaticMeshHelpers::RandomSectionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (out int Out_Section)
@@ -1963,7 +1946,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::RandomTriCoordName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::RandomTriCoordName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (out {MeshTriCoordinateStructName} Out_Coord)
@@ -2015,10 +1998,10 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	//else if (DefinitionFunctionName == StaticMeshHelpers::RandomTriCoordVCFilteredName)
+	//else if (FunctionInfo.DefinitionName == StaticMeshHelpers::RandomTriCoordVCFilteredName)
 	//{
 	//}
-	else if (DefinitionFunctionName == StaticMeshHelpers::RandomTriCoordOnSectionName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::RandomTriCoordOnSectionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int In_Section, out {MeshTriCoordinateStructName} Out_Coord)
@@ -2060,7 +2043,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriPositionName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Position)
@@ -2079,7 +2062,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriPositionWSName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriPositionWSName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Position)
@@ -2100,7 +2083,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriNormalName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriNormalName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Normal)
@@ -2121,7 +2104,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriNormalWSName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriNormalWSName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Normal)
@@ -2142,7 +2125,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriTangentsName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriTangentsName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Tangent, out float3 Out_Binormal, out float3 Out_Normal)
@@ -2170,7 +2153,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriTangentsWSName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriTangentsWSName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Tangent, out float3 Out_Binormal, out float3 Out_Normal)
@@ -2206,7 +2189,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriColorName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriColorName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float4 Out_Color)
@@ -2225,7 +2208,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriUVName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriUVName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, in int In_UVSet, out float2 Out_UV)
@@ -2253,7 +2236,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetTriPositionAndVelocityName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetTriPositionAndVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float3 Out_Position, out float3 Out_Velocity)
@@ -2279,7 +2262,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetMeshLocalToWorldName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetMeshLocalToWorldName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (out float4x4 Out_Transform)
@@ -2289,7 +2272,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetMeshLocalToWorldInverseTransposedName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetMeshLocalToWorldInverseTransposedName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (out float4x4 Out_Transform)
@@ -2299,7 +2282,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetMeshWorldVelocityName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetMeshWorldVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (out float3 Out_Velocity)
@@ -2309,7 +2292,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetVertexPositionName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetVertexPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int VertexIndex, out float3 Out_Position)
@@ -2320,7 +2303,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
-	else if (DefinitionFunctionName == StaticMeshHelpers::GetVertexPositionWSName)
+	else if (FunctionInfo.DefinitionName == StaticMeshHelpers::GetVertexPositionWSName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int VertexIndex, out float3 Out_Position)
@@ -2342,7 +2325,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 	return true;
 }
 
-void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	FNDIStaticMeshParametersName ParamNames;
 	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
@@ -2488,4 +2471,3 @@ void FNDI_StaticMesh_GeneratedData::CleanupDynamicColorFilterData()
 }
 
 #undef LOCTEXT_NAMESPACE
-

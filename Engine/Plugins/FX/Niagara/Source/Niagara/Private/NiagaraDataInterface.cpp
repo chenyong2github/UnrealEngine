@@ -29,6 +29,12 @@ UNiagaraDataInterface::~UNiagaraDataInterface()
 	}
 }
 
+bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+
+	return true;
+}
+
 void UNiagaraDataInterface::PostLoad()
 {
 	Super::PostLoad();
@@ -98,3 +104,4 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

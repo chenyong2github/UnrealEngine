@@ -102,7 +102,7 @@ enum class ENiagaraDataSetType : uint8
 UENUM()
 enum class ENiagaraInputNodeUsage : uint8
 {
-	Undefined = 0,
+	Undefined = 0 UMETA(Hidden),
 	Parameter,
 	Attribute,
 	SystemConstant,
@@ -132,11 +132,6 @@ enum class ENiagaraScriptCompileStatus : uint8
 	NCS_ComputeUpToDateWithWarnings,
 	NCS_MAX,
 };
-
-FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
-{
-	return RHISupportsComputeShaders(ShaderPlatform);
-}
 
 USTRUCT()
 struct FNiagaraDataSetID
@@ -259,6 +254,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** Is this function experimental? */
 	UPROPERTY()
 	uint32 bExperimental : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** The message to display when a function is marked experimental. */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true, SkipForCompileHash = true))
+	FText ExperimentalMessage;
+#endif
+
 	/** Support running on the CPU. */
 	UPROPERTY()
 	uint32 bSupportsCPU : 1;
@@ -272,7 +274,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = true))
 	FText Description;
 #endif
 
@@ -729,17 +731,18 @@ namespace FNiagaraUtilities
 		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1);
 	}
 
-	inline bool SupportsGPUParticles(ERHIFeatureLevel::Type FeatureLevel)
-	{
-		EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		return NiagaraSupportsComputeShaders(ShaderPlatform);
-	}
-
+	// Whether the platform supports GPU particles. A static function that doesn't not rely on any runtime switches.
 	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
 	{
-		return NiagaraSupportsComputeShaders(ShaderPlatform);
+		return RHISupportsComputeShaders(ShaderPlatform);
 	}
 
+	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.
+	bool AllowGPUParticles(EShaderPlatform ShaderPlatform);
+
+	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
+	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
+	
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Prepares rapid iteration parameter stores for simulation by removing old parameters no longer used by functions, by initializing new parameters

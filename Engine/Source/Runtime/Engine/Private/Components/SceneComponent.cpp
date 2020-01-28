@@ -33,6 +33,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 #define LOCTEXT_NAMESPACE "SceneComponent"
 
@@ -2765,19 +2766,13 @@ bool USceneComponent::InternalSetWorldLocationAndRotation(FVector NewLocation, c
 			RelativeRotationCache.RotatorToQuat(NewRelativeRotation);
 		}
 
-
 #if ENABLE_NAN_DIAGNOSTIC
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (RelativeRotation.ContainsNaN())
+		if (GetRelativeRotation().ContainsNaN())
 		{
-			logOrEnsureNanError(TEXT("USceneComponent:InternalSetWorldLocationAndRotation found NaN in RelativeRotation: %s"), *RelativeRotation.ToString());
-			RelativeRotation = FRotator::ZeroRotator;
-			// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeRotation, this);
+			logOrEnsureNanError(TEXT("USceneComponent:InternalSetWorldLocationAndRotation found NaN in RelativeRotation: %s"), *GetRelativeRotation().ToString());
+			SetRelativeRotation_Direct(FRotator::ZeroRotator);
 		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
-
-
 		UpdateComponentToWorldWithParent(GetAttachParent(),GetAttachSocketName(), SkipPhysicsToEnum(bNoPhysics), RelativeRotationCache.GetCachedQuat(), Teleport);
 
 		// we need to call this even if this component itself is not navigation relevant
@@ -2926,7 +2921,7 @@ bool USceneComponent::ShouldRender() const
 
 #if !UE_BUILD_SHIPPING
 	// If we want to create render state even for hidden components, return true here
-	if (World && World->bCreateRenderStateForHiddenComponents)
+	if (World && World->bCreateRenderStateForHiddenComponentsWithCollsion && IsCollisionEnabled())
 	{
 		return true;
 	}
@@ -3292,25 +3287,22 @@ void USceneComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DOREPLIFETIME(USceneComponent, bAbsoluteLocation);
-	DOREPLIFETIME(USceneComponent, bAbsoluteRotation);
-	DOREPLIFETIME(USceneComponent, bAbsoluteScale);
-	DOREPLIFETIME(USceneComponent, bVisible);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
 
-	DOREPLIFETIME(USceneComponent, bShouldBeAttached);
-	DOREPLIFETIME(USceneComponent, bShouldSnapLocationWhenAttached);
-	DOREPLIFETIME(USceneComponent, bShouldSnapRotationWhenAttached);
-	DOREPLIFETIME(USceneComponent, AttachParent);
-	DOREPLIFETIME(USceneComponent, AttachChildren);
-	DOREPLIFETIME(USceneComponent, AttachSocketName);
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DOREPLIFETIME(USceneComponent, RelativeLocation);
-	DOREPLIFETIME(USceneComponent, RelativeRotation);
-	DOREPLIFETIME(USceneComponent, RelativeScale3D);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteLocation, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteRotation, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteScale, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bVisible, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bShouldBeAttached, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bShouldSnapLocationWhenAttached, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bShouldSnapRotationWhenAttached, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachParent, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachChildren, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachSocketName, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeLocation, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeRotation, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeScale3D, SharedParams);
 }
 
 #if WITH_EDITOR
@@ -3844,14 +3836,14 @@ void USceneComponent::SetVisibleFlag(const bool bNewVisible)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bVisible = bNewVisible;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bVisible, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bVisible, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FVector& USceneComponent::GetRelativeLocation_DirectMutable()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeLocation, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeLocation, this);
 	return RelativeLocation;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -3864,7 +3856,7 @@ void USceneComponent::SetRelativeLocation_Direct(const FVector NewRelativeLocati
 FRotator& USceneComponent::GetRelativeRotation_DirectMutable()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeRotation, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeRotation, this);
 	return RelativeRotation;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -3877,7 +3869,7 @@ void USceneComponent::SetRelativeRotation_Direct(const FRotator NewRelativeRotat
 FVector& USceneComponent::GetRelativeScale3D_DirectMutable()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeScale3D, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeScale3D, this);
 	return RelativeScale3D;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -3891,7 +3883,7 @@ void USceneComponent::SetUsingAbsoluteLocation(bool bInAbsoluteLocation)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteLocation = bInAbsoluteLocation;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteLocation, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteLocation, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -3899,7 +3891,7 @@ void USceneComponent::SetUsingAbsoluteRotation(bool bInAbsoluteRotation)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteRotation = bInAbsoluteRotation;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteRotation, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteRotation, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -3907,7 +3899,7 @@ void USceneComponent::SetUsingAbsoluteScale(bool bInAbsoluteScale)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteScale = bInAbsoluteScale;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteScale, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteScale, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -3915,7 +3907,7 @@ void USceneComponent::SetAttachParent(USceneComponent* NewAttachParent)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AttachParent = NewAttachParent;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachParent, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachParent, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -3923,13 +3915,13 @@ void USceneComponent::SetAttachSocketName(FName NewSocketName)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AttachSocketName = NewSocketName;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachSocketName, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachSocketName, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::ModifiedAttachChildren()
 {
-	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachChildren, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachChildren, this);
 }
 
 #undef LOCTEXT_NAMESPACE

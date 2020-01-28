@@ -97,7 +97,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshOperatorFactory : public UOb
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UPolygonOnMeshTool *Tool;
@@ -179,5 +179,5 @@ protected:
 
 	virtual void SetPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
 
-	void GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results);
+	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

@@ -108,7 +108,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	return true;
 }
 
-void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
+bool UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 {
 	if ( bRemoveExisting )
 	{
@@ -117,10 +117,12 @@ void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 
 	const int32 NumHullsAtStart = AggGeom.ConvexElems.Num();
 	
+	bool bSuccess = false;
+
 	if( InModel != NULL && InModel->Nodes.Num() > 0)
 	{
 		TArray<FPlane>	Planes;
-		bool bSuccess = ModelToHullsWorker(&AggGeom, InModel, 0, InModel->RootOutside, Planes);
+		bSuccess = ModelToHullsWorker(&AggGeom, InModel, 0, InModel->RootOutside, Planes);
 		if ( !bSuccess )
 		{
 			// ModelToHullsWorker failed.  Clear out anything that may have been created.
@@ -130,6 +132,7 @@ void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 
 	// Create new GUID
 	InvalidatePhysicsData();
+	return bSuccess;
 }
 
 //////////////////////////////////////////////////////////////////////////

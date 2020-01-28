@@ -27,6 +27,7 @@ class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
 struct FNiagaraScriptHighlight;
 class FNiagaraClipboard;
+class FHlslNiagaraCompiler;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -60,8 +61,9 @@ public:
 	/** Get the instance of this module. */
 	NIAGARAEDITOR_API static FNiagaraEditorModule& Get();
 
-	/** Compile the specified script. */
-	virtual TSharedPtr<FNiagaraVMExecutableData> CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions);
+	/** Start the compilation of the specified script. */
+	virtual int32 CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions);
+	virtual TSharedPtr<FNiagaraVMExecutableData> GetCompilationResult(int32 JobID, bool bWait);
 
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* Obj);
 
@@ -131,6 +133,7 @@ private:
 	}
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
+	void ReinitializeStyle();
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -155,6 +158,7 @@ private:
 	FDelegateHandle CreateColorParameterTrackEditorHandle;
 
 	FDelegateHandle ScriptCompilerHandle;
+	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
 
 	USequencerSettings* SequencerSettings;
@@ -181,4 +185,8 @@ private:
 	bool bThumbnailRenderersRegistered;
 
 	TSharedRef<FNiagaraClipboard> Clipboard;
+
+	IConsoleCommand* ReinitializeStyleCommand;
+
+	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
 };

@@ -16,57 +16,59 @@ FRigUnit_TransformConstraint_Execute()
 	{
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
-
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
-		if (Hierarchy)
-		{
-			int32 BoneIndex = Hierarchy->GetIndex(Bone);
-			if (BoneIndex != INDEX_NONE)
-			{
-				const int32 TargetNum = Targets.Num();
-				if (TargetNum > 0)
-				{
-					const FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
-					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-						(*Hierarchy)[BoneIndex].ParentName, BaseBone, BaseTransform);
-					for (int32 TargetIndex = 0; TargetIndex < TargetNum; ++TargetIndex)
-					{
-						// talk to Rob about the implication of support both of this
-						const bool bTranslationFilterValid = Targets[TargetIndex].Filter.TranslationFilter.IsValid();
-						const bool bRotationFilterValid = Targets[TargetIndex].Filter.RotationFilter.IsValid();
-						const bool bScaleFilterValid = Targets[TargetIndex].Filter.ScaleFilter.IsValid();
-
-						if (bTranslationFilterValid && bRotationFilterValid && bScaleFilterValid)
-						{
-							AddConstraintData(Targets, ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
-						}
-						else
-						{
-							if (bTranslationFilterValid)
-							{
-								AddConstraintData(Targets, ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
-							}
-
-							if (bRotationFilterValid)
-							{
-								AddConstraintData(Targets, ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
-							}
-
-							if (bScaleFilterValid)
-							{
-								AddConstraintData(Targets, ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
 		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 		if (Hierarchy)
 		{
+			if (ConstraintData.Num() != Targets.Num())
+			{
+				ConstraintData.Reset();
+				ConstraintDataToTargets.Reset();
+
+				int32 BoneIndex = Hierarchy->GetIndex(Bone);
+				if (BoneIndex != INDEX_NONE)
+				{
+					const int32 TargetNum = Targets.Num();
+					if (TargetNum > 0)
+					{
+						const FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
+						FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
+							(*Hierarchy)[BoneIndex].ParentName, BaseBone, BaseTransform);
+						for (int32 TargetIndex = 0; TargetIndex < TargetNum; ++TargetIndex)
+						{
+							// talk to Rob about the implication of support both of this
+							const bool bTranslationFilterValid = Targets[TargetIndex].Filter.TranslationFilter.IsValid();
+							const bool bRotationFilterValid = Targets[TargetIndex].Filter.RotationFilter.IsValid();
+							const bool bScaleFilterValid = Targets[TargetIndex].Filter.ScaleFilter.IsValid();
+
+							if (bTranslationFilterValid && bRotationFilterValid && bScaleFilterValid)
+							{
+								AddConstraintData(Targets, ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+							}
+							else
+							{
+								if (bTranslationFilterValid)
+								{
+									AddConstraintData(Targets, ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								}
+
+								if (bRotationFilterValid)
+								{
+									AddConstraintData(Targets, ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								}
+
+								if (bScaleFilterValid)
+								{
+									AddConstraintData(Targets, ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								}
+							}
+						}
+					}
+				}
+			}
+
 			int32 BoneIndex = Hierarchy->GetIndex(Bone);
 			if (BoneIndex != INDEX_NONE)
 			{

@@ -77,6 +77,8 @@ private:
 	static TOptional< FTlsSlot > ActiveAllocatorsStackTLS;
 
 	static TSet< void* > SystemAllocedPtrs;
+
+	static FCriticalSection CriticalSection;
 };
 
 /**

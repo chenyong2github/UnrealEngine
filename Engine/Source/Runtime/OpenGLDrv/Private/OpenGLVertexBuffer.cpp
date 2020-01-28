@@ -253,12 +253,7 @@ void FOpenGLDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, F
 
 FStagingBufferRHIRef FOpenGLDynamicRHI::RHICreateStagingBuffer()
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	return new FOpenGLStagingBuffer();
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Staging Buffers are only available in OpenGL3 or later"));
-	return nullptr;
-#endif
 }
 
 void FOpenGLStagingBuffer::Initialize()
@@ -285,7 +280,6 @@ FOpenGLStagingBuffer::~FOpenGLStagingBuffer()
 // I don't see a way to do this without stalling the RHI thread.
 void* FOpenGLStagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
@@ -297,28 +291,20 @@ void* FOpenGLStagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 	return reinterpret_cast<uint8*>(Mapping) + Offset;
 
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(void*);
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Staging Buffers are only available in OpenGL3 or later"));
-	return nullptr;
-#endif
 }
 
 // Unfortunately I think we have to stall the RHI thread here as well to play nice with OpenGL.
 // Since this will probably be close to a call to lock we've probably paid most of the cost already.
 void FOpenGLStagingBuffer::Unlock()
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	FOpenGL::UnmapBuffer(GL_COPY_WRITE_BUFFER);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 	RHITHREAD_GLCOMMAND_EPILOGUE();
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Staging Buffers are only available in OpenGL3 or later"));
-#endif
 }
 
-void* FOpenGLDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
+void* FOpenGLDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 {
 	FOpenGLStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	return Buffer->Lock(Offset, SizeRHI);	
@@ -328,14 +314,4 @@ void FOpenGLDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	FOpenGLStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	Buffer->Unlock();
-}
-
-void* FOpenGLDynamicRHI::LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
-{
-	return RHILockStagingBuffer(StagingBuffer, Offset, SizeRHI);
-}
-
-void FOpenGLDynamicRHI::UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer)
-{
-	RHIUnlockStagingBuffer(StagingBuffer);
 }

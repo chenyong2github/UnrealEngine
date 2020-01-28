@@ -14,25 +14,29 @@
 #include "PaintModeSettings.h"
 
 #include "Modules/ModuleManager.h"
+#include "Settings/LevelEditorMiscSettings.h"
 
 IMPLEMENT_MODULE(FMeshPaintModeModule, MeshPaintMode );
 
 void FMeshPaintModeModule::StartupModule()
 {
-	FEditorModeRegistry::Get().RegisterMode<FEdModeMeshPaint>(
-		FBuiltinEditorModes::EM_MeshPaint,
-		NSLOCTEXT("MeshPaint_Mode", "MeshPaint_ModeName", "Paint"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
-		true, 200 );
+	if (GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyMeshPaintMode)
+	{
+		FEditorModeRegistry::Get().RegisterMode<FEdModeMeshPaint>(
+			FBuiltinEditorModes::EM_MeshPaint,
+			NSLOCTEXT("MeshPaint_Mode", "MeshPaint_ModeName", "Mesh Paint"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
+			true, 200);
 
-	/** Register detail/property customization */
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout("PaintModeSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FPaintModeSettingsCustomization::MakeInstance));
-	PropertyModule.RegisterCustomPropertyTypeLayout("VertexPaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVertexPaintSettingsCustomization::MakeInstance));
-	PropertyModule.RegisterCustomPropertyTypeLayout("TexturePaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTexturePaintSettingsCustomization::MakeInstance));
-	PropertyModule.RegisterCustomPropertyTypeLayout("TexturePaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTexturePaintSettingsCustomization::MakeInstance));
+		/** Register detail/property customization */
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout("PaintModeSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FPaintModeSettingsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout("VertexPaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVertexPaintSettingsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout("TexturePaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTexturePaintSettingsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout("TexturePaintSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTexturePaintSettingsCustomization::MakeInstance));
 
-	FModuleManager::Get().LoadModule("MeshPaint");
+		FModuleManager::Get().LoadModule("MeshPaint");
+	}
 }
 
 void FMeshPaintModeModule::ShutdownModule()

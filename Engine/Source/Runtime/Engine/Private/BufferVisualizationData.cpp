@@ -4,6 +4,8 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 
+#define LOCTEXT_NAMESPACE "FBufferVisualizationData"
+
 static FBufferVisualizationData GBufferVisualizationData;
 
 static TAutoConsoleVariable<int32> BufferVisualizationDumpFramesAsHDR(
@@ -29,6 +31,7 @@ void FBufferVisualizationData::Initialize()
 		if (AllowDebugViewmodes())
 		{
 			check(MaterialMap.Num() == 0);
+			check(MaterialMapFromMaterialName.Num() == 0);
 
 			FConfigSection* MaterialSection = GConfig->GetSectionPrivate( TEXT("Engine.BufferVisualizationMaterials"), false, true, GEngineIni );
 
@@ -39,7 +42,7 @@ void FBufferVisualizationData::Initialize()
 					FString MaterialName;
 					if( FParse::Value( *It.Value().GetValue(), TEXT("Material="), MaterialName, true ) )
 					{
-						UMaterial* Material = LoadObject<UMaterial>(NULL, *MaterialName);
+						UMaterialInterface* Material = LoadObject<UMaterialInterface>(NULL, *MaterialName);
 			
 						if (Material)
 						{
@@ -50,6 +53,7 @@ void FBufferVisualizationData::Initialize()
 							FText DisplayName;
 							FParse::Value( *It.Value().GetValue(), TEXT("Name="), DisplayName, TEXT("Engine.BufferVisualizationMaterials") );
 							Rec.DisplayName = DisplayName;
+							MaterialMapFromMaterialName.Add(Material->GetFName(), Rec);
 						}
 					}
 				}
@@ -73,7 +77,7 @@ void FBufferVisualizationData::ConfigureConsoleCommand()
 		{
 		}
 
-		void ProcessValue(const FString& InMaterialName, const UMaterial* InMaterial, const FText& InDisplayName)
+		void ProcessValue(const FString& InMaterialName, const UMaterialInterface* InMaterial, const FText& InDisplayName)
 		{
 			Message += FString(TEXT("\n  "));
 			Message += InMaterialName;
@@ -102,17 +106,53 @@ void FBufferVisualizationData::ConfigureConsoleCommand()
 		ECVF_Default);
 }
 
-UMaterial* FBufferVisualizationData::GetMaterial(FName InMaterialName)
+UMaterialInterface* FBufferVisualizationData::GetMaterial(FName InMaterialName)
 {
-	Record* Result = MaterialMap.Find(InMaterialName);
-	if (Result)
+	// Get UMaterial from the TMaterialMap FName
+	if (const Record* Result = MaterialMap.Find(InMaterialName))
 	{
 		return Result->Material;
 	}
+	// Get UMaterial from the UMaterial FName
+	// Almost all BufferVisualizationData variables contain a FMaterial with its same FName.
+	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one he is using
+	// This "else if" case handles the case in which we look for "LightingModel" rather than "ShadingModel", returning the same value
+	else if (const Record* ResultFromMaterialName = MaterialMapFromMaterialName.Find(InMaterialName))
+	{
+		return ResultFromMaterialName->Material;
+	}
+	// Not found
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
+}
+
+FText FBufferVisualizationData::GetMaterialDisplayName(FName InMaterialName) const
+{
+	// Get UMaterial from the TMaterialMap FName
+	if (const Record* Result = MaterialMap.Find(InMaterialName))
+	{
+		return Result->DisplayName;
+	}
+	// Get UMaterial from the UMaterial FName
+	// Almost all BufferVisualizationData variables contain a FMaterial with its same FName.
+	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one he is using
+	// This "else if" case handles the case in which we look for "LightingModel" rather than "ShadingModel", returning the same value
+	else if (const Record* ResultFromMaterialName = MaterialMapFromMaterialName.Find(InMaterialName))
+	{
+		return ResultFromMaterialName->DisplayName;
+	}
+	// Not found
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
+
+FText FBufferVisualizationData::GetMaterialDefaultDisplayName()
+{
+	return LOCTEXT("BufferVisualization", "Overview");
 }
 
 void FBufferVisualizationData::SetCurrentOverviewMaterialNames(const FString& InNameList)
@@ -125,7 +165,7 @@ bool FBufferVisualizationData::IsDifferentToCurrentOverviewMaterialNames(const F
 	return InNameList != CurrentOverviewMaterialNames;
 }
 
-TArray<UMaterial*>& FBufferVisualizationData::GetOverviewMaterials()
+TArray<UMaterialInterface*>& FBufferVisualizationData::GetOverviewMaterials()
 {
 	return OverviewMaterials;
 }
@@ -139,3 +179,5 @@ FBufferVisualizationData& GetBufferVisualizationData()
 
 	return GBufferVisualizationData;
 }
+
+#undef LOCTEXT_NAMESPACE

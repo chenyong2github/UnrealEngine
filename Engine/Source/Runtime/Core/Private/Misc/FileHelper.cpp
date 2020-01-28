@@ -42,10 +42,37 @@ bool FFileHelper::LoadFileToArray( TArray<uint8>& Result, const TCHAR* Filename,
 		}
 		return false;
 	}
-	int64 TotalSize = Reader->TotalSize();
+	int32 TotalSize = (int32)Reader->TotalSize();
 	// Allocate slightly larger than file size to avoid re-allocation when caller null terminates file buffer
 	Result.Reset( TotalSize + 2 );
 	Result.AddUninitialized( TotalSize );
+	Reader->Serialize(Result.GetData(), Result.Num());
+	bool Success = Reader->Close();
+	delete Reader;
+	return Success;
+}
+
+/**
+ * Load a binary file to a dynamic array with two uninitialized bytes at end as padding.
+ * TArray64 version.
+ */
+bool FFileHelper::LoadFileToArray(TArray64<uint8>& Result, const TCHAR* Filename, uint32 Flags)
+{
+	FScopedLoadingState ScopedLoadingState(Filename);
+
+	FArchive* Reader = IFileManager::Get().CreateFileReader(Filename, Flags);
+	if (!Reader)
+	{
+		if (!(Flags & FILEREAD_Silent))
+		{
+			UE_LOG(LogStreaming, Warning, TEXT("Failed to read file '%s' error."), Filename);
+		}
+		return false;
+	}
+	int64 TotalSize = Reader->TotalSize();
+	// Allocate slightly larger than file size to avoid re-allocation when caller null terminates file buffer
+	Result.Reset(TotalSize + 2);
+	Result.AddUninitialized(TotalSize);
 	Reader->Serialize(Result.GetData(), Result.Num());
 	bool Success = Reader->Close();
 	delete Reader;
@@ -119,7 +146,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 {
 	FScopedLoadingState ScopedLoadingState(*Reader.GetArchiveName());
 
-	int32 Size = Reader.TotalSize();
+	int64 Size = Reader.TotalSize();
 	if (!Size)
 	{
 		Result.Empty();
@@ -136,7 +163,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 	Reader.Serialize(Ch, Size);
 	bool Success = Reader.Close();
 
-	BufferToString(Result, Ch, Size);
+	BufferToString(Result, Ch, (int32)Size);
 
 	// handle SHA verify of the file
 	if (EnumHasAnyFlags(VerifyFlags, EHashOptions::EnableVerify) && (EnumHasAnyFlags(VerifyFlags, EHashOptions::ErrorMissingHash) || FSHA1::GetFileSHAHash(*Reader.GetArchiveName(), nullptr)))
@@ -212,7 +239,7 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 			Pos++;
 		}
 
-		Result.Emplace(Pos - LineStart, LineStart);
+		Result.Emplace((int32)(Pos - LineStart), LineStart);
 
 		if(*Pos == '\r')
 		{
@@ -245,7 +272,7 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 			Pos++;
 		}
 
-		FString Line(Pos - LineStart, LineStart);
+		FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
 		if (Invoke(Predicate, Line))
 		{
 			Result.Add(MoveTemp(Line));
@@ -279,6 +306,20 @@ bool FFileHelper::SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Fi
 	// Always explicitly close to catch errors from flush/close
 	Ar->Close();
 
+	return !Ar->IsError() && !Ar->IsCriticalError();
+}
+
+/**
+ * Save a binary array to a file.
+ */
+bool FFileHelper::SaveArrayToFile(const TArray64<uint8>& Array, const TCHAR* Filename, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags /*= 0*/)
+{
+	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(FileManager->CreateFileWriter(Filename, WriteFlags));
+	if (!Ar)
+	{
+		return false;
+	}
+	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());
 	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 
@@ -658,7 +699,7 @@ bool FFileHelper::LoadANSITextFileToStrings(const TCHAR* InFilename, IFileManage
 	if (TextFile != NULL)
 	{
 		// get the size of the file
-		int32 Size = TextFile->TotalSize();
+		int32 Size = (int32)TextFile->TotalSize();
 		// read the file
 		TArray<uint8> Buffer;
 		Buffer.Empty(Size + 1);
@@ -782,8 +823,8 @@ bool FFileHelper::IsFilenameValidForSaving(const FString& Filename, FText& OutEr
 		}
 		else
 		{
-			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename '{0}' is too long; this may interfere with cooking for consoles.  Unreal filenames should be no longer than {1} characters."),
-				FText::FromString(BaseFilename), FText::AsNumber(FPlatformMisc::GetMaxPathLength()));
+			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename is too long ({0} characters); this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters. Filename value: {2}"),
+				FText::AsNumber(BaseFilename.Len()), FText::AsNumber(FPlatformMisc::GetMaxPathLength()), FText::FromString(BaseFilename));
 		}
 	}
 	else

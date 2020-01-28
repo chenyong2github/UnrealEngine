@@ -16,6 +16,8 @@ public:
 	GENERATED_UCLASS_BODY()
 
 	virtual void PostLoad() override;
+
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 	/** The default mode. Can be Value, Binding or Custom. */
 	UPROPERTY(EditAnywhere, Category = "Default Value")
@@ -32,4 +34,7 @@ public:
 	/** The metadata associated with this script variable. */
 	UPROPERTY(EditAnywhere, Category = "Variable", meta=(ShowOnlyInnerProperties))
 	FNiagaraVariableMetaData Metadata;
+	
+	/** Entry point for generating the compile hash.*/
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 }; 

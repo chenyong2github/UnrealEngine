@@ -24,6 +24,8 @@ void USkeletalMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 		}
 
 		ThumbnailScene->SetSkeletalMesh(SkeletalMesh);
+		AddAdditionalPreviewSceneContent(Object, ThumbnailScene->GetWorld());
+
 		FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game) )
 			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
 

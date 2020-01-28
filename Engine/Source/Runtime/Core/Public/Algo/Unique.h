@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,7 +29,7 @@ namespace AlgoImpl
 			}
 		}
 
-		return Result + 1 - Array;
+		return static_cast<SizeType>(Result + 1 - Array);
 	}
 }
 

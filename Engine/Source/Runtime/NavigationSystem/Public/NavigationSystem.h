@@ -1000,6 +1000,8 @@ protected:
 	 *  Depends on runtime generation settings of each navigation data, always ERuntimeGenerationType::Dynamic in the editor world
 	 */
 	ERuntimeGenerationType GetRuntimeGenerationType() const;
+
+	void LogNavDataRegistrationResult(ERegistrationResult);
 	
 	//----------------------------------------------------------------------//
 	// new stuff

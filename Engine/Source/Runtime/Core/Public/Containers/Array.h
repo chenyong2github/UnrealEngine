@@ -1591,7 +1591,7 @@ public:
 	FORCEINLINE void RemoveAt(SizeType Index, CountType Count, bool bAllowShrinking = true)
 	{
 		static_assert(!TAreTypesEqual<CountType, bool>::Value, "TArray::RemoveAt: unexpected bool passed as the Count argument");
-		RemoveAtImpl(Index, Count, bAllowShrinking);
+		RemoveAtImpl(Index, (SizeType)Count, bAllowShrinking);
 	}
 
 private:
@@ -2556,7 +2556,7 @@ private:
 	template <typename OtherElementType, typename OtherSizeType>
 	void CopyToEmpty(const OtherElementType* OtherData, OtherSizeType OtherNum, SizeType PrevMax, SizeType ExtraSlack)
 	{
-		SizeType NewNum = OtherNum;
+		SizeType NewNum = (SizeType)OtherNum;
 		checkf((OtherSizeType)NewNum == OtherNum, TEXT("Invalid number of elements to add to this array type: %llu"), (unsigned long long)NewNum);
 
 		checkSlow(ExtraSlack >= 0);

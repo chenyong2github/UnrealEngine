@@ -911,7 +911,7 @@ enum ENetMode
  * Don't change the order, the ID is serialized with the editor
  */
 UENUM()
-enum EViewModeIndex 
+enum EViewModeIndex
 {
 	/** Wireframe w/ brushes. */
 	VMI_BrushWireframe = 0 UMETA(DisplayName = "Brush Wireframe"),
@@ -970,7 +970,23 @@ enum EViewModeIndex
 
 	VMI_Max UMETA(Hidden),
 
+	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault
 	VMI_Unknown = 255 UMETA(DisplayName = "Unknown"),
+};
+
+/**
+ * Class containing a static util function to help with EViewModeIndex
+ */
+UCLASS(config = Engine)
+class ENGINE_API UViewModeUtils : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Get the display name associated with a particular EViewModeIndex
+	 */
+	static FText GetViewModeDisplayName(const EViewModeIndex ViewModeIndex);
 };
 
 

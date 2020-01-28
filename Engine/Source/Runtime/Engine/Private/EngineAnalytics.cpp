@@ -15,14 +15,14 @@
 #include "EngineSessionManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "StudioAnalytics.h"
 
 #if WITH_EDITOR
 #include "EditorAnalyticsSession.h"
 #include "EditorSessionSummarySender.h"
 #include "Analytics/EditorSessionSummaryWriter.h"
 #endif
-
-#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 bool FEngineAnalytics::bIsInitialized;
 TSharedPtr<IAnalyticsProviderET> FEngineAnalytics::Analytics;
@@ -52,9 +52,43 @@ TFunction<FAnalyticsET::Config()>& GetEngineAnalyticsConfigFunc()
 	return Config;
 }
 
-/**
- * Get analytics pointer
- */
+static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
+{
+	// Get the default config.
+	FAnalyticsET::Config Config = GetEngineAnalyticsConfigFunc()();
+	// Set any fields that weren't set by default.
+	if (Config.APIKeyET.IsEmpty())
+	{
+		// We always use the "Release" analytics account unless we're running in analytics test mode (usually with
+		// a command-line parameter), or we're an internal Epic build
+		const EAnalyticsBuildType AnalyticsBuildType = GetAnalyticsBuildType();
+		const bool bUseReleaseAccount =
+			(AnalyticsBuildType == EAnalyticsBuildType::Development || AnalyticsBuildType == EAnalyticsBuildType::Release) &&
+			!FEngineBuildSettings::IsInternalBuild();	// Internal Epic build
+		const TCHAR* BuildTypeStr = bUseReleaseAccount ? TEXT("Release") : TEXT("Dev");
+
+		FString UE4TypeOverride;
+		bool bHasOverride = GConfig->GetString(TEXT("Analytics"), TEXT("UE4TypeOverride"), UE4TypeOverride, GEngineIni);
+		const TCHAR* UE4TypeStr = bHasOverride ? *UE4TypeOverride : FEngineBuildSettings::IsPerforceBuild() ? TEXT("Perforce") : TEXT("UnrealEngine");
+		Config.APIKeyET = FString::Printf(TEXT("UEEditor.%s.%s"), UE4TypeStr, BuildTypeStr);
+	}
+	if (Config.APIServerET.IsEmpty())
+	{
+		Config.APIServerET = TEXT("https://datarouter.ol.epicgames.com/");
+	}
+	if (Config.AppEnvironment.IsEmpty())
+	{
+		Config.AppEnvironment = TEXT("datacollector-source");
+	}
+	if (Config.AppVersionET.IsEmpty())
+	{
+		Config.AppVersionET = FEngineVersion::Current().ToString();
+	}
+
+	// Connect the engine analytics provider (if there is a configuration delegate installed)
+	return FAnalyticsET::Get().CreateAnalyticsProvider(Config);
+}
+
 IAnalyticsProvider& FEngineAnalytics::GetProvider()
 {
 	checkf(bIsInitialized && IsAvailable(), TEXT("FEngineAnalytics::GetProvider called outside of Initialize/Shutdown."));
@@ -85,49 +119,17 @@ void FEngineAnalytics::Initialize()
 
 	if (bShouldInitAnalytics)
 	{
-		// Get the default config.
-		FAnalyticsET::Config Config = GetEngineAnalyticsConfigFunc()();
-		// Set any fields that weren't set by default.
-		if (Config.APIKeyET.IsEmpty())
-		{
-			// We always use the "Release" analytics account unless we're running in analytics test mode (usually with
-			// a command-line parameter), or we're an internal Epic build
-			const EAnalyticsBuildType AnalyticsBuildType = GetAnalyticsBuildType();
-			const bool bUseReleaseAccount =
-				(AnalyticsBuildType == EAnalyticsBuildType::Development || AnalyticsBuildType == EAnalyticsBuildType::Release) &&
-				!FEngineBuildSettings::IsInternalBuild();	// Internal Epic build
-			const TCHAR* BuildTypeStr = bUseReleaseAccount ? TEXT("Release") : TEXT("Dev");
-
-			FString UE4TypeOverride;
-			bool bHasOverride = GConfig->GetString(TEXT("Analytics"), TEXT("UE4TypeOverride"), UE4TypeOverride, GEngineIni);
-			const TCHAR* UE4TypeStr = bHasOverride ? *UE4TypeOverride : FEngineBuildSettings::IsPerforceBuild() ? TEXT("Perforce") : TEXT("UnrealEngine");
-			Config.APIKeyET = FString::Printf(TEXT("UEEditor.%s.%s"), UE4TypeStr, BuildTypeStr);
-		}
-		if (Config.APIServerET.IsEmpty())
-		{
-			Config.APIServerET = TEXT("https://datarouter.ol.epicgames.com/");
-		}
-		if (Config.AppEnvironment.IsEmpty())
-		{
-			Config.AppEnvironment = TEXT("datacollector-source");
-		}
-		if (Config.AppVersionET.IsEmpty())
-		{
-			Config.AppVersionET = FEngineVersion::Current().ToString();
-		}
-
-
-		// Connect the engine analytics provider (if there is a configuration delegate installed)
-		Analytics = FAnalyticsET::Get().CreateAnalyticsProvider(Config);
+		Analytics = CreateEpicAnalyticsProvider();
 
 		if (Analytics.IsValid())
 		{
 			Analytics->SetUserID(FString::Printf(TEXT("%s|%s|%s"), *FPlatformMisc::GetLoginId(), *FPlatformMisc::GetEpicAccountId(), *FPlatformMisc::GetOperatingSystemId()));
 
+			const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
+
 			TArray<FAnalyticsEventAttribute> StartSessionAttributes;
 			GEngine->CreateStartupAnalyticsAttributes( StartSessionAttributes );
 			// Add project info whether we are in editor or game.
-			const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 			FString OSMajor;
 			FString OSMinor;
 			FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
@@ -230,6 +232,26 @@ void FEngineAnalytics::Tick(float DeltaTime)
 	if (SessionSummarySender.IsValid())
 	{
 		SessionSummarySender->Tick(DeltaTime);
+	}
+#endif
+}
+
+void FEngineAnalytics::ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(EventName, Attributes);
+	}
+
+	FStudioAnalytics::ReportEvent(EventName, Attributes);
+}
+
+void FEngineAnalytics::LowDriveSpaceDetected()
+{
+#if WITH_EDITOR
+	if (SessionSummaryWriter.IsValid())
+	{
+		SessionSummaryWriter->LowDriveSpaceDetected();
 	}
 #endif
 }

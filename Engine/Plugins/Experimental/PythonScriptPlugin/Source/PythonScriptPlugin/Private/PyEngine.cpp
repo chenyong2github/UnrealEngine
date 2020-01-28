@@ -93,7 +93,119 @@ PyTypeObject PySelectedActorIteratorType = InitializePyActorIteratorType<FSelect
 namespace PyEngine
 {
 
+PyObject* GetBlueprintGeneratedTypes(PyObject* InSelf, PyObject* InArgs)
+{
+	TArray<FString> AssetsToGenerate;
+
+	// Extract the assets to generate
+	if (InArgs)
+	{
+		const Py_ssize_t ArgsLen = PyTuple_Size(InArgs);
+		for (Py_ssize_t ArgIndex = 0; ArgIndex < ArgsLen; ++ArgIndex)
+		{
+			PyObject* PyArg = PyTuple_GetItem(InArgs, ArgIndex);
+			if (PyArg)
+			{
+				// Is this some kind of container, or a single value?
+#if PY_MAJOR_VERSION < 3
+				const bool bIsStringType = PyUnicode_Check(PyArg) || PyString_Check(PyArg);
+#else	// PY_MAJOR_VERSION < 3
+				const bool bIsStringType = PyUnicode_Check(PyArg);
+#endif	// PY_MAJOR_VERSION < 3
+				if (!bIsStringType && PyUtil::HasLength(PyArg))
+				{
+					const Py_ssize_t SequenceLen = PyObject_Length(PyArg);
+					check(SequenceLen != -1);
+
+					FPyObjectPtr PyObjIter = FPyObjectPtr::StealReference(PyObject_GetIter(PyArg));
+					if (PyObjIter)
+					{
+						// Conversion from a sequence
+						for (Py_ssize_t SequenceIndex = 0; SequenceIndex < SequenceLen; ++SequenceIndex)
+						{
+							FPyObjectPtr ValueItem = FPyObjectPtr::StealReference(PyIter_Next(PyObjIter));
+							if (!ValueItem)
+							{
+								return nullptr;
+							}
+
+							FString& AssetToGenerate = AssetsToGenerate.AddDefaulted_GetRef();
+							if (!PyConversion::Nativize(ValueItem, AssetToGenerate))
+							{
+								PyUtil::SetPythonError(PyExc_TypeError, TEXT("get_blueprint_generated_types"), *FString::Printf(TEXT("Cannot convert argument %d (%s) at index %d to 'string'"), ArgIndex, *PyUtil::GetFriendlyTypename(PyArg), SequenceIndex));
+								return nullptr;
+							}
+						}
+					}
+				}
+				else
+				{
+					FString& AssetToGenerate = AssetsToGenerate.AddDefaulted_GetRef();
+					if (!PyConversion::Nativize(PyArg, AssetToGenerate))
+					{
+						PyUtil::SetPythonError(PyExc_TypeError, TEXT("get_blueprint_generated_types"), *FString::Printf(TEXT("Cannot convert argument %d (%s) to 'string'"), ArgIndex, *PyUtil::GetFriendlyTypename(PyArg)));
+						return nullptr;
+					}
+				}
+			}
+		}
+	}
+
+	if (AssetsToGenerate.Num() == 0)
+	{
+		Py_RETURN_NONE;
+	}
+
+	FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+	FPyWrapperTypeRegistry::FGeneratedWrappedTypeReferences GeneratedWrappedTypeReferences;
+	TSet<FName> DirtyModules;
+
+	// Process each asset
+	TArray<PyTypeObject*> WrappedAssets;
+	for (const FString& AssetToGenerate : AssetsToGenerate)
+	{
+		const UObject* LoadedAsset = StaticLoadObject(UObject::StaticClass(), nullptr, *AssetToGenerate);
+		if (!LoadedAsset)
+		{
+			PyUtil::SetPythonError(PyExc_RuntimeError, TEXT("get_blueprint_generated_types"), *FString::Printf(TEXT("Cannot find asset for '%s'"), *AssetToGenerate));
+			return nullptr;
+		}
+		LoadedAsset = PyGenUtil::GetTypeRegistryType(LoadedAsset);
+
+		PyTypeObject* WrappedAsset = WrappedAssets.Add_GetRef(PyWrapperTypeRegistry.GenerateWrappedTypeForObject(LoadedAsset, GeneratedWrappedTypeReferences, DirtyModules, EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes));
+		if (!WrappedAsset)
+		{
+			PyUtil::SetPythonError(PyExc_RuntimeError, TEXT("get_blueprint_generated_types"), *FString::Printf(TEXT("Asset '%s' (%s) cannot be wrapped for Python"), *AssetToGenerate, *LoadedAsset->GetName()));
+			return nullptr;
+		}
+	}
+	check(AssetsToGenerate.Num() == WrappedAssets.Num());
+
+	PyWrapperTypeRegistry.GenerateWrappedTypesForReferences(GeneratedWrappedTypeReferences, DirtyModules);
+	PyWrapperTypeRegistry.NotifyModulesDirtied(DirtyModules);
+
+	check(WrappedAssets.Num() > 0);
+	if (WrappedAssets.Num() == 1)
+	{
+		// Return the single object
+		Py_INCREF(WrappedAssets[0]);
+		return (PyObject*)WrappedAssets[0];
+	}
+	else
+	{
+		// Return the result as a tuple
+		FPyObjectPtr PyWrappedAssets = FPyObjectPtr::StealReference(PyTuple_New(WrappedAssets.Num()));
+		for (int32 WrappedAssetIndex = 0; WrappedAssetIndex < WrappedAssets.Num(); ++WrappedAssetIndex)
+		{
+			Py_INCREF(WrappedAssets[WrappedAssetIndex]);
+			PyTuple_SetItem(PyWrappedAssets, WrappedAssetIndex, (PyObject*)WrappedAssets[WrappedAssetIndex]); // SetItem steals the reference
+		}
+		return PyWrappedAssets.Release();
+	}
+}
+
 PyMethodDef PyEngineMethods[] = {
+	{ "get_blueprint_generated_types", PyCFunctionCast(&GetBlueprintGeneratedTypes), METH_VARARGS, "x.get_blueprint_generated_types(...) -> tuple(type)/type/None -- get the Python types (will return a tuple for multiple types) for the given set of Blueprint asset paths (may be a sequence type or set of arguments)" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 
@@ -120,6 +232,10 @@ void InitializeModule()
 	}
 
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
+}
+
+void ShutdownModule()
+{
 }
 
 }

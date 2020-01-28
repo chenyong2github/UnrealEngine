@@ -10,6 +10,7 @@
 
 class FMenuBuilder;
 class UFactory;
+class UToolMenu;
 
 struct FFactoryItem
 {
@@ -39,7 +40,7 @@ public:
 
 	/** Makes the context menu widget */
 	static void MakeContextMenu(
-		FMenuBuilder& MenuBuilder, 
+		UToolMenu* Menu, 
 		const TArray<FName>& InSelectedPaths, 
 		const FOnNewAssetRequested& InOnNewAssetRequested, 
 		const FOnNewClassRequested& InOnNewClassRequested, 
@@ -50,7 +51,7 @@ public:
 
 	/** Makes the context menu widget */
 	static void MakeContextMenu(
-		FMenuBuilder& MenuBuilder, 
+		UToolMenu* Menu, 
 		const TArray<FString>& InSelectedPaths, 
 		const FOnNewAssetRequested& InOnNewAssetRequested, 
 		const FOnNewClassRequested& InOnNewClassRequested, 
@@ -61,9 +62,9 @@ public:
 
 private:
 	/** Handle creating a new asset from an asset category */
-	static void CreateNewAssetMenuCategory(FMenuBuilder& MenuBuilder, EAssetTypeCategories::Type AssetTypeCategory, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
+	static void CreateNewAssetMenuCategory(UToolMenu* Menu, FName SectionName, EAssetTypeCategories::Type AssetTypeCategory, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
 
-	static void CreateNewAssetMenus(FMenuBuilder& MenuBuilder, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
+	static void CreateNewAssetMenus(UToolMenu* Menu, FName SectionName, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
 
 	/** Handle when the "Import" button is clicked */
 	static void ExecuteImportAsset(FOnImportAssetRequested InOnImportAssetRequested, FString InPath);

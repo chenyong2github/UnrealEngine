@@ -14,6 +14,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Sphere.h"
@@ -37,6 +38,7 @@
 #include "PhysicsInterfaceUtilsCore.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicalMaterials/PhysicalMaterialMask.h"
 
 #if WITH_PHYSX
 #include "geometry/PxConvexMesh.h"
@@ -62,6 +64,7 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 DECLARE_CYCLE_STAT(TEXT("Phys Events Time"), STAT_PhysicsEventTime, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("SyncComponentsToBodies (sync)"), STAT_SyncComponentsToBodies, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("SyncComponentsToBodies (async)"), STAT_SyncComponentsToBodies_Async, STATGROUP_Physics);
+DECLARE_CYCLE_STAT(TEXT("Query PhysicalMaterialMask Hit"), STAT_QueryPhysicalMaterialMaskHit, STATGROUP_Physics);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Broadphase Adds"), STAT_NumBroadphaseAdds, STATGROUP_Physics);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Broadphase Removes"), STAT_NumBroadphaseRemoves, STATGROUP_Physics);
@@ -113,6 +116,80 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsSha
 	return nullptr;
 }
 
+Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex, const FVector& HitLocation)
+{
+	{
+		SCOPE_CYCLE_COUNTER(STAT_QueryPhysicalMaterialMaskHit);
+
+		if (Shape.Materials.Num() > 0 && Actor.Proxy)
+		{
+			Chaos::FPBDRigidsSolver* Solver = Actor.Proxy->GetSolver();
+
+			if (ensure(Solver))
+			{
+				if (Shape.MaterialMasks.Num() > 0)
+				{
+					UBodySetup* BodySetup = nullptr;
+
+					if (const FBodyInstance* BodyInst = GetUserData(Actor))
+					{
+						BodyInst = FPhysicsInterface::ShapeToOriginalBodyInstance(BodyInst, &Shape);
+						BodySetup = BodyInst->BodySetup.Get();	//this data should be immutable at runtime so ok to check from worker thread.
+						ECollisionShapeType GeomType = GetGeometryType(Shape);
+
+						if (BodySetup->bSupportUVsAndFaceRemap && GetGeometryType(Shape) == ECollisionShapeType::Trimesh)
+						{
+							FVector Scale(1.0f, 1.0f, 1.0f);
+							const Chaos::FImplicitObject* Geometry = Shape.Geometry.Get();
+							if (const Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>* ScaledTrimesh = Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>::AsScaled(*Geometry))
+							{
+								Scale = ScaledTrimesh->GetScale();
+							}
+
+							// Convert hit location to local
+							Chaos::FRigidTransform3 ActorToWorld(Actor.X(), Actor.R(), Scale);
+							const FVector LocalHitPos = ActorToWorld.InverseTransformPosition(HitLocation);
+
+							uint8 Index = Shape.Geometry->GetMaterialIndex(InternalFaceIndex);
+							if (Shape.MaterialMasks.IsValidIndex(Index))
+							{
+								Chaos::FChaosPhysicsMaterialMask* Mask = nullptr;
+								{
+									Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+									Mask = Solver->GetQueryMaterialMasks().Get(Shape.MaterialMasks[Index].InnerHandle);
+								}
+
+								if (Mask && InternalFaceIndex < (uint32)BodySetup->FaceRemap.Num())
+								{
+									int32 RemappedFaceIndex = BodySetup->FaceRemap[InternalFaceIndex];
+									FVector2D UV;
+
+
+									if (BodySetup->CalcUVAtLocation(LocalHitPos, RemappedFaceIndex, Mask->UVChannelIndex, UV))
+									{
+										uint32 MapIdx = UPhysicalMaterialMask::GetPhysMatIndex(Mask->MaskData, Mask->SizeX, Mask->SizeY, Mask->AddressX, Mask->AddressY, UV.X, UV.Y);
+										uint32 AdjustedMapIdx = Index * EPhysicalMaterialMaskColor::MAX + MapIdx;
+										if (Shape.MaterialMaskMaps.IsValidIndex(AdjustedMapIdx))
+										{
+											uint32 MaterialIdx = Shape.MaterialMaskMaps[AdjustedMapIdx];
+											if (Shape.MaterialMaskMapMaterials.IsValidIndex(MaterialIdx))
+											{
+												Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+												return Solver->GetQueryMaterials().Get(Shape.MaterialMaskMapMaterials[MaterialIdx].InnerHandle);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return GetMaterialFromInternalFaceIndex(Shape, Actor, InternalFaceIndex);
+}
 
 const Chaos::FImplicitObject& FPhysicsShapeReference_Chaos::GetGeometry() const
 {
@@ -252,6 +329,31 @@ void FPhysInterface_Chaos::SetUserData(FPhysicsMaterialHandle& InHandle, void* I
 	}
 
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
+}
+
+FPhysicsMaterialMaskHandle FPhysInterface_Chaos::CreateMaterialMask(const UPhysicalMaterialMask* InMaterialMask)
+{
+	Chaos::FMaterialMaskHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().CreateMask();
+	FPhysInterface_Chaos::UpdateMaterialMask(NewHandle, InMaterialMask);
+	return NewHandle;
+}
+
+void FPhysInterface_Chaos::ReleaseMaterialMask(FPhysicsMaterialMaskHandle& InHandle)
+{
+	Chaos::FPhysicalMaterialManager::Get().Destroy(InHandle);
+}
+
+void FPhysInterface_Chaos::UpdateMaterialMask(FPhysicsMaterialMaskHandle& InHandle, const UPhysicalMaterialMask* InMaterialMask)
+{
+	if (Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get())
+	{
+		InMaterialMask->GenerateMaskData(MaterialMask->MaskData, MaterialMask->SizeX, MaterialMask->SizeY);
+		MaterialMask->UVChannelIndex = InMaterialMask->UVChannelIndex;
+		MaterialMask->AddressX = static_cast<int32>(InMaterialMask->AddressX);
+		MaterialMask->AddressY = static_cast<int32>(InMaterialMask->AddressY);
+	}
+
+	Chaos::FPhysicalMaterialManager::Get().UpdateMaterialMask(InHandle);
 }
 
 void FPhysInterface_Chaos::SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData)
@@ -404,6 +506,7 @@ void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAct
 	if(Particle && Particle->ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		Particle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+		Particle->ClearEvents();
 	}
 }
 
@@ -536,7 +639,7 @@ void FPhysInterface_Chaos::SetLinearVelocity_AssumesLocked(const FPhysicsActorHa
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
-			return Kinematic->SetV(InNewVelocity);
+			Kinematic->SetV(InNewVelocity);
 		}
 	}
 }
@@ -674,36 +777,66 @@ void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHa
 
 void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddForce(InForce, InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			AddVelocity_AssumesLocked(InActorReference, Rigid->InvM() * InForce);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddTorque(InTorque, InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			AddAngularVelocityInRadians_AssumesLocked(InActorReference, Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->InvI()) * InTorque);
+		}
+	}
 }
 
-void FPhysInterface_Chaos::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
-{	
-	// #todo : Implement
-    //InActorReference.GetScene()->AddForce(InForce * InActorReference.GetScene()->Scene.GetSolver()->GetRigidParticles().M(InActorReference.GetScene()->GetIndexFromId(InActorReference.GetId())), InActorReference.GetId());
-	CHAOS_ENSURE(false);
-}
-
-void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque)
+void FPhysInterface_Chaos::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InVelocityDelta)
 {
-	// #todo : Implement
-    //InActorReference.GetScene()->AddTorque(InActorReference.GetScene()->Scene.GetSolver()->GetRigidParticles().I(InActorReference.GetScene()->GetIndexFromId(InActorReference.GetId())) * Chaos::TVector<float, 3>(InTorque), InActorReference.GetId());
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
+		if (ensure(Kinematic))
+		{
+			Kinematic->SetV(Kinematic->V() + InVelocityDelta);
+		}
+	}
+}
+
+void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InAngularVelocityDeltaRad)
+{
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
+		if (ensure(Kinematic))
+		{
+			// NOTE: Need to convert W to rad/sec?
+			Kinematic->SetW(Kinematic->W() + InAngularVelocityDeltaRad);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InImpulse, const FVector& InLocation)
 {
-    // @todo(mlentine): We don't currently have a way to apply an instantaneous force. Do we need this?
-	CHAOS_ENSURE(false);
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+			const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM, InImpulse);
+			AddImpulse_AssumesLocked(InActorReference, InImpulse);
+			AddAngularImpulseInRadians_AssumesLocked(InActorReference, AngularImpulse);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange)
@@ -1341,14 +1474,21 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 				OutOptShapes->Add(NewHandle);
 			}
 
-			FBodyInstance::ApplyMaterialToShape_AssumesLocked(NewHandle, InParams.SimpleMaterial, InParams.ComplexMaterials);
+			FBodyInstance::ApplyMaterialToShape_AssumesLocked(NewHandle, InParams.SimpleMaterial, InParams.ComplexMaterials, &InParams.ComplexMaterialMasks);
 
 			//TArrayView<UPhysicalMaterial*> SimpleView = MakeArrayView(&(const_cast<UPhysicalMaterial*>(InParams.SimpleMaterial)), 1);
 			//FPhysInterface_Chaos::SetMaterials(NewHandle, InParams.ComplexMaterials.Num() > 0 ? InParams.ComplexMaterials : SimpleView);
 		}
 
 		//todo: we should not be creating unique geometry per actor
-		InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+		if(Geoms.Num() > 1)
+		{
+			InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+		}
+		else
+		{
+			InActor->SetGeometry(MoveTemp(Geoms[0]));
+		}
 		InActor->SetShapesArray(MoveTemp(Shapes));
 	}
 #endif
@@ -1428,6 +1568,7 @@ void FPhysInterface_Chaos::SetQueryFilter(const FPhysicsShapeReference_Chaos& In
 void FPhysInterface_Chaos::SetSimulationFilter(const FPhysicsShapeReference_Chaos& InShapeRef, const FCollisionFilterData& InFilter)
 {
 	InShapeRef.Shape->SimData = InFilter;
+	InShapeRef.ActorRef->MarkShapeSimDataDirty();
 }
 
 bool FPhysInterface_Chaos::IsSimulationShape(const FPhysicsShapeHandle& InShape)
@@ -1502,6 +1643,75 @@ void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, cons
 	InShape.Shape->Materials = NewMaterialHandles;
 }
 
+void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*> InMaterials, const TArrayView<FPhysicalMaterialMaskParams>& InMaterialMasks)
+{
+	SetMaterials(InShape, InMaterials);
+
+	if (InMaterialMasks.Num() > 0)
+	{
+		// Build a list of handles to store on the shape
+		TArray<Chaos::FMaterialMaskHandle> NewMaterialMaskHandles;
+		TArray<uint32> NewMaterialMaskMaps;
+		TArray<Chaos::FMaterialHandle> NewMaterialMaskMaterialHandles;
+
+		NewMaterialMaskHandles.Reserve(InMaterialMasks.Num());
+
+		int MaskMapMatIdx = 0;
+
+		for (FPhysicalMaterialMaskParams& MaterialMaskData : InMaterialMasks)
+		{
+			if (MaterialMaskData.PhysicalMaterialMask && ensure(MaterialMaskData.PhysicalMaterialMap))
+			{
+				NewMaterialMaskHandles.Add(MaterialMaskData.PhysicalMaterialMask->GetPhysicsMaterialMask());
+				for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+				{
+					if (UPhysicalMaterial* MapMat = MaterialMaskData.PhysicalMaterialMap->GetPhysicalMaterialFromMap(i))
+					{
+						InShape.Shape->MaterialMaskMaps.Emplace(MaskMapMatIdx);
+						MaskMapMatIdx++;
+					}
+					else
+					{
+						InShape.Shape->MaterialMaskMaps.Emplace(INDEX_NONE);
+					}
+				}
+			}
+			else
+			{
+				NewMaterialMaskHandles.Add(Chaos::FMaterialMaskHandle());
+				for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+				{
+					InShape.Shape->MaterialMaskMaps.Emplace(INDEX_NONE);
+				}
+			}
+		}
+
+		if (MaskMapMatIdx > 0)
+		{
+			NewMaterialMaskMaterialHandles.Reserve(MaskMapMatIdx);
+
+			uint32 Offset = 0;
+
+			for (FPhysicalMaterialMaskParams& MaterialMaskData : InMaterialMasks)
+			{
+				if (MaterialMaskData.PhysicalMaterialMask)
+				{
+					for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+					{
+						if (UPhysicalMaterial* MapMat = MaterialMaskData.PhysicalMaterialMap->GetPhysicalMaterialFromMap(i))
+						{
+							NewMaterialMaskMaterialHandles.Add(MapMat->GetPhysicsMaterial());
+						}
+					}
+				}
+			}
+		}
+
+		InShape.Shape->MaterialMasks = NewMaterialMaskHandles;
+		InShape.Shape->MaterialMaskMapMaterials = NewMaterialMaskMaterialHandles;
+	}
+}
+
 void FinishSceneStat()
 {
 }
@@ -1559,7 +1769,8 @@ bool CalculateMassPropertiesOfImplicitType(
 		}
 		else
 		{
-			Chaos::CastHelper(*ImplicitObject, [&OutMassProperties, InDensityKGPerCM](const auto& Object)
+			//question: is LocalTM enough to merge these two branches?
+			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
 				OutMassProperties.Volume = Object.GetVolume();
 				OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
@@ -1781,7 +1992,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 							Chaos::TVector<float, 3> WorldPosition;
 							Chaos::TVector<float, 3> WorldNormal;
 							int32 FaceIdx;
-							if (Chaos::CastHelper(ShapeAdapter.GetGeometry(), [&](const auto& Downcast) { return Chaos::SweepQuery(*Shape->Geometry, ActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
+							if (Chaos::Utilities::CastHelper(ShapeAdapter.GetGeometry(), ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::SweepQuery(*Shape->Geometry, FullActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
 							{
 								// we just like to make sure if the hit is made
 								FCollisionFilterData QueryFilter;
@@ -1841,7 +2052,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 			if (OutOptResult)
 			{
 				Chaos::FMTDInfo MTDInfo;
-				if (Chaos::CastHelper(InGeom, [&](const auto& Downcast) { return Chaos::OverlapQuery(*Shape->Geometry, ActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
+				if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
 				{
 					OutOptResult->Distance = MTDInfo.Penetration;
 					OutOptResult->Direction = MTDInfo.Normal;
@@ -1850,7 +2061,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 			}
 			else	//question: why do we even allow user to not pass in MTD info?
 			{
-				if (Chaos::CastHelper(InGeom, [&](const auto& Downcast) { return Chaos::OverlapQuery(*Shape->Geometry, ActorTM, Downcast, GeomTransform); }))
+				if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->Geometry, FullActorTM, Downcast, GeomTransform); }))
 				{
 					return true;
 				}
@@ -1906,7 +2117,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 
 			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape);
 
-			if (GeomType == ECollisionShapeType::Trimesh)
+			if (!Shape.GetGeometry().IsConvex())
 			{
 				// Type unsupported for this function, but some other shapes will probably work. 
 				continue;
@@ -1918,6 +2129,11 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 			const float Phi = Shape.Shape->Geometry->PhiWithNormal(LocalPoint, Normal);
 			if (Phi <= 0)
 			{
+				OutDistanceSquared = 0;
+				if (OutOptPointOnBody)
+				{
+					*OutOptPointOnBody = InPoint;
+				}
 				break;
 			}
 			else if (Phi < MinPhi)
@@ -1939,6 +2155,30 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 	}
 
 	return bFoundValidBody;
+}
+
+uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
+{
+	using namespace Chaos;
+	uint8 Type = Shape.Geometry->GetType();
+	if (ensure(Type | ImplicitObjectType::TriangleMesh))
+	{
+		const FTriangleMeshImplicitObject* TriangleMesh = nullptr;
+
+		if (Type | ImplicitObjectType::IsScaled)
+		{
+			const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = static_cast<const TImplicitObjectScaled<FTriangleMeshImplicitObject>*>(Shape.Geometry.Get());
+			TriangleMesh = ScaledTriangleMesh->GetUnscaledObject();
+		}
+		else
+		{
+			TriangleMesh = static_cast<const FTriangleMeshImplicitObject*>(Shape.Geometry.Get());
+		}
+
+		return TriangleMesh->GetExternalFaceIndexFromInternal(InternalFaceIndex);
+	}
+
+	return -1;
 }
 
 template<typename AllocatorType>

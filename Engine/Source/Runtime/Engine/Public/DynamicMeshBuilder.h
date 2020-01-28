@@ -136,6 +136,23 @@ struct FDynamicMeshBuilderSettings
 };
 
 /**
+ * This class provides the vertex/index allocator interface used by FDynamicMeshBuilder which is
+ * already implemented internally with caching in mind but can be customized if needed.
+ */
+class ENGINE_API FDynamicMeshBufferAllocator
+{
+public:
+	int32 GetIndexBufferSize(uint32 NumElements) const;
+	int32 GetVertexBufferSize(uint32 Stride, uint32 NumElements) const;
+	virtual ~FDynamicMeshBufferAllocator();
+
+	virtual FIndexBufferRHIRef AllocIndexBuffer(uint32 NumElements);
+	virtual void ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI);
+	virtual FVertexBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements);
+	virtual void ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI);
+};
+
+/**
  * A utility used to construct dynamically generated meshes, and render them to a FPrimitiveDrawInterface.
  * Note: This is meant to be easy to use, not fast.  It moves the data around more than necessary, and requires dynamically allocating RHI
  * resources.  Exercise caution.
@@ -145,7 +162,7 @@ class FDynamicMeshBuilder
 public:
 
 	/** Initialization constructor. */
-	ENGINE_API FDynamicMeshBuilder(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumTexCoords = 1, uint32 InLightmapCoordinateIndex = 0, bool InUse16bitTexCoord = false);
+	ENGINE_API FDynamicMeshBuilder(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumTexCoords = 1, uint32 InLightmapCoordinateIndex = 0, bool InUse16bitTexCoord = false, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
 
 	/** Destructor. */
 	ENGINE_API ~FDynamicMeshBuilder();
@@ -206,6 +223,7 @@ private:
 	class FPooledDynamicMeshIndexBuffer* IndexBuffer = nullptr;
 	class FPooledDynamicMeshVertexBuffer* VertexBuffer = nullptr;
 	ERHIFeatureLevel::Type FeatureLevel;
+	FDynamicMeshBufferAllocator* DynamicMeshBufferAllocator;
 };
 
 /** Index Buffer */

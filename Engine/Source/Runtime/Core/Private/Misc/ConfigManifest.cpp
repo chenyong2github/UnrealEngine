@@ -75,7 +75,7 @@ void MigratePreviousEngineInis()
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	while(MinorVersion >= 0)
 	{
-		const FEngineVersion PreviousVersion(FEngineVersion::Current().GetMajor(), MinorVersion--, 0, 0, FString());
+		const FEngineVersion PreviousVersion((uint16)FEngineVersion::Current().GetMajor(), (uint16)(MinorVersion--), 0, 0, FString());
 	
 		const FString Directory = FString(FPlatformProcess::UserSettingsDir()) / VERSION_TEXT(EPIC_PRODUCT_IDENTIFIER) / PreviousVersion.ToString(EVersionComponent::Minor) / TEXT("Saved") / TEXT("Config") / ANSI_TO_TCHAR(FPlatformProperties::PlatformName());
 		if (FPaths::DirectoryExists(Directory))

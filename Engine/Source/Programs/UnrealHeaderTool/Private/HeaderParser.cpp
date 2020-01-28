@@ -267,7 +267,7 @@ namespace
 					{
 						FError::Throwf(TEXT("Invalid network identifier %s for function"), IdentifierPtr);
 					}
-					FuncInfo.RPCId = TempInt;
+					FuncInfo.RPCId = (uint16)TempInt;
 				}
 				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, UE_ARRAY_COUNT(ResponseIdTag) - 1) == 0 ||
 					FCString::Strnicmp(IdentifierPtr, JSBridgePriTag, UE_ARRAY_COUNT(JSBridgePriTag) - 1) == 0)
@@ -277,7 +277,7 @@ namespace
 					{
 						FError::Throwf(TEXT("Invalid network identifier %s for function"), IdentifierPtr);
 					}
-					FuncInfo.RPCResponseId = TempInt;
+					FuncInfo.RPCResponseId = (uint16)TempInt;
 				}
 			}
 			else
@@ -6604,6 +6604,11 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		StructRigVMInfo->Members.Add(MoveTemp(Parameter));
 	}
 
+	if (StructRigVMInfo->Members.Num() == 0)
+	{
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *Struct->GetName());
+	}
+
 	if (StructRigVMInfo->Members.Num() > 64)
 	{
 		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo->Members.Num());
@@ -6949,7 +6954,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		ParseParameterList(AllClasses, DelegateSignatureFunction, /*bExpectCommaBeforeName=*/ true);
 
 		// Check the expected versus actual number of parameters
-		int32 ParamCount = FoundParamCount - DelegateParameterCountStrings.GetData() + 1;
+		int32 ParamCount = UE_PTRDIFF_TO_INT32(FoundParamCount - DelegateParameterCountStrings.GetData()) + 1;
 		if (DelegateSignatureFunction->NumParms != ParamCount)
 		{
 			FError::Throwf(TEXT("Expected %d parameters but found %d parameters"), ParamCount, DelegateSignatureFunction->NumParms);
@@ -8762,7 +8767,7 @@ void FHeaderParser::ParseClassName(const TCHAR* Temp, FString& ClassName)
 		++Temp;
 	}
 
-	ClassName = FString(Temp - StringStart, StringStart);
+	ClassName = FString(UE_PTRDIFF_TO_INT32(Temp - StringStart), StringStart);
 	if (ClassName.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 	{
 		// RequiresAPI token for a given module
@@ -9439,6 +9444,20 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 		return bIsNull; // always return as null is the only the processing we can do for object defaults
 	}
 
+	auto ValidateEnumEntry = [Property, &CppForm](const UEnum* Enum, const FString& EnumValue)
+	{
+		const int32 EnumEntryIndex = Enum->GetIndexByName(*EnumValue);
+		if (EnumEntryIndex == INDEX_NONE)
+		{
+			return false;
+		}
+		if (Enum->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
+		{
+			FError::Throwf(TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *Property->GetName(), *CppForm);
+		}
+		return true;
+	};
+
 	if( !Property->IsA(FStructProperty::StaticClass()) )
 	{
 		if( Property->IsA(FIntProperty::StaticClass()) )
@@ -9463,7 +9482,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 			if( NULL != Enum )
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
-				return ( INDEX_NONE != Enum->GetIndexByName(*OutForm) );
+				return ValidateEnumEntry(Enum, OutForm);
 			}
 			int32 Value;
 			if( FDefaultValueHelper::ParseInt( CppForm, Value) )
@@ -9478,7 +9497,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 			if (const UEnum* Enum = CastFieldChecked<FEnumProperty>(const_cast<FProperty*>(Property))->GetEnum())
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
-				return Enum->GetIndexByName(*OutForm) != INDEX_NONE;
+				return ValidateEnumEntry(Enum, OutForm);
 			}
 
 			int64 Value;
@@ -9554,7 +9573,6 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Pr
 					if (ParsedTextNamespace.GetValue().Equals(UHTDummyNamespace))
 					{
 						FError::Throwf(TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *Property->GetName(), *CppForm);
-						return false;
 					}
 				}
 			}

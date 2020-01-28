@@ -81,6 +81,7 @@ void UNavLinkCustomComponent::PostEditImport()
 	Super::PostEditImport();
 
 	NavLinkUserId = INavLinkCustomInterface::GetUniqueId();
+	UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), NavLinkUserId);
 }
 #endif
 
@@ -169,6 +170,7 @@ void UNavLinkCustomComponent::OnRegister()
 	if (NavLinkUserId == 0)
 	{
 		NavLinkUserId = INavLinkCustomInterface::GetUniqueId();
+		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u [%s]."), ANSI_TO_TCHAR(__FUNCTION__), NavLinkUserId, *GetFullName());
 	}
 
 	UNavigationSystemV1::RequestCustomLinkRegistering(*this, this);

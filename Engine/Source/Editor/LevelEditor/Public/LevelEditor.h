@@ -25,6 +25,35 @@ extern const FName LevelEditorApp;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FAreObjectsEditable, const TArray<TWeakObjectPtr<UObject>>&);
 
+class LevelEditorTabIds
+{
+public:
+	static const FName LevelEditorViewport;
+	static const FName LevelEditorViewport_Clone1;
+	static const FName LevelEditorViewport_Clone2;
+	static const FName LevelEditorViewport_Clone3;
+	static const FName LevelEditorViewport_Clone4;
+	static const FName LevelEditorToolBar;
+	static const FName LevelEditorToolBox;
+	static const FName LevelEditorSelectionDetails;
+	static const FName LevelEditorSelectionDetails2;
+	static const FName LevelEditorSelectionDetails3;
+	static const FName LevelEditorSelectionDetails4;
+	static const FName PlacementBrowser;
+	static const FName LevelEditorBuildAndSubmit;
+	static const FName LevelEditorSceneOutliner;
+	static const FName LevelEditorStatsViewer;
+	static const FName LevelEditorLayerBrowser;
+	static const FName Sequencer;
+	static const FName SequencerGraphEditor;
+	static const FName WorldSettings;
+	static const FName WorldBrowserComposition;
+	static const FName WorldBrowserHierarchy;
+	static const FName WorldBrowserDetails;
+	static const FName LevelEditorHierarchicalLODOutliner;
+	static const FName OutputLog;
+};
+
 /**
  * Level editor module
  */
@@ -68,12 +97,6 @@ public:
 	 */
 	virtual void SummonBuildAndSubmit();
 	
-	/**
-	 * Spawns a new level browser tab
-	 * @todo This only works with the first level editor. Fix it.
-	 */
-	virtual void SummonLevelBrowser();
-
 	virtual void SummonWorldBrowserHierarchy();
 	virtual void SummonWorldBrowserDetails();
 	virtual void SummonWorldBrowserComposition();

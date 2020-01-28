@@ -80,11 +80,6 @@ bool FDisplayClusterServer::ConnectionHandler(FSocket* InSock, const FIPv4Endpoi
 		InSock->SetLinger(false, 0);
 		InSock->SetNonBlocking(false);
 
-		const int32 RequestedBufferSize = static_cast<int32>(DisplayClusterConstants::net::SocketBufferSize);
-		int32 FinalBufferSize;
-		InSock->SetReceiveBufferSize(RequestedBufferSize, FinalBufferSize);
-		InSock->SetSendBufferSize(RequestedBufferSize, FinalBufferSize);
-
 		TSharedPtr<FDisplayClusterSessionBase> Session = CreateSession(InSock, InEP);
 		Session->StartSession();
 		Sessions.Add(Session);

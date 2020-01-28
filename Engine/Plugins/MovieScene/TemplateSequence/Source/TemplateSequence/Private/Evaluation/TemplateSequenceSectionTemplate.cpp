@@ -3,6 +3,7 @@
 #include "Evaluation/TemplateSequenceSectionTemplate.h"
 #include "IMovieScenePlaybackClient.h"
 #include "TemplateSequence.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Sections/TemplateSequenceSection.h"
 
 FTemplateSequenceSectionTemplate::FTemplateSequenceSectionTemplate()
@@ -28,18 +29,24 @@ FTemplateSequenceSectionTemplate::FTemplateSequenceSectionTemplate(const UTempla
 
 void FTemplateSequenceSectionTemplate::SetupOverrides()
 {
-	EnableOverrides(RequiresInitializeFlag | RequiresTearDownFlag);
+	EnableOverrides(RequiresSetupFlag | RequiresTearDownFlag);
 }
 
 void FTemplateSequenceSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 }
 
-void FTemplateSequenceSectionTemplate::Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
+void FTemplateSequenceSectionTemplate::Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
 {
 	if (InnerOperand.IsValid())
 	{
-		Player.BindingOverrides.Add(InnerOperand, Operand);
+		// Add the override that will tell the child template sequence to use our object binding.
+		const FMovieSceneSequenceID SequenceID = PersistentData.GetSectionKey().SequenceID;
+		const FMovieSceneObjectBindingID AbsoluteBinding = GetAbsoluteInnerBindingID(SequenceID, Player);
+		const FMovieSceneEvaluationOperand AbsoluteInnerOperand(AbsoluteBinding.GetSequenceID(), AbsoluteBinding.GetGuid());
+
+		const FMovieSceneEvaluationOperand Operand(SequenceID, OuterBindingId);
+		Player.BindingOverrides.Add(AbsoluteInnerOperand, Operand);
 	}
 }
 
@@ -47,6 +54,20 @@ void FTemplateSequenceSectionTemplate::TearDown(FPersistentEvaluationData& Persi
 {
 	if (InnerOperand.IsValid())
 	{
-		Player.BindingOverrides.Remove(InnerOperand);
+		// Clear the override.
+		const FMovieSceneSequenceID SequenceID = PersistentData.GetSectionKey().SequenceID;
+		const FMovieSceneObjectBindingID AbsoluteBinding = GetAbsoluteInnerBindingID(SequenceID, Player);
+		const FMovieSceneEvaluationOperand AbsoluteInnerOperand(AbsoluteBinding.GetSequenceID(), AbsoluteBinding.GetGuid());
+		Player.BindingOverrides.Remove(AbsoluteInnerOperand);
 	}
+}
+
+FMovieSceneObjectBindingID FTemplateSequenceSectionTemplate::GetAbsoluteInnerBindingID(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) const
+{
+	// Convert the binding ID that we have, which is local to the child template sequence, into
+	// an absolute ID that fits in the current hierarchy.
+	const FMovieSceneObjectBindingID LocalBinding(InnerOperand.ObjectBindingID, InnerOperand.SequenceID, EMovieSceneObjectBindingSpace::Local);
+
+	const FMovieSceneSequenceHierarchy& Hierarchy = Player.GetEvaluationTemplate().GetHierarchy();
+	return LocalBinding.ResolveLocalToRoot(LocalSequenceID, Hierarchy);
 }

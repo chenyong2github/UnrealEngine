@@ -130,7 +130,10 @@ void FixSubObjectReferencesPostUndoRedo(const FTransaction* Transaction)
 
 			if (Blueprint != nullptr)
 			{
-				ModifiedBlueprints.AddUnique(Blueprint);
+				if (Blueprint->ShouldBeMarkedDirtyUponTransaction())
+				{
+					ModifiedBlueprints.AddUnique(Blueprint);
+				}
 			}
 		}
 	}
@@ -140,7 +143,7 @@ void FixSubObjectReferencesPostUndoRedo(const FTransaction* Transaction)
 	{
 		FixSubObjectReferencesPostUndoRedo(Blueprint->GeneratedClass->GetDefaultObject());
 		// Will cause a call to RefreshEditors()
-		if (Blueprint->RequiresMarkAsStructurallyModifiedOnUndo())
+		if (Blueprint->ShouldBeMarkedDirtyUponTransaction())
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}

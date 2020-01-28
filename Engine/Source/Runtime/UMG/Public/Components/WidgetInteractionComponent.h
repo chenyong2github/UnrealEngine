@@ -184,7 +184,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void SetFocus(UWidget* FocusWidget);
 
-private:
+protected:
 	/**
 	 * Represents the virtual user in slate.  When this component is registered, it gets a handle to the 
 	 * virtual slate user it will be, so virtual slate user 0, is probably real slate user 8, as that's the first
