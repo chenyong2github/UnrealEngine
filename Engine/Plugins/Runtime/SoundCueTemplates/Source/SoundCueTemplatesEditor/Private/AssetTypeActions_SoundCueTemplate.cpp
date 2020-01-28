@@ -4,6 +4,7 @@
 #include "SoundCueTemplate.h"
 #include "SoundCueTemplateFactory.h"
 
+#include "Components/AudioComponent.h"
 #include "ToolMenuSection.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -29,6 +30,62 @@ void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InOb
 			FCanExecuteAction()
 		)
 	);
+}
+
+bool FAssetTypeActions_SoundCueTemplate::AssetsActivatedOverride(const TArray<UObject *>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
+{
+	if (ActivationType == EAssetTypeActivationMethod::Previewed)
+	{
+		USoundBase* TargetSound = NULL;
+
+		for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+		{
+			TargetSound = Cast<USoundBase>(*ObjIt);
+			if (TargetSound)
+			{
+				// Only target the first valid sound cue
+				break;
+			}
+		}
+
+		UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
+		if (PreviewComp && PreviewComp->IsPlaying())
+		{
+			// Already previewing a sound, if it is the target cue then stop it, otherwise play the new one
+			if (!TargetSound || PreviewComp->Sound == TargetSound)
+			{
+				StopSound();
+			}
+			else
+			{
+				PlaySound(TargetSound);
+			}
+		}
+		else
+		{
+			// Not already playing, play the target sound cue if it exists
+			PlaySound(TargetSound);
+		}
+		return true;
+	}
+	return false;
+}
+
+void FAssetTypeActions_SoundCueTemplate::PlaySound(USoundBase* Sound) const
+{
+	if (Sound)
+	{
+		GEditor->PlayPreviewSound(Sound);
+	}
+	else
+	{
+		StopSound();
+	}
+}
+
+void FAssetTypeActions_SoundCueTemplate::StopSound() const
+{
+	GEditor->ResetPreviewAudioComponent();
 }
 
 void FAssetTypeActions_SoundCueTemplate::ExecuteCopyToSoundCue(TArray<TWeakObjectPtr<USoundCueTemplate>> Objects)
