@@ -38,7 +38,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ContentBrowserCommands.h"
-
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -111,14 +111,15 @@ TSharedRef<FExtender> FPathContextMenu::MakePathViewContextMenuExtender(const TA
 		}
 	}
 	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
-
-	MenuExtender->AddMenuExtension("FolderContext", EExtensionHook::After, TSharedPtr<FUICommandList>(), FMenuExtensionDelegate::CreateSP(this, &FPathContextMenu::MakePathViewContextMenu));
-
 	return MenuExtender.ToSharedRef();
 }
 
-void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
+void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 {
+	// Cache any vars that are used in determining if you can execute any actions.
+	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
+	CacheCanExecuteVars();
+
 	int32 NumAssetPaths, NumClassPaths;
 	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
 
@@ -129,8 +130,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 		const bool bHasClassPaths = NumClassPaths > 0;
 
 		// Common operations section //
-		MenuBuilder.BeginSection("PathViewFolderOptions", LOCTEXT("PathViewOptionsMenuHeading", "Folder Options") );
 		{
+			FToolMenuSection& Section = Menu->AddSection("PathViewFolderOptions", LOCTEXT("PathViewOptionsMenuHeading", "Folder Options") );
 			if(bHasAssetPaths)
 			{
 				FText NewAssetToolTip;
@@ -151,15 +152,15 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 				}
 
 				// New Asset (submenu)
-				MenuBuilder.AddSubMenu(
+				Section.AddSubMenu(
+					"NewAsset",
 					LOCTEXT( "NewAssetLabel", "New Asset" ),
 					NewAssetToolTip,
-					FNewMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeNewAssetSubMenu ),
+					FNewToolMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeNewAssetSubMenu ),
 					FUIAction(
 						FExecuteAction(),
 						FCanExecuteAction::CreateRaw( this, &FPathContextMenu::CanCreateAsset )
 						),
-					NAME_None,
 					EUserInterfaceActionType::Button,
 					false,
 					FSlateIcon()
@@ -186,7 +187,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 				}
 
 				// New Class
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"NewClass",
 					LOCTEXT("NewClassLabel", "New C++ Class..."),
 					NewClassToolTip,
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
@@ -198,14 +200,15 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 			}
 
 			// Explore
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				"ExploreTooltip",
 				ContentBrowserUtils::GetExploreFolderText(),
 				LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
 				FSlateIcon(),
 				FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteExplore ) )
 				);
 
-			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None,
+			Section.AddMenuEntry(FGenericCommands::Get().Rename,
 				LOCTEXT("RenameFolder", "Rename"),
 				LOCTEXT("RenameFolderTooltip", "Rename the selected folder.")
 				);
@@ -214,10 +217,11 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 			if ( ContentBrowserUtils::HasCustomColors() )
 			{
 				// Set Color (submenu)
-				MenuBuilder.AddSubMenu(
+				Section.AddSubMenu(
+					"SetColor",
 					LOCTEXT("SetColor", "Set Color"),
 					LOCTEXT("SetColorTooltip", "Sets the color this folder should appear as."),
-					FNewMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeSetColorSubMenu ),
+					FNewToolMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeSetColorSubMenu ),
 					false,
 					FSlateIcon()
 					);
@@ -225,7 +229,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 			else
 			{
 				// Set Color
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"SetColor",
 					LOCTEXT("SetColor", "Set Color"),
 					LOCTEXT("SetColorTooltip", "Sets the color this folder should appear as."),
 					FSlateIcon(),
@@ -237,7 +242,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 			if (ContentBrowserUtils::IsFavoriteFolder(SelectedPaths[0]))
 			{
 				// Remove from favorites
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"RemoveFromFavorites",
 					LOCTEXT("RemoveFromFavorites", "Remove From Favorites"),
 					LOCTEXT("RemoveFromFavoritesTooltip", "Removes this folder from the favorites section."),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Favorites_Disabled"),
@@ -247,7 +253,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 			else
 			{
 				// Add to favorites
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"AddToFavorites",
 					LOCTEXT("AddToFavorites", "Add To Favorites"),
 					LOCTEXT("AddToFavoritesTooltip", "Adds this folder to the favorites section for easy access."),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Favorites_Enabled"),
@@ -255,30 +262,31 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 				);
 			}
 		}
-		MenuBuilder.EndSection();
 
 		if(bHasAssetPaths)
 		{
 			// Bulk operations section //
-			MenuBuilder.BeginSection("PathContextBulkOperations", LOCTEXT("AssetTreeBulkMenuHeading", "Bulk Operations") );
 			{
+				FToolMenuSection& Section = Menu->AddSection("PathContextBulkOperations", LOCTEXT("AssetTreeBulkMenuHeading", "Bulk Operations") );
+
 				// Save
-				MenuBuilder.AddMenuEntry(FContentBrowserCommands::Get().SaveAllCurrentFolder, NAME_None,
+				Section.AddMenuEntry(FContentBrowserCommands::Get().SaveAllCurrentFolder,
 					LOCTEXT("SaveFolder", "Save All"),
 					LOCTEXT("SaveFolderTooltip", "Saves all modified assets in this folder.")
 					);
 
 				// Resave
-				MenuBuilder.AddMenuEntry(FContentBrowserCommands::Get().ResaveAllCurrentFolder);
+				Section.AddMenuEntry(FContentBrowserCommands::Get().ResaveAllCurrentFolder);
 
 				// Delete
-				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None,
+				Section.AddMenuEntry(FGenericCommands::Get().Delete,
 					LOCTEXT("DeleteFolder", "Delete"),
 					LOCTEXT("DeleteFolderTooltip", "Removes this folder and all assets it contains.")
 					);
 
 				// Fix Up Redirectors in Folder
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"FixUpRedirectorsInFolder",
 					LOCTEXT("FixUpRedirectorsInFolder", "Fix Up Redirectors in Folder"),
 					LOCTEXT("FixUpRedirectorsInFolderTooltip", "Finds referencers to all redirectors in the selected folders and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
 					FSlateIcon(),
@@ -288,7 +296,8 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 				if ( NumAssetPaths == 1 && NumClassPaths == 0 )
 				{
 					// Migrate Folder
-					MenuBuilder.AddMenuEntry(
+					Section.AddMenuEntry(
+						"MigrateFolder",
 						LOCTEXT("MigrateFolder", "Migrate..."),
 						LOCTEXT("MigrateFolderTooltip", "Copies assets found in this folder and their dependencies to another game content folder."),
 						FSlateIcon(),
@@ -296,72 +305,76 @@ void FPathContextMenu::MakePathViewContextMenu(FMenuBuilder& MenuBuilder)
 						);
 				}
 			}
-			MenuBuilder.EndSection();
 
 			// Source control section //
-			MenuBuilder.BeginSection("PathContextSourceControl", LOCTEXT("AssetTreeSCCMenuHeading", "Source Control") );
-
-			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-			if ( SourceControlProvider.IsEnabled() )
 			{
-				// Check out
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("FolderSCCCheckOut", "Check Out"),
-					LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this folder."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteSCCCheckOut ),
-						FCanExecuteAction::CreateSP( this, &FPathContextMenu::CanExecuteSCCCheckOut )
+				FToolMenuSection& Section = Menu->AddSection("PathContextSourceControl", LOCTEXT("AssetTreeSCCMenuHeading", "Source Control"));
+
+				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+				if (SourceControlProvider.IsEnabled())
+				{
+					// Check out
+					Section.AddMenuEntry(
+						"FolderSCCCheckOut",
+						LOCTEXT("FolderSCCCheckOut", "Check Out"),
+						LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this folder."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCCheckOut),
+							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCCheckOut)
 						)
 					);
 
-				// Open for Add
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("FolderSCCOpenForAdd", "Mark For Add"),
-					LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this folder and not already added."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteSCCOpenForAdd ),
-						FCanExecuteAction::CreateSP( this, &FPathContextMenu::CanExecuteSCCOpenForAdd )
+					// Open for Add
+					Section.AddMenuEntry(
+						"FolderSCCOpenForAdd",
+						LOCTEXT("FolderSCCOpenForAdd", "Mark For Add"),
+						LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this folder and not already added."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCOpenForAdd),
+							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCOpenForAdd)
 						)
 					);
 
-				// Check in
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("FolderSCCCheckIn", "Check In"),
-					LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this folder."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteSCCCheckIn ),
-						FCanExecuteAction::CreateSP( this, &FPathContextMenu::CanExecuteSCCCheckIn )
+					// Check in
+					Section.AddMenuEntry(
+						"FolderSCCCheckIn",
+						LOCTEXT("FolderSCCCheckIn", "Check In"),
+						LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this folder."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCCheckIn),
+							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCCheckIn)
 						)
 					);
 
-				// Sync
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("FolderSCCSync", "Sync"),
-					LOCTEXT("FolderSCCSyncTooltip", "Syncs all the assets in this folder to the latest version."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteSCCSync ),
-						FCanExecuteAction::CreateSP( this, &FPathContextMenu::CanExecuteSCCSync )
+					// Sync
+					Section.AddMenuEntry(
+						"FolderSCCSync",
+						LOCTEXT("FolderSCCSync", "Sync"),
+						LOCTEXT("FolderSCCSyncTooltip", "Syncs all the assets in this folder to the latest version."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCSync),
+							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCSync)
 						)
 					);
+				}
+				else
+				{
+					Section.AddMenuEntry(
+						"FolderSCCConnect",
+						LOCTEXT("FolderSCCConnect", "Connect To Source Control"),
+						LOCTEXT("FolderSCCConnectTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCConnect),
+							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCConnect)
+						)
+					);
+				}
 			}
-			else
-			{
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("FolderSCCConnect", "Connect To Source Control"),
-					LOCTEXT("FolderSCCConnectTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteSCCConnect ),
-						FCanExecuteAction::CreateSP( this, &FPathContextMenu::CanExecuteSCCConnect )
-						)
-					);	
-			}
-
-			MenuBuilder.EndSection();
 		}
 	}
 }
@@ -372,12 +385,12 @@ bool FPathContextMenu::CanCreateAsset() const
 	return SelectedPaths.Num() == 1 && !ContentBrowserUtils::IsClassPath(SelectedPaths[0]);
 }
 
-void FPathContextMenu::MakeNewAssetSubMenu(FMenuBuilder& MenuBuilder)
+void FPathContextMenu::MakeNewAssetSubMenu(UToolMenu* Menu)
 {
 	if ( SelectedPaths.Num() )
 	{
 		FNewAssetOrClassContextMenu::MakeContextMenu(
-			MenuBuilder, 
+			Menu,
 			SelectedPaths, 
 			OnNewAssetRequested, 
 			FNewAssetOrClassContextMenu::FOnNewClassRequested(), 
@@ -399,57 +412,63 @@ bool FPathContextMenu::CanCreateClass() const
 	return SelectedPaths.Num() == 1 && ContentBrowserUtils::IsValidPathToCreateNewClass(SelectedPaths[0]);
 }
 
-void FPathContextMenu::MakeSetColorSubMenu(FMenuBuilder& MenuBuilder)
+void FPathContextMenu::MakeSetColorSubMenu(UToolMenu* Menu)
 {
-	// New Color
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("NewColor", "New Color"),
-		LOCTEXT("NewColorTooltip", "Changes the color this folder should appear as."),
-		FSlateIcon(),
-		FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecutePickColor ) )
+	{
+		FToolMenuSection& Section = Menu->AddSection("Section");
+
+		// New Color
+		Section.AddMenuEntry(
+			"NewColor",
+			LOCTEXT("NewColor", "New Color"),
+			LOCTEXT("NewColorTooltip", "Changes the color this folder should appear as."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecutePickColor))
 		);
 
-	// Clear Color (only required if any of the selection has one)
-	if ( SelectedHasCustomColors() )
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ClearColor", "Clear Color"),
-			LOCTEXT("ClearColorTooltip", "Resets the color this folder appears as."),
-			FSlateIcon(),
-			FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteResetColor ) )
+		// Clear Color (only required if any of the selection has one)
+		if (SelectedHasCustomColors())
+		{
+			Section.AddMenuEntry(
+				"ClearColor",
+				LOCTEXT("ClearColor", "Clear Color"),
+				LOCTEXT("ClearColorTooltip", "Resets the color this folder appears as."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteResetColor))
 			);
+		}
 	}
 
 	// Add all the custom colors the user has chosen so far
 	TArray< FLinearColor > CustomColors;
 	if ( ContentBrowserUtils::HasCustomColors( &CustomColors ) )
 	{	
-		MenuBuilder.BeginSection("PathContextCustomColors", LOCTEXT("CustomColorsExistingColors", "Existing Colors") );
 		{
+			FToolMenuSection& Section = Menu->AddSection("PathContextCustomColors", LOCTEXT("CustomColorsExistingColors", "Existing Colors") );
 			for ( int32 ColorIndex = 0; ColorIndex < CustomColors.Num(); ColorIndex++ )
 			{
 				const FLinearColor& Color = CustomColors[ ColorIndex ];
-				MenuBuilder.AddWidget(
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
+				Section.AddEntry(FToolMenuEntry::InitWidget(
+					NAME_None,
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2, 0, 0, 0)
+					[
+						SNew(SButton)
+						.ButtonStyle( FEditorStyle::Get(), "Menu.Button" )
+						.OnClicked( this, &FPathContextMenu::OnColorClicked, Color )
 						[
-							SNew(SButton)
-							.ButtonStyle( FEditorStyle::Get(), "Menu.Button" )
-							.OnClicked( this, &FPathContextMenu::OnColorClicked, Color )
-							[
-								SNew(SColorBlock)
-								.Color( Color )
-								.Size( FVector2D(77,16) )
-							]
-						],
+							SNew(SColorBlock)
+							.Color( Color )
+							.Size( FVector2D(77,16) )
+						]
+					],
 					FText::GetEmpty(),
 					/*bNoIndent=*/true
-				);
+				));
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 }
 

@@ -61,7 +61,8 @@
 #include "GameProjectGenerationModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-
+#include "ContentBrowserMenuContexts.h"
+#include "ToolMenus.h"
 
 #include "Brushes/SlateColorBrush.h"
 
@@ -2072,6 +2073,19 @@ FString SContentBrowser::GetCurrentPath() const
 
 TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent, bool bShowImport)
 {
+	if (!UToolMenus::Get()->IsMenuRegistered("ContentBrowser.AddNewContextMenu"))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("ContentBrowser.AddNewContextMenu");
+		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserAddNewContextMenuContext* Context = InMenu->FindContext<UContentBrowserAddNewContextMenuContext>();
+			if (Context && Context->ContentBrowser.IsValid())
+			{
+				Context->ContentBrowser.Pin()->PopulateAddNewContextMenu(InMenu, Context->bShowGetContent, Context->bShowImport, Context->NumAssetPaths);
+			}
+		}));
+	}
+
 	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
 
 	int32 NumAssetPaths, NumClassPaths;
@@ -2098,7 +2112,33 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 	}
 	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
 
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, NULL, MenuExtender);
+	UContentBrowserAddNewContextMenuContext* ContextObject = NewObject<UContentBrowserAddNewContextMenuContext>();
+	ContextObject->ContentBrowser = SharedThis(this);
+	ContextObject->NumAssetPaths = NumAssetPaths;
+	ContextObject->bShowGetContent = bShowGetContent;
+	ContextObject->bShowImport = bShowImport;
+	FToolMenuContext ToolMenuContext(nullptr, MenuExtender, ContextObject);
+
+	FDisplayMetrics DisplayMetrics;
+	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
+
+	const FVector2D DisplaySize(
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
+
+	return 
+		SNew(SVerticalBox)
+
+		+SVerticalBox::Slot()
+		.MaxHeight(DisplaySize.Y * 0.9)
+		[
+			UToolMenus::Get()->GenerateWidget("ContentBrowser.AddNewContextMenu", ToolMenuContext)
+		];
+}
+
+void SContentBrowser::PopulateAddNewContextMenu(class UToolMenu* Menu, bool bShowGetContent, bool bShowImport, const int32 NumAssetPaths)
+{
+	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
 
 	// Only add "New Folder" item if we do not have a collection selected
 	FNewAssetOrClassContextMenu::FOnNewFolderRequested OnNewFolderRequested;
@@ -2131,7 +2171,7 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 	FNewAssetOrClassContextMenu::FOnNewClassRequested OnNewClassRequested = FNewAssetOrClassContextMenu::FOnNewClassRequested::CreateSP(this, &SContentBrowser::NewClassRequested);
 
 	FNewAssetOrClassContextMenu::MakeContextMenu(
-		MenuBuilder, 
+		Menu,
 		SourcesData.PackagePaths, 
 		OnNewAssetRequested,
 		OnNewClassRequested,
@@ -2139,22 +2179,6 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 		OnImportAssetRequested,
 		OnGetContentRequested
 		);
-
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
-
-	const FVector2D DisplaySize(
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
-
-	return 
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.MaxHeight(DisplaySize.Y * 0.9)
-		[
-			MenuBuilder.MakeWidget()
-		];
 }
 
 bool SContentBrowser::IsAddNewEnabled() const
@@ -3177,9 +3201,35 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 		Extender = InMenuExtender.Execute(SelectedPaths);
 	}
 
-	const bool bInShouldCloseWindowAfterSelection = true;
-	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterSelection, Commands, Extender, true);
-	
+	if (!UToolMenus::Get()->IsMenuRegistered("ContentBrowser.FolderContextMenu"))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("ContentBrowser.FolderContextMenu");
+		Menu->bCloseSelfOnly = true;
+		Menu->AddDynamicSection("Section", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserFolderContext* Context = InMenu->FindContext<UContentBrowserFolderContext>();
+			if (Context && Context->ContentBrowser.IsValid())
+			{
+				Context->ContentBrowser.Pin()->PopulateFolderContextMenu(InMenu);
+			}
+		}));
+	}
+
+	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
+	Context->ContentBrowser = SharedThis(this);
+	Context->OnCreateNewFolder = InOnCreateNewFolder;
+	FToolMenuContext MenuContext(Commands, Extender, Context);
+
+	return UToolMenus::Get()->GenerateWidget("ContentBrowser.FolderContextMenu", MenuContext);
+}
+
+void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
+{
+	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
+	check(Context);
+
+	const TArray<FString>& SelectedPaths = PathContextMenu->GetSelectedPaths();
+
 	// We can only create folders when we have a single path selected
 	const bool bCanCreateNewFolder = SelectedPaths.Num() == 1 && ContentBrowserUtils::IsValidPathToCreateNewFolder(SelectedPaths[0]);
 
@@ -3200,26 +3250,31 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 		NewFolderToolTip = LOCTEXT("NewFolderTooltip_InvalidNumberOfPaths", "Can only create folders when there is a single path selected.");
 	}
 
-	// New Folder
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("NewFolder", "New Folder"),
-		NewFolderToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), InOnCreateNewFolder ),
-			FCanExecuteAction::CreateLambda( [bCanCreateNewFolder] { return bCanCreateNewFolder; } )
+	{
+		FToolMenuSection& Section = Menu->AddSection("Section");
+
+		// New Folder
+		Section.AddMenuEntry(
+			"NewFolder",
+			LOCTEXT("NewFolder", "New Folder"),
+			NewFolderToolTip,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), Context->OnCreateNewFolder),
+				FCanExecuteAction::CreateLambda([bCanCreateNewFolder] { return bCanCreateNewFolder; })
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowInNewContentBrowser", "Show in New Content Browser"),
-		LOCTEXT("ShowInNewContentBrowserTooltip", "Opens a new Content Browser at this folder location (at least 1 Content Browser window needs to be locked)"),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OpenNewContentBrowser)),
-		"FolderContext"
-	);
+		Section.AddMenuEntry(
+			"FolderContext",
+			LOCTEXT("ShowInNewContentBrowser", "Show in New Content Browser"),
+			LOCTEXT("ShowInNewContentBrowserTooltip", "Opens a new Content Browser at this folder location (at least 1 Content Browser window needs to be locked)"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OpenNewContentBrowser))
+		);
+	}
 
-	return MenuBuilder.MakeWidget();
+	PathContextMenu->MakePathViewContextMenu(Menu);
 }
 
 void SContentBrowser::CreateNewFolder(FString FolderPath, FOnCreateNewFolder InOnCreateNewFolder)
