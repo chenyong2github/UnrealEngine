@@ -120,13 +120,6 @@ void FLiveLinkClient::UpdateSources()
 {
 	for (FLiveLinkCollectionSourceItem& SourceItem : Collection->GetSources())
 	{
-#if WITH_EDITOR
-		if (SourceItem.Setting)
-		{
-			SourceItem.Setting->SourceDebugInfos.Reset();
-		}
-#endif
-
 		SourceItem.Source->Update();
 	}
 }

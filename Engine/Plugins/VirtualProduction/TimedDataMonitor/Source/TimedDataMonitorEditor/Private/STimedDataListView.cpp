@@ -88,6 +88,9 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputId);
 			CachedState = TimedDataMonitorSubsystem->GetInputState(InputId);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputId);
+			CachedStatsBufferUnderflow = TimedDataMonitorSubsystem->GetBufferUnderflowStat(InputId);
+			CachedStatsBufferOverflow = TimedDataMonitorSubsystem->GetBufferOverflowStat(InputId);
+			CachedStatsFrameDropped = TimedDataMonitorSubsystem->GetFrameDroppedStat(InputId);
 
 			if (CachedEnabled == ECheckBoxState::Checked)
 			{
@@ -142,9 +145,17 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedState = TimedDataMonitorSubsystem->GetGroupState(GroupId);
 			TimedDataMonitorSubsystem->GetGroupDataBufferSize(GroupId, CachedBufferSize, CachedBufferSizeMax);
 
+			CachedStatsBufferUnderflow = 0;
+			CachedStatsBufferOverflow = 0;
+			CachedStatsFrameDropped = 0;
 			for (FTimedDataInputTableRowDataPtr& Child : GroupChildren)
 			{
 				Child->UpdateCachedValue();
+
+				//Update the group stats here to simplify the queries
+				CachedStatsBufferUnderflow = FMath::Max(CachedStatsBufferUnderflow, Child->CachedStatsBufferUnderflow);
+				CachedStatsBufferOverflow = FMath::Max(CachedStatsBufferOverflow, Child->CachedStatsBufferOverflow);
+				CachedStatsFrameDropped += Child->CachedStatsFrameDropped;
 			}
 		}
 	}
@@ -165,6 +176,9 @@ public:
 	FText CachedDescription;
 	int32 CachedBufferSize = 0;
 	int32 CachedBufferSizeMax = 0;
+	int32 CachedStatsBufferUnderflow = 0;
+	int32 CachedStatsBufferOverflow = 0;
+	int32 CachedStatsFrameDropped = 0;
 };
 
 
@@ -277,23 +291,20 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	}
 	if (TimedDataListView::HeaderIdName_BufferUnder == ColumnName)
 	{
-		//@todo put proper stat
 		return SNew(STextBlock)
-			.Text(LOCTEXT("Tmp2", "112"))
+			.Text(this, &STimedDataInputTableRow::GetBufferUnderflowCount)
 			.TextStyle(ItemTextBlockStyle);
 	}
 	if (TimedDataListView::HeaderIdName_BufferOver == ColumnName)
 	{
-		//@todo put proper stat
 		return SNew(STextBlock)
-			.Text(LOCTEXT("Tmp2", "112"))
+			.Text(this, &STimedDataInputTableRow::GetBufferOverflowCount)
 			.TextStyle(ItemTextBlockStyle);
 	}
 	if (TimedDataListView::HeaderIdName_FrameDrop == ColumnName)
 	{
-		//@todo put proper stat
 		return SNew(STextBlock)
-			.Text(LOCTEXT("Tmp2", "112"))
+			.Text(this, &STimedDataInputTableRow::GetFrameDroppedCount)
 			.TextStyle(ItemTextBlockStyle);
 	}
 	if (TimedDataListView::HeaderIdName_TimingDiagram == ColumnName)
@@ -414,6 +425,21 @@ bool STimedDataInputTableRow::CanEditBufferSize() const
 	return Item->CachedEnabled == ECheckBoxState::Checked || Item->CachedEnabled == ECheckBoxState::Undetermined;
 }
 
+
+FText STimedDataInputTableRow::GetBufferUnderflowCount() const
+{
+	return FText::AsNumber(Item->CachedStatsBufferUnderflow);
+}
+
+FText STimedDataInputTableRow::GetBufferOverflowCount() const
+{
+	return FText::AsNumber(Item->CachedStatsBufferOverflow);
+}
+
+FText STimedDataInputTableRow::GetFrameDroppedCount() const
+{
+	return FText::AsNumber(Item->CachedStatsFrameDropped);
+}
 
 /**
  * STimedDataListView

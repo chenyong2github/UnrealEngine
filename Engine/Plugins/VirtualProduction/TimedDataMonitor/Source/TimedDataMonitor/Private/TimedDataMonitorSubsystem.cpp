@@ -4,11 +4,16 @@
 
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
+#include "Engine/World.h"
 #include "HAL/PlatformTime.h"
 #include "ITimeManagementModule.h"
 #include "Misc/App.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "TimedDataInputCollection.h"
+
+
+static TAutoConsoleVariable<bool> CVarEnableTimedDataMonitorSubsystemStats(TEXT("TimedDataMonitor.EnableStatUpdate"), 1, TEXT("Enable calculating evaluation statistics of all registered channels."));
+
 
 #define LOCTEXT_NAMESPACE "TimedDataMonitorSubsystem"
 
@@ -45,16 +50,9 @@ bool UTimedDataMonitorSubsystem::FTimeDataInputItem::HasGroup() const
 
 void UTimedDataMonitorSubsystem::FTimeDataInputItem::ResetValue()
 {
+	Statistics.Reset();
 }
 
-/**
- *
- */
-//void UTimedDataMonitorSubsystem::FTimeDataInputItemGroup::UpdateValue(int32 NewBufferSize)
-//{
-//	++BufferSizeAverageCount;
-//	BufferSizeAverageValue += ((NewBufferSize- BufferSizeAverageValue)/BufferSizeAverageCount);
-//}
 
 void UTimedDataMonitorSubsystem::FTimeDataInputItemGroup::ResetValue()
 {
@@ -68,6 +66,7 @@ void UTimedDataMonitorSubsystem::Initialize(FSubsystemCollectionBase& Collection
 {
 	OtherGroupIdentifier = FTimedDataMonitorGroupIdentifier::NewIdentifier();
 	bRequestSourceListRebuilt = true;
+	FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UTimedDataMonitorSubsystem::OnWorldPostTick);
 	ITimeManagementModule::Get().GetTimedDataInputCollection().OnCollectionChanged().AddUObject(this, &UTimedDataMonitorSubsystem::OnTimedDataSourceCollectionChanged);
 	Super::Initialize(Collection);
 }
@@ -75,6 +74,8 @@ void UTimedDataMonitorSubsystem::Initialize(FSubsystemCollectionBase& Collection
 
 void UTimedDataMonitorSubsystem::Deinitialize()
 {
+	FWorldDelegates::OnWorldPostActorTick.RemoveAll(this);
+
 	if (ITimeManagementModule::IsAvailable())
 	{
 		ITimeManagementModule::Get().GetTimedDataInputCollection().OnCollectionChanged().RemoveAll(this);
@@ -438,6 +439,7 @@ void UTimedDataMonitorSubsystem::ResetAllBufferStats()
 	for (auto& InputItt : InputMap)
 	{
 		InputItt.Value.Input->ResetBufferStats();
+		InputItt.Value.ResetValue();
 	}
 }
 
@@ -716,6 +718,18 @@ FFrameRate UTimedDataMonitorSubsystem::GetInputFrameRate(const FTimedDataMonitor
 }
 
 
+FTimedDataInputSampleTime UTimedDataMonitorSubsystem::GetInputOldestDataTime(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetOldestDataTime();
+	}
+
+	return FTimedDataInputSampleTime();
+}
+
 FTimedDataInputSampleTime UTimedDataMonitorSubsystem::GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier)
 {
 	BuildSourcesListIfNeeded();
@@ -787,6 +801,92 @@ void UTimedDataMonitorSubsystem::SetInputEnabled(const FTimedDataMonitorInputIde
 	}
 }
 
+
+int32 UTimedDataMonitorSubsystem::GetBufferUnderflowStat(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetBufferUnderflowStat();
+	}
+
+	return 0;
+}
+
+int32 UTimedDataMonitorSubsystem::GetBufferOverflowStat(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetBufferOverflowStat();
+	}
+
+	return 0;
+}
+
+int32 UTimedDataMonitorSubsystem::GetFrameDroppedStat(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->GetFrameDroppedStat();
+	}
+
+	return 0;
+}
+
+float UTimedDataMonitorSubsystem::GetEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Statistics.IncrementalAverageNewestDistance;
+	}
+
+	return 0.0f;
+}
+
+float UTimedDataMonitorSubsystem::GetEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Statistics.IncrementalAverageOldestDistance;
+	}
+
+	return 0.0f;
+}
+
+float UTimedDataMonitorSubsystem::GetEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Statistics.DistanceToNewestSTD;
+	}
+
+	return 0.0f;
+}
+
+float UTimedDataMonitorSubsystem::GetEvaluationDistanceToOldestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Statistics.DistanceToOldestSTD;
+	}
+
+	return 0.0f;
+}
+
+void UTimedDataMonitorSubsystem::GetLastEvaluationDataStat(const FTimedDataMonitorInputIdentifier& Identifier, FTimedDataInputEvaluationData& Result)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		SourceItem->Input->GetLastEvaluationData(Result);
+	}
+}
 
 void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 {
@@ -984,5 +1084,69 @@ void UTimedDataMonitorSubsystem::OnTimedDataSourceCollectionChanged()
 	OnIdentifierListChanged_Dynamic.Broadcast();
 }
 
+void UTimedDataMonitorSubsystem::OnWorldPostTick(UWorld* /*World*/, ELevelTick/**Tick Type*/, float/**Delta Seconds*/)
+{
+	const bool bUpdateStats = CVarEnableTimedDataMonitorSubsystemStats.GetValueOnGameThread();
+	if (bUpdateStats)
+	{
+		UpdateEvaluationStatistics();
+	}
+}
+
+void UTimedDataMonitorSubsystem::UpdateEvaluationStatistics()
+{
+	for (TPair<FTimedDataMonitorInputIdentifier, FTimeDataInputItem>& Item : InputMap)
+	{
+		if (Item.Value.bEnabled)
+		{
+			FTimedDataInputEvaluationData Data;
+			GetLastEvaluationDataStat(Item.Key, Data);
+
+			Item.Value.Statistics.Update(Data.DistanceToOldestSampleSeconds, Data.DistanceToNewestSampleSeconds);
+		}
+	}
+}
+
+void FTimedDataChannelEvaluationStatistics::Update(float DistanceToOldest, float DistanceToNewest)
+{
+	//Compute running average and variance based on Welford's algorithm 
+	//https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+
+	//Update sample count to include this new one
+	++SampleCount;
+
+	//For running variance, keep previous mean distance
+	const float NewDistanceToNewestToMean1 = DistanceToNewest - IncrementalAverageNewestDistance;
+	const float NewDistanceToOldestToMean1 = DistanceToOldest - IncrementalAverageOldestDistance;
+
+	//Update incremental average of distances to both ends of this input buffer
+	IncrementalAverageNewestDistance = IncrementalAverageNewestDistance + (DistanceToNewest - IncrementalAverageNewestDistance) / SampleCount;
+	IncrementalAverageOldestDistance = IncrementalAverageOldestDistance + (DistanceToOldest - IncrementalAverageOldestDistance) / SampleCount;
+
+	//Compute sum of squares for running variance
+	const float NewDistanceToNewestToMean2 = DistanceToNewest - IncrementalAverageNewestDistance;
+	SumSquaredDistanceNewest = SumSquaredDistanceNewest + NewDistanceToNewestToMean2 * NewDistanceToNewestToMean1;
+	const float NewDistanceToOldestToMean2 = DistanceToOldest - IncrementalAverageOldestDistance;
+	SumSquaredDistanceOldest = SumSquaredDistanceOldest + NewDistanceToOldestToMean2 * NewDistanceToOldestToMean1;
+
+	//Finally compute the variance
+	IncrementalVarianceDistanceNewest = SumSquaredDistanceNewest / SampleCount;
+	IncrementalVarianceDistanceOldest = SumSquaredDistanceOldest / SampleCount;
+
+	//Square root of that average gives us sigma (standard deviation)
+	DistanceToNewestSTD = FMath::Sqrt(IncrementalVarianceDistanceNewest);
+	DistanceToOldestSTD = FMath::Sqrt(IncrementalVarianceDistanceOldest);
+}
+
+void FTimedDataChannelEvaluationStatistics::Reset()
+{
+	SampleCount = 0;
+	IncrementalAverageOldestDistance = 0.0f;
+	IncrementalAverageNewestDistance = 0.0f;
+	IncrementalVarianceDistanceNewest = 0.0f;
+	IncrementalVarianceDistanceOldest = 0.0f;
+	SumSquaredDistanceNewest = 0.0f;
+	SumSquaredDistanceOldest = 0.0f;
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -18,6 +18,8 @@
 #include "LiveLinkTypes.h"
 
 
+struct FLiveLinkInterpolationInfo;
+
 struct FLiveLinkTimeSynchronizationData
 {
 	// Whether or not synchronization has been established.
@@ -72,6 +74,7 @@ public:
 	virtual ITimedDataInputGroup* GetGroup() const override;
 	virtual ETimedDataInputState GetState() const override;
 	virtual FText GetDisplayName() const override;
+	virtual FTimedDataInputSampleTime GetOldestDataTime() const override;
 	virtual FTimedDataInputSampleTime GetNewestDataTime() const override;
 	virtual TArray<FTimedDataInputSampleTime> GetDataTimes() const override;
 	virtual ETimedDataInputEvaluationType GetEvaluationType() const override;
@@ -86,7 +89,10 @@ public:
 	virtual void SetDataBufferSize(int32 BufferSize) const override;
 	virtual bool IsBufferStatsEnabled() const override;
 	virtual void SetBufferStatsEnabled(bool bEnable) override;
-	virtual FTimedDataInputBufferStats GetBufferStats() const override;
+	virtual int32 GetBufferUnderflowStat() const override;
+	virtual int32 GetBufferOverflowStat() const override;
+	virtual int32 GetFrameDroppedStat() const override;
+	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const override;
 	virtual void ResetBufferStats() override;
 	//~End ITimedDataSrouce Interface
 
@@ -128,11 +134,20 @@ private:
 	bool GetFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Closest(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Interpolated(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+	
+	// Verify interpolation result to update our internal statistics
+	void VerifyInterpolationInfo(const FLiveLinkInterpolationInfo& InterpolationInfo);
 
 	// Populate OutFrame with the latest frame.
 	bool GetLatestFrame(FLiveLinkSubjectFrameData& OutFrame);
 
 	void ResetFrame(FLiveLinkSubjectFrameData& OutFrame) const;
+
+	// Update our internal statistics
+	void IncreaseFrameDroppedStat();
+	void IncreaseBufferUnderFlowStat();
+	void IncreaseBufferOverFlowStat();
+	void UpdateEvaluationData(const FTimedDataInputEvaluationData& EvaluationData);
 
 protected:
 	// The role the subject was build with
@@ -150,6 +165,14 @@ private:
 	{
 		ELiveLinkSourceMode SourceMode = ELiveLinkSourceMode::EngineTime;
 		FLiveLinkSourceBufferManagementSettings BufferSettings;
+	};
+	
+	struct FSubjectEvaluationStatistics
+	{
+		TAtomic<int32> BufferUnderflow = 0;
+		TAtomic<int32> BufferOverflow = 0;
+		TAtomic<int32> FrameDrop = 0;
+		FTimedDataInputEvaluationData LastEvaluationData;
 	};
 
 	// Static data of the subject
@@ -173,8 +196,15 @@ private:
 	// Last time a frame was pushed
 	double LastPushTime = 0.0;
 
-#if WITH_EDITORONLY_DATA
-	int32 SnapshotIndex = INDEX_NONE;
-	int32 NumberOfBufferAtSnapshot = 0;
-#endif
+	// Logging stats is enabled by default. If monitor opens at a later stage,previous stats will be able to be seen
+	bool bIsStatLoggingEnabled = true;
+
+	// Some stats compiled by the subject.
+	FSubjectEvaluationStatistics EvaluationStatistics;
+	
+	/** 
+	 * Evaluation can be done on any thread so we need to protect statistic logging 
+	 * Some stats requires more than atomic sized vars so a critical section is used to protect when necessary
+	 */
+	mutable FCriticalSection StatisticCriticalSection;
 };

@@ -53,6 +53,11 @@ private:
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;
 
+	/** Queries about buffer stats to display */
+	FText GetBufferUnderflowCount() const;
+	FText GetBufferOverflowCount() const;
+	FText GetFrameDroppedCount() const;
+
 private:
 	FTimedDataInputTableRowDataPtr Item;
 };

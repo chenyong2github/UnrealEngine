@@ -123,6 +123,42 @@ struct FTimedDataMonitorJamResult
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTimedDataIdentifierListChangedSignature);
 
 
+/**
+ * Structure to facilitate calculating running mean and variance of evaluation distance to buffered samples for a channel
+ */
+struct FTimedDataChannelEvaluationStatistics
+{
+	void Update(float DistanceToOldest, float DistanceToNewest);
+	void Reset();
+
+	/** Current number of samples used for the running average and variance */
+	int32 SampleCount = 0;
+
+	/** Running average of the distance between last evaluation time and oldest sample in the buffer */
+	float IncrementalAverageOldestDistance = 0.0f;
+
+	/** Running average of the distance between last evaluation time and newest sample in the buffer */
+	float IncrementalAverageNewestDistance = 0.0f;
+
+	/** Running variance of the distance between last evaluation time and oldest sample in the buffer */
+	float IncrementalVarianceDistanceNewest = 0.0f;
+
+	/** Running variance of the distance between last evaluation time and newest sample in the buffer */
+	float IncrementalVarianceDistanceOldest = 0.0f;
+
+	/** Standard deviation of the distance between last evaluation time and oldest sample in the buffer */
+	float DistanceToNewestSTD = 0.0f;
+
+	/** Standard deviation of the distance between last evaluation time and newest sample in the buffer */
+	float DistanceToOldestSTD = 0.0f;
+
+	/** Internal counters of squared distance to average to be able to compute running variance */
+	double SumSquaredDistanceNewest = 0.0;
+	double SumSquaredDistanceOldest = 0.0;
+
+};
+
+
 //~ Can be access via GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>()
 /**
  * 
@@ -139,6 +175,7 @@ private:
 		ITimedDataInput* Input = nullptr;
 		FTimedDataMonitorGroupIdentifier GroupIdentifier;
 		bool bEnabled = true;
+		FTimedDataChannelEvaluationStatistics Statistics;
 
 	public:
 		bool HasGroup() const;
@@ -267,6 +304,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FFrameRate GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier);
 
+	/** Get the input oldest sample time available. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	FTimedDataInputSampleTime GetInputOldestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
+
 	/** Get the input latest sample time at which it should be evaluated. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FTimedDataInputSampleTime GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
@@ -287,6 +328,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	bool IsInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier);
 
+
 	/**
 	 * Enable or disable an input from the monitor.
 	 * The input will still be evaluated but stats will not be tracked and the will not be used for calibration.
@@ -294,10 +336,54 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier, bool bEnabled);
 
+	/** Returns the number of buffer underflows detected by that input since the last reset. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	int32 GetBufferUnderflowStat(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the number of buffer overflows detected by that input since the last reset. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	int32 GetBufferOverflowStat(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the number of frames dropped by that input since the last reset. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	int32 GetFrameDroppedStat(const FTimedDataMonitorInputIdentifier& Identifier);
+	
+	/** 
+	 * Retrieves information about last evaluation 
+	 * Returns true if identifier was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	void GetLastEvaluationDataStat(const FTimedDataMonitorInputIdentifier& Identifier, FTimedDataInputEvaluationData& Result);
+
+	/** Returns the average distance, in seconds, between evaluation time and newest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the average distance, in seconds, between evaluation time and oldest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the standard deviation of the distance, in seconds, between evaluation time and newest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the standard deviation of the distance, in seconds, between evaluation time and oldest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetEvaluationDistanceToOldestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
+
+
+
+
 private:
 	void BuildSourcesListIfNeeded();
 
 	void OnTimedDataSourceCollectionChanged();
+	
+	/** Used to trigger an update on the internal statistics once per frame after Actors have ticked. This is to have stats calculated even if monitor is no opened. */
+	void OnWorldPostTick(UWorld* /*World*/, ELevelTick/**Tick Type*/, float/**Delta Seconds*/);
+
+	/** Update internal statistics for each enabled channel */
+	void UpdateEvaluationStatistics();
 
 private:
 	bool bRequestSourceListRebuilt = false;

@@ -59,31 +59,23 @@ struct FTimedDataInputSampleTime
 	FQualifiedFrameTime Timecode;
 };
 
-
 USTRUCT(BlueprintType)
-struct TIMEMANAGEMENT_API FTimedDataInputBufferStats
+struct TIMEMANAGEMENT_API FTimedDataInputEvaluationData
 {
 	GENERATED_BODY()
 
 	/**
-	 * The number of evaluation requests that asked for data that was not available
-	 * and the time requested is under the lowest value in the buffer.
+	 * Distance between evaluation time and newest sample in seconds
 	 */
-	UPROPERTY(BlueprintReadWrite, Category = "Time")
-	int32 BufferUnderflow = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Evaluation", meta=(Units=s))
+	float DistanceToNewestSampleSeconds = 0.0f;
 	
 	/**
-	 * The number of evaluation requests that asked for data that was not available
-	 * and the time requested is over the biggest value in the buffer.
+	 * Distance between evaluation time and newest sample in seconds
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "Time")
-	int32 BufferOverflow = 0;
-
-	/** Number of frame drops. */
-	UPROPERTY(BlueprintReadWrite, Category = "Time")
-	int32 FrameDrop = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Evaluation", meta = (Units = s))
+	float DistanceToOldestSampleSeconds = 0.0f;
 };
-
 
 /**
  * Interface for data sources that can be synchronized with time
@@ -108,6 +100,9 @@ public:
 
 	/** Get the name used when displayed. */
 	virtual FText GetDisplayName() const = 0;
+
+	/** Get the time of the oldest data sample available. */
+	virtual FTimedDataInputSampleTime GetOldestDataTime() const = 0;
 
 	/** Get the time of the newest data sample available. */
 	virtual FTimedDataInputSampleTime GetNewestDataTime() const = 0;
@@ -136,16 +131,25 @@ public:
 	/** Set the size of the buffer used by the input. */
 	virtual void SetDataBufferSize(int32 BufferSize) const = 0;
 
-	/** Enable tracking stat */
+	/** Is tracking of stats enabled for this input */
 	virtual bool IsBufferStatsEnabled() const = 0;
 
-	/** */
+	/** Enables or disables stats tracking for this input */
 	virtual void SetBufferStatsEnabled(bool bEnable) = 0;
 	
-	/** */
-	virtual FTimedDataInputBufferStats GetBufferStats() const = 0;
-	
-	/** */
+	/** Return buffer underflow count detected by this input */
+	virtual int32 GetBufferUnderflowStat() const = 0;
+
+	/** Return buffer overflow count detected by this input */
+	virtual int32 GetBufferOverflowStat() const = 0;
+
+	/** Return frame dropped count detected by this input */
+	virtual int32 GetFrameDroppedStat() const = 0;
+
+	/** Get data about last evaluation. Samples used, expected, number of samples. */
+	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const = 0;
+
+	/** Resets internal stat counters */
 	virtual void ResetBufferStats() = 0;
 };
 
