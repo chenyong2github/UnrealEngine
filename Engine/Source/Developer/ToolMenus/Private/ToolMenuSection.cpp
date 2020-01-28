@@ -12,7 +12,8 @@
 
 FToolMenuSection::FToolMenuSection() :
 	ToolMenuSectionDynamic(nullptr),
-	bIsRegistering(false)
+	bIsRegistering(false),
+	bAddedDuringRegister(false)
 {
 
 }
