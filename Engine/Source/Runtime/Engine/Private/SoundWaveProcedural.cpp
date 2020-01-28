@@ -20,7 +20,7 @@ USoundWaveProcedural::USoundWaveProcedural(const FObjectInitializer& ObjectIniti
 	
 	if (GEngine)
 	{
-		FAudioDevice* MainAudioDevice = FAudioDeviceManager::GetMainDevice();
+		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
 		if (MainAudioDevice && !MainAudioDevice->IsAudioMixerEnabled())
 		{
 #if PLATFORM_MAC

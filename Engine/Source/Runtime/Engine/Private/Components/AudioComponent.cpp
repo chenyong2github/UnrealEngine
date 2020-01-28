@@ -556,7 +556,8 @@ FAudioDevice* UAudioComponent::GetAudioDevice() const
 	{
 		if (AudioDeviceHandle != INDEX_NONE)
 		{
-			AudioDevice = FAudioDeviceManager::GetChecked().GetAudioDevice(AudioDeviceHandle);
+			FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+			AudioDevice = (AudioDeviceManager ? AudioDeviceManager->GetAudioDevice(AudioDeviceHandle) : nullptr);
 		}
 		else if (UWorld* World = GetWorld())
 		{
@@ -564,7 +565,7 @@ FAudioDevice* UAudioComponent::GetAudioDevice() const
 		}
 		else
 		{
-			AudioDevice = FAudioDeviceManager::GetMainDevice();
+			AudioDevice = GEngine->GetMainAudioDevice();
 		}
 	}
 	return AudioDevice;

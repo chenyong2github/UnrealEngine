@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundModImporterFactory.h"
-
-#include "AudioDeviceManager.h"
-#include "Components/AudioComponent.h"
-#include "Editor.h"
 #include "EngineGlobals.h"
+#include "Editor.h"
 #include "SoundMod.h"
 #include "xmp.h"
+#include "Components/AudioComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 // USoundModImporterFactory
@@ -46,15 +44,12 @@ UObject* USoundModImporterFactory::FactoryCreateBinary
 
 	// TODO - Audio Threading. This needs to be sent to the audio device and wait on stopping the sounds
 	TArray<UAudioComponent*> ComponentsToRestart;
-
-// 	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
-// 	{
-// 		if (ExistingSound)
-// 		{
-// 			// TODO: Generalize the stop sounds function
-// 			AudioDeviceManager->StopSoundsForReimport(ExistingSound, ComponentsToRestart);
-// 		}
-// 	}
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+	if (AudioDeviceManager && ExistingSound)
+	{
+		// TODO: Generalize the stop sounds function
+		//AudioDeviceManager->StopSoundsForReimport(ExistingSound, ComponentsToRestart);
+	}
 
 	bool bUseExistingSettings = bSoundModFactorySuppressImportOverwriteDialog;
 

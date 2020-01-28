@@ -155,7 +155,7 @@ FSLESSoundBuffer* FSLESSoundBuffer::CreateNativeBuffer( FSLESAudioDevice* AudioD
 
 	Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
 
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	check(AudioDeviceManager != nullptr);
 
 	AudioDeviceManager->TrackResource(InWave, Buffer);
@@ -226,7 +226,7 @@ FSLESSoundBuffer* FSLESSoundBuffer::Init(  FSLESAudioDevice* AudioDevice ,USound
 		return( NULL );
 	}
 	
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	FSLESSoundBuffer* Buffer = NULL;
 	
 	EDecompressionType DecompressionType = InWave->DecompressionType;

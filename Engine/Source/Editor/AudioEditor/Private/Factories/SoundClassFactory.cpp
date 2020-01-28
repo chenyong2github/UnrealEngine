@@ -17,9 +17,12 @@ USoundClassFactory::USoundClassFactory(const FObjectInitializer& ObjectInitializ
 UObject* USoundClassFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	USoundClass* SoundClass = NewObject<USoundClass>(InParent, InName, Flags);
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+
+	class FAudioDeviceManager* AudioDeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (AudioDeviceManager)
 	{
-		DeviceManager->InitSoundClasses();
+		AudioDeviceManager->InitSoundClasses();
 	}
-	return SoundClass;
+
+	return(SoundClass);
 }

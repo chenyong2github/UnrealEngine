@@ -303,10 +303,13 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	class FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-	if (AudioDeviceManager)
+	if (GEngine)
 	{
-		AudioDeviceManager->ShutdownAudioDevice(AudioDeviceHandle);
+		class FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->ShutdownAudioDevice(AudioDeviceHandle);
+		}
 	}
 
 	RemoveAllViewportWidgets();
@@ -379,7 +382,7 @@ void UGameViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStats)
 #if ENABLE_AUDIO_DEBUG
 	if (UWorld* MyWorld = GetWorld())
 	{
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
 			FAudioDebugger::ResolveDesiredStats(this);
 		}
@@ -433,30 +436,33 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 	// Create the cursor Widgets
 	UUserInterfaceSettings* UISettings = GetMutableDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
 
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-	if (AudioDeviceManager)
+	if (GEngine)
 	{
-		FAudioDeviceManager::FCreateAudioDeviceResults NewDeviceResults;
-		if (AudioDeviceManager->CreateAudioDevice(bCreateNewAudioDevice, NewDeviceResults))
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager)
 		{
-			AudioDeviceHandle = NewDeviceResults.Handle;
+			FAudioDeviceManager::FCreateAudioDeviceResults NewDeviceResults;
+			if (AudioDeviceManager->CreateAudioDevice(bCreateNewAudioDevice, NewDeviceResults))
+			{
+				AudioDeviceHandle = NewDeviceResults.Handle;
 
 #if ENABLE_AUDIO_DEBUG
-			FAudioDebugger::ResolveDesiredStats(this);
+				FAudioDebugger::ResolveDesiredStats(this);
 #endif // ENABLE_AUDIO_DEBUG
 
-			// Set the base mix of the new device based on the world settings of the world
-			if (World)
-			{
-				NewDeviceResults.AudioDevice->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
+				// Set the base mix of the new device based on the world settings of the world
+				if (World)
+				{
+					NewDeviceResults.AudioDevice->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
 
-				// Set the world's audio device handle to use so that sounds which play in that world will use the correct audio device
-				World->SetAudioDeviceHandle(AudioDeviceHandle);
+					// Set the world's audio device handle to use so that sounds which play in that world will use the correct audio device
+					World->SetAudioDeviceHandle(AudioDeviceHandle);
+				}
+
+				// Set this audio device handle on the world context so future world's set onto the world context
+				// will pass the audio device handle to them and audio will play on the correct audio device
+				WorldContext.AudioDeviceHandle = AudioDeviceHandle;
 			}
-
-			// Set this audio device handle on the world context so future world's set onto the world context
-			// will pass the audio device handle to them and audio will play on the correct audio device
-			WorldContext.AudioDeviceHandle = AudioDeviceHandle;
 		}
 	}
 
@@ -1303,15 +1309,18 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 							// If the main audio device is used for multiple PIE viewport clients, we only
 							// want to update the main audio device listener position if it is in focus
-							FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
-
-							// If there is more than one world referencing the main audio device
-							if (DeviceManager->GetNumMainAudioDeviceWorlds() > 1)
+							if (GEngine)
 							{
-								uint32 MainAudioDeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
-								if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !bHasAudioFocus)
+								FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+
+								// If there is more than one world referencing the main audio device
+								if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
 								{
-									bUpdateListenerPosition = false;
+									uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
+									if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !bHasAudioFocus)
+									{
+										bUpdateListenerPosition = false;
+									}
 								}
 							}
 
@@ -1867,7 +1876,7 @@ void UGameViewportClient::LostFocus(FViewport* InViewport)
 		}
 	}
 
-	if (FAudioDeviceManager::Get())
+	if (GEngine && GEngine->GetAudioDeviceManager())
 	{
 		bHasAudioFocus = false;
 	}
@@ -1880,9 +1889,9 @@ void UGameViewportClient::ReceivedFocus(FViewport* InViewport)
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(true);
 	}
 
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (GEngine && GEngine->GetAudioDeviceManager())
 	{
-		DeviceManager->SetActiveDevice(AudioDeviceHandle);
+		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDeviceHandle);
 		bHasAudioFocus = true;
 	}
 }

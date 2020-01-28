@@ -17,7 +17,8 @@ namespace Audio
 
 	void FSoundWavePCMLoader::LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded)
 	{
-		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
+		FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+
 		if (!AudioDevice || !InSoundWave)
 		{
 			return;
@@ -121,9 +122,9 @@ namespace Audio
 			CurrentSoundWave = SoundWaveToSaveTo;
 			bWasPreviouslyAddedToRoot = CurrentSoundWave->IsRooted();
 			CurrentSoundWave->AddToRoot();
-
 			// Ensure this sound wave is not currently in use:
-			if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+			FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+			if (AudioDeviceManager)
 			{
 				AudioDeviceManager->StopSoundsUsingResource(CurrentSoundWave);
 			}

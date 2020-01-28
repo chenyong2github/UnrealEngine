@@ -1512,17 +1512,20 @@ void UWorld::SetAudioDeviceHandle(const uint32 InAudioDeviceHandle)
 
 FAudioDevice* UWorld::GetAudioDevice()
 {
-	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+	FAudioDevice* AudioDevice = nullptr;
+	if (GEngine)
 	{
-		if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceHandle))
+		class FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager != nullptr)
 		{
-			return AudioDevice;
+			AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceHandle);
+			if (AudioDevice == nullptr)
+			{
+				AudioDevice = GEngine->GetMainAudioDevice();
+			}
 		}
-
-		return FAudioDeviceManager::GetMainDevice();
 	}
-
-	return nullptr;
+	return AudioDevice;
 }
 
 /**

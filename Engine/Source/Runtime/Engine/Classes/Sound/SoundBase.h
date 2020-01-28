@@ -5,7 +5,7 @@
  * The base class for a playable sound object
  */
 
-#include "AudioDefines.h"
+#include "Audio.h"
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
 #include "SoundConcurrency.h"
@@ -13,22 +13,17 @@
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Audio.h"
 
 #include "SoundBase.generated.h"
 
 
-class USoundAttenuation;
-class USoundClass;
 class USoundEffectSourcePreset;
 class USoundSourceBus;
 class USoundSubmix;
 class USoundEffectSourcePresetChain;
 
 struct FActiveSound;
-struct FSoundAttenuationSettings;
 struct FSoundParseParameters;
-struct FWaveInstance;
 
 /**
  * Method of virtualization when a sound is stopped due to playback constraints

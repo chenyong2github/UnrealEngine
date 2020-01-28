@@ -1594,22 +1594,24 @@ namespace Audio
 
 	void FMixerDevice::RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix)
 	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSubmixBufferListener"), STAT_RegisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
-		auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
-		{
-			CSV_SCOPED_TIMING_STAT(Audio, RegisterSubmixBufferListener);
-			RegisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
-		};
-
 		if (!IsInAudioThread())
 		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSubmixBufferListener"), STAT_RegisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
+			auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, StopSpectrumAnalysis);
+				RegisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
+			};
+
 			if (IsInGameThread())
 			{
 				FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_RegisterSubmixBufferListener));
 			}
 			else
 			{
-				AsyncTask(ENamedThreads::AudioThread, TFunction<void()>(AudioThreadCommand));
+				AsyncTask(ENamedThreads::GameThread, [AudioThreadCommand]() {
+					FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_RegisterSubmixBufferListener));
+				});
 			}
 			return;
 		}
@@ -1631,23 +1633,25 @@ namespace Audio
 
 	void FMixerDevice::UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix)
 	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSubmixBufferListener"), STAT_UnregisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
-
-		auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
-		{
-			CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmixBufferListener);
-			UnregisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
-		};
-
 		if (!IsInAudioThread())
 		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSubmixBufferListener"), STAT_UnregisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
+
+			auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmixBufferListener);
+				UnregisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
+			};
+
 			if (IsInGameThread())
 			{
 				FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_UnregisterSubmixBufferListener));
 			}
 			else
 			{
-				AsyncTask(ENamedThreads::AudioThread, TFunction<void()>(AudioThreadCommand));
+				AsyncTask(ENamedThreads::GameThread, [AudioThreadCommand]() {
+					FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_UnregisterSubmixBufferListener));
+				});
 			}
 
 			return;
@@ -1684,7 +1688,8 @@ namespace Audio
 
 	bool FMixerDevice::IsMainAudioDevice() const
 	{
-		return this == FAudioDeviceManager::GetMainDevice();
+		bool bIsMain = (this == GEngine->GetMainAudioDevice());
+		return bIsMain;
 	}
 
 	void FMixerDevice::WhiteNoiseTest(AlignedFloatBuffer& Output)

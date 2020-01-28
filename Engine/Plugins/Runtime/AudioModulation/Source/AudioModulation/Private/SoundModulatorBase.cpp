@@ -24,7 +24,7 @@ void USoundModulatorBase::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		return;
 	}
 
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (!DeviceManager)
 	{
 		return;

@@ -54,7 +54,7 @@ FIOSAudioSoundBuffer::FIOSAudioSoundBuffer(FIOSAudioDevice* InAudioDevice, USoun
     FMemory::Memzero(SampleData, BufferSize);
     
 	
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	check(AudioDeviceManager != nullptr);
 
 	// There is no need to track this resource with the AudioDeviceManager since there is a one to one mapping between FIOSAudioSoundBuffer objects and FIOSAudioSoundSource objects
@@ -156,7 +156,7 @@ FIOSAudioSoundBuffer* FIOSAudioSoundBuffer::Init(FIOSAudioDevice* IOSAudioDevice
 		return NULL;
 	}
 
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 
 	FIOSAudioSoundBuffer *Buffer = NULL;
 	bool	bIsStreaming = false;

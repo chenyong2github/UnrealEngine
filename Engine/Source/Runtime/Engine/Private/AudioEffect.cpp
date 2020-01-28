@@ -510,7 +510,8 @@ void FAudioEffectsManager::Update()
 	if (CurrentReverbAsset && CurrentReverbAsset->bChanged)
 	{
 		CurrentReverbAsset->bChanged = false;
-		TArray<FAudioDevice*>& AudioDevices = FAudioDeviceManager::GetChecked().GetAudioDevices();
+		class FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+		TArray<FAudioDevice*>& AudioDevices = DeviceManager->GetAudioDevices();
 		for (int32 i = 0; i < AudioDevices.Num(); ++i)
 		{
 			if (AudioDevices[i])
@@ -521,7 +522,8 @@ void FAudioEffectsManager::Update()
 		}
 		
 	}
-#endif // WITH_EDITORONLY_DATA
+
+#endif
 
 	const bool bIsReverbDone = CurrentReverbEffect.Interpolate(SourceReverbEffect, DestinationReverbEffect);
 	if (!bIsReverbDone || bReverbActive || bReverbChanged)

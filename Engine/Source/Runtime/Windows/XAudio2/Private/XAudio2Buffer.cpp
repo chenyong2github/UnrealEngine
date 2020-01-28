@@ -416,15 +416,18 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreateProceduralBuffer( FXAudio2Device
 	return( Buffer );
 }
 
-FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreatePreviewBuffer(FXAudio2Device* XAudio2Device, USoundWave* Wave, FXAudio2SoundBuffer* Buffer)
+FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreatePreviewBuffer( FXAudio2Device* XAudio2Device, USoundWave* Wave, FXAudio2SoundBuffer* Buffer )
 {
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+	check(AudioDeviceManager != nullptr);
+
 	if (Buffer)
 	{
-		FAudioDeviceManager::GetChecked().FreeBufferResource(static_cast<FSoundBuffer*>(Buffer));
+		AudioDeviceManager->FreeBufferResource(Buffer);
 	}
 
 	// Create new buffer.
-	Buffer = new FXAudio2SoundBuffer(XAudio2Device, SoundFormat_PCMPreview);
+	Buffer = new FXAudio2SoundBuffer( XAudio2Device, SoundFormat_PCMPreview );
 
 	check(!Wave->RawPCMData || Wave->RawPCMDataSize);
 
@@ -437,11 +440,11 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreatePreviewBuffer(FXAudio2Device* XA
 	// Copy over whether this data should be freed on delete
 	Buffer->bDynamicResource = Wave->bDynamicResource;
 
-	Buffer->InitWaveFormatEx(WAVE_FORMAT_PCM, Wave, true);
+	Buffer->InitWaveFormatEx( WAVE_FORMAT_PCM, Wave, true );
 
-	FAudioDeviceManager::GetChecked().TrackResource(Wave, static_cast<FSoundBuffer*>(Buffer));
+	AudioDeviceManager->TrackResource(Wave, Buffer);
 
-	return(Buffer);
+	return( Buffer );
 }
 
 FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreateNativeBuffer( FXAudio2Device* XAudio2Device, USoundWave* Wave )
@@ -462,7 +465,7 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreateNativeBuffer( FXAudio2Device* XA
 	// Keep track of associated resource name.
 	Buffer->InitWaveFormatEx( WAVE_FORMAT_PCM, Wave, true );
 
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	check(AudioDeviceManager != nullptr);
 	AudioDeviceManager->TrackResource(Wave, Buffer);
 
@@ -527,7 +530,7 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::Init( FAudioDevice* AudioDevice, USoun
 	Wave->InvalidateSoundWaveIfNeccessary();
 #endif // WITH_EDITOR
 
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 
 	FXAudio2Device* XAudio2Device = ( FXAudio2Device* )AudioDevice;
 	FXAudio2SoundBuffer* Buffer = NULL;

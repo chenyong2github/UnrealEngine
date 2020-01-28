@@ -15,8 +15,6 @@ class FAudioDevice;
 class FSoundEffectSubmix;
 
 struct FAudioEffectParameters;
-class FAudioDevice;
-
 
 /** Preset of a submix effect that can be shared between sounds. */
 UCLASS(config = Engine, hidecategories = Object, abstract, editinlinenew, BlueprintType)
@@ -31,12 +29,12 @@ class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
 /** Struct which has data needed to initialize the submix effect. */
 struct FSoundEffectSubmixInitData
 {
-	Audio::FDeviceId DeviceHandle;
+	uint32 DeviceHandle;
 	void* PresetSettings;
 	float SampleRate;
 
 	FSoundEffectSubmixInitData()
-		: DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
+		: DeviceHandle(INDEX_NONE)
 		, PresetSettings(nullptr)
 		, SampleRate(0)
 	{

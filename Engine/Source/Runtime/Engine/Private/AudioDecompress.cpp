@@ -645,9 +645,9 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 	, NumPrecacheFrames(InPrecacheBufferNumFrames)
 {
 	check(NumPrecacheFrames > 0);
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	if (GEngine && GEngine->GetMainAudioDevice())
 	{
-		AudioInfo = AudioDevice->CreateCompressedAudioInfo(Wave);
+		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(Wave);
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "AudioDefines.h"		// For ENABLE_AUDIO_DEBUG
+#include "Audio.h"
 
 #if ENABLE_AUDIO_DEBUG
 
