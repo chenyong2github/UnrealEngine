@@ -22,14 +22,6 @@ public:
     virtual ~FIOSChunkInstall();
     
     /**
-     * Get the current location of a chunk.
-     *
-     * @param ChunkID The id of the chunk to check.
-     * @return Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
-     */
-    virtual EChunkLocation::Type GetChunkLocation( uint32 ChunkID ) override;
-    
-    /**
      * Check if a given reporting type is supported.
      *
      * @param ReportType Enum specifying how progress is reported.
@@ -79,6 +71,14 @@ public:
     virtual bool DebugStartNextChunk( ) override;
 
 private:
+
+	/**
+	 * Get the current location of a chunk.
+	 *
+	 * @param ChunkID The id of the chunk to check.
+	 * @return Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
+	 */
+	virtual EChunkLocation::Type GetChunkLocation(uint32 ChunkID) override;
     
     /**
      * Get the current location of a chunk.
