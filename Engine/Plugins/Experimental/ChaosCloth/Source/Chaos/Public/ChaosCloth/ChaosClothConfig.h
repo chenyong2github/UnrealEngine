@@ -29,22 +29,25 @@ public:
 	EClothMassMode MassMode = EClothMassMode::Density;
 
 	// The value used when the Mass Mode is set to Uniform Mass
-	UPROPERTY(EditAnywhere, Category = "Mass Config")
-	float UniformMass = 1.0f;
+	UPROPERTY(EditAnywhere, Category = "Mass Config", meta = (UIMin = "0.000001", UIMax = "0.001", ClampMin = "0"))
+	float UniformMass = 0.00015f;
 
 	// The value used when Mass Mode is set to TotalMass
-	UPROPERTY(EditAnywhere, Category = "Mass Config")
-	float TotalMass = 100.0f;
+	UPROPERTY(EditAnywhere, Category = "Mass Config", meta = (UIMin = "0.001", UIMax = "10", ClampMin = "0"))
+	float TotalMass = 0.5f;
 
 	/**
 	 * The value used when Mass Mode is set to Density 
-	 * Water: 1.0
-	 * Cotton: 0.155
-	 * Wool: 0.13
-	 * Silk: 0.133
+	 * Melton Wool: 0.7
+	 * Heavy leather: 0.6
+	 * Polyurethane: 0.5
+	 * Denim: 0.4
+	 * Light leather: 0.3
+	 * Cotton: 0.2
+	 * Silk: 0.1
 	 */
-	UPROPERTY(EditAnywhere, Category = "Mass Config")
-	float Density = 0.1f;
+	UPROPERTY(EditAnywhere, Category = "Mass Config", meta = (UIMin = "0.001", UIMax = "1", ClampMin = "0"))
+	float Density = 0.35f;
 
 	// This is a lower bound to cloth particle masses
 	UPROPERTY(EditAnywhere, Category = "Mass Config")
@@ -82,6 +85,10 @@ public:
 	// The stiffness of the shape target constraints
 	UPROPERTY()
 	float ShapeTargetStiffness = 0.f;
+
+	// The drag coefficient applying on each particle
+	UPROPERTY(EditAnywhere, Category = Wind, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
+	float DragCoefficient = 0.5f;
 
 	// Friction coefficient for cloth - collider interaction
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
@@ -168,10 +175,6 @@ public:
 	// The gravitational acceleration vector [cm/s^2]
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
-
-	// The wind drag coefficient applying on each particle
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float WindDrag = 0.5f;
 
 	// Enable the XPBD constraints that resolve stiffness independently from the number of iterations
 	// Experimental, this feature might be removed without warning, not for production use

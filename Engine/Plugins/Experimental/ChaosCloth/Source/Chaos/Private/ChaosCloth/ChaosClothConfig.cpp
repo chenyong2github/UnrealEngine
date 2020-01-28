@@ -62,6 +62,8 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	StrainLimitingStiffness = FMath::Clamp(ClothConfig.TetherStiffness, 0.f, 1.f);
 	LimitScale = FMath::Clamp(ClothConfig.TetherLimit, 0.01f, 10.f);
 	ShapeTargetStiffness = 0.f;
+
+	DragCoefficient = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.5f;  // Only Accurate wind uses the WindDragCoefficient
 }
 
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()
@@ -86,8 +88,6 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 	GravityScale = ClothConfig.GravityScale;
 
 	Gravity = ClothConfig.GravityOverride;
-
-	WindDrag = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.5f;  // Only Accurate wind uses the WindDragCoefficient
 }
 
 void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)

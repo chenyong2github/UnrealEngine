@@ -52,6 +52,7 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
 
 	protected:
@@ -142,6 +143,7 @@ namespace Chaos
 		float DeltaTime;
 
 		FVector Gravity;
+		FVector WindVelocity;
 
 		TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>> LongRangeConstraints;
 

@@ -59,13 +59,14 @@ namespace ClothingSimulationDefault
 	static const float CollisionThickness = 1.2f;
 	static const float CoefficientOfFriction = 0.f;
 	static const float Damping = 0.01f;
-	static const float WindDrag = 0.f;
+	static const float WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
 }
 
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
 	, Gravity(ClothingSimulationDefault::Gravity)
+	, WindVelocity(FVector::ZeroVector)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -92,7 +93,6 @@ void ClothingSimulation::Initialize()
 			ClothingSimulationDefault::Damping));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
-	Evolution->GetVelocityField().SetDrag(ClothingSimulationDefault::WindDrag);  // TODO: Per particle drag
     Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
@@ -240,6 +240,17 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	AddConstraints(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
+	// Add Velocity field
+	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+	{
+		return WindVelocity;
+	};
+	Evolution->GetVelocityFields().Emplace(
+		*Meshes[InSimDataIndex],
+		GetVelocity,
+		/*bInIsUniform =*/ true,
+		ChaosClothSimConfig->DragCoefficient);
+
 	// Add Self Collisions
 	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
@@ -297,7 +308,6 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
-		Evolution->GetVelocityField().SetDrag(ClothSharedSimConfig->WindDrag);  // TODO: Per particle drag
 		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
@@ -345,43 +355,52 @@ void ClothingSimulation::SetParticleMasses(const UChaosClothConfig* ChaosClothCo
 
 	// Assign per particle mass proportional to connected area.
 	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
-	float TotalArea = 0.0;
+	float TotalArea = 0.f;
 	for (const Chaos::TVector<int32, 3>& Tri : SurfaceElements)
 	{
-		const float TriArea = 0.5 * Chaos::TVector<float, 3>::CrossProduct(
+		const float TriArea = 0.5f * Chaos::TVector<float, 3>::CrossProduct(
 			Particles.X(Tri[1]) - Particles.X(Tri[0]),
 			Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
 		TotalArea += TriArea;
-		const float ThirdTriArea = TriArea / 3.0;
+		const float ThirdTriArea = TriArea / 3.f;
 		Particles.M(Tri[0]) += ThirdTriArea;
 		Particles.M(Tri[1]) += ThirdTriArea;
 		Particles.M(Tri[2]) += ThirdTriArea;
 	}
 	const TSet<int32> Vertices = Mesh.GetVertices();
+	float TotalMass = 0.f;
 	switch (ChaosClothConfig->MassMode)
 	{
 	case EClothMassMode::UniformMass:
 		for (const int32 Vertex : Vertices)
 		{
 			Particles.M(Vertex) = ChaosClothConfig->UniformMass;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
 	case EClothMassMode::TotalMass:
 	{
-		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothConfig->TotalMass / TotalArea : 1.0;
+		const float MassPerUnitArea = TotalArea > 0.f ? ChaosClothConfig->TotalMass / TotalArea : 1.f;
 		for (const int32 Vertex : Vertices)
 		{
 			Particles.M(Vertex) *= MassPerUnitArea;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
 	}
 	case EClothMassMode::Density:
+	{
+		const float Density = ChaosClothConfig->Density / FMath::Square(ClothingSimulationDefault::WorldScale);
 		for (const int32 Vertex : Vertices)
 		{
-			Particles.M(Vertex) *= ChaosClothConfig->Density;
+			Particles.M(Vertex) *= Density;
+			TotalMass += Particles.M(Vertex);
 		}
 		break;
+	}
 	};
+	UE_LOG(LogChaosCloth, Verbose, TEXT("Density: %f, Total surface: %f, Total mass: %f, "), TotalArea > 0.f ? TotalMass / TotalArea : 1.f, TotalArea, TotalMass);
+	UE_LOG(LogChaosCloth, Verbose, TEXT("SI Density: %f, SI Total surface: %f, SI Total mass: %f, "), (TotalArea > 0.f ? TotalMass / TotalArea : 1.f) * FMath::Square(ClothingSimulationDefault::WorldScale), TotalArea / FMath::Square(ClothingSimulationDefault::WorldScale), TotalMass);
 
 	// Clamp and enslave
 	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
@@ -1145,9 +1164,8 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
 			Gravity));
 
-	// Set wind velocity
-	static const float UnitConversionScale = 100.f;  // It would seem that in game wind velocity is in m/s and not cm/s as seen in NvClothSupport::Constants::UnitConversionScale
-	Evolution->GetVelocityField().SetVelocity(Context->WindVelocity * UnitConversionScale);
+	// Set wind velocity, used by the velocity field lambda
+	WindVelocity = Context->WindVelocity * ClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
 
 	// Check teleport modes
 	const bool bTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
@@ -1342,6 +1360,7 @@ void ClothingSimulation::RefreshClothConfig()
 
 	Evolution->ResetConstraintRules();
 	Evolution->ResetSelfCollision();
+	Evolution->ResetVelocityFields();
 
 	for (int32 SimDataIndex = 0; SimDataIndex < Assets.Num(); ++SimDataIndex)
 	{
@@ -1357,6 +1376,17 @@ void ClothingSimulation::RefreshClothConfig()
 				SetParticleMasses(ChaosClothConfig, PhysMesh, SimDataIndex);
 
 				AddConstraints(ChaosClothConfig, PhysMesh, SimDataIndex);
+
+				// Add Velocity field
+				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+				{
+					return WindVelocity;
+				};
+				Evolution->GetVelocityFields().Emplace(
+					*Meshes[SimDataIndex],
+					GetVelocity,
+					/*bInIsUniform =*/ true,
+					ChaosClothConfig->DragCoefficient);
 
 				// Add Self Collisions
 				if (ChaosClothConfig->bUseSelfCollisions)
@@ -1879,6 +1909,29 @@ void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* Ow
 
 		PDI->DrawLine(P0, P1, FColor::Purple, SDPG_World, 0.0f, 0.001f);
 		PDI->DrawLine(P1, P2, FColor::Black, SDPG_World, 0.0f, 0.001f);
+	}
+}
+
+void ClothingSimulation::DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	const TArray<TVelocityField<float, 3>>& VelocityFields = Evolution->GetVelocityFields();
+
+	for (const TVelocityField<float, 3>& VelocityField : VelocityFields)
+	{
+		const TArray<TVector<int32, 3>>& Elements = VelocityField.GetElements();
+		const TArray<TVector<float, 3>>& Forces = VelocityField.GetForces();
+
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVector<float, 3> Position = (1.f / 3.f ) * (
+				Particles.X(Element[0]) +
+				Particles.X(Element[1]) +
+				Particles.X(Element[2]));
+			const TVector<float, 3>& Force = Forces[ElementIndex];
+			PDI->DrawLine(Position, Position + Force, FColor::Green, SDPG_World, 0.0f, 0.001f);
+		}
 	}
 }
 #endif  // #if WITH_EDITOR

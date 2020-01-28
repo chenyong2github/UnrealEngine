@@ -17,6 +17,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Advance Time"), STAT_ChaosPBDVAdvanceTime, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping State Update"), STAT_ChaosPBDVelocityDampUpdateState, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Field Update Forces"), STAT_ChaosPBDVelocityFieldUpdateForces, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping"), STAT_ChaosPBDVelocityDampUpdate, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Pre Iteration Updates"), STAT_ChaosPBDPreIterationUpdates, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Constraint Rule"), STAT_ChaosPBDConstraintRule, STATGROUP_Chaos);
@@ -69,6 +70,14 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 		DampVelocityRule.UpdatePositionBasedState(MParticles);
 	}	
 
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityFieldUpdateForces);
+		for (FVelocityField& VelocityField : VelocityFields)
+		{
+			VelocityField.UpdateForces(MParticles, Dt);
+		}
+	}	
+
 	// Don't bother with threaded execution if we don't have enough work to make it worth while.
 	const bool NonParallelUpdate = MParticles.Size() < 1000; // TODO: 1000 is a guess, tune this!
 
@@ -83,10 +92,13 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 		{
 			InitForceRule.Apply(MParticles, Dt, Index); // F = TV(0)
 			GravityForces.Apply(MParticles, Dt, Index);
-			VelocityField.Apply(MParticles, Dt, Index);
 			for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
 			{
 				ForceRule(MParticles, Dt, Index); // F += M * A
+			}
+			for (FVelocityField& VelocityField : VelocityFields)
+			{
+				VelocityField.Apply(MParticles, Dt, Index);
 			}
 			if (MKinematicUpdate)
 			{
