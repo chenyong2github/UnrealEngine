@@ -43,6 +43,8 @@ public:
 			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
 #endif
 		}
+
+		
 	};
 
 	FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint64 InMemoryLimitInBytes);
@@ -96,6 +98,8 @@ public:
 	// This is for debugging purposes only. Prints the elements in the cache from most recently used to least.
 	// Returns the dimensions of this debug log so that multiple caches can be tiled across the screen.
 	TPair<int, int> DebugDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+	// Generate a formatted text file for this cache.
+	FString DebugPrint();
 
 private:
 
@@ -354,6 +358,8 @@ public:
 	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
+	virtual FString GenerateMemoryReport() override;
+	virtual void SetProfilingMode(bool bEnabled) override;
 	// End IAudioStreamingManager interface
 
 protected:
@@ -381,3 +387,8 @@ protected:
 	
 
 };
+
+inline int32 GetTypeHash(const FAudioChunkCache::FChunkKey& InKey)
+{
+	return HashCombine(InKey.SoundWaveName.GetNumber(), InKey.ChunkIndex);
+}

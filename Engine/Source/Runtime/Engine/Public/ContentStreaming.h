@@ -537,6 +537,16 @@ struct IAudioStreamingManager : public IStreamingManager
 	 */
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) = 0;
 
+	/**
+	 * Generate a memory report as a formatted string for this streaming manager.
+	 */
+	virtual FString GenerateMemoryReport() = 0;
+
+	/**
+	 * Whether to toggle a performance intensive profiling mode the streaming manager.
+	 */
+	virtual void SetProfilingMode(bool bEnabled) = 0;
+
 protected:
 	friend FAudioChunkHandle;
 
