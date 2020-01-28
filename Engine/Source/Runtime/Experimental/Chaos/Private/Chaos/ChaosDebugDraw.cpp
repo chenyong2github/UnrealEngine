@@ -30,7 +30,7 @@ namespace Chaos
 		float DrawScale = 1.0f;
 		float FontHeight = 10.0f;
 		float FontScale = 1.5f;
-		float ShapeThicknesScale = 2.0f;
+		float ShapeThicknesScale = 0.2f;
 		float PointSize = 2.0f;
 		int DrawPriority = 10.0f;
 
@@ -42,6 +42,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarContactOwnerWidth(TEXT("p.Chaos.DebugDrawContactOwnerWidth"), ContactOwnerWidth, TEXT("ContactOwnerWidth."));
 		FAutoConsoleVariableRef CVarConstraintAxisLen(TEXT("p.Chaos.DebugDrawConstraintAxisLen"), ConstraintAxisLen, TEXT("ConstraintAxisLen."));
 		FAutoConsoleVariableRef CVarLineThickness(TEXT("p.Chaos.DebugDrawLineThickness"), LineThickness, TEXT("LineThickness."));
+		FAutoConsoleVariableRef CVarLineShapeThickness(TEXT("p.Chaos.DebugDrawShapeLineThicknessScale"), ShapeThicknesScale, TEXT("Shape lineThickness multiplier."));
 		FAutoConsoleVariableRef CVarScale(TEXT("p.Chaos.DebugDrawScale"), DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 
 		//
