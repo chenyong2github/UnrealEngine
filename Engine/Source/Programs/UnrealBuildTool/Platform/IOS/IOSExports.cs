@@ -293,6 +293,18 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<key>aps-environment</key>");
 					Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
 				}
+
+				// for Sign in with Apple
+				bool bSignInWithAppleSupported = false;
+				PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableSignInWithAppleSupport", out bSignInWithAppleSupported);
+
+				if (bSignInWithAppleSupported)
+				{
+					Text.AppendLine("\t<key>com.apple.developer.applesignin</key>");
+					Text.AppendLine("\t<array><string>Default</string></array>");
+				}
+
+				// End of entitlements
 				Text.AppendLine("</dict>");
 				Text.AppendLine("</plist>");
 
