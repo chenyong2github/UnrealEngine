@@ -93,6 +93,7 @@ public:
 		InitialFieldClass = nullptr;
 #endif // WITH_EDITORONLY_DATA
 		ResolvedFieldOwner = -1;
+		SerialNumber = -1;
 	}
 
 	/**
