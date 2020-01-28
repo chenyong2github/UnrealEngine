@@ -1403,6 +1403,11 @@ void FPhysScene_ChaosInterface::StartFrame()
 	}
 #endif
 
+	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
+	{
+		PhysicsReplication->Tick(Dt);
+	}
+
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
 		if (FPhysicsSolver* Solver = GetSolver())
@@ -1456,11 +1461,6 @@ void FPhysScene_ChaosInterface::StartFrame()
 		default:
 			break;
 		}
-	}
-
-	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
-	{
-		PhysicsReplication->Tick(Dt);
 	}
 }
 
