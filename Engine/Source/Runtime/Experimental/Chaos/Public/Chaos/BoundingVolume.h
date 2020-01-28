@@ -343,6 +343,25 @@ public:
 
 	}
 
+	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
+	{
+		OutElements.Append(MGlobalPayloads);
+		OutElements.Reserve(OutElements.Num() + MDirtyElements.Num());
+		for(const FCellElement& Elem : MDirtyElements)
+		{
+			OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
+		}
+
+		for(int32 Idx = 0; Idx < MElements.Num(); ++Idx)
+		{
+			const TArray<FCellElement>& Elems = MElements[Idx];
+			for(const FCellElement& Elem : Elems)
+			{
+				OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
+			}
+		}
+	}
+
 private:
 
 	using FCellElement = TBVCellElement<TPayloadType, T, d>;

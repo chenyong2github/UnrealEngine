@@ -15,6 +15,12 @@ FAutoConsoleVariableRef FBoundingVolumeCVars::CVarFilterFarBodies(
 
 namespace Chaos
 {
+	CHAOS_API int32 MaxDirtyElements = 10000;
+	FAutoConsoleVariableRef CVarMaxDirtyElements(
+		TEXT("p.MaxDirtyElements"),
+		MaxDirtyElements,
+		TEXT("The max number of dirty elements. This forces a flush which is very expensive"));
+
 	template <typename TPayloadType, typename T, int d>
 	ISpatialAcceleration<TPayloadType, T, d>* ISpatialAcceleration<TPayloadType, T, d>::SerializationFactory(FChaosArchive& Ar, ISpatialAcceleration<TPayloadType, T, d>* Accel)
 	{
