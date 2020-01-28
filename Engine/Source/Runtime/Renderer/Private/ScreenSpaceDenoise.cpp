@@ -679,7 +679,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 {
 	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 	{
-		return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12;
+		return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12 || Platform == SP_METAL_SM5;
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::Reflections ||
@@ -825,7 +825,7 @@ class FSSDCompressMetadataCS : public FGlobalShader
 			return false;
 		}
 
-		return Parameters.Platform == SP_PCD3D_SM5 || Parameters.Platform == SP_PS4;
+		return ShouldCompileSignalPipeline(ESignalProcessing::ScreenSpaceDiffuseIndirect, Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1361,11 +1361,19 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 		{
+			// This is a workaround to fix UE-84870.
+			// In certain cases writes to R11G11B10 fail on AMD hw so we are falling back to 16F.
+#if PLATFORM_MAC
+			ReconstructionDescs[0].Format = PF_FloatRGBA;
+			HistoryDescs[0].Format = PF_FloatRGBA;
+#else
 			ReconstructionDescs[0].Format = PF_FloatR11G11B10;
+			HistoryDescs[0].Format = PF_FloatR11G11B10;
+#endif
 			ReconstructionDescs[1].Format = PF_R8G8;
 			ReconstructionTextureCount = 2;
 
-			HistoryDescs[0].Format = PF_FloatR11G11B10;
+			
 			HistoryDescs[1].Format = PF_R8G8;
 			HistoryTextureCountPerSignal = 2;
 			bHasReconstructionLayoutDifferentFromHistory = false;
@@ -1798,7 +1806,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 		{
 			PassParameters->PrevCompressedMetadata[0] = RegisterExternalTextureWithFallback(
-				GraphBuilder, View.PrevViewInfo.CompressedDepthViewNormal, GSystemTextures.BlackDummy);
+				GraphBuilder, View.PrevViewInfo.CompressedDepthViewNormal, GSystemTextures.ZeroUIntDummy);
 		}
 
 		FScreenSpaceDenoiserHistory DummyPrevFrameHistory;
