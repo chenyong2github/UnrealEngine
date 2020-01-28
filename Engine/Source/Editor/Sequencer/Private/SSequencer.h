@@ -631,9 +631,6 @@ private:
 	/** Container for the toolbar, so that we can re-create it as needed. */
 	TSharedPtr<SBox> ToolbarContainer;
 
-	/** Cached settings provided to the sequencer itself on creation */
-	USequencerSettings* Settings;
-
 	/** The fill coefficients of each column in the grid. */
 	float ColumnFillCoefficients[2];
 

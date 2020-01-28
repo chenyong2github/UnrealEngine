@@ -2114,7 +2114,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 
 		// Menu entry for zero padding
 		auto OnZeroPadChanged = [=](uint8 NewValue){
-			Settings->SetZeroPadFrames(NewValue);
+			GetSequencerSettings()->SetZeroPadFrames(NewValue);
 		};
 
 		MenuBuilder.AddWidget(
@@ -2133,7 +2133,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 					.MinValue(0)
 					.MaxValue(8)
 					.Value_Lambda([=]() -> uint8 {
-						return Settings->GetZeroPadFrames();
+						return GetSequencerSettings()->GetZeroPadFrames();
 					})
 				],
 			LOCTEXT("ZeroPaddingText", "Zero Pad Frame Numbers"));
