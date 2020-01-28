@@ -527,7 +527,6 @@ public:
 
 	void CopyContext(FRHICommandListBase& ParentCommandList)
 	{
-		check(Context);
 		Context = ParentCommandList.Context;
 		ComputeContext = ParentCommandList.ComputeContext;
 	}
