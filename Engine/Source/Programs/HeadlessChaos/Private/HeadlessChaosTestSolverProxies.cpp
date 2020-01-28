@@ -2,6 +2,8 @@
 
 #include "HeadlessChaosTestSolverProxies.h"
 #include "HeadlessChaos.h"
+#include "HeadlessChaosTestUtility.h"
+
 
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ErrorReporter.h"
@@ -41,6 +43,8 @@ namespace ChaosTest {
 
 		Particle->SetV(TVector<float, 3>(0, 0, 10));
 		Solver->AddDirtyProxy(Particle->Proxy);
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
 		Solver->PushPhysicsState(Module->GetDispatcher());
 
@@ -160,6 +164,8 @@ namespace ChaosTest {
 		Solver->RegisterObject(Particle2.Get());
 		Solver->AddDirtyProxy(Particle2->Proxy);
 		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping, false);
+
+		::ChaosTest::SetParticleSimDataToCollide({Particle.Get(),Particle2.Get() });
 
 		Solver->PushPhysicsState(Module->GetDispatcher());
 
