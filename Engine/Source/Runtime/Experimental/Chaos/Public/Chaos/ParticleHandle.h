@@ -107,6 +107,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
+	Concrete.ClearEvents();
 }
 
 
@@ -1408,6 +1409,7 @@ public:
 	const TShapesArray<T,d>& ShapesArray() const { return MShapesArray; }
 
 	EObjectStateType ObjectState() const;
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false);
 
 	EParticleType ObjectType() const
 	{
@@ -1737,7 +1739,7 @@ public:
 protected:
 	friend TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
 	TPBDRigidParticle<T, d>(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
-		: TKinematicGeometryParticle<T, d>(DynamicParams)
+		: TKinematicGeometryParticle<T, d>(DynamicParams), MAwakeEvent(false)
 	{
 		Type = EParticleType::Rigid;
 		MIsland = INDEX_NONE;
@@ -1932,12 +1934,18 @@ public:
 	}
 
 	EObjectStateType ObjectState() const { return MObjectState; }
-	void SetObjectState(EObjectStateType InState)
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false)
 	{
-		//todo: look at physics thread logic
+		if (bAllowEvents && MObjectState != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
+		{
+			MAwakeEvent |= true;
+		}
 		MObjectState = InState;
 		this->MarkDirty(EParticleFlags::ObjectState);
 	}
+
+	void ClearEvents() { MAwakeEvent = false; }
+	bool HasAwakeEvent() { return MAwakeEvent; }
 
 	FParticleData* NewData() const
 	{
@@ -1967,6 +1975,7 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MAwakeEvent;
 };
 
 template <typename T, int d>
@@ -2146,6 +2155,15 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 	return nullptr;
 }
 
+template <typename T, int d>
+void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents)
+{
+	TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+	if (Dyn)
+	{
+		Dyn->SetObjectState(InState, bAllowEvents);
+	}
+}
 
 template <typename T, int d>
 EObjectStateType TGeometryParticle<T, d>::ObjectState() const

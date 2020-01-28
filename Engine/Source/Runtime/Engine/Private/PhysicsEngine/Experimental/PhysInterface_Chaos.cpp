@@ -405,6 +405,7 @@ void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAct
 	if(Particle && Particle->ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		Particle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+		Particle->ClearEvents();
 	}
 }
 
