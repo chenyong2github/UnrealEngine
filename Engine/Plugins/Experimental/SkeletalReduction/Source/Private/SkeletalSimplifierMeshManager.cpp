@@ -594,6 +594,62 @@ void SkeletalSimplifier::FSimplifierMeshManager::FlagBoxCorners(const ESimpEleme
 	if (VisitedMask) delete[] VisitedMask;
 }
 
+void SkeletalSimplifier::FSimplifierMeshManager::FlagEdges(const TFunction<bool(const SimpVertType*, const SimpVertType*)> IsDifferent, const ESimpElementFlags Flag)
+{
+	int32 NumEdges = EdgeArray.Num();
+
+	for (int32 i = 0; i < NumEdges; ++i)
+	{
+		SimpEdgeType& Edge = EdgeArray[i];
+		if (IsDifferent(Edge.v0, Edge.v1))
+		{
+			Edge.EnableFlags(Flag);
+			Edge.v0->EnableFlags(Flag);
+			Edge.v1->EnableFlags(Flag);
+		}
+	}
+
+	for (int i = 0; i < NumSrcVerts; i++)
+	{
+		SimpVertType* v = &VertArray[i];
+		SimpVertType* v1 = v;
+
+		if (v1 == nullptr || v1->TestFlags(Flag))
+		{
+			continue;
+		}
+		// only one vert in this group
+		if (v1->next == v1)
+		{
+			continue;
+		}
+		
+		bool bAddedFlag = false;
+		do {
+
+			if (IsDifferent(v, v->next))
+			{
+				// we only need to mark one of the vertices in this vertex group since the lock state will be propagated to the others.
+				v->EnableFlags(Flag);
+				bAddedFlag = true;
+			}
+			v = v->next;
+		} while (v != v1);
+
+		// add the locked state to all the vertices in this group.
+		if (bAddedFlag)
+		{
+			v = v1;
+			do {
+				v->EnableFlags(Flag);
+				v = v->next;
+			} while (v != v1);
+
+		}
+		
+	}
+}
+
 void SkeletalSimplifier::FSimplifierMeshManager::GetAdjacentTopology(const SimpVertType* VertPtr,
 	TriPtrArray& DirtyTris, VertPtrArray& DirtyVerts, EdgePtrArray& DirtyEdges)
 {
