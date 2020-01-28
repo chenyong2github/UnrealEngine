@@ -210,7 +210,16 @@ namespace Chaos
 			EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint, ShapesType) {}
 
-		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
+		static typename TCollisionConstraintBase<T, d>::FType StaticType() { return Base::FType::SinglePoint; };
+
+	protected:
+		// For use by derived types that can be used as point constraints in Update
+		TRigidBodyPointContactConstraint(typename Base::FType InType) : Base(InType) {}
+		TRigidBodyPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			typename Base::FType InType, EContactShapesType ShapesType)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, InType, ShapesType) {}
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
 
@@ -219,15 +228,15 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class TRigidBodyMultiPointContactConstraint : public TCollisionConstraintBase<T, d>
+	class TRigidBodyMultiPointContactConstraint : public TRigidBodyPointContactConstraint<T, d>
 	{
 	public:
-		using Base = TCollisionConstraintBase<T, d>;
+		using Base = TRigidBodyPointContactConstraint<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using FManifold = TCollisionContact<T, d>;
 		using Base::Particle;
 
-		TRigidBodyMultiPointContactConstraint() : Base(Base::FType::MultiPoint), PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
+		TRigidBodyMultiPointContactConstraint() : Base(TCollisionConstraintBase<T, d>::FType::MultiPoint), PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
 		TRigidBodyMultiPointContactConstraint(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
 			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
@@ -236,7 +245,7 @@ namespace Chaos
 			, PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0)
 		{}
 
-		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
+		static typename TCollisionConstraintBase<T, d>::FType StaticType() { return Base::FType::MultiPoint; };
 
 		// Get the particle that owns the plane
 		FGeometryParticleHandle* PlaneParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[PlaneOwnerIndex]; }

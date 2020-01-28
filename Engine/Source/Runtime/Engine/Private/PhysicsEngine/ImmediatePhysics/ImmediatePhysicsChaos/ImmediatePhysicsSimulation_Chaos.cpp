@@ -136,29 +136,6 @@ FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeatures(TEXT("p.Chaos.Imm
 
 namespace ImmediatePhysics_Chaos
 {
-	template<typename T, int d>
-	bool ShouldIgnoreCollisionConstraint(
-		const Chaos::TGeometryParticleHandle<T, d>* ParticleA,
-		const Chaos::TGeometryParticleHandle<T, d>* ParticleB,
-		const TMap<const Chaos::TGeometryParticleHandle<T, d>*, TSet<const Chaos::TGeometryParticleHandle<T, d>*>>& IgnoreSetMap)
-	{
-		using namespace Chaos;
-
-		if (!ChaosImmediate_Collision_Enabled)
-		{
-			return true;
-		}
-		if (const TSet<const TGeometryParticleHandle<T, d>*>* IgnoreSet = IgnoreSetMap.Find(ParticleA))
-		{
-			return IgnoreSet->Contains(ParticleB);
-		}
-		if (const TSet<const TGeometryParticleHandle<T, d>*>* IgnoreSet = IgnoreSetMap.Find(ParticleB))
-		{
-			return IgnoreSet->Contains(ParticleA);
-		}
-		return false;
-	}
-
 	//
 	//
 	//
@@ -189,10 +166,12 @@ namespace ImmediatePhysics_Chaos
 		Particles.GetParticleHandles().AddArray(&ParticleMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticleMaterials);
 
-		Collisions.DisableHandles();
-
 		Evolution.AddConstraintRule(&CollisionsRule);
 		Evolution.AddConstraintRule(&JointsRule);
+
+		// RBAN collision customization
+		Collisions.DisableHandles();
+		CollisionDetector.GetContext().bFilteringEnabled = false;
 
 #if CHAOS_DEBUG_DRAW
 		Evolution.SetPostIntegrateCallback(
@@ -524,6 +503,13 @@ namespace ImmediatePhysics_Chaos
 			JointHandle->UpdateLevels();
 		}
 	}
+
+	void FSimulation::SetSimulationSpaceTransform(const FTransform& Transform)
+	{ 
+		SimulationSpaceTransform = Transform;
+		CollisionDetector.GetContext().SpaceTransform = Transform;
+	}
+
 
 	FReal FSimulation::UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime)
 	{
