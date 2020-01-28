@@ -185,7 +185,7 @@ FColor FColor::FromHex( const FString& HexString )
 		const int32 G = FParse::HexDigit(HexString[StartIndex++]);
 		const int32 B = FParse::HexDigit(HexString[StartIndex]);
 
-		return FColor((uint8)((R << 4) + R), (uint8)((G << 4) + G), (uint8)((B << 4) + B, 255));
+		return FColor((uint8)((R << 4) + R), (uint8)((G << 4) + G), (uint8)((B << 4) + B), 255);
 	}
 
 	if (HexString.Len() == 6 + StartIndex)
