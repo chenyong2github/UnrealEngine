@@ -1503,6 +1503,10 @@ public:
 	// Right now it's exposed to lubricate the creation of the whole proxy system.
 	class IPhysicsProxyBase* Proxy;
 
+	// TODO: This is an awful side effect of housing the dirty flag for shape data
+	//       inside the particle, but not setting the shape data through it.
+	void MarkShapeSimDataDirty() { MarkDirty(EParticleFlags::ShapeSimData); }
+
 private:
 	TVector<T, d> MX;
 	FUniqueIdx MUniqueIdx;
