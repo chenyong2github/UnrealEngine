@@ -132,27 +132,60 @@ bool UToolMenu::IsRegistering() const
 
 FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribute< FText >& InLabel, const FToolMenuInsert InPosition)
 {
-	for (FToolMenuSection& Section : Sections)
+	int32 InsertIndex = (SectionName != NAME_None) ? IndexOfSection(SectionName) : INDEX_NONE;
+	if (InsertIndex != INDEX_NONE)
 	{
-		if (Section.Name == SectionName)
+		if (InLabel.IsSet())
 		{
-			if (InLabel.IsSet())
-			{
-				Section.Label = InLabel;
-			}
+			Sections[InsertIndex].Label = InLabel;
+		}
 
-			if (InPosition.Name != NAME_None)
-			{
-				Section.InsertPosition = InPosition;
-			}
+		if (InPosition.Name != NAME_None)
+		{
+			Sections[InsertIndex].InsertPosition = InPosition;
+		}
 
-			return Section;
+		// Sort registered sections to appear before unregistered
+		if (IsRegistering() && !Sections[InsertIndex].bAddedDuringRegister)
+		{
+			Sections[InsertIndex].bAddedDuringRegister = true;
+
+			for (int32 i = 0; i < InsertIndex; ++i)
+			{
+				if (!Sections[i].bAddedDuringRegister)
+				{
+					FToolMenuSection RemovedSection;
+					Swap(Sections[InsertIndex], RemovedSection);
+					Sections.Insert(MoveTempIfPossible(RemovedSection), i);
+					Sections.RemoveAt(InsertIndex + 1, 1, false);
+					InsertIndex = i;
+				}
+			}
+		}
+
+		return Sections[InsertIndex];
+	}
+	else
+	{
+		InsertIndex = Sections.Num();
+	}
+
+	if (IsRegistering())
+	{
+		for (int32 i=0; i < Sections.Num(); ++i)
+		{
+			if (!Sections[i].bAddedDuringRegister)
+			{
+				InsertIndex = i;
+				break;
+			}
 		}
 	}
 
-	FToolMenuSection& NewSection = Sections.AddDefaulted_GetRef();
+	FToolMenuSection& NewSection = Sections.InsertDefaulted_GetRef(InsertIndex);
 	NewSection.InitSection(SectionName, InLabel, InPosition);
 	NewSection.bIsRegistering = IsRegistering();
+	NewSection.bAddedDuringRegister = IsRegistering();
 	return NewSection;
 }
 
