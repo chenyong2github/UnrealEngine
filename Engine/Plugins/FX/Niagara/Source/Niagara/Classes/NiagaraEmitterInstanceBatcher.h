@@ -66,16 +66,17 @@ public:
 	static const FName Name;
 	virtual FFXSystemInterface* GetInterface(const FName& InName) override;
 
+	/** Notification that the InstanceID has been removed. */
+	void InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID);
+
 	// The batcher assumes ownership of the data here.
+
 	void GiveSystemTick_RenderThread(FNiagaraGPUSystemTick& Tick);
 
-	void GiveEmitterContextToDestroy_RenderThread(FNiagaraComputeExecutionContext* Context);
-	void GiveDataSetToDestroy_RenderThread(FNiagaraDataSet* DataSet);
+	/** Called to release GPU instance counts that the batcher is tracking. */
+	void ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet);
 
-	void EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy)
-	{
-		DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
-	}
+	NIAGARA_API void EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy);
 
 #if WITH_EDITOR
 	virtual void Suspend() override {}

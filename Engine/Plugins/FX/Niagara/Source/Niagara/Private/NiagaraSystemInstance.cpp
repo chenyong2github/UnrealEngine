@@ -496,6 +496,19 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 			SystemInstanceAllocation->UnbindParameters();
 		}
 
+		// If we have active GPU emitters make sure we remove any pending ticks from the RT
+		NiagaraEmitterInstanceBatcher* InstanceBatcher = SystemInstanceAllocation->GetBatcher();
+		if (SystemInstanceAllocation->bHasGPUEmitters && NiagaraSupportsComputeShaders(InstanceBatcher->GetShaderPlatform()))
+		{
+			ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
+			(
+				[InstanceBatcher, InstanceID=SystemInstanceAllocation->GetId()](FRHICommandListImmediate& RHICmdList) mutable
+				{
+					InstanceBatcher->InstanceDeallocated_RenderThread(InstanceID);
+				}
+			);
+		}
+		
 		// Queue deferred deletion from the WorldManager
 		FNiagaraWorldManager* WorldManager = SystemInstanceAllocation->GetWorldManager();
 		check(WorldManager != nullptr);

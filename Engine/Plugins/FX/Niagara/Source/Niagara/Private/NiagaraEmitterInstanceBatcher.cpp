@@ -91,6 +91,25 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 	ParticleSortBuffers.ReleaseRHI();
 }
 
+void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID)
+{
+	int iTick = 0;
+	while ( iTick < Ticks_RT.Num() )
+	{
+		FNiagaraGPUSystemTick& Tick = Ticks_RT[iTick];
+		if (Tick.SystemInstanceID == InstanceID)
+		{
+			//-OPT: Since we can't RemoveAtSwap (due to ordering issues) if may be better to not remove and flag as dead
+			Tick.Destroy();
+			Ticks_RT.RemoveAt(iTick);
+		}
+		else
+		{
+			++iTick;
+		}
+	}
+}
+
 void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSystemTick& Tick)
 {
 	check(IsInRenderingThread());
@@ -124,16 +143,23 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 	Ticks_RT.Add(Tick);
 }
 
-void NiagaraEmitterInstanceBatcher::GiveEmitterContextToDestroy_RenderThread(FNiagaraComputeExecutionContext* Context)
+void NiagaraEmitterInstanceBatcher::ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
-	ContextsToDestroy_RT.Add(Context);
+
+	if ( ExecContext != nullptr )
+	{
+		GPUInstanceCounterManager.FreeEntry(ExecContext->EmitterInstanceReadback.GPUCountOffset);
+	}
+	if ( DataSet != nullptr )
+	{
+		DataSet->ReleaseGPUInstanceCounts(GPUInstanceCounterManager);
+	}
 }
 
-void NiagaraEmitterInstanceBatcher::GiveDataSetToDestroy_RenderThread(FNiagaraDataSet* DataSet)
+void NiagaraEmitterInstanceBatcher::EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy)
 {
-	LLM_SCOPE(ELLMTag::Niagara);
-	DataSetsToDestroy_RT.Add(DataSet);
+	DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
 }
 
 void NiagaraEmitterInstanceBatcher::FinishDispatches()
