@@ -1560,6 +1560,13 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	// Replicate properties in the layout
 	const bool bHasRepLayout = RepLayout->ReplicateProperties(SendingRepState, ChangelistMgr->GetRepChangelistState(), (uint8*)Object, ObjectClass, OwningChannel, Writer, RepFlags);
 
+	NETWORK_PROFILER(
+		if (bHasRepLayout)
+		{
+			GNetworkProfiler.TrackReplicatePropertiesMetadata(RepLayout->GetOwner(), SendingRepState->InactiveParents, (Connection->ResendAllDataState != EResendAllDataState::None), Connection);
+		}
+	);
+
 	// Replicate all the custom delta properties (fast arrays, etc)
 	ReplicateCustomDeltaProperties(Writer, RepFlags);
 

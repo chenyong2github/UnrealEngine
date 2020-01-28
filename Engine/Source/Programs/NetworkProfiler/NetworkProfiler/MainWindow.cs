@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
@@ -100,6 +101,9 @@ namespace NetworkProfiler
 
 			SetupColumns( ActorPerfPropsListView, new String[] { "Actor", "MS", "KB/s", "Bytes", "Count", "Update HZ", "Rep HZ", "Waste" } );
 			SetupColumns( ActorPerfPropsDetailsListView, new String[] { "Property", "Bytes", "Count" } );
+
+			SetupColumns( ObjectReplicationListView, new String[] { "Object Class", "# Comparisons", "# Replications", "Comparison Time (ms)", "Avg. Time Per Compare (ms)" } );
+			SetupColumns( ObjectPropertyReplicationListView, new String[] { "Property", "# Comparisons", "# Times Changed", "# Replications" } );
 
 			ActorPerfPropsDetailsListView.Columns[0].Width = 170;
 			ActorPerfPropsDetailsListView.Columns[1].Width = 50;
@@ -339,8 +343,9 @@ namespace NetworkProfiler
 				{
 
 				}
-				catch ( System.Exception )
+				catch ( System.Exception se)
 				{
+					Console.Out.WriteLine(se.StackTrace);
 					ClearStreamAndChart();
 				}
 			}
@@ -392,6 +397,7 @@ namespace NetworkProfiler
 			StreamParser.ParseStreamIntoListView( CurrentNetworkStream, CurrentNetworkStream.ActorNameToSummary, ActorListView );
 			StreamParser.ParseStreamIntoListView( CurrentNetworkStream, CurrentNetworkStream.PropertyNameToSummary, PropertyListView );
 			StreamParser.ParseStreamIntoListView( CurrentNetworkStream, CurrentNetworkStream.RPCNameToSummary, RPCListView );
+			StreamParser.ParseStreamIntoReplicationListView( CurrentNetworkStream, CurrentNetworkStream.ObjectNameToReplicationSummary, ObjectReplicationListView );
 
 			ActorFilterBox.Items.Clear();
 			ActorFilterBox.Items.Add( "" );
@@ -815,9 +821,37 @@ namespace NetworkProfiler
 
             checkAllConnectionsCheckBox.Checked = !bAreAllUnchecked;
         }
-    }
 
-    public class FilterValues
+		private void ObjectReplicationListView_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			ReadOnlyCollection<PropertyReplicationSummary> Summaries = null;
+
+			if (ObjectReplicationListView.SelectedItems.Count > 0)
+			{
+				string ObjectName = ObjectReplicationListView.SelectedItems[0].Text;
+				int ObjectNameIndex = CurrentNetworkStream.NameArray.FindIndex(MaybeName => (ObjectName == MaybeName));
+
+				if (ObjectNameIndex != -1)
+				{
+					Summaries = CurrentNetworkStream.ObjectNameToReplicationSummary[ObjectNameIndex].Properties;
+				}
+			}
+
+			StreamParser.ParseStreamIntoPropertyReplicationListView(CurrentNetworkStream, Summaries, ObjectPropertyReplicationListView);
+		}
+
+		private void ObjectReplicationListView_ColumnClick(object sender, ColumnClickEventArgs e)
+		{
+			HandleListViewSorting(e.Column, ObjectReplicationListView);
+		}
+
+		private void ObjectPropertyReplicationListView_ColumnClick(object sender, ColumnClickEventArgs e)
+		{
+			HandleListViewSorting(e.Column, ObjectPropertyReplicationListView);
+		}
+	}
+
+	public class FilterValues
 	{
 		public string ActorFilter		= "";
 		public string PropertyFilter	= "";
