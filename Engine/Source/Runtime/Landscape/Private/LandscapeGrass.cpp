@@ -25,7 +25,6 @@
 #include "Shader.h"
 #include "Landscape.h"
 #include "LandscapeProxy.h"
-#include "LandscapeInfo.h"
 #include "LightMap.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "ShadowMap.h"
@@ -38,6 +37,7 @@
 #include "LandscapeGrassType.h"
 #include "Materials/MaterialExpressionLandscapeGrassOutput.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "ContentStreaming.h"
 #include "LandscapeDataAccess.h"
 #include "StaticMeshResources.h"
 #include "LandscapeLight.h"
@@ -135,6 +135,12 @@ static FAutoConsoleVariableRef CVarGrassDiscardDataOnLoad(
 	TEXT("1: Discard grass data on load (disables grass); 0: Keep grass data (requires reloading level)"),
 	ECVF_Scalability);
 
+static int32 GUseStreamingManagerForCameras = 1;
+static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
+	TEXT("grass.UseStreamingManagerForCameras"),
+	GUseStreamingManagerForCameras,
+	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
+
 static int32 GCullSubsections = 1;
 static FAutoConsoleVariableRef CVarCullSubsections(
 	TEXT("grass.CullSubsections"),
@@ -171,7 +177,7 @@ DECLARE_CYCLE_STAT(TEXT("Grass End Comp"), STAT_FoliageGrassEndComp, STATGROUP_F
 DECLARE_CYCLE_STAT(TEXT("Grass Destroy Comps"), STAT_FoliageGrassDestoryComp, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass Update"), STAT_GrassUpdate, STATGROUP_Foliage);
 
-int32 ALandscapeProxy::GrassUpdateInterval = 1;
+static int32 GGrassUpdateInterval = 1;
 
 static void GrassCVarSinkFunction()
 {
@@ -180,7 +186,7 @@ static void GrassCVarSinkFunction()
 
 	if (FApp::IsGame())
 	{
-		ALandscapeProxy::SetGrassUpdateInterval(FMath::Clamp<int32>(GGrassTickInterval, 1, 60));
+		GGrassUpdateInterval = FMath::Clamp<int32>(GGrassTickInterval, 1, 60);
 	}
 
 	static float CachedGrassCullDistanceScale = 1.0f;
@@ -1386,20 +1392,83 @@ void FLandscapeComponentGrassData::ConditionalDiscardDataOnLoad()
 // ALandscapeProxy grass-related functions
 //
 
-void ALandscapeProxy::TickGrass(const TArray<FVector>& Cameras)
+int32 ALandscapeProxy::GetGrassUpdateInterval() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::TickGrass);
-#if WITH_EDITORONLY_DATA
-	if (ALandscape* Landscape = GetLandscapeActor())
+#if WITH_EDITOR
+	// When editing landscape, force update interval to be every frame
+	if (GLandscapeEditModeActive)
 	{
-		if (!Landscape->IsUpToDate() || !Landscape->bGrassUpdateEnabled)
+		return 1;
+	}
+#endif
+	return GGrassUpdateInterval;
+}
+
+void ALandscapeProxy::TickGrass()
+{
+	const int32 UpdateInterval = GetGrassUpdateInterval();
+	if (UpdateInterval > 1)
+	{
+		if ((GFrameNumber + FrameOffsetForTickInterval) % uint32(UpdateInterval))
 		{
 			return;
 		}
 	}
-#endif
 
-	UpdateGrass(Cameras);
+	if (ALandscape* Landscape = GetLandscapeActor())
+	{
+		if (!Landscape->IsUpToDate() 
+#if WITH_EDITORONLY_DATA
+			|| !Landscape->bGrassUpdateEnabled
+#endif
+			)
+		{
+			return;
+		}
+	}
+
+	// Update foliage
+	static TArray<FVector> OldCameras;
+	if (GUseStreamingManagerForCameras == 0)
+	{
+		UWorld* World = GetWorld();
+		if (!World)
+		{
+			return;
+		}
+
+		if (!OldCameras.Num() && !World->ViewLocationsRenderedLastFrame.Num())
+		{
+			// no cameras, no grass update
+			return;
+		}
+
+		// there is a bug here, which often leaves us with no cameras in the editor
+		const TArray<FVector>& Cameras = World->ViewLocationsRenderedLastFrame.Num() ? World->ViewLocationsRenderedLastFrame : OldCameras;
+
+		if (&Cameras != &OldCameras)
+		{
+			check(IsInGameThread());
+			OldCameras = Cameras;
+		}
+		UpdateGrass(Cameras);
+	}
+	else
+	{
+		int32 Num = IStreamingManager::Get().GetNumViews();
+		if (!Num)
+		{
+			// no cameras, no grass update
+			return;
+		}
+		OldCameras.Reset(Num);
+		for (int32 Index = 0; Index < Num; Index++)
+		{
+			auto& ViewInfo = IStreamingManager::Get().GetViewInformation(Index);
+			OldCameras.Add(ViewInfo.ViewOrigin);
+		}
+		UpdateGrass(OldCameras);
+	}
 }
 
 struct FGrassBuilderBase
@@ -2242,7 +2311,6 @@ void ALandscapeProxy::UpdateGrassData()
 void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync)
 {
 	SCOPE_CYCLE_COUNTER(STAT_GrassUpdate);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateGrass);
 	if (GFrameNumberLastStaleCheck != GFrameNumber && GIgnoreExcludeBoxes == 0)
 	{
 		GFrameNumberLastStaleCheck = GFrameNumber;

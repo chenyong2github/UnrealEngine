@@ -206,6 +206,16 @@ public:
 	 */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
 
+	/**
+	 * Runs the given function on the root landscape actor and all streaming proxies
+	 * Most easily used with a lambda as follows:
+	 * ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	 * {
+	 *     // Code
+	 * });
+	 */
+	LANDSCAPE_API void ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const;
+
 	/** Resets all actors, proxies, components registrations */
 	LANDSCAPE_API void Reset();
 
@@ -250,17 +260,6 @@ public:
 	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
 	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
 #endif
-
-	/**
-	 * Runs the given function on the root landscape actor and all streaming proxies
-	 * Most easily used with a lambda as follows:
-	 * ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
-	 * {
-	 *     // Code
-	 * });
-	 */
-	LANDSCAPE_API void ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const;
-
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register
  *  @param  bMapCheck	Whether to warn about landscape errors
@@ -282,8 +281,6 @@ public:
 	/** Server doesn't have ULandscapeComponent use CollisionComponents instead to get height on landscape */
 	LANDSCAPE_API void RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
 	LANDSCAPE_API void UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
-
-	LANDSCAPE_API void Tick(UWorld* World, float DeltaTime);
 
 #if WITH_EDITOR
 private:

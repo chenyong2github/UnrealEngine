@@ -5155,7 +5155,7 @@ void ALandscape::ForceUpdateLayersContent(bool bInIntermediateRender)
 	bInIntermediateRender = false;
 }
 
-void ALandscape::TickLayers(float DeltaTime)
+void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	check(GIsEditor);
 
