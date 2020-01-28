@@ -19,14 +19,16 @@ struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
 {
-	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) {  }
+	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) { }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { }
+	FORCEINLINE void TransformRotation(FQuat& Q, const FMatrix& M) { }
 };
 
 struct FNDITransformHandler
 {
 	FORCEINLINE void TransformPosition(FVector& P, const FMatrix& M) { P = M.TransformPosition(P); }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformRotation(FQuat& Q, const FMatrix& M) { Q = M.ToQuat() * Q; }
 };
 
 //////////////////////////////////////////////////////////////////////////
