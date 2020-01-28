@@ -726,7 +726,7 @@ FString FAudioChunkCache::FlushCacheMissLog()
 	struct FMissedChunk 
 	{
 		FName SoundWaveName;
-		int32 ChunkIndex;
+		uint32 ChunkIndex;
 		int32 MissCount;
 	};
 
