@@ -19,6 +19,7 @@
 class FAssetEditorModeManager;
 class FMenuBuilder;
 struct FToolMenuContext;
+struct FToolMenuSection;
 class SBorder;
 class SStandaloneAssetEditorToolkitHost;
 
@@ -145,21 +146,21 @@ public:
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultFileMenuCommands( FMenuBuilder& MenuBuilder );
+	void FillDefaultFileMenuCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for modifying this asset that are generally common to most asset editors
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultAssetMenuCommands( FMenuBuilder& MenuBuilder );
+	void FillDefaultAssetMenuCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for the help menu
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultHelpMenuCommands( FMenuBuilder& MenuBuilder );
+	void FillDefaultHelpMenuCommands(FToolMenuSection& InSection);
 
 	/** @return	For standalone asset editing tool-kits, returns the toolkit host that was last hosting this asset editor before it was switched to standalone mode (if it's still valid.)  Returns null if these conditions aren't met. */
 	TSharedPtr< IToolkitHost > GetPreviousWorldCentricToolkitHost();
