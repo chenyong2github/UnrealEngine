@@ -1123,35 +1123,6 @@ void SSequencer::HandleKeySelectionChanged()
 }
 
 
-void SSequencer::HandleLabelBrowserSelectionChanged(FString NewLabel, ESelectInfo::Type SelectInfo)
-{
-	if (SelectInfo == ESelectInfo::Direct)
-	{
-		return;
-	}
-
-	if (NewLabel.IsEmpty())
-	{
-		SearchBox->SetText(FText::GetEmpty());
-	}
-	else
-	{
-		SearchBox->SetText(FText::FromString(NewLabel));
-	}
-}
-
-
-EVisibility SSequencer::HandleLabelBrowserVisibility() const
-{
-	if (GetSequencerSettings()->GetLabelBrowserVisible())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-
 void SSequencer::HandleSectionSelectionChanged()
 {
 }
@@ -1847,7 +1818,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 
 	// Menu entry for zero padding
 	auto OnZeroPadChanged = [=](uint8 NewValue) {
-		Settings->SetZeroPadFrames(NewValue);
+		GetSequencerSettings()->SetZeroPadFrames(NewValue);
 	};
 
 	MenuBuilder.AddWidget(
@@ -1866,7 +1837,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 			.MinValue(0)
 			.MaxValue(8)
 			.Value_Lambda([=]() -> uint8 {
-			return Settings->GetZeroPadFrames();
+			return GetSequencerSettings()->GetZeroPadFrames();
 		})
 		],
 		LOCTEXT("ZeroPaddingText", "Zero Pad Frame Numbers"));
