@@ -1332,9 +1332,7 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
 
 	{
-		// If can not be modified change section name to prevent reference menu extensions
-		const FName SectionName = Context->bCanBeModified ? FName("AssetContextReferences") : FName("AssetContextReferencesReadOnly");
-		FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("ReferencesMenuHeading", "References"));
+		FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
 
 		Section.AddMenuEntry(
 			"CopyReference",
