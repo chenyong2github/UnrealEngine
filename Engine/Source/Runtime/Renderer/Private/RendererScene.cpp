@@ -405,8 +405,6 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	{
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			// Theoretically, we may need to wait for high-res mips to be streamed in.
-			// In practice, however, those mips are usually resident at this point.
 			UTexture2D* HeightAndNormal;
 			UTexture2D* Unused0, *Unused1;
 			FHeightfieldComponentDescription Unused2(FMatrix::Identity);

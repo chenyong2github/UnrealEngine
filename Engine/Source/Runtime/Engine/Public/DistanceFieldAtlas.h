@@ -159,15 +159,15 @@ class ENGINE_API FHeightFieldTextureAtlas : public FRenderResource
 public:
 	void InitializeIfNeeded();
 
-	void AddAllocation(const UTexture2D* Texture);
+	void AddAllocation(UTexture2D* Texture);
 
-	void RemoveAllocation(const UTexture2D* Texture);
+	void RemoveAllocation(UTexture2D* Texture);
 
 	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
-	uint32 GetAllocationHandle(const UTexture2D* Texture) const;
+	uint32 GetAllocationHandle(UTexture2D* Texture) const;
 
-	FVector4 GetTileScaleBias(uint32 TileHandle) const;
+	FVector4 GetAllocationScaleBias(uint32 Handle) const;
 
 	FRHITexture2D* GetAtlasTexture() const
 	{
@@ -176,12 +176,12 @@ public:
 
 	uint32 GetSizeX() const
 	{
-		return TileAllocator.DimInTexels;
+		return AddrSpaceAllocator.DimInTexels;
 	}
 
 	uint32 GetSizeY() const
 	{
-		return TileAllocator.DimInTexels;
+		return AddrSpaceAllocator.DimInTexels;
 	}
 
 	uint32 GetGeneration() const
@@ -190,20 +190,29 @@ public:
 	}
 
 private:
+	uint32 CalculateDownSampleLevel(uint32 SizeX, uint32 SizeY) const;
+
 	class FSubAllocator
 	{
 	public:
 		void Init(uint32 InTileSize, uint32 InBorderSize, uint32 InDimInTiles);
 
-		uint32 AllocTile();
+		uint32 Alloc(uint32 SizeX, uint32 SizeY);
 
-		void FreeTile(uint32 TileIdx);
+		void Free(uint32 Handle);
 
-		bool CanAlloc() const;
+		FVector4 GetScaleBias(uint32 Handle) const;
 
-		FIntPoint GetTileCoord(uint32 TileIdx) const;
+		FIntPoint GetStartOffset(uint32 Handle) const;
 
 	private:
+		struct FSubAllocInfo
+		{
+			uint32 Level;
+			uint32 QuadIdx;
+			FVector4 UVScaleBias;
+		};
+		
 		uint32 TileSize;
 		uint32 BorderSize;
 		uint32 TileSizeWithBorder;
@@ -216,21 +225,24 @@ private:
 		float TexelSize;
 		float TileScale;
 
-		uint32 NextFreeTileIdx;
-		TArray<uint32> FreeTileIndices;
+		// 0: Free, 1: Allocated
+		TBitArray<> MarkerQuadTree;
+		TArray<uint32, TInlineAllocator<8>> LevelOffsets;
+
+		TSparseArray<FSubAllocInfo> SubAllocInfos;
 
 		friend class FHeightFieldTextureAtlas;
 	};
 
 	struct FAllocation
 	{
-		const UTexture2D* SourceTexture;
+		UTexture2D* SourceTexture;
 		uint32 RefCount;
-		uint32 TileIdx;
+		uint32 Handle;
 
 		FAllocation();
 
-		FAllocation(const UTexture2D* InTexture);
+		FAllocation(UTexture2D* InTexture);
 
 		bool operator==(const FAllocation& Other) const
 		{
@@ -243,15 +255,17 @@ private:
 		}
 	};
 
-	FSubAllocator TileAllocator;
+	FSubAllocator AddrSpaceAllocator;
 
 	TSet<FAllocation> PendingAllocations;
 	TSet<FAllocation> FailedAllocations;
 	TSet<FAllocation> CurrentAllocations;
+	TArray<UTexture2D*> PendingStreamingTextures;
 
 	FTexture2DRHIRef AtlasTextureRHI;
 	FUnorderedAccessViewRHIRef AtlasUAVRHI;
 
+	uint32 MaxDownSampleLevel;
 	uint32 Generation;
 };
 
