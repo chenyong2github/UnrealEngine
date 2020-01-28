@@ -205,7 +205,7 @@ protected:
 		}
 
 		/** Constructor for a pre-seeded bin */
-		FBin(double MinInclusive, double MaxExclusive, int32 InSum, int32 InCount)
+		FBin(double MinInclusive, double MaxExclusive, double InSum, int32 InCount)  //@TODO: FLOATPRECISION: THIS CHANGES BEHAVIOR
 			: MinValue(MinInclusive)
 			, UpperBound(MaxExclusive)
 			, Sum(InSum)

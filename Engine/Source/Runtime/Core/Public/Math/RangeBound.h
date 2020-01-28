@@ -353,7 +353,7 @@ private:
 			: Super(Other) \
 		{ } \
 		 \
-		Name(const int64& InValue) \
+		Name(const ElementType InValue) \
 			: Super(InValue) \
 		{ } \
 		 \

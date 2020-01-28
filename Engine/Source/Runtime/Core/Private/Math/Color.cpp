@@ -98,19 +98,19 @@ FColor FLinearColor::ToRGBE() const
 	const float	Primary = FMath::Max3( R, G, B );
 	FColor	Color;
 
-	if( Primary < 1E-32 )
+	if( Primary < 1E-32f )
 	{
 		Color = FColor(0,0,0,0);
 	}
 	else
 	{
-		int32	Exponent;
-		const float Scale	= frexp(Primary, &Exponent) / Primary * 255.f;
+		int32 Exponent;
+		const float Scale = (float)frexp(Primary, &Exponent) / Primary * 255.f;
 
-		Color.R		= FMath::Clamp(FMath::TruncToInt(R * Scale), 0, 255);
-		Color.G		= FMath::Clamp(FMath::TruncToInt(G * Scale), 0, 255);
-		Color.B		= FMath::Clamp(FMath::TruncToInt(B * Scale), 0, 255);
-		Color.A		= FMath::Clamp(FMath::TruncToInt(Exponent),-128,127) + 128;
+		Color.R		= (uint8)FMath::Clamp(FMath::TruncToInt(R * Scale), 0, 255);
+		Color.G		= (uint8)FMath::Clamp(FMath::TruncToInt(G * Scale), 0, 255);
+		Color.B		= (uint8)FMath::Clamp(FMath::TruncToInt(B * Scale), 0, 255);
+		Color.A		= (uint8)(FMath::Clamp(Exponent,-128,127) + 128);
 	}
 
 	return Color;
@@ -132,14 +132,14 @@ FColor FLinearColor::ToFColor(const bool bSRGB) const
 		FloatB = FloatB <= 0.0031308f ? FloatB * 12.92f : FMath::Pow( FloatB, 1.0f / 2.4f ) * 1.055f - 0.055f;
 	}
 
-	FColor ret;
+	FColor Result;
 
-	ret.A = FMath::FloorToInt(FloatA * 255.999f);
-	ret.R = FMath::FloorToInt(FloatR * 255.999f);
-	ret.G = FMath::FloorToInt(FloatG * 255.999f);
-	ret.B = FMath::FloorToInt(FloatB * 255.999f);
+	Result.A = (uint8)FMath::FloorToInt(FloatA * 255.999f);
+	Result.R = (uint8)FMath::FloorToInt(FloatR * 255.999f);
+	Result.G = (uint8)FMath::FloorToInt(FloatG * 255.999f);
+	Result.B = (uint8)FMath::FloorToInt(FloatB * 255.999f);
 
-	return ret;
+	return Result;
 }
 
 
@@ -185,16 +185,16 @@ FColor FColor::FromHex( const FString& HexString )
 		const int32 G = FParse::HexDigit(HexString[StartIndex++]);
 		const int32 B = FParse::HexDigit(HexString[StartIndex]);
 
-		return FColor((R << 4) + R, (G << 4) + G, (B << 4) + B, 255);
+		return FColor((uint8)((R << 4) + R), (uint8)((G << 4) + G), (uint8)((B << 4) + B, 255));
 	}
 
 	if (HexString.Len() == 6 + StartIndex)
 	{
 		FColor Result;
 
-		Result.R = (FParse::HexDigit(HexString[StartIndex+0]) << 4) + FParse::HexDigit(HexString[StartIndex+1]);
-		Result.G = (FParse::HexDigit(HexString[StartIndex+2]) << 4) + FParse::HexDigit(HexString[StartIndex+3]);
-		Result.B = (FParse::HexDigit(HexString[StartIndex+4]) << 4) + FParse::HexDigit(HexString[StartIndex+5]);
+		Result.R = (uint8)((FParse::HexDigit(HexString[StartIndex+0]) << 4) + FParse::HexDigit(HexString[StartIndex+1]));
+		Result.G = (uint8)((FParse::HexDigit(HexString[StartIndex+2]) << 4) + FParse::HexDigit(HexString[StartIndex+3]));
+		Result.B = (uint8)((FParse::HexDigit(HexString[StartIndex+4]) << 4) + FParse::HexDigit(HexString[StartIndex+5]));
 		Result.A = 255;
 
 		return Result;
@@ -204,10 +204,10 @@ FColor FColor::FromHex( const FString& HexString )
 	{
 		FColor Result;
 
-		Result.R = (FParse::HexDigit(HexString[StartIndex+0]) << 4) + FParse::HexDigit(HexString[StartIndex+1]);
-		Result.G = (FParse::HexDigit(HexString[StartIndex+2]) << 4) + FParse::HexDigit(HexString[StartIndex+3]);
-		Result.B = (FParse::HexDigit(HexString[StartIndex+4]) << 4) + FParse::HexDigit(HexString[StartIndex+5]);
-		Result.A = (FParse::HexDigit(HexString[StartIndex+6]) << 4) + FParse::HexDigit(HexString[StartIndex+7]);
+		Result.R = (uint8)((FParse::HexDigit(HexString[StartIndex+0]) << 4) + FParse::HexDigit(HexString[StartIndex+1]));
+		Result.G = (uint8)((FParse::HexDigit(HexString[StartIndex+2]) << 4) + FParse::HexDigit(HexString[StartIndex+3]));
+		Result.B = (uint8)((FParse::HexDigit(HexString[StartIndex+4]) << 4) + FParse::HexDigit(HexString[StartIndex+5]));
+		Result.A = (uint8)((FParse::HexDigit(HexString[StartIndex+6]) << 4) + FParse::HexDigit(HexString[StartIndex+7]));
 
 		return Result;
 	}
@@ -218,11 +218,13 @@ FColor FColor::FromHex( const FString& HexString )
 // Convert from RGBE to float as outlined in Gregory Ward's Real Pixels article, Graphics Gems II, page 80.
 FLinearColor FColor::FromRGBE() const
 {
-	if( A == 0 )
+	if (A == 0)
+	{
 		return FLinearColor::Black;
+	}
 	else
 	{
-		const float Scale = ldexp( 1 / 255.0, A - 128 );
+		const float Scale = (float)ldexp( 1 / 255.0f, A - 128 );
 		return FLinearColor( R * Scale, G * Scale, B * Scale, 1.0f );
 	}
 }
@@ -392,11 +394,11 @@ FColor FColor::MakeFromColorTemperature( float Temp )
 
 FColor FColor::MakeRedToGreenColorFromScalar(float Scalar)
 {
-	float RedSclr = FMath::Clamp<float>((1.0f - Scalar)/0.5f,0.f,1.f);
-	float GreenSclr = FMath::Clamp<float>((Scalar/0.5f),0.f,1.f);
-	int32 R = FMath::TruncToInt(255 * RedSclr);
-	int32 G = FMath::TruncToInt(255 * GreenSclr);
-	int32 B = 0;
+	const float RedSclr = FMath::Clamp<float>((1.0f - Scalar)/0.5f,0.f,1.f);
+	const float GreenSclr = FMath::Clamp<float>((Scalar/0.5f),0.f,1.f);
+	const uint8 R = (uint8)FMath::TruncToInt(255 * RedSclr);
+	const uint8 G = (uint8)FMath::TruncToInt(255 * GreenSclr);
+	const uint8 B = 0;
 	return FColor(R, G, B);
 }
 

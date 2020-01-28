@@ -105,9 +105,9 @@ bool FWindowsPlatformTime::UpdateCPUTime( float /*DeltaTime*/ )
 
 	// IntervalUserAndKernelTime == 0.0f means that the OS hasn't updated the data yet, 
 	// so don't update to avoid oscillating between 0 and calculated value.
-	if( IntervalUserAndKernelTime > 0.0f )
+	if( IntervalUserAndKernelTime > 0.0 )
 	{
-		CPUTimePctRelative = IntervalUserAndKernelTime/IntervalProcessTime * 100.0f;
+		CPUTimePctRelative = (float)(IntervalUserAndKernelTime/IntervalProcessTime * 100.0);
 
 		LastTotalProcessTime = CurrentTotalProcessTime;
 		LastTotalUserAndKernelTime = CurrentTotalUserAndKernelTime;

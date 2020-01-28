@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Base64.h"
 #include "Containers/StringConv.h"
@@ -121,7 +121,7 @@ template<typename CharType> uint32 FBase64::Encode(const uint8* Source, uint32 L
 	// Add a null terminator
 	*EncodedBytes = 0;
 
-	return EncodedBytes - Dest;
+	return UE_PTRDIFF_TO_UINT32(EncodedBytes - Dest);
 }
 
 template CORE_API uint32 FBase64::Encode<ANSICHAR>(const uint8* Source, uint32 Length, ANSICHAR* Dest);

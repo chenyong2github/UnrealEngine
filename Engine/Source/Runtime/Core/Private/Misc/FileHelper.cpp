@@ -42,7 +42,7 @@ bool FFileHelper::LoadFileToArray( TArray<uint8>& Result, const TCHAR* Filename,
 		}
 		return false;
 	}
-	int64 TotalSize = Reader->TotalSize();
+	int32 TotalSize = (int32)Reader->TotalSize();
 	// Allocate slightly larger than file size to avoid re-allocation when caller null terminates file buffer
 	Result.Reset( TotalSize + 2 );
 	Result.AddUninitialized( TotalSize );
@@ -119,7 +119,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 {
 	FScopedLoadingState ScopedLoadingState(*Reader.GetArchiveName());
 
-	int32 Size = Reader.TotalSize();
+	int64 Size = Reader.TotalSize();
 	if (!Size)
 	{
 		Result.Empty();
@@ -136,7 +136,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 	Reader.Serialize(Ch, Size);
 	bool Success = Reader.Close();
 
-	BufferToString(Result, Ch, Size);
+	BufferToString(Result, Ch, (int32)Size);
 
 	// handle SHA verify of the file
 	if (EnumHasAnyFlags(VerifyFlags, EHashOptions::EnableVerify) && (EnumHasAnyFlags(VerifyFlags, EHashOptions::ErrorMissingHash) || FSHA1::GetFileSHAHash(*Reader.GetArchiveName(), nullptr)))
@@ -212,7 +212,7 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 			Pos++;
 		}
 
-		Result.Emplace(Pos - LineStart, LineStart);
+		Result.Emplace((int32)(Pos - LineStart), LineStart);
 
 		if(*Pos == '\r')
 		{
@@ -245,7 +245,7 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 			Pos++;
 		}
 
-		FString Line(Pos - LineStart, LineStart);
+		FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
 		if (Invoke(Predicate, Line))
 		{
 			Result.Add(MoveTemp(Line));
@@ -658,7 +658,7 @@ bool FFileHelper::LoadANSITextFileToStrings(const TCHAR* InFilename, IFileManage
 	if (TextFile != NULL)
 	{
 		// get the size of the file
-		int32 Size = TextFile->TotalSize();
+		int32 Size = (int32)TextFile->TotalSize();
 		// read the file
 		TArray<uint8> Buffer;
 		Buffer.Empty(Size + 1);

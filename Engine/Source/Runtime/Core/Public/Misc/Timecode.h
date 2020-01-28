@@ -71,7 +71,7 @@ public:
 	 */
 	FFrameNumber ToFrameNumber(const FFrameRate& InFrameRate) const
 	{
-		const int32 NumberOfFramesInSecond = FMath::CeilToInt(InFrameRate.AsDecimal());
+		const int32 NumberOfFramesInSecond = FMath::CeilToInt((float)InFrameRate.AsDecimal());
 		const int32 NumberOfFramesInMinute = NumberOfFramesInSecond * 60;
 		const int32 NumberOfFramesInHour = NumberOfFramesInMinute * 60;
 
@@ -119,7 +119,7 @@ public:
 	 */
 	static FTimecode FromFrameNumber(const FFrameNumber& InFrameNumber, const FFrameRate& InFrameRate, bool InbDropFrame)
 	{
-		const int32 NumberOfFramesInSecond = FMath::CeilToInt(InFrameRate.AsDecimal());
+		const int32 NumberOfFramesInSecond = FMath::CeilToInt((float)InFrameRate.AsDecimal());
 		const int32 NumberOfFramesInMinute = NumberOfFramesInSecond * 60;
 		const int32 NumberOfFramesInHour = NumberOfFramesInMinute * 60;
 
@@ -139,10 +139,10 @@ public:
 			const int32 NumberOfTimecodesToDrop = NumberOfFramesInSecond <= 30 ? 2 : 4;
 
 			// At an ideal 30fps there would be 18,000 frames every 10 minutes, but at 29.97 there's only 17,982 frames.
-			const int32 NumTrueFramesPerTenMinutes = FMath::FloorToInt((60 * 10) * InFrameRate.AsDecimal());
+			const int32 NumTrueFramesPerTenMinutes = FMath::FloorToInt((float)((60 * 10) * InFrameRate.AsDecimal()));
 
 			// Calculate out how many times we've skipped dropping frames (ie: Minute 15 gives us a value of 1, as we've only didn't drop frames on the 10th minute)
-			const int32 NumTimesSkippedDroppingFrames = FMath::FloorToInt(FMath::Abs(InFrameNumber.Value) / (double)NumTrueFramesPerTenMinutes);
+			const int32 NumTimesSkippedDroppingFrames = FMath::FloorToInt(FMath::Abs(InFrameNumber.Value) / (float)NumTrueFramesPerTenMinutes);
 
 			// Now we can figure out how many frame (displays) have been skipped total; 9 times out of every 10 minutes
 			const int32 NumFramesSkippedTotal = NumTimesSkippedDroppingFrames * 9 * NumberOfTimecodesToDrop;
@@ -159,10 +159,10 @@ public:
 			{
 				// Each minute we slip a little bit more out of sync by a small amount, we just wait until we've accumulated enough error
 				// to skip a whole frame and can catch up.
-				const uint32 NumTrueFramesPerMinute = (uint32)FMath::FloorToInt(60 * InFrameRate.AsDecimal());
+				const uint32 NumTrueFramesPerMinute = (uint32)FMath::FloorToInt(60 * (float)InFrameRate.AsDecimal());
 
 				// Figure out which minute we are (0-9) to see how many to skip
-				int32 CurrentMinuteOfTen = FMath::FloorToInt((FrameInTrueFrames - NumberOfTimecodesToDrop) / (double)NumTrueFramesPerMinute);
+				int32 CurrentMinuteOfTen = FMath::FloorToInt((FrameInTrueFrames - NumberOfTimecodesToDrop) / (float)NumTrueFramesPerMinute);
 				int NumAddedFrames = NumFramesSkippedTotal + (NumberOfTimecodesToDrop * CurrentMinuteOfTen);
 				OffsetFrame += NumAddedFrames;
 			}

@@ -1207,14 +1207,14 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 	float HandleEnsurePercentInConfig = 100.0f;
 	if (GConfig && GConfig->GetFloat(TEXT("Core.System"), TEXT("HandleEnsurePercent"), HandleEnsurePercentInConfig, GEngineIni))
 	{
-		GenericPlatformMisc::GEnsureChance = HandleEnsurePercentInConfig / 100.0;
+		GenericPlatformMisc::GEnsureChance = HandleEnsurePercentInConfig / 100.0f;
 	}
 	else
 	{
 		float HandleEnsurePercentOnCmdLine = 100.0f;
 		if (!FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
 		{
-			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0;
+			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0f;
 		}
 	}
 

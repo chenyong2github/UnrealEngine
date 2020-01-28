@@ -8,6 +8,8 @@
 
 #define LOCTEXT_NAMESPACE "FFrameRate"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 namespace
 {
 	struct FSeconds         { static const TCHAR* const Moniker; };
@@ -200,7 +202,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 
 		// Showing hours, minutes or seconds
 		static const int32 DesirableBases[]  = { 1, 2, 5, 10, 30, 60 };
-		static const int32 NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
+		static const SIZE_T NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
 
 		const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
 		const int32 BaseIndex = FMath::Min(Algo::LowerBound(DesirableBases, Scale), NumDesirableBases-1);
@@ -301,5 +303,7 @@ bool TryParseString(FFrameRate& OutFrameRate, const TCHAR* InString)
 
 	return false;
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

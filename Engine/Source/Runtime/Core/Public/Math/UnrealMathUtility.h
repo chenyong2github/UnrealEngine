@@ -295,7 +295,7 @@ struct FMath : public FPlatformMath
 		if( Grid==0.f )	return Location;
 		else			
 		{
-			return FloorToFloat((Location + 0.5*Grid)/Grid)*Grid;
+			return FloorToFloat((Location + 0.5f*Grid)/Grid)*Grid;
 		}
 	}
 
@@ -988,7 +988,7 @@ struct FMath : public FPlatformMath
 	 */
 	static float MakePulsatingValue( const double InCurrentTime, const float InPulsesPerSecond, const float InPhase = 0.0f )
 	{
-		return 0.5f + 0.5f * FMath::Sin( ( ( 0.25f + InPhase ) * PI * 2.0 ) + ( InCurrentTime * PI * 2.0 ) * InPulsesPerSecond );
+		return 0.5f + 0.5f * FMath::Sin( ( ( 0.25f + InPhase ) * (float)PI * 2.0f ) + ( (float)InCurrentTime * (float)PI * 2.0f ) * InPulsesPerSecond );
 	}
 
 	// Geometry intersection 
@@ -1547,7 +1547,7 @@ struct FMath : public FPlatformMath
 		check(Ret >= 0);
 		check(Ret <= 255);
 
-		return Ret;
+		return (uint8)Ret;
 	}
 	
 	// @param x assumed to be in this range: -1..1

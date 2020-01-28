@@ -157,7 +157,7 @@ protected:
 		else
 		{
 			DestData.Reserve( EStatsFileConstants::MAX_COMPRESSED_SIZE );
-			int32 CompressedSize = DestData.GetAllocatedSize();
+			int32 CompressedSize = (int32)DestData.GetAllocatedSize();
 
 			const bool bResult = FCompression::CompressMemory( NAME_Zlib, DestData.GetData(), CompressedSize, SrcData.GetData(), UncompressedSize );
 			check( bResult );
@@ -800,7 +800,7 @@ public:
 	{
 		// Read FNames.
 		Ar.Seek( Header.FNameTableOffset );
-		out_MetadataMessages.Reserve( Header.NumFNames );
+		out_MetadataMessages.Reserve( (int32)Header.NumFNames );
 		for( int32 Index = 0; Index < Header.NumFNames; Index++ )
 		{
 			ReadFName( Ar, false );
@@ -808,7 +808,7 @@ public:
 
 		// Read metadata messages.
 		Ar.Seek( Header.MetadataMessagesOffset );
-		out_MetadataMessages.Reserve( Header.NumMetadataMessages );
+		out_MetadataMessages.Reserve((int32)Header.NumMetadataMessages );
 		for( int32 Index = 0; Index < Header.NumMetadataMessages; Index++ )
 		{
 			new(out_MetadataMessages)FStatMessage( ReadMessage( Ar, false ) );

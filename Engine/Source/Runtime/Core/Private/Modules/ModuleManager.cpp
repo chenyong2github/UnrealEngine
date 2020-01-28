@@ -195,7 +195,7 @@ bool FindNewestModuleFile(TArray<FString>& FilesToSearch, const FDateTime& Newer
 
 		// Check the time stamp for this file
 		const FDateTime FoundFileTime = IFileManager::Get().GetTimeStamp(*FoundFilePath);
-		if (ensure(FoundFileTime != -1.0))
+		if (ensure(FoundFileTime != FDateTime::MinValue()))
 		{
 			// Was this file modified more recently than our others?
 			if (FoundFileTime > NewestFoundFileTime)
