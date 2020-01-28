@@ -186,6 +186,11 @@ namespace UnrealBuildTool
 		public WarningLevel ShadowVariableWarningLevel = WarningLevel.Warning;
 
 		/// <summary>
+		/// How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
+		/// </summary>
+		public WarningLevel UnsafeTypeCastWarningLevel = WarningLevel.Off;
+
+		/// <summary>
 		/// Whether to warn about the use of undefined identifiers in #if expressions
 		/// </summary>
 		public bool bEnableUndefinedIdentifierWarnings = true;
@@ -400,6 +405,7 @@ namespace UnrealBuildTool
 			bEnableExceptions = Other.bEnableExceptions;
 			bEnableObjCExceptions = Other.bEnableObjCExceptions;
 			ShadowVariableWarningLevel = Other.ShadowVariableWarningLevel;
+			UnsafeTypeCastWarningLevel = Other.UnsafeTypeCastWarningLevel;
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;
 			bEnableUndefinedIdentifierWarnings = Other.bEnableUndefinedIdentifierWarnings;
 			bOptimizeCode = Other.bOptimizeCode;

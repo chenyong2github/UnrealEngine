@@ -874,6 +874,12 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Indicates what warning/error level to treat unsafe type casts as on platforms that support it (e.g., double->float or int64->int32)
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel UnsafeTypeCastWarningLevel = WarningLevel.Off;
+
+		/// <summary>
 		/// Forces the use of undefined identifiers in conditional expressions to be treated as errors.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -2252,6 +2258,11 @@ namespace UnrealBuildTool
 		public WarningLevel ShadowVariableWarningLevel
 		{
 			get { return Inner.ShadowVariableWarningLevel; }
+		}
+
+		public WarningLevel UnsafeTypeCastWarningLevel
+		{
+			get { return Inner.UnsafeTypeCastWarningLevel; }
 		}
 
 		public bool bUndefinedIdentifierErrors
