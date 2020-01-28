@@ -20,6 +20,8 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/GeometryQueries.h"
 
+DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_ChaosCollision);
+
 namespace Chaos
 {
 	namespace Collisions
@@ -50,26 +52,20 @@ namespace Chaos
 		template <typename T, int d, typename GeometryA, typename GeometryB>
 		TContactPoint<T> GJKContactPoint(const GeometryA& A, const TRigidTransform<T, d>& ATM, const GeometryB& B, const TRigidTransform<T, d>& BTM, const T Thickness)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK);
+
 			TContactPoint<T> Contact;
 			const TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
+			const TVector<T, 3> InitialDirection = TVector<T, 3>(1, 0, 0);
 
 			T Penetration;
 			TVec3<T> ClosestA, ClosestB, Normal;
-			if (GJKPenetration(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (T)0))
+
+			if (ensure(GJKPenetration(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (T)0, InitialDirection, (T)0, true)))
 			{
 				Contact.Location = ATM.TransformPosition(ClosestA);
 				Contact.Normal = -ATM.TransformVector(Normal);
 				Contact.Phi = -Penetration;
-			}
-			else if (ensure(GJKDistance(A, B, BToATM, Penetration, ClosestA, ClosestB)))
-			{
-				//todo: make GJKPenetration support no penetration case
-				TVector<T, d> NearPointAWorld = ATM.TransformPosition(ClosestA);
-				TVector<T, d> NearPointBWorld = BTM.TransformPosition(ClosestB);
-				TVector<T, d> NearPointBtoAWorld = NearPointAWorld - NearPointBWorld;
-				Contact.Phi = Penetration;
-				Contact.Normal = NearPointBtoAWorld.GetSafeNormal();
-				Contact.Location = NearPointAWorld;
 			}
 
 			return Contact;
