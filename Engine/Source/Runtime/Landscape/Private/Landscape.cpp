@@ -50,6 +50,7 @@ Landscape.cpp: Terrain rendering
 #include "EngineUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "LandscapeWeightmapUsage.h"
+#include "ContentStreaming.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -63,6 +64,12 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+
+static int32 GUseStreamingManagerForCameras = 1;
+static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
+	TEXT("grass.UseStreamingManagerForCameras"),
+	GUseStreamingManagerForCameras,
+	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
 
 /** Landscape stats */
 
@@ -1023,12 +1030,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #endif
 	, bHasLandscapeGrass(true)
 {
-	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bTickEvenWhenPaused = true;
-	PrimaryActorTick.bStartWithTickEnabled = true;
-	PrimaryActorTick.TickGroup = TG_DuringPhysics;
-	bAllowTickBeforeBeginPlay = true;
-
 	bReplicates = false;
 	NetUpdateFrequency = 10.0f;
 	SetHidden(false);
@@ -1911,11 +1912,9 @@ void ALandscapeProxy::PostRegisterAllComponents()
 
 void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 {
-#if WITH_EDITOR
 	// Game worlds don't have landscape infos
-	if (GetWorld() && !GetWorld()->IsGameWorld()
-		// On shutdown the world will be unreachable
-		&& !GetWorld()->IsPendingKillOrUnreachable() &&
+	// On shutdown the world will be unreachable
+	if (GetWorld() && !GetWorld()->IsPendingKillOrUnreachable() &&
 		// When redoing the creation of a landscape we may get UnregisterAllComponents called when
 		// we are in a "pre-initialized" state (empty guid, etc)
 		LandscapeGuid.IsValid())
@@ -1926,7 +1925,6 @@ void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 			LandscapeInfo->UnregisterActor(this);
 		}
 	}
-#endif
 
 	Super::UnregisterAllComponents(bForReregister);
 }
@@ -2365,13 +2363,6 @@ void ALandscapeProxy::PostLoad()
 {
 	Super::PostLoad();
 
-	// disable ticking if we have no grass to tick
-	if (!GIsEditor && !bHasLandscapeGrass)
-	{
-		SetActorTickEnabled(false);
-		PrimaryActorTick.bCanEverTick = false;
-	}
-
 	// Temporary
 	if (ComponentSizeQuads == 0 && LandscapeComponents.Num() > 0)
 	{
@@ -2450,6 +2441,11 @@ void ALandscapeProxy::PostLoad()
 	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
 	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
 #endif
+}
+
+FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
+{
+	return LandscapeSectionOffset;
 }
 
 #if WITH_EDITOR
@@ -2664,11 +2660,6 @@ void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 	}
 }
 
-FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
-{
-	return LandscapeSectionOffset;
-}
-
 void ALandscapeProxy::RecreateComponentsState()
 {
 	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
@@ -2865,20 +2856,6 @@ ALandscapeProxy* ULandscapeInfo::GetLandscapeProxy() const
 	return nullptr;
 }
 
-void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
-{
-	ALandscape* Landscape = LandscapeActor.Get();
-	if (Landscape)
-	{
-		Fn(Landscape);
-	}
-
-	for (ALandscapeProxy* LandscapeProxy : Proxies)
-	{
-		Fn(LandscapeProxy);
-	}
-}
-
 void ULandscapeInfo::Reset()
 {
 	LandscapeActor.Reset();
@@ -3017,16 +2994,125 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 
 #endif
 
+void ULandscapeInfo::Tick(UWorld* World, float DeltaTime)
+{
+	// Update Grass
+	static TArray<FVector> OldCameras;
+	TArray<FVector>* Cameras = nullptr;
+	if (GUseStreamingManagerForCameras == 0)
+	{
+		if (OldCameras.Num() || World->ViewLocationsRenderedLastFrame.Num())
+		{
+			Cameras = &OldCameras;
+			// there is a bug here, which often leaves us with no cameras in the editor
+			if (World->ViewLocationsRenderedLastFrame.Num())
+			{
+				check(IsInGameThread());
+				Cameras = &World->ViewLocationsRenderedLastFrame;
+				OldCameras = *Cameras;
+			}
+		}
+	}
+	else
+	{
+		int32 Num = IStreamingManager::Get().GetNumViews();
+		if (Num)
+		{
+			OldCameras.Reset(Num);
+			for (int32 Index = 0; Index < Num; Index++)
+			{
+				auto& ViewInfo = IStreamingManager::Get().GetViewInformation(Index);
+				OldCameras.Add(ViewInfo.ViewOrigin);
+			}
+			Cameras = &OldCameras;
+		}
+	}
+
+	ForAllLandscapeProxies([DeltaTime,Cameras,World](ALandscapeProxy* Proxy)
+	{
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+			{
+				Landscape->TickLayers(DeltaTime);
+			}
+
+			// editor-only
+			if (World && !World->IsPlayInEditor())
+			{
+				Proxy->UpdateBakedTextures();
+			}
+		}
+#endif
+		if (Cameras && Proxy->ShouldTickGrass())
+		{
+			Proxy->TickGrass(*Cameras);
+		}
+	});
+}
+
+void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
+{
+	ALandscape* Landscape = LandscapeActor.Get();
+	if (Landscape)
+	{
+		Fn(Landscape);
+	}
+
+	for (ALandscapeProxy* LandscapeProxy : Proxies)
+	{
+		Fn(LandscapeProxy);
+	}
+}
+
 void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 {
-#if WITH_EDITOR
-	if (!Proxy->GetWorld()->IsGameWorld())
-	{
-		// do not pass here invalid actors
-		checkSlow(Proxy);
-		check(Proxy->GetLandscapeGuid().IsValid());
-		UWorld* OwningWorld = Proxy->GetWorld();
+	UWorld* OwningWorld = Proxy->GetWorld();
+	// do not pass here invalid actors
+	checkSlow(Proxy);
+	check(Proxy->GetLandscapeGuid().IsValid());
 
+	auto LamdbdaLowerBound = [](ALandscapeProxy* A, ALandscapeProxy* B)
+	{
+		FIntPoint SectionBaseA = A->GetSectionBaseOffset();
+		FIntPoint SectionBaseB = B->GetSectionBaseOffset();
+
+		if (SectionBaseA.X != SectionBaseB.X)
+		{
+			return SectionBaseA.X < SectionBaseB.X;
+		}
+
+		return SectionBaseA.Y < SectionBaseB.Y;
+	};
+
+	if (OwningWorld->IsGameWorld())
+	{
+		// register
+		if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+		{
+			checkf(!LandscapeActor || LandscapeActor == Landscape, TEXT("Multiple landscapes with the same GUID detected: %s vs %s"), *LandscapeActor->GetPathName(), *Landscape->GetPathName());
+			LandscapeActor = Landscape;
+			// update proxies reference actor
+			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+			{
+				StreamingProxy->LandscapeActor = LandscapeActor;
+			}
+		}
+		else
+		{
+			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
+			if (!Proxies.Contains(Proxy))
+			{
+				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, LamdbdaLowerBound);
+				Proxies.Insert(StreamingProxy, InsertIndex);
+			}
+			StreamingProxy->LandscapeActor = LandscapeActor;
+		}
+	}
+#if WITH_EDITOR
+	else
+	{
 		// in case this Info object is not initialized yet
 		// initialized it with properties from passed actor
 		if (LandscapeGuid.IsValid() == false ||
@@ -3068,23 +3154,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		}
 		else
 		{
-			// Insert Proxies in a sorted fashion for generating determisnitic results in the Layer system
+			// Insert Proxies in a sorted fashion for generating deterministic results in the Layer system
 			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
 			if (!Proxies.Contains(Proxy))
 			{
-				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, [](ALandscapeProxy* A, ALandscapeProxy* B)
-				{
-					FIntPoint SectionBaseA = A->GetSectionBaseOffset();
-					FIntPoint SectionBaseB = B->GetSectionBaseOffset();
-
-					if (SectionBaseA.X != SectionBaseB.X)
-					{
-						return SectionBaseA.X < SectionBaseB.X;
-					}
-
-					return SectionBaseA.Y < SectionBaseB.Y;
-				});
-
+				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, LamdbdaLowerBound);
 				Proxies.Insert(StreamingProxy, InsertIndex);
 			}
 			StreamingProxy->LandscapeActor = LandscapeActor;
@@ -3101,6 +3175,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		UpdateAllAddCollisions();
 	}
 #endif
+	
 	//
 	// add proxy components to the XY map
 	//
@@ -3117,7 +3192,6 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 {
-#if WITH_EDITOR
 	if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
 	{
 		// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
@@ -3141,7 +3215,6 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 		Proxies.Remove(StreamingProxy);
 		StreamingProxy->LandscapeActor = nullptr;
 	}
-#endif
 
 	// remove proxy components from the XY map
 	for (int32 CompIdx = 0; CompIdx < Proxy->LandscapeComponents.Num(); ++CompIdx)
@@ -3164,8 +3237,11 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	XYtoCollisionComponentMap.Compact();
 
 #if WITH_EDITOR
-	UpdateLayerInfoMap();
-	UpdateAllAddCollisions();
+	if (!Proxy->GetWorld()->IsGameWorld())
+	{
+		UpdateLayerInfoMap();
+		UpdateAllAddCollisions();
+	}
 #endif
 }
 
@@ -3407,45 +3483,6 @@ void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet& OutStaticParam
 bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet& StaticParameterSet, UMaterial* ParentMaterial)
 {
 	return UpdateParameterSet<FStaticTerrainLayerWeightParameter, UMaterialExpressionLandscapeLayerWeight>(StaticParameterSet.TerrainLayerWeightParameters, ParentMaterial);
-}
-
-bool ALandscapeProxy::ShouldTickIfViewportsOnly() const
-{
-	return true;
-}
-
-void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
-{
-	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		TickLayers(DeltaTime, TickType, ThisTickFunction);
-	}
-#endif
-}
-
-void ALandscapeProxy::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
-{
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
-	LLM_SCOPE(ELLMTag::Landscape);
-#if WITH_EDITOR
-	// editor-only
-	UWorld* World = GetWorld();
-	if (GIsEditor && World && !World->IsPlayInEditor())
-	{
-		UpdateBakedTextures();
-	}
-#endif
-
-	// Tick grass even while paused or in the editor
-	if (GIsEditor || bHasLandscapeGrass)
-	{
-		TickGrass();
-	}
-
-	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
 }
 
 ALandscapeProxy::~ALandscapeProxy()
