@@ -13,6 +13,8 @@ struct FDataprepSchemaActionContext;
 class SDataprepGraphActionStepNode;
 class SGraphPanel;
 class UDataprepActionAsset;
+class UDataprepAsset;
+class UDataprepGraphActionNode;
 class UDataprepGraphActionStepNode;
 
 // Return true if there was a modification that require a transaction
@@ -50,6 +52,14 @@ public:
 	virtual EVisibility GetErrorIconVisible() const;
 	// End of FGraphEditorDragDropAction Interface
 
+	/**
+	 * Executes drop on track. A new action will inserted at the specified index.
+	 * @param InsertIndex Index at which to insert the new action. The action will be inserted
+	 *		  at the end if the index is not a valid one
+	 * @return FReply::handled.
+	 */
+	FReply DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, int32 InsertIndex);
+
 	// Allow to add an extra step to the drag and drop before doing the dropping
 	void SetPreDropConfirmation(FDataprepPreDropConfirmation && Confirmation);
 
@@ -70,10 +80,10 @@ protected:
 	void DoDropOnPanel(const TSharedRef<SWidget>& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph);
 
 	/** Executes drop on existing action step */
-	FReply DoDropOnActionStep(FVector2D ScreenPosition, FVector2D GraphPosition);
+	FReply DoDropOnActionStep(UDataprepGraphActionStepNode* TargetActionStepNode);
 
 	/** Executes drop on existing action step */
-	FReply DoDropOnActionAsset(FVector2D ScreenPosition, FVector2D GraphPosition);
+	FReply DoDropOnActionAsset(UDataprepGraphActionNode* TargetActionNode);
 
 	virtual void HoverTargetChangedWithNodes();
 
@@ -84,7 +94,16 @@ protected:
 
 private:
 	FText GetMessageText();
+
 	const FSlateBrush* GetIcon() const;
+
+	/**
+	 * Drop a step from the Operation panel to an action. The step will be added or inserted.
+	 * @param TargetActionAsset Action on which the insertion will be performed
+	 * @param InsertIndex Index at which the insertion must occur in the existing list of steps.
+	 *                    An index of -1 will trigger an addition.
+	 */
+	void DropStepFromPanel(UDataprepActionAsset* TargetActionAsset, int32 InsertIndex = INDEX_NONE);
 
 private:
 	typedef TTuple<TWeakObjectPtr<UDataprepActionAsset>,int32,TWeakObjectPtr<UDataprepActionStep>> FDraggedStepEntry;

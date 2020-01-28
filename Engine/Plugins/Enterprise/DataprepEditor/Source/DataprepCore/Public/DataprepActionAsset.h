@@ -208,6 +208,13 @@ public:
 	int32 AddStep(const UDataprepActionStep* ActionStep);
 
 	/**
+	 * Add a copy of each step to the action
+	 * @param ActionSteps The array of steps we want to duplicate in the action
+	 * @return The index of the last added step or index none if no step is invalid
+	 */
+	int32 AddSteps(const TArray<const UDataprepActionStep*>& ActionSteps);
+
+	/**
 	 * Add a copy of the step object to the action
 	 * @param StepObject The step object we want to duplicate in the action
 	 * @return The index of the added step or index none if the step is invalid
@@ -221,6 +228,14 @@ public:
 	 * @return The index of the added step or index none if the step is invalid
 	 */
 	bool InsertStep(const UDataprepActionStep* ActionStep, int32 Index);
+
+	/**
+	 * Insert a copy of each step into the action at the requested index
+	 * @param Index Index to insert the action step at
+	 * @param ActionSteps The array of steps to duplicate in the action
+	 * @return The index of the added step or index none if the step is invalid
+	 */
+	bool InsertSteps(const TArray<const UDataprepActionStep*>& ActionSteps, int32 Index);
 
 	/**
 	 * Access to a step of the action
@@ -289,7 +304,7 @@ public:
 	bool bExecutionInterrupted;
 
 	/** Getter and Setter on the UI text of the action */
-	const TCHAR* GetLabel() { return *Label; }
+	const TCHAR* GetLabel() const { return *Label; }
 	void SetLabel( const TCHAR* InLabel ) { Label = InLabel ? InLabel : TEXT(""); }
 
 	/**
@@ -409,6 +424,7 @@ private:
 	bool bWorkingSetHasChanged;
 
 	/** UI label of the action */
+	UPROPERTY()
 	FString Label;
 
 	/** Package which static meshes will be added to */

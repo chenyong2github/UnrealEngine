@@ -3,9 +3,8 @@
 #include "RhinoCoretechWrapper.h"
 
 
-#ifdef CAD_LIBRARY
+#if defined(CAD_LIBRARY) && defined(USE_OPENNURBS)
 #include "CoreTechHelper.h"
-//#include "TessellationHelper.h"
 
 #pragma warning(push)
 #pragma warning(disable:4265)
@@ -238,7 +237,7 @@ void BRepToKernelIOBodyTranslator::CreateCTFace_internal(const ON_BrepFace& Face
 
 			BrepTrimToCoedge[Trim.m_trim_index] = NewCoedge;
 
-			// Find a Trim that use this edge, that is not current Trim 
+			// Find a Trim that use this edge, that is not current Trim
 			// If the Trim has been converted into a coedge, link both Trims
 			for (int32 Index = 0; Index < on_edge->m_ti.Count(); ++Index)
 			{
@@ -475,4 +474,4 @@ TSharedPtr<FRhinoCoretechWrapper> FRhinoCoretechWrapper::GetSharedSession(double
 	return Session;
 }
 
-#endif
+#endif // defined(CAD_LIBRARY) && defined(USE_OPENNURBS)

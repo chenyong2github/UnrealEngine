@@ -395,14 +395,14 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Randomize Transform", ToolTip = "For each actor in the input set, offset its position/rotation/scale with random vector generated from X/Y/Z Min-Max."))
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Random Offset Transform", ToolTip = "For each actor in the input set, offset its position/rotation/scale with random vector generated from X/Y/Z Min-Max."))
 class UDataprepRandomizeTransformOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
 
 	UDataprepRandomizeTransformOperation()
-		: TransformType(ERandomizeTransformType::Translation) 
-		, Mode(ERandomizeTransformMode::Relative)
+		: TransformType(ERandomizeTransformType::Location) 
+		, ReferenceFrame(ERandomizeTransformReferenceFrame::Relative)
 	{
 	}
 
@@ -416,8 +416,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Transform component to randomize"))
 	ERandomizeTransformType TransformType;
 
-	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Transform mode to use (relative/world)"))
-	ERandomizeTransformMode Mode;
+	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Reference frame to use (relative/world)"))
+	ERandomizeTransformReferenceFrame ReferenceFrame;
 
 	UPROPERTY(EditAnywhere, Category = ActorOperation, Meta = (ToolTip = "Min random value"))
 	FVector Min;

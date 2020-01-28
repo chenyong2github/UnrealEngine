@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Text3DEngineSubsystem.h"
+#include "Containers/Ticker.h"
 #include "Misc/FileHelper.h"
 #include "Engine/Font.h"
 #include "Engine/Engine.h"
@@ -46,30 +47,66 @@ UText3DEngineSubsystem::UText3DEngineSubsystem()
 
 void UText3DEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+	CleanupTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UText3DEngineSubsystem::CleanupTimerCallback), 600.0f);
 }
 
 void UText3DEngineSubsystem::Deinitialize()
 {
+	if (CleanupTickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(CleanupTickerHandle);
+		CleanupTickerHandle.Reset();
+	}
+
+	Super::Deinitialize();
+}
+
+void UText3DEngineSubsystem::Reset()
+{
+	CachedFonts.Reset();
+}
+
+bool UText3DEngineSubsystem::CleanupTimerCallback(float DeltaTime)
+{
+	Cleanup();
+	return true;
 }
 
 void UText3DEngineSubsystem::Cleanup()
 {
-	TArray<uint32> ToDelete;
-	for (TPair<uint32, FCachedFontData>& CachedFontDataPair : CachedFonts)
-	{
-		if (CachedFontDataPair.Value.Cleanup())
-			ToDelete.Add(CachedFontDataPair.Key);
-	}
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UText3DEngineSubsystem_Cleanup);
 
-	for (uint32 Key : ToDelete)
+	for (auto It = CachedFonts.CreateIterator(); It; ++It)
 	{
-		CachedFonts.Remove(Key);
+		if (It.Value().Cleanup())
+		{
+			It.RemoveCurrent();
+		}
 	}
 }
 
-FCachedFontData& UText3DEngineSubsystem::GetCachedFontData(class UFont* Font)
+FCachedFontData& UText3DEngineSubsystem::GetCachedFontData(UFont* Font)
 {
 	uint32 FontHash = HashCombine(0, GetTypeHash(Font));
+	if (CachedFonts.Contains(FontHash))
+	{
+		uint32 TypefaceFontDataHash = 0;
+
+		// First we check if the font itself has changed since we last cached it
+		const FCompositeFont* CompositeFont = Font->GetCompositeFont();
+		if (CompositeFont && CompositeFont->DefaultTypeface.Fonts.Num() > 0)
+		{
+			const FTypefaceEntry& Typeface = CompositeFont->DefaultTypeface.Fonts[0];
+			TypefaceFontDataHash = HashCombine(0, GetTypeHash(Typeface.Font));
+		}
+
+		if (CachedFonts[FontHash].GetTypefaceFontDataHash() != TypefaceFontDataHash)
+		{
+			CachedFonts.Remove(FontHash);
+		}
+	}
+
 	if (!CachedFonts.Contains(FontHash))
 	{
 		FCachedFontData& CachedFontData = CachedFonts.Add(FontHash);
@@ -82,6 +119,7 @@ FCachedFontData& UText3DEngineSubsystem::GetCachedFontData(class UFont* Font)
 
 FCachedFontData::FCachedFontData()
 {
+	TypefaceFontDataHash = 0;
 	CacheCounter = MakeShared<int32>(0);
 	Font = nullptr;
 	FreeTypeFace = nullptr;
@@ -94,6 +132,7 @@ FCachedFontData::~FCachedFontData()
 
 void FCachedFontData::ClearFreeTypeFace()
 {
+	TypefaceFontDataHash = 0;
 	if (FreeTypeFace)
 	{
 		FT_Done_Face(FreeTypeFace);
@@ -134,9 +173,15 @@ void FCachedFontData::LoadFreeTypeFace()
 
 	if (FreeTypeFace)
 	{
+		TypefaceFontDataHash = HashCombine(0, GetTypeHash(Typeface.Font));
 		FT_Set_Char_Size(FreeTypeFace, FontSize, FontSize, 96, 96);
 		FT_Set_Pixel_Sizes(FreeTypeFace, FontSize, FontSize);
 	}
+}
+
+uint32 FCachedFontData::GetTypefaceFontDataHash()
+{
+	return TypefaceFontDataHash;
 }
 
 TSharedPtr<int32> FCachedFontData::GetCacheCounter()
@@ -238,18 +283,12 @@ bool FCachedFontData::Cleanup()
 		return true;
 	}
 
-	TArray<uint32> CachedFontMeshToDelete;
-	for (TPair<uint32, FCachedFontMeshes>& CachedFontMeshPair : Meshes)
+	for (auto It = Meshes.CreateIterator(); It; ++It)
 	{
-		if (CachedFontMeshPair.Value.GetCacheCount() <= 1)
+		if (It.Value().GetCacheCount() <= 1)
 		{
-			CachedFontMeshToDelete.Add(CachedFontMeshPair.Key);
+			It.RemoveCurrent();
 		}
-	}
-
-	for (uint32 Key : CachedFontMeshToDelete)
-	{
-		Meshes.Remove(Key);
 	}
 
 	return false;

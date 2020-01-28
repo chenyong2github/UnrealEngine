@@ -141,12 +141,12 @@ UENUM(BlueprintInternalUseOnly)
 enum class ERandomizeTransformType : uint8
 {
 	Rotation,
-	Translation,
+	Location,
 	Scale
 };
 
 UENUM(BlueprintInternalUseOnly)
-enum class ERandomizeTransformMode : uint8
+enum class ERandomizeTransformReferenceFrame : uint8
 {
 	World,
 	Relative
@@ -310,7 +310,7 @@ public:
 	 * @param Max:				End of randomization range
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
-	static void RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformMode Mode, const FVector& Min, const FVector& Max);
+	static void RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max);
 
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);

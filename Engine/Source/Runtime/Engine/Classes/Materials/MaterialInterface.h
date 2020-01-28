@@ -54,6 +54,7 @@ enum EMaterialUsage
 	MATUSAGE_GeometryCache,
 	MATUSAGE_Water,
 	MATUSAGE_HairStrands,
+	MATUSAGE_LidarPointCloud,
 
 	MATUSAGE_MAX,
 };

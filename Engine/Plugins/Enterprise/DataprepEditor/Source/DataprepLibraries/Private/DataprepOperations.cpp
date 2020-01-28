@@ -346,7 +346,7 @@ void UDataprepRandomizeTransformOperation::OnExecution_Implementation(const FDat
 #endif
 
 	// Execute operation
-	UDataprepOperationsLibrary::RandomizeTransform(InContext.Objects, TransformType, Mode, Min, Max);
+	UDataprepOperationsLibrary::RandomizeTransform(InContext.Objects, TransformType, ReferenceFrame, Min, Max);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -121,7 +121,17 @@ UK2Node_FunctionEntry* FVariantManager::CreateDirectorFunction(ULevelVariantSets
 		FEdGraphPinType PinType;
 		PinType.PinCategory = PinClassType && PinClassType->IsChildOf(UInterface::StaticClass()) ? UEdGraphSchema_K2::PC_Interface : UEdGraphSchema_K2::PC_Object;
 		PinType.PinSubCategoryObject = PinClassType ? PinClassType : UObject::StaticClass();
-		EntryNode->CreateUserDefinedPin(FName(TARGET_PIN_NAME), PinType, EGPD_Output, true);
+		EntryNode->CreateUserDefinedPin(TARGET_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = ULevelVariantSets::StaticClass();
+		EntryNode->CreateUserDefinedPin(LEVEL_VARIANT_SETS_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = UVariantSet::StaticClass();
+		EntryNode->CreateUserDefinedPin(VARIANT_SET_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = UVariant::StaticClass();
+		EntryNode->CreateUserDefinedPin(VARIANT_PIN_NAME, PinType, EGPD_Output, true);
+
 		EntryNode->ReconstructNode();
 
 		return EntryNode;

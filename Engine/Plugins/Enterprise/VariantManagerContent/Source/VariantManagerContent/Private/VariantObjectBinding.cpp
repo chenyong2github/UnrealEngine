@@ -8,6 +8,7 @@
 #include "Variant.h"
 #include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
+#include "VariantSet.h"
 
 #include "Algo/Sort.h"
 #include "Engine/World.h"
@@ -298,89 +299,64 @@ void UVariantObjectBinding::ExecuteTargetFunction(FName FunctionName)
 	{
 		DirectorInstance->ProcessEvent(Func, nullptr);
 	}
-	else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
+	else if (Func->NumParms == 4)
 	{
-		if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
+		// Setup parameters to the Func as a struct
+		struct
 		{
-			if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
+			UObject* Target = nullptr;
+			ULevelVariantSets* LevelVariantSets = nullptr;
+			UVariantSet* VariantSet = nullptr;
+			UVariant* Variant = nullptr;
+		} FuncParams;
+		FuncParams.Target = BoundObject;
+		FuncParams.Variant = GetParent();
+		FuncParams.VariantSet = FuncParams.Variant ? FuncParams.Variant->GetParent() : nullptr;
+		FuncParams.LevelVariantSets = FuncParams.VariantSet ? FuncParams.VariantSet->GetParent() : nullptr;
+
+		// Check if our bound object is of the right class for this function (that class could be StaticMeshActor/LightActor/etc.)
+		bool bValidClass = false;
+		UClass* ExpectedClass = nullptr;
+		for (TFieldIterator<FObjectProperty> Iter(Func); Iter; ++Iter)
+		{
+			FObjectProperty* Parameter = *Iter;
+			if (!Parameter)
 			{
-				DirectorInstance->ProcessEvent(Func, &BoundObject);
+				continue;
 			}
-			else
+
+			if (Parameter->GetFName() == TARGET_PIN_NAME && (Parameter->GetPropertyFlags() & CPF_ReferenceParm) == 0)
 			{
-				UE_LOG(LogVariantContent, Error, TEXT("Failed to call function '%s' with object '%s' because it is not the correct type. Function expects a '%s' but target object is a '%s'."),
-					*Func->GetName(),
-					*BoundObject->GetName(),
-					*ObjectParameter->PropertyClass->GetName(),
-					*BoundObject->GetClass()->GetName()
-				);
+				ExpectedClass = Parameter->PropertyClass;
+				if (BoundObject->IsA(ExpectedClass))
+				{
+					bValidClass = true;
+				}
+				break;
 			}
 		}
-	}
 
+		if (bValidClass)
+		{
+			DirectorInstance->ProcessEvent(Func, &FuncParams);
+		}
+		else
+		{
+			UE_LOG(LogVariantContent, Error, TEXT("Failed to call function '%s' with object '%s' because it is not the correct type. Function expects a '%s' but target object is a '%s'."),
+				*Func->GetName(),
+				*BoundObject->GetName(),
+				ExpectedClass ? *ExpectedClass->GetName() : TEXT("nullptr"),
+				*BoundObject->GetClass()->GetName()
+			);
+		}
+	}
 }
 
 void UVariantObjectBinding::ExecuteAllTargetFunctions()
 {
-	if (FunctionCallers.Num() == 0)
-	{
-		return;
-	}
-
-	ULevelVariantSets* ParentLVS = GetTypedOuter<ULevelVariantSets>();
-
-	UObject* BoundObject = GetObject();
-	if (!BoundObject)
-	{
-		return;
-	}
-
-	UObject* DirectorInstance = ParentLVS->GetDirectorInstance(BoundObject);
-
 	for (FFunctionCaller& Caller : FunctionCallers)
 	{
-		UFunction* Func = DirectorInstance->FindFunction(Caller.FunctionName);
-
-		if (!Func || !Func->IsValidLowLevel() || Func->IsPendingKillOrUnreachable() || !DirectorInstance->FindFunction(Func->GetFName()))
-		{
-			continue;
-		}
-
-		//need to check if we''re in edit mode and the function is CallInEditor
-#if WITH_EDITOR
-		const static FName NAME_CallInEditor(TEXT("CallInEditor"));
-
-		UWorld* World = DirectorInstance->GetWorld();
-		if (World->WorldType == EWorldType::Editor && !Func->HasMetaData(NAME_CallInEditor))
-		{
-			UE_LOG(LogVariantContent, Warning, TEXT("Cannot call function '%s' as it doesn't have the CallInEditor option checked! Also note that calling this from the editor may have irreversible effects on the level."), *Func->GetName());
-			continue;
-		}
-#endif
-
-		if (Func->NumParms == 0)
-		{
-			DirectorInstance->ProcessEvent(Func, nullptr);
-		}
-		else if (Func->NumParms == 1 && Func->PropertyLink && (Func->PropertyLink->GetPropertyFlags() & CPF_ReferenceParm) == 0)
-		{
-			if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
-			{
-				if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
-				{
-					DirectorInstance->ProcessEvent(Func, &BoundObject);
-				}
-				else
-				{
-					UE_LOG(LogVariantContent, Error, TEXT("Failed to call function '%s' with object '%s' because it is not the correct type. Function expects a '%s' but target object is a '%s'."),
-						*Func->GetName(),
-						*BoundObject->GetName(),
-						*ObjectParameter->PropertyClass->GetName(),
-						*BoundObject->GetClass()->GetName()
-					);
-				}
-			}
-		}
+		ExecuteTargetFunction(Caller.FunctionName);
 	}
 }
 

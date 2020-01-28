@@ -18,9 +18,9 @@ bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty
 
 	FName PropertyFName = InProperty->GetFName();
 
-	if (PropertyFName == GET_MEMBER_NAME_CHECKED(FDatasmithOpenNurbsOptions, BrepTesselation))
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(FDatasmithOpenNurbsOptions, Geometry))
 	{
-#ifdef CAD_LIBRARY		
+#ifdef CAD_LIBRARY
 		return true;
 #else
 		return false;
@@ -33,7 +33,7 @@ bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty
 		)
 	{
 		// Enable tessellation options only when using CAD library to tessellate
-		return Options.BrepTesselation == EDatasmithOpenNurbsBrepTesselatedSource::UseUnrealNurbsTessellation;
+		return Options.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation;
 	}
 
 	return true;

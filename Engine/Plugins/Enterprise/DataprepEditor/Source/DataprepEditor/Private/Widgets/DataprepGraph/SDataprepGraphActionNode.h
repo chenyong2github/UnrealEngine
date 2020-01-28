@@ -29,6 +29,7 @@ public:
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// End of SWidget interface
 
 	// SGraphNode interface
@@ -40,10 +41,15 @@ public:
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
 
 	int32 GetExecutionOrder() const { return ExecutionOrder; }
-	void SetExecutionOrder( int32 InExecutionOrder ) { ExecutionOrder = InExecutionOrder; }
+	void UpdateExecutionOrder();
+
+	const UDataprepActionAsset* GetDataprepAction() const { return DataprepActionPtr.Get(); }
 
 private:
+	/** Callback to handle changes on array of steps in action */
 	void OnStepsChanged();
+
+	/** Reconstructs the list of widgets associated with the action's steps */
 	void PopulateActionStepListWidget();
 
 private:

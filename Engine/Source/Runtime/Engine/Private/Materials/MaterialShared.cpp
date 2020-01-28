@@ -1166,6 +1166,11 @@ bool FMaterialResource::IsUsedWithHairStrands() const
 	return Material->bUsedWithHairStrands;
 }
 
+bool FMaterialResource::IsUsedWithLidarPointCloud() const
+{
+	return Material->bUsedWithLidarPointCloud;
+}
+
 bool FMaterialResource::IsUsedWithLandscape() const
 {
 	return false;

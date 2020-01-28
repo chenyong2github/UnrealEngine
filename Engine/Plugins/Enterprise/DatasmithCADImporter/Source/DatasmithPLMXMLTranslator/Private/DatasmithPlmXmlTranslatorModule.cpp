@@ -4,7 +4,6 @@
 #include "DatasmithPlmXmlTranslator.h"
 
 #include "DatasmithTranslator.h"
-#include "DatasmithImporterModule.h"
 #include "CoreMinimal.h"
 
 const TCHAR* IDatasmithPlmXmlTranslatorModule::ModuleName = TEXT("DatasmithPlmXmlTranslator");

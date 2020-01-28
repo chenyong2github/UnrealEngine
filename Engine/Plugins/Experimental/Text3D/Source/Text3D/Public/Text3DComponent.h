@@ -59,7 +59,7 @@ public:
 	EText3DBevelType BevelType;
 
 	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (ClampMin = 1, ClampMax = 10))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (ClampMin = 1, ClampMax = 15))
 	int32 BevelSegments;
 
 	/** Material for the front part */
@@ -238,7 +238,7 @@ private:
 
 	void Rebuild();
 	void UpdateTransforms();
-	void BuildTextMesh();
+	void BuildTextMesh(const bool bCleanCache = false);
 	void CheckBevel();
 	float MaxBevel() const;
 

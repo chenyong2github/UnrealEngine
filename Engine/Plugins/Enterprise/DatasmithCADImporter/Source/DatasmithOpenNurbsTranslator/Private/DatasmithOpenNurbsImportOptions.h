@@ -12,13 +12,13 @@
 
 
 UENUM()
-enum class EDatasmithOpenNurbsBrepTesselatedSource : uint8
+enum class EDatasmithOpenNurbsBrepTessellatedSource : uint8
 {
 	/** Tessellate all Breps on import */
-	UseUnrealNurbsTessellation,
+	UseUnrealNurbsTessellation UMETA(DisplayName = "Import as NURBS, Tessellate in Unreal"),
 
-	/** Use meshes stored in the scene file */
-	UseSceneRenderMeshes,
+	/** Use render meshes stored in the scene file */
+	UseRenderMeshes UMETA(DisplayName = "Import Rhino Meshes and UVs"),
 };
 
 
@@ -30,18 +30,18 @@ struct FDatasmithOpenNurbsOptions : public FDatasmithTessellationOptions
 	FDatasmithOpenNurbsOptions()
     {
 #ifdef CAD_LIBRARY
-		BrepTesselation = EDatasmithOpenNurbsBrepTesselatedSource::UseUnrealNurbsTessellation;
+		Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation;
 #else
-		BrepTesselation = EDatasmithOpenNurbsBrepTesselatedSource::UseSceneRenderMeshes;
+		Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
 #endif
     }
 
-	UPROPERTY(config, EditAnywhere, SimpleDisplay, Category = "Geometry & Tessellation Options")
-	EDatasmithOpenNurbsBrepTesselatedSource BrepTesselation;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Geometry & Tessellation Options")
+	EDatasmithOpenNurbsBrepTessellatedSource Geometry;
 
 	uint32 GetHash() const
 	{
-		return HashCombine(FDatasmithTessellationOptions::GetHash(), GetTypeHash(BrepTesselation));;
+		return HashCombine(FDatasmithTessellationOptions::GetHash(), GetTypeHash(Geometry));;
 	}
 };
 

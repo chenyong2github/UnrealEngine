@@ -67,7 +67,7 @@ bool FDatasmithGLTFTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 	OutScene->SetHost(TEXT("GLTFTranslator"));
 
-    Importer = MakeShared<FDatasmithGLTFImporter>(OutScene, ImportOptions.Get());
+    Importer = MakeShared<FDatasmithGLTFImporter>(OutScene, GetOrCreateGLTFImportOptions().Get());
 
 	const FString& FilePath = GetSource().GetSourceFile();
 	if(!Importer->OpenFile(FilePath))
@@ -167,12 +167,7 @@ bool FDatasmithGLTFTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLeve
 
 void FDatasmithGLTFTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
-	if (!ImportOptions.IsValid())
-	{
-		ImportOptions = Datasmith::MakeOptions<UDatasmithGLTFImportOptions>();
-	}
-
-	Options.Add(ImportOptions);
+	Options.Add(GetOrCreateGLTFImportOptions());
 }
 
 void FDatasmithGLTFTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
@@ -188,6 +183,15 @@ void FDatasmithGLTFTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UOb
 
 	if (Importer.IsValid())
 	{
-		Importer->SetImportOptions(ImportOptions.Get());
+		Importer->SetImportOptions(GetOrCreateGLTFImportOptions().Get());
 	}
+}
+
+TStrongObjectPtr<UDatasmithGLTFImportOptions>& FDatasmithGLTFTranslator::GetOrCreateGLTFImportOptions()
+{
+	if (!ImportOptions.IsValid())
+	{
+		ImportOptions = Datasmith::MakeOptions<UDatasmithGLTFImportOptions>();
+	}
+	return ImportOptions;
 }
