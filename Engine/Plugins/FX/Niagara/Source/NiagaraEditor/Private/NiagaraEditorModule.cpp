@@ -777,6 +777,13 @@ void FNiagaraEditorModule::StartupModule()
 	);
 
 	FNiagaraEditorStyle::Initialize();
+	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.NiagaraEditor.ReinitializeStyle"),
+		TEXT("Reinitializes the style for the niagara editor module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
+		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorModule::ReinitializeStyle));
+
+
+
 	FNiagaraEditorCommands::Register();
 
 	TSharedPtr<FNiagaraScriptGraphPanelPinFactory> GraphPanelPinFactory = MakeShareable(new FNiagaraScriptGraphPanelPinFactory());
@@ -1352,6 +1359,13 @@ void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
 		}
 	}
 }
+
+void FNiagaraEditorModule::ReinitializeStyle()
+{
+	FNiagaraEditorStyle::Shutdown();
+	FNiagaraEditorStyle::Initialize();
+}
+
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
