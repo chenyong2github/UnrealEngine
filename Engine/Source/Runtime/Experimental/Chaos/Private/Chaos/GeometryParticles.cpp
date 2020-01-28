@@ -234,11 +234,11 @@ namespace Chaos
 						{
 							if (ImplicitShapeMap[Index].Contains(ImplicitObject.Get()))
 							{
-								ImplicitShapeMap[Index].Add(ImplicitChildObject, ImplicitShapeMap[Index][ImplicitObject.Get()]);
+								ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][ImplicitObject.Get()]));
 							}
 							else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
 							{
-								ImplicitShapeMap[Index].Add(ImplicitObject.Get(), ImplicitShapeMap[Index][ImplicitChildObject]);
+								ImplicitShapeMap[Index].Add(ImplicitObject.Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
 							}
 							
 						}
@@ -251,11 +251,11 @@ namespace Chaos
 				{
 					if (ImplicitShapeMap[Index].Contains(MGeometry[Index].Get()))
 					{
-						ImplicitShapeMap[Index].Add(ImplicitChildObject, ImplicitShapeMap[Index][MGeometry[Index].Get()]);
+						ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][MGeometry[Index].Get()]));
 					}
 					else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
 					{
-						ImplicitShapeMap[Index].Add(MGeometry[Index].Get(), ImplicitShapeMap[Index][ImplicitChildObject]);
+						ImplicitShapeMap[Index].Add(MGeometry[Index].Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
 					}
 					
 				}
