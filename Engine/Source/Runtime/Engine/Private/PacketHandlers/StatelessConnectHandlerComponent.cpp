@@ -168,9 +168,9 @@ DEFINE_LOG_CATEGORY(LogHandshake);
  * Defines
  */
 
-#define HANDSHAKE_PACKET_SIZE_BITS				195
+#define HANDSHAKE_PACKET_SIZE_BITS				227
 #define RESTART_HANDSHAKE_PACKET_SIZE_BITS		2
-#define RESTART_RESPONSE_SIZE_BITS				355
+#define RESTART_RESPONSE_SIZE_BITS				387
 
 
 // The number of seconds between secret value updates, and the random variance applied to this
