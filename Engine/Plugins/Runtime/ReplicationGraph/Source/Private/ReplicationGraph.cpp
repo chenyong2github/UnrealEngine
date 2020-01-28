@@ -1983,7 +1983,6 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 		RepLayout->BuildSharedSerializationForRPC(Parameters);
 		FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
-		const float CullDistanceSquared = GlobalInfo.Settings.GetCullDistanceSquared();
 
 		bool ForceFlushNetDormancy = false;
 
@@ -2019,7 +2018,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 				// if (Actor->NetDormancy > DORM_Awake)
 				{
 					bool ShouldOpenChannel = true;
-					if (CullDistanceSquared > 0.f)
+					if (ConnectionActorInfo.GetCullDistanceSquared() > 0.f)
 					{
 						ShouldOpenChannel = false;
 						if (ActorLocation.IsSet() == false)
@@ -2043,7 +2042,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 						for (const FNetViewer& Viewer : ViewsToConsider)
 						{
 							const float DistSq = (ActorLocation.GetValue() - Viewer.ViewLocation).SizeSquared();
-							if (DistSq <= CullDistanceSquared)
+							if (DistSq <= ConnectionActorInfo.GetCullDistanceSquared())
 							{
 								ShouldOpenChannel = true;
 								break;
@@ -2189,6 +2188,20 @@ void UReplicationGraph::SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKByt
 
 	ActorDiscoveryMaxBitsPerFrame = (ActorDiscoveryBudgetInKBytesPerSec * 1000 * 8) / MaxNetworkFPS;
 	UE_LOG(LogReplicationGraph, Display, TEXT("SetActorDiscoveryBudget set to %d kBps (%d bits per network tick)."), ActorDiscoveryBudgetInKBytesPerSec, ActorDiscoveryMaxBitsPerFrame);
+}
+
+void UReplicationGraph::SetAllCullDistanceSettingsForActor(const FActorRepListType& Actor, float CullDistanceSquared)
+{
+	FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
+	GlobalInfo.Settings.SetCullDistanceSquared(CullDistanceSquared);
+
+	for (UNetReplicationGraphConnection* RepGraphConnection : Connections)
+	{
+		if (FConnectionReplicationActorInfo* ConnectionActorInfo = RepGraphConnection->ActorInfoMap.Find(Actor))
+		{
+			ConnectionActorInfo->SetCullDistanceSquared(CullDistanceSquared);
+		}
+	}
 }
 
 void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection& Connection)
