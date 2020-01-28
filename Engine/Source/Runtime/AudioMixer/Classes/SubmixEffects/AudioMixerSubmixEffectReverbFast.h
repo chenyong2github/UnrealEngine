@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "Sound/SoundEffectSubmix.h"
-#include "DSP/ReverbFast.h"
 #include "AudioEffect.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "DSP/Amp.h"
+#include "DSP/ReverbFast.h"
+
 #include "AudioMixerSubmixEffectReverbFast.generated.h"
 
 USTRUCT(BlueprintType)
@@ -60,12 +62,12 @@ struct AUDIOMIXER_API FSubmixEffectReverbFastSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "!bBypass"))
 	float AirAbsorptionGainHF;
 
-	// Overall wetlevel of the reverb effect
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Routing, meta = (EditCondition = "!bBypass"))
+	// Overall wet level of the reverb effect
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Routing, meta = (EditCondition = "!bBypass", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", EditCondition = "!bBypass"))
 	float WetLevel;
 
-	// Overall drylevel of the reverb effect
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Routing, meta = (EditCondition = "!bBypass"))
+	// Overall dry level of the reverb effect
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Routing, meta = (EditCondition = "!bBypass", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "!bBypass"))
 	float DryLevel;
 
 	FSubmixEffectReverbFastSettings()
@@ -108,18 +110,26 @@ public:
 	void SetEffectParameters(const FAudioReverbEffect& InReverbEffectParameters);
 
 private:
+
+	static const float MinWetness;
+	static const float MaxWetness;
+
 	void UpdateParameters();
 
 	// The fast reverb effect
 	TUniquePtr<Audio::FPlateReverbFast> PlateReverb;
 
 	// The reverb effect params
-	Audio::TParams<Audio::FPlateReverbFastSettings> Params;
+	Audio::TParams<Audio::FPlateReverbFastSettings> ReverbParams;
+
+	// Settings for wet and dry signal to be consumed on next buffer
+	Audio::TParams<Audio::FWetDry> WetDryParams;
+
+	// Level of wet/dry signal on current buffer
+	Audio::FWetDry CurrentWetDry;
 
 	// Curve which maps old reverb times to new decay value
 	FRichCurve DecayCurve;
-
-	bool bBypass;
 };
 
 UCLASS()
