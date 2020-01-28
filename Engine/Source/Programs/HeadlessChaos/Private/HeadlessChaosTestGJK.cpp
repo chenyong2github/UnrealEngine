@@ -1473,6 +1473,26 @@ namespace ChaosTest
 			EXPECT_FALSE((GJKPenetration<false, T>(A,B,NewAToBTM,Penetration,ClosestA,ClosestB,Normal,0,Offset,0)));
 
 		}
+
+		{
+			//capsule perfectly aligned with another capsule but a bit off on the z
+			const TVec3<T> Pt0(0.0,0.0,-45.0);
+			TVec3<T> Pt1 = Pt0;
+			Pt1 += (TVec3<T>(0.0,0.0,1.0) * 90.0);
+
+			const TCapsule<T> A(Pt0,Pt1,34.f);
+			const TCapsule<T> B(Pt0,Pt1,33.8499985f);
+
+			const TRigidTransform<T,3> BToATM(TVec3<T>(0.0f,0.0f,-23.4092140f),TRotation<T,3>::FromElements(0.0,0.0,0.0,1.0));
+
+			EXPECT_TRUE(GJKIntersection<T>(A,B,BToATM,0.0,TVec3<T>(0,0,23.4092140)));
+
+			T Penetration;
+			TVec3<T> ClosestA,ClosestB,Normal;
+			EXPECT_TRUE(GJKPenetration<T>(A,B,BToATM, Penetration, ClosestA, ClosestB, Normal, 0.0,TVec3<T>(0,0,23.4092140)));
+			EXPECT_FLOAT_EQ(Normal.Z,0);
+			EXPECT_FLOAT_EQ(Penetration,A.GetRadius() + B.GetRadius());
+		}
 		
 	}
 

@@ -235,10 +235,10 @@ namespace Chaos
 				}
 
 				OutPenetration = ThicknessA + ThicknessB;
-				OutNormal = { 0,0,1 };
+				OutNormal = MTD;
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
-				return false;
+				return OutPenetration > Eps2;
 			}
 		}
 
@@ -631,7 +631,7 @@ namespace Chaos
 					{
 						//assume touching hit
 						OutTime = -Inflation;
-						OutNormal = { 0,0,1 };
+						OutNormal = MTD;
 						OutPosition = As[0] + OutNormal * ThicknessA;
 					}
 				}
