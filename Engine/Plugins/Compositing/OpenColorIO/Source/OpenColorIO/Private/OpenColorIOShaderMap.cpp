@@ -177,7 +177,7 @@ FShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 	const FOpenColorIOTransformResource* InColorTransform,
 	FShaderCompilerEnvironment* InCompilationEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<FShaderCommonCompileJob*>& OutNewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& OutNewJobs,
 	FShaderTarget InTarget
 	)
 {
@@ -210,7 +210,7 @@ FShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 		TEXT("/Plugin/OpenColorIO/Private/OpenColorIOShader.usf"),
 		TEXT("MainPS"),
 		FShaderTarget(GetFrequency(), InPlatform),
-		NewJob,
+		TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>(NewJob),
 		OutNewJobs
 	);
 
@@ -403,7 +403,7 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 			Platform = InPlatform;
 
 			uint32 NumShaders = 0;
-			TArray<FShaderCommonCompileJob*> NewJobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
 	
 			// Iterate over all shader types.
 			TMap<FShaderType*, FShaderCompileJob*> SharedShaderJobs;
@@ -469,10 +469,8 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 	}
 }
 
-FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCommonCompileJob* InSingleJob, const FSHAHash& InShaderMapHash)
+FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
 {
-	check(InSingleJob);
-	const FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)InSingleJob);
 	check(CurrentJob.Id == CompilingId);
 
 	FShader* Shader = nullptr;
@@ -490,7 +488,7 @@ FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCom
 	return Shader;
 }
 
-bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCompileJob*>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
+bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
 {
 	check(InOutJobIndex < InCompilationResults.Num());
 
@@ -501,12 +499,7 @@ bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<FShaderCommon
 
 	do
 	{
-		FShaderCommonCompileJob* SingleJob = InCompilationResults[InOutJobIndex];
-		ensure(SingleJob);
-
-		{
-			ProcessCompilationResultsForSingleJob(SingleJob, ShaderMapHash);
-		}
+		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash);
 
 		InOutJobIndex++;
 		

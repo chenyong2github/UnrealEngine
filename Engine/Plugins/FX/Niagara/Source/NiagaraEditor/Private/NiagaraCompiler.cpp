@@ -878,15 +878,15 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 		}
 		if (NiagaraShaderType)
 		{
-			TArray<FShaderCommonCompileJob*> NewJobs;
-			CompilationJob->ShaderCompileJob = TRefCountPtr<FShaderCompileJob>(new FShaderCompileJob(JobID, nullptr, NiagaraShaderType, 0));
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
+			CompilationJob->ShaderCompileJob = MakeShared<FShaderCompileJob, ESPMode::ThreadSafe>(JobID, nullptr, NiagaraShaderType, 0);
 			Input.ShaderFormat = FName(TEXT("VVM_1_0"));
 			if (GNiagaraSkipVectorVMBackendOptimizations != 0)
 			{
 				Input.Environment.CompilerFlags.Add(CFLAG_SkipOptimizations);
 			}
 			CompilationJob->ShaderCompileJob->Input = Input;
-			NewJobs.Add(CompilationJob->ShaderCompileJob);
+			NewJobs.Add(StaticCastSharedPtr<FShaderCommonCompileJob>(CompilationJob->ShaderCompileJob).ToSharedRef());
 
 			GShaderCompilingManager->AddJobs(NewJobs, true, false, FString(), FString(), true);
 			bJobScheduled = true;

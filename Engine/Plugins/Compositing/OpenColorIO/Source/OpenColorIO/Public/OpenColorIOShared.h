@@ -18,6 +18,7 @@
 #include "Shader.h"
 #include "StaticParameterSet.h"
 #include "Templates/RefCounting.h"
+#include "ShaderCompiler.h"
 
 
 
@@ -143,7 +144,7 @@ public:
 		);
 
 	/** Sorts the incoming compiled jobs into the appropriate OCIO shader maps, and finalizes this shader map so that it can be used for rendering. */
-	bool ProcessCompilationResults(const TArray<class FShaderCommonCompileJob*>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
+	bool ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
 
 	/**
 	 * Checks whether the shader map is missing any shader types necessary for the given color transform.
@@ -274,7 +275,7 @@ private:
 	/** Indicates whether the shader map should be stored in the shader cache. */
 	uint32 bIsPersistent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(class FShaderCommonCompileJob* InSingleJob, const FSHAHash& InShaderMapHash);
+	FShader* ProcessCompilationResultsForSingleJob(FShaderCompileJob& InSingleJob, const FSHAHash& InShaderMapHash);
 
 	bool IsOpenColorIOShaderComplete(const FOpenColorIOTransformResource* InColorTransform, const FOpenColorIOShaderType* InShaderType, bool bSilent);
 

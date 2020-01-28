@@ -30,7 +30,7 @@ class FShaderPipelineCompileJob;
 
 
 /** Stores all of the common information used to compile a shader or pipeline. */
-class FShaderCommonCompileJob : public FRefCountedObject
+class FShaderCommonCompileJob
 {
 public:
 	/** Id of the shader map this shader belongs to. */
@@ -98,7 +98,7 @@ public:
 class FShaderPipelineCompileJob : public FShaderCommonCompileJob
 {
 public:
-	TArray<FShaderCommonCompileJob*> StageJobs;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> StageJobs;
 	bool bFailedRemovingUnused;
 
 	/** Shader pipeline that this shader belongs to, may (currently) be NULL */
@@ -114,15 +114,6 @@ public:
 		StageJobs.Empty(NumStages);
 	}
 
-	~FShaderPipelineCompileJob()
-	{
-		for (int32 Index = 0; Index < StageJobs.Num(); ++Index)
-		{
-			delete StageJobs[Index];
-		}
-		StageJobs.Reset();
-	}
-
 	virtual FShaderPipelineCompileJob* GetShaderPipelineJob() override { return this; }
 	virtual const FShaderPipelineCompileJob* GetShaderPipelineJob() const override { return this; }
 };
@@ -133,12 +124,12 @@ public:
 	/**
 	* Enqueues compilation of a shader of this type.
 	*/
-	ENGINE_API static class FShaderCompileJob* BeginCompileShader(FGlobalShaderType* ShaderType, int32 PermutationId, EShaderPlatform Platform, const FShaderPipelineType* ShaderPipeline, TArray<FShaderCommonCompileJob*>& NewJobs);
+	ENGINE_API static class FShaderCompileJob* BeginCompileShader(FGlobalShaderType* ShaderType, int32 PermutationId, EShaderPlatform Platform, const FShaderPipelineType* ShaderPipeline, TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs);
 
 	/**
 	* Enqueues compilation of a shader pipeline of this type.
 	*/
-	ENGINE_API static void BeginCompileShaderPipeline(EShaderPlatform Platform, const FShaderPipelineType* ShaderPipeline, const TArray<FGlobalShaderType*>& ShaderStages, TArray<FShaderCommonCompileJob*>& NewJobs);
+	ENGINE_API static void BeginCompileShaderPipeline(EShaderPlatform Platform, const FShaderPipelineType* ShaderPipeline, const TArray<FGlobalShaderType*>& ShaderStages, TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs);
 
 	/** Either returns an equivalent existing shader of this type, or constructs a new instance. */
 	static FShader* FinishCompileShader(FGlobalShaderType* ShaderType, const FShaderCompileJob& CompileJob, const FShaderPipelineType* ShaderPipelineType);
@@ -231,8 +222,8 @@ private:
 
 namespace FShaderCompileUtilities
 {
-	bool DoWriteTasks(const TArray<FShaderCommonCompileJob*>& QueuedJobs, FArchive& TransferFile);
-	void DoReadTaskResults(const TArray<FShaderCommonCompileJob*>& QueuedJobs, FArchive& OutputFile);
+	bool DoWriteTasks(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& QueuedJobs, FArchive& TransferFile);
+	void DoReadTaskResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& QueuedJobs, FArchive& OutputFile);
 
 	/** Execute the specified (single or pipeline) shader compile job. */
 	void ExecuteShaderCompileJob(FShaderCommonCompileJob& Job);
@@ -255,7 +246,7 @@ private:
 	 */
 	class FShaderBatch
 	{
-		TArray<FShaderCommonCompileJob*> Jobs;
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> Jobs;
 		bool bTransferFileWritten;
 
 	public:
@@ -290,12 +281,12 @@ private:
 		{
 			return Jobs.Num();
 		}
-		inline const TArray<FShaderCommonCompileJob*>& GetJobs() const
+		inline const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& GetJobs() const
 		{
 			return Jobs;
 		}
 
-		void AddJob(FShaderCommonCompileJob* Job);
+		void AddJob(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job);
 		
 		void WriteTransferFile();
 	};
@@ -346,7 +337,7 @@ public:
 	static bool IsSupported();
 
 private:
-	void DispatchShaderCompileJobsBatch(TArray<FShaderCommonCompileJob*>& JobsToSerialize);
+	void DispatchShaderCompileJobsBatch(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& JobsToSerialize);
 };
 
 #endif // PLATFORM_WINDOWS
@@ -364,7 +355,7 @@ struct FShaderMapCompileResults
 	int32 NumJobsQueued;
 	bool bAllJobsSucceeded;
 	bool bRecreateComponentRenderStateOnCompletion;
-	TArray<FShaderCommonCompileJob*> FinishedJobs;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> FinishedJobs;
 	bool bSkipResultProcessing;
 };
 
@@ -449,7 +440,7 @@ private:
 	/** Tracks whether we are compiling while the game is running.  If true, we need to throttle down shader compiling CPU usage to avoid starving the runtime threads. */
 	bool bCompilingDuringGame;
 	/** Queue of tasks that haven't been assigned to a worker yet. */
-	TArray<FShaderCommonCompileJob*> CompileQueue;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> CompileQueue;
 	/** Map from shader map Id to the compile results for that map, used to gather compiled results. */
 	TMap<int32, FShaderMapCompileResults> ShaderMapJobs;
 
@@ -606,7 +597,7 @@ public:
 	 * Adds shader jobs to be asynchronously compiled. 
 	 * FinishCompilation or ProcessAsyncResults must be used to get the results.
 	 */
-	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, FString PermutationString = FString(""), bool bSkipResultProcessing = false);
+	ENGINE_API void AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, FString PermutationString = FString(""), bool bSkipResultProcessing = false);
 
 	/**
 	* Removes all outstanding compile jobs for the passed shader maps.
@@ -664,8 +655,8 @@ extern ENGINE_API void GlobalBeginCompileShader(
 	const TCHAR* SourceFilename,
 	const TCHAR* FunctionName,
 	FShaderTarget Target,
-	FShaderCompileJob* NewJob,
-	TArray<FShaderCommonCompileJob*>& NewJobs,
+	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> NewJob,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 	bool bAllowDevelopmentShaderCompile = true,
 	const FString& DebugDescription = "",
 	const FString& DebugExtension = ""
@@ -708,7 +699,7 @@ extern ENGINE_API void BeginRecompileGlobalShaders(const TArray<FShaderType*>& O
 extern ENGINE_API void FinishRecompileGlobalShaders();
 
 /** Called by the shader compiler to process completed global shader jobs. */
-extern ENGINE_API void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJob*>& CompilationResults);
+extern ENGINE_API void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& CompilationResults);
 
 /**
 * Saves the global shader map as a file for the target platform.

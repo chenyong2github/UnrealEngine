@@ -266,7 +266,7 @@ void FShaderCompileXGEThreadRunnable_XmlInterface::PostCompletedJobsForBatch(FSh
 {
 	// Enter the critical section so we can access the input and output queues
 	FScopeLock Lock(&Manager->CompileQueueSection);
-	for (FShaderCommonCompileJob* Job : Batch->GetJobs())
+	for (auto Job : Batch->GetJobs())
 	{
 		FShaderMapCompileResults& ShaderMapResults = Manager->ShaderMapJobs.FindChecked(Job->Id);
 		ShaderMapResults.FinishedJobs.Add(Job);
@@ -277,7 +277,7 @@ void FShaderCompileXGEThreadRunnable_XmlInterface::PostCompletedJobsForBatch(FSh
 	FPlatformAtomics::InterlockedAdd(&Manager->NumOutstandingJobs, -Batch->NumJobs());
 }
 
-void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(FShaderCommonCompileJob* Job)
+void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job)
 {
 	// We can only add jobs to a batch which hasn't been written out yet.
 	if (bTransferFileWritten)
@@ -578,7 +578,7 @@ int32 FShaderCompileXGEThreadRunnable_XmlInterface::CompilingLoop()
 	}
 
 	// Try to prepare more shader jobs (even if a build is in flight).
-	TArray<FShaderCommonCompileJob*> JobQueue;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> JobQueue;
 	{
 		// Enter the critical section so we can access the input and output queues
 		FScopeLock Lock(&Manager->CompileQueueSection);
@@ -680,11 +680,11 @@ class FXGEShaderCompilerTask
 {
 public:
 	TFuture<FXGETaskResult> Future;
-	TArray<FShaderCommonCompileJob*> ShaderJobs;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> ShaderJobs;
 	FString InputFilePath;
 	FString OutputFilePath;
 
-	FXGEShaderCompilerTask(TFuture<FXGETaskResult>&& Future, TArray<FShaderCommonCompileJob*>&& ShaderJobs, FString&& InputFilePath, FString&& OutputFilePath)
+	FXGEShaderCompilerTask(TFuture<FXGETaskResult>&& Future, TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>&& ShaderJobs, FString&& InputFilePath, FString&& OutputFilePath)
 		: Future(MoveTemp(Future))
 		, ShaderJobs(MoveTemp(ShaderJobs))
 		, InputFilePath(MoveTemp(InputFilePath))
@@ -704,7 +704,7 @@ FShaderCompileXGEThreadRunnable_InterceptionInterface::~FShaderCompileXGEThreadR
 {
 }
 
-void FShaderCompileXGEThreadRunnable_InterceptionInterface::DispatchShaderCompileJobsBatch(TArray<FShaderCommonCompileJob*>& JobsToSerialize)
+void FShaderCompileXGEThreadRunnable_InterceptionInterface::DispatchShaderCompileJobsBatch(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& JobsToSerialize)
 {
 #if WITH_XGE_CONTROLLER
 	FString InputFilePath = IXGEController::Get().CreateUniqueFilePath();
@@ -743,7 +743,7 @@ void FShaderCompileXGEThreadRunnable_InterceptionInterface::DispatchShaderCompil
 int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
 {
 #if WITH_XGE_CONTROLLER
-	TArray<FShaderCommonCompileJob*> PendingJobs;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> PendingJobs;
 
 	// Try to prepare more shader jobs.
 	{
@@ -767,7 +767,7 @@ int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
 
 		struct FJobBatch
 		{
-			TArray<FShaderCommonCompileJob*> Jobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> Jobs;
 			TSet<const FShaderType*> UniquePointers;
 
 			bool operator == (const FJobBatch& B) const
@@ -903,7 +903,7 @@ int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
 
 				UE_LOG(LogShaderCompilers, Warning, TEXT("Rescheduling shader compilation to run locally after XGE job failed: %s"), *Task->OutputFilePath);
 
-				for (FShaderCommonCompileJob* Job : Task->ShaderJobs)
+				for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job : Task->ShaderJobs)
 				{
 					FShaderCompileUtilities::ExecuteShaderCompileJob(*Job);
 				}
@@ -912,7 +912,7 @@ int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
 			// Enter the critical section so we can access the input and output queues
 			{
 				FScopeLock Lock(&Manager->CompileQueueSection);
-				for (FShaderCommonCompileJob* Job : Task->ShaderJobs)
+				for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job : Task->ShaderJobs)
 				{
 					FShaderMapCompileResults& ShaderMapResults = Manager->ShaderMapJobs.FindChecked(Job->Id);
 					ShaderMapResults.FinishedJobs.Add(Job);
