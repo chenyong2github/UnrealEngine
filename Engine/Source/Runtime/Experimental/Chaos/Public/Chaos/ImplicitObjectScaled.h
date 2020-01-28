@@ -143,6 +143,11 @@ public:
 		return MObject->OverlapGeom(B,BToATM,Thickness, OutMTD);
 	}
 
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
+	{
+		return MObject->GetMaterialIndex(HintIndex);
+	}
+
 protected:
 	ObjectType MObject;
 
