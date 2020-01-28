@@ -223,7 +223,12 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 	{
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
 	}
-	Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
+
+	// leave out nonuniform scale if we have multiple objects in non-local mode
+	bool bCanNonUniformScale = ComponentTargets.Num() == 1 || bLocalRotations;
+	ETransformGizmoSubElements GizmoElements = (bCanNonUniformScale) ?
+		ETransformGizmoSubElements::FullTranslateRotateScale : ETransformGizmoSubElements::TranslateRotateUniformScale;
+	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(GizmoElements, this);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 
 	ActiveGizmos.Add(Transformable);

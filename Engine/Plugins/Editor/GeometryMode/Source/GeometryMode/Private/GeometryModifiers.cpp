@@ -68,6 +68,7 @@ UGeomModifier::UGeomModifier(const FObjectInitializer& ObjectInitializer)
 	bInitialized = false;
 	bPendingPivotOffsetUpdate = false;
 	CachedPolys = NULL;
+	bAppearsInToolbar = true; 
 }
 
 
@@ -125,7 +126,7 @@ bool UGeomModifier::OnApply()
 }
 
 
-bool UGeomModifier::Supports()
+bool UGeomModifier::SupportsCurrentSelection()
 {
 	return true;
 }
@@ -458,7 +459,8 @@ UGeomModifier_Edit::UGeomModifier_Edit(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {
 	Description = NSLOCTEXT("UnrealEd", "Edit", "Edit");
-	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Edit", "Tooltip", "Translate, rotate or scale existing geometry.");
+	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Edit", "Tooltip", "Select faces, edges, or vertices directly in the viewport.  Use the manipulator to translate, rotate or scale existing geometry.");
+	ToolbarIconName = TEXT("GeometryMode.EditTool");
 }
 
 
@@ -672,6 +674,7 @@ UGeomModifier_Extrude::UGeomModifier_Extrude(const FObjectInitializer& ObjectIni
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Extrude", "Tooltip", "Moves the selected geometry element forward, creating new geometry behind it if necessary.");
 	Length = 16;
 	Segments = 1;
+	ToolbarIconName = TEXT("GeometryMode.ExtrudeTool");
 }
 
 bool UGeomModifier_Extrude::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
@@ -701,7 +704,7 @@ bool UGeomModifier_Extrude::InputDelta(FEditorViewportClient* InViewportClient, 
 }
 
 
-bool UGeomModifier_Extrude::Supports()
+bool UGeomModifier_Extrude::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return mode->HavePolygonsSelected();
@@ -929,15 +932,16 @@ UGeomModifier_Lathe::UGeomModifier_Lathe(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	Description = NSLOCTEXT("UnrealEd", "Lathe", "Lathe");
-	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Lathe", "Tooltip", "Create new geometry by rotating the selected brush shape about the current pivot point.");
+	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Lathe", "Tooltip", "Take Brush Shapes (created via the Pen Tool with CreateBrushShape enabled) and revolve them around the pivot point to create curved brushes.  Create a pivot using ALT + MMB Drag, then switch to a Top-Down Viewport and hit Apply.");
 	Axis = EAxis::Y;
 	TotalSegments = 16;
 	Segments = 4;
 	AlignToSide = false;
+	ToolbarIconName = TEXT("GeometryMode.LatheTool");
 }
 
 
-bool UGeomModifier_Lathe::Supports()
+bool UGeomModifier_Lathe::SupportsCurrentSelection()
 {
 	// Lathe mode requires ABrushShape actors to be selected.
 
@@ -1265,6 +1269,7 @@ UGeomModifier_Pen::UGeomModifier_Pen(const FObjectInitializer& ObjectInitializer
 	bAutoExtrude = true;
 	ExtrudeDepth = 256;
 	bCreateConvexPolygons = true;
+	ToolbarIconName = TEXT("GeometryMode.PenTool");
 }
 
 /**
@@ -2065,10 +2070,11 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 UGeomModifier_Clip::UGeomModifier_Clip(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Description = NSLOCTEXT("UnrealEd", "BrushClip", "Brush Clip");
+	Description = NSLOCTEXT("UnrealEd", "BrushClip", "Clip");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Clip", "Tooltip", "Given a dividing plane, cut the geometry into two pieces, optionally discarding one of them. This operation only works in an orthographic viewport.  Define the vertices of the dividing plane with the space bar, and press Enter to apply.");
 	bFlipNormal = false;
 	bSplit = false;
+	ToolbarIconName = TEXT("GeometryMode.ClipTool");
 }
 
 void UGeomModifier_Clip::WasActivated()
@@ -2076,7 +2082,7 @@ void UGeomModifier_Clip::WasActivated()
 	ClipMarkers.Empty();
 }
 
-bool UGeomModifier_Clip::Supports()
+bool UGeomModifier_Clip::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return mode->GetSelectionState() ? false : true;
@@ -2451,10 +2457,11 @@ UGeomModifier_Delete::UGeomModifier_Delete(const FObjectInitializer& ObjectIniti
 	Description = NSLOCTEXT("UnrealEd", "Delete", "Delete");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Delete", "Tooltip", "Deletes the selected geometry elements (vertices, edges or polygons).");
 	bPushButton = true;
+	bAppearsInToolbar = false;
 }
 
 
-bool UGeomModifier_Delete::Supports()
+bool UGeomModifier_Delete::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return (mode->HavePolygonsSelected() || mode->HaveVerticesSelected());
@@ -2540,7 +2547,7 @@ UGeomModifier_Create::UGeomModifier_Create(const FObjectInitializer& ObjectIniti
 	bPushButton = true;
 }
 
-bool UGeomModifier_Create::Supports()
+bool UGeomModifier_Create::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return mode->HaveVerticesSelected();
@@ -2604,9 +2611,10 @@ UGeomModifier_Flip::UGeomModifier_Flip(const FObjectInitializer& ObjectInitializ
 	Description = NSLOCTEXT("UnrealEd", "Flip", "Flip");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Flip", "Tooltip", "Flips the normal of the selected polygon so that it faces the other way.");
 	bPushButton = true;
+	ToolbarIconName = TEXT("GeometryMode.FlipTool");
 }
 
-bool UGeomModifier_Flip::Supports()
+bool UGeomModifier_Flip::SupportsCurrentSelection()
 {
 	// Supports polygons selected and objects selected
 
@@ -2648,11 +2656,12 @@ UGeomModifier_Split::UGeomModifier_Split(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	Description = NSLOCTEXT("UnrealEd", "Split", "Split");
-	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Pen", "Split_Tooltip", "Split a brush in half, the exact operation depending on which geometry elements are selected.");
+	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Pen", "Split_Tooltip", "Create blocking volumes or freeform geometry by creating a series of anchor points.  Note, you must be in a 2D viewport with focus to use the pen tool.  Create at least 3 anchor points in an orthographic viewport using the spacebar to commit an anchor point.  Complete the shape by creating an anchor on top of the first one.  Use bAutoExtrude with ExtrudeDepth to create a 3D shape.");
 	bPushButton = true;
+	ToolbarIconName = TEXT("GeometryMode.SplitTool");
 }
 
-bool UGeomModifier_Split::Supports()
+bool UGeomModifier_Split::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 
@@ -3022,9 +3031,11 @@ UGeomModifier_Triangulate::UGeomModifier_Triangulate(const FObjectInitializer& O
 	Description = NSLOCTEXT("UnrealEd", "Triangulate", "Triangulate");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Triangulate", "Tooltip", "Break the selected polygons down into triangles.");
 	bPushButton = true;
+
+	ToolbarIconName = TEXT("GeometryMode.TriangulateTool");
 }
 
-bool UGeomModifier_Triangulate::Supports()
+bool UGeomModifier_Triangulate::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return (!mode->HaveEdgesSelected() && !mode->HaveVerticesSelected());
@@ -3094,6 +3105,7 @@ UGeomModifier_Optimize::UGeomModifier_Optimize(const FObjectInitializer& ObjectI
 	Description = NSLOCTEXT("UnrealEd", "Optimize", "Optimize");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Optimize", "Tooltip", "Optimizes the selected geometry by merging together any polygons which can be formed into a single convex polygon.");
 	bPushButton = true;
+	ToolbarIconName = TEXT("GeometryMode.OptimizeTool");
 }
 
 bool UGeomModifier_Optimize::OnApply()
@@ -3178,9 +3190,11 @@ UGeomModifier_Turn::UGeomModifier_Turn(const FObjectInitializer& ObjectInitializ
 	Description = NSLOCTEXT("UnrealEd", "Turn", "Turn");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Turn", "Tooltip", "Given a selected edge common to two triangles, turn the edge so that it is connected to the previously unconnected vertices.");
 	bPushButton = true;
+
+	ToolbarIconName = TEXT("GeometryMode.TurnTool");
 }
 
-bool UGeomModifier_Turn::Supports()
+bool UGeomModifier_Turn::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return mode->HaveEdgesSelected();
@@ -3345,10 +3359,11 @@ UGeomModifier_Weld::UGeomModifier_Weld(const FObjectInitializer& ObjectInitializ
 	Description = NSLOCTEXT("UnrealEd", "Weld", "Weld");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Weld", "Tooltip", "Merge all selected vertices to the first selected vertex.");
 	bPushButton = true;
+	ToolbarIconName = TEXT("GeometryMode.WeldTool");
 }
 
 
-bool UGeomModifier_Weld::Supports()
+bool UGeomModifier_Weld::SupportsCurrentSelection()
 {
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return (mode->HaveVerticesSelected() && !mode->HaveEdgesSelected() && !mode->HavePolygonsSelected());

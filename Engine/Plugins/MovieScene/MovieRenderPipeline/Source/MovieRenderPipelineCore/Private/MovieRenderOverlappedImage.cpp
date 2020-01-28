@@ -632,7 +632,7 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 			check(0);
 		}
 
-		static bool bLogTiming = true;
+		static bool bLogTiming = false;
 
 		const double AccumulateEndTime = FPlatformTime::Seconds();
 		if(bLogTiming)

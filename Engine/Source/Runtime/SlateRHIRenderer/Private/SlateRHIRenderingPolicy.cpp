@@ -369,12 +369,14 @@ static bool UpdateScissorRect(
 					const FSlateClippingZone& MaskQuad = StencilQuads.Last();
 					const FSlateRect LastStencilBoundingBox = MaskQuad.GetBoundingBox().Round();
 
-					const FVector2D TopLeft = LastStencilBoundingBox.GetTopLeft() + ViewTranslation2D;
-					const FVector2D BottomRight = LastStencilBoundingBox.GetBottomRight() + ViewTranslation2D;
+					const FIntPoint SizeXY = BackBuffer.GetSizeXY();
+					const FVector2D ViewSize((float)SizeXY.X, (float)SizeXY.Y);
+
+					const FVector2D TopLeft = FMath::Min(FMath::Max(LastStencilBoundingBox.GetTopLeft() + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
+					const FVector2D BottomRight = FMath::Min(FMath::Max(LastStencilBoundingBox.GetBottomRight() + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
 
 					if (bSwitchVerticalAxis)
 					{
-						const FIntPoint ViewSize = BackBuffer.GetSizeXY();
 						const int32 MinY = (ViewSize.Y - BottomRight.Y);
 						const int32 MaxY = (ViewSize.Y - TopLeft.Y);
 						RHICmdList.SetScissorRect(true, TopLeft.X, MinY, BottomRight.X, MaxY);
@@ -968,17 +970,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					SCOPE_CYCLE_COUNTER(STAT_SlateRTTextureDrawCall);
 
 					// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
-					if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))
-					{
-						RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
-						RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, RenderBatch.InstanceCount);
-					}
-					else
-					{
-						uint32 VertexOffset = bAbsoluteIndices ? 0 : RenderBatch.VertexOffset;
-						RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
-						RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, VertexOffset, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, RenderBatch.InstanceCount);
-					}
+					RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
+					RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, RenderBatch.InstanceCount);
 				}
 			}
 			else if (GEngine && ShaderResource && ShaderResource->GetType() == ESlateShaderResource::Material && ShaderType != ESlateShader::PostProcess)
@@ -1108,17 +1101,10 @@ void FSlateRHIRenderingPolicy::DrawElements(
 									RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
 
 									// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
-									if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))
-									{
-										RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
-										RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
-									}
-									else
-									{
-										uint32 VertexOffset = bAbsoluteIndices ? 0 : RenderBatch.VertexOffset;
-										RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
-										RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, VertexOffset, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
-									}
+
+									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
+									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
+
 								}
 							}
 							else
@@ -1126,17 +1112,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								RHICmdList.SetStreamSource(1, nullptr, 0);
 
 								// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
-								if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))
-								{
-									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
-									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, 1);
-								}
-								else
-								{
-									uint32 VertexOffset = bAbsoluteIndices ? 0 : RenderBatch.VertexOffset;
-									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, 0);
-									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, VertexOffset, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, 1);
-								}
+								RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
+								RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, 1);
+
 							}
 						}
 					}

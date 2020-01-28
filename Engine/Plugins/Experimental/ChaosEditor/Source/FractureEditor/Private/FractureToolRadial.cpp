@@ -31,15 +31,14 @@ UFractureToolRadial::UFractureToolRadial(const FObjectInitializer& ObjInit)
 	GetMutableDefault<UFractureRadialSettings>()->OwnerTool = this;
 }
 
-
 FText UFractureToolRadial::GetDisplayText() const
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolRadial", "Radial Voronoi")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolRadial", "Radial Voronoi Fracture")); 
 }
 
 FText UFractureToolRadial::GetTooltipText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolRadialTooltip", "Radial Voronoi Fracture")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolRadialTooltip", "Radial Voronoi Fracture create a radial distribution of Voronoi cells from a center point (for example, a wrecking ball crashing into a wall).  Click the Fracture Button to commit the fracture to the geometry collection."));
 }
 
 FSlateIcon UFractureToolRadial::GetToolIcon() const 

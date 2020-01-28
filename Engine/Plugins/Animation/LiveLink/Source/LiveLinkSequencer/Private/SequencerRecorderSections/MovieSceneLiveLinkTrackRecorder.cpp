@@ -17,18 +17,32 @@
 #include "SequenceRecorderUtils.h"
 #include "TakeRecorderSource/TakeRecorderLiveLinkSource.h"
 
-
 static TAutoConsoleVariable<int32> CVarSequencerAlwaysUseRecordLiveLinkTimecode(
-	TEXT("Sequencer.AlwayRecordLiveLinkTimecode"),
-	0, TEXT("If nonzero we use the LiveLink Timecode for time, even if Subject isn't Synchronized."),
+	TEXT("Sequencer.AlwaysRecordLiveLinkTimecode"),
+	0, TEXT("This CVAR is no longer used please set the Always Use Timmecode value individually on the Live Link Source."),
 	ECVF_Default);
 
 
-void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, UMovieSceneTrackRecorderSettings* InSettingsObject)
+static void AlwaysRecordLiveLinkTimecodeSinkFunction()
+{
+	static int32 CachedAlwaysRecordLiveLinkTimecode = 0;
+	int32 AlwaysRecordLiveLinkTimecode = CVarSequencerAlwaysUseRecordLiveLinkTimecode.GetValueOnGameThread();
+
+	if (AlwaysRecordLiveLinkTimecode != CachedAlwaysRecordLiveLinkTimecode)
+	{
+		CachedAlwaysRecordLiveLinkTimecode = AlwaysRecordLiveLinkTimecode;
+		UE_LOG(LogLiveLinkSequencer, Warning, TEXT("Sequencer.AlwaysRecordLiveLinkTimecode is no longer in use, please set the Always Use Timecode value on the Live Link Source."));
+	}
+}
+
+static FAutoConsoleVariableSink CVarAlwaysRecoredLiveLinkSink(FConsoleCommandDelegate::CreateStatic(&AlwaysRecordLiveLinkTimecodeSinkFunction));
+
+void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject)
 {
 	MovieScene = InMovieScene;
 	SubjectName = InSubjectName;
 	bSaveSubjectSettings = bInSaveSubjectSettings;
+	bUseSourceTimecode = bInAlwaysUseTimecoe;
 	CreateTracks();
 }
 
@@ -47,6 +61,7 @@ UMovieSceneLiveLinkTrack* UMovieSceneLiveLinkTrackRecorder::DoesLiveLinkMasterTr
 	}
 	return nullptr;
 }
+
 
 void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 {
@@ -204,8 +219,7 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 		const FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 		const FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 
-		const bool bAlwaysUseTimecode = CVarSequencerAlwaysUseRecordLiveLinkTimecode->GetInt() == 0 ? false : true;
-		bool bSyncedOrForced = bAlwaysUseTimecode || LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
+		bool bSyncedOrForced = bUseSourceTimecode || LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
 
 		if (FramesToProcess.Num() > 0)
 		{

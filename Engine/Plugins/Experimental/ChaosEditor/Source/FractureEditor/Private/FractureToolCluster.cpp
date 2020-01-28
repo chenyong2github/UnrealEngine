@@ -36,12 +36,12 @@ UFractureToolCluster::UFractureToolCluster(const FObjectInitializer& ObjInit)
 
 FText UFractureToolCluster::GetDisplayText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolCluster", "Cluster Voronoi"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolCluster", "Cluster Voronoi Fracture"));
 }
 
 FText UFractureToolCluster::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolClusterTooltip", "Cluster Voronoi Fracture"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolClusterTooltip", "Cluster Voronoi Fracture creates additional points around a base Voronoi pattern, creating more variation.  Click the Fracture Button to commit the fracture to the geometry collection."));
 }
 
 FSlateIcon UFractureToolCluster::GetToolIcon() const

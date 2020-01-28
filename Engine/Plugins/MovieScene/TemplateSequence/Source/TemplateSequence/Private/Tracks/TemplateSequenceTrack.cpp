@@ -10,6 +10,12 @@
 
 #define LOCTEXT_NAMESPACE "TemplateSequenceTrack"
 
+UTemplateSequenceTrack::UTemplateSequenceTrack(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
+}
+
 bool UTemplateSequenceTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UTemplateSequenceSection::StaticClass();

@@ -91,21 +91,35 @@ enum class ETransformGizmoSubElements
 {
 	None = 0,
 
-	TranslateAxisX = 1,
-	TranslateAxisY = 2,
-	TranslateAxisZ = 4,
+	TranslateAxisX = 1<<1,
+	TranslateAxisY = 1<<2,
+	TranslateAxisZ = 1<<3,
 	TranslateAllAxes = TranslateAxisX | TranslateAxisY | TranslateAxisZ,
 
-	TranslatePlaneXY = 8,
-	TranslatePlaneXZ = 16,
-	TranslatePlaneYZ = 32,
+	TranslatePlaneXY = 1<<4,
+	TranslatePlaneXZ = 1<<5,
+	TranslatePlaneYZ = 1<<6,
 	TranslateAllPlanes = TranslatePlaneXY | TranslatePlaneXZ | TranslatePlaneYZ,
 
-	RotateAxisX = 64,
-	RotateAxisY = 128,
-	RotateAxisZ = 256,
+	RotateAxisX = 1<<7,
+	RotateAxisY = 1<<8,
+	RotateAxisZ = 1<<9,
 	RotateAllAxes = RotateAxisX | RotateAxisY | RotateAxisZ,
 
-	StanedardTranslateRotate = TranslateAllAxes | TranslateAllPlanes | RotateAllAxes
+	ScaleAxisX = 1<<10,
+	ScaleAxisY = 1<<11,
+	ScaleAxisZ = 1<<12,
+	ScaleAllAxes = ScaleAxisX | ScaleAxisY | ScaleAxisZ,
+
+	ScalePlaneYZ = 1<<13,
+	ScalePlaneXZ = 1<<14,
+	ScalePlaneXY = 1<<15,
+	ScaleAllPlanes = ScalePlaneXY | ScalePlaneXZ | ScalePlaneYZ,
+
+	ScaleUniform = 1<<16,
+
+	StandardTranslateRotate = TranslateAllAxes | TranslateAllPlanes | RotateAllAxes,
+	TranslateRotateUniformScale = TranslateAllAxes | TranslateAllPlanes | RotateAllAxes | ScaleUniform,
+	FullTranslateRotateScale = TranslateAllAxes | TranslateAllPlanes | RotateAllAxes | ScaleAllAxes | ScaleAllPlanes | ScaleUniform
 };
 ENUM_CLASS_FLAGS(ETransformGizmoSubElements);

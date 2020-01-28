@@ -1787,19 +1787,35 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 			.SetFont(DEFAULT_FONT("Regular", 8))
 			.SetColorAndOpacity(FLinearColor(0.4f, 0.4, 0.4f, 1.0f)));
 
-		Set("FoliageEditMode.SetSelect",            new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon20x20));
-		Set("FoliageEditMode.SelectAll", 			new IMAGE_BRUSH("Icons/GeneralTools/SelectAll_40x", Icon20x20));
-		Set("FoliageEditMode.DeselectAll", 			new IMAGE_BRUSH("Icons/GeneralTools/Deselect_40x", Icon20x20));
-		Set("FoliageEditMode.SelectInvalid", 		new IMAGE_BRUSH("Icons/GeneralTools/SelectInvalid_40x", Icon20x20));
-		Set("FoliageEditMode.SetLassoSelect",       new IMAGE_BRUSH("Icons/GeneralTools/Lasso_40x", Icon20x20));
-		Set("FoliageEditMode.Foliage",             	new IMAGE_BRUSH("Icons/GeneralTools/Foliage_40x", Icon20x20));
-		Set("FoliageEditMode.SetPaint",             new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
-		Set("FoliageEditMode.SetReapplySettings",   new IMAGE_BRUSH("Icons/GeneralTools/Repaint_40x", Icon20x20));
-		Set("FoliageEditMode.SetPaintBucket",       new IMAGE_BRUSH("Icons/GeneralTools/PaintBucket_40x", Icon20x20));
-		Set("FoliageEditMode.Remove",       		new IMAGE_BRUSH("Icons/GeneralTools/Delete_40x", Icon20x20));
-		Set("FoliageEditMode.Filter",               new IMAGE_BRUSH("Icons/GeneralTools/Filter_40x", Icon20x20));
-		Set("FoliageEditMode.Settings",             new IMAGE_BRUSH("Icons/GeneralTools/Settings_40x", Icon20x20));
-		Set("FoliageEditMode.MoveToCurrentLevel", 	new IMAGE_BRUSH("Icons/GeneralTools/MoveToLevel_40x", Icon20x20));
+		Set("FoliageEditMode.SetSelect",                 new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon20x20));
+		Set("FoliageEditMode.SetSelect.Small",           new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon20x20));
+		Set("FoliageEditMode.SelectAll",                 new IMAGE_BRUSH("Icons/GeneralTools/SelectAll_40x", Icon20x20));
+		Set("FoliageEditMode.SelectAll.Small",           new IMAGE_BRUSH("Icons/GeneralTools/SelectAll_40x", Icon20x20));
+		Set("FoliageEditMode.DeselectAll",               new IMAGE_BRUSH("Icons/GeneralTools/Deselect_40x", Icon20x20));
+		Set("FoliageEditMode.DeselectAll.Small",         new IMAGE_BRUSH("Icons/GeneralTools/Deselect_40x", Icon20x20));
+		Set("FoliageEditMode.SelectInvalid",             new IMAGE_BRUSH("Icons/GeneralTools/SelectInvalid_40x", Icon20x20));
+		Set("FoliageEditMode.SelectInvalid.Small",       new IMAGE_BRUSH("Icons/GeneralTools/SelectInvalid_40x", Icon20x20));
+		Set("FoliageEditMode.SetLassoSelect",            new IMAGE_BRUSH("Icons/GeneralTools/Lasso_40x", Icon20x20));
+		Set("FoliageEditMode.SetLassoSelect.Small",      new IMAGE_BRUSH("Icons/GeneralTools/Lasso_40x", Icon20x20));
+		Set("FoliageEditMode.Foliage",                   new IMAGE_BRUSH("Icons/GeneralTools/Foliage_40x", Icon20x20));
+		Set("FoliageEditMode.Foliage.Small",             new IMAGE_BRUSH("Icons/GeneralTools/Foliage_40x", Icon20x20));
+		Set("FoliageEditMode.SetPaint",                  new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("FoliageEditMode.SetPaint.Small",            new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("FoliageEditMode.SetReapplySettings",        new IMAGE_BRUSH("Icons/GeneralTools/Repaint_40x", Icon20x20));
+		Set("FoliageEditMode.SetReapplySettings.Small",  new IMAGE_BRUSH("Icons/GeneralTools/Repaint_40x", Icon20x20));
+		Set("FoliageEditMode.SetPaintBucket",            new IMAGE_BRUSH("Icons/GeneralTools/PaintBucket_40x", Icon20x20));
+		Set("FoliageEditMode.SetPaintBucket.Small",      new IMAGE_BRUSH("Icons/GeneralTools/PaintBucket_40x", Icon20x20));
+		Set("FoliageEditMode.Remove",                    new IMAGE_BRUSH("Icons/GeneralTools/Delete_40x", Icon20x20));
+		Set("FoliageEditMode.Remove.Small",              new IMAGE_BRUSH("Icons/GeneralTools/Delete_40x", Icon20x20));
+		Set("FoliageEditMode.Erase",                     new IMAGE_BRUSH("Icons/GeneralTools/Erase_40x", Icon20x20));
+		Set("FoliageEditMode.Erase.Small",               new IMAGE_BRUSH("Icons/GeneralTools/Erase_40x", Icon20x20));
+		Set("FoliageEditMode.Filter",                    new IMAGE_BRUSH("Icons/GeneralTools/Filter_40x", Icon20x20));
+		Set("FoliageEditMode.Filter.Small",              new IMAGE_BRUSH("Icons/GeneralTools/Filter_40x", Icon20x20));
+		Set("FoliageEditMode.Settings",                  new IMAGE_BRUSH("Icons/GeneralTools/Settings_40x", Icon20x20));
+		Set("FoliageEditMode.Settings.Small",            new IMAGE_BRUSH("Icons/GeneralTools/Settings_40x", Icon20x20));
+		Set("FoliageEditMode.MoveToCurrentLevel",        new IMAGE_BRUSH("Icons/GeneralTools/MoveToLevel_40x", Icon20x20));
+		Set("FoliageEditMode.MoveToCurrentLevel.Small",  new IMAGE_BRUSH("Icons/GeneralTools/MoveToLevel_40x", Icon20x20));
+
 
 		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
@@ -2160,7 +2176,7 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "PaletteToolBar.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground );
 
 		Set( "PaletteToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
-		Set( "PaletteToolBar.Separator.Padding", FMargin( 2.f, 0.f, 2.f, 0.f) );
+		Set( "PaletteToolBar.Separator.Padding", FMargin( 6.f, 0.f, 6.f, 0.f) );
 
 		Set( "PaletteToolBar.Label", FTextBlockStyle(NormalText).SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
 
@@ -2170,6 +2186,9 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "PaletteToolBar.CheckBox", 				GetWidgetStyle<FCheckBoxStyle>("ToolBar.CheckBox"));
 		Set( "PaletteToolbar.Check", 					GetWidgetStyle<FCheckBoxStyle>("ToolBar.Check"));
 		Set( "PaletteToolBar.RadioButton", 				GetWidgetStyle<FCheckBoxStyle>("ToolBar.RadioButton"));
+
+		Set("PaletteToolBar.MaxUniformToolbarSize", 50.f);
+		Set("PaletteToolbar.MinUniformToolbarSize", 22.f);
 
 		FLinearColor ButtonHoverColor(FColor(81, 81, 81));
 
@@ -2199,6 +2218,10 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "PaletteToolBar.Button.Checked", 			new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed) );
 		Set( "PaletteToolBar.Button.Checked_Hovered", 	new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed) );
 		Set( "PaletteToolBar.Button.Checked_Pressed", 	new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed) );
+
+		Set( "EditorModesPanel.CategoryFontStyle", DEFAULT_FONT( "Bold", 10 ) );
+		Set( "EditorModesPanel.ToolDescriptionFont", DEFAULT_FONT("Italic", 10) );
+
 	}
 	
 	// Ctrl+Tab menu
@@ -2499,8 +2522,12 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.Save.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Save_48x", Icon24x24));
 		Set("Sequencer.SaveAsterisk", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAsterisk_48x", Icon48x48));
 		Set("Sequencer.SaveAsterisk.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAsterisk_48x", Icon24x24));
-		Set("Sequencer.SaveAs", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon48x48 ));
-		Set("Sequencer.SaveAs.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon24x24 ));
+		Set("Sequencer.SaveAs", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon48x48));
+		Set("Sequencer.SaveAs.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon24x24));
+		Set("Sequencer.ImportFBX", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_ImportFBX_48x", Icon48x48));
+		Set("Sequencer.ImportFBX.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_ImportFBX_48x", Icon24x24));
+		Set("Sequencer.ExportFBX", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_ExportFBX_48x", Icon48x48));
+		Set("Sequencer.ExportFBX.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_ExportFBX_48x", Icon24x24));
 		Set("Sequencer.DiscardChanges", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Revert_24x", Icon48x48));
 		Set("Sequencer.DiscardChanges.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Revert_24x", Icon24x24));
 		Set("Sequencer.RestoreAnimatedState", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_RestoreAnimatedState_24x", Icon48x48));
@@ -2589,6 +2616,15 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.ToggleShowCurveEditor.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GenericCurveEditor_48x", Icon24x24));
 		Set("Sequencer.OpenDirectorBlueprint", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_OpenDirectorBlueprint_24x", Icon48x48));
 		Set("Sequencer.OpenDirectorBlueprint.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_OpenDirectorBlueprint_24x", Icon24x24));
+		Set("Sequencer.OpenTaggedBindingManager", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_OpenTaggedBindingManager_16x", Icon48x48));
+		Set("Sequencer.OpenTaggedBindingManager.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_OpenTaggedBindingManager_16x", Icon24x24));
+		Set("Sequencer.BreadcrumbText", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Bold", 11))
+			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f))
+			.SetHighlightColor(FLinearColor(1.0f, 1.0f, 1.0f))
+			.SetShadowOffset(FVector2D(1, 1))
+			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
+
 		Set("Sequencer.ToggleAutoScroll", new IMAGE_BRUSH("Icons/icon_Sequencer_ToggleAutoScroll_40x", Icon48x48));
 		Set("Sequencer.ToggleAutoScroll.Small", new IMAGE_BRUSH("Icons/icon_Sequencer_ToggleAutoScroll_16x", Icon16x16));
 		Set("Sequencer.MoveTool.Small", new IMAGE_BRUSH("Icons/SequencerIcons/icon_Sequencer_Move_24x", Icon16x16));
@@ -2606,8 +2642,10 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.LockSequence", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Locked_16x", Icon16x16));
 		Set("Sequencer.UnlockSequence", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Unlocked_16x", Icon16x16));
 
-		Set("Sequencer.GeneralOptions", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_General_Options_24x", Icon48x48));
-		Set("Sequencer.GeneralOptions.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_General_Options_24x", Icon24x24));
+		Set("Sequencer.Actions", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Actions_24x", Icon48x48));
+		Set("Sequencer.Actions.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Actions_24x", Icon24x24));
+		Set("Sequencer.ViewOptions", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_View_Options_24x", Icon48x48));
+		Set("Sequencer.ViewOptions.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_View_Options_24x", Icon24x24));
 		Set("Sequencer.PlaybackOptions", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Playback_Options_24x", Icon48x48));
 		Set("Sequencer.PlaybackOptions.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Playback_Options_24x", Icon24x24));
 		Set("Sequencer.SelectEditOptions", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SelectEdit_Options_24x", Icon48x48));
@@ -5452,37 +5490,51 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 
 	// Mesh Paint
 	{
-		Set( "MeshPaint.Fill", new IMAGE_BRUSH( "/Icons/icon_MeshPaint_Fill_40x", Icon20x20) );
-		Set( "MeshPaint.Fill.Small", new IMAGE_BRUSH( "/Icons/icon_MeshPaint_Fill_40x", Icon20x20) );
-		Set( "MeshPaint.Propagate", new IMAGE_BRUSH( "/Icons/icon_MatEd_Apply_40x", Icon20x20) );
-		Set( "MeshPaint.Propagate.Small", new IMAGE_BRUSH( "/Icons/icon_MatEd_Apply_40x", Icon20x20) );
-		Set( "MeshPaint.Import", new IMAGE_BRUSH( "/Icons/icon_Import_40x", Icon20x20) );
-		Set( "MeshPaint.Import.Small", new IMAGE_BRUSH( "/Icons/icon_Import_40x", Icon20x20) );
-		Set( "MeshPaint.FindInCB", new IMAGE_BRUSH( "/Icons/icon_toolbar_genericfinder_40px", Icon20x20) );
-		Set( "MeshPaint.Save", new IMAGE_BRUSH( "/Icons/icon_file_save_40x", Icon20x20) );
-		Set( "MeshPaint.Save.Small", new IMAGE_BRUSH( "/Icons/icon_file_save_40x", Icon20x20) );
-		Set( "MeshPaint.Fix", new IMAGE_BRUSH( "/Icons/icon_tab_Toolbars_40x", Icon20x20) );
-		Set( "MeshPaint.Fix.Small", new IMAGE_BRUSH( "/Icons/icon_tab_Toolbars_40x", Icon20x20) );
-		Set( "MeshPaint.Remove", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Delete_40x", Icon20x20));
-		Set( "MeshPaint.Remove.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Delete_40x", Icon20x20));
-		Set( "MeshPaint.Copy", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon20x20));
-		Set( "MeshPaint.Copy.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon20x20));
-		Set( "MeshPaint.Paste", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon20x20));
-		Set( "MeshPaint.Paste.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon20x20));
-		Set( "MeshPaint.Swap", new IMAGE_BRUSH("/Icons/icon_MeshPaint_Swap_16x", Icon12x12));
-		Set("MeshPaint.PropagateTexturePaint", new IMAGE_BRUSH("/Icons/icon_MatEd_Apply_40x", Icon20x20));
-		Set("MeshPaint.PropagateTexturePaint.Small", new IMAGE_BRUSH("/Icons/icon_MatEd_Apply_40x", Icon20x20));
-		Set("MeshPaint.SaveTexturePaint", new IMAGE_BRUSH("/Icons/icon_file_save_40x", Icon20x20));
-		Set("MeshPaint.SaveTexturePaint.Small", new IMAGE_BRUSH("/Icons/icon_file_save_40x", Icon20x20));
-		Set("MeshPaint.PropagateVertexColorsToLODs", new IMAGE_BRUSH("Icons/icon_ViewMode_LODColoration_16px", Icon20x20));
-		Set("MeshPaint.PropagateVertexColorsToLODs.Small", new IMAGE_BRUSH("Icons/icon_ViewMode_LODColoration_16px", Icon20x20));
-		Set("MeshPaint.TexturePaint", new IMAGE_BRUSH("Icons/TexturePaint_40x", Icon20x20));
-		Set("MeshPaint.TexturePaint.Small", new IMAGE_BRUSH("Icons/TexturePaint_40x", Icon20x20));
-		Set("MeshPaint.ColorPaint", new IMAGE_BRUSH("Icons/VertexColorPaint_40x", Icon20x20));
-		Set("MeshPaint.ColorPaint.Small", new IMAGE_BRUSH("Icons/VertexColorPaint_40x", Icon20x20));
-		Set("MeshPaint.WeightPaint", new IMAGE_BRUSH("Icons/WeightPaint_40x", Icon20x20));
-		Set("MeshPaint.WeightPaint.Small", new IMAGE_BRUSH("Icons/WeightPaint_40x", Icon20x20));
-		Set("MeshPaint.Select", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_MeshSectionSelection_40x"), Icon20x20));
+		Set("MeshPaint.FindInCB",       new IMAGE_BRUSH("/Icons/icon_toolbar_genericfinder_40px", Icon20x20) );
+		Set("MeshPaint.Swap",           new IMAGE_BRUSH("/Icons/icon_MeshPaint_Swap_16x", Icon12x12));
+
+		Set("MeshPaint.Fill",           new IMAGE_BRUSH("/Icons/GeneralTools/PaintBucket_40x", Icon20x20) );
+		Set("MeshPaint.Fill.Small",     new IMAGE_BRUSH("/Icons/GeneralTools/PaintBucket_40x", Icon20x20) );
+		Set("MeshPaint.Propagate",      new IMAGE_BRUSH("/Icons/Paint/Paint_Propagate_40x", Icon20x20) );
+		Set("MeshPaint.Propagate.Small",new IMAGE_BRUSH("/Icons/Paint/Paint_Propagate_40x", Icon20x20) );
+		Set("MeshPaint.Import",         new IMAGE_BRUSH("/Icons/GeneralTools/Import_40x", Icon20x20) );
+		Set("MeshPaint.Import.Small",   new IMAGE_BRUSH("/Icons/GeneralTools/Import_40x", Icon20x20) );
+		Set("MeshPaint.Save",           new IMAGE_BRUSH("/Icons/GeneralTools/Save_40x", Icon20x20) );
+		Set("MeshPaint.Save.Small",     new IMAGE_BRUSH("/Icons/GeneralTools/Save_40x", Icon20x20) );
+		Set("MeshPaint.Fix",            new IMAGE_BRUSH("/Icons/GeneralTools/Fix_40x", Icon20x20) );
+		Set("MeshPaint.Fix.Small",      new IMAGE_BRUSH("/Icons/GeneralTools/Fix_40x", Icon20x20) );
+		Set("MeshPaint.Remove",         new IMAGE_BRUSH("/Icons/GeneralTools/Delete_40x", Icon20x20));
+		Set("MeshPaint.Remove.Small",   new IMAGE_BRUSH("/Icons/GeneralTools/Delete_40x", Icon20x20));
+		Set("MeshPaint.Copy",           new IMAGE_BRUSH("/Icons/GeneralTools/Copy_40x", Icon20x20));
+		Set("MeshPaint.Copy.Small",     new IMAGE_BRUSH("/Icons/GeneralTools/Copy_40x", Icon20x20));
+		Set("MeshPaint.Paste",          new IMAGE_BRUSH("/Icons/GeneralTools/Paste_40x", Icon20x20));
+		Set("MeshPaint.Paste.Small",    new IMAGE_BRUSH("/Icons/GeneralTools/Paste_40x", Icon20x20));
+		Set("MeshPaint.PropagateTexturePaint",             new IMAGE_BRUSH("/Icons/Paint/Paint_PropagateTexture_40x", Icon20x20));
+		Set("MeshPaint.PropagateTexturePaint.Small",       new IMAGE_BRUSH("/Icons/Paint/Paint_PropagateTexture_40x", Icon20x20));
+		Set("MeshPaint.SaveTexturePaint",                  new IMAGE_BRUSH("/Icons/GeneralTools/Save_40x", Icon20x20));
+		Set("MeshPaint.SaveTexturePaint.Small",            new IMAGE_BRUSH("/Icons/GeneralTools/Save_40x", Icon20x20));
+		Set("MeshPaint.PropagateVertexColorsToLODs",       new IMAGE_BRUSH("Icons/Paint/Paint_AllLODs_40x", Icon20x20));
+		Set("MeshPaint.PropagateVertexColorsToLODs.Small", new IMAGE_BRUSH("Icons/Paint/Paint_AllLODs_40x", Icon20x20));
+		Set("MeshPaint.TexturePaint",       new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.TexturePaint.Small", new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.ColorPaint",         new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.ColorPaint.Small",   new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.WeightPaint",        new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.WeightPaint.Small",  new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon20x20));
+		Set("MeshPaint.VertexSelect",             new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Select_40x"), Icon20x20));
+		Set("MeshPaint.VertexSelect.Small",       new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Select_40x"), Icon20x20));
+		Set("MeshPaint.TextureSelect",            new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Select_40x"), Icon20x20));
+		Set("MeshPaint.TextureSelect.Small",      new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Select_40x"), Icon20x20));
+		Set("MeshPaint.PreviousTexture",          new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Previous_40x"), Icon20x20));
+		Set("MeshPaint.PreviousTexture.Small",    new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Previous_40x"), Icon20x20));
+		Set("MeshPaint.NextTexture",              new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Next_40x"), Icon20x20));
+		Set("MeshPaint.NextTexture.Small",        new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Next_40x"), Icon20x20));
+		Set("MeshPaint.CycleToPreviousLOD",       new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Previous_40x"), Icon20x20));
+		Set("MeshPaint.CycleToPreviousLOD.Small", new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Previous_40x"), Icon20x20));
+		Set("MeshPaint.CycleToNextLOD",           new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Next_40x"), Icon20x20));
+		Set("MeshPaint.CycleToNextLOD.Small",     new IMAGE_BRUSH(TEXT("Icons/GeneralTools/Next_40x"), Icon20x20));
+		Set("MeshPaint.SwitchForeAndBackgroundColor",       new IMAGE_BRUSH("Icons/Paint/Paint_SwapColors_40x", Icon20x20));
+		Set("MeshPaint.SwitchForeAndBackgroundColor.Small", new IMAGE_BRUSH("Icons/Paint/Paint_SwapColors_40x", Icon20x20));
 	}
 
 	// News Feed

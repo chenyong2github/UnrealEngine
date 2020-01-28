@@ -66,6 +66,24 @@ UUVLayoutToolProperties::UUVLayoutToolProperties()
 
 }
 
+
+void UUVLayoutToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UUVLayoutToolProperties* PropertyCache = GetPropertyCache<UUVLayoutToolProperties>();
+	PropertyCache->bSeparateUVIslands = this->bSeparateUVIslands;
+	PropertyCache->TextureResolution = this->TextureResolution;
+	PropertyCache->UVScaleFactor = this->UVScaleFactor;
+}
+
+void UUVLayoutToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UUVLayoutToolProperties* PropertyCache = GetPropertyCache<UUVLayoutToolProperties>();
+	this->bSeparateUVIslands = PropertyCache->bSeparateUVIslands;
+	this->TextureResolution = PropertyCache->TextureResolution;
+	this->UVScaleFactor = PropertyCache->UVScaleFactor;
+}
+
+
 UUVLayoutAdvancedProperties::UUVLayoutAdvancedProperties()
 {
 }
@@ -91,6 +109,7 @@ void UUVLayoutTool::Setup()
 	}
 
 	BasicProperties = NewObject<UUVLayoutToolProperties>(this, TEXT("UV Projection Settings"));
+	BasicProperties->RestoreProperties(this);
 	AdvancedProperties = NewObject<UUVLayoutAdvancedProperties>(this, TEXT("Advanced Settings"));
 
 	// initialize our properties
@@ -98,7 +117,7 @@ void UUVLayoutTool::Setup()
 	AddToolPropertySource(AdvancedProperties);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
-	MaterialSettings->Setup();
+	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -145,6 +164,8 @@ void UUVLayoutTool::UpdateNumPreviews()
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
+			Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIdx]->GetWorldTransform());
 
 			Preview->SetVisibility(true);
 		}
@@ -154,6 +175,9 @@ void UUVLayoutTool::UpdateNumPreviews()
 
 void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BasicProperties->SaveProperties(this);
+	MaterialSettings->SaveProperties(this);
+
 	// Restore (unhide) the source meshes
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
@@ -182,7 +206,9 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 
 	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
-	
+	Op->bSeparateUVIslands = Tool->BasicProperties->bSeparateUVIslands;
+	Op->TextureResolution = Tool->BasicProperties->TextureResolution;
+	Op->UVScaleFactor = Tool->BasicProperties->UVScaleFactor;
 	Op->SetTransform(LocalToWorld);
 
 	return Op;

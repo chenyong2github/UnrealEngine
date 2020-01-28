@@ -363,8 +363,7 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				|| (MaterialExpression->IsA(UMaterialExpressionTextureSample::StaticClass()) && !MaterialExpression->HasAParameterName())
 				|| (MaterialExpression->IsA(UMaterialExpressionRuntimeVirtualTextureSample::StaticClass()) && !MaterialExpression->HasAParameterName())
 				|| MaterialExpression->IsA(UMaterialExpressionTextureObject::StaticClass())
-				|| MaterialExpression->IsA(UMaterialExpressionComponentMask::StaticClass())
-				|| MaterialExpression->IsA(UMaterialExpressionMaterialFunctionCall::StaticClass()))
+				|| MaterialExpression->IsA(UMaterialExpressionComponentMask::StaticClass()))
 			{
 				{
 					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");

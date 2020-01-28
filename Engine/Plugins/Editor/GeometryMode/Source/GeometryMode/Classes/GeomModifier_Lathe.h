@@ -32,7 +32,7 @@ class UGeomModifier_Lathe : public UGeomModifier_Edit
 
 
 	//~ Begin UGeomModifier Interface
-	virtual bool Supports() override;
+	virtual bool SupportsCurrentSelection() override;
 	virtual void Initialize() override;
 protected:
 	virtual bool OnApply() override;

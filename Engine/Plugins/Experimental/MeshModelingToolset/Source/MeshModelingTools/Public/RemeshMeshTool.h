@@ -6,15 +6,14 @@
 #include "UObject/NoExportTypes.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
+#include "Changes/ValueWatcher.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/RemeshMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
-
+#include "Properties/RemeshProperties.h"
 #include "RemeshMeshTool.generated.h"
-
-
 
 /**
  *
@@ -35,7 +34,7 @@ public:
  * Standard properties of the Remesh operation
  */
 UCLASS()
-class MESHMODELINGTOOLS_API URemeshMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API URemeshMeshToolProperties : public URemeshProperties
 {
 	GENERATED_BODY()
 
@@ -43,61 +42,41 @@ public:
 	URemeshMeshToolProperties();
 
 	/** Target triangle count */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bUseTargetEdgeLength == false"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (EditCondition = "bUseTargetEdgeLength == false"))
 	int TargetTriangleCount;
 
 
-	/** Smoothing speed */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothingSpeed;
-
 	/** Smoothing type */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Remeshing)
 	ERemeshSmoothingType SmoothingType;
 
 	/** Number of Remeshing passes */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "50", ClampMin = "0", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "50", ClampMin = "0", ClampMax = "1000"))
 	int RemeshIterations;
 
-
 	/** If true, UVs and Normals are discarded  */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Remeshing)
 	bool bDiscardAttributes;
 
-	/** If true, sharp edges are preserved  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bPreserveSharpEdges;
+	/** If true, display wireframe */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowWireframe = true;
 
+	/** Display colors corresponding to the mesh's polygon groups */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowGroupColors = false;
 
 	/** If true, the target count is ignored and the target edge length is used directly */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bUseTargetEdgeLength;
 
 	/** Target edge length */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (NoSpinbox = "true", EditCondition = "bUseTargetEdgeLength == true"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (NoSpinbox = "true", EditCondition = "bUseTargetEdgeLength == true"))
 	float TargetEdgeLength;
 
-
-	/** Enable edge flips */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bFlips;
-
-	/** Enable edge splits */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bSplits;
-
-	/** Enable edge collapses */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bCollapses;
-
 	/** Enable projection back to input mesh */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bReproject;
-
-	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bPreventNormalFlips;
-
 };
 
 
@@ -130,7 +109,6 @@ public:
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
-protected:
 	UPROPERTY()
 	URemeshMeshToolProperties* BasicProperties;
 
@@ -140,14 +118,18 @@ protected:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
-protected:
+private:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
 	double InitialMeshArea;
-	double CalculateTargetEdgeLength(int TargetTriCount);
 
+	TValueWatcher<bool> ShowWireFrameWatcher;
+	TValueWatcher<bool> ShowGroupsWatcher;
+
+	double CalculateTargetEdgeLength(int TargetTriCount);
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
+	void UpdateVisualization();
 };

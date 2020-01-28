@@ -116,6 +116,73 @@ void FCameraCutTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	);
 }
 
+void FCameraCutTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track)
+{
+	UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(Track);
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CanBlendShots", "Can Blend"),
+		LOCTEXT("CanBlendShotsTooltip", "Enable shot blending on this track, making it possible to overlap sections."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FCameraCutTrackEditor::HandleToggleCanBlendExecute, CameraCutTrack),
+			FCanExecuteAction::CreateLambda([=]() { return CameraCutTrack != nullptr; }),
+			FIsActionChecked::CreateLambda([=]() { return CameraCutTrack->bCanBlend; })
+			),
+		"Edit",
+		EUserInterfaceActionType::ToggleButton
+	);
+}
+
+void FCameraCutTrackEditor::HandleToggleCanBlendExecute(UMovieSceneCameraCutTrack* CameraCutTrack)
+{
+	CameraCutTrack->bCanBlend = !CameraCutTrack->bCanBlend;
+
+	if (!CameraCutTrack->bCanBlend)
+	{
+		// Reset all easing and remove overlaps.
+		const UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
+		const FFrameRate TickResolution = FocusedMovieScene->GetTickResolution();
+		const FFrameRate DisplayRate = FocusedMovieScene->GetDisplayRate();
+
+		const TArray<UMovieSceneSection*> Sections = CameraCutTrack->GetAllSections();
+		for (int32 Idx = 1; Idx < Sections.Num(); ++Idx)
+		{
+			UMovieSceneSection* CurSection = Sections[Idx];
+			UMovieSceneSection* PrevSection = Sections[Idx - 1];
+
+			CurSection->Modify();
+
+			TRange<FFrameNumber> CurSectionRange = CurSection->GetRange();
+			TRange<FFrameNumber> PrevSectionRange = PrevSection->GetRange();
+			const FFrameNumber OverlapOrGap = (PrevSectionRange.GetUpperBoundValue() - CurSectionRange.GetLowerBoundValue());
+			if (OverlapOrGap > 0)
+			{
+				const FFrameTime TimeAtHalfBlend = CurSectionRange.GetLowerBoundValue() + FMath::FloorToInt(OverlapOrGap.Value / 2.f);
+				const FFrameNumber FrameAtHalfBlend = FFrameRate::Snap(TimeAtHalfBlend, TickResolution, DisplayRate).CeilToFrame();
+
+				PrevSectionRange.SetUpperBoundValue(FrameAtHalfBlend);
+				PrevSection->SetRange(PrevSectionRange);
+
+				CurSectionRange.SetLowerBoundValue(FrameAtHalfBlend);
+				CurSection->SetRange(CurSectionRange);
+			}
+
+			CurSection->Easing.AutoEaseInDuration = 0;
+			PrevSection->Easing.AutoEaseOutDuration = 0;
+		}
+		if (Sections.Num() > 0)
+		{
+			Sections[0]->Modify();
+
+			Sections[0]->Easing.AutoEaseInDuration = 0;
+			Sections[0]->Easing.ManualEaseInDuration = 0;
+			Sections.Last()->Easing.AutoEaseOutDuration = 0;
+			Sections.Last()->Easing.ManualEaseOutDuration = 0;
+		}
+	}
+}
+
 TSharedPtr<SWidget> FCameraCutTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
 {
 	// Create a container edit box
@@ -500,7 +567,7 @@ void FCameraCutTrackEditor::OnLockCameraClicked(ECheckBoxState CheckBoxState)
 	}
 	else
 	{
-		GetSequencer()->UpdateCameraCut(nullptr, nullptr);
+		GetSequencer()->UpdateCameraCut(nullptr, EMovieSceneCameraCutParams());
 		GetSequencer()->SetPerspectiveViewportCameraCutEnabled(false);
 	}
 

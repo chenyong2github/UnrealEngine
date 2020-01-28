@@ -9,6 +9,7 @@
 #include "Misc/ExpressionParserTypes.h"
 #include "Math/BasicMathExpressionEvaluator.h"
 #include "Internationalization/FastDecimalFormat.h"
+#include "Misc/Attribute.h"
 
 enum class EUnit : uint8;
 
@@ -17,6 +18,14 @@ template<typename NumericType>
 struct INumericTypeInterface
 {
 	virtual ~INumericTypeInterface() {}
+
+	/** Gets the minimum and maximum fractional digits. */
+	virtual int32 GetMinFractionalDigits() const = 0;
+	virtual int32 GetMaxFractionalDigits() const = 0;
+
+	/** Sets the minimum and maximum fractional digits - A minimum greater than 0 will always have that many trailing zeros */
+	virtual void SetMinFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) = 0;
+	virtual void SetMaxFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) = 0;
 
 	/** Convert the type to/from a string */
 	virtual FString ToString(const NumericType& Value) const = 0;
@@ -30,13 +39,49 @@ struct INumericTypeInterface
 template<typename NumericType>
 struct TDefaultNumericTypeInterface : INumericTypeInterface<NumericType>
 {
+
+	/** The default minimum fractional digits */
+	static const int32 DefaultMinFractionalDigits = 1;
+
+	/** The default maximum fractional digits */
+	static const int32 DefaultMaxFractionalDigits = 6;
+
+	/** The current minimum fractional digits */
+	int32 MinFractionalDigits = DefaultMinFractionalDigits;
+
+	/** The current maximum fractional digits */
+	int32 MaxFractionalDigits = DefaultMaxFractionalDigits;
+
+	/** Gets the minimum and maximum fractional digits. */
+	virtual int32 GetMinFractionalDigits() const override
+	{
+		return MinFractionalDigits;
+	}
+	virtual int32 GetMaxFractionalDigits() const override
+	{
+		return MaxFractionalDigits;
+	}
+
+	/** Sets the minimum and maximum fractional digits - A minimum greater than 0 will always have that many trailing zeros */
+	virtual void SetMinFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) override
+	{
+		MinFractionalDigits = (NewValue.Get().IsSet()) ? FMath::Max(0, NewValue.Get().GetValue()) :
+			DefaultMinFractionalDigits;
+	}
+
+	virtual void SetMaxFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) override
+	{
+		MaxFractionalDigits = (NewValue.Get().IsSet()) ? FMath::Max(0, NewValue.Get().GetValue()) :
+			DefaultMaxFractionalDigits;
+	}
+
 	/** Convert the type to/from a string */
 	virtual FString ToString(const NumericType& Value) const override
 	{
-		static const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
+		const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
 			.SetUseGrouping(false)
-			.SetMinimumFractionalDigits(TIsIntegral<NumericType>::Value ? 0 : 1)
-			.SetMaximumFractionalDigits(TIsIntegral<NumericType>::Value ? 0 : 6);
+			.SetMinimumFractionalDigits(TIsIntegral<NumericType>::Value ? 0 : MinFractionalDigits)
+			.SetMaximumFractionalDigits(TIsIntegral<NumericType>::Value ? 0 : FMath::Max(MaxFractionalDigits, MinFractionalDigits));
 		return FastDecimalFormat::NumberToString(Value, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
 	}
 	virtual TOptional<NumericType> FromString(const FString& InString, const NumericType& InExistingValue) override

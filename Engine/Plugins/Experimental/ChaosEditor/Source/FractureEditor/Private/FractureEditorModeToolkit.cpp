@@ -125,7 +125,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	.MinValue(0)
 	.MaxValue(100)
 	.Delta(1)
-	.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+	.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
 	.MinDesiredWidth(36.f)
 	.Justification(ETextJustify::Center)
 	.ToolTipText(LOCTEXT("FractureEditor.Exploded_Tooltip", "How much to seperate the drawing of the bones to aid in setup.  Does not effect simulation"))
@@ -156,7 +156,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 				return FText::Format(NSLOCTEXT("FractureEditor", "CurrentLevel", "{0}"), FText::AsNumber(FractureLevel));
 
 			})
-			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
 			.ToolTipText(LOCTEXT("FractureEditor.Level_Tooltip", "Set the currently view level of the geometry collection"))
 		]
 
@@ -206,16 +206,6 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	.Padding(8)
 	[
 		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.Padding(0.0f, Padding)
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(FText(LOCTEXT("FractureEditorPanelLabel", "Fracture Editor")))
-			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
-		]
 
 		+SVerticalBox::Slot()
 		[
@@ -317,9 +307,6 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 
 	if (PaletteIndex == PaletteNames[0])
 	{
-
-		ToolbarBuilder.AddWidget(SNew(SBox).WidthOverride(4));
-
 		ToolbarBuilder.AddToolBarButton(Commands.GenerateAsset);
 
 		ToolbarBuilder.AddSeparator();
@@ -797,6 +784,24 @@ UFractureTool* FFractureEditorModeToolkit::GetActiveTool() const
 bool FFractureEditorModeToolkit::IsActiveTool(UFractureTool* InActiveTool)
 {
 	return bool(ActiveTool == InActiveTool);
+}
+
+FText FFractureEditorModeToolkit::GetActiveToolDisplayName() const
+{
+	if (ActiveTool != nullptr)
+	{
+		return ActiveTool->GetDisplayText();	
+	}
+	return LOCTEXT("FractureNoTool", "Fracture Editor");
+}
+
+FText FFractureEditorModeToolkit::GetActiveToolMessage() const
+{
+	if (ActiveTool != nullptr)
+	{
+		return ActiveTool->GetTooltipText();	
+	}
+	return LOCTEXT("FractureNoToolMessage", "Select geometry and use “New+” to create a new Geometry Collection to begin fracturing.  Choose one of the fracture tools to break apart the selected Geometry Collection.");
 }
 
 void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents)

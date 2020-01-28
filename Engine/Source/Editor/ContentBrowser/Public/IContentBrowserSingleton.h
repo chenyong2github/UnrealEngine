@@ -563,6 +563,9 @@ public:
 	/** Returns the folders that are selected in the path view */
 	virtual void GetSelectedPathViewFolders(TArray<FString>& SelectedFolders) = 0;
 
+	/** Gets the current path if one exists, otherwise returns empty string. */
+	virtual FString GetCurrentPath() = 0;
+
 	/**
 	 * Capture active viewport to thumbnail and assigns that thumbnail to incoming assets
 	 *

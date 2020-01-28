@@ -18,83 +18,18 @@ class SButton;
 class SCheckBox;
 class SUniformGridPanel;
 class UGeomModifier;
+class FGeometryModeToolkit;
 
-/** Geometry Mode widget for controls */
-class SGeometryModeControls : public SCompoundWidget, public FNotifyHook
-{
-public:
-	SLATE_BEGIN_ARGS(SGeometryModeControls) {}
-	SLATE_END_ARGS()
 
-public:
-
-	void SelectionChanged();
-
-	/** SCompoundWidget functions */
-	void Construct(const FArguments& InArgs);
-
-protected:
-	/** Called when a new modifier mode is selected */
-	void OnModifierStateChanged(ECheckBoxState NewCheckedState, UGeomModifier* Modifier);
-
-	/** Returns the state of a modifier radio button */
-	ECheckBoxState IsModifierChecked(UGeomModifier* Modifier) const;
-
-	/** Returns the enabled state of a modifier button */
-	bool IsModifierEnabled(UGeomModifier* Modifier) const;
-
-	/** Returns the visibility state of the properties control */
-	EVisibility IsPropertiesVisible() const;
-
-	/** Called when the Apply button is clicked */
-	FReply OnApplyClicked();
-
-	/** Called when a modifier button is clicked */
-	FReply OnModifierClicked(UGeomModifier* Modifier);
-
-private:
-	/** Creates the geometry mode controls */
-	void CreateLayout();
-
-	/** Creates controls for the modifiers section */
-	TSharedRef<SVerticalBox> CreateTopModifierButtons();
-	
-	/** Creates controls for the actions section */
-	TSharedRef<SUniformGridPanel> CreateBottomModifierButtons();
-
-	/** Creates controls for the modifier properties section */
-	TSharedRef<class IDetailsView> CreateModifierProperties();
-
-	/** Creates a modifier radio button */
-	TSharedRef<SCheckBox> CreateSingleModifierRadioButton(UGeomModifier* Modifier);
-
-	/** Creates an action button */
-	TSharedRef<SButton> CreateSingleModifierButton(UGeomModifier* Modifier);
-
-	/** Returns a reference to the geometry mode tool */
-	class FModeTool_GeometryModify* GetGeometryModeTool() const;
-
-	void MakeBuilderBrush( UClass* BrushBuilderClass );
-
-	void OnAddVolume( UClass* VolumeClass );
-
-private:
-	/** Pointer to the parent window, so we know to destroy it when done */
-	TWeakPtr<SWindow> ParentWindow;
-
-	/** A list of the checkbox modifier controls */
-	TArray< TSharedPtr<SCheckBox> > ModifierControls;
-
-	/** The properties control */
-	TSharedPtr<class IDetailsView> PropertiesControl;
-};
 
 
 /**
  * Mode Toolkit for the Geometry Tools
  */
-class FGeometryMode : public FModeToolkit
+class FGeometryModeToolkit : public FModeToolkit
 {
+	friend class SGeometryModeControls;
+
 public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
@@ -108,10 +43,40 @@ public:
 	virtual class FEdMode* GetEditorMode() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override;
 
+	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
+	virtual FText GetToolPaletteDisplayName(FName Palette) const override;
+	virtual void BuildToolPalette(FName Palette, class FToolBarBuilder& ToolbarBuilder) override;
+
+	/** Modes Panel Header Information **/
+	virtual FText GetActiveToolDisplayName() const;
+	virtual FText GetActiveToolMessage() const;
+
 	/** Method called when the selection */
-	virtual void SelectionChanged();
+	void OnGeometrySelectionChanged();
+	void OnActorSelectionChanged(UObject* SelectionContainer);
+
+	/** Returns a reference to the geometry mode tool */
+	class FModeTool_GeometryModify* GetGeometryModeTool() const;
+
+private:
+	/** Called when a new modifier mode is selected */
+	void OnModifierStateChanged(ECheckBoxState NewCheckedState, UGeomModifier* Modifier);
+
+	void OnModifierToolBarButtonClicked(UGeomModifier* Modifier);
+
+	/** Returns the state of a modifier radio button */
+	ECheckBoxState IsModifierChecked(UGeomModifier* Modifier) const;
+
+	/** Returns the enabled state of a modifier button */
+	bool IsModifierEnabled(UGeomModifier* Modifier) const;
+
+	FReply OnApplyClicked();
+
+	void OnModifierClicked(UGeomModifier* Modifier);
 
 private:
 	/** Geometry tools widget */
 	TSharedPtr<class SGeometryModeControls> GeomWidget;
+
+	bool bHasBrushActorSelected;
 };

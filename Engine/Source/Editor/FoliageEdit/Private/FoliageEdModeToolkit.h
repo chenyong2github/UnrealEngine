@@ -31,6 +31,11 @@ public:
 	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const;
 	virtual FText GetToolPaletteDisplayName(FName PaletteName) const; 
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
+
+	/** Modes Panel Header Information **/
+	virtual FText GetActiveToolDisplayName() const;
+	virtual FText GetActiveToolMessage() const;
+
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
 	void RefreshFullList();

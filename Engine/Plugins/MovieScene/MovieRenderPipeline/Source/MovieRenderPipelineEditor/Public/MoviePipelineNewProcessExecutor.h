@@ -12,25 +12,20 @@
 * UMoviePipelineInProcessExecutor on the launched instances.
 */
 UCLASS(Blueprintable)
-class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineNewProcessExecutor : public UMoviePipelineLinearExecutorBase
+class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineNewProcessExecutor : public UMoviePipelineExecutorBase
 {
 	GENERATED_BODY()
-	
-public:
-	UMoviePipelineNewProcessExecutor()
-		: UMoviePipelineLinearExecutorBase()
-	{
-	}
 
-	/** If enabled the editor will close itself when a new process is started. This can be used to gain some performance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
-	bool bCloseEditor;
+	// UMoviePipelineExecutorBase Interface
+	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) override;
+	virtual bool IsRenderingImpl() const override { return ProcessHandle.IsValid(); }
+	// ~UMoviePipelineExecutorBase Interface
 
-	/** A list of additional command line arguments to be appended to the new process startup. Can be useful if your game requires certain arguments to start such as disabling log-in screens. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
-	FString AdditionalCommandLineArguments;
+protected:
+	void CheckForProcessFinished();
 
-	/** A list of command line arguments which are inherited from the currently running Editor instance that will be automatically appended to the new process. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
-	FString InheritedCommandLineArguments;
+protected:
+	/** A handle to the currently running process (if any) for the active job. */
+	FProcHandle ProcessHandle;
+
 };

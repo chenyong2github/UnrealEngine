@@ -94,7 +94,7 @@ namespace ImportCompareHelper
 
 }
 
-UCLASS(config=EditorPerProjectUserSettings, AutoExpandCategories=(FTransform), HideCategories=Object, MinimalAPI)
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, AutoExpandCategories=(FTransform), HideCategories=Object, MinimalAPI)
 class UFbxImportUI : public UObject, public IImportSettingsParser
 {
 	GENERATED_UCLASS_BODY()

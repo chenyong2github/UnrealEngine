@@ -127,13 +127,10 @@ void FComponentReferenceCustomization::BuildClassFilters()
 		if (!MetaDataString.IsEmpty())
 		{
 			TArray<FString> ClassFilterNames;
-			MetaDataString.ParseIntoArray(ClassFilterNames, TEXT(","), true);
+			MetaDataString.ParseIntoArrayWS(ClassFilterNames, TEXT(","), true);
 
-			for (FString& ClassName : ClassFilterNames)
+			for (const FString& ClassName : ClassFilterNames)
 			{
-				// User can potentially list class names with leading or trailing whitespace
-				ClassName.TrimStartAndEndInline();
-
 				UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 				if (!Class)
 				{

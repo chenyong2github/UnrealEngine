@@ -22,9 +22,12 @@ USpinBox::USpinBox(const FObjectInitializer& ObjectInitializer)
 
 	Value = 0;
 	MinValue = 0;
-	MaxValue = 10;
+	MaxValue = 0;
 	MinSliderValue = 0;
-	MaxSliderValue = 0;
+	MaxSliderValue = 0;	
+	MinFractionalDigits = 1;
+	MaxFractionalDigits = 6;
+	bAlwaysUsesDeltaSnap = false;
 	Delta = 0;
 	SliderExponent = 1;
 	MinDesiredWidth = 0;
@@ -78,6 +81,10 @@ void USpinBox::SynchronizeProperties()
 
 	MySpinBox->SetForegroundColor(ForegroundColor);
 
+	MySpinBox->SetMinFractionalDigits(MinFractionalDigits);
+	MySpinBox->SetMaxFractionalDigits(MaxFractionalDigits);
+	MySpinBox->SetAlwaysUsesDeltaSnap(bAlwaysUsesDeltaSnap);
+
 	// Set optional values
 	bOverride_MinValue ? SetMinValue(MinValue) : ClearMinValue();
 	bOverride_MaxValue ? SetMaxValue(MaxValue) : ClearMaxValue();
@@ -105,6 +112,83 @@ void USpinBox::SetValue(float InValue)
 	if (MySpinBox.IsValid())
 	{
 		MySpinBox->SetValue(InValue);
+	}
+}
+
+int32 USpinBox::GetMinFractionalDigits() const
+{
+	if (MySpinBox.IsValid())
+	{
+		return MySpinBox->GetMinFractionalDigits();
+	}
+
+	return MinFractionalDigits;
+}
+
+void USpinBox::SetMinFractionalDigits(int32 NewValue)
+{
+	MinFractionalDigits = FMath::Max(0, NewValue);
+	if (MySpinBox.IsValid())
+	{
+		MySpinBox->SetMinFractionalDigits(MinFractionalDigits);
+	}
+}
+
+int32 USpinBox::GetMaxFractionalDigits() const
+{
+	if (MySpinBox.IsValid())
+	{
+		return MySpinBox->GetMaxFractionalDigits();
+	}
+
+	return MaxFractionalDigits;
+}
+
+void USpinBox::SetMaxFractionalDigits(int32 NewValue)
+{
+	MaxFractionalDigits = FMath::Max(0, NewValue);
+	if (MySpinBox.IsValid())
+	{
+		MySpinBox->SetMaxFractionalDigits(MaxFractionalDigits);
+	}
+}
+
+bool USpinBox::GetAlwaysUsesDeltaSnap() const
+{
+	if (MySpinBox.IsValid())
+	{
+		return MySpinBox->GetAlwaysUsesDeltaSnap();
+	}
+
+	return bAlwaysUsesDeltaSnap;
+}
+
+void USpinBox::SetAlwaysUsesDeltaSnap(bool bNewValue)
+{
+	bAlwaysUsesDeltaSnap = bNewValue;
+
+	if (MySpinBox.IsValid())
+	{
+		MySpinBox->SetAlwaysUsesDeltaSnap(bNewValue);
+	}
+}
+
+float USpinBox::GetDelta() const
+{
+	if (MySpinBox.IsValid())
+	{
+		return MySpinBox->GetDelta();
+	}
+
+	return Delta;
+}
+
+void USpinBox::SetDelta(float NewValue)
+{
+	Delta = NewValue;
+	if (MySpinBox.IsValid())
+	{
+		MySpinBox->SetDelta(NewValue);
 	}
 }
 

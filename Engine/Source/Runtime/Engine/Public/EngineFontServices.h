@@ -35,6 +35,9 @@ public:
 	/** Update the cache for the current thread */
 	void UpdateCache();
 
+	/** Delegate called after releasing the rendering resources used by this font service */
+	FOnReleaseFontResources& OnReleaseResources();
+
 private:
 	/** Constructor - must be called from the game thread */
 	FEngineFontServices();

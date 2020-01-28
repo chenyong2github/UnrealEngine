@@ -8,7 +8,7 @@
 #include "Containers/BitArray.h"
 
 
-
+class FGroupTopology;
 
 
 /**
@@ -84,6 +84,10 @@ struct DYNAMICMESH_API FGroupTopologySelection
 		}
 	}
 
+
+	inline bool IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const;
+
+
 private:
 	void ToggleItem(TArray<int32>& List, int32 Item)
 	{
@@ -128,7 +132,7 @@ public:
 	/**
 	 * Build the group topology graph.
 	 */
-	void RebuildTopology();
+	virtual void RebuildTopology();
 
 	/** 
 	 * Adjacency of Per-Triangle integers are what define the triangle groups.
@@ -197,6 +201,9 @@ public:
 		/** Edge span for this edge */
 		FEdgeSpan Span;
 
+		/** Index of corners at either end of span, if they exist, otherwise both InvalidID */
+		FIndex2i EndpointCorners;
+
 		/** @return the member of .Groups that is not GroupID */
 		int OtherGroupID(int GroupID) const 
 		{ 
@@ -216,10 +223,15 @@ public:
 	/** @return the mesh vertex ID for the given Corner ID */
 	int GetCornerVertexID(int CornerID) const;
 
+	/** @return the Group ID for a given Vertex ID, or InvalidID if vertex is not a group corner */
+	int32 GetCornerIDFromVertexID(int32 VertexID) const;
+
 	/** @return the FGroup for the given GroupID, or nullptr if not found */
 	const FGroup* FindGroupByID(int GroupID) const;
 	/** @return the list of triangles in the given GroupID, or empty list if not found */
-	const TArray<int>& GetGroupFaces(int GroupID) const;
+	const TArray<int>& GetGroupFaces(int GroupID) const { return GetGroupTriangles(GroupID); }
+	/** @return the list of triangles in the given GroupID, or empty list if not found */
+	const TArray<int>& GetGroupTriangles(int GroupID) const;
 	/** @return the list of neighbour GroupIDs for the given GroupID, or empty list if not found */
 	const TArray<int>& GetGroupNbrGroups(int GroupID) const;
 
@@ -227,11 +239,27 @@ public:
 	int FindGroupEdgeID(int MeshEdgeID) const;
 	/** @return the list of vertices of a FGroupEdge identified by the GroupEdgeID */
 	const TArray<int>& GetGroupEdgeVertices(int GroupEdgeID) const;
+	/** @return the list of edges of a FGroupEdge identified by the GroupEdgeID */
+	const TArray<int>& GetGroupEdgeEdges(int GroupEdgeID) const;
 
 	/** Add the groups connected to the given GroupEdgeID to the GroupsOut list. This is not the either-side pair, but the set of groups on the one-ring of each connected corner. */
 	void FindEdgeNbrGroups(int GroupEdgeID, TArray<int>& GroupsOut) const;
 	/** Add the groups connected to all the GroupEdgeIDs to the GroupsOut list. This is not the either-side pair, but the set of groups on the one-ring of each connected corner. */
 	void FindEdgeNbrGroups(const TArray<int>& GroupEdgeIDs, TArray<int>& GroupsOut) const;
+
+	/** @return true if the FGroupEdge identified by the GroupEdgeID is on the mesh boundary */
+	bool IsBoundaryEdge(int32 GroupEdgeID) const;
+	/** @return true if group edge is a "simple" edge, meaning it only has one mesh edge */
+	bool IsSimpleGroupEdge(int32 GroupEdgeID) const;
+
+	/** @return true if the FGroupEdge identified by the GroupEdgeID is an isolated loop (ie not connected to any other edges) */
+	bool IsIsolatedLoop(int32 GroupEdgeID) const;
+
+	/** @return arc length of edge, and optionally accumulated arclength distances for each edge vertex */
+	double GetEdgeArcLength(int32 GroupEdgeID, TArray<double>* PerVertexLengthsOut = nullptr) const;
+
+	/** @return arclength midpoint of edge, and optionally arclength info */
+	FVector3d GetEdgeMidpoint(int32 GroupEdgeID, double* ArcLengthOut = nullptr, TArray<double>* PerVertexLengthsOut = nullptr) const;
 
 	/** Add all the groups connected to the given Corner to the GroupsOut list */
 	void FindCornerNbrGroups(int CornerID, TArray<int>& GroupsOut) const;
@@ -263,45 +291,89 @@ public:
 	bool GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut) const;
 
 	/**
+	 * @return a 3D frame for the given group. Based on centroid of triangle centroids, so does not necessarily lie on group surface.
+	 */
+	FFrame3d GetGroupFrame(int32 GroupID) const;
+
+	/**
 	 * @return a 3D frame for the given selection
 	 */
-	FFrame3d GetSelectionFrame(const FGroupTopologySelection& Selection);
+	FFrame3d GetSelectionFrame(const FGroupTopologySelection& Selection, FFrame3d* InitialLocalFrame = nullptr) const;
+
+	/**
+	 * Get the set of selected triangles for a given GroupTopologySelection
+	 */
+	void GetSelectedTriangles(const FGroupTopologySelection& Selection, TArray<int32>& Triangles) const;
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
 
 	TArray<int> GroupIDToGroupIndexMap;		// allow fast lookup of index in .Groups, given GroupID
-	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges
+	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges  (redundant w/ VertexIDToCornerIDMap?)
 	TArray<int> EmptyArray;
+	TMap<int32, int32> VertexIDToCornerIDMap;
 
 	/** @return true if given mesh vertex is a Corner vertex */
 	virtual bool IsCornerVertex(int VertexID) const;
 
 	void ExtractGroupEdges(FGroup& Group);
 
-	FIndex2i MakeEdgeID(int MeshEdgeID)
-	{
-		FIndex2i EdgeTris = Mesh->GetEdgeT(MeshEdgeID);
-
-		if (EdgeTris.A == FDynamicMesh3::InvalidID)
-		{
-			return FIndex2i(GetGroupID(EdgeTris.B), FDynamicMesh3::InvalidGroupID);
-		}
-		else if (EdgeTris.B == FDynamicMesh3::InvalidID)
-		{
-			return FIndex2i(GetGroupID(EdgeTris.A), FDynamicMesh3::InvalidGroupID);
-		}
-		else
-		{
-			return MakeEdgeID(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
-		}
-	}
-	FIndex2i MakeEdgeID(int Group1, int Group2)
-	{
-		check(Group1 != Group2);
-		check(Group1 >= 0 && Group2 >= 0);
-		return (Group1 < Group2) ? FIndex2i(Group1, Group2) : FIndex2i(Group2, Group1);
-	}
+	inline FIndex2i MakeEdgeID(int MeshEdgeID) const;
+	inline FIndex2i MakeEdgeID(int Group1, int Group2) const;
 
 	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID);
+	void GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut) const;
+};
+
+
+
+
+
+FIndex2i FGroupTopology::MakeEdgeID(int MeshEdgeID) const
+{
+	FIndex2i EdgeTris = Mesh->GetEdgeT(MeshEdgeID);
+
+	if (EdgeTris.B == FDynamicMesh3::InvalidID)
+	{
+		return FIndex2i(GetGroupID(EdgeTris.A), FDynamicMesh3::InvalidGroupID);
+	}
+	else
+	{
+		return MakeEdgeID(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
+	}
+}
+
+FIndex2i FGroupTopology::MakeEdgeID(int Group1, int Group2) const
+{
+	check(Group1 != Group2);
+	check(Group1 >= 0 && Group2 >= 0);
+	return (Group1 < Group2) ? FIndex2i(Group1, Group2) : FIndex2i(Group2, Group1);
+}
+
+bool FGroupTopologySelection::IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const
+{
+	int GroupID = Topology->GetGroupID(TriangleID);
+	return SelectedGroupIDs.Contains(GroupID);
+}
+
+
+
+
+/**
+ * FTriangleGroupTopology is a simplification of FGroupTopology that just represents a normal mesh.
+ * This allows algorithms to be written against FGroupTopology that will also work per-triangle.
+ * (However, there is enormous overhead to doing it this way!)
+ */
+class DYNAMICMESH_API FTriangleGroupTopology : public FGroupTopology
+{
+public:
+	FTriangleGroupTopology() {}
+	FTriangleGroupTopology(const FDynamicMesh3* Mesh, bool bAutoBuild);
+
+	virtual void RebuildTopology() override;
+
+	virtual int GetGroupID(int TriangleID) const override
+	{
+		return TriangleID;
+	}
 };

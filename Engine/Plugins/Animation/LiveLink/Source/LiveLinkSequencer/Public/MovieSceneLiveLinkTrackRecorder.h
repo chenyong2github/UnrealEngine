@@ -45,7 +45,7 @@ public:
 
 public:
 	//we don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed.
-	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, UMovieSceneTrackRecorderSettings* InSettingsObject);
+	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject);
 	void AddContentsToFolder(UMovieSceneFolder* InFolder);
 	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }
 
@@ -64,6 +64,9 @@ private:
 
 	/** Whether we should save subject preset in the the live link section. If not, we'll create one with subject information with no settings */
 	bool bSaveSubjectSettings;
+
+	/** Whether or not we use timecode time or world time*/
+	bool bUseSourceTimecode;
 
 	/** Role of the subject we will record*/
 	TSubclassOf<ULiveLinkRole> SubjectRole;

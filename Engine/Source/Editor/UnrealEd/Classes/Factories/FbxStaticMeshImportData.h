@@ -13,7 +13,7 @@
 
 class UStaticMesh;
 
-UCLASS(config=EditorPerProjectUserSettings, AutoExpandCategories=(Options), MinimalAPI)
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, AutoExpandCategories=(Options), MinimalAPI)
 class UFbxStaticMeshImportData : public UFbxMeshImportData
 {
 	GENERATED_UCLASS_BODY()

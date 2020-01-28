@@ -1051,6 +1051,24 @@ int32 UEditorStaticMeshLibrary::GetNumberVerts(UStaticMesh* StaticMesh, int32 LO
 	return StaticMesh->GetNumVertices(LODIndex);
 }
 
+int32 UEditorStaticMeshLibrary::GetNumberMaterials(UStaticMesh* StaticMesh)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		return 0;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("GetNumberMaterials: The StaticMesh is null."));
+		return 0;
+	}
+
+	return StaticMesh->StaticMaterials.Num();
+}
+
 void UEditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);

@@ -857,6 +857,13 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 		return false;
 	}
 
+	FMovieSceneSupportsEasingParams SupportsEasingParams(ThisSection);
+	EMovieSceneTrackEasingSupportFlags EasingFlags = Track->SupportsEasing(SupportsEasingParams);
+	if (!EnumHasAnyFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEasing))
+	{
+		return false;
+	}
+
 	FTimeToPixel TimeToPixelConverter = ConstructTimeConverterForSection(MakeSectionGeometryWithoutHandles(SectionGeometry, SectionInterface), *ThisSection, GetSequencer());
 
 	const double MouseTime = TimeToPixelConverter.PixelToSeconds(SectionGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X);
@@ -886,7 +893,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 		TSharedRef<ISequencerSection> EasingSection    =  Handle.GetSectionInterface();
 		UMovieSceneSection*           EasingSectionObj = EasingSection->GetSectionObject();
 
-		if (EasingSectionObj->HasStartFrame())
+		if (EasingSectionObj->HasStartFrame() && EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseIn))
 		{
 			TRange<FFrameNumber> EaseInRange      = EasingSectionObj->GetEaseInRange();
 			double               HandlePositionIn = ( EaseInRange.IsEmpty() ? EasingSectionObj->GetInclusiveStartFrame() : EaseInRange.GetUpperBoundValue() ) / TimeToPixelConverter.GetTickResolution();
@@ -898,7 +905,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 			}
 		}
 
-		if (EasingSectionObj->HasEndFrame())
+		if (EasingSectionObj->HasEndFrame() && EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseOut))
 		{
 			TRange<FFrameNumber> EaseOutRange      = EasingSectionObj->GetEaseOutRange();
 			double               HandlePositionOut = (EaseOutRange.IsEmpty() ? EasingSectionObj->GetExclusiveEndFrame() : EaseOutRange.GetLowerBoundValue() ) / TimeToPixelConverter.GetTickResolution();

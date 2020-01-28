@@ -622,6 +622,7 @@ void SDetailSingleItemRow::OnPasteProperty()
 			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
 
 			Handle->SetValueFromFormattedString(ClipboardContent);
+			PropertyNode->RebuildChildren();
 			TArray<TSharedPtr<IPropertyHandle>> CopiedHandles;
 
 			CopiedHandles.Add(Handle);

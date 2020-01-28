@@ -390,7 +390,6 @@ TSharedPtr<SWidget> FModeToolkit::GetInlineContent() const
 			ModeDetailsView.ToSharedRef()
 		]
 		+ SVerticalBox::Slot()
-		.AutoHeight()
 		[
 			DetailsView.ToSharedRef()
 		];

@@ -27,6 +27,7 @@
 #include "Math/UnitConversion.h"
 #include "LevelEditorSequencerIntegration.h"
 #include "Fonts/FontMeasure.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "SCinematicLevelViewport"
@@ -48,6 +49,21 @@ struct SNonThrottledSpinBox : SSpinBox<T>
 struct FTypeInterfaceProxy : INumericTypeInterface<double>
 {
 	TSharedPtr<INumericTypeInterface<double>> Impl;
+
+	/** Gets the minimum and maximum fractional digits. */
+	virtual int32 GetMinFractionalDigits() const override
+	{
+		return 0;
+	}
+	virtual int32 GetMaxFractionalDigits() const override
+	{
+		return 0;
+	}
+
+	/** Sets the minimum and maximum fractional digits - A minimum greater than 0 will always have that many trailing zeros */
+	virtual void SetMinFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) override {}
+
+	virtual void SetMaxFractionalDigits(const TAttribute<TOptional<int32>>& NewValue) override {}
 
 	/** Convert the type to/from a string */
 	virtual FString ToString(const double& Value) const override
@@ -244,6 +260,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
+				.Visibility_Lambda([] { return GLevelEditorModeTools().IsViewportUIHidden() ? EVisibility::Hidden : EVisibility::Visible; })
 
 				+ SHorizontalBox::Slot()
 				[
@@ -253,7 +270,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
-					FilmOverlayOptions
+					FilmOverlayOptions					
 				]
 			]
 

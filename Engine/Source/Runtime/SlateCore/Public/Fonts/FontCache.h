@@ -628,7 +628,9 @@ public:
 	virtual int32 GetNumAtlasPages() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
 	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
-
+#if WITH_ATLAS_DEBUGGING
+	virtual FAtlasSlotInfo GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const override { return FAtlasSlotInfo(); }
+#endif
 	/** 
 	 * Performs text shaping on the given string using the given font info. Returns you the shaped text sequence to use for text rendering via FSlateDrawElement::MakeShapedText.
 	 * When using the version which takes a start point and length, the text outside of the given range won't be shaped, but will provide context information to allow the shaping to function correctly.
@@ -711,6 +713,11 @@ public:
 	 * Releases rendering resources
 	 */
 	void ReleaseResources();
+
+	/**
+	 * Event called after releasing the rendering resources in ReleaseResources
+	 */
+	FOnReleaseFontResources& OnReleaseResources() { return OnReleaseResourcesDelegate; }
 
 	/**
 	 * Get the texture resource for a font atlas at a given index
@@ -919,6 +926,9 @@ private:
 
 	/** Array of UFont objects that the font cache has been requested to flush. Since GC can happen while the loading screen is running, the request may be deferred until the next call to ConditionalFlushCache */
 	TArray<const UObject*> FontObjectsToFlush;
+
+	/** Called after releasing the rendering resources in ReleaseResources */
+	FOnReleaseFontResources OnReleaseResourcesDelegate;
 
 	ESlateTextureAtlasThreadId OwningThread;
 };

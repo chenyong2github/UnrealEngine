@@ -9,6 +9,7 @@
 FCurveEditorDragOperation_PanView::FCurveEditorDragOperation_PanView(FCurveEditor* InCurveEditor, TSharedPtr<SCurveEditorView> InView)
 	: CurveEditor(InCurveEditor)
 	, View(InView)
+	, bIsDragging(false)
 {}
 
 void FCurveEditorDragOperation_PanView::OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
@@ -19,6 +20,9 @@ void FCurveEditorDragOperation_PanView::OnBeginDrag(FVector2D InitialPosition, F
 	InitialInputMax = ViewSpace.GetInputMax();
 	InitialOutputMin = ViewSpace.GetOutputMin();
 	InitialOutputMax = ViewSpace.GetOutputMax();
+
+	bIsDragging = true;
+
 	SnappingState.Reset();
 }
 
@@ -37,6 +41,30 @@ void FCurveEditorDragOperation_PanView::OnDrag(FVector2D InitialPosition, FVecto
 	CurveEditor->GetBounds().SetInputBounds(InputMin, InputMax);
 	View->SetOutputBounds(OutputMin, OutputMax);
 }
+
+FReply FCurveEditorDragOperation_PanView::OnMouseWheel(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
+{
+	if (bIsDragging)
+	{
+		FCurveEditorScreenSpace ViewSpace = View->GetViewSpace();
+		float ZoomDelta = 1.f - FMath::Clamp(0.1f * MouseEvent.GetWheelDelta(), -0.9f, 0.9f);
+
+		double CurrentTime = ViewSpace.ScreenToSeconds(CurrentPosition.X);
+		double CurrentValue = ViewSpace.ScreenToValue(CurrentPosition.Y);
+
+		View->ZoomAround(FVector2D(ZoomDelta, ZoomDelta), CurrentTime, CurrentValue);
+
+		// Adjust the stored initial bounds by the zoom delta so delta calculations work properly
+		InitialInputMin = CurrentTime - (CurrentTime - InitialInputMin) * ZoomDelta;
+		InitialInputMax = CurrentTime + (InitialInputMax - CurrentTime) * ZoomDelta;
+		InitialOutputMin = CurrentValue - (CurrentValue - InitialOutputMin) * ZoomDelta;
+		InitialOutputMax = CurrentValue + (InitialOutputMax - CurrentValue) * ZoomDelta;
+
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 
 FCurveEditorDragOperation_PanInput::FCurveEditorDragOperation_PanInput(FCurveEditor* InCurveEditor)
 	: CurveEditor(InCurveEditor)

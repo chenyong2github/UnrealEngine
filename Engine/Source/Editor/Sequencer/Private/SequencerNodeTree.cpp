@@ -882,21 +882,15 @@ TOptional<FSectionHandle> FSequencerNodeTree::GetSectionHandle(const UMovieScene
 
 static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
-	OutFilteredNodes.Add(StartNode);
-
 	for (TSharedRef<FSequencerDisplayNode> ChildNode : StartNode->GetChildNodes())
 	{
+		OutFilteredNodes.Add(ChildNode);
 		AddChildNodes(ChildNode, OutFilteredNodes);
 	}
 }
 
-/*
- * Add node as filtered and include any parent folders
- */
-static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
-	AddChildNodes(StartNode, OutFilteredNodes);
-
 	// Gather parent folders up the chain
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 	while (ParentNode.IsValid())
@@ -906,27 +900,79 @@ static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, 
 	}
 }
 
+static bool PassesFilterStrings(FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, const TArray<FString>& FilterStrings)
+{
+	// If we have a filter string, make sure we match
+	if (FilterStrings.Num() > 0)
+	{
+		// check each string in the filter strings list against 
+		for (const FString& String : FilterStrings)
+		{
+			if (!StartNode->GetDisplayName().ToString().Contains(String))
+			{
+				return false;
+			}
+		}
+
+		TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+		while (ParentNode.IsValid())
+		{
+			if (!ParentNode.Get()->IsExpanded())
+			{
+				ParentNode.Get()->SetExpansionState(true);
+			}
+
+			ParentNode = ParentNode->GetParent();
+		}
+	}
+
+	return true;
+}
+
 /**
  * Recursively filters nodes
  *
  * @param StartNode			The node to start from
  * @param Filters			The filter collection to test against
  * @param OutFilteredNodes	The list of all filtered nodes
- */
+ *
+ * @return Whether this node passed filtering
+  */
 
-static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, TSharedPtr<FSequencerTrackFilterCollection> Filters, const TArray<FString>& FilterStrings, TSharedPtr<FSequencerTrackFilter_LevelFilter> LevelTrackFilter, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes )
+static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, TSharedPtr<FSequencerTrackFilterCollection> Filters, const TArray<FString>& FilterStrings, TSharedPtr<FSequencerTrackFilter_LevelFilter> LevelTrackFilter, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
+	bool bAnyChildPassed = false;
+
+	// Special case: If a parent node matches an active text search filter, the children should also pass the text search filter
+	// so we stop filtering them based on text to eliminate special case conflicts with non-object binding nodes
+	// with potential child object bindings nodes when only showing selected bindings. This is also faster.
+	bool bPassedFilterStrings = PassesFilterStrings(Sequencer, StartNode, FilterStrings);
+	const TArray<FString>& ChildFilterStrings = bPassedFilterStrings ? TArray<FString>() : FilterStrings;
+
+	// Special case: Child nodes should always be processed, as they may force their parents to pass
 	for (TSharedRef<FSequencerDisplayNode> Node : StartNode->GetChildNodes())
 	{
-		FilterNodesRecursive(Sequencer, Node, Filters, FilterStrings, LevelTrackFilter, OutFilteredNodes);
+		if (FilterNodesRecursive(Sequencer, Node, Filters, ChildFilterStrings, LevelTrackFilter, OutFilteredNodes))
+		{
+			bAnyChildPassed = true;
+		}
+	}
+
+	// After child nodes are processed, if this node didn't pass text filtering, fail it
+	if (!bPassedFilterStrings)
+	{
+		return bAnyChildPassed;
 	}
 
 	bool bPasssedAnyFilters = false;
+	bool bIsTrackOrObjectBinding = false;
 
 	switch(StartNode->GetType())
 	{
 		case ESequencerNode::Track:
 		{
+			bIsTrackOrObjectBinding = true;
+
 			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
 			if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
 			{
@@ -977,7 +1023,7 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 							const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
 							if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
 							{
-								bPasssedAnyFilters = false;
+								return bAnyChildPassed;
 							}
 
 							break;
@@ -990,6 +1036,8 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 		}
 		case ESequencerNode::Object:
 		{
+			bIsTrackOrObjectBinding = true;
+
 			const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
 			for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
 			{
@@ -1007,7 +1055,7 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 				const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());
 				if (Binding && !Sequencer.IsBindingVisible(*Binding))
 				{
-					bPasssedAnyFilters = false;
+					return bAnyChildPassed;
 				}
 			}
 			break;
@@ -1016,10 +1064,47 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 		case ESequencerNode::Folder:
 		case ESequencerNode::KeyArea:
 		{
-			// If no active filters, pass organizational nodes to be text filtered
-			if (Filters->Num() == 0)
+			// Special case: If we're pinned, then we should pass regardless
+			if (StartNode->IsPinned())
 			{
 				bPasssedAnyFilters = true;
+				break;
+			}
+
+			// Special case: If we're only filtering on text search, include folders and key areas in the search
+			if (Filters->Num() == 0 && FilterStrings.Num() > 0)
+			{
+				bPasssedAnyFilters = true;
+
+				// Special case: but don't include if only showing selected bindings and we don't have child that passed
+				if (Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !bAnyChildPassed)
+				{
+					bPasssedAnyFilters = false;
+
+					// Special case: unless we're the child of a node that is a selected binding
+					TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+					while (ParentNode.IsValid())
+					{
+						// Pinned tracks should be visible whether selected or not
+						if (ParentNode->IsPinned())
+						{
+							break;
+						}
+
+						if (ParentNode->GetType() == ESequencerNode::Object)
+						{
+							const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+							const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
+							if (Binding && Sequencer.IsBindingVisible(*Binding))
+							{
+								bPasssedAnyFilters = true;
+							}
+
+							break;
+						}
+						ParentNode = ParentNode->GetParent();
+					}
+				}
 			}
 			break;
 		}
@@ -1028,62 +1113,20 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 
 	if (bPasssedAnyFilters)
 	{
-		// If we have a filter string, make sure we match
-		if (FilterStrings.Num() > 0)
+		OutFilteredNodes.Add(StartNode);
+		AddParentNodes(StartNode, OutFilteredNodes);
+
+		// Special case: When only showing selected bindings, and a non-object passes text filtering
+		// don't add it's children, as they may be a binding that is not seleceted. Selected child nodes will add themselves.
+		if (!(Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && FilterStrings.Num() > 0 && !bIsTrackOrObjectBinding))
 		{
-			// check labels - only one of the labels needs to match
-			bool bMatchedLabel = false;
-			bool bObjectHasLabels = false;
-			for (const FString& String : FilterStrings)
-			{
-				if (String.StartsWith(TEXT("label:")) && String.Len() > 6)
-				{
-					if (StartNode->GetType() == ESequencerNode::Object)
-					{
-						bObjectHasLabels = true;
-						auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(StartNode);
-						auto Labels = Sequencer.GetLabelManager().GetObjectLabels(ObjectBindingNode->GetObjectBinding());
-
-						if (Labels != nullptr && Labels->Strings.Contains(String.RightChop(6)))
-						{
-							bMatchedLabel = true;
-							break;
-						}
-					}
-					else if (!StartNode->GetParent().IsValid())
-					{
-						return;
-					}
-				}
-			}
-
-			if (bObjectHasLabels && !bMatchedLabel)
-			{
-				return;
-			}
-
-			// check each string in the filter strings list against 
-			for (const FString& String : FilterStrings)
-			{
-				if (!String.StartsWith(TEXT("label:")) && !StartNode->GetDisplayName().ToString().Contains(String))
-				{
-					return;
-				}
-			}
-
-			TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
-			while(ParentNode.IsValid())
-			{
-				if (!ParentNode.Get()->IsExpanded())
-				{
-					ParentNode.Get()->SetExpansionState(true);
-				}
-
-				ParentNode = ParentNode->GetParent();
-			}
+			AddChildNodes(StartNode, OutFilteredNodes);
 		}
-		AddFilteredNode(StartNode, OutFilteredNodes);
+
+		return true;
 	}
+
+	return bAnyChildPassed;
 }
 
 void FSequencerNodeTree::UpdateFilters()

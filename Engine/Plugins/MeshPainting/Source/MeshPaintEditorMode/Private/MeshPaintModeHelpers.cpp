@@ -45,6 +45,7 @@
 #include "MeshPaintHelpers.h"
 #include "MeshPaintMode.h"
 #include "MeshVertexPaintingTool.h"
+#include "MeshTexturePaintingTool.h"
 
 
 void UMeshPaintModeHelpers::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
@@ -764,4 +765,51 @@ void UMeshPaintModeHelpers::RemovePerLODColors(const TArray<UMeshComponent*>& Pa
 			}
 		}
 	}
+}
+
+void UMeshPaintModeHelpers::SwapColors()
+{
+	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
+	if (Settings)
+	{
+		Settings->Modify();
+
+		FLinearColor TempPaintColor = Settings->PaintColor;
+		Settings->PaintColor = Settings->EraseColor;
+		Settings->EraseColor = TempPaintColor;
+	}
+}
+
+
+
+void UMeshPaintModeHelpers::SaveModifiedTextures()
+{
+	UMeshTexturePaintingToolProperties* Settings = UMeshPaintMode::GetTextureToolProperties();
+	if (Settings)
+	{
+		UTexture2D* SelectedTexture = Settings->PaintTexture;
+
+		if (nullptr != SelectedTexture)
+		{
+			TArray<UObject*> TexturesToSaveArray;
+			TexturesToSaveArray.Add(SelectedTexture);
+			UPackageTools::SavePackagesForObjects(TexturesToSaveArray);
+		}
+	}
+}
+
+bool UMeshPaintModeHelpers::CanSaveModifiedTextures()
+{
+	/** Check whether or not the current selected paint texture requires saving */
+	bool bRequiresSaving = false;
+	UMeshTexturePaintingToolProperties* Settings = UMeshPaintMode::GetTextureToolProperties();
+	if (Settings)
+	{
+		const UTexture2D* SelectedTexture = Settings->PaintTexture;
+		if (nullptr != SelectedTexture)
+		{
+			bRequiresSaving = SelectedTexture->GetOutermost()->IsDirty();
+		}
+	}
+	return bRequiresSaving;
 }

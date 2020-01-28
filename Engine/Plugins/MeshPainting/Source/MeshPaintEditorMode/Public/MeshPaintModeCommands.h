@@ -56,8 +56,8 @@ public:
 	TSharedPtr<FUICommandInfo> ColorPaint;
 	TSharedPtr<FUICommandInfo> WeightPaint;
 	TSharedPtr<FUICommandInfo> TexturePaint;
-	TSharedPtr<FUICommandInfo> Select;
-
+	TSharedPtr<FUICommandInfo> VertexSelect;
+	TSharedPtr<FUICommandInfo> TextureSelect;
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
 };
 

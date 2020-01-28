@@ -7,9 +7,79 @@
 #include "MoviePipelineOutputBase.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineUtils.h"
+#include "MoviePipelineSetting.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineMasterConfig"
 
+
+void UMoviePipelineMasterConfig::AddTransientSettingByClass(const UClass* InSettingClass)
+{
+	// We do this directly because the FindOrAddSetting API adds them to the user-defined settings array.
+	UMoviePipelineSetting* NewSetting = NewObject<UMoviePipelineSetting>(this, InSettingClass);
+	NewSetting->SetIsUserCustomized(false);
+
+	// Don't add settings that don't belong on this type of config
+	if (CanSettingBeAdded(NewSetting))
+	{
+		TransientSettings.Add(NewSetting);
+	}
+}
+
+void UMoviePipelineMasterConfig::InitializeTransientSettings()
+{
+	if (TransientSettings.Num() > 0)
+	{
+		return;
+	}
+
+	// Reflect over all possible settings that could be added to this class.
+	TArray<UClass*> AllSettingClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses();
+
+	// Now remove any from the list that we already have a user setting for
+	for (const UMoviePipelineSetting* ExistingSetting : GetUserSettings())
+	{
+		AllSettingClasses.RemoveSwap(ExistingSetting->GetClass());
+	}
+
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	// Now we can initialize an instance of every remaining setting that we don't have.
+	for (const UClass* SettingClass : AllSettingClasses)
+	{
+		AddTransientSettingByClass(SettingClass);
+	}
+}
+
+void UMoviePipelineMasterConfig::OnSettingAdded(UMoviePipelineSetting* InSetting) 
+{
+	Super::OnSettingAdded(InSetting);
+
+	// When the setting is added, we need to remove the class type from the transient array (if any).
+	for (UMoviePipelineSetting* TransientSetting : TransientSettings)
+	{
+		if (TransientSetting->GetClass() == InSetting->GetClass())
+		{
+			TransientSettings.Remove(TransientSetting);
+			break;
+		}
+	}
+}
+
+void UMoviePipelineMasterConfig::OnSettingRemoved(UMoviePipelineSetting* InSetting)
+{
+	Super::OnSettingRemoved(InSetting);
+
+	// Only add to the transient settings array if there's something already in it,
+	// otherwise we could miss transient settings when InitializeTransientSettings
+	// is called later, since it early outs if there's any transient settings.
+	if (TransientSettings.Num() > 0)
+	{
+		AddTransientSettingByClass(InSetting->GetClass());
+	}
+}
 
 
 UMoviePipelineShotConfig* UMoviePipelineMasterConfig::GetConfigForShot(const FString& ShotName) const
@@ -25,30 +95,50 @@ UMoviePipelineShotConfig* UMoviePipelineMasterConfig::GetConfigForShot(const FSt
 	return OutConfig;
 }
 
-void UMoviePipelineMasterConfig::GetFilenameFormatArguments(FFormatNamedArguments& OutArguments, const UMoviePipelineExecutorJob* InJob) const
+void UMoviePipelineMasterConfig::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {
-	if (!InJob)
-	{
-		return;
-	}
-
 	// Add "global" ones not specific to a setting.
 	{
-		OutArguments.Add(TEXT("level_name"), FText::FromString(InJob->Map.GetAssetName()));
-		OutArguments.Add(TEXT("sequence_name"), FText::FromString(InJob->Sequence.GetAssetName()));
-		OutArguments.Add(TEXT("date"), FText::AsDate(FDateTime::UtcNow()));
-		OutArguments.Add(TEXT("time"), FText::AsTime(FDateTime::UtcNow()));
-		
-		// FrameRate is a combination of Output Settings and Sequence so we do it here instead of in OutputSetting
-		OutArguments.Add(TEXT("frame_rate"), FText::AsNumber(GetEffectiveFrameRate(Cast<ULevelSequence>(InJob->Sequence.TryLoad())).AsDecimal()));
+		FString LevelName = TEXT("Level Name");
+		FString SequenceName = TEXT("Sequence Name");
+		double FrameRate = 0.0;
 
+		if (InOutFormatArgs.InJob)
+		{
+			LevelName = InOutFormatArgs.InJob->Map.GetAssetName();
+			SequenceName = InOutFormatArgs.InJob->Sequence.GetAssetName();
+			
+			// FrameRate is a combination of Output Settings and Sequence so we do it here instead of in OutputSetting
+			FrameRate = GetEffectiveFrameRate(Cast<ULevelSequence>(InOutFormatArgs.InJob->Sequence.TryLoad())).AsDecimal();
+		}
+
+		InOutFormatArgs.Arguments.Add(TEXT("level_name"), LevelName);
+		InOutFormatArgs.Arguments.Add(TEXT("sequence_name"), SequenceName);
+		InOutFormatArgs.Arguments.Add(TEXT("frame_rate"), FrameRate);
+		
+		// Normally these are filled when resolving the file name by the job (so that the time is shared), but stub them in here so
+		// they show up in the UI with a value.
+		FDateTime CurrentTime = FDateTime::Now();
+		InOutFormatArgs.Arguments.Add(TEXT("date"), CurrentTime.ToString(TEXT("%Y.%m.%d")));
+		InOutFormatArgs.Arguments.Add(TEXT("year"), CurrentTime.ToString(TEXT("%Y")));
+		InOutFormatArgs.Arguments.Add(TEXT("month"), CurrentTime.ToString(TEXT("%m")));
+		InOutFormatArgs.Arguments.Add(TEXT("day"), CurrentTime.ToString(TEXT("%d")));
+		InOutFormatArgs.Arguments.Add(TEXT("time"), CurrentTime.ToString(TEXT("%H.%M.%S")));
+		
+		// Let the output state fill out some too, since its the keeper of the information.
+		UMoviePipelineOutputSetting* OutputSettings = FindSetting<UMoviePipelineOutputSetting>();
+		check(OutputSettings);
+
+		FMoviePipelineFrameOutputState BlankOutputState;
+		BlankOutputState.OutputFrameNumber = 0; // It gets initialized to -1 but looks funny in the UI since the actual output would be zero.
+		BlankOutputState.GetFilenameFormatArguments(InOutFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset);
 	}
 
 	// Let each setting provide its own set of key/value pairs.
 	{
-		for (UMoviePipelineSetting* Setting : GetSettings())
+		for (UMoviePipelineSetting* Setting : GetUserSettings())
 		{
-			Setting->GetFilenameFormatArguments(OutArguments, InJob);
+			Setting->GetFilenameFormatArguments(InOutFormatArgs);
 		}
 
 		// ToDo: Should shots be able to provide arguments too? They're only overrides, and
@@ -149,9 +239,9 @@ UMoviePipelineMasterConfig::UMoviePipelineMasterConfig()
 	OutputSetting = CreateDefaultSubobject<UMoviePipelineOutputSetting>("DefaultOutputSetting");
 }
 
-TArray<UMoviePipelineSetting*> UMoviePipelineMasterConfig::GetSettings() const
+TArray<UMoviePipelineSetting*> UMoviePipelineMasterConfig::GetUserSettings() const
 {
-	TArray<UMoviePipelineSetting*> BaseSettings = Super::GetSettings();
+	TArray<UMoviePipelineSetting*> BaseSettings = Super::GetUserSettings();
 	BaseSettings.Add(OutputSetting);
 
 	return BaseSettings;
@@ -173,7 +263,8 @@ TArray<UMoviePipelineOutputBase*> UMoviePipelineMasterConfig::GetOutputContainer
 {
 	TArray<UMoviePipelineOutputBase*> OutputContainers;
 
-	for (UMoviePipelineSetting* Setting : GetSettings())
+	// Don't want transient settings trying to write out files 
+	for (UMoviePipelineSetting* Setting : GetUserSettings())
 	{
 		UMoviePipelineOutputBase* Output = Cast<UMoviePipelineOutputBase>(Setting);
 		if (Output)

@@ -128,7 +128,7 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	RuntimeDebugCheck(edgeID);
 
 	FEdgeConstraint constraint =
-		(Constraints == nullptr) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(edgeID);
+		(!Constraints) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(edgeID);
 	if (constraint.NoModifications())
 	{
 		return EProcessResult::Ignored_EdgeIsFullyConstrained;
@@ -211,7 +211,7 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 		if (result == EMeshResult::Ok) 
 		{
 			Mesh->SetVertex(iKeep, vNewPos);
-			if (Constraints != nullptr) 
+			if (Constraints)
 			{
 				Constraints->ClearEdgeConstraint(edgeID);
 				Constraints->ClearEdgeConstraint(collapseInfo.RemovedEdges.A);
@@ -327,7 +327,7 @@ abort_collapse:
 void FRemesher::UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3::FEdgeSplitInfo& SplitInfo)
 {
 	bool bPositionFixed = false;
-	if (Constraints != nullptr && Constraints->HasEdgeConstraint(edgeID)) 
+	if (Constraints && Constraints->HasEdgeConstraint(edgeID))
 	{
 		// inherit edge constraint
 		Constraints->SetOrUpdateEdgeConstraint(SplitInfo.NewEdges.A, Constraints->GetEdgeConstraint(edgeID));
@@ -403,7 +403,7 @@ void FRemesher::ProjectVertex(int VertexID, IProjectionTarget* UseTarget)
 // used by collapse-edge to get projected position for new vertex
 FVector3d FRemesher::GetProjectedCollapsePosition(int vid, const FVector3d& vNewPos)
 {
-	if (Constraints != nullptr) 
+	if (Constraints)
 	{
 		FVertexConstraint vc = Constraints->GetVertexConstraint(vid);
 		if (vc.Target != nullptr)

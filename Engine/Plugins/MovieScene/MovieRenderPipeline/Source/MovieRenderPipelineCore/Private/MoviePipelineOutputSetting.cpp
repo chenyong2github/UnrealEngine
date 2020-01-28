@@ -4,16 +4,21 @@
 #include "Misc/Paths.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineQueue.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	: OutputResolution(FIntPoint(1920, 1080))
 	, bUseCustomFrameRate(false)
 	, OutputFrameRate(FFrameRate(24, 1))
-	, OutputFrameStep(FFrameNumber(1))
+	, OutputFrameStep(1)
+	, DEBUG_OutputFrameStepOffset(0)
 	, bOverrideExistingOutput(true)
 	, bUseCustomPlaybackRange(false)
-	, CustomStartFrame(FFrameNumber(0))
-	, CustomEndFrame(FFrameNumber(0))
+	, CustomStartFrame(0)
+	, CustomEndFrame(0)
+	, ZeroPadFrameNumbers(4)
+	, FrameNumberOffset(0)
+	, bDisableToneCurve(false)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
@@ -25,30 +30,34 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 	TextBuilder.AppendLine(NSLOCTEXT("MovieRenderPipeline", "OutputSettingFooterText_Fmt",
 		"A list of {format_strings} and example values that are valid to use in the File Name Format:\n"));
 
-	FFormatNamedArguments Arguments;
+	FMoviePipelineFormatArgs FormatArgs;
+	FormatArgs.InJob = InJob;
 	
 	// Find the master configuration that owns us
 	UMoviePipelineMasterConfig* MasterConfig = GetTypedOuter<UMoviePipelineMasterConfig>();
 	if (MasterConfig)
 	{
-		MasterConfig->GetFilenameFormatArguments(Arguments, InJob);
+		MasterConfig->GetFilenameFormatArguments(FormatArgs);
 	}
 
-	for (const TPair<FString, FFormatArgumentValue>& KVP : Arguments)
+	for (const TPair<FString, FStringFormatArg>& KVP : FormatArgs.Arguments)
 	{
-		TextBuilder.AppendLineFormat(NSLOCTEXT("MovieRenderPipeline", "FormatKeyValuePair_Fmt", "`{{0}`} => {1}"), FText::FromString(KVP.Key), KVP.Value);
+		FStringFormatOrderedArguments OrderedArgs = { KVP.Key, KVP.Value };
+		FString FormattedArgs = FString::Format(TEXT("{0} => {1}"), OrderedArgs);
+
+		TextBuilder.AppendLine(FText::FromString(FormattedArgs));
 	}
 	
 	return TextBuilder.ToText();
 }
 
-void UMoviePipelineOutputSetting::GetFilenameFormatArguments(FFormatNamedArguments& OutArguments, const UMoviePipelineExecutorJob* InJob) const
+void UMoviePipelineOutputSetting::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {
 	// Resolution Arguments
 	{
 		FString Resolution = FString::Printf(TEXT("%d_%d"), OutputResolution.X, OutputResolution.Y);
-		OutArguments.Add(TEXT("output_resolution"), FText::FromString(Resolution));
-		OutArguments.Add(TEXT("output_width"), FText::AsNumber(OutputResolution.X));
-		OutArguments.Add(TEXT("output_height"), FText::AsNumber(OutputResolution.Y));
+		InOutFormatArgs.Arguments.Add(TEXT("output_resolution"), Resolution);
+		InOutFormatArgs.Arguments.Add(TEXT("output_width"), OutputResolution.X);
+		InOutFormatArgs.Arguments.Add(TEXT("output_height"), OutputResolution.Y);
 	}
 }

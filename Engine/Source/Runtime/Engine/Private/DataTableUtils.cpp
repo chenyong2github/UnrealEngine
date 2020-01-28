@@ -117,7 +117,7 @@ void GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData
 		const FSetProperty* SetProp = CastField<const FSetProperty>(InProp);
 		const FMapProperty* MapProp = CastField<const FMapProperty>(InProp);
 
-		if (ArrayProp && ArrayProp->Inner->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+		if (ArrayProp && ArrayProp->Inner->IsA<FStructProperty>() && EnumHasAnyFlags(InDTExportFlags, EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
 			const FStructProperty* StructInner = CastFieldChecked<const FStructProperty>(ArrayProp->Inner);
 
@@ -139,7 +139,7 @@ void GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData
 			OutString.AppendChar(')');
 			return;
 		}
-		else if (SetProp && SetProp->ElementProp->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+		else if (SetProp && SetProp->ElementProp->IsA<FStructProperty>() && EnumHasAnyFlags(InDTExportFlags, EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
 			const FStructProperty* StructInner = CastFieldChecked<const FStructProperty>(SetProp->ElementProp);
 
@@ -190,7 +190,7 @@ void GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData
 
 					OutString.Append(TEXT(" = "));
 
-					if (MapHelper.GetValueProperty()->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+					if (MapHelper.GetValueProperty()->IsA<FStructProperty>() && EnumHasAnyFlags(InDTExportFlags, EDataTableExportFlags::UseJsonObjectsForStructs))
 					{
 						const FStructProperty* StructMapValue = CastFieldChecked<const FStructProperty>(MapHelper.GetValueProperty());
 						OutString.Append(ExportStructAsJson(StructMapValue->Struct, MapValueData));
@@ -212,6 +212,15 @@ void GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData
 		}
 	}
 #endif // WITH_EDITOR
+
+	if (EnumHasAnyFlags(InDTExportFlags, EDataTableExportFlags::UseSimpleText) && InProp->IsA<FTextProperty>())
+	{
+		const FTextProperty* TextProp = CastFieldChecked<const FTextProperty>(InProp);
+		const FText& TextValue = TextProp->GetPropertyValue(InData);
+		OutString.Append(TextValue.ToString());
+		return;
+	}
+
 	InProp->ExportText_Direct(OutString, InData, InData, nullptr, InPortFlags);
 }
 

@@ -12,18 +12,19 @@
 #include "ScreenPass.ush"
 
 /** Values of DIM_OUTPUT_DEVICE (matching C++'s ETonemapperOutputDevice) */
-#define TONEMAPPER_OUTOUT_sRGB 0
-#define TONEMAPPER_OUTOUT_Rec709 1
-#define TONEMAPPER_OUTOUT_ExplicitGammaMapping 2
-#define TONEMAPPER_OUTOUT_ACES1000nitST2084 3
-#define TONEMAPPER_OUTOUT_ACES2000nitST2084 4
-#define TONEMAPPER_OUTOUT_ACES1000nitScRGB 5
-#define TONEMAPPER_OUTOUT_ACES2000nitScRGB 6
-#define TONEMAPPER_OUTOUT_LinearEXR 7
-#define TONEMAPPER_OUTOUT_NoToneCurve 8
+#define TONEMAPPER_OUTPUT_sRGB 0
+#define TONEMAPPER_OUTPUT_Rec709 1
+#define TONEMAPPER_OUTPUT_ExplicitGammaMapping 2
+#define TONEMAPPER_OUTPUT_ACES1000nitST2084 3
+#define TONEMAPPER_OUTPUT_ACES2000nitST2084 4
+#define TONEMAPPER_OUTPUT_ACES1000nitScRGB 5
+#define TONEMAPPER_OUTPUT_ACES2000nitScRGB 6
+#define TONEMAPPER_OUTPUT_LinearEXR 7
+#define TONEMAPPER_OUTPUT_NoToneCurve 8
+#define TONEMAPPER_OUTPUT_WithToneCurve 9
 
 #ifndef DIM_OUTPUT_DEVICE
-	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTOUT_sRGB)
+	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTPUT_sRGB)
 #endif
 
 // 0 / 1(slower, visualize multiple internals side by side for the same image portion, see DebugTile)
@@ -106,7 +107,7 @@ half3 ColorLookupTable( half3 LinearColor )
 {
 	float3 LUTEncodedColor;
 	// Encode as ST-2084 (Dolby PQ) values
-	#if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve)
+	#if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_LinearEXR || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve)
 		// ST2084 expects to receive linear values 0-10000 in nits.
 		// So the linear value must be multiplied by a scale factor to convert to nits.
 		LUTEncodedColor = LinearToST2084(LinearColor * LinearToNitsScale);
@@ -567,10 +568,13 @@ float4 TonemapCommonPS(
 		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 
 		#if USE_GRAIN_QUANTIZATION
-			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve
+			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve
 				#error LinearNoToneCurve device requires no Grain Quantization
 			#endif
-			// Needs to go after tonemapping. 
+			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
+				#error LinearWithToneCurve device requires no Grain Quantization
+			#endif
+		// Needs to go after tonemapping. 
 			#if USE_LINEAR_FLOAT_RT
 				half GrainQuantization = 1.0/1024.0;
 			#else
@@ -588,18 +592,20 @@ float4 TonemapCommonPS(
 			OutColor.rgb = sRGBToLinear( OutColor.rgb );
 		#endif
 
-		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitScRGB
+		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitScRGB
 			OutColor.xyz = ST2084ToScRGB(OutColor.xyz, DIM_OUTPUT_DEVICE);
 
-		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR
+		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_LinearEXR
 			OutColor.xyz = ST2084ToLinear(OutColor.xyz);
-		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve
+		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve
+			OutColor.xyz = OutDeviceColor;
+		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
 			OutColor.xyz = OutDeviceColor;
 		#endif
 
 	#endif
 	
-	#if POST_PROCESS_ALPHA == 2 || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve)
+	#if POST_PROCESS_ALPHA == 2 || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve)  || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve)
 		OutColor.a = SceneColor.a;
 	#endif
 

@@ -38,6 +38,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	float Thickness = 2.0f;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	uint8 SegmentFlags = 0x1 | 0x2 | 0x4 | 0x8;
+
 
 private:
 	//~ Begin UPrimitiveComponent Interface.

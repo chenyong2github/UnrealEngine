@@ -605,7 +605,7 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	RuntimeDebugCheck(edgeID);
 
 	FEdgeConstraint constraint =
-		(Constraints == nullptr) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(edgeID);
+		(!Constraints) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(edgeID);
 	if (constraint.NoModifications())
 	{
 		return ESimplificationResult::Ignored_EdgeIsFullyConstrained;
@@ -717,7 +717,7 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	{
 		collapseToV = iKeep;
 		Mesh->SetVertex(iKeep, vNewPos);
-		if (Constraints != nullptr)
+		if (Constraints)
 		{
 			Constraints->ClearEdgeConstraint(edgeID);
 			Constraints->ClearEdgeConstraint(collapseInfo.RemovedEdges.A);
@@ -796,7 +796,7 @@ void TMeshSimplification<QuadricErrorType>::ProjectVertex(int vID, IProjectionTa
 template <typename QuadricErrorType>
 FVector3d TMeshSimplification<QuadricErrorType>::GetProjectedCollapsePosition(int vid, const FVector3d& vNewPos)
 {
-	if (Constraints != nullptr)
+	if (Constraints)
 	{
 		FVertexConstraint vc = Constraints->GetVertexConstraint(vid);
 		if (vc.Target != nullptr)

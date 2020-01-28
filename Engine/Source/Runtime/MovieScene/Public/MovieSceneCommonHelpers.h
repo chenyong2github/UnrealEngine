@@ -47,7 +47,7 @@ public:
 	 * @param Section The section that was modified 
 	 * @param bDelete Was this a deletion?
 	 */
-	static void FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete);
+	static void FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bOnlyOnSameRow = false, bool bAllowOverlapBlending = false);
 
 	/*
  	 * Sort consecutive sections so that they are in order based on start time

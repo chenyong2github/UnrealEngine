@@ -23,6 +23,7 @@ class SMultiBoxWidget;
 class STableViewBase;
 class SVerticalBox;
 class UToolMenuBase;
+class SUniformToolbarPanel;
 
 namespace MultiBoxConstants
 {	
@@ -752,6 +753,9 @@ private:
 
 	/** Specialized box widget to handle clipping of toolbars and menubars */
 	TSharedPtr<class SClippingHorizontalBox> ClippedHorizontalBox;
+
+	/** Specialized box widget to handle clipping of toolbars and menubars */
+	TSharedPtr<SUniformToolbarPanel> UniformToolbarPanel;
 
 	/** A preview of a block being dragged inside this box */
 	FDraggedMultiBlockPreview DragPreview;

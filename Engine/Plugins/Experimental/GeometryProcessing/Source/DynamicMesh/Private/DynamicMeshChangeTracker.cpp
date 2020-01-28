@@ -422,11 +422,14 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 	{
 		FDynamicMeshUVChange& UVChange = Change->UVChanges[k];
 		const FDynamicMeshUVOverlay* UVLayer = Attribs->GetUVLayer(k);
-		FIndex3i UVTriangle = UVLayer->GetTriangle(TriangleID);
-		SaveElement(UVTriangle.A, UVStates[k], UVLayer, UVChange);
-		SaveElement(UVTriangle.B, UVStates[k], UVLayer, UVChange);
-		SaveElement(UVTriangle.C, UVStates[k], UVLayer, UVChange);
-		UVChange.SaveInitialTriangle(UVLayer, TriangleID);
+		if (UVLayer->IsSetTriangle(TriangleID))
+		{
+			FIndex3i UVTriangle = UVLayer->GetTriangle(TriangleID);
+			SaveElement(UVTriangle.A, UVStates[k], UVLayer, UVChange);
+			SaveElement(UVTriangle.B, UVStates[k], UVLayer, UVChange);
+			SaveElement(UVTriangle.C, UVStates[k], UVLayer, UVChange);
+			UVChange.SaveInitialTriangle(UVLayer, TriangleID);
+		}
 	}
 
 	int NumNormalLayers = Attribs->NumNormalLayers();
@@ -434,11 +437,14 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 	{
 		FDynamicMeshNormalChange& NormalChange = Change->NormalChanges[k];
 		const FDynamicMeshNormalOverlay* NormalLayer = Attribs->GetNormalLayer(k);
-		FIndex3i NormTriangle = NormalLayer->GetTriangle(TriangleID);
-		SaveElement(NormTriangle.A, NormalStates[k], NormalLayer, NormalChange);
-		SaveElement(NormTriangle.B, NormalStates[k], NormalLayer, NormalChange);
-		SaveElement(NormTriangle.C, NormalStates[k], NormalLayer, NormalChange);
-		NormalChange.SaveInitialTriangle(NormalLayer, TriangleID);
+		if (NormalLayer->IsSetTriangle(TriangleID))
+		{
+			FIndex3i NormTriangle = NormalLayer->GetTriangle(TriangleID);
+			SaveElement(NormTriangle.A, NormalStates[k], NormalLayer, NormalChange);
+			SaveElement(NormTriangle.B, NormalStates[k], NormalLayer, NormalChange);
+			SaveElement(NormTriangle.C, NormalStates[k], NormalLayer, NormalChange);
+			NormalChange.SaveInitialTriangle(NormalLayer, TriangleID);
+		}
 	}
 
 	if (Change->MaterialIDAttribChange.IsSet())
@@ -476,16 +482,19 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 
 		for (int tid : TriangleIDs)
 		{
-			FIndex3i Tri = UVLayer->GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			if (UVLayer->IsSetTriangle(tid))
 			{
-				if (StoredVertices.Contains(Tri[j]) == false)
+				FIndex3i Tri = UVLayer->GetTriangle(tid);
+				for (int j = 0; j < 3; ++j)
 				{
-					UVChange.StoreFinalElement(UVLayer, Tri[j]);
-					StoredVertices.Add(Tri[j]);
+					if (StoredVertices.Contains(Tri[j]) == false)
+					{
+						UVChange.StoreFinalElement(UVLayer, Tri[j]);
+						StoredVertices.Add(Tri[j]);
+					}
 				}
+				UVChange.StoreFinalTriangle(UVLayer, tid);
 			}
-			UVChange.StoreFinalTriangle(UVLayer, tid);
 		}
 	}
 
@@ -500,16 +509,19 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 
 		for (int tid : TriangleIDs)
 		{
-			FIndex3i Tri = NormalLayer->GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			if (NormalLayer->IsSetTriangle(tid))
 			{
-				if (StoredVertices.Contains(Tri[j]) == false)
+				FIndex3i Tri = NormalLayer->GetTriangle(tid);
+				for (int j = 0; j < 3; ++j)
 				{
-					NormalChange.StoreFinalElement(NormalLayer, Tri[j]);
-					StoredVertices.Add(Tri[j]);
+					if (StoredVertices.Contains(Tri[j]) == false)
+					{
+						NormalChange.StoreFinalElement(NormalLayer, Tri[j]);
+						StoredVertices.Add(Tri[j]);
+					}
 				}
+				NormalChange.StoreFinalTriangle(NormalLayer, tid);
 			}
-			NormalChange.StoreFinalTriangle(NormalLayer, tid);
 		}
 	}
 

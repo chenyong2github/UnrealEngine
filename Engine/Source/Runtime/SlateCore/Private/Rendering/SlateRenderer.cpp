@@ -18,6 +18,24 @@ FSlateFontServices::FSlateFontServices(TSharedRef<class FSlateFontCache> InGameT
 	, RenderThreadFontMeasure((GameThreadFontCache == RenderThreadFontCache) ? GameThreadFontMeasure : FSlateFontMeasure::Create(RenderThreadFontCache))
 {
 	UE_LOG(LogSlate, Log, TEXT("SlateFontServices - WITH_FREETYPE: %d, WITH_HARFBUZZ: %d"), WITH_FREETYPE, WITH_HARFBUZZ);
+	
+	GameThreadFontCache->OnReleaseResources().AddRaw(this, &FSlateFontServices::HandleFontCacheReleaseResources);
+
+	if (GameThreadFontCache != RenderThreadFontCache)
+	{
+		RenderThreadFontCache->OnReleaseResources().AddRaw(this, &FSlateFontServices::HandleFontCacheReleaseResources);
+	}
+}
+
+
+FSlateFontServices::~FSlateFontServices()
+{
+	GameThreadFontCache->OnReleaseResources().RemoveAll(this);
+
+	if (GameThreadFontCache != RenderThreadFontCache)
+	{
+		RenderThreadFontCache->OnReleaseResources().RemoveAll(this);
+	}
 }
 
 
@@ -94,8 +112,42 @@ void FSlateFontServices::ReleaseResources()
 }
 
 
+FOnReleaseFontResources& FSlateFontServices::OnReleaseResources()
+{
+	return OnReleaseResourcesDelegate;
+}
+
+
+void FSlateFontServices::HandleFontCacheReleaseResources(const FSlateFontCache& InFontCache)
+{
+	OnReleaseResourcesDelegate.Broadcast(InFontCache);
+}
+
+
 /* FSlateRenderer interface
  *****************************************************************************/
+
+FSlateRenderer::FSlateRenderer(const TSharedRef<FSlateFontServices>& InSlateFontServices)
+	: SlateFontServices(InSlateFontServices)
+{
+	SlateFontServices->OnReleaseResources().AddRaw(this, &FSlateRenderer::HandleFontCacheReleaseResources);
+}
+
+
+FSlateRenderer::~FSlateRenderer()
+{
+	if (SlateFontServices)
+	{
+		SlateFontServices->OnReleaseResources().RemoveAll(this);
+	}
+}
+
+
+void FSlateRenderer::HandleFontCacheReleaseResources(const class FSlateFontCache& InFontCache)
+{
+	FlushCommands();
+}
+
 
 bool FSlateRenderer::IsViewportFullscreen( const SWindow& Window ) const
 {

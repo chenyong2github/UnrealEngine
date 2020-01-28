@@ -49,15 +49,15 @@ UAssetEditorSubsystem::UAssetEditorSubsystem()
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &UAssetEditorSubsystem::HandlePackageReloaded);
 }
 
+void UAssetEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	GEditor->OnEditorClose().AddUObject(this, &UAssetEditorSubsystem::OnEditorClose);
+}
+
 void UAssetEditorSubsystem::Deinitialize()
 {
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
-
-	SaveOpenAssetEditors(true);
-
-	TGuardValue<bool> GuardOnShutdown(bSavingOnShutdown, true);
-
-	CloseAllAssetEditors();
+	GEditor->OnEditorClose().RemoveAll(this);
 
 	// Don't attempt to report usage stats if analytics isn't available
 	if (FEngineAnalytics::IsAvailable())
@@ -75,6 +75,13 @@ void UAssetEditorSubsystem::Deinitialize()
 			FEngineAnalytics::GetProvider().RecordEvent(EventName, EditorUsageAttribs);
 		}
 	}
+}
+
+void UAssetEditorSubsystem::OnEditorClose()
+{
+	SaveOpenAssetEditors(true);
+	TGuardValue<bool> GuardOnShutdown(bSavingOnShutdown, true);
+	CloseAllAssetEditors();
 }
 
 IAssetEditorInstance* UAssetEditorSubsystem::FindEditorForAsset(UObject* Asset, bool bFocusIfOpen)

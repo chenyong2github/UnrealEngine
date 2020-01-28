@@ -134,7 +134,7 @@ void FEdModeGeometry::Enter()
 	
 	if (!Toolkit.IsValid())
 	{
-		Toolkit = MakeShareable(new FGeometryMode);
+		Toolkit = MakeShareable(new FGeometryModeToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
 	}
 
@@ -522,7 +522,7 @@ void FEdModeGeometry::GeometrySelectNone(bool bStoreSelection, bool bResetPivot)
 
 void FEdModeGeometry::SelectionChanged( )
 {
-	StaticCastSharedPtr<FGeometryMode>(Toolkit)->SelectionChanged();
+	StaticCastSharedPtr<FGeometryModeToolkit>(Toolkit)->OnGeometrySelectionChanged();
 }
 
 // ------------------------------------------------------------------------------
@@ -885,7 +885,7 @@ bool FEdModeGeometry::SelectCachedData( TArray<FGeomBase*>& raSelectedGeom ) con
 	Owner->SetPivotLocation( PivLoc, false );
 	Owner->SnappedLocation = SnapLoc;
 	
-	StaticCastSharedPtr<FGeometryMode>(Toolkit)->SelectionChanged();
+	StaticCastSharedPtr<FGeometryModeToolkit>(Toolkit)->OnGeometrySelectionChanged();
 
 	return true;
 }

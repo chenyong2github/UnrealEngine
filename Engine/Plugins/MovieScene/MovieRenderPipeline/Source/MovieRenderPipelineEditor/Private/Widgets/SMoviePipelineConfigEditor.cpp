@@ -6,6 +6,7 @@
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineUtils.h"
 
 // Core includes
 #include "UObject/UObjectIterator.h"
@@ -46,41 +47,6 @@
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
 
-TArray<UClass*> FindMoviePipelineSettingClasses()
-{
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	TArray<FAssetData> ClassList;
-
-	FARFilter Filter;
-	Filter.ClassNames.Add(UMoviePipelineSetting::StaticClass()->GetFName());
-
-	// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
-	Filter.bRecursiveClasses = true;
-	AssetRegistryModule.Get().GetAssets(Filter, ClassList);
-
-	TArray<UClass*> Classes;
-
-	for (const FAssetData& Data : ClassList)
-	{
-		UClass* Class = Data.GetClass();
-		if (Class)
-		{
-			Classes.Add(Class);
-		}
-	}
-
-	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
-	{
-		if (ClassIterator->IsChildOf(UMoviePipelineSetting::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
-		{
-			Classes.Add(*ClassIterator);
-		}
-	}
-
-	return Classes;
-}
-
 PRAGMA_DISABLE_OPTIMIZATION
 void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 {
@@ -96,6 +62,11 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
     
 	CheckForNewSettingsObject();
      
+	if (CachedPipelineConfig->GetUserSettings().Num() > 0)
+	{
+		// Automatically try to select the first setting so there is something displayed.
+		SettingsWidget->SetSelectedSettings({ CachedPipelineConfig->GetUserSettings()[0] });
+	}
 	ChildSlot
 	[
 		SNew(SSplitter)
@@ -132,6 +103,35 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.AutoWrapText(true)
 					.Text(this, &SMoviePipelineConfigEditor::GetSettingsFooterText)
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.Visibility(this, &SMoviePipelineConfigEditor::IsValidationWarningVisible)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(2, 0, 4, 0)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+						.Text(FEditorFontGlyphs::Exclamation_Triangle)
+						.ColorAndOpacity(FLinearColor::Yellow)
+					]
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					[
+						SNew(STextBlock)
+						.AutoWrapText(true)
+						.Text(this, &SMoviePipelineConfigEditor::GetValidationWarningText)
+					]
 				]
 			]
 		]
@@ -233,7 +233,7 @@ TSharedRef<SWidget> SMoviePipelineConfigEditor::OnGenerateSettingsMenu()
 	FMenuBuilder MenuBuilder(true, nullptr, Extender);
 
 	// Put the different categories into different sections
-	TArray<UClass*> SourceClasses = FindMoviePipelineSettingClasses();
+	TArray<UClass*> SourceClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses();
 
 	TMap<FString, TArray<UClass*>> CategorizedClasses;
 
@@ -263,7 +263,7 @@ TSharedRef<SWidget> SMoviePipelineConfigEditor::OnGenerateSettingsMenu()
 
 			// If the setting already exists and it only allows a single instance, we omit them from the list.
 			bool bAllowDuplicates = true;
-			for (UMoviePipelineSetting* ExistingSetting : CachedPipelineConfig->GetSettings())
+			for (UMoviePipelineSetting* ExistingSetting : CachedPipelineConfig->GetUserSettings())
 			{
 				// If we found a setting with the same class as ours, ask the CDO if multiple are valid.
 				if (ExistingSetting->GetClass() == Class)
@@ -387,7 +387,7 @@ FText SMoviePipelineConfigEditor::GetSettingsFooterText() const
 
 	if (CachedOwningJob.IsValid())
 	{
-		for (UMoviePipelineSetting* Setting : SelectedSettings)
+		for (const UMoviePipelineSetting* Setting : SelectedSettings)
 		{
 			TextBuilder.AppendLine(Setting->GetFooterText(CachedOwningJob.Get()));
 		}
@@ -396,4 +396,37 @@ FText SMoviePipelineConfigEditor::GetSettingsFooterText() const
 	return TextBuilder.ToText();
 }
 
+EVisibility SMoviePipelineConfigEditor::IsValidationWarningVisible() const
+{
+	TArray<UMoviePipelineSetting*> SelectedSettings;
+	SettingsWidget->GetSelectedSettings(SelectedSettings);
+	
+	EMoviePipelineValidationState ValidationResult = EMoviePipelineValidationState::Valid;
+	for (const UMoviePipelineSetting* Setting : SelectedSettings)
+	{
+		if ((int32)Setting->GetValidationState() > (int32)ValidationResult)
+		{
+			ValidationResult = Setting->GetValidationState();
+		}
+	}
+
+	return (ValidationResult != EMoviePipelineValidationState::Valid) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+FText SMoviePipelineConfigEditor::GetValidationWarningText() const
+{
+	TArray<UMoviePipelineSetting*> SelectedSettings;
+	SettingsWidget->GetSelectedSettings(SelectedSettings);
+
+	FTextBuilder TextBuilder;
+	for (const UMoviePipelineSetting* Setting : SelectedSettings)
+	{
+		for (const FText& Result : Setting->GetValidationResults())
+		{
+			TextBuilder.AppendLine(Result);
+		}
+	}
+
+	return TextBuilder.ToText();
+}
 #undef LOCTEXT_NAMESPACE

@@ -1577,6 +1577,10 @@ void FInputKeyManager::InitKeyMappings()
 	uint32 const CharKeyMapSize(FPlatformInput::GetCharKeyMap(CharCodes, CharKeyNames, MAX_KEY_MAPPINGS));
 	uint32 const KeyMapSize(FPlatformInput::GetKeyMap(KeyCodes, KeyNames, MAX_KEY_MAPPINGS));
 
+	// When the input language changes, a key that was virtual may no longer be virtual.
+	// We must repopulate the maps to ensure GetKeyFromCodes returns the correct value per language.
+	KeyMapVirtualToEnum.Reset();
+	KeyMapCharToEnum.Reset();
 	for (uint32 Idx=0; Idx<KeyMapSize; ++Idx)
 	{
 		FKey Key(*KeyNames[Idx]);

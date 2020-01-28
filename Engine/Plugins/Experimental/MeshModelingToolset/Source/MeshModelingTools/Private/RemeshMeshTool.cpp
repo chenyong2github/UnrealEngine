@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemeshMeshTool.h"
+#include "ComponentSourceInterfaces.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
+#include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 
 #include "DynamicMesh3.h"
@@ -21,8 +23,6 @@
 /*
  * ToolBuilder
  */
-
-
 bool URemeshMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
@@ -43,20 +43,19 @@ UInteractiveTool* URemeshMeshToolBuilder::BuildTool(const FToolBuilderState& Sce
 	return NewTool;
 }
 
-
-
 /*
  * Tool
  */
-
 URemeshMeshToolProperties::URemeshMeshToolProperties()
 {
 	TargetTriangleCount = 5000;
-	SmoothingSpeed = 0.25;
+	SmoothingStrength = 0.25;
 	RemeshIterations = 20;
 	bDiscardAttributes = false;
 	SmoothingType = ERemeshSmoothingType::MeanValue;
 	bPreserveSharpEdges = true;
+	bShowWireframe = true;
+	bShowGroupColors = false;
 
 	TargetEdgeLength = 5.0;
 	bFlips = true;
@@ -67,12 +66,9 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bUseTargetEdgeLength = false;
 }
 
-
-
 URemeshMeshTool::URemeshMeshTool()
 {
 }
-
 
 void URemeshMeshTool::SetWorld(UWorld* World)
 {
@@ -83,7 +79,6 @@ void URemeshMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }
-
 
 void URemeshMeshTool::Setup()
 {
@@ -103,9 +98,16 @@ void URemeshMeshTool::Setup()
 	FComponentMaterialSet MaterialSet;
 	ComponentTarget->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials( MaterialSet.Materials,
-		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
-	Preview->PreviewMesh->EnableWireframe(true);
+	Preview->PreviewMesh->EnableWireframe(BasicProperties->bShowWireframe);
+
+	ShowGroupsWatcher.Initialize(
+		[this]() { return BasicProperties->bShowGroupColors; },
+		[this](bool bNewValue) { UpdateVisualization(); }, BasicProperties->bShowGroupColors );
+	ShowWireFrameWatcher.Initialize(
+		[this]() { return BasicProperties->bShowWireframe; },
+		[this](bool bNewValue) { UpdateVisualization(); }, BasicProperties->bShowWireframe );
 
 	OriginalMesh = MakeShared<FDynamicMesh3>();
 	FMeshDescriptionToDynamicMesh Converter;
@@ -124,10 +126,10 @@ void URemeshMeshTool::Setup()
 	{
 		InitialMeshArea += OriginalMesh->GetTriArea(tid);
 	}
-	
+
 	// set properties defaults
-	
-	// arbitrary threshold of 5000 tris seems reasonable? 
+
+	// arbitrary threshold of 5000 tris seems reasonable?
 	BasicProperties->TargetTriangleCount = (OriginalMesh->TriangleCount() < 5000) ? 5000 : OriginalMesh->TriangleCount();
 	BasicProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
 
@@ -137,7 +139,6 @@ void URemeshMeshTool::Setup()
 
 	Preview->InvalidateResult();
 }
-
 
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
@@ -149,12 +150,13 @@ void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-
 void URemeshMeshTool::Tick(float DeltaTime)
 {
+	ShowWireFrameWatcher.CheckAndUpdate();
+	ShowGroupsWatcher.CheckAndUpdate();
+
 	Preview->Tick(DeltaTime);
 }
-
 
 TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 {
@@ -173,13 +175,15 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->bDiscardAttributes = BasicProperties->bDiscardAttributes;
 	Op->bFlips = BasicProperties->bFlips;
 	Op->bPreserveSharpEdges = BasicProperties->bPreserveSharpEdges;
+	Op->MeshBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->MeshBoundaryConstraint;
+	Op->GroupBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->GroupBoundaryConstraint;
+	Op->MaterialBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->MaterialBoundaryConstraint;
 	Op->bPreventNormalFlips = BasicProperties->bPreventNormalFlips;
 	Op->bReproject = BasicProperties->bReproject;
 	Op->bSplits = BasicProperties->bSplits;
 	Op->RemeshIterations = BasicProperties->RemeshIterations;
-	Op->SmoothingSpeed = BasicProperties->SmoothingSpeed;
+	Op->SmoothingStrength = BasicProperties->SmoothingStrength;
 	Op->SmoothingType = BasicProperties->SmoothingType;
-	Op->TargetTriangleCount = BasicProperties->TargetTriangleCount;
 
 	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
 	Op->SetTransform(LocalToWorld);
@@ -189,7 +193,6 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 
 	return Op;
 }
-
 
 void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
@@ -201,9 +204,9 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	if (TargetMesh && TargetMesh->HasAttributes())
 	{
 		const FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
-		for (int eid : TargetMesh->EdgeIndicesItr()) 
+		for (int eid : TargetMesh->EdgeIndicesItr())
 		{
-			if (UVOverlay->IsSeamEdge(eid)) 
+			if (UVOverlay->IsSeamEdge(eid))
 			{
 				FVector3d A, B;
 				TargetMesh->GetEdgeV(eid, A, B);
@@ -214,12 +217,32 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-
 void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }
 
+void URemeshMeshTool::UpdateVisualization()
+{
+	Preview->PreviewMesh->EnableWireframe(BasicProperties->bShowWireframe);
+	FComponentMaterialSet MaterialSet;
+	if (BasicProperties->bShowGroupColors)
+	{
+		MaterialSet.Materials = {ToolSetupUtil::GetSelectionMaterial(GetToolManager())};
+		Preview->PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
+		{
+			return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
+		},
+		UPreviewMesh::ERenderUpdateMode::FastUpdate);
+	}
+	else
+	{
+		ComponentTarget->GetMaterialSet(MaterialSet);
+		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
+	}
+	Preview->ConfigureMaterials(MaterialSet.Materials,
+								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+}
 
 double URemeshMeshTool::CalculateTargetEdgeLength(int TargetTriCount)
 {
@@ -238,7 +261,6 @@ bool URemeshMeshTool::CanAccept() const
 	return Preview->HaveValidResult();
 }
 
-
 void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemeshMeshToolTransactionName", "Remesh Mesh"));
@@ -254,7 +276,5 @@ void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 
 	GetToolManager()->EndUndoTransaction();
 }
-
-
 
 #undef LOCTEXT_NAMESPACE

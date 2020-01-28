@@ -549,6 +549,15 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 {
+	// NOTES 
+	// 
+	// Legacy Foliage mode treated single instance as a setting rather than a tool.
+	// The following code can be cleaned up once the Legacy Foliage Mode is removed, by clearing
+	// the SingleInstantiation flag in FEdModeFoliage::ClearAllToolSelection.  Instead here,
+	// we explicitly clear it in Paint, Reapply, and Fill 
+	// 
+
+
 	//  Select
 	ToolBarBuilder.AddToolBarButton(FFoliageEditCommands::Get().SetSelect);
 
@@ -584,32 +593,6 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 
 	ToolBarBuilder.AddSeparator();
 
-
-	//  Place (Single Instance)
-	ToolBarBuilder.AddToolBarButton(
-		FUIAction(
-			FExecuteAction::CreateLambda( [this] { 
-				FoliageEditMode->OnSetPaint();
-				OnCheckStateChanged_SingleInstantiationMode(true);
-			}),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda( [this] {
-				return GetCheckState_SingleInstantiationMode() && IsPaintTool();
-			})
-		),
-		NAME_None,
-		LOCTEXT("FoliagePlace", "Place"),
-		LOCTEXT("FoliagePlaceTooltip", "Place a Single Instance of the Selected Foliage"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Foliage"),
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	// Single Instance Options
-	ToolBarBuilder.AddComboButton(
-		FUIAction(),
-		FOnGetContent::CreateSP(this, &SFoliageEdit::GetSingleInstantiationModeMenuContent) );
-
-
 	//  Paint
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
@@ -619,7 +602,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 			}),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateLambda( [this] {
-				return !GetCheckState_SingleInstantiationMode() && IsPaintTool();
+				return  IsPaintTool() && !IsPlaceTool() && !IsEraseTool();
 			})
 		),
 		NAME_None,
@@ -629,7 +612,6 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		EUserInterfaceActionType::ToggleButton
 
 	);
-
 
 	//  Reapply
 	ToolBarBuilder.AddToolBarButton(
@@ -650,6 +632,25 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		EUserInterfaceActionType::ToggleButton
 	);
 
+	//  Place (Single Instance)
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP( FoliageEditMode, &FEdModeFoliage::OnSetPlace ),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SFoliageEdit::IsPlaceTool)
+		),
+		NAME_None,
+		LOCTEXT("FoliagePlace", "Single"),
+		LOCTEXT("FoliagePlaceTooltip", "Place a Single Instance of the Selected Foliage"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Foliage"),
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	// Single Instance Options
+	ToolBarBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &SFoliageEdit::GetSingleInstantiationModeMenuContent) );
+
 	//  Fill
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
@@ -658,9 +659,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 				OnCheckStateChanged_SingleInstantiationMode(false);
 			}),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda( [this] {
-				return !GetCheckState_SingleInstantiationMode() && IsPaintFillTool();
-			})
+			FIsActionChecked::CreateSP(this, &SFoliageEdit::IsPaintFillTool)
 		),
 		NAME_None,
 		LOCTEXT("FoliageFill", "Fill"),
@@ -669,6 +668,22 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		EUserInterfaceActionType::ToggleButton
 	);
 
+	// Erase
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP(FoliageEditMode, &FEdModeFoliage::OnSetErase),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SFoliageEdit::IsEraseTool)
+		),
+		NAME_None,
+		LOCTEXT("FoliageErase", "Erase"),
+		LOCTEXT("FoliageEraseTooltip", "Erase the selected foliage"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Erase"),
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	ToolBarBuilder.AddSeparator();
+	
 	// Remove
 	ToolBarBuilder.AddToolBarButton(
 		FExecuteAction::CreateLambda( [this] { FoliageEditMode->RemoveSelectedInstances(FoliageEditMode->GetWorld()); } ),
@@ -679,8 +694,15 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		EUserInterfaceActionType::Button
 	);
 
+	// Move To Current Level
+	ToolBarBuilder.AddToolBarButton(
+		FExecuteAction::CreateSP(this, &SFoliageEdit::OnMoveSelectedInstancesToCurrentLevel),
+		NAME_None,
+		LOCTEXT("FoliageMoveToCurrentLevel", "Move"),
+		LOCTEXT("FoliageMoveToCurrentLevelTooltip", "Move the Selected Foliage to the Current Level"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.MoveToCurrentLevel")
+	);
 
-	//  
 	ToolBarBuilder.AddSeparator();
 
 	TSharedPtr<INumericTypeInterface<float>> NumericInterface = MakeShareable(new FVariablePrecisionNumericInterface());
@@ -758,15 +780,6 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		LOCTEXT("Settings", "Settings"),
 		FText(),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings")
-	);
-
-	// Move To Current Level
-	ToolBarBuilder.AddToolBarButton(
-		FExecuteAction::CreateSP(this, &SFoliageEdit::OnMoveSelectedInstancesToCurrentLevel),
-		NAME_None,
-		LOCTEXT("FoliageMoveToCurrentLevel", "Move"),
-		LOCTEXT("FoliageMoveToCurrentLevelTooltip", "Move the Selected Foliage to the Current Level"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.MoveToCurrentLevel")
 	);
 }
 
@@ -965,10 +978,28 @@ bool SFoliageEdit::IsPaintFillTool() const
 	return FoliageEditMode->UISettings.GetPaintBucketToolSelected();
 }
 
+bool SFoliageEdit::IsPlaceTool() const
+{
+	return IsPaintTool() && FoliageEditMode->UISettings.IsInAnySingleInstantiationMode();
+}
+
+bool SFoliageEdit::IsEraseTool() const
+{
+	return IsPaintTool() && FoliageEditMode->UISettings.IsInAnyEraseMode();
+}
+
 FText SFoliageEdit::GetActiveToolName() const
 {
 	FText OutText;
-	if (IsPaintTool())
+	if (IsEraseTool())
+	{
+		OutText = LOCTEXT("FoliageToolName_Erase", "Erase");
+	}
+	else if (IsPlaceTool())
+	{
+		OutText = LOCTEXT("FoliageToolName_Place", "Place Single Instances");
+	}
+	else if (IsPaintTool())
 	{
 		OutText = LOCTEXT("FoliageToolName_Paint", "Paint");
 	}
@@ -989,6 +1020,40 @@ FText SFoliageEdit::GetActiveToolName() const
 		OutText = LOCTEXT("FoliageToolName_Fill", "Fill");
 	}
 
+	return OutText;
+}
+
+FText SFoliageEdit::GetActiveToolMessage() const
+{
+	FText OutText;
+	if (IsEraseTool())
+	{
+		OutText = LOCTEXT("FoliageToolMessage_Erase", "Click and drag in the viewport to reduce foliage down to the Erase Density Setting.");
+	}
+	else if (IsPlaceTool())
+	{
+		OutText = LOCTEXT("foliagetoolmessage_place", "Place single instances of the selected Foliage in your level.  Be sure to add foliage to your palette and ensure they are active using the checkbox on the foliage thumbnail.  Use the dropdown next to the place tool to choose between cycling placement of individual instances or placing clumps containing one of each selected instance.");
+	}
+	else if (IsPaintTool())
+	{
+		OutText = LOCTEXT("foliagetoolmessage_paint", "Click and drag directly in the viewport to paint selected foliage in your level. Be sure to add foliage to your Mesh List and ensure they are selected using the checkbox on the foliage thumbnail.");
+	}
+	else if (IsReapplySettingsTool())
+	{
+		OutText = LOCTEXT("FoliageToolMessage_Reapply", "Click and drag directly on Foliage already placed in the world to selectively change certain parameters for Foliage meshes. When you paint over Foliage meshes with the Reapply tool active, the Foliage meshes that are selected in the Mesh List will be updated to reflect the changes made in the Reapply tool.");
+	}
+	else if (IsSelectTool())
+	{
+		OutText = LOCTEXT("FoliageToolMessage_Select", "Click to select individual instances of foliage.  Use the Viewport Gizmo to adjust foliage positions.");
+	}
+	else if (IsLassoSelectTool())
+	{
+		OutText = LOCTEXT("FoliageToolMessage_LassoSelect", "Select multiple Foliage meshes simultaneously.  Use the Filter settings to control the selection of Foliage meshes that are placed on certain object types.  Once you have a selection, you can switch to the regular Select tool and do things like duplicate, move or remove Foliage meshes.");
+	}
+	else if (IsPaintFillTool())
+	{
+		OutText = LOCTEXT("FoliageToolMessage_Fill", "Click to cover objects with foliage.  You can filter what types of objects to populate using Filter in the Toolbar.");
+	}
 	return OutText;
 }
 
@@ -1131,7 +1196,7 @@ void SFoliageEdit::OnCheckStateChanged_SingleInstantiationMode(bool InState)
 
 bool SFoliageEdit::GetCheckState_SingleInstantiationMode() const
 {
-	return FoliageEditMode->UISettings.GetIsInSingleInstantiationMode();
+	return FoliageEditMode->UISettings.GetIsInSingleInstantiationMode() || FoliageEditMode->UISettings.GetIsInQuickSingleInstantiationMode();
 }
 
 void SFoliageEdit::OnCheckStateChanged_SpawnInCurrentLevelMode(ECheckBoxState InState)

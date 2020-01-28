@@ -600,7 +600,7 @@ private:
 
 			if ( ClassDisplayName.IsEmpty() )
 			{
-				ClassDisplayName = FText::FromString( FName::NameToDisplayString(*Class->GetName(), false) );
+				ClassDisplayName = Class->GetDisplayNameText();
 			}
 		}
 

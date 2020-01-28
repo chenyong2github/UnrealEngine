@@ -8,6 +8,8 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "MeshAdapterTransforms.h"
+#include "MeshDescriptionAdapter.h"
 #include "MeshTransforms.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 
@@ -56,6 +58,17 @@ UInteractiveTool* UEditPivotToolBuilder::BuildTool(const FToolBuilderState& Scen
 
 
 
+void UEditPivotToolActionPropertySet::PostAction(EEditPivotToolActions Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
+}
+
+
+
+
 /*
  * Tool
  */
@@ -82,22 +95,27 @@ void UEditPivotTool::Setup()
 	TransformProps = NewObject<UEditPivotToolProperties>();
 	AddToolPropertySource(TransformProps);
 
+	EditPivotActions = NewObject<UEditPivotToolActionPropertySet>(this);
+	EditPivotActions->Initialize(this);
+	AddToolPropertySource(EditPivotActions);
+
 	ResetActiveGizmos();
 	SetActiveGizmos_Single(false);
 	UpdateSetPivotModes(true);
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartEditPivotTool", "To transform Objects around points, reposition the Gizmo using Set Pivot mode (S). To quickly position Objects, enable Snap Drag mode (D). A cycles through Transform modes, W and E through SnapDrag Source and Rotation types."),
-		EToolMessageLevel::UserNotification);
+	Precompute();
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("EditPivotWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!"),
-		EToolMessageLevel::UserWarning);
+	FText AllTheWarnings = LOCTEXT("EditPivotWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!");
+
+	// detect and warn about any meshes in selection that correspond to same source data
+	bool bSharesSources = GetMapToFirstComponentsSharingSourceData(MapToFirstOccurrences);
+	if (bSharesSources)
+	{
+		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("EditPivotSharedAssetsWarning", "WARNING: Multiple meshes in your selection use the same source asset!  This is not supported -- each asset can only have one baked pivot."));
+	}
+
+	GetToolManager()->DisplayMessage(AllTheWarnings, EToolMessageLevel::UserWarning);
 }
-
-
-
-
 
 
 
@@ -114,9 +132,70 @@ void UEditPivotTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
+void VertexIteration(const FMeshDescription* Mesh, TFunction<void(int32, const FVector&)> ApplyFunc)
+{
+	const FVertexArray& VertexIDs = Mesh->Vertices();
+	TVertexAttributesConstRef<FVector> VertexPositions =
+		Mesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+	for (const FVertexID VertexID : VertexIDs.GetElementIDs())
+	{
+		const FVector Position = VertexPositions.Get(VertexID);
+		ApplyFunc(VertexID.GetValue(), Position);
+	}
+}
+
+
+void UEditPivotTool::Precompute()
+{
+	ObjectBounds = FAxisAlignedBox3d::Empty();
+	WorldBounds = FAxisAlignedBox3d::Empty();
+
+	int NumComponents = ComponentTargets.Num();
+	if (NumComponents == 1)
+	{
+		Transform = FTransform3d(ComponentTargets[0]->GetWorldTransform());
+
+		FMeshDescription* Mesh = ComponentTargets[0]->GetMesh();
+		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
+			ObjectBounds.Contain(Position);
+			WorldBounds.Contain(Transform.TransformPosition(Position));
+		});
+	}
+	else
+	{
+		Transform = FTransform3d::Identity();
+		for (int k = 0; k < ComponentTargets.Num(); ++k)
+		{
+			TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[k];
+			FTransform3d CurTransform(Target->GetWorldTransform());
+			FMeshDescription* Mesh = Target->GetMesh();
+			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
+				ObjectBounds.Contain(CurTransform.TransformPosition(Position));
+				WorldBounds.Contain(CurTransform.TransformPosition(Position));
+			});
+		}
+	}
+}
+
+
+
+void UEditPivotTool::RequestAction(EEditPivotToolActions ActionType)
+{
+	if (PendingAction == EEditPivotToolActions::NoAction)
+	{
+		PendingAction = ActionType;
+	}
+}
+
 
 void UEditPivotTool::Tick(float DeltaTime)
 {
+	if (PendingAction != EEditPivotToolActions::NoAction)
+	{
+		ApplyAction(PendingAction);
+		PendingAction = EEditPivotToolActions::NoAction;
+	}
 }
 
 void UEditPivotTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -140,38 +219,58 @@ void UEditPivotTool::UpdateSetPivotModes(bool bEnableSetPivot)
 
 void UEditPivotTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
-	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
-	//	TEXT("ToggleSnapDrag"),
-	//	LOCTEXT("TransformToggleSnapDrag", "Toggle SnapDrag"),
-	//	LOCTEXT("TransformToggleSnapDragTooltip", "Toggle SnapDrag on and off"),
-	//	EModifierKey::None, EKeys::D,
-	//	[this]() { this->TransformProps->bEnableSnapDragging = !this->TransformProps->bEnableSnapDragging; });
-
-	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 3,
-	//	TEXT("CycleTransformMode"),
-	//	LOCTEXT("TransformCycleTransformMode", "Next Transform Mode"),
-	//	LOCTEXT("TransformCycleTransformModeTooltip", "Cycle through available Transform Modes"),
-	//	EModifierKey::None, EKeys::A,
-	//	[this]() { this->TransformProps->TransformMode = (EEditPivotTransformMode)(((uint8)TransformProps->TransformMode+1) % (uint8)EEditPivotTransformMode::LastValue); });
-
-
-	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 4,
-	//	TEXT("CycleSourceMode"),
-	//	LOCTEXT("TransformCycleSourceMode", "Next SnapDrag Source Mode"),
-	//	LOCTEXT("TransformCycleSourceModeTooltip", "Cycle through available SnapDrag Source Modes"),
-	//	EModifierKey::None, EKeys::W,
-	//	[this]() { this->TransformProps->SnapDragSource = (EEditPivotSnapDragSource)(((uint8)TransformProps->SnapDragSource + 1) % (uint8)EEditPivotSnapDragSource::LastValue); });
-
-	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 5,
-	//	TEXT("CycleRotationMode"),
-	//	LOCTEXT("TransformCycleRotationMode", "Next SnapDrag Rotation Mode"),
-	//	LOCTEXT("TransformCycleRotationModeTooltip", "Cycle through available SnapDrag Rotation Modes"),
-	//	EModifierKey::None, EKeys::E,
-	//	[this]() { this->TransformProps->RotationMode = (EEditPivotSnapDragRotationMode)(((uint8)TransformProps->RotationMode + 1) % (uint8)EEditPivotSnapDragRotationMode::LastValue); });
-
-
 }
 
+
+void UEditPivotTool::ApplyAction(EEditPivotToolActions ActionType)
+{
+	switch (ActionType)
+	{
+		case EEditPivotToolActions::Center:
+		case EEditPivotToolActions::Bottom:
+		case EEditPivotToolActions::Top:
+		case EEditPivotToolActions::Left:
+		case EEditPivotToolActions::Right:
+		case EEditPivotToolActions::Front:
+		case EEditPivotToolActions::Back:
+			SetPivotToBoxPoint(ActionType);
+			break;
+	}
+}
+
+
+void UEditPivotTool::SetPivotToBoxPoint(EEditPivotToolActions ActionPoint)
+{
+	FAxisAlignedBox3d UseBox = (EditPivotActions->bUseWorldBox) ? WorldBounds : ObjectBounds;
+	FVector3d Point = UseBox.Center();
+
+	if (ActionPoint == EEditPivotToolActions::Bottom || ActionPoint == EEditPivotToolActions::Top)
+	{
+		Point.Z = (ActionPoint == EEditPivotToolActions::Bottom) ? UseBox.Min.Z : UseBox.Max.Z;
+	}
+	else if (ActionPoint == EEditPivotToolActions::Left || ActionPoint == EEditPivotToolActions::Right)
+	{
+		Point.Y = (ActionPoint == EEditPivotToolActions::Left) ? UseBox.Min.Y : UseBox.Max.Y;
+	}
+	else if (ActionPoint == EEditPivotToolActions::Back || ActionPoint == EEditPivotToolActions::Front)
+	{
+		Point.X = (ActionPoint == EEditPivotToolActions::Front) ? UseBox.Min.X : UseBox.Max.X;
+	}
+
+	FTransform NewTransform;
+	if (EditPivotActions->bUseWorldBox == false)
+	{
+		FFrame3d LocalFrame(Point);
+		LocalFrame.Transform(Transform);
+		NewTransform = LocalFrame.ToFTransform();
+	}
+	else
+	{
+		NewTransform = FTransform((FVector)Point);
+	}
+
+	ActiveGizmos[0].TransformGizmo->SetNewGizmoTransform(NewTransform);
+}
 
 
 
@@ -187,8 +286,13 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 	{
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
 	}
-	Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
+	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+		ETransformGizmoSubElements::StandardTranslateRotate, this
+	);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+
+	Transformable.TransformGizmo->bUseContextCoordinateSystem = false;
+	Transformable.TransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
 
 	ActiveGizmos.Add(Transformable);
 }
@@ -241,14 +345,14 @@ void UEditPivotTool::OnClickPress(const FInputDeviceRay& PressPos)
 	USceneComponent* GizmoComponent = ActiveTarget.TransformGizmo->GetGizmoActor()->GetRootComponent();
 	StartDragTransform = GizmoComponent->GetComponentToWorld();
 
-	if (TransformProps->SnapDragSource == EEditPivotSnapDragSource::ClickPoint)
-	{
+	//if (TransformProps->SnapDragSource == EEditPivotSnapDragSource::ClickPoint)
+	//{
 		StartDragFrameWorld = FFrame3d(PressPos.WorldRay.PointAt(HitPos.HitDepth), HitPos.HitNormal);
-	}
-	else
-	{
-		StartDragFrameWorld = FFrame3d(StartDragTransform);
-	}
+	//}
+	//else
+	//{
+	//	StartDragFrameWorld = FFrame3d(StartDragTransform);
+	//}
 
 }
 
@@ -329,30 +433,48 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EditPivotToolTransactionName", "Edit Pivot"));
 
 	FTransform NewWorldTransform = NewPivotWorldFrame.ToFTransform();
-
+	FTransform NewWorldInverse = NewWorldTransform.Inverse();
+	TArray<FTransform> OriginalTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		FTransform3d ComponentToWorld(ComponentTargets[ComponentIdx]->GetWorldTransform());
-
-		ComponentTargets[ComponentIdx]->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-		{
-			// AAAAHHHH we can apply this xform directly to MeshDescription if we had the suitable function!
-
-			FMeshDescriptionToDynamicMesh ToDynamicMesh;
-			FDynamicMesh3 Mesh;
-			ToDynamicMesh.Convert(CommitParams.MeshDescription, Mesh);
-
-			MeshTransforms::ApplyTransform(Mesh, ComponentToWorld);
-			MeshTransforms::WorldToFrameCoords(Mesh, NewPivotWorldFrame);
-
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Update(&Mesh, *CommitParams.MeshDescription, true, false);
-		});
-
-		UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
-		Component->Modify();
-		Component->SetWorldTransform(NewWorldTransform);
+		OriginalTransforms.Add(ComponentTargets[ComponentIdx]->GetWorldTransform());
 	}
+	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	{
+		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
+		{
+			FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
+
+			ComponentTargets[ComponentIdx]->CommitMesh([&ToBake](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			{
+				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescription);
+				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
+			});
+
+			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+			Component->Modify();
+			Component->SetWorldTransform(NewWorldTransform);
+		}
+		else
+		{
+			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+			Component->Modify();
+			// try to invert baked transform
+			FTransform Baked = OriginalTransforms[MapToFirstOccurrences[ComponentIdx]] * NewWorldInverse;
+			Component->SetWorldTransform(Baked.Inverse() * OriginalTransforms[ComponentIdx]);
+		}
+		ComponentTargets[ComponentIdx]->GetOwnerActor()->MarkComponentsRenderStateDirty();
+	}
+
+	// hack to ensure user sees the updated pivot immediately: request re-select of the original selection
+	FSelectedOjectsChangeList NewSelection;
+	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
+	for (int OrigMeshIdx = 0; OrigMeshIdx < ComponentTargets.Num(); OrigMeshIdx++)
+	{
+		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[OrigMeshIdx];
+		NewSelection.Actors.Add(ComponentTarget->GetOwnerActor());
+	}
+	GetToolManager()->RequestSelectionChange(NewSelection);
 
 	GetToolManager()->EndUndoTransaction();
 }

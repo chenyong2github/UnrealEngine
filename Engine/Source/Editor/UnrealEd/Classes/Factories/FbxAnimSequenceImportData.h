@@ -17,7 +17,7 @@ b) As for FbxNode::GetAnimationInternval, this one will iterate through all prop
 */
 
 /** Animation length type when importing */
-UENUM()
+UENUM(BlueprintType)
 enum EFBXAnimationLengthImportType
 {
 	/** This option imports animation frames based on what is defined at the time of export */
@@ -33,7 +33,7 @@ enum EFBXAnimationLengthImportType
 /**
 * Import data and options used when importing any mesh from FBX
 */
-UCLASS(config = EditorPerProjectUserSettings, configdonotcheckdefaults)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, configdonotcheckdefaults)
 class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 {
 	GENERATED_UCLASS_BODY()

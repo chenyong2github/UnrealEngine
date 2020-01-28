@@ -97,6 +97,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	EMoviePipelineExecutorJobStatus JobStatus;
 
+	/** (Optional) Name of the person who submitted the job. Can be shown in burn in as a first point of contact about the content. */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FText Author;
 
 private:
 	/** 
@@ -136,36 +139,13 @@ public:
 	}
 	
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
-	UMoviePipelineExecutorJob* AllocateNewJob()
-	{
-#if WITH_EDITOR
-		Modify();
-#endif
-
-		UMoviePipelineExecutorJob* NewJob = NewObject<UMoviePipelineExecutorJob>(this);
-		NewJob->SetFlags(RF_Transactional);
-		
-		Jobs.Add(NewJob);
-		QueueSerialNumber++;
-
-		return NewJob;
-	}
+	UMoviePipelineExecutorJob* AllocateNewJob();
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
-	void DeleteJob(UMoviePipelineExecutorJob* InJob)
-	{
-		if (!InJob)
-		{
-			return;
-		}
+	void DeleteJob(UMoviePipelineExecutorJob* InJob);
 
-#if WITH_EDITOR
-		Modify();
-#endif
-
-		Jobs.Remove(InJob);
-		QueueSerialNumber++;
-	}
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
+	UMoviePipelineExecutorJob* DuplicateJob(UMoviePipelineExecutorJob* InJob);
 	
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline|Queue")
 	TArray<UMoviePipelineExecutorJob*> GetJobs() const

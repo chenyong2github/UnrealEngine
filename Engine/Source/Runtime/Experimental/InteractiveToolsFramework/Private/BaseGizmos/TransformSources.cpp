@@ -23,6 +23,33 @@ void UGizmoComponentWorldTransformSource::SetTransform(const FTransform& NewTran
 
 
 
+
+FTransform UGizmoScaledTransformSource::GetTransform() const
+{
+	// get transform from child, and replace scale with external scale
+	FTransform Transform = ChildTransformSource->GetTransform();
+	FVector ExternalScale = ScaleProvider.GetScale();
+	Transform.SetScale3D(ExternalScale);
+	return Transform;
+}
+
+void UGizmoScaledTransformSource::SetTransform(const FTransform& NewTransform)
+{
+	// forward incoming scale to external provider
+	FVector ExternalScale = NewTransform.GetScale3D();
+	ScaleProvider.SetScale(ExternalScale);
+
+	// remove scale from transform and forward to child source
+	FTransform Unscaled(NewTransform);
+	Unscaled.SetScale3D(FVector::OneVector);
+	ChildTransformSource->SetTransform(Unscaled);
+
+	OnTransformChanged.Broadcast(this);
+}
+
+
+
+
 FTransform UGizmoTransformProxyTransformSource::GetTransform() const
 {
 	return Proxy->GetTransform();

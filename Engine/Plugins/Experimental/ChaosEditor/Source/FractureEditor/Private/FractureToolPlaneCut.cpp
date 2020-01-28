@@ -39,12 +39,12 @@ UFractureToolPlaneCut::UFractureToolPlaneCut(const FObjectInitializer& ObjInit)
 
 FText UFractureToolPlaneCut::GetDisplayText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolPlaneCut", "PlaneCut")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolPlaneCut", "Plane Cut Fracture")); 
 }
 
 FText UFractureToolPlaneCut::GetTooltipText() const 
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolPlaneCutTooltip", "PlaneCut Mesh")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolPlaneCutTooltip", "Planar fracture can be used to make cuts along a plane in your Geometry Collection. You can apply noise to planar cuts for more organic results.  Click the Fracture Button to commit the fracture to the geometry collection."));
 }
 
 FSlateIcon UFractureToolPlaneCut::GetToolIcon() const 

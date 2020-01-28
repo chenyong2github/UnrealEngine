@@ -29,6 +29,7 @@ public class InteractiveToolsFramework : ModuleRules
                 "CoreUObject",
                 "InputCore",
                 "ApplicationCore",
+				"MeshDescription"
 				// ... add other public dependencies that you statically link with here ...
 			}
             );

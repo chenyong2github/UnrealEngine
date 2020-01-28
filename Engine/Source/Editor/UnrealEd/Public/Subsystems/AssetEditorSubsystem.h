@@ -55,6 +55,7 @@ class UNREALED_API UAssetEditorSubsystem : public UEditorSubsystem
 public:
 	UAssetEditorSubsystem();
 
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	/** Opens an asset by path */
@@ -160,6 +161,9 @@ private:
 
 	/** Handles a package being reloaded */
 	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
+
+	/** Callback for when the Editor closes, before Slate shuts down all the windows. */
+	void OnEditorClose();
 
 private:
 

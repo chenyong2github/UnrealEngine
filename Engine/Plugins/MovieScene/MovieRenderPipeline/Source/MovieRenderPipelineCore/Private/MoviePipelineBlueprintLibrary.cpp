@@ -7,50 +7,141 @@
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "LevelSequence.h"
+#include "UObject/SoftObjectPath.h"
+#include "MoviePipelineQueue.h"
 
-void UMoviePipelineBlueprintLibrary::GetCameraCutCounts(const UMoviePipeline* InPipeline, int32& OutTotalCuts, int32& OutCurrentCutIndex)
+EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
-	OutTotalCuts = 0;
-	OutCurrentCutIndex = 0;
-	
-	if(!InPipeline)
+	if (InPipeline)
 	{
-		return;
+		return InPipeline->GetPipelineState();
 	}
 
-	const TArray<FMoviePipelineShotInfo>&  ShotList = InPipeline->GetShotList();
-	for (int32 ShotIdx = 0; ShotIdx < ShotList.Num(); ShotIdx++)
-	{
-		OutTotalCuts += ShotList[ShotIdx].CameraCuts.Num();
+	return EMovieRenderPipelineState::Uninitialized;
+}
 
-		if (ShotIdx <= InPipeline->GetCurrentShotIndex())
+EMovieRenderShotState UMoviePipelineBlueprintLibrary::GetCurrentSegmentState(UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		int32 ShotIndex = InMoviePipeline->GetCurrentShotIndex();
+		if (ShotIndex < InMoviePipeline->GetShotList().Num())
 		{
-			// We don't add an additional one here because we're currently processing that
-			// index.
-			OutCurrentCutIndex += ShotList[ShotIdx].CurrentCameraCutIndex;
+			return InMoviePipeline->GetShotList()[ShotIndex].GetCurrentCameraCut().State;
+		}
+	}
+
+	return EMovieRenderShotState::Uninitialized;
+}
+
+FText UMoviePipelineBlueprintLibrary::GetJobName(UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		return FText::FromString(InMoviePipeline->GetCurrentJob()->Sequence.GetAssetName());
+	}
+
+	return FText();
+}
+
+FText UMoviePipelineBlueprintLibrary::GetJobAuthor(UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		return InMoviePipeline->GetCurrentJob()->Author;
+	}
+
+	return FText();
+}
+
+void UMoviePipelineBlueprintLibrary::GetOverallOutputFrames(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount)
+{
+	OutCurrentIndex = 0;
+	OutTotalCount = 0;
+	if (InMoviePipeline)
+	{
+		OutCurrentIndex = InMoviePipeline->GetOutputState().OutputFrameNumber;
+
+		for (const FMoviePipelineShotInfo& Shot : InMoviePipeline->GetShotList())
+		{
+			for (const FMoviePipelineCameraCutInfo& Segment : Shot.CameraCuts)
+			{
+				OutTotalCount += Segment.WorkMetrics.TotalOutputFrameCount;
+			}
 		}
 	}
 }
 
-int32 UMoviePipelineBlueprintLibrary::GetOutputFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut)
+FText UMoviePipelineBlueprintLibrary::GetCurrentSegmentName(UMoviePipeline* InMoviePipeline)
 {
-	return InCameraCut.GetOutputFrameCountEstimate().Value;
+	if (InMoviePipeline)
+	{
+		int32 ShotIndex = InMoviePipeline->GetCurrentShotIndex();
+		if (ShotIndex < InMoviePipeline->GetShotList().Num())
+		{
+			return FText::FromString(InMoviePipeline->GetShotList()[ShotIndex].GetCurrentCameraCut().ShotName);
+		}
+	}
+
+	return FText();
 }
 
-int32 UMoviePipelineBlueprintLibrary::GetTemporalFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut)
+FDateTime UMoviePipelineBlueprintLibrary::GetJobInitializationTime(const UMoviePipeline* InMoviePipeline)
 {
-	return InCameraCut.GetTemporalFrameCountEstimate().Value;
+	if (InMoviePipeline)
+	{
+		return InMoviePipeline->GetInitializationTime();
+	}
+
+	return FDateTime();
 }
 
-int32 UMoviePipelineBlueprintLibrary::GetUtilityFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut)
+FMoviePipelineSegmentWorkMetrics UMoviePipelineBlueprintLibrary::GetCurrentSegmentWorkMetrics(const UMoviePipeline* InMoviePipeline)
 {
-	return InCameraCut.GetUtilityFrameCountEstimate().Value;
+	if(InMoviePipeline)
+	{
+		int32 ShotIndex = InMoviePipeline->GetCurrentShotIndex();
+		if (ShotIndex < InMoviePipeline->GetShotList().Num())
+		{
+			return InMoviePipeline->GetShotList()[ShotIndex].GetCurrentCameraCut().WorkMetrics;
+		}
+	}
+
+	return FMoviePipelineSegmentWorkMetrics();
 }
 
-int32 UMoviePipelineBlueprintLibrary::GetSampleCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut, const bool bIncludeWarmup, const bool bIncludeMotionBlur)
+void UMoviePipelineBlueprintLibrary::GetOverallSegmentCounts(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount)
 {
-	return InCameraCut.GetSampleCountEstimate(bIncludeWarmup, bIncludeMotionBlur).Value;
+	OutCurrentIndex = 0;
+	OutTotalCount = 0;
+
+	if (InMoviePipeline)
+	{
+		int32 RunningSegmentCount = 0;
+		for (int32 ShotIndex = 0; ShotIndex < InMoviePipeline->GetShotList().Num(); ShotIndex++)
+		{
+			const FMoviePipelineShotInfo& Shot = InMoviePipeline->GetShotList()[ShotIndex];
+
+			OutTotalCount += Shot.CameraCuts.Num();
+			
+			// If we've already fully rendered this shot, then we just add the number of segments
+			if (ShotIndex < InMoviePipeline->GetCurrentShotIndex())
+			{
+				OutCurrentIndex += Shot.CameraCuts.Num();
+			}
+			// If we're partway through this shot only add the index
+			else if (ShotIndex == InMoviePipeline->GetCurrentShotIndex())
+			{
+				OutCurrentIndex += Shot.CurrentCameraCutIndex;
+			}
+			else
+			{
+				// It's a future shot/cut so don't add it.
+			}
+		}
+	}
 }
+
 
 UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence)
 {
@@ -93,84 +184,95 @@ UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* 
 	return DuplicatedSequence;
 }
 
-/*
-FMoviePipelineShotInfo UMoviePipeline::GetCurrentShotSnapshot() const
+bool UMoviePipelineBlueprintLibrary::GetEstimatedTimeRemaining(const UMoviePipeline* InPipeline, FTimespan& OutEstimate)
 {
-	if (CurrentShotIndex >= 0 && CurrentShotIndex < ShotList.Num())
+	if (!InPipeline)
 	{
-		return ShotList[CurrentShotIndex];
-	}
-
-	return FMoviePipelineShotInfo();
-}
-
-FMoviePipelineCameraCutInfo UMoviePipeline::GetCurrentCameraCutSnapshot() const
-{
-	FMoviePipelineShotInfo CurrentShot = GetCurrentShotSnapshot();
-	if (CurrentShot.CurrentCameraCutIndex >= 0 && CurrentShot.CurrentCameraCutIndex < CurrentShot.CameraCuts.Num())
-	{
-		return CurrentShot.GetCurrentCameraCut();
-	}
-
-	return FMoviePipelineCameraCutInfo();
-}
-
-
-FMoviePipelineFrameOutputState UMoviePipeline::GetOutputStateSnapshot() const
-{
-	return CachedOutputState;
-}*/
-
-/*
-FFrameNumber UMoviePipeline::GetTotalOutputFrameCountEstimate() const
-{
-	FFrameNumber EstimatedFrameCount = FFrameNumber(0);
-
-	for (const FMoviePipelineShotInfo& Shot : ShotList)
-	{
-		for (const FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
-		{
-			EstimatedFrameCount += CameraCut.GetOutputFrameCountEstimate();
-		}
-	}
-
-	return EstimatedFrameCount;
-}
-
-bool UMoviePipeline::GetRemainingTimeEstimate(FTimespan& OutTimespan) const
-{
-	// If they haven't produced a single frame yet, we can't give an estimate.
-	if (CachedOutputState.TotalSamplesRendered <= 0)
-	{
-		OutTimespan = FTimespan();
+		OutEstimate = FTimespan();
 		return false;
 	}
 
-	// Look at how many total samples we expect across all shots. This includes
-	// samples produced for warm-ups, motion blur fixes, and temporal/spatial samples.
-	FFrameNumber TotalExpectedSamples = FFrameNumber(0);
+	// If they haven't produced a single frame yet, we can't give an estimate.
+	int32 OutputFrames;
+	int32 TotalOutputFrames;
+	GetOverallOutputFrames(InPipeline, OutputFrames, TotalOutputFrames);
 
-	for (const FMoviePipelineShotInfo& Shot : ShotList)
+	if (OutputFrames == 0 || TotalOutputFrames == 0)
 	{
-		for (const FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
-		{
-			TotalExpectedSamples += CameraCut.GetSampleCountEstimate(true, true);
-		}
+		OutEstimate = FTimespan();
+		return false;
 	}
 
-	// Check to see how many frames we've rendered vs. our estimate.
-	int32 RenderedFrames = CachedOutputState.TotalSamplesRendered;
-	int32 TotalFrames = TotalExpectedSamples.Value;
+	float CompletionPercentage = OutputFrames / float(TotalOutputFrames);;
+	FTimespan CurrentDuration = FDateTime::UtcNow() - InPipeline->GetInitializationTime();
 
-	double CompletionPercentage = FMath::Clamp(RenderedFrames / (double)TotalFrames, 0.0, 1.0);
-	FTimespan CurrentDuration = FDateTime::UtcNow() - InitializationTime;
-
-	// If it has taken us CurrentDuration to process CompletionPercentage frames, then we can get a total duration
+	// If it has taken us CurrentDuration to process CompletionPercentage samples, then we can get a total duration
 	// estimate by taking (CurrentDuration/CompletionPercentage) and then take that total estimate minus elapsed
 	// to get remaining.
 	FTimespan EstimatedTotalDuration = CurrentDuration / CompletionPercentage;
-	OutTimespan = EstimatedTotalDuration - CurrentDuration;
+	OutEstimate = EstimatedTotalDuration - CurrentDuration;
 
 	return true;
 }
-*/
+
+float UMoviePipelineBlueprintLibrary::GetCompletionPercentage(const UMoviePipeline* InPipeline)
+{
+	if (!InPipeline)
+	{
+		return 0.f;
+	}
+
+	// Look at how many total samples we expect across all shots. This includes
+	// samples produced for warm-ups, motion blur fixes, and temporal/spatial samples.	
+	//int32 TotalExpectedSamples = GetTotalSampleCount(InPipeline->GetTotalWorkEstimate());
+	//int32 TotalCompletedSamples = GetTotalSampleCount(InPipeline->GetCompletedWork());
+	//
+	//float CompletionPercentage = FMath::Clamp(TotalCompletedSamples / (float)TotalExpectedSamples, 0.f, 1.f);
+	//return CompletionPercentage;
+	return 0.f;
+}
+
+FTimecode UMoviePipelineBlueprintLibrary::GetMasterTimecode(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		return InMoviePipeline->GetOutputState().SourceTimeCode;
+	}
+
+	return FTimecode();
+}
+
+FFrameNumber UMoviePipelineBlueprintLibrary::GetMasterFrameNumber(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		if (InMoviePipeline->GetTargetSequence() && InMoviePipeline->GetTargetSequence()->GetMovieScene())
+		{
+			FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelineMasterConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
+			return GetMasterTimecode(InMoviePipeline).ToFrameNumber(EffectiveFrameRate);
+		}
+	}
+
+	return FFrameNumber(-1);
+}
+
+FTimecode UMoviePipelineBlueprintLibrary::GetCurrentShotTimecode(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		return InMoviePipeline->GetOutputState().CurrentShotSourceTimeCode;
+	}
+
+	return FTimecode();
+}
+
+FFrameNumber UMoviePipelineBlueprintLibrary::GetCurrentShotFrameNumber(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelineMasterConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
+		return GetCurrentShotTimecode(InMoviePipeline).ToFrameNumber(EffectiveFrameRate);
+	}
+
+	return FFrameNumber(-1);
+}

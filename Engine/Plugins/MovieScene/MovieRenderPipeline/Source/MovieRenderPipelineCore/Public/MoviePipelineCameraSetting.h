@@ -12,8 +12,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineCameraSetting : public UMoviePip
 	GENERATED_BODY()
 public:
 	UMoviePipelineCameraSetting()
-		: TemporalSampleCount(1)
-		, CameraShutterAngle(180)
+		: CameraShutterAngle(180)
 		, ShutterTiming(EMoviePipelineShutterTiming::FrameCenter)
 		, bManualExposure(false)
 		, ExposureCompensation(8.0)
@@ -26,19 +25,13 @@ public:
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
-
-public:
-
-	/** 
-	* The number of frames we should combine together to produce each output frame. This blends the
-	* results of this many sub-steps together to produce one output frame. See CameraShutterAngle to
-	* control how much time passes between each sub-frame. See SpatialSampleCount to see how many
-	* samples we average together to produce a sub-step. (This means rendering complexity is
-	* SampleCount * TileCount^2 * SpatialSampleCount * NumPasses).
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
-	int32 TemporalSampleCount;
 	
+	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	{
+		InOutFormatArgs.Arguments.Add(TEXT("shutter_angle"), CameraShutterAngle);
+		InOutFormatArgs.Arguments.Add(TEXT("shutter_timing"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
+	}
+public:	
 	/** 
 	* The camera shutter angle determines how much of a given frame the accumulation frames span.
 	* For example, a 24fps film with a shutter angle of 180 will spread the accumulation frames

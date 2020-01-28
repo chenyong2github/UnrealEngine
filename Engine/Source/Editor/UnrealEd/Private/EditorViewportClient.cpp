@@ -731,6 +731,28 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 	Invalidate();
 }
 
+
+void FEditorViewportClient::CenterViewportAtPoint(const FVector& NewLookAt, bool bInstant /* = false */)
+{
+	const bool bEnable = false;
+	ToggleOrbitCamera(bEnable);
+
+	FViewportCameraTransform& ViewTransform = GetViewTransform();
+	FQuat Rotation(ViewTransform.GetRotation());
+	FVector LookatVec = ViewTransform.GetLookAt() - ViewTransform.GetLocation();
+	// project current lookat vector onto forward vector to get lookat distance, new position is that far along forward vector
+	double LookatDist = FVector::DotProduct(Rotation.GetForwardVector(), LookatVec);
+	FVector NewLocation = NewLookAt - LookatDist * Rotation.GetForwardVector();
+
+	// ortho and perspective are treated the same here
+	ViewTransform.SetLookAt(NewLookAt);
+	ViewTransform.TransitionToLocation(NewLocation, EditorViewportWidget, bInstant);
+
+	// Tell the viewport to redraw itself.
+	Invalidate();
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 //
 // Configures the specified FSceneView object with the view and projection matrices for this viewport.
@@ -749,7 +771,15 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	{
 		ModifiedViewInfo.Location = ViewTransform.GetLocation();
 		ModifiedViewInfo.Rotation = ViewTransform.GetRotation();
-		ModifiedViewInfo.FOV = ViewFOV;
+
+		if (bUseControllingActorViewInfo)
+		{
+			ModifiedViewInfo.FOV = ControllingActorViewInfo.FOV;
+		}
+		else
+		{
+			ModifiedViewInfo.FOV = ViewFOV;
+		}
 
 		if (bShouldApplyViewModifiers)
 		{
@@ -759,6 +789,10 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	const FVector ModifiedViewLocation = ModifiedViewInfo.Location;
 	FRotator ModifiedViewRotation = ModifiedViewInfo.Rotation;
 	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
+	if (bUseControllingActorViewInfo)
+	{
+		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
+	}
 
 	ViewInitOptions.ViewOrigin = ModifiedViewLocation;
 

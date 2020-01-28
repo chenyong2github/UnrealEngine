@@ -61,6 +61,14 @@ private:
 	bool GetSectionEnabled(TSharedRef<ISequencerSection> InSequencerSection) const;
 
 	/**
+	 * Returns the section tooltip
+	 *
+	 * @param SectionObject The section to check for selection
+	 * @return The tooltip
+	 */
+	FText GetSectionToolTip(TSharedRef<ISequencerSection> InSequencerSection) const;
+
+	/**
 	 * Calculates a time to pixel converter from the allotted geometry
 	 *
 	 * @param AllottedGeometry	The geometry to use to convert from time to pixels or vice versa

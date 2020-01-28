@@ -52,6 +52,11 @@ struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
 	 * {shot}       - The name of the level sequence asset shot being played
 	 * {sequence}   - The name of the level sequence asset (ie. master) being played
 	 * {camera}     - The name of the current camera
+	 * {date}       - The date in the format of {year}.{month}.{day}
+	 * {year}       - The current year
+	 * {month}      - The current month
+	 * {day}        - The current day
+	 * {time}       - The current time in the format of hours.minutes.seconds
 	 */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=General, DisplayName="Filename Format")
 	FString OutputFormat;

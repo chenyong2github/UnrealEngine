@@ -70,6 +70,8 @@ private:
 	FText GetSettingsFooterText() const;
 	EVisibility IsSettingFooterVisible() const;
 
+	EVisibility IsValidationWarningVisible() const;
+	FText GetValidationWarningText() const;
 private:
 
 	bool bRequestDetailsRefresh;

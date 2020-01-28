@@ -28,13 +28,13 @@ public:
 
 	
 	// inputs
-	FVector LocalPlaneOrigin, LocalPlaneNormal;
-	float PolygonScale;
+	FFrame3d PolygonFrame;
+	FPolygon2d EmbedPolygon;
 
 	// TODO: stop hardcoding the polygon shape, switch to FGeneralPolygon2d
 	FPolygon2d GetPolygon()
 	{
-		return FPolygon2d::MakeCircle(PolygonScale, 20);
+		return EmbedPolygon;
 	}
 
 	bool bDiscardAttributes;
@@ -44,8 +44,6 @@ public:
 	//float ExtrudeDistance; // TODO if we support extrude
 
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
-
-	void SetTransform(const FTransform& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

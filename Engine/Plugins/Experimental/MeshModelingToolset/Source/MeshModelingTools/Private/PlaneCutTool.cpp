@@ -10,6 +10,7 @@
 #include "DynamicMeshTriangleAttribute.h"
 #include "DynamicMeshEditor.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
+#include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "Selection/SelectClickedAction.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
@@ -72,15 +73,48 @@ UInteractiveTool* UPlaneCutToolBuilder::BuildTool(const FToolBuilderState& Scene
  * Tool
  */
 
-UPlaneCutToolProperties::UPlaneCutToolProperties()
+UPlaneCutToolProperties::UPlaneCutToolProperties() :
+	bKeepBothHalves(false),
+	SpacingBetweenHalves(1),
+	bFillCutHole(true),
+	bShowPreview(true),
+	bFillSpans(false)
 {
-	bKeepBothHalves = false;
-	bFillCutHole = true;
-	SpacingBetweenHalves = 1;
-	bShowPreview = true;
-	bFillSpans = false;
 }
 
+void UPlaneCutToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UPlaneCutToolProperties* PropertyCache = GetPropertyCache<UPlaneCutToolProperties>();
+	PropertyCache->bKeepBothHalves = this->bKeepBothHalves;
+	PropertyCache->bFillCutHole = this->bFillCutHole;
+	PropertyCache->SpacingBetweenHalves = this->SpacingBetweenHalves;
+	PropertyCache->bSnapToWorldGrid = this->bSnapToWorldGrid;
+	PropertyCache->bFillSpans = this->bFillSpans;
+	PropertyCache->bShowPreview = this->bShowPreview;
+}
+
+void UPlaneCutToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UPlaneCutToolProperties* PropertyCache = GetPropertyCache<UPlaneCutToolProperties>();
+	this->bKeepBothHalves = PropertyCache->bKeepBothHalves;
+	this->bFillCutHole = PropertyCache->bFillCutHole;
+	this->SpacingBetweenHalves = PropertyCache->SpacingBetweenHalves;
+	this->bSnapToWorldGrid = PropertyCache->bSnapToWorldGrid;
+	this->bFillSpans = PropertyCache->bFillSpans;
+	this->bShowPreview = PropertyCache->bShowPreview;
+}
+
+void UAcceptOutputProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UAcceptOutputProperties* PropertyCache = GetPropertyCache<UAcceptOutputProperties>();
+	PropertyCache->bExportSeparatedPiecesAsNewMeshAssets = this->bExportSeparatedPiecesAsNewMeshAssets;
+}
+
+void UAcceptOutputProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UAcceptOutputProperties* PropertyCache = GetPropertyCache<UAcceptOutputProperties>();
+	this->bExportSeparatedPiecesAsNewMeshAssets = PropertyCache->bExportSeparatedPiecesAsNewMeshAssets;
+}
 
 
 UPlaneCutTool::UPlaneCutTool()
@@ -98,10 +132,37 @@ void UPlaneCutTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	// add modifier button for snapping
+	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
+	SnapToggleBehavior->ModifierCheckFunc = FInputDeviceState::IsShiftKeyDown;
+	SnapToggleBehavior->Initialize(this, IgnoreSnappingModifier, EKeys::AnyKey);
+	AddInputBehavior(SnapToggleBehavior);
+
 	// hide input StaticMeshComponents
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
 		ComponentTarget->SetOwnerVisibility(false);
+	}
+
+	bool bAnyHasSameSource = false;
+	for (int32 ComponentIdx = 0; !bAnyHasSameSource && ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	{
+		FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[ComponentIdx].Get();
+		for (int32 VsIdx = ComponentIdx + 1; VsIdx < ComponentTargets.Num(); VsIdx++)
+		{
+			if (ComponentTarget->HasSameSourceData(*ComponentTargets[VsIdx]))
+			{
+				bAnyHasSameSource = true;
+				break;
+			}
+		}
+	}
+
+	if (bAnyHasSameSource)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("PlaneCutMultipleAssetWithSameSource", "WARNING: Multiple meshes in your selection use the same source asset!  Plane cuts apply to the source asset, and this tool will not duplicate assets for you, so the tool typically cannot give a correct result in this case.  Please consider exiting the tool and duplicating the source assets."),
+			EToolMessageLevel::UserWarning);
 	}
 
 	// Convert input mesh descriptions to dynamic mesh
@@ -152,15 +213,19 @@ void UPlaneCutTool::Setup()
 	// create proxy and gizmo (but don't attach yet)
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
-	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
+	PlaneTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+		ETransformGizmoSubElements::StandardTranslateRotate, this);
 
 	// initialize our properties
-	ToolPropertyObjects.Add(this);
 	BasicProperties = NewObject<UPlaneCutToolProperties>(this, TEXT("Plane Cut Settings"));
+	BasicProperties->RestoreProperties(this);
 	AddToolPropertySource(BasicProperties);
 
 	AcceptProperties = NewObject<UAcceptOutputProperties>(this, TEXT("Tool Accept Output Settings"));
+	AcceptProperties->RestoreProperties(this);
 	AddToolPropertySource(AcceptProperties);
+
+	ToolPropertyObjects.Add(this);
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	SetupPreviews();
@@ -181,7 +246,26 @@ void UPlaneCutTool::Setup()
 	{
 		Preview->InvalidateResult();
 	}
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartPlaneCutTool", "Press 'A' or use the Cut button to cut the mesh without leaving the tool.  When grid snapping is enabled, you can toggle snapping with the shift key."),
+		EToolMessageLevel::UserNotification);
 }
+
+
+
+
+void UPlaneCutTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
+{
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 101,
+		TEXT("Do Plane Cut"), 
+		LOCTEXT("DoPlaneCut", "Do Plane Cut"),
+		LOCTEXT("DoPlaneCutTooltip", "Cut the mesh with the current cutting plane, without exiting the tool"),
+		EModifierKey::None, EKeys::A,
+		[this]() { this->Cut(); } );
+}
+
+
 
 
 void UPlaneCutTool::SetupPreviews()
@@ -212,7 +296,7 @@ void UPlaneCutTool::SetupPreviews()
 
 
 
-void UPlaneCutTool::DoCut()
+void UPlaneCutTool::Cut()
 {
 	if (!CanAccept())
 	{
@@ -245,6 +329,9 @@ void UPlaneCutTool::DoCut()
 
 void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BasicProperties->SaveProperties(this);
+	AcceptProperties->SaveProperties(this);
+
 	// Restore (unhide) the source meshes
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
@@ -333,6 +420,12 @@ void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UPlaneCutTool::Tick(float DeltaTime)
 {
+	if (PlaneTransformGizmo != nullptr)
+	{
+		PlaneTransformGizmo->bSnapToWorldGrid =
+			BasicProperties->bSnapToWorldGrid && bIgnoreSnappingToggle == false;
+	}
+
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->Tick(DeltaTime);
@@ -367,6 +460,15 @@ void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->InvalidateResult();
+	}
+}
+
+
+void UPlaneCutTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	if (ModifierID == IgnoreSnappingModifier)
+	{
+		bIgnoreSnappingToggle = bIsOn;
 	}
 }
 
@@ -471,7 +573,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			continue;
 		}
 
-		if (AcceptProperties->bAllowLogicalMeshSplitsToExportAsNewMeshAssets)
+		if (AcceptProperties->bExportSeparatedPiecesAsNewMeshAssets)
 		{
 			TDynamicMeshScalarTriangleAttribute<int>* SubMeshIDs =
 				static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(UseMesh->Attributes()->GetAttachedAttribute(
@@ -501,8 +603,6 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		});
 	}
 
-	// The method for creating a new mesh (AssetGenerationUtil::GenerateStaticMeshActor) is editor-only
-#if WITH_EDITOR
 	if (bNeedToAdd)
 	{
 		for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
@@ -526,16 +626,20 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			{
 				AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 					AssetAPI, TargetWorld,
-					&SplitMeshes[AddMeshIdx], Results[OrigMeshIdx].Transform, TEXT("PlaneCutOtherPart"),
-					AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath(), Materials);
-				NewSelection.Actors.Add(NewActor);
+					&SplitMeshes[AddMeshIdx], Results[OrigMeshIdx].Transform, TEXT("PlaneCutOtherPart"), Materials);
+				if (NewActor != nullptr)
+				{
+					NewSelection.Actors.Add(NewActor);
+				}
 			}
 		}
 
-		GetToolManager()->RequestSelectionChange(NewSelection);
+		if (NewSelection.Actors.Num() > 0)
+		{
+			GetToolManager()->RequestSelectionChange(NewSelection);
+		}
 	}
 
-#endif
 
 	GetToolManager()->EndUndoTransaction();
 }

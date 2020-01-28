@@ -11,10 +11,8 @@
 struct DYNAMICMESH_API FDynamicSubmesh3
 {
 protected:
-	FDynamicMesh3* BaseMesh;
+	const FDynamicMesh3* BaseMesh;
 	FDynamicMesh3 Submesh;
-	bool bComputeTriMaps = false;
-	int OverrideGroupID = -1;
 
 	// TODO: this is a fully generic mapping backed by TMaps both ways
 	// we could instead back the reverse mapping by a TArray since it's dense for submeshes
@@ -25,17 +23,22 @@ protected:
 	TSet<int> BaseBorderV;        // set of border vertex indices on base mesh (ie verts of BaseBorderE - does not include mesh boundary vertices)
 
 public:
+	/**
+	 * Whether to compute triangle maps (adds additional cost). True by default.
+	 */
+	bool bComputeTriMaps = true;
 
+public:
 	/** Default constructor */
 	FDynamicSubmesh3() : BaseMesh(nullptr) {}
 
 	/** Base mesh-only constructor; does not build submesh */
-	FDynamicSubmesh3(FDynamicMesh3* BaseMesh) : BaseMesh(BaseMesh)
+	FDynamicSubmesh3(const FDynamicMesh3* BaseMesh) : BaseMesh(BaseMesh)
 	{
 	}
 
 	/** Constructor sets the base mesh and computes the submesh */
-	FDynamicSubmesh3(FDynamicMesh3* BaseMesh, const TArray<int>& Triangles, int WantComponents = (int)EMeshComponents::All, bool bAttributes = true) : BaseMesh(BaseMesh)
+	FDynamicSubmesh3(const FDynamicMesh3* BaseMesh, const TArray<int>& Triangles, int WantComponents = (int)EMeshComponents::All, bool bAttributes = true) : BaseMesh(BaseMesh)
 	{
 		Compute(Triangles, WantComponents, bAttributes);
 	}

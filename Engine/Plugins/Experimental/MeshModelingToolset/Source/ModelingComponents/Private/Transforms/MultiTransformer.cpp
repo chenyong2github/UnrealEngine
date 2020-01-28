@@ -9,6 +9,7 @@ void UMultiTransformer::Setup(UInteractiveGizmoManager* GizmoManagerIn)
 	GizmoManager = GizmoManagerIn;
 
 	ActiveGizmoFrame = FFrame3d();
+	ActiveGizmoScale = FVector3d::One();
 
 	ActiveMode = EMultiTransformerMode::DefaultGizmo;
 
@@ -32,7 +33,32 @@ void UMultiTransformer::Shutdown()
 }
 
 
+void UMultiTransformer::SetOverrideGizmoCoordinateSystem(EToolContextCoordinateSystem CoordSystem)
+{
+	if (GizmoCoordSystem != CoordSystem || bForceGizmoCoordSystem == false)
+	{
+		bForceGizmoCoordSystem = true;
+		GizmoCoordSystem = CoordSystem;
+		if (TransformGizmo != nullptr)
+		{
+			UpdateShowGizmoState(false);
+			UpdateShowGizmoState(true);
+		}
+	}
+}
 
+void UMultiTransformer::SetEnabledGizmoSubElements(ETransformGizmoSubElements EnabledSubElements)
+{
+	if (ActiveGizmoSubElements != EnabledSubElements)
+	{
+		ActiveGizmoSubElements = EnabledSubElements;
+		if (TransformGizmo != nullptr)
+		{
+			UpdateShowGizmoState(false);
+			UpdateShowGizmoState(true);
+		}
+	}
+}
 
 void UMultiTransformer::SetMode(EMultiTransformerMode NewMode)
 {
@@ -80,31 +106,53 @@ void UMultiTransformer::Tick(float DeltaTime)
 
 
 
-void UMultiTransformer::SetGizmoPositionFromWorldFrame(const FFrame3d& Frame)
+void UMultiTransformer::SetGizmoPositionFromWorldFrame(const FFrame3d& Frame, bool bResetScale)
 {
 	ActiveGizmoFrame = Frame;
+	if (bResetScale)
+	{
+		ActiveGizmoScale = FVector3d::One();
+	}
 
 	if (TransformGizmo != nullptr)
 	{
+		// this resets the child scale to one
 		TransformGizmo->SetNewGizmoTransform(ActiveGizmoFrame.ToFTransform());
 	}
 }
 
-void UMultiTransformer::SetGizmoPositionFromWorldPos(const FVector& Position, const FVector& Normal)
+void UMultiTransformer::SetGizmoPositionFromWorldPos(const FVector& Position, const FVector& Normal, bool bResetScale)
 {
 	ActiveGizmoFrame.Origin = FVector3d(Position);
 	ActiveGizmoFrame.AlignAxis(2, FVector3d(Normal));
 	ActiveGizmoFrame.ConstrainedAlignPerpAxes();
+	if (bResetScale)
+	{
+		ActiveGizmoScale = FVector3d::One();
+	}
 
 	if (TransformGizmo != nullptr)
 	{
+		// this resets the child scale to one
 		TransformGizmo->SetNewGizmoTransform(ActiveGizmoFrame.ToFTransform());
 	}
 }
 
+
+void UMultiTransformer::ResetScale()
+{
+	ActiveGizmoScale = FVector3d::One();
+	if (TransformGizmo != nullptr)
+	{
+		TransformGizmo->SetNewChildScale(FVector::OneVector);
+	}
+}
+
+
 void UMultiTransformer::OnProxyTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
 	ActiveGizmoFrame = FFrame3d(Transform);
+	ActiveGizmoScale = FVector3d(Transform.GetScale3D());
 	OnTransformUpdated.Broadcast();
 }
 
@@ -133,7 +181,12 @@ void UMultiTransformer::UpdateShowGizmoState(bool bNewVisibility)
 	else
 	{
 		check(TransformGizmo == nullptr);
-		TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
+		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(ActiveGizmoSubElements, this);
+		if (bForceGizmoCoordSystem)
+		{
+			TransformGizmo->bUseContextCoordinateSystem = false;
+			TransformGizmo->CurrentCoordinateSystem = GizmoCoordSystem;
+		}
 		TransformGizmo->SetActiveTarget(TransformProxy, GizmoManager);
 		TransformGizmo->SetNewGizmoTransform(ActiveGizmoFrame.ToFTransform());
 		TransformGizmo->SetVisibility(bShouldBeVisible);

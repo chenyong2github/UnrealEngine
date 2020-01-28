@@ -13,6 +13,7 @@
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Changes/ValueWatcher.h"
+#include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "DrawPolygonTool.generated.h"
 
 
@@ -217,7 +218,6 @@ public:
 
 	virtual void BeginInteractiveExtrude();
 	virtual void EndInteractiveExtrude();
-	virtual float FindInteractiveHeightDistance(const FInputDeviceRay& ClickPos);
 
 
 public:
@@ -326,10 +326,8 @@ protected:
 	void UpdateLivePreview();
 	bool bPreviewUpdatePending;
 
-	FDynamicMesh3 PreviewHeightTarget;
-	FDynamicMeshAABBTree3 PreviewHeightTargetAABB;
-	FFrame3d PreviewHeightFrame;
-	void GeneratePreviewHeightTarget();
+	UPROPERTY()
+	UPlaneDistanceFromHitMechanic* HeightMechanic;
 
 
 	FFrame3f HitPosFrameWorld;

@@ -493,9 +493,12 @@ bool CheckAskUserAndClosePIESIEAndAssetEditors(const FText& InitialMessage)
 		FString AllAssets;
 		for (const UObject* EditedAsset : AllEditedAssets)
 		{
-			if (!AllAssets.IsEmpty())
-				AllAssets += TEXT(", ");
-			AllAssets += EditedAsset->GetName();
+			if (EditedAsset->IsAsset())
+			{
+				if (!AllAssets.IsEmpty())
+					AllAssets += TEXT(", ");
+				AllAssets += EditedAsset->GetName();
+			}
 		}
 		OpenedEditorAssets = FText::Format(LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsOpenEditorAssets", "\nOpen Asset Editors: {0}."), FText::FromString(AllAssets));
 	}

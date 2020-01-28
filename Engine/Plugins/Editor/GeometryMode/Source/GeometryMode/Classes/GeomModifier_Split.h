@@ -19,7 +19,7 @@ class UGeomModifier_Split : public UGeomModifier_Edit
 
 
 	//~ Begin UGeomModifier Interface
-	virtual bool Supports() override;
+	virtual bool SupportsCurrentSelection() override;
 protected:
 	virtual bool OnApply() override;
 	//~ End UGeomModifier Interface
