@@ -43,21 +43,4 @@ namespace Chaos
 	{
 		return Ar << (uint16&)Idx;
 	}
-
-
-	struct FUniqueIdx
-	{
-		int32 Idx;
-		FUniqueIdx(): Idx(INDEX_NONE){}
-		explicit FUniqueIdx(int32 InIdx): Idx(InIdx){}
-
-		bool IsValid() const { return Idx != INDEX_NONE; }
-		bool operator<(const FUniqueIdx& Other) const { return Idx < Other.Idx; }
-		bool operator==(const FUniqueIdx& Other) const { return Idx == Other.Idx; }
-	};
-
-	FORCEINLINE uint32 GetTypeHash(const FUniqueIdx& Unique)
-	{
-		return ::GetTypeHash(Unique.Idx);
-	}
 }

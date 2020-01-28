@@ -338,8 +338,18 @@ public:
 		Ar << MDirtyElements;
 		Ar << bIsEmpty;
 
-		Ar << MPayloadInfo;
-		
+		TArray<TPayloadType> Payloads;
+		if (!Ar.IsLoading())
+		{
+			MPayloadInfo.GenerateKeyArray(Payloads);
+		}
+		Ar << Payloads;
+
+		for (auto Payload : Payloads)
+		{
+			auto& Info = MPayloadInfo.FindOrAdd(Payload);
+			Ar << Info;
+		}
 
 	}
 
@@ -765,7 +775,7 @@ private:
 
 		const TVector<int32, d> StartIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Min()));
 		const TVector<int32, d> EndIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Max()));
-		TSet<FUniqueIdx> InstancesSeen;
+		TSet<TPayloadType> InstancesSeen;
 
 		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
 		{
@@ -778,11 +788,11 @@ private:
 					{
 						if (bPruneDuplicates)
 						{
-							if (InstancesSeen.Contains(GetUniqueIdx(Elem.Payload)))
+							if (InstancesSeen.Contains(Elem.Payload))
 							{
 								continue;
 							}
-							InstancesSeen.Add(GetUniqueIdx(Elem.Payload));
+							InstancesSeen.Add(Elem.Payload);
 						}
 						const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 						if (QueryBounds.Intersects(InstanceBounds))
@@ -1100,10 +1110,8 @@ private:
 			}
 		}
 
-		Algo::Sort(Intersections,[](const TPayloadType& A,const TPayloadType& B)
-		{
-			return GetUniqueIdx(A) < GetUniqueIdx(B);
-		});
+
+		Algo::Sort(Intersections);
 
 		for (int32 i = Intersections.Num() - 1; i > 0; i--)
 		{
@@ -1166,7 +1174,7 @@ private:
 	TUniformGrid<T, d> MGrid;
 	TArrayND<TArray<FCellElement>, d> MElements;
 	TArray<FCellElement> MDirtyElements;
-	TArrayAsMap<TPayloadType, FPayloadInfo> MPayloadInfo;
+	TMap<TPayloadType, FPayloadInfo> MPayloadInfo;
 	T MaxPayloadBounds;
 	bool bIsEmpty;
 };
