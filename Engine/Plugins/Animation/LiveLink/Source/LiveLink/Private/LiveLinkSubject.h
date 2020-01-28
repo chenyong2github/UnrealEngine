@@ -173,6 +173,10 @@ private:
 		TAtomic<int32> BufferOverflow = 0;
 		TAtomic<int32> FrameDrop = 0;
 		FTimedDataInputEvaluationData LastEvaluationData;
+
+		FSubjectEvaluationStatistics() = default;
+		FSubjectEvaluationStatistics(const FSubjectEvaluationStatistics&) = delete;
+		FSubjectEvaluationStatistics& operator=(const FSubjectEvaluationStatistics&) = delete;
 	};
 
 	// Static data of the subject
