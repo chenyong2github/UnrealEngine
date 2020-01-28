@@ -928,10 +928,11 @@ void ScatterObjectsToShadowTiles(
 
 		RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
 
-		RHICmdList.DrawIndexedPrimitiveIndirect(
-			GetUnitCubeIndexBuffer(),
-			GShadowCulledObjectBuffers.Buffers.ObjectIndirectArguments.Buffer,
-			0);
+		FRHIVertexBuffer* IndirectArgsBuffer = PrimitiveType == DFPT_HeightField ?
+			GShadowCulledHeightFieldObjectBuffers.Buffers.ObjectIndirectArguments.Buffer :
+			GShadowCulledObjectBuffers.Buffers.ObjectIndirectArguments.Buffer;
+
+		RHICmdList.DrawIndexedPrimitiveIndirect(GetUnitCubeIndexBuffer(), IndirectArgsBuffer, 0);
 	}
 	RHICmdList.EndRenderPass();
 
