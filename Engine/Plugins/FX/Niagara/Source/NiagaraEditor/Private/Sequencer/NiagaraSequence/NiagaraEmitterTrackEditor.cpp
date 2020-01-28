@@ -80,10 +80,10 @@ public:
 
 		// Renderer buttons
 
-		EmitterTrack->GetEmitterHandleViewModel()->GetRendererPreviewData(RendererPreviewData);
-		for (FRendererPreviewData* RendererPreview : RendererPreviewData)
+		EmitterTrack->GetEmitterHandleViewModel()->GetRendererEntries(RendererEntryData);
+		for (UNiagaraStackEntry* RendererEntry : RendererEntryData)
 		{
-			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(RendererPreview->RenderingEntry))
+			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(RendererEntry))
 			{
 				UNiagaraRendererProperties* Renderer = RendererItem->GetRendererProperties();
 				TrackBox->AddSlot()
@@ -95,7 +95,7 @@ public:
 						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 						.IsFocusable(false)
 						.ToolTipText(FText::Format(LOCTEXT("RenderButtonToolTip", "{0} - Press to select."), FText::FromString(FName::NameToDisplayString(Renderer->GetName(), false))))
-						.OnClicked(this, &SEmitterTrackWidget::OnRenderButtonClicked, RendererPreview)
+						.OnClicked(this, &SEmitterTrackWidget::OnRenderButtonClicked, RendererEntry)
 						[
 							SNew(SImage)
 							.Image(FSlateIconFinder::FindIconBrushForClass(Renderer->GetClass()))
@@ -190,12 +190,12 @@ private:
 			: FLinearColor::Gray;
 	}
 
-	FReply OnRenderButtonClicked(FRendererPreviewData* InRendererPreview)
+	FReply OnRenderButtonClicked(UNiagaraStackEntry* InRendererEntry)
 	{
 		if (EmitterTrack.IsValid())
 		{
 			TArray<UNiagaraStackEntry*> SelectedEntries;
-			SelectedEntries.Add(InRendererPreview->RenderingEntry);
+			SelectedEntries.Add(InRendererEntry);
 			TArray<UNiagaraStackEntry*> DeselectedEntries;
 			EmitterTrack->GetSystemViewModel().GetSelectionViewModel()->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, true);
 		}
@@ -215,7 +215,7 @@ private:
 private:
 	TWeakObjectPtr<UMovieSceneNiagaraEmitterTrack> EmitterTrack;
 	mutable TOptional<FText> TrackErrorIconToolTip;
-	TArray<FRendererPreviewData*> RendererPreviewData;
+	TArray<UNiagaraStackEntry*> RendererEntryData;
 };
 
 FNiagaraEmitterTrackEditor::FNiagaraEmitterTrackEditor(TSharedPtr<ISequencer> Sequencer) 
