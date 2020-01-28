@@ -7,9 +7,12 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "ChaosStats.h"
 
 namespace Chaos
 {
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::BroadPhase"), STAT_Collisions_BroadPhase, STATGROUP_ChaosCollision, CHAOS_API);
+
 	/**
 	 * Run through a list of particle pairs and pass them onto the collision detector if their AABBs overlap.
 	 * No spatial acceleration, and the order is assumed to be already optimized for cache efficiency.
@@ -33,6 +36,8 @@ namespace Chaos
 			FSyncCollisionReceiver& Receiver,
 			CollisionStats::FStatData& StatData)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
+
 			const FReal BoundsThickness = 1.0f;
 			const FReal BoundsThicknessVelocityInflation = 2.0f;
 

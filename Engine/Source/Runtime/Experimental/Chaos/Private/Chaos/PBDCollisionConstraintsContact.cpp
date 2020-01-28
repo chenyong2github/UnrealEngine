@@ -35,17 +35,9 @@ namespace Chaos
 		TVector<T,d> ApplyContact(TCollisionContact<T, d>& Contact,
 			TGenericParticleHandle<T, d> Particle0, 
 			TGenericParticleHandle<T, d> Particle1,
-			TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
+			const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters)
 		{
 			TVector<T, d> AccumulatedImpulse(0);
-
-			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0, PhysicsMaterial1;
-			if (ParticleParameters.PhysicsMaterials)
-			{
-				PhysicsMaterial0 = Particle0->AuxilaryValue(*ParticleParameters.PhysicsMaterials);
-				PhysicsMaterial1 = Particle1->AuxilaryValue(*ParticleParameters.PhysicsMaterials);
-			}
-
 
 			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->CastToRigidParticle();
@@ -77,50 +69,13 @@ namespace Chaos
 				TVector<T, d> AngularImpulse(0);
 
 				// Resting contact if very close to the surface
-				T Restitution = (T)0;
-				T Friction = (T)0;
-				T AngularFriction = (T)0;
 				bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * IterationParameters.Dt));
-				if (PhysicsMaterial0 && PhysicsMaterial1)
-				{
-					if (bApplyRestitution)
-					{
-						Restitution = FMath::Min(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution);
-					}
-					Friction = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial1->Friction);
-				}
-				else if (PhysicsMaterial0)
-				{
-					if (bApplyRestitution)
-					{
-						Restitution = PhysicsMaterial0->Restitution;
-					}
-					Friction = PhysicsMaterial0->Friction;
-				}
-				else if (PhysicsMaterial1)
-				{
-					if (bApplyRestitution)
-					{
-						Restitution = PhysicsMaterial1->Restitution;
-					}
-					Friction = PhysicsMaterial1->Friction;
-				}
+				T Restitution = (bApplyRestitution) ? Contact.Restitution : (T)0;
+				T Friction = Contact.Friction;
+				T AngularFriction = Contact.AngularFriction;
 
-				if (ParticleParameters.FrictionOverride >= 0)
+				if (Friction > 0)
 				{
-					Friction = ParticleParameters.FrictionOverride;
-				}
-				if (ParticleParameters.AngularFrictionOverride >= 0)
-				{
-					AngularFriction = ParticleParameters.AngularFrictionOverride;
-				}
-
-				if (Friction)
-				{
-					if (RelativeNormalVelocity > 0)
-					{
-						RelativeNormalVelocity = 0;
-					}
 					TVector<T, d> VelocityChange = -(Restitution * RelativeNormalVelocity * Contact.Normal + RelativeVelocity);
 					T NormalVelocityChange = TVector<T, d>::DotProduct(VelocityChange, Contact.Normal);
 					PMatrix<T, d, d> FactorInverse = Factor.Inverse();
@@ -205,9 +160,9 @@ namespace Chaos
 					Impulse = ImpulseNumerator / ImpulseDenominator;
 				}
 
-
 				Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 				AccumulatedImpulse += Impulse;
+
 				if (bIsRigidDynamic0)
 				{
 					// Velocity update for next step
@@ -241,14 +196,22 @@ namespace Chaos
 		}
 
 		template<typename T, int d>
-		void Apply(TCollisionConstraintBase<T, d>& Constraint, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
+		void Apply(TCollisionConstraintBase<T, d>& Constraint, const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters)
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Collisions::Update<ECollisionUpdateType::Deepest>(ParticleParameters.Thickness, Constraint);
+				// Collision is already up-to-date on first iteration (we either just detected it, or updated it in DetectCollisions)
+				// @todo(ccaulfield): this is not great - try to do something nicer like a dirty flag on the constraint?
+				// In particular it is not right if the Collisions are not the first constraints to be solved...
+				const bool bNeedCollisionUpdate = (PairIt > 0) || (IterationParameters.Iteration > 0);
+				if (bNeedCollisionUpdate)
+				{
+					Collisions::Update<ECollisionUpdateType::Deepest>(ParticleParameters.Thickness, Constraint);
+				}
+
 				if (Constraint.GetPhi() >= ParticleParameters.Thickness)
 				{
 					return;
@@ -280,7 +243,7 @@ namespace Chaos
 			TGenericParticleHandle<T, d> Particle0, 
 			TGenericParticleHandle<T, d> Particle1,
 			const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
+			const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters)
 		{
 			TVector<T, d> AccumulatedImpulse(0);
 
@@ -297,13 +260,6 @@ namespace Chaos
 			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
 			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
 
-			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0, PhysicsMaterial1;
-			if (ParticleParameters.PhysicsMaterials)
-			{
-				PhysicsMaterial0 = Particle0->AuxilaryValue(*ParticleParameters.PhysicsMaterials);
-				PhysicsMaterial1 = Particle1->AuxilaryValue(*ParticleParameters.PhysicsMaterials);
-			}
-
 			if (Contact.Phi >= ParticleParameters.Thickness)
 			{
 				return AccumulatedImpulse;
@@ -314,7 +270,11 @@ namespace Chaos
 				return AccumulatedImpulse;
 			}
 
-			*IterationParameters.NeedsAnotherIteration = true;
+			if (IterationParameters.NeedsAnotherIteration)
+			{
+				*IterationParameters.NeedsAnotherIteration = true;
+			}
+
 			PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
 			PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
 			TVector<T, d> VectorToPoint1 = Contact.Location - P0;
@@ -388,12 +348,12 @@ namespace Chaos
 
 		template<typename T, int d>
 		void ApplyPushOut(TCollisionConstraintBase<T, d>& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
+			const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters)
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
 
-			for (int32 PairIteration = 0; PairIteration < IterationParameters.NumPairIterations; ++PairIteration)
+			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				Update<ECollisionUpdateType::Deepest>(ParticleParameters.Thickness, Constraint);
 
@@ -407,9 +367,9 @@ namespace Chaos
 		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TCollisionConstraintBase<float, 3>&);
 		template void UpdateManifold<float, 3>(const float, TCollisionConstraintBase<float, 3>&);
 		//
-		template void Apply<float, 3>(TCollisionConstraintBase<float, 3>&, TContactIterationParameters<float> &, TContactParticleParameters<float> &);
+		template void Apply<float, 3>(TCollisionConstraintBase<float, 3>&, const TContactIterationParameters<float> &, const TContactParticleParameters<float> &);
 		template void ApplyPushOut<float, 3>(TCollisionConstraintBase<float,3>& , const TSet<const TGeometryParticleHandle<float,3>*>&,
-			TContactIterationParameters<float> & IterationParameters, TContactParticleParameters<float> & ParticleParameters);
+			const TContactIterationParameters<float> & IterationParameters, const TContactParticleParameters<float> & ParticleParameters);
 
 	} // Collisions
 
