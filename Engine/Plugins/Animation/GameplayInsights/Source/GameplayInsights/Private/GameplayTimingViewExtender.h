@@ -40,7 +40,7 @@ private:
 		FAnimationSharedData* AnimationSharedData;
 #if WITH_EDITOR
 		TSharedPtr<SGameplayInsightsTransportControls> TransportControls;
-#endif //WITH_EDITOR
+#endif
 	};
 
 	// The data we host per-session

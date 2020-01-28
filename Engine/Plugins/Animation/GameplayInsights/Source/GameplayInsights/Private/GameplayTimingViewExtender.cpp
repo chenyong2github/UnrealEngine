@@ -42,7 +42,7 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 					SAssignNew(PerSessionData->TransportControls, SGameplayInsightsTransportControls, *PerSessionData->GameplaySharedData)
 				]
 			]);
-#endif //WITH_EDITOR
+#endif
 	}
 
 	PerSessionData->GameplaySharedData->OnBeginSession(InSession);
@@ -63,7 +63,7 @@ void FGameplayTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InS
 		PerSessionData->AnimationSharedData = nullptr;
 #if WITH_EDITOR
 		PerSessionData->TransportControls.Reset();
-#endif // WITH_EDITOR
+#endif
 	}
 
 	PerSessionDataMap.Remove(&InSession);
