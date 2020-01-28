@@ -37,6 +37,14 @@ namespace Chaos
 		Disabled,	/** Collision should be disabled */
 	};
 
+	/** The shape types involved in a contact constraint. Used to look up the collision detection function */
+	enum class CHAOS_API EContactShapesType
+	{
+		Unknown,
+		CapsuleCapsule,
+		CapsuleBox,
+		BoxBox,
+	};
 
 	/*
 	*
@@ -46,7 +54,7 @@ namespace Chaos
 	{
 	public:
 		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0)
+			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), ShapesType(EContactShapesType::Unknown)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -60,6 +68,8 @@ namespace Chaos
 		T Friction;
 		T AngularFriction;
 		T Restitution;
+
+		EContactShapesType ShapesType;
 
 
 		FString ToString() const
@@ -101,13 +111,14 @@ namespace Chaos
 		TCollisionConstraintBase(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
 			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
-			FType InType, int32 InTimestamp = -INT_MAX)
+			FType InType, EContactShapesType ShapesType, int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
 			, Type(InType)
 		{
 			ImplicitTransform[0] = Transform0; ImplicitTransform[1] = Transform1;
 			Manifold.Implicit[0] = Implicit0; Manifold.Implicit[1] = Implicit1;
+			Manifold.ShapesType = ShapesType;
 			Particle[0] = Particle0; Particle[1] = Particle1; 
 		}
 
@@ -171,8 +182,9 @@ namespace Chaos
 		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
 		TRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
-			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
-			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint) {}
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			EContactShapesType ShapesType = EContactShapesType::Unknown)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint, ShapesType) {}
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 	};
@@ -195,8 +207,9 @@ namespace Chaos
 		TRigidBodyMultiPointContactConstraint() : Base(Base::FType::MultiPoint), SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
 		TRigidBodyMultiPointContactConstraint(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
-			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
-			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint)
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			EContactShapesType ShapesType = EContactShapesType::Unknown)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint, ShapesType)
 			, SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) 
 		{}
 

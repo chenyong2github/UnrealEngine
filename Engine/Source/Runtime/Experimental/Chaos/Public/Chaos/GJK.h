@@ -188,7 +188,7 @@ namespace Chaos
 	}
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, bool bNegativePenetrationSupport = false)
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, bool bNegativePenetrationSupport = false, int32* OutNumIterations = nullptr)
 	{
 		auto SupportAFunc = [&A](const TVec3<T>& V)
 		{
@@ -266,6 +266,11 @@ namespace Chaos
 			}
 
 		} while (!bTerminate);
+
+		if (OutNumIterations != nullptr)
+		{
+			*OutNumIterations = NumIterations;
+		}
 
 		if (PrevDist2 > Eps2)
 		{
