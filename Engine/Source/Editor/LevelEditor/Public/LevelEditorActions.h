@@ -1184,11 +1184,17 @@ public:
 	/** Harvest all of the components in the selected actors into a Blueprint, and replace the instances with one new actor */
 	static void HarvestSelectedActorsIntoBlueprintClass();
 
-	/** Can call SubclassSelectedActorIntoBlueprintClass right now?  (is exactly one thing selected) */
-	static bool CanSubclassSelectedActorIntoBlueprintClass();
+	/** Can call SubclassSelectedActorIntoBlueprintClass right now? */
+	static bool CanConvertSelectedActorsIntoBlueprintClass();
 
-	/** Convert the selected actor into a Blueprint (via subclassing) */
-	static void SubclassSelectedActorIntoBlueprintClass();
+	/** Convert the selected actor into a Blueprint (via subclassing or child actors) */
+	static void ConvertSelectedActorsIntoBlueprintClass();
+
+	/** Get the label to display for the convert selected actors to blueprint menu option */
+	static FText GetConvertSelectedActorsIntoBlueprintClassLabel();
+
+	/** Get the tooltip to display for the convert selected actors to blueprint menu option */
+	static FText GetConvertSelectedActorsIntoBlueprintClassTooltip();
 
 	/** Shows only selected actors, hiding any unselected actors and unhiding any selected hidden actors. */
 	static void OnShowOnlySelectedActors();

@@ -2336,20 +2336,73 @@ void FLevelEditorActionCallbacks::HarvestSelectedActorsIntoBlueprintClass()
 	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Harvest);
 }
 
-bool FLevelEditorActionCallbacks::CanSubclassSelectedActorIntoBlueprintClass()
+ECreateBlueprintFromActorMode GetConvertSelectedActorsMode()
 {
-	bool bCanSubclass = GEditor->GetSelectedActorCount() == 1;
-	if (bCanSubclass)
+	if (GEditor->GetSelectedActorCount() == 0)
+	{
+		return ECreateBlueprintFromActorMode::None;
+	}
+
+	// Subclassing mode when we have 1 actor selected of a blueprint type
+	if (GEditor->GetSelectedActorCount() == 1)
 	{
 		AActor* Actor = Cast<AActor>(*GEditor->GetSelectedActorIterator());
-		bCanSubclass = FKismetEditorUtilities::CanCreateBlueprintOfClass(Actor->GetClass());
+		if (FKismetEditorUtilities::CanCreateBlueprintOfClass(Actor->GetClass()))
+		{
+			return ECreateBlueprintFromActorMode::Subclass;
+		}
 	}
-	return bCanSubclass;
+
+	// Child Actor mode when we have 1 or more selected objects that are all placeable
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = Cast<AActor>(*It);
+		if (Actor->GetClass()->HasAnyClassFlags(CLASS_NotPlaceable))
+		{
+			return ECreateBlueprintFromActorMode::None;
+		}
+	}
+
+	return ECreateBlueprintFromActorMode::ChildActor;
 }
 
-void FLevelEditorActionCallbacks::SubclassSelectedActorIntoBlueprintClass()
+bool FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass()
 {
-	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Subclass);
+	const bool bCanConvert = GetConvertSelectedActorsMode() != ECreateBlueprintFromActorMode::None;
+	return bCanConvert;
+}
+
+void FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass()
+{
+	ECreateBlueprintFromActorMode CreateMode = GetConvertSelectedActorsMode();
+	if (ensure(CreateMode != ECreateBlueprintFromActorMode::None))
+	{
+		FCreateBlueprintFromActorDialog::OpenDialog(CreateMode);
+	}
+}
+
+FText FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassLabel()
+{
+	if (GetConvertSelectedActorsMode() == ECreateBlueprintFromActorMode::ChildActor)
+{
+		return LOCTEXT("ConvertSelectionToBlueprintViaChildActor_Label", "Convert Selected Actors to Blueprint Class...");
+	}
+	else
+	{
+		return LOCTEXT("ConvertSelectionToBlueprintViaSubclass_Label", "Convert Selected Actor to Blueprint Class...");
+	}
+}
+
+FText FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassTooltip()
+{
+	if (GetConvertSelectedActorsMode() == ECreateBlueprintFromActorMode::ChildActor)
+	{
+		return LOCTEXT("ConvertSelectionToBlueprintViaChildActor_Tooltip", "Replace the selected actors with a new Blueprint subclass based on Actor with each of the selected Actors as a Child Actor");
+	}
+	else
+	{
+		return LOCTEXT("ConvertSelectionToBlueprintViaSubclass_Tooltip", "Replace the selected actor with a new Blueprint subclass based on the class of the selected Actor");
+	}
 }
 
 void FLevelEditorActionCallbacks::CheckOutProjectSettingsConfig( )

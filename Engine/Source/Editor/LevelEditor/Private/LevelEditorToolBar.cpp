@@ -2316,7 +2316,10 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 
 		// Convert selection to BP
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaHarvest);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaSubclass);
+		Section.AddMenuEntry(
+			FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaSubclass,
+			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassLabel),
+			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassTooltip));
 
 		// Open an existing Blueprint Class...
 		FSlateIcon OpenBPIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenClassBlueprint");
