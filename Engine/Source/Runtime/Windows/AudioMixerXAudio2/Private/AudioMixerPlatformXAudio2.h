@@ -99,6 +99,7 @@ namespace Audio
 		bool ResetXAudio2System();
 
 		// Handle to XAudio2DLL
+		FName DllName;
 		HMODULE XAudio2Dll;
 
 		// Bool indicating that the default audio device changed
