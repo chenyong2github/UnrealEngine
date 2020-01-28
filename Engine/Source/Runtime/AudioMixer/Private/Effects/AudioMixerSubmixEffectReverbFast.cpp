@@ -108,7 +108,7 @@ void FSubmixEffectReverbFast::OnPresetChanged()
 	ReverbEffect.RoomRolloffFactor = 0.0f; // not used
 	ReverbEffect.Volume = Settings.bBypass ? 0.0f : Settings.WetLevel;
 
-	SetEffectParameters(ReverbEffect);
+	SetParameters(ReverbEffect);
 
 	Audio::FWetDry NewWetDryParams;
 	NewWetDryParams.DryLevel = Settings.bBypass ? 1.0f : Settings.DryLevel;
@@ -149,9 +149,11 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 	Audio::MixInBufferFast(*InData.AudioBuffer, *OutData.AudioBuffer, LastDry, CurrentWetDry.DryLevel);
 }
 
-void FSubmixEffectReverbFast::SetEffectParameters(const FAudioReverbEffect& InParams)
+bool FSubmixEffectReverbFast::SetParameters(const FAudioEffectParameters& InParams)
 {
 	LLM_SCOPE(ELLMTag::AudioMixer);
+
+	const FAudioReverbEffect& ReverbEffectParams = static_cast<const FAudioReverbEffect&>(InParams);
 
 	/* `FPlateReverbFast` produces slightly different quality effect than `FPlateReverb`. Comparing the 
 	 * settings between FSubmixEffectReverb and FSubmixEffectReverbFast slight differences will arise.
@@ -165,20 +167,20 @@ void FSubmixEffectReverbFast::SetEffectParameters(const FAudioReverbEffect& InPa
 	Audio::FPlateReverbFastSettings NewSettings;
 
 	// Early Reflections
-	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, InParams.ReflectionsGain);
-	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, InParams.ReflectionsDelay);
-	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.GainHF);
+	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, ReverbEffectParams.ReflectionsGain);
+	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, ReverbEffectParams.ReflectionsDelay);
+	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbEffectParams.GainHF);
 
 	// LateReflections
-	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, InParams.LateDelay);
-	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.Gain);
-	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.1f, 0.6f }, InParams.AirAbsorptionGainHF);
-	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped({ 0.05f, 1.0f }, { 0.0f, 0.95f }, InParams.Diffusion);
-	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped({ 0.05f, 1.95f }, { 0.0f, 0.999f }, InParams.DecayHFRatio);
-	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 0.95f }, { 0.06f, 1.0f }, InParams.Density);
+	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, ReverbEffectParams.LateDelay);
+	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbEffectParams.Gain);
+	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.1f, 0.6f }, ReverbEffectParams.AirAbsorptionGainHF);
+	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped({ 0.05f, 1.0f }, { 0.0f, 0.95f }, ReverbEffectParams.Diffusion);
+	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped({ 0.05f, 1.95f }, { 0.0f, 0.999f }, ReverbEffectParams.DecayHFRatio);
+	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 0.95f }, { 0.06f, 1.0f }, ReverbEffectParams.Density);
 
 	// Use mapping function to get decay time in seconds to internal linear decay scale value
-	const float DecayValue = DecayCurve.Eval(InParams.DecayTime);
+	const float DecayValue = DecayCurve.Eval(ReverbEffectParams.DecayTime);
 	NewSettings.LateReflections.Decay = DecayValue;
 
 	// Convert to db
@@ -186,6 +188,8 @@ void FSubmixEffectReverbFast::SetEffectParameters(const FAudioReverbEffect& InPa
 
 	// Apply the settings the thread safe settings object
 	ReverbParams.SetParams(NewSettings);
+
+	return true;
 }
 
 void FSubmixEffectReverbFast::UpdateParameters()

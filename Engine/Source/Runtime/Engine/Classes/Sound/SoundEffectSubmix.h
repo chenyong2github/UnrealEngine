@@ -2,13 +2,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectBase.h"
+#include "UObject/ObjectMacros.h"
+
 #include "SoundEffectSubmix.generated.h"
 
 class FSoundEffectSubmix;
-
+struct FAudioEffectParameters;
 
 /** Preset of a submix effect that can be shared between sounds. */
 UCLASS(config = Engine, hidecategories = Object, abstract, editinlinenew, BlueprintType)
@@ -73,14 +75,41 @@ struct FSoundEffectSubmixOutputData
 class ENGINE_API FSoundEffectSubmix : public FSoundEffectBase
 {
 public:
-	FSoundEffectSubmix() {}
-	virtual ~FSoundEffectSubmix() {}
+	FSoundEffectSubmix()
+	{
+	}
+
+	virtual ~FSoundEffectSubmix()
+	{
+	}
 
 	/** Called on an audio effect at initialization on main thread before audio processing begins. */
-	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) {};
+	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate)
+	{
+	}
+
+	/**  Provided for interpolating parameters from audio volume system, enabling transition between various settings */
+	virtual bool SetParameters(const FAudioEffectParameters& InParameters)
+	{
+		return false;
+	}
+
+	// Whether or not effect supports default reverb system
+	virtual bool SupportsDefaultReverb() const
+	{
+		return false;
+	}
+
+	// Whether or not effect supports default EQ system
+	virtual bool SupportsDefaultEQ() const
+	{
+		return false;
+	}
 
 	/** Called on game thread to allow submix effect to query game data if needed. */
-	virtual void Tick() {}
+	virtual void Tick()
+	{
+	}
 
 	/** Override to down mix input audio to a desired channel count. */
 	virtual uint32 GetDesiredInputChannelCountOverride() const
@@ -89,7 +118,9 @@ public:
 	}
 
 	/** Process the input block of audio. Called on audio thread. */
-	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) {};
+	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
+	{
+	}
 
 	/** Allow effects to supply a drylevel. */
 	virtual float GetDryLevel() const { return 0.0f; }

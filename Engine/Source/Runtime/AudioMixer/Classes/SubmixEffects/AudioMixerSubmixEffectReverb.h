@@ -93,8 +93,11 @@ public:
 	// Called when an audio effect preset is changed
 	virtual void OnPresetChanged() override;
 
-	// We want to receive downmixed submix audio to stereo input for the reverb effect
-	virtual uint32 GetDesiredInputChannelCountOverride() const override { return 2; }
+	// Forces receiving downmixed submix audio to stereo input for the reverb effect
+	virtual uint32 GetDesiredInputChannelCountOverride() const override
+	{
+		return 2;
+	}
 
 	// Returns the drylevel of the effect
 	virtual float GetDryLevel() const override { return DryLevel; }
@@ -103,7 +106,13 @@ public:
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
 	// Sets the reverb effect parameters based from audio thread code
-	void SetEffectParameters(const FAudioReverbEffect& InReverbEffectParameters);
+	virtual bool SetParameters(const FAudioEffectParameters& InEffectParameters) override;
+
+	// Whether this effect supports the default reverb system
+	virtual bool SupportsDefaultReverb() const override
+	{
+		return true;
+	}
 
 private:
 	void UpdateParameters();

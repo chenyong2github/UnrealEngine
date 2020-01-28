@@ -9,6 +9,8 @@
 
 #include "AudioMixerSubmixEffectReverbFast.generated.h"
 
+struct FAudioEffectParameters;
+
 USTRUCT(BlueprintType)
 struct AUDIOMIXER_API FSubmixEffectReverbFastSettings
 {
@@ -107,7 +109,13 @@ public:
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
 	// Sets the reverb effect parameters based from audio thread code
-	void SetEffectParameters(const FAudioReverbEffect& InReverbEffectParameters);
+	virtual bool SetParameters(const FAudioEffectParameters& InParameters) override;
+
+	// Whether this effect supports the default reverb system
+	virtual bool SupportsDefaultReverb() const override
+	{
+		return true;
+	}
 
 private:
 
