@@ -35,9 +35,11 @@ FStoreServiceImpl::FStoreServiceImpl(const FStoreService::FDesc& Desc)
 ////////////////////////////////////////////////////////////////////////////////
 FStoreServiceImpl::~FStoreServiceImpl()
 {
-	CborServer.Close();
-	Recorder.Close();
-	Store.Close();
+	asio::post([this] () {
+		CborServer.Close();
+		Recorder.Close();
+		Store.Close();
+	});
 	Context.Wait();
 }
 
