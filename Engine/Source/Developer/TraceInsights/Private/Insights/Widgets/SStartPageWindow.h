@@ -61,31 +61,13 @@ struct FTraceSession
 	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 
-	//FTraceSession() = default;
-	FTraceSession(const Trace::FStoreClient::FTraceInfo* InTraceInfo)
-		: TraceId(InTraceInfo->GetId())
-		, TraceIndex(-1)
-		, Name(AnsiStringViewToText(InTraceInfo->GetName()))
-		, Uri(/*TODO: InTraceInfo->GetUri()*/)
-		, Timestamp(ConvertTimestamp(InTraceInfo->GetTimestamp()))
-		, Size(InTraceInfo->GetSize())
-		, bIsLive(false)
-		, IpAddress(0)
-		, bIsMetadataUpdated(false)
-		, Platform()
-		, AppName()
-		, CommandLine()
-		, ConfigurationType(EBuildConfiguration::Unknown)
-		, TargetType(EBuildTargetType::Unknown)
-	{
-	}
+	FTraceSession() = default;
 
 	static FDateTime ConvertTimestamp(uint64 InTimestamp)
 	{
 		return FDateTime(static_cast<int64>(InTimestamp));
 	}
 
-private:
 	static FText AnsiStringViewToText(const FAnsiStringView& AnsiStringView)
 	{
 		FString FatString(AnsiStringView.Len(), AnsiStringView.GetData());
