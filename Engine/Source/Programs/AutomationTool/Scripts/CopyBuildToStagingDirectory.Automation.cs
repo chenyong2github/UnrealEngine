@@ -2236,7 +2236,27 @@ public partial class Project : CommandUtils
 					Writer.WriteLine(Command);
 				}
 			}
-			RunIoStore(Params, SC, IoStoreCommandsFileName);
+
+			FileReference PackageOpenOrderFileLocation = null;
+			FileReference CookerOpenOrderFileLocation = null;
+			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
+			string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+
+			foreach (string OrderLocation in OrderLocations.Reverse())
+			{
+				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "PackageOpenOrder.log");
+				if (FileExists_NoExceptions(FileLocation.FullName))
+				{
+					PackageOpenOrderFileLocation = FileLocation;
+				}
+				FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
+				if (FileExists_NoExceptions(FileLocation.FullName))
+				{
+					CookerOpenOrderFileLocation = FileLocation;
+				}
+			}
+			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation);
 		}
 
 		// Do any additional processing on the command output
@@ -2380,10 +2400,18 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation)
 	{
 		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, CommandsFileName);
+		if (PackageOrderFileLocation != null)
+		{
+			CommandletParams += String.Format(" -PackageOrder={0}", PackageOrderFileLocation.FullName);
+		}
+		if (CookerOpenOrderFileLocation != null)
+		{
+			CommandletParams += String.Format(" -CookerOrder={0}", CookerOpenOrderFileLocation.FullName);
+		}
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
 	}
