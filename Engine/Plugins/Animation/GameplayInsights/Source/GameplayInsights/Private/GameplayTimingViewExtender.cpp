@@ -42,7 +42,7 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 					SAssignNew(PerSessionData->TransportControls, SGameplayInsightsTransportControls, *PerSessionData->GameplaySharedData)
 				]
 			]);
-#endif WITH_EDITOR
+#endif //WITH_EDITOR
 	}
 
 	PerSessionData->GameplaySharedData->OnBeginSession(InSession);
