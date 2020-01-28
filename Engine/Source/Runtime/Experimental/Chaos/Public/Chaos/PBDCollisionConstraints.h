@@ -77,7 +77,8 @@ public:
 	*  This function will make a deep copy of the constraint and 
 	*  then delete the InConstraint. 
 	*/
-	void AddConstraint(FConstraintBase* InConstraint);
+	void AddConstraint(const TRigidBodyPointContactConstraint<FReal, 3>& InConstraint);
+	void AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint);
 
 	/**
 	*  Reset the constraint frame. 

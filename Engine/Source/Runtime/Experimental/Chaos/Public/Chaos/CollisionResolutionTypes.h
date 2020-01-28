@@ -155,7 +155,6 @@ namespace Chaos
 		FType Type;
 	};
 	typedef TCollisionConstraintBase<float, 3> FCollisionConstraintBase;
-	typedef TArray<TCollisionConstraintBase<float, 3>*> FCollisionConstraintsArray;
 
 
 	/*
@@ -345,4 +344,42 @@ namespace Chaos
 
 	};
 	typedef TPBDCollisionConstraintHandle<float, 3> FPBDCollisionConstraintHandle;
+
+
+	template<int T_MAXCONSTRAINTS>
+	struct TCollisionConstraintsStore
+	{
+		TArray<TRigidBodyPointContactConstraint<FReal, 3>, TInlineAllocator<T_MAXCONSTRAINTS>> SinglePointConstraints;
+		TArray<TRigidBodyMultiPointContactConstraint<FReal, 3>, TInlineAllocator<T_MAXCONSTRAINTS>> MultiPointConstraints;
+
+		int32 Num() const { return SinglePointConstraints.Num() + MultiPointConstraints.Num(); }
+
+		void Empty()
+		{
+			SinglePointConstraints.Empty();
+			MultiPointConstraints.Empty();
+		}
+
+		TRigidBodyPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyPointContactConstraint<FReal, 3>& C)
+		{
+			if ((SinglePointConstraints.Num() < T_MAXCONSTRAINTS) && (C.GetPhi() < MaxPhi))
+			{
+				int32 ConstraintIndex = SinglePointConstraints.Add(C);
+				return &SinglePointConstraints[ConstraintIndex];
+			}
+			return nullptr;
+		}
+
+		TRigidBodyMultiPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyMultiPointContactConstraint<FReal, 3>& C)
+		{
+			if ((MultiPointConstraints.Num() < T_MAXCONSTRAINTS) && (C.GetPhi() < MaxPhi))
+			{
+				int32 ConstraintIndex = MultiPointConstraints.Add(C);
+				return &MultiPointConstraints[ConstraintIndex];
+			}
+			return nullptr;
+		}
+	};
+
+	using FCollisionConstraintsArray = TCollisionConstraintsStore<8>;
 }

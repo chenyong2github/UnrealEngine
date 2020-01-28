@@ -259,18 +259,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateBoxBoxConstraint(Object0->BoundingBox(), Transform0, Object1->BoundingBox(), Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateBoxBoxConstraint(Object0->BoundingBox(), Transform0, Object1->BoundingBox(), Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -307,18 +298,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateBoxHeightFieldConstraint(Object0->BoundingBox(), Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateBoxHeightFieldConstraint(Object0->BoundingBox(), Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -404,18 +386,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateBoxPlaneConstraint(Object0->BoundingBox(), Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateBoxPlaneConstraint(Object0->BoundingBox(), Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -463,18 +436,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateBoxTriangleMeshConstraint(Object0->GetAABB(), Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateBoxTriangleMeshConstraint(Object0->GetAABB(), Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -522,18 +486,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateSphereSphereConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateSphereSphereConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -570,18 +525,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateSphereHeightFieldConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateSphereHeightFieldConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -626,18 +572,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateSpherePlaneConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateSpherePlaneConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -686,18 +623,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateSphereBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateSphereBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -752,18 +680,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateSphereCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateSphereCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -821,18 +740,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateCapsuleCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateCapsuleCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -869,18 +779,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateCapsuleBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateCapsuleBoxConstraint(*Object0, Transform0, Object1->BoundingBox(), Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -917,18 +818,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateCapsuleHeightFieldConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateCapsuleHeightFieldConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -996,20 +888,10 @@ namespace Chaos
 		{
 			TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 			TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-			FRigidBodyMultiPointContactConstraint* Constraint = new FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-			UpdateConvexConvexManifold(*Constraint, Transform0, Transform1, Thickness);
-			UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
-
-			if (Constraint->GetPhi() < Thickness)
-			{
-				NewConstraints.Add(Constraint);
-			}
-			else
-			{
-				delete Constraint;
-			}
-
+			FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+			UpdateConvexConvexManifold(Constraint, Transform0, Transform1, Thickness);
+			UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, Constraint);
+			NewConstraints.TryAdd(Thickness, Constraint);
 		}
 
 		//
@@ -1044,18 +926,9 @@ namespace Chaos
 			{
 				TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 				TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
-
-				UpdateConvexHeightFieldConstraint(*Implicit0, Transform0, *Object1, Transform1, Thickness, *Constraint);
-
-				if (Constraint->GetPhi() < Thickness)
-				{
-					NewConstraints.Add(Constraint);
-				}
-				else
-				{
-					delete Constraint;
-				}
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+				UpdateConvexHeightFieldConstraint(*Implicit0, Transform0, *Object1, Transform1, Thickness, Constraint);
+				NewConstraints.TryAdd(Thickness, Constraint);
 			}
 		}
 
@@ -1107,32 +980,25 @@ namespace Chaos
 		{
 			TRigidTransform<T, d> ParticleImplicit0TM = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 			TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-			FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint(nullptr, nullptr, ParticleImplicit0TM, nullptr, nullptr, ParticleImplicit1TM);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
 
 			bool bIsParticleDynamic0 = Particle0->CastToRigidParticle() && Particle0->ObjectState() == EObjectStateType::Dynamic;
 			if (!Particle1->Geometry() || (bIsParticleDynamic0 && !Particle0->CastToRigidParticle()->CollisionParticlesSize() && Particle0->Geometry() && !Particle0->Geometry()->IsUnderlyingUnion()))
 			{
-				Constraint->Particle[0] = Particle1;
-				Constraint->Particle[1] = Particle0;
-				Constraint->SetManifold(Implicit1, Implicit0);
+				Constraint.Particle[0] = Particle1;
+				Constraint.Particle[1] = Particle0;
+				Constraint.SetManifold(Implicit1, Implicit0);
 			}
 			else
 			{
-				Constraint->Particle[0] = Particle0;
-				Constraint->Particle[1] = Particle1;
-				Constraint->SetManifold(Implicit0, Implicit1);
+				Constraint.Particle[0] = Particle0;
+				Constraint.Particle[1] = Particle1;
+				Constraint.SetManifold(Implicit0, Implicit1);
 			}
 
-			UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Any>(Thickness, *Constraint);
+			UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Any>(Thickness, Constraint);
 
-			if (Constraint->GetPhi() < Thickness)
-			{
-				NewConstraints.Add(Constraint);
-			}
-			else
-			{
-				delete Constraint;
-			}
+			NewConstraints.TryAdd(Thickness, Constraint);
 		}
 
 		//
