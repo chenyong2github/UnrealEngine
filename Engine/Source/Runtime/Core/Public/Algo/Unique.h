@@ -29,7 +29,7 @@ namespace AlgoImpl
 			}
 		}
 
-		return Result + 1 - Array;
+		return static_cast<SizeType>(Result + 1 - Array);
 	}
 }
 

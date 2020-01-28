@@ -96,7 +96,7 @@ public:
 	inline const C* ToString() const	{ EnsureNulTerminated(); return Base; }
 	inline const C* operator*() const	{ EnsureNulTerminated(); return Base; }
 
-	inline operator ViewType() const	{ return ViewType(Base, CurPos - Base); }
+	inline operator ViewType() const	{ return ViewType(Base, (ViewType::SizeType)(CurPos - Base)); }
 
 	inline const C	LastChar() const	{ return *(CurPos - 1); }
 

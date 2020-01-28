@@ -40,7 +40,7 @@ bool FUniqueTest::RunTest(const FString& Parameters)
 	}
 	{
 		int32 Array[] = {1};
-		int32 NewSize = Unique(Array);
+		int32 NewSize = (int32)Unique(Array);
 		TestEqual(TEXT("`Unique` must support C arrays"), NewSize, 1);
 	}
 	{
