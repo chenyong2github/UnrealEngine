@@ -4317,13 +4317,19 @@ FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProces
 	EBlendableLocation Location = Material->BlendableLocation;
 	int32 Priority = Material->BlendablePriority;
 
-	for(;;)
+	for (;;)
 	{
 		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
 
-		if(!DataPtr)
+		if (!DataPtr)
 		{
 			// end reached
+			return 0;
+		}
+
+		// Do not consider materials that are set as not blendable
+		if (!DataPtr->GetIsBlendable())
+		{
 			return 0;
 		}
 
