@@ -449,8 +449,8 @@ void FMallocLeakDetection::Malloc(void* Ptr, SIZE_T Size)
 				bRecursive = true;
 				FCallstackTrack Callstack;
 				FPlatformStackWalk::CaptureStackBackTrace(Callstack.CallStack, FCallstackTrack::Depth);
-				Callstack.FirstFrame = GFrameCounter;
-				Callstack.LastFrame = GFrameCounter;
+				Callstack.FirstFrame = (uint32)GFrameCounter;
+				Callstack.LastFrame = (uint32)GFrameCounter;
 				Callstack.Size = Size;
 				AddCallstack(Callstack);
 				OpenPointers.Add(Ptr, Callstack);
