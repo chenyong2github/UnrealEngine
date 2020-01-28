@@ -116,20 +116,23 @@ void UText3DComponent::OnRegister()
 }
 
 #if WITH_EDITOR
-void UText3DComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName Name = PropertyChangedEvent.GetPropertyName();
-	if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Text) ||
-		Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Font) ||
-		Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Extrude) ||
-		Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Bevel) ||
-		Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments))
+	if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Text))
+	{
+		BuildTextMesh();
+	}
+	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Font) ||
+			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Extrude) ||
+			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Bevel) ||
+			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments))
 	{
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			BuildTextMesh();
+			BuildTextMesh(true);
 		}
 	}
 	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType))
@@ -148,7 +151,7 @@ void UText3DComponent::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 		}
 		}
 
-		BuildTextMesh();
+		BuildTextMesh(true);
 	}
 	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, FrontMaterial))
 	{
@@ -224,7 +227,7 @@ void UText3DComponent::SetBevelType(const EText3DBevelType Value)
 
 void UText3DComponent::SetBevelSegments(const int32 Value)
 {
-	const int32 NewValue = FMath::Clamp(Value, 1, 10);
+	const int32 NewValue = FMath::Clamp(Value, 1, 15);
 	if (BevelSegments != NewValue)
 	{
 		BevelSegments = NewValue;
@@ -574,7 +577,7 @@ void UText3DComponent::UpdateTransforms()
 	}
 }
 
-void UText3DComponent::BuildTextMesh()
+void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 {
 	bPendingBuild = false;
 	ShapedText->Reset();
@@ -678,7 +681,10 @@ void UText3DComponent::BuildTextMesh()
 
 	TextGeneratedDelegate.Broadcast();
 
-	Subsystem->Cleanup();
+	if (bCleanCache)
+	{
+		Subsystem->Cleanup();
+	}
 }
 
 void UText3DComponent::CheckBevel()

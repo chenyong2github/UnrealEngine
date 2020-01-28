@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SDataprepActionBlock;
+class SDataprepGraphActionNode;
 class SDataprepGraphTrackNode;
 class STextBlock;
 class UDataprepActionAsset;
@@ -46,6 +47,17 @@ public:
 	/** Returns a pointer to a widget displaying only the title of the action step */
 	virtual TSharedPtr<SWidget> GetStepTitleWidget() const;
 
+	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
+	void SetParentNode(TSharedPtr<SDataprepGraphActionNode> InParentNode)
+	{
+		ParentNodePtr = InParentNode;
+	}
+
+	void ShowInsertionSlot(bool bShow)
+	{
+		bShowInsertionSlot = bShow;
+	}
+
 private:
 	/**
 	 * Returns a color depending whether the action step is selected or not
@@ -64,5 +76,11 @@ private:
 	int32 StepIndex;
 
 	/** Indicates if the widget is hovered during a drag and drop operation */
-	bool bIsHovered;
+	bool bShowInsertionSlot;
+
+	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
+	TWeakPtr<SDataprepGraphTrackNode> ParentTrackNodePtr;
+
+	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
+	TWeakPtr<SDataprepGraphActionNode> ParentNodePtr;
 };

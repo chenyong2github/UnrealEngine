@@ -61,14 +61,3 @@ public:
 	bool bExportToUDatasmith;
 #endif //WITH_EDITORONLY_DATA
 };
-
-
-UCLASS(config = Editor, transient)
-class UDatasmithC4DReimportMeshOptions : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = StaticMesh, meta = (ShowOnlyInnerProperties))
-	FDatasmithStaticMeshImportOptions ImportOptions;
-};

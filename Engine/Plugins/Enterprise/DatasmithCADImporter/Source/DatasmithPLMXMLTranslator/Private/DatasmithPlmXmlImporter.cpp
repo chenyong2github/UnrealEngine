@@ -2,7 +2,6 @@
 
 #include "DatasmithPlmXmlImporter.h"
 
-#include "DatasmithImportContext.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithPayload.h"
 #include "DatasmithSceneFactory.h"
@@ -13,8 +12,11 @@
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
 #include "XmlParser.h"
+#include "Modules/ModuleManager.h"
+
 
 #include "CADData.h"
+#include "CADToolsModule.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
@@ -234,8 +236,9 @@ namespace PlmXml
 		FPlmXmlMeshLoaderWithDatasmithDispatcher(TSharedRef<IDatasmithScene> InDatasmithScene, FDatasmithTessellationOptions& TessellationOptions)
 			: DatasmithScene(InDatasmithScene)
 		{
-			const TCHAR* CacheVersion = TEXT("4");
-			CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithPlmXmlCache"), CacheVersion));
+			FCADToolsModule& CADToolsModule = FCADToolsModule::Get();
+			
+			CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), *FString::FromInt(CADToolsModule.GetCacheVersion())));
 			IFileManager::Get().MakeDirectory(*CacheDir);
 
 			// Setup of import parameters for DatasmithDispatcher copied from FDatasmithCADTranslator's setup

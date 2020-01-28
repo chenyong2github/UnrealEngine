@@ -4,6 +4,7 @@
 
 #include "BlueprintNodes/K2Node_DataprepAction.h"
 #include "DataprepActionAsset.h"
+#include "DataprepAsset.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepGraph/DataprepGraph.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
@@ -30,9 +31,6 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepDragAndDrop"
-
-class SDataprepGraphActionStepNode;
-class SGraphPanel;
 
 FDataprepDragDropOp::FDataprepDragDropOp()
 	: FGraphEditorDragDropAction()
@@ -107,6 +105,21 @@ void FDataprepDragDropOp::HoverTargetChanged()
 	{
 		bDropTargetValid = true;
 		DrapDropText = LOCTEXT("TargetIsDataprepActionContext", "Add a Step to Dataprep Action");
+	}
+	else if(Cast<UDataprepGraphActionStepNode>(GetHoveredNode()) != nullptr)
+	{
+		bDropTargetValid = true;
+		DrapDropText = LOCTEXT("CopyDataprepActionStepNode", "Add/Insert step to location");
+	}
+	else if(Cast<UDataprepGraphActionNode>(GetHoveredNode()) != nullptr)
+	{
+		bDropTargetValid = true;
+		DrapDropText = LOCTEXT("CopyDataprepActionAssetNode", "Add/Insert step to location");
+	}
+	else if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) != nullptr)
+	{
+		bDropTargetValid = true;
+		DrapDropText = LOCTEXT("InsertDataprepActionAssetNode", "Insert action to location");
 	}
 	else if ( UEdGraph* EdGraph = GetHoveredGraph() )
 	{
@@ -194,13 +207,13 @@ EVisibility FDataprepDragDropOp::GetErrorIconVisible() const
 
 FReply FDataprepDragDropOp::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition)
 {
-	if(Cast<UDataprepGraphActionStepNode>(GetHoveredNode()) != nullptr)
+	if(UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(GetHoveredNode()))
 	{
-		return DoDropOnActionStep(ScreenPosition, GraphPosition);
+		return DoDropOnActionStep(ActionStepNode);
 	}
-	else if(Cast<UDataprepGraphActionNode>(GetHoveredNode()) != nullptr)
+	else if(UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(GetHoveredNode()))
 	{
-		return DoDropOnActionAsset(ScreenPosition, GraphPosition);
+		return DoDropOnActionAsset(ActionNode);
 	}
 
 	return FReply::Unhandled();
@@ -305,6 +318,10 @@ FText FDataprepDragDropOp::GetMessageText()
 		{
 			LastMessageText = bCopyRequested ? LOCTEXT("CopyDataprepActionAssetNode", "Copy step to location") : LOCTEXT("MoveDataprepActionAssetNode", "Move step to location");
 		}
+		else if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) != nullptr)
+		{
+			LastMessageText = LOCTEXT("InsertDataprepActionAssetNode", "Insert action to location");
+		}
 	}
 	else if(GetHoveredNode() != nullptr)
 	{
@@ -378,7 +395,7 @@ void FDataprepDragDropOp::DoDropOnPanel(const TSharedRef<SWidget>& Panel, FVecto
 	}
 }
 
-FReply FDataprepDragDropOp::DoDropOnActionStep(FVector2D ScreenPosition, FVector2D GraphPosition)
+FReply FDataprepDragDropOp::DoDropOnActionStep(UDataprepGraphActionStepNode* TargetActionStepNode)
 {
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bool bCopyRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
@@ -388,127 +405,232 @@ FReply FDataprepDragDropOp::DoDropOnActionStep(FVector2D ScreenPosition, FVector
 		return FReply::Handled().EndDragDrop();
 	}
 
-	UDataprepGraphActionStepNode* TargetActionStepNode = Cast<UDataprepGraphActionStepNode>(GetHoveredNode());
-	ensure(TargetActionStepNode != nullptr);
 	UDataprepActionAsset* TargetActionAsset = TargetActionStepNode->GetDataprepActionAsset();
+	ensure(TargetActionAsset);
 
-	for(FDraggedStepEntry& DraggedStepEntry : DraggedSteps)
+	if(DraggedSteps.Num() > 0)
 	{
-		if(DraggedStepEntry.Get<0>().IsValid() || DraggedStepEntry.Get<2>().IsValid())
+		for(FDraggedStepEntry& DraggedStepEntry : DraggedSteps)
 		{
-			FScopedTransaction Transaction( LOCTEXT("DropOnActionStep", "Copy/Move Dataprep Action Step") );
-			bool bTransactionSuccessful = true;
-
-			// External drag and drop
-			if(!DraggedStepEntry.Get<0>().IsValid())
+			if(DraggedStepEntry.Get<0>().IsValid() || DraggedStepEntry.Get<2>().IsValid())
 			{
-				bTransactionSuccessful &= TargetActionAsset->InsertStep( DraggedStepEntry.Get<2>().Get(), TargetActionStepNode->GetStepIndex() );
-			}
-			// Drag and drop within an action asset or between two action assets
-			else
-			{
-				UDataprepActionAsset* SourceActionAsset = DraggedStepEntry.Get<0>().Get();
-				check(SourceActionAsset);
+				FScopedTransaction Transaction( LOCTEXT("DropOnActionStep", "Copy/Move Dataprep Action Step") );
+					bool bTransactionSuccessful = true;
 
-				int32 StepIndex = DraggedStepEntry.Get<1>();
-				check(StepIndex != INDEX_NONE);
-
-				// Hold onto the action step in case of a move
-				TStrongObjectPtr<UDataprepActionStep> SourceActionStepPtr = TStrongObjectPtr<UDataprepActionStep>( SourceActionAsset->GetStep(StepIndex).Get() );
-				check(SourceActionStepPtr.IsValid());
-
-				// source action asset differs from target action asset
-				if( TargetActionAsset != SourceActionAsset)
-				{
-					if(!bCopyRequested)
+					// External drag and drop
+					if(!DraggedStepEntry.Get<0>().IsValid())
 					{
-						bTransactionSuccessful &= SourceActionAsset->RemoveStep( StepIndex );
+						bTransactionSuccessful &= TargetActionAsset->InsertStep( DraggedStepEntry.Get<2>().Get(), TargetActionStepNode->GetStepIndex() );
+					}
+					// Drag and drop within an action asset or between two action assets
+					else
+					{
+						UDataprepActionAsset* SourceActionAsset = DraggedStepEntry.Get<0>().Get();
+						check(SourceActionAsset);
+
+						int32 StepIndex = DraggedStepEntry.Get<1>();
+						check(StepIndex != INDEX_NONE);
+
+						// Hold onto the action step in case of a move
+						TStrongObjectPtr<UDataprepActionStep> SourceActionStepPtr = TStrongObjectPtr<UDataprepActionStep>( SourceActionAsset->GetStep(StepIndex).Get() );
+						check(SourceActionStepPtr.IsValid());
+
+						// source action asset differs from target action asset
+						if( TargetActionAsset != SourceActionAsset)
+						{
+							if(!bCopyRequested)
+							{
+								bTransactionSuccessful &= SourceActionAsset->RemoveStep( StepIndex );
+							}
+
+							bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
+						}
+						else if(bCopyRequested)
+						{
+							bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
+						}
+						else
+						{
+							bTransactionSuccessful &= TargetActionAsset->MoveStep( StepIndex, TargetActionStepNode->GetStepIndex() );
+						}
 					}
 
-					bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
-				}
-				else if(bCopyRequested)
+				if(!bTransactionSuccessful)
 				{
-					bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
+					Transaction.Cancel();
 				}
-				else
-				{
-					bTransactionSuccessful &= TargetActionAsset->MoveStep( StepIndex, TargetActionStepNode->GetStepIndex() );
-				}
-			}
-
-			if(!bTransactionSuccessful)
-			{
-				Transaction.Cancel();
 			}
 		}
-	}
 
-	DraggedNodeWidgets.Reset();
-	DraggedSteps.Reset();
+		DraggedNodeWidgets.Reset();
+		DraggedSteps.Reset();
+	}
+	else
+	{
+		DropStepFromPanel(TargetActionAsset, TargetActionStepNode->GetStepIndex());
+	}
 
 	return FReply::Handled().EndDragDrop();
 }
 
-FReply FDataprepDragDropOp::DoDropOnActionAsset(FVector2D ScreenPosition, FVector2D GraphPosition)
+void FDataprepDragDropOp::DropStepFromPanel(UDataprepActionAsset* TargetActionAsset, int32 InsertIndex)
+{
+	FScopedTransaction Transaction( LOCTEXT("AddStepToAction", "Add/Insert Dataprep Action Step") );
+
+	FDataprepSchemaActionContext Context;
+	Context.DataprepActionPtr = TargetActionAsset;
+	Context.StepIndex = InsertIndex;
+
+	if ( !DataprepGraphOperation.Execute( Context ) )
+	{
+		Transaction.Cancel();
+	}
+}
+
+FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, int32 InsertIndex)
+{
+	ensure(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()));
+
+	if(DraggedSteps.Num() > 0)
+	{
+		TArray<const UDataprepActionStep*> Steps;
+		Steps.Reserve(DraggedSteps.Num());
+
+		for(FDraggedStepEntry& DraggedStepEntry : DraggedSteps)
+		{
+			if(DraggedStepEntry.Get<2>().IsValid())
+			{
+				Steps.Add(DraggedStepEntry.Get<2>().Get());
+			}
+		}
+
+		if(Steps.Num() > 0)
+		{
+			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+			bool bOnlyOneRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
+
+			FScopedTransaction Transaction( LOCTEXT("DropOnTrack", "Add Dataprep Action") );
+			bool bTransactionSuccessful = true;
+
+			if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
+			{
+				TargetDataprepAsset->InsertActions(Steps, InsertIndex, bOnlyOneRequested);
+			}
+			else
+			{
+				TargetDataprepAsset->AddActions(Steps, bOnlyOneRequested);
+			}
+		}
+
+		DraggedNodeWidgets.Reset();
+		DraggedSteps.Reset();
+	}
+	else
+	{
+		FScopedTransaction Transaction( LOCTEXT("AddNodeFromStep", "Add Dataprep Action Node from Step") );
+
+		bool bTransactionSuccessful = false;
+
+		UDataprepActionAsset* Action = Cast<UDataprepActionAsset>(UDataprepActionAsset::StaticClass()->GetDefaultObject());
+
+		if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
+		{
+			bTransactionSuccessful = TargetDataprepAsset->InsertAction(Action, InsertIndex);
+		}
+		else
+		{
+			InsertIndex = TargetDataprepAsset->AddAction(Action);
+			bTransactionSuccessful = InsertIndex != INDEX_NONE;
+		}
+
+		if ( !bTransactionSuccessful )
+		{
+			Transaction.Cancel();
+			return FReply::Unhandled();
+		}
+
+		Action = TargetDataprepAsset->GetAction(InsertIndex);
+		Action->SetLabel(TEXT("New Action"));
+
+		FDataprepSchemaActionContext Context;
+		Context.DataprepActionPtr = Action;
+
+		bTransactionSuccessful = DataprepGraphOperation.Execute( Context );
+
+		if ( !bTransactionSuccessful )
+		{
+			TargetDataprepAsset->RemoveAction(InsertIndex);
+			Transaction.Cancel();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FDataprepDragDropOp::DoDropOnActionAsset(UDataprepGraphActionNode* TargetActionAssetNode)
 {
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bool bCopyRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
 
-	UDataprepGraphActionNode* TargetActionAssetNode = Cast<UDataprepGraphActionNode>(GetHoveredNode());
-	ensure(TargetActionAssetNode != nullptr);
 	UDataprepActionAsset* TargetActionAsset = TargetActionAssetNode->GetDataprepActionAsset();
 
-	for(FDraggedStepEntry& DraggedStepEntry : DraggedSteps)
+	if(DraggedSteps.Num() > 0)
 	{
-		if(DraggedStepEntry.Get<0>().IsValid() || DraggedStepEntry.Get<2>().IsValid())
+		for(FDraggedStepEntry& DraggedStepEntry : DraggedSteps)
 		{
-			FScopedTransaction Transaction( LOCTEXT("DropOnActionStep", "Copy/Move Dataprep Action Step") );
-			bool bTransactionSuccessful = true;
-
-			// External drag and drop
-			if(!DraggedStepEntry.Get<0>().IsValid())
+			if(DraggedStepEntry.Get<0>().IsValid() || DraggedStepEntry.Get<2>().IsValid())
 			{
-				bTransactionSuccessful &= TargetActionAsset->AddStep( DraggedStepEntry.Get<2>().Get() ) != INDEX_NONE;
-			}
-			// Drag and drop within an action asset or between two action assets
-			else
-			{
-				UDataprepActionAsset* SourceActionAsset = DraggedStepEntry.Get<0>().Get();
-				check(SourceActionAsset);
+				FScopedTransaction Transaction( LOCTEXT("DropOnActionStep", "Copy/Move Dataprep Action Step") );
+				bool bTransactionSuccessful = true;
 
-				int32 StepIndex = DraggedStepEntry.Get<1>();
-				check(StepIndex != INDEX_NONE);
-
-				// Hold onto the action step in case of a move
-				TStrongObjectPtr<UDataprepActionStep> SourceActionStepPtr = TStrongObjectPtr<UDataprepActionStep>( SourceActionAsset->GetStep(StepIndex).Get() );
-				check(SourceActionStepPtr.IsValid());
-
-				// source action asset differs from target action asset
-				if( TargetActionAsset != SourceActionAsset)
+				// External drag and drop
+				if(!DraggedStepEntry.Get<0>().IsValid())
 				{
-					if(!bCopyRequested)
-					{
-						SourceActionAsset->RemoveStep( StepIndex );
-					}
-
-					TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
+					bTransactionSuccessful &= TargetActionAsset->AddStep( DraggedStepEntry.Get<2>().Get() ) != INDEX_NONE;
 				}
-				else if(bCopyRequested)
-				{
-					TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
-				}
+				// Drag and drop within an action asset or between two action assets
 				else
 				{
-					TargetActionAsset->MoveStep( StepIndex, TargetActionAsset->GetStepsCount() - 1 );
+					UDataprepActionAsset* SourceActionAsset = DraggedStepEntry.Get<0>().Get();
+					check(SourceActionAsset);
+
+					int32 StepIndex = DraggedStepEntry.Get<1>();
+					check(StepIndex != INDEX_NONE);
+
+					// Hold onto the action step in case of a move
+					TStrongObjectPtr<UDataprepActionStep> SourceActionStepPtr = TStrongObjectPtr<UDataprepActionStep>( SourceActionAsset->GetStep(StepIndex).Get() );
+					check(SourceActionStepPtr.IsValid());
+
+					// source action asset differs from target action asset
+					if( TargetActionAsset != SourceActionAsset)
+					{
+						if(!bCopyRequested)
+						{
+							SourceActionAsset->RemoveStep( StepIndex );
+						}
+
+						TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
+					}
+					else if(bCopyRequested)
+					{
+						TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
+					}
+					else
+					{
+						TargetActionAsset->MoveStep( StepIndex, TargetActionAsset->GetStepsCount() - 1 );
+					}
+				}
+
+				if(!bTransactionSuccessful)
+				{
+					Transaction.Cancel();
 				}
 			}
-
-			if(!bTransactionSuccessful)
-			{
-				Transaction.Cancel();
-			}
 		}
+	}
+	else
+	{
+		DropStepFromPanel(TargetActionAsset);
 	}
 
 	DraggedNodeWidgets.Reset();

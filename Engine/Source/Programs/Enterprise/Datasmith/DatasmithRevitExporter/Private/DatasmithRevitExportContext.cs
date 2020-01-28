@@ -764,7 +764,7 @@ namespace DatasmithRevitExporter
 
 			private Transform GetPivotTransform(Element InElement)
 			{
-				if (InElement.Location == null)
+				if (InElement.Location == null || (InElement as FamilyInstance) != null)
 				{
 					return null;
 				}
@@ -801,13 +801,7 @@ namespace DatasmithRevitExporter
 
 				// Get pivot basis
 
-				if ((InElement as FamilyInstance) != null)
-				{
-					FamilyInstance CurrentFamilyInstance = InElement as FamilyInstance;
-					BasisX = CurrentFamilyInstance.FacingOrientation.Normalize();
-					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-				}
-				else if (InElement.GetType() == typeof(Wall))
+				if (InElement.GetType() == typeof(Wall))
 				{
 					BasisY = (InElement as Wall).Orientation.Normalize();
 					BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
@@ -892,7 +886,7 @@ namespace DatasmithRevitExporter
 				CreateMeshActor(InWorldTransform, out InstanceData.InstanceMesh, out InstanceData.InstanceActor);
 
                 // The Datasmith instance actor is a component in the hierarchy.
-                //InstanceData.InstanceActor.SetIsComponent(true);
+                InstanceData.InstanceActor.SetIsComponent(true);
             }
 
             public FDatasmithFacadeMesh PopInstance()

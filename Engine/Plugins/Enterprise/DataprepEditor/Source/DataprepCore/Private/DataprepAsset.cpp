@@ -34,10 +34,11 @@
 
 UDataprepAsset::UDataprepAsset()
 {
-	// Temp code for the nodes development
+#ifndef DP_NOBLUEPRINT
 	DataprepRecipeBP = nullptr;
 	StartNode = nullptr;
-	// end of temp code for nodes development
+#endif
+	CachedActionCount = 0;
 }
 
 void UDataprepAsset::PostLoad()
@@ -74,6 +75,7 @@ void UDataprepAsset::PostLoad()
 			bMarkDirty = true;
 		}
 
+#ifndef NO_BLUEPRINT
 		// Most likely a Dataprep asset from 4.23
 		if(StartNode == nullptr)
 		{
@@ -102,6 +104,7 @@ void UDataprepAsset::PostLoad()
 			UpdateActions();
 			bMarkDirty = true;
 		}
+#endif
 
 		if ( !Parameterization )
 		{
@@ -119,6 +122,8 @@ void UDataprepAsset::PostLoad()
 
 			GetOutermost()->SetDirtyFlag(true);
 		}
+
+		CachedActionCount = ActionAssets.Num();
 	}
 }
 
@@ -142,6 +147,15 @@ bool UDataprepAsset::Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOute
 	return bWasRename;
 }
 
+void UDataprepAsset::PostEditUndo()
+{
+	UDataprepAssetInterface::PostEditUndo();
+
+	OnActionChanged.Broadcast(nullptr, (ActionAssets.Num() == CachedActionCount) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionRemoved);
+
+	CachedActionCount = ActionAssets.Num();
+}
+
 const UDataprepActionAsset* UDataprepAsset::GetAction(int32 Index) const
 {
 	if ( ActionAssets.IsValidIndex( Index ) )
@@ -162,6 +176,7 @@ const UDataprepActionAsset* UDataprepAsset::GetAction(int32 Index) const
 	return nullptr;
 }
 
+#ifndef NO_BLUEPRINT
 void UDataprepAsset::RemoveActionUsingBP(int32 Index)
 {
 	if ( ActionAssets.IsValidIndex( Index ) )
@@ -364,6 +379,7 @@ bool UDataprepAsset::CreateBlueprint()
 
 	return true;
 }
+#endif
 
 bool UDataprepAsset::CreateParameterization()
 {
@@ -448,6 +464,7 @@ void UDataprepAsset::GetExistingParameterNamesForType(FProperty* Property, bool 
 	Parameterization->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty, OutValidExistingNames, OutInvalidNames );
 }
 
+#ifndef NO_BLUEPRINT
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 {
 	if(InBlueprint == DataprepRecipeBP)
@@ -508,7 +525,10 @@ void UDataprepAsset::UpdateActions()
 			NextNodeInPin = NodeOutPin ? ( NodeOutPin->LinkedTo.Num() > 0 ? NodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
 		}
 	}
+
+	CachedActionCount = ActionAssets.Num();
 }
+#endif
 
 int32 UDataprepAsset::AddAction(const UDataprepActionAsset* InAction)
 {
@@ -517,13 +537,68 @@ int32 UDataprepAsset::AddAction(const UDataprepActionAsset* InAction)
 		Modify();
 
 		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		Action->SetLabel( InAction->GetLabel() );
+
 		ActionAssets.Add( Action );
 		OnActionChanged.Broadcast(Action, FDataprepAssetChangeType::ActionAdded);
+
+		CachedActionCount = ActionAssets.Num();
 
 		return ActionAssets.Num() - 1;
 	}
 
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: The action is invalid") );
+	ensure(false);
+
+	// Invalid
+	return INDEX_NONE;
+}
+
+int32 UDataprepAsset::AddActions(const TArray<const UDataprepActionStep*>& InActionSteps, bool bCreateOne)
+{
+	if ( InActionSteps.Num() > 0 && InActionSteps[0] != nullptr )
+	{
+		Modify();
+
+		int32 PreviousActionCount = ActionAssets.Num();
+
+		if(bCreateOne == true)
+		{
+			UDataprepActionAsset* Action = NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
+			Action->SetLabel( TEXT("New Action") );
+
+			ActionAssets.Add( Action );
+
+			Action->AddSteps(InActionSteps);
+		}
+		else
+		{
+
+			for(const UDataprepActionStep* InActionStep : InActionSteps)
+			{
+				if(InActionStep)
+				{
+					UDataprepActionAsset* Action = NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
+					Action->SetLabel( TEXT("New Action") );
+
+					ActionAssets.Add( Action );
+
+					Action->AddStep(InActionStep);
+				}
+			}
+		}
+
+		CachedActionCount = ActionAssets.Num();
+
+		if(PreviousActionCount != CachedActionCount)
+		{
+			OnActionChanged.Broadcast(ActionAssets.Last(), FDataprepAssetChangeType::ActionAdded);
+
+			return ActionAssets.Num() - 1;
+		}
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: None of the action steps is invalid") );
 	ensure(false);
 
 	// Invalid
@@ -543,14 +618,71 @@ bool UDataprepAsset::InsertAction(const UDataprepActionAsset* InAction, int32 In
 		Modify();
 
 		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		Action->SetLabel( InAction->GetLabel());
+
 		ActionAssets.Insert( Action, Index );
 
 		OnActionChanged.Broadcast(Action, FDataprepAssetChangeType::ActionAdded);
+
+		CachedActionCount = ActionAssets.Num();
 
 		return true;
 	}
 
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: The action is invalid") );
+	ensure(false);
+
+	// Invalid
+	return false;
+}
+
+bool UDataprepAsset::InsertActions(const TArray<const UDataprepActionStep*>& InActionSteps, int32 Index, bool bCreateOne)
+{
+	if ( InActionSteps.Num() > 0 && InActionSteps[0] != nullptr )
+	{
+		Modify();
+
+		int32 PreviousActionCount = ActionAssets.Num();
+
+		if(bCreateOne == true)
+		{
+			UDataprepActionAsset* Action = NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
+			Action->SetLabel( TEXT("New Action") );
+
+			ActionAssets.Insert( Action, Index );
+
+			Action->AddSteps(InActionSteps);
+		}
+		else
+		{
+			int32 InsertIndex = Index;
+
+			for(const UDataprepActionStep* InActionStep : InActionSteps)
+			{
+				if(InActionStep)
+				{
+					UDataprepActionAsset* Action = NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
+					Action->SetLabel( TEXT("New Action") );
+
+					ActionAssets.Insert( Action, InsertIndex );
+					++InsertIndex;
+
+					Action->AddStep(InActionStep);
+				}
+			}
+		}
+
+		CachedActionCount = ActionAssets.Num();
+
+		if(CachedActionCount != PreviousActionCount)
+		{
+			OnActionChanged.Broadcast(ActionAssets.Last(), FDataprepAssetChangeType::ActionAdded);
+
+			return true;
+		}
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::AddAction: None of the action steps is invalid") );
 	ensure(false);
 
 	// Invalid
@@ -605,6 +737,8 @@ bool UDataprepAsset::RemoveAction(int32 Index)
 
 		ActionAssets.RemoveAt( Index );
 
+		CachedActionCount = ActionAssets.Num();
+
 		OnActionChanged.Broadcast(ActionAsset, FDataprepAssetChangeType::ActionRemoved);
 
 		return true;
@@ -653,6 +787,8 @@ bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices)
 				ActionAssets.RemoveAt(Index);
 			}
 		}
+
+		CachedActionCount = ActionAssets.Num();
 
 		// Notify on last action removed
 		OnActionChanged.Broadcast(ActionAsset, FDataprepAssetChangeType::ActionRemoved);

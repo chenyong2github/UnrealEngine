@@ -789,7 +789,7 @@ void UDataprepOperationsLibrary::ConsolidateObjects(const TArray< UObject* >& Se
 	ObjectTools::FConsolidationResults ConsResults = ObjectTools::ConsolidateObjects(ObjectToConsolidateTo, OutCompatibleObjects, false);
 }
 
-void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformMode Mode, const FVector& Min, const FVector& Max)
+void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max)
 {
 	for (UObject* Object : SelectedObjects)
 	{
@@ -812,7 +812,7 @@ void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& Sele
 				case ERandomizeTransformType::Rotation:
 				{
 					const FRotator OffsetRotation = FRotator::MakeFromEuler(Offset);
-					if (Mode == ERandomizeTransformMode::World)
+					if (ReferenceFrame == ERandomizeTransformReferenceFrame::World)
 					{
 						RootComponent->SetWorldRotation(RootComponent->GetComponentRotation() + OffsetRotation);
 					}
@@ -824,7 +824,7 @@ void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& Sele
 				}
 				case ERandomizeTransformType::Scale:
 				{
-					if (Mode == ERandomizeTransformMode::World)
+					if (ReferenceFrame == ERandomizeTransformReferenceFrame::World)
 					{
 						RootComponent->SetWorldScale3D(RootComponent->GetComponentScale() + Offset);
 					}
@@ -834,9 +834,9 @@ void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& Sele
 					}
 					break;
 				}
-				case ERandomizeTransformType::Translation:
+				case ERandomizeTransformType::Location:
 				{
-					if (Mode == ERandomizeTransformMode::World)
+					if (ReferenceFrame == ERandomizeTransformReferenceFrame::World)
 					{
 						RootComponent->SetWorldLocation(RootComponent->GetComponentLocation() + Offset);
 					}

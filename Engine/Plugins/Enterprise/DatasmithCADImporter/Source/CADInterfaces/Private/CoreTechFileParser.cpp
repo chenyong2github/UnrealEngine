@@ -119,10 +119,10 @@ namespace {
 		case CT_CONE_TYPE:
 		case CT_CYLINDER_TYPE:
 		case CT_SPHERE_TYPE:
+		case CT_TORUS_TYPE:
 			Swap(LengthUMed, LengthVMed);
 			break;
 		case CT_S_REVOL_TYPE:
-		case CT_TORUS_TYPE:
 			// Need swap ?
 			// Swap(LengthUMed, LengthVMed);
 			break;

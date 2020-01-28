@@ -27,6 +27,30 @@ class UDataprepGraphActionK2Node;
 class UDataprepGraphActionNode;
 class UEdGraph;
 
+class FDragDropActionNode : public FDragDropOperation
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FDragDropActionNode, FDragDropOperation)
+
+	static TSharedRef<FDragDropActionNode> New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TSharedRef<SDataprepGraphActionNode>& InDraggedNode);
+
+	virtual ~FDragDropActionNode() {}
+
+	// FDragDropOperation interface
+	virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent ) override { Impl->OnDrop(bDropWasHandled, MouseEvent); }
+	virtual void OnDragged( const class FDragDropEvent& DragDropEvent ) override { Impl->OnDragged(DragDropEvent); }
+	virtual FCursorReply OnCursorQuery() override { return Impl->OnCursorQuery(); }
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override { return Impl->GetDefaultDecorator(); }
+	virtual FVector2D GetDecoratorPosition() const override { return Impl->GetDecoratorPosition(); }
+	virtual void SetDecoratorVisibility(bool bVisible) override { Impl->SetDecoratorVisibility(bVisible); }
+	virtual bool IsExternalOperation() const override { return Impl->IsExternalOperation(); }
+	virtual bool IsWindowlessOperation() const override { return Impl->IsWindowlessOperation(); }
+	// End of FDragDropOperation interface
+
+private:
+	TSharedPtr<FDragDropActionNode> Impl;
+};
+
 /**
  * The SDataprepGraphTrackNode class is a specialization of SGraphNode
  * to handle the actions of a Dataprep asset
@@ -39,6 +63,10 @@ public:
 
 	void Construct(const FArguments& InArgs, UDataprepGraphRecipeNode* InNode);
 
+	// SGraphNode interface
+	virtual void UpdateGraphNode() override;
+	// End of SGraphNode interface
+
 	// SNodePanel::SNode interface
 	virtual bool CanBeSelected(const FVector2D& /*MousePositionInNode*/) const override
 	{
@@ -46,9 +74,17 @@ public:
 	}
 	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
 	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
+	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
+	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	// End of SNodePanel::SNode interface
 
-	float GetInterNodeSpacing() const { return InterNodeSpacing; }
+	// SWidget interface
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+	// End of SWidget interface
+
+	UDataprepAsset* GetDataprepAsset() { return DataprepAssetPtr.Get(); }
+	const UDataprepAsset* GetDataprepAsset() const { return DataprepAssetPtr.Get(); }
 
 	/** Recompute the boundaries of the graph based on the new size and the new zoom factor */
 	FVector2D Update(const FVector2D& LocalSize, float ZoomAmount);
@@ -59,47 +95,34 @@ public:
 	 */
 	FVector2D ComputeActionNodePosition(const FVector2D& InPosition);
 
+	void OnControlKeyChanged(bool bControlKeyDown);
+
 	/** Initiates the horizontal drag of an action node */
 	void OnStartNodeDrag(const TSharedRef<SDataprepGraphActionNode>& ActionNode);
 
-	/** Reorganizes the array of action nodes based after a drag is completed */
-	void OnNodeDropped(bool bDropWasHandled);
+	/**
+	 * Terminates the horizontal drag of an action node
+	 * @return Returns the new execution order for the dragged action node
+	 */
+	int32 OnEndNodeDrag();
 
 	/** Updates the position of other action nodes based on the position of the incoming node */
 	void OnNodeDragged( TSharedPtr<SDataprepGraphActionNode>& ActionNodePtr, const FVector2D& DragScreenSpacePosition, const FVector2D& ScreenSpaceDelta);
 
+	/** Update the execution order of the actions and call ReArrangeActionNodes */
+	void OnActionsOrderChanged();
+
 	/** Recomputes the position of each action node */
-	void ReArrangeActionNodes();
+	bool RefreshLayout();
 
 	/** Miscellaneous values used in the display */
 	// #ueent_wip: Will be moved to the Dataprep editor's style
-	static float NodeDesiredWidth;
-	static float NodeDesiredSpacing;
 	static FMargin NodePadding;
-	static float TrackDesiredHeight;
 
-	// SGraphNode interface
-	virtual void UpdateGraphNode() override;
-	// End of SGraphNode interface
-
-private:
-	/** Updates the graph editor's canvas after a drag  */
-	void UpdatePanelOnDrag(const FVector2D& DragScreenSpacePosition, const FVector2D& ScreenSpaceDelta);
-
-	FVector2D GetInnerBlockSize() const
-	{
-		return InnerBlockSize;
-	}
-
-	FVector2D GetLeftBlockSize() const
-	{
-		return LeftBlockSize;
-	}
-
-	FVector2D GetRightBlockSize() const
-	{
-		return RightBlockSize;
-	}
+protected:
+	// SWidget interface
+	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+	// End of SWidget interface
 
 private:
 	/** Pointer to the widget displaying the track */
@@ -111,23 +134,11 @@ private:
 	/** Weak pointer to the Dataprep asset holding the displayed actions */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
-	/** Size of the section of the track encompassing the width of the action node's widgets */
-	FVector2D InnerBlockSize;
-
-	/** Size of the section of the track for right padding */
-	FVector2D RightBlockSize;
-
 	/** Size of the section of the track for left padding */
-	FVector2D LeftBlockSize;
+	FVector2D TrackWidgetOffset;
 
-	/** Spacing between action nodes. The value varies according to the zoom factor */
-	float InterNodeSpacing;
-
-	/** Minimum of position on the X axis */
-	float NodeAbscissaMin;
-
-	/** Maximum of position on the X axis */
-	float NodeAbscissaMax;
+	/** Range for abscissa of action nodes */
+	FVector2D AbscissaRange;
 
 	/** Indicates a drag is happening */
 	bool bNodeDragging;
@@ -154,22 +165,4 @@ private:
 	TArray<int32> NewActionsOrder;
 
 	friend SDataprepGraphTrackWidget;
-};
-
-class FDragGraphActionNode : public FDragDropOperation
-{
-public:
-	DRAG_DROP_OPERATOR_TYPE(FDragGraphActionNode, FDragDropOperation)
-
-	static TSharedRef<FDragGraphActionNode> New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TSharedRef<SDataprepGraphActionNode>& InDraggedNode);
-	static TSharedRef<FDragGraphActionNode> New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TArray< TSharedRef<SDataprepGraphActionNode> >& InDraggedNodes);
-
-	// FDragDropOperation interface
-	virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent );
-	virtual void OnDragged( const class FDragDropEvent& DragDropEvent );
-	// End of FDragDropOperation interface
-
-protected:
-	TSharedPtr<SDataprepGraphTrackNode> TrackNodePtr;
-	TSharedPtr<SDataprepGraphActionNode> ActionNodePtr;
 };

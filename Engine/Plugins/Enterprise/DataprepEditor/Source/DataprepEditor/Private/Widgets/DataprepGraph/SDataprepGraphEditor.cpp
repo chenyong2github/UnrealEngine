@@ -95,10 +95,11 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	bMustRearrange = false;
 
 	LastLocalSize = FVector2D::ZeroVector;
-	LastLocation = FVector2D( BIG_NUMBER );
+	LastLocation = FVector2D( 0.f, -TopPadding );
 	LastZoomAmount = 1.f;
 
-	TrackGraphSize = FVector2D(SDataprepGraphTrackNode::NodeDesiredWidth);
+	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+	bCachedControlKeyDown = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
 }
 
 // #ueent_toremove: Temp code for the nodes development
@@ -109,6 +110,10 @@ void SDataprepGraphEditor::OnPipelineChanged(UBlueprint* InBlueprint)
 		TrackGraphNodePtr.Reset();
 		bIsComplete = false;
 		NotifyGraphChanged();
+
+		LastLocalSize = FVector2D::ZeroVector;
+		//LastLocation = FVector2D( BIG_NUMBER );
+		LastZoomAmount = 1.f;
 	}
 }
 
@@ -122,6 +127,10 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 			TrackGraphNodePtr.Reset();
 			bIsComplete = false;
 			NotifyGraphChanged();
+
+			LastLocalSize = FVector2D::ZeroVector;
+			LastLocation = FVector2D::ZeroVector;
+			LastZoomAmount = 1.f;
 			break;
 		}
 
@@ -129,7 +138,7 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 		{
 			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 			{
-				TrackGraphNode->ReArrangeActionNodes();
+				TrackGraphNode->OnActionsOrderChanged();
 			}
 			break;
 		}
@@ -142,21 +151,29 @@ void SDataprepGraphEditor::CacheDesiredSize(float InLayoutScaleMultiplier)
 
 	if(!bIsComplete && !NeedsPrepass())
 	{
-		// Get track SGraphNode and initialize it
-		if(UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get())
+		if(!TrackGraphNodePtr.IsValid())
 		{
-			for(UEdGraphNode* EdGraphNode : GetCurrentGraph()->Nodes)
+			// Get track SGraphNode and initialize it
+			if(UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get())
 			{
-				if(UDataprepGraphRecipeNode* TrackNode = Cast<UDataprepGraphRecipeNode>(EdGraphNode))
+				for(UEdGraphNode* EdGraphNode : GetCurrentGraph()->Nodes)
 				{
-					TrackGraphNodePtr = StaticCastSharedPtr<SDataprepGraphTrackNode>(TrackNode->GetWidget());
-					break;
+					if(UDataprepGraphRecipeNode* TrackNode = Cast<UDataprepGraphRecipeNode>(EdGraphNode))
+					{
+						TrackGraphNodePtr = StaticCastSharedPtr<SDataprepGraphTrackNode>(TrackNode->GetWidget());
+						break;
+					}
 				}
 			}
 		}
 
-		bMustRearrange = true;
-		bIsComplete = true;
+		if(TrackGraphNodePtr.IsValid())
+		{
+			bIsComplete = TrackGraphNodePtr.Pin()->RefreshLayout();
+			bMustRearrange = true;
+			// Force a change of viewpoint to update the canvas.
+			SetViewLocation(FVector2D(0.f, -TopPadding), 1.f);
+		}
 	}
 }
 
@@ -164,12 +181,12 @@ void SDataprepGraphEditor::UpdateBoundaries(const FVector2D& LocalSize, float Zo
 {
 	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 	{
-		TrackGraphSize = TrackGraphNode->Update(LocalSize, ZoomAmount);
+		CachedTrackNodeSize = TrackGraphNode->Update(LocalSize, ZoomAmount);
 	}
 
 	ViewLocationRangeOnY.Set( -TopPadding, -TopPadding );
 
-	const float DesiredVisualHeight = TopPadding + TrackGraphSize.Y + BottomPadding;
+	const float DesiredVisualHeight = CachedTrackNodeSize.Y * ZoomAmount;
 	if(LocalSize.Y < DesiredVisualHeight)
 	{
 		ViewLocationRangeOnY.Y = DesiredVisualHeight - LocalSize.Y;
@@ -182,6 +199,17 @@ void SDataprepGraphEditor::Tick(const FGeometry& AllottedGeometry, const double 
 	// This happens after the first call to OnPaint on the editor
 	if(bIsComplete)
 	{
+		if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
+		{
+			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+			bool bControlKeyDown = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
+			if(bControlKeyDown != bCachedControlKeyDown)
+			{
+				bCachedControlKeyDown = bControlKeyDown;
+				TrackGraphNode->OnControlKeyChanged(bCachedControlKeyDown);
+			}
+		}
+
 		FVector2D Location;
 		float ZoomAmount = 1.f;
 		GetViewLocation( Location, ZoomAmount );
@@ -218,7 +246,7 @@ void SDataprepGraphEditor::UpdateLayout( const FVector2D& LocalSize, const FVect
 		if(Location.X != LastLocation.X)
 		{
 			const float ActualWidth = LocalSize.X / ZoomAmount;
-			const float MaxInX = TrackGraphSize.X > ActualWidth ? TrackGraphSize.X - ActualWidth : 0.f;
+			const float MaxInX = CachedTrackNodeSize.X > ActualWidth ? CachedTrackNodeSize.X - ActualWidth : 0.f;
 			ComputedLocation.X = Location.X < 0.f ? 0.f : Location.X >= MaxInX ? MaxInX : Location.X;
 		}
 
@@ -270,6 +298,17 @@ void SDataprepGraphEditor::OnDragEnter(const FGeometry & MyGeometry, const FDrag
 	}
 
 	SGraphEditor::OnDragEnter(MyGeometry, DragDropEvent);
+}
+
+FReply SDataprepGraphEditor::OnDragOver(const FGeometry & MyGeometry, const FDragDropEvent & DragDropEvent)
+{
+	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
+	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
+	{
+		TrackGraphNodePtr.Pin()->OnDragOver(MyGeometry, DragDropEvent);
+	}
+
+	return SGraphEditor::OnDragOver(MyGeometry, DragDropEvent);
 }
 
 void SDataprepGraphEditor::OnDragLeave(const FDragDropEvent & DragDropEvent)

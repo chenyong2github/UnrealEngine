@@ -2,7 +2,7 @@
 
 #pragma once
 
-#ifdef CAD_LIBRARY
+#if defined(CAD_LIBRARY) && defined(USE_OPENNURBS)
 #include "CoreMinimal.h"
 
 #include "CTSession.h"
@@ -59,4 +59,4 @@ protected:
 	static TWeakPtr<FRhinoCoretechWrapper> SharedSession;
 };
 
-#endif
+#endif // defined(CAD_LIBRARY) && defined(USE_OPENNURBS)

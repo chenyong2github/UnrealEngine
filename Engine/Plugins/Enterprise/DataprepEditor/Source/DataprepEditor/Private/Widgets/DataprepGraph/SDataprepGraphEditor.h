@@ -56,6 +56,7 @@ public:
 	virtual void CacheDesiredSize(float InLayoutScaleMultiplier) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// End of SWidget overrides
@@ -97,13 +98,15 @@ private:
 	FVector2D ViewLocationRangeOnY;
 
 	/** Size of graph being displayed */
-	mutable FVector2D TrackGraphSize;
+	mutable FVector2D CachedTrackNodeSize;
 
 	/** Size of graph being displayed */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	/** Size of graph being displayed */
 	mutable TWeakPtr<SDataprepGraphTrackNode> TrackGraphNodePtr;
+
+	bool bCachedControlKeyDown;
 
 	/** Padding used on the borders of the canvas */
 	// #ueent_wip: Will be moved to the Dataprep editor's style

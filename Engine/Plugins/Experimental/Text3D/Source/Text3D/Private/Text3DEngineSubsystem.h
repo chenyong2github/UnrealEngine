@@ -43,6 +43,7 @@ public:
 
 	bool Cleanup();
 
+	uint32 GetTypefaceFontDataHash();
 	TSharedPtr<int32> GetCacheCounter();
 	TSharedPtr<int32> GetMeshesCacheCounter(float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
 
@@ -61,6 +62,7 @@ private:
 	FT_Face FreeTypeFace;
 	FString FontName;
 	TSharedPtr<int32> CacheCounter;
+	uint32 TypefaceFontDataHash;
 };
 
 UCLASS()
@@ -74,6 +76,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+
+	void Reset();
 	void Cleanup();
 	FCachedFontData& GetCachedFontData(class UFont* Font);
 
@@ -81,6 +85,10 @@ public:
 	class UMaterial* DefaultMaterial;
 
 private:
+	bool CleanupTimerCallback(float DeltaTime);
+
 	UPROPERTY()
 	TMap<uint32, FCachedFontData> CachedFonts;
+
+	FDelegateHandle CleanupTickerHandle;
 };

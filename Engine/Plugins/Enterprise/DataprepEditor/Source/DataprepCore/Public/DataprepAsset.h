@@ -10,8 +10,11 @@
 
 #include "DataprepAsset.generated.h"
 
+#ifndef NO_BLUEPRINT
 class UBlueprint;
+#endif
 class UDataprepActionAsset;
+class UDataprepActionStep;
 class UDataprepParameterizableObject;
 class UDataprepParameterization;
 class UDataprepProducers;
@@ -39,6 +42,7 @@ public:
 	// UObject interface
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */) override;
+	virtual void PostEditUndo() override;
 	// End of UObject interface
 
 	// UDataprepAssetInterface interface
@@ -67,12 +71,30 @@ public:
 	int32 AddAction(const UDataprepActionAsset* Action);
 
 	/**
+	 * Creates an action from the array of action steps or one action per action steps
+	 * then add the action(s) to the Dataprep asset
+	 * @param ActionSteps The array of action steps to process
+	 * @param bCreateOne Indicates if one or more action assets should be created. By default one is created
+	 * @return The index of the last added action or index none if the action is invalid
+	 */
+	int32 AddActions(const TArray<const UDataprepActionStep*>& ActionSteps, bool bCreateOne = true);
+
+	/**
 	 * Insert a copy of the action to the Dataprep asset at the requested index
 	 * @param Action The action we want to duplicate in the Dataprep asset
 	 * @param Index The index at which the insertion must happen
 	 * @return True if the insertion is successful, false if the action or the index are invalid
 	 */
 	bool InsertAction(const UDataprepActionAsset* InAction, int32 Index);
+
+	/**
+	 * Creates an action from the array of action steps or one action per action steps
+	 * then insert the action(s) to the Dataprep asset at the requested index
+	 * @param ActionSteps The array of action steps to process
+	 * @param Index The index at which the insertion must happen
+	 * @return True if the insertion is successful, false if the action steps or the index are invalid
+	 */
+	bool InsertActions(const TArray<const UDataprepActionStep*>& InActionSteps, int32 Index, bool bCreateOne = true);
 
 	/**
 	 * Move an action to another spot in the order of actions
@@ -106,6 +128,7 @@ public:
 
 	bool CreateParameterization();
 
+#ifndef NO_BLUEPRINT
 	// Temp code for the nodes development
 	bool CreateBlueprint();
 
@@ -154,9 +177,10 @@ public:
 	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepBlueprintChange, UObject* /*The object that was modified*/)
 	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
+#endif
 
 public:
-	// Functions specific to the parametrization of the dataprep asset
+	// Functions specific to the parametrization of the Dataprep asset
 
 	/**
 	 * Event to notify the ui that a dataprep parametrization was modified
@@ -217,7 +241,11 @@ private:
 
 	FOnDataprepActionAssetChange OnActionChanged;
 
+	int32 CachedActionCount;
+
+#ifndef NO_BLUEPRINT
 	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
 	FOnDataprepBlueprintChange OnBlueprintChanged;
 	// end of temp code for nodes development
+#endif
 };

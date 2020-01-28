@@ -53,6 +53,7 @@ void UDataprepActionStep::PostLoad()
 
 UDataprepActionAsset::UDataprepActionAsset()
 	: ContextPtr( nullptr )
+	, Label(TEXT("New Action"))
 {
 	bExecutionInterrupted = false;
 
@@ -194,6 +195,33 @@ int32 UDataprepActionAsset::AddStep(const UDataprepActionStep* InActionStep)
 	return INDEX_NONE;
 }
 
+int32 UDataprepActionAsset::AddSteps(const TArray<const UDataprepActionStep*>& InActionSteps)
+{
+	if ( InActionSteps.Num() > 0 && InActionSteps[0] != nullptr )
+	{
+		Modify();
+
+		Steps.Reserve(Steps.Num() + InActionSteps.Num());
+
+		for(const UDataprepActionStep* InActionStep : InActionSteps)
+		{
+			if(InActionStep)
+			{
+				UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
+				Steps.Add( ActionStep );
+			}
+		}
+
+		OnStepsChanged.Broadcast();
+		return Steps.Num() - 1;
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::AddSteps: The array is empty or the action steps are invalid") );
+	ensure(false);
+	// Invalid
+	return INDEX_NONE;
+}
+
 int32 UDataprepActionAsset::AddStep(const UDataprepParameterizableObject* StepObject)
 {
 	if (!StepObject)
@@ -239,6 +267,40 @@ bool UDataprepActionAsset::InsertStep(const UDataprepActionStep* InActionStep, i
 	}
 
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::InsertStep: The action step is invalid") );
+	ensure(false);
+	// Invalid
+	return false;
+}
+
+bool UDataprepActionAsset::InsertSteps(const TArray<const UDataprepActionStep*>& InActionSteps, int32 Index)
+{
+	if ( !Steps.IsValidIndex( Index ) )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::InsertSteps: The Index is out of range") );
+		ensure( false );
+		return false;
+	}
+
+	if ( InActionSteps.Num() > 0 && InActionSteps[0] != nullptr )
+	{
+		Modify();
+
+		Steps.Reserve(Steps.Num() + InActionSteps.Num());
+
+		for(const UDataprepActionStep* InActionStep : InActionSteps)
+		{
+			if(InActionStep)
+			{
+				UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
+				Steps.Insert( ActionStep, Index );
+			}
+		}
+
+		OnStepsChanged.Broadcast();
+		return true;
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::InsertSteps: The array is empty or the action steps are invalid") );
 	ensure(false);
 	// Invalid
 	return false;
