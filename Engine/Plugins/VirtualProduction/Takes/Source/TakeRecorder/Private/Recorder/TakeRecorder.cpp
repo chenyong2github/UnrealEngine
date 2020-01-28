@@ -453,7 +453,8 @@ bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderS
 
 	ensure(SetActiveRecorder(this));
 
-	if (WeakSequencer.Pin().IsValid())
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (Sequencer.IsValid())
 	{
 		USequencerSettings* SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
 
@@ -464,7 +465,18 @@ bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderS
 		SequencerSettings->SetAllowEditsMode(EAllowEditsMode::AllEdits);
 		SequencerSettings->SetAutoChangeMode(EAutoChangeMode::None);
 
-		WeakSequencer.Pin()->SetSequencerSettings(SequencerSettings);
+		Sequencer->SetSequencerSettings(SequencerSettings);
+
+		// Center the view range around the current time about to be captured
+		FAnimatedRange Range = Sequencer->GetViewRange();
+		FTimecode CurrentTime = FApp::GetTimecode();
+		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+		FFrameRate FrameRate = MovieScene->GetDisplayRate();
+		FFrameNumber ViewRangeStart = Parameters.Project.bStartAtCurrentTimecode ? CurrentTime.ToFrameNumber(FrameRate) : 0;
+		double ViewRangeStartSeconds = FrameRate.AsSeconds(ViewRangeStart);
+		FAnimatedRange NewRange(ViewRangeStartSeconds - 0.5f, ViewRangeStartSeconds + (Range.GetUpperBoundValue() - Range.GetLowerBoundValue()) + 0.5f);
+		Sequencer->SetViewRange(NewRange, EViewRangeInterpolation::Immediate);
+		Sequencer->SetClampRange(Sequencer->GetViewRange());
 	}
 
 	return true;
@@ -670,6 +682,7 @@ void UTakeRecorder::InternalTick(const FTimecode& InTimecodeSource, float DeltaT
 			CurrentTimeSeconds = CurrentTimeSeconds > Range.GetUpperBoundValue() ? CurrentTimeSeconds : Range.GetUpperBoundValue();
 			TRange<double> NewRange(Range.GetLowerBoundValue(), CurrentTimeSeconds);
 			Sequencer->SetViewRange(NewRange, EViewRangeInterpolation::Immediate);
+			Sequencer->SetClampRange(Sequencer->GetViewRange());
 		}
 	}
 }
@@ -709,6 +722,7 @@ void UTakeRecorder::PreRecord()
 		}
 	}
 
+	Sources->SetStartAtCurrentTimecode(Parameters.Project.bStartAtCurrentTimecode);
 	Sources->SetRecordToSubSequence(Parameters.Project.bRecordSourcesIntoSubSequences);
 
 	Sources->PreRecording(SequenceAsset, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
@@ -729,7 +743,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	if (Sequencer.IsValid())
 	{
 		CurrentFrameTime = FFrameTime(0);
-		FFrameNumber SequenceStart = MovieScene::DiscreteInclusiveLower(SequenceAsset->GetMovieScene()->GetPlaybackRange());
+		
 		// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
 		Sequencer->DiscardEntityTokens();
 		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
@@ -738,8 +752,22 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 			MovieScene->SetClockSource(EUpdateClockSource::Timecode);
 			Sequencer->ResetTimeController();
 
+			FFrameRate FrameRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+
+			// Transform all the sections to start the playback start frame
+			FFrameNumber DeltaFrame = PlaybackStartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
+			if (DeltaFrame != 0)
+			{
+				for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+				{
+					Section->MoveSection(DeltaFrame);
+				}
+			}
+
 			// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
-			MovieScene->SetPlaybackRange(MovieScene->GetPlaybackRange().GetLowerBoundValue(), TNumericLimits<int32>::Max() - 1, false);
+			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(PlaybackStartFrame, TNumericLimits<int32>::Max() - 1), false);
 		}
 		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
 	}
@@ -808,8 +836,14 @@ void UTakeRecorder::Stop()
 		if (MovieScene)
 		{
 			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
-			//Set Range to what we recorded instead of that large number, this let's  us reliably set camera cut times.
-			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(Range.GetLowerBoundValue(), CurrentFrameTime.FrameNumber));
+
+			//Set Range to what we recorded instead of that large number, this let's us reliably set camera cut times.
+			FFrameRate FrameRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			FFrameNumber PlaybackEndFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(TimecodeOut.ToFrameNumber(FrameRate)), FrameRate, TickResolution).CeilToFrame() : CurrentFrameTime.FrameNumber;
+
+			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(Range.GetLowerBoundValue(), PlaybackEndFrame));
+
 			if (Sequencer)
 			{
 				Sequencer->ResetTimeController();
@@ -820,7 +854,8 @@ void UTakeRecorder::Stop()
 		check(Sources);
 		Sources->StopRecording(SequenceAsset, TakeRecorderSourcesSettings);
 
-		TakesUtils::ClampPlaybackRangeToEncompassAllSections(SequenceAsset->GetMovieScene());
+		const bool bUpperBoundOnly = true; // Only expand the upper bound because the lower bound should have been set at the start of recording and should not change if there's existing data before the start
+		TakesUtils::ClampPlaybackRangeToEncompassAllSections(SequenceAsset->GetMovieScene(), bUpperBoundOnly);
 
 		// Lock the sequence so that it can't be changed without implicitly unlocking it now
 		SequenceAsset->GetMovieScene()->SetReadOnly(true);

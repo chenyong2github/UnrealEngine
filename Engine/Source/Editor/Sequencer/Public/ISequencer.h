@@ -359,6 +359,12 @@ public:
 	virtual void SetViewRange(TRange<double> NewViewRange, EViewRangeInterpolation Interpolation = EViewRangeInterpolation::Animated) = 0;
 
 	/**
+	 * Set the clamp range
+	 * @param NewClampRange The new clamp range. Must be a finite range
+	 */
+	virtual void SetClampRange(TRange<double> NewClampRange) = 0;
+
+	/**
 	 * Sets whether perspective viewport hijacking is enabled.
 	 *
 	 * @param bEnabled true if the viewport should be enabled, false if it should be disabled.

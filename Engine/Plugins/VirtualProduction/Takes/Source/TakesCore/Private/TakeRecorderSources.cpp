@@ -142,11 +142,12 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 					Folder->AddChildMasterTrack(SubsceneTrack);
 				}
 
-				// We initialize the sequence to start at zero and be a 0 frame length section as there is no data in the sections yet.
+				// We initialize the sequence to start at the current time.
 				// We'll have to update these sections each frame as the recording progresses so they appear to get longer like normal
 				// tracks do as we record into them.
-				FFrameNumber RecordStartTime = FFrameNumber(0);
-				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartTime, 0);
+				FFrameNumber RecordStartFrame = bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).FloorToFrame() : 0;
+				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartFrame, 0);
+				SetSectionStartTimecode(NewSubSection, Timecode, TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
 
 				// Section should not be transactional during the recording process
 				NewSubSection->ClearFlags(RF_Transactional);
@@ -423,14 +424,33 @@ void UTakeRecorderSources::StartRecordingTheseSources(const TArray<UTakeRecorder
 			ULevelSequence* SourceSequence = SourceSubSequenceMap[Source];
 			if (bRecordSourcesToSubSequences && Source->SupportsSubscenes()) //Set Timcode on MovieScene if we created a sub scene for it
 			{
-				SourceSequence->GetMovieScene()->TimecodeSource = CurrentTimecode;
+				for (UMovieSceneSubSection* ActiveSubSection : ActiveSubSections)
+				{
+					SetSectionStartTimecode(ActiveSubSection, CurrentTimecode, TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
+				}
 			}
 			FFrameNumber FrameNumber = QualifiedSequenceTime.ConvertTo(SourceSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
 			Source->TimecodeSource = CurrentTimecode;
+
 			Source->StartRecording(CurrentTimecode, FrameNumber, SourceSubSequenceMap[Source]);
 		}
 	}
 }
+
+void UTakeRecorderSources::SetSectionStartTimecode(UMovieSceneSubSection* SubSection, const FTimecode& Timecode, FFrameRate FrameRate, FFrameRate TickResolution)
+{
+	FFrameNumber RecordStartFrame = bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : 0;
+
+	SubSection->TimecodeSource = FMovieSceneTimecodeSource(Timecode);
+
+	// Ensure we're expanded to at least the next frame so that we don't set the start past the end
+	// when we set the first frame.
+	SubSection->ExpandToFrame(RecordStartFrame + FFrameNumber(1));
+	SubSection->SetStartFrame(TRangeBound<FFrameNumber>::Inclusive(RecordStartFrame));
+
+	SubSection->GetSequence()->GetMovieScene()->SetPlaybackRange(TRange<FFrameNumber>(RecordStartFrame, RecordStartFrame + 1));
+}
+
 
 void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer)
 {
@@ -450,6 +470,7 @@ void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, cons
 	bIsRecording = true;
 	TimeSinceRecordingStarted = 0.f;
 	TargetLevelSequenceTickResolution = InSequence->GetMovieScene()->GetTickResolution();
+	TargetLevelSequenceDisplayRate = InSequence->GetMovieScene()->GetDisplayRate();
 
 	InSequence->GetMovieScene()->TimecodeSource = InTimecodeSource;
 	StartRecordingTimecodeSource = InTimecodeSource;
@@ -476,45 +497,31 @@ FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence,
 	//Time in seconds since recording started. Used when there is no Timecode Sync (e.g. in case it get's lost or dropped).
 	TimeSinceRecordingStarted += DeltaTime;
 
-	FFrameTime CurrentFrameTimeSinceStart;
-	CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
-
+	const FFrameTime CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
 
 	// If we're recording into sub-sections we want to update their range every frame so they appear to
 	// animate as their contents are filled. We can't check against the size of all sections (not all
 	// source types have data in their sections until the end) and if you're partially re-recording
 	// a track it would size to the existing content which would skip the animation as well.
 
+	FFrameNumber EndFrame = bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).CeilToFrame() : CurrentFrameTimeSinceStart.CeilToFrame();
 	for (UMovieSceneSubSection* SubSection : ActiveSubSections)
 	{
-		// If this sub-section has a start frame we will use that as the first frame. This handles sub-sections that
-		// are created part-way through a recording and have them show up with the correct timestep instead of 
-		// snapping to be the full length (to the start) when they don't actually have any data there.
-		FFrameNumber StartFrame = FFrameNumber(0);
-		if (SubSection->HasStartFrame())
-		{
-			StartFrame = SubSection->GetInclusiveStartFrame();
-		}
-
-		// We're going to use the running time since recording started which is close enough for now until
-		// we get to recording things that get destroyed and needing to stop updating the sub section...
-		if (StartFrame < CurrentFrameTimeSinceStart.FrameNumber)
-		{
-			TRange<FFrameNumber> CurrentRange = TRange<FFrameNumber>::Exclusive(StartFrame, CurrentFrameTimeSinceStart.FrameNumber);
-			SubSection->SetRange(CurrentRange);
-		}
+		// Subsections will have been created to start at the time that they appeared, so we just need to expand their range to this recording time
+		SubSection->ExpandToFrame(EndFrame);
 	}
 	return CurrentFrameTimeSinceStart;
 }
 
-//We now always just use TiomeSinceRecordingStarted insteaad of possibly using timecode to determine our time since
+//We now always just use TimeSinceRecordingStarted instead of possibly using timecode to determine our time since
 //That can give us a higher resolution
 FQualifiedFrameTime UTakeRecorderSources::GetCurrentRecordingFrameTime() const
 {
-	FQualifiedFrameTime FrameTime;
-	const FFrameNumber FrameNumber = TargetLevelSequenceTickResolution.AsFrameNumber(TimeSinceRecordingStarted);
-	FrameTime = FQualifiedFrameTime(FFrameTime(FrameNumber), TargetLevelSequenceTickResolution);
+	const FFrameNumber StartFrameNumber = bStartAtCurrentTimecode ? StartRecordingTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate) : 0;
+	FFrameTime StartTime = FFrameRate::TransformTime(FFrameTime(StartFrameNumber), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
 
+	const FFrameTime CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
+	FQualifiedFrameTime FrameTime = FQualifiedFrameTime(StartTime + CurrentFrameTimeSinceStart, TargetLevelSequenceTickResolution);
 	return FrameTime;
 }
 
@@ -564,8 +571,8 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 		UMovieSceneSequence* SubSequence = SubSection->GetSequence();
 		if (SubSequence)
 		{
-			// Expand the Play Range of the sub-section to encompass all sections within it.
-			TakesUtils::ClampPlaybackRangeToEncompassAllSections(SubSequence->GetMovieScene());
+			const bool bUpperBoundOnly = false; // Expand the Play Range of the sub-section to encompass all sections within it.
+			TakesUtils::ClampPlaybackRangeToEncompassAllSections(SubSequence->GetMovieScene(), bUpperBoundOnly);
 
 			// Lock the sequence so that it can't be changed without implicitly unlocking it now
 			SubSequence->GetMovieScene()->SetReadOnly(true);

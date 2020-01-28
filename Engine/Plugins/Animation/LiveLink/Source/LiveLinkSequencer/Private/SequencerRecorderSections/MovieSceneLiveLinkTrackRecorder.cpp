@@ -2,6 +2,8 @@
 
 #include "MovieSceneLiveLinkTrackRecorder.h"
 
+#include "TakeRecorderSettings.h"
+#include "Recorder/TakeRecorderParameters.h"
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
 #include "Features/IModularFeatures.h"
@@ -148,6 +150,15 @@ void UMovieSceneLiveLinkTrackRecorder::SetSectionStartTimecodeImpl(const FTimeco
 	if (MovieSceneSection.IsValid())
 	{
 		MovieSceneSection->TimecodeSource = FMovieSceneTimecodeSource(InSectionStartTimecode);
+
+		FTakeRecorderParameters Parameters;
+		Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+
+		FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+		FFrameRate DisplayRate = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetDisplayRate();
+
+		RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InSectionStartTimecode.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : 0;
 	}
 }
 
@@ -181,6 +192,10 @@ void UMovieSceneLiveLinkTrackRecorder::FinalizeTrackImpl()
 
 void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime& CurrentTime)
 {
+	FTakeRecorderParameters Parameters;
+	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+	Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 	if (LiveLinkClient && MovieSceneSection.IsValid())
@@ -201,13 +216,18 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 
 				if (bSyncedOrForced && CurrentFrameTime.IsSet())
 				{
-					//Get StartTime on Section in TimeCode FrameRate
-					//Convert that to LiveLink FrameRate and subtract out from LiveLink Frame to get section starting from zero.
-					//Finally convert that to the actual MovieScene Section FrameRate(TickResolution).
-					const FQualifiedFrameTime TimeProviderStartFrameTime = FQualifiedFrameTime(MovieSceneSection->TimecodeSource.Timecode, CurrentFrameTime.GetValue().Rate);
 					FQualifiedFrameTime LiveLinkFrameTime = Frame.GetBaseData()->MetaData.SceneTime;
-					const FFrameNumber FrameNumberStart = TimeProviderStartFrameTime.ConvertTo(LiveLinkFrameTime.Rate).FrameNumber;
-					LiveLinkFrameTime.Time.FrameNumber -= FrameNumberStart;
+
+					if (!Parameters.Project.bStartAtCurrentTimecode)
+					{
+						//Get StartTime on Section in TimeCode FrameRate
+						//Convert that to LiveLink FrameRate and subtract out from LiveLink Frame to get section starting from zero.
+						//Finally convert that to the actual MovieScene Section FrameRate(TickResolution).
+						const FQualifiedFrameTime TimeProviderStartFrameTime = FQualifiedFrameTime(MovieSceneSection->TimecodeSource.Timecode, CurrentFrameTime.GetValue().Rate);
+						const FFrameNumber FrameNumberStart = TimeProviderStartFrameTime.ConvertTo(LiveLinkFrameTime.Rate).FrameNumber;
+						LiveLinkFrameTime.Time.FrameNumber -= FrameNumberStart;
+					}
+
 					FFrameTime FrameTime = LiveLinkFrameTime.ConvertTo(TickResolution);
 					FrameNumber = FrameTime.FrameNumber;
 				}
@@ -215,6 +235,7 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				{
 					const double Second = Frame.GetBaseData()->WorldTime.GetOffsettedTime() - SecondsDiff;
 					FrameNumber = (Second * TickResolution).FloorToFrame();
+					FrameNumber += RecordStartFrame;
 				}
 
 				MovieSceneSection->RecordFrame(FrameNumber, Frame);

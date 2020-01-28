@@ -12,6 +12,7 @@
 #include "TakeRecorderSources.generated.h"
 
 class UTakeRecorderSource;
+class UMovieSceneSubSection;
 
 DECLARE_LOG_CATEGORY_EXTERN(SubSequenceSerialization, Verbose, All);
 
@@ -92,6 +93,11 @@ public:
 	bool GetRecordToSubSequence() const { return bRecordSourcesToSubSequences; }
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	void SetRecordToSubSequence(bool bValue) { bRecordSourcesToSubSequences = bValue; }
+
+	UFUNCTION(BlueprintPure, Category = "Take Recorder")
+	bool GetStartAtCurrentTimecode() const { return bStartAtCurrentTimecode; }
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	void SetStartAtCurrentTimecode(bool bValue) { bStartAtCurrentTimecode = bValue; }
 
 	/** Calls the recording initialization flows on each of the specified sources. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
@@ -180,6 +186,8 @@ private:
 
 	void StartRecordingTheseSources(const TArray<UTakeRecorderSource *>& InSources, const FTimecode& CurrentTimecode);
 
+	void SetSectionStartTimecode(UMovieSceneSubSection* SubSection, const FTimecode& Timecode, FFrameRate FrameRate, FFrameRate TickResolution);
+
 private:
 
 	/** The array of all sources contained within this list */
@@ -203,8 +211,14 @@ private:
 	/** What Tick Resolution is the target level sequence we're recording into? Used to convert seconds into FrameNumbers. */
 	FFrameRate TargetLevelSequenceTickResolution;
 
+	/** What Display Rate is the target level sequence we're recording into? Used to convert seconds into FrameNumbers. */
+	FFrameRate TargetLevelSequenceDisplayRate;
+
 	/** Non-serialized serial number that is used for updating UI when the source list changes */
 	uint32 SourcesSerialNumber;
+
+	/** Should we record tracks to start at the current timecode? */
+	bool bStartAtCurrentTimecode;
 
 	/** Should we record our sources to Sub Sequences and place them in the master via a Subscenes track? */
 	bool bRecordSourcesToSubSequences;
