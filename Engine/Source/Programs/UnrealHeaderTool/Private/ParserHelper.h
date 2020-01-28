@@ -940,7 +940,7 @@ public:
 	{
 		if( TokenType==TOKEN_Const && Type==CPT_Int64 )
 		{
-			I = Int64;
+			I = (int32)Int64;
 			return 1;
 		}
 		else if( TokenType==TOKEN_Const && Type==CPT_Int )
@@ -958,7 +958,7 @@ public:
 			I = (int32) Float;
 			return 1;
 		}
-		else if (TokenType == TOKEN_Const && Type == CPT_Double && Float == FMath::TruncToInt(Double))
+		else if (TokenType == TOKEN_Const && Type == CPT_Double && Double == FMath::TruncToInt((float)Double))
 		{
 			I = (int32) Double;
 			return 1;
@@ -988,7 +988,7 @@ public:
 			I = (int32) Float;
 			return 1;
 		}
-		else if (TokenType == TOKEN_Const && Type == CPT_Double && Float == FMath::TruncToInt(Double))
+		else if (TokenType == TOKEN_Const && Type == CPT_Double && Double == FMath::TruncToInt((float)Double))
 		{
 			I = (int32) Double;
 			return 1;
@@ -1053,9 +1053,9 @@ struct FFuncInfo
 	/** Endpoint name */
 	FString		EndpointName;
 	/** Identifier for an RPC call to a platform service */
-	int16		RPCId;
+	uint16		RPCId;
 	/** Identifier for an RPC call expecting a response */
-	int16		RPCResponseId;
+	uint16		RPCResponseId;
 	/** Whether this function represents a sealed event */
 	bool		bSealedEvent;
 	/** Delegate macro line in header. */

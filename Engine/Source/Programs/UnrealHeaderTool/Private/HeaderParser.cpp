@@ -267,7 +267,7 @@ namespace
 					{
 						FError::Throwf(TEXT("Invalid network identifier %s for function"), IdentifierPtr);
 					}
-					FuncInfo.RPCId = TempInt;
+					FuncInfo.RPCId = (uint16)TempInt;
 				}
 				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, UE_ARRAY_COUNT(ResponseIdTag) - 1) == 0 ||
 					FCString::Strnicmp(IdentifierPtr, JSBridgePriTag, UE_ARRAY_COUNT(JSBridgePriTag) - 1) == 0)
@@ -277,7 +277,7 @@ namespace
 					{
 						FError::Throwf(TEXT("Invalid network identifier %s for function"), IdentifierPtr);
 					}
-					FuncInfo.RPCResponseId = TempInt;
+					FuncInfo.RPCResponseId = (uint16)TempInt;
 				}
 			}
 			else
@@ -6949,7 +6949,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		ParseParameterList(AllClasses, DelegateSignatureFunction, /*bExpectCommaBeforeName=*/ true);
 
 		// Check the expected versus actual number of parameters
-		int32 ParamCount = FoundParamCount - DelegateParameterCountStrings.GetData() + 1;
+		int32 ParamCount = UE_PTRDIFF_TO_INT32(FoundParamCount - DelegateParameterCountStrings.GetData()) + 1;
 		if (DelegateSignatureFunction->NumParms != ParamCount)
 		{
 			FError::Throwf(TEXT("Expected %d parameters but found %d parameters"), ParamCount, DelegateSignatureFunction->NumParms);
@@ -8760,7 +8760,7 @@ void FHeaderParser::ParseClassName(const TCHAR* Temp, FString& ClassName)
 		++Temp;
 	}
 
-	ClassName = FString(Temp - StringStart, StringStart);
+	ClassName = FString(UE_PTRDIFF_TO_INT32(Temp - StringStart), StringStart);
 	if (ClassName.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 	{
 		// RequiresAPI token for a given module

@@ -1194,7 +1194,8 @@ class COREUOBJECT_API FNumericProperty : public FProperty
 	{
 		if (!TIsFloatingPoint<T>::Value)
 		{
-			return CanHoldDoubleValueInternal(Value);
+			//@TODO: FLOATPRECISION: This feels wrong, it might be losing precision before it tests to see if it's going to lose precision...
+			return CanHoldDoubleValueInternal((double)Value);
 		}
 		else if (TIsSigned<T>::Value)
 		{
@@ -1393,7 +1394,7 @@ public:
 				if (!Tag.EnumName.IsNone())
 				{
 					int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
-					this->SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
+					this->SetPropertyValue_InContainer(Data, (TCppType)PreviousValue, Tag.ArrayIndex);
 				}
 				else
 				{
@@ -1450,17 +1451,17 @@ public:
 	virtual void SetIntPropertyValue(void* Data, uint64 Value) const override
 	{
 		check(TIsIntegral<TCppType>::Value);
-		TTypeFundamentals::SetPropertyValue(Data, Value);
+		TTypeFundamentals::SetPropertyValue(Data, (TCppType)Value);
 	}
 	virtual void SetIntPropertyValue(void* Data, int64 Value) const override
 	{
 		check(TIsIntegral<TCppType>::Value);
-		TTypeFundamentals::SetPropertyValue(Data, Value);
+		TTypeFundamentals::SetPropertyValue(Data, (TCppType)Value);
 	}
 	virtual void SetFloatingPointPropertyValue(void* Data, double Value) const override
 	{
 		check(TIsFloatingPoint<TCppType>::Value);
-		TTypeFundamentals::SetPropertyValue(Data, Value);
+		TTypeFundamentals::SetPropertyValue(Data, (TCppType)Value);
 	}
 	virtual void SetNumericPropertyValueFromString(void* Data, TCHAR const* Value) const override
 	{
@@ -1473,17 +1474,17 @@ public:
 	virtual int64 GetSignedIntPropertyValue(void const* Data) const override
 	{
 		check(TIsIntegral<TCppType>::Value);
-		return TTypeFundamentals::GetPropertyValue(Data);
+		return (int64)TTypeFundamentals::GetPropertyValue(Data);
 	}
 	virtual uint64 GetUnsignedIntPropertyValue(void const* Data) const override
 	{
 		check(TIsIntegral<TCppType>::Value);
-		return TTypeFundamentals::GetPropertyValue(Data);
+		return (uint64)TTypeFundamentals::GetPropertyValue(Data);
 	}
 	virtual double GetFloatingPointPropertyValue(void const* Data) const override
 	{
 		check(TIsFloatingPoint<TCppType>::Value);
-		return TTypeFundamentals::GetPropertyValue(Data);
+		return (double)TTypeFundamentals::GetPropertyValue(Data);
 	}
 	// End of FNumericProperty interface
 
@@ -3752,7 +3753,7 @@ public:
 			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
 			))
 		{
-			int32 Idx = (Entry - (uint8*)Map->GetData(0, MapLayout)) / MapLayout.SetLayout.Size;
+			int32 Idx = (int32)((Entry - (uint8*)Map->GetData(0, MapLayout)) / MapLayout.SetLayout.Size);
 			RemoveAt(Idx);
 			return true;
 		}
