@@ -16,6 +16,8 @@
 class FMeshElementCollector;
 struct FGeometryCacheMeshData;
 class FGeometryCacheTrackStreamableRenderResource;
+struct FVisibilitySample;
+class UGeometryCacheTrack;
 
 /** Resource array to pass  */
 class GEOMETRYCACHE_API FGeomCacheVertexBuffer : public FVertexBuffer
@@ -135,6 +137,63 @@ public:
 		: VertexFactory(InFeatureLevel/*, "FGeomCacheTrackProxy"*/)
 	{}
 
+	virtual ~FGeomCacheTrackProxy() {}
+
+	/**
+	 * Update the SampleIndex and MeshData for a given time
+	 *
+	 * @param Time - (Elapsed)Time to check against
+	 * @param bLooping - Whether or not the animation is being played in a loop
+	 * @param InOutMeshSampleIndex - Hold the MeshSampleIndex and will be updated if changed according to the Elapsed Time
+	 * @param OutMeshData - Will hold the new MeshData if the SampleIndex changed
+	 * @return true if the SampleIndex and MeshData were updated
+	 */
+	virtual bool UpdateMeshData(float Time, bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData& OutMeshData);
+
+	/**
+	 * Get the MeshData for a given SampleIndex
+	 *
+	 * @param SampleIndex - The sample index at which to retrieve the MeshData
+	 * @param OutMeshData - Will hold the MeshData if it could be retrieved
+	 * @return true if the MeshData was retrieved successfully
+	 */
+	virtual bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
+
+	/**
+	 * Check if the topology of two given SampleIndexes are compatible (ie. same topology)
+	 *
+	 * @param SampleIndexA - The first sample index to compare the topology
+	 * @param SampleIndexB - The second sample index to compare the topology
+	 * @return true if the topology is the same
+	 */
+	virtual bool IsTopologyCompatible(int32 SampleIndexA, int32 SampleIndexB);
+
+	/**
+	 * Get the VisibilitySample for a given time
+	 *
+	 * @param Time - (Elapsed)Time to check against
+	 * @param bLooping - Whether or not the animation is being played in a loop
+	 * @return the VisibilitySample that corresponds to the given time
+	 */
+	virtual const FVisibilitySample& GetVisibilitySample(float Time, const bool bLooping) const;
+
+	/**
+	 * Find the two frames closest to the given time
+	 * InterpolationFactor gives the position of the requested time slot between the two returned frames.
+	 * 0.0 => We are very close to OutFrameIndex
+	 * 1.0 => We are very close to OutNextFrameIndex
+	 * If bIsPlayingBackwards it will return exactly the same indexes but in the reversed order. The
+	 * InterpolationFactor will also be updated accordingly
+	 *
+	 * @param Time - (Elapsed)Time to check against
+	 * @param bLooping - Whether or not the animation is being played in a loop
+	 * @param bIsPlayingBackwards - Whether the animation is playing backwards or forwards
+	 * @param OutFrameIndex - The closest frame index that corresponds to the given time
+	 * @param OutNextFrameIndex - The frame index that follows OutFrameIndex
+	 * @param InterpolationFactor - The interpolation value between the two frame times
+	 */
+	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor);
+
 	/** MeshData storing information used for rendering this Track */
 	FGeometryCacheMeshData *MeshData;
 	FGeometryCacheMeshData *NextFrameMeshData;
@@ -166,7 +225,9 @@ public:
 	/** World Matrix for this Track */
 	FMatrix WorldMatrix;
 
-	FGeometryCacheTrackStreamableRenderResource *Resource;
+	/** The GeometryCacheTrack to which the proxy is associated */
+	UGeometryCacheTrack* Track;
+
 	int32 UploadedSampleIndex;
 
 #if RHI_RAYTRACING
@@ -175,12 +236,13 @@ public:
 };
 
 /** Procedural mesh scene proxy */
-class GEOMETRYCACHE_API FGeometryCacheSceneProxy final : public FPrimitiveSceneProxy
+class GEOMETRYCACHE_API FGeometryCacheSceneProxy : public FPrimitiveSceneProxy
 {
 public:
 	SIZE_T GetTypeHash() const override;
 
 	FGeometryCacheSceneProxy(class UGeometryCacheComponent* Component);
+	FGeometryCacheSceneProxy(class UGeometryCacheComponent* Component, TFunction<FGeomCacheTrackProxy*()> TrackProxyCreator);
 
 	virtual ~FGeometryCacheSceneProxy();
 
@@ -230,4 +292,7 @@ private:
 		class FGeometryCacheVertexFactoryUserDataWrapper& UserDataWrapper,
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer,
 		FMeshBatch& Mesh) const;
+
+	/** Function used to create a new track proxy at construction */
+	TFunction<FGeomCacheTrackProxy*()> CreateTrackProxy;
 };
