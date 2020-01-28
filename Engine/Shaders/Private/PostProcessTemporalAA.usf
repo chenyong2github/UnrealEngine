@@ -46,7 +46,7 @@
 	#define AA_SAMPLE_CACHE_METHOD_LDS 2
 	
 
-/** Caching method for scene color. */
+/** Clamping method for scene color. */
 	// Min max neighboorhing samples.
 	#define HISTORY_CLAMPING_BOX_MIN_MAX 0
 	

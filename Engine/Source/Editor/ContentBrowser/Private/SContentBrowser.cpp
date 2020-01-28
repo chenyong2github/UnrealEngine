@@ -3218,6 +3218,10 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
 	Context->ContentBrowser = SharedThis(this);
 	Context->OnCreateNewFolder = InOnCreateNewFolder;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	Context->bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedPaths);
+
 	FToolMenuContext MenuContext(Commands, Extender, Context);
 
 	return UToolMenus::Get()->GenerateWidget("ContentBrowser.FolderContextMenu", MenuContext);
@@ -3225,7 +3229,7 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 
 void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
 {
-	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
+	UContentBrowserFolderContext* Context = Menu->FindContext<UContentBrowserFolderContext>();
 	check(Context);
 
 	const TArray<FString>& SelectedPaths = PathContextMenu->GetSelectedPaths();
@@ -3253,17 +3257,20 @@ void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
 	{
 		FToolMenuSection& Section = Menu->AddSection("Section");
 
-		// New Folder
-		Section.AddMenuEntry(
-			"NewFolder",
-			LOCTEXT("NewFolder", "New Folder"),
-			NewFolderToolTip,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), Context->OnCreateNewFolder),
-				FCanExecuteAction::CreateLambda([bCanCreateNewFolder] { return bCanCreateNewFolder; })
-			)
-		);
+		if (Context->bCanBeModified)
+		{
+			// New Folder
+			Section.AddMenuEntry(
+				"NewFolder",
+				LOCTEXT("NewFolder", "New Folder"),
+				NewFolderToolTip,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), Context->OnCreateNewFolder),
+					FCanExecuteAction::CreateLambda([bCanCreateNewFolder] { return bCanCreateNewFolder; })
+				)
+			);
+		}
 
 		Section.AddMenuEntry(
 			"FolderContext",

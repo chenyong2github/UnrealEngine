@@ -104,3 +104,4 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

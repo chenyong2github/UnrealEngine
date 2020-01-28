@@ -18,7 +18,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "MovieSceneToolsProjectSettings.h"
-#include "PropertyEditorModule.h"
 #include "Styling/SlateStyle.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "Modules/ModuleManager.h"
@@ -47,10 +46,10 @@
 #include "ControlRigGizmoLibraryActions.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
-#include "Graph/NodeSpawners/ControlRigPropertyNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigCommentNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigParameterNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigRerouteNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -63,21 +62,25 @@
 #include "ControlRigStackCommands.h"
 #include "Animation/AnimSequence.h"
 #include "ControlRigEditorEditMode.h"
-#include "ControlRigDetails.h"
 #include "ControlRigElementDetails.h"
-#include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
+#include "ControlRigCompilerDetails.h"
+#include "ControlRigDrawingDetails.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/SControlRigProfilingView.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ControlRigParameterTrackEditor.h"
+#include "ActorFactories/ActorFactorySkeletalMesh.h"
+#include "ControlRigThumbnailRenderer.h"
+#include "RigVMModel/RigVMController.h"
+#include "ControlRigBlueprint.h"
+#include "ControlRig/Private/Units/Simulation/RigUnit_AlphaInterp.h"
+#include "ControlRig/Private/Units/Debug/RigUnit_VisualDebug.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
-
-TMap<FName, TSubclassOf<URigUnitEditor_Base>> FControlRigEditorModule::RigUnitEditorClasses;
 
 TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
 {
@@ -126,10 +129,15 @@ void FControlRigEditorModule::StartupModule()
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigSpaceDetails::MakeInstance));
 
 	ClassesToUnregisterOnShutdown.Add(UControlRig::StaticClass()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigDetails::MakeInstance));
 
 	// same as ClassesToUnregisterOnShutdown but for properties, there is none right now
 	PropertiesToUnregisterOnShutdown.Reset();
+
+	PropertiesToUnregisterOnShutdown.Add(FRigVMCompileSettings::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigVMCompileSettingsDetails::MakeInstance));
+
+	PropertiesToUnregisterOnShutdown.Add(FControlRigDrawContainer::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FControlRigDrawContainerDetails::MakeInstance));
 
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
@@ -167,10 +175,6 @@ void FControlRigEditorModule::StartupModule()
 
 	ReconstructAllNodesDelegateHandle = FBlueprintEditorUtils::OnReconstructAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleReconstructAllNodes);
 	RefreshAllNodesDelegateHandle = FBlueprintEditorUtils::OnRefreshAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleRefreshAllNodes);
-	RenameVariableReferencesDelegateHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddStatic(&FControlRigBlueprintUtils::HandleRenameVariableReferencesEvent);
-
-	// register rig unit base editor class
-	RegisterRigUnitEditorClass("RigUnit_TwoBoneIKFK", URigUnitEditor_TwoBoneIKFK::StaticClass());
 
 #if WITH_EDITOR
 	if (FSlateApplication::IsInitialized())
@@ -182,6 +186,15 @@ void FControlRigEditorModule::StartupModule()
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit")));
 	};
 #endif
+
+	FControlRigBlueprintActions::ExtendSketalMeshToolMenu();
+	UActorFactorySkeletalMesh::RegisterDelegatesForAssetClass(
+		UControlRigBlueprint::StaticClass(),
+		FGetSkeletalMeshFromAssetDelegate::CreateStatic(&FControlRigBlueprintActions::GetSkeletalMeshFromControlRigBlueprint),
+		FPostSkeletalMeshActorSpawnedDelegate::CreateStatic(&FControlRigBlueprintActions::PostSpawningSkeletalMeshActor)
+	);
+
+	UThumbnailManager::Get().RegisterCustomRenderer(UControlRigBlueprint::StaticClass(), UControlRigThumbnailRenderer::StaticClass());
 }
 
 void FControlRigEditorModule::ShutdownModule()
@@ -193,9 +206,11 @@ void FControlRigEditorModule::ShutdownModule()
 	}
 #endif
 
+	//UThumbnailManager::Get().UnregisterCustomRenderer(UControlRigBlueprint::StaticClass());
+	//UActorFactorySkeletalMesh::UnregisterDelegatesForAssetClass(UControlRigBlueprint::StaticClass());
+
 	FBlueprintEditorUtils::OnRefreshAllNodesEvent.Remove(RefreshAllNodesDelegateHandle);
 	FBlueprintEditorUtils::OnReconstructAllNodesEvent.Remove(ReconstructAllNodesDelegateHandle);
-	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableReferencesDelegateHandle);
 
 	FEdGraphUtilities::UnregisterVisualPinFactory(ControlRigGraphPanelPinFactory);
 	FEdGraphUtilities::UnregisterVisualNodeFactory(ControlRigGraphPanelNodeFactory);
@@ -251,6 +266,7 @@ void FControlRigEditorModule::HandleNewBlueprintCreated(UBlueprint* InBlueprint)
 	ControlRigGraph->bAllowDeletion = false;
 	FBlueprintEditorUtils::AddUbergraphPage(InBlueprint, ControlRigGraph);
 	InBlueprint->LastEditedDocuments.AddUnique(ControlRigGraph);
+	InBlueprint->PostLoad();
 }
 
 
@@ -259,17 +275,6 @@ TSharedRef<IControlRigEditor> FControlRigEditorModule::CreateControlRigEditor(co
 	TSharedRef< FControlRigEditor > NewControlRigEditor(new FControlRigEditor());
 	NewControlRigEditor->InitControlRigEditor(Mode, InitToolkitHost, InBlueprint);
 	return NewControlRigEditor;
-}
-
-void FControlRigEditorModule::RegisterRigUnitEditorClass(FName RigUnitClassName, TSubclassOf<URigUnitEditor_Base> InClass)
-{
-	TSubclassOf<URigUnitEditor_Base>& Class = RigUnitEditorClasses.FindOrAdd(RigUnitClassName);
-	Class = InClass;
-}
-
-void FControlRigEditorModule::UnregisterRigUnitEditorClass(FName RigUnitClassName)
-{
-	RigUnitEditorClasses.Remove(RigUnitClassName);
 }
 
 void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
@@ -289,7 +294,7 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 	}
 
 	// Add all rig units
-	FControlRigBlueprintUtils::ForAllRigUnits([&](UStruct* InStruct)
+	FControlRigBlueprintUtils::ForAllRigUnits([&](UScriptStruct* InStruct)
 	{
 		FString CategoryMetadata, DisplayNameMetadata, MenuDescSuffixMetadata;
 		InStruct->GetStringMetaDataHierarchical(UControlRig::CategoryMetaName, &CategoryMetadata);
@@ -308,17 +313,13 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	});
 
-	UBlueprintNodeSpawner* CommentNodeSpawner = UControlRigCommentNodeSpawner::Create();
-	check(CommentNodeSpawner != nullptr);
-	ActionRegistrar.AddBlueprintAction(ActionKey, CommentNodeSpawner);
-
 	// Add 'new properties'
 	TArray<FEdGraphPinType> PinTypes;
 	GetDefault<UControlRigGraphSchema>()->GetVariablePinTypes(PinTypes);
 
 	struct Local
 	{
-		static void AddVariableActions_Recursive(UClass* InActionKey, FBlueprintActionDatabaseRegistrar& InActionRegistrar, const FEdGraphPinType& PinType, const FString& InCategory)
+		static void AddVariableActions(UClass* InActionKey, FBlueprintActionDatabaseRegistrar& InActionRegistrar, const FEdGraphPinType& PinType, const FString& InCategory)
 		{
 			static const FString CategoryDelimiter(TEXT("|"));
 
@@ -341,40 +342,67 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 			}
 
 
-			UBlueprintNodeSpawner* NodeSpawner = UControlRigVariableNodeSpawner::CreateFromPinType(PinType, MenuDesc, NodeCategory, ToolTip);
-			check(NodeSpawner != nullptr);
-			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawner);
+			UBlueprintNodeSpawner* NodeSpawnerGetter = UControlRigVariableNodeSpawner::CreateFromPinType(PinType, true, MenuDesc, NodeCategory, ToolTip);
+			check(NodeSpawnerGetter != nullptr);
+			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawnerGetter);
+
+			UBlueprintNodeSpawner* NodeSpawnerSetter = UControlRigVariableNodeSpawner::CreateFromPinType(PinType, false, MenuDesc, NodeCategory, ToolTip);
+			check(NodeSpawnerSetter != nullptr);
+			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawnerSetter);
 		}
+
+		/*
+		static void AddParameterActions(UClass* InActionKey, FBlueprintActionDatabaseRegistrar& InActionRegistrar, const FEdGraphPinType& PinType, const FString& InCategory)
+		{
+			static const FString CategoryDelimiter(TEXT("|"));
+
+			FText NodeCategory = FText::FromString(InCategory);
+			FText MenuDesc;
+			FText ToolTip;
+			if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+			{
+				if (UScriptStruct* Struct = Cast<UScriptStruct>(PinType.PinSubCategoryObject.Get()))
+				{
+					MenuDesc = FText::FromString(Struct->GetName());
+					ToolTip = MenuDesc;
+				}
+
+			}
+			else
+			{
+				MenuDesc = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, true);
+				ToolTip = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, false);
+			}
+
+
+			UBlueprintNodeSpawner* NodeSpawnerGetter = UControlRigParameterNodeSpawner::CreateFromPinType(PinType, true, MenuDesc, NodeCategory, ToolTip);
+			check(NodeSpawnerGetter != nullptr);
+			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawnerGetter);
+
+			UBlueprintNodeSpawner* NodeSpawnerSetter = UControlRigParameterNodeSpawner::CreateFromPinType(PinType, false, MenuDesc, NodeCategory, ToolTip);
+			check(NodeSpawnerSetter != nullptr);
+			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawnerSetter);
+		}
+		*/
 	};
 
-	FString CurrentCategory = LOCTEXT("NewVariable", "New Variable").ToString();
+	FString VariableCategory = LOCTEXT("NewVariable", "New Variable").ToString();
+	//FString ParameterCategory = LOCTEXT("NewParameter", "New Parameter").ToString();
 	for (const FEdGraphPinType& PinType: PinTypes)
 	{
-		Local::AddVariableActions_Recursive(ActionKey, ActionRegistrar, PinType, CurrentCategory);
-	}
-}
-
-void FControlRigEditorModule::GetInstanceActions(const UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
-{
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the generated class (so if the class 
-	// type disappears, then the action should go with it)
-	UClass* ActionKey = CRB->GeneratedClass;
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner, first   
-	// check to make sure that the registrar is looking for actions of this type
-	// (could be regenerating actions for a specific asset, and therefore the 
-	// registrar would only accept actions corresponding to that asset)
-	if (!ActionRegistrar.IsOpenForRegistration(ActionKey))
-	{
-		return;
+		Local::AddVariableActions(ActionKey, ActionRegistrar, PinType, VariableCategory);
+		// let's disable parameters in the UI for now.
+		//Local::AddParameterActions(ActionKey, ActionRegistrar, PinType, ParameterCategory);
 	}
 
-	for (TFieldIterator<FProperty> PropertyIt(ActionKey, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
-	{
-		UBlueprintNodeSpawner* NodeSpawner = UControlRigPropertyNodeSpawner::CreateFromProperty(UControlRigGraphNode::StaticClass(), *PropertyIt);
-		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
-	}
+	// add support for names as parameters
+	//Local::AddParameterActions(ActionKey, ActionRegistrar, FEdGraphPinType(UEdGraphSchema_K2::PC_Name, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()), ParameterCategory);
+
+	UBlueprintNodeSpawner* RerouteNodeSpawner = UControlRigRerouteNodeSpawner::CreateGeneric(
+		LOCTEXT("RerouteSpawnerDesc", "New Reroute Node"),
+		LOCTEXT("RerouteSpawnerCategory", "Organization"), 
+		LOCTEXT("RerouteSpawnerTooltip", "Adds a new reroute node to the graph"));
+	ActionRegistrar.AddBlueprintAction(ActionKey, RerouteNodeSpawner);
 }
 
 FConnectionDrawingPolicy* FControlRigEditorModule::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj)
@@ -429,7 +457,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 	{
 		Schema->UEdGraphSchema::GetContextMenuActions(Menu, Context);
 
-		if (const UEdGraphPin* InGraphPin = Context->Pin)
+		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
 			{
 				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
@@ -445,8 +473,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
 				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 				{
-					const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
-					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
+					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
 					{
 						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
 					}
@@ -456,21 +483,349 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					}
 				}
 			}
+
+			// Add alphainterp menu entries
+			if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>((UBlueprint*)Context->Blueprint))
+			{
+				if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(InGraphPin->GetName()))
+				{
+
+					if (ModelPin->IsArray())
+					{
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
+						Section.AddMenuEntry(
+							"ClearPinArray",
+							LOCTEXT("ClearPinArray", "Clear Array"),
+							LOCTEXT("ClearPinArray_Tooltip", "Removes all elements of the array."),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+								RigBlueprint->Controller->ClearArrayPin(ModelPin->GetPinPath());
+							})
+						));
+					}
+					if(ModelPin->IsArrayElement())
+					{
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
+						Section.AddMenuEntry(
+							"RemoveArrayPin",
+							LOCTEXT("RemoveArrayPin", "Remove Array Element"),
+							LOCTEXT("RemoveArrayPin_Tooltip", "Removes the selected element from the array"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+								RigBlueprint->Controller->RemoveArrayPin(ModelPin->GetPinPath());
+							})
+						));
+						Section.AddMenuEntry(
+							"DuplicateArrayPin",
+							LOCTEXT("DuplicateArrayPin", "Duplicate Array Element"),
+							LOCTEXT("DuplicateArrayPin_Tooltip", "Duplicates the selected element"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+								RigBlueprint->Controller->DuplicateArrayPin(ModelPin->GetPinPath());
+							})
+						));
+					}
+
+					if(Cast<URigVMStructNode>(ModelPin->GetNode()))
+					{
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinDefaults", LOCTEXT("PinDefaults", "Pin Defaults"));
+						Section.AddMenuEntry(
+							"ResetPinDefaultValue",
+							LOCTEXT("ResetPinDefaultValue", "Reset Pin Value"),
+							LOCTEXT("ResetPinDefaultValue_Tooltip", "Resets the pin's value to its default."),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+								RigBlueprint->Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
+							})
+						));
+					}
+
+					if ((ModelPin->GetCPPType() == TEXT("FVector") ||
+						 ModelPin->GetCPPType() == TEXT("FQuat") ||
+						 ModelPin->GetCPPType() == TEXT("FTransform")) &&
+						(ModelPin->GetDirection() == ERigVMPinDirection::Input ||
+						 ModelPin->GetDirection() == ERigVMPinDirection::IO) &&
+						 ModelPin->GetPinForLink()->GetRootPin()->GetSourceLinks(true).Num() == 0)
+					{
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaControlPin", LOCTEXT("ControlPin", "Direct Manipulation"));
+						Section.AddMenuEntry(
+							"DirectManipControlPin",
+							LOCTEXT("DirectManipControlPin", "Control Pin Value"),
+							LOCTEXT("DirectManipControlPin_Tooltip", "Configures the pin for direct interaction in the viewport"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+								RigBlueprint->AddTransientControl(ModelPin);
+							})
+						));
+					}
+
+					if (ModelPin->GetRootPin() == ModelPin && Cast<URigVMStructNode>(ModelPin->GetNode()) != nullptr)
+					{
+						if (ModelPin->HasInjectedNodes())
+						{
+							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeEjectionInterp", LOCTEXT("NodeEjectionInterp", "Eject"));
+
+							Section.AddMenuEntry(
+								"EjectLastNode",
+								LOCTEXT("EjectLastNode", "Eject Last Node"),
+								LOCTEXT("EjectLastNode_Tooltip", "Eject the last injected node"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin]() {
+									RigBlueprint->Controller->EjectNodeFromPin(ModelPin->GetPinPath());
+								})
+							));
+						}
+
+						if (ModelPin->GetCPPType() == TEXT("float") ||
+							ModelPin->GetCPPType() == TEXT("FVector"))
+						{
+							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeInjectionInterp", LOCTEXT("NodeInjectionInterp", "Interpolate"));
+							URigVMNode* InterpNode = nullptr;
+							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
+							{
+								FString PrototypeName;
+								if (Injection->StructNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								{
+									if (PrototypeName == TEXT("AlphaInterp"))
+									{
+										InterpNode = Injection->StructNode;
+										break;
+									}
+								}
+							}
+
+							if (InterpNode == nullptr)
+							{
+								UScriptStruct* ScriptStruct = nullptr;
+
+								if (ModelPin->GetCPPType() == TEXT("float"))
+								{
+									ScriptStruct = FRigUnit_AlphaInterp::StaticStruct();
+								}
+								else if (ModelPin->GetCPPType() == TEXT("FVector"))
+								{
+									ScriptStruct = FRigUnit_AlphaInterpVector::StaticStruct();
+								}
+								else
+								{
+									checkNoEntry();
+								}
+
+								Section.AddMenuEntry(
+									"AddAlphaInterp",
+									LOCTEXT("AddAlphaInterp", "Add Interpolate"),
+									LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, ScriptStruct]() {
+										URigVMInjectionInfo* Injection = RigBlueprint->Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Result"));
+										if (Injection)
+										{
+											TArray<FName> NodeNames;
+											NodeNames.Add(Injection->StructNode->GetFName());
+											RigBlueprint->Controller->SetNodeSelection(NodeNames);
+										}
+									})
+								));
+							}
+							else
+							{
+								Section.AddMenuEntry(
+									"EditAlphaInterp",
+									LOCTEXT("EditAlphaInterp", "Edit Interpolate"),
+									LOCTEXT("EditAlphaInterp_Tooltip", "Edit the interpolate node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InterpNode]() {
+									TArray<FName> NodeNames;
+									NodeNames.Add(InterpNode->GetFName());
+									RigBlueprint->Controller->SetNodeSelection(NodeNames);
+								})
+									));
+								Section.AddMenuEntry(
+									"RemoveAlphaInterp",
+									LOCTEXT("RemoveAlphaInterp", "Remove Interpolate"),
+									LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, InterpNode]() {
+										RigBlueprint->Controller->RemoveNodeByName(InterpNode->GetFName());
+									})
+								));
+							}
+						}
+
+						if (ModelPin->GetCPPType() == TEXT("FVector") ||
+							ModelPin->GetCPPType() == TEXT("FQuat") ||
+							ModelPin->GetCPPType() == TEXT("FTransform"))
+						{
+							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeInjectionVisualDebug", LOCTEXT("NodeInjectionVisualDebug", "Visual Debug"));
+
+							URigVMNode* VisualDebugNode = nullptr;
+							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
+							{
+								FString PrototypeName;
+								if (Injection->StructNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								{
+									if (PrototypeName == TEXT("VisualDebug"))
+									{
+										VisualDebugNode = Injection->StructNode;
+										break;
+									}
+								}
+							}
+
+							if (VisualDebugNode == nullptr)
+							{
+								UScriptStruct* ScriptStruct = nullptr;
+
+								if (ModelPin->GetCPPType() == TEXT("FVector"))
+								{
+									ScriptStruct = FRigUnit_VisualDebugVector::StaticStruct();
+								}
+								else if (ModelPin->GetCPPType() == TEXT("FQuat"))
+								{
+									ScriptStruct = FRigUnit_VisualDebugQuat::StaticStruct();
+								}
+								else if (ModelPin->GetCPPType() == TEXT("FTransform"))
+								{
+									ScriptStruct = FRigUnit_VisualDebugTransform::StaticStruct();
+								}
+								else
+								{
+									checkNoEntry();
+								}
+
+								Section.AddMenuEntry(
+									"AddVisualDebug",
+									LOCTEXT("AddVisualDebug", "Add Visual Debug"),
+									LOCTEXT("AddVisualDebug_Tooltip", "Injects a visual debugging node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, ScriptStruct]() {
+										URigVMInjectionInfo* Injection = RigBlueprint->Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, TEXT("Execute"), TEXT("Value"), TEXT("Value"));
+										if (Injection)
+										{
+											TArray<FName> NodeNames;
+											NodeNames.Add(Injection->StructNode->GetFName());
+											RigBlueprint->Controller->SetNodeSelection(NodeNames);
+
+											if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(ModelPin->GetNode()))
+											{
+												if (TSharedPtr<FStructOnScope> DefaultStructScope = StructNode->ConstructStructInstance())
+												{
+													FRigVMStruct* DefaultStruct = (FRigVMStruct*)DefaultStructScope->GetStructMemory();
+
+													FString PinPath = ModelPin->GetPinPath();
+													FString Left, Right;
+
+													FName SpaceName = NAME_None;
+													if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
+													{
+														SpaceName = DefaultStruct->DetermineSpaceForPin(Right, &RigBlueprint->HierarchyContainer);
+													}
+
+													if (!SpaceName.IsNone())
+													{
+														if (URigVMPin* BoneSpacePin = Injection->StructNode->FindPin(TEXT("BoneSpace")))
+														{
+															RigBlueprint->Controller->SetPinDefaultValue(BoneSpacePin->GetPinPath(), SpaceName.ToString());
+														}
+													}
+												}
+											}
+										}
+									})
+								));
+							}
+							else
+							{
+								Section.AddMenuEntry(
+									"EditVisualDebug",
+									LOCTEXT("EditVisualDebug", "Edit Visual Debug"),
+									LOCTEXT("EditVisualDebug_Tooltip", "Edit the visual debugging node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VisualDebugNode]() {
+										TArray<FName> NodeNames;
+										NodeNames.Add(VisualDebugNode->GetFName());
+										RigBlueprint->Controller->SetNodeSelection(NodeNames);
+									})
+								));
+								Section.AddMenuEntry(
+									"ToggleVisualDebug",
+									LOCTEXT("ToggleVisualDebug", "Toggle Visual Debug"),
+									LOCTEXT("ToggleVisualDebug_Tooltip", "Toggle the visibility the visual debugging"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VisualDebugNode]() {
+										URigVMPin* EnabledPin = VisualDebugNode->FindPin(TEXT("bEnabled"));
+										check(EnabledPin);
+										RigBlueprint->Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false);
+									})
+								));
+								Section.AddMenuEntry(
+									"RemoveVisualDebug",
+									LOCTEXT("RemoveVisualDebug", "Remove Visual Debug"),
+									LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
+									FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InGraphPin, ModelPin, VisualDebugNode]() {
+										RigBlueprint->Controller->RemoveNodeByName(VisualDebugNode->GetFName());
+									})
+								));
+							}
+						}
+					}
+				}
+			}
+		}
+		else if(Context->Node) // right clicked on the node
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>((UBlueprint*)Context->Blueprint))
+			{
+				TArray<FRigElementKey> RigElementsToSelect;
+				if (URigVMNode* ModelNode = RigBlueprint->Model->FindNodeByName(Context->Node->GetFName()))
+				{
+					for (const URigVMPin* Pin : ModelNode->GetPins())
+					{
+						if (Pin->GetCPPType() == TEXT("FName"))
+						{
+							if (Pin->GetCustomWidgetName() == TEXT("BoneName"))
+							{
+								RigElementsToSelect.Add(FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Bone));
+							}
+							else if (Pin->GetCustomWidgetName() == TEXT("ControlName"))
+							{
+								RigElementsToSelect.Add(FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Control));
+							}
+							else if (Pin->GetCustomWidgetName() == TEXT("SpaceName"))
+							{
+								RigElementsToSelect.Add(FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Space));
+							}
+							else if (Pin->GetCustomWidgetName() == TEXT("CurveName"))
+							{
+								RigElementsToSelect.Add(FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Curve));
+							}
+						}
+					}
+				}
+
+				if (RigElementsToSelect.Num() > 0)
+				{
+					FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaHierarchy", LOCTEXT("HierarchyHeader", "Hierarchy"));
+					Section.AddMenuEntry(
+						"SelectRigElements",
+						LOCTEXT("SelectRigElements", "Select Rig Elements"),
+						LOCTEXT("SelectRigElements_Tooltip", "Selects the bone, controls or spaces associated with this node."),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, RigElementsToSelect]() {
+
+							RigBlueprint->HierarchyContainer.ClearSelection();
+							for (const FRigElementKey& RigElementToSelect : RigElementsToSelect)
+							{
+								RigBlueprint->HierarchyContainer.Select(RigElementToSelect, true);
+							}
+
+						})
+					));
+				}
+			}
 		}
 	}
-}
-
-// It's CDO of the class, so we don't want the object to be writable or even if you write, it won't be per instance
-TSubclassOf<URigUnitEditor_Base> FControlRigEditorModule::GetEditorObjectByRigUnit(const FName& RigUnitClassName) 
-{
-	const TSubclassOf<URigUnitEditor_Base>* Class = RigUnitEditorClasses.Find(RigUnitClassName);
-	if (Class)
-	{
-		return *Class;
-	}
-
-	//if you don't find anything, just send out base one
-	return URigUnitEditor_Base::StaticClass();
 }
 
 IMPLEMENT_MODULE(FControlRigEditorModule, ControlRigEditor)

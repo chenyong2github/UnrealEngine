@@ -178,13 +178,13 @@ namespace Audio
 		ProcessingMode = InProcessingMode;
 	}
 
-	void FDynamicsProcessor::ProcessAudioFrame(const float* InFrame, float* OutFrame)
+	void FDynamicsProcessor::ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame)
 	{
 		checkSlow(NumChannels == DetectorOuts.Num());
 		checkSlow(NumChannels == Gain.Num());
 
 		// Get detector outputs
-		const float* DetectorIn = InFrame;
+		const float* DetectorIn = InKeyFrame;
 		if (NumChannels > 0)
 		{
 			if (bKeyLowshelfEnabled)
@@ -274,11 +274,12 @@ namespace Audio
 		}
 	}
 
-	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer)
+	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer)
 	{
 		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
 		{
-			ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex]);
+			const float* KeyFrame = InKeyBuffer ? &InKeyBuffer[SampleIndex] : &InBuffer[SampleIndex];
+			ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame);
 		}
 	}
 
@@ -332,6 +333,4 @@ namespace Audio
 		OutputGainDb = FMath::Min(0.0f, OutputGainDb);
 		return ConvertToLinear(OutputGainDb);
 	}
-
-
 }

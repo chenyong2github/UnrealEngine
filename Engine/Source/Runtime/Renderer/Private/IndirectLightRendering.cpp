@@ -13,6 +13,7 @@
 #include "PostProcessing.h" // for FPostProcessVS
 #include "RendererModule.h" 
 #include "RayTracing/RaytracingOptions.h"
+#include "RayTracing/RayTracingReflections.h"
 #include "DistanceFieldAmbientOcclusion.h"
 
 
@@ -21,31 +22,11 @@ static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
 	TEXT("Denoising options (default = 1)"),
 	ECVF_RenderThreadSafe);
 
-static int32 GRayTracingReflections = -1;
-static FAutoConsoleVariableRef CVarReflectionsMethod(
-	TEXT("r.RayTracing.Reflections"),
-	GRayTracingReflections,
-	TEXT("-1: Value driven by postprocess volume (default) \n")
-	TEXT("0: use traditional rasterized SSR\n")
-	TEXT("1: use ray traced reflections\n"));
-
 static TAutoConsoleVariable<float> CVarReflectionScreenPercentage(
 	TEXT("r.RayTracing.Reflections.ScreenPercentage"),
 	100.0f,
 	TEXT("Screen percentage the reflections should be ray traced at (default = 100)."),
 	ECVF_RenderThreadSafe);
-
-static int32 GRayTracingReflectionsSamplesPerPixel = -1;
-static FAutoConsoleVariableRef CVarRayTracingReflectionsSamplesPerPixel(
-	TEXT("r.RayTracing.Reflections.SamplesPerPixel"),
-	GRayTracingReflectionsSamplesPerPixel,
-	TEXT("Sets the samples-per-pixel for reflections (default = -1 (driven by postprocesing volume))"));
-
-static int32 GRayTracingReflectionsHeightFog = 1;
-static FAutoConsoleVariableRef CVarRayTracingReflectionsHeightFog(
-	TEXT("r.RayTracing.Reflections.HeightFog"),
-	GRayTracingReflectionsHeightFog,
-	TEXT("Enables height fog in ray traced reflections (default = 1)"));
 
 static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
 	TEXT("r.Reflections.Denoiser"),
@@ -73,26 +54,6 @@ DECLARE_GPU_STAT_NAMED(RayTracingReflections, TEXT("Ray Tracing Reflections"));
 DECLARE_GPU_STAT(SkyLightDiffuse);
 
 int GetReflectionEnvironmentCVar();
-
-#if RHI_RAYTRACING
-int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
-{
-	return GRayTracingReflectionsSamplesPerPixel >= 0 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
-}
-
-bool ShouldRenderRayTracingReflections(const FViewInfo& View)
-{
-	bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
-
-	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 ? bThisViewHasRaytracingReflections : (GRayTracingReflections != 0);
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bReflectionPassEnabled = (ForceAllRayTracingEffects > 0 || (bReflectionsCvarEnabled && ForceAllRayTracingEffects < 0)) && (GetRayTracingReflectionsSamplesPerPixel(View) > 0);
-
-	return IsRayTracingEnabled() && bReflectionPassEnabled;
-}
-#endif // RHI_RAYTRACING
-
-
 bool IsAmbientCubemapPassRequired(const FSceneView& View);
 
 
@@ -746,7 +707,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 					GraphBuilder,
 					SceneTextures,
 					View,
-					RayTracingConfig.RayCountPerPixel, GRayTracingReflectionsHeightFog, RayTracingConfig.ResolutionFraction,
+					RayTracingConfig.RayCountPerPixel, RayTracingConfig.ResolutionFraction,
 					&DenoiserInputs);
 			}
 			else if (bScreenSpaceReflections)

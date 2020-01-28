@@ -6,13 +6,19 @@
 
 #include "Common.ush"
 
+#ifndef THREADGROUPSIZE_X
+	#define THREADGROUPSIZE_X 1
+	#define THREADGROUPSIZE_Y 1
+	#define THREADGROUPSIZE_Z 1
+#endif
+
 #if ENABLE_CLEAR_VALUE
 	VALUE_TYPE ClearValue;
 #else
 	static const VALUE_TYPE ClearValue = (VALUE_TYPE)0;
 #endif
 
-#if COMPUTESHADER
+#ifdef RESOURCE_TYPE
 
 	#if ENABLE_BOUNDS
 		uint4 MinBounds;
@@ -54,6 +60,17 @@
 	#endif
 		{
 			ClearResource[ADDR(Position)] = ClearValue;
+		}
+	}
+
+	void ClearTextureRWPS(float4 SvPosition : SV_POSITION)
+	{
+#if ENABLE_BOUNDS
+		ADDR(SvPosition) += ADDR(MinBounds);
+		if (COMP(SvPosition, MaxBounds))
+#endif
+		{
+			ClearResource[ADDR(SvPosition)] = ClearValue;
 		}
 	}
 

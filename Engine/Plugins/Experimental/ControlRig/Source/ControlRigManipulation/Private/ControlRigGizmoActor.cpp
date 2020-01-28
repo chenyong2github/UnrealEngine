@@ -100,6 +100,17 @@ bool AControlRigGizmoActor::IsManipulating() const
 	return bManipulating;
 }
 
+void AControlRigGizmoActor::SetGizmoColor(const FLinearColor& InColor)
+{
+	if (StaticMeshComponent && !ColorParameterName.IsNone())
+	{
+		if (UMaterialInstanceDynamic* MaterialInstance = Cast<UMaterialInstanceDynamic>(StaticMeshComponent->GetMaterial(0)))
+		{
+			MaterialInstance->SetVectorParameterValue(ColorParameterName, FVector(InColor));
+		}
+	}
+}
+
 // FControlRigGizmoHelper START
 
 namespace FControlRigGizmoHelper
@@ -173,6 +184,7 @@ namespace FControlRigGizmoHelper
 			}
 			if (CreationParam.StaticMesh.IsValid())
 			{
+				GizmoActor->ColorParameterName = CreationParam.ColorParameterName;
 				UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(CreationParam.Material.Get(), GizmoActor);
 				MaterialInstance->SetVectorParameterValue(CreationParam.ColorParameterName, FVector(CreationParam.Color));
 				MeshComponent->SetMaterial(0, MaterialInstance);

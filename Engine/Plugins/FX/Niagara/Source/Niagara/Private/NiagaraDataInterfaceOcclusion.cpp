@@ -13,7 +13,7 @@ const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionCircleName(TEXT("Q
 UNiagaraDataInterfaceOcclusion::UNiagaraDataInterfaceOcclusion(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Proxy = MakeShared<FNiagaraDataIntefaceProxyOcclusionQuery, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataIntefaceProxyOcclusionQuery());
 }
 
 void UNiagaraDataInterfaceOcclusion::PostInitProperties()

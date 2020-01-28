@@ -63,6 +63,11 @@ public:
 		return Bones[BoneIndex.GetInt()];
 	}
 
+	FORCEINLINE TArrayView<FTransform> GetMutableBones()
+	{
+		return TArrayView<FTransform>(Bones);
+	}
+
 	//Bone Index Iteration
 	template<typename PoseType, typename IterType>
 	struct FRangedForSupport
@@ -360,10 +365,20 @@ protected:
 
 struct ENGINE_API FCompactPose : public FBaseCompactPose<FAnimStackAllocator>
 {
+	// Sets every bone transform to Identity
+	void ResetToAdditiveIdentity();
+
+	// Normalizes all rotations in this pose
+	void NormalizeRotations();
 };
 
 struct ENGINE_API FCompactHeapPose : public FBaseCompactPose<FDefaultAllocator>
 {
+	// Sets every bone transform to Identity
+	void ResetToAdditiveIdentity();
+
+	// Normalizes all rotations in this pose
+	void NormalizeRotations();
 };
 
 struct FMeshPose : public FBasePose<FMeshPoseBoneIndex, FDefaultAllocator>

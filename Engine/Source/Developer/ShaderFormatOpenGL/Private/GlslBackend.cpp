@@ -619,6 +619,9 @@ class ir_gen_glsl_visitor : public ir_visitor
 	// Found dFdx or dFdy
 	bool bUsesDXDY;
 
+	// True if the discard instruction was encountered.
+	bool bUsesDiscard;
+
 	// Uses gl_InstanceID
 	bool bUsesInstanceID;
 	
@@ -851,7 +854,8 @@ class ir_gen_glsl_visitor : public ir_visitor
 		}
 		else if (type->is_integer())
 		{
-			return GLSL_PRECISION_HIGHP;
+			// integers use default precision which is always highp
+			return GLSL_PRECISION_DEFAULT;
 		}
 		return GLSL_PRECISION_DEFAULT;
 	}
@@ -2071,6 +2075,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, ") ");
 		}
 		ralloc_asprintf_append(buffer, "discard");
+		bUsesDiscard = true;
 	}
 
 	bool try_conditional_move(ir_if *expr)
@@ -3031,7 +3036,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 	 */
 	void print_layout(_mesa_glsl_parse_state *state)
 	{
-		if (early_depth_stencil)
+		if (early_depth_stencil && this->bUsesDiscard == false)
 		{
 			ralloc_asprintf_append(buffer, "layout(early_fragment_tests) in;\n");
 		}
@@ -3245,6 +3250,7 @@ public:
 		, bUsesTextureBuffer(false)
 		, bUseImageAtomic(false)
 		, bUsesDXDY(false)
+		, bUsesDiscard(false)
 		, bUsesInstanceID(false)
 		, bNoGlobalUniforms(bInNoGlobalUniforms)
 	{
@@ -3280,7 +3286,8 @@ public:
 			
 			const char* DefaultPrecision = bDefaultPrecisionIsHalf ? "mediump" : "highp";
 			ralloc_asprintf_append(&default_precision_buffer, "precision %s float;\n", DefaultPrecision);
-			ralloc_asprintf_append(&default_precision_buffer, "precision %s int;\n", DefaultPrecision);
+			// always use highp for integers as shaders use them as bit storage
+			ralloc_asprintf_append(&default_precision_buffer, "precision %s int;\n", "highp");
 
 			if (bIsES) // ES2 workarounds
 			{
@@ -3332,7 +3339,11 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 #endif
 }
 )RawStrDelimiter";
-			ralloc_asprintf_append(buffer, func_clipControlAdjustments);
+			
+			if (ShaderTarget != compute_shader)
+			{
+				ralloc_asprintf_append(buffer, func_clipControlAdjustments);
+			}
 		}
 
 		// FramebufferFetchES2 'intrinsic'
@@ -3544,13 +3555,15 @@ struct FBreakPrecisionChangesVisitor : public ir_rvalue_visitor
 					case ir_unop_i2f:
 					case ir_unop_b2f:
 					case ir_unop_u2f:
-						bGenerateNewVar = bDefaultPrecisionIsHalf;
+						// integers always use highp
+						bGenerateNewVar = false;
 						break;
 
 					case ir_unop_i2h:
 					case ir_unop_b2h:
 					case ir_unop_u2h:
-						bGenerateNewVar = !bDefaultPrecisionIsHalf;
+						// integers always use highp
+						bGenerateNewVar = true;
 						break;
 
 					case ir_unop_h2f:
@@ -5242,6 +5255,11 @@ bool FGlslCodeBackend::GenerateMain(
 						);
 					break;
 				case ir_var_out:
+					if (Frequency == HSF_PixelShader && Variable->semantic && (strcmp(Variable->semantic, "SV_Depth") == 0))
+					{
+						bExplicitDepthWrites = true;
+					}
+
 					ArgVarDeref = GenShaderOutput(
 						Frequency,
 						ParseState,
@@ -5390,7 +5408,7 @@ bool FGlslCodeBackend::GenerateMain(
 		MainSig->body.push_tail(new(ParseState)ir_call(EntryPointSig, EntryPointReturn, &ArgInstructions));
 		MainSig->body.append_list(&PostCallInstructions);
 		MainSig->maxvertexcount = EntryPointSig->maxvertexcount;
-		MainSig->is_early_depth_stencil = EntryPointSig->is_early_depth_stencil;
+		MainSig->is_early_depth_stencil = (EntryPointSig->is_early_depth_stencil && !bExplicitDepthWrites);
 		MainSig->wg_size_x = EntryPointSig->wg_size_x;
 		MainSig->wg_size_y = EntryPointSig->wg_size_y;
 		MainSig->wg_size_z = EntryPointSig->wg_size_z;

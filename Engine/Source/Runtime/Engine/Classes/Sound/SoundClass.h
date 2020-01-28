@@ -46,6 +46,7 @@ struct FSoundClassEditorData
 /**
  * Structure containing configurable properties of a sound class.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USTRUCT(BlueprintType)
 struct FSoundClassProperties
 {
@@ -70,8 +71,9 @@ struct FSoundClassProperties
 	float AttenuationDistanceScale;
 
 	/** The amount of stereo sounds to bleed to the rear speakers */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing)
-	float StereoBleed;
+	UE_DEPRECATED(4.25, "Stereo Bleed is no longer supported.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing, meta = (DeprecatedProperty, DeprecationMessage = "Stereo Bleed no longer supported."))
+	float StereoBleed = 0.f;
 
 	/** The amount of a sound to bleed to the LFE channel */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing, meta = (DisplayName = "LFE Bleed"))
@@ -152,6 +154,7 @@ private:
 	FDynamicParameter AttenuationScaleParam;
 	float ParentAttenuationScale;	
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Structure containing information on a SoundMix to activate passively.

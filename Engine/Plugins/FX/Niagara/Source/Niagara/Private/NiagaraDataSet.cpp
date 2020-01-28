@@ -802,8 +802,11 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, 
 
 	if (InstancesToCopy != 0)
 	{
-		uint32 NewNumInstances = DestStartIdx + InstancesToCopy;
-		if (DestStartIdx < 0 || NewNumInstances >= DestBuffer.GetNumInstances())
+		const uint32 NewNumInstances = DestStartIdx + InstancesToCopy;
+
+		// Only allocate if we need to increase the number of instances as the caller may have previously
+		// allocated the array and may not be expecting it to shrink inside this call.
+		if (DestStartIdx < 0 || NewNumInstances >= DestBuffer.GetNumInstancesAllocated())
 		{
 			DestBuffer.Allocate(NewNumInstances, true);
 		}

@@ -146,8 +146,8 @@ public:
 protected:
 	TArray<FVulkanUnorderedAccessView*> UAVListForAutoFlush;
 
-	FVulkanComputePipeline* CurrentPipeline;
-	FVulkanComputePipelineDescriptorState* CurrentState;
+	FVulkanComputePipeline* CurrentPipeline = nullptr;
+	FVulkanComputePipelineDescriptorState* CurrentState = nullptr;
 
 	TMap<FVulkanComputePipeline*, FVulkanComputePipelineDescriptorState*> PipelineStates;
 
@@ -196,7 +196,7 @@ public:
 		return GetCurrentShaderKey(ShaderStage::GetFrequencyForGfxStage(Stage));
 	}
 
-	void SetViewport(uint32 MinX, uint32 MinY, float MinZ, uint32 MaxX, uint32 MaxY, float MaxZ)
+	void SetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
 	{
 		FMemory::Memzero(Viewport);
 
@@ -215,7 +215,7 @@ public:
 			Viewport.maxDepth = MaxZ;
 		}
 
-		SetScissorRect(MinX, MinY, MaxX - MinX, MaxY - MinY);
+		SetScissorRect((uint32)MinX, (uint32)MinY, (uint32)(MaxX - MinX), (uint32)(MaxY - MinY));
 		bScissorEnable = false;
 	}
 

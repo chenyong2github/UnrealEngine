@@ -783,6 +783,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 					if (NavData != NULL)
 					{
 						const ERegistrationResult Result = RegisterNavData(NavData);
+						LogNavDataRegistrationResult(Result);
 
 						if (Result == RegistrationSuccessful)
 						{
@@ -1577,7 +1578,11 @@ ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSyste
 #endif // WITH_RECAST
 		// either way make sure it's registered. Registration stores unique
 		// navmeshes, so we have nothing to lose
-		RegisterNavData(MainNavData);
+		if (MainNavData != nullptr)
+		{
+			const ERegistrationResult Result = RegisterNavData(MainNavData);
+			LogNavDataRegistrationResult(Result);
+		}
 	}
 
 	return MainNavData;
@@ -1804,6 +1809,7 @@ void UNavigationSystemV1::ProcessRegistrationCandidates()
 		if (OwningLevel && OwningLevel->bIsVisible)
 		{
 			const ERegistrationResult Result = RegisterNavData(NavDataPtr);
+			LogNavDataRegistrationResult(Result);
 
 			if (Result != RegistrationSuccessful && Result != RegistrationFailed_DataPendingKill)
 			{
@@ -2012,6 +2018,7 @@ void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink
 	if (CustomLinksMap.Contains(LinkId))
 	{
 		LinkId = INavLinkCustomInterface::GetUniqueId();
+		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), LinkId);
 		CustomLink.UpdateLinkId(LinkId);
 
 		UObject* CustomLinkOb = CustomLink.GetLinkOwner();
@@ -3579,6 +3586,7 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 
 		if (MyWorld->WorldType == EWorldType::Game || MyWorld->WorldType == EWorldType::Editor)
 		{
+			UE_LOG(LogNavLink, VeryVerbose, TEXT("Reset navlink id on cleanup."));
 			INavLinkCustomInterface::NextUniqueId = 1;
 		}
 	}
@@ -3635,6 +3643,34 @@ ERuntimeGenerationType UNavigationSystemV1::GetRuntimeGenerationType() const
 	}
 	
 	return RuntimeGenerationType;
+}
+
+void UNavigationSystemV1::LogNavDataRegistrationResult(ERegistrationResult InResult)
+{
+	switch (InResult)
+	{
+	case UNavigationSystemV1::RegistrationError:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationError, could not be registered."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_DataPendingKill:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_DataPendingKill."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_AgentAlreadySupported:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_AgentAlreadySupported, specified agent type already has its navmesh implemented."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_AgentNotValid:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_AgentNotValid, NavData instance contains navmesh that doesn't support any of expected agent types."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_NotSuitable:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_NotSuitable."));
+		break;
+	case UNavigationSystemV1::RegistrationSuccessful:
+		UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("NavData RegistrationSuccessful."));
+		break;
+	default:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("Registration not successful default warning."));
+		break;
+	}
 }
 
 //----------------------------------------------------------------------//

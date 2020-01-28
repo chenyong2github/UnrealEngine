@@ -30,13 +30,6 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	}
 	break;
 
-	case SP_OPENGL_SM4:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Generic_SM4_loc", "SM4");
-		return Description;
-	}
-	break;
-
 	case SP_PS4:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Playstation_4_loc", "PlayStation 4");
@@ -110,14 +103,6 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	}
 	break;
 
-	case SP_PCD3D_ES2:
-	case SP_OPENGL_PCES2:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Generic_ES2_loc", "ES2");
-		return Description;
-	}
-	break;
-
 	case SP_OPENGL_ES2_ANDROID:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Android_ES2_loc", "Android ES2");
@@ -128,13 +113,6 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	case SP_OPENGL_ES2_WEBGL:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "WebGL_ES2_loc", "WebGL ES2");
-		return Description;
-	}
-	break;
-
-	case SP_METAL_MACES2:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "iOS_Metal_Mace_2_loc", "iOS Metal ES2");
 		return Description;
 	}
 	break;

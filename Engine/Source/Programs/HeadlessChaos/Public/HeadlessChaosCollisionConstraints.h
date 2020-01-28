@@ -8,7 +8,9 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/CollisionDetector.h"
+#include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
@@ -60,14 +62,25 @@ public:
 		CollisionDetector.DetectCollisions(Dt, StatData);
 	}
 
-	void Update(FContactConstraintBase& Constraint, T BoundsThickness = T(0) )
+	void Update(FContactConstraintBase& Constraint, T CullDistance = T(0) )
 	{
-		Collisions::Update<ECollisionUpdateType::Deepest,T,d>(BoundsThickness, Constraint);
+		if (Constraint.GetType() == FPointContactConstraint::StaticType())
+		{
+			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance);
+		}
+		else if(Constraint.GetType() == FMultiPointContactConstraint::StaticType())
+		{
+			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance);
+		}
 	}
 
-	void UpdateManifold(FContactConstraintBase& Constraint, T BoundsThickness = T(0))
+	void UpdateManifold(FContactConstraintBase& Constraint, T CullDistance = T(0))
 	{
-		Collisions::UpdateManifold<T, d>(BoundsThickness, Constraint);
+		if (Constraint.GetType() == FContactConstraintBase::FType::MultiPoint)
+		{
+			FCollisionContext Context;
+			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance, Context);
+		}
 	}
 
 

@@ -1234,7 +1234,7 @@ bool FClassHierarchy::FindAndRemoveNodeByClassPath(const TSharedPtr< FClassViewe
 	// Search the children recursively, one of them might have the parent.
 	for(int32 ChildClassIndex = 0; ChildClassIndex < InRootNode->GetChildrenList().Num(); ChildClassIndex++)
 	{
-		if(InRootNode->GetChildrenList()[ChildClassIndex]->ClassPath == InClassPath)
+		if(InRootNode->GetChildrenList()[ChildClassIndex]->ClassPath == InClassPath)						   
 		{
 			InRootNode->GetChildrenList().RemoveAt(ChildClassIndex);
 			return true;
@@ -1256,6 +1256,14 @@ void FClassHierarchy::RemoveAsset(const FAssetData& InRemovedAssetData)
 	if (InRemovedAssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, ClassObjectPath))
 	{
 		ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ClassObjectPath);
+
+		if (ClassObjectPath == "None")
+		{
+			// This can happen if the generated class was already deleted prior to 
+			// the notification being sent. Let's try to reconstruct the generated
+			// class name from the object path.
+			ClassObjectPath = InRemovedAssetData.ObjectPath.ToString() + "_C";
+		}
 	}
 
 	if (FindAndRemoveNodeByClassPath(ObjectClassRoot, FName(*ClassObjectPath)))

@@ -42,6 +42,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Serialization/JsonSerializer.h"
 #include "SteamVRInputTypes.h"
 #include "SteamVRInputPublic.h"
+#include "ISteamVRPlugin.h"
 
 class STEAMVRINPUTDEVICE_API FSteamVRInputDevice : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice
 {
@@ -75,6 +76,9 @@ public:
 	virtual void GetHapticFrequencyRange(float& MinFrequency, float& MaxFrequency) const override;
 	virtual float GetHapticAmplitudeScale() const override;
 	// End of IHapticDevice Interface
+
+	// Pointer to currently active SteamVR HMD Module
+	ISteamVRPlugin* SteamVRHMDModule = nullptr;
 
 	/** Initialize the SteamVR System. Will cause a reconnect if one is already active  */
 	void InitSteamVRSystem();
@@ -485,4 +489,8 @@ private:
 	*/
 	float CurrentDeltaTime;
 
+	/**
+	* Flag to signify if we need a re-init
+	*/
+	bool bSteamVRWasShutdown = false;
 };

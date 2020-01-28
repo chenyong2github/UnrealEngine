@@ -26,15 +26,15 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition: 
 
 	// accumulate all histograms into a single one
 	// could be optimized using bilinear filtering (half sample count)
-	for (uint y = 0; y < LoopSize; ++y)
+	for (uint y = 0; y < LoopSize/2; ++y)
 	{
-		SceneColor += Texture2DSample(InputTexture, InputSampler, UV + float2(0, y * Input_ExtentInverse.y));
+		SceneColor += Texture2DSample(InputTexture, InputSampler, float2(UV.x, (float(2*y + 1) * Input_ExtentInverse.y)));
 	}
 
 	if(SvPosition.y < 1.0f)
 	{
-		// line 0: histogram
-		OutColor = SceneColor / LoopSize;
+		// line 0: histogram, we're not going to divide by the number of lines because it gets normalized later anyways
+		OutColor = SceneColor;
 	}
 	else
 	{

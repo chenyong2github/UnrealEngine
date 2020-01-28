@@ -14,6 +14,7 @@
 #include "AudioDeviceManager.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Engine/World.h"
+#include "Modules/ModuleManager.h"
 #include "GameFramework/PlayerController.h"
 #include "MovieRenderDebugWidget.h"
 #include "MoviePipelineShotConfig.h"

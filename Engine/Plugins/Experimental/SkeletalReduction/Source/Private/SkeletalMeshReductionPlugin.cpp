@@ -1380,7 +1380,7 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 					// Add the non-zero weights 
 					for (int32 b = 0; b < MAX_TOTAL_INFLUENCES; ++b)
 					{
-						uint8 LocalBoneId = SrcRawSkinWeight.InfluenceBones[b];
+						FBoneIndexType LocalBoneId = SrcRawSkinWeight.InfluenceBones[b];
 						uint8 Weight = SrcRawSkinWeight.InfluenceWeights[b];
 
 						checkSlow(LocalBoneId < BoneMap.Num());

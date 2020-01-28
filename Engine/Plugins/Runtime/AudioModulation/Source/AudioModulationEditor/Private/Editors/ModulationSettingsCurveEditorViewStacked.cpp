@@ -16,7 +16,7 @@
 
 
 FModCurveEditorModel::FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, FName InControlName, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve)
-	: FRichCurveEditorModel(&InRichCurve, InOwner)
+	: FRichCurveEditorModelRaw(&InRichCurve, InOwner)
 	, Output(EModSettingsEditorCurveOutput::Control)
 	, Source(InSource)
 {
@@ -25,7 +25,7 @@ FModCurveEditorModel::FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InO
 }
 
 FModCurveEditorModel::FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModSettingsEditorCurveOutput InOutput, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve)
-	: FRichCurveEditorModel(&InRichCurve, InOwner)
+	: FRichCurveEditorModelRaw(&InRichCurve, InOwner)
 	, Output(InOutput)
 	, Source(InSource)
 {
@@ -97,7 +97,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 
 		case EModSettingsOutputEditorCurveSource::Expression:
 		{
-			bKeyDrawEnabled = 0;
+			bKeyDrawEnabled = false;
 			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveExpressionDisplayName", "{0} (Expression)"), ShortNameBase);
 		}
 		break;
@@ -105,7 +105,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 		case EModSettingsOutputEditorCurveSource::Unset:
 		default:
 		{
-			bKeyDrawEnabled = 0;
+			bKeyDrawEnabled = false;
 			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveUnsetDisplayName", "{0} (Shared - Unset)"), ShortNameBase);
 		}
 	}

@@ -159,6 +159,7 @@ protected:
 	FViewport* MainViewport = nullptr;
 
 	bool bIsSceneOpen = false;
+	bool bIsCustomPresentSet = false;
 
 	// Per-eye regions
 	FIntRect EyeRegions[2];

@@ -255,6 +255,9 @@ private:
 	/** Extend menu */
 	void ExtendMenu();
 
+	/** Register menus */
+	void RegisterMenus();
+
 	/** Extend toolbar */
 	void ExtendToolbar();
 

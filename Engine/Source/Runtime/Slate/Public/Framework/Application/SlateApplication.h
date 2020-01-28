@@ -1632,6 +1632,12 @@ private:
 	TArray<TWeakPtr<FSlateVirtualUserHandle>> VirtualUsers;
 
 	/**
+	  * Last widget that was set for 'all users' focus and the cause.
+	  */
+	TWeakPtr<SWidget> LastAllUsersFocusWidget;
+	EFocusCause LastAllUsersFocusCause;
+
+	/**
 	 * Application throttling
 	 */
 

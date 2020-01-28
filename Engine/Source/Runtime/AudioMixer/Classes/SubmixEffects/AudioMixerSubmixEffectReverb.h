@@ -5,6 +5,7 @@
 #include "DSP/Reverb.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "AudioEffect.h"
+#include "Curves/RichCurve.h"
 #include "AudioMixerSubmixEffectReverb.generated.h"
 
 USTRUCT(BlueprintType)

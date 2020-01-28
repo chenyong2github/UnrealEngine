@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
@@ -30,6 +31,7 @@ namespace Chaos
 
 		FBroadPhase& GetBroadPhase() { return BroadPhase; }
 		FContainer& GetCollisionContainer() { return CollisionContainer; }
+		FCollisionContext& GetContext() { return Context; }
 
 		void DetectCollisions(const FReal Dt)
 		{
@@ -54,7 +56,7 @@ namespace Chaos
 			// Receivers and NarrowPhase are assumed to be stateless atm. If we change that, they need to
 			// be passed into the constructor with the BroadPhase and Container.
 			FReceiver Receiver(CollisionContainer);
-			FNarrowPhase NarrowPhase;
+			FNarrowPhase NarrowPhase(Context);
 			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData);
 			Receiver.ProcessCollisions();
 		}
@@ -62,6 +64,7 @@ namespace Chaos
 	private:
 		FBroadPhase& BroadPhase;
 		FContainer& CollisionContainer;
+		FCollisionContext Context;
 	};
 
 }

@@ -224,19 +224,29 @@ struct FGenericPlatformMath
 	/** Return true if value is NaN (not a number). */
 	static FORCEINLINE bool IsNaN( float A ) 
 	{
-		return ((*(uint32*)&A) & 0x7FFFFFFF) > 0x7F800000;
+		return ((*(uint32*)&A) & 0x7FFFFFFFU) > 0x7F800000U;
 	}
+	static FORCEINLINE bool IsNaN(double A)
+	{
+		return ((*(uint64*)&A) & 0x7FFFFFFFFFFFFFFFULL) > 0x7FF0000000000000ULL;
+	}
+
 	/** Return true if value is finite (not NaN and not Infinity). */
 	static FORCEINLINE bool IsFinite( float A )
 	{
-		return ((*(uint32*)&A) & 0x7F800000) != 0x7F800000;
+		return ((*(uint32*)&A) & 0x7F800000U) != 0x7F800000U;
 	}
-	static FORCEINLINE bool IsNegativeFloat(const float& A)
+	static FORCEINLINE bool IsFinite(double A)
+	{
+		return ((*(uint64*)&A) & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
+	}
+
+	static FORCEINLINE bool IsNegativeFloat(float A)
 	{
 		return ( (*(uint32*)&A) >= (uint32)0x80000000 ); // Detects sign bit.
 	}
 
-	static FORCEINLINE bool IsNegativeDouble(const double& A)
+	static FORCEINLINE bool IsNegativeDouble(double A)
 	{
 		return ( (*(uint64*)&A) >= (uint64)0x8000000000000000 ); // Detects sign bit.
 	}

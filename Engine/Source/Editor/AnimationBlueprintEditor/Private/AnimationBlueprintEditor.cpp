@@ -67,6 +67,7 @@
 #include "Widgets/Input/SButton.h"
 #include "EditorFontGlyphs.h"
 #include "AnimationBlueprintInterfaceEditorMode.h"
+#include "ToolMenus.h"
 
 // Hide related nodes feature
 #include "Preferences/AnimationBlueprintEditorOptions.h"
@@ -193,20 +194,16 @@ void FAnimationBlueprintEditor::ExtendMenu()
 	}
 
 	MenuExtender = MakeShareable(new FExtender);
-
-	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	if(AnimBlueprint)
-	{
-		TSharedPtr<FExtender> AnimBPMenuExtender = MakeShareable(new FExtender);
-		FKismet2Menu::SetupBlueprintEditorMenu(AnimBPMenuExtender, *this);
-		AddMenuExtender(AnimBPMenuExtender);
-	}
-
 	AddMenuExtender(MenuExtender);
 
 	// add extensible menu if exists
 	FAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<FAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
 	AddMenuExtender(AnimationBlueprintEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+}
+
+void FAnimationBlueprintEditor::RegisterMenus()
+{
+	FBlueprintEditor::RegisterMenus();
 }
 
 void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UAnimBlueprint* InAnimBlueprint)
@@ -249,6 +246,12 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	TArray<UObject*> ObjectsBeingEdited;
 	ObjectsBeingEdited.Add(InAnimBlueprint);
 
+	CreateDefaultCommands();
+
+	BindCommands();
+
+	RegisterMenus();
+
 	// Initialize the asset editor and spawn tabs
 	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	const bool bCreateDefaultStandaloneMenu = true;
@@ -259,8 +262,6 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	AnimBlueprints.Add(InAnimBlueprint);
 
 	CommonInitialization(AnimBlueprints);
-
-	BindCommands();
 
 	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
@@ -462,7 +463,6 @@ void FAnimationBlueprintEditor::OnGraphEditorBackgrounded(const TSharedRef<SGrap
 /** Create Default Tabs **/
 void FAnimationBlueprintEditor::CreateDefaultCommands() 
 {
-	if (GetBlueprintObj())
 	{
 		FBlueprintEditor::CreateDefaultCommands();
 
@@ -471,13 +471,6 @@ void FAnimationBlueprintEditor::CreateDefaultCommands()
 			FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked));
-	}
-	else
-	{
-		ToolkitCommands->MapAction( FGenericCommands::Get().Undo, 
-			FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::UndoAction ));
-		ToolkitCommands->MapAction( FGenericCommands::Get().Redo, 
-			FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::RedoAction ));
 	}
 }
 

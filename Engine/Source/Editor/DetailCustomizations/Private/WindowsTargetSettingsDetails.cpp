@@ -72,10 +72,9 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("SwitchForward", "Switch (Forward)");
 	}
-	else if (InRHIName == TEXT("GLSL_150_ES2") || InRHIName == TEXT("GLSL_150_ES31") || InRHIName == TEXT("GLSL_150")
+	else if (InRHIName == TEXT("GLSL_150_ES31")
 		|| InRHIName == TEXT("SF_VULKAN_ES31_ANDROID") || InRHIName == TEXT("SF_VULKAN_ES31")
-		|| InRHIName == TEXT("PCD3D_ES2")
-		|| InRHIName == TEXT("GLSL_430") || InRHIName == TEXT("PCD3D_SM4"))
+		|| InRHIName == TEXT("GLSL_430"))
 	{
 		// Explicitly remove these formats as they are obsolete/not quite supported; users can still target them by adding them as +TargetedRHIs in the TargetPlatform ini.
 		FriendlyRHIName = FText::GetEmpty();

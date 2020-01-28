@@ -275,11 +275,16 @@ struct FMeshSectionInfo
 	UPROPERTY()
 	bool bCastShadow;
 
+	/** If true, this section will always considered opaque in ray tracing Geometry. */
+	UPROPERTY()
+	bool bForceOpaque;
+
 	/** Default values. */
 	FMeshSectionInfo()
 		: MaterialIndex(0)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bForceOpaque(false)
 	{
 	}
 
@@ -288,6 +293,7 @@ struct FMeshSectionInfo
 		: MaterialIndex(InMaterialIndex)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bForceOpaque(false)
 	{
 	}
 };
@@ -657,6 +663,14 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
 	uint8 bSupportUniformlyDistributedSampling : 1;
+
+	/** 
+		If true, complex collision data will store UVs and face remap table for use when performing
+	    PhysicalMaterialMask lookups in cooked builds. Note the increased memory cost for this
+		functionality.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
+	uint8 bSupportPhysicalMaterialMasks : 1;
 
 	/**
 	 * If true, StaticMesh has been built at runtime

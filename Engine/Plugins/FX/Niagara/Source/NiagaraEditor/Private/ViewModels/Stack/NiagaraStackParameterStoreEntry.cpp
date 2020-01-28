@@ -351,8 +351,8 @@ void UNiagaraStackParameterStoreEntry::RemovePins(TArray<UEdGraphPin*> OwningPin
 					UNiagaraDataInterface* CurrentValueDataInterface = Cast<UNiagaraDataInterface>(GetCurrentValueObject());
 					if (CurrentValueDataInterface != nullptr)
 					{
-						UNiagaraDataInterface* OverrideObj = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
-						FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(*OverridePin, const_cast<UClass*>(InputType.GetClass()), CurrentValueDataInterface->GetName(), OverrideObj);
+						UNiagaraDataInterface* OverrideObj;
+						FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(*OverridePin, const_cast<UClass*>(InputType.GetClass()), InputType.GetClass()->GetName(), OverrideObj);
 						CurrentValueDataInterface->CopyTo(OverrideObj);
 					}
 				}

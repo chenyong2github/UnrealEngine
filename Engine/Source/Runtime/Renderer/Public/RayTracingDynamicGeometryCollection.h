@@ -17,8 +17,7 @@ public:
 		uint32 PrimitiveId 
 	);
 
-	template<typename CmdListType>
-	void DispatchUpdates(CmdListType& RHICmdList);
+	void DispatchUpdates(FRHIComputeCommandList& RHICmdList);
 
 	void Clear();
 

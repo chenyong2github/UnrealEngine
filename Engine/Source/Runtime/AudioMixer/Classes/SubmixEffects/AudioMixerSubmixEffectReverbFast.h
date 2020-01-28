@@ -3,9 +3,10 @@
 #pragma once
 
 #include "AudioEffect.h"
-#include "Sound/SoundEffectSubmix.h"
+#include "Curves/RichCurve.h"
 #include "DSP/Amp.h"
 #include "DSP/ReverbFast.h"
+#include "Sound/SoundEffectSubmix.h"
 
 #include "AudioMixerSubmixEffectReverbFast.generated.h"
 

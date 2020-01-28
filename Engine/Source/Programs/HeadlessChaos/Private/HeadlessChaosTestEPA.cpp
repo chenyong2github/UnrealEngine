@@ -10,6 +10,7 @@
 #include "Chaos/GJK.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/Triangle.h"
 
 namespace ChaosTest
 {
@@ -629,12 +630,126 @@ namespace ChaosTest
 			bool bResult = GJKRaycast2(ScaledConvex, Sphere, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness);
 
 		}
+		
+		// Sphere sweep against triangle, fails when it should hit. Raycast added as well for verification purposes.
+		{
+			const TTriangle<FReal> Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
+			const TSphere<FReal, 3> Sphere({ 0.0, 0.0, 0.0 }, 4);
+			const TRigidTransform<FReal, 3> Transform({ 174.592773, -161.781250, -68.0469971 }, FQuat::Identity);
+			const FVec3 Dir({ -0.406315684, 0.913382649, -0.0252906363 });
+			const FReal Length = 430.961548;
+			const FReal Thickness = 0.0f;
+			const bool bComputeMTD = true;
 
+			FReal OutTime = -1.0f;
+			FVec3 OutPosition;
+			FVec3 OutNormal;
+
+			bool bSweepResult = GJKRaycast2(Triangle, Sphere, Transform, Dir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD);
+
+
+			// Do a raycast w/ same inputs instead of sweep against triangle to verify sweep should be a hit.
+			const FVec3 TriNormal = Triangle.GetNormal();
+			const TPlane<FReal, 3> TriPlane{ Triangle[0], TriNormal };
+			FVec3 RaycastPosition;
+			FVec3 RaycastNormal;
+			FReal Time;
+
+			int32 DummyFaceIndex;
+
+			bool bTriangleIntersects = false;
+			if (TriPlane.Raycast(Transform.GetTranslation(), Dir, Length, Thickness, Time, RaycastPosition, RaycastNormal, DummyFaceIndex))
+			{
+				FVec3 IntersectionPosition = RaycastPosition;
+				FVec3 IntersectionNormal = RaycastNormal;
+
+				const FVec3 ClosestPtOnTri = FindClosestPointOnTriangle(RaycastPosition, Triangle[0], Triangle[1], Triangle[2], RaycastPosition);	//We know Position is on the triangle plane
+				const FReal DistToTriangle2 = (RaycastPosition - ClosestPtOnTri).SizeSquared();
+				bTriangleIntersects = DistToTriangle2 <= SMALL_NUMBER;	//raycast gave us the intersection point so sphere radius is already accounted for
+			}
+
+			EXPECT_EQ(bTriangleIntersects, bSweepResult); // uncomment to demonstrate failure.
+		}
+
+		{
+			// Large scaling leads to a degenerate with GJK terminating while still 0.57 away, fallback on EPA
+			// Scaled Convex vs Box
+			{
+				TArray<TPlaneConcrete<FReal,3>> ConvexPlanes(
+					{
+						{{0.000000000,-512.000000,-32.0000000},{0.000000000,0.000000000,-1.00000000}},
+					{{512.000000,0.000000000,-32.0000000},{1.00000000,0.000000000,0.000000000}},
+					{{512.000000,-512.000000,0.000000000},{0.000000000,-1.00000000,-0.000000000}},
+					{{512.000000,0.000000000,-32.0000000},{-0.000000000,0.000000000,-1.00000000}},
+					{{0.000000000,-512.000000,-32.0000000},{-1.00000000,0.000000000,0.000000000}},
+					{{0.000000000,0.000000000,0.000000000},{0.000000000,1.00000000,0.000000000}},
+					{{0.000000000,-512.000000,-32.0000000},{0.000000000,-1.00000000,0.000000000}},
+					{{512.000000,-512.000000,0.000000000},{0.000000000,0.000000000,1.00000000}},
+					{{0.000000000,0.000000000,0.000000000},{-1.00000000,-0.000000000,0.000000000}},
+					{{512.000000,-512.000000,0.000000000},{1.00000000,-0.000000000,0.000000000}},
+					{{512.000000,0.000000000,-32.0000000},{0.000000000,1.00000000,-0.000000000}},
+					{{0.000000000,0.000000000,0.000000000},{-0.000000000,0.000000000,1.00000000}}
+					});
+
+				TParticles<FReal,3> SurfaceParticles(
+					{
+						{0.000000000,-512.000000,-32.0000000},
+					{512.000000,0.000000000,-32.0000000},
+					{512.000000,-512.000000,-32.0000000},
+					{512.000000,-512.000000,0.000000000},
+					{0.000000000,0.000000000,-32.0000000},
+					{0.000000000,0.000000000,0.000000000},
+					{0.000000000,-512.000000,0.000000000},
+					{512.000000,0.000000000,0.000000000}
+					});
+
+				FVec3 ConvexScale ={25,25,1};
+				TUniquePtr<FConvex> Convex = MakeUnique<FConvex>(MoveTemp(ConvexPlanes),MoveTemp(SurfaceParticles));
+				TImplicitObjectScaled<FConvex> ScaledConvex(MakeSerializable(Convex),ConvexScale,0.0f);
+
+				TBox<FReal,3> Box({-50.0000000,-60.0000000,-30.0000000},{50.0000000,60.0000000,30.0000000});
+
+				const TRigidTransform<FReal,3> BToATM({4404.39404,-5311.81934,44.1764526},FQuat(0.100362606,0.0230407044,-0.818859160,0.564682245),FVec3(1.0f));
+				const FVec3 LocalDir ={-0.342119515,-0.920166731,-0.190387309};
+				const FReal Length = 53.3335228;
+				const FReal Thickness = 0.0f;
+				const bool bComputeMTD = true;
+				const FVec3 Offset = FVec3(-5311.83203,-4404.37891,-44.1764526);
+
+				FReal OutTime = -1;
+				FVec3 LocalPosition(-1);
+				FVec3 LocalNormal(-1);
+
+				bool bResult = GJKRaycast2(ScaledConvex,Box,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,Thickness,bComputeMTD,Offset,Thickness);
+			}
+
+			// InGJKPreDist2 is barely over 1e-6, fall back on EPA
+			// Triangle v Box
+			{
+				TTriangle<FReal> Triangle(FVec3(0.000000000,0.000000000,0.000000000),FVec3(128.000000,0.000000000,35.9375000),FVec3(128.000000,128.000000,134.381042));
+				TBox<FReal,3> Box(FVec3(-50.0000000,-60.0000000,-30.0000000),FVec3 (50.0000000,60.0000000,30.0000000));
+
+				const TRigidTransform<FReal,3> Transform({127.898438,35.0742188,109.781067},FQuat(0.374886870,-0.0289460570,0.313643545,0.871922970),FVec3(1.0));
+				//const TRigidTransform<FReal, 3> Transform({ 127.898438, 35.0742188, 109.781067 }, FQuat::Identity, FVec3(1.0));
+				const FVec3 Dir ={0.801564395,0.525258720,0.285653293};
+				const FReal Length = 26.7055893;
+				const FReal Thickness = 0.0f;
+				const bool bComputeMTD = true;
+
+				FReal OutTime = -1;
+				FVec3 LocalPosition(-1);
+				FVec3 LocalNormal(-1);
+				GJKRaycast2(Triangle,Box,Transform,Dir,Length,OutTime,LocalPosition,LocalNormal,Thickness,bComputeMTD);
+			}
+		}
 	}
 
 	// Currently broken EPA edge cases. As they are fixed move them to EPARealFailures_Fixed above so that we can ensure they don't break again.
 	GTEST_TEST(EPATests, EPARealFailures_Broken)
 	{
-
+		
 	}
+
+
+
 }

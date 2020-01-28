@@ -1,13 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
+#include "AudioDevice.h"
 #include "DSP/DynamicsProcessor.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include "AudioMixerSubmixEffectDynamicsProcessor.generated.h"
 
+
+namespace Audio
+{
+	// Forward Declarations
+	class FMixerDevice;
+}
 
 UENUM(BlueprintType)
 enum class ESubmixEffectDynamicsProcessorType : uint8
@@ -110,8 +117,8 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (DisplayName = "Release Time (ms)", ClampMin = "20.0", ClampMax = "5000.0", UIMin = "20.0", UIMax = "5000.0"))
 	float ReleaseTimeMsec;
 
-	// (Coming soon) If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
-	UPROPERTY(VisibleAnywhere, Category = Sidechain)
+	// If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain)
 	USoundSubmix* ExternalSubmix;
 
 	UPROPERTY()
@@ -164,10 +171,14 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 };
 
 
-class AUDIOMIXER_API FSubmixEffectDynamicsProcessor : public FSoundEffectSubmix
+class AUDIOMIXER_API FSubmixEffectDynamicsProcessor :
+	public FSoundEffectSubmix,
+	public ISubmixBufferListener
 {
 public:
 	FSubmixEffectDynamicsProcessor();
+
+	virtual ~FSubmixEffectDynamicsProcessor();
 
 	// Called on an audio effect at initialization on main thread before audio processing begins.
 	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override;
@@ -179,8 +190,24 @@ public:
 	virtual void OnPresetChanged() override;
 
 protected:
+	// ISubmixBufferListener interface
+	virtual void OnNewSubmixBuffer(
+		const USoundSubmix* InOwningSubmix,
+		float*				InAudioData,
+		int32				InNumSamples,
+		int32				InNumChannels,
+		const int32			InSampleRate,
+		double				InAudioClock) override;
+
+	TWeakObjectPtr<USoundSubmix> ExternalSubmix;
+	Audio::AlignedFloatBuffer AudioExternal;
+
+	TArray<float> AudioKeyFrame;
 	TArray<float> AudioInputFrame;
 	TArray<float> AudioOutputFrame;
+
+	Audio::FDeviceId DeviceId;
+
 	Audio::FDynamicsProcessor DynamicsProcessor;
 };
 

@@ -30,6 +30,7 @@
 #include "ComponentUtils.h"
 #include "Engine/Engine.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
@@ -1754,7 +1755,7 @@ void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 		{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			bReplicates = bShouldReplicate;
-			// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+			MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (AActor* MyOwner = GetOwner())
@@ -1802,10 +1803,11 @@ void UActorComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & 
 		BPClass->GetLifetimeBlueprintReplicationList(OutLifetimeProps);
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DOREPLIFETIME( UActorComponent, bIsActive );
-	DOREPLIFETIME( UActorComponent, bReplicates );
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UActorComponent, bIsActive, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UActorComponent, bReplicates, SharedParams);
 }
 
 void UActorComponent::OnRep_IsActive()
@@ -1971,7 +1973,7 @@ void UActorComponent::SetIsReplicatedByDefault(const bool bNewReplicates)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bReplicates = bNewReplicates;
-		// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
@@ -1985,7 +1987,7 @@ void UActorComponent::SetActiveFlag(const bool bNewIsActive)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsActive = bNewIsActive;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

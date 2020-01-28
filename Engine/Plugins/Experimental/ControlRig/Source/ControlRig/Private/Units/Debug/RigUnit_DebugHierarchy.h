@@ -39,6 +39,6 @@ struct FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };

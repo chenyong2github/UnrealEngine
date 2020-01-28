@@ -1,0 +1,86 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if WITH_EDITOR
+
+#include "TickableEditorObject.h"
+
+class UAnimSequence;
+class FDerivedDataAnimationCompression;
+
+extern ENGINE_API class FAsyncCompressedAnimationsManagement* GAsyncCompressedAnimationsTracker;
+
+// Animation data that is currently being compressed
+struct FActiveAsyncCompressionTask
+{
+	FActiveAsyncCompressionTask(UAnimSequence* InSequence, const FString& InCacheKey, const uint64 InTaskSize, const uint32 InAsyncHandle, bool bInPerformFrameStripping)
+		: Sequence(InSequence)
+		, TaskSize(InTaskSize)
+		, CacheKey(InCacheKey)
+		, AsyncHandle(InAsyncHandle)
+		, bPerformFrameStripping(bInPerformFrameStripping)
+	{}
+	UAnimSequence* Sequence;
+	uint64 TaskSize;
+	FString CacheKey;
+	uint32 AsyncHandle;
+	bool bPerformFrameStripping;
+};
+
+// An animation waiting to be compressed
+struct FQueuedAsyncCompressionWork
+{
+	FQueuedAsyncCompressionWork(FDerivedDataAnimationCompression& InCompressor, UAnimSequence* InAnim, const bool bInPerformFrameStripping)
+		: Compressor(InCompressor)
+		, Anim(InAnim)
+		, bPerformFrameStripping(bInPerformFrameStripping)
+	{}
+
+	FDerivedDataAnimationCompression& Compressor;
+	UAnimSequence* Anim;
+	const bool bPerformFrameStripping;
+};
+
+
+// Manager for Async anim compression.
+//   Maintains active compressions
+//   tracks memory usage of async compression
+//   Gives API for blocking on compression
+class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject
+{
+public:
+	static FAsyncCompressedAnimationsManagement& Get();
+
+	// Request an async compression of an animation, may not actually run async if memory usage is already high
+	// Returns true if an async compression task was allowed.
+	bool RequestAsyncCompression(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const bool bPerformFrameStripping, TArray<uint8>& OutData);
+
+	// Returns the number of remaining compression jobs (used for UI)
+	int32 GetNumRemainingJobs() const { return ActiveAsyncCompressionTasks.Num() + QueuedAsyncCompressionWork.Num(); }
+	
+	// Blocks on compression for the supplied animation. Returns false if there was no compression job to wait on. 
+	bool WaitOnExistingCompression(UAnimSequence* Anim, const bool bCancelIfNotStarted);
+private:
+
+	void StartAsyncWork(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const uint64 NewTaskSize, const bool bPerformFrameStripping);
+
+	bool WaitOnActiveCompression(UAnimSequence* Anim);
+
+	void OnActiveCompressionFinished(int32 ActiveAnimIndex);
+
+	FAsyncCompressedAnimationsManagement() : ActiveMemoryUsage(0) {}
+
+	//Array of active and queued compression jobs
+	TArray<FActiveAsyncCompressionTask> ActiveAsyncCompressionTasks;
+	TArray<FQueuedAsyncCompressionWork> QueuedAsyncCompressionWork;
+	uint64 ActiveMemoryUsage;
+
+	/* Begin FTickableEditorObject */
+	virtual void Tick(float DeltaTime) override;
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
+	virtual TStatId GetStatId() const override;
+	/* End FTickableEditorObject */
+};
+
+#endif

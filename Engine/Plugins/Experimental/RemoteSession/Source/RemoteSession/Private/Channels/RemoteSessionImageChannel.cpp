@@ -62,7 +62,7 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8);
 
 			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
-			const TArray<uint8>& JPGData = ImageWrapper->GetCompressed(CurrentQuality);
+			const TArray64<uint8>& JPGData = ImageWrapper->GetCompressed(CurrentQuality);
 
 			FBackChannelOSCMessage Msg(TEXT("/Screen"));
 			Msg.Write(Width);
@@ -300,14 +300,13 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 
 		ImageWrapper->SetCompressed(Image->ImageData.GetData(), Image->ImageData.Num());
 
-		const TArray<uint8>* RawData = nullptr;
-
+		TArray64<uint8> RawData;
 		if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
 		{
 			TUniquePtr<FImageData> QueuedImage = MakeUnique<FImageData>();
 			QueuedImage->Width = Image->Width;
 			QueuedImage->Height = Image->Height;
-			QueuedImage->ImageData = MoveTemp(*((TArray<uint8>*)RawData));
+			QueuedImage->ImageData = MoveTemp(RawData);
 			QueuedImage->ImageIndex = Image->ImageIndex;
 
 			{

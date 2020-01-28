@@ -6604,6 +6604,11 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		StructRigVMInfo->Members.Add(MoveTemp(Parameter));
 	}
 
+	if (StructRigVMInfo->Members.Num() == 0)
+	{
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *Struct->GetName());
+	}
+
 	if (StructRigVMInfo->Members.Num() > 64)
 	{
 		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo->Members.Num());

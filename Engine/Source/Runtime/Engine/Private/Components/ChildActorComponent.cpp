@@ -423,27 +423,31 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 	}
 }
 
-void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class)
+void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class, AActor* ActorTemplate)
 {
 	ChildActorClass = Class;
 	if (IsTemplate())
 	{
 		if (ChildActorClass)
 		{
-			if (ChildActorTemplate == nullptr || (ChildActorTemplate->GetClass() != ChildActorClass))
+			if (ChildActorTemplate == nullptr || ActorTemplate || (ChildActorTemplate->GetClass() != ChildActorClass))
 			{
 				Modify();
 
-				AActor* NewChildActorTemplate = NewObject<AActor>(GetTransientPackage(), ChildActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
+				AActor* NewChildActorTemplate = NewObject<AActor>(GetTransientPackage(), ChildActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public, ActorTemplate);
 
 				if (ChildActorTemplate)
 				{
-					UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate);
-#if WITH_EDITOR
-					NewChildActorTemplate->ClearActorLabel();
-#endif
+					if (ActorTemplate == nullptr)
+					{
+						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate);
+					}
 					ChildActorTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
 				}
+
+#if WITH_EDITOR
+				NewChildActorTemplate->ClearActorLabel();
+#endif
 
 				ChildActorTemplate = NewChildActorTemplate;
 
@@ -476,7 +480,15 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class)
 		{
 			ChildActorName = NAME_None;
 			DestroyChildActor();
+
+			// If an actor template was supplied, temporarily set ChildActorTemplate to create the new Actor with ActorTemplate used as the template
+			TGuardValue<AActor*> ChildActorTemplateGuard(ChildActorTemplate, (ActorTemplate ? ActorTemplate : ChildActorTemplate));
+
 			CreateChildActor();
+		}
+		else if (ActorTemplate)
+		{
+			UE_LOG(LogChildActorComponent, Warning, TEXT("Call to SetChildActorClass on '%s' supplied ActorTemplate '%s', but it will not be used due to the component not being registered."), *GetPathName(), *ActorTemplate->GetPathName());
 		}
 	}
 }

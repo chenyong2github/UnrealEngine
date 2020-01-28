@@ -6,4 +6,5 @@
 namespace Chaos
 {
 	template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>; 
+	template class CHAOS_API TCollisionContact<float, 3>;
 };

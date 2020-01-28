@@ -36,8 +36,7 @@ class FNiagaraShaderProcessorTickable : FTickableEditorObject
 
 	virtual void Tick(float DeltaSeconds) override
 	{
-		FNiagaraShaderCompilationManager::Get().Tick(DeltaSeconds);
-		FNiagaraShaderCompilationManager::Get().ProcessAsyncResults();
+		GNiagaraShaderCompilationManager.ProcessAsyncResults();
 	}
 
 	virtual TStatId GetStatId() const
@@ -183,6 +182,10 @@ struct FCompiledPin
 
 enum class ENiagaraCodeChunkMode : uint8
 {
+	GlobalConstant,
+	SystemConstant,
+	OwnerConstant,
+	EmitterConstant,
 	Uniform,
 	Source,
 	Body,
@@ -315,6 +318,12 @@ public:
 		TArray<int32> CodeChunks;
 	};
 
+	struct FNiagaraConstantBuffer
+	{
+		TArray<FNiagaraVariable> Variables;
+		FString StructName;
+	};
+
 protected:
 	const FNiagaraCompileRequestData* CompileData;
 	FNiagaraCompileOptions CompileOptions;
@@ -411,7 +420,7 @@ protected:
 	int32 AddSourceChunk(FString SymbolName, const FNiagaraTypeDefinition& Type, bool bSanitize = true);
 
 	/** Add a chunk defining a uniform value. */
-	int32 AddUniformChunk(FString SymbolName, const FNiagaraTypeDefinition& Type);
+	int32 AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding);
 
 	/* Add a chunk that is written to the body of the shader code. */
 	int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, TArray<int32>& SourceChunks, bool bDecl = true, bool bIsTerminated = true);
@@ -588,6 +597,9 @@ private:
 	bool IsSpawnScript() const;
 	bool RequiresInterpolation() const;
 
+	template<typename T>
+	void BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode);
+
 	/** Map of symbol names to count of times it's been used. Used for generating unique symbol names. */
 	TMap<FName, uint32> SymbolCounts;
 
@@ -611,8 +623,14 @@ private:
 	TArray<TSet<FName>> FunctionNodeStack;
 
 	// Synced to the System uniforms encountered for parameter maps thus far.
-	TMap<FName, int32> ParamMapDefinedSystemVarsToUniformChunks; // Map from the defined constants to the uniform chunk expressing them (i.e. have we encountered before in this graph?)
-	TMap<FName, FNiagaraVariable> ParamMapDefinedSystemToNamespaceVars; // Map from defined constants to the Namespaced variable expressing it.
+	struct UniformVariableInfo
+	{
+		FNiagaraVariable Variable;
+		int32 ChunkIndex;
+		int32 ChunkMode;
+	};
+
+	TMap<FName, UniformVariableInfo> ParamMapDefinedSystemVars; // Map from the defined constants to the uniform chunk expressing them (i.e. have we encountered before in this graph?)
 
 	// Synced to the EmitterParameter uniforms encountered for parameter maps thus far.
 	TMap<FName, int32> ParamMapDefinedEmitterParameterVarsToUniformChunks; // Map from the variable name exposed by the emitter as a parameter to the uniform chunk expressing it (i.e. have we encountered before in this graph?)

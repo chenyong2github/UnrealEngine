@@ -120,6 +120,9 @@ public:
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
 	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() override;
 	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() override;
+	virtual TSharedRef<FBlacklistPaths>& GetWritableFolderBlacklist() override;
+	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
+	virtual void NotifyBlockedByWritableFolderFilter() const;
 
 public:
 	/** Gets the asset tools singleton as a FAssetTools for asset tools module use */
@@ -154,7 +157,7 @@ private:
 	void AdvancedCopyPackages_ReportConfirmed(FAdvancedCopyParams CopyParam, TArray<TMap<FString, FString>> DestinationMap) const;
 
 	/** Gets the dependencies of the specified package recursively */
-	void RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies) const;
+	void RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, const FString& OriginalRoot) const;
 
 	/** Gets the dependencies of the specified package recursively while omitting things that don't pass the FARFilter passed in from FAdvancedCopyParams */
 	void RecursiveGetDependenciesAdvanced(const FName& PackageName, FAdvancedCopyParams& CopyParams, TArray<FName>& AllDependencies, TMap<FName, FName>& DependencyMap, const class UAdvancedCopyCustomization* CopyCustomization, TArray<FAssetData>& OptionalAssetData) const;
@@ -194,6 +197,9 @@ private:
 
 	/** Blacklist of folder paths */
 	TSharedRef<FBlacklistPaths> FolderBlacklist;
+
+	/** Blacklist of folder paths to write to */
+	TSharedRef<FBlacklistPaths> WritableFolderBlacklist;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

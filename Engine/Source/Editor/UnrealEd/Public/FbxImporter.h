@@ -464,7 +464,7 @@ struct FbxSceneInfo
 /**
 * FBX basic data conversion class.
 */
-class FFbxDataConverter
+class UNREALED_API FFbxDataConverter
 {
 public:
 	static void SetJointPostConversionMatrix(FbxAMatrix ConversionMatrix) { JointPostConversionMatrix = ConversionMatrix; }

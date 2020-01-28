@@ -18,7 +18,7 @@ public:
 	FControlRigEditModeToolkit(FControlRigEditMode& InEditMode)
 		: EditMode(InEditMode)
 	{
-		SAssignNew(ModeTools, SControlRigEditModeTools, EditMode.GetWorld());
+		SAssignNew(ModeTools, SControlRigEditModeTools, EditMode, EditMode.GetWorld());
 	}
 
 	/** IToolkit interface */

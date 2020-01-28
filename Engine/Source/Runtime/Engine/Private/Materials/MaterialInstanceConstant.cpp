@@ -12,6 +12,7 @@
 UMaterialInstanceConstant::UMaterialInstanceConstant(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PhysMaterialMask = nullptr;
 }
 
 void UMaterialInstanceConstant::PostLoad()
@@ -39,6 +40,11 @@ UTexture* UMaterialInstanceConstant::K2_GetTextureParameterValue(FName Parameter
 	UTexture* Result = NULL;
 	Super::GetTextureParameterValue(ParameterName, Result);
 	return Result;
+}
+
+UPhysicalMaterialMask* UMaterialInstanceConstant::GetPhysicalMaterialMask() const
+{
+	return PhysMaterialMask;
 }
 
 #if WITH_EDITOR

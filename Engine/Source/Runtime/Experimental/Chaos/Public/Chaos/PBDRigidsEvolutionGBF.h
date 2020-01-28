@@ -75,6 +75,11 @@ namespace Chaos
 			PostDetectCollisionsCallback = Cb;
 		}
 
+		void SetCollisionModifierCallback(const TCollisionModifierCallback<T, d>& Cb)
+		{
+			CollisionModifierCallback = Cb;
+		}
+
 		void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
 		{
 			PreApplyCallback = Cb;
@@ -207,6 +212,7 @@ namespace Chaos
 
 		TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
 		TPBDRigidsEvolutionCallback<T, d> PostDetectCollisionsCallback;
+		TCollisionModifierCallback<T, d> CollisionModifierCallback;
 		TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
 		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
 		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;

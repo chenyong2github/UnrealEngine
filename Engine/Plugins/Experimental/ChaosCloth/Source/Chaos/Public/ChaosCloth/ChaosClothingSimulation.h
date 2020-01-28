@@ -142,10 +142,11 @@ namespace Chaos
 		float Time;
 		float DeltaTime;
 
+		bool bOverrideGravity;
 		FVector Gravity;
 		FVector WindVelocity;
 
-		TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>> LongRangeConstraints;
+		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
 #if WITH_EDITOR
 		// Visualization material

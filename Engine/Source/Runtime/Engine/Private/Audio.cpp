@@ -350,20 +350,7 @@ bool FSoundSource::SetReverbApplied(bool bHardwareAvailable)
 
 float FSoundSource::SetStereoBleed()
 {
-	StereoBleed = 0.0f;
-
-	// All stereo sounds bleed by default
-	if (WaveInstance->WaveData->NumChannels == 2)
-	{
-		StereoBleed = WaveInstance->StereoBleed;
-
-		if (AudioDevice->GetMixDebugState() == DEBUGSTATE_TestStereoBleed)
-		{
-			StereoBleed = 1.0f;
-		}
-	}
-
-	return StereoBleed;
+	return 0.f;
 }
 
 float FSoundSource::SetLFEBleed()
@@ -801,7 +788,6 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, VoiceCenterChannelVolume(0.0f)
 	, RadioFilterVolume(0.0f)
 	, RadioFilterVolumeThreshold(0.0f)
-	, StereoBleed(0.0f)
 	, LFEBleed(0.0f)
 	, LoopingMode(LOOP_Never)
 	, StartTime(-1.f)

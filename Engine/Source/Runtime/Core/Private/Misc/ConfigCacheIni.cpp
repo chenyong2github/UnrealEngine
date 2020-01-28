@@ -18,6 +18,8 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Misc/ConfigManifest.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "Misc/StringBuilder.h"
 
 #if WITH_EDITOR
@@ -326,6 +328,13 @@ bool FConfigSection::operator==( const FConfigSection& Other ) const
 bool FConfigSection::operator!=( const FConfigSection& Other ) const
 {
 	return ! (FConfigSection::operator==(Other));
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection)
+{
+	Ar << static_cast<FConfigSection::Super&>(ConfigSection);
+	Ar << ConfigSection.ArrayOfStructKeys;
+	return Ar;
 }
 
 // Pull out a property from a Struct property, StructKeyMatch should be in the form "MyProp=". This reduces
@@ -3749,8 +3758,73 @@ FString FConfigCacheIni::GetDestIniFilename(const TCHAR* BaseIniName, const TCHA
 	return IniFilename;
 }
 
+void FConfigCacheIni::SaveCurrentStateForBootstrap(const TCHAR* Filename)
+{
+	TArray<uint8> FileContent;
+	{
+		// Use FMemoryWriter because FileManager::CreateFileWriter doesn't serialize FName as string and is not overridable
+		FMemoryWriter MemoryWriter(FileContent, true);
+		SerializeStateForBootstrap_Impl(MemoryWriter);
+	}
+
+	FFileHelper::SaveArrayToFile(FileContent, Filename);
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni)
+{
+	Ar << static_cast<FConfigCacheIni::Super&>(ConfigCacheIni);
+	Ar << ConfigCacheIni.bAreFileOperationsDisabled;
+	Ar << ConfigCacheIni.bIsReadyForUse;
+	Ar << ConfigCacheIni.Type;
+	return Ar;
+}
+
+void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
+{
+	// This implementation is meant to stay private and be used for 
+	// bootstrapping another processes' config cache with a serialized state.
+	// It doesn't include any versioning as it is used with the
+	// the same binary executable for both the parent and 
+	// children processes. It also takes care of saving/restoring
+	// global ini variables.
+	Ar << *this;
+	Ar << GEditorIni;
+	Ar << GEditorKeyBindingsIni;
+	Ar << GEditorLayoutIni;
+	Ar << GEditorSettingsIni;
+	Ar << GEditorPerProjectIni;
+	Ar << GCompatIni;
+	Ar << GLightmassIni;
+	Ar << GScalabilityIni;
+	Ar << GHardwareIni;
+	Ar << GInputIni;
+	Ar << GGameIni;
+	Ar << GGameUserSettingsIni;
+	Ar << GRuntimeOptionsIni;
+}
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
+	// Bootstrap the Ini config cache
+	FString IniBootstrapFilename;
+	if (FParse::Value( FCommandLine::Get(), TEXT("IniBootstrap="), IniBootstrapFilename))
+	{
+		TArray<uint8> FileContent;
+		if (FFileHelper::LoadFileToArray(FileContent, *IniBootstrapFilename, FILEREAD_Silent))
+		{
+			FMemoryReader MemoryReader(FileContent, true);
+			GConfig = new FConfigCacheIni(EConfigCacheType::Temporary);
+			GConfig->SerializeStateForBootstrap_Impl(MemoryReader);
+			GConfig->bIsReadyForUse = true;
+			FCoreDelegates::ConfigReadyForUse.Broadcast();
+			return;
+		}
+		else
+		{
+			UE_LOG(LogInit, Display, TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization"), *IniBootstrapFilename);
+		}
+	}
+
 	// Perform any upgrade we need before we load any configuration files
 	FConfigManifest::UpgradeFromPreviousVersions();
 
@@ -4044,6 +4118,34 @@ FString FConfigCacheIni::GetGameUserSettingsDir()
 #endif
 
 	return ConfigDir;
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)
+{
+	bool bHasSourceConfigFile = ConfigFile.SourceConfigFile != nullptr;
+
+	Ar << static_cast<FConfigFile::Super&>(ConfigFile);
+	Ar << ConfigFile.Dirty;
+	Ar << ConfigFile.NoSave;
+	Ar << ConfigFile.Name;
+	Ar << ConfigFile.SourceIniHierarchy;
+	Ar << ConfigFile.SourceEngineConfigDir;
+	Ar << bHasSourceConfigFile;
+	if (bHasSourceConfigFile)
+	{
+		// Handle missing instance for the loading case
+		if (ConfigFile.SourceConfigFile == nullptr)
+		{
+			ConfigFile.SourceConfigFile = new FConfigFile();
+		}
+
+		Ar << *ConfigFile.SourceConfigFile;
+	}
+	Ar << ConfigFile.SourceProjectConfigDir;
+	Ar << ConfigFile.CacheKey;
+	Ar << ConfigFile.PerObjectConfigArrayOfStructKeys;
+
+	return Ar;
 }
 
 void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRootName/*=nullptr*/, const TCHAR* OverridePlatform/*=nullptr*/)

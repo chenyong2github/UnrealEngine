@@ -146,7 +146,7 @@ FText UNiagaraStackModuleItem::GetDisplayName() const
 	}
 	else
 	{
-		return FText::FromName(NAME_None);
+	return FText::FromName(NAME_None);
 	}
 }
 
@@ -301,9 +301,36 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 				FText ModuleScriptDeprecationShort = LOCTEXT("ModuleScriptDeprecationShort", "Deprecated module");
 				if (CanMoveAndDelete())
 				{
-					FText LongMessage = FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(FunctionCallNode->GetFunctionName()), FText::FromString(FunctionCallNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(FunctionCallNode->GetFunctionName()));
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("ScriptName"), FText::FromString(FunctionCallNode->GetFunctionName()));
+
+					if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						Args.Add(TEXT("Recommendation"), FText::FromString(FunctionCallNode->FunctionScript->DeprecationRecommendation->GetPathName()));
+					}
+
+					if (FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->DeprecationMessage);
+					}
+
+					FText FormatString = LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {ScriptName} has been deprecated.");
+
+					if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr &&
+						FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+					}
+					else if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Suggested replacement: {Recommendation}");
+					}
+					else if (FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}");
+					}
+
+					FText LongMessage = FText::Format(FormatString, Args);
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
@@ -342,10 +369,23 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 			if (FunctionCallNode->FunctionScript->bExperimental)
 			{
+				FText ErrorMessage;
+				if (FunctionCallNode->FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
+				{
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for this module is experimental, use with care!"), FText::FromString(FunctionCallNode->GetFunctionName()));
+				}
+				else
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Module"), FText::FromString(FunctionCallNode->GetFunctionName()));
+					Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->ExperimentalMessage);
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason: {Message}."), Args);
+				}
+
 				NewIssues.Add(FStackIssue(
 					EStackIssueSeverity::Info,
 					LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
-					FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(FunctionCallNode->GetName())),
+					ErrorMessage,
 					GetStackEditorDataKey(),
 					true));
 			}
@@ -408,8 +448,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}));
 			FStackIssue InconsistentEnabledError(
 				EStackIssueSeverity::Error,
-				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for module is inconsistent."),
-				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled state is inconsistent.\nClick fix to make all of the functions for this module enabled."),
+				LOCTEXT("InconsistentEnabledErrorSummary", "The enabled state for this module is inconsistent."),
+				LOCTEXT("InconsistentEnabledError", "This module is using multiple functions and their enabled states are inconsistent.\nClick \"Fix issue\" to make all of the functions for this module enabled."),
 				GetStackEditorDataKey(),
 				false,
 				EnableFix);
@@ -913,8 +953,23 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		TEXT("Can not reassign the module script when the module isn't a valid function call module.")))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
+
+		const FString OldName = FunctionCallNode->GetFunctionName();
+		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+
 		FunctionCallNode->Modify();
 		FunctionCallNode->FunctionScript = ModuleScript;
+		
+		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
+		RefreshChildren();
+
+		FunctionCallNode->SuggestName(FString());
+
+		const FString NewName = FunctionCallNode->GetFunctionName();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();

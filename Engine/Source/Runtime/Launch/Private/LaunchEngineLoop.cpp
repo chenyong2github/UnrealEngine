@@ -947,12 +947,26 @@ void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
 				FString FileCmds;
 				if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
 				{
-					FileCmds = FString(TEXT(" ")) + FileCmds.TrimStartAndEnd();
-					if (FileCmds.Len() > 1)
+					FileCmds = FileCmds.TrimStartAndEnd();
+					if (FileCmds.Len() > 0)
 					{
-						UE_LOG(LogInit, Log, TEXT("Appending commandline from file: %s, %s"), *InFilePath, *FileCmds);
-						FCommandLine::Append(*FileCmds);
-						bChanged = true;
+						UE_LOG(LogInit, Log, TEXT("Inserting commandline from file: %s, %s"), *InFilePath, *FileCmds);
+						FString NewCommandLine = FCommandLine::Get();
+						FString Left;
+						FString Right;
+						if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
+						{
+							FString NextToken;
+							const TCHAR* Stream = *Right;
+							if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
+							{
+								Right = FString(Stream);
+							}
+
+							NewCommandLine = Left + TEXT(" ") + FileCmds + TEXT(" ") + Right;
+							FCommandLine::Set(*NewCommandLine);
+							bChanged = true;
+						}
 					}
 
 					return true;
@@ -1391,6 +1405,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 	{
+		SCOPED_BOOT_TIMING("InitTrace")
+
 		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
@@ -1569,6 +1585,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+	{
+		SCOPED_BOOT_TIMING("BeginPreInitTextLocalization");
+		BeginPreInitTextLocalization();
+	}
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
@@ -1582,7 +1603,10 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	// 
 #if PLATFORM_DESKTOP && !IS_MONOLITHIC
-	FModuleManager::Get().AddExtraBinarySearchPaths();
+	{
+		SCOPED_BOOT_TIMING("AddExtraBinarySearchPaths");
+		FModuleManager::Get().AddExtraBinarySearchPaths();
+	}
 #endif
 
 	// Initialize file manager
@@ -2441,7 +2465,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	{
 		SCOPED_BOOT_TIMING("FUniformBufferStruct::InitializeStructs()");
-		FShaderParametersMetadata::InitializeAllGlobalStructs();
+		FShaderParametersMetadata::InitializeAllUniformBufferStructs();
 	}
 
 	{
@@ -5627,6 +5651,15 @@ void FEngineLoop::PostInitRHI()
 		PixelFormatByteWidth[i] = GPixelFormats[i].BlockBytes;
 	}
 	RHIPostInit(PixelFormatByteWidth);
+
+#if (!UE_BUILD_SHIPPING)
+	if (FParse::Param(FCommandLine::Get(), TEXT("rhiunittest")))
+	{
+		extern ENGINE_API void RunRHIUnitTest();
+		RunRHIUnitTest();
+	}
+#endif //(!UE_BUILD_SHIPPING)
+
 #endif
 }
 

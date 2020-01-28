@@ -92,12 +92,12 @@ FAutoConsoleVariableRef CVarHeightFieldShadowing(
 	TEXT("Whether the height field shadowing feature is allowed."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static int32 GHFShadowQuality = 3;
+int32 GHFShadowQuality = 2;
 FAutoConsoleVariableRef CVarHFShadowQuality(
 	TEXT("r.HFShadowQuality"),
 	GHFShadowQuality,
 	TEXT("Defines the height field shadow method which allows to adjust for quality or performance.\n")
-	TEXT(" 0:off, 1:low (8 steps), 2:medium (16 steps), 3:high (32 steps, default)"),
+	TEXT(" 0:off, 1:low (8 steps), 2:medium (16 steps, default), 3:high (32 steps, hole aware)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static float GMinDirectionalLightAngleForRTHF = 27.f;
@@ -180,6 +180,7 @@ public:
 		
 		int32 NumObjectsInBuffer;
 		FRHITexture* TextureAtlas;
+		FRHITexture* VisibilityAtlas;
 		int32 AtlasSizeX;
 		int32 AtlasSizeY;
 		int32 AtlasSizeZ;
@@ -188,6 +189,7 @@ public:
 		{
 			NumObjectsInBuffer = SceneData.NumHeightFieldObjectsInBuffer;
 			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
+			VisibilityAtlas = GHFVisibilityTextureAtlas.GetAtlasTexture();
 			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
 			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
 			AtlasSizeZ = 1;
@@ -196,6 +198,7 @@ public:
 		{
 			NumObjectsInBuffer = SceneData.NumObjectsInBuffer;
 			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			VisibilityAtlas = nullptr;
 			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
 			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
@@ -212,7 +215,7 @@ public:
 		OutUAVs[3] = CulledObjectBuffers.Buffers.BoxBounds.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
-		CulledObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		CulledObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ), VisibilityAtlas);
 
 		SetShaderValue(RHICmdList, ShaderRHI, ObjectBoundingGeometryIndexCount, UE_ARRAY_COUNT(GCubeIndices));
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowValue);
@@ -311,6 +314,7 @@ public:
 		auto& CulledObjectBuffers = TSelector<bIsHeightField>()(GShadowCulledHeightFieldObjectBuffers, GShadowCulledObjectBuffers);
 
 		FRHITexture* TextureAtlas;
+		FRHITexture* VisibilityAtlas;
 		int32 AtlasSizeX;
 		int32 AtlasSizeY;
 		int32 AtlasSizeZ;
@@ -318,6 +322,7 @@ public:
 		if (bIsHeightField)
 		{
 			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
+			VisibilityAtlas = GHFVisibilityTextureAtlas.GetAtlasTexture();
 			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
 			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
 			AtlasSizeZ = 1;
@@ -325,12 +330,13 @@ public:
 		else
 		{
 			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			VisibilityAtlas = nullptr;
 			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
 			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 		}
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ), VisibilityAtlas);
 
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowMatrixValue);
 
@@ -398,6 +404,7 @@ public:
 		auto& CulledObjectBuffers = TSelector<bIsHeightField>()(GShadowCulledHeightFieldObjectBuffers, GShadowCulledObjectBuffers);
 
 		FRHITexture* TextureAtlas;
+		FRHITexture* VisibilityAtlas;
 		int32 AtlasSizeX;
 		int32 AtlasSizeY;
 		int32 AtlasSizeZ;
@@ -405,6 +412,7 @@ public:
 		if (bIsHeightField)
 		{
 			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
+			VisibilityAtlas = GHFVisibilityTextureAtlas.GetAtlasTexture();
 			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
 			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
 			AtlasSizeZ = 1;
@@ -412,12 +420,13 @@ public:
 		else
 		{
 			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			VisibilityAtlas = nullptr;
 			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
 			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 		}
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ), VisibilityAtlas);
 
 		LightTileIntersectionParameters.Set(RHICmdList, ShaderRHI, *TileIntersectionResources);
 	}
@@ -533,6 +542,7 @@ public:
 		auto& CulledObjectBuffers = TSelector<bIsHeightField>()(GShadowCulledHeightFieldObjectBuffers, GShadowCulledObjectBuffers);
 
 		FRHITexture* TextureAtlas;
+		FRHITexture* VisibilityAtlas;
 		int32 AtlasSizeX;
 		int32 AtlasSizeY;
 		int32 AtlasSizeZ;
@@ -540,6 +550,7 @@ public:
 		if (bIsHeightField)
 		{
 			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
+			VisibilityAtlas = GHFVisibilityTextureAtlas.GetAtlasTexture();
 			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
 			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
 			AtlasSizeZ = 1;
@@ -547,12 +558,13 @@ public:
 		else
 		{
 			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			VisibilityAtlas = nullptr;
 			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
 			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 		}
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ), VisibilityAtlas);
 
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -881,7 +893,7 @@ void ScatterObjectsToShadowTiles(
 	PixelShader->GetUAVs(View, TileIntersectionResources, UAVs);
 	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, UAVs.GetData(), UAVs.Num());
 
-	FRHIRenderPassInfo RPInfo(UAVs.Num(), UAVs.GetData());
+	FRHIRenderPassInfo RPInfo(FRHIRenderPassInfo::NoRenderTargets);
 	if (GRHIRequiresRenderTargetForPixelShaderUAVs)
 	{
 		TRefCountPtr<IPooledRenderTarget> Dummy;
@@ -965,7 +977,8 @@ void CullDistanceFieldObjectsForLight_Internal(
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, CullObjectsToFrustum, TEXT("CullObjectsToFrustum %sObjects %d"), bIsHeightfield ? TEXT("HeightField") : TEXT("DistanceField"), NumObjectsInBuffer);
 
-			ClearUAV(RHICmdList, CulledObjectBuffers.Buffers.ObjectIndirectArguments, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV);
+			RHICmdList.ClearUAVUint(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 			TShaderMapRef<TCullObjectsForShadowCS<PrimitiveType>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
@@ -1014,12 +1027,14 @@ void CullDistanceFieldObjectsForLight_Internal(
 			SCOPED_DRAW_EVENT(RHICmdList, ComputeTileStartOffsets);
 
 			// Start at 0 tiles per object
-			ClearUAV(RHICmdList, TileIntersectionResources->TileNumCulledObjects, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TileIntersectionResources->TileNumCulledObjects.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->TileNumCulledObjects.UAV, FUintVector4(0, 0, 0, 0));
 
 			// Rasterize object bounding shapes and intersect with shadow tiles to compute how many objects intersect each tile
 			ScatterObjectsToShadowTiles<true, PrimitiveType>(RHICmdList, View, WorldToShadowValue, ShadowBoundingRadius, LightTileDimensions, TileIntersectionResources.Get());
 
-			ClearUAV(RHICmdList, TileIntersectionResources->NextStartOffset, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TileIntersectionResources->NextStartOffset.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->NextStartOffset.UAV, FUintVector4(0, 0, 0, 0));
 
 			uint32 GroupSizeX = FMath::DivideAndRoundUp<int32>(LightTileDimensions.X, ComputeCulledObjectStartOffsetGroupSize);
 			uint32 GroupSizeY = FMath::DivideAndRoundUp<int32>(LightTileDimensions.Y, ComputeCulledObjectStartOffsetGroupSize);
@@ -1036,7 +1051,8 @@ void CullDistanceFieldObjectsForLight_Internal(
 			SCOPED_DRAW_EVENTF(RHICmdList, CullObjectsToTiles, TEXT("CullObjectsToTiles %ux%u"), LightTileDimensions.X, LightTileDimensions.Y);
 
 			// Start at 0 tiles per object
-			ClearUAV(RHICmdList, TileIntersectionResources->TileNumCulledObjects, 0);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TileIntersectionResources->TileNumCulledObjects.UAV);
+			RHICmdList.ClearUAVUint(TileIntersectionResources->TileNumCulledObjects.UAV, FUintVector4(0, 0, 0, 0));
 
 			// Rasterize object bounding shapes and intersect with shadow tiles, and write out intersecting tile indices for the cone tracing pass
 			ScatterObjectsToShadowTiles<false, PrimitiveType>(RHICmdList, View, WorldToShadowValue, ShadowBoundingRadius, LightTileDimensions, TileIntersectionResources.Get());
@@ -1413,7 +1429,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandLis
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-				SetBlendStateForProjection(GraphicsPSOInit, bProjectingForForwardShading, false);
+				GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
 
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;

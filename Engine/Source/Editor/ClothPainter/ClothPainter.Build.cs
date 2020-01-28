@@ -22,7 +22,6 @@ public class ClothPainter : ModuleRules
                 "Kismet",
                 "AssetTools",
                 "ClassViewer",
-                "Persona",
                 "SkeletalMeshEditor",                
                 "AssetRegistry",
                 "MeshPaint",

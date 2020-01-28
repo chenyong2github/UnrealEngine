@@ -2,6 +2,7 @@
 #include "AudioDevice.h"
 
 #include "ActiveSound.h"
+#include "Audio.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
 #include "AudioDefines.h"
@@ -76,6 +77,14 @@ FAutoConsoleVariableRef CVarForceRealtimeDecompression(
 	ForceRealtimeDecompressionCvar,
 	TEXT("When set to 1, this deliberately ensures that all audio assets are decompressed as they play, rather than fully on load.\n")
 	TEXT("0: Allow full decompression on load, 1: force realtime decompression."),
+	ECVF_Default);
+
+static int32 DisableAppVolumeCvar = 0;
+FAutoConsoleVariableRef CVarDisableAppVolume(
+	TEXT("au.DisableAppVolume"),
+	DisableAppVolumeCvar,
+	TEXT("Disables application volume when set to 1.\n")
+	TEXT("0: App volume enabled, 1: App volume disabled"),
 	ECVF_Default);
 
 static int32 DisableAutomaticPrecacheCvar = 0;
@@ -1261,13 +1270,6 @@ bool FAudioDevice::HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
-bool FAudioDevice::HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	Ar.Logf(TEXT("StereoBleed set to max for all sources"));
-	SetMixDebugState(DEBUGSTATE_TestStereoBleed);
-	return true;
-}
-
 bool FAudioDevice::HandleTestLFEBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("LFEBleed set to max for all sources"));
@@ -1956,10 +1958,6 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("TestLPF")))
 	{
 		return HandleTestLPFCommand(Cmd, Ar);
-	}
-	else if (FParse::Command(&Cmd, TEXT("TestStereoBleed")))
-	{
-		return HandleTestStereoBleedCommand(Cmd, Ar);
 	}
 	else if (FParse::Command(&Cmd, TEXT("TestLFEBleed")))
 	{
@@ -4162,7 +4160,12 @@ void FAudioDevice::Update(bool bGameTicking)
 	bIsStoppingVoicesEnabled = !DisableStoppingVoicesCvar;
 
 	// Update the master volume
-	MasterVolume = GetTransientMasterVolume() * FApp::GetVolumeMultiplier();
+	MasterVolume = GetTransientMasterVolume();
+	
+	if (!DisableAppVolumeCvar)
+	{
+		MasterVolume *= FApp::GetVolumeMultiplier();
+	}
 
 	UpdateAudioPluginSettingsObjectCache();
 
@@ -5861,7 +5864,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 			else
 			{
 				// This is the one case where precaching will not be done when this function exits
-				check(SoundWave->GetPrecacheState() == ESoundWavePrecacheState::InProgress);
+				checkf(SoundWave->GetPrecacheState() == ESoundWavePrecacheState::InProgress, TEXT("Bad PrecacheState %d on SoundWave %s"), static_cast<uint8>(SoundWave->GetPrecacheState()), *GetPathNameSafe(SoundWave));
 				SoundWave->AudioDecompressor = new FAsyncAudioDecompress(SoundWave, GetNumPrecacheFrames());
 				SoundWave->AudioDecompressor->StartBackgroundTask();
 				PrecachingSoundWaves.Add(SoundWave);

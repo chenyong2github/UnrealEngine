@@ -8,6 +8,7 @@
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Editor.h"
 
+#include "Modules/ModuleManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "StaticMeshResources.h"
 #include "Logging/TokenizedMessage.h"

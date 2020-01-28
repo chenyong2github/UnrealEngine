@@ -45,6 +45,18 @@ void OnUpdateSkylights(UWorld* InWorld)
 	USkyLightComponent::UpdateSkyCaptureContents(InWorld);
 }
 
+static bool SkipStaticSkyLightCapture(USkyLightComponent& SkyLight)
+{
+	// We do the following because capture is a heavy operation that can time out on some platforms at launch. But it is not needed for a static sky light.
+	// According to mobility, we remove sky light from capture update queue if Mobility==Static==StaticLighting. The render side proxy will never be created.
+	// We do not even need to check if lighting as been built because the skylight does not generate reflection in the static mobility case.
+	// and Lightmass will capture the scene in any case independently using CaptureEmissiveRadianceEnvironmentCubeMap.
+	// This is also fine in editor because a static sky light will not contribute to any lighting when drag and drop in a level and captured. 
+	// In this case only a "lighting build" will result in usable lighting on any objects.
+	// One exception however is when ray tracing is enabled as light mobility is not relevant to ray tracing effects, many still requiring information from the sky light even if it is static.
+	return SkyLight.HasStaticLighting() && !IsRayTracingEnabled();
+}
+
 FAutoConsoleCommandWithWorld CaptureConsoleCommand(
 	TEXT("r.SkylightRecapture"),
 	TEXT("Updates all stationary and movable skylights, useful for debugging the capture pipeline"),
@@ -153,10 +165,6 @@ void FSkyLightSceneProxy::Initialize(
 		AverageBrightness = *InAverageBrightness;
 		BlendFraction = 0;
 	}
-
-#if RHI_RAYTRACING
-	IsDirtyImportanceSamplingData = true;
-#endif
 }
 
 FLinearColor FSkyLightSceneProxy::GetEffectiveLightColor() const
@@ -186,7 +194,7 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, OcclusionTint(InLightComponent->OcclusionTint)
 	, SamplesPerPixel(InLightComponent->SamplesPerPixel)
 #if RHI_RAYTRACING
-	, IsDirtyImportanceSamplingData(true)
+	, ImportanceSamplingData(InLightComponent->ImportanceSamplingData)
 #endif
 	, LightColor(FLinearColor(InLightComponent->LightColor) * InLightComponent->Intensity)
 	, bMovable(InLightComponent->IsMovable())
@@ -243,13 +251,6 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	SamplesPerPixel = 4;
 }
 
-#if RHI_RAYTRACING
-bool FSkyLightSceneProxy::ShouldRebuildCdf() const
-{
-	return IsDirtyImportanceSamplingData;
-}
-#endif
-
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 {
 	if (ProcessedSkyTexture)
@@ -262,7 +263,7 @@ FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 
 void USkyLightComponent::SetCaptureIsDirty()
 { 
-	if (GetVisibleFlag() && bAffectsWorld)
+	if (GetVisibleFlag() && bAffectsWorld && !SkipStaticSkyLightCapture(*this))
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 
@@ -381,8 +382,8 @@ void USkyLightComponent::PostLoad()
 
 	SanitizeCubemapSize();
 
-	// All components are queued for update on creation by default, remove if needed
-	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	// All components are queued for update on creation by default. But we do not want this top happen in some cases.
+	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this))
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 		SkyCapturesToUpdate.Remove(this);
@@ -475,6 +476,29 @@ void USkyLightComponent::DestroyRenderState_Concurrent()
 
 		SceneProxy = nullptr;
 	}
+}
+
+void USkyLightComponent::UpdateImportanceSamplingData()
+{
+	check(IsInGameThread());
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (!ImportanceSamplingData.IsValid())
+		{
+			ImportanceSamplingData = new FSkyLightImportanceSamplingData();
+			BeginInitResource(ImportanceSamplingData);
+			MarkRenderStateDirty();
+		}
+
+		ENQUEUE_RENDER_COMMAND(UpdateImportanceSamplingDataCmd)(
+			[this](FRHICommandListImmediate& RHICmdList)
+		{
+			ImportanceSamplingData->BuildCDFs(ProcessedSkyTexture);
+		});
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -579,6 +603,10 @@ void USkyLightComponent::BeginDestroy()
 	// Release reference
 	ProcessedSkyTexture = NULL;
 
+#if RHI_RAYTRACING
+	ImportanceSamplingData.SafeRelease();
+#endif
+
 	// Begin a fence to track the progress of the above BeginReleaseResource being completed on the RT
 	ReleaseResourcesFence.BeginFence();
 
@@ -597,6 +625,9 @@ TStructOnScope<FActorComponentInstanceData> USkyLightComponent::GetComponentInst
 	FPrecomputedSkyLightInstanceData* SkyLightInstanceData = InstanceData.Cast<FPrecomputedSkyLightInstanceData>();
 	SkyLightInstanceData->LightGuid = LightGuid;
 	SkyLightInstanceData->ProcessedSkyTexture = ProcessedSkyTexture;
+#if RHI_RAYTRACING
+	SkyLightInstanceData->ImportanceSamplingData = ImportanceSamplingData;
+#endif
 
 	// Block until the rendering thread has completed its writes from a previous capture
 	IrradianceMapFence.Wait();
@@ -612,6 +643,9 @@ void USkyLightComponent::ApplyComponentInstanceData(FPrecomputedSkyLightInstance
 
 	LightGuid = (HasStaticShadowing() ? LightMapData->LightGuid : FGuid());
 	ProcessedSkyTexture = LightMapData->ProcessedSkyTexture;
+#if RHI_RAYTRACING
+	ImportanceSamplingData = LightMapData->ImportanceSamplingData;
+#endif
 	IrradianceEnvironmentMap = LightMapData->IrradianceEnvironmentMap;
 	AverageBrightness = LightMapData->AverageBrightness;
 
@@ -656,6 +690,7 @@ void USkyLightComponent::UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TA
 					}
 
 					WorldToUpdate->Scene->UpdateSkyCaptureContents(CaptureComponent, CaptureComponent->bCaptureEmissiveOnly, CaptureComponent->Cubemap, CaptureComponent->ProcessedSkyTexture, CaptureComponent->AverageBrightness, CaptureComponent->IrradianceEnvironmentMap, NULL);
+					CaptureComponent->UpdateImportanceSamplingData();
 				}
 				else
 				{
@@ -671,6 +706,7 @@ void USkyLightComponent::UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TA
 					}
 
 					WorldToUpdate->Scene->UpdateSkyCaptureContents(CaptureComponent, CaptureComponent->bCaptureEmissiveOnly, CaptureComponent->BlendDestinationCubemap, CaptureComponent->BlendDestinationProcessedSkyTexture, CaptureComponent->BlendDestinationAverageBrightness, CaptureComponent->BlendDestinationIrradianceEnvironmentMap, NULL);
+					CaptureComponent->UpdateImportanceSamplingData();
 				}
 
 				CaptureComponent->IrradianceMapFence.BeginFence();
@@ -787,18 +823,6 @@ void USkyLightComponent::SetCubemap(UTextureCube* NewCubemap)
 		MarkRenderStateDirty();
 		// Note: this will cause the cubemap to be reprocessed including readback from the GPU
 		SetCaptureIsDirty();
-
-#if RHI_RAYTRACING
-		if (SceneProxy)
-		{
-			FSkyLightSceneProxy* LightSceneProxy = SceneProxy;
-			ENQUEUE_RENDER_COMMAND(SetLightProxyDirty)(
-				[LightSceneProxy](FRHICommandList& RHICmdList)
-				{
-					LightSceneProxy->IsDirtyImportanceSamplingData = true;
-				});
-		}
-#endif
 	}
 }
 

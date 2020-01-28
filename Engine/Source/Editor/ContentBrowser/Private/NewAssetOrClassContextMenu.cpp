@@ -218,6 +218,9 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	const bool bIsValidNewFolderPath = ContentBrowserUtils::IsValidPathToCreateNewFolder(FirstSelectedPath);
 	const bool bHasSinglePathSelected = InSelectedPaths.Num() == 1;
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	bool bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(InSelectedPaths);
+
 	auto CanExecuteFolderActions = [NumAssetPaths, NumClassPaths, bIsValidNewFolderPath]() -> bool
 	{
 		// We can execute folder actions when we only have a single path selected, and that path is a valid path for creating a folder
@@ -291,7 +294,7 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	}
 
 	// Add Class
-	if(InOnNewClassRequested.IsBound())
+	if(InOnNewClassRequested.IsBound() && bCanBeModified)
 	{
 		FString ClassCreationPath = FirstSelectedPath;
 		FText NewClassToolTip;
@@ -328,7 +331,7 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	}
 
 	// Import
-	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsEmpty())
+	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsEmpty() && bCanBeModified)
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("ContentBrowserImportAsset", LOCTEXT( "ImportAssetMenuHeading", "Import Asset" ));
@@ -346,7 +349,7 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	}
 
 	
-	if (InOnNewAssetRequested.IsBound())
+	if (InOnNewAssetRequested.IsBound() && bCanBeModified)
 	{
 		// Add Basic Asset
 		{
@@ -364,8 +367,6 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 		// Add Advanced Asset
 		{
 			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewAdvancedAsset", LOCTEXT("CreateAdvancedAssetsMenuHeading", "Create Advanced Asset"));
-
-			FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 
 			TArray<FAdvancedAssetCategory> AdvancedAssetCategories;
 			AssetToolsModule.Get().GetAllAdvancedAssetCategories(/*out*/ AdvancedAssetCategories);

@@ -921,8 +921,11 @@ public:
 
 	static const TCHAR* GetUBTTarget();
 
+	static void SetUBTTargetName(const TCHAR* InTargetName);
+	static const TCHAR* GetUBTTargetName();
+
 	/** 
-	 * Determines the shader format for the plarform
+	 * Determines the shader format for the platform
 	 *
 	 * @return	Returns the shader format to be used by that platform
 	 */

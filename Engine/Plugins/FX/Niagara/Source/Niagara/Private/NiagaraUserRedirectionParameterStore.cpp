@@ -99,6 +99,8 @@ bool FNiagaraUserRedirectionParameterStore::SerializeFromMismatchedTag(const FPr
 	{
 		FNiagaraParameterStore OldStore;
 		FNiagaraParameterStore::StaticStruct()->SerializeItem(Slot, &OldStore, nullptr);
+		// Call PostLoad() to convert the serialized ParameterOffsets to SortedParameterOffsets.
+		OldStore.PostLoad();
 		*this = OldStore;
 		return true;
 	}

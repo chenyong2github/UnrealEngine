@@ -401,11 +401,16 @@ public:
 	/** SRV that views the entire texture */
 	FShaderResourceViewRHIRef ShaderResourceViewRHI;
 
+	/** *optional* UAV that views the entire texture */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+
+
 	virtual ~FTextureWithSRV() {}
 
 	virtual void ReleaseRHI() override
 	{
 		ShaderResourceViewRHI.SafeRelease();
+		UnorderedAccessViewRHI.SafeRelease();
 		FTexture::ReleaseRHI();
 	}
 };
@@ -468,6 +473,23 @@ public:
 		VertexBufferRHI.SafeRelease();
 	}
 	virtual FString GetFriendlyName() const override { return TEXT("FVertexBuffer"); }
+};
+
+class RENDERCORE_API FVertexBufferWithSRV : public FVertexBuffer
+{
+public:
+	/** SRV that views the entire texture */
+	FShaderResourceViewRHIRef ShaderResourceViewRHI;
+
+	/** *optional* UAV that views the entire texture */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+
+	virtual void ReleaseRHI() override
+	{
+		ShaderResourceViewRHI.SafeRelease();
+		UnorderedAccessViewRHI.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
+	}
 };
 
 /**

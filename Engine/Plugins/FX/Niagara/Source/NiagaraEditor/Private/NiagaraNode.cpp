@@ -354,7 +354,7 @@ TSharedPtr<SGraphNode> UNiagaraNode::CreateVisualWidget()
 
 void UNiagaraNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
-	const UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
+	const UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(GetGraph());
 	if (NiagaraGraph)
 	{
 		const UEdGraphSchema_Niagara* Schema = Cast<UEdGraphSchema_Niagara>(NiagaraGraph->GetSchema());
@@ -399,14 +399,19 @@ void UNiagaraNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraph
 	}
 }
 
+bool UNiagaraNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const
+{
+	return Schema->IsA<UEdGraphSchema_Niagara>();
+}
+
 void UNiagaraNode::MarkNodeRequiresSynchronization(FString Reason, bool bRaiseGraphNeedsRecompile)
 {
 	Modify();
 	ChangeId = FGuid::NewGuid();
 	//UE_LOG(LogNiagaraEditor, Verbose, TEXT("Node %s was marked requires synchronization.  Reason: %s"), *GetPathName(), *Reason);
 
-	UNiagaraGraph* Graph = GetNiagaraGraph();
-	if (bRaiseGraphNeedsRecompile)
+	UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetGraph());
+	if (Graph != nullptr && bRaiseGraphNeedsRecompile)
 	{
 		Graph->NotifyGraphNeedsRecompile();
 	}

@@ -154,12 +154,21 @@ private:
 
 extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
 
-class ENGINE_API FHeightFieldTextureAtlas : public FRenderResource
+class ENGINE_API FLandscapeTextureAtlas : public FRenderResource
 {
 public:
+	enum ESubAllocType
+	{
+		SAT_Height,
+		SAT_Visibility,
+		SAT_Num
+	};
+
+	FLandscapeTextureAtlas(ESubAllocType InSubAllocType);
+
 	void InitializeIfNeeded();
 
-	void AddAllocation(UTexture2D* Texture);
+	void AddAllocation(UTexture2D* Texture, uint32 VisibilityChannel = 0);
 
 	void RemoveAllocation(UTexture2D* Texture);
 
@@ -231,18 +240,19 @@ private:
 
 		TSparseArray<FSubAllocInfo> SubAllocInfos;
 
-		friend class FHeightFieldTextureAtlas;
+		friend class FLandscapeTextureAtlas;
 	};
 
 	struct FAllocation
 	{
 		UTexture2D* SourceTexture;
-		uint32 RefCount;
 		uint32 Handle;
+		uint32 VisibilityChannel : 2;
+		uint32 RefCount : 30;
 
 		FAllocation();
 
-		FAllocation(UTexture2D* InTexture);
+		FAllocation(UTexture2D* InTexture, uint32 InVisibilityChannel = 0);
 
 		bool operator==(const FAllocation& Other) const
 		{
@@ -253,6 +263,21 @@ private:
 		{
 			return GetTypeHash(Key.SourceTexture);
 		}
+	};
+
+	struct FPendingUpload
+	{
+		FRHITexture* SourceTexture;
+		FIntVector SizesAndMipBias;
+		uint32 VisibilityChannel : 2;
+		uint32 Handle : 30;
+
+		FPendingUpload(UTexture2D* Texture, uint32 SizeX, uint32 SizeY, uint32 MipBias, uint32 InHandle, uint32 Channel);
+
+		FIntPoint SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
+
+	private:
+		FIntPoint SetCommonShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
 	};
 
 	FSubAllocator AddrSpaceAllocator;
@@ -267,9 +292,12 @@ private:
 
 	uint32 MaxDownSampleLevel;
 	uint32 Generation;
+
+	const ESubAllocType SubAllocType;
 };
 
-extern ENGINE_API TGlobalResource<FHeightFieldTextureAtlas> GHeightFieldTextureAtlas;
+extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHeightFieldTextureAtlas;
+extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHFVisibilityTextureAtlas;
 
 /** Distance field data payload and output of the mesh build process. */
 class ENGINE_API FDistanceFieldVolumeData : public FDeferredCleanupInterface

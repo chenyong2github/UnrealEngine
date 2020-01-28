@@ -142,7 +142,7 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 
 	Solvers.Reset();
 
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyChaosDestruction, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyChaosDestruction());
 	PushToRenderThread();
 }
 
@@ -483,7 +483,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 
 	ResetInstData(InstData);
 
-	TSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, ESPMode::ThreadSafe> ThisProxy = StaticCastSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>(Proxy);
+	FNiagaraDataInterfaceProxyChaosDestruction* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraChaosDestructionDICreateRTInstance)(
 		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandList& CmdList)
 	{
@@ -500,7 +500,7 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 	InstData->~FNDIChaosDestruction_InstanceData();
 
 	check(Proxy);
-	TSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, ESPMode::ThreadSafe> ThisProxy = StaticCastSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>(Proxy);
+	FNiagaraDataInterfaceProxyChaosDestruction* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIChaosDestructionDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 		{
@@ -3923,7 +3923,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()
 {
 	check(Proxy);
-	TSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, ESPMode::ThreadSafe> RT_Proxy = StaticCastSharedPtr<FNiagaraDataInterfaceProxyChaosDestruction, FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>(Proxy);
+	FNiagaraDataInterfaceProxyChaosDestruction* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 
 	int32 RT_LastSpawnedPointID = LastSpawnedPointID;
 	float RT_SolverTime = SolverTime;
@@ -4077,21 +4077,15 @@ void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThrea
 void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-	if (SystemsToGPUInstanceData.Contains(SystemInstance))
-	{
-		InstancesToDestroy.Remove(SystemInstance);
-	}
+	check(!SystemsToGPUInstanceData.Contains(SystemInstance));
 	SystemsToGPUInstanceData.Add(SystemInstance, FNiagaraDIChaosDestruction_GPUData());
 }
 
 void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-	// @todo-threadsafety This object contains GPU buffers. This _should_ delete them safely but would we rather do so manually?
-	//SystemsToGPUInstanceData.Remove(SystemInstance);
-	InstancesToDestroy.Add(SystemInstance);
-
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	check(SystemsToGPUInstanceData.Contains(SystemInstance));
+	SystemsToGPUInstanceData.Remove(SystemInstance);
 }
 
 void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FNiagaraSystemInstanceID& Instance)

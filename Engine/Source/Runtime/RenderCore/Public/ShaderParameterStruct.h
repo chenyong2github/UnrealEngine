@@ -45,7 +45,9 @@ void BindForLegacyShaderParameters(FShader* Shader, const FShaderParameterMap& P
 
 // TODO(RDG): would not even need ShaderParentClass anymore. And in fact should not so Bindings.Bind() is not being called twice.
 #define SHADER_USE_PARAMETER_STRUCT(ShaderClass, ShaderParentClass) \
-	SHADER_USE_PARAMETER_STRUCT_INTERNAL(ShaderClass, ShaderParentClass, true)
+	SHADER_USE_PARAMETER_STRUCT_INTERNAL(ShaderClass, ShaderParentClass, true) \
+	\
+	static inline const FShaderParametersMetadata* GetRootParametersMetadata() { return FParameters::FTypeInfo::GetStructMetadata(); }
 
 /** Use when sharing shader parameter binding with legacy parameters in the base class; i.e. FMaterialShader or FMeshMaterialShader.
  *  Note that this disables validation that the parameter struct contains all shader bindings.

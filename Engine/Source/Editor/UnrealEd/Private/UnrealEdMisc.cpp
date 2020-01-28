@@ -83,6 +83,8 @@
 #include "ILauncherPlatform.h"
 #include "LauncherPlatformModule.h"
 #include "ILauncherServicesModule.h"
+#include "HAL/PlatformTime.h"
+#include "StudioAnalytics.h"
 
 #define USE_UNIT_TESTS 0
 
@@ -310,6 +312,11 @@ void FUnrealEdMisc::OnInit()
 		FPlatformSplash::Show();
 	}
 
+	const double InitialEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
+	UE_LOG(LogUnrealEdMisc, Log, TEXT("Loading editor; pre map load, took %.3f"), InitialEditorStartupTime);
+
+	FStudioAnalytics::FireEvent_Loading(TEXT("InitializeEditor"), InitialEditorStartupTime);
+
 	// Check for automated build/submit option
 	const bool bDoAutomatedMapBuild = FParse::Param( ParsedCmdLine, TEXT("AutomatedMapBuild") );
 
@@ -517,6 +524,11 @@ void FUnrealEdMisc::OnInit()
 
 	// Handles "Enable World Composition" option in WorldSettings
 	UWorldComposition::EnableWorldCompositionEvent.BindRaw(this, &FUnrealEdMisc::EnableWorldComposition);
+
+	const double TotalEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
+	UE_LOG(LogUnrealEdMisc, Log, TEXT("Total Editor Startup Time, took %.3f"), TotalEditorStartupTime);
+
+	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime);
 }
 
 void FUnrealEdMisc::InitEngineAnalytics()

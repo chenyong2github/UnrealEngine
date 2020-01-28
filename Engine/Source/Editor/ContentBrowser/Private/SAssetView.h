@@ -195,6 +195,9 @@ public:
 		/** Sort by path in the column view. Only works if the initial view type is Column */
 		SLATE_ARGUMENT(bool, SortByPathInColumnView)
 
+		/** Should always show engine content */
+		SLATE_ARGUMENT(bool, ForceShowEngineContent)
+
 		/** Called to check if an asset tag should be display in details view. */
 		SLATE_EVENT( FOnShouldDisplayAssetTag, OnAssetTagWantsToBeDisplayed )
 
@@ -521,6 +524,9 @@ private:
 
 	/** Whether or not it's possible to toggle developers content */
 	bool IsToggleShowDevelopersContentAllowed() const;
+
+	/** Whether or not it's possible to toggle engine content */
+	bool IsToggleShowEngineContentAllowed() const;
 
 	/** @return true when we are showing the developers content */
 	bool IsShowingDevelopersContent() const;
@@ -1019,6 +1025,9 @@ private:
 
 	/** If true, it sorts by path and then name */
 	bool bSortByPathInColumnView;
+
+	/** If true, engine content is always shown */
+	bool bForceShowEngineContent;
 
 	/** The current selection mode used by the asset view */
 	ESelectionMode::Type SelectionMode;

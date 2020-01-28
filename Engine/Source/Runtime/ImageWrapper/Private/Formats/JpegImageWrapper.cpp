@@ -46,9 +46,15 @@ FJpegImageWrapper::FJpegImageWrapper(int32 InNumComponents)
 /* FImageWrapperBase interface
  *****************************************************************************/
 
-bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int32 InCompressedSize)
+bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
-	jpgd::jpeg_decoder_mem_stream jpeg_memStream((uint8*)InCompressedData, InCompressedSize);
+	// jpgd doesn't support 64-bit sizes.
+	if (InCompressedSize < 0 || InCompressedSize > MAX_uint32)
+	{
+		return false;
+	}
+
+	jpgd::jpeg_decoder_mem_stream jpeg_memStream((uint8*)InCompressedData, (uint32)InCompressedSize);
 
 	jpgd::jpeg_decoder decoder(&jpeg_memStream);
 	if (decoder.get_error_code() != jpgd::JPGD_SUCCESS)
@@ -78,7 +84,7 @@ bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int32 InComp
 }
 
 
-bool FJpegImageWrapper::SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
 {
 	check((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
 

@@ -58,7 +58,6 @@ public:
 		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
 		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
 
-		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 
 //  		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
@@ -97,7 +96,6 @@ public:
 		Ar << NiagaraParticleDataMaterialParam2;
 		Ar << NiagaraParticleDataMaterialParam3;
 
-		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
 
 //  		Ar << NiagaraParticleDataInt;
@@ -148,8 +146,6 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, SpriteVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, SpriteVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, SpriteVF->GetParticleDataFloatSRV());
-
-		ShaderBindings.Add(FloatDataOffset, SpriteVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, SpriteVF->GetFloatDataStride());
 
 		ShaderBindings.Add(SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference());
@@ -180,8 +176,6 @@ private:
 	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
-
-	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 
 //  	FShaderResourceParameter NiagaraParticleDataInt;
@@ -286,16 +280,11 @@ void FNiagaraSpriteVertexFactory::InitRHI()
 
 void FNiagaraSpriteVertexFactory::InitStreams()
 {
-	const bool bInstanced = GRHISupportsInstancing;
-
 	check(Streams.Num() == 0);
-	if(bInstanced) 
-	{
-		FVertexStream* TexCoordStream = new(Streams) FVertexStream;
-		TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
-		TexCoordStream->Stride = sizeof(FVector2D);
-		TexCoordStream->Offset = 0;
-	}
+	FVertexStream* TexCoordStream = new(Streams) FVertexStream;
+	TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
+	TexCoordStream->Stride = sizeof(FVector2D);
+	TexCoordStream->Offset = 0;
 }
 
 void FNiagaraSpriteVertexFactory::SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer)

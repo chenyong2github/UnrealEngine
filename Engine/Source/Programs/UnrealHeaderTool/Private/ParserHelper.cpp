@@ -150,6 +150,7 @@ void FToken::Clone( const FToken& Other )
 
 	TokenType = Other.TokenType;
 	TokenName = Other.TokenName;
+	bTokenNameInitialized = Other.bTokenNameInitialized;
 	StartPos = Other.StartPos;
 	StartLine = Other.StartLine;
 	TokenProperty = Other.TokenProperty;

@@ -447,6 +447,11 @@ bool FIOSTargetPlatform::HandleTicker(float DeltaTime)
 
 /* ITargetPlatform interface
  *****************************************************************************/
+static bool UsesVirtualTextures()
+{
+	static auto* CVarMobileVirtualTextures = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.VirtualTextures"));
+	return CVarMobileVirtualTextures->GetValueOnAnyThread() != 0;
+}
 
 static bool SupportsMetal()
 {
@@ -512,6 +517,9 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 		case ETargetPlatformFeatures::SoftwareOcclusion:
 			return SupportsSoftwareOcclusion();
+
+		case ETargetPlatformFeatures::VirtualTextureStreaming:
+			return UsesVirtualTextures();
 
 		default:
 			break;

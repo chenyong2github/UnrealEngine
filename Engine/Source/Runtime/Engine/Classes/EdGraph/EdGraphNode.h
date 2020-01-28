@@ -880,6 +880,9 @@ public:
 	// called to replace this nodes comment text
 	virtual void OnUpdateCommentText( const FString& NewComment );
 
+	// returns true if this node supports comment bubbles
+	virtual bool SupportsCommentBubble() const { return true; }
+
 	// called when the node's comment bubble is toggled
 	virtual void OnCommentBubbleToggled( bool bInCommentBubbleVisible ) {}
 

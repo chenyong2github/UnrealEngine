@@ -26,6 +26,7 @@
 #include "../SobolRandom.ush"
 #include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
@@ -116,7 +117,14 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
+
+#if 0
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+#else
+	//#dxr-todo: workaround for flickering. UE-87281
+	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+#endif
+
 	float Depth = GBufferData.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
 	float WorldSpaceDistance = length(WorldPosition - View.WorldViewOrigin);
@@ -157,6 +165,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	{
 		const uint RefractionRayFlags = 0;
 		const uint RefractionInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+		const bool bRefractionRayTraceSkyLightContribution = false;
+		const bool bRefractionDecoupleSampleGeneration = true;
 		const bool bRefractionEnableSkyLightContribution = true;
 		float3 PathVertexRadiance = float3(0, 0, 0);
 
@@ -166,10 +176,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			RefractionRayFlags,
 			RefractionInstanceInclusionMask,
 			RandSequence,
+			PixelCoord,
 			MaxNormalBias,
 			ReflectedShadowsType,
 			ShouldDoDirectLighting,
 			ShouldDoEmissiveAndIndirectLighting,
+			bRefractionRayTraceSkyLightContribution,
+			bRefractionDecoupleSampleGeneration,
 			RayCone,
 			bRefractionEnableSkyLightContribution,
 			PathVertexRadiance);
@@ -223,6 +236,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 			const uint ReflectionRayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 			const uint ReflectionInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+			const bool bReflectionRayTraceSkyLightContribution = false;
+			const bool bReflectionDecoupleSampleGeneration = true;
 			const bool bReflectionEnableSkyLightContribution = bSkyLightAffectReflection;
 			float3 ReflectionRadiance = float3(0, 0, 0);
 
@@ -232,10 +247,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 				ReflectionRayFlags,
 				ReflectionInstanceInclusionMask,
 				RandSequence,
+				PixelCoord,
 				MaxNormalBias,
 				ReflectedShadowsType,
 				ShouldDoDirectLighting,
 				ShouldDoEmissiveAndIndirectLighting,
+				bReflectionRayTraceSkyLightContribution,
+				bReflectionDecoupleSampleGeneration,
 				RayCone,
 				bReflectionEnableSkyLightContribution,
 				ReflectionRadiance);

@@ -140,6 +140,8 @@ private:
 	// until we move on to a different chunk.
 	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
+	int32 NumConsecutiveReadFailiures;
+
 	FWaveModInfo WaveInfo;
 	const uint8*	SrcBufferData;
 	uint32			SrcBufferDataSize;

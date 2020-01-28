@@ -202,14 +202,11 @@ public:
 			// TODO think about this case more
 			GetDynamicParticles().GetSleepDataLock().WriteLock();
 			auto& SleepData = GetDynamicParticles().GetSleepData();
-			for (int32 Idx = 0; Idx < SleepData.Num(); ++Idx)
-			{
-				if (SleepData[Idx].Particle == Particle)
-				{
-					SleepData.RemoveAtSwap(Idx);
-					break;
-				}
-			}
+
+			SleepData.RemoveAllSwap([Particle](TSleepData<T, d>& Entry) {
+				return Entry.Particle == Particle;
+			});
+
 			GetDynamicParticles().GetSleepDataLock().WriteUnlock();
 		}
 

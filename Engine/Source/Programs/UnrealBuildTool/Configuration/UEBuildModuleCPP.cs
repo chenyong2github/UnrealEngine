@@ -1204,7 +1204,7 @@ namespace UnrealBuildTool
 				Result.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
 
-			// For game modules, set the define for the project name. This will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
+			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
 			if (!Rules.bTreatAsEngineModule)
 			{
 				// Make sure we don't set any define for a non-engine module that's under the engine directory (eg. UE4Game)
@@ -1212,6 +1212,7 @@ namespace UnrealBuildTool
 				{
 					string ProjectName = Target.ProjectFile.GetFileNameWithoutExtension();
 					Result.Definitions.Add(String.Format("UE_PROJECT_NAME={0}", ProjectName));
+					Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.Name));
 				}
 			}
 

@@ -173,10 +173,10 @@ private:
 
 	/** This key's entry tangent, if bHasArriveTangent */
 	UPROPERTY()
-	float ArriveTangent;
+	float ArriveTangent{};
 	/** This key's exit tangent, if bHasLeaveTangent */
 	UPROPERTY()
-	float LeaveTangent;
+	float LeaveTangent{};
 	/** This key's interpolation mode, if bHasInterpMode */
 	UPROPERTY()
 	TEnumAsByte<ERichCurveInterpMode> InterpMode;
@@ -188,10 +188,10 @@ private:
 	TEnumAsByte<ERichCurveTangentWeightMode> TangentWeightMode;
 	/** This key's entry tangent weight, if bHasArriveTangentWeight */
 	UPROPERTY()
-	float ArriveTangentWeight;
+	float ArriveTangentWeight{};
 	/** This key's exit tangent weight, if bHasLeaveTangentWeight */
 	UPROPERTY()
-	float LeaveTangentWeight;
+	float LeaveTangentWeight{};
 
 };
 

@@ -19,7 +19,7 @@
 
 TWeakObjectPtr<AActor> FCreateBlueprintFromActorDialog::ActorOverride = nullptr;
 
-void FCreateBlueprintFromActorDialog::OpenDialog(bool bInHarvest, AActor* InActorOverride )
+void FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode CreateMode, AActor* InActorOverride )
 {
 	ActorOverride = InActorOverride;
 
@@ -36,7 +36,7 @@ void FCreateBlueprintFromActorDialog::OpenDialog(bool bInHarvest, AActor* InActo
 		.AssetFilenameSuffix(TEXT("Blueprint"))
 		.HeadingText(LOCTEXT("CreateBlueprintFromActor_Heading", "Blueprint Name"))
 		.CreateButtonText(LOCTEXT("CreateBlueprintFromActor_ButtonLabel", "Create Blueprint"))
-		.OnCreateAssetAction(FOnPathChosen::CreateStatic(FCreateBlueprintFromActorDialog::OnCreateBlueprint, bInHarvest))
+		.OnCreateAssetAction(FOnPathChosen::CreateStatic(FCreateBlueprintFromActorDialog::OnCreateBlueprint, CreateMode))
 	);
 
 	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
@@ -50,11 +50,13 @@ void FCreateBlueprintFromActorDialog::OpenDialog(bool bInHarvest, AActor* InActo
 	}
 }
 
-void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPath, bool bInHarvest)
+void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPath, ECreateBlueprintFromActorMode CreateMode)
 {
 	UBlueprint* Blueprint = NULL;
 
-	if(bInHarvest)
+	switch (CreateMode) 
+	{
+		case ECreateBlueprintFromActorMode::Harvest:
 	{
 		TArray<AActor*> Actors;
 
@@ -62,15 +64,18 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 		for(FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 		{
 			// We only care about actors that are referenced in the world for literals, and also in the same level as this blueprint
-			AActor* Actor = Cast<AActor>(*Iter);
-			if(Actor)
+				if (AActor* Actor = Cast<AActor>(*Iter))
 			{
 				Actors.Add(Actor);
 			}
 		}
-		Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, true);
+
+			const bool bReplaceActor = true;
+			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bReplaceActor);
 	}
-	else
+		break;
+
+		case ECreateBlueprintFromActorMode::Subclass:
 	{
 		AActor* ActorToUse = ActorOverride.Get();
 
@@ -78,12 +83,33 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 		{
 			TArray< UObject* > SelectedActors;
 			GEditor->GetSelectedActors()->GetSelectedObjects(AActor::StaticClass(), SelectedActors);
-			check(SelectedActors.Num());
+				check(SelectedActors.Num() == 1);
 			ActorToUse =  Cast<AActor>(SelectedActors[0]);
 		}
 
 		const bool bReplaceActor = true;
 		Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, bReplaceActor);
+	}
+		break;
+
+		case ECreateBlueprintFromActorMode::ChildActor:
+		{
+			TArray<AActor*> Actors;
+
+			USelection* SelectedActors = GEditor->GetSelectedActors();
+			for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+			{
+				// We only care about actors that are referenced in the world for literals, and also in the same level as this blueprint
+				if (AActor* Actor = Cast<AActor>(*Iter))
+				{
+					Actors.Add(Actor);
+				}
+			}
+
+			const bool bReplaceActor = true;
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bReplaceActor);
+		}
+		break;
 	}
 
 	if(Blueprint)

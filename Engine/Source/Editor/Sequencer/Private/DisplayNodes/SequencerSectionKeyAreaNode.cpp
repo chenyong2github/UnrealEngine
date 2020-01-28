@@ -113,6 +113,20 @@ void FSequencerSectionKeyAreaNode::SetDisplayName(const FText& NewDisplayName)
 	check(false);
 }
 
+FSlateFontInfo FSequencerSectionKeyAreaNode::GetDisplayNameFont() const
+{
+	bool bAnyKeyAreaAnimated = false;
+	for (const TSharedRef<IKeyArea>& KeyArea : KeyAreas)
+	{
+		FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+		if (Channel && Channel->GetNumKeys() > 0)
+		{
+			return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+		}
+	}
+	return FSequencerDisplayNode::GetDisplayNameFont();
+}
+
 void FSequencerSectionKeyAreaNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
 {
 	TSharedRef<ISequencer> Sequencer = GetSequencer().AsShared();

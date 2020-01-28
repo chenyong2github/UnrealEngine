@@ -43,7 +43,9 @@ using namespace D3D12RHI;
 FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn) :
 	ChosenAdapters(ChosenAdaptersIn),
 	AmdAgsContext(nullptr),
-	FlipEvent(INVALID_HANDLE_VALUE)
+	AmdSupportedExtensionFlags(0),
+	FlipEvent(INVALID_HANDLE_VALUE),
+	bAllowVendorDevice(!FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
 {
 	// The FD3D12DynamicRHI must be a singleton
 	check(SingleD3DRHI == nullptr);
@@ -67,6 +69,8 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	ZeroBufferSize = 0;
 	ZeroBuffer = nullptr;
 #endif // PLATFORM_WINDOWS
+
+	GRHISupportsMultithreading = true;
 
 	GPoolSizeVRAMPercentage = 0;
 	GTexturePoolSize = 0;
@@ -189,7 +193,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GEnableAsyncCompute = true;
 
 	// Manually enable Async BVH build for D3D12 RHI
-	GSupportAsyncComputeRaytracingBuildBVH = true;
+	GRHISupportsRayTracingAsyncBuildAccelerationStructure = true;
 }
 
 FD3D12DynamicRHI::~FD3D12DynamicRHI()
@@ -207,7 +211,6 @@ void FD3D12DynamicRHI::Shutdown()
 	if (AmdAgsContext)
 	{
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
-		agsDriverExtensionsDX12_DeInit(AmdAgsContext);
 		agsDeInit(AmdAgsContext);
 		AmdAgsContext = nullptr;
 	}

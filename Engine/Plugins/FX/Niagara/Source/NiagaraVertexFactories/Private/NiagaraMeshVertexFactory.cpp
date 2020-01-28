@@ -31,7 +31,6 @@ public:
 		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
 		NiagaraParticleDataSubImage.Bind(ParameterMap, TEXT("NiagaraParticleDataSubImage"));
 
-		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 
 		// 		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
@@ -58,7 +57,6 @@ public:
 		Ar << NiagaraParticleDataMaterialParam2;
 		Ar << NiagaraParticleDataMaterialParam3;
 		Ar << NiagaraParticleDataSubImage;
-		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
 
 		// 		Ar << NiagaraParticleDataInt;
@@ -82,7 +80,6 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const override
 	{
-		const bool bInstanced = GRHISupportsInstancing;
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 
@@ -101,7 +98,6 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataSubImage, NiagaraMeshVF->GetParticleDataFloatSRV());
 
-		ShaderBindings.Add(FloatDataOffset, NiagaraMeshVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, NiagaraMeshVF->GetFloatDataStride());
 
 		FRHIShaderResourceView* SortedSRV = NiagaraMeshVF->GetSortedIndicesSRV();
@@ -125,7 +121,6 @@ private:
 	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
 	FShaderResourceParameter NiagaraParticleDataSubImage;
-	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 
 	// 	FShaderResourceParameter NiagaraParticleDataInt;
@@ -167,8 +162,6 @@ public:
 void FNiagaraMeshVertexFactory::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-
-	check(GRHISupportsInstancing);
 
 	{
 		if (Data.PositionComponent.VertexBuffer != NULL)

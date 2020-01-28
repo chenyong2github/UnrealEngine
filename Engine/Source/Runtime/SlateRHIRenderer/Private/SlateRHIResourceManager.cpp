@@ -362,7 +362,7 @@ bool FSlateRHIResourceManager::LoadTexture( const FName& TextureName, const FStr
 {
 	checkSlow( IsThreadSafeForSlateRendering() );
 
-	bool bSucceeded = true;
+	bool bSucceeded = false;
 	uint32 BytesPerPixel = 4;
 
 	TArray<uint8> RawFileData;
@@ -383,28 +383,23 @@ bool FSlateRHIResourceManager::LoadTexture( const FName& TextureName, const FStr
 			Width = ImageWrapper->GetWidth();
 			Height = ImageWrapper->GetHeight();
 			
-			const TArray<uint8>* RawData = NULL;
-			if (ImageWrapper->GetRaw( ERGBFormat::BGRA, 8, RawData))
+			if (ImageWrapper->GetRaw( ERGBFormat::BGRA, 8, DecodedImage))
 			{
-				DecodedImage.AddUninitialized( Width*Height*BytesPerPixel );
-				DecodedImage = *RawData;
+				bSucceeded = true;
 			}
 			else
 			{
 				UE_LOG(LogSlate, Log, TEXT("Invalid texture format for Slate resource only RGBA and RGB pngs are supported: %s"), *TextureName.ToString() );
-				bSucceeded = false;
 			}
 		}
 		else
 		{
 			UE_LOG(LogSlate, Log, TEXT("Only pngs are supported in Slate"));
-			bSucceeded = false;
 		}
 	}
 	else
 	{
 		UE_LOG(LogSlate, Log, TEXT("Could not find file for Slate resource: %s"), *TextureName.ToString() );
-		bSucceeded = false;
 	}
 
 	return bSucceeded;

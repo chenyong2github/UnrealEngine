@@ -174,6 +174,11 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 		CHAOS_COLLISION_STAT(StatData.Print());
 	}
 
+	if (CollisionModifierCallback)
+	{
+		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
+	}
+
 	if (PostDetectCollisionsCallback != nullptr)
 	{
 		PostDetectCollisionsCallback();

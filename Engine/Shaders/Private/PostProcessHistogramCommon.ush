@@ -17,6 +17,15 @@ float EyeAdaptation_HistogramBias;
 float EyeAdaptation_LuminanceMin;
 float EyeAdaptation_CalibrationConstantInverse;
 float EyeAdaptation_WeightSlope;
+float EyeAdaptation_GreyMult;
+float EyeAdaptation_ExponentialUpM;
+float EyeAdaptation_ExponentialDownM;
+float EyeAdaptation_StartDistance;
+float EyeAdaptation_LuminanceMax;
+float EyeAdaptation_ForceTarget;
+int EyeAdaptation_VisualizeDebugType;
+Texture2D EyeAdaptation_MeterMaskTexture;
+SamplerState EyeAdaptation_MeterMaskSampler;
 
 // inverse of ComputeLuminanceFromHistogramPosition
 // is executed more often than ComputeLuminanceFromHistogramPosition()
@@ -35,6 +44,13 @@ float ComputeLuminanceFromHistogramPosition(float HistogramPosition)
 {
 	return exp2((HistogramPosition - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale);
 }
+
+
+float ComputeLogLuminanceFromHistogramPosition(float HistogramPosition)
+{
+	return ((HistogramPosition - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale);
+}
+
 
 #define HISTOGRAM_SIZE 64
 #define HISTOGRAM_TEXEL_SIZE (HISTOGRAM_SIZE / 4)
@@ -103,7 +119,7 @@ float ComputeHistogramSum(Texture2D HistogramTexture)
 
 // @param MinFractionSum e.g. ComputeHistogramSum() * 0.5f for 50% percentil
 // @param MaxFractionSum e.g. ComputeHistogramSum() * 0.9f for 90% percentil
-float ComputeAverageLuminaneWithoutOutlier(Texture2D HistogramTexture, float MinFractionSum, float MaxFractionSum)
+float ComputeAverageLuminanceWithoutOutlier(Texture2D HistogramTexture, float MinFractionSum, float MaxFractionSum)
 {
 	float2 SumWithoutOutliers = 0;
 	
@@ -116,31 +132,36 @@ float ComputeAverageLuminaneWithoutOutlier(Texture2D HistogramTexture, float Min
 		LocalValue = LocalValue - Sub;
 		MinFractionSum -= Sub;
 		MaxFractionSum -= Sub;
-
+		
 		// remove outlier at upper end
 		LocalValue = min(LocalValue, MaxFractionSum);
 		MaxFractionSum -= LocalValue;
 
-		float LuminanceAtBucket = ComputeLuminanceFromHistogramPosition(i / (float)HISTOGRAM_SIZE);
+		float LogLuminanceAtBucket = ComputeLogLuminanceFromHistogramPosition(float(i) / (float)(HISTOGRAM_SIZE-1));
 
-		SumWithoutOutliers += float2(LuminanceAtBucket, 1) * LocalValue;
+		SumWithoutOutliers += float2(LogLuminanceAtBucket, 1) * LocalValue;
 	}
 
-	return SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
+	//return SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
+	float AvgLogLuminance = SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
+
+	return exp2(AvgLogLuminance);
 }
 
 float ComputeEyeAdaptationExposure(Texture2D HistogramTexture)
 {
-	float HistogramSum = ComputeHistogramSum(HistogramTexture);
-	return ComputeAverageLuminaneWithoutOutlier(HistogramTexture, HistogramSum * EyeAdaptation_ExposureLowPercent, HistogramSum * EyeAdaptation_ExposureHighPercent);
+	const float HistogramSum = ComputeHistogramSum(HistogramTexture);
+	const float AverageSceneLuminance = ComputeAverageLuminanceWithoutOutlier(HistogramTexture, HistogramSum * EyeAdaptation_ExposureLowPercent, HistogramSum * EyeAdaptation_ExposureHighPercent);
+	const float LumAve = AverageSceneLuminance * EyeAdaptation_CalibrationConstantInverse;
+
+	const float ClampedLumAve = LumAve;
+		
+	// No longer clamping here. We are letting the target exposure be outside the min/max range, and then letting the exposure
+	// gradually transion.
+	return ClampedLumAve;
 }
 
-// Computation of triangle function on normalized space
-// used in Basic EyeAdaptation in weighting the center of the screen
-// @return range of 0..1 with 1 nx = 0.5
-// @param nx in 0..1 
-// @param slope assumed positive
-float AdaptationWeight(float nx, float slope)
+float AdaptationWeightTexture(float2 UV)
 {
-	return max(1.f - 2. * slope * abs(nx - 0.5f), 0.0f);
+	return Texture2DSampleLevel(EyeAdaptation_MeterMaskTexture, EyeAdaptation_MeterMaskSampler, UV, 0).x;
 }

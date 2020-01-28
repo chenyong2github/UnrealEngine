@@ -168,6 +168,12 @@ namespace UnrealBuildTool
 		public Action(ActionType InActionType)
 		{
 			ActionType = InActionType;
+
+			// link actions are going to run locally on SN-DBS so don't try to distribute them as that generates warnings for missing tool templates
+			if ( ActionType == ActionType.Link )
+			{
+				bCanExecuteRemotelyWithSNDBS = false;
+			}
 		}
 
 		public Action(BinaryArchiveReader Reader)

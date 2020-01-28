@@ -4584,7 +4584,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			}
 		}
 	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, OccluderGeometryLOD))
+	else if (GIsEditor && 
+		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, OccluderGeometryLOD) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
 	{
 		CheckGenerateLandscapePlatformData(false, nullptr);
 		MarkComponentsRenderStateDirty();
@@ -6278,9 +6279,325 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 	}
 }
 
-//
-// Generates vertex buffer data from the component's heightmap texture, for use on platforms without vertex texture fetch
-//
+
+// FBox2D version that uses integers
+struct FIntBox2D
+{
+	FIntBox2D() : Min(INT32_MAX, INT32_MAX), Max(-INT32_MAX, -INT32_MAX) {}
+
+	void Add(FIntPoint const& Pos) 
+	{
+		Min = FIntPoint(FMath::Min(Min.X, Pos.X), FMath::Min(Min.Y, Pos.Y));
+		Max = FIntPoint(FMath::Max(Max.X, Pos.X), FMath::Max(Max.Y, Pos.Y));
+	}
+
+	void Add(FIntBox2D const& Rhs)
+	{
+		Min = FIntPoint(FMath::Min(Min.X, Rhs.Min.X), FMath::Min(Min.Y, Rhs.Min.Y));
+		Max = FIntPoint(FMath::Max(Max.X, Rhs.Max.X), FMath::Max(Max.Y, Rhs.Max.Y));
+	}
+
+	bool Intersects(FIntBox2D const& Rhs)
+	{
+		return !((Rhs.Max.X < Min.X) || (Rhs.Min.X > Max.X) || (Rhs.Max.Y < Min.Y) || (Rhs.Min.Y > Max.Y));
+	}
+
+	FIntPoint Min;
+	FIntPoint Max;
+};
+
+// Segment the hole map and return an array of hole bounding rectangles
+void GetHoleBounds(int32 InSize, TArray<uint8> const& InVisibilityData, TArray<FIntBox2D>& OutHoleBounds)
+{
+	check(InVisibilityData.Num() == InSize * InSize);
+
+	TArray<uint32> HoleSegmentLabels;
+	HoleSegmentLabels.AddZeroed(InSize*InSize);
+
+	TArray<uint32, TInlineAllocator<32>> LabelEquivalenceMap;
+	LabelEquivalenceMap.Add(0);
+	uint32 NextLabel = 1;
+
+	// First pass fills HoleSegmentLabels with labels.
+	for (int32 y = 0; y < InSize; ++y)
+	{
+		for (int32 x = 0; x < InSize; ++x)
+		{
+			const uint8 VisThreshold = 170;
+			const bool bIsHole = InVisibilityData[y * InSize + x] >= VisThreshold;
+			if (bIsHole)
+			{
+				uint8 WestLabel = (x > 0) ? HoleSegmentLabels[y * InSize + x - 1] : 0;
+				uint8 NorthLabel = (y > 0) ? HoleSegmentLabels[(y - 1) * InSize + x] : 0;
+
+				if (WestLabel != 0 && NorthLabel != 0 && WestLabel != NorthLabel)
+				{
+					uint32 MinLabel = FMath::Min(WestLabel, NorthLabel);
+					uint32 MaxLabel = FMath::Max(WestLabel, NorthLabel);
+					LabelEquivalenceMap[MaxLabel] = MinLabel;
+					HoleSegmentLabels[y * InSize + x] = MinLabel;
+				}
+				else if (WestLabel != 0)
+				{
+					HoleSegmentLabels[y * InSize + x] = WestLabel;
+				}
+				else if (NorthLabel != 0)
+				{
+					HoleSegmentLabels[y * InSize + x] = NorthLabel;
+				}
+				else
+				{
+					LabelEquivalenceMap.Add(NextLabel);
+					HoleSegmentLabels[y * InSize + x] = NextLabel++;
+				}
+			}
+		}
+	}
+
+	// Resolve label equivalences.
+	for (int32 Index = 0; Index < LabelEquivalenceMap.Num(); ++ Index)
+	{
+		int32 CommonIndex = Index;
+		while (LabelEquivalenceMap[CommonIndex] != CommonIndex)
+		{
+			CommonIndex = LabelEquivalenceMap[CommonIndex];
+		}
+		LabelEquivalenceMap[Index] = CommonIndex;
+	}
+
+	// Flatten labels to be contiguous.
+	int32 NumLabels = 0;
+	for (int32 Index = 0; Index < LabelEquivalenceMap.Num(); ++Index)
+	{
+		if (LabelEquivalenceMap[Index] == Index)
+		{
+			LabelEquivalenceMap[Index] = NumLabels++;
+		}
+		else
+		{
+			LabelEquivalenceMap[Index] = LabelEquivalenceMap[LabelEquivalenceMap[Index]];
+		}
+	}
+
+	// Second pass finds bounds for each label.
+	// Could also write contiguous labels to HoleSegmentLabels here if we want to keep that info.
+	OutHoleBounds.AddDefaulted(NumLabels);
+	for (int32 y = 0; y < InSize - 1; ++y)
+	{
+		for (int32 x = 0; x < InSize - 1; ++x)
+		{
+			const int32 Index = InSize * y + x;
+			const int32 Label = LabelEquivalenceMap[HoleSegmentLabels[Index]];
+			OutHoleBounds[Label].Add(FIntPoint(x, y));
+		}
+	}
+}
+
+// Move vertex index up to the next location which obeys the condition:
+// PosAt(VertexIndex, LodIndex) > PosAt(VertexIndex - 1, LodIndex + 1)
+// Maths derived from pattern when analyzing a spreadsheet containing a dump of lod vertex positions.
+inline void AlignVertexDown(int32 InLodIndex, int32& InOutVertexIndex)
+{
+	const int32 Offset = InOutVertexIndex & ((2 << InLodIndex) - 1);
+	if (Offset < (1 << InLodIndex))
+	{
+		InOutVertexIndex -= Offset;
+	}
+}
+
+// Move vertex index up to the next location which obeys the condition:
+// PosAt(VertexIndex, LodIndex) < PosAt(VertexIndex + 1, LodIndex + 1)
+// Maths derived from pattern when analyzing a spreadsheet containing a dump of lod vertex positions.
+inline void AlignVertexUp(int32 InLodIndex, int32& InOutVertexIndex)
+{
+	const int32 Offset = (InOutVertexIndex + 1) & ((2 << InLodIndex) - 1);
+	if (Offset > (1 << InLodIndex))
+	{
+		InOutVertexIndex += (1 << InLodIndex) - Offset;
+	}
+}
+
+// Expand bounding rectangles from LodIndex-1 to LodIndex
+void ExpandBoundsForLod(int32 InSize, int32 InLodIndex, TArray<FIntBox2D> const& InHoleBounds, TArray<FIntBox2D>& OutHoleBounds)
+{
+	OutHoleBounds.AddZeroed(InHoleBounds.Num());
+	for (int32 i = 0; i < InHoleBounds.Num(); ++i)
+	{
+		// Expand
+		const int32 ExpandDistance = (2 << InLodIndex) - 1;
+		OutHoleBounds[i].Min.X = InHoleBounds[i].Min.X - ExpandDistance;
+		OutHoleBounds[i].Min.Y = InHoleBounds[i].Min.Y - ExpandDistance;
+		OutHoleBounds[i].Max.X = InHoleBounds[i].Max.X + ExpandDistance;
+		OutHoleBounds[i].Max.Y = InHoleBounds[i].Max.Y + ExpandDistance;
+
+		// Snap to continuous LOD borders so that consecutive vertices with different LODs don't overlap
+		if (InLodIndex > 0)
+		{
+			AlignVertexDown(InLodIndex, OutHoleBounds[i].Min.X);
+			AlignVertexDown(InLodIndex, OutHoleBounds[i].Min.Y);
+			AlignVertexUp(InLodIndex, OutHoleBounds[i].Max.X);
+			AlignVertexUp(InLodIndex, OutHoleBounds[i].Max.Y);
+		}
+
+		// Clamp to edges
+		OutHoleBounds[i].Min.X = FMath::Max(OutHoleBounds[i].Min.X, 0);
+		OutHoleBounds[i].Max.X = FMath::Min(OutHoleBounds[i].Max.X, InSize - 1);
+		OutHoleBounds[i].Min.Y = FMath::Max(OutHoleBounds[i].Min.Y, 0);
+		OutHoleBounds[i].Max.Y = FMath::Min(OutHoleBounds[i].Max.Y, InSize - 1);
+	}
+}
+
+// Combine intersecting bounding rectangles into to form their bounding rectangles.
+void CombineIntersectingBounds(TArray<FIntBox2D>& InOutHoleBounds)
+{
+	int i = 1;
+	while (i < InOutHoleBounds.Num())
+	{
+		int j = i + 1;
+		for (; j < InOutHoleBounds.Num(); ++j)
+		{
+			if (InOutHoleBounds[i].Intersects(InOutHoleBounds[j]))
+			{
+				InOutHoleBounds[i].Add(InOutHoleBounds[j]);
+				InOutHoleBounds.RemoveAtSwap(j);
+				break;
+			}
+		}
+		if (j == InOutHoleBounds.Num())
+		{
+			++i;
+		}
+	}
+}
+
+// Build an array with an entry per vertex which contains the Lod at which that vertex falls inside a hole bounding rectangle. 
+// This is the Lod at which we should clamp the vertex in the vertex shader.
+void BuildHoleVertexLods(int32 InSize, int32 InNumLods, TArray<FIntBox2D> const& InHoleBounds, TArray<uint8>& OutHoleVertexLods)
+{
+	// Generate hole bounds for each Lod level from Lod0 InHoleBounds
+	TArray< TArray<FIntBox2D> > HoleBoundsPerLevel;
+	HoleBoundsPerLevel.AddDefaulted(InNumLods);
+	HoleBoundsPerLevel[0] = InHoleBounds;
+
+	for (int32 LodIndex = 1; LodIndex < InNumLods; ++LodIndex)
+	{
+		ExpandBoundsForLod(InSize, LodIndex, HoleBoundsPerLevel[LodIndex - 1], HoleBoundsPerLevel[LodIndex]);
+	}
+
+	for (int32 LodIndex = 0; LodIndex < InNumLods; ++LodIndex)
+	{
+		CombineIntersectingBounds(HoleBoundsPerLevel[LodIndex]);
+	}
+
+	// Initialize output to the max Lod
+	OutHoleVertexLods.Init(InNumLods, InSize * InSize);
+
+	// Fill by writing each Lod level in turn
+	for (int32 LodIndex = InNumLods - 1; LodIndex >= 0; --LodIndex)
+	{
+		TArray<FIntBox2D> const& HoleBoundsAtLevel = HoleBoundsPerLevel[LodIndex];
+		for (int32 BoxIndex = 1; BoxIndex < HoleBoundsAtLevel.Num(); ++BoxIndex)
+		{
+			const FIntPoint Min = HoleBoundsAtLevel[BoxIndex].Min;
+			const FIntPoint Max = HoleBoundsAtLevel[BoxIndex].Max;
+			
+			for (int32 y = Min.Y; y <= Max.Y; ++y)
+			{
+				for (int32 x = Min.X; x <= Max.X; ++x)
+				{
+					OutHoleVertexLods[y * InSize + x] = LodIndex;
+				}
+			}
+		}
+	}
+}
+
+// Structure containing the hole render data required by the runtime rendering.
+template <typename INDEX_TYPE>
+struct FLandscapeHoleRenderData
+{
+	TArray<INDEX_TYPE> HoleIndices;
+	int32 MinIndex;
+	int32 MaxIndex;
+};
+
+// Serialize the hole render data.
+template <typename INDEX_TYPE>
+void SerializeHoleRenderData(FMemoryArchive& Ar, FLandscapeHoleRenderData<INDEX_TYPE>& InHoleRenderData)
+{
+	bool b16BitIndices = sizeof(INDEX_TYPE) == 2;
+	Ar << b16BitIndices;
+
+	Ar << InHoleRenderData.MinIndex;
+	Ar << InHoleRenderData.MaxIndex;
+
+	int32 HoleIndexCount = InHoleRenderData.HoleIndices.Num();
+	Ar << HoleIndexCount;
+	Ar.Serialize(InHoleRenderData.HoleIndices.GetData(), HoleIndexCount * sizeof(INDEX_TYPE));
+}
+
+// Take the processed hole map and generate the hole render data.
+template <typename INDEX_TYPE>
+void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TArray<uint8> const& InVisibilityData, TMap<uint64, int32>& InVertexMap, FLandscapeHoleRenderData<INDEX_TYPE>& OutHoleRenderData)
+{
+	const int32 SizeVerts = InNumSubsections * InSubsectionSizeVerts;
+	const int32 SubsectionSizeQuads = InSubsectionSizeVerts - 1;
+	const uint8 VisThreshold = 170;
+
+	INDEX_TYPE MaxIndex = 0;
+	INDEX_TYPE MinIndex = TNumericLimits<INDEX_TYPE>::Max();
+
+	for (int32 SubY = 0; SubY < InNumSubsections; SubY++)
+	{
+		for (int32 SubX = 0; SubX < InNumSubsections; SubX++)
+		{
+			for (int32 y = 0; y < SubsectionSizeQuads; y++)
+			{
+				for (int32 x = 0; x < SubsectionSizeQuads; x++)
+				{
+					const int32 x0 = x;
+					const int32 y0 = y;
+					const int32 x1 = x + 1;
+					const int32 y1 = y + 1;
+
+					const int32 VertexIndex = (SubY * InSubsectionSizeVerts + y0) * SizeVerts + SubX * InSubsectionSizeVerts + x0;
+					const bool bIsHole = InVisibilityData[VertexIndex] < VisThreshold;
+					if (bIsHole)
+					{
+						INDEX_TYPE i00 = *(InVertexMap.Find(FLandscapeVertexRef(x0, y0, SubX, SubY).MakeKey()));
+						INDEX_TYPE i10 = *(InVertexMap.Find(FLandscapeVertexRef(x1, y0, SubX, SubY).MakeKey()));
+						INDEX_TYPE i11 = *(InVertexMap.Find(FLandscapeVertexRef(x1, y1, SubX, SubY).MakeKey()));
+						INDEX_TYPE i01 = *(InVertexMap.Find(FLandscapeVertexRef(x0, y1, SubX, SubY).MakeKey()));
+
+						OutHoleRenderData.HoleIndices.Add(i00);
+						OutHoleRenderData.HoleIndices.Add(i11);
+						OutHoleRenderData.HoleIndices.Add(i10);
+
+						OutHoleRenderData.HoleIndices.Add(i00);
+						OutHoleRenderData.HoleIndices.Add(i01);
+						OutHoleRenderData.HoleIndices.Add(i11);
+
+						// Update the min/max index ranges
+						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i00);
+						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i00);
+						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i10);
+						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i10);
+						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i11);
+						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i11);
+						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i01);
+						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i01);
+					}
+				}
+			}
+		}
+	}
+
+	OutHoleRenderData.MinIndex = MinIndex;
+	OutHoleRenderData.MinIndex = MaxIndex;
+}
+
+// Generates vertex and index buffer data from the component's height map and visibility textures.
+// For use on mobile platforms that don't use vertex texture fetch for height or alpha testing for visibility.
 void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* TargetPlatform)
 {
 	if (IsTemplate())
@@ -6293,16 +6610,17 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<uint8> NewPlatformData;
 	FMemoryWriter PlatformAr(NewPlatformData);
 
-	int32 SubsectionSizeVerts = SubsectionSizeQuads + 1;
-	int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeVerts) - 1;
+	const int32 SubsectionSizeVerts = SubsectionSizeQuads + 1;
+	const int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeVerts) - 1;
+	const int32 NumMips = FMath::Min(LANDSCAPE_MAX_ES_LOD, GetHeightmap()->Source.GetNumMips());
 
-	float HeightmapSubsectionOffsetU = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeX();
-	float HeightmapSubsectionOffsetV = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeY();
-	
-	// Get the required mip data
+	const float HeightmapSubsectionOffsetU = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeX();
+	const float HeightmapSubsectionOffsetV = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeY();
+
+	// Get the required height mip data
 	TArray<TArray64<uint8>> HeightmapMipRawData;
 	TArray64<FColor*> HeightmapMipData;
-	for (int32 MipIdx = 0; MipIdx < FMath::Min(LANDSCAPE_MAX_ES_LOD, GetHeightmap()->Source.GetNumMips()); MipIdx++)
+	for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
 	{
 		int32 MipSubsectionSizeVerts = (SubsectionSizeVerts) >> MipIdx;
 		if (MipSubsectionSizeVerts > 1)
@@ -6313,11 +6631,32 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 		}
 	}
 
+	// Get any hole data
+	int32 NumHoleLods = 0;
+	TArray< uint8 > VisibilityData;
+	if (ComponentHasVisibilityPainted() && GetLandscapeProxy()->bMeshHoles)
+	{
+		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
+		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
+		{
+			FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
+			{
+				NumHoleLods = FMath::Clamp<int32>(GetLandscapeProxy()->MeshHolesMaxLod, 1, NumMips);
+
+				FLandscapeComponentDataInterface CDI(this, 0);
+				CDI.GetWeightmapTextureData(AllocInfo.LayerInfo, VisibilityData);
+				break;
+			}
+		}
+	}
+
+	// Layout index buffer to determine best vertex order.
+	// This vertex layout code is duplicated in FLandscapeSharedBuffers::CreateIndexBuffers() to create matching index buffers at runtime.
 	TMap<uint64, int32> VertexMap;
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(FMath::Square(SubsectionSizeVerts * NumSubsections));
 
-	// Layout index buffer to determine best vertex order
 	for (int32 Mip = MaxLOD; Mip >= 0; Mip--)
 	{
 		int32 LodSubsectionSizeQuads = (SubsectionSizeVerts >> Mip) - 1;
@@ -6377,33 +6716,66 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 			VertexOrder.Num(), FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections));
 	}
 
-	int32 NumMobileVerices = FMath::Square(SubsectionSizeVerts * NumSubsections);
+	// Build and serialize hole render data which includes a unique index buffer with the holes missing.
+	// This fills HoleVertexLods which is required for filling the vertex data.
+	TArray<uint8> HoleVertexLods;
+	PlatformAr << NumHoleLods;
+	if (NumHoleLods > 0)
+	{
+		TArray<FIntBox2D> HoleBounds;
+		GetHoleBounds(SubsectionSizeVerts * NumSubsections, VisibilityData, HoleBounds);
+		BuildHoleVertexLods(SubsectionSizeVerts * NumSubsections, NumHoleLods, HoleBounds, HoleVertexLods);
+
+		if (VertexOrder.Num() <= UINT16_MAX)
+		{
+			FLandscapeHoleRenderData<uint16> HoleRenderData;
+			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexMap, HoleRenderData);
+			SerializeHoleRenderData(PlatformAr, HoleRenderData);
+		}
+		else
+		{
+			FLandscapeHoleRenderData<uint32> HoleRenderData;
+			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexMap, HoleRenderData);
+			SerializeHoleRenderData(PlatformAr, HoleRenderData);
+		}
+	}
+
+	// Fill in the vertices in the specified order.
+	const int32 SizeVerts = SubsectionSizeVerts * NumSubsections;
+	int32 NumMobileVertices = FMath::Square(SizeVerts);
 	TArray<FLandscapeMobileVertex> MobileVertices;
-	MobileVertices.AddZeroed(NumMobileVerices);
+	MobileVertices.AddZeroed(NumMobileVertices);
 	FLandscapeMobileVertex* DstVert = MobileVertices.GetData();
 
-	// Fill in the vertices in the specified order
 	for (int32 Idx = 0; Idx < VertexOrder.Num(); Idx++)
 	{
-		int32 X = VertexOrder[Idx].X;
-		int32 Y = VertexOrder[Idx].Y;
-		int32 SubX = VertexOrder[Idx].SubX;
-		int32 SubY = VertexOrder[Idx].SubY;
+		// Store XY position info
+		const int32 X = VertexOrder[Idx].X;
+		const int32 Y = VertexOrder[Idx].Y;
+		const int32 SubX = VertexOrder[Idx].SubX;
+		const int32 SubY = VertexOrder[Idx].SubY;
+
+		DstVert->Position[0] = X;
+		DstVert->Position[1] = Y;
+		DstVert->Position[2] = (SubX << 4) | SubY;
+
+		// Store hole info
+		const int32 VertexIndex = (SubY * SubsectionSizeVerts + Y) * SizeVerts + SubX * SubsectionSizeVerts + X;
+		const int32 HoleVertexLod = (NumHoleLods > 0) ? HoleVertexLods[VertexIndex] : 0;
+		const int32 HoleMaxLod = (NumHoleLods > 0) ? NumHoleLods : 0;
+
+		DstVert->Position[3] = (HoleMaxLod << 4) | HoleVertexLod;
+
+		// Calculate min/max height for packing
+		TArray<int32> MipHeights;
+		MipHeights.AddZeroed(HeightmapMipData.Num());
+		int32 LastIndex = 0;
+		uint16 MaxHeight = 0, MinHeight = 65535;
 
 		float HeightmapScaleBiasZ = HeightmapScaleBias.Z + HeightmapSubsectionOffsetU * (float)SubX;
 		float HeightmapScaleBiasW = HeightmapScaleBias.W + HeightmapSubsectionOffsetV * (float)SubY;
 		int32 BaseMipOfsX = FMath::RoundToInt(HeightmapScaleBiasZ * (float)GetHeightmap()->Source.GetSizeX());
 		int32 BaseMipOfsY = FMath::RoundToInt(HeightmapScaleBiasW * (float)GetHeightmap()->Source.GetSizeY());
-
-		DstVert->Position[0] = X;
-		DstVert->Position[1] = Y;
-		DstVert->Position[2] = SubX;
-		DstVert->Position[3] = SubY;
-
-		TArray<int32> MipHeights;
-		MipHeights.AddZeroed(HeightmapMipData.Num());
-		int32 LastIndex = 0;
-		uint16 MaxHeight = 0, MinHeight = 65535;
 
 		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
 		{
@@ -6423,29 +6795,27 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 			MinHeight = FMath::Min(MinHeight, Height);
 		}
 
-		DstVert->LODHeights[0] = MinHeight >> 8;
-		DstVert->LODHeights[1] = (MinHeight & 255);
-		DstVert->LODHeights[2] = MaxHeight >> 8;
-		DstVert->LODHeights[3] = (MaxHeight & 255);
+		// Quantize min/max height so we can store each in 8 bits
+		MaxHeight = (MaxHeight + 255) & (~255);
+		MinHeight = (MinHeight) & (~255);
 
+		DstVert->LODHeights[0] = MinHeight >> 8;
+		DstVert->LODHeights[1] = MaxHeight >> 8;
+
+		// Now quantize the mip heights to steps between MinHeight and MaxHeight
 		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
 		{
-			if (Mip < 4)
-			{
-				DstVert->LODHeights[4 + Mip] = FMath::RoundToInt(float(MipHeights[Mip] - MinHeight) / (MaxHeight - MinHeight) * 255);
-			}
-			else // Mip 4 5 packed into SubX, SubY
-			{
-				DstVert->Position[Mip - 2] += (FMath::RoundToInt(float(MipHeights[Mip] - MinHeight) / (MaxHeight - MinHeight) * 255)) & (0xfffe);
-			}
+			check(Mip < 6);
+			DstVert->LODHeights[2 + Mip] = FMath::RoundToInt(float(MipHeights[Mip] - MinHeight) / (MaxHeight - MinHeight) * 255);
 		}
 
 		DstVert++;
 	}
 
-	PlatformAr << NumMobileVerices;
-	PlatformAr.Serialize(MobileVertices.GetData(), NumMobileVerices*sizeof(FLandscapeMobileVertex));
-	
+	// Serialize vertex buffer
+	PlatformAr << NumMobileVertices;
+	PlatformAr.Serialize(MobileVertices.GetData(), NumMobileVertices*sizeof(FLandscapeMobileVertex));
+
 	// Generate occlusion mesh
 	TArray<FVector> OccluderVertices;
 	const int32 OcclusionMeshMip = FMath::Clamp<int32>(GetLandscapeProxy()->OccluderGeometryLOD, -1, HeightmapMipData.Num() - 1);
@@ -6476,7 +6846,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 						FColor* CurrentMipSrcRow = HeightmapMipData[OcclusionMeshMip] + (CurrentMipOfsY + y) * MipSizeX + CurrentMipOfsX;
 						uint16 Height = CurrentMipSrcRow[x].R << 8 | CurrentMipSrcRow[x].G;
 
-						FVector VtxPos = FVector(x*MipRatio, y*MipRatio, ((float)Height - 32768.f) * LANDSCAPE_ZSCALE);
+						FVector VtxPos = FVector(x*MipRatio + SubX * SubsectionSizeQuads, y*MipRatio + SubY * SubsectionSizeQuads, ((float)Height - 32768.f) * LANDSCAPE_ZSCALE);
 						OccluderVertices.Add(VtxPos);
 					}
 				}

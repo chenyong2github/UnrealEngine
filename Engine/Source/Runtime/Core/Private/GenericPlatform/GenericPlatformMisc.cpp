@@ -1054,6 +1054,21 @@ const TCHAR* FGenericPlatformMisc::GetUBTTarget()
 	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
 }
 
+/** The name of the UBT target that the current executable was built from. Defaults to the UE4 default target for this type to make content only projects work, 
+	but will be overridden by the primary game module if it exists */
+TCHAR GUBTTargetName[128] = TEXT("UE4" PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+
+void FGenericPlatformMisc::SetUBTTargetName(const TCHAR* InTargetName)
+{
+	check(FCString::Strlen(InTargetName) < (UE_ARRAY_COUNT(GUBTTargetName) - 1));
+	FCString::Strcpy(GUBTTargetName, InTargetName);
+}
+
+const TCHAR* FGenericPlatformMisc::GetUBTTargetName()
+{
+	return GUBTTargetName;
+}
+
 const TCHAR* FGenericPlatformMisc::GetDefaultDeviceProfileName()
 {
 	return TEXT("Default");

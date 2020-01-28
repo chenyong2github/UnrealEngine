@@ -123,7 +123,7 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bIsSynthPlaying = false;
 	bIsInitialized = false;
 	bIsUISound = false;
-	bAlwaysPlay = false;
+	bAlwaysPlay = true;
 	Synth = nullptr;
 
 	// Set the default sound class

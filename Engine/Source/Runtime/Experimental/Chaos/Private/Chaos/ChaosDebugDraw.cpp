@@ -14,6 +14,8 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
 
+//#pragma optimize ("", off)
+
 namespace Chaos
 {
 	namespace DebugDraw
@@ -22,7 +24,7 @@ namespace Chaos
 		float BodyAxisLen = 4.0f;
 		float ContactLen = 4.0f;
 		float ContactWidth = 2.0f;
-		float ContactPhiWidth = 1.5f;
+		float ContactPhiWidth = 0.3f;
 		float ContactOwnerWidth = 0.0f;
 		float ConstraintAxisLen = 5.0f;
 		float JointComSize = 2.0f;
@@ -30,7 +32,7 @@ namespace Chaos
 		float DrawScale = 1.0f;
 		float FontHeight = 10.0f;
 		float FontScale = 1.5f;
-		float ShapeThicknesScale = 0.2f;
+		float ShapeThicknesScale = 1.0f;
 		float PointSize = 2.0f;
 		int DrawPriority = 10.0f;
 
@@ -158,46 +160,66 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FCollisionConstraintBase& Contact, float ColorScale)
 		{
-			if (ConstraintHandle->GetType() == TCollisionConstraintBase<float,3>::FType::SinglePoint)
+			FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+			FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+
+			if (ContactWidth > 0)
 			{
-				const TRigidBodyPointContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetPointContact();
-				if (Contact.GetPhi() > 0)
+				bool bIsManifold = (Contact.GetType() == FCollisionConstraintBase::FType::MultiPoint) && (Contact.As<FRigidBodyMultiPointContactConstraint>()->GetManifoldPlaneOwnerIndex() >= 0);
+				if (!bIsManifold)
 				{
-					ColorScale = ColorScale * (FReal)0.1;
-				}
-
-				FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
-				FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
-
-				if (ContactWidth > 0)
-				{
-					FColor C0 = (ColorScale * FColor(128, 0, 0)).ToFColor(false);
+					FColor C0 = (ColorScale * FColor(200, 0, 0)).ToFColor(false);
 					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
 					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 				}
-				if (ContactLen > 0)
+				else
 				{
-					FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				}
-				if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
-				{
-					FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
+					const FRigidBodyMultiPointContactConstraint& MultiPointConstraint = *Contact.As<FRigidBodyMultiPointContactConstraint>();
+					int32 PlaneOwnerIndex = MultiPointConstraint.GetManifoldPlaneOwnerIndex();
+					int32 PointsOwnerIndex = 1 - PlaneOwnerIndex;
+					FColor C0 = (PlaneOwnerIndex == 0) ? (ColorScale * FColor(0, 200, 0)).ToFColor(false) : (ColorScale * FColor(0, 0, 200)).ToFColor(false);
+					
 					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-				}
-				if (ContactOwnerWidth > 0)
-				{
-					FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
-					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-					FVec3 P0 = SpaceTransform.TransformPosition(ConstraintHandle->GetConstrainedParticles()[0]->X());
-					FVec3 P1 = SpaceTransform.TransformPosition(ConstraintHandle->GetConstrainedParticles()[1]->X());
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+					
+					TConstGenericParticleHandle<FReal, 3> PointsParticle = MultiPointConstraint.Particle[PointsOwnerIndex];
+					FRigidTransform3 PointsImplicitTransform = MultiPointConstraint.ImplicitTransform[PointsOwnerIndex];
+					FRigidTransform3 PointsTransform = PointsImplicitTransform * FParticleUtilities::GetActorWorldTransform(PointsParticle) * SpaceTransform;
+					for (int32 SampleIndex = 1; SampleIndex < MultiPointConstraint.NumManifoldPoints(); ++SampleIndex)
+					{
+						FVec3 S0 = PointsTransform.TransformPosition(MultiPointConstraint.GetManifoldPoint(SampleIndex - 1));
+						FVec3 S1 = PointsTransform.TransformPosition(MultiPointConstraint.GetManifoldPoint(SampleIndex));
+						FDebugDrawQueue::GetInstance().DrawDebugLine(S0, S1, FColor::Orange, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+					}
 				}
 			}
+			if (ContactLen > 0)
+			{
+				FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			}
+			if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
+			{
+				FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
+				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+			}
+			if (ContactOwnerWidth > 0)
+			{
+				FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
+				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+				FVec3 P0 = SpaceTransform.TransformPosition(Contact.Particle[0]->X());
+				FVec3 P1 = SpaceTransform.TransformPosition(Contact.Particle[1]->X());
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
+			}
+		}
+		
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
+		{
+			DrawCollisionImpl(SpaceTransform, ConstraintHandle->GetContact(), ColorScale);
 		}
 
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 Level, int32 Index, FReal ColorScale, uint32 FeatureMask)
@@ -446,9 +468,9 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ConstraintHandle : Collisions.GetConstConstraintHandles())
+				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 				{
-					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale);
+					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale);
 				}
 			}
 #endif

@@ -36,9 +36,12 @@ namespace Chaos
 		GravityEnabled			= 1 << 24,
 		SpatialIdx				= 1 << 25,
 		UniqueIdx				= 1 << 26,
-		ShapeDisableCollision	= 1 << 27
+		ShapeDisableCollision	= 1 << 27,
+		CollisionTraceType		= 1 << 28,
+		ShapeSimData            = 1 << 29,
+		UserData				= 1 << 30
 #if CHAOS_CHECKED
-		, DebugName				= 1 << 28
+		, DebugName				= 1 << 31
 #endif
 	};
 

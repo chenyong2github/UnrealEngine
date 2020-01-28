@@ -63,21 +63,54 @@ struct FNiagaraEmitterCompiledData
 };
 
 USTRUCT()
+struct FNiagaraParameterDataSetBinding
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	int32 ParameterOffset;
+
+	UPROPERTY()
+	int32 DataSetComponentOffset;
+};
+
+USTRUCT()
+struct FNiagaraParameterDataSetBindingCollection
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> FloatOffsets;
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> Int32Offsets;
+
+#if WITH_EDITORONLY_DATA
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, TEXT(""), TEXT(""));
+	}
+
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, NamespaceBase, NamespaceReplacement);
+	}
+
+protected:
+	void BuildInternal(const TArray<FNiagaraVariable>& ParameterVars, const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement);
+
+#endif
+};
+
+USTRUCT()
 struct FNiagaraSystemCompiledData
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FNiagaraVariable> NumParticleVars;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> TotalSpawnedParticlesVars;
-
-	UPROPERTY()
 	FNiagaraParameterStore InstanceParamStore;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> SpawnCountScaleVars;
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
@@ -87,6 +120,24 @@ struct FNiagaraSystemCompiledData
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData UpdateInstanceParamsDataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
 };
 
 USTRUCT()
@@ -97,7 +148,7 @@ struct FEmitterCompiledScriptPair
 	bool bResultsReady;
 	UNiagaraEmitter* Emitter;
 	UNiagaraScript* CompiledScript;
-	uint32 PendingDDCID;
+	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
 };
@@ -222,7 +273,7 @@ public:
 	/** If we have a pending compile request, is it done with yet? */
 	bool PollForCompilationComplete();
 
-	/** */
+	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete();
 
 	/** Delegate called when the system's dependencies have all been compiled.*/
@@ -327,7 +378,15 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
+	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
+	bool GetFromDDC(FEmitterCompiledScriptPair& ScriptPair);
+
+	/** Since the shader compilation is done in another process, this is used to check if the result for any ongoing compilations is done.
+	*   If bWait is true then this *blocks* the game thread (and ui) until all running compilations are finished.
+	*/
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
+
+	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
 
 	void InitEmitterCompiledData();
 

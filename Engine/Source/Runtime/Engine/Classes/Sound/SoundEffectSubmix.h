@@ -3,13 +3,17 @@
 
 #include "CoreMinimal.h"
 
+#include "AudioDefines.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectBase.h"
 #include "UObject/ObjectMacros.h"
 
 #include "SoundEffectSubmix.generated.h"
 
+
+class FAudioDevice;
 class FSoundEffectSubmix;
+
 struct FAudioEffectParameters;
 
 /** Preset of a submix effect that can be shared between sounds. */
@@ -25,8 +29,16 @@ class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
 /** Struct which has data needed to initialize the submix effect. */
 struct FSoundEffectSubmixInitData
 {
+	uint32 DeviceHandle;
 	void* PresetSettings;
 	float SampleRate;
+
+	FSoundEffectSubmixInitData()
+		: DeviceHandle(INDEX_NONE)
+		, PresetSettings(nullptr)
+		, SampleRate(0)
+	{
+	}
 };
 
 /** Struct which supplies audio data to submix effects on game thread. */

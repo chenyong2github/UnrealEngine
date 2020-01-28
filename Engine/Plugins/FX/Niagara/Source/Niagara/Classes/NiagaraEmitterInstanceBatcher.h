@@ -76,8 +76,6 @@ public:
 	/** Called to release GPU instance counts that the batcher is tracking. */
 	void ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet);
 
-	NIAGARA_API void EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy);
-
 #if WITH_EDITOR
 	virtual void Suspend() override {}
 	virtual void Resume() override {}
@@ -211,12 +209,6 @@ private:
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
-
-	// For deferred deletion of resources
-	TSet<FNiagaraComputeExecutionContext*> ContextsToDestroy_RT;
-	TSet<FNiagaraDataSet*> DataSetsToDestroy_RT;
-
-	TSet<TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>> DIProxyDeferredDeletes_RT;
 
 	/** A buffer used by the compute shader which determines the list of free particle IDs for each emitter. */
 	FRWBuffer FreeIDListSizesBuffer;

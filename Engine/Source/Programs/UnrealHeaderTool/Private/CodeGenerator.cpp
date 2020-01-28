@@ -110,6 +110,9 @@ namespace
 
 	const TCHAR RequiredCPPIncludes[] = TEXT("#include \"UObject/GeneratedCppIncludes.h\"") LINE_TERMINATOR;
 
+	const TCHAR EnableDeprecationWarnings[] = TEXT("PRAGMA_ENABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
+	const TCHAR DisableDeprecationWarnings[] = TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
+
 	// A struct which emits #if and #endif blocks as appropriate when invoked.
 	struct FMacroBlockEmitter
 	{
@@ -226,9 +229,7 @@ namespace
 		}
 
 		const FProperty* LastProperty = ClassReps.Last().Property;
-		NetFieldBuilder.Log( LastProperty->ArrayDim > 1 ?
-			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s_STATIC_ARRAY_END,\r\n"), *LastProperty->GetName()) :
-			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s,\r\n"), *LastProperty->GetName()));
+		NetFieldBuilder.Logf(TEXT("\t\tNETFIELD_REP_END=%s%s"), *LastProperty->GetName(), LastProperty->ArrayDim > 1 ? TEXT("_STATIC_ARRAY_END") : TEXT(""));
 
 		NetFieldBuilder.Log(TEXT("\t};"));
 
@@ -248,7 +249,7 @@ namespace
 			API);
 	}
 
-	static const FString GetLifetimeReplicatedPropsStr(TEXT("GetLifetimeReplicatedProps"));
+	static const FString STRING_GetLifetimeReplicatedPropsStr(TEXT("GetLifetimeReplicatedProps"));
 
 	static void WriteReplicatedMacroData(
 		const ClassDefinitionRange& ClassRange,
@@ -260,7 +261,7 @@ namespace
 		const FUnrealSourceFile& SourceFile,
 		FNativeClassHeaderGenerator::EExportClassOutFlags& OutFlags)
 	{
-		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, GetLifetimeReplicatedPropsStr);
+		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, STRING_GetLifetimeReplicatedPropsStr);
 
 		if (!bHasGetLifetimeReplicatedProps)
 		{
@@ -461,11 +462,6 @@ FString Macroize(const TCHAR* MacroName, FString&& StringToMacroize)
 		Result.ReplaceInline(TEXT("\n"), TEXT("\r\n"), ESearchCase::CaseSensitive);
 	}
 	return FString::Printf(TEXT("#define %s%s\r\n%s"), MacroName, Result.Len() ? TEXT(" \\") : TEXT(""), *Result);
-}
-
-FString Macroize(const TCHAR* MacroName, const TCHAR* StringToMacroize)
-{
-	return Macroize(MacroName, FString(StringToMacroize));
 }
 
 static void AddGeneratedCodeHash(void* Field, uint32 Hash)
@@ -1855,20 +1851,16 @@ inline FString GetEventStructParamsName(UObject* Outer, const TCHAR* FunctionNam
 void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces) const
 {
 	// Helper to handle the creation of the underlying properties if they're enum properties
-	auto HandleUnderlyingEnumProperty = [this, &PropertyNamesAndPointers, &DeclOut, &Out, &OutReferenceGatherers, DeclSpaces, Spaces](FProperty* LocalProp, FString OuterName)
+	auto HandleUnderlyingEnumProperty = [this, &PropertyNamesAndPointers, &DeclOut, &Out, &OutReferenceGatherers, DeclSpaces, Spaces](FProperty* LocalProp, FString&& InOuterName)
 	{
+		const FString& OuterName = PropertyNamesAndPointers.Emplace_GetRef(MoveTemp(InOuterName), LocalProp).Name;
+
 		if (FEnumProperty* EnumProp = CastField<FEnumProperty>(LocalProp))
 		{
 			FString PropVarName = OuterName + TEXT("_Underlying");
 
-			PropertyNamesAndPointers.Emplace(MoveTemp(OuterName), LocalProp);
-
 			PropertyNew(DeclOut, Out, OutReferenceGatherers, EnumProp->UnderlyingProp, TEXT("0"), *PropVarName, DeclSpaces, Spaces);
 			PropertyNamesAndPointers.Emplace(MoveTemp(PropVarName), EnumProp->UnderlyingProp);
-		}
-		else
-		{
-			PropertyNamesAndPointers.Emplace(MoveTemp(OuterName), LocalProp);
 		}
 	};
 
@@ -2923,7 +2915,7 @@ FString GetPreservedAccessSpecifierString(FClass* Class)
 
 void WriteMacro(FOutputDevice& Output, const FString& MacroName, FString MacroContent)
 {
-	Output.Log(*Macroize(*MacroName, MoveTemp(MacroContent)));
+	Output.Log(Macroize(*MacroName, MoveTemp(MacroContent)));
 }
 
 static FString PrivatePropertiesOffsetGetters(const UStruct* Struct, const FString& StructCppName)
@@ -3139,8 +3131,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			FString DeprecationWarning = GetGeneratedMacroDeprecationWarning(TEXT("GENERATED_UINTERFACE_BODY"));
 
-			const TCHAR* DeprecationPushString = TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
-			const TCHAR* DeprecationPopString = TEXT("PRAGMA_ENABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
 			const TCHAR* Offset = TEXT("\t");
 
 			OutGeneratedHeaderText.Log(
@@ -3148,10 +3138,10 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 					*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine, true),
 					FString::Printf(TEXT("\t%s\t%s\t%s()") LINE_TERMINATOR TEXT("%s\t%s")
 						, *DeprecationWarning
-						, DeprecationPushString
+						, DisableDeprecationWarnings
 						, *InterfaceMacroName
 						, *StandardUObjectConstructorsMacroCall
-						, DeprecationPopString
+						, EnableDeprecationWarnings
 					)
 				)
 			);
@@ -3160,11 +3150,11 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				Macroize(
 					*SourceFile.GetGeneratedBodyMacroName(ClassGeneratedBodyLine),
 					FString::Printf(TEXT("\t%s\t%s()") LINE_TERMINATOR TEXT("%s%s\t%s")
-						, DeprecationPushString
+						, DisableDeprecationWarnings
 						, *InterfaceMacroName
 						, *EnhancedUObjectConstructorsMacroCall
 						, *GetPreservedAccessSpecifierString(Class)
-						, DeprecationPopString
+						, EnableDeprecationWarnings
 					)
 				)
 			);
@@ -3256,8 +3246,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	}
 
 	{
-		const TCHAR* DeprecationPushString = TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
-		const TCHAR* DeprecationPopString = TEXT("PRAGMA_ENABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
 		const TCHAR* Public = TEXT("public:") LINE_TERMINATOR;
 
 		const bool bIsIInterface = Class->HasAnyClassFlags(CLASS_Interface);
@@ -3285,11 +3273,11 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			GeneratedBody = FString::Printf(TEXT("%s%s%s"), *PPOMacroName, *ClassNoPureDeclsMacroCalls, *EnhancedUObjectConstructorsMacroCall);
 		}
 
-		FString WrappedLegacyGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s%s"), *DeprecationWarning, DeprecationPushString, Public, *LegacyGeneratedBody, Public, DeprecationPopString);
-		FString WrappedGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s"), DeprecationPushString, Public, *GeneratedBody, *GetPreservedAccessSpecifierString(Class), DeprecationPopString);
+		FString WrappedLegacyGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s%s"), *DeprecationWarning, DisableDeprecationWarnings, Public, *LegacyGeneratedBody, Public, EnableDeprecationWarnings);
+		FString WrappedGeneratedBody = FString::Printf(TEXT("%s%s%s%s%s"), DisableDeprecationWarnings, Public, *GeneratedBody, *GetPreservedAccessSpecifierString(Class), EnableDeprecationWarnings);
 
-		OutGeneratedHeaderText.Log(*Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, true), MoveTemp(WrappedLegacyGeneratedBody)));
-		OutGeneratedHeaderText.Log(*Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, false), MoveTemp(WrappedGeneratedBody)));
+		OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, true), MoveTemp(WrappedLegacyGeneratedBody)));
+		OutGeneratedHeaderText.Log(Macroize(*SourceFile.GetGeneratedBodyMacroName(GeneratedBodyLine, false), MoveTemp(WrappedGeneratedBody)));
 	}
 
 	// Forward declare the StaticClass specialisation in the header
@@ -3478,8 +3466,8 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 		Out.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR(%s);" LINE_TERMINATOR), *ClassCPPName);
 	}
 
-	OutGeneratedHeaderText.Log(*Macroize(*StdMacroName, *StdMacro));
-	OutGeneratedHeaderText.Log(*Macroize(*EnhMacroName, *EnhMacro));
+	OutGeneratedHeaderText.Log(Macroize(*StdMacroName, *StdMacro));
+	OutGeneratedHeaderText.Log(Macroize(*EnhMacroName, *EnhMacro));
 
 	StandardUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *StdMacroName);
 	EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *EnhMacroName);
@@ -3498,7 +3486,7 @@ bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& 
 	}
 
 	GeneratedHeaderTextWithCopyright.Log(LINE_TERMINATOR);
-	GeneratedHeaderTextWithCopyright.Log(TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR);
+	GeneratedHeaderTextWithCopyright.Log(DisableDeprecationWarnings);
 
 	for (const FString& FWDecl : InOutReferenceGatherers.ForwardDeclarations)
 	{
@@ -3508,8 +3496,8 @@ bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& 
 		}
 	}
 
-	GeneratedHeaderTextWithCopyright.Log(*InBodyText);
-	GeneratedHeaderTextWithCopyright.Log(TEXT("PRAGMA_ENABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR);
+	GeneratedHeaderTextWithCopyright.Log(InBodyText);
+	GeneratedHeaderTextWithCopyright.Log(EnableDeprecationWarnings);
 
 	bool bHasChanged = SaveHeaderIfChanged(InOutReferenceGatherers, Path, *GeneratedHeaderTextWithCopyright);
 	return bHasChanged;
@@ -3622,6 +3610,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	const FString& SingletonName = GetSingletonName(Struct, OutReferenceGatherers.UniqueCrossModuleReferences);
 	const FString ChoppedSingletonName = SingletonName.LeftChop(2);
 
+	const FString RigVMParameterPrefix = TEXT("const FName& RigVMOperatorName, int32 RigVMOperatorIndex");
 	TArray<FString> RigVMVirtualFuncProlog, RigVMStubProlog;
 
 	// for RigVM methods we need to generated a macro used for implementing the static method
@@ -3630,14 +3619,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(Struct);
 	if(StructRigVMInfo)
 	{
-		RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMOperands.Num() == %d);"), StructRigVMInfo->Members.Num()));
-		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
-		{
-			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
-			RigVMStubProlog.Add(FString::Printf(TEXT("const FRigVMOperand& %s_Operand = RigVMOperands[%d];"), *Parameter.Name, ParameterIndex));
-		}
-		RigVMStubProlog.Add(FString());
+		//RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMOperandMemory.Num() == %d);"), StructRigVMInfo->Members.Num()));
 
+		int32 OperandIndex = 0;
 		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
 		{
 			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
@@ -3645,7 +3629,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.MaxArraySize.IsEmpty())
 				{
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNumUninitialized( %s );"), *Parameter.Name, *Parameter.MaxArraySize));
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNum( %s );"), *Parameter.Name, *Parameter.MaxArraySize));
 				}
 				RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
 			}
@@ -3653,25 +3637,38 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			FString VariableType;
 			FString ExtractedType;
 			const FString& ParamTypeOriginal = Parameter.TypeOriginal(true);
+			const FString& ParamNameOriginal = Parameter.NameOriginal(false);
+
 			if (ParamTypeOriginal.StartsWith(TEXT("TArrayView"), ESearchCase::CaseSensitive))
 			{
 				ExtractedType = Parameter.ExtendedType().LeftChop(1).RightChop(1);
 				VariableType = ParamTypeOriginal;
+				
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = TArrayView<%s>((%s*)RigVMOperandMemory[%d], reinterpret_cast<uint64>(RigVMOperandMemory[%d]));"),
+					*VariableType,
+					*ParamNameOriginal,
+					*ExtractedType,
+					*ExtractedType,
+					OperandIndex,
+					OperandIndex + 1));
+
+				OperandIndex += 2;
 			}
 			else
 			{
 				VariableType = Parameter.TypeVariableRef(true);
 				ExtractedType = Parameter.TypeOriginal();
-			}
+				
+				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
 
-			const FString& ParamNameOriginal = Parameter.NameOriginal(false);
-			RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMMemoryContainer[%s_Operand.GetContainerIndex()]->%s<%s>(%s_Operand, true);"),
-				*VariableType,
-				*ParamNameOriginal,
-				*ParamNameOriginal,
-				*Parameter.Getter,
-				*ExtractedType,
-				*ParamNameOriginal));
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMOperandMemory[%d];"),
+					*VariableType,
+					*ParamNameOriginal,
+					*ParameterCast,
+					OperandIndex));
+
+				OperandIndex++;
+			}
 		}
 
 		FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
@@ -3680,8 +3677,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 		{
 			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
+			FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(", \\\r\n\t\t"));
 			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), *StructNameCPP, *MethodInfo.Name);
-			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s \\\r\n\t)\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s%s \\\r\n\t)\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
 		}
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 	}
@@ -3705,9 +3703,48 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
 			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 			{
+				FString StructMembersForStub = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t\t"), false);
 				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(\r\n\t\tconst FRigVMOperandArray& RigVMOperands,\r\n\t\tFRigVMMemoryContainerPtrArray& RigVMMemoryContainer,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name);
+				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t\t"));
+				FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
+				FString RigVMParameterPrefix4 = FString(TEXT("RigVMOperatorName,\r\n\t\t\tRigVMOperatorIndex")) + FString((StructMembersForStub.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t\t"));
+
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tFORCEINLINE static %s RigVM%s(\r\n\t\t%s,\r\n\t\tFRigVMOperandMemory RigVMOperandMemory,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t)\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\t{\r\n"));
+
+				// implement inline stub method body
+				if (MethodInfo.Parameters.Num() > 0)
+				{
+					//RigVMMethodsDeclarations += FString::Printf(TEXT("\t\tensure(RigVMUserData.Num() == %d);\r\n"), MethodInfo.Parameters.Num());
+					for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
+					{
+						const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
+						RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%s = *(%s*)RigVMUserData[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
+					}
+					RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t\r\n"));
+				}
+
+				if (RigVMStubProlog.Num() > 0)
+				{
+					for (const FString& RigVMStubPrologLine : RigVMStubProlog)
+					{
+						RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%s\r\n"), *RigVMStubPrologLine);
+					}
+					RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t\r\n"));
+				}
+
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%sStatic%s(\r\n\t\t\t%s%s%s\r\n\t\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix4, *StructMembersForStub, *ParameterNamesSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\t}\r\n"));
+			}
+
+			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+			{
+				if (!StructMember.MaxArraySize.IsEmpty())
+				{
+					RigVMMethodsDeclarations += TEXT("\tvirtual int32 GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData) override;\r\n");
+					break;
+				}
 			}
 		}
 
@@ -3749,7 +3786,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		{
 			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 			{
-				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s);\r\n"),
+				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s, Singleton);\r\n"),
 					*StructNameCPP, *MethodInfo.Name, *StructNameCPP, *MethodInfo.Name);
 			}
 		}
@@ -3938,7 +3975,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	if (StructRigVMInfo)
 	{
 		FString StructMembersForVirtualFunc = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), true);
-		FString StructMembersForStub = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), false);
 
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 		{
@@ -3946,6 +3982,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
 			FString ParameterSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t"));
+			FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
+			FString RigVMParameterPrefix3 = FString(TEXT("NAME_None,\r\n\t\tINDEX_NONE")) + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
 
 			// implement the virtual function body.
 			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
@@ -3960,40 +3998,39 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				Out.Log(TEXT("\t\r\n"));
 			}
 
-			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForVirtualFunc, *ParameterSuffix);
-			Out.Log(TEXT("}\r\n"));
-
-			Out.Log(TEXT("\r\n"));
-
-			// implement stub method body
-			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMOperandArray& RigVMOperands, FRigVMMemoryContainerPtrArray& RigVMMemoryContainer, const FRigVMUserDataArray& RigVMUserData)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name);
-			Out.Log(TEXT("{\r\n"));
-
-			if (MethodInfo.Parameters.Num() > 0)
-			{
-				Out.Logf(TEXT("\tensure(RigVMUserData.Num() == %d);\r\n"), MethodInfo.Parameters.Num());
-				for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
-				{
-					const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
-					Out.Logf(TEXT("\t%s = *(%s*)RigVMUserData[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
-				}
-				Out.Log(TEXT("\t\r\n"));
-			}
-
-			if(RigVMStubProlog.Num() > 0)
-			{
-				for (const FString& RigVMStubPrologLine : RigVMStubProlog)
-				{
-					Out.Logf(TEXT("\t%s\r\n"), *RigVMStubPrologLine);
-				}
-				Out.Log(TEXT("\t\r\n"));
-			}
-
-			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForStub, *ParameterSuffix);
+			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc, *ParameterSuffix);
 			Out.Log(TEXT("}\r\n"));
 		}
 
 		Out.Log(TEXT("\r\n"));
+
+		bool bHasGetMaxArraySize = false;
+		for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+		{
+			if (!StructMember.MaxArraySize.IsEmpty())
+			{
+				bHasGetMaxArraySize = true;
+				break;
+			}
+		}
+
+		if (bHasGetMaxArraySize)
+		{
+			Out.Logf(TEXT("int32 %s::GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData)\r\n"), *StructNameCPP);
+			Out.Log(TEXT("{\r\n"));
+			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+			{
+				if (!StructMember.MaxArraySize.IsEmpty())
+				{
+					Out.Logf(TEXT("\tif(InMemberName == TEXT(\"%s\"))\r\n"), *StructMember.Name);
+					Out.Log(TEXT("\t{\r\n"));
+					Out.Logf(TEXT("\t\treturn %s;\r\n"), *StructMember.MaxArraySize);
+					Out.Log(TEXT("\t}\r\n"));
+				}
+			}
+			Out.Log(TEXT("\treturn INDEX_NONE;\r\n"));
+			Out.Log(TEXT("}\r\n\r\n"));
+		}
 	}
 }
 
@@ -4602,8 +4639,7 @@ void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutRefe
 	//
 	// Get string with function specifiers, listing why we need _Implementation or _Validate functions.
 	//
-	TArray<const TCHAR*> FunctionSpecifiers;
-	FunctionSpecifiers.Reserve(4);
+	TArray<const TCHAR*, TInlineAllocator<4>> FunctionSpecifiers;
 	if (bIsNative)			{ FunctionSpecifiers.Add(TEXT("Native"));			}
 	if (bIsNet)				{ FunctionSpecifiers.Add(TEXT("Net"));				}
 	if (bIsBlueprintEvent)	{ FunctionSpecifiers.Add(TEXT("BlueprintEvent"));	}
@@ -6226,8 +6262,6 @@ void FNativeClassHeaderGenerator::ExportUpdatedHeaders(const FString& PackageNam
  */
 void FNativeClassHeaderGenerator::ExportGeneratedCPP(FOutputDevice& Out, const TSet<FString>& InCrossModuleReferences, const TCHAR* EmptyLinkFunctionPostfix, const TCHAR* Body, const TCHAR* OtherIncludes)
 {
-	static const TCHAR EnableDeprecationWarnings [] = TEXT("PRAGMA_ENABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
-	static const TCHAR DisableDeprecationWarnings[] = TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR;
 	static const TCHAR DisableWarning4883        [] = TEXT("#ifdef _MSC_VER") LINE_TERMINATOR TEXT("#pragma warning (push)") LINE_TERMINATOR TEXT("#pragma warning (disable : 4883)") LINE_TERMINATOR TEXT("#endif") LINE_TERMINATOR;
 	static const TCHAR EnableWarning4883         [] = TEXT("#ifdef _MSC_VER") LINE_TERMINATOR TEXT("#pragma warning (pop)") LINE_TERMINATOR TEXT("#endif") LINE_TERMINATOR;
 

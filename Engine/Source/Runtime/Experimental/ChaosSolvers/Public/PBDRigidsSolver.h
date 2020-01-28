@@ -285,10 +285,15 @@ namespace Chaos
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void DestroyMaterial(Chaos::FMaterialHandle InHandle);
+		void UpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		void CreateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		void DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
-		/** Access to the intenal material mirrors */
+		/** Access to the internal material mirrors */
 		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials() const { return QueryMaterials; }
+		const THandleArray<FChaosPhysicsMaterialMask>& GetQueryMaterialMasks() const { return QueryMaterialMasks; }
 		const THandleArray<FChaosPhysicsMaterial>& GetSimMaterials() const { return SimMaterials; }
+		const THandleArray<FChaosPhysicsMaterialMask>& GetSimMaterialMasks() const { return SimMaterialMasks; }
 
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
@@ -298,20 +303,27 @@ namespace Chaos
 		template<typename ParticleType>
 		void FlipBuffer(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->FlipBuffer();
+			((ParticleType*)(GetProxy(Handle)))->FlipBuffer();
 		}
 
 		template<typename ParticleType>
 		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->PullFromPhysicsState();
+			((ParticleType*)(GetProxy(Handle)))->PullFromPhysicsState();
 		}
 
 		template<typename ParticleType>
 		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->BufferPhysicsResults();
+			((ParticleType*)(GetProxy(Handle)))->BufferPhysicsResults();
 		}
+
+		IPhysicsProxyBase* GetProxy(const Chaos::TGeometryParticleHandle<float, 3>* Handle) const
+		{
+			IPhysicsProxyBase* const* PhysicsProxyPtr = MParticleToProxy.Find(Handle);
+			return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
+		}
+		
 
 		//
 		// Solver Data
@@ -332,6 +344,7 @@ namespace Chaos
 		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
+		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, IPhysicsProxyBase*> MParticleToProxy;
 
 		//
 		// Commands
@@ -358,8 +371,10 @@ namespace Chaos
 		// instead of having to lock the entire physics state of the runtime.
 		FRWLock QueryMaterialLock;
 		THandleArray<FChaosPhysicsMaterial> QueryMaterials;
+		THandleArray<FChaosPhysicsMaterialMask> QueryMaterialMasks;
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
-				
+		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
+
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
 	};

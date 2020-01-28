@@ -38,7 +38,7 @@ USteamAudioSettings::USteamAudioSettings()
 	, TANMaxSources(32)
 	, RadeonRaysBakingBatchSize(1)
 {
-	OutputSubmix = FString(TEXT("/PhononAudio/PhononSubmixDefault.PhononSubmixDefault"));
+	OutputSubmix = FString(TEXT("/SteamAudio/PhononSubmixDefault.PhononSubmixDefault"));
 
 	auto MaterialPreset = SteamAudio::MaterialPresets[StaticMeshMaterialPreset];
 	StaticMeshLowFreqAbsorption = MaterialPreset.lowFreqAbsorption;

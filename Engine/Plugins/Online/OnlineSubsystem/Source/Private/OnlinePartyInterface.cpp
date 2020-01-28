@@ -866,15 +866,7 @@ FString ToDebugString(const FPartyConfiguration& PartyConfiguration)
 
 FString ToDebugString(const IOnlinePartyJoinInfo& JoinInfo)
 {
-	return FString::Printf(TEXT("SourceUserId(%s) SourceDisplayName(%s) PartyId(%s) HasKey(%d) HasPassword(%d) IsAcceptingMembers(%d) NotAcceptingReason(%d)"),
-			*(JoinInfo.GetSourceUserId()->ToDebugString()),
-			*(JoinInfo.GetSourceDisplayName()),
-			*(JoinInfo.GetPartyId()->ToDebugString()),
-			JoinInfo.HasKey() ? 1 : 0,
-			JoinInfo.HasPassword() ? 1 : 0,
-			JoinInfo.IsAcceptingMembers() ? 1 : 0,
-			JoinInfo.GetNotAcceptingReason()
-		);
+	return JoinInfo.ToDebugString();
 }
 
 /**
@@ -914,3 +906,14 @@ FString ToDebugString(const FOnlinePartyData& PartyData)
 	Result += ToDebugString(PartyData.GetKeyValAttrs());
 	return Result;
 }
+
+FString IOnlinePartyJoinInfo::ToDebugString() const 
+{
+	return FString::Printf(TEXT("SourceUserId(%s) SourceDisplayName(%s) PartyId(%s) HasKey(%d) HasPassword(%d) IsAcceptingMembers(%d) NotAcceptingReason(%d)"),
+		*(GetSourceUserId()->ToDebugString()),
+		*(GetSourceDisplayName()),
+		*(GetPartyId()->ToDebugString()),
+		HasKey() ? 1 : 0, HasPassword() ? 1 : 0,
+		IsAcceptingMembers() ? 1 : 0,
+		GetNotAcceptingReason());
+};

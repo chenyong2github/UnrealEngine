@@ -870,8 +870,8 @@ void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_M
 		// but only if this is not an HRTF-spatialized mono sound
 		if (!IsUsingHrtfSpatializer() && FXAudioDeviceProperties::NumSpeakers == 6)
 		{
-			ChannelVolumes[CHANNELOUT_LEFTSURROUND] = AttenuatedVolume * StereoBleed;
-			ChannelVolumes[CHANNELOUT_RIGHTSURROUND] = AttenuatedVolume * StereoBleed;
+			ChannelVolumes[CHANNELOUT_LEFTSURROUND] = AttenuatedVolume;
+			ChannelVolumes[CHANNELOUT_RIGHTSURROUND] = AttenuatedVolume;
 
 			ChannelVolumes[CHANNELOUT_LOWFREQUENCY] = AttenuatedVolume * LFEBleed * 0.5f;
 		}
@@ -1375,9 +1375,6 @@ void FXAudio2SoundSource::Update()
 			// Set the pitch on the xaudio2 source
 		AudioDevice->ValidateAPICall( TEXT( "SetFrequencyRatio" ),
 			Source->SetFrequencyRatio( Pitch) );
-
-		// Set whether to bleed to the rear speakers
-		SetStereoBleed();
 
 		// Set the amount to bleed to the LFE speaker
 		SetLFEBleed();

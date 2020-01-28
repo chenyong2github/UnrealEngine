@@ -125,7 +125,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		Direct3DDeviceContext->OMSetRenderTargets(1,&DestTextureRTV,NULL);
 	}
 
-	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, ResolveTargetDesc.Width, ResolveTargetDesc.Height, 1.0f);
+	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)ResolveTargetDesc.Width, (float)ResolveTargetDesc.Height, 1.0f);
 
 	// Set the vertex and pixel shader
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);

@@ -376,6 +376,7 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 	, HeightFieldAtlasGeneration(0)
+	, HFVisibilityAtlasGenerattion(0)
 {
 	ObjectBuffers[0] = nullptr;
 	ObjectBuffers[1] = nullptr;
@@ -406,10 +407,17 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
 			UTexture2D* HeightAndNormal;
-			UTexture2D* Unused0, *Unused1;
-			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
+
+			if (Visibility)
+			{
+				check(Desc.VisibilityChannel >= 0 && Desc.VisibilityChannel < 4);
+				GHFVisibilityTextureAtlas.AddAllocation(Visibility, Desc.VisibilityChannel);
+			}
 
 			checkSlow(!PendingHeightFieldAddOps.Contains(InPrimitive));
 			checkSlow(!PendingHeightFieldUpdateOps.Contains(InPrimitive));
@@ -467,10 +475,16 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
 			UTexture2D* HeightAndNormal;
-			UTexture2D* Unused0, *Unused1;
-			FHeightfieldComponentDescription Unused2(FMatrix::Identity);
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Unused0, Unused1, Unused2);
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
+
+			if (Visibility)
+			{
+				GHFVisibilityTextureAtlas.RemoveAllocation(Visibility);
+			}
 
 			PendingHeightFieldAddOps.Remove(InPrimitive);
 			PendingHeightFieldUpdateOps.Remove(InPrimitive);
@@ -1083,6 +1097,10 @@ FScene::~FScene()
 		}
 	}
 #endif
+
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive removal operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(AddedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive addition operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(Primitives.Num() == 0, TEXT("All primitives are expected to be removed before the scene is destroyed. Remaining primitives are likely to cause a memory leak."));
 
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
@@ -2413,9 +2431,6 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 		{
 			// Recreate PrimitiveUniformBuffer on the frame after the primitive moved, since it contains PreviousLocalToWorld
 			VelocityData.PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
-
-			check(VelocityData.PrimitiveSceneInfo->IsIndexValid());
-			AddPrimitiveToUpdateGPU(*Scene, VelocityData.PrimitiveSceneInfo->GetIndex());
 		}
 
 		if (bTrimOld && (InternalFrameIndex - VelocityData.LastFrameUsed) > 10)
@@ -3102,7 +3117,7 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
-			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			// Flush any remaining batched primitive update commands before deleting the scene.
 			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});
@@ -3255,6 +3270,7 @@ void FScene::ApplyWorldOffset(FVector InOffset)
 	ENQUEUE_RENDER_COMMAND(FApplyWorldOffset)(
 		[Scene, InOffset](FRHICommandListImmediate& RHICmdList)
 		{
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			Scene->ApplyWorldOffset_RenderThread(InOffset);
 		});
 }
@@ -3266,11 +3282,12 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	GPUScene.bUpdateAllPrimitives = true;
 
 	// Primitives
+	checkf(AddedPrimitiveSceneInfos.Num() == 0, TEXT("All primitives found in AddedPrimitiveSceneInfos must have been added to the scene before the world offset is applied"));
 	for (int32 Idx = 0; Idx < Primitives.Num(); ++Idx)
 	{
 		Primitives[Idx]->ApplyWorldOffset(InOffset);
 	}
-	
+
 	// Primitive transforms
 	for (int32 Idx = 0; Idx < PrimitiveTransforms.Num(); ++Idx)
 	{
@@ -3928,16 +3945,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
 		PrimitiveSceneProxy->CustomPrimitiveData = CustomParams.Value;
 
-		// No need to do any of this if GPUScene isn't used (the custom primitive data will make it to the primitive uniform buffer through FPrimitiveSceneProxy::UpdateUniformBuffer if that's the case)
-		if (UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel()))
-		{
-			AddPrimitiveToUpdateGPU(*this, PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex);
-		}
-		else
-		{
-			// Make sure the uniform buffer is updated before rendering
-			PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
-		}
+		// Make sure the uniform buffer is updated before rendering
+		PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
 	}
 
 	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DistanceFieldSceneDataUpdates)

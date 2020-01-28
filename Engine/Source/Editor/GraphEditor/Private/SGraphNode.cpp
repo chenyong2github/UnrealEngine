@@ -948,30 +948,39 @@ void SGraphNode::UpdateGraphNode()
 			]			
 		];
 
-	// Create comment bubble
-	TSharedPtr<SCommentBubble> CommentBubble;
-	const FSlateColor CommentColor = GetDefault<UGraphEditorSettings>()->DefaultCommentNodeTitleColor;
+	bool SupportsBubble = true;
+	if (GraphNode != nullptr)
+	{
+		SupportsBubble = GraphNode->SupportsCommentBubble();
+	}
 
-	SAssignNew( CommentBubble, SCommentBubble )
-	.GraphNode( GraphNode )
-	.Text( this, &SGraphNode::GetNodeComment )
-	.OnTextCommitted( this, &SGraphNode::OnCommentTextCommitted )
-	.OnToggled( this, &SGraphNode::OnCommentBubbleToggled )
-	.ColorAndOpacity( CommentColor )
-	.AllowPinning( true )
-	.EnableTitleBarBubble( true )
-	.EnableBubbleCtrls( true )
-	.GraphLOD( this, &SGraphNode::GetCurrentLOD )
-	.IsGraphNodeHovered( this, &SGraphNode::IsHovered );
+	if (SupportsBubble)
+	{
+		// Create comment bubble
+		TSharedPtr<SCommentBubble> CommentBubble;
+		const FSlateColor CommentColor = GetDefault<UGraphEditorSettings>()->DefaultCommentNodeTitleColor;
 
-	GetOrAddSlot( ENodeZone::TopCenter )
-	.SlotOffset( TAttribute<FVector2D>( CommentBubble.Get(), &SCommentBubble::GetOffset ))
-	.SlotSize( TAttribute<FVector2D>( CommentBubble.Get(), &SCommentBubble::GetSize ))
-	.AllowScaling( TAttribute<bool>( CommentBubble.Get(), &SCommentBubble::IsScalingAllowed ))
-	.VAlign( VAlign_Top )
-	[
-		CommentBubble.ToSharedRef()
-	];
+		SAssignNew(CommentBubble, SCommentBubble)
+			.GraphNode(GraphNode)
+			.Text(this, &SGraphNode::GetNodeComment)
+			.OnTextCommitted(this, &SGraphNode::OnCommentTextCommitted)
+			.OnToggled(this, &SGraphNode::OnCommentBubbleToggled)
+			.ColorAndOpacity(CommentColor)
+			.AllowPinning(true)
+			.EnableTitleBarBubble(true)
+			.EnableBubbleCtrls(true)
+			.GraphLOD(this, &SGraphNode::GetCurrentLOD)
+			.IsGraphNodeHovered(this, &SGraphNode::IsHovered);
+
+		GetOrAddSlot(ENodeZone::TopCenter)
+			.SlotOffset(TAttribute<FVector2D>(CommentBubble.Get(), &SCommentBubble::GetOffset))
+			.SlotSize(TAttribute<FVector2D>(CommentBubble.Get(), &SCommentBubble::GetSize))
+			.AllowScaling(TAttribute<bool>(CommentBubble.Get(), &SCommentBubble::IsScalingAllowed))
+			.VAlign(VAlign_Top)
+			[
+				CommentBubble.ToSharedRef()
+			];
+	}
 
 	CreateBelowWidgetControls(MainVerticalBox);
 	CreatePinWidgets();

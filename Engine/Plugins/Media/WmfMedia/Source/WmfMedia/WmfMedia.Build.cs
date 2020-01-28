@@ -64,6 +64,7 @@ namespace UnrealBuildTool.Rules
                 });
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+            AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
             AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 
 			if (Target.bCompileAgainstEngine)

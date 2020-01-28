@@ -198,11 +198,6 @@ namespace UnrealBuildTool
 		public global::UnrealBuildTool.TargetType Type = global::UnrealBuildTool.TargetType.Game;
 
 		/// <summary>
-		/// Indicates that this target is the primary one of its type. i.e. it's the primary editor target that should be used by UAT for cooking.
-		/// </summary>
-		public bool IsPrimaryTarget = true;
-
-		/// <summary>
 		/// Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always
 		/// use defaults for the current engine version, at the risk of introducing build errors while upgrading.
 		/// </summary>
@@ -366,7 +361,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoCompileChaos", Value = "false")]
 		[CommandLine("-CompileChaos", Value = "true")]
-		public bool bCompileChaos = true;
+		public bool bCompileChaos = false;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -374,7 +369,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseChaos", Value = "false")]
 		[CommandLine("-UseChaos", Value = "true")]
-		public bool bUseChaos = true;
+		public bool bUseChaos = false;
 
 		/// <summary>
 		/// Whether to compile in checked chaos features for debugging

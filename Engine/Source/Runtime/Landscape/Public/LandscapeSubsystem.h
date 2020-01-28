@@ -8,7 +8,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "LandscapeSubsystem.generated.h"
 
-class ULandscapeInfoMap;
+class ALandscapeProxy;
 
 struct FLandscapeSubsystemTickFunction : public FTickFunction
 {
@@ -39,12 +39,15 @@ public:
 	virtual void Deinitialize() override;
 	// End USubsystem
 		
+	void RegisterActor(ALandscapeProxy* Proxy);
+	void UnregisterActor(ALandscapeProxy* Proxy);
+
 private:
 	void Tick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
 	friend struct FLandscapeSubsystemTickFunction;
 	FLandscapeSubsystemTickFunction TickFunction;
 
-	ULandscapeInfoMap* LandscapeInfoMap;
+	TArray<ALandscapeProxy*> Proxies;
 };
 

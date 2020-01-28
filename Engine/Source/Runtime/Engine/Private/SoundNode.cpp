@@ -17,6 +17,7 @@ USoundNode::USoundNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
+	bIsRetainingAudio = false;
 }
 
 
@@ -116,6 +117,78 @@ void USoundNode::PrimeChildWavePlayers(bool bRecurse)
 				}
 			}
 		}
+	}
+}
+
+void USoundNode::RetainChildWavePlayers(bool bRecurse)
+{
+	if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		// Search child nodes for wave players, then prime their waves.
+		for (USoundNode* ChildNode : ChildNodes)
+		{
+			if (ChildNode)
+			{
+				ChildNode->ConditionalPostLoad();
+				if (bRecurse)
+				{
+					ChildNode->RetainChildWavePlayers(true);
+				}
+
+				USoundNodeWavePlayer* WavePlayer = Cast<USoundNodeWavePlayer>(ChildNode);
+				if (WavePlayer != nullptr)
+				{
+					USoundWave* SoundWave = WavePlayer->GetSoundWave();
+					if (SoundWave)
+					{
+						SoundWave->ConditionalPostLoad();
+						SoundWave->RetainCompressedAudio();
+					}
+				}
+			}
+		}
+	}
+
+	bIsRetainingAudio = true;
+}
+
+void USoundNode::ReleaseRetainerOnChildWavePlayers(bool bRecurse)
+{
+	if (bIsRetainingAudio && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		// Search child nodes for wave players, then prime their waves.
+		for (USoundNode* ChildNode : ChildNodes)
+		{
+			if (ChildNode)
+			{
+				ChildNode->ConditionalPostLoad();
+				if (bRecurse)
+				{
+					ChildNode->ReleaseRetainerOnChildWavePlayers(true);
+				}
+
+				USoundNodeWavePlayer* WavePlayer = Cast<USoundNodeWavePlayer>(ChildNode);
+				if (WavePlayer != nullptr)
+				{
+					USoundWave* SoundWave = WavePlayer->GetSoundWave();
+					if (SoundWave)
+					{
+						SoundWave->ReleaseCompressedAudio();
+					}
+				}
+			}
+		}
+	}
+
+	bIsRetainingAudio = false;
+}
+
+void USoundNode::BeginDestroy()
+{
+	Super::BeginDestroy();
+	if (bIsRetainingAudio)
+	{
+		ReleaseRetainerOnChildWavePlayers(true);
 	}
 }
 

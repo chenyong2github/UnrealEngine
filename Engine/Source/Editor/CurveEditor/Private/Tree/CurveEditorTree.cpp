@@ -28,6 +28,17 @@ TArrayView<const FCurveModelID> FCurveEditorTreeItem::GetOrCreateCurves(FCurveEd
 			}
 		}
 	}
+	else
+	{
+		for (const FCurveModelID& ID : Curves)
+		{
+			FCurveModel* CurveModel = CurveEditor->FindCurve(ID);
+			if (CurveModel)
+			{
+				CurveEditor->BroadcastCurveChanged(CurveModel);
+			}
+		}
+	}
 	return Curves;
 }
 
@@ -428,6 +439,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 			GetItem(NewItem.Key).GetOrCreateCurves(InCurveEditor);
 		}
 	}
+
 
 	if (!PreviousSelection.OrderIndependentCompareEqual(Selection))
 	{

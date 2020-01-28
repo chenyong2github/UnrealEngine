@@ -7,14 +7,18 @@
 
 namespace Chaos
 {
+	class FCollisionContext;
+
 	namespace Collisions
 	{
+
 		template<class T = float>
 		struct TContactParticleParameters {
 			T CullDistance;
 			T ShapePadding;
 			TArrayCollectionArray<bool>* Collided;
 		};
+		using FContactParticleParameters = TContactParticleParameters<FReal>;
 
 		template<class T = float>
 		struct TContactIterationParameters {
@@ -24,19 +28,27 @@ namespace Chaos
 			const int32 NumPairIterations;
 			bool* NeedsAnotherIteration;
 		};
+		using FContactIterationParameters = TContactIterationParameters<FReal>;
 
-		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void Update(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint);
+		// Regenerate (one-shot or incremental) the manifold plane and points
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context);
 
-		template<typename T, int d>
-		void UpdateManifold(const T CullDistance, TCollisionConstraintBase<T, d>& Constraint);
+		// Update the constraint (re-runs collision detection for this contact)
+		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance);
 
-		template<typename T, int d>
-		void Apply(TCollisionConstraintBase<T, d>& Constraint, const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters);
+		// Update the constraint (select best point from the manifold)
+		extern void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
 
-		template<typename T, int d>
-		void ApplyPushOut(TCollisionConstraintBase<T, d>& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			const TContactIterationParameters<T> & IterationParameters, const TContactParticleParameters<T> & ParticleParameters);
+		extern void Apply(FCollisionConstraintBase& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+		extern void Apply(FRigidBodyPointContactConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+		extern void Apply(FRigidBodyMultiPointContactConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+
+		void ApplyPushOut(FCollisionConstraintBase& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+		void ApplyPushOut(FRigidBodyPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+		void ApplyPushOut(FRigidBodyPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 
 
 	}

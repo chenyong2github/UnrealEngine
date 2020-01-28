@@ -119,7 +119,7 @@ void FToolMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
 	Extenders.AddUnique(InExtender);
 }
 
-TSharedPtr<FExtender> FToolMenuContext::GetAllExtenders()
+TSharedPtr<FExtender> FToolMenuContext::GetAllExtenders() const
 {
 	return FExtender::Combine(Extenders);
 }

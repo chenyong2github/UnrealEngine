@@ -52,6 +52,13 @@ FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
 
+	OverrideSolverIterations.SolverIterations = -1;
+	OverrideSolverIterations.JointIterations = -1;
+	OverrideSolverIterations.CollisionIterations = -1;
+	OverrideSolverIterations.SolverPushOutIterations = -1;
+	OverrideSolverIterations.JointPushOutIterations = -1;
+	OverrideSolverIterations.CollisionPushOutIterations = -1;
+
 	PreviousTransform = CurrentTransform = FTransform::Identity;
 	PreviousComponentLinearVelocity = FVector::ZeroVector;	
 
@@ -264,10 +271,7 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 		}
 		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
 
-#if !UE_BUILD_SHIPPING
-		// Only used for debug draw...
 		PhysicsSimulation->SetSimulationSpaceTransform(SpaceToWorldTransformChaos(SimulationSpace, CompWorldSpaceTM, BaseBoneTM));
-#endif
 
 		// Initialize potential new bodies because of LOD change.
 		if (ResetSimulatedTeleportType == ETeleportType::None && bCheckForBodyTransformInit)
@@ -464,6 +468,22 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 			
 			UpdateWorldForces(CompWorldSpaceTM, BaseBoneTM);
 			const FVector SimSpaceGravity = WorldVectorToSpaceNoScaleChaos(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
+
+			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.SolverIterations,
+				SolverIterations.JointIterations,
+				SolverIterations.CollisionIterations,
+				SolverIterations.SolverPushOutIterations,
+				SolverIterations.JointPushOutIterations,
+				SolverIterations.CollisionPushOutIterations
+			);
+			PhysicsSimulation->SetSolverIterations(
+				OverrideSolverIterations.SolverIterations,
+				OverrideSolverIterations.JointIterations,
+				OverrideSolverIterations.CollisionIterations,
+				OverrideSolverIterations.SolverPushOutIterations,
+				OverrideSolverIterations.JointPushOutIterations,
+				OverrideSolverIterations.CollisionPushOutIterations);
 
 			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
 			// DeltaTime can be higher due to URO, so take multiple iterations in that case.
@@ -796,6 +816,16 @@ void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
+
+		SolverIterations = UsePhysicsAsset->SolverIterations;
+		PhysicsSimulation->SetSolverIterations(
+			SolverIterations.SolverIterations,
+			SolverIterations.JointIterations,
+			SolverIterations.CollisionIterations,
+			SolverIterations.SolverPushOutIterations,
+			SolverIterations.JointPushOutIterations,
+			SolverIterations.CollisionPushOutIterations
+		);
 	}
 }
 

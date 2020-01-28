@@ -138,7 +138,7 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	// Construct a snap field of unselected sections
 	TSet<FSequencerSelectedKey> EmptyKeySet;
 	FInvalidKeyAndSectionSnappingCandidates SnapCandidates(EmptyKeySet, Sections);
-	SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section);
+	SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section | ESequencerEntity::Key);
 
 	SectionInitTimes.Empty();
 

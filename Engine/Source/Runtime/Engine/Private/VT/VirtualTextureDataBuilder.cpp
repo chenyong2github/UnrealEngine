@@ -608,6 +608,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.bSRGB = BuildSettingsForLayer.bSRGB;
 		TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
 		TBSettings.MipGenSettings = TMGS_NoMipmaps;
+		TBSettings.bVirtualStreamable = true;
 
 		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
  
@@ -879,6 +880,8 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			TBSettings.bSRGB = BuildSettingsForLayer.bSRGB;
 			TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
 			TBSettings.bApplyYCoCgBlockScale = BuildSettingsForLayer.bApplyYCoCgBlockScale;
+			TBSettings.bReplicateRed = BuildSettingsForLayer.bReplicateRed;
+			TBSettings.bReplicateAlpha = BuildSettingsForLayer.bReplicateAlpha;
 
 			// Make sure the output of the texture builder is in the same gamma space as we expect it.
 			check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());

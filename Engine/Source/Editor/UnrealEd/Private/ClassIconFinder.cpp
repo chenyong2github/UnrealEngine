@@ -112,7 +112,9 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 		return FindObject<UClass>(ANY_PACKAGE, *InAssetData.AssetName.ToString());
 	}
 	
-	if ( AssetClass->IsChildOf<UBlueprint>() )
+	static const FName IgnoreClassThumbnail(TEXT("IgnoreClassThumbnail"));
+	if ( AssetClass->IsChildOf<UBlueprint>() &&
+		!AssetClass->HasMetaDataHierarchical(IgnoreClassThumbnail))
 	{
 		if ( bOutIsClassType )
 		{

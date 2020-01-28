@@ -17,12 +17,11 @@
 #if NIAGARA_LOOSEPARAM_BINDING
 
 #define NIAGARA_LOOSEPARAM_STRUCT(x) x
-uint NiagaraFloatDataOffset;
 uint NiagaraFloatDataStride;
 
 float GetFloat(Buffer<float> NiagaraBuffer, int RegisterIdx, uint InstanceID)
 {
-	return NiagaraBuffer[NiagaraFloatDataOffset + (RegisterIdx * NiagaraFloatDataStride + InstanceID)];
+	return NiagaraBuffer[(RegisterIdx * NiagaraFloatDataStride + InstanceID)];
 }
 
 #else
@@ -30,7 +29,7 @@ float GetFloat(Buffer<float> NiagaraBuffer, int RegisterIdx, uint InstanceID)
 
 float GetFloat(Buffer<float> NiagaraBuffer, int RegisterIdx, uint InstanceID)
 {
-	return NiagaraBuffer[NiagaraVFLooseParameters.NiagaraFloatDataOffset + (RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
+	return NiagaraBuffer[(RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
 }
 
 #endif

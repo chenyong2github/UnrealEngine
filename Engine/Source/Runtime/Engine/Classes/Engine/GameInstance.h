@@ -117,6 +117,9 @@ struct FGameInstancePIEParameters
 	// Is this a dedicated server instance for PIE?
 	bool bRunAsDedicated;
 
+	// What time did we start PIE in the editor?
+	double PIEStartTime = 0;
+
 	// The feature level that PIE world should use
 	ERHIFeatureLevel::Type WorldFeatureLevel;
 
@@ -183,6 +186,9 @@ protected:
 public:
 
 	FString PIEMapName;
+#if WITH_EDITOR
+	double PIEStartTime = 0;
+#endif
 
 	//~ Begin FExec Interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;

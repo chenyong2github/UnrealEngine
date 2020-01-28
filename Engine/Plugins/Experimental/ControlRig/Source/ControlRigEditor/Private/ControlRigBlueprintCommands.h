@@ -23,6 +23,10 @@ public:
 
 	/** Toggle Execute the Graph */
 	TSharedPtr< FUICommandInfo > ExecuteGraph;
+
+	/** Toggle Auto Compilation in the Graph */
+	TSharedPtr< FUICommandInfo > AutoCompileGraph;
+
 	/**
 	 * Initialize commands
 	 */

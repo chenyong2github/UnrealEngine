@@ -11,6 +11,44 @@
 
 namespace Chaos
 {
+	struct FJointSolverResult
+	{
+	public:
+		static FJointSolverResult MakeActive() { return { 1, 0 }; }
+		static FJointSolverResult MakeSolved() { return { 0, 1 }; }
+
+		FJointSolverResult()
+			: NumActive(0)
+			, NumSolved(0)
+		{
+		}
+		
+		int32 GetNumActive() const { return NumActive; }
+		int32 GetNumSolved() const { return NumSolved; }
+		
+		FJointSolverResult& operator+=(const FJointSolverResult& R)
+		{
+			NumActive += R.NumActive;
+			NumSolved += R.NumSolved;
+			return *this;
+		}
+
+		friend FJointSolverResult operator+(const FJointSolverResult& L, const FJointSolverResult& R)
+		{
+			return { L.NumActive + R.NumActive, L.NumSolved + R.NumSolved };
+		}
+
+	private:
+		FJointSolverResult(int32 InActive, int32 InSolved)
+			: NumActive(InActive)
+			, NumSolved(InSolved)
+		{
+		}
+
+		int32 NumActive;
+		int32 NumSolved;
+	};
+
 	/**
 	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
 	 *
@@ -76,17 +114,17 @@ namespace Chaos
 			const FVec3& V1,
 			const FVec3& W1);
 
-		void ApplyConstraints(
+		FJointSolverResult ApplyConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyDrives(
+		FJointSolverResult ApplyDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyProjections(
+		FJointSolverResult ApplyProjections(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -96,27 +134,27 @@ namespace Chaos
 		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
 
-		void ApplyPositionConstraints(
+		FJointSolverResult ApplyPositionConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyRotationConstraints(
+		FJointSolverResult ApplyRotationConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPositionDrives(
+		FJointSolverResult ApplyPositionDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyRotationDrives(
+		FJointSolverResult ApplyRotationDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyRotationProjection(
+		FJointSolverResult ApplyRotationProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -140,6 +178,12 @@ namespace Chaos
 		void ApplyRotationDelta(
 			const FReal Stiffness,
 			const FVec3& DR0,
+			const FVec3& DR1);
+
+		void ApplyDelta(
+			const int32 BodyIndex,
+			const FReal Stiffness,
+			const FVec3& DP,
 			const FVec3& DR1);
 
 		void ApplyVelocityDelta(
@@ -171,8 +215,7 @@ namespace Chaos
 
 		void ApplyRotationConstraint(
 			const FReal Stiffness,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
+			const FVec3& Axis,
 			const FReal Angle);
 
 		void ApplyRotationConstraintSoft(
@@ -180,100 +223,126 @@ namespace Chaos
 			const FReal Stiffness,
 			const FReal Damping,
 			const bool bAccelerationMode,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
+			const FVec3& Axis,
 			const FReal Angle,
 			FReal& Lambda);
 
-		void ApplyTwistConstraint(
+		void ApplyRotationConstraintSoftKD(
+			const int32 KIndex,
+			const int32 DIndex,
+			const FReal Dt,
+			const FReal Stiffness,
+			const FReal Damping,
+			const bool bAccelerationMode,
+			const FVec3& Axis,
+			const FReal Angle,
+			FReal& Lambda);
+
+		void ApplyRotationConstraintSoftDD(
+			const FReal Dt,
+			const FReal Stiffness,
+			const FReal Damping,
+			const bool bAccelerationMode,
+			const FVec3& Axis,
+			const FReal Angle,
+			FReal& Lambda);
+
+		FJointSolverResult ApplyTwistConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyTwistConstraintSoft(
+		FJointSolverResult ApplyTwistConstraintSoft(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyTwistDrive(
+		FJointSolverResult ApplyTwistDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyTwistProjection(
+		FJointSolverResult ApplyTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyConeConstraint(
+		FJointSolverResult ApplyConeConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyConeConstraintSoft(
+		FJointSolverResult ApplyConeConstraintSoft(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyConeDrive(
+		FJointSolverResult ApplyConeDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyConeProjection(
+		FJointSolverResult ApplyConeProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplySwingConstraint(
+		FJointSolverResult ApplySwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
-		void ApplySwingConstraintSoft(
+		FJointSolverResult ApplySwingConstraintSoft(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
-		void ApplySwingDrive(
+		FJointSolverResult ApplySwingDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
-		void ApplySwingProjection(
+		FJointSolverResult ApplySwingProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
-		void ApplySLerpDrive(
+		FJointSolverResult ApplySLerpDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPointPositionConstraint(
+		FJointSolverResult ApplyPointPositionConstraintKD(
+			const int32 KIndex,
+			const int32 DIndex,
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplySphericalPositionConstraint(
+		FJointSolverResult ApplyPointPositionConstraintDD(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplySphericalPositionDrive(
+		FJointSolverResult ApplySphericalPositionConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyCylindricalPositionConstraint(
+		FJointSolverResult ApplySphericalPositionDrive(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		FJointSolverResult ApplyCylindricalPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const EJointMotionType AxialMotion,
@@ -281,26 +350,26 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyCircularPositionDrive(
+		FJointSolverResult ApplyCircularPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPlanarPositionConstraint(
+		FJointSolverResult ApplyPlanarPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const EJointMotionType AxialMotion,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyAxialPositionDrive(
+		FJointSolverResult ApplyAxialPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPositionProjection(
+		FJointSolverResult ApplyPositionProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -334,6 +403,9 @@ namespace Chaos
 		
 		// Post-angular constraint position fixup (to reduce iterations required for stiff angular constraints)
 		FReal AngularPositionCorrection;
+
+		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
+		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
 	};
 
 }

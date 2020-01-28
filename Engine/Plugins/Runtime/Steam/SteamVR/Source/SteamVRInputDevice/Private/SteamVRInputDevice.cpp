@@ -44,6 +44,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Runtime/HeadMountedDisplay/Public/IXRTrackingSystem.h"
 #include "SteamVRSkeletonDefinition.h"
 #include "Misc/MessageDialog.h"
+#include "ISteamVRPlugin.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -123,18 +124,9 @@ FSteamVRInputDevice::~FSteamVRInputDevice()
 void FSteamVRInputDevice::InitSteamVRSystem()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("Attempting to load Steam VR System..."));
-	if (!VRSystem())
-	{
-		// Initialize OpenVR
-		EVRInitError SteamVRInitError = VRInitError_Driver_NotLoaded;
-		IVRSystem* SteamVRSystem = vr::VR_Init(&SteamVRInitError, vr::VRApplication_Scene);
+	SteamVRHMDModule = FModuleManager::LoadModulePtr<ISteamVRPlugin>(TEXT("SteamVR"));
 
-		if (SteamVRInitError != VRInitError_None)
-		{
-			return;
-		}
-	}
-	else if (VRSystem() && VRInput() && IsInGameThread())
+	if (SteamVRHMDModule && SteamVRHMDModule->GetVRSystem() && VRSystem() && VRInput())
 	{
 		UE_LOG(LogSteamVRInputDevice, Display, TEXT("SteamVR runtime %u.%u.%u loaded."), k_nSteamVRVersionMajor, k_nSteamVRVersionMinor, k_nSteamVRVersionBuild);
 		
@@ -143,7 +135,7 @@ void FSteamVRInputDevice::InitSteamVRSystem()
 		bIsSkeletalControllerRightPresent = SetSkeletalHandle(TCHAR_TO_UTF8(*FString(TEXT(ACTION_PATH_SKELETON_RIGHT))), VRSkeletalHandleRight);
 
 		// (Re)Load Action Manifest
-		GenerateActionManifest(false, false, true, false);
+		GenerateActionManifest(true, true, true, false);
 
 		// Set haptic handles
 		LastInputError = VRInput()->GetActionHandle(TCHAR_TO_UTF8(*FString(TEXT(ACTION_PATH_VIBRATE_LEFT))), &VRVibrationLeft);
@@ -157,6 +149,8 @@ void FSteamVRInputDevice::InitSteamVRSystem()
 		{
 			VRVibrationRight = k_ulInvalidActionHandle;
 		}
+
+		bSteamVRWasShutdown = false;
 	}
 }
 
@@ -166,23 +160,25 @@ void FSteamVRInputDevice::Tick(float DeltaTime)
 	CurrentDeltaTime = DeltaTime;
 
 	// Watch for SteamVR availability & restarts
-	if (!VRSystem())
+	if ((SteamVRHMDModule && !SteamVRHMDModule->GetVRSystem()) || bSteamVRWasShutdown)
 	{
+		bSteamVRWasShutdown = true;
 		InitSteamVRSystem();
+		//UE_LOG(LogSteamVRInputDevice, Warning, TEXT("SteamVR System Inactive. Trying to initialize..."));
+	}
+	else if(SteamVRHMDModule && SteamVRHMDModule->GetVRSystem())
+	{
+		// Cache the controller transform to ensure ResetOrientationAndPosition gets the correct values (Valid for UE4.18 upwards)
+		// https://github.com/ValveSoftware/steamvr_unreal_plugin/issues/2
+		if (GEngine->XRSystem.IsValid() && SteamVRHMDModule && SteamVRHMDModule->GetVRSystem())
+		{
+			CachedBaseOrientation = GEngine->XRSystem->GetBaseOrientation();
+			CachedBasePosition = GEngine->XRSystem->GetBasePosition();
+		}
 	}
 
-	// Cache the controller transform to ensure ResetOrientationAndPosition gets the correct values (Valid for UE4.18 upwards)
-	// https://github.com/ValveSoftware/steamvr_unreal_plugin/issues/2
-	if (GEngine->XRSystem.IsValid())
-	{
-		CachedBaseOrientation = GEngine->XRSystem->GetBaseOrientation();
-		CachedBasePosition = GEngine->XRSystem->GetBasePosition();
-	}
-	else
-	{
-		CachedBaseOrientation = FQuat::Identity;
-		CachedBasePosition = FVector::ZeroVector;
-	}
+	CachedBaseOrientation = FQuat::Identity;
+	CachedBasePosition = FVector::ZeroVector;
 }
 
 void FSteamVRInputDevice::FindAxisMappings(const UInputSettings* InputSettings, const FName InAxisName, TArray<FInputAxisKeyMapping>& OutMappings) const
@@ -357,8 +353,7 @@ void FSteamVRInputDevice::SendAnalogMessage(const ETrackedControllerRole Tracked
 
 void FSteamVRInputDevice::SendControllerEvents()
 {
-
-	if (VRSystem() && VRInput() && SteamVRInputActionSets.Num() > 0)
+	if (SteamVRHMDModule && SteamVRHMDModule->GetVRSystem() && VRSystem() && VRInput() && SteamVRInputActionSets.Num() > 0)
 	{
 		EVRInputError ActionStateError = VRInput()->UpdateActionState(ActiveActionSets, sizeof(VRActiveActionSet_t), 1);
 
@@ -388,7 +383,7 @@ bool FSteamVRInputDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 
 bool FSteamVRInputDevice::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
 {
-	if (VRInput() && VRCompositor())
+	if (SteamVRHMDModule && SteamVRHMDModule->GetVRSystem() && VRInput() && VRCompositor())
 	{
 		InputPoseActionData_t PoseData = {};
 		EVRInputError InputError = VRInputError_NoData;
@@ -643,17 +638,18 @@ bool FSteamVRInputDevice::GetControllerOrientationAndPosition(const int32 Contro
 			OrientationQuat.Normalize();
 			OutOrientation = OrientationQuat.Rotator();
 
+			return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 ETrackingStatus FSteamVRInputDevice::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 {
 	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
 
-	if (VRInput() && VRCompositor())
+	if (SteamVRHMDModule && SteamVRHMDModule->GetVRSystem() && VRInput() && VRCompositor())
 	{
 		InputPoseActionData_t PoseData = {};
 		EVRInputError InputError = VRInputError_NoData;

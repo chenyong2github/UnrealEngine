@@ -221,6 +221,7 @@ void FOpenGLESDeferred::ProcessQueryGLInt()
 		MaxGeometryTextureImageUnits = 0;
 		MaxHullTextureImageUnits = 0;
 		MaxDomainTextureImageUnits = 0;
+		TextureBufferAlignment = 0;
 	}
 	else
 	{
@@ -233,6 +234,8 @@ void FOpenGLESDeferred::ProcessQueryGLInt()
 
 		GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
 		GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
+
+		GET_GL_INT(GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT_EXT, 0, TextureBufferAlignment);
 
 		if (bSupportsTessellation)
 		{

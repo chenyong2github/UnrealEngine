@@ -1,29 +1,69 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
+
+#include "AudioDeviceManager.h"
+#include "AudioMixerDevice.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
-FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
+namespace
 {
+	// Use a full multichannel frame as a scratch processing buffer
+	static const int32 ProcessorScratchNumChannels = 8;
+} // namespace <>
+
+FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
+	: DeviceId(INDEX_NONE)
+{
+}
+
+FSubmixEffectDynamicsProcessor::~FSubmixEffectDynamicsProcessor()
+{
+	if (ExternalSubmix.IsValid())
+	{
+		Audio::FMixerDevice* MixerDevice = nullptr;
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDevice(DeviceId));
+		}
+
+		if (MixerDevice)
+		{
+			MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
+		}
+	}
 }
 
 void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& InitData)
 {
-	// Use a full multichannel frame as a scratch processing buffer
-	static const int32 NumChannels = 8;
+	DynamicsProcessor.Init(InitData.SampleRate, ProcessorScratchNumChannels);
 
-	DynamicsProcessor.Init(InitData.SampleRate, NumChannels);
+	AudioKeyFrame.Reset();
+	AudioKeyFrame.AddZeroed(ProcessorScratchNumChannels);
 
 	AudioInputFrame.Reset();
-	AudioInputFrame.AddZeroed(NumChannels);
+	AudioInputFrame.AddZeroed(ProcessorScratchNumChannels);
 
 	AudioOutputFrame.Reset();
-	AudioOutputFrame.AddZeroed(NumChannels);
+	AudioOutputFrame.AddZeroed(ProcessorScratchNumChannels);
+
+	DeviceId = InitData.DeviceHandle;
 }
 
+void FSubmixEffectDynamicsProcessor::OnNewSubmixBuffer(
+	const USoundSubmix* InOwningSubmix,
+	float*				InAudioData,
+	int32				InNumSamples,
+	int32				InNumChannels,
+	const int32			InSampleRate,
+	double				InAudioClock)
+{
+	AudioExternal.Reset();
+	AudioExternal.Append(InAudioData, InNumSamples);
+}
 
 void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 {
@@ -86,6 +126,30 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 
 	static_assert(static_cast<int32>(ESubmixEffectDynamicsChannelLinkMode::Count) == static_cast<int32>(Audio::EDynamicsProcessorChannelLinkMode::Count), "Enumerations must match");
 	DynamicsProcessor.SetChannelLinkMode(static_cast<Audio::EDynamicsProcessorChannelLinkMode>(Settings.LinkMode));
+
+	Audio::FMixerDevice* MixerDevice = nullptr;
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDevice(DeviceId));
+	}
+
+	if (MixerDevice)
+	{
+		if (ExternalSubmix.Get() != Settings.ExternalSubmix)
+		{
+			if (ExternalSubmix.IsValid())
+			{
+				MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
+			}
+
+			ExternalSubmix = Settings.ExternalSubmix;
+
+			if (ExternalSubmix.IsValid())
+			{
+				MixerDevice->RegisterSubmixBufferListener(this, ExternalSubmix.Get());
+			}
+		}
+	}
 }
 
 void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -103,10 +167,18 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 		{
 			const int32 SampleIndex = SampleIndexOfFrame + Channel;
 			AudioInputFrame[Channel] = InBuffer[SampleIndex];
+			if (ExternalSubmix.IsValid())
+			{
+				AudioKeyFrame[Channel] = AudioExternal.Num() > SampleIndex ? AudioExternal[SampleIndex] : 0;
+			}
+			else
+			{
+				AudioKeyFrame[Channel] = InBuffer[SampleIndex];
+			}
 		}
 
 		// Process
-		DynamicsProcessor.ProcessAudio(AudioInputFrame.GetData(), InData.NumChannels, AudioOutputFrame.GetData());
+		DynamicsProcessor.ProcessAudio(AudioInputFrame.GetData(), InData.NumChannels, AudioOutputFrame.GetData(), AudioKeyFrame.GetData());
 
 		// Copy the data to the frame output
 		for (int32 Channel = 0; Channel < InData.NumChannels; ++Channel)

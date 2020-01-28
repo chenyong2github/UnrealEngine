@@ -10,6 +10,8 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "ChaosCheck.h"
 
+
+
 class IPhysicsProxyBase;
 
 namespace Chaos
@@ -50,6 +52,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
+	Concrete.SetUserData(nullptr);
 }
 
 template <typename T, int d, typename FConcrete>
@@ -360,6 +363,9 @@ public:
 
 	FUniqueIdx UniqueIdx() const { return GeometryParticles->UniqueIdx(ParticleIdx); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
+
+	void* UserData() const { return GeometryParticles->UserData(ParticleIdx); }
+	void SetUserData(void* InUserData) { GeometryParticles->UserData(ParticleIdx) = InUserData; }
 
 	const TRotation<T, d>& R() const { return GeometryParticles->R(ParticleIdx); }
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
@@ -1261,6 +1267,7 @@ public:
 	static constexpr bool AlwaysSerializable = true;
 
 protected:
+
 	TGeometryParticle(const TGeometryParticleParameters<T, d>& StaticParams = TGeometryParticleParameters<T, d>())
 		: MUserData(nullptr)
 	{
@@ -1360,6 +1367,7 @@ public:
 	void* UserData() const { return this->MUserData; }
 	void SetUserData(void* InUserData)
 	{
+		this->MarkDirty(EParticleFlags::UserData);
 		this->MUserData = InUserData;
 	}
 
@@ -1427,6 +1435,26 @@ public:
 		}
 	}
 
+	void SetShapeCollisionTraceType(int32 InShapeIndex, EChaosCollisionTraceFlag TraceType)
+	{
+		const EChaosCollisionTraceFlag Current = MShapesArray[InShapeIndex]->CollisionTraceType;
+		if (Current != TraceType)
+		{
+			MShapesArray[InShapeIndex]->CollisionTraceType = TraceType;
+			MarkDirty(EParticleFlags::CollisionTraceType);
+		}
+	}
+
+	void SetShapeSimData(int32 InShapeIndex, const FCollisionFilterData& SimData)
+	{
+		const FCollisionFilterData& Current = MShapesArray[InShapeIndex]->SimData;
+		if (Current != SimData)
+		{
+			MShapesArray[InShapeIndex]->SimData = SimData;
+			MarkDirty(EParticleFlags::ShapeSimData);
+		}
+	}
+
 	FParticleData* NewData() const { return new TGeometryParticleData<T, d>( *this ); }
 
 	bool IsDirty() const
@@ -1475,6 +1503,10 @@ public:
 	// Right now it's exposed to lubricate the creation of the whole proxy system.
 	class IPhysicsProxyBase* Proxy;
 
+	// TODO: This is an awful side effect of housing the dirty flag for shape data
+	//       inside the particle, but not setting the shape data through it.
+	void MarkShapeSimDataDirty() { MarkDirty(EParticleFlags::ShapeSimData); }
+
 private:
 	TVector<T, d> MX;
 	FUniqueIdx MUniqueIdx;
@@ -1510,15 +1542,7 @@ protected:
 		MapImplicitShapes();
 	}
 
-	void MapImplicitShapes()
-	{
-		ImplicitShapeMap.Reset();
-		int32 ShapeIndex = 0;
-		for(TUniquePtr<TPerShapeData<T, d>>& ShapeData : MShapesArray)
-		{
-			ImplicitShapeMap.Add(ShapeData->Geometry.Get(), ShapeIndex++);
-		}
-	}
+	void MapImplicitShapes();
 };
 
 template <typename T, int d>
@@ -1539,6 +1563,7 @@ public:
 		, X(TVector<T, d>(0))
 		, R(TRotation<T, d>())
 		, SpatialIdx(FSpatialAccelerationIdx{ 0,0 })
+		, UserData(nullptr)
 		, DirtyFlags()
 #if CHAOS_CHECKED
 		, DebugName(NAME_None)
@@ -1552,6 +1577,7 @@ public:
 		, Geometry(InParticle.GeometrySharedLowLevel())
 		, SpatialIdx(InParticle.SpatialIdx())
 		, UniqueIdx(InParticle.UniqueIdx())
+		, UserData(InParticle.UserData())
 		, DirtyFlags(InParticle.DirtyFlags())
 #if CHAOS_CHECKED
 		, DebugName(InParticle.DebugName())
@@ -1559,11 +1585,14 @@ public:
 	{
 		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
 		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		CollisionTraceType.Empty(Shapes.Num());
+		ShapeSimData.Empty(Shapes.Num());
 		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
 		{
 			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+			CollisionTraceType.Add(ShapePtr->CollisionTraceType);
+			ShapeSimData.Add(ShapePtr->SimData);
 		}
-
 	}
 
 	void Reset() 
@@ -1574,8 +1603,11 @@ public:
 		Geometry = TSharedPtr<FImplicitObjectUnion, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		UniqueIdx = FUniqueIdx();
+		UserData = nullptr;
 		DirtyFlags.Clear();
 		ShapeCollisionDisableFlags.Reset();
+		CollisionTraceType.Reset();
+		ShapeSimData.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1586,8 +1618,11 @@ public:
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
 	FSpatialAccelerationIdx SpatialIdx;
 	FUniqueIdx UniqueIdx;
+	void* UserData;
 	FParticleDirtyFlags DirtyFlags;
 	TBitArray<> ShapeCollisionDisableFlags;
+	TArray<EChaosCollisionTraceFlag> CollisionTraceType;
+	TArray < FCollisionFilterData > ShapeSimData;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
@@ -2271,7 +2306,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	AccelerationHandle.Serialize(Ar);
 	return Ar;
 }
-
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<float, 3>;
 extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;

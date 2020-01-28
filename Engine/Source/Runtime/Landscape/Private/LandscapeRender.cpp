@@ -2323,6 +2323,9 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = SharedBuffers->IndexRanges[LODIndex].MinIndexFull;
 		BatchElement.MaxVertexIndex = SharedBuffers->IndexRanges[LODIndex].MaxIndexFull;
+
+		// The default is overridden here only by mobile landscape to punch holes in the geometry
+		ApplyMeshElementModifier(BatchElement, LODIndex);
 	}
 
 	return true;
@@ -4711,7 +4714,9 @@ public:
 				}
 
 				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
-				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory)
+				static const FName LandscapeFixedGridVertexFactoryMobile = FName(TEXT("FLandscapeFixedGridVertexFactoryMobile"));
+				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
+					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactoryMobile)
 				{
 					return bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}

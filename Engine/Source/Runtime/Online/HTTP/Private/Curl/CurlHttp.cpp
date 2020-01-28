@@ -694,6 +694,7 @@ size_t FCurlHttpRequest::DebugCallback(CURL * Handle, curl_infotype DebugInfoTyp
 
 bool FCurlHttpRequest::SetupRequest()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_SetupRequest);
 	check(EasyHandle);
 
 	if (!RequestPayload.IsValid())
@@ -894,6 +895,7 @@ bool FCurlHttpRequest::SetupRequest()
 
 bool FCurlHttpRequest::ProcessRequest()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_ProcessRequest);
 	check(EasyHandle);
 
 	// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
@@ -925,6 +927,7 @@ bool FCurlHttpRequest::ProcessRequest()
 	}
 	else
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_CurlHttpAddThreadedRequest);
 		// Mark as in-flight to prevent overlapped requests using the same object
 		CompletionStatus = EHttpRequestStatus::Processing;
 		// Response object to handle data that comes back after starting this request

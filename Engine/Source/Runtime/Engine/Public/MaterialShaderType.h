@@ -137,7 +137,7 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		EShaderPlatform Platform,
-		TArray<FShaderCommonCompileJob*>& NewJobs,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
 		);
@@ -149,7 +149,7 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		const TArray<FMaterialShaderType*>& ShaderStages,
-		TArray<FShaderCommonCompileJob*>& NewJobs,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
 	);
