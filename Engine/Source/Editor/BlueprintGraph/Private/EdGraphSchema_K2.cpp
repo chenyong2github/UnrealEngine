@@ -4025,6 +4025,12 @@ struct FWildcardArrayPinHelper
 			return true;
 		}
 
+		const bool bOutputWildcardPinAcceptsContainer = !OwningNode || OwningNode->DoesOutputWildcardPinAcceptContainer(OutputPin);
+		if(bOutputWildcardPinAcceptsContainer)
+		{
+			return true;
+		}
+
 		const bool bCheckInputPin = (InputPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard) && !InputPin->PinType.IsArray();
 		const bool bArrayOutputPin = OutputPin && OutputPin->PinType.IsArray();
 		return !(bCheckInputPin && bArrayOutputPin);
@@ -4394,7 +4400,10 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 
 bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, const FEdGraphPinType& Input, const UClass* CallingContext, bool bIgnoreArray /*= false*/) const
 {
-	if( !bIgnoreArray && ( Output.ContainerType != Input.ContainerType ) && (Input.PinCategory != PC_Wildcard || Input.IsContainer()) )
+	if( !bIgnoreArray && 
+		( Output.ContainerType != Input.ContainerType ) && 
+		(Input.PinCategory != PC_Wildcard || Input.IsContainer()) && 
+		(Output.PinCategory != PC_Wildcard || Output.IsContainer()))
 	{
 		return false;
 	}
