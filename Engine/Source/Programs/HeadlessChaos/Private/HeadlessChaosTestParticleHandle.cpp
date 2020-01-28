@@ -524,12 +524,16 @@ namespace ChaosTest {
 		// because of this, we must be able to compare (external, null) == (external, null) 
 		// and also (external, null) == (external, internal)
 
+		TPBDRigidsSOAs<FReal,3> SOAs;
 
 		auto GTParticle = TGeometryParticle<FReal, 3>::CreateParticle();
+		//fake unique assignment like we would for solver
+		GTParticle->SetUniqueIdx(SOAs.GetUniqueIndices().GenerateUniqueIdx());
+
 		TAccelerationStructureHandle<FReal, 3> ExternalOnlyHandle(GTParticle.Get());
 
-		TPBDRigidsSOAs<FReal, 3> SOAs;
-		auto Particles = SOAs.CreateStaticParticles(1);
+		FUniqueIdx Idx = GTParticle->UniqueIdx();
+		auto Particles = SOAs.CreateStaticParticles(1, &Idx);
 		TAccelerationStructureHandle<FReal, 3> ExternalInternalHandle(Particles[0], GTParticle.Get());
 
 		TAccelerationStructureHandle<FReal, 3> InternalOnlyHandle(Particles[0], nullptr);

@@ -24,5 +24,7 @@ public class HeadlessChaosTarget : TargetRules
 
         // UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
         bIsBuildingConsoleApplication = true;
-    }
+
+		GlobalDefinitions.Add("CHAOS_SERIALIZE_OUT=1");
+	}
 }
