@@ -30,6 +30,8 @@ class FAsioStore::FDirWatcher
 {
 public:
 	void async_wait(...) {}
+	void cancel() {}
+	void close() {}
 };
 #endif // PLATFORM_WINDOWS
 
@@ -152,7 +154,19 @@ FAsioStore::FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::~FAsioStore()
 {
+	Close();
 	delete DirWatcher;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStore::Close()
+{
+	if (DirWatcher != nullptr)
+	{
+		DirWatcher->cancel();
+		DirWatcher->close();
+	}
+
 	ClearTraces();
 }
 
@@ -177,6 +191,11 @@ void FAsioStore::WatchDir()
 	
 	DirWatcher->async_wait([this] (asio::error_code ErrorCode)
 	{
+		if (ErrorCode)
+		{
+			return;
+		}
+
 #if PLATFORM_WINDOWS
 		FindNextChangeNotification(DirWatcher->native_handle());
 #endif

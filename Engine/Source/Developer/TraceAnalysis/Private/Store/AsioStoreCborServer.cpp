@@ -79,10 +79,7 @@ bool FAsioStoreCborPeer::IsOpen() const
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::Close()
 {
-	if (IsOpen())
-	{
-		Socket.Close();
-	}
+	Socket.Close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -353,10 +350,23 @@ FAsioStoreCborServer::FAsioStoreCborServer(
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStoreCborServer::~FAsioStoreCborServer()
 {
+	Close();
+
+	for (FAsioStoreCborPeer* Peer : Peers)
+	{
+		delete Peer;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioStoreCborServer::Close()
+{
+	FAsioTcpServer::Close();
+	FAsioTickable::StopTick();
+
 	for (FAsioStoreCborPeer* Peer : Peers)
 	{
 		Peer->Close();
-		delete Peer;
 	}
 }
 

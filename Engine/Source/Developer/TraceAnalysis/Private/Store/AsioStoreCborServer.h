@@ -22,6 +22,7 @@ class FAsioStoreCborServer
 public:
 								FAsioStoreCborServer(asio::io_context& IoContext, FAsioStore& InStore, FAsioRecorder& InRecorder);
 								~FAsioStoreCborServer();
+	void						Close();
 	FAsioStore&					GetStore() const;
 	FAsioRecorder&				GetRecorder() const;
 

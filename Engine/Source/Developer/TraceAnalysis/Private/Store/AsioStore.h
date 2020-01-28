@@ -52,9 +52,9 @@ public:
 
 						FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir);
 						~FAsioStore();
+	void				Close();
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
-	int32				ReadTrace(uint32 Id);
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
 

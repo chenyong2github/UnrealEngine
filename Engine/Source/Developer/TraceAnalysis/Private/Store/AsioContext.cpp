@@ -21,7 +21,7 @@ FAsioContext::FAsioContext(int32 ThreadCount)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioContext::~FAsioContext()
 {
-	Stop();
+	Wait();
 	delete IoContext;
 }
 
@@ -43,7 +43,7 @@ void FAsioContext::Start()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAsioContext::Stop()
+void FAsioContext::Stop(bool bWait)
 {
 	if (!bRunning)
 	{
@@ -52,9 +52,21 @@ void FAsioContext::Stop()
 
 	IoContext->stop();
 
+	if (bWait)
+	{
+		Wait();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioContext::Wait()
+{
 	for (std::thread& Thread : ThreadPool)
 	{
-		Thread.join();
+		if (Thread.joinable())
+		{
+			Thread.join();
+		}
 	}
 
 	bRunning = false;

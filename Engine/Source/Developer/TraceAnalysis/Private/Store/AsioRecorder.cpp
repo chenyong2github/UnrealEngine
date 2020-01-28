@@ -118,9 +118,24 @@ FAsioRecorder::FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioRecorder::~FAsioRecorder()
 {
+	Close();
+
 	for (FSession& Session : Sessions)
 	{
 		delete Session.Relay;
+	}
+	Sessions.Empty();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAsioRecorder::Close()
+{
+	FAsioTickable::StopTick();
+	FAsioTcpServer::Close();
+
+	for (FSession& Session : Sessions)
+	{
+		Session.Relay->Close();
 	}
 }
 

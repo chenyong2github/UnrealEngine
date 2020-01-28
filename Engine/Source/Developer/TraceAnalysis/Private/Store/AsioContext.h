@@ -18,7 +18,8 @@ public:
 							~FAsioContext();
 	asio::io_context&		Get();
 	void					Start();
-	void					Stop();
+	void					Stop(bool bWait=false);
+	void					Wait();
 
 private:
 	asio::io_context*		IoContext;

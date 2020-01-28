@@ -35,6 +35,7 @@ public:
 
 								FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore);
 								~FAsioRecorder();
+	void						Close();
 	uint32						GetSessionCount() const;
 	const FSession*				GetSessionInfo(uint32 Index) const;
 
