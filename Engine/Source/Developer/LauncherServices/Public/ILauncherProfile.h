@@ -201,6 +201,9 @@ namespace ELauncherProfileValidationErrors
 
 		/** Device is unauthorized or is locked */
 		LaunchDeviceIsUnauthorized,
+ 
+		/** Using I/O store container file(s) requires using UnrealPak */
+		IoStoreRequiresPakFiles,
 
 		Count
 	};

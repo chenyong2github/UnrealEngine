@@ -732,14 +732,17 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 
 	OptionalParams += GetCookingOptionalParams();
 
-	if (PackagingSettings->UsePakFile)
-	{
-		OptionalParams += TEXT(" -pak");
-	}
-
 	if (PackagingSettings->bUseIoStore)
 	{
 		OptionalParams += TEXT(" -iostore");
+
+		// Pak file(s) must be used when using container file(s)
+		PackagingSettings->UsePakFile = true;
+	}
+
+	if (PackagingSettings->UsePakFile)
+	{
+		OptionalParams += TEXT(" -pak");
 	}
 
 	if (PackagingSettings->IncludePrerequisites)

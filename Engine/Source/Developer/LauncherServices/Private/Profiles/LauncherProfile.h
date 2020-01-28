@@ -1868,6 +1868,7 @@ public:
 		EditorExe = LauncherServicesModule.GetExecutableForCommandlets();
 
 		bNotForLicensees = false;
+		bUseIoStore = false;
 
 		Validate();
 	}
@@ -2335,6 +2336,11 @@ public:
 	virtual void SetUseIoStore(bool bInUseIoStore) override
 	{
 		bUseIoStore = bInUseIoStore;
+
+		if (bUseIoStore)
+		{
+			SetDeployWithUnrealPak(true);
+		}
 	}
 
 	virtual bool IsUsingIoStore() const override
@@ -2476,8 +2482,6 @@ protected:
 
 		}
 
-		
-
 		if (CookMode == ELauncherProfileCookModes::OnTheFly)
 		{
 
@@ -2495,6 +2499,11 @@ protected:
 		if (bArchive && ArchiveDir.IsEmpty())
 		{
 			ValidationErrors.Add(ELauncherProfileValidationErrors::NoArchiveDirectorySpecified);
+		}
+
+		if (bUseIoStore && !DeployWithUnrealPak)
+		{
+			ValidationErrors.Add(ELauncherProfileValidationErrors::IoStoreRequiresPakFiles);
 		}
 
 		ValidatePlatformSDKs();
