@@ -185,7 +185,7 @@ namespace
 		NetFieldBuilder.Logf(TEXT(""
 		"\tenum class ENetFields_Private : uint16\r\n"
 		"\t{\r\n"
-		"\t\tNETFIELD_REP_START=(uint16)Super::ENetFields_Private::NETFIELD_REP_END + (uint16)1,\r\n"));
+		"\t\tNETFIELD_REP_START=(uint16)((int32)Super::ENetFields_Private::NETFIELD_REP_END + (int32)1),\r\n"));
 
 		FUHTStringBuilder ArrayDimBuilder;
 
