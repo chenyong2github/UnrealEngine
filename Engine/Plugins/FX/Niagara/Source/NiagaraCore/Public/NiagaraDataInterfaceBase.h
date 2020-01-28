@@ -16,6 +16,7 @@ class FRHICommandList;
 
 struct FNiagaraDataInterfaceProxy;
 class NiagaraEmitterInstanceBatcher;
+struct FNiagaraComputeInstanceData;
 
 struct FNiagaraDataInterfaceSetArgs
 {
@@ -23,6 +24,7 @@ struct FNiagaraDataInterfaceSetArgs
 	FNiagaraDataInterfaceProxy* DataInterface;
 	FNiagaraSystemInstanceID SystemInstance;
 	const NiagaraEmitterInstanceBatcher* Batcher;
+	const FNiagaraComputeInstanceData* ComputeInstanceData;
 	uint32 ShaderStageIndex;
 	bool IsOutputStage;
 	bool IsIterationStage;

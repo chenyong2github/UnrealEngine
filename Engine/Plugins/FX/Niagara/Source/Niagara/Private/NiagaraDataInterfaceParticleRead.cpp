@@ -201,7 +201,6 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 	{
 		check(AttributeIndices.Num() == AttributeNames.Num());
 
-		AcquireTagRegisterIndex = -1;
 		const TArray<FNiagaraVariable>& SourceEmitterVariables = SourceDataSet->GetVariables();
 		const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
 		for (int AttrNameIdx = 0; AttrNameIdx < AttributeNames.Num(); ++AttrNameIdx)
@@ -210,12 +209,6 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
 			{
 				const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
-
-				if (AcquireTagRegisterIndex == -1 && Var.GetName().ToString() == TEXT("ID"))
-				{
-					AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
-				}
-
 				if (Var.GetName() == AttributeNames[AttrNameIdx])
 				{
 					ENiagaraParticleDataValueType AttributeType = AttributeTypes[AttrNameIdx];
@@ -240,6 +233,17 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			{
 				UE_LOG(LogNiagara, Error, TEXT("Particle read DI is trying to access inexistent variable '%s' in emitter '%s'."), *AttributeNames[AttrNameIdx].ToString(), SourceEmitterName);
 				AttributeIndices[AttrNameIdx] = -1;
+			}
+		}
+
+		AcquireTagRegisterIndex = -1;
+		for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
+		{
+			const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
+			if (Var.GetName().ToString() == TEXT("ID"))
+			{
+				AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
+				break;
 			}
 		}
 
@@ -286,7 +290,20 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			return;
 		}
 
-		FNiagaraDataBuffer* SourceData = SourceDataSet->GetCurrentData();
+		FNiagaraDataBuffer* SourceData;
+		if (Context.ComputeInstanceData->Context == Proxy->SourceEmitterGPUContext)
+		{
+			// If the current execution context is the same as the source emitter's context, it means we're reading from
+			// ourselves. We can't use SourceDataSet->GetCurrentData() in that case, because EndSimulate() has already been
+			// called on the current emitter, and the current data has been set to the destination data. We need to use the
+			// current compute instance data to get to the input buffers.
+			SourceData = Context.ComputeInstanceData->CurrentData;
+		}
+		else
+		{
+			SourceData = SourceDataSet->GetCurrentData();
+		}
+
 		if (!SourceData)
 		{
 			SetErrorParams(RHICmdList, ComputeShader);
@@ -297,6 +314,15 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		{
 			FindAttributeIndices(SourceDataSet, *Proxy->SourceEmitterName);
 			CachedDataSet = SourceDataSet;
+		}
+
+		if (!SourceData->GetGPUIDToIndexTable().Buffer)
+		{
+			// This can happen in the first frame, when there's no previous data yet. The DI shouldn't be
+			// queried in this case, because there's no way to have particle IDs (since there are no particles),
+			// but if it is it will just return failure and default values.
+			SetErrorParams(RHICmdList, ComputeShader);
+			return;
 		}
 
 		const uint32 ParticleStrideFloat = SourceData->GetFloatStride() / sizeof(float);
@@ -915,7 +941,7 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 		"void {FunctionName}(NiagaraID In_ParticleID, out bool Out_Valid, out {ValueType} Out_Value)\n"
 		"{\n"
 		"    int RegisterIndex = {AttributeIndicesName}[{FunctionInstanceIndex}];\n"
-		"    int ParticleIndex = (RegisterIndex != -1) ? {IDToIndexTableName}[In_ParticleID.Index] : -1;\n"
+		"    int ParticleIndex = (RegisterIndex != -1) && (In_ParticleID.Index >= 0) ? {IDToIndexTableName}[In_ParticleID.Index] : -1;\n"
 		"    int AcquireTag = (ParticleIndex != -1) ? {InputIntBufferName}[{AcquireTagRegisterIndexName}*{ParticleStrideIntName} + ParticleIndex] : 0;\n"
 		"    if(ParticleIndex != -1 && In_ParticleID.AcquireTag == AcquireTag)\n"
 		"    {\n"

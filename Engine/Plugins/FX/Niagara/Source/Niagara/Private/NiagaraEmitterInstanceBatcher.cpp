@@ -1156,6 +1156,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 			Context.DataInterface = Interface;
 			Context.SystemInstance = SystemInstance;
 			Context.Batcher = this;
+			Context.ComputeInstanceData = Instance;
 			Context.ShaderStageIndex = ShaderStageIndex;
 			Context.IsOutputStage = Interface->IsOutputStage(ShaderStageIndex);
 			DIParam.Parameters->Set(RHICmdList, Context);
