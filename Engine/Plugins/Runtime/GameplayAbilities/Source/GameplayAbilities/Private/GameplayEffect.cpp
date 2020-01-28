@@ -1717,6 +1717,12 @@ void FActiveGameplayEffect::CheckOngoingTagRequirements(const FGameplayTagContai
 
 bool FActiveGameplayEffect::CheckRemovalTagRequirements(const FGameplayTagContainer& OwnerTags, FActiveGameplayEffectsContainer& OwningContainer) const
 {
+	if (Spec.Def == nullptr)
+	{
+		ABILITY_LOG(Error, TEXT("FActiveGameplayEffect::CheckRemovalTagRequirements called with no UGameplayEffect def. (%s)"), *Spec.GetEffectContext().ToString());
+		return false;
+	}
+
 	if (!Spec.Def->RemovalTagRequirements.IsEmpty())
 	{
 		if (Spec.Def->RemovalTagRequirements.RequirementsMet(OwnerTags))
