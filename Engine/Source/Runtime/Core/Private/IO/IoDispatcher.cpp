@@ -275,10 +275,20 @@ public:
 private:
 	friend class FIoBatch;
 
-	void CompleteRequests()
+	void ProcessCompletedBlocks()
+	{
+		EventQueue.Poll();
+		while (FileIoStore.ProcessCompletedBlock())
+		{
+			ProcessCompletedRequests();
+		}
+	}
+
+	void ProcessCompletedRequests()
 	{
 		while (SubmittedRequestsHead && SubmittedRequestsHead->UnfinishedReadsCount == 0)
 		{
+			//TRACE_CPUPROFILER_EVENT_SCOPE(CompleteRequest);
 			FIoRequestImpl* NextRequest = SubmittedRequestsHead->NextRequest;
 			CompleteRequest(SubmittedRequestsHead);
 			SubmittedRequestsHead = NextRequest;
@@ -314,36 +324,43 @@ private:
 
 	void ProcessIncomingRequests()
 	{
-		FIoRequestImpl* WaitingRequest;
+		FIoRequestImpl* RequestsToSubmitHead = nullptr;
+		FIoRequestImpl* RequestsToSubmitTail = nullptr;
+		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessIncomingRequests);
+		for (;;)
 		{
-			FScopeLock _(&WaitingLock);
-			WaitingRequest = WaitingRequestsHead;
-			WaitingRequestsHead = WaitingRequestsTail = nullptr;
-		}
-		while (WaitingRequest)
-		{
-			RequestsToSubmit.Add(WaitingRequest);
-			WaitingRequest = WaitingRequest->NextRequest;
-		}
+			{
+				FScopeLock _(&WaitingLock);
+				if (WaitingRequestsHead)
+				{
+					if (RequestsToSubmitTail)
+					{
+						RequestsToSubmitTail->NextRequest = WaitingRequestsHead;
+						RequestsToSubmitTail = WaitingRequestsTail;
+					}
+					else
+					{
+						RequestsToSubmitHead = WaitingRequestsHead;
+						RequestsToSubmitTail = WaitingRequestsTail;
+					}
+					WaitingRequestsHead = WaitingRequestsTail = nullptr;
+				}
+			}
+			if (!RequestsToSubmitHead)
+			{
+				return;
+			}
 
-		int32 RequestsToSubmitCount = RequestsToSubmit.Num();
-		if (!RequestsToSubmitCount)
-		{
-			return;
-		}
+			FIoRequestImpl* Request = RequestsToSubmitHead;
+			RequestsToSubmitHead = RequestsToSubmitHead->NextRequest;
+			if (!RequestsToSubmitHead)
+			{
+				RequestsToSubmitTail = nullptr;
+			}
 
-		//TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherSubmitRequests);
-
-		for (; CurrentRequestsToSubmitIndex < RequestsToSubmitCount; ++CurrentRequestsToSubmitIndex)
-		{
-			FIoRequestImpl* Request = RequestsToSubmit[CurrentRequestsToSubmitIndex];
-			check(Request);
+			//TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
 
 			EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-			if (Result == IoStoreResolveResult_Stalled)
-			{
-				break;
-			}
 			if (Result == IoStoreResolveResult_NotFound)
 			{
 				Request->Status = FIoStatus(EIoErrorCode::NotFound);
@@ -358,12 +375,8 @@ private:
 				SubmittedRequestsTail = Request;
 			}
 			Request->NextRequest = nullptr;
-		}
 
-		if (CurrentRequestsToSubmitIndex == RequestsToSubmitCount)
-		{
-			RequestsToSubmit.Reset(false);
-			CurrentRequestsToSubmitIndex = 0;
+			ProcessCompletedBlocks();
 		}
 	}
 
@@ -376,11 +389,12 @@ private:
 	{
 		while (!bStopRequested)
 		{
-			EventQueue.ProcessEvents();
-
-			FileIoStore.ProcessIncomingBlocks();
+			EventQueue.Wait();
+			
+			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessEventQueue);
 			ProcessIncomingRequests();
-			CompleteRequests();
+			ProcessCompletedBlocks();
+			ProcessCompletedRequests();
 		}
 		return 0;
 	}
@@ -403,8 +417,6 @@ private:
 	FCriticalSection WaitingLock;
 	FIoRequestImpl* WaitingRequestsHead = nullptr;
 	FIoRequestImpl* WaitingRequestsTail = nullptr;
-	TArray<FIoRequestImpl*> RequestsToSubmit;
-	int32 CurrentRequestsToSubmitIndex = 0;
 	FIoRequestImpl* SubmittedRequestsHead = nullptr;
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
 	TAtomic<bool> bStopRequested { false };
