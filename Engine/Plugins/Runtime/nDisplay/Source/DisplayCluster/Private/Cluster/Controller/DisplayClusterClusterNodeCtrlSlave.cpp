@@ -165,6 +165,9 @@ bool FDisplayClusterClusterNodeCtrlSlave::StartClients()
 		return false;
 	}
 
+	// Allow children to override master's address
+	OverrideMasterAddr(MasterCfg.Addr);
+
 	const FDisplayClusterConfigNetwork CfgNetwork = GDisplayCluster->GetPrivateConfigMgr()->GetConfigNetwork();
 
 	return StartClientWithLogs(ClusterSyncClient.Get(),   MasterCfg.Addr, MasterCfg.Port_CS, CfgNetwork.ClientConnectTriesAmount, CfgNetwork.ClientConnectRetryDelay)
