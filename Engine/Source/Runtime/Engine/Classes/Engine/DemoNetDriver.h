@@ -388,7 +388,13 @@ ENUM_CLASS_FLAGS(EWriteDemoFrameFlags);
 UCLASS(transient, config=Engine)
 class ENGINE_API UDemoNetDriver : public UNetDriver
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
+
+	UDemoNetDriver(const FObjectInitializer& ObjectInitializer);
+	UDemoNetDriver(FVTableHelper& Helper);
+	~UDemoNetDriver();
 
 	/** Current record/playback frame number */
 	int32 DemoFrameNum;
@@ -448,6 +454,8 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 	void TickCheckpoint();
 
 private:
+
+	void InitDefaults();
 
 	bool LoadCheckpoint(const FGotoResult& GotoResult);
 
@@ -1251,6 +1259,8 @@ private:
 	{
 		return ECreateReplicationChangelistMgrFlags::SkipDeltaCustomState;
 	}
+
+	TUniquePtr<struct FDemoBudgetLogHelper> BudgetLogHelper;
 
 //////////////////////////////////////////////////////////////////////////
 // Replay frame fidelity
