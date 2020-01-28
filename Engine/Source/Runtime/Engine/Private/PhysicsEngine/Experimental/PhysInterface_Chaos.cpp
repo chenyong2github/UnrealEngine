@@ -1946,7 +1946,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 
 			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape);
 
-			if (GeomType == ECollisionShapeType::Trimesh)
+			if (!Shape.GetGeometry().IsConvex())
 			{
 				// Type unsupported for this function, but some other shapes will probably work. 
 				continue;
