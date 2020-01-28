@@ -330,12 +330,12 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	virtual int32 GetReservationPlatformCount(const FString& InPlatform) const;
 
 	/**
-	 * Delegate fired when a the beacon host detects a reservation addition/removal
+	 * Delegate fired when a the beacon host detects that all reservations are full
 	 */
 	FOnReservationUpdate& OnReservationsFull() { return ReservationsFull; }
 
 	/**
-	 * Delegate fired when a the beacon host detects that all reservations are full
+	 * Delegate fired when a the beacon host detects a reservation addition/removal
 	 */
 	FOnReservationUpdate& OnReservationChanged() { return ReservationChanged; }
 
