@@ -200,6 +200,7 @@ public:
 		{
 			// Check for sleep events referencing this particle
 			// TODO think about this case more
+			GetDynamicParticles().GetSleepDataLock().WriteLock();
 			auto& SleepData = GetDynamicParticles().GetSleepData();
 			for (int32 Idx = 0; Idx < SleepData.Num(); ++Idx)
 			{
@@ -209,6 +210,7 @@ public:
 					break;
 				}
 			}
+			GetDynamicParticles().GetSleepDataLock().WriteUnlock();
 		}
 
 		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT

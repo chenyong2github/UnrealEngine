@@ -364,13 +364,15 @@ namespace Chaos
 			AllSleepIndicesByPhysicsProxy.Reset();
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
+
+			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			for(const TSleepData<float, 3>& SleepData : SolverSleepingData)
+			for (const TSleepData<float, 3>& SleepData : SolverSleepingData)
 			{
-				if(SleepData.Particle)
+				if (SleepData.Particle)
 				{
 					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
-					if(Particle->Proxy != nullptr)
+					if (Particle->Proxy != nullptr)
 					{
 						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
 						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
@@ -382,8 +384,10 @@ namespace Chaos
 					}
 				}
 			}
+			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadUnlock();
 
-			SolverSleepingData.Empty();
+			NonConstSolver->Particles.GetDynamicParticles().ClearSleepData();
+
 
 		});
 	}
