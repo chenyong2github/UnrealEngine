@@ -193,6 +193,8 @@ void MainCS(
 		}
 		#endif
 
+		PrevColor = -min(-PrevColor, 0.0);
+
 		#if CONFIG_COLOR_TILE_CLASSIFICATION
 		{
 			if (bIsSky)
