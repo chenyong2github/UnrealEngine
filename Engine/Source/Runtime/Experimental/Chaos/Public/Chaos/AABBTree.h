@@ -518,18 +518,8 @@ public:
 
 		if (bSerializePayloadToInfo)
 		{
-			TArray<TPayloadType> Payloads;
-			if (!Ar.IsLoading())
-			{
-				PayloadToInfo.GenerateKeyArray(Payloads);
-			}
-			Ar << Payloads;
+			Ar << PayloadToInfo;
 
-			for (auto Payload : Payloads)
-			{
-				auto& Info = PayloadToInfo.FindOrAdd(Payload);
-				Ar << Info;
-			}
 			if (!bMutable)	//if immutable empty this even if we had to serialize it in for backwards compat
 			{
 				PayloadToInfo.Empty();
@@ -977,7 +967,8 @@ private:
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;
 	TArray<FElement> GlobalPayloads;
-	TMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
+	TArrayAsMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
+
 	int32 MaxChildrenInLeaf;
 	int32 MaxTreeDepth;
 	T MaxPayloadBounds;
