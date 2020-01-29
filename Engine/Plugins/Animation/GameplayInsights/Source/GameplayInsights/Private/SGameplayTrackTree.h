@@ -22,6 +22,8 @@ public:
 
 	void Construct(const FArguments& InArgs, FGameplaySharedData& InSharedData);
 
+	void CacheVisibility();
+
 private:
 	// Generate a row for the tree
 	TSharedRef<ITableRow> OnGenerateRow(TSharedRef<FGameplayTrackTreeEntry> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -53,4 +55,7 @@ private:
 
 	// Filtered list of tracks
 	TArray<TSharedRef<FGameplayTrackTreeEntry>> FilteredTracks;
+
+	// Unfiltered list of tracks
+	TArray<TSharedRef<FGameplayTrackTreeEntry>> RootEntries;
 };
