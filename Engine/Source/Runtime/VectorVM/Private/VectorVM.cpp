@@ -1421,6 +1421,7 @@ struct FScalarKernelAcquireID
 		const int32 DataSetIndex = Context.DecodeU16();
 		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 		TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
+		TArray<int32>&RESTRICT SpawnedIDsTable = *MetaTable[DataSetIndex].SpawnedIDsTable;
 
 		const int32 Tag = MetaTable[DataSetIndex].IDAcquireTag;
 
@@ -1453,6 +1454,8 @@ struct FScalarKernelAcquireID
 			*IDTag = Tag;
 			++IDIndex;
 			++IDTag;
+
+			SpawnedIDsTable.Add(AcquiredID);
 		}
 
 		MetaTable[DataSetIndex].UnlockFreeTable();

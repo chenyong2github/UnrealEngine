@@ -127,6 +127,7 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	FreeIDsTable.Reset();
 	NumFreeIDs = 0;
 	MaxUsedID = INDEX_NONE;
+	SpawnedIDsTable.Reset();
 
 	//Ensure we have a valid current buffer
 	BeginSimulate();
@@ -248,6 +249,9 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
 			FreeIDsTable.AddUninitialized(NumNewIDs);
 
+			// The spawned IDs table must be as large as the free IDs table, in case we allocate all of them this tick.
+			SpawnedIDsTable.Reserve(FreeIDsTable.Num());
+
 			//Free table should always have enough room for these new IDs.
 			check(NumFreeIDs + NumNewIDs <= FreeIDsTable.Num());
 
@@ -362,6 +366,8 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 		// might still be in use.
 		return;
 	}
+
+	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUComputeInitFreeIDs, TEXT("Init Free IDs - %s"), DebugSimName ? DebugSimName : TEXT(""));
 
 	TCHAR DebugBufferName[128];
 	FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraFreeIDList_%s"), DebugSimName ? DebugSimName : TEXT(""));
@@ -485,6 +491,8 @@ FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	, NumInstancesAllocated(0)
 	, FloatStride(0)
 	, Int32Stride(0)
+	, NumSpawnedInstances(0)
+	, IDAcquireTag(0)
 {
 }
 

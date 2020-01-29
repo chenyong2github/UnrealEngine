@@ -58,6 +58,7 @@ public:
 		// @todo REMOVE THIS HACK
 		, LastFrameThatDrainedData(GFrameNumberRenderThread)
 		, NumAllocatedFreeIDListSizes(0)
+		, bFreeIDListSizesBufferCleared(false)
 	{
 	}
 
@@ -165,8 +166,10 @@ public:
 	void DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraShader* ComputeShader);
 
 private:
+	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
+
 	void ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback, ETickStage TickStage);
-	void ResizeBuffersAndGatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers);
+	void ResizeBuffersAndGatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers, FNiagaraBufferArray& OutputGraphicsBuffers, FEmitterInstanceList& InstancesWithPersistentIDs);
 	void DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers, bool bSetReadback);
 
 	bool ShouldTickForStage(const FNiagaraGPUSystemTick& Tick, ETickStage TickStage) const;
@@ -185,6 +188,9 @@ private:
 
 	void FinishDispatches();
 	void ReleaseTicks();
+	void ResizeFreeIDsListSizesBuffer(uint32 NumInstances);
+	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
+	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
 
 	/** Feature level of this effects system */
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -210,8 +216,11 @@ private:
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
 
-	/** A buffer used by the compute shader which determines the list of free particle IDs for each emitter. */
+	/** A buffer of list sizes used by UpdateFreeIDBuffers to allow overlapping several dispatches. */
 	FRWBuffer FreeIDListSizesBuffer;
 	uint32 NumAllocatedFreeIDListSizes;
-	uint32 CurrentFreeIDListIndex;
+	bool bFreeIDListSizesBufferCleared;
+
+	/** List of emitter instances which need their free ID buffers updated post render. */
+	FEmitterInstanceList DeferredIDBufferUpdates;
 };
