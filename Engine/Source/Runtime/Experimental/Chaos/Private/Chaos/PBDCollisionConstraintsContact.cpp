@@ -30,7 +30,7 @@ namespace Chaos
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraint<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance);
 		}
 
 		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
