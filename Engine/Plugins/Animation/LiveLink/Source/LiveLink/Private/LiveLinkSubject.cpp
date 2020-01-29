@@ -18,10 +18,10 @@
 #include "UObject/Class.h"
 
 
-FLiveLinkSubject::FLiveLinkSubject(TWeakPtr<FLiveLinkTimedDataInputGroup> InTimedDataGroup)
+FLiveLinkSubject::FLiveLinkSubject(TSharedPtr<FLiveLinkTimedDataInput> InTimedDataGroup)
 	: TimedDataGroup(InTimedDataGroup)
 {
-
+	check(InTimedDataGroup.IsValid());
 }
 
 void FLiveLinkSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<ULiveLinkRole> InRole, ILiveLinkClient* InLiveLinkClient)
@@ -32,11 +32,20 @@ void FLiveLinkSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<
 	FrameData.Reset();
 	ResetBufferStats();
 
+	if (TSharedPtr<FLiveLinkTimedDataInput> TimedDataGroupPin = TimedDataGroup.Pin())
+	{
+		TimedDataGroupPin->AddChannel(this);
+	}
+
 	ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
 }
 
 FLiveLinkSubject::~FLiveLinkSubject()
 {
+	if (TSharedPtr<FLiveLinkTimedDataInput> TimedDataGroupPin = TimedDataGroup.Pin())
+	{
+		TimedDataGroupPin->RemoveChannel(this);
+	}
 	ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
 }
 
@@ -999,42 +1008,9 @@ bool FLiveLinkSubject::IsTimeSynchronized() const
 /**
  * ITimedDataInput interface
  */
- namespace LiveLinkSubjectTimedDataInput
- {
-	 ETimedDataInputEvaluationType ToTimedDataInputEvaluationType(ELiveLinkSourceMode SourceMode)
-	 {
-		 switch (SourceMode)
-		 {
-		 case ELiveLinkSourceMode::EngineTime:
-			 return ETimedDataInputEvaluationType::PlatformTime;
-		 case ELiveLinkSourceMode::Timecode:
-			 return ETimedDataInputEvaluationType::Timecode;
-		 case ELiveLinkSourceMode::Latest:
-		 default:
-			 return ETimedDataInputEvaluationType::None;
-		 }
-		 return ETimedDataInputEvaluationType::None;
-	 }
-
-	 ELiveLinkSourceMode ToLiveLinkSourceMode(ETimedDataInputEvaluationType EvaluationType)
-	 {
-		 switch (EvaluationType)
-		 {
-		 case ETimedDataInputEvaluationType::PlatformTime:
-			 return ELiveLinkSourceMode::EngineTime;
-		 case ETimedDataInputEvaluationType::Timecode:
-			 return ELiveLinkSourceMode::Timecode;
-		 case ETimedDataInputEvaluationType::None:
-		 default:
-			 return ELiveLinkSourceMode::Latest;
-		 }
-		 return ELiveLinkSourceMode::Latest;
-	 }
- }
-
-ITimedDataInputGroup* FLiveLinkSubject::GetGroup() const
+FText FLiveLinkSubject::GetDisplayName() const
 {
-	return TimedDataGroup.Pin().Get();
+	return FText::FromName(SubjectKey.SubjectName);
 }
 
 ETimedDataInputState FLiveLinkSubject::GetState() const
@@ -1043,32 +1019,27 @@ ETimedDataInputState FLiveLinkSubject::GetState() const
 	return (bHasValidFrame && HasValidFrameSnapshot()) ? ETimedDataInputState::Connected : ETimedDataInputState::Unresponsive;
 }
 
-FText FLiveLinkSubject::GetDisplayName() const
-{
-	return FText::FromName(SubjectKey.SubjectName);
-}
-
-FTimedDataInputSampleTime FLiveLinkSubject::GetOldestDataTime() const
+FTimedDataChannelSampleTime FLiveLinkSubject::GetOldestDataTime() const
 {
 	if (FrameData.Num() > 0)
 	{
-		return FTimedDataInputSampleTime(FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime(), FrameData[0].GetBaseData()->MetaData.SceneTime);
+		return FTimedDataChannelSampleTime(FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime(), FrameData[0].GetBaseData()->MetaData.SceneTime);
 	}
-	return FTimedDataInputSampleTime();
+	return FTimedDataChannelSampleTime();
 }
 
-FTimedDataInputSampleTime FLiveLinkSubject::GetNewestDataTime() const
+FTimedDataChannelSampleTime FLiveLinkSubject::GetNewestDataTime() const
 {
 	if (FrameData.Num() > 0)
 	{
-		return FTimedDataInputSampleTime(FrameData.Last().GetBaseData()->WorldTime.GetOffsettedTime(), FrameData.Last().GetBaseData()->MetaData.SceneTime);
+		return FTimedDataChannelSampleTime(FrameData.Last().GetBaseData()->WorldTime.GetOffsettedTime(), FrameData.Last().GetBaseData()->MetaData.SceneTime);
 	}
-	return FTimedDataInputSampleTime();
+	return FTimedDataChannelSampleTime();
 }
 
-TArray<FTimedDataInputSampleTime> FLiveLinkSubject::GetDataTimes() const
+TArray<FTimedDataChannelSampleTime> FLiveLinkSubject::GetDataTimes() const
 {
-	TArray<FTimedDataInputSampleTime> Result;
+	TArray<FTimedDataChannelSampleTime> Result;
 	Result.Reset(FrameData.Num());
 	for (const FLiveLinkFrameDataStruct& Data : FrameData)
 	{
@@ -1077,67 +1048,9 @@ TArray<FTimedDataInputSampleTime> FLiveLinkSubject::GetDataTimes() const
 	return Result;
 }
 
-ETimedDataInputEvaluationType FLiveLinkSubject::GetEvaluationType() const
-{
-	return LiveLinkSubjectTimedDataInput::ToTimedDataInputEvaluationType(CachedSettings.SourceMode);
-}
-
-void FLiveLinkSubject::SetEvaluationType(ETimedDataInputEvaluationType Evaluation)
-{
-	if (TSharedPtr<FLiveLinkTimedDataInputGroup> GroupPinned = TimedDataGroup.Pin())
-	{
-		GroupPinned->SetEvaluationType(LiveLinkSubjectTimedDataInput::ToLiveLinkSourceMode(Evaluation));
-	}
-}
-
-double FLiveLinkSubject::GetEvaluationOffsetInSeconds() const
-{
-	switch (CachedSettings.SourceMode)
-	{
-	case ELiveLinkSourceMode::EngineTime:
-		return CachedSettings.BufferSettings.EngineTimeOffset;
-	case ELiveLinkSourceMode::Timecode:
-		return ITimedDataInput::ConvertFrameOffsetInSecondOffset(CachedSettings.BufferSettings.TimecodeFrameOffset, CachedSettings.BufferSettings.TimecodeFrameRate);
-	case ELiveLinkSourceMode::Latest:
-	default:
-		return CachedSettings.BufferSettings.LatestOffset;
-	}
-	return 0.f;
-}
-
-void FLiveLinkSubject::SetEvaluationOffsetInSeconds(double Offset)
-{
-	if (TSharedPtr<FLiveLinkTimedDataInputGroup> GroupPinned = TimedDataGroup.Pin())
-	{
-		GroupPinned->SetEvaluationOffset(CachedSettings.SourceMode, Offset);
-	}
-}
-
-FFrameRate FLiveLinkSubject::GetFrameRate() const
-{
-	switch (CachedSettings.SourceMode)
-	{
-	case ELiveLinkSourceMode::EngineTime:
-	case ELiveLinkSourceMode::Latest:
-	default:
-		return ITimedDataInput::UnknowedFrameRate;
-	case ELiveLinkSourceMode::Timecode:
-		return CachedSettings.BufferSettings.TimecodeFrameRate;
-	}
-	return ITimedDataInput::UnknowedFrameRate;
-}
-
-int32 FLiveLinkSubject::GetDataBufferSize() const
+int32 FLiveLinkSubject::GetNumberOfSamples() const
 {
 	return FrameData.Num();
-}
-
-void FLiveLinkSubject::SetDataBufferSize(int32 BufferSize) const
-{
-	if (TSharedPtr<FLiveLinkTimedDataInputGroup> GroupPinned = TimedDataGroup.Pin())
-	{
-		GroupPinned->SetBufferMaxSize(BufferSize);
-	}
 }
 
 bool FLiveLinkSubject::IsBufferStatsEnabled() const

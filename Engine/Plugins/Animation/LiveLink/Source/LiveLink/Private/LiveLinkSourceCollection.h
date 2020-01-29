@@ -8,7 +8,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSubject.h"
 #include "LiveLinkSubjectSettings.h"
-#include "LiveLinkTimedDataInputGroup.h"
+#include "LiveLinkTimedDataInput.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
 #include "Templates/SubclassOf.h"
@@ -32,7 +32,7 @@ struct FLiveLinkCollectionSourceItem
 	FGuid Guid;
 	ULiveLinkSourceSettings* Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 	TSharedPtr<ILiveLinkSource> Source;
-	TSharedPtr<FLiveLinkTimedDataInputGroup> TimedDataGroup;
+	TSharedPtr<FLiveLinkTimedDataInput> TimedData;
 	bool bPendingKill = false;
 	bool bIsVirtualSource = false;
 

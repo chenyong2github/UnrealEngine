@@ -14,7 +14,7 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
-#include "LiveLinkTimedDataInputGroup.h"
+#include "LiveLinkTimedDataInput.h"
 #include "LiveLinkTypes.h"
 
 
@@ -44,13 +44,13 @@ struct FLiveLinkTimeSynchronizationData
 /**
  * Manages subject manipulation either to add or get frame data for specific roles
  */
-class FLiveLinkSubject : public ILiveLinkSubject, public ITimedDataInput
+class FLiveLinkSubject : public ILiveLinkSubject, public ITimedDataInputChannel
 {
 private:
 	using Super = ILiveLinkSubject;
 
 public:
-	explicit FLiveLinkSubject(TWeakPtr<FLiveLinkTimedDataInputGroup> InTimedDataGroup);
+	explicit FLiveLinkSubject(TSharedPtr<FLiveLinkTimedDataInput> InTimedDataGroup);
 	FLiveLinkSubject(const FLiveLinkSubject&) = delete;
 	FLiveLinkSubject& operator=(const FLiveLinkSubject&) = delete;
 	virtual ~FLiveLinkSubject();
@@ -73,22 +73,12 @@ protected:
 
 	//~Begin ITimedDataSource Interface
 public:
-	virtual ITimedDataInputGroup* GetGroup() const override;
-	virtual ETimedDataInputState GetState() const override;
 	virtual FText GetDisplayName() const override;
-	virtual FTimedDataInputSampleTime GetOldestDataTime() const override;
-	virtual FTimedDataInputSampleTime GetNewestDataTime() const override;
-	virtual TArray<FTimedDataInputSampleTime> GetDataTimes() const override;
-	virtual ETimedDataInputEvaluationType GetEvaluationType() const override;
-	//~ this will change all subjects of this subject's source
-	virtual void SetEvaluationType(ETimedDataInputEvaluationType Evaluation) override;
-	virtual double GetEvaluationOffsetInSeconds() const override;
-	//~ this will change all subjects of this subject's source
-	virtual void SetEvaluationOffsetInSeconds(double Offset) override;
-	virtual FFrameRate GetFrameRate() const override;
-	virtual int32 GetDataBufferSize() const override;
-	//~ this will change all subjects of this subject's source
-	virtual void SetDataBufferSize(int32 BufferSize) const override;
+	virtual ETimedDataInputState GetState() const override;
+	virtual FTimedDataChannelSampleTime GetOldestDataTime() const override;
+	virtual FTimedDataChannelSampleTime GetNewestDataTime() const override;
+	virtual TArray<FTimedDataChannelSampleTime> GetDataTimes() const override;
+	virtual int32 GetNumberOfSamples() const override;
 	virtual bool IsBufferStatsEnabled() const override;
 	virtual void SetBufferStatsEnabled(bool bEnable) override;
 	virtual int32 GetBufferUnderflowStat() const override;
@@ -194,7 +184,7 @@ private:
 	FLiveLinkSubjectKey SubjectKey;
 
 	// Timed data input group for the subject
-	TWeakPtr<FLiveLinkTimedDataInputGroup> TimedDataGroup;
+	TWeakPtr<FLiveLinkTimedDataInput> TimedDataGroup;
 
 	// Connection settings specified by user
 	FLiveLinkCachedSettings CachedSettings;

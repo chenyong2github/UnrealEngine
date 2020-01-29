@@ -6,29 +6,10 @@
 #include "Engine/EngineBaseTypes.h"
 #include "ITimedDataInput.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "Tickable.h"
 
 #include "TimedDataMonitorSubsystem.generated.h"
 
-
-USTRUCT(BlueprintType)
-struct TIMEDDATAMONITOR_API FTimedDataMonitorGroupIdentifier
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY()
-	FGuid Group;
-
-public:
-	static FTimedDataMonitorGroupIdentifier NewIdentifier();
-
-	bool IsValidGroup() const { return Group.IsValid(); }
-
-	bool operator== (const FTimedDataMonitorGroupIdentifier& Other) const { return Other.Group == Group; }
-	bool operator!= (const FTimedDataMonitorGroupIdentifier& Other) const { return Other.Group != Group; }
-
-	friend uint32 GetTypeHash(const FTimedDataMonitorGroupIdentifier& Identifier) { return GetTypeHash(Identifier.Group); }
-};
 
 USTRUCT(BlueprintType)
 struct TIMEDDATAMONITOR_API FTimedDataMonitorInputIdentifier
@@ -37,22 +18,43 @@ struct TIMEDDATAMONITOR_API FTimedDataMonitorInputIdentifier
 
 private:
 	UPROPERTY()
-	FGuid Input;
+	FGuid Identifier;
 
 public:
 	static FTimedDataMonitorInputIdentifier NewIdentifier();
 
-	bool IsValidInput() const { return Input.IsValid(); }
+	bool IsValid() const { return Identifier.IsValid(); }
 
-	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Input == Input; }
-	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Input != Input; }
+	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier == Identifier; }
+	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier != Identifier; }
 
-	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& Identifier) { return GetTypeHash(Identifier.Input); }
+	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& Identifier) { return GetTypeHash(Identifier.Identifier); }
+};
+
+
+USTRUCT(BlueprintType)
+struct TIMEDDATAMONITOR_API FTimedDataMonitorChannelIdentifier
+{
+	GENERATED_BODY()
+
+private:
+	UPROPERTY()
+	FGuid Identifier;
+
+public:
+	static FTimedDataMonitorChannelIdentifier NewIdentifier();
+
+	bool IsValid() const { return Identifier.IsValid(); }
+
+	bool operator== (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier == Identifier; }
+	bool operator!= (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier != Identifier; }
+
+	friend uint32 GetTypeHash(const FTimedDataMonitorChannelIdentifier& Identifier) { return GetTypeHash(Identifier.Identifier); }
 };
 
 
 UENUM()
-enum class ETimedDataMonitorGroupEnabled : uint8
+enum class ETimedDataMonitorInputEnabled : uint8
 {
 	Disabled,
 	Enabled,
@@ -61,7 +63,7 @@ enum class ETimedDataMonitorGroupEnabled : uint8
 
 
 UENUM()
-enum class ETimedDataMonitorCallibrationReturnCode : uint8
+enum class ETimedDataMonitorCalibrationReturnCode : uint8
 {
 	/** Success. The values were synchronized. */
 	Succeeded,
@@ -75,21 +77,21 @@ enum class ETimedDataMonitorCallibrationReturnCode : uint8
 	Failed_NoDataBuffered,
 	/** Failed. We tried to find a valid offset for the timecode provider and failed. */
 	Failed_CanNotCallibrateWithoutJam,
-	/** It failed but, we increased the number of buffer for you of at least one source. You may retry to see if it works now. */
+	/** It failed but, we increased the number of buffer of at least one channel. You may retry to see if it works now. */
 	Retry_BufferSizeHasBeenIncreased,
 };
 
 
 USTRUCT(BlueprintType)
-struct FTimedDataMonitorCallibrationResult
+struct FTimedDataMonitorCalibrationResult
 {
 	GENERATED_BODY();
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Result")
-	ETimedDataMonitorCallibrationReturnCode ReturnCode;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
+	ETimedDataMonitorCalibrationReturnCode ReturnCode;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
+	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
 };
 
 
@@ -100,12 +102,16 @@ enum class ETimedDataMonitorJamReturnCode : uint8
 	Succeeded,
 	/** Failed. The timecode provider was not existing or not synchronized. */
 	Failed_NoTimecode,
-	/** Failed. At least one input is unresponsive. */
+	/** Failed. At least one channel is unresponsive. */
 	Failed_UnresponsiveInput,
 	/** Failed. The evaluation type of at least of input doesn't match with what was requested. */
 	Failed_EvaluationTypeDoNotMatch,
-	/** Failed. The input doesn't have any data in it's buffer to synchronized with. */
+	/** Failed. The channel doesn't have any data in it's buffer to synchronized with. */
 	Failed_NoDataBuffered,
+	/** Failed. The channel or buffer size has been increase but it's still not enough. */
+	Failed_BufferSizeHaveBeenMaxed,
+	/** Failed but we increased the number of buffer of at least one channel. You may retry to see if it works now. */
+	Retry_BufferSizeHasBeenIncreased,
 };
 
 USTRUCT(BlueprintType)
@@ -118,10 +124,10 @@ struct FTimedDataMonitorJamResult
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
 	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
+	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
 };
-
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTimedDataIdentifierListChangedSignature);
 
 
 /**
@@ -160,12 +166,15 @@ struct FTimedDataChannelEvaluationStatistics
 };
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTimedDataIdentifierListChangedSignature);
+
+
 //~ Can be access via GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>()
 /**
  * 
  */
 UCLASS()
-class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem
+class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -174,19 +183,18 @@ private:
 	struct FTimeDataInputItem
 	{
 		ITimedDataInput* Input = nullptr;
-		FTimedDataMonitorGroupIdentifier GroupIdentifier;
-		bool bEnabled = true;
-		FTimedDataChannelEvaluationStatistics Statistics;
+		TArray<FTimedDataMonitorChannelIdentifier> ChannelIdentifiers;
 
 	public:
-		bool HasGroup() const;
 		void ResetValue();
 	};
 
-	struct FTimeDataInputItemGroup
+	struct FTimeDataChannelItem
 	{
-		ITimedDataInputGroup* Group = nullptr;
-		TArray<FTimedDataMonitorInputIdentifier> InputIdentifiers;
+		ITimedDataInputChannel* Channel = nullptr;
+		bool bEnabled = true;
+		FTimedDataMonitorInputIdentifier InputIdentifier;
+		FTimedDataChannelEvaluationStatistics Statistics;
 
 	public:
 		void ResetValue();
@@ -197,6 +205,14 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~ End USubsystem implementation
+
+	//~ Begin FTickableGameObject implementation
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
+	virtual bool IsTickableWhenPaused() const override { return true; }
+	virtual bool IsTickableInEditor() const override { return true; }
+	//~ End FTickableGameObject implementation
 
 public:
 	/** Delegate of when an element is added or removed. */
@@ -210,24 +226,24 @@ public:
 	/** Get the interface for a specific input identifier. */
 	ITimedDataInput* GetTimedDataInput(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Get the interface for a specific group identifier. */
-	ITimedDataInputGroup* GetTimedDataInputGroup(const FTimedDataMonitorGroupIdentifier& Identifier);
+	/** Get the interface for a specific channel identifier. */
+	ITimedDataInputChannel* GetTimedDataChannel(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 public:
-	/** Get the list of all the groups. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	TArray<FTimedDataMonitorGroupIdentifier> GetAllGroups();
-
 	/** Get the list of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	TArray<FTimedDataMonitorInputIdentifier> GetAllInputs();
+
+	/** Get the list of all the channels. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	TArray<FTimedDataMonitorChannelIdentifier> GetAllChannels();
 
 	/**
 	 * Set evaluation offset for all inputs and the engine's timecode provider to align all the buffers.
 	 * If there is no data available, it may increase the buffer size of an input.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	FTimedDataMonitorCallibrationResult CalibrateWithTimecodeProvider();
+	FTimedDataMonitorCalibrationResult CalibrateWithTimecodeProvider();
 
 	/** Assume all data samples were produce at the same time and align them with the current platform's time */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
@@ -237,49 +253,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	void ResetAllBufferStats();
 
-	/** Return true if the identifier is a valid group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	bool DoesGroupExist(const FTimedDataMonitorGroupIdentifier& Identifier);
-
-	/** Return the display name of a group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	FText GetGroupDisplayName(const FTimedDataMonitorGroupIdentifier& Identifier);
-
-	/** Get the min and max value of the inputs data buffer size. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	void GetGroupDataBufferSize(const FTimedDataMonitorGroupIdentifier& Identifier, int32& OutMinBufferSize, int32& OutMaxBufferSize);
-
-	/** Set the data buffer size of all the input in that group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	void SetGroupDataBufferSize(const FTimedDataMonitorGroupIdentifier& Identifier, int32 BufferSize);
-
-	/** Get the worst state of all the input state of that group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	ETimedDataInputState GetGroupState (const FTimedDataMonitorGroupIdentifier& Identifier);
-
-	/** Reset the stat of all the inputs of that group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	void ResetGroupBufferStats(const FTimedDataMonitorGroupIdentifier& Identifier);
-
-	/** Return true if all inputs in the group are enabled. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	ETimedDataMonitorGroupEnabled GetGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier);
-
-	/** Enable or disable all inputs in the group. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Group")
-	void SetGroupEnabled(const FTimedDataMonitorGroupIdentifier& Identifier, bool bEnabled);
-
 	/** Return true if the identifier is a valid input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	bool DoesInputExist(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Is the input enabled in the monitor. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	ETimedDataMonitorInputEnabled GetInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Set all channels for the input enabled in the monitor. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	void SetInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier, bool bInEnabled);
 
 	/** Return the display name of an input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FText GetInputDisplayName(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Return the group in which the input is part of. */
+	/** Return the list of all channels that are part of the input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	FTimedDataMonitorGroupIdentifier GetInputGroup(const FTimedDataMonitorInputIdentifier& Identifier);
+	TArray<FTimedDataMonitorChannelIdentifier> GetInputChannels(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Get how the input is evaluated type. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -297,21 +289,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputEvaluationOffsetInSeconds(const FTimedDataMonitorInputIdentifier& Identifier, float Seconds);
 
-	/** Get the current input state. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
-
 	/** Get the frame rate at which the samples is produce. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FFrameRate GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Get the input oldest sample time available. */
+	/** Get the oldest sample time of all the channel in this input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	FTimedDataInputSampleTime GetInputOldestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
+	FTimedDataChannelSampleTime GetInputOldestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Get the input latest sample time at which it should be evaluated. */
+	/** Get the latest sample time of all the channel in this input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	FTimedDataInputSampleTime GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
+	FTimedDataChannelSampleTime GetInputNewestDataTime(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Does the channel support a different buffer size than it's input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	bool IsDataBufferSizeControlledByInput(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Get the size of the buffer used by the input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -321,67 +313,107 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputDataBufferSize(const FTimedDataMonitorInputIdentifier& Identifier, int32 BufferSize);
 
-	/** Reset the stat of the input. */
+	/** Get the worst state of all the channel state of that input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	void ResetInputBufferStats(const FTimedDataMonitorInputIdentifier& Identifier);
+	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
 
-	/** Is the input enabled in the monitor. */
+	/** Returns the standard deviation of the distance, in seconds, between evaluation time and newest sample */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	bool IsInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier);
+	float GetInputEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
 
+	/** Returns the standard deviation of the distance, in seconds, between evaluation time and oldest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationDistanceToOldestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Return true if the identifier is a valid channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	bool DoesChannelExist(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Is the channel enabled in the monitor. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	bool IsChannelEnabled(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/**
 	 * Enable or disable an input from the monitor.
 	 * The input will still be evaluated but stats will not be tracked and the will not be used for calibration.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	void SetInputEnabled(const FTimedDataMonitorInputIdentifier& Identifier, bool bEnabled);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	void SetChannelEnabled(const FTimedDataMonitorChannelIdentifier& Identifier, bool bEnabled);
+
+	/** Return the input of this channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	FTimedDataMonitorInputIdentifier GetChannelInput(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Return the display name of an input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	FText GetChannelDisplayName(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the worst state of all the input state of that channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	ETimedDataInputState GetChannelState (const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the channel oldest sample time. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	FTimedDataChannelSampleTime GetChannelOldestDataTime(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the channel latest sample time. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	FTimedDataChannelSampleTime GetChannelNewestDataTime(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the number of data samples available. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	int32 GetChannelNumberOfSamples(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** If the channel does support it, get the current maximum sample count of channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	int32 GetChannelDataBufferSize(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** If the channel does support it, set the maximum sample count of the channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	void SetChannelDataBufferSize(const FTimedDataMonitorChannelIdentifier& Identifier, int32 BufferSize);
 
 	/** Returns the number of buffer underflows detected by that input since the last reset. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	int32 GetBufferUnderflowStat(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	int32 GetChannelBufferUnderflowStat(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Returns the number of buffer overflows detected by that input since the last reset. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	int32 GetBufferOverflowStat(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	int32 GetChannelBufferOverflowStat(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Returns the number of frames dropped by that input since the last reset. */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	int32 GetFrameDroppedStat(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	int32 GetChannelFrameDroppedStat(const FTimedDataMonitorChannelIdentifier& Identifier);
 	
 	/** 
 	 * Retrieves information about last evaluation 
 	 * Returns true if identifier was found
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	void GetLastEvaluationDataStat(const FTimedDataMonitorInputIdentifier& Identifier, FTimedDataInputEvaluationData& Result);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	void GetChannelLastEvaluationDataStat(const FTimedDataMonitorChannelIdentifier& Identifier, FTimedDataInputEvaluationData& Result);
 
 	/** Returns the average distance, in seconds, between evaluation time and newest sample */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	float GetEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	float GetChannelEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Returns the average distance, in seconds, between evaluation time and oldest sample */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	float GetEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	float GetChannelEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Returns the standard deviation of the distance, in seconds, between evaluation time and newest sample */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	float GetEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	float GetChannelEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Returns the standard deviation of the distance, in seconds, between evaluation time and oldest sample */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	float GetEvaluationDistanceToOldestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);
-
-
-
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	float GetChannelEvaluationDistanceToOldestSampleStandardDeviation(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 private:
 	void BuildSourcesListIfNeeded();
 
 	void OnTimedDataSourceCollectionChanged();
-	
-	/** Used to trigger an update on the internal statistics once per frame after Actors have ticked. This is to have stats calculated even if monitor is no opened. */
-	void OnWorldPostTick(UWorld* /*World*/, ELevelTick/**Tick Type*/, float/**Delta Seconds*/);
+
+	double GetSeconds(ETimedDataInputEvaluationType Evaluation, const FTimedDataChannelSampleTime& SampleTime) const;
+	double CalculateAverageInDeltaTimeBetweenSample(ETimedDataInputEvaluationType Evaluation, const TArray<FTimedDataChannelSampleTime>& SampleTimes) const;
 
 	/** Update internal statistics for each enabled channel */
 	void UpdateEvaluationStatistics();
@@ -389,7 +421,6 @@ private:
 private:
 	bool bRequestSourceListRebuilt = false;
 	TMap<FTimedDataMonitorInputIdentifier, FTimeDataInputItem> InputMap;
-	TMap<FTimedDataMonitorGroupIdentifier, FTimeDataInputItemGroup> GroupMap;
-	FTimedDataMonitorGroupIdentifier OtherGroupIdentifier;
+	TMap<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem> ChannelMap;
 	FSimpleMulticastDelegate OnIdentifierListChanged_Delegate;
 };

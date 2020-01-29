@@ -2,7 +2,7 @@
 
 #include "ITimedDataInput.h"
 
-FFrameRate ITimedDataInput::UnknowedFrameRate = FFrameRate(-1, -1);
+FFrameRate ITimedDataInput::UnknownFrameRate = FFrameRate(-1, -1);
 
 
 double ITimedDataInput::ConvertSecondOffsetInFrameOffset(double Seconds, FFrameRate Rate)

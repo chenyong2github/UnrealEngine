@@ -426,37 +426,37 @@ void STimedDataMonitorPanel::CalibrateWithTimecode()
 
 	MessageLogListing->ClearMessages();
 
-	FTimedDataMonitorCallibrationResult Result = TimedDataMonitorSubsystem->CalibrateWithTimecodeProvider();
+	FTimedDataMonitorCalibrationResult Result = TimedDataMonitorSubsystem->CalibrateWithTimecodeProvider();
 
-	if (Result.ReturnCode != ETimedDataMonitorCallibrationReturnCode::Succeeded)
-	{
-		switch (Result.ReturnCode)
-		{
-		case ETimedDataMonitorCallibrationReturnCode::Failed_NoTimecode:
-			FMessageLog(Utilities::NAME_LogName).Error(LOCTEXT("CalibrationFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value."));
-			break;
-		case ETimedDataMonitorCallibrationReturnCode::Failed_UnresponsiveInput:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_UnresponsiveInput", "The input '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier)));
-			}
-			break;
-		case ETimedDataMonitorCallibrationReturnCode::Failed_InvalidFrameRate:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_InvalidFrameRate", "The input '{0}' has an invalid frame rate."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier)));
-			}
-			break;
-		case ETimedDataMonitorCallibrationReturnCode::Failed_NoDataBuffered:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_NoDataBuffered", "The input '{0}' has not data buffured."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier)));
-			}
-			break;
-		default:
-			break;
-		}
-	}
+	//if (Result.ReturnCode != ETimedDataMonitorCalibrationReturnCode::Succeeded)
+	//{
+	//	switch (Result.ReturnCode)
+	//	{
+	//	case ETimedDataMonitorCalibrationReturnCode::Failed_NoTimecode:
+	//		FMessageLog(Utilities::NAME_LogName).Error(LOCTEXT("CalibrationFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value."));
+	//		break;
+	//	case ETimedDataMonitorCalibrationReturnCode::Failed_UnresponsiveInput:
+	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+	//		{
+	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_UnresponsiveInput", "The input '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
+	//		}
+	//		break;
+	//	case ETimedDataMonitorCalibrationReturnCode::Failed_InvalidFrameRate:
+	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+	//		{
+	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_InvalidFrameRate", "The input '{0}' has an invalid frame rate."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
+	//		}
+	//		break;
+	//	case ETimedDataMonitorCalibrationReturnCode::Failed_NoDataBuffered:
+	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+	//		{
+	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_NoDataBuffered", "The input '{0}' has not data buffured."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
+	//		}
+	//		break;
+	//	default:
+	//		break;
+	//	}
+	//}
 
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode;
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->SaveConfig();
@@ -473,38 +473,63 @@ void STimedDataMonitorPanel::Jam(bool bWithTimecode)
 	ETimedDataInputEvaluationType JamType = bWithTimecode ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
 	FTimedDataMonitorJamResult Result = TimedDataMonitorSubsystem->JamInputs(JamType);
 
-	if (Result.ReturnCode != ETimedDataMonitorJamReturnCode::Succeeded)
+	switch (Result.ReturnCode)
 	{
-		switch (Result.ReturnCode)
+	case ETimedDataMonitorJamReturnCode::Succeeded:
+		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
+			, LOCTEXT("JamSucceeded_NoTimecode", "Jam succeeded.")));
+		break;
+	case ETimedDataMonitorJamReturnCode::Failed_NoTimecode:
+		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+			, LOCTEXT("JamFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
+		break;
+	case ETimedDataMonitorJamReturnCode::Failed_UnresponsiveInput:
+		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
 		{
-		case ETimedDataMonitorJamReturnCode::Failed_NoTimecode:
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, LOCTEXT("JamFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
-			break;
-		case ETimedDataMonitorJamReturnCode::Failed_UnresponsiveInput:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The input '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
-			}
-			break;
-		case ETimedDataMonitorJamReturnCode::Failed_EvaluationTypeDoNotMatch:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamFailed_InvalidFrameRate", "The input '{0}' evalution type doesn't match with the jam type."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
-			}
-			break;
-		case ETimedDataMonitorJamReturnCode::Failed_NoDataBuffered:
-			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The input '{0}' has not data buffured."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
-			}
-			break;
-		default:
-			break;
+				, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The channel '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
 		}
+		break;
+	case ETimedDataMonitorJamReturnCode::Failed_EvaluationTypeDoNotMatch:
+		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, FText::Format(LOCTEXT("JamFailed_InvalidFrameRate", "The input '{0}' evalution type doesn't match with the jam type."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+		}
+		break;
+	case ETimedDataMonitorJamReturnCode::Failed_NoDataBuffered:
+		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The channel '{0}' has not data buffered."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+		}
+		break;
+	case ETimedDataMonitorJamReturnCode::Failed_BufferSizeHaveBeenMaxed:
+		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Input", "The buffer size of input '{0}' could not be increased further."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+		}
+		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Channel", "The buffer size of channel '{0}' needed to be increased further."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+		}
+		break;
+	case ETimedDataMonitorJamReturnCode::Retry_BufferSizeHasBeenIncreased:
+		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
+				, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Input", "The buffer size of input '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+		}
+		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+		{
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
+				, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Channel", "The buffer size of channel '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+		}
+		break;
+	default:
+		break;
 	}
 
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = bWithTimecode

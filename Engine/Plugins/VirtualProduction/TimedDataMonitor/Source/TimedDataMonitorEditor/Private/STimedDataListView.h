@@ -36,7 +36,7 @@ public:
 		SLATE_ARGUMENT(FTimedDataInputTableRowDataPtr, Item)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView);
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwerTableView, const TSharedRef<STimedDataInputListView>& OwnerTreeView);
 
 private:
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
@@ -50,6 +50,7 @@ private:
 	FText GetDescription() const;
 	FText GetEvaluationOffsetText() const;
 	TOptional<int32> GetBufferSize() const;
+	FText GetBufferSizeText() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;
 
@@ -60,6 +61,7 @@ private:
 
 private:
 	FTimedDataInputTableRowDataPtr Item;
+	TSharedPtr<STimedDataInputListView> OwnerTreeView;
 };
 
 
@@ -79,6 +81,8 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	void RequestRefresh() { bRefreshRequested = true; }
+
 private:
 	void RequestRebuildSources();
 	void RebuildSources();
@@ -93,5 +97,6 @@ private:
 private:
 	TArray<FTimedDataInputTableRowDataPtr> ListItemsSource;
 	bool bRebuildListRequested = true;
+	bool bRefreshRequested = true;
 	double LastCachedValueUpdateTime = 0.0;
 };

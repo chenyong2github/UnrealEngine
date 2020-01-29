@@ -16,7 +16,7 @@
 
 struct FSlateBrush;
 class ITimedDataInput;
-class ITimedDataInputGroup;
+class ITimedDataInputChannel;
 class SWidget;
 
 
@@ -45,12 +45,12 @@ enum class ETimedDataInputState : uint8
 
 
 USTRUCT(BlueprintType)
-struct FTimedDataInputSampleTime
+struct FTimedDataChannelSampleTime
 {
 	GENERATED_BODY()
 
-	FTimedDataInputSampleTime() = default;
-	FTimedDataInputSampleTime(double InPlatformSeconds, const FQualifiedFrameTime& InTimecode)
+	FTimedDataChannelSampleTime() = default;
+	FTimedDataChannelSampleTime(double InPlatformSeconds, const FQualifiedFrameTime& InTimecode)
 		: PlatformSecond(InPlatformSeconds), Timecode(InTimecode)
 	{ }
 	/** The time is relative to FPlatformTime::Seconds.*/
@@ -58,6 +58,7 @@ struct FTimedDataInputSampleTime
 	/** Timecode value of the sample */
 	FQualifiedFrameTime Timecode;
 };
+
 
 USTRUCT(BlueprintType)
 struct TIMEMANAGEMENT_API FTimedDataInputEvaluationData
@@ -77,38 +78,24 @@ struct TIMEMANAGEMENT_API FTimedDataInputEvaluationData
 	float DistanceToOldestSampleSeconds = 0.0f;
 };
 
+
 /**
  * Interface for data sources that can be synchronized with time
  */
 class TIMEMANAGEMENT_API ITimedDataInput
 {
 public:
-	static FFrameRate UnknowedFrameRate;
+	static FFrameRate UnknownFrameRate;
 	
 	static double ConvertSecondOffsetInFrameOffset(double Seconds, FFrameRate Rate);
 	static double ConvertFrameOffsetInSecondOffset(double Frames, FFrameRate Rate);
 	
 public:
-	/**
-	 * Get the group to which this input is attached to.
-	 * It can return null when the input doesn't have a group.
-	 */
-	virtual ITimedDataInputGroup* GetGroup() const = 0;
-
-	/** Get the current state of the input. */
-	virtual ETimedDataInputState GetState() const = 0;
-
 	/** Get the name used when displayed. */
 	virtual FText GetDisplayName() const = 0;
 
-	/** Get the time of the oldest data sample available. */
-	virtual FTimedDataInputSampleTime GetOldestDataTime() const = 0;
-
-	/** Get the time of the newest data sample available. */
-	virtual FTimedDataInputSampleTime GetNewestDataTime() const = 0;
-	
-	/** Get the time of all the data samples available. */
-	virtual TArray<FTimedDataInputSampleTime> GetDataTimes() const = 0;
+	/** Get a list of the channel this input has. */
+	virtual TArray<ITimedDataInputChannel*> GetChannels() const = 0;
 
 	/** Get how the input is evaluated. */
 	virtual ETimedDataInputEvaluationType GetEvaluationType() const = 0;
@@ -125,11 +112,51 @@ public:
 	/** Get the frame rate at which the samples is produce. */
 	virtual FFrameRate GetFrameRate() const = 0;
 
-	/** Get the size of the buffer used by the input. */
-	virtual int32 GetDataBufferSize() const = 0;
+	/** Does channel from this input support a different buffer size than it's input. */
+	virtual bool IsDataBufferSizeControlledByInput() const = 0;
 
-	/** Set the size of the buffer used by the input. */
-	virtual void SetDataBufferSize(int32 BufferSize) const = 0;
+	/** If the input does supported it, get the size of the buffer used by the input. */
+	virtual int32 GetDataBufferSize() const { return 0; }
+
+	/** If the input does supported it, set the size of the buffer used by the input. */
+	virtual void SetDataBufferSize(int32 BufferSize) { }
+
+#if WITH_EDITOR
+	/** Get the icon that represent the input. */
+	virtual const FSlateBrush* GetDisplayIcon() const = 0;
+#endif
+};
+
+
+/**
+ * Interface for data tracked produced by an input.
+ */
+class TIMEMANAGEMENT_API ITimedDataInputChannel
+{
+public:
+	/** Get the channel's display name. */
+	virtual FText GetDisplayName() const = 0;
+
+	/** Get the current state of the channel. */
+	virtual ETimedDataInputState GetState() const = 0;
+
+	/** Get the time of the oldest data sample available. */
+	virtual FTimedDataChannelSampleTime GetOldestDataTime() const = 0;
+
+	/** Get the time of the newest data sample available. */
+	virtual FTimedDataChannelSampleTime GetNewestDataTime() const = 0;
+
+	/** Get the time of all the data samples available. */
+	virtual TArray<FTimedDataChannelSampleTime> GetDataTimes() const = 0;
+
+	/** Get the number of data samples available. */
+	virtual int32 GetNumberOfSamples() const = 0;
+
+	/** If the channel does support it, get the current maximum sample count of channel. */
+	virtual int32 GetDataBufferSize() const { return 0; }
+
+	/** If the channel does support it, set the maximum sample count of the channel. */
+	virtual void SetDataBufferSize(int32 BufferSize) {}
 
 	/** Is tracking of stats enabled for this input */
 	virtual bool IsBufferStatsEnabled() const = 0;
@@ -151,24 +178,4 @@ public:
 
 	/** Resets internal stat counters */
 	virtual void ResetBufferStats() = 0;
-};
-
-
-/**
- * Interface for grouping TimedDataInput
- */
-class TIMEMANAGEMENT_API ITimedDataInputGroup
-{
-public:
-
-	/** Get the name to used when displayed. */
-	virtual FText GetDisplayName() const = 0;
-
-	/** Get the a description for this group. */
-	virtual FText GetDescription() const = 0;
-
-#if WITH_EDITOR
-	/** Get the icon that represent the group. */
-	virtual const FSlateBrush* GetDisplayIcon() const = 0;
-#endif
 };

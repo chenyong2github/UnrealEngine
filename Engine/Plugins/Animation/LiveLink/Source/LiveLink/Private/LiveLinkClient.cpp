@@ -16,7 +16,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
-#include "LiveLinkTimedDataInputGroup.h"
+#include "LiveLinkTimedDataInput.h"
 #include "LiveLinkVirtualSource.h"
 #include "IMediaModule.h"
 #include "Misc/App.h"
@@ -214,7 +214,7 @@ FGuid FLiveLinkClient::AddSource(TSharedPtr<ILiveLinkSource> InSource)
 		FLiveLinkCollectionSourceItem Data;
 		Data.Guid = Guid;
 		Data.Source = InSource;
-		Data.TimedDataGroup = MakeShared<FLiveLinkTimedDataInputGroup>(this, Guid);
+		Data.TimedData = MakeShared<FLiveLinkTimedDataInput>(this, Guid);
 		{
 			UClass* SourceSettingsClass = InSource->GetSettingsClass().Get();
 			UClass* SettingsClass = SourceSettingsClass ? SourceSettingsClass : ULiveLinkSourceSettings::StaticClass();
@@ -314,7 +314,7 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 			return false;
 		}
 
-		Data.TimedDataGroup = MakeShared<FLiveLinkTimedDataInputGroup>(this, InSourcePreset.Guid);
+		Data.TimedData = MakeShared<FLiveLinkTimedDataInput>(this, InSourcePreset.Guid);
 	}
 
 	Data.Source = Source;
@@ -575,7 +575,7 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 		}
 
 		bool bEnabled = Collection->FindEnabledSubject(SubjectStaticData.SubjectKey.SubjectName) == nullptr;
-		FLiveLinkCollectionSubjectItem CollectionSubjectItem(SubjectStaticData.SubjectKey, MakeUnique<FLiveLinkSubject>(SourceItem->TimedDataGroup), SubjectSettings, bEnabled);
+		FLiveLinkCollectionSubjectItem CollectionSubjectItem(SubjectStaticData.SubjectKey, MakeUnique<FLiveLinkSubject>(SourceItem->TimedData), SubjectSettings, bEnabled);
 		CollectionSubjectItem.GetLiveSubject()->Initialize(SubjectStaticData.SubjectKey, SubjectStaticData.Role.Get(), this);
 
 		LiveLinkSubject = CollectionSubjectItem.GetLiveSubject();
@@ -757,7 +757,7 @@ bool FLiveLinkClient::CreateSubject(const FLiveLinkSubjectPreset& InSubjectPrese
 		}
 
 		bool bEnabled = false;
-		FLiveLinkCollectionSubjectItem CollectionSubjectItem(InSubjectPreset.Key, MakeUnique<FLiveLinkSubject>(SourceItem->TimedDataGroup), SubjectSettings, bEnabled);
+		FLiveLinkCollectionSubjectItem CollectionSubjectItem(InSubjectPreset.Key, MakeUnique<FLiveLinkSubject>(SourceItem->TimedData), SubjectSettings, bEnabled);
 		CollectionSubjectItem.GetLiveSubject()->Initialize(InSubjectPreset.Key, InSubjectPreset.Role.Get(), this);
 
 		FScopeLock Lock(&CollectionAccessCriticalSection);

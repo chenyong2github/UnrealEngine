@@ -6,7 +6,7 @@
 #include "Features/IModularFeature.h"
 
 class ITimedDataInput;
-class ITimedDataInputGroup;
+class ITimedDataInputChannel;
 
 /**
  * A list of all the timed data input.
@@ -40,8 +40,8 @@ public:
 		return Inputs;
 	}
 	
-	/** Add an input group to the collection. */
-	void Add(ITimedDataInputGroup* Input)
+	/** Add an input channel to the collection. */
+	void Add(ITimedDataInputChannel* Input)
 	{
 		if (Input && !Groups.Contains(Input))
 		{
@@ -50,8 +50,8 @@ public:
 		}
 	}
 
-	/** Remove an input group from the collection. */
-	void Remove(ITimedDataInputGroup* Input)
+	/** Remove an input channel from the collection. */
+	void Remove(ITimedDataInputChannel* Input)
 	{
 		if (Groups.RemoveSingleSwap(Input) > 0)
 		{
@@ -59,8 +59,8 @@ public:
 		}
 	}
 
-	/** The list of inputs groups from the collection. */
-	const TArray<ITimedDataInputGroup*>& GetGroups() const
+	/** The list of input channels from the collection. */
+	const TArray<ITimedDataInputChannel*>& GetChannels() const
 	{
 		return Groups;
 	}
@@ -74,5 +74,5 @@ public:
 private:
 	FSimpleMulticastDelegate CollectionChanged;
 	TArray<ITimedDataInput*> Inputs;
-	TArray<ITimedDataInputGroup*> Groups;
+	TArray<ITimedDataInputChannel*> Groups;
 };
