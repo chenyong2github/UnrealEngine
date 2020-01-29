@@ -646,7 +646,7 @@ void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
 					: TEXT("None"));
 		}
 
-		InvalidateCompileResults();
+		InvalidateCompileResults(TEXT("Data interface count mismatch during script presave."));
 		return;
 	}
 
@@ -874,6 +874,8 @@ void UNiagaraScript::PostLoad()
 	if (Source != nullptr)
 	{
 		Source->ConditionalPostLoad();
+		bool bScriptVMNeedsRebuild = false;
+		FString RebuildReason;
 		if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts && CachedScriptVMId.CompilerVersionID.IsValid())
 		{
 			FGuid BaseId = Source->GetCompileBaseId(Usage, UsageId);
@@ -882,9 +884,8 @@ void UNiagaraScript::PostLoad()
 				UE_LOG(LogNiagara, Warning,
 					TEXT("Invalidating compile ids for script %s because it doesn't have a valid base id.  The owning asset will continue to compile on load until it is resaved."),
 					*GetPathName());
-				bool bForceRebuild = true;
+				InvalidateCompileResults(TEXT("Script didn't have a valid base id."));
 				Source->ForceGraphToRecompileOnNextCheck();
-				Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
 			}
 			else
 			{
@@ -895,22 +896,31 @@ void UNiagaraScript::PostLoad()
 				}
 				else
 				{
-					// If the compile hash isn't valid, recompute the entire cached VM Id.
-					bool bForceRebuild = true;
-					Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
+					// If the compile hash isn't valid, the vm id needs to be recalculated and the cached vm needs to be invalidated.
+					bScriptVMNeedsRebuild = true;
+					RebuildReason = TEXT("Script did not have a valid compile hash.");
 				}
 			}
 		}
+
+		if (CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::LatestScriptCompileVersion)
+		{
+			bScriptVMNeedsRebuild = true;
+			RebuildReason = TEXT("Niagara compiler version changed since the last time the script was compiled.");
+		}
+
+		if (bScriptVMNeedsRebuild)
+		{
+			// Force a rebuild on the source vm ids, and then invalidate the current cache to force the script to be unsynchronized.
+			bool bForceRebuild = true;
+			Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
+			InvalidateCompileResults(RebuildReason);
+		}
+
 		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty)
 		{
 			bExposeToLibrary = true;
 		}
-	}
-
-	// Invalidate the CachedScriptVM if it's out of date to fix some cook errors, a further investigation is required in how to handle this correctly
-	if (CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::LatestScriptCompileVersion)
-	{
-		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Unknown;
 	}
 #endif
 	
@@ -1810,9 +1820,9 @@ bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Scri
 	return false;
 }
 
-void UNiagaraScript::InvalidateCompileResults()
+void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 {
-	UE_LOG(LogNiagara, Log, TEXT("InvalidateCompileResults %s"), *GetPathName());
+	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName());
 	CachedScriptVM.Reset();
 	ScriptResource.Invalidate();
 	CachedScriptVMId.Invalidate();
