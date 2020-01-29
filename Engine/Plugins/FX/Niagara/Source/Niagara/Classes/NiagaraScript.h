@@ -386,6 +386,10 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	uint32 bDeprecated : 1;
 
+	/* Message to display when the script is deprecated. */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated", MultiLine = true))
+	FText DeprecationMessage;
+
 	/* Which script to use if this is deprecated.*/
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
 	UNiagaraScript* DeprecationRecommendation;

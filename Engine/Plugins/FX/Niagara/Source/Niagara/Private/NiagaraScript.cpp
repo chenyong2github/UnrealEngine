@@ -962,11 +962,22 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	CacheResourceShadersForRendering(true);
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated) || PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationRecommendation))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationMessage) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationRecommendation))
 	{
 		if (Source)
 		{
 			Source->MarkNotSynchronized(TEXT("Deprecation changed."));
+		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExperimental) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, ExperimentalMessage))
+	{
+		if (Source)
+		{
+			Source->MarkNotSynchronized(TEXT("Experimental changed."));
 		}
 	}
 
