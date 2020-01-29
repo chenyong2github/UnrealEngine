@@ -661,6 +661,8 @@ private:
 #if WITH_EDITORONLY_DATA
 	class UNiagaraSystem* FindRootSystem();
 
+	bool HasIdsRequiredForShaderCaching() const;
+
 	/** 'Source' data/graphs for this script */
 	UPROPERTY()
 	class UNiagaraScriptSourceBase*	Source;
