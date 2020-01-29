@@ -89,14 +89,14 @@ bool FAsyncIODelete::Setup()
 	uint32 ErrorCode;
 	if (!DeleteTempRootDirectory(ErrorCode))
 	{
-		UE_LOG(LogCook, Fatal, TEXT("Could not clear asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, ErrorCode);
+		UE_LOG(LogCook, Error, TEXT("Could not clear asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, ErrorCode);
 		return false;
 	}
 
 	// Create the empty directory to work in
 	if (!IFileManager::Get().MakeDirectory(*TempRoot, true))
 	{
-		UE_LOG(LogCook, Fatal, TEXT("Could not create asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, FPlatformMisc::GetLastError());
+		UE_LOG(LogCook, Error, TEXT("Could not create asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, FPlatformMisc::GetLastError());
 		return false;
 	}
 
