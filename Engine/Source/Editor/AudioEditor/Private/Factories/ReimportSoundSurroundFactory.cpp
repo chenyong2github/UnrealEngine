@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "Factories/ReimportSoundSurroundFactory.h"
 
-#include "Audio.h"
+#include "Factories/ReimportSoundSurroundFactory.h"
+#include "Logging/MessageLog.h"
+#include "Sound/SoundWave.h"
+#include "Misc/Paths.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
-#include "Logging/MessageLog.h"
-#include "Misc/Paths.h"
-#include "Sound/SoundWave.h"
 
 #define LOCTEXT_NAMESPACE "AudioEditorFactories"
-
 
 UReimportSoundSurroundFactory::UReimportSoundSurroundFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

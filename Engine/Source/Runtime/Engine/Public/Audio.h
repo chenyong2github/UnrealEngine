@@ -55,23 +55,16 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Decompress Streamed"), STAT_AudioStreamedDecompr
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Buffer Creation"), STAT_AudioResourceCreationTime, STATGROUP_Audio, );
 
 
-// Forward declarations.
-class USoundClass;
-class UAudioComponent;
-class USoundNode;
-class USoundSourceBus;
-class USoundSubmix;
-class USoundWave;
-
 class FAudioDevice;
-
-struct FActiveSound;
-struct FReverbSettings;
-struct FSampleLoop;
+class USoundNode;
 struct FSoundModulationControls;
-struct FSoundSourceBusSendInfo;
+class USoundWave;
+class USoundClass;
+class USoundSubmix;
+class USoundSourceBus;
+struct FActiveSound;
 struct FWaveInstance;
-
+struct FSoundSourceBusSendInfo;
 
 /**
  * Channel definitions for multistream waves
@@ -92,17 +85,20 @@ enum EAudioSpeakers
 	SPEAKER_Count
 };
 
-const FString SurroundSpeakerLocations[SPEAKER_Count] =
+// Forward declarations.
+class UAudioComponent;
+class USoundNode;
+struct FWaveInstance;
+struct FReverbSettings;
+struct FSampleLoop;
+
+namespace Audio
 {
-	TEXT("_fl"),	// SPEAKER_FrontLeft
-	TEXT("_fr"),	// SPEAKER_FrontRight
-	TEXT("_fc"),	// SPEAKER_FrontCenter
-	TEXT("_lf"),	// SPEAKER_LowFrequency
-	TEXT("_sl"),	// SPEAKER_SideLeft
-	TEXT("_sr"),	// SPEAKER_SideRight
-	TEXT("_bl"),	// SPEAKER_BackLeft
-	TEXT("_br")		// SPEAKER_BackRight
-};
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}
 
 enum ELoopingMode
 {

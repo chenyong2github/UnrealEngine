@@ -41,6 +41,7 @@ const FName FSoundCueEditor::PaletteTabId( TEXT( "SoundCueEditor_Palette" ) );
 
 FSoundCueEditor::FSoundCueEditor()
 	: SoundCue(nullptr)
+	, Debugger(nullptr)
 {
 }
 
@@ -148,6 +149,11 @@ void FSoundCueEditor::InitSoundCueEditor(const EToolkitMode::Type Mode, const TS
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 
+	if (GEditor->GetAudioDeviceManager())
+	{
+		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
+	}	
+	
 	// @todo toolkit world centric editing
 	/*if(IsWorldCentricAssetEditor())
 	{
@@ -416,60 +422,40 @@ void FSoundCueEditor::TogglePlayback()
 
 void FSoundCueEditor::ToggleSolo()
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (Debugger)
 	{
-		DeviceManager->GetDebugger().ToggleSoloSoundCue(SoundCue->GetFName());
+		Debugger->ToggleSoloSoundCue(SoundCue->GetFName());
 	}
 }
 
 bool FSoundCueEditor::CanExcuteToggleSolo() const
 {
 	// Allow Solo if Mute is not Toggle on
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		return !DeviceManager->GetDebugger().IsMuteSoundCue(SoundCue->GetFName());
-	}
-
-	return false;
+	return Debugger ? !Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
 }
 
 bool FSoundCueEditor::IsSoloToggled() const
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		return DeviceManager->GetDebugger().IsSoloSoundCue(SoundCue->GetFName());
-	}
-
-	return false;
+	return Debugger ? Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
 }
 
 void FSoundCueEditor::ToggleMute()
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (Debugger)
 	{
-		DeviceManager->GetDebugger().ToggleMuteSoundCue(SoundCue->GetFName());
+		Debugger->ToggleMuteSoundCue(SoundCue->GetFName());
 	}
 }
 
 bool FSoundCueEditor::CanExcuteToggleMute() const
 {
 	// Allow Mute if Solo is not Toggle on
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		return !DeviceManager->GetDebugger().IsSoloSoundCue(SoundCue->GetFName());
-	}
-
-	return false;
+	return Debugger ? !Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
 }
 
 bool FSoundCueEditor::IsMuteToggled() const
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		return DeviceManager->GetDebugger().IsMuteSoundCue(SoundCue->GetFName());
-	}
-
-	return false;
+	return Debugger ? Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
 }
 
 void FSoundCueEditor::PlaySingleNode(UEdGraphNode* Node)

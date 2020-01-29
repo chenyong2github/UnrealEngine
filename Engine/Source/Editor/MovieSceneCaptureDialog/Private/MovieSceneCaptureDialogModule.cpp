@@ -433,8 +433,9 @@ void FInEditorCapture::Start()
 
 	UGameViewportClient::OnViewportCreated().AddRaw(this, &FInEditorCapture::OnPIEViewportStarted);
 	FEditorDelegates::EndPIE.AddRaw(this, &FInEditorCapture::OnEndPIE);
-
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+		
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+	if (AudioDevice != nullptr)
 	{
 		TransientMasterVolume = AudioDevice->GetTransientMasterVolume();
 		AudioDevice->SetTransientMasterVolume(0.0f);
@@ -595,7 +596,8 @@ void FInEditorCapture::Shutdown()
 
 	FObjectReader(GetMutableDefault<ULevelEditorPlaySettings>(), BackedUpPlaySettings);
 
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+	if (AudioDevice != nullptr)
 	{
 		AudioDevice->SetTransientMasterVolume(TransientMasterVolume);
 	}

@@ -5864,9 +5864,12 @@ void FEditorViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStat
 	EnabledStats = InEnabledStats;
 
 #if ENABLE_AUDIO_DEBUG
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (GEngine)
 	{
-		FAudioDebugger::ResolveDesiredStats(this);
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+		{
+			FAudioDebugger::ResolveDesiredStats(this);
+		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
 }

@@ -219,9 +219,9 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	if (FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDevice())
 	{
-		if (AudioDevice->HasCompressedAudioInfoClass(this) && DecompressionType == DTYPE_Native)
+		if (LocalAudioDevice->HasCompressedAudioInfoClass(this) && DecompressionType == DTYPE_Native)
 		{
 			check(!RawPCMData || RawPCMDataSize);
 			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RawPCMDataSize);
@@ -235,7 +235,7 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 			if (!FPlatformProperties::SupportsAudioStreaming() || !IsStreaming())
 			{
-				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetCompressedDataSize(AudioDevice->GetRuntimeFormat(this)));
+				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetCompressedDataSize(LocalAudioDevice->GetRuntimeFormat(this)));
 			}
 		}
 	}
@@ -835,7 +835,8 @@ void USoundWave::PostLoad()
 	// most likely cause us to run out of memory.
 	if (!GIsEditor && !IsTemplate( RF_ClassDefaultObject ) && GEngine)
 	{
-		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		if (AudioDevice)
 		{
 			// Upload the data to the hardware, but only if we've precached startup sounds already
 			AudioDevice->Precache(this);
@@ -1510,16 +1511,14 @@ void USoundWave::FreeResources(bool bStopSoundsUsingThisResource)
 
 	// GEngine is NULL during script compilation and GEngine->Client and its audio device might be
 	// destroyed first during the exit purge.
-	if(GEngine && !GExitPurge)
+	if( GEngine && !GExitPurge )
 	{
 		// Notify the audio device to free the bulk data associated with this wave.
-		if (bStopSoundsUsingThisResource)
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (bStopSoundsUsingThisResource && AudioDeviceManager)
 		{
-			if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
-			{
-				AudioDeviceManager->StopSoundsUsingResource(this);
-				AudioDeviceManager->FreeResource(this);
-			}
+			AudioDeviceManager->StopSoundsUsingResource(this);
+			AudioDeviceManager->FreeResource(this);
 		}
 	}
 

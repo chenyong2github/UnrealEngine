@@ -221,7 +221,7 @@ UObject* USoundFactory::CreateObject
 		USoundWave* ExistingSound = FindObject<USoundWave>(InParent, *Name.ToString());
 
 		TArray<UAudioComponent*> ComponentsToRestart;
-		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 		if (AudioDeviceManager && ExistingSound)
 		{
 			// Will block internally on audio thread completing outstanding commands
@@ -237,7 +237,7 @@ UObject* USoundFactory::CreateObject
 			// to be auditioned in the editor properly.
 			if (!ExistingSound->ResourceData)
 			{
-				if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+				if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 				{
 					FName RuntimeFormat = AudioDevice->GetRuntimeFormat(ExistingSound);
 					ExistingSound->InitAudioResource(RuntimeFormat);

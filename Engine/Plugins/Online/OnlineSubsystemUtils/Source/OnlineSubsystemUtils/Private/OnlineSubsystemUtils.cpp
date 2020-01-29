@@ -110,7 +110,7 @@ UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 	UAudioComponent* AudioComponent = nullptr;
 	if (GEngine != nullptr)
 	{
-		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+		if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 		{
 			USoundWaveProcedural* SoundStreaming = NewObject<USoundWaveProcedural>();
 			SoundStreaming->SetSampleRate(SampleRate);
@@ -157,7 +157,7 @@ UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 {
 	UVoipListenerSynthComponent* SynthComponentPtr = nullptr;
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 	{
 		SynthComponentPtr = NewObject<UVoipListenerSynthComponent>();
 		if (SynthComponentPtr)

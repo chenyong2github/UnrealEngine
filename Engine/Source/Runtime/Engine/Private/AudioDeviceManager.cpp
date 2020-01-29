@@ -18,11 +18,6 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #endif
 
-namespace
-{
-	FAudioDeviceManager* AudioDeviceManager = nullptr;
-} // namespace <>
-
 // Private consts for helping with index/generation determination in audio device manager
 static const uint32 AUDIO_DEVICE_HANDLE_INDEX_BITS		= 24;
 static const uint32 AUDIO_DEVICE_HANDLE_INDEX_MASK		= (1 << AUDIO_DEVICE_HANDLE_INDEX_BITS) - 1;
@@ -82,7 +77,6 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, NextResourceID(1)
 	, SoloDeviceHandle(INDEX_NONE)
 	, ActiveAudioDeviceHandle(INDEX_NONE)
-	, MainAudioDeviceHandle(INDEX_NONE)
 	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
 	, bOnlyToggleAudioMixerOnce(false)
@@ -266,61 +260,29 @@ IAudioDeviceModule* FAudioDeviceManager::GetAudioDeviceModule()
 	return AudioDeviceModule;
 }
 
-FAudioDevice* FAudioDeviceManager::GetActiveDevice()
+bool FAudioDeviceManager::Initialize()
 {
-	if (AudioDeviceManager)
+	if (LoadDefaultAudioDeviceModule())
 	{
-		if (AudioDeviceManager->ActiveAudioDeviceHandle != INDEX_NONE)
-		{
-			return AudioDeviceManager->GetAudioDevice(AudioDeviceManager->ActiveAudioDeviceHandle);
-		}
+		check(AudioDeviceModule);
 
-		return GetMainDevice();
-	}
-
-	return nullptr;
-}
-
-FAudioDevice* FAudioDeviceManager::GetMainDevice()
-{
-	if (FAudioDeviceManager* DeviceManager = Get())
-	{
-		return DeviceManager->GetAudioDevice(DeviceManager->GetMainAudioDeviceHandle());
-	}
-
-	return nullptr;
-}
-
-void FAudioDeviceManager::Initialize()
-{
-	if (!AudioDeviceManager)
-	{
-		AudioDeviceManager = new FAudioDeviceManager();
-		if (AudioDeviceManager->LoadDefaultAudioDeviceModule())
-		{
-			check(AudioDeviceManager->AudioDeviceModule);
-
-			const bool bIsAudioMixerEnabled = AudioDeviceManager->AudioDeviceModule->IsAudioMixerModule();
-			GetMutableDefault<UAudioSettings>()->SetAudioMixerEnabled(bIsAudioMixerEnabled);
+		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
+		GetMutableDefault<UAudioSettings>()->SetAudioMixerEnabled(bIsAudioMixerEnabled);
 
 #if WITH_EDITOR
-			if (bIsAudioMixerEnabled)
-			{
-				IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
-				AudioEditorModule->RegisterAudioMixerAssetActions();
-				AudioEditorModule->RegisterEffectPresetAssetActions();
-			}
-#endif // WITH_EDITOR
-
-			if (AudioDeviceManager->CreateMainAudioDevice())
-			{
-				return;
-			}
+		if (bIsAudioMixerEnabled)
+		{
+			IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
+			AudioEditorModule->RegisterAudioMixerAssetActions();
+			AudioEditorModule->RegisterEffectPresetAssetActions();
 		}
+#endif
+
+		return CreateMainAudioDevice();
 	}
 
 	// Failed to initialize
-	Shutdown();
+	return false;
 }
 
 bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
@@ -423,10 +385,11 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 	{
 		if (NumActiveAudioDevices == 1)
 		{
-			if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
+			FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
+			if (MainAudioDevice)
 			{
-				OutResults.Handle = MainDevice->DeviceHandle;
-				OutResults.AudioDevice = MainDevice;
+				OutResults.Handle = MainAudioDevice->DeviceHandle;
+				OutResults.AudioDevice = MainAudioDevice;
 				OutResults.AudioDevice->FadeIn();
 				return true;
 			}
@@ -445,11 +408,12 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 
 	if (NumActiveAudioDevices == 1 && !bCreateNewAudioDeviceForPlayInEditor)
 	{
-		if (FAudioDevice* MainDevice = FAudioDeviceManager::GetMainDevice())
+		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
+		if (MainAudioDevice)
 		{
 			++NumWorldsUsingMainAudioDevice;
-			OutResults.Handle = MainDevice->DeviceHandle;
-			OutResults.AudioDevice = MainDevice;
+			OutResults.Handle = MainAudioDevice->DeviceHandle;
+			OutResults.AudioDevice = MainAudioDevice;
 			bRequiresInit = false;
 		}
 		else
@@ -511,7 +475,8 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 		else
 		{
 			++NumWorldsUsingMainAudioDevice;
-			if (FAudioDevice* MainAudioDevice = FAudioDeviceManager::GetMainDevice())
+			FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
+			if (MainAudioDevice)
 			{
 				OutResults.Handle = MainAudioDevice->DeviceHandle;
 				OutResults.AudioDevice = MainAudioDevice;
@@ -579,7 +544,7 @@ bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
 	// If there are more than 1 device active, check to see if this handle is the main audio device handle
 	if (NumActiveAudioDevices >= 1)
 	{
-		Audio::FDeviceId MainDeviceHandle = FAudioDeviceManager::GetChecked().GetMainAudioDeviceHandle();
+		uint32 MainDeviceHandle = GEngine->GetAudioDeviceHandle();
 
 		if (NumActiveAudioDevices == 1)
 		{
@@ -592,7 +557,7 @@ bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
 		// don't shut it down until it's the very last handle to get shut down
 		// this is because it's possible for some PIE sessions to be using the main audio device as a fallback to
 		// preserve CPU performance on low-performance machines
-		if (NumWorldsUsingMainAudioDevice > 0 && MainDeviceHandle == static_cast<uint32>(Handle))
+		if (NumWorldsUsingMainAudioDevice > 0 && MainDeviceHandle == Handle)
 		{
 			--NumWorldsUsingMainAudioDevice;
 
@@ -660,13 +625,21 @@ FAudioDevice* FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId Handle)
 
 FAudioDeviceManager* FAudioDeviceManager::Get()
 {
-	return AudioDeviceManager;
+	if (GEngine)
+	{
+		return GEngine->GetAudioDeviceManager();
+	}
+
+	return nullptr;
 }
 
-FAudioDeviceManager& FAudioDeviceManager::GetChecked()
+FAudioDevice* FAudioDeviceManager::GetActiveAudioDevice()
 {
-	check(AudioDeviceManager);
-	return *AudioDeviceManager;
+	if (ActiveAudioDeviceHandle != INDEX_NONE)
+	{
+		return GetAudioDevice(ActiveAudioDeviceHandle);
+	}
+	return GEngine->GetMainAudioDevice();
 }
 
 void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
@@ -876,23 +849,6 @@ void FAudioDeviceManager::SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle)
 	}
 }
 
-void FAudioDeviceManager::Shutdown()
-{
-	// Shutdown the main audio device in the UEEngine
-	if (AudioDeviceManager)
-	{
-		FAudioCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
-
-		FAudioThread::StopAudioThread();
-
-		AudioDeviceManager->ShutdownAllAudioDevices();
-
-		delete AudioDeviceManager;
-		AudioDeviceManager = nullptr;
-	}
-}
 
 uint8 FAudioDeviceManager::GetNumActiveAudioDevices() const
 {
@@ -994,7 +950,8 @@ void FAudioDeviceManager::RemoveSoundMix(USoundMix* SoundMix)
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RemoveSoundMix"), STAT_AudioRemoveSoundMix, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this, SoundMix]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundMix]()
 		{
 			AudioDeviceManager->RemoveSoundMix(SoundMix);
 
@@ -1018,9 +975,10 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.TogglePlayAllDeviceAudio"), STAT_TogglePlayAllDeviceAudio, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager]()
 		{
-			TogglePlayAllDeviceAudio();
+			AudioDeviceManager->TogglePlayAllDeviceAudio();
 
 		}, GET_STATID(STAT_TogglePlayAllDeviceAudio));
 
@@ -1046,9 +1004,11 @@ void FAudioDeviceManager::ToggleVisualize3dDebug()
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ToggleVisualize3dDebug"), STAT_ToggleVisualize3dDebug, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager]()
 		{
-			ToggleVisualize3dDebug();
+			AudioDeviceManager->ToggleVisualize3dDebug();
+
 		}, GET_STATID(STAT_ToggleVisualize3dDebug));
 
 		return;
@@ -1077,9 +1037,10 @@ void FAudioDeviceManager::ResetAllDynamicSoundVolumes()
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ResetAllDynamicSoundVolumes"), STAT_ResetAllDynamicSoundVolumes, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager]()
 		{
-			ResetAllDynamicSoundVolumes();
+			AudioDeviceManager->ResetAllDynamicSoundVolumes();
 
 		}, GET_STATID(STAT_ResetAllDynamicSoundVolumes));
 		return;
@@ -1095,9 +1056,11 @@ void FAudioDeviceManager::ResetDynamicSoundVolume(ESoundType SoundType, const FN
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ResetSoundCueTrimVolume"), STAT_ResetSoundCueTrimVolume, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this, SoundType, SoundName]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundType, SoundName]()
 		{
-			ResetDynamicSoundVolume(SoundType, SoundName);
+			AudioDeviceManager->ResetDynamicSoundVolume(SoundType, SoundName);
+
 		}, GET_STATID(STAT_ResetSoundCueTrimVolume));
 		return;
 	}
@@ -1112,9 +1075,11 @@ void FAudioDeviceManager::SetDynamicSoundVolume(ESoundType SoundType, const FNam
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetDynamicSoundVolume"), STAT_SetDynamicSoundVolume, STATGROUP_AudioThreadCommands);
 
-		FAudioThread::RunCommandOnAudioThread([this, SoundType, SoundName, Volume]()
+		FAudioDeviceManager* AudioDeviceManager = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundType, SoundName, Volume]()
 		{
-			SetDynamicSoundVolume(SoundType, SoundName, Volume);
+			AudioDeviceManager->SetDynamicSoundVolume(SoundType, SoundName, Volume);
+
 		}, GET_STATID(STAT_SetDynamicSoundVolume));
 		return;
 	}

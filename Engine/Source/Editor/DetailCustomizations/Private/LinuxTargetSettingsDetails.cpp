@@ -49,7 +49,15 @@ namespace LinuxTargetSettingsDetailsConstants
 static FText GetFriendlyNameFromLinuxRHIName(const FString& InRHIName)
 {
 	FText FriendlyRHIName = LOCTEXT("UnknownRHI", "UnknownRHI");
-	if (InRHIName == TEXT("GLSL_150_ES31"))
+	if (InRHIName == TEXT("GLSL_150"))
+	{
+		FriendlyRHIName = LOCTEXT("OpenGL3", "OpenGL 3 (SM4)");
+	}
+	else if (InRHIName == TEXT("GLSL_150_ES2"))
+	{
+		FriendlyRHIName = LOCTEXT("OpenGL3ES2", "OpenGL 3 (ES2)");
+	}
+	else if (InRHIName == TEXT("GLSL_150_ES31"))
 	{
 		FriendlyRHIName = LOCTEXT("OpenGL3ES31", "OpenGL 3 (ES3.1, Experimental)");
 	}
@@ -340,7 +348,8 @@ bool FLinuxTargetSettingsDetails::IsValidAudioDeviceName(const FString& InDevice
 	bool bIsValid = false;
 
 #if WITH_ENGINE
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+	if (AudioDevice)
 	{
 		TArray<FString> DeviceNames;
 		AudioDevice->GetAudioDeviceList(DeviceNames);
@@ -364,7 +373,7 @@ TSharedRef<SWidget> FLinuxTargetSettingsDetails::MakeAudioDeviceMenu(const TShar
 	FMenuBuilder MenuBuilder(true, nullptr);
 
 #if WITH_ENGINE
-	FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		TArray<FString> AudioDeviceNames;

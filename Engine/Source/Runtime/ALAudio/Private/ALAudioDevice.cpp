@@ -55,7 +55,7 @@ void FALAudioDevice::TeardownHardware( void )
 	FreeSources.Empty();
 
 	// Destroy OpenAL buffers associated with this audio device
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	check(AudioDeviceManager != nullptr);
 	for( int32 i = 0; i < AudioDeviceManager->Buffers.Num(); i++ )
 	{

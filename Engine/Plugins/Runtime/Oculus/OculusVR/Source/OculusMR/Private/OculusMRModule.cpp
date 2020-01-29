@@ -447,7 +447,8 @@ void FOculusMRModule::OnInitialWorldCreated(UWorld* NewWorld)
 				ovrp_Media_SetMrcInputVideoBufferType(ovrpMediaInputVideoBufferType_TextureHandle);
 				ovrp_Media_SetMrcFrameImageFlipped(IsAndroidOpenGLESPlatform(GMaxRHIShaderPlatform));
 				ovrp_Media_SetMrcFrameInverseAlpha(ovrpBool_True);
-				float SampleRate = FAudioDeviceManager::GetMainDevice()->GetSampleRate();
+				FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+				float SampleRate = AudioDevice->GetSampleRate();
 				ovrp_Media_SetMrcAudioSampleRate((int)SampleRate);
 				InitMixedRealityCapture();
 				OnWorldCreated(NewWorld);

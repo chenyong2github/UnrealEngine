@@ -327,17 +327,17 @@ namespace
 
 	void HandleDumpActiveSounds(UWorld* World)
 	{
-		if (GEngine && FAudioDeviceManager::Get())
+		if (GEngine && GEngine->GetAudioDeviceManager())
 		{
-			FAudioDeviceManager::Get()->GetDebugger().DumpActiveSounds();
+			GEngine->GetAudioDeviceManager()->GetDebugger().DumpActiveSounds();
 		}
 	}
 	
 	void HandleClearMutesAndSolos(UWorld* World)
 	{
-		if (GEngine && FAudioDeviceManager::Get())
+		if (GEngine && GEngine->GetAudioDeviceManager())
 		{
-			FAudioDeviceManager::Get()->GetDebugger().ClearMutesAndSolos();
+			GEngine->GetAudioDeviceManager()->GetDebugger().ClearMutesAndSolos();
 		}
 	}
 
@@ -368,7 +368,7 @@ void FAudioDebugger::ToggleVisualizeDebug3dEnabled()
 #if WITH_EDITOR
 void FAudioDebugger::OnBeginPIE()
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->GetDebugger().ClearMutesAndSolos();
@@ -377,7 +377,7 @@ void FAudioDebugger::OnBeginPIE()
 
 void FAudioDebugger::OnEndPIE()
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->GetDebugger().ClearMutesAndSolos();
@@ -544,7 +544,7 @@ void FAudioDebugger::DrawDebugInfo(const FSoundSource& SoundSource)
 		return;
 	}
 
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawSourceDebugInfo"), STAT_AudioDrawSourceDebugInfo, STATGROUP_TaskGraphTasks);
@@ -611,7 +611,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 		}
 	}
 
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawActiveSoundDebugInfo"), STAT_AudioDrawActiveSoundDebugInfo, STATGROUP_TaskGraphTasks);
@@ -688,14 +688,15 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 void FAudioDebugger::DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners)
 {
 #if ENABLE_DRAW_DEBUG
-	if (!GEngine || !ActiveSoundVisualizeListenersCVar)
+	if (!ActiveSoundVisualizeListenersCVar)
 	{
 		return;
 	}
 
 	check(IsInAudioThread());
 
-	if (FAudioDeviceManager::GetChecked().IsVisualizeDebug3dEnabled())
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawListenerDebugInfo"), STAT_AudioDrawListenerDebugInfo, STATGROUP_TaskGraphTasks);
 		const TWeakObjectPtr<UWorld> WorldPtr = &World;
@@ -741,7 +742,8 @@ void FAudioDebugger::DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop)
 		return;
 	}
 
-	if (FAudioDeviceManager::GetChecked().IsVisualizeDebug3dEnabled())
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawVirtualLoopDebugInfo"), STAT_AudioDrawVirtualLoopDebugInfo, STATGROUP_TaskGraphTasks);
 
@@ -786,7 +788,7 @@ void FAudioDebugger::DumpActiveSounds() const
 		return;
 	}
 
-	FAudioDevice* AudioDevice = FAudioDeviceManager::GetActiveDevice();
+	FAudioDevice* AudioDevice = GEngine->GetAudioDeviceManager()->GetActiveAudioDevice();
 	if (!AudioDevice)
 	{
 		return;
@@ -1566,7 +1568,7 @@ bool FAudioDebugger::ToggleStats(UWorld* World, const uint8 StatToToggle)
 		return false;
 	}
 
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
 		DeviceManager->GetDebugger().ToggleStats(AudioDevice->DeviceHandle, StatToToggle);
 	}

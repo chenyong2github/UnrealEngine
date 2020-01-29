@@ -222,7 +222,7 @@ FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::CreateProceduralBuffer( FCoreAudio
  */
 FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::CreatePreviewBuffer( FCoreAudioDevice* CoreAudioDevice, USoundWave* Wave, FCoreAudioSoundBuffer* Buffer )
 {
-    FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+    FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
     check(AudioDeviceManager != nullptr);
     
 	if (Buffer)
@@ -272,7 +272,7 @@ FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::CreateNativeBuffer( FCoreAudioDevi
 	// Keep track of associated resource name.
 	Buffer->InitAudioStreamBasicDescription( kAudioFormatLinearPCM, Wave, true );
 	
-    FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+    FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
     check(AudioDeviceManager != nullptr);
     
 	if (UseResourceTrackingCVar)
@@ -335,7 +335,7 @@ FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::Init( FAudioDevice* AudioDevice, U
 		return NULL;
 	}
 
-    FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+    FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
     
 	FCoreAudioDevice *CoreAudioDevice = ( FCoreAudioDevice *)AudioDevice;
 	FCoreAudioSoundBuffer *Buffer = NULL;

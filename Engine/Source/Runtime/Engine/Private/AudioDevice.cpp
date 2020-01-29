@@ -724,7 +724,7 @@ void FAudioDevice::CountBytes(FArchive& Ar)
 	Sources.CountBytes(Ar);
 	// The buffers are stored on the audio device since they are shared amongst all audio devices
 	// Though we are going to count them when querying an individual audio device object about its bytes
-	FAudioDeviceManager::GetChecked().Buffers.CountBytes(Ar);
+	GEngine->GetAudioDeviceManager()->Buffers.CountBytes(Ar);
 	FreeSources.CountBytes(Ar);
 	WaveInstanceSourceMap.CountBytes(Ar);
 	Ar.CountBytes(sizeof(FWaveInstance) * WaveInstanceSourceMap.Num(), sizeof(FWaveInstance) * WaveInstanceSourceMap.Num());
@@ -1327,7 +1327,7 @@ bool FAudioDevice::HandleEnableHRTFForAllCommand(const TCHAR* Cmd, FOutputDevice
 bool FAudioDevice::HandleSoloCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// Apply the solo to the given device
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->SetSoloDevice(DeviceHandle);
@@ -1337,7 +1337,7 @@ bool FAudioDevice::HandleSoloCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 bool FAudioDevice::HandleClearSoloCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->SetSoloDevice(INDEX_NONE);
@@ -1347,7 +1347,7 @@ bool FAudioDevice::HandleClearSoloCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 bool FAudioDevice::HandlePlayAllPIEAudioCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->TogglePlayAllDeviceAudio();
@@ -1357,7 +1357,7 @@ bool FAudioDevice::HandlePlayAllPIEAudioCommand(const TCHAR* Cmd, FOutputDevice&
 
 bool FAudioDevice::HandleAudio3dVisualizeCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->ToggleVisualize3dDebug();
@@ -1367,7 +1367,7 @@ bool FAudioDevice::HandleAudio3dVisualizeCommand(const TCHAR* Cmd, FOutputDevice
 
 void FAudioDevice::HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FToggleSoloPtr FPtr)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		bool bExclusive = true;
@@ -1404,7 +1404,7 @@ bool FAudioDevice::HandleAudioSoloSoundCue(const TCHAR* Cmd, FOutputDevice& Ar)
 
 bool FAudioDevice::HandleAudioMixerDebugSound(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->GetDebugger().SetAudioMixerDebugSound(Cmd);
@@ -1414,7 +1414,7 @@ bool FAudioDevice::HandleAudioMixerDebugSound(const TCHAR* Cmd, FOutputDevice& A
 
 bool FAudioDevice::HandleAudioDebugSound(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
 		DeviceManager->GetDebugger().SetAudioDebugSound(Cmd);
@@ -1726,7 +1726,7 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 
 bool FAudioDevice::HandleResetAllDynamicSoundVolumesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
 		DeviceManager->ResetAllDynamicSoundVolumes();
 	}
@@ -1735,7 +1735,7 @@ bool FAudioDevice::HandleResetAllDynamicSoundVolumesCommand(const TCHAR* Cmd, FO
 
 bool FAudioDevice::HandleResetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
 		FName SoundName;
 		if (!FParse::Value(Cmd, TEXT("Name="), SoundName))
@@ -1770,55 +1770,61 @@ bool FAudioDevice::HandleGetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputD
 		return false;
 	}
 
-	FName SoundName;
-	if (!FParse::Value(Cmd, TEXT("Name="), SoundName))
+	if (const FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
-		return false;
-	}
-
-	// Optional: Defaults to Cue
-	FString SoundTypeStr;
-	ESoundType SoundType = ESoundType::Cue;
-	if (FParse::Value(Cmd, TEXT("Type="), SoundTypeStr))
-	{
-		if (SoundTypeStr == TEXT("Wave"))
+		FName SoundName;
+		if (!FParse::Value(Cmd, TEXT("Name="), SoundName))
 		{
-			SoundType = ESoundType::Wave;
+			return false;
 		}
-		else if (SoundTypeStr == TEXT("Class"))
-		{
-			SoundType = ESoundType::Class;
-		}
-	}
 
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.GetDynamicSoundVolume"), STAT_AudioGetDynamicSoundVolume, STATGROUP_AudioThreadCommands);
-
-		const ESoundType InSoundType = SoundType;
-		const FName InSoundName = SoundName;
-		FAudioThread::RunCommandOnAudioThread([InSoundType, InSoundName]()
+		// Optional: Defaults to Cue
+		FString SoundTypeStr;
+		ESoundType SoundType = ESoundType::Cue;
+		if (FParse::Value(Cmd, TEXT("Type="), SoundTypeStr))
 		{
-			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			if (SoundTypeStr == TEXT("Wave"))
 			{
-				const float Volume = DeviceManager->GetDynamicSoundVolume(InSoundType, InSoundName);
-				UE_LOG(LogAudio, Display, TEXT("'%s' Dynamic Volume: %.4f"), *InSoundName.GetPlainNameString(), Volume);
+				SoundType = ESoundType::Wave;
 			}
-		}, GET_STATID(STAT_AudioGetDynamicSoundVolume));
-	}
-	else if (const FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
-		FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
-		Ar.Logf(TEXT("%s"), *Msg);
-	}
+			else if (SoundTypeStr == TEXT("Class"))
+			{
+				SoundType = ESoundType::Class;
+			}
+		}
 
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.GetDynamicSoundVolume"), STAT_AudioGetDynamicSoundVolume, STATGROUP_AudioThreadCommands);
+
+			const ESoundType InSoundType = SoundType;
+			const FName InSoundName = SoundName;
+			FAudioThread::RunCommandOnAudioThread([InSoundType, InSoundName]()
+			{
+				if (!GEngine)
+				{
+					return;
+				}
+				if (const FAudioDeviceManager* InDeviceManager = GEngine->GetAudioDeviceManager())
+				{
+					const float Volume = InDeviceManager->GetDynamicSoundVolume(InSoundType, InSoundName);
+					UE_LOG(LogAudio, Display, TEXT("'%s' Dynamic Volume: %.4f"), *InSoundName.GetPlainNameString(), Volume);
+				}
+			}, GET_STATID(STAT_AudioGetDynamicSoundVolume));
+		}
+		else
+		{
+			const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
+			FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
+			Ar.Logf(TEXT("%s"), *Msg);
+		}
+	}
 	return true;
 }
 
 bool FAudioDevice::HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
 		FName SoundName;
 		if (!FParse::Value(Cmd, TEXT("Name="), SoundName))
@@ -4349,7 +4355,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 		// At shutdown, GEngine may already be null
 		if (GEngine)
 		{
-			if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+			if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
 			{
 				if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceID))
 				{
@@ -4490,7 +4496,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
 	// Check for debug sound name
 #if !UE_BUILD_SHIPPING
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	FString DebugSound;
 	if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
 	{
@@ -5336,8 +5342,8 @@ float FAudioDevice::GetFocusFactor(const float Azimuth, const FSoundAttenuationS
 FAudioDevice::FCreateComponentParams::FCreateComponentParams()
 	: World(nullptr)
 	, Actor(nullptr)
-	, AudioDevice(FAudioDeviceManager::GetMainDevice())
 {
+	AudioDevice = (GEngine ? GEngine->GetMainAudioDevice() : nullptr);
 	CommonInit();
 }
 
@@ -5412,7 +5418,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World,
 	}
 	else
 	{
-		Params = MakeUnique<FCreateComponentParams>(FAudioDeviceManager::GetMainDevice());
+		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDevice());
 	}
 
 	Params->bPlay = bPlay;
@@ -6023,7 +6029,7 @@ bool FAudioDevice::HandleListSoundsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	Ar.Logf(TEXT("Listing all sounds:"));
 
 	// Get audio device manager since thats where sound buffers are stored
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	check(AudioDeviceManager != nullptr);
 
 	TArray<FSoundBuffer*> AllSounds;
@@ -6137,7 +6143,7 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 	check(IsInAudioThread());
 
 	// First check to see if the device manager has "bPlayAllPIEAudio" enabled
-	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsPlayAllDeviceAudio())
 	{
 		return false;

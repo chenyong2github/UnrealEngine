@@ -53,11 +53,3 @@
  * Debugger is Available on non-shipping builds
  */
 #define ENABLE_AUDIO_DEBUG !UE_BUILD_SHIPPING
-
-namespace Audio
-{
-	/**
-	 * Typed identifier for Audio Device Id
-	 */
-	using FDeviceId = uint32;
-}

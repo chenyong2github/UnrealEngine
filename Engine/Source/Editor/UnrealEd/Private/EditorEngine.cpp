@@ -94,7 +94,6 @@
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
-#include "AudioDeviceManager.h"
 #include "SurfaceIterators.h"
 #include "ScopedTransaction.h"
 
@@ -1888,7 +1887,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	IStreamingManager::Get().Tick(DeltaSeconds);
 
 	// Update Audio. This needs to occur after rendering as the rendering code updates the listener position.
-	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+	if (AudioDeviceManager)
 	{
 		UWorld* OldGWorld = NULL;
 		if (PlayWorld)
@@ -2288,7 +2287,7 @@ UAudioComponent* UEditorEngine::GetPreviewAudioComponent()
 
 UAudioComponent* UEditorEngine::ResetPreviewAudioComponent( USoundBase* Sound, USoundNode* SoundNode )
 {
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
+	if (FAudioDevice* AudioDevice = GetMainAudioDevice())
 	{
 		if (PreviewAudioComponent)
 		{

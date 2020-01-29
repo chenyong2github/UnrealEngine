@@ -51,16 +51,10 @@ public:
 	* Initialize the audio device manager.
 	* Return true if successfully initialized.
 	**/
-	static void Initialize();
+	bool Initialize();
 
 	/** Returns the handle to the main audio device. */
 	Audio::FDeviceId GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
-
-	/** Returns the active audio device. */
-	static FAudioDevice* GetActiveDevice();
-
-	/** Returns the main audio device. */
-	static FAudioDevice* GetMainDevice();
 
 	/** Returns true if we're currently using the audio mixer. */
 	bool IsUsingAudioMixer() const;
@@ -104,21 +98,18 @@ public:
 	bool ShutdownAllAudioDevices();
 
 	/**
-	* Shuts down the AudioDeviceManager
-	*/
-	static void Shutdown();
-
-	/**
 	* Returns a ptr to the audio device associated with the handle. If the
 	* handle is invalid then a NULL device ptr will be returned.
 	*/
 	FAudioDevice* GetAudioDevice(Audio::FDeviceId Handle);
 
-	/** Returns a pointer to the AudioDeviceManager if it has been initialized */
 	static FAudioDeviceManager* Get();
 
-	/** Returns reference to the AudioDeviceManager.  Asserts if it has not been initialized */
-	static FAudioDeviceManager& GetChecked();
+	/**
+	* Returns a ptr to the active audio device. If there is no active
+	* device then it will return the main audio device.
+	*/
+	FAudioDevice* GetActiveAudioDevice();
 
 	/** Returns the current number of active audio devices. */
 	uint8 GetNumActiveAudioDevices() const;
@@ -262,6 +253,9 @@ private:
 	/** The audio mixer module name. This is the audio mixer module name to use. E.g. AudioMixerXAudio2 */
 	FString AudioMixerModuleName;
 
+	/** Handle to the main audio device. */
+	Audio::FDeviceId MainAudioDeviceHandle;
+
 	/** Count of the number of free slots in the audio device array. */
 	uint32 FreeIndicesSize;
 
@@ -289,9 +283,6 @@ private:
 	/** Which audio device is currently active */
 	Audio::FDeviceId ActiveAudioDeviceHandle;
 
-	/** The main audio device's handle */
-	Audio::FDeviceId MainAudioDeviceHandle;
-
 	/** Dynamic volume map */
 	TMap<TTuple<ESoundType, FName>, float> DynamicSoundVolumes;
 
@@ -307,6 +298,6 @@ private:
 	/** Whether or not we've toggled the audio mixer. */
 	bool bToggledAudioMixer;
 
-	/** Audio Fence to ensure that we don't allow the audio thread to drift endlessly behind. */
+	/** Audio Fence to ensure that we don't allow the audio thread to drift never endingly behind. */
 	FAudioCommandFence SyncFence;
 };
