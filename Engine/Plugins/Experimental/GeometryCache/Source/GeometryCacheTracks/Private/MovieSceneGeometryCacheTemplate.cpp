@@ -87,19 +87,12 @@ struct FGeometryCacheExecutionToken
 					UGeometryCacheComponent* GeometryComp = GeometryMeshComponentFromObject(Obj);
 					if (GeometryComp)
 					{
-						// Set the GeometryCache on the component only if it's set and valid in the Params
-						if (Params.GeometryCacheAsset && Params.GeometryCacheAsset != GeometryComp->GetGeometryCache())
+						if (Params.GeometryCacheAsset != GeometryComp->GetGeometryCache())
 						{
 							UGeometryCache* GeomCache = Params.GeometryCacheAsset;
 							{
 								GeometryComp->SetGeometryCache(GeomCache);
 							}
-						}
-						else
-						{
-							// It could be unset if the Params was referencing a transient GeometryCache
-							// In that case, use the GeometryCache that is set on the component
-							Params.GeometryCacheAsset = GeometryComp->GetGeometryCache();
 						}
 						Player.SavePreAnimatedState(*GeometryComp, FPreAnimatedGeometryCacheTokenProducer::GetAnimTypeID(), FPreAnimatedGeometryCacheTokenProducer());
 						GeometryComp->SetManualTick(true);
