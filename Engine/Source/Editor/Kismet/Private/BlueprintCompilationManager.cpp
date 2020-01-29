@@ -2187,7 +2187,6 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			{
 				ArchetypeReferencers.Add(BP->SkeletonGeneratedClass);
 			}
-			ensure(BP->bCachedDependenciesUpToDate);
 			for(const TWeakObjectPtr<UBlueprint>& Dependency : BP->CachedDependencies)
 			{
 				if (UBlueprint* DependencyBP = Dependency.Get())
