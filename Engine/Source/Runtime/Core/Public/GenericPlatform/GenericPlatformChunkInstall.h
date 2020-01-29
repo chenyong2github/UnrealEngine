@@ -123,11 +123,11 @@ public:
 	virtual ~IPlatformChunkInstall() {}
 
 	/**
-	 * Get the current location of a chunk with pakchunk id.
-	 * @param ChunkID		The id of the pak chunk.
+	 * Get the current location of a chunk with pakchunk index.
+	 * @param PakchunkIndex	The id of the pak chunk.
 	 * @return				Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
 	 **/
-	virtual EChunkLocation::Type GetPakchunkLocation( uint32 PakchunkID ) = 0;
+	virtual EChunkLocation::Type GetPakchunkLocation( int32 PakchunkIndex) = 0;
 
 	/** 
 	 * Check if a given reporting type is supported.
@@ -138,11 +138,11 @@ public:
 
 	/**
 	 * Get the current install progress of a chunk.  Let the user specify report type for platforms that support more than one.
-	 * @param PakchunkID		The id of the chunk to check.
+	 * @param ChunkID		The id of the chunk to check.
 	 * @param ReportType	The type of progress report you want.
 	 * @return				A value whose meaning is dependent on the ReportType param.
 	 **/
-	virtual float GetChunkProgress( uint32 PakchunkID, EChunkProgressReportingType::Type ReportType ) = 0;
+	virtual float GetChunkProgress( uint32 ChunkID, EChunkProgressReportingType::Type ReportType ) = 0;
 
 	/**
 	 * Inquire about the priority of chunk installation vs. game IO.
@@ -158,11 +158,11 @@ public:
 	
 	/**
 	 * Hint to the installer that we would like to prioritize a specific chunk
-	 * @param PakchunkID	The id of the pakchunk to prioritize.
+	 * @param PakchunkIndex	The index of the pakchunk to prioritize.
 	 * @param Priority		The priority for the chunk.
 	 * @return				false if the operation is not allowed or the chunk doesn't exist, otherwise true.
 	 **/
-	virtual bool PrioritizePakchunk( uint32 PakchunkID, EChunkPriority::Type Priority ) = 0;
+	virtual bool PrioritizePakchunk( int32 PakchunkIndex, EChunkPriority::Type Priority ) = 0;
 
 	/**
 	 * For platforms that support emulation of the Chunk install.  Starts transfer of the next chunk.
@@ -226,7 +226,7 @@ public:
 protected:
 		/**
 		 * Get the current location of a chunk.
-		 * Pakchunk index and OS chunk id are not the same.  Call GetPakchunkLocation instead of calling from outside.
+		 * Pakchunk index and platform chunk id are not always the same.  Call GetPakchunkLocation instead of calling from outside.
 		 * @param ChunkID		The id of the chunk to check.
 		 * @return				Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
 		 **/
@@ -249,14 +249,14 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class CORE_API FGenericPlatformChunkInstall : public IPlatformChunkInstall
 {
 public:
-	virtual EChunkLocation::Type GetPakchunkLocation( uint32 PakchunkID ) override
+	virtual EChunkLocation::Type GetPakchunkLocation( int32 PakchunkIndex ) override
 	{
-		return GetChunkLocation(PakchunkID);
+		return GetChunkLocation(PakchunkIndex);
 	}
 
-	virtual bool PrioritizePakchunk(uint32 PakchunkID, EChunkPriority::Type Priority)
+	virtual bool PrioritizePakchunk(int32 PakchunkIndex, EChunkPriority::Type Priority)
 	{
-		return PrioritizeChunk(PakchunkID, Priority);
+		return PrioritizeChunk(PakchunkIndex, Priority);
 	}
 
 	virtual bool GetProgressReportingTypeSupported(EChunkProgressReportingType::Type ReportType) override
@@ -269,7 +269,7 @@ public:
 		return false;
 	}
 
-	virtual float GetChunkProgress( uint32 PakchunkID, EChunkProgressReportingType::Type ReportType ) override
+	virtual float GetChunkProgress( uint32 ChunkID, EChunkProgressReportingType::Type ReportType ) override
 	{
 		if (ReportType == EChunkProgressReportingType::PercentageComplete)
 		{
@@ -288,7 +288,7 @@ public:
 		return false;
 	}
 	
-	virtual bool PrioritizeChunk( uint32 PakchunkID, EChunkPriority::Type Priority ) override
+	virtual bool PrioritizeChunk( uint32 ChunkID, EChunkPriority::Type Priority ) override
 	{
 		return false;
 	}

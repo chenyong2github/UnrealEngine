@@ -57,7 +57,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 
 static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 
-int32 GetPakchunkIDFromPakFile(const FString& InFilename)
+int32 GetPakchunkIndexFromPakFile(const FString& InFilename)
 {
 	FString ChunkIdentifier(TEXT("pakchunk"));
 	FString BaseFilename = FPaths::GetBaseFilename(InFilename);
@@ -4774,7 +4774,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(GetPakchunkIDFromPakFile(Filename))
+	, PakchunkIndex(GetPakchunkIndexFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
  	, MappedFileHandle(nullptr)
@@ -4804,7 +4804,7 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, bSigned(bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(GetPakchunkIDFromPakFile(Filename))
+	, PakchunkIndex(GetPakchunkIndexFromPakFile(Filename))
 	, bAttemptedPakEntryShrink(false)
 	, bAttemptedPakFilenameUnload(false)
 	, MappedFileHandle(nullptr)
@@ -4831,7 +4831,7 @@ FPakFile::FPakFile(FArchive* Archive)
 	, bSigned(false)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
-	, ChunkID(INDEX_NONE)
+	, PakchunkIndex(INDEX_NONE)
 	, MappedFileHandle(nullptr)
 	, CacheType(FPakFile::ECacheType::Shared)
 	, CacheIndex(-1)
@@ -6093,10 +6093,10 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 					// if a platform supports chunk style installs, make sure that the chunk a pak file resides in is actually fully installed before accepting pak files from it
 					if (ChunkInstall)
 					{
-						int32 PakchunkID = GetPakchunkIDFromPakFile(Filename);
-						if (PakchunkID != INDEX_NONE)
+						int32 PakchunkIndex = GetPakchunkIndexFromPakFile(Filename);
+						if (PakchunkIndex != INDEX_NONE)
 						{
-							if (ChunkInstall->GetPakchunkLocation(PakchunkID) == EChunkLocation::NotAvailable)
+							if (ChunkInstall->GetPakchunkLocation(PakchunkIndex) == EChunkLocation::NotAvailable)
 							{
 								return true;
 							}
@@ -6342,7 +6342,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 				Entry.Path = InPath;
 				Entry.ReadOrder = PakOrder;
 				Entry.EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
-				Entry.ChunkID = Pak->ChunkID;
+				Entry.PakchunkIndex = Pak->PakchunkIndex;
 
 				delete Pak;
 				PakHandle.Reset();
@@ -6374,7 +6374,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->ChunkID);
+			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
 			if (FCoreDelegates::NewFileAddedDelegate.IsBound())
 			{
 				TArray<FString> Filenames;
@@ -6615,10 +6615,10 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 				UE_LOG(LogPakFile, Log, TEXT("Successfully mounted deferred pak file '%s'"), *Entry.Filename);
 				NumMounted++;
 
-				int32 ChunkID = GetPakchunkIDFromPakFile(Entry.Filename);
-				if (ChunkID != INDEX_NONE)
+				int32 PakchunkIndex = GetPakchunkIndexFromPakFile(Entry.Filename);
+				if (PakchunkIndex != INDEX_NONE)
 				{
-					ChunksToNotify.Add(ChunkID);
+					ChunksToNotify.Add(PakchunkIndex);
 				}
 			}
 			else
@@ -6633,9 +6633,9 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 		IPlatformChunkInstall * ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
 		if (ChunkInstall)
 		{
-			for (int32 ChunkID : ChunksToNotify)
+			for (int32 PakchunkIndex : ChunksToNotify)
 			{
-				ChunkInstall->ExternalNotifyChunkAvailable(ChunkID);
+				ChunkInstall->ExternalNotifyChunkAvailable(PakchunkIndex);
 			}
 		}
 
@@ -6690,13 +6690,13 @@ void FPakPlatformFile::SetMountStartupPaksWildCard(const FString& WildCard)
 }
 
 
-EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InChunkID) const
+EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InPakchunkIndex) const
 {
 	FScopeLock ScopedLock(&PakListCritical);
 
 	for (const FPakListEntry& PakEntry : PakFiles)
 	{
-		if (PakEntry.PakFile->ChunkID == InChunkID)
+		if (PakEntry.PakFile->PakchunkIndex == InPakchunkIndex)
 		{
 			return EChunkLocation::LocalFast;
 		}
@@ -6704,7 +6704,7 @@ EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InChunkID) cons
 
 	for (const FPakListDeferredEntry& PendingPak : PendingEncryptedPakFiles)
 	{
-		if (PendingPak.ChunkID == InChunkID)
+		if (PendingPak.PakchunkIndex == InPakchunkIndex)
 		{
 			return EChunkLocation::NotAvailable;
 		}
@@ -6719,7 +6719,7 @@ bool FPakPlatformFile::AnyChunksAvailable() const
 
 	for (const FPakListEntry& PakEntry : PakFiles)
 	{
-		if (PakEntry.PakFile->ChunkID != INDEX_NONE)
+		if (PakEntry.PakFile->PakchunkIndex != INDEX_NONE)
 		{
 			return true;
 		}
@@ -6727,7 +6727,7 @@ bool FPakPlatformFile::AnyChunksAvailable() const
 
 	for (const FPakListDeferredEntry& PendingPak : PendingEncryptedPakFiles)
 	{
-		if (PendingPak.ChunkID != INDEX_NONE)
+		if (PendingPak.PakchunkIndex != INDEX_NONE)
 		{
 			return true;
 		}
