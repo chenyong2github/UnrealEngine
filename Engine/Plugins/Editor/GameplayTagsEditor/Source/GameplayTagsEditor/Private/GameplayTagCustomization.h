@@ -60,6 +60,8 @@ private:
 	FString TagName;
 
 	void OnTagDoubleClicked();
+	void OnSearchForReferences();
+
 	EVisibility GetVisibilityForTagTextBlockWidget(bool ForTextWidget) const;
 
 	TSharedPtr<class SComboButton> EditButton;

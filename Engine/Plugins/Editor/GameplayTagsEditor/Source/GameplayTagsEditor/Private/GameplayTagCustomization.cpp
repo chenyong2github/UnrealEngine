@@ -26,6 +26,8 @@ void FGameplayTagCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle
 
 	BuildEditableContainerList();
 
+	FUIAction SearchForReferencesAction(FExecuteAction::CreateSP(this, &FGameplayTagCustomization::OnSearchForReferences));
+
 	HeaderRow
 	.NameContent()
 	[
@@ -74,7 +76,11 @@ void FGameplayTagCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle
 				.OnNavigate( this, &FGameplayTagCustomization::OnTagDoubleClicked)
 			]
 		]
-	];
+	]
+	.AddCustomContextMenuAction(SearchForReferencesAction,
+		LOCTEXT("FGameplayTagCustomization_SearchForReferences", "Search For References"),
+		LOCTEXT("FGameplayTagCustomization_SearchForReferencesTooltip", "Find references for this tag"),
+		FSlateIcon());
 
 	GEditor->RegisterForUndo(this);
 }
@@ -82,6 +88,17 @@ void FGameplayTagCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle
 void FGameplayTagCustomization::OnTagDoubleClicked()
 {
 	UGameplayTagsManager::Get().NotifyGameplayTagDoubleClickedEditor(TagName);
+}
+
+void FGameplayTagCustomization::OnSearchForReferences()
+{
+	FName TagFName(*TagName, FNAME_Find);
+	if (FEditorDelegates::OnOpenReferenceViewer.IsBound() && !TagFName.IsNone())
+	{
+		TArray<FAssetIdentifier> AssetIdentifiers;
+		AssetIdentifiers.Add(FAssetIdentifier(FGameplayTag::StaticStruct(), TagFName));
+		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, FReferenceViewerParams());
+	}
 }
 
 EVisibility FGameplayTagCustomization::GetVisibilityForTagTextBlockWidget(bool ForTextWidget) const
