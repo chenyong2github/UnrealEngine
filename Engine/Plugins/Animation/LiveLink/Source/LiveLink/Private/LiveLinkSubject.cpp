@@ -18,6 +18,13 @@
 #include "UObject/Class.h"
 
 
+FLiveLinkSubject::FSubjectEvaluationStatistics::FSubjectEvaluationStatistics()
+	: BufferUnderflow(0)
+	, BufferOverflow(0)
+	, FrameDrop(0)
+{
+}
+
 FLiveLinkSubject::FLiveLinkSubject(TSharedPtr<FLiveLinkTimedDataInput> InTimedDataGroup)
 	: TimedDataGroup(InTimedDataGroup)
 {

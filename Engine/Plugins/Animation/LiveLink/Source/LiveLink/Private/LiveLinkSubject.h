@@ -161,12 +161,12 @@ private:
 	
 	struct FSubjectEvaluationStatistics
 	{
-		TAtomic<int32> BufferUnderflow = 0;
-		TAtomic<int32> BufferOverflow = 0;
-		TAtomic<int32> FrameDrop = 0;
+		TAtomic<int32> BufferUnderflow;
+		TAtomic<int32> BufferOverflow;
+		TAtomic<int32> FrameDrop;
 		FTimedDataInputEvaluationData LastEvaluationData;
 
-		FSubjectEvaluationStatistics() = default;
+		FSubjectEvaluationStatistics();
 		FSubjectEvaluationStatistics(const FSubjectEvaluationStatistics&) = delete;
 		FSubjectEvaluationStatistics& operator=(const FSubjectEvaluationStatistics&) = delete;
 	};

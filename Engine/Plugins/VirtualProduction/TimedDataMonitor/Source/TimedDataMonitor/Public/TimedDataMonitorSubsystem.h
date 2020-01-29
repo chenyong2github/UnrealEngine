@@ -28,7 +28,7 @@ public:
 	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier == Identifier; }
 	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier != Identifier; }
 
-	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& Identifier) { return GetTypeHash(Identifier.Identifier); }
+	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
 };
 
 
@@ -49,7 +49,7 @@ public:
 	bool operator== (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier == Identifier; }
 	bool operator!= (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier != Identifier; }
 
-	friend uint32 GetTypeHash(const FTimedDataMonitorChannelIdentifier& Identifier) { return GetTypeHash(Identifier.Identifier); }
+	friend uint32 GetTypeHash(const FTimedDataMonitorChannelIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
 };
 
 

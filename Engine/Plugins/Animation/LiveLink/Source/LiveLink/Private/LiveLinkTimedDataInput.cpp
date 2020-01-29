@@ -152,7 +152,7 @@ FFrameRate FLiveLinkTimedDataInput::GetFrameRate() const
 	{
 		if (Settings->Mode == ELiveLinkSourceMode::Timecode)
 		{
-			Settings->BufferSettings.TimecodeFrameRate;
+			return Settings->BufferSettings.TimecodeFrameRate;
 		}
 	}
 	return ITimedDataInput::UnknownFrameRate;

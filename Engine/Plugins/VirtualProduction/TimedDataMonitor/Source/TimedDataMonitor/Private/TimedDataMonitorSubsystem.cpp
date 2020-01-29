@@ -1162,7 +1162,7 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 					{
 						if (Itt.Value.Input == TimedData)
 						{
-							FoundIdentifier == Itt.Key;
+							FoundIdentifier = Itt.Key;
 						}
 					}
 
@@ -1208,7 +1208,7 @@ void UTimedDataMonitorSubsystem::BuildSourcesListIfNeeded()
 						{
 							if (ChannelItt.Value.Channel == Channel)
 							{
-								FoundIdentifier == ChannelItt.Key;
+								FoundIdentifier = ChannelItt.Key;
 							}
 						}
 
