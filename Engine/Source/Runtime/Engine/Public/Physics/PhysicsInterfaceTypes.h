@@ -7,7 +7,6 @@
 #include "PhysicsInterfaceDeclares.h"
 #include "PhysicsEngine/BodySetupEnums.h"
 #include "PhysicsInterfaceTypesCore.h"
-#include "Materials/MaterialInterface.h"
 
 #if WITH_CHAOS
 #include "Chaos/Serializable.h"
