@@ -431,6 +431,12 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 	ReentrantFlag[0] = false;
 	ReentrantFlag[1] = false;
 	ShadingModels = MSM_Unlit;
+
+	PhysMaterial = nullptr;
+	for (UPhysicalMaterial*& PhysMat : PhysicalMaterialMap)
+	{
+		PhysMat = nullptr;
+	}
 }
 
 void UMaterialInstance::PostInitProperties()	
@@ -1954,6 +1960,20 @@ UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterial() const
 		check( GEngine->DefaultPhysMaterial != NULL );
 		return GEngine->DefaultPhysMaterial;
 	}
+}
+
+UPhysicalMaterialMask* UMaterialInstance::GetPhysicalMaterialMask() const
+{
+	return nullptr;
+}
+
+UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterialFromMap(int32 Index) const
+{
+	if (Index < 0 || Index >= EPhysicalMaterialMaskColor::MAX)
+	{
+		return nullptr;
+	}
+	return PhysicalMaterialMap[Index];
 }
 
 void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticParameters)
