@@ -44,7 +44,6 @@
 namespace UserInterfaceCommand
 {
 	TSharedRef<FWorkspaceItem> DeveloperTools = FWorkspaceItem::NewGroup(NSLOCTEXT("UnrealInsights", "DeveloperToolsMenu", "Developer Tools"));
-	static void* RecorderEvent = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +51,9 @@ namespace UserInterfaceCommand
 bool CheckSessionBrowserSingleInstance()
 {
 #if PLATFORM_WINDOWS
-	HANDLE SessionBrowserEvent = CreateEventW(NULL, 0, 0, L"Global\\UnrealInsights.SessionBrowser");
+	// Create a named event that other processes can use to detect a running recorder and connect to it automatically.
+	// See usage in \Engine\Source\Runtime\Launch\Private\LaunchEngineLoop.cpp
+	HANDLE SessionBrowserEvent = CreateEvent(NULL, true, false, TEXT("Local\\UnrealInsightsRecorder"));
 	if (SessionBrowserEvent == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
 	{
 		// Another Session Browser process is already running.
@@ -68,6 +69,14 @@ bool CheckSessionBrowserSingleInstance()
 		{
 			ShowWindow(Window, SW_SHOW);
 			SetForegroundWindow(Window);
+
+			FLASHWINFO FlashInfo;
+			FlashInfo.cbSize = sizeof(FLASHWINFO);
+			FlashInfo.hwnd = Window;
+			FlashInfo.dwFlags = FLASHW_ALL;
+			FlashInfo.uCount = 3;
+			FlashInfo.dwTimeout = 0;
+			FlashWindowEx(&FlashInfo);
 		}
 
 		return false;
@@ -245,15 +254,6 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 		{
 			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
 			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
-
-#if PLATFORM_WINDOWS
-			// Create a named event that other processes can use detect a running
-			// recorder and connect to it automatically
-			if (UserInterfaceCommand::RecorderEvent == nullptr)
-			{
-				UserInterfaceCommand::RecorderEvent = ::CreateEvent(nullptr, true, false, TEXT("Local\\UnrealInsightsRecorder"));
-			}
-#endif // PLATFORM_WINDOWS
 		}
 
 		delete[] TraceFile;
@@ -269,14 +269,6 @@ void FUserInterfaceCommand::ShutdownSlateApplication()
 
 	// Shut down application.
 	FSlateApplication::Shutdown();
-
-#if PLATFORM_WINDOWS
-	if (UserInterfaceCommand::RecorderEvent != nullptr)
-	{
-		::CloseHandle(UserInterfaceCommand::RecorderEvent);
-		UserInterfaceCommand::RecorderEvent = nullptr;
-	}
-#endif // PLATFORM_WINDOWS
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

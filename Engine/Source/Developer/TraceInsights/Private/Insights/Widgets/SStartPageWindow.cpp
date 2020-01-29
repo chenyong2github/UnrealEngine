@@ -1772,6 +1772,8 @@ void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
 		return;
 	}
 
+	//UE_LOG(TraceInsights, Log, TEXT("Updating metadata for trace 0x%08X (%s)..."), TraceSession.TraceId, *TraceSession.Name.ToString());
+
 	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	if (StoreClient == nullptr)
 	{
@@ -1793,7 +1795,7 @@ void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
 				return 0;
 			}
 
-			int32 InnerBytesRead = Inner->Read(Data, Size);
+			const int32 InnerBytesRead = Inner->Read(Data, Size);
 			BytesRead += InnerBytesRead;
 			return InnerBytesRead;
 		}
@@ -1816,7 +1818,6 @@ void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
 		TraceSession.AppName = FText::FromString(Analyzer.AppName);
 		TraceSession.CommandLine = FText::FromString(Analyzer.CommandLine);
 		TraceSession.ConfigurationType = static_cast<EBuildConfiguration>(Analyzer.ConfigurationType);
-
 		TraceSession.TargetType = static_cast<EBuildTargetType>(Analyzer.TargetType);
 	}
 
