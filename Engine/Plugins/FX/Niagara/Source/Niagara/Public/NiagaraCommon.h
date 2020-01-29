@@ -102,7 +102,7 @@ enum class ENiagaraDataSetType : uint8
 UENUM()
 enum class ENiagaraInputNodeUsage : uint8
 {
-	Undefined = 0,
+	Undefined = 0 UMETA(Hidden),
 	Parameter,
 	Attribute,
 	SystemConstant,
