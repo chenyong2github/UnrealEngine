@@ -7,8 +7,11 @@
 
 namespace Chaos
 {
+	class FCollisionContext;
+
 	namespace Collisions
 	{
+
 		template<class T = float>
 		struct TContactParticleParameters {
 			T CullDistance;
@@ -28,7 +31,7 @@ namespace Chaos
 		using FContactIterationParameters = TContactIterationParameters<FReal>;
 
 		// Regenerate (one-shot or incremental) the manifold plane and points
-		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context);
 
 		// Update the constraint (re-runs collision detection for this contact)
 		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance);

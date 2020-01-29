@@ -8,6 +8,7 @@
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/ImplicitObjectUnion.h"
@@ -388,9 +389,11 @@ namespace Chaos
 		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
+		FCollisionContext Context;
+
 		for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance);
+			Collisions::UpdateManifold(Contact, MCullDistance, Context);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
