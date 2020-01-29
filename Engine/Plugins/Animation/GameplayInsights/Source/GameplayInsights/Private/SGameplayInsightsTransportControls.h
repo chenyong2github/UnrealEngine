@@ -12,6 +12,7 @@
 #include "ITransportControl.h"
 
 class FGameplaySharedData;
+namespace Insights { enum class ETimeChangedFlags; }
 
 class SGameplayInsightsTransportControls : public SCompoundWidget
 {
@@ -37,6 +38,10 @@ private:
 
 	EPlaybackMode::Type GetPlaybackMode() const;
 
+	void SetTimeMarker(double InTime, bool bInScroll);
+
+	void HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
+
 private:
 	FGameplaySharedData* SharedData;
 
@@ -45,6 +50,8 @@ private:
 	bool bPlaying;
 
 	bool bReverse;
+
+	bool bSettingMarker;
 };
 
 #endif

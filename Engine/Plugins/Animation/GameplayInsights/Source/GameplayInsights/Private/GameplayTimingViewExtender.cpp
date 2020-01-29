@@ -27,6 +27,10 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 		PerSessionData = &PerSessionDataMap.Add(&InSession);
 		PerSessionData->GameplaySharedData = new FGameplaySharedData();
 		PerSessionData->AnimationSharedData = new FAnimationSharedData(*PerSessionData->GameplaySharedData);
+
+		PerSessionData->GameplaySharedData->OnBeginSession(InSession);
+		PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+
 #if WITH_EDITOR
 		InSession.AddOverlayWidget(
 			SNew(SOverlay)
@@ -44,9 +48,11 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 			]);
 #endif
 	}
-
-	PerSessionData->GameplaySharedData->OnBeginSession(InSession);
-	PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+	else
+	{
+		PerSessionData->GameplaySharedData->OnBeginSession(InSession);
+		PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+	}
 }
 
 void FGameplayTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InSession)
