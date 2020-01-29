@@ -203,7 +203,10 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 										{
 											UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-											AnimBlueprint->SetObjectBeingDebugged(Instance);
+											if(Instance)
+											{
+												AnimBlueprint->SetObjectBeingDebugged(Instance);
+											}
 										}
 									}
 								}
@@ -232,7 +235,10 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 										{
 											UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-											AnimBlueprint->IsObjectBeingDebugged(Instance);
+											if(Instance)
+											{
+												AnimBlueprint->IsObjectBeingDebugged(Instance);
+											}
 										}
 									}
 								}
@@ -389,7 +395,10 @@ void FAnimNodesTrack::GetCustomDebugObjects(const IAnimationBlueprintEditor& InA
 						if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 						{
 							UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-							OutDebugList.Emplace(Instance, FText::Format(LOCTEXT("PreviewObjectLabel", "Insights - {0}"), FText::FromString(GetName())).ToString());
+							if(Instance)
+							{
+								OutDebugList.Emplace(Instance, FText::Format(LOCTEXT("PreviewObjectLabel", "Insights - {0}"), FText::FromString(GetName())).ToString());
+							}
 						}
 					}
 				}

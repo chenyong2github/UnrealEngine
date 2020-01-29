@@ -383,10 +383,10 @@ void FAnimationTickRecordsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 							if(IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
 							{
 								int32 AnimNodeIndex = InstanceClass.Get()->AnimNodeProperties.Num() - NodeId - 1;
-								TWeakObjectPtr<const UEdGraphNode> GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap[AnimNodeIndex];
-								if(GraphNode.Get())
+								TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
+								if(GraphNode != nullptr && GraphNode->Get())
 								{
-									AnimBlueprintEditor->JumpToHyperlink(GraphNode.Get());
+									AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
 								}
 							}
 						}
