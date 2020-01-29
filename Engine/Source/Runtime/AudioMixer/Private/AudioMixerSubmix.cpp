@@ -110,7 +110,7 @@ namespace Audio
 				FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
 				
 				FSoundEffectSubmixInitData InitData;
-				InitData.DeviceHandle = MixerDevice->DeviceHandle;
+				InitData.DeviceID = MixerDevice->DeviceID;
 				InitData.SampleRate = MixerDevice->GetSampleRate();
 				InitData.PresetSettings = nullptr;
 

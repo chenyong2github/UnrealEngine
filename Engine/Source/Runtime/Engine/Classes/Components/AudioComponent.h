@@ -251,7 +251,7 @@ private:
 
 public:
 	/** The specific audio device to play this component on */
-	uint32 AudioDeviceHandle;
+	uint32 AudioDeviceID;
 
 	/** Configurable, serialized ID for audio plugins */
 	UPROPERTY()
