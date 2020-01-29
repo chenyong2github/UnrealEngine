@@ -620,6 +620,26 @@ private:
 template <class T> struct TIsPODType<TSoftClassPtr<T> > { enum { Value = TIsPODType<FSoftObjectPtr>::Value }; };
 template <class T> struct TIsWeakPointerType<TSoftClassPtr<T> > { enum { Value = TIsWeakPointerType<FSoftObjectPtr>::Value }; };
 
+/** Fast non-alphabetical order that is only stable during this process' lifetime. */
+struct FSoftObjectPtrFastLess : private FSoftObjectPathFastLess
+{
+	template <typename SoftObjectPtrType>
+	bool operator()(const SoftObjectPtrType& Lhs, const SoftObjectPtrType& Rhs) const
+	{
+		return FSoftObjectPathFastLess::operator()(Lhs.ToSoftObjectPath(), Rhs.ToSoftObjectPath());
+	}
+};
+
+/** Slow alphabetical order that is stable / deterministic over process runs. */
+struct FSoftObjectPtrLexicalLess : private FSoftObjectPathLexicalLess
+{
+	template <typename SoftObjectPtrType>
+	bool operator()(const SoftObjectPtrType& Lhs, const SoftObjectPtrType& Rhs) const
+	{
+		return FSoftObjectPathLexicalLess::operator()(Lhs.ToSoftObjectPath(), Rhs.ToSoftObjectPath());
+	}
+};
+
 UE_DEPRECATED(4.18, "FAssetPtr was renamed to FSoftObjectPtr as it is not necessarily an asset")
 typedef FSoftObjectPtr FAssetPtr;
 
