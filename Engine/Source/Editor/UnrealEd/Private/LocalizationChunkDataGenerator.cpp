@@ -41,6 +41,9 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 		return;
 	}
 
+	const FString LocalizationContentRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Content") / TEXT("Localization")).Replace(TEXT("[Platform]"), *InPlatformName);
+	const FString LocalizationMetadataRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Metadata") / TEXT("Localization")).Replace(TEXT("[Platform]"), *InPlatformName);
+
 	for (const TSharedPtr<FLocTextHelper>& SourceLocTextHelper : CachedLocalizationTargetHelpers)
 	{
 		// If this target has no helper, then it was either an invalid target or failed to load when caching - skip it here
@@ -52,11 +55,12 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 		// Prepare to produce the localization target for this chunk
 		const TArray<FString> AvailableCulturesToCook = SourceLocTextHelper->GetAllCultures();
 		const FString ChunkTargetName = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(SourceLocTextHelper->GetTargetName(), InChunkId);
-		const FString ChunkTargetRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Content") / TEXT("Localization") / ChunkTargetName).Replace(TEXT("[Platform]"), *InPlatformName);
+		const FString ChunkTargetContentRoot = LocalizationContentRoot / ChunkTargetName;
+		const FString ChunkTargetMetadataRoot = LocalizationMetadataRoot / ChunkTargetName;
 
 		// Produce a filtered set of data that can be used to produce the LocRes for each chunk
 		bool bChunkHasText = false;
-		FLocTextHelper ChunkLocTextHelper(ChunkTargetRoot, FString::Printf(TEXT("%s.manifest"), *ChunkTargetName), FString::Printf(TEXT("%s.archive"), *ChunkTargetName), SourceLocTextHelper->GetNativeCulture(), SourceLocTextHelper->GetForeignCultures(), nullptr);
+		FLocTextHelper ChunkLocTextHelper(ChunkTargetMetadataRoot, FString::Printf(TEXT("%s.manifest"), *ChunkTargetName), FString::Printf(TEXT("%s.archive"), *ChunkTargetName), SourceLocTextHelper->GetNativeCulture(), SourceLocTextHelper->GetForeignCultures(), nullptr);
 		ChunkLocTextHelper.LoadAll(ELocTextHelperLoadFlags::Create); // Create the in-memory manifest and archives
 		SourceLocTextHelper->EnumerateSourceTexts([bIsCatchAllChunk, SourceLocTextHelper, &bChunkHasText, &ChunkLocTextHelper, &InPackagesInChunk, &AvailableCulturesToCook](TSharedRef<FManifestEntry> InManifestEntry)
 		{
@@ -95,15 +99,13 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 			continue;
 		}
 
-		// Save the manifest and archives for debug purposes, but don't add them to the build
-		// We don't care if this fails as it's only for debugging
-		
-		// Commenting out per Jamie.Dale for FORT-245482
-		// ChunkLocTextHelper.SaveAll();
+		// Save the manifest and archives for debug purposes within the metadata folder
+		// This won't add them to the build, and we don't care if this fails as it's only for debugging
+		ChunkLocTextHelper.SaveAll();
 
 		// Produce the LocMeta file for the chunk target
 		{
-			const FString ChunkLocMetaFilename = ChunkTargetRoot / FString::Printf(TEXT("%s.locmeta"), *ChunkTargetName);
+			const FString ChunkLocMetaFilename = ChunkTargetContentRoot / FString::Printf(TEXT("%s.locmeta"), *ChunkTargetName);
 			
 			FTextLocalizationMetaDataResource ChunkLocMeta;
 			if (FTextLocalizationResourceGenerator::GenerateLocMeta(ChunkLocTextHelper, FString::Printf(TEXT("%s.locres"), *ChunkTargetName), ChunkLocMeta) && ChunkLocMeta.SaveToFile(ChunkLocMetaFilename))
@@ -125,7 +127,7 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 				continue;
 			}
 
-			const FString ChunkLocResFilename = ChunkTargetRoot / CultureToCook / FString::Printf(TEXT("%s.locres"), *ChunkTargetName);
+			const FString ChunkLocResFilename = ChunkTargetContentRoot / CultureToCook / FString::Printf(TEXT("%s.locres"), *ChunkTargetName);
 
 			FTextLocalizationResource ChunkLocRes;
 			TMap<FName, TSharedRef<FTextLocalizationResource>> UnusedPerPlatformLocRes;
