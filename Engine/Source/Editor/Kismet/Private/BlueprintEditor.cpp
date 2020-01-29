@@ -8990,7 +8990,7 @@ void FBlueprintEditor::UpdatePreviewActor(UBlueprint* InBlueprint, bool bInForce
 			}
 
 			// Prevent any audio from playing as a result of spawning
-			if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
+			if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
 			{
 				AudioDevice->Flush(PreviewScene.GetWorld());
 			}

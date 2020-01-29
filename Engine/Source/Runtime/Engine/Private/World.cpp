@@ -345,7 +345,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 , bIsBuilt(false)
 , bShouldTick(true)
 , ActiveLevelCollectionIndex(INDEX_NONE)
-, AudioDeviceHandle(INDEX_NONE)
+, AudioDeviceHandle()
 #if WITH_EDITOR
 , HierarchicalLODBuilder(new FHierarchicalLODBuilder(this))
 #endif
@@ -6181,7 +6181,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			CurrentWorld->ClearFlags(RF_Standalone);
 
 			// Stop all audio to remove references to old world
-			if (FAudioDevice* AudioDevice = CurrentWorld->GetAudioDevice())
+			if (FAudioDevice* AudioDevice = CurrentWorld->GetAudioDeviceRaw())
 			{
 				AudioDevice->Flush(CurrentWorld);
 			}
@@ -6283,7 +6283,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// if we've already switched to entry before and this is the transition to the new map, re-create the gameinfo
 			if (bSwitchedToDefaultMap && !bIsClient)
 			{
-				if (FAudioDevice* AudioDevice = LoadedWorld->GetAudioDevice())
+				if (FAudioDevice* AudioDevice = LoadedWorld->GetAudioDeviceRaw())
 				{
 					AudioDevice->SetDefaultBaseSoundMix(LoadedWorld->GetWorldSettings()->DefaultBaseSoundMix);
 				}
@@ -7474,6 +7474,20 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 	}
 }
 
+void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
+{
+	AudioDeviceHandle = InHandle;
+}
+
+FAudioDeviceHandle UWorld::GetAudioDevice()
+{
+	return AudioDeviceHandle;
+}
+
+class FAudioDevice* UWorld::GetAudioDeviceRaw()
+{
+	return AudioDeviceHandle.GetAudioDevice();
+}
 
 /**
 * Dump visible actors in current world.
