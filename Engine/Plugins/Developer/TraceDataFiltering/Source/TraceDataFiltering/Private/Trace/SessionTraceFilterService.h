@@ -35,6 +35,8 @@ protected:
 
 	/** Retrieves channels names from provider and marks them all as disabled */
 	void DisableAllChannels();
+
+	void RetrieveAndStoreStartupChannels();
 protected:
 	/** Session this instance represents the filtering service for */
 	TSharedPtr<const Trace::IAnalysisSession> Session;
@@ -44,6 +46,8 @@ protected:
 	/** Names of channels that were either enabled or disabled during the duration of this frame */
 	TSet<FString> FrameEnabledChannels;
 	TSet<FString> FrameDisabledChannels;
+
+	TSet<FString> FrameZeroEnabledChannels;
 	
 	/** Timestamp at which contained data (including provider) was last updated */
 	FDateTime TimeStamp;	
