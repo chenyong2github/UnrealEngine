@@ -22,6 +22,7 @@ public:
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
 	bool				OnData(FStreamReader& Reader);
+	void				End();
 
 private:
 	typedef bool (FAnalysisEngine::*ProtocolHandlerType)();

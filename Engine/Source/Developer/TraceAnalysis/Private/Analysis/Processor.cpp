@@ -56,6 +56,7 @@ uint32 FAnalysisProcessor::FImpl::Run()
 		}
 	}
 
+	AnalysisEngine.End();
 	return 0;
 }
 

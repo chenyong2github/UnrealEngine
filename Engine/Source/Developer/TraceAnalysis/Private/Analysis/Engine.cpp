@@ -472,6 +472,11 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::~FAnalysisEngine()
 {
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::End()
+{
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
 		if (Analyzer != nullptr)
