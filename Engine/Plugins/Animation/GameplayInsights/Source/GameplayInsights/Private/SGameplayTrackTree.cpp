@@ -80,10 +80,7 @@ struct FGameplayTrackTreeEntry : public TSharedFromThis<FGameplayTrackTreeEntry>
 
 		for(const TSharedRef<FGameplayTrackTreeEntry>& Child : Children)
 		{
-			if(Child->FilterState != EGameplayTrackFilterState::Hidden)
-			{
-				Child->SetVisibilityFlag(bInIsVisible);
-			}
+			Child->SetVisibilityFlag(bInIsVisible);
 		}
 	}
 
