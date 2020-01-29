@@ -8,6 +8,7 @@
 #include "DisplayClusterLog.h"
 
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "DynamicRHI.h"
 
 #pragma warning(push)
