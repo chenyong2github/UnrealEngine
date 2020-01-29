@@ -268,6 +268,9 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(0, 2, 3));
 		}
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle});
+
 	}
 
 	
@@ -513,6 +516,9 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(0, 2, 3));
 		}
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle });
+
 	}
 
 	template<class T>
@@ -560,6 +566,8 @@ namespace ChaosTest {
 		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
 		Particle->SetDynamicGeometry( MakeUnique<TPlane<T, 3>>(TVector<T, 3>(0.f, 0.f, 0.f), TVector<T, 3>(0.f, 0.f, 1.f)));
 
+		::ChaosTest::SetParticleSimDataToCollide({ Particle });
+
 		return Particle;
 	}
 	template TKinematicGeometryParticleHandle<float, 3>* AppendStaticAnalyticFloor(TPBDRigidsEvolutionGBF<float, 3>& Evolution);
@@ -575,6 +583,8 @@ namespace ChaosTest {
 		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
 		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
 		Particle->SetDynamicGeometry(MakeUnique<TPlane<T, 3>>(TVector<T, 3>(0.f, 0.f, 0.f), TVector<T, 3>(0.f, 0.f, 1.f)));
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle });
 
 		return Particle;
 	}
@@ -605,6 +615,8 @@ namespace ChaosTest {
 		Cube.X(8) = TVector<float, 3>(0, 0, 0);
 
 		Particle->SetDynamicGeometry(MakeUnique<FConvex>(Cube));
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle });
 
 		return Particle;
 	}
@@ -666,6 +678,13 @@ namespace ChaosTest {
 		InParticles.InvI() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube));
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
+
+		::ChaosTest::SetParticleSimDataToCollide({ &InParticles });
+		//for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : InParticles.ShapesArray())
+		//{
+		//	Shape->SimData.Word3 = 1;
+		//	Shape->SimData.Word1 = 1;
+		//}
 	}
 	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const TVector<float, 3>& Scale);
 
@@ -754,5 +773,27 @@ namespace ChaosTest {
 		return FVec3(FVector::UpVector);
 	}
 
+	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticle<float, 3>* > ParticleArray)
+	{
+		for (Chaos::TGeometryParticle<float, 3>* Particle : ParticleArray)
+		{
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape :Particle->ShapesArray())
+			{
+				Shape->SimData.Word3 = 1;
+				Shape->SimData.Word1 = 1;
+			}
+		}
+	}
+	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticleHandle<float, 3>* > ParticleArray)
+	{
+		for (Chaos::TGeometryParticleHandle<float, 3>* Particle : ParticleArray)
+		{
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : Particle->ShapesArray())
+			{
+				Shape->SimData.Word3 = 1;
+				Shape->SimData.Word1 = 1;
+			}
+		}
+	}
 
 }

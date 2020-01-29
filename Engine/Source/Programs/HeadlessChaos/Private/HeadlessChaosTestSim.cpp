@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HeadlessChaos.h"
+#include "HeadlessChaosTestUtility.h"
+
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
@@ -26,6 +28,9 @@ namespace ChaosTest {
 		Dynamic->X() = FVec3(10, 10, 300);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+
+		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
+
 
 		const FReal Dt = 1 / 60.f;
 		for (int i = 0; i < 100; ++i)
@@ -53,6 +58,9 @@ namespace ChaosTest {
 		Dynamic->X() = FVec3(10, 10, 300);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+
+		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
+
 
 		const FReal Dt = 1 / 60.f;
 		for (int i = 0; i < 100; ++i)
@@ -88,6 +96,8 @@ namespace ChaosTest {
 		Dynamic->X() = FVec3(10, 10, 300);
 		Dynamic->I() = FMatrix33(1, 1, 1);
 		Dynamic->InvI() = FMatrix33(1, 1, 1);
+
+		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
 		for (int i = 0; i < 100; ++i)
 		{
@@ -130,6 +140,8 @@ namespace ChaosTest {
 		Dynamic1->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 		Dynamic2->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic2->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+
+		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic1,Dynamic2 });
 
 		bool Dynamic1WentToSleep = false;
 		bool Dynamic1HasWokeAgain = false;
