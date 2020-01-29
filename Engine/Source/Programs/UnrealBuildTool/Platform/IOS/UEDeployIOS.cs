@@ -273,6 +273,8 @@ namespace UnrealBuildTool
 			// ITunes file sharing
 			bool bSupportsITunesFileSharing = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsITunesFileSharing", out bSupportsITunesFileSharing);
+			bool bSupportsFilesApp = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsFilesApp", out bSupportsFilesApp);
 
 			// bundle display name
 			string BundleDisplayName;
@@ -451,6 +453,11 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<true/>");
 			Text.AppendLine("\t<key>UIFileSharingEnabled</key>");
 			Text.AppendLine(string.Format("\t<{0}/>", bSupportsITunesFileSharing ? "true" : "false"));
+			if (bSupportsFilesApp)
+			{
+				Text.AppendLine("\t<key>LSSupportsOpeningDocumentsInPlace</key>");
+				Text.AppendLine("\t<true/>");
+			}
 			Text.AppendLine("\t<key>UIRequiresFullScreen</key>");
 			Text.AppendLine("\t<true/>");
 			Text.AppendLine("\t<key>UIViewControllerBasedStatusBarAppearance</key>");
