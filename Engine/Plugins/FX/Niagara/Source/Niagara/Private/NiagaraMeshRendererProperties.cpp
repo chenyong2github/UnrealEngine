@@ -185,7 +185,26 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
 {
 	// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
-	return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].Sections[0].NumTriangles * 3 : 0;
+	//return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].Sections[0].NumTriangles * 3 : 0;
+	return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].IndexBuffer.GetNumIndices() : 0;
+}
+
+void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& IndexInfoPerSection) const
+{
+	check(ParticleMesh && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex));
+
+	if (ParticleMesh && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex))
+	{
+		const FStaticMeshLODResources& MeshLod = ParticleMesh->RenderData->LODResources[LODIndex];
+		const int32 SectionCount = MeshLod.Sections.Num();
+		IndexInfoPerSection.SetNum(SectionCount);
+
+		for (int32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+		{
+			IndexInfoPerSection[SectionIdx].Key = MeshLod.Sections[SectionIdx].NumTriangles * 3;
+			IndexInfoPerSection[SectionIdx].Value = MeshLod.Sections[SectionIdx].FirstIndex;
+		}
+	}
 }
 
 

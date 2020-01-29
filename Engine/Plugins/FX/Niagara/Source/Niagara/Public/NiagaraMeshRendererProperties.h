@@ -91,6 +91,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	virtual uint32 GetNumIndicesPerInstance() const final override;
+	void GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& InfoPerSection) const;
 
 	/** The static mesh to be instanced when rendering mesh particles. If OverrideMaterial is not specified, the mesh's material is used. Note that the material must have the Niagara Mesh Particles flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
