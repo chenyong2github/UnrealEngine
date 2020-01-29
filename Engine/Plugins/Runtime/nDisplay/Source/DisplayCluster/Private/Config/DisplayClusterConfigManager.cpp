@@ -349,6 +349,13 @@ void FDisplayClusterConfigManager::AddRender(const FDisplayClusterConfigRender& 
 	CfgRender = InCfgRender;
 }
 
+void FDisplayClusterConfigManager::AddNvidia(const FDisplayClusterConfigNvidia& InCfgNvidia)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
+	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found NVIDIA: %s"), *InCfgNvidia.ToString());
+	CfgNvidia = InCfgNvidia;
+}
+
 void FDisplayClusterConfigManager::AddStereo(const FDisplayClusterConfigStereo& InCfgStereo)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);

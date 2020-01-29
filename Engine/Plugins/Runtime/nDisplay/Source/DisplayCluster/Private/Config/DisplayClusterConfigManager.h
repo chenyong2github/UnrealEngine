@@ -86,6 +86,9 @@ public:
 	virtual FDisplayClusterConfigRender  GetConfigRender() const override
 	{ return CfgRender; }
 
+	virtual FDisplayClusterConfigNvidia  GetConfigNvidia() const override
+	{ return CfgNvidia; }
+
 	virtual FDisplayClusterConfigNetwork GetConfigNetwork() const override
 	{ return CfgNetwork; }
 
@@ -121,6 +124,7 @@ public:
 	virtual void AddSceneNode(const FDisplayClusterConfigSceneNode& InCfgSNode)  override;
 	virtual void AddGeneral(const FDisplayClusterConfigGeneral& InCfgGeneral)  override;
 	virtual void AddRender(const FDisplayClusterConfigRender& InCfgRender)  override;
+	virtual void AddNvidia(const FDisplayClusterConfigNvidia& InCfgNvidia)  override;
 	virtual void AddStereo(const FDisplayClusterConfigStereo& InCfgStereo)  override;
 	virtual void AddNetwork(const FDisplayClusterConfigNetwork& InCfgNetwork) override;
 	virtual void AddDebug(const FDisplayClusterConfigDebug& InCfgDebug)  override;
@@ -166,6 +170,7 @@ private:
 	FDisplayClusterConfigGeneral CfgGeneral;
 	FDisplayClusterConfigStereo  CfgStereo;
 	FDisplayClusterConfigRender  CfgRender;
+	FDisplayClusterConfigNvidia  CfgNvidia;
 	FDisplayClusterConfigNetwork CfgNetwork;
 	FDisplayClusterConfigDebug   CfgDebug;
 	FDisplayClusterConfigCustom  CfgCustom;
