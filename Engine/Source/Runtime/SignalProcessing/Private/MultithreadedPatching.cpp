@@ -120,6 +120,15 @@ namespace Audio
 	{
 	}
 
+	FPatchInput::FPatchInput(FPatchInput&& Other)
+	{
+		OutputHandle = Other.OutputHandle;
+		Other.OutputHandle.Reset();
+
+		PushCallsCounter = Other.PushCallsCounter;
+		Other.PushCallsCounter = 0;
+	}
+
 	FPatchInput& FPatchInput::operator=(const FPatchInput& Other)
 	{
 		OutputHandle = Other.OutputHandle;
