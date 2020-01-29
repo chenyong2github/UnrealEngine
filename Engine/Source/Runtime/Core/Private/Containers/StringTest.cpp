@@ -3,7 +3,7 @@
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/StringView.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
