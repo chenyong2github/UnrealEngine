@@ -38,12 +38,6 @@ FTraceDataStream::~FTraceDataStream()
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceDataStream::Close()
 {
-	if (!Socket.is_open())
-	{
-		return;
-	}
-
-	Socket.shutdown(asio::ip::tcp::socket::shutdown_both);
 	Socket.close();
 }
 
@@ -54,7 +48,7 @@ int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 	size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
 	if (ErrorCode)
 	{
-		Socket.close();
+		Close();
 		return -1;
 	}
 
@@ -70,6 +64,7 @@ public:
 							FStoreCborClient();
 							~FStoreCborClient();
 	bool					IsOpen() const;
+	void					Close();
 	uint32					GetStoreAddress() const;
 	uint32					GetStorePort() const;
 	const FResponse&		GetResponse() const;
@@ -100,7 +95,12 @@ FStoreCborClient::FStoreCborClient()
 ////////////////////////////////////////////////////////////////////////////////
 FStoreCborClient::~FStoreCborClient()
 {
-	Socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+	Close();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FStoreCborClient::Close()
+{
 	Socket.close();
 }
 
@@ -268,12 +268,6 @@ FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 	asio::error_code ErrorCode;
 	asio::ip::tcp::socket SenderSocket(IoContext);
 	SenderSocket.connect(Endpoint, ErrorCode);
-	if (ErrorCode)
-	{
-		return nullptr;
-	}
-
-	SenderSocket.native_non_blocking(false, ErrorCode);
 	if (ErrorCode)
 	{
 		return nullptr;

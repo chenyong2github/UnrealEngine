@@ -64,7 +64,6 @@ uint32 FAsioSocket::GetLocalPort() const
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioSocket::Close()
 {
-	Socket.shutdown(asio::ip::tcp::socket::shutdown_both);
 	Socket.close();
 }
 

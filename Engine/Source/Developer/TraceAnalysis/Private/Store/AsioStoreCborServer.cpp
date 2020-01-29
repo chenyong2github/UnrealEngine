@@ -310,7 +310,7 @@ void FAsioStoreCborPeer::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
 	{
-		Socket.Close();
+		Close();
 		return;
 	}
 
