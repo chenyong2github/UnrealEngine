@@ -112,8 +112,9 @@ bool FNiagaraEmitterHandle::SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOw
 			InOwnerSystem.GetSystemSpawnScript()->GetSource()->RefreshFromExternalChanges();
 
 			// Need to cause us to recompile in the future if necessary...
-			InOwnerSystem.GetSystemSpawnScript()->InvalidateCompileResults();
-			InOwnerSystem.GetSystemUpdateScript()->InvalidateCompileResults();
+			FString InvalidateReason = TEXT("Emitter enabled changed.");
+			InOwnerSystem.GetSystemSpawnScript()->InvalidateCompileResults(InvalidateReason);
+			InOwnerSystem.GetSystemUpdateScript()->InvalidateCompileResults(InvalidateReason);
 
 			// Clean out the emitter's compile results for cleanliness.
 			if (Instance)
