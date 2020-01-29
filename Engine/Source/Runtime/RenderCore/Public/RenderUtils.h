@@ -128,6 +128,8 @@ extern RENDERCORE_API class FTexture* GBlackTexture;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithUAV;
 
+extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
+
 /** A global black array texture. */
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;
 

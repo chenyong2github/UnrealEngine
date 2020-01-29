@@ -475,6 +475,23 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FVertexBuffer"); }
 };
 
+class RENDERCORE_API FVertexBufferWithSRV : public FVertexBuffer
+{
+public:
+	/** SRV that views the entire texture */
+	FShaderResourceViewRHIRef ShaderResourceViewRHI;
+
+	/** *optional* UAV that views the entire texture */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+
+	virtual void ReleaseRHI() override
+	{
+		ShaderResourceViewRHI.SafeRelease();
+		UnorderedAccessViewRHI.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
+	}
+};
+
 /**
 * A vertex buffer with a single color component.  This is used on meshes that don't have a color component
 * to keep from needing a separate vertex factory to handle this case.
