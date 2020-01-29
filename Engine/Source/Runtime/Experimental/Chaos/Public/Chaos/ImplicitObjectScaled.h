@@ -27,6 +27,11 @@ public:
 
 	using FImplicitObject::GetTypeName;
 
+	//needed for serialization
+	TImplicitObjectInstanced()
+		: FImplicitObject(EImplicitObject::HasBoundingBox,StaticType())
+	{}
+
 	TImplicitObjectInstanced(const ObjectType&& Object)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
