@@ -51,6 +51,8 @@ private:
 
 public:
 	explicit FLiveLinkSubject(TWeakPtr<FLiveLinkTimedDataInputGroup> InTimedDataGroup);
+	FLiveLinkSubject(const FLiveLinkSubject&) = delete;
+	FLiveLinkSubject& operator=(const FLiveLinkSubject&) = delete;
 	virtual ~FLiveLinkSubject();
 
 	//~ Begin ILiveLinkSubject Interface
