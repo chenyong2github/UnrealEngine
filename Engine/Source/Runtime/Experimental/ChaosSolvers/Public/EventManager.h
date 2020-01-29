@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Chaos/Framework/MultiBufferResource.h"
+#include "Chaos/Framework/PhysicsProxyBase.h"
 
 namespace Chaos
 {
@@ -184,6 +185,11 @@ namespace Chaos
 			InjectedFunction(Solver, *EventBuffer->AccessProducerBuffer());
 		}
 
+		virtual void DestroyStaleEvents(TFunction<void(PayloadType & EventDataInOut)> InFunction)
+		{
+			InFunction(*EventBuffer->AccessProducerBuffer());
+		}
+
 		/**
 		 * Flips the buffer if the buffer type is double or triple
 		 */
@@ -268,6 +274,23 @@ namespace Chaos
 			ContainerLock.WriteLock();
 			InternalRegisterInjector(EventID, new TEventContainer<PayloadType>(BufferMode, InFunction));
 			ContainerLock.WriteUnlock();
+		}
+
+		/**
+		 * Modify the producer side of the event buffer
+		 */
+		template<typename PayloadType>
+		void ClearEvents(TFunction<void(PayloadType & EventData)> InFunction)
+		{
+			ContainerLock.ReadLock();
+			for (FEventContainerPtr EventContainer : EventContainers)
+			{
+				if (EventContainer)
+				{
+					((TEventContainer<PayloadType>*)(EventContainer))->DestroyStaleEvents(InFunction);
+				}
+			}
+			ContainerLock.ReadUnlock();
 		}
 
 		/**
