@@ -412,11 +412,12 @@ namespace Chaos
 	typedef TPBDCollisionConstraintHandle<float, 3> FPBDCollisionConstraintHandle;
 
 
-	template<int T_MAXCONSTRAINTS>
-	struct TCollisionConstraintsStore
+	struct FCollisionConstraintsArray
 	{
-		TArray<FRigidBodyPointContactConstraint, TFixedAllocator<T_MAXCONSTRAINTS>> SinglePointConstraints;
-		TArray<FRigidBodyMultiPointContactConstraint, TFixedAllocator<T_MAXCONSTRAINTS>> MultiPointConstraints;
+		static const int32 InlineMaxConstraints = 8;
+
+		TArray<FRigidBodyPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> SinglePointConstraints;
+		TArray<FRigidBodyMultiPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> MultiPointConstraints;
 
 		int32 Num() const { return SinglePointConstraints.Num() + MultiPointConstraints.Num(); }
 
@@ -426,48 +427,9 @@ namespace Chaos
 			MultiPointConstraints.Empty();
 		}
 
-		FRigidBodyPointContactConstraint* AddPointConstraint(
-			TGeometryParticleHandle<FReal, 3>* Particle0, const FImplicitObject* Implicit0, const FRigidTransform3& Transform0,
-			TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit1, const FRigidTransform3& Transform1,
-			EContactShapesType ShapesType)
-		{
-			if (SinglePointConstraints.Num() < T_MAXCONSTRAINTS)
-			{
-				int32 ConstraintIndex = SinglePointConstraints.Emplace(FRigidBodyPointContactConstraint(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, ShapesType));
-				return &SinglePointConstraints[ConstraintIndex];
-			}
-			return nullptr;
-		}
-
-		void PopPointConstraint()
-		{
-			SinglePointConstraints.Pop(false);
-		}
-
-		FRigidBodyMultiPointContactConstraint* AddMultiPointConstraint(
-			TGeometryParticleHandle<FReal, 3>* Particle0, const FImplicitObject* Implicit0, const FRigidTransform3& Transform0,
-			TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit1, const FRigidTransform3& Transform1,
-			EContactShapesType ShapesType)
-		{
-			if (MultiPointConstraints.Num() < T_MAXCONSTRAINTS)
-			{
-				int32 ConstraintIndex = MultiPointConstraints.Emplace(FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, ShapesType));
-				return &MultiPointConstraints[ConstraintIndex];
-			}
-			return nullptr;
-		}
-
-		void PopMultiPointConstraint()
-		{
-			MultiPointConstraints.Pop();
-		}
-
-
-
-		// Get rid of these
 		TRigidBodyPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyPointContactConstraint<FReal, 3>& C)
 		{
-			if ((SinglePointConstraints.Num() < T_MAXCONSTRAINTS) && (C.GetPhi() < MaxPhi))
+			if (C.GetPhi() < MaxPhi)
 			{
 				int32 ConstraintIndex = SinglePointConstraints.Add(C);
 				return &SinglePointConstraints[ConstraintIndex];
@@ -477,7 +439,7 @@ namespace Chaos
 
 		TRigidBodyMultiPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyMultiPointContactConstraint<FReal, 3>& C)
 		{
-			if ((MultiPointConstraints.Num() < T_MAXCONSTRAINTS) && (C.GetPhi() < MaxPhi))
+			if (C.GetPhi() < MaxPhi)
 			{
 				int32 ConstraintIndex = MultiPointConstraints.Add(C);
 				return &MultiPointConstraints[ConstraintIndex];
@@ -485,8 +447,6 @@ namespace Chaos
 			return nullptr;
 		}
 	};
-
-	using FCollisionConstraintsArray = TCollisionConstraintsStore<8>;
 
 
 #if PLATFORM_MAC || PLATFORM_LINUX
