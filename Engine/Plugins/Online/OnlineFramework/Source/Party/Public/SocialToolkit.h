@@ -107,6 +107,9 @@ public:
 	DECLARE_EVENT_OneParam(USocialToolkit, FOnKnownUserInitialized, USocialUser&);
 	FOnKnownUserInitialized& OnKnownUserInitialized() { return OnKnownUserInitializedEvent; }
 
+	DECLARE_EVENT_OneParam(USocialToolkit, FOnSocialUserInvalidated, const USocialUser&);
+	FOnSocialUserInvalidated& OnSocialUserInvalidated() { return OnSocialUserInvalidatedEvent; }
+
 	DECLARE_EVENT(USocialToolkit, FBasicToolkitEvent);
 	FBasicToolkitEvent& OnToolkitReset() const { return OnToolkitResetEvent; }
 
@@ -122,7 +125,7 @@ PARTY_SCOPE:
 
 	bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
-	void HandleUserInvalidated(USocialUser* InvalidUser);
+	void HandleUserInvalidated(USocialUser& InvalidUser);
 
 #if PLATFORM_PS4
 	void NotifyPSNFriendsListRebuilt();
@@ -263,5 +266,6 @@ private:
 	mutable FOnRelationshipEstablished OnRecentPlayerAddedEvent;
 	
 	mutable FOnKnownUserInitialized OnKnownUserInitializedEvent;
+	mutable FOnSocialUserInvalidated OnSocialUserInvalidatedEvent;
 	mutable FBasicToolkitEvent OnToolkitResetEvent;
 };
