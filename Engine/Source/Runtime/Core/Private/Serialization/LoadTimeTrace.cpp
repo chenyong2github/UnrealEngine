@@ -26,7 +26,7 @@ FLoadTimeProfilerTrace::FRequestGroupScope::~FRequestGroupScope()
 
 void FLoadTimeProfilerTrace::FRequestGroupScope::OutputBegin()
 {
-	uint16 FormatStringSize = (FCString::Strlen(FormatString) + 1) * sizeof(TCHAR);
+	uint16 FormatStringSize = (uint16)((FCString::Strlen(FormatString) + 1) * sizeof(TCHAR));
 	auto Attachment = [this, FormatStringSize](uint8* Out)
 	{
 		memcpy(Out, FormatString, FormatStringSize);

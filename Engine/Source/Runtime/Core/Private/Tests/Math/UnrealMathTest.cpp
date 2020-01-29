@@ -1453,34 +1453,34 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		static XYPair XYArray[] =
 		{		
 			// Test normal ranges
-			{ 0.0,	 1.0},
-			{ 1.5,	 1.0},
-			{ 2.8,	 0.3},
-			{-2.8,	 0.3},
-			{ 2.8,	-0.3},
-			{-2.8,	-0.3},
-			{-0.4,	 5.5},
-			{ 0.4,	-5.5},
-			{ 2.8,	 2.0 + KINDA_SMALL_NUMBER},
-			{-2.8,	 2.0 - KINDA_SMALL_NUMBER},
+			{ 0.0f,	 1.0f},
+			{ 1.5f,	 1.0f},
+			{ 2.8f,	 0.3f},
+			{-2.8f,	 0.3f},
+			{ 2.8f,	-0.3f},
+			{-2.8f,	-0.3f},
+			{-0.4f,	 5.5f},
+			{ 0.4f,	-5.5f},
+			{ 2.8f,	 2.0f + KINDA_SMALL_NUMBER},
+			{-2.8f,	 2.0f - KINDA_SMALL_NUMBER},
 
 			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
-			{55.8,	 9.3},
-			{1234.1234, 0.1234},
+			{55.8f,	 9.3f},
+			{1234.1234f, 0.1234f},
 
 			// Commonly used for FRotators and angles
-			{725.2,		360.0},
-			{179.9,		 90.0},
-			{ 5.3*PI,	2.*PI},
-			{-5.3*PI,	2.*PI},
+			{725.2f,		360.0f},
+			{179.9f,		 90.0f},
+			{ 5.3f*PI,	2.f*PI},
+			{-5.3f*PI,	2.f*PI},
 
 			// Test extreme ranges
-			{ 1.0,			 KINDA_SMALL_NUMBER},
-			{ 1.0,			-KINDA_SMALL_NUMBER},
+			{ 1.0f,			 KINDA_SMALL_NUMBER},
+			{ 1.0f,			-KINDA_SMALL_NUMBER},
 			{-SMALL_NUMBER,  SMALL_NUMBER},
 			{ SMALL_NUMBER, -SMALL_NUMBER},
-			{ 1.0,			 MIN_flt},
-			{ 1.0,			-MIN_flt},
+			{ 1.0f,			 MIN_flt},
+			{ 1.0f,			-MIN_flt},
 			{ MAX_flt,		 MIN_flt},
 			{ MAX_flt,		-MIN_flt},
 
@@ -1500,7 +1500,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			//UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) Ours: %f Theirs: %f"), X, Y, Ours, Theirs);
 
 			// A compiler bug causes stock fmodf() to rarely return NaN for valid input, we don't want to report this as a fatal error.
-			if (Y != 0 && FMath::IsNaN(Theirs))
+			if (Y != 0.0f && FMath::IsNaN(Theirs))
 			{
 				UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) with valid input resulted in NaN!"), X, Y);
 				continue;
