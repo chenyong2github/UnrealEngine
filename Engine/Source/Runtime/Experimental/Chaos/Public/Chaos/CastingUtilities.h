@@ -8,7 +8,7 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
-//#include "Chaos/TriangleMeshImplicitObject.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Box.h"
 
 namespace Chaos
@@ -81,10 +81,10 @@ namespace Chaos
 			{
 				return ImplicitObject->template GetObject<const TImplicitObjectScaled<TSphere<FReal, 3>>>()->GetUnscaledObject();
 			}
-			//else if (ImplicitType == TImplicitObjectScaled<FTriangleMeshImplicitObject>::StaticType())
-			//{
-			//	return ImplicitObject->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>()->GetUnscaledObject();
-			//}
+			else if (ImplicitType == TImplicitObjectScaled<FTriangleMeshImplicitObject>::StaticType())
+			{
+				return ImplicitObject->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>()->GetUnscaledObject();
+			}
 
 			else if (ImplicitType == TImplicitObjectInstanced<FConvex>::StaticType())
 			{
@@ -102,10 +102,10 @@ namespace Chaos
 			{
 				return ImplicitObject->template GetObject<const TImplicitObjectInstanced<TSphere<FReal, 3>>>()->GetInstancedObject();
 			}
-			//else if (ImplicitType == TImplicitObjectInstanced<FTriangleMeshImplicitObject>::StaticType())
-			//{
-			//	return ImplicitObject->template GetObject<const TImplicitObjectInstanced<FTriangleMeshImplicitObject>>()->GetInstancedObject();
-			//}
+			else if (ImplicitType == TImplicitObjectInstanced<FTriangleMeshImplicitObject>::StaticType())
+			{
+				return ImplicitObject->template GetObject<const TImplicitObjectInstanced<FTriangleMeshImplicitObject>>()->GetInstancedObject();
+			}
 			return nullptr;
 		}
 

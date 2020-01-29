@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Templates/ChooseClass.h"
-#include "Chaos/CastingUtilities.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/PBDGeometryCollectionParticles.h"
 #include "Chaos/ParticleHandleFwd.h"
@@ -1539,55 +1538,7 @@ protected:
 		MapImplicitShapes();
 	}
 
-	//TGeometryParticle::
-	void MapImplicitShapes()
-	{
-		ImplicitShapeMap.Reset();
-		int32 ShapeIndex = 0;
-		for (TUniquePtr<TPerShapeData<T, d>>& ShapeData : MShapesArray)
-		{
-			ImplicitShapeMap.Add(ShapeData->Geometry.Get(), ShapeIndex++);
-		}
-
-		if (MGeometry)
-		{
-			int32 CurrentShapeIndex = INDEX_NONE;
-			if (const auto* Union = MGeometry->template GetObject<FImplicitObjectUnion>())
-			{
-				for (const TUniquePtr<FImplicitObject>& ImplicitObject : Union->GetObjects())
-				{
-					if (ImplicitObject.Get())
-					{
-						if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject.Get()))
-						{
-							if (ImplicitShapeMap.Contains(ImplicitObject.Get()))
-							{
-								ImplicitShapeMap.Add(ImplicitChildObject, ImplicitShapeMap[ImplicitObject.Get()]);
-							}
-							else if (ImplicitShapeMap.Contains(ImplicitChildObject))
-							{
-								ImplicitShapeMap.Add(ImplicitObject.Get(), ImplicitShapeMap[ImplicitChildObject]);
-							}
-						}
-					}
-				}
-			}
-			else 
-			{
-				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(MGeometry.Get()))
-				{
-					if (ImplicitShapeMap.Contains(MGeometry.Get()))
-					{
-						ImplicitShapeMap.Add(ImplicitChildObject, ImplicitShapeMap[MGeometry.Get()]);
-					}
-					else if (ImplicitShapeMap.Contains(ImplicitChildObject))
-					{
-						ImplicitShapeMap.Add(MGeometry.Get(), ImplicitShapeMap[ImplicitChildObject]);
-					}
-				}
-			}
-		}
-	}
+	void MapImplicitShapes();
 };
 
 template <typename T, int d>
