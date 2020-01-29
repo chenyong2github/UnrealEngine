@@ -23,7 +23,7 @@
 
 FSolverIterations::FSolverIterations()
 	: SolverIterations(3)
-	, JointIterations(1)
+	, JointIterations(2)
 	, CollisionIterations(1)
 	, SolverPushOutIterations(1)
 	, JointPushOutIterations(1)
