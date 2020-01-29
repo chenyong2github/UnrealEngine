@@ -15,7 +15,7 @@ UPaperFlipbookThumbnailRenderer::UPaperFlipbookThumbnailRenderer(const FObjectIn
 {
 }
 
-void UPaperFlipbookThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UPaperFlipbookThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	if (UPaperFlipbook* Flipbook = Cast<UPaperFlipbook>(Object))
 	{

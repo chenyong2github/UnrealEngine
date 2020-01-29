@@ -14,7 +14,7 @@ UPaperTileSetThumbnailRenderer::UPaperTileSetThumbnailRenderer(const FObjectInit
 {
 }
 
-void UPaperTileSetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas)
+void UPaperTileSetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UPaperTileSet* TileSet = Cast<UPaperTileSet>(Object);
 	if ((TileSet != nullptr) && (TileSet->GetTileSheetTexture() != nullptr))

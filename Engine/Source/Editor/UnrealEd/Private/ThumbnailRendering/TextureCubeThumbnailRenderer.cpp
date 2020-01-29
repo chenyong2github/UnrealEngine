@@ -21,11 +21,11 @@ void UTextureCubeThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom
 	}
 }
 
-void UTextureCubeThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas)
+void UTextureCubeThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UTextureCube* CubeMap = Cast<UTextureCube>(Object);
 	if (CubeMap != nullptr)
 	{
-		Super::Draw(CubeMap, X, Y, Width, Height, nullptr,	Canvas);
+		Super::Draw(CubeMap, X, Y, Width, Height, nullptr, Canvas, bAdditionalViewFamily);
 	}
 }
