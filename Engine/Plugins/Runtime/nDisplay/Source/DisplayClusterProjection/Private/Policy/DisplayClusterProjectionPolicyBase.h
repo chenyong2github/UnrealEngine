@@ -17,14 +17,14 @@ public:
 	FDisplayClusterProjectionPolicyBase(const FString& ViewportId);
 	virtual ~FDisplayClusterProjectionPolicyBase() = 0;
 
-protected:
-	void InitializeOriginComponent(const FString& OriginCopmId);
-
 	const FString& GetViewportId() const
 	{ return PolicyViewportId; }
 
 	const USceneComponent* const GetOriginComp() const
 	{ return PolicyOriginComp; }
+
+protected:
+	void InitializeOriginComponent(const FString& OriginCopmId);
 
 private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes

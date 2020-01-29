@@ -19,7 +19,8 @@ public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 	
 	virtual USceneComponent* CreateComponents() override;
-	virtual bool CollapsedHierarchy() const override { return true; }
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return CollapsingType == FUsdSchemaTranslator::ECollapsingType::Components; }
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return false; }
 };
 
 #endif // #if USE_USD_SDK

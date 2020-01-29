@@ -5,3 +5,4 @@
 
 DEFINE_LOG_CATEGORY(LogPicpProjection);
 DEFINE_LOG_CATEGORY(LogPicpProjectionMPCDI);
+DEFINE_LOG_CATEGORY(LogPicpProjectionMesh);

@@ -11,8 +11,13 @@
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicyFactory.h"
 #include "Policy/Manual/DisplayClusterProjectionManualPolicyFactory.h"
 
+#include "Policy/Mesh/DisplayClusterProjectionMeshPolicy.h"
+
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
+
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 
 FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
@@ -27,9 +32,10 @@ FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
 	Factory = MakeShareable(new FDisplayClusterProjectionSimplePolicyFactory);
 	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::Simple, Factory);
 
-	// MPCDI projection
+	// MPCDI and Mesh projection
 	Factory = MakeShareable(new FDisplayClusterProjectionMPCDIPolicyFactory);
 	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::MPCDI, Factory);
+	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::Mesh,  Factory);
 
 	// EasyBlend projection
 	Factory = MakeShareable(new FDisplayClusterProjectionEasyBlendPolicyFactory);
@@ -91,7 +97,6 @@ void FDisplayClusterProjectionModule::ShutdownModule()
 	}
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjection
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,5 +117,31 @@ TSharedPtr<IDisplayClusterProjectionPolicyFactory> FDisplayClusterProjectionModu
 	return nullptr;
 }
 
+bool FDisplayClusterProjectionModule::AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+{
+	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(DisplayClusterStrings::projection::Mesh);
+	if (Factory.IsValid())
+	{
+		FDisplayClusterProjectionMPCDIPolicyFactory* MPCDIFactory = static_cast<FDisplayClusterProjectionMPCDIPolicyFactory*>(Factory.Get());
+		if (MPCDIFactory)
+		{
+			TSharedPtr<FDisplayClusterProjectionPolicyBase> ViewportPolicy = MPCDIFactory->GetPolicyByViewport(ViewportId);
+			if (ViewportPolicy.IsValid())
+			{
+				FDisplayClusterProjectionMeshPolicy* MeshPolicy = static_cast<FDisplayClusterProjectionMeshPolicy*>(ViewportPolicy.Get());
+				if (MeshPolicy != nullptr)
+				{
+					if (MeshPolicy->GetWarpType() == FDisplayClusterProjectionMPCDIPolicy::EWarpType::mesh)
+					{
+						return MeshPolicy->AssignWarpMesh(MeshComponent, OriginComponent);
+					}
+				}
+			}
+		}
+	}
 
-IMPLEMENT_MODULE(FDisplayClusterProjectionModule, DisplayClusterProjection)
+	UE_LOG(LogDisplayClusterProjection, Error, TEXT("Viewport '%s' with 'mesh' projection not found"), *ViewportId);
+	return false;
+}
+
+IMPLEMENT_MODULE(FDisplayClusterProjectionModule, DisplayClusterProjection);

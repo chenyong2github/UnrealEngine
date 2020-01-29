@@ -49,9 +49,9 @@ void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& DeltaSeconds)
 	ClusterSyncClient->GetDeltaTime(DeltaSeconds);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterNodeCtrlSlave::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
-	ClusterSyncClient->GetTimecode(Timecode, FrameRate);
+	ClusterSyncClient->GetFrameTime(FrameTime);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
@@ -164,6 +164,9 @@ bool FDisplayClusterClusterNodeCtrlSlave::StartClients()
 		UE_LOG(LogDisplayClusterCluster, Error, TEXT("No master node configuration data found"));
 		return false;
 	}
+
+	// Allow children to override master's address
+	OverrideMasterAddr(MasterCfg.Addr);
 
 	const FDisplayClusterConfigNetwork CfgNetwork = GDisplayCluster->GetPrivateConfigMgr()->GetConfigNetwork();
 

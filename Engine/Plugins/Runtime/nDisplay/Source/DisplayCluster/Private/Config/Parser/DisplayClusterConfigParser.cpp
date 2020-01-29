@@ -74,6 +74,11 @@ void FDisplayClusterConfigParser::AddRender(const FDisplayClusterConfigRender& I
 	ConfigParserListener->AddRender(InCfgRender);
 }
 
+void FDisplayClusterConfigParser::AddNvidia(const FDisplayClusterConfigNvidia& InCfgNvidia)
+{
+	ConfigParserListener->AddNvidia(InCfgNvidia);
+}
+
 void FDisplayClusterConfigParser::AddNetwork(const FDisplayClusterConfigNetwork& InCfgNetwork)
 {
 	ConfigParserListener->AddNetwork(InCfgNetwork);

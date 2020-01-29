@@ -2235,14 +2235,12 @@ bool UEngine::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
 
 void UEngine::UpdateTimecode()
 {
+	FApp::InvalidateCurrentFrameTime();
+
 	const UTimecodeProvider* Provider = GetTimecodeProvider();
 	if (Provider && Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
 	{
-		FApp::SetTimecodeAndFrameRate(Provider->GetDelayedTimecode(), Provider->GetFrameRate());
-	}
-	else
-	{
-		FApp::SetTimecodeAndFrameRate(FTimecode(), FFrameRate());
+		FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
 	}
 }
 
@@ -2408,13 +2406,20 @@ static void LoadTimecodeProvider(UEngine* Engine)
 			UE_LOG(LogEngine, Error, TEXT("Engine config value TimecodeProviderClassName '%s' is not a valid class name."), *Engine->TimecodeProviderClassName.ToString());
 		}
 	}
-	else
+	else if (Engine->bGenerateDefaultTimecode)
 	{
+		FName ObjectName = MakeUniqueObjectName(Engine, USystemTimeTimecodeProvider::StaticClass(), "DefaultTimecodeProvider");
+		USystemTimeTimecodeProvider* NewTimecodeProvider = NewObject<USystemTimeTimecodeProvider>(Engine, ObjectName);
+		NewTimecodeProvider->FrameRate = Engine->GenerateDefaultTimecodeFrameRate;
+		NewTimecodeProvider->FrameDelay = Engine->GenerateDefaultTimecodeFrameDelay;
+		NewTimecodeProvider->bGenerateFullFrame = false;
 #if PLATFORM_DESKTOP
-		//HACK until Dev-VP comes in!!!
-		UTimecodeProvider* NewTimecodeProvider = NewObject<USystemTimeTimecodeProvider>(Engine, TEXT("SystemTimeTimecodeProvider"));
-		Engine->SetTimecodeProvider(NewTimecodeProvider);
+		NewTimecodeProvider->bUseHighPerformanceClock = false;
+#else
+		//If a user wish to have an accurate TC value on console, he should set an accurate TC provider in his project settings.
+		NewTimecodeProvider->bUseHighPerformanceClock = true;
 #endif
+		Engine->SetTimecodeProvider(NewTimecodeProvider);
 	}
 }
 
@@ -15972,6 +15977,40 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 	Y += RowHeight;
 	}*/
 	return Y;
+}
+#endif
+
+#if WITH_EDITOR
+void UEngine::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (!HasAnyFlags(RF_ArchetypeObject|RF_ClassDefaultObject))
+	{
+		FName PropertyName = PropertyChangedEvent.GetPropertyName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UEngine, TimecodeProviderClassName)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UEngine, bGenerateDefaultTimecode)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UEngine, GenerateDefaultTimecodeFrameRate)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UEngine, GenerateDefaultTimecodeFrameDelay))
+		{
+			// Only reload the timecode provider if the current was created by the engine
+			UTimecodeProvider* CurrentTimecodeProvider = GetTimecodeProvider();
+			if (CurrentTimecodeProvider == nullptr || CurrentTimecodeProvider->GetOuter() == this)
+			{
+				LoadTimecodeProvider(this);
+			}
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UEngine, CustomTimeStepClassName))
+		{
+			// Only reload the custom time step if the current was created by the engine
+			UEngineCustomTimeStep* CurrentCustomTimeStep = GetCustomTimeStep();
+			if (CurrentCustomTimeStep == nullptr || CurrentCustomTimeStep->GetOuter() == this)
+			{
+				LoadCustomTimeStep(this);
+			}
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 

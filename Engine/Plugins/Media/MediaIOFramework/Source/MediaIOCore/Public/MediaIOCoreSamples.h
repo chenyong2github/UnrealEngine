@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
 #include "IMediaSamples.h"
+#include "IMediaTextureSample.h"
+#include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
-
-#include "MediaSampleQueue.h"
 
 class IMediaAudioSample;
 class IMediaBinarySample;
@@ -35,7 +35,9 @@ public:
 	 */
 	bool AddAudio(const TSharedRef<IMediaAudioSample, ESPMode::ThreadSafe>& Sample)
 	{
-		return AudioSampleQueue.Enqueue(Sample);
+		FScopeLock Lock(&AudioCriticalSection);
+		AudioSamples.EmplaceAt(0, Sample);
+		return true;
 	}
 
 	/**
@@ -47,7 +49,9 @@ public:
 	 */
 	bool AddCaption(const TSharedRef<IMediaOverlaySample, ESPMode::ThreadSafe>& Sample)
 	{
-		return CaptionSampleQueue.Enqueue(Sample);
+		FScopeLock Lock(&CaptionCriticalSection);
+		CaptionSamples.EmplaceAt(0, Sample);
+		return true;
 	}
 
 	/**
@@ -59,7 +63,9 @@ public:
 	 */
 	bool AddMetadata(const TSharedRef<IMediaBinarySample, ESPMode::ThreadSafe>& Sample)
 	{
-		return MetadataSampleQueue.Enqueue(Sample);
+		FScopeLock Lock(&MetadataCriticalSection);
+		MetadataSamples.EmplaceAt(0, Sample);
+		return true;
 	}
 
 	/**
@@ -71,7 +77,9 @@ public:
 	 */
 	bool AddSubtitle(const TSharedRef<IMediaOverlaySample, ESPMode::ThreadSafe>& Sample)
 	{
-		return SubtitleSampleQueue.Enqueue(Sample);
+		FScopeLock Lock(&SubtitleCriticalSection);
+		SubtitleSamples.EmplaceAt(0, Sample);
+		return true;
 	}
 
 	/**
@@ -83,7 +91,9 @@ public:
 	 */
 	bool AddVideo(const TSharedRef<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
 	{
-		return VideoSampleQueue.Enqueue(Sample);
+		FScopeLock Lock(&VideoCriticalSection);
+		VideoSamples.EmplaceAt(0, Sample);
+		return true;
 	}
 
 	/**
@@ -94,7 +104,14 @@ public:
 	 */
 	bool PopAudio()
 	{
-		return AudioSampleQueue.Pop();
+		FScopeLock Lock(&AudioCriticalSection);
+		const int32 SampleCount = AudioSamples.Num();
+		if (SampleCount > 0)
+		{
+			AudioSamples.RemoveAt(SampleCount - 1);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -105,7 +122,14 @@ public:
 	 */
 	bool PopCaption()
 	{
-		return CaptionSampleQueue.Pop();
+		FScopeLock Lock(&CaptionCriticalSection);
+		const int32 SampleCount = CaptionSamples.Num();
+		if (SampleCount > 0)
+		{
+			CaptionSamples.RemoveAt(SampleCount - 1);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -116,7 +140,14 @@ public:
 	 */
 	bool PopMetadata()
 	{
-		return MetadataSampleQueue.Pop();
+		FScopeLock Lock(&MetadataCriticalSection);
+		const int32 SampleCount = MetadataSamples.Num();
+		if (SampleCount > 0)
+		{
+			MetadataSamples.RemoveAt(SampleCount - 1);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -127,7 +158,14 @@ public:
 	 */
 	bool PopSubtitle()
 	{
-		return SubtitleSampleQueue.Pop();
+		FScopeLock Lock(&SubtitleCriticalSection);
+		const int32 SampleCount = SubtitleSamples.Num();
+		if (SampleCount > 0)
+		{
+			SubtitleSamples.RemoveAt(SampleCount - 1);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -138,7 +176,14 @@ public:
 	 */
 	bool PopVideo()
 	{
-		return VideoSampleQueue.Pop();
+		FScopeLock Lock(&VideoCriticalSection);
+		const int32 SampleCount = VideoSamples.Num();
+		if (SampleCount > 0)
+		{
+			VideoSamples.RemoveAt(SampleCount - 1);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -149,7 +194,8 @@ public:
 	 */
 	int32 NumAudioSamples() const
 	{
-		return AudioSampleQueue.Num();
+		FScopeLock Lock(&AudioCriticalSection);
+		return AudioSamples.Num();
 	}
 
 	/**
@@ -160,7 +206,8 @@ public:
 	 */
 	int32 NumCaptionSamples() const
 	{
-		return CaptionSampleQueue.Num();
+		FScopeLock Lock(&CaptionCriticalSection);
+		return CaptionSamples.Num();
 	}
 
 	/**
@@ -171,7 +218,8 @@ public:
 	 */
 	int32 NumMetadataSamples() const
 	{
-		return MetadataSampleQueue.Num();
+		FScopeLock Lock(&MetadataCriticalSection);
+		return MetadataSamples.Num();
 	}
 
 	/**
@@ -182,7 +230,8 @@ public:
 	 */
 	int32 NumSubtitleSamples() const
 	{
-		return SubtitleSampleQueue.Num();
+		FScopeLock Lock(&SubtitleCriticalSection);
+		return SubtitleSamples.Num();
 	}
 
 	/**
@@ -193,7 +242,8 @@ public:
 	 */
 	int32 NumVideoSamples() const
 	{
-		return VideoSampleQueue.Num();
+		FScopeLock Lock(&VideoCriticalSection);
+		return VideoSamples.Num();
 	}
 
 	/**
@@ -204,14 +254,19 @@ public:
 	 */
 	FTimespan GetNextVideoSampleTime()
 	{
-		FTimespan NextTime;
-		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
-		const bool bHasSucceed = VideoSampleQueue.Peek(Sample);
-		if (bHasSucceed)
+		FScopeLock Lock(&VideoCriticalSection);
+
+		const int32 SampleCount = VideoSamples.Num();
+		if (SampleCount > 0)
 		{
-			NextTime = Sample->GetTime();
+			TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample = VideoSamples[SampleCount - 1];
+			if (Sample.IsValid())
+			{
+				return Sample->GetTime();
+			}
 		}
-		return NextTime;
+
+		return FTimespan();
 	}
 
 public:
@@ -228,17 +283,22 @@ public:
 protected:
 
 	/** Audio sample queue. */
-	FMediaAudioSampleQueue AudioSampleQueue;
+	mutable FCriticalSection AudioCriticalSection;
+	TArray<TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>> AudioSamples;
 
 	/** Caption sample queue. */
-	FMediaOverlaySampleQueue CaptionSampleQueue;
+	mutable FCriticalSection CaptionCriticalSection;
+	TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>> CaptionSamples;
 
 	/** Metadata sample queue. */
-	FMediaBinarySampleQueue MetadataSampleQueue;
+	mutable FCriticalSection MetadataCriticalSection;
+	TArray<TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>> MetadataSamples;
 
 	/** Subtitle sample queue. */
-	FMediaOverlaySampleQueue SubtitleSampleQueue;
+	mutable FCriticalSection SubtitleCriticalSection;
+	TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>> SubtitleSamples;
 
 	/** Video sample queue. */
-	FMediaTextureSampleQueue VideoSampleQueue;
+	mutable FCriticalSection VideoCriticalSection;
+	TArray<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> VideoSamples;
 };

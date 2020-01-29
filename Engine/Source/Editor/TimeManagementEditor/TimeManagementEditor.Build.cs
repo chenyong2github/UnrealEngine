@@ -18,7 +18,9 @@ public class TimeManagementEditor : ModuleRules
 				"CoreUObject",
 				"EditorStyle",
 				"Engine",
+				"InputCore",
 				"TimeManagement",
+				"UnrealEd",
 				"WorkspaceMenuStructure",
 			}
 		);

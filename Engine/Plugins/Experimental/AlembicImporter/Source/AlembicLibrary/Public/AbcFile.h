@@ -45,7 +45,7 @@ enum class EFrameReadFlags : uint8
 
 ENUM_CLASS_FLAGS(EFrameReadFlags);
 
-class FAbcFile
+class ALEMBICLIBRARY_API FAbcFile
 {
 public:
 	FAbcFile(const FString& InFilePath);
@@ -85,10 +85,15 @@ public:
 	IMeshUtilities* GetMeshUtilities() const;
 	/** Returns a material for the specified material(faceset) name or null if it wasn't created or found */
 	UMaterialInterface** GetMaterialByName(const FString& InMaterialName);		
+	/** Returns frame index equivalent to a given time, based on the frame rate of the file */
+	int32 GetFrameIndex(float Time);
+	/** Reads the frame data for the given FrameIndex, with the ReadIndex used to specify the current read when doing concurrent reads (up to 8 at the same time) */
+	void ReadFrame(int32 FrameIndex, const EFrameReadFlags InFlags, const int32 ReadIndex = INDEX_NONE);
+	/** Cleans up frame data. Must be called after ReadFrame when the frame data (with matching ReadIndex) is not needed anymore */
+	void CleanupFrameData(const int32 ReadIndex);
+
 protected:
 	void TraverseAbcHierarchy(const Alembic::Abc::IObject& InObject, IAbcObject* InParent);
-	void ReadFrame(int32 FrameIndex, const EFrameReadFlags InFlags, const int32 ReadIndex = INDEX_NONE);
-	void CleanupFrameData(const int32 ReadIndex);
 protected:
 	/** File path for the ABC file */
 	const FString FilePath;

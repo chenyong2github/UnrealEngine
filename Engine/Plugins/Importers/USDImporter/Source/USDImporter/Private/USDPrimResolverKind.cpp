@@ -30,8 +30,6 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 	// Parent/child hierarchy will be ignored unless the kind is a group.  Keep track of the current parent and use it 
 	TUsdStore< pxr::UsdPrim > GroupParent = ParentPrim;
 
-	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("Prim Kind: %hs\n"), IUsdPrim::GetKind( Prim.Get() ).GetString().c_str() );
-
 	if (IUsdPrim::IsKindChildOf( *Prim, USDKindTypes::Component ))
 	{
 		bool bHasUnrealAssetPath = IUsdPrim::GetUnrealAssetPath( *Prim ).size() > 0;

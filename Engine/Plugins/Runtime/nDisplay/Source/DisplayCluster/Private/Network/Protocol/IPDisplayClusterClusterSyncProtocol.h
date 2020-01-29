@@ -4,9 +4,8 @@
 
 #include "Network/DisplayClusterMessage.h"
 #include "DisplayClusterEnums.h"
-
-struct FTimecode;
-struct FFrameRate;
+#include "Misc/Optional.h"
+#include "Misc/QualifiedFrameTime.h"
 
 
 /**
@@ -31,7 +30,7 @@ public:
 	virtual void GetDeltaTime(float& DeltaSeconds) = 0;
 
 	// Get the Timecode value for the current frame.
-	virtual void GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate) = 0;
+	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) = 0;
 
 	// Sync objects
 	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;

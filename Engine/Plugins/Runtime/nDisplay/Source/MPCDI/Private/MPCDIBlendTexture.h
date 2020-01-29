@@ -10,32 +10,26 @@ namespace mpcdi
 	struct DataMap;
 };
 
-namespace MPCDI
+
+class FMPCDIBlendTexture
+	: public FMPCDITexture
 {
+public:
+	FMPCDIBlendTexture()
+		: FMPCDITexture()
+		, EmbeddedGamma(1.0)
+	{ }
 
-	class FMPCDIBlendTexture
-		: public FMPCDITexture
-	{
-	public:
-		FMPCDIBlendTexture()
-			: FMPCDITexture()
-			, EmbeddedGamma(1.0)
-		{ 
-		}
+public:
+	void LoadBlendMap(mpcdi::DataMap* SourceDataMap, float InEmbeddedGamma);
+	void CreateDummyAlphaMap();
 
-	public:
-		void LoadBlendMap(mpcdi::DataMap* SourceDataMap, float InEmbeddedGamma);
-		void CreateDummyAlphaMap();
+	inline float GetEmbeddedGamma() const
+	{ return EmbeddedGamma; }
 
-		inline float GetEmbeddedGamma() const
-		{ 
-			return EmbeddedGamma; 
-		};
+private:
+	void LoadCustomMap(EPixelFormat PixelFormat, int Width, int Height, int BufferSize, void *TextureData);
 
-	private:
-		void LoadCustomMap(EPixelFormat PixelFormat, int Width, int Height, int BufferSize, void *TextureData);
-
-	private:
-		float EmbeddedGamma;
-	};
+private:
+	float EmbeddedGamma;
 };

@@ -61,6 +61,18 @@ struct FTimecode
 		*this = FromFrameNumber(FFrameNumber(NumberOfFrames), InFrameRate, InbDropFrame);
 	}
 
+	/**
+	 * User construction from a time in seconds
+	 * @param InbRollover	- If true, the hours will be the modulo of 24.
+	 * @note Be aware that the Cycles may not correspond to the System Time. See FDateTime and "leap seconds".
+	 */
+	explicit FTimecode(double InSeconds, const FFrameRate& InFrameRate, bool InbRollover)
+		: FTimecode(InSeconds, InFrameRate, UseDropFormatTimecode(InFrameRate), InbRollover)
+	{
+	}
+
+	
+
 	friend bool operator==(const FFrameRate& A, const FFrameRate& B);
 	friend bool operator!=(const FFrameRate& A, const FFrameRate& B);
 
@@ -74,6 +86,11 @@ public:
 		const int32 NumberOfFramesInSecond = FMath::CeilToInt(InFrameRate.AsDecimal());
 		const int32 NumberOfFramesInMinute = NumberOfFramesInSecond * 60;
 		const int32 NumberOfFramesInHour = NumberOfFramesInMinute * 60;
+
+		if (NumberOfFramesInSecond <= 0)
+		{
+			return FFrameNumber();
+		}
 
 		// Do a quick pre-pass to take any overflow values and move them into bigger time units.
 		int32 SafeSeconds = Seconds + Frames / NumberOfFramesInSecond;
@@ -122,6 +139,11 @@ public:
 		const int32 NumberOfFramesInSecond = FMath::CeilToInt(InFrameRate.AsDecimal());
 		const int32 NumberOfFramesInMinute = NumberOfFramesInSecond * 60;
 		const int32 NumberOfFramesInHour = NumberOfFramesInMinute * 60;
+
+		if (NumberOfFramesInSecond <= 0)
+		{
+			return FTimecode();
+		}
 
 		if (InbDropFrame)
 		{
@@ -191,6 +213,18 @@ public:
 	}
 
 	/**
+	 * Create a FTimecode from a specific frame number at the given frame rate.
+	 *
+	 * @param InFrameNumber - The frame number to convert into a timecode. This should already be converted to InFrameRate's resolution.
+	 * @param InFrameRate	- The framerate that this timecode is based in. This should be the playback framerate as it is used to determine
+	 *						  when the Frame value wraps over.
+	 */
+	static FTimecode FromFrameNumber(const FFrameNumber& InFrameNumber, const FFrameRate& InFrameRate)
+	{
+		return FromFrameNumber(InFrameNumber, InFrameRate, UseDropFormatTimecode(InFrameRate));
+	}
+
+	/**
 	 * Converts this Timecode back into a timespan at the given framerate, taking into account if this is a drop-frame format timecode.
 	 */
 	FTimespan ToTimespan(const FFrameRate& InFrameRate) const
@@ -219,6 +253,20 @@ public:
 		return FTimecode(InTimespan.GetTotalSeconds(), InFrameRate, InbDropFrame, InbRollover);
 	}
 
+	/**
+	 * Create a FTimecode from a timespan at the given frame rate.
+	 *
+	 * @param InFrameNumber	- The timespan to convert into a timecode.
+	 * @param InFrameRate	- The framerate that this timecode is based in. This should be the playback framerate as it is used to determine
+	 *						  when the Frame value wraps over.
+	 * @param InbRollover	- If true, the hours will be the modulo of 24.
+	 */
+	static FTimecode FromTimespan(const FTimespan& InTimespan, const FFrameRate& InFrameRate, bool InbRollover)
+	{
+		return FTimecode(InTimespan.GetTotalSeconds(), InFrameRate, UseDropFormatTimecode(InFrameRate), InbRollover);
+	}
+
+	/** Drop frame is only support for frame rate of 29.97 or 59.94. */
 	static bool IsDropFormatTimecodeSupported(const FFrameRate& InFrameRate)
 	{
 		// Drop Format Timecode is only valid for 29.97 and 59.94.
@@ -227,6 +275,15 @@ public:
 
 		return InFrameRate == TwentyNineNineSeven || InFrameRate == FiftyNineNineFour;
 	}
+
+	/** If the frame rate support drop frame format and the app wish to use drop frame format by default. */
+	static bool UseDropFormatTimecode(const FFrameRate& InFrameRate)
+	{
+		return IsDropFormatTimecodeSupported(InFrameRate) && UseDropFormatTimecodeByDefaultWhenSupported();
+	}
+
+	/** By default, should we generate a timecode in drop frame format when the frame rate does support it. */
+	static CORE_API bool UseDropFormatTimecodeByDefaultWhenSupported();
 
 	/**
 	 * Get the Qualified Timecode formatted in HH:MM:SS:FF or HH;MM;SS;FF depending on if this represents drop-frame timecode or not.
@@ -237,23 +294,25 @@ public:
 	{
 		bool bHasNegativeComponent = Hours < 0 || Minutes < 0 || Seconds < 0 || Frames < 0;
 
-		FString SignText;
+		const TCHAR* NegativeSign = TEXT("- ");
+		const TCHAR* PositiveSign = TEXT("+ ");
+		const TCHAR* SignText = TEXT("");
 		if (bHasNegativeComponent)
 		{
-			SignText = "- ";
+			SignText = NegativeSign;
 		}
 		else if (bForceSignDisplay)
 		{
-			SignText = "+ ";
+			SignText = PositiveSign;
 		}
 
 		if (bDropFrameFormat)
 		{
-			return FString::Printf(TEXT("%s%02d;%02d;%02d;%02d"), *SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
+			return FString::Printf(TEXT("%s%02d;%02d;%02d;%02d"), SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
 		}
 		else
 		{
-			return FString::Printf(TEXT("%s%02d:%02d:%02d:%02d"), *SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
+			return FString::Printf(TEXT("%s%02d:%02d:%02d:%02d"), SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
 		}
 	}
 

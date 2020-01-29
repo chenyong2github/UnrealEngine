@@ -41,6 +41,11 @@ public:
 	void SynchronizePersistedFiles(const TMap<FString, int64>& PersistedFiles);
 
 	/**
+	 * Discard dirty packages changes by queuing them for hot reload
+	 */
+	void QueueDirtyPackagesForReload();
+
+	/**
 	 * Synchronize any pending updates to in-memory packages (hot-reloads or purges) to keep them up-to-date with the on-disk state.
 	 */
 	void SynchronizeInMemoryPackages();

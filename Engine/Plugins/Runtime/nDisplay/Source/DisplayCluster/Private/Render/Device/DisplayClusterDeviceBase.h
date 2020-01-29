@@ -39,6 +39,7 @@ public:
 	virtual bool Initialize() override;
 	virtual void StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
+	virtual void PreTick(float DeltaSeconds) override;
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
@@ -159,6 +160,7 @@ protected:
 	FViewport* MainViewport = nullptr;
 
 	bool bIsSceneOpen = false;
+	bool bIsCustomPresentSet = false;
 
 	// Per-eye regions
 	FIntRect EyeRegions[2];

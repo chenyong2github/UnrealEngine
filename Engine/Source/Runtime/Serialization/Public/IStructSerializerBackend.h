@@ -28,6 +28,12 @@ enum class EStructSerializerBackendFlags
 	WriteByteArrayAsByteStream = 1<<1,
 
 	/**
+	 * Force the CBOR backend to write CBOR data in big endian (CBOR compliant endianness), available from 4.25. Caller must be opt-in.
+	 * By default, the CBOR backend uses the endianness of the platform.
+	 */
+	WriteCborStandardEndianness = 1 << 2,
+
+	/**
 	 * Legacy settings for backwards compatibility with code compiled prior to 4.22.
 	 */
 	Legacy = None,

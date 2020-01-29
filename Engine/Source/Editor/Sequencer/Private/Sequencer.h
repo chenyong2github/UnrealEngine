@@ -108,7 +108,7 @@ public:
 
 	/** @return The current clamp range */
 	FAnimatedRange GetClampRange() const;
-	void SetClampRange(TRange<double> InNewClampRange);
+	virtual void SetClampRange(TRange<double> InNewClampRange) override;
 
 public:
 

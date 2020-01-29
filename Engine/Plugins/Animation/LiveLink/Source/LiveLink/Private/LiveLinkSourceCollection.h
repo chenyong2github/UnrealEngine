@@ -8,6 +8,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSubject.h"
 #include "LiveLinkSubjectSettings.h"
+#include "LiveLinkTimedDataInput.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
 #include "Templates/SubclassOf.h"
@@ -23,9 +24,15 @@ class ULiveLinkVirtualSubject;
 
 struct FLiveLinkCollectionSourceItem
 {
+	FLiveLinkCollectionSourceItem() = default;
+	FLiveLinkCollectionSourceItem(const FLiveLinkCollectionSourceItem&) = delete;
+	FLiveLinkCollectionSourceItem(FLiveLinkCollectionSourceItem&&) = default;
+	FLiveLinkCollectionSourceItem& operator=(const FLiveLinkCollectionSourceItem&) = delete;
+
 	FGuid Guid;
 	ULiveLinkSourceSettings* Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 	TSharedPtr<ILiveLinkSource> Source;
+	TSharedPtr<FLiveLinkTimedDataInput> TimedData;
 	bool bPendingKill = false;
 	bool bIsVirtualSource = false;
 

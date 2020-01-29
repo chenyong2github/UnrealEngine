@@ -4,6 +4,7 @@
 
 #if USE_USD_SDK
 
+#include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDTypesConversion.h"
@@ -19,9 +20,11 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/SecureHash.h"
+#include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "UObject/SoftObjectPath.h"
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usd/prim.h"
@@ -51,15 +54,12 @@ namespace UsdGeomMeshTranslatorImpl
 			{
 				const pxr::UsdAttribute& Attribute = GeomMesh.GetPrim().GetAttribute( AttributeName );
 
-				//bHasAttributesTimeSamples = Attribute.ValueMightBeTimeVarying();
-
 				double DesiredTime = TimeCode.GetValue();
 				double MinTime = 0.0;
 				double MaxTime = 0.0;
 				bool bHasTimeSamples = false;
 
-				Attribute.GetBracketingTimeSamples( DesiredTime, &MinTime, &MaxTime, &bHasTimeSamples );
-				if ( bHasTimeSamples && DesiredTime >= MinTime && DesiredTime <= MaxTime )
+				if ( bHasTimeSamples && DesiredTime >= MinTime && DesiredTime <= MaxTime && Attribute.ValueMightBeTimeVarying())
 				{
 					bHasAttributesTimeSamples = true;
 					break;
@@ -70,66 +70,148 @@ namespace UsdGeomMeshTranslatorImpl
 		return bHasAttributesTimeSamples;
 	}
 
-	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, bool bHasPrimDisplayColor, float Time )
+	/** Returns true if material infos have changed on the StaticMesh */
+	bool ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, float Time )
 	{
 		const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 );
 
 		if ( !MeshDescription )
 		{
-			return;
+			return false ;
 		}
 
+		bool bMaterialAssignementsHaveChanged = false;
+
 		FStaticMeshConstAttributes StaticMeshAttributes( *MeshDescription );
+
+		auto FetchUEMaterialsAttribute = []( const pxr::UsdPrim& UsdPrim, float Time ) -> TArray< FString >
+		{
+			if ( !UsdPrim )
+			{
+				return {};
+			}
+
+			TArray< FString > UEMaterialsAttribute;
+
+			FScopedUsdAllocs UsdAllocs;
+
+			if ( pxr::UsdAttribute MaterialsAttribute = UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ) )
+			{
+				pxr::VtStringArray UEMaterials;
+				MaterialsAttribute.Get( &UEMaterials, pxr::UsdTimeCode( Time ) );
+
+				for ( const std::string& UEMaterial : UEMaterials )
+				{
+					UEMaterialsAttribute.Emplace( ANSI_TO_TCHAR( UEMaterial.c_str() ) );
+				}
+			}
+
+			return UEMaterialsAttribute;
+		};
+
+		TArray< FString > MainPrimUEMaterialsAttribute = FetchUEMaterialsAttribute( UsdPrim, Time );
+
+		TPolygonGroupAttributesConstRef< FName > PolygonGroupUsdPrimPaths = MeshDescription->PolygonGroupAttributes().GetAttributesRef< FName >( "UsdPrimPath" );
+
+		int32 PolygonGroupPrimMaterialIndex = 0;
 
 		for ( const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs() )
 		{
 			const FName& ImportedMaterialSlotName = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ PolygonGroupID ];
 			const FName MaterialSlotName = ImportedMaterialSlotName;
 
-			int32 MaterialIndex = INDEX_NONE;
-			int32 MeshMaterialIndex = 0;
+			const int32 MaterialIndex = PolygonGroupID.GetValue();
 
-			for ( FStaticMaterial& StaticMaterial : StaticMesh.StaticMaterials )
+			TUsdStore< pxr::UsdPrim > PolygonGroupPrim = UsdPrim;
+
+			if ( PolygonGroupUsdPrimPaths.IsValid() )
 			{
-				if ( StaticMaterial.MaterialSlotName.IsEqual( ImportedMaterialSlotName ) )
+				const FName& UsdPrimPath = PolygonGroupUsdPrimPaths[ PolygonGroupID ];
+
+				TUsdStore< pxr::SdfPath > PrimPath = UnrealToUsd::ConvertPath( *UsdPrimPath.ToString() );
+
+				if ( PolygonGroupPrim.Get() && PolygonGroupPrim.Get().GetPrimPath() != PrimPath.Get() )
 				{
-					MaterialIndex = MeshMaterialIndex;
-					break;
+					PolygonGroupPrim = UsdPrim.GetStage()->GetPrimAtPath( PrimPath.Get() );
+					PolygonGroupPrimMaterialIndex = 0; // We've moved to a new sub prim
 				}
-
-				++MeshMaterialIndex;
-			}
-
-			if ( MaterialIndex == INDEX_NONE )
-			{
-				MaterialIndex = PolygonGroupID.GetValue();
+				else
+				{
+					++PolygonGroupPrimMaterialIndex; // This polygon group is part of the same sub prim
+				}
 			}
 
 			UMaterialInterface* Material = nullptr;
-			TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
 
-			if ( MaterialPrim.Get() )
+			if ( MainPrimUEMaterialsAttribute.IsValidIndex( MaterialIndex ))
 			{
-				Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+				Material = Cast< UMaterialInterface >( FSoftObjectPath( MainPrimUEMaterialsAttribute[ MaterialIndex ] ).TryLoad() );
+			}
+			else
+			{
+				TArray< FString > PolygonGroupPrimUEMaterialsAttribute = FetchUEMaterialsAttribute( PolygonGroupPrim.Get(), Time );
+
+				if ( PolygonGroupPrimUEMaterialsAttribute.IsValidIndex( PolygonGroupPrimMaterialIndex ) )
+				{
+					Material = Cast< UMaterialInterface >( FSoftObjectPath( PolygonGroupPrimUEMaterialsAttribute[ PolygonGroupPrimMaterialIndex ] ).TryLoad() );
+				}
+				else
+				{
+					TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
+
+					if ( MaterialPrim.Get() )
+					{
+						Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+					}
+				}
 			}
 
-			if ( Material == nullptr && bHasPrimDisplayColor )
+			if ( Material == nullptr )
 			{
 				UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >();
-				if ( UsdToUnreal::ConvertDisplayColor( pxr::UsdGeomMesh( UsdPrim ), *MaterialInstance, pxr::UsdTimeCode( Time ) ) )
+				if ( UsdToUnreal::ConvertDisplayColor( pxr::UsdGeomMesh( PolygonGroupPrim.Get() ), *MaterialInstance, pxr::UsdTimeCode( Time ) ) )
 				{
 					Material = MaterialInstance;
 				}
 			}
+			
+			FStaticMaterial StaticMaterial( Material, MaterialSlotName );
 
-			FStaticMaterial StaticMaterial( Material, MaterialSlotName, ImportedMaterialSlotName );
-				StaticMesh.StaticMaterials.Add( StaticMaterial );
+			if ( !StaticMesh.StaticMaterials.IsValidIndex( MaterialIndex ) )
+			{
+				StaticMesh.StaticMaterials.Add( MoveTemp( StaticMaterial ) );
+				bMaterialAssignementsHaveChanged = true;
+			}
+			else if ( !( StaticMesh.StaticMaterials[ MaterialIndex ] == StaticMaterial ) )
+			{
+				StaticMesh.StaticMaterials[ MaterialIndex ] = MoveTemp( StaticMaterial );
+				bMaterialAssignementsHaveChanged = true;
+			}
 
-			FMeshSectionInfo MeshSectionInfo;
-			MeshSectionInfo.MaterialIndex = MaterialIndex;
+			if ( StaticMesh.GetSectionInfoMap().IsValidSection( 0, PolygonGroupID.GetValue() ) )
+			{
+				FMeshSectionInfo MeshSectionInfo = StaticMesh.GetSectionInfoMap().Get( 0, PolygonGroupID.GetValue() );
 
-			StaticMesh.GetSectionInfoMap().Set( 0, PolygonGroupID.GetValue(), MeshSectionInfo );
+				if ( MeshSectionInfo.MaterialIndex != MaterialIndex )
+				{
+					MeshSectionInfo.MaterialIndex = MaterialIndex;
+					StaticMesh.GetSectionInfoMap().Set( 0, PolygonGroupID.GetValue(), MeshSectionInfo );
+
+					bMaterialAssignementsHaveChanged = true;
+				}
+			}
+			else
+			{
+				FMeshSectionInfo MeshSectionInfo;
+				MeshSectionInfo.MaterialIndex = MaterialIndex;
+
+				StaticMesh.GetSectionInfoMap().Set( 0, PolygonGroupID.GetValue(), MeshSectionInfo );
+
+				bMaterialAssignementsHaveChanged = true;
+			}
 		}
+
+		return bMaterialAssignementsHaveChanged;
 	}
 
 	FMeshDescription LoadMeshDescription( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
@@ -148,7 +230,7 @@ namespace UsdGeomMeshTranslatorImpl
 		return MeshDescription;
 	}
 
-	UStaticMesh* CreateStaticMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription&& MeshDescription, FUsdSchemaTranslationContext& Context, bool& bOutIsNew )
+	UStaticMesh* CreateStaticMesh( FMeshDescription&& MeshDescription, FUsdSchemaTranslationContext& Context, bool& bOutIsNew )
 	{
 		UStaticMesh* StaticMesh = nullptr;
 
@@ -184,35 +266,34 @@ namespace UsdGeomMeshTranslatorImpl
 		return StaticMesh;
 	}
 
-	void PreBuildStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, float Time )
+	void PreBuildStaticMesh( const pxr::UsdPrim& RootPrim, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, float Time )
 	{
-		const bool bHasPrimDisplayColor = UsdMesh.GetDisplayColorPrimvar().IsDefined();
-		ProcessMaterials( UsdMesh.GetPrim(), StaticMesh, PrimPathsToAssets, bHasPrimDisplayColor, Time );
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PreBuildStaticMesh );
+
+		if ( StaticMesh.RenderData )
+		{
+			StaticMesh.ReleaseResources();
+			StaticMesh.ReleaseResourcesFence.Wait();
+		}
 
 		StaticMesh.RenderData = MakeUnique< FStaticMeshRenderData >();
-		//StaticMesh.BodySetup = NewObject< UBodySetup >( &StaticMesh );
+		StaticMesh.CreateBodySetup();
 	}
 
-	bool BuildStaticMesh( UStaticMesh& StaticMesh, IMeshBuilderModule& MeshBuilderModule )
+	bool BuildStaticMesh( UStaticMesh& StaticMesh )
 	{
-		//StaticMesh.BodySetup->DefaultInstance.SetCollisionProfileName( UCollisionProfile::BlockAll_ProfileName );
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::BuildStaticMesh );
 
 		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
 		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
 		check(RunningPlatform);
 
 		const FStaticMeshLODSettings& LODSettings = RunningPlatform->GetStaticMeshLODSettings();
+		StaticMesh.RenderData->Cache( &StaticMesh, LODSettings );
 
-		const FStaticMeshLODGroup& LODGroup = LODSettings.GetLODGroup(StaticMesh.LODGroup);
-
-		if ( !MeshBuilderModule.BuildMesh( *StaticMesh.RenderData, &StaticMesh, LODGroup ) )
+		if ( StaticMesh.BodySetup )
 		{
-			return false;
-		}
-
-		for ( FStaticMeshLODResources& LODResources : StaticMesh.RenderData->LODResources )
-		{
-			LODResources.bHasColorVertexData = true;
+			StaticMesh.BodySetup->CreatePhysicsMeshes();
 		}
 
 		return true;
@@ -220,54 +301,61 @@ namespace UsdGeomMeshTranslatorImpl
 
 	void PostBuildStaticMesh( UStaticMesh& StaticMesh )
 	{
-		//StaticMesh.CreateBodySetup();
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PostBuildStaticMesh );
 		StaticMesh.InitResources();
 
 		if ( const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 ) )
 		{
 			StaticMesh.RenderData->Bounds = MeshDescription->GetBounds();
 		}
-	
+
 		StaticMesh.CalculateExtendedBounds();
 	}
 }
 
-void FGeomMeshCreateAssetsTaskChain::SetupTasks()
+FBuildStaticMeshTaskChain::FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema, FMeshDescription&& InMeshDescription )
+	: Schema( InSchema )
+	, Context( InContext )
+	, MeshDescription( MoveTemp( InMeshDescription ) )
 {
-	FScopedUnrealAllocs UnrealAllocs;
+	SetupTasks();
+}
 
-	// Create mesh description (Async)
-	constexpr bool bIsAsyncTask = true;
-	Do( bIsAsyncTask, 
-		[ this ]() -> bool
-		{
-			MeshDescription = UsdGeomMeshTranslatorImpl::LoadMeshDescription( GeomMesh.Get(), pxr::UsdTimeCode( Context->Time ) );
-
-			return !MeshDescription.IsEmpty();
-		} );
-		
-	if ( !UsdGeomMeshTranslatorImpl::IsGeometryAnimated( GeomMesh.Get(), pxr::UsdTimeCode( Context->Time ) ) )
+void FBuildStaticMeshTaskChain::SetupTasks()
+{
+	// Ignore meshes from disabled purposes
+	if ( !EnumHasAllFlags( Context->PurposesToLoad, IUsdPrim::GetPurpose( Schema.Get().GetPrim() ) ) )
 	{
-		IMeshBuilderModule* MeshBuilderModule = &FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
+		return;
+	}
+
+	//if ( !UsdGeomMeshTranslatorImpl::IsGeometryAnimated( GeomMesh.Get(), pxr::UsdTimeCode( Context->Time ) ) ) // TODO: This test is now invalid since we can have multiple meshes collapsed into one
+	{
+		constexpr bool bIsAsyncTask = true;
 
 		// Create static mesh (Main thread)
-		Then( !bIsAsyncTask,
+		Do( !bIsAsyncTask,
 			[ this ]()
 			{
+				// Force load MeshBuilderModule so that it's ready for the async tasks
+				FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
+
 				bool bIsNew = true;
-				StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( GeomMesh.Get(), MoveTemp( MeshDescription ), *Context, bIsNew );
+				StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( MoveTemp( MeshDescription ), *Context, bIsNew );
 
 				FScopeLock Lock( &Context->CriticalSection );
 				{
-					Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( GeomMesh.Get().GetPrim().GetPrimPath() ), StaticMesh );
+					Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPrim().GetPrimPath() ), StaticMesh );
 				}
 
-				if ( !bIsNew )
+				bool bMaterialsHaveChanged = false;
+				if ( StaticMesh )
 				{
-					StaticMesh = nullptr;
+					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessMaterials( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
 				}
 
-				return bIsNew;
+				const bool bContinueTaskChain = ( bIsNew || bMaterialsHaveChanged );
+				return bContinueTaskChain;
 			} );
 
 		// Commit mesh description (Async)
@@ -287,16 +375,16 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 		Then( !bIsAsyncTask,
 			[ this ]()
 			{
-				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( GeomMesh.Get(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
+				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
 
 				return true;
 			} );
 
 		// Build static mesh (Async)
 		Then( bIsAsyncTask,
-			[ this, MeshBuilderModule ]() mutable
+			[ this ]() mutable
 			{
-				if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, *MeshBuilderModule ) )
+				if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh ) )
 				{
 					// Build failed, discard the mesh
 					StaticMesh = nullptr;
@@ -318,8 +406,27 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 	}
 }
 
+void FGeomMeshCreateAssetsTaskChain::SetupTasks()
+{
+	FScopedUnrealAllocs UnrealAllocs;
+
+	// Create mesh description (Async)
+	constexpr bool bIsAsyncTask = true;
+	Do( bIsAsyncTask, 
+		[ this ]() -> bool
+		{
+			MeshDescription = UsdGeomMeshTranslatorImpl::LoadMeshDescription( pxr::UsdGeomMesh( Schema.Get() ), pxr::UsdTimeCode( Context->Time ) );
+
+			return !MeshDescription.IsEmpty();
+		} );
+
+	FBuildStaticMeshTaskChain::SetupTasks();
+}
+
 void FUsdGeomMeshTranslator::CreateAssets()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
+
 	TSharedRef< FGeomMeshCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeomMeshCreateAssetsTaskChain >( Context, pxr::UsdGeomMesh( Schema.Get() ) );
 
 	Context->TranslatorTasks.Add( MoveTemp( AssetsTaskChain ) );
@@ -327,6 +434,8 @@ void FUsdGeomMeshTranslator::CreateAssets()
 
 USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateComponents );
+
 	USceneComponent* RootComponent = FUsdGeomXformableTranslator::CreateComponents();
 
 	if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( RootComponent ) )

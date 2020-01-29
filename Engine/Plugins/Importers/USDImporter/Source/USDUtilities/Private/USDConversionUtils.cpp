@@ -115,29 +115,40 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 
 TArray< TUsdStore< pxr::UsdPrim > > UsdUtils::GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes )
 {
-    TArray< TUsdStore< pxr::UsdPrim > > Result;
+    return GetAllPrimsOfType( StartPrim, SchemaType, []( const pxr::UsdPrim& ) { return false; }, ExcludeSchemaTypes );
+}
+
+TArray< TUsdStore< pxr::UsdPrim > > UsdUtils::GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, TFunction< bool( const pxr::UsdPrim& ) > PruneChildren, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes )
+{
+	TArray< TUsdStore< pxr::UsdPrim > > Result;
 
 	pxr::UsdPrimRange PrimRange( StartPrim, pxr::UsdTraverseInstanceProxies() );
 
 	for ( pxr::UsdPrimRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
 	{
-		if ( PrimRangeIt->IsA( SchemaType ) )
+		bool bIsExcluded = false;
+
+		for ( const TUsdStore< pxr::TfType >& SchemaToExclude : ExcludeSchemaTypes )
+		{
+			if ( PrimRangeIt->IsA( SchemaToExclude.Get() ) )
+			{
+				bIsExcluded = true;
+				break;
+			}
+		}
+
+		if ( !bIsExcluded && PrimRangeIt->IsA( SchemaType ) )
 		{
 			Result.Add( *PrimRangeIt );
 		}
-		else
+
+		if ( bIsExcluded || PruneChildren( *PrimRangeIt ) )
 		{
-			for ( const TUsdStore< pxr::TfType >& SchemaToExclude : ExcludeSchemaTypes )
-			{
-				if ( PrimRangeIt->IsA( SchemaToExclude.Get() ) )
-				{
-					PrimRangeIt.PruneChildren();
-				}
-			}
+			PrimRangeIt.PruneChildren();
 		}
 	}
 
-    return Result;
+	return Result;
 }
 
 #endif // #if USE_USD_SDK

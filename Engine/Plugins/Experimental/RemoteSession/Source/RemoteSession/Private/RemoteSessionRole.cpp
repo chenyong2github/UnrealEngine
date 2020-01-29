@@ -277,7 +277,8 @@ TSharedPtr<IRemoteSessionChannel> FRemoteSessionRole::GetChannel(const TCHAR* In
 	TSharedPtr<IRemoteSessionChannel> Channel;
 
 	TSharedPtr<IRemoteSessionChannel>* FoundChannel = Channels.FindByPredicate([InType](const auto& Item) {
-		return Item->GetType() == InType;
+		const TCHAR* ItemType = Item->GetType();
+		return FCString::Stricmp(ItemType, InType) == 0;
 	});
 
 	if (FoundChannel)

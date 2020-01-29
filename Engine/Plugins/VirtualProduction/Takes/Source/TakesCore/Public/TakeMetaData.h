@@ -126,7 +126,7 @@ public:
 	 * @return The frame-rate for this take
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take")
-	FFrameRate GetFrameRate() const;
+	FFrameRate GetFrameRate();
 
 	/**
 	 * @return The user-provided description for this take
@@ -151,7 +151,13 @@ public:
 	 */ 
 	UFUNCTION(BlueprintCallable, Category="Take")
 	ULevel* GetLevelOrigin() const;
-	
+
+	/**
+	*  @return Get if we get frame rate from time code
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	bool GetFrameRateFromTimecode() const;
+
 public:
 
 	/**
@@ -243,6 +249,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Take")
 	void SetLevelOrigin(ULevel* InLevelOrigin);
 
+	/**
+	*  Set if we get frame rate from time code
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Take")
+	void SetFrameRateFromTimecode(bool InFromTimecode);
+
 private:
 
 	/** Whether the take is locked */
@@ -274,7 +286,7 @@ private:
 	FFrameTime Duration;
 
 	/** The frame rate the take was recorded at */
-	UPROPERTY(config)
+	UPROPERTY()
 	FFrameRate FrameRate;
 
 	/** A user-provided description for the take */
@@ -288,4 +300,8 @@ private:
 	/** The level map used to create this recording */
 	UPROPERTY()
 	TSoftObjectPtr<ULevel> LevelOrigin;
+
+	/** Whether or not we get or frame rate from Timecode, default to true */
+	UPROPERTY()
+	bool bFrameRateFromTimecode;
 };

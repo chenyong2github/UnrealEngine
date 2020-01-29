@@ -81,6 +81,9 @@ private:
 	Time which is used by Live Link. Still used if no TimeCode present.*/
 	double SecondsDiff; 
 
+	/** The frame at the start of this recording section */
+	FFrameNumber RecordStartFrame;
+
 	/** Guid when registered to get LiveLinkData */
 	FGuid HandlerGuid;
 

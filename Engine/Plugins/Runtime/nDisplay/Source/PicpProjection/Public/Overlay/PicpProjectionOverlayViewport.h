@@ -9,27 +9,24 @@
 class FPicpProjectionOverlayViewport
 {
 public:
-	FRHITexture2D* ViewportTexture; // Texture to render
-	//@ Add more render options here
+	FRHITexture2D* ViewportTexture; //Overlay texture to compose in viewport projection
 
 public:
 	FPicpProjectionOverlayViewport()
 		: ViewportTexture(nullptr)
-	{ 
-	}
+	{ }
 
 	FPicpProjectionOverlayViewport(FRHITexture2D* TextureRef)
 		: ViewportTexture(TextureRef)
-	{ 
-	}
+	{ }
 	
 	bool IsEnabled() const
-	{ 
+	{
 		return ViewportTexture!=nullptr && ViewportTexture->IsValid(); 
 	}
 
 	void Empty()
-	{ 
-		ViewportTexture = nullptr;  
+	{
+		ViewportTexture = nullptr;
 	}
 };

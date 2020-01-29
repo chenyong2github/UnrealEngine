@@ -18,27 +18,42 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdGeomMesh;
 PXR_NAMESPACE_CLOSE_SCOPE
 
-class FGeomMeshCreateAssetsTaskChain : public FUsdSchemaTranslatorTaskChain
+class FBuildStaticMeshTaskChain : public FUsdSchemaTranslatorTaskChain
 {
 public:
-	FGeomMeshCreateAssetsTaskChain( TSharedRef< FUsdSchemaTranslationContext > InContext, const TUsdStore< pxr::UsdGeomMesh > InGeomMesh )
-		: Context( InContext )
-		, GeomMesh( InGeomMesh )
+	explicit FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema, FMeshDescription&& InMeshDescription );
+
+protected:
+	// Inputs
+	// When multiple meshes are collapsed together, this Schema might not be the same as the Context schema, which is the root schema
+	TUsdStore< pxr::UsdTyped > Schema;
+	TSharedRef< FUsdSchemaTranslationContext > Context;
+	FMeshDescription MeshDescription;
+
+	// Outputs
+	UStaticMesh* StaticMesh = nullptr;
+
+protected:
+	FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )
+		: Schema( InSchema )
+		, Context( InContext )
+	{
+	}
+
+	virtual void SetupTasks();
+};
+
+class FGeomMeshCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
+{
+public:
+	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdGeomMesh >& InGeomMesh )
+		: FBuildStaticMeshTaskChain( InContext, TUsdStore< pxr::UsdTyped >( InGeomMesh.Get() ) )
 	{
 		SetupTasks();
 	}
 
-public:
-	// Inputs
-	TSharedRef< FUsdSchemaTranslationContext > Context;
-	TUsdStore< pxr::UsdGeomMesh > GeomMesh;
-
-	// Outputs
-	FMeshDescription MeshDescription;
-	UStaticMesh* StaticMesh = nullptr;
-
 protected:
-	void SetupTasks();
+	virtual void SetupTasks() override;
 };
 
 class USDSCHEMAS_API FUsdGeomMeshTranslator : public FUsdGeomXformableTranslator
@@ -51,6 +66,8 @@ public:
 
 	virtual void CreateAssets() override;
 	virtual USceneComponent* CreateComponents() override;
+
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return true; }
 
 };
 

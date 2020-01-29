@@ -294,3 +294,43 @@ private:
 	// Hold text value separately since, non trivial type are a mess in union, also used to report container type for break code
 	TArray<char> RawTextValue;
 };
+
+/** Defines in which endianness the CBOR data must be written. The official endiannes is 'big endian' but Unreal use both. */
+enum class ECborEndianness
+{
+	/** Read or write the CBOR using the current platform endianness. */
+	Platform,
+
+	/** Read or write the CBOR data in big endian (CBOR standard compliant) */
+	BigEndian,
+
+	/** Read or write the CBOR data in little endian (Fine for internal usage, but not usable with CBOR standard tools) */
+	LittleEndian,
+
+	/** The endianness complying to the CBOR specifications. */
+	StandardCompliant = BigEndian,
+};
+
+/**
+ * Ensure an archive is swapping the bytes according to which endianness was requested to read or write the CBOR.
+ * @node The official CBOR endianness is 'big endian', but Unreal uses boths for backward compability reasons.
+ */
+class ScopedCborArchiveEndianness
+{
+public:
+	/** Set the archive to read or write the data according to the selected endianness. */
+	ScopedCborArchiveEndianness(FArchive& InArchive, ECborEndianness Endianness) : Archive(InArchive), bOldByteSwappingState(InArchive.IsByteSwapping())
+	{
+		constexpr bool bLittleEndianPlatform = PLATFORM_LITTLE_ENDIAN != 0;
+		Archive.SetByteSwapping(Endianness != ECborEndianness::Platform && ((Endianness == ECborEndianness::BigEndian && bLittleEndianPlatform) || (Endianness == ECborEndianness::LittleEndian && !bLittleEndianPlatform)));
+	}
+
+	~ScopedCborArchiveEndianness()
+	{
+		Archive.SetByteSwapping(bOldByteSwappingState); // Restore the original state whatever it was.
+	}
+
+private:
+	FArchive& Archive;
+	bool bOldByteSwappingState;
+};

@@ -13,7 +13,6 @@
 #include "IMovieScenePlayer.h"
 
 class FSlateWindowElementList;
-class USequencerSettings;
 
 /** Enum specifying how to interpolate to a new view range */
 enum class EViewRangeInterpolation
@@ -74,7 +73,6 @@ struct FTimeSliderArgs
 		, ViewRange( FAnimatedRange(0.0f, 5.0f) )
 		, ClampRange( FAnimatedRange(-FLT_MAX/2.f, FLT_MAX/2.f) )
 		, AllowZoom(true)
-		, Settings(nullptr)
 	{}
 
 	/** The scrub position */
@@ -175,9 +173,6 @@ struct FTimeSliderArgs
 
 	/** If we are allowed to zoom */
 	bool AllowZoom;
-
-	/** User-supplied settings object */
-	USequencerSettings* Settings;
 
 	/** Numeric Type interface for converting between frame numbers and display formats. */
 	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface;

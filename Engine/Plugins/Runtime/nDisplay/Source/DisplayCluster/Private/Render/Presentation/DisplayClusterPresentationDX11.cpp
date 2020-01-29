@@ -7,10 +7,6 @@
 #include "RHI.h"
 #include "RHIResources.h"
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "DirectX/Include/DXGI.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-
 
 FDisplayClusterPresentationDX11::FDisplayClusterPresentationDX11(FViewport* const InViewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& InSyncPolicy)
 	: FDisplayClusterPresentationBase(InViewport, InSyncPolicy)

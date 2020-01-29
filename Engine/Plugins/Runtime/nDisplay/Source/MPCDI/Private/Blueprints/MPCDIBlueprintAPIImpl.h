@@ -47,6 +47,4 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Reload Changed External Files"), Category = "MPCDI")
 	virtual void ReloadChangedExternalFiles() override;
-
-
 };

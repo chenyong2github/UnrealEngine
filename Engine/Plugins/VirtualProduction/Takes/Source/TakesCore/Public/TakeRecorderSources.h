@@ -12,6 +12,7 @@
 #include "TakeRecorderSources.generated.h"
 
 class UTakeRecorderSource;
+class UMovieSceneSubSection;
 
 DECLARE_LOG_CATEGORY_EXTERN(SubSequenceSerialization, Verbose, All);
 
@@ -93,6 +94,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	void SetRecordToSubSequence(bool bValue) { bRecordSourcesToSubSequences = bValue; }
 
+	UFUNCTION(BlueprintPure, Category = "Take Recorder")
+	bool GetStartAtCurrentTimecode() const { return bStartAtCurrentTimecode; }
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	void SetStartAtCurrentTimecode(bool bValue) { bStartAtCurrentTimecode = bValue; }
+
 	/** Calls the recording initialization flows on each of the specified sources. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	void StartRecordingSource(TArray<UTakeRecorderSource*> InSources, const FTimecode& CurrentTiimecode);
@@ -168,8 +174,8 @@ private:
 	/** Finds the folder that the given Source should be created in, creating it if necessary. */
 	class UMovieSceneFolder* AddFolderForSource(const UTakeRecorderSource* InSource, class UMovieScene* InMovieScene);
 
-	/** Gets the current frame time for recording, optionally resolving out the engine's custom Timecode provider. */
-	FQualifiedFrameTime GetCurrentRecordingFrameTime(const FTimecode& InTimeCode, bool& bHasValidTimeCodeSource) const;
+	/** Gets the current frame time for recording */
+	FQualifiedFrameTime GetCurrentRecordingFrameTime() const;
 
 	/** Remove object bindings that don't have any tracks and are not bindings for attach/path tracks */
 	void RemoveRedundantTracks();
@@ -179,6 +185,8 @@ private:
 	void PreRecordSources(TArray<UTakeRecorderSource *> InSources);
 
 	void StartRecordingTheseSources(const TArray<UTakeRecorderSource *>& InSources, const FTimecode& CurrentTimecode);
+
+	void SetSectionStartTimecode(UMovieSceneSubSection* SubSection, const FTimecode& Timecode, FFrameRate FrameRate, FFrameRate TickResolution);
 
 private:
 
@@ -203,8 +211,14 @@ private:
 	/** What Tick Resolution is the target level sequence we're recording into? Used to convert seconds into FrameNumbers. */
 	FFrameRate TargetLevelSequenceTickResolution;
 
+	/** What Display Rate is the target level sequence we're recording into? Used to convert seconds into FrameNumbers. */
+	FFrameRate TargetLevelSequenceDisplayRate;
+
 	/** Non-serialized serial number that is used for updating UI when the source list changes */
 	uint32 SourcesSerialNumber;
+
+	/** Should we record tracks to start at the current timecode? */
+	bool bStartAtCurrentTimecode;
 
 	/** Should we record our sources to Sub Sequences and place them in the master via a Subscenes track? */
 	bool bRecordSourcesToSubSequences;
@@ -220,9 +234,6 @@ private:
 
 	/** Timecode time at start of recording */
 	FTimecode StartRecordingTimecodeSource;
-
-	/** Last Timecode Frame Number, used to avoid recording same time twice*/
-	TOptional<FFrameNumber> LastTimecodeFrameNumber;
 
 	/** All sources after PreRecord */
 	TArray<UTakeRecorderSource *> PreRecordedSources;

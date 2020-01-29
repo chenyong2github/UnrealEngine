@@ -257,10 +257,7 @@ public:
 	
 	~SSequencer();
 	
-	virtual void AddReferencedObjects( FReferenceCollector& Collector )
-	{
-		Collector.AddReferencedObject( Settings );
-	}
+	virtual void AddReferencedObjects( FReferenceCollector& Collector ) { }
 
 	virtual bool SupportsKeyboardFocus() const override
 	{
@@ -318,6 +315,7 @@ public:
 
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
+
 public:
 
 	// FNotifyHook overrides
@@ -400,6 +398,9 @@ private:
 
 	/** Makes the playback speed menu for the toolbar. */
 	void FillPlaybackSpeedMenu(FMenuBuilder& InMenuBuilder);
+
+	/** Return the current sequencer settings */ 
+	USequencerSettings* GetSequencerSettings() const;
 
 public:
 	/** Makes the time display format menu for the toolbar and the play rate menu. */
@@ -629,9 +630,6 @@ private:
 
 	/** Container for the toolbar, so that we can re-create it as needed. */
 	TSharedPtr<SBox> ToolbarContainer;
-
-	/** Cached settings provided to the sequencer itself on creation */
-	USequencerSettings* Settings;
 
 	/** The fill coefficients of each column in the grid. */
 	float ColumnFillCoefficients[2];

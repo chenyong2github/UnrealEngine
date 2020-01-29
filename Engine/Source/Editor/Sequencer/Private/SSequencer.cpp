@@ -280,8 +280,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	CachedClampRange = TRange<double>::Empty();
 	CachedViewRange = TRange<double>::Empty();
 
-	Settings = InSequencer->GetSequencerSettings();
-
 	InitializeTrackFilters();
 
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>( "SequencerWidgets" );
@@ -301,15 +299,13 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	RootCustomization.OnClassesDrop = InArgs._OnClassesDrop;
 	RootCustomization.OnActorsDrop = InArgs._OnActorsDrop;
 
-	USequencerSettings* SequencerSettings = Settings;
-
 	// Get the desired display format from the user's settings each time.
 	TAttribute<EFrameNumberDisplayFormats> GetDisplayFormatAttr = MakeAttributeLambda(
-		[SequencerSettings]
+		[=]
 		{
-			if (SequencerSettings)
+			if (USequencerSettings* Settings = GetSequencerSettings())
 			{
-				return SequencerSettings->GetTimeDisplayFormat();
+				return Settings->GetTimeDisplayFormat();
 			}
 			return EFrameNumberDisplayFormats::Frames;
 		}
@@ -317,11 +313,11 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	// Get the number of zero pad frames from the user's settings as well.
 	TAttribute<uint8> GetZeroPadFramesAttr = MakeAttributeLambda(
-		[SequencerSettings]()->uint8
+		[=]()->uint8
 		{
-			if (SequencerSettings)
+			if (USequencerSettings* Settings = GetSequencerSettings())
 			{
-				return SequencerSettings->GetZeroPadFrames();
+				return Settings->GetZeroPadFrames();
 			}
 			return 0;
 		}
@@ -367,7 +363,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
 		TimeSliderArgs.OnDeleteAllMarkedFrames = InArgs._OnDeleteAllMarkedFrames;
 
-		TimeSliderArgs.Settings = Settings;
 		TimeSliderArgs.NumericTypeInterface = GetNumericTypeInterface();
 	}
 
@@ -895,7 +890,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						.VAlign(VAlign_Top)
 					[
 						// Transform box
-						SAssignNew(TransformBox, SSequencerTransformBox, SequencerPtr.Pin().ToSharedRef(), *Settings, NumericTypeInterface.ToSharedRef())
+						SAssignNew(TransformBox, SSequencerTransformBox, SequencerPtr.Pin().ToSharedRef(), *GetSequencerSettings(), NumericTypeInterface.ToSharedRef())
 					]
 
 					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(40))
@@ -910,7 +905,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						.VAlign(VAlign_Top)
 					[
 						// Stretch box
-						SAssignNew(StretchBox, SSequencerStretchBox, SequencerPtr.Pin().ToSharedRef(), *Settings, NumericTypeInterface.ToSharedRef())
+						SAssignNew(StretchBox, SSequencerStretchBox, SequencerPtr.Pin().ToSharedRef(), *GetSequencerSettings(), NumericTypeInterface.ToSharedRef())
 					]
 
 					// debug vis
@@ -1147,7 +1142,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 	if (CurveEditor && CurveEditorTree)
 	{
 		// If we're isolating to the selection and there is one, add the filter
-		if (Settings->ShouldIsolateToCurveEditorSelection() && SelectedDisplayNodes.Num() != 0)
+		if (GetSequencerSettings()->ShouldIsolateToCurveEditorSelection() && SelectedDisplayNodes.Num() != 0)
 		{
 			if (!SequencerSelectionCurveEditorFilter)
 			{
@@ -1165,7 +1160,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 			SequencerSelectionCurveEditorFilter = nullptr;
 		}
 
-		if (Settings->ShouldSyncCurveEditorSelection())
+		if (GetSequencerSettings()->ShouldSyncCurveEditorSelection())
 		{
 			TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
 
@@ -1823,7 +1818,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 
 	// Menu entry for zero padding
 	auto OnZeroPadChanged = [=](uint8 NewValue) {
-		Settings->SetZeroPadFrames(NewValue);
+		GetSequencerSettings()->SetZeroPadFrames(NewValue);
 	};
 
 	MenuBuilder.AddWidget(
@@ -1842,7 +1837,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 			.MinValue(0)
 			.MaxValue(8)
 			.Value_Lambda([=]() -> uint8 {
-			return Settings->GetZeroPadFrames();
+			return GetSequencerSettings()->GetZeroPadFrames();
 		})
 		],
 		LOCTEXT("ZeroPaddingText", "Zero Pad Frame Numbers"));
@@ -1916,12 +1911,12 @@ void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
 void SSequencer::FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	bool bSupportsDropFormatDisplay = FTimecode::IsDropFormatTimecodeSupported(Sequencer->GetFocusedDisplayRate());
+	bool bShouldDisplayDropFormat = FTimecode::UseDropFormatTimecode(Sequencer->GetFocusedDisplayRate());
 
 	const UEnum* FrameNumberDisplayEnum = StaticEnum<EFrameNumberDisplayFormats>();
 	check(FrameNumberDisplayEnum);
 
-	if (Settings)
+	if (GetSequencerSettings())
 	{
 		for (int32 Index = 0; Index < FrameNumberDisplayEnum->NumEnums() - 1; Index++)
 		{
@@ -1929,18 +1924,26 @@ void SSequencer::FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder)
 			{
 				EFrameNumberDisplayFormats Value = (EFrameNumberDisplayFormats)FrameNumberDisplayEnum->GetValueByIndex(Index);
 
-				// Don't show Drop Frame Timecode when they're in a format that doesn't support it.
-				if (Value == EFrameNumberDisplayFormats::DropFrameTimecode && !bSupportsDropFormatDisplay)
+				// Don't show None Drop Frame Timecode when the format support drop format and the engine wants to use the drop format by default.
+				if (Value == EFrameNumberDisplayFormats::NonDropFrameTimecode && bShouldDisplayDropFormat)
+				{
 					continue;
+				}
+
+				// Don't show Drop Frame Timecode when they're in a format that doesn't support it.
+				if (Value == EFrameNumberDisplayFormats::DropFrameTimecode && !bShouldDisplayDropFormat)
+				{
+					continue;
+				}
 
 				MenuBuilder.AddMenuEntry(
 					FrameNumberDisplayEnum->GetDisplayNameTextByIndex(Index),
 					FrameNumberDisplayEnum->GetToolTipTextByIndex(Index),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(Settings, &USequencerSettings::SetTimeDisplayFormat, Value),
+						FExecuteAction::CreateUObject(GetSequencerSettings(), &USequencerSettings::SetTimeDisplayFormat, Value),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([=] { return Settings->GetTimeDisplayFormat() == Value; })
+						FIsActionChecked::CreateLambda([=] { return GetSequencerSettings()->GetTimeDisplayFormat() == Value; })
 					),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
@@ -2108,6 +2111,32 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		}
 		
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleLinkCurveEditorTimeRange);
+
+		// Menu entry for zero padding
+		auto OnZeroPadChanged = [=](uint8 NewValue){
+			GetSequencerSettings()->SetZeroPadFrames(NewValue);
+		};
+
+		MenuBuilder.AddWidget(
+			SNew(SHorizontalBox)	
+			+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SSpinBox<uint8>)
+					.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+					.OnValueCommitted_Lambda([=](uint8 Value, ETextCommit::Type){ OnZeroPadChanged(Value); })
+					.OnValueChanged_Lambda(OnZeroPadChanged)
+					.MinValue(0)
+					.MaxValue(8)
+					.Value_Lambda([=]() -> uint8 {
+						return GetSequencerSettings()->GetZeroPadFrames();
+					})
+				],
+			LOCTEXT("ZeroPaddingText", "Zero Pad Frame Numbers"));
 	}
 	MenuBuilder.EndSection();
 
@@ -3099,18 +3128,18 @@ EVisibility SSequencer::GetBreadcrumbTrailVisibility() const
 
 EVisibility SSequencer::GetBottomTimeSliderVisibility() const
 {
-	return Settings->GetShowRangeSlider() ? EVisibility::Hidden : EVisibility::Visible;
+	return GetSequencerSettings()->GetShowRangeSlider() ? EVisibility::Hidden : EVisibility::Visible;
 }
 
 
 EVisibility SSequencer::GetTimeRangeVisibility() const
 {
-	return Settings->GetShowRangeSlider() ? EVisibility::Visible : EVisibility::Hidden;
+	return GetSequencerSettings()->GetShowRangeSlider() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const
 {
-	return Settings->GetTimeDisplayFormat();
+	return GetSequencerSettings()->GetTimeDisplayFormat();
 }
 
 
@@ -3210,7 +3239,7 @@ FVirtualTrackArea SSequencer::GetVirtualTrackArea(const SSequencerTrackArea* InT
 FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TSharedPtr<FMovieSceneClipboard> Clipboard)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	if (Settings->GetIsSnapEnabled())
+	if (GetSequencerSettings()->GetIsSnapEnabled())
 	{
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 		FFrameRate DisplayRate    = Sequencer->GetFocusedDisplayRate();
@@ -3397,7 +3426,7 @@ void SSequencer::PasteFromHistory()
 
 EVisibility SSequencer::GetDebugVisualizerVisibility() const
 {
-	return Settings->ShouldShowDebugVisualization() ? EVisibility::Visible : EVisibility::Collapsed;
+	return GetSequencerSettings()->ShouldShowDebugVisualization() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SSequencer::BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid ObjectBinding)
@@ -3534,6 +3563,15 @@ void SSequencer::ApplySequencerCustomization(const FSequencerCustomizationInfo& 
 	{
 		OnClassesDrop.Add(Customization.OnClassesDrop);
 	}
+}
+
+USequencerSettings* SSequencer::GetSequencerSettings() const
+{
+	if (SequencerPtr.IsValid())
+	{
+		return SequencerPtr.Pin()->GetSequencerSettings();
+	}
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

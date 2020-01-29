@@ -9,7 +9,11 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDStage(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bUseRTTI = true;
+			// We require the whole editor to be RTTI enabled on Linux for now
+			if (Target.Platform != UnrealTargetPlatform.Linux)
+			{
+				bUseRTTI = true;
+			}
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
@@ -37,16 +41,12 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"USDImporter",
+					"UnrealUSDWrapper",
 					"USDSchemas",
 					"USDUtilities",
 					"UnrealEd",
 				}
 				);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-			}
 		}
 	}
 }

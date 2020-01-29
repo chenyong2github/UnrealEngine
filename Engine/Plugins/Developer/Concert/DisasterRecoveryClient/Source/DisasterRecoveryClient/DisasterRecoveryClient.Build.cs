@@ -23,6 +23,8 @@ namespace UnrealBuildTool.Rules
 					"ConcertSyncCore",
 					"ConcertSyncUI",
 					"ConcertTransport",
+					"DesktopPlatform",
+					"Json",
 					"UnrealEd",
 					"EditorStyle",
 					"InputCore",
@@ -31,6 +33,17 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 				}
 			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"WorkspaceMenuStructure",
+						"DirectoryWatcher",
+					}
+				);
+			}
 		}
 	}
 }

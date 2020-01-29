@@ -295,6 +295,25 @@ bool FDisplayClusterConfigRender::DeserializeFromString(const FString& line)
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterConfigNvidia
+//////////////////////////////////////////////////////////////////////////////////////////////
+FString FDisplayClusterConfigNvidia::ToString() const
+{
+	return FString::Printf(TEXT("[%s + %s=%d, %s=%d]"),
+		*FDisplayClusterConfigBase::ToString(),
+		DisplayClusterStrings::cfg::data::nvidia::SyncGroup,   SyncGroup,
+		DisplayClusterStrings::cfg::data::nvidia::SyncBarrier, SyncBarrier);
+}
+
+bool FDisplayClusterConfigNvidia::DeserializeFromString(const FString& line)
+{
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::nvidia::SyncGroup),   SyncGroup);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::nvidia::SyncBarrier), SyncBarrier);
+	return FDisplayClusterConfigBase::DeserializeFromString(line);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterConfigStereo
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigStereo::ToString() const

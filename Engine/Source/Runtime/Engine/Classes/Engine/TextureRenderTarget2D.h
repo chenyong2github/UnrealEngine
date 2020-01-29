@@ -16,7 +16,7 @@ extern ENGINE_API int32 GTextureRenderTarget2DMaxSizeX;
 extern ENGINE_API int32 GTextureRenderTarget2DMaxSizeY;
 
 /** Subset of EPixelFormat exposed to UTextureRenderTarget2D */
-UENUM()
+UENUM(BlueprintType)
 enum ETextureRenderTargetFormat
 {
 	/** R channel, 8 bit per channel fixed point, range [0, 1]. */

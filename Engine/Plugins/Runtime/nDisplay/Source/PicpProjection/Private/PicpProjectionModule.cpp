@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PicpProjectionModule.h"
-
 #include "PicpProjectionLog.h"
-
-#include "Policy/MPCDI/PicpProjectionMPCDIPolicyFactory.h"
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
 #include "Policy/MPCDI/PicpProjectionMPCDIPolicy.h"
 #include "Policy/MPCDI/PicpProjectionMPCDIPolicyFactory.h"
+
+#include "Policy/Mesh/PicpProjectionMeshPolicy.h"
+
 #include "Engine/TextureRenderTarget2D.h"
 
 
@@ -18,9 +18,10 @@ FPicpProjectionModule::FPicpProjectionModule()
 {
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory;
 
-	// MPCDI projection
+	// Picp_MPCDI + Picp_MESH projections:
 	Factory = MakeShareable(new FPicpProjectionMPCDIPolicyFactory);
 	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMPCDI, Factory);
+	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMesh,  Factory); // Add overried projection for mesh
 
 	UE_LOG(LogPicpProjection, Log, TEXT("Projection module has been instantiated"));
 }
@@ -29,7 +30,6 @@ FPicpProjectionModule::~FPicpProjectionModule()
 {
 	UE_LOG(LogPicpProjection, Log, TEXT("Projection module has been destroyed"));
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IModuleInterface
@@ -74,7 +74,6 @@ void FPicpProjectionModule::ShutdownModule()
 	}
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjection
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,14 +96,13 @@ TSharedPtr<IDisplayClusterProjectionPolicyFactory> FPicpProjectionModule::GetPro
 
 void FPicpProjectionModule::SetOverlayFrameData(const FString& PolicyType, FPicpProjectionOverlayFrameData& OverlayFrameData)
 {
-	TArray<TSharedPtr<FPicpProjectionViewportBase>> Result;
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(PolicyType);
 	if (Factory.IsValid())
 	{
 		FPicpProjectionMPCDIPolicyFactory* PicpMPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
 		if (PicpMPCDIFactory)
 		{
-			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = PicpMPCDIFactory->GetMPCDIPolicy();
+			TArray<TSharedPtr<FPicpProjectionPolicyBase>> UsedPolicy = PicpMPCDIFactory->GetPicpPolicy();
 			for (auto It : UsedPolicy)
 			{
 				if (It.IsValid())
@@ -120,21 +118,48 @@ void FPicpProjectionModule::SetOverlayFrameData(const FString& PolicyType, FPicp
 	}
 }
 
+bool FPicpProjectionModule::AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+{
+	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(PicpProjectionStrings::projection::PicpMesh);
+	if (Factory.IsValid())
+	{
+		FPicpProjectionMPCDIPolicyFactory* PicpMPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
+		if (PicpMPCDIFactory)
+		{
+			TSharedPtr<FPicpProjectionPolicyBase> ViewportPolicy = PicpMPCDIFactory->GetPicpPolicyByViewport(ViewportId);
+			if (ViewportPolicy.IsValid())
+			{
+				FPicpProjectionMeshPolicy* PicpMeshPolicy = static_cast<FPicpProjectionMeshPolicy*>(ViewportPolicy.Get());
+				if (PicpMeshPolicy != nullptr)
+				{
+					if (PicpMeshPolicy->GetWarpType() == FPicpProjectionMPCDIPolicy::EWarpType::Mesh)
+					{
+						return PicpMeshPolicy->AssignWarpMesh(MeshComponent, OriginComponent);
+					}
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogPicpProjection, Error, TEXT("Viewport '%s' with 'picp_mesh' projection not found"), *ViewportId);
+	return false;
+}
+
 int FPicpProjectionModule::GetPolicyCount(const FString& InProjectionType)
 {
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(InProjectionType);
 	if (Factory.IsValid())
 	{
-		FPicpProjectionMPCDIPolicyFactory* MPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
-		if (MPCDIFactory)
+		FPicpProjectionMPCDIPolicyFactory* PicpMPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
+		if (PicpMPCDIFactory)
 		{
-			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = MPCDIFactory->GetMPCDIPolicy();
+			TArray<TSharedPtr<FPicpProjectionPolicyBase>> UsedPolicy = PicpMPCDIFactory->GetPicpPolicy();
 			return UsedPolicy.Num();
 		}
 	}
+
 	return 0;
 }
-
 
 void FPicpProjectionModule::AddProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> listener)
 {
@@ -151,7 +176,7 @@ void FPicpProjectionModule::CleanProjectionDataListeners()
 	PicpEventListeners.Empty();
 }
 
-void FPicpProjectionModule::CaptureWarpTexture(UTextureRenderTarget2D* dst, const FString& ViewportId, const uint32 ViewIdx, bool bCaptureNow)
+void FPicpProjectionModule::CaptureWarpTexture(UTextureRenderTarget2D* OutWarpRTT, const FString& ViewportId, const uint32 ViewIdx, bool bCaptureNow)
 {
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(PicpProjectionStrings::projection::PicpMPCDI);
 	if (Factory.IsValid())
@@ -159,7 +184,7 @@ void FPicpProjectionModule::CaptureWarpTexture(UTextureRenderTarget2D* dst, cons
 		FPicpProjectionMPCDIPolicyFactory* MPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
 		if (MPCDIFactory)
 		{
-			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = MPCDIFactory->GetMPCDIPolicy();
+			TArray<TSharedPtr<FPicpProjectionPolicyBase>> UsedPolicy = MPCDIFactory->GetPicpPolicy();
 			for (auto It : UsedPolicy)
 			{
 				if (It.IsValid())
@@ -169,17 +194,15 @@ void FPicpProjectionModule::CaptureWarpTexture(UTextureRenderTarget2D* dst, cons
 					{
 						if (MPCDIPolicy->GetViewportId().Compare(ViewportId, ESearchCase::IgnoreCase) == 0)
 						{
-							if (bCaptureNow)
-							{
-								FTextureRenderTarget2DResource* dstResource2D = (FTextureRenderTarget2DResource*)(dst->GameThread_GetRenderTargetResource());
-								FRHITexture2D* dstTextureRHI = dstResource2D->GetTextureRHI();
+							FRHITexture2D* WarpTextureRHI = nullptr;
 
-								MPCDIPolicy->SetWarpTextureCapture(ViewIdx, dstTextureRHI);
-							}
-							else
+							if (bCaptureNow && OutWarpRTT)
 							{
-								MPCDIPolicy->SetWarpTextureCapture(ViewIdx, 0);
+								FTextureRenderTarget2DResource* OutWarpResource2D = (FTextureRenderTarget2DResource*)(OutWarpRTT->GameThread_GetRenderTargetResource());
+								WarpTextureRHI = OutWarpResource2D?(OutWarpResource2D->GetTextureRHI()):nullptr;
 							}
+
+							MPCDIPolicy->SetWarpTextureCapture(ViewIdx, WarpTextureRHI);
 						}
 					}
 				}
@@ -196,7 +219,7 @@ bool FPicpProjectionModule::GetWarpFrustum(const FString& ViewportId, const uint
 		FPicpProjectionMPCDIPolicyFactory* MPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
 		if (MPCDIFactory)
 		{
-			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = MPCDIFactory->GetMPCDIPolicy();
+			TArray<TSharedPtr<FPicpProjectionPolicyBase>> UsedPolicy = MPCDIFactory->GetPicpPolicy();
 			for (auto It : UsedPolicy)
 			{
 				if (It.IsValid())
@@ -214,6 +237,7 @@ bool FPicpProjectionModule::GetWarpFrustum(const FString& ViewportId, const uint
 			}
 		}
 	}
+
 	return false;
 }
 

@@ -5,6 +5,7 @@
 #include "Sections/MovieScene3DAttachSection.h"
 #include "Modules/ModuleManager.h"
 #include "SequenceRecorderUtils.h"
+#include "MovieScene.h"
 
 bool FMovieScene3DAttachTrackRecorderFactory::CanRecordObject(UObject* InObjectToRecord) const
 {
@@ -26,7 +27,7 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 			FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 			FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 
-			MovieSceneSection->ExpandToFrame(CurrentFrame);
+			MovieSceneSection->SetEndFrame(CurrentFrame);
 		}
 
 		// get attachment and check if the actor we are attached to is being recorded
@@ -51,10 +52,10 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				MovieSceneSection->AttachSocketName = SocketName;
 				MovieSceneSection->AttachComponentName = ComponentName;
 
-				FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-				FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
-
-				MovieSceneSection->TimecodeSource = FMovieSceneTimecodeSource(FTimecode::FromFrameNumber(CurrentFrame, TickResolution, false));
+				// Newly created attach sections should match the parent movie scene. This is effectively an infinite attach section, 
+				// but clamped to the bounds of the parent movie scene
+				MovieSceneSection->TimecodeSource = MovieScene->TimecodeSource;
+				MovieSceneSection->SetRange(MovieScene->GetPlaybackRange());
 			}
 
 			ActorAttachedTo = AttachedToActor;
