@@ -18,7 +18,7 @@ public:
 	void					Close();
 	virtual bool			OnAccept(asio::ip::tcp::socket& Socket) = 0;
 	uint32					GetPort() const;
-	bool					StartServer(uint32 Port=0);
+	bool					StartServer(uint32 Port=0, uint32 Backlog=1);
 	bool					StopServer();
 
 private:
