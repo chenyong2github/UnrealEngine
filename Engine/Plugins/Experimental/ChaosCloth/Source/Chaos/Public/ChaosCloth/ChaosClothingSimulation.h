@@ -148,6 +148,18 @@ namespace Chaos
 
 		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
+		// This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
+		// The function of this is to help with floating point precision errors if the character is far away form the world origin
+		// and to decouple the simulation from character acceleration and velocities if it is desired
+		bool	bLocalSimSpaceEnabled;
+		FVector LocalSimSpaceOffset;  
+		FVector PrevLocalSimSpaceOffset;
+		FVector LocalSimSpaceVelocity;
+		FVector LocalSimSpaceCappedVelocity;
+		FVector PrevLocalSimSpaceVelocity;
+		FVector ComponentLinearAccScale;
+		FVector ComponentLinearAccClamp;
+
 #if WITH_EDITOR
 		// Visualization material
 		UMaterial* DebugClothMaterial;
