@@ -93,6 +93,9 @@ struct KISMET_API FDiffPanel
 
 	/** The panel stores the last pin that was focused on by the user, so that it can clear the visual style when selection changes */
 	UEdGraphPin*					LastFocusedPin;
+
+	/** The widget that contains the revision info in graph mode */
+	TSharedPtr<SWidget>				OverlayGraphRevisionInfo;
 private:
 	/** Command list for this diff panel */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
@@ -159,12 +162,18 @@ protected:
 
 	/** User toggles the option to lock the views between the two blueprints */
 	void OnToggleLockView();
+	
+	/** User toggles the option to change the split view mode betwwen vertical and horizontal */
+	void OnToggleSplitViewMode();
 
 	/** Reset the graph editor, called when user switches graphs to display*/
 	void ResetGraphEditors();
 
 	/** Get the image to show for the toggle lock option*/
 	FSlateIcon GetLockViewImage() const;
+	
+	/** Get the image to show for the toggle split view mode option*/
+	FSlateIcon GetSplitViewModeImage() const;
 
 	/** List of graphs to diff, are added to panel last */
 	TArray<TSharedPtr<FGraphToDiff>> Graphs;
@@ -203,9 +212,15 @@ protected:
 	FDiffControl GenerateClassSettingsPanel();
 	FDiffControl GenerateComponentsPanel();
 
+	TSharedRef<SOverlay> GenerateGraphWidgetForPanel(FDiffPanel& OutDiffPanel) const;
+	TSharedRef<SBox> GenerateRevisionInfoWidgetForPanel(TSharedPtr<SWidget>& OutGeneratedWidget,const FText& InRevisionText) const;
+
 	/** Accessor and event handler for toggling between diff view modes (defaults, components, graph view, interface, macro): */
 	void SetCurrentMode(FName NewMode);
 	FName GetCurrentMode() const { return CurrentMode; }
+	void OnModeChanged(const FName& InNewViewMode) const;
+
+	void UpdateTopSectionVisibility(const FName& InNewViewMode) const;
 
 	FName CurrentMode;
 
@@ -215,8 +230,17 @@ protected:
 	/** If the two views should be locked */
 	bool	bLockViews;
 
+	/** If the view on Graph Mode should be divided vertically */
+	bool bVerticalSplitGraphMode = true;
+
 	/** Contents widget that we swap when mode changes (defaults, components, etc) */
 	TSharedPtr<SBox> ModeContents;
+
+	TSharedPtr<SSplitter> TopRevisionInfoWidget;
+
+	TSharedPtr<SSplitter> DiffGraphSplitter;
+	
+	TSharedPtr<SSplitter> GraphToolBarWidget;
 
 	friend struct FListItemGraphToDiff;
 
