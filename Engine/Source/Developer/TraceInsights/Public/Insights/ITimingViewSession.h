@@ -69,6 +69,9 @@ public:
 	/** Set the current marker time */
 	virtual void SetTimeMarker(double InMarkerTime) = 0;
 
+	/** Set the current marker time and center the view on it */
+	virtual void SetAndCenterOnTimeMarker(double InTime) = 0;
+
 	/** Gets the delegate to be invoked when the selection have been changed. */
 	virtual FSelectionChangedDelegate& OnSelectionChanged() = 0;
 

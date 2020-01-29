@@ -312,7 +312,7 @@ void STimingView::Reset()
 
 	LastSelectionType = ESelectionType::None;
 
-	TimeMarker = std::numeric_limits<double>::infinity();
+	SetTimeMarker(std::numeric_limits<double>::infinity());
 	bIsScrubbing = false;
 
 	//ThisGeometry
@@ -2648,7 +2648,7 @@ void STimingView::UpdateAggregatedStats()
 
 void STimingView::SetAndCenterOnTimeMarker(double Time)
 {
-	TimeMarker = Time;
+	SetTimeMarker(Time);
 
 	double MinT, MaxT;
 	Viewport.GetHorizontalScrollLimits(MinT, MaxT);
@@ -2674,7 +2674,7 @@ void STimingView::SelectToTimeMarker(double Time)
 		SelectTimeInterval(Time, TimeMarker - Time);
 	}
 
-	TimeMarker = Time;
+	SetTimeMarker(Time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

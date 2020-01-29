@@ -224,6 +224,7 @@ public:
 
 	virtual double GetTimeMarker() const override { return TimeMarker; }
 	virtual void SetTimeMarker(double InMarkerTime) override;
+	virtual void SetAndCenterOnTimeMarker(double InTime) override;
 
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
@@ -263,7 +264,6 @@ public:
 	void CenterOnTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void BringIntoView(double StartTime, double EndTime);
 	void SelectTimeInterval(double IntervalStartTime, double IntervalDuration);
-	void SetAndCenterOnTimeMarker(double Time);
 	void SelectToTimeMarker(double Time);
 
 	//bool AreTimeMarkersVisible() { return MarkersTrack->IsVisible(); }
