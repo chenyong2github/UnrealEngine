@@ -420,7 +420,11 @@ UInsightsSkeletalMeshComponent* FSkeletalMeshPoseTrack::FWorldComponentCache::Ge
 {
 	if(Actor == nullptr)
 	{
-		Actor = World->SpawnActor<AActor>();
+		FActorSpawnParameters ActorSpawnParameters;
+		ActorSpawnParameters.bHideFromSceneOutliner = true;
+		ActorSpawnParameters.ObjectFlags |= RF_Transient;
+
+		Actor = World->SpawnActor<AActor>(ActorSpawnParameters);
 		Actor->SetActorLabel(TEXT("Insights"));
 
 		Time = 0.0;
