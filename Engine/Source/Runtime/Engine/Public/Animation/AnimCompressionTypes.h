@@ -236,9 +236,18 @@ public:
 
 	void Update(struct FCompressedAnimSequence& CompressedData) const;
 
+	void AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(BoneCompressionSettings);
+		Collector.AddReferencedObject(CurveCompressionSettings);
+	}
+
 private:
 
 };
+
+typedef TSharedPtr<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimPtr;
+typedef TSharedRef<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimRef;
 
 // Wrapper Code
 template <typename T>
