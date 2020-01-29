@@ -67,6 +67,12 @@ public:
 	UPROPERTY()
 	bool bCanBeModified;
 
+	UPROPERTY()
+	int32 NumAssetPaths;
+
+	UPROPERTY()
+	int32 NumClassPaths;
+
 	TWeakPtr<SContentBrowser> ContentBrowser;
 	FOnCreateNewFolder OnCreateNewFolder;
 };
