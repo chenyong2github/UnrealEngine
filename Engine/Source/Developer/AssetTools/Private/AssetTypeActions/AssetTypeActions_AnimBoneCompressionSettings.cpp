@@ -111,3 +111,5 @@ void FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression(TWeakObje
 		AnimSeq->RequestSyncAnimRecompression(false);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -21,7 +21,7 @@ namespace
 }
 
 FAnimTimelineTrack_MontagePanel::FAnimTimelineTrack_MontagePanel(const TSharedRef<FAnimModel>& InModel)
-	: FAnimTimelineTrack(FText::GetEmpty(), LOCTEXT("SlotTooltip", "Montage slot"), InModel)
+	: FAnimTimelineTrack(FText::GetEmpty(), LOCTEXT("MontageSlotTooltip", "Montage slot"), InModel)
 {
 	UAnimMontage* AnimMontage = CastChecked<UAnimMontage>(GetModel()->GetAnimSequenceBase());
 
@@ -143,7 +143,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_MontagePanel::BuildMontageSlotSubMenu(int
 		{
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("SlotName", "Slot name"),
-				LOCTEXT("SlotTooltip", "Change the name of this slot"),
+				LOCTEXT("SlotNameTooltip", "Change the name of this slot"),
 				FNewMenuDelegate::CreateSP(this, &FAnimTimelineTrack_MontagePanel::BuildSlotNameMenu, InSlotIndex)
 			);
 
