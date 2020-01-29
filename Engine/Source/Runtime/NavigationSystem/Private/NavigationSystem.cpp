@@ -2018,6 +2018,7 @@ void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink
 	if (CustomLinksMap.Contains(LinkId))
 	{
 		LinkId = INavLinkCustomInterface::GetUniqueId();
+		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), LinkId);
 		CustomLink.UpdateLinkId(LinkId);
 
 		UObject* CustomLinkOb = CustomLink.GetLinkOwner();
@@ -3585,6 +3586,7 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 
 		if (MyWorld->WorldType == EWorldType::Game || MyWorld->WorldType == EWorldType::Editor)
 		{
+			UE_LOG(LogNavLink, VeryVerbose, TEXT("Reset navlink id on cleanup."));
 			INavLinkCustomInterface::NextUniqueId = 1;
 		}
 	}
