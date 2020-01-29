@@ -77,7 +77,7 @@ public:
 	/**
 	 * Send the packet for triggering the initial join
 	 */
-	void SendInitialJoin();
+	ENGINE_API void SendInitialJoin();
 
 	//~ Begin FNetworkNotify Interface.
 	virtual EAcceptConnection::Type NotifyAcceptingConnection() override;

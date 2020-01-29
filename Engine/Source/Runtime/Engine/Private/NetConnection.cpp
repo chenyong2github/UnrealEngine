@@ -3345,15 +3345,7 @@ void UNetConnection::Tick()
 			LastTimePrinted = FPlatformTime::Seconds();
 		}
 
-		if (!bPendingDestroy)
-		{
-			GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionTimeout, Error);
-		}
-
-		Close();
-#if USE_SERVER_PERF_COUNTERS
-		PerfCountersIncrement(TEXT("TimedoutConnections"));
-#endif
+		HandleConnectionTimeout(Error);
 
 		if (Driver == NULL)
 		{
@@ -3513,6 +3505,20 @@ void UNetConnection::Tick()
 	}
 
 	bFlushedNetThisFrame = false;
+}
+
+void UNetConnection::HandleConnectionTimeout(const FString& Error)
+{
+	if (!bPendingDestroy)
+	{
+		GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionTimeout, Error);
+	}
+
+	Close();
+#if USE_SERVER_PERF_COUNTERS
+	PerfCountersIncrement(TEXT("TimedoutConnections"));
+#endif
+
 }
 
 void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* NetConnection )

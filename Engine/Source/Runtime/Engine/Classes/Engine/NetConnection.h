@@ -1133,7 +1133,7 @@ public:
 	/**
 	* Return current timeout value that should be used
 	*/
-	ENGINE_API float GetTimeoutValue();
+	ENGINE_API virtual float GetTimeoutValue();
 
 	/** Adds the channel to the ticking channels list. USed to selectively tick channels that have queued bunches or are pending dormancy. */
 	void StartTickingChannel(UChannel* Channel) { ChannelsToTick.AddUnique(Channel); }
@@ -1276,6 +1276,9 @@ protected:
 
 	/** Called internally to destroy an actor during replay fast-forward when the actor channel index will be recycled */
 	ENGINE_API virtual void DestroyIgnoredActor(AActor* Actor);
+
+	/** This is called whenever a connection has passed the relative time to be considered timed out. */
+	ENGINE_API virtual void HandleConnectionTimeout(const FString& Error);
 
 private:
 	/**
