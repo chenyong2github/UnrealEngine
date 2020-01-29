@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Factories/SoundSurroundFactory.h"
+
+#include "Audio.h"
 #include "PackageTools.h"
 #include "Sound/SoundWave.h"
 #include "Misc/Paths.h"
@@ -8,6 +9,7 @@
 #include "UObject/Package.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
+
 
 USoundSurroundFactory::USoundSurroundFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

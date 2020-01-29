@@ -55,16 +55,23 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Decompress Streamed"), STAT_AudioStreamedDecompr
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Buffer Creation"), STAT_AudioResourceCreationTime, STATGROUP_Audio, );
 
 
-class FAudioDevice;
-class USoundNode;
-struct FSoundModulationControls;
-class USoundWave;
+// Forward declarations.
 class USoundClass;
-class USoundSubmix;
+class UAudioComponent;
+class USoundNode;
 class USoundSourceBus;
+class USoundSubmix;
+class USoundWave;
+
+class FAudioDevice;
+
 struct FActiveSound;
-struct FWaveInstance;
+struct FReverbSettings;
+struct FSampleLoop;
+struct FSoundModulationControls;
 struct FSoundSourceBusSendInfo;
+struct FWaveInstance;
+
 
 /**
  * Channel definitions for multistream waves
@@ -85,12 +92,17 @@ enum EAudioSpeakers
 	SPEAKER_Count
 };
 
-// Forward declarations.
-class UAudioComponent;
-class USoundNode;
-struct FWaveInstance;
-struct FReverbSettings;
-struct FSampleLoop;
+const FString SurroundSpeakerLocations[SPEAKER_Count] =
+{
+	TEXT("_fl"),	// SPEAKER_FrontLeft
+	TEXT("_fr"),	// SPEAKER_FrontRight
+	TEXT("_fc"),	// SPEAKER_FrontCenter
+	TEXT("_lf"),	// SPEAKER_LowFrequency
+	TEXT("_sl"),	// SPEAKER_SideLeft
+	TEXT("_sr"),	// SPEAKER_SideRight
+	TEXT("_bl"),	// SPEAKER_BackLeft
+	TEXT("_br")		// SPEAKER_BackRight
+};
 
 enum ELoopingMode
 {
