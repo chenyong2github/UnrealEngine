@@ -7171,17 +7171,17 @@ FPrimitiveViewRelevance FParticleSystemSceneProxy::GetViewRelevance(const FScene
 	}
 	if (View->Family->EngineShowFlags.Bounds || View->Family->EngineShowFlags.VectorFields)
 	{
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 	}
 	// see if any of the emitters use dynamic vertex data
 	if (DynamicData == NULL)
 	{
 		// In order to get the LOD distances to update,
 		// we need to force a call to DrawDynamicElements...
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 	}
 
-	Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
+	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 }
