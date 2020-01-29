@@ -18,8 +18,6 @@ public class Niagara : ModuleRules
                 "Renderer",
                 "JsonUtilities",
 				"Json",
-				"AudioPlatformConfiguration",
-				"SignalProcessing"
             }
         );
 
