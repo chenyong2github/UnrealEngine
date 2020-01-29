@@ -16,9 +16,10 @@ struct FAudioChannelEditorData
 	{
 		Data[0].SetIdentifiers("Volume", NSLOCTEXT("MovieSceneAudioSection", "SoundVolumeText", "Volume"));
 		Data[1].SetIdentifiers("Pitch", NSLOCTEXT("MovieSceneAudioSection", "PitchText", "Pitch"));
+		Data[2].SetIdentifiers("AttachActor", NSLOCTEXT("MovieSceneAudioSection", "AttachActorText", "Attach"));
 	}
 
-	FMovieSceneChannelMetaData Data[2];
+	FMovieSceneChannelMetaData Data[3];
 };
 
 #endif // WITH_EDITOR
@@ -56,11 +57,13 @@ UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& Obje
 	static const FAudioChannelEditorData EditorData;
 	Channels.Add(SoundVolume,     EditorData.Data[0], TMovieSceneExternalValue<float>());
 	Channels.Add(PitchMultiplier, EditorData.Data[1], TMovieSceneExternalValue<float>());
+	Channels.Add(AttachActorData, EditorData.Data[2]);
 
 #else
 
 	Channels.Add(SoundVolume);
 	Channels.Add(PitchMultiplier);
+	Channels.Add(AttachActorData);
 
 #endif
 
