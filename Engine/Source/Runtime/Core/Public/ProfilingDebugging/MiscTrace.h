@@ -28,7 +28,7 @@ struct FTraceUtils
 	{
 		do
 		{
-			uint8 HasMoreBytes = (Value > uint64(0x7F)) << 7;
+			uint8 HasMoreBytes = (uint8)((Value > uint64(0x7F)) << 7);
 			*(BufferPtr++) = (uint8)(Value & 0x7F) | HasMoreBytes;
 			Value >>= 7;
 		} while (Value > 0);

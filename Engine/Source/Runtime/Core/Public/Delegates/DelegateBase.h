@@ -256,5 +256,5 @@ private:
 
 inline void* operator new(size_t Size, FDelegateBase& Base)
 {
-	return Base.Allocate(Size);
+	return Base.Allocate((int32)Size);
 }
