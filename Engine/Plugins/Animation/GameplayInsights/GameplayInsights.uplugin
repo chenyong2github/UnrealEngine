@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Gameplay Insights",
 	"Description": "Allows debugging of gameplay and animation systems via Unreal Insights",
-	"Category": "GameplayInsights",
+	"Category": "Insights",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",

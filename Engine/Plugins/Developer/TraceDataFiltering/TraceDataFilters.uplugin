@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Trace Data Filtering",
 	"Description": "Allows for turning on/off individual or sets of Trace Channels.",
-	"Category": "Editor",
+	"Category": "Insights",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",

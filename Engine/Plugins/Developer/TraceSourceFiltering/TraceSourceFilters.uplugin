@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Insights Data Source Filters",
 	"Description": "Source data filtering for Unreal Insights.",
-	"Category": "Editor",
+	"Category": "Insights",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
