@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RemoteSession/RemoteSessionRole.h"
+#include "IRemoteSessionRole.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
 #include "HAL/CriticalSection.h"
 
