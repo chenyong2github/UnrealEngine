@@ -60,6 +60,12 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableUndefinedBehaviorSanitizer")]
 		public bool bEnableUndefinedBehaviorSanitizer = false;
 
+		/// Enables memory sanitizer (MSan)
+		/// </summary>
+		[CommandLine("-EnableMSan")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableMemorySanitizer")]
+		public bool bEnableMemorySanitizer = false;
+
 		/// <summary>
 		/// Enables "thin" LTO
 		/// </summary>
@@ -118,6 +124,11 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
+		}
+
+		public bool bEnableMemorySanitizer
+		{
+			get { return Inner.bEnableMemorySanitizer; }
 		}
 
 		public bool bEnableThinLTO
@@ -537,14 +548,38 @@ namespace UnrealBuildTool
 			if(Target.LinuxPlatform.bEnableAddressSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableAddressSanitizer;
+
+				if (Target.LinkType != TargetLinkType.Monolithic)
+				{
+					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
+				}
 			}
 			if(Target.LinuxPlatform.bEnableThreadSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableThreadSanitizer;
+
+				if (Target.LinkType != TargetLinkType.Monolithic)
+				{
+					throw new BuildException("Thread Sanitizer (TSan) unsupported for non-monolithic builds");
+				}
 			}
 			if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer;
+
+				if (Target.LinkType != TargetLinkType.Monolithic)
+				{
+					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
+				}
+			}
+			if(Target.LinuxPlatform.bEnableMemorySanitizer)
+			{
+				Options |= LinuxToolChainOptions.EnableMemorySanitizer;
+
+				if (Target.LinkType != TargetLinkType.Monolithic)
+				{
+					throw new BuildException("Memory Sanitizer (MSan) unsupported for non-monolithic builds");
+				}
 			}
 			if(Target.LinuxPlatform.bEnableThinLTO)
 			{
