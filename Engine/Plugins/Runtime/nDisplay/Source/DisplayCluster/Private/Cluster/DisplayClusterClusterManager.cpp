@@ -348,6 +348,7 @@ void FDisplayClusterClusterManager::EmitClusterEvent(const FDisplayClusterCluste
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
+	if(CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
 		FScopeLock lock(&ClusterEventsCritSec);
 
