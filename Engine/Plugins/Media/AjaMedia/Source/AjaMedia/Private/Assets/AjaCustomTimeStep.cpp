@@ -283,7 +283,7 @@ void UAjaCustomTimeStep::WaitForSync()
 
 		if (bIsNewSyncCountValid && bIsPreviousSyncCountValid && NewSyncCount != PreviousSyncCount+1)
 		{
-			UE_LOG(LogAjaMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), NewSyncCount-PreviousSyncCount+1);
+			UE_LOG(LogAjaMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), NewSyncCount-PreviousSyncCount-1);
 		}
 		bIsPreviousSyncCountValid = bIsNewSyncCountValid;
 		PreviousSyncCount = NewSyncCount;
