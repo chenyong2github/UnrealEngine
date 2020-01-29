@@ -255,11 +255,6 @@ public class Engine : ModuleRules
 				}
 			);
 
-			if (Target.bWithLiveCoding)
-			{
-				PrivateDependencyModuleNames.Add("LiveCoding");
-			}
-
 			PrivateDependencyModuleNames.Add("CollisionAnalyzer");
 			CircularlyReferencedDependentModules.Add("CollisionAnalyzer");
 
@@ -319,7 +314,7 @@ public class Engine : ModuleRules
 			}
 		);
 
-		if (Target.bWithLiveCoding && Target.Type != TargetType.Editor)
+		if (Target.bWithLiveCoding)
 		{
 			DynamicallyLoadedModuleNames.Add("LiveCoding");
 		}
