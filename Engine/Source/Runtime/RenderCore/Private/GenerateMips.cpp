@@ -256,13 +256,13 @@ TSharedPtr<FGenerateMipsStruct> FGenerateMips::SetupTexture(FRHITexture* InTextu
 		RenderTexture.TargetableTexture = InTexture;
 		RenderTexture.ShaderResourceTexture = InTexture;
 
-		RenderTexture.SRVs.Reserve(Desc.NumMips);
-		RenderTexture.MipUAVs.Reserve(Desc.NumMips);
+		RenderTexture.SRVs.Empty(Desc.NumMips);
+		RenderTexture.MipUAVs.Empty(Desc.NumMips);
 		for (uint8 MipLevel = 0; MipLevel < Desc.NumMips; MipLevel++)
 		{
 			FRHITextureSRVCreateInfo SRVDesc;
 			SRVDesc.MipLevel = MipLevel;
-			RenderTexture.SRVs.Add(SRVDesc, RHICreateShaderResourceView((FTexture2DRHIRef&)InTexture, SRVDesc));
+			RenderTexture.SRVs.Emplace(SRVDesc, RHICreateShaderResourceView((FTexture2DRHIRef&)InTexture, SRVDesc));
 
 			RenderTexture.MipUAVs.Add(RHICreateUnorderedAccessView(InTexture, MipLevel));
 		}
