@@ -152,6 +152,11 @@ public:
 	void SetHovered_GameThread(const bool bInHovered);
 
 	/**
+	 * Updates the lighting channels for the primitive proxy.
+	 */
+	void SetLightingChannels_GameThread(FLightingChannels LightingChannels);
+
+	/**
 	 * Updates the hidden editor view visibility map on the game thread which just enqueues a command on the render thread
 	 */
 	void SetHiddenEdViews_GameThread( uint64 InHiddenEditorViews );
