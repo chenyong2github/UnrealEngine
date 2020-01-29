@@ -772,6 +772,9 @@ class FGenerateVulkanVisitor : public ir_visitor
 	/** Found dFdx or dFdy */
 	bool bUsesDXDY;
 
+	// True if the discard instruction was encountered.
+	bool bUsesDiscard;
+
 	/** Found image atomic functions (e.g. imageAtomicAdd) */
 	bool bUsesImageWriteAtomic;
 
@@ -2325,6 +2328,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 			ralloc_asprintf_append(buffer, ") ");
 		}
 		ralloc_asprintf_append(buffer, "discard");
+		bUsesDiscard = true;
 	}
 
 	bool try_conditional_move(ir_if *expr)
@@ -3272,7 +3276,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 	*/
 	void print_layout(_mesa_glsl_parse_state *state)
 	{
-		if (early_depth_stencil)
+		if (early_depth_stencil && this->bUsesDiscard == false)
 		{
 			ralloc_asprintf_append(buffer, "layout(early_fragment_tests) in;\n");
 		}
@@ -3429,6 +3433,7 @@ public:
 		, loop_count(0)
 		, bUsesES2TextureLODExtension(false)
 		, bUsesDXDY(false)
+		, bUsesDiscard(false)
 		, bUsesImageWriteAtomic(false)
 	{
 		printable_names = hash_table_ctor(32, hash_table_pointer_hash, hash_table_pointer_compare);
