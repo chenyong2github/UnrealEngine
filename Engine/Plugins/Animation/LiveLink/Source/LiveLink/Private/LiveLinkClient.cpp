@@ -426,6 +426,13 @@ void FLiveLinkClient::PushSubjectStaticData_AnyThread(const FLiveLinkSubjectKey&
 		}
 		else
 		{
+			{
+				FScopeLock BroadcastLock(&SubjectFrameReceivedHandleseCriticalSection);
+				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
+				{
+					Handles->OnStaticDataReceived.Broadcast(SubjectStatic.StaticData);
+				}
+			}
 			SubjectStaticToPush.Add(MoveTemp(SubjectStatic));
 		}
 	}
@@ -578,9 +585,9 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 
 	if (LiveLinkSubject)
 	{
-		if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectStaticData.SubjectKey.SubjectName))
+		if (const FSubjectFramesAddedHandles* Handles = SubjectFrameAddedHandles.Find(SubjectStaticData.SubjectKey.SubjectName))
 		{
-			Handles->OnStaticDataReceived.Broadcast(SubjectStaticData.SubjectKey, SubjectStaticData.Role, SubjectStaticData.StaticData);
+			Handles->OnStaticDataAdded.Broadcast(SubjectStaticData.SubjectKey, SubjectStaticData.Role, SubjectStaticData.StaticData);
 		}
 
 		LiveLinkSubject->SetStaticData(SubjectStaticData.Role, MoveTemp(SubjectStaticData.StaticData));
@@ -594,13 +601,20 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 	bool bLogError = false;
 	{
 		FScopeLock Lock(&CollectionAccessCriticalSection);
-		if (SubjectFrameToPush.Num() > MaxNumBufferToCached) // Something is wrong somewhere. Warn the user and discard the new Static Data.
+		if (SubjectFrameToPush.Num() > MaxNumBufferToCached) // Something is wrong somewhere. Warn the user and discard the new Frame Data.
 		{
 			bLogError = true;
 			SubjectFrameToPush.RemoveAt(0, SubjectFrameToPush.Num() - MaxNumBufferToCached, false);
 		}
 		else
 		{
+			{
+				FScopeLock BroadcastLock(&SubjectFrameReceivedHandleseCriticalSection);
+				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
+				{
+					Handles->OnFrameDataReceived.Broadcast(SubjectFrame.FrameData);
+				}
+			}
 			SubjectFrameToPush.Add(MoveTemp(SubjectFrame));
 		}
 	}
@@ -667,9 +681,9 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 		return;
 	}
 
-	if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
+	if (const FSubjectFramesAddedHandles* Handles = SubjectFrameAddedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
 	{
-		Handles->OnFrameDataReceived.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
+		Handles->OnFrameDataAdded.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
 	}
 
 	LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
@@ -766,7 +780,7 @@ void FLiveLinkClient::RemoveSubject_AnyThread(const FLiveLinkSubjectKey& InSubje
 	}
 }
 
-bool FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectKey InVirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> InVirtualSubjectClass)
+bool FLiveLinkClient::AddVirtualSubject(const FLiveLinkSubjectKey& InVirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> InVirtualSubjectClass)
 {
 	bool bResult = false;
 
@@ -807,7 +821,7 @@ bool FLiveLinkClient::AddVirtualSubject(FLiveLinkSubjectKey InVirtualSubjectKey,
 	return bResult;
 }
 
-void FLiveLinkClient::RemoveVirtualSubject(FLiveLinkSubjectKey InVirtualSubjectKey)
+void FLiveLinkClient::RemoveVirtualSubject(const FLiveLinkSubjectKey& InVirtualSubjectKey)
 {
 	FScopeLock Lock(&CollectionAccessCriticalSection);
 	if (Collection)
@@ -1064,7 +1078,7 @@ bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName
 			FLiveLinkTime ResultTime;
 			if (bResult)
 			{
-				ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+				ResultTime = OutFrame.FrameData.GetBaseData()->GetLiveLinkTime();
 			}
 			OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
 		}
@@ -1107,7 +1121,7 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 				FLiveLinkTime ResultTime;
 				if (bResult)
 				{
-					ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+					ResultTime = OutFrame.FrameData.GetBaseData()->GetLiveLinkTime();
 				}
 				OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
 			}
@@ -1151,7 +1165,7 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 				FLiveLinkTime ResultTime;
 				if (bResult)
 				{
-					ResultTime = FLiveLinkTime(OutFrame.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), OutFrame.FrameData.GetBaseData()->MetaData.SceneTime);
+					ResultTime = OutFrame.FrameData.GetBaseData()->GetLiveLinkTime();
 				}
 				OnLiveLinkSubjectEvaluated().Broadcast(*FoundSubjectKey, InDesiredRole, RequestedTime, bResult, ResultTime);
 			}
@@ -1275,16 +1289,45 @@ UObject* FLiveLinkClient::GetSubjectSettings(const FLiveLinkSubjectKey& InSubjec
 	return nullptr;
 }
 
-bool FLiveLinkClient::RegisterForSubjectFrames(FLiveLinkSubjectName InSubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& InOnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& InOnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData)
+void FLiveLinkClient::RegisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived_AnyThread, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived_AnyThread, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle)
+{
+	OutStaticDataReceivedHandle.Reset();
+	OutFrameDataReceivedHandle.Reset();
+
+	FScopeLock Lock(&SubjectFrameReceivedHandleseCriticalSection);
+
+	FSubjectFramesReceivedHandles& Handles = SubjectFrameReceivedHandles.FindOrAdd(InSubjectKey);
+	if (OnStaticDataReceived_AnyThread.IsBound())
+	{
+		OutStaticDataReceivedHandle = Handles.OnStaticDataReceived.Add(OnStaticDataReceived_AnyThread);
+	}
+	if (OnFrameDataReceived_AnyThread.IsBound())
+	{
+		OutFrameDataReceivedHandle = Handles.OnFrameDataReceived.Add(OnFrameDataReceived_AnyThread);
+	}
+}
+
+void FLiveLinkClient::UnregisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle)
+{
+	FScopeLock Lock(&SubjectFrameReceivedHandleseCriticalSection);
+
+	if (FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
+	{
+		Handles->OnStaticDataReceived.Remove(InStaticDataReceivedHandle);
+		Handles->OnFrameDataReceived.Remove(InFrameDataReceivedHandle);
+	}
+}
+
+bool FLiveLinkClient::RegisterForSubjectFrames(FLiveLinkSubjectName InSubjectName, const FOnLiveLinkSubjectStaticDataAdded::FDelegate& InOnStaticDataAdded, const FOnLiveLinkSubjectFrameDataAdded::FDelegate& InOnFrameDataAdded, FDelegateHandle& OutStaticDataAddedHandle, FDelegateHandle& OutFrameDataAddedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData)
 {
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
 	{
 		if (SubjectItem->GetSubject()->GetStaticData().IsValid())
 		{
 			//Register both delegates
-			FSubjectFramesReceivedHandles& Handles = SubjectFrameReceivedHandles.FindOrAdd(InSubjectName);
-			OutStaticDataReceivedHandle = Handles.OnStaticDataReceived.Add(InOnStaticDataReceived);
-			OutFrameDataReceivedHandle = Handles.OnFrameDataReceived.Add(InOnFrameDataReceived);
+			FSubjectFramesAddedHandles& Handles = SubjectFrameAddedHandles.FindOrAdd(InSubjectName);
+			OutStaticDataAddedHandle = Handles.OnStaticDataAdded.Add(InOnStaticDataAdded);
+			OutFrameDataAddedHandle = Handles.OnFrameDataAdded.Add(InOnFrameDataAdded);
 
 			//Give back the current static data and role associated to the subject
 			OutSubjectRole = SubjectItem->GetSubject()->GetRole();
@@ -1304,10 +1347,10 @@ bool FLiveLinkClient::RegisterForSubjectFrames(FLiveLinkSubjectName InSubjectNam
 
 void FLiveLinkClient::UnregisterSubjectFramesHandle(FLiveLinkSubjectName InSubjectName, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle)
 {
-	if (FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectName))
+	if (FSubjectFramesAddedHandles* Handles = SubjectFrameAddedHandles.Find(InSubjectName))
 	{
-		Handles->OnStaticDataReceived.Remove(InStaticDataReceivedHandle);
-		Handles->OnFrameDataReceived.Remove(InFrameDataReceivedHandle);
+		Handles->OnStaticDataAdded.Remove(InStaticDataReceivedHandle);
+		Handles->OnFrameDataAdded.Remove(InFrameDataReceivedHandle);
 	}
 }
 

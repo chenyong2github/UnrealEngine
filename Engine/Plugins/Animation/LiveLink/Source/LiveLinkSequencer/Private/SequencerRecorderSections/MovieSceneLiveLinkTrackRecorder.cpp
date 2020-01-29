@@ -99,8 +99,8 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 
 	TSharedPtr<FLiveLinkStaticDataStruct> StaticData = MakeShared<FLiveLinkStaticDataStruct>();
 	const bool bRegistered = LiveLinkClient->RegisterForSubjectFrames(SubjectName
-																	, FOnLiveLinkSubjectStaticDataReceived::FDelegate::CreateUObject(this, &UMovieSceneLiveLinkTrackRecorder::OnStaticDataReceived)
-																	, FOnLiveLinkSubjectFrameDataReceived::FDelegate::CreateUObject(this, &UMovieSceneLiveLinkTrackRecorder::OnFrameDataReceived)
+																	, FOnLiveLinkSubjectStaticDataAdded::FDelegate::CreateUObject(this, &UMovieSceneLiveLinkTrackRecorder::OnStaticDataReceived)
+																	, FOnLiveLinkSubjectFrameDataAdded::FDelegate::CreateUObject(this, &UMovieSceneLiveLinkTrackRecorder::OnFrameDataReceived)
 																	, OnStaticDataReceivedHandle
 																	, OnFrameDataReceivedHandle
 																	, SubjectRole
