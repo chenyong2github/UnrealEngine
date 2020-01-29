@@ -194,7 +194,7 @@ void AWorldSettings::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 	UWorld* World = GetWorld();
-	if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = World->GetAudioDevice())
 	{
 		AudioDevice->SetDefaultAudioSettings(World, DefaultReverbSettings, DefaultAmbientZoneSettings);
 	}
@@ -622,7 +622,7 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultReverbSettings) || PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultAmbientZoneSettings))
 {
 		UWorld* World = GetWorld();
-		if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
 	{
 			AudioDevice->SetDefaultAudioSettings(World, DefaultReverbSettings, DefaultAmbientZoneSettings);
 		}

@@ -62,7 +62,7 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 	{
 		if (GEngine && GEngine->GetMainAudioDevice() && !IsEngineExitRequested())
 		{
-			FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
 			{
 				if (FTaskGraphInterface::IsRunning() && !IsEngineExitRequested())
@@ -156,7 +156,7 @@ void FAppEntry::Resume(bool bIsInterrupt)
 	{
 		if (GEngine && GEngine->GetMainAudioDevice())
 		{
-			FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
         
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
 			{
@@ -205,7 +205,7 @@ void FAppEntry::ResumeAudioContext()
 {
 	if (GEngine && GEngine->GetMainAudioDevice())
 	{
-		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 		if (AudioDevice)
 		{
 			if (FTaskGraphInterface::IsRunning())
@@ -233,7 +233,7 @@ void FAppEntry::RestartAudio()
 {
 	if (GEngine && GEngine->GetMainAudioDevice())
 	{
-		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 
 		if (FTaskGraphInterface::IsRunning())
 		{

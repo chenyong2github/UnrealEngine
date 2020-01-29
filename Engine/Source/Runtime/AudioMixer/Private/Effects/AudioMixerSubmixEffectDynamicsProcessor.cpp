@@ -27,7 +27,7 @@ FSubmixEffectDynamicsProcessor::~FSubmixEffectDynamicsProcessor()
 		Audio::FMixerDevice* MixerDevice = nullptr;
 		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 		{
-			MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDeviceRaw(DeviceId));
+			MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDevice(DeviceId));
 		}
 
 		if (MixerDevice)
@@ -50,7 +50,7 @@ void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& Init
 	AudioOutputFrame.Reset();
 	AudioOutputFrame.AddZeroed(ProcessorScratchNumChannels);
 
-	DeviceId = InitData.DeviceID;
+	DeviceId = InitData.DeviceHandle;
 }
 
 void FSubmixEffectDynamicsProcessor::OnNewSubmixBuffer(
@@ -130,7 +130,7 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 	Audio::FMixerDevice* MixerDevice = nullptr;
 	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDeviceRaw(DeviceId));
+		MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDevice(DeviceId));
 	}
 
 	if (MixerDevice)

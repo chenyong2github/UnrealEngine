@@ -2058,7 +2058,7 @@ void UEditorEngine::EditorDestroyWorld( FWorldContext & Context, const FText& Cl
 	CloseEditedWorldAssets(ContextWorld);
 
 	// Stop all audio and remove references 
-	if (FAudioDevice* AudioDevice = ContextWorld->GetAudioDeviceRaw())
+	if (FAudioDevice* AudioDevice = ContextWorld->GetAudioDevice())
 	{
 		AudioDevice->Flush(ContextWorld);
 	}

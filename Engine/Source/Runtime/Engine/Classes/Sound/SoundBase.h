@@ -13,7 +13,7 @@
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "AudioDeviceManager.h"
+
 #include "SoundBase.generated.h"
 
 

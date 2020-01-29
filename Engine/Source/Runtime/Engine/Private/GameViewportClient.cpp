@@ -171,6 +171,7 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
+	, AudioDeviceHandle(INDEX_NONE)
 	, bHasAudioFocus(false)
 	, bIsMouseOverClient(false)
 #if WITH_EDITOR
@@ -255,6 +256,7 @@ UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
+	, AudioDeviceHandle(INDEX_NONE)
 	, bHasAudioFocus(false)
 {
 
@@ -301,7 +303,14 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	AudioDevice = FAudioDeviceHandle();
+	if (GEngine)
+	{
+		class FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->ShutdownAudioDevice(AudioDeviceHandle);
+		}
+	}
 
 	RemoveAllViewportWidgets();
 	Super::BeginDestroy();
@@ -432,14 +441,11 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 		if (AudioDeviceManager)
 		{
-			// Get a new audio device for this world.
-			FAudioDeviceParams DeviceParams = AudioDeviceManager->GetDefaultParamsForNewWorld();
-			DeviceParams.AssociatedWorld = World;
-
-			AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
-
-			if (ensure(AudioDevice.IsValid()))
+			FAudioDeviceManager::FCreateAudioDeviceResults NewDeviceResults;
+			if (AudioDeviceManager->CreateAudioDevice(bCreateNewAudioDevice, NewDeviceResults))
 			{
+				AudioDeviceHandle = NewDeviceResults.Handle;
+
 #if ENABLE_AUDIO_DEBUG
 				FAudioDebugger::ResolveDesiredStats(this);
 #endif // ENABLE_AUDIO_DEBUG
@@ -447,15 +453,15 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 				// Set the base mix of the new device based on the world settings of the world
 				if (World)
 				{
-					AudioDevice.GetAudioDevice()->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
+					NewDeviceResults.AudioDevice->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
 
 					// Set the world's audio device handle to use so that sounds which play in that world will use the correct audio device
-					World->SetAudioDevice(AudioDevice);
+					World->SetAudioDeviceHandle(AudioDeviceHandle);
 				}
 
 				// Set this audio device handle on the world context so future world's set onto the world context
 				// will pass the audio device handle to them and audio will play on the correct audio device
-				WorldContext.AudioDeviceID = AudioDevice.GetDeviceID();
+				WorldContext.AudioDeviceHandle = AudioDeviceHandle;
 			}
 		}
 	}
@@ -1227,6 +1233,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	TMap<ULocalPlayer*,FSceneView*> PlayerViewMap;
+
+	FAudioDevice* AudioDevice = MyWorld->GetAudioDevice();
 	TArray<FSceneView*> Views;
 
 	for (FLocalPlayerIterator Iterator(GEngine, MyWorld); Iterator; ++Iterator)
@@ -1295,7 +1303,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						PlayerViewMap.Add(LocalPlayer, View);
 
 						// Update the listener.
-						if (AudioDevice && PlayerController != NULL)
+						if (AudioDevice != NULL && PlayerController != NULL)
 						{
 							bool bUpdateListenerPosition = true;
 
@@ -1308,8 +1316,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 								// If there is more than one world referencing the main audio device
 								if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
 								{
-									Audio::FDeviceId MainAudioDeviceID = GEngine->GetMainAudioDeviceID();
-									if (AudioDevice->DeviceID == MainAudioDeviceID && !bHasAudioFocus)
+									uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
+									if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !bHasAudioFocus)
 									{
 										bUpdateListenerPosition = false;
 									}
@@ -1816,7 +1824,7 @@ void UGameViewportClient::Precache()
 	if(!GIsEditor)
 	{
 		// Precache sounds...
-		if (AudioDevice)
+		if (FAudioDevice* AudioDevice = GetWorld()->GetAudioDevice())
 		{
 			UE_LOG(LogPlayerManagement, Log, TEXT("Precaching sounds..."));
 			for(TObjectIterator<USoundWave> It;It;++It)
@@ -1883,7 +1891,7 @@ void UGameViewportClient::ReceivedFocus(FViewport* InViewport)
 
 	if (GEngine && GEngine->GetAudioDeviceManager())
 	{
-		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDevice.GetDeviceID());
+		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDeviceHandle);
 		bHasAudioFocus = true;
 	}
 }

@@ -138,7 +138,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	{
 		World->bAllowAudioPlayback = !ConfigOption->bMuteAudio;
 
-		if(FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
+		if(FAudioDevice* AudioDevice = World->GetAudioDevice())
 		{
 			AudioDevice->SetUseAttenuationForNonGameWorlds(ConfigOption->bUseAudioAttenuation);
 		}
@@ -222,7 +222,7 @@ void FAnimationViewportClient::OnToggleUseAudioAttenuation()
 	UWorld* World = PreviewScene->GetWorld();
 	if(World)
 	{
-		if(FAudioDevice* AudioDevice = GetWorld()->GetAudioDeviceRaw())
+		if(FAudioDevice* AudioDevice = GetWorld()->GetAudioDevice())
 		{
 			AudioDevice->SetUseAttenuationForNonGameWorlds(ConfigOption->bUseAudioAttenuation);
 		}
@@ -1885,7 +1885,7 @@ void FAnimationViewportClient::UpdateAudioListener(const FSceneView& View)
 
 	if (ViewportWorld)
 	{
-		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDeviceRaw())
+		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDevice())
 		{
 			const FVector& ViewLocation = GetViewLocation();
 			const FRotator& ViewRotation = GetViewRotation();

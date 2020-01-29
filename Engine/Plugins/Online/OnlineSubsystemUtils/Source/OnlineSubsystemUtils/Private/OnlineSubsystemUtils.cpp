@@ -110,7 +110,7 @@ UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 	UAudioComponent* AudioComponent = nullptr;
 	if (GEngine != nullptr)
 	{
-		if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 		{
 			USoundWaveProcedural* SoundStreaming = NewObject<USoundWaveProcedural>();
 			SoundStreaming->SetSampleRate(SampleRate);
@@ -157,7 +157,7 @@ UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 {
 	UVoipListenerSynthComponent* SynthComponentPtr = nullptr;
-	if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 	{
 		SynthComponentPtr = NewObject<UVoipListenerSynthComponent>();
 		if (SynthComponentPtr)
@@ -187,7 +187,7 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(UWorld* World, uint32 Sam
 
 	if (World)
 	{
-		if (FAudioDeviceHandle AudioDeviceHandle = World->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
 		{
 			SynthComponentPtr = NewObject<UVoipListenerSynthComponent>();
 			if (SynthComponentPtr)
@@ -243,7 +243,7 @@ void ApplyVoiceSettings(UVoipListenerSynthComponent* InSynthComponent, const FVo
 
 			// By ensuring that this Audio Component's device handle is INDEX_NONE, we ensure that we will revert to
 			// using the audio device associated with the World we just registered this audio component on.
-			AudioComponent->AudioDeviceID = INDEX_NONE;
+			AudioComponent->AudioDeviceHandle = INDEX_NONE;
 		}
 	}
 

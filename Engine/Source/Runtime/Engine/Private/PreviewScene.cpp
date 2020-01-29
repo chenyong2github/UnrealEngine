@@ -98,7 +98,7 @@ FPreviewScene::~FPreviewScene()
 		UWorld* World = GetWorld();
 		if (World)
 		{
-			if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
+			if (FAudioDevice* AudioDevice = World->GetAudioDevice())
 			{
 				AudioDevice->Flush(GetWorld(), false);
 			}
