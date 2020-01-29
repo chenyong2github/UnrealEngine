@@ -68,22 +68,33 @@ FAsioStore::FTrace::FTrace(const TCHAR* InPath)
 		FILETIME Time;
 		if (GetFileTime(Handle, &Time, nullptr, nullptr))
 		{
-			// Windows FILETIME is a 64-bit value that represents the number of 100-nanosecond intervals that have elapsed since 12:00 A.M.January 1, 1601 Coordinated Universal Time(UTC).
-			// We adjust it to be compatible with the FDateTime ticks number of 100-nanosecond intervals that have elapsed since 12:00 A.M.January 1, 0001 Coordinated Universal Time(UTC).
-			const uint64 WinTicks = (static_cast<uint64>(Time.dwHighDateTime) << 32ull) | static_cast<uint64>(Time.dwLowDateTime);
-			const uint64 Year1601 = 504911232000000000ULL; // FDateTime(1601, 1, 1).GetTicks()
-			InTimestamp = Year1601 + WinTicks;
+			// Windows FILETIME is a 64-bit value that represents the number of 100-nanosecond intervals that have elapsed since 12:00 A.M. January 1, 1601 UTC.
+			// We adjust it to be compatible with the FDateTime ticks number of 100-nanosecond intervals that have elapsed since 12:00 A.M. January 1, 0001 UTC.
+			InTimestamp = (static_cast<uint64>(Time.dwHighDateTime) << 32ull) | static_cast<uint64>(Time.dwLowDateTime); // [100-nanosecond ticks since 1601]
+			InTimestamp += 0x0701ce1722770000ull; // FDateTime(1601, 1, 1).GetTicks()
 		}
 
 		CloseHandle(Handle);
+	}
+#elif PLATFORM_MAC
+	struct stat FileStat;
+	if (stat(TCHAR_TO_UTF8(InPath), &FileStat) == 0)
+	{
+		// The tv_sec field is an integer value that represents the number of seconds that have elapsed since the Unix epoch 12:00 A.M. January 1, 1970 UTC.
+		// We adjust it to be compatible with the FDateTime ticks number of 100-nanosecond intervals that have elapsed since 12:00 A.M. January 1, 0001 UTC.
+		InTimestamp = (uint64(FileStat.st_mtimespec.tv_sec) * 1000 * 1000 * 1000) + FileStat.st_mtimespec.tv_nsec; // [nanoseconds since 1970]
+		InTimestamp /= 100; // [100-nanosecond ticks since 1970]
+		InTimestamp += 0x089f7ff5f7b58000ull; // FDateTime(1970, 1, 1).GetTicks()
 	}
 #else
 	struct stat FileStat;
 	if (stat(TCHAR_TO_UTF8(InPath), &FileStat) == 0)
 	{
-		InTimestamp = (uint64(FileStat.st_ctim.tv_sec) * 1000 * 1000 * 1000) + FileStat.st_ctim.tv_nsec;
-		InTimestamp /= 100;
-		InTimestamp += 0x004d5bd15e978000ull; // k = unix_epoch - FDateTime_epoch (in 100-nanoseconds)
+		// The tv_sec field is an integer value that represents the number of seconds that have elapsed since the Unix epoch 12:00 A.M. January 1, 1970 UTC.
+		// We adjust it to be compatible with the FDateTime ticks number of 100-nanosecond intervals that have elapsed since 12:00 A.M. January 1, 0001 UTC.
+		InTimestamp = (uint64(FileStat.st_mtim.tv_sec) * 1000 * 1000 * 1000) + FileStat.st_mtim.tv_nsec; // [nanoseconds since 1970]
+		InTimestamp /= 100; // [100-nanosecond ticks since 1970]
+		InTimestamp += 0x089f7ff5f7b58000ull; // FDateTime(1970, 1, 1).GetTicks()
 	}
 #endif
 	Timestamp = InTimestamp;
@@ -321,8 +332,9 @@ FAsioReadable* FAsioStore::OpenTrace(uint32 Id)
 #if 0
 	TracePath.Appendf(TEXT("/%05d/data.utrace"), Id);
 #else
-	const FStringView& Name = Trace->GetName();
-	TracePath.Appendf(TEXT("/%.*s.utrace"), Name.Len(), Name.GetData());
+	TracePath += "/";
+	TracePath += Trace->GetName();
+	TracePath += ".utrace";
 #endif // 0
 
 	return FAsioFile::ReadFile(GetIoContext(), *TracePath);
