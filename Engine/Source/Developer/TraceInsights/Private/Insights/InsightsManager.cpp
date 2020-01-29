@@ -77,6 +77,8 @@ void FInsightsManager::BindCommands()
 
 FInsightsManager::~FInsightsManager()
 {
+	ResetSession();
+
 	FInsightsCommands::Unregister();
 
 	// Unregister tick function.
@@ -173,6 +175,7 @@ void FInsightsManager::ResetSession()
 {
 	if (Session.IsValid())
 	{
+		Session->Stop(true);
 		Session.Reset();
 		CurrentTraceId = 0;
 		bIsNetworkingProfilerAvailable = false;
