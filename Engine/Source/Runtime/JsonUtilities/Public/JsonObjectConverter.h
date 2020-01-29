@@ -36,6 +36,7 @@ public: // UStruct -> JSON
 	/**
 	 * Utility Export Callback for having object properties expanded to full Json.
 	 */
+	UE_DEPRECATED(4.25, "ObjectJsonCallback has been deprecated - please remove the usage of it from your project")
 	static TSharedPtr<FJsonValue> ObjectJsonCallback(FProperty* Property , const void* Value);
 
 	/**
