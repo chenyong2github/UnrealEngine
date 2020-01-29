@@ -284,7 +284,7 @@ void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher
 		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
 		if (NumRegisteredGPURenderers)
 		{
-			NumRegisteredGPURenderers->Value += 1;
+			NumRegisteredGPURenderers->Value += GetMaxIndirectArgs();
 		}
 	}
 }
@@ -293,7 +293,7 @@ void FNiagaraRenderer::ReleaseRenderThreadResources()
 {
 	if (NumRegisteredGPURenderers)
 	{
-		NumRegisteredGPURenderers->Value -= 1;
+		NumRegisteredGPURenderers->Value -= GetMaxIndirectArgs();
 		NumRegisteredGPURenderers.SafeRelease();
 	}
 }

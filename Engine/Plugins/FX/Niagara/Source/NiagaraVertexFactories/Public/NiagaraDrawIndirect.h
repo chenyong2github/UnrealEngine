@@ -12,6 +12,7 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 
 #define NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT 64
 #define NIAGARA_DRAW_INDIRECT_ARGS_SIZE 5
+#define NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE 3
 
 // #define NIAGARA_COPY_BUFFER_THREAD_COUNT 64
 // #define NIAGARA_COPY_BUFFER_BUFFER_COUNT 3
@@ -33,17 +34,21 @@ public:
 	 */
 	struct FArgGenTaskInfo
 	{
-		FArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance) 
+		FArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation) 
 			: InstanceCountBufferOffset(InInstanceCountBufferOffset)
 			, NumIndicesPerInstance(InNumIndicesPerInstance)
+			, StartIndexLocation(InStartIndexLocation)
 		{}
 
 		uint32 InstanceCountBufferOffset;
 		uint32 NumIndicesPerInstance; // When -1 the counter needs to be reset to 0.
+		uint32 StartIndexLocation;
 
 		bool operator==(const FArgGenTaskInfo& Rhs) const
 		{
-			return InstanceCountBufferOffset == Rhs.InstanceCountBufferOffset && NumIndicesPerInstance == Rhs.NumIndicesPerInstance;
+			return InstanceCountBufferOffset == Rhs.InstanceCountBufferOffset
+				&& NumIndicesPerInstance == Rhs.NumIndicesPerInstance
+				&& StartIndexLocation == Rhs.StartIndexLocation;
 		}
 	};
 
