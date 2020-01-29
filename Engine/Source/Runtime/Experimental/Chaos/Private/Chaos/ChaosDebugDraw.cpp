@@ -160,9 +160,8 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FCollisionConstraintBase& Contact, float ColorScale)
 		{
-			const FCollisionConstraintBase& Contact = ConstraintHandle->GetContact();
 			const FReal ActiveColorScale = (Contact.GetPhi() > 0)? ColorScale * 0.1f : ColorScale;
 
 			FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
@@ -170,14 +169,14 @@ namespace Chaos
 
 			if (ContactWidth > 0)
 			{
-				bool bIsManifold = (ConstraintHandle->GetType() == FCollisionConstraintBase::FType::MultiPoint);
+				bool bIsManifold = (Contact.GetType() == FCollisionConstraintBase::FType::MultiPoint);
 				FColor C0 = bIsManifold? (ColorScale * FColor(0, 0, 200)).ToFColor(false) : (ColorScale * FColor(200, 0, 0)).ToFColor(false);
 				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
 				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 
 				if (bIsManifold)
 				{
-					const FRigidBodyMultiPointContactConstraint& MultiPointConstraint = *ConstraintHandle->GetContact().As<FRigidBodyMultiPointContactConstraint>();
+					const FRigidBodyMultiPointContactConstraint& MultiPointConstraint = *Contact.As<FRigidBodyMultiPointContactConstraint>();
 					TConstGenericParticleHandle<FReal, 3> PointsParticle = MultiPointConstraint.PointsParticleHandle();
 					FRigidTransform3 PointsTransform = FParticleUtilities::GetActorWorldTransform(PointsParticle) * SpaceTransform;
 					for (int32 SampleIndex = 1; SampleIndex < MultiPointConstraint.NumManifoldPoints(); ++SampleIndex)
@@ -203,11 +202,16 @@ namespace Chaos
 			{
 				FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
 				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FVec3 P0 = SpaceTransform.TransformPosition(ConstraintHandle->GetConstrainedParticles()[0]->X());
-				FVec3 P1 = SpaceTransform.TransformPosition(ConstraintHandle->GetConstrainedParticles()[1]->X());
+				FVec3 P0 = SpaceTransform.TransformPosition(Contact.Particle[0]->X());
+				FVec3 P1 = SpaceTransform.TransformPosition(Contact.Particle[1]->X());
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
 			}
+		}
+		
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
+		{
+			DrawCollisionImpl(SpaceTransform, ConstraintHandle->GetContact(), ColorScale);
 		}
 
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 Level, int32 Index, FReal ColorScale, uint32 FeatureMask)
@@ -456,9 +460,9 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ConstraintHandle : Collisions.GetConstConstraintHandles())
+				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 				{
-					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale);
+					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale);
 				}
 			}
 #endif

@@ -189,6 +189,8 @@ namespace ImmediatePhysics_Chaos
 		Particles.GetParticleHandles().AddArray(&ParticleMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticleMaterials);
 
+		Collisions.DisableHandles();
+
 		Evolution.AddConstraintRule(&CollisionsRule);
 		Evolution.AddConstraintRule(&JointsRule);
 
@@ -216,7 +218,7 @@ namespace ImmediatePhysics_Chaos
 			{
 				if (ChaosImmediate_DebugDrawCollisions == 4)
 				{
-					DebugDraw::DrawCollisions(SimulationSpaceTransform, InConstraintHandles, 0.3f);
+					DebugDraw::DrawCollisions(SimulationSpaceTransform, Collisions, 0.3f);
 				}
 				DebugDrawDynamicParticles(4, 4, FColor(128, 0, 0));
 			});
@@ -225,7 +227,7 @@ namespace ImmediatePhysics_Chaos
 			{
 				if (ChaosImmediate_DebugDrawCollisions == 4)
 				{
-					DebugDraw::DrawCollisions(SimulationSpaceTransform, InConstraintHandles, 0.6f);
+					DebugDraw::DrawCollisions(SimulationSpaceTransform, Collisions, 0.6f);
 				}
 			});
 		Joints.SetPreApplyCallback(
