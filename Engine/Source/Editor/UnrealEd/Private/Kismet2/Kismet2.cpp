@@ -1503,8 +1503,6 @@ public:
 				Pair.Key->SetRelativeTransform(Pair.Value);
 			}
 
-			SCS->RemoveNode(SCS->GetDefaultSceneRootNode());
-
 			FTransform NewActorTransform = FTransform::Identity;
 			if (RootActors.Num() == 1)
 			{
