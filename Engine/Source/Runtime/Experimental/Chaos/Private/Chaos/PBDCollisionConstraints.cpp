@@ -30,6 +30,7 @@
 #endif
 
 //#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
 
 namespace Chaos
 {
@@ -413,12 +414,12 @@ namespace Chaos
 
 			for (FPointContactConstraint& Contact : PointConstraints)
 			{
-				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
+				Collisions::ApplySinglePoint(Contact, IterationParameters, ParticleParameters);
 			}
 
 			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
-				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
+				Collisions::ApplyMultiPoint(Contact, IterationParameters, ParticleParameters);
 			}
 		}
 
@@ -442,12 +443,12 @@ namespace Chaos
 
 			for (FPointContactConstraint& Contact : PointConstraints)
 			{
-				Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
+				Collisions::ApplyPushOutSinglePoint(Contact, TempStatic, IterationParameters, ParticleParameters);
 			}
 
 			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
-				Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
+				Collisions::ApplyPushOutMultiPoint(Contact, TempStatic, IterationParameters, ParticleParameters);
 			}
 		}
 

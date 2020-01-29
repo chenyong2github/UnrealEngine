@@ -10,6 +10,7 @@
 #endif
 
 //#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
 
 #if !INTEL_ISPC
 const bool bChaos_Joint_ISPC_Enabled = false;
@@ -901,17 +902,17 @@ namespace Chaos
 		// This significantly improves angular stiffness at lower iterations, although the same effect
 		// is achieved by increasing iterations.
 		// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-		if (AngularPositionCorrection > 0)
-		{
-			const FVec3 PrevX0 = Xs[0];
-			const FVec3 PrevX1 = Xs[1];
-			UpdateDerivedState();
+		//if (AngularPositionCorrection > 0)
+		//{
+		//	const FVec3 PrevX0 = Xs[0];
+		//	const FVec3 PrevX1 = Xs[1];
+		//	UpdateDerivedState();
 
-			const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
-			const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
-			const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
-			ApplyPositionDelta(Stiffness * AngularPositionCorrection, DP0, DP1);
-		}
+		//	const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
+		//	const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
+		//	const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
+		//	ApplyPositionDelta(Stiffness * AngularPositionCorrection, DP0, DP1);
+		//}
 
 		UpdateDerivedState();
 	}
@@ -948,16 +949,16 @@ namespace Chaos
 
 			// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
 			// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
-			if (AngularPositionCorrection > 0)
-			{
-				const FVec3 LinearAxis1 = FVec3::CrossProduct(Xs[DIndex] - Ps[DIndex], Axis);
-				const FReal LinearAxisLen1Sq = LinearAxis1.SizeSquared();
-				if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
-				{
-					const FReal IM1 = InvMs[DIndex] / LinearAxisLen1Sq;
-					II1 = II1 * IM1 / (II1 + IM1);
-				}
-			}
+			//if (AngularPositionCorrection > 0)
+			//{
+			//	const FVec3 LinearAxis1 = FVec3::CrossProduct(Xs[DIndex] - Ps[DIndex], Axis);
+			//	const FReal LinearAxisLen1Sq = LinearAxis1.SizeSquared();
+			//	if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
+			//	{
+			//		const FReal IM1 = InvMs[DIndex] / LinearAxisLen1Sq;
+			//		II1 = II1 * IM1 / (II1 + IM1);
+			//	}
+			//}
 			const FReal II = II1;
 
 			// Damping angular velocity
@@ -985,15 +986,15 @@ namespace Chaos
 			// This significantly improves angular stiffness at lower iterations, although the same effect
 			// is achieved by increasing iterations.
 			// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-			if (AngularPositionCorrection > 0)
-			{
-				const FVec3 PrevX0 = Xs[KIndex];
-				const FVec3 PrevX1 = Xs[DIndex];
-				UpdateDerivedState(DIndex);
+			//if (AngularPositionCorrection > 0)
+			//{
+			//	const FVec3 PrevX0 = Xs[KIndex];
+			//	const FVec3 PrevX1 = Xs[DIndex];
+			//	UpdateDerivedState(DIndex);
 
-				const FVec3 DP1 = (PrevX1 - PrevX0) - (Xs[DIndex] - Xs[KIndex]);
-				ApplyPositionDelta(DIndex, AngularPositionCorrection, DP1);
-			}
+			//	const FVec3 DP1 = (PrevX1 - PrevX0) - (Xs[DIndex] - Xs[KIndex]);
+			//	ApplyPositionDelta(DIndex, AngularPositionCorrection, DP1);
+			//}
 
 			UpdateDerivedState(DIndex);
 		}
@@ -1032,23 +1033,23 @@ namespace Chaos
 
 			// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
 			// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
-			if (AngularPositionCorrection > 0)
-			{
-				const FVec3 LinearAxis0 = FVec3::CrossProduct(Xs[0] - Ps[0], Axis);
-				const FReal LinearAxisLen0Sq = LinearAxis0.SizeSquared();
-				if (LinearAxisLen0Sq > KINDA_SMALL_NUMBER)
-				{
-					const FReal IM0 = InvMs[0] / LinearAxisLen0Sq;
-					II0 = II0 * IM0 / (II0 + IM0);
-				}
-				const FVec3 LinearAxis1 = FVec3::CrossProduct(Xs[1] - Ps[1], Axis);
-				const FReal LinearAxisLen1Sq = LinearAxis1.SizeSquared();
-				if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
-				{
-					const FReal IM1 = InvMs[1] / LinearAxisLen1Sq;
-					II1 = II1 * IM1 / (II1 + IM1);
-				}
-			}
+			//if (AngularPositionCorrection > 0)
+			//{
+			//	const FVec3 LinearAxis0 = FVec3::CrossProduct(Xs[0] - Ps[0], Axis);
+			//	const FReal LinearAxisLen0Sq = LinearAxis0.SizeSquared();
+			//	if (LinearAxisLen0Sq > KINDA_SMALL_NUMBER)
+			//	{
+			//		const FReal IM0 = InvMs[0] / LinearAxisLen0Sq;
+			//		II0 = II0 * IM0 / (II0 + IM0);
+			//	}
+			//	const FVec3 LinearAxis1 = FVec3::CrossProduct(Xs[1] - Ps[1], Axis);
+			//	const FReal LinearAxisLen1Sq = LinearAxis1.SizeSquared();
+			//	if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
+			//	{
+			//		const FReal IM1 = InvMs[1] / LinearAxisLen1Sq;
+			//		II1 = II1 * IM1 / (II1 + IM1);
+			//	}
+			//}
 			const FReal II = (II0 + II1);
 
 			// Damping angular velocity
@@ -1079,17 +1080,17 @@ namespace Chaos
 			// This significantly improves angular stiffness at lower iterations, although the same effect
 			// is achieved by increasing iterations.
 			// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-			if (AngularPositionCorrection > 0)
-			{
-				const FVec3 PrevX0 = Xs[0];
-				const FVec3 PrevX1 = Xs[1];
-				UpdateDerivedState();
+			//if (AngularPositionCorrection > 0)
+			//{
+			//	const FVec3 PrevX0 = Xs[0];
+			//	const FVec3 PrevX1 = Xs[1];
+			//	UpdateDerivedState();
 
-				const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
-				const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
-				const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
-				ApplyPositionDelta(AngularPositionCorrection, DP0, DP1);
-			}
+			//	const FVec3 DX = (Xs[1] - Xs[0]) - (PrevX1 - PrevX0);
+			//	const FVec3 DP0 = DX * (InvMs[0] / (InvMs[0] + InvMs[1]));
+			//	const FVec3 DP1 = DX * (-InvMs[1] / (InvMs[0] + InvMs[1]));
+			//	ApplyPositionDelta(AngularPositionCorrection, DP0, DP1);
+			//}
 
 			UpdateDerivedState();
 		}
