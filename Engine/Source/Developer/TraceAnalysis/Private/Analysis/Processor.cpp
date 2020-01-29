@@ -36,6 +36,7 @@ uint32 FAnalysisProcessor::FImpl::Run()
 {
 	FStreamBuffer Buffer;
 
+	bRunning = true;
 	while (!StopEvent->Wait(0, true))
 	{
 		UnpausedEvent->Wait();
@@ -57,13 +58,14 @@ uint32 FAnalysisProcessor::FImpl::Run()
 	}
 
 	AnalysisEngine.End();
+	bRunning = false;
 	return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisProcessor::FImpl::IsActive() const
 {
-	return (Thread != nullptr);
+	return bRunning;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
