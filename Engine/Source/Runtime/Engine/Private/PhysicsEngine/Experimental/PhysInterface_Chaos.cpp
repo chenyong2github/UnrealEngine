@@ -38,6 +38,7 @@
 #include "PhysicsInterfaceUtilsCore.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicalMaterials/PhysicalMaterialMask.h"
 
 #if WITH_PHYSX
 #include "geometry/PxConvexMesh.h"
@@ -63,6 +64,7 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 DECLARE_CYCLE_STAT(TEXT("Phys Events Time"), STAT_PhysicsEventTime, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("SyncComponentsToBodies (sync)"), STAT_SyncComponentsToBodies, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("SyncComponentsToBodies (async)"), STAT_SyncComponentsToBodies_Async, STATGROUP_Physics);
+DECLARE_CYCLE_STAT(TEXT("Query PhysicalMaterialMask Hit"), STAT_QueryPhysicalMaterialMaskHit, STATGROUP_Physics);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Broadphase Adds"), STAT_NumBroadphaseAdds, STATGROUP_Physics);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Broadphase Removes"), STAT_NumBroadphaseRemoves, STATGROUP_Physics);
@@ -114,6 +116,80 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsSha
 	return nullptr;
 }
 
+Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex, const FVector& HitLocation)
+{
+	{
+		SCOPE_CYCLE_COUNTER(STAT_QueryPhysicalMaterialMaskHit);
+
+		if (Shape.Materials.Num() > 0 && Actor.Proxy)
+		{
+			Chaos::FPBDRigidsSolver* Solver = Actor.Proxy->GetSolver();
+
+			if (ensure(Solver))
+			{
+				if (Shape.MaterialMasks.Num() > 0)
+				{
+					UBodySetup* BodySetup = nullptr;
+
+					if (const FBodyInstance* BodyInst = GetUserData(Actor))
+					{
+						BodyInst = FPhysicsInterface::ShapeToOriginalBodyInstance(BodyInst, &Shape);
+						BodySetup = BodyInst->BodySetup.Get();	//this data should be immutable at runtime so ok to check from worker thread.
+						ECollisionShapeType GeomType = GetGeometryType(Shape);
+
+						if (BodySetup->bSupportUVsAndFaceRemap && GetGeometryType(Shape) == ECollisionShapeType::Trimesh)
+						{
+							FVector Scale(1.0f, 1.0f, 1.0f);
+							const Chaos::FImplicitObject* Geometry = Shape.Geometry.Get();
+							if (const Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>* ScaledTrimesh = Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>::AsScaled(*Geometry))
+							{
+								Scale = ScaledTrimesh->GetScale();
+							}
+
+							// Convert hit location to local
+							Chaos::FRigidTransform3 ActorToWorld(Actor.X(), Actor.R(), Scale);
+							const FVector LocalHitPos = ActorToWorld.InverseTransformPosition(HitLocation);
+
+							uint8 Index = Shape.Geometry->GetMaterialIndex(InternalFaceIndex);
+							if (Shape.MaterialMasks.IsValidIndex(Index))
+							{
+								Chaos::FChaosPhysicsMaterialMask* Mask = nullptr;
+								{
+									Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+									Mask = Solver->GetQueryMaterialMasks().Get(Shape.MaterialMasks[Index].InnerHandle);
+								}
+
+								if (Mask && InternalFaceIndex < (uint32)BodySetup->FaceRemap.Num())
+								{
+									int32 RemappedFaceIndex = BodySetup->FaceRemap[InternalFaceIndex];
+									FVector2D UV;
+
+
+									if (BodySetup->CalcUVAtLocation(LocalHitPos, RemappedFaceIndex, Mask->UVChannelIndex, UV))
+									{
+										uint32 MapIdx = UPhysicalMaterialMask::GetPhysMatIndex(Mask->MaskData, Mask->SizeX, Mask->SizeY, Mask->AddressX, Mask->AddressY, UV.X, UV.Y);
+										uint32 AdjustedMapIdx = Index * EPhysicalMaterialMaskColor::MAX + MapIdx;
+										if (Shape.MaterialMaskMaps.IsValidIndex(AdjustedMapIdx))
+										{
+											uint32 MaterialIdx = Shape.MaterialMaskMaps[AdjustedMapIdx];
+											if (Shape.MaterialMaskMapMaterials.IsValidIndex(MaterialIdx))
+											{
+												Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+												return Solver->GetQueryMaterials().Get(Shape.MaterialMaskMapMaterials[MaterialIdx].InnerHandle);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return GetMaterialFromInternalFaceIndex(Shape, Actor, InternalFaceIndex);
+}
 
 const Chaos::FImplicitObject& FPhysicsShapeReference_Chaos::GetGeometry() const
 {
@@ -253,6 +329,31 @@ void FPhysInterface_Chaos::SetUserData(FPhysicsMaterialHandle& InHandle, void* I
 	}
 
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
+}
+
+FPhysicsMaterialMaskHandle FPhysInterface_Chaos::CreateMaterialMask(const UPhysicalMaterialMask* InMaterialMask)
+{
+	Chaos::FMaterialMaskHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().CreateMask();
+	FPhysInterface_Chaos::UpdateMaterialMask(NewHandle, InMaterialMask);
+	return NewHandle;
+}
+
+void FPhysInterface_Chaos::ReleaseMaterialMask(FPhysicsMaterialMaskHandle& InHandle)
+{
+	Chaos::FPhysicalMaterialManager::Get().Destroy(InHandle);
+}
+
+void FPhysInterface_Chaos::UpdateMaterialMask(FPhysicsMaterialMaskHandle& InHandle, const UPhysicalMaterialMask* InMaterialMask)
+{
+	if (Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get())
+	{
+		InMaterialMask->GenerateMaskData(MaterialMask->MaskData, MaterialMask->SizeX, MaterialMask->SizeY);
+		MaterialMask->UVChannelIndex = InMaterialMask->UVChannelIndex;
+		MaterialMask->AddressX = static_cast<int32>(InMaterialMask->AddressX);
+		MaterialMask->AddressY = static_cast<int32>(InMaterialMask->AddressY);
+	}
+
+	Chaos::FPhysicalMaterialManager::Get().UpdateMaterialMask(InHandle);
 }
 
 void FPhysInterface_Chaos::SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData)
@@ -1373,7 +1474,7 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 				OutOptShapes->Add(NewHandle);
 			}
 
-			FBodyInstance::ApplyMaterialToShape_AssumesLocked(NewHandle, InParams.SimpleMaterial, InParams.ComplexMaterials);
+			FBodyInstance::ApplyMaterialToShape_AssumesLocked(NewHandle, InParams.SimpleMaterial, InParams.ComplexMaterials, &InParams.ComplexMaterialMasks);
 
 			//TArrayView<UPhysicalMaterial*> SimpleView = MakeArrayView(&(const_cast<UPhysicalMaterial*>(InParams.SimpleMaterial)), 1);
 			//FPhysInterface_Chaos::SetMaterials(NewHandle, InParams.ComplexMaterials.Num() > 0 ? InParams.ComplexMaterials : SimpleView);
@@ -1540,6 +1641,75 @@ void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, cons
 	}
 
 	InShape.Shape->Materials = NewMaterialHandles;
+}
+
+void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*> InMaterials, const TArrayView<FPhysicalMaterialMaskParams>& InMaterialMasks)
+{
+	SetMaterials(InShape, InMaterials);
+
+	if (InMaterialMasks.Num() > 0)
+	{
+		// Build a list of handles to store on the shape
+		TArray<Chaos::FMaterialMaskHandle> NewMaterialMaskHandles;
+		TArray<uint32> NewMaterialMaskMaps;
+		TArray<Chaos::FMaterialHandle> NewMaterialMaskMaterialHandles;
+
+		NewMaterialMaskHandles.Reserve(InMaterialMasks.Num());
+
+		int MaskMapMatIdx = 0;
+
+		for (FPhysicalMaterialMaskParams& MaterialMaskData : InMaterialMasks)
+		{
+			if (MaterialMaskData.PhysicalMaterialMask && ensure(MaterialMaskData.PhysicalMaterialMap))
+			{
+				NewMaterialMaskHandles.Add(MaterialMaskData.PhysicalMaterialMask->GetPhysicsMaterialMask());
+				for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+				{
+					if (UPhysicalMaterial* MapMat = MaterialMaskData.PhysicalMaterialMap->GetPhysicalMaterialFromMap(i))
+					{
+						InShape.Shape->MaterialMaskMaps.Emplace(MaskMapMatIdx);
+						MaskMapMatIdx++;
+					}
+					else
+					{
+						InShape.Shape->MaterialMaskMaps.Emplace(INDEX_NONE);
+					}
+				}
+			}
+			else
+			{
+				NewMaterialMaskHandles.Add(Chaos::FMaterialMaskHandle());
+				for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+				{
+					InShape.Shape->MaterialMaskMaps.Emplace(INDEX_NONE);
+				}
+			}
+		}
+
+		if (MaskMapMatIdx > 0)
+		{
+			NewMaterialMaskMaterialHandles.Reserve(MaskMapMatIdx);
+
+			uint32 Offset = 0;
+
+			for (FPhysicalMaterialMaskParams& MaterialMaskData : InMaterialMasks)
+			{
+				if (MaterialMaskData.PhysicalMaterialMask)
+				{
+					for (int i = 0; i < EPhysicalMaterialMaskColor::MAX; i++)
+					{
+						if (UPhysicalMaterial* MapMat = MaterialMaskData.PhysicalMaterialMap->GetPhysicalMaterialFromMap(i))
+						{
+							NewMaterialMaskMaterialHandles.Add(MapMat->GetPhysicsMaterial());
+						}
+					}
+				}
+			}
+		}
+
+		InShape.Shape->MaterialMasks = NewMaterialMaskHandles;
+		InShape.Shape->MaterialMaskMapMaterials = NewMaterialMaskMaterialHandles;
+	}
 }
 
 void FinishSceneStat()

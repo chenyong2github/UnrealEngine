@@ -15,12 +15,15 @@
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Templates/UniquePtr.h"
-
+#if WITH_CHAOS
+#include "Physics/PhysicsInterfaceCore.h"
+#endif
 #include "Material.generated.h"
 
 class ITargetPlatform;
 class UMaterialExpressionComment;
 class UPhysicalMaterial;
+class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
 
@@ -343,6 +346,14 @@ class ENGINE_VTABLE UMaterial : public UMaterialInterface
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category=PhysicalMaterial)
 	class UPhysicalMaterial* PhysMaterial;
+
+	/** Physical material mask to use for this graphics material. Used for sounds, effects etc.*/
+	UPROPERTY(EditAnywhere, Category = PhysicalMaterial)
+	class UPhysicalMaterialMask* PhysMaterialMask;
+
+	/** Physical material mask map to use for this graphics material. Used for sounds, effects etc.*/
+	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
+	class UPhysicalMaterial* PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
 
 	// Reflection.
 #if WITH_EDITORONLY_DATA
@@ -1016,6 +1027,8 @@ public:
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const override;
 	ENGINE_API virtual FMaterialRenderProxy* GetRenderProxy() const override;
 	ENGINE_API virtual UPhysicalMaterial* GetPhysicalMaterial() const override;
+	ENGINE_API virtual UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;
+	ENGINE_API virtual UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const override;
 	ENGINE_API virtual void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const override;
 	ENGINE_API virtual void GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const override;
 	ENGINE_API virtual void OverrideTexture(const UTexture* InTextureToOverride, UTexture* OverrideTexture, ERHIFeatureLevel::Type InFeatureLevel) override;

@@ -21,6 +21,8 @@ namespace Chaos
 }
 #endif
 
+class UPhysicalMaterialMask;
+
 // Defines for enabling hitch repeating (see ScopedSQHitchRepeater.h)
 #if !UE_BUILD_SHIPPING
 #define DETECT_SQ_HITCHES 1
@@ -38,6 +40,15 @@ namespace physx
 	class PxTriangleMesh;
 }
 
+struct FPhysicalMaterialMaskParams
+{
+	/** Physical materials mask */
+	UPhysicalMaterialMask* PhysicalMaterialMask;
+
+	/** Pointer to material which contains the physical material map */
+	UMaterialInterface* PhysicalMaterialMap;
+};
+
 struct FGeometryAddParams
 {
 	bool bDoubleSided;
@@ -46,6 +57,9 @@ struct FGeometryAddParams
 	FVector Scale;
 	UPhysicalMaterial* SimpleMaterial;
 	TArrayView<UPhysicalMaterial*> ComplexMaterials;
+#if WITH_CHAOS
+	TArrayView<FPhysicalMaterialMaskParams> ComplexMaterialMasks;
+#endif
 	FTransform LocalTransform;
 	FTransform WorldTransform;
 	FKAggregateGeom* Geometry;
