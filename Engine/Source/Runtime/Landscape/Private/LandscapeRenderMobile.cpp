@@ -362,6 +362,7 @@ struct FLandscapeMobileHoleData
 {
 	FRawStaticIndexBuffer16or32Interface* IndexBuffer = nullptr;
 	int32 NumHoleLods;
+	int32 IndexBufferSize;
 	int32 MinHoleIndex;
 	int32 MaxHoleIndex;
 
@@ -383,12 +384,11 @@ void SerializeLandscapeMobileHoleData(FMemoryArchive& Ar, FLandscapeMobileHoleDa
 	Ar << HoleData.MaxHoleIndex;
 
 	TArray<INDEX_TYPE> IndexData;
-	int32 IndexCount = 0;
-	Ar << IndexCount;
-	IndexData.SetNumUninitialized(IndexCount);
-	Ar.Serialize(IndexData.GetData(), IndexCount * sizeof(INDEX_TYPE));
+	Ar << HoleData.IndexBufferSize;
+	IndexData.SetNumUninitialized(HoleData.IndexBufferSize);
+	Ar.Serialize(IndexData.GetData(), HoleData.IndexBufferSize * sizeof(INDEX_TYPE));
 
-	const bool bLoadHoleMeshData = IndexCount > 0 && CVarMobileLandscapeHoleMesh.GetValueOnGameThread();
+	const bool bLoadHoleMeshData = HoleData.IndexBufferSize > 0 && CVarMobileLandscapeHoleMesh.GetValueOnGameThread();
 	if (bLoadHoleMeshData)
 	{
 		FRawStaticIndexBuffer16or32<INDEX_TYPE>* IndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
@@ -654,7 +654,7 @@ void FLandscapeComponentSceneProxyMobile::ApplyMeshElementModifier(FMeshBatchEle
 	{
 		FLandscapeMobileHoleData const& HoleData = *MobileRenderData->HoleData;
 		InOutMeshElement.IndexBuffer = HoleData.IndexBuffer;
-		InOutMeshElement.NumPrimitives = HoleData.IndexBuffer->Num() / 3;
+		InOutMeshElement.NumPrimitives = HoleData.IndexBufferSize / 3;
 		InOutMeshElement.FirstIndex = 0;
 		InOutMeshElement.MinVertexIndex = HoleData.MinHoleIndex;
 		InOutMeshElement.MaxVertexIndex = HoleData.MaxHoleIndex;
