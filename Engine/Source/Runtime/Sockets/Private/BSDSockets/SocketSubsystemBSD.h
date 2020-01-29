@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "HAL/IConsoleManager.h"
 #include "SocketSubsystemPackage.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
@@ -11,6 +12,7 @@
 #if PLATFORM_HAS_BSD_SOCKETS || PLATFORM_HAS_BSD_IPV6_SOCKETS
 
 class FSocketBSD;
+extern TAutoConsoleVariable<int32> CVarDisableIPv6;
 
 #include "SocketSubsystemBSDPrivate.h"
 

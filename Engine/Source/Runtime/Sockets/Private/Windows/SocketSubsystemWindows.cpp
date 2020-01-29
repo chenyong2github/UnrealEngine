@@ -137,7 +137,7 @@ bool FSocketSubsystemWindows::GetLocalAdapterAddresses(TArray<TSharedPtr<FIntern
 	ULONG Flags = GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
 	ULONG Result;
 	ULONG Size = 0;
-	ULONG Family = (PLATFORM_HAS_BSD_IPV6_SOCKETS) ? AF_UNSPEC : AF_INET;
+	ULONG Family = (PLATFORM_HAS_BSD_IPV6_SOCKETS && CVarDisableIPv6.GetValueOnAnyThread() == 0) ? AF_UNSPEC : AF_INET;
 
 	// determine the required size of the address list buffer
 	Result = GetAdaptersAddresses(Family, Flags, NULL, NULL, &Size);

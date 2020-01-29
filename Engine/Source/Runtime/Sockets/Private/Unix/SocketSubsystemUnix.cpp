@@ -112,6 +112,7 @@ bool FSocketSubsystemUnix::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetA
 	ifaddrs* Interfaces = NULL;
 	int InterfaceQueryRet = getifaddrs(&Interfaces);
 	UE_LOG(LogSockets, Verbose, TEXT("Querying net interfaces returned: %d"), InterfaceQueryRet);
+	const bool bDisableIPv6 = CVarDisableIPv6.GetValueOnAnyThread() == 1;
 	if (InterfaceQueryRet == 0)
 	{
 		// Loop through linked list of interfaces
@@ -127,7 +128,7 @@ bool FSocketSubsystemUnix::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetA
 			// Find any up and non-loopback addresses
 			if ((Travel->ifa_flags & IFF_UP) != 0 &&
 				(Travel->ifa_flags & IFF_LOOPBACK) == 0 && 
-				(AddrFamily == AF_INET || AddrFamily == AF_INET6))
+				(AddrFamily == AF_INET || (!bDisableIPv6 && AddrFamily == AF_INET6)))
 			{
 				TSharedRef<FInternetAddrBSD> NewAddress = MakeShareable(new FInternetAddrBSD(this));
 				NewAddress->SetIp(*((sockaddr_storage*)Travel->ifa_addr));

@@ -6,14 +6,13 @@
 
 #include "BSDSockets/IPAddressBSD.h"
 #include "BSDSockets/SocketsBSD.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/CString.h"
 #include <errno.h>
 
-TAutoConsoleVariable<int32> CVarDisableIPv6Resolution(
-	TEXT("net.DisableIPv6Resolution"),
-	0,
-	TEXT("If true, any address resolution results that are of an IPv6 protocol will be dropped."));
+TAutoConsoleVariable<int32> CVarDisableIPv6(
+	TEXT("net.DisableIPv6"),
+	1,
+	TEXT("If true, IPv6 will not resolve and its usage will be avoided when possible"));
 
 FSocketBSD* FSocketSubsystemBSD::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
 {
@@ -93,7 +92,7 @@ FAddressInfoResult FSocketSubsystemBSD::GetAddressInfo(const TCHAR* HostName, co
 
 	// Make sure we filter out IPv6 if the platform is not officially supported
 	// (if it isn't supported but we explicitly ask for it, allow it).
-	bool bCanUseIPv6 = ((PLATFORM_HAS_BSD_IPV6_SOCKETS || ProtocolTypeName == FNetworkProtocolTypes::IPv6) && CVarDisableIPv6Resolution.GetValueOnAnyThread() == 0) ? true : false;
+	bool bCanUseIPv6 = ((PLATFORM_HAS_BSD_IPV6_SOCKETS || ProtocolTypeName == FNetworkProtocolTypes::IPv6) && CVarDisableIPv6.GetValueOnAnyThread() == 0) ? true : false;
 
 	// Determine if we can save time with numericserv
 	if (ServiceName != nullptr && FString(ServiceName).IsNumeric())
