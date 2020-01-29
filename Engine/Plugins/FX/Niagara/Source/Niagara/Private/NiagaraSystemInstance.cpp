@@ -1501,6 +1501,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 			CurrentEmitterParameters.EmitterNumParticles = Emitter->GetNumParticles();
 			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
 			CurrentEmitterParameters.EmitterSpawnCountScale = Emitter->GetSpawnCountScale(EffectsQualityLevel);
+			++GatheredInstanceParameters.NumAlive;
 		}
 		else
 		{
