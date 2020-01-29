@@ -66,6 +66,8 @@ public:
 	bool bIsAvailable;
 	/** time when presence was sent by the user */
 	FDateTime SentTime;
+	/** time when presence was sent by the user */
+	FDateTime ReceivedTime;
 	/** app id user is logged in from */
 	FString AppId;
 	/** platform associated with this client */
