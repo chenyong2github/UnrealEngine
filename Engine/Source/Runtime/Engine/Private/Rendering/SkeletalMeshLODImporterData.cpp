@@ -588,6 +588,7 @@ enum
 	RAW_SKELETAL_MESH_BULKDATA_VER_INITIAL = 0,
 	RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence = 1,
 	RAW_SKELETAL_MESH_BULKDATA_VER_RebuildSystem = 2,
+	RAW_SKELETAL_MESH_BULKDATA_VER_CompressMorphTargetData = 3,
 	// Add new raw mesh versions here.
 
 	RAW_SKELETAL_MESH_BULKDATA_VER_PLUS_ONE,
@@ -652,6 +653,23 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 		RawMesh.MorphTargetNames.Empty();
 		RawMesh.AlternateInfluences.Empty();
 		RawMesh.AlternateInfluenceProfileNames.Empty();
+	}
+
+	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_CompressMorphTargetData)
+	{
+		//Compress the morph target data
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < RawMesh.MorphTargets.Num(); ++MorphTargetIndex)
+		{
+			const TSet<uint32>& ModifiedPoints = RawMesh.MorphTargetModifiedPoints[MorphTargetIndex];
+			FSkeletalMeshImportData& ToCompressShapeImportData = RawMesh.MorphTargets[MorphTargetIndex];
+			TArray<FVector> CompressPoints;
+			CompressPoints.Reserve(ToCompressShapeImportData.Points.Num());
+			for (uint32 PointIndex : ModifiedPoints)
+			{
+				CompressPoints.Add(ToCompressShapeImportData.Points[PointIndex]);
+			}
+			ToCompressShapeImportData.Points = CompressPoints;
+		}
 	}
 
 	return Ar;
@@ -735,6 +753,7 @@ void FRawSkeletalMeshBulkData::SaveRawMesh(FSkeletalMeshImportData& InMesh)
 
 	//Clear the bulk data before writing it
 	BulkData.RemoveBulkData();
+	BulkData.StoreCompressedOnDisk(NAME_Zlib);
 
 	// Get a lock on the bulk data
 	{
