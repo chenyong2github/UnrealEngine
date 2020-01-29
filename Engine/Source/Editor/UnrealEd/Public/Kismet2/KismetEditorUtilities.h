@@ -147,7 +147,7 @@ public:
 	static bool CanCreateBlueprintOfClass(const UClass* Class);
 
 	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
-	static void AddComponentsToBlueprint(UBlueprint* Blueprint, TArray<UActorComponent*> Components, bool bHarvesting = false, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false);
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting = false, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false);
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -168,8 +168,28 @@ public:
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false);
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false);
 
+	/** 
+	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
+	 * @param Path					The path to use when creating the package for the new blueprint
+	 * @param Actors				The actors to use when creating child actor components
+	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor);
+
+	/** 
+	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
+	 * @param BlueprintName			The name to use for the Blueprint
+	 * @param Outer					The package to create the blueprint within
+	 * @param Actors				The actors to use when creating child actor components
+	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
+	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld);
+	
 	/** 
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class. 
 	 * @param Path					The path to use when creating the package for the new blueprint
@@ -177,7 +197,17 @@ public:
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool ReplaceInWorld);
+	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld);
+
+	/**
+	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class.
+	 * @param BlueprintName			The name to use for the Blueprint
+	 * @param Outer					The package to create the blueprint within
+	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
+	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
+	 * @return The blueprint created from the actors
+	 */
+	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld);
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
@@ -186,7 +216,7 @@ public:
 	 * @param Location			The location of the newly created actor
 	 * @param Rotator			The rotation of the newly created actor
 	 */
-	static AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator);
+	static AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, const TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator);
 
 	/** 
 	 * Create a new Blueprint from the supplied base class. Pops up window to let user select location and name.
