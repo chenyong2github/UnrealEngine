@@ -1625,7 +1625,7 @@ public:
 	static inline bool ExtractBoolFromBitfield(uint8* Ptr, uint32 Index)
 	{
 		uint8* BytePtr = Ptr + Index / 8;
-		uint8 Mask = 1 << (Index & 0x7);
+		uint8 Mask = (uint8)(1 << (Index & 0x7));
 
 		return (*BytePtr & Mask) != 0;
 	}
@@ -1637,7 +1637,7 @@ public:
 	static inline void SetBoolInBitField(uint8* Ptr, uint32 Index, bool bSet)
 	{
 		uint8* BytePtr = Ptr + Index / 8;
-		uint8 Mask = 1 << (Index & 0x7);
+		uint8 Mask = (uint8)(1 << (Index & 0x7));
 
 		if(bSet)
 		{

@@ -222,7 +222,7 @@ private:
 
 	FORCEINLINE uint8 Shift(uint8 Cnt)
 	{
-		return 1<<Cnt;
+		return (uint8)(1<<Cnt);
 	}
 
 };
