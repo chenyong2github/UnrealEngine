@@ -48,6 +48,8 @@
 #include "Containers/ArrayView.h"
 #endif
 
+#pragma optimize("", off)
+
 DEFINE_STAT(STAT_TotalPhysicsTime);
 DEFINE_STAT(STAT_NumCloths);
 DEFINE_STAT(STAT_NumClothVerts);
@@ -1467,6 +1469,7 @@ void FPhysInterface_Chaos::SetQueryFilter(const FPhysicsShapeReference_Chaos& In
 void FPhysInterface_Chaos::SetSimulationFilter(const FPhysicsShapeReference_Chaos& InShapeRef, const FCollisionFilterData& InFilter)
 {
 	InShapeRef.Shape->SimData = InFilter;
+	InShapeRef.ActorRef->MarkShapeSimDataDirty();
 }
 
 bool FPhysInterface_Chaos::IsSimulationShape(const FPhysicsShapeHandle& InShape)
