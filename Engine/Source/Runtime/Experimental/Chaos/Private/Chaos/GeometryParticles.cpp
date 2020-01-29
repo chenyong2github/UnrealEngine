@@ -198,19 +198,10 @@ namespace Chaos
 		TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
 		Mapping.Reset();
 
-		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ShapeIndex)
+		int32 ShapeIndex = 0;
+		for (TUniquePtr<TPerShapeData<T, d>>& Shape : ShapeArray)
 		{
-			const FImplicitObject* Geometry = ShapeArray[ShapeIndex]->Geometry.Get();
-			Mapping.Add(Geometry, ShapeIndex);
-
-			Utilities::CastHelper(*Geometry, FRigidTransform3(), [&Mapping, Geometry, ShapeIndex](const auto& InnerGeometry, const FRigidTransform3& TM)
-			{
-				const FImplicitObject* ImplicitObject = static_cast<const FImplicitObject*>(&InnerGeometry);
-				if (ImplicitObject && ImplicitObject != Geometry)
-				{
-					Mapping.Add(ImplicitObject, ShapeIndex);
-				}
-			});
+			Mapping.Add(Shape->Geometry.Get(), ShapeIndex++);
 		}
 
 		if (MGeometry[Index])
