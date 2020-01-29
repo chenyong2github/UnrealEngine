@@ -268,7 +268,7 @@ public:
 		}
 
 		// Get the audio main device
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 
 		bool bSuccess = false;
 
@@ -335,7 +335,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 
 		bool bSuccess = false;
 
@@ -420,7 +420,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 
 		bool bSuccess = false;
 		float TimeCount = 0.0f;
@@ -501,7 +501,7 @@ public:
 			SoundWave->SoundGroup = ESoundGroup::SOUNDGROUP_Music;
 		}
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 
 		bool bSuccess = false;
 		float TimeCount = 0.0f;
@@ -586,7 +586,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 		if (!AudioDevice)
 		{
 			return false;
@@ -711,7 +711,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundAttenuation>(SearchPaths, SoundAttenuations);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice();
 		if (!AudioDevice)
 		{
 			return false;

@@ -8986,11 +8986,11 @@ void FBlueprintEditor::UpdatePreviewActor(UBlueprint* InBlueprint, bool bInForce
 			if ( PreviewActor->IsHidden() )
 			{
 				PreviewActor->SetHidden(false);
-				PreviewActor->MarkComponentsRenderStateDirty();				
+				PreviewActor->MarkComponentsRenderStateDirty();
 			}
 
 			// Prevent any audio from playing as a result of spawning
-			if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
+			if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 			{
 				AudioDevice->Flush(PreviewScene.GetWorld());
 			}

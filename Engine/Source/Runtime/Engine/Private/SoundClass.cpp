@@ -103,11 +103,8 @@ void USoundClass::PostLoad()
 	}
 #endif
 
-	// Use the main/default audio device for storing and retrieving sound class properties
-	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
 	// Force the properties to be initialized for this SoundClass on all active audio devices
-	if (AudioDeviceManager)
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
 		AudioDeviceManager->RegisterSoundClass(this);
 	}
@@ -247,11 +244,8 @@ void USoundClass::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 		}
 	}
 
-	// Use the main/default audio device for storing and retrieving sound class properties
-	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
 	// Force the properties to be initialized for this SoundClass on all active audio devices
-	if (AudioDeviceManager)
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
 		AudioDeviceManager->RegisterSoundClass(this);
 	}
@@ -298,9 +292,12 @@ void USoundClass::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (!GExitPurge && GEngine && GEngine->GetAudioDeviceManager())
+	if (!GExitPurge)
 	{
-		GEngine->GetAudioDeviceManager()->UnregisterSoundClass(this);
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			DeviceManager->UnregisterSoundClass(this);
+		}
 	}
 }
 

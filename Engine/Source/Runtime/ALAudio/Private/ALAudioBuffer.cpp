@@ -48,7 +48,7 @@ FALSoundBuffer* FALSoundBuffer::Init(FALAudioDevice* AudioDevice, USoundWave* In
 		return nullptr;
 	}
 
-	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 	check(AudioDeviceManager != nullptr);
 
 	FALSoundBuffer *Buffer = nullptr;
@@ -119,7 +119,7 @@ void FALSoundBuffer::CreateNativeBuffer(FALAudioDevice* AudioDevice, USoundWave*
 		Buffer->NumChannels = Wave->NumChannels;
 		Buffer->SampleRate = Wave->GetSampleRateForCurrentPlatform();
 
-		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 		check(AudioDeviceManager != nullptr);
 		AudioDeviceManager->TrackResource(Wave, Buffer);
 	}

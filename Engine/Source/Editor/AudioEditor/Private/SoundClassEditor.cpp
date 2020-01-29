@@ -161,11 +161,6 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
-			
-	if (GEditor->GetAudioDeviceManager())
-	{
-		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
-	}	
 
 	GraphEditor->SelectAllNodes();
 	for (UObject* SelectedNode : GraphEditor->GetSelectedNodes())
@@ -208,7 +203,6 @@ void FSoundClassEditor::BindCommands()
 
 FSoundClassEditor::FSoundClassEditor()
 	: SoundClass(nullptr)
-	, Debugger(nullptr)
 {
 }
 
@@ -397,40 +391,57 @@ void FSoundClassEditor::RedoGraphAction()
 
 void FSoundClassEditor::ToggleSolo()
 {
-	if (Debugger)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		Debugger->ToggleSoloSoundClass(SoundClass->GetFName());
+		DeviceManager->GetDebugger().ToggleSoloSoundClass(SoundClass->GetFName());
 	}
 }
 
 bool FSoundClassEditor::CanExcuteToggleSolo() const
 {
-	// Enable solo if we are not Muted	
-	return Debugger ? !Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
+	// Enable solo if we are not Muted
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		return !DeviceManager->GetDebugger().IsMuteSoundClass(SoundClass->GetFName());
+	}
+	return false;
 }
 
 bool FSoundClassEditor::IsSoloToggled() const
 {
-	return Debugger ? Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		return DeviceManager->GetDebugger().IsSoloSoundClass(SoundClass->GetFName());
+	}
+	return false;
 }
 
 void FSoundClassEditor::ToggleMute()
 {
-	if (Debugger)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		Debugger->ToggleMuteSoundClass(SoundClass->GetFName());
+		DeviceManager->GetDebugger().ToggleMuteSoundClass(SoundClass->GetFName());
 	}
 }
 
 bool FSoundClassEditor::CanExcuteToggleMute() const
 {
-	// Enable mute if we are not Soloed
-	return Debugger ? !Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		return !DeviceManager->GetDebugger().IsSoloSoundClass(SoundClass->GetFName());
+	}
+
+	return false;
 }
 
 bool FSoundClassEditor::IsMuteToggled() const
-{	
-	return Debugger ? Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
+{
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		return DeviceManager->GetDebugger().IsMuteSoundClass(SoundClass->GetFName());
+	}
+
+	return false;
 }
 
 void FSoundClassEditor::CreateSoundClass(UEdGraphPin* FromPin, const FVector2D& Location, const FString& Name)

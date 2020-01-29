@@ -19,8 +19,7 @@ UObject* USoundSubmixFactory::FactoryCreateNew(UClass* InClass, UObject* InParen
 {
 	USoundSubmix* SoundSubmix = NewObject<USoundSubmix>(InParent, InName, Flags);
 
-	class FAudioDeviceManager* AudioDeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
-	if (AudioDeviceManager)
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
 		AudioDeviceManager->InitSoundSubmixes();
 	}

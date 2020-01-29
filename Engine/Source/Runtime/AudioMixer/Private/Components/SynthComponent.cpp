@@ -411,9 +411,7 @@ FAudioDevice* USynthComponent::GetAudioDevice()
 		// Make sure it has a proper audio device handle and retrieve it
 		if (World->AudioDeviceHandle != INDEX_NONE)
 		{
-			FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-			check(AudioDeviceManager);
-			return AudioDeviceManager->GetAudioDevice(World->AudioDeviceHandle);
+			return FAudioDeviceManager::GetChecked().GetAudioDevice(World->AudioDeviceHandle);
 		}
 	}
 

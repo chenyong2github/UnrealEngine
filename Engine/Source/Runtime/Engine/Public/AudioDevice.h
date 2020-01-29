@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Audio.h"
+#include "AudioDefines.h"
 #include "AudioDeviceManager.h"
+#include "AudioDynamicParameter.h"
+#include "AudioMixer.h"
+#include "AudioVirtualLoop.h"
 #include "Components/AudioComponent.h"
 #include "CoreMinimal.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "IAudioExtensionPlugin.h"
-#include "AudioDynamicParameter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundAttenuation.h"
@@ -18,8 +20,6 @@
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "Sound/SoundSourceBus.h"
-#include "AudioVirtualLoop.h"
-#include "AudioMixer.h"
 
 /**
  * Forward declares
@@ -381,23 +381,6 @@ public:
 	virtual void OnDeviceRemoved(FString DeviceID) = 0;
 	virtual void OnDefaultDeviceChanged() = 0;
 };
-
-/** Abstract interface for receiving audio data from a given submix. */
-class ENGINE_API ISubmixBufferListener
-{
-public:
-	/**
-	Called when a new buffer has been rendered for a given submix
-	@param OwningSubmix	The submix object which has rendered a new buffer
-	@param AudioData		Ptr to the audio buffer
-	@param NumSamples		The number of audio samples in the audio buffer
-	@param NumChannels		The number of channels of audio in the buffer (e.g. 2 for stereo, 6 for 5.1, etc)
-	@param SampleRate		The sample rate of the audio buffer
-	@param AudioClock		Double audio clock value, from start of audio rendering.
-	*/
-	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) = 0;
-};
-
 
 class ENGINE_API FAudioDevice : public FExec
 {
@@ -1131,28 +1114,6 @@ public:
 	{
 	}
 
-	/** Returns the main audio device of the engine */
-	static FAudioDevice* GetMainAudioDevice()
-	{
-		// Try to get GEngine's main audio device
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-
-		// If we don't have a main audio device (maybe we're running in a non-standard mode like a commandlet)
-		if (!AudioDevice)
-		{
-			// We should have an active device for device manager
-			FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-			return DeviceManager->GetActiveAudioDevice();
-		}
-		return AudioDevice;
-	}
-
-	/** Returns the audio device manager */
-	static FAudioDeviceManager* GetAudioDeviceManager()
-	{
-		return GEngine->GetAudioDeviceManager();
-	}
-
 	/** Low pass filter OneOverQ value */
 	float GetLowPassFilterResonance() const;
 
@@ -1194,7 +1155,7 @@ public:
 
 	static bool IsOcclusionPluginLoaded()
 	{
-		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDevice* MainAudioDevice = FAudioDeviceManager::GetMainDevice())
 		{
 			return MainAudioDevice->bOcclusionInterfaceEnabled;
 		}
@@ -1209,7 +1170,7 @@ public:
 
 	static bool IsReverbPluginLoaded()
 	{
-		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDevice* MainAudioDevice = FAudioDeviceManager::GetMainDevice())
 		{
 			return MainAudioDevice->bReverbInterfaceEnabled;
 		}
@@ -1678,8 +1639,8 @@ public:
 
 	bool IsMainAudioDevice()
 	{
-		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
-		return (MainAudioDevice == nullptr || MainAudioDevice == this);
+		FAudioDevice* MainAudioDevice = FAudioDeviceManager::GetMainDevice();
+		return MainAudioDevice == nullptr || MainAudioDevice == this;
 	}
 
 	/** Set whether or not we force the use of attenuation for non-game worlds (as by default we only care about game worlds) */

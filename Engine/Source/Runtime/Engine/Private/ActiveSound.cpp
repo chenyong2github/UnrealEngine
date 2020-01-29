@@ -5,6 +5,7 @@
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "AudioThread.h"
+#include "AudioDefines.h"
 #include "AudioDevice.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/AudioSettings.h"
@@ -951,9 +952,9 @@ void FActiveSound::OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDat
 	FAsyncTraceDetails TraceDetails;
 	if (TraceToActiveSoundMap.RemoveAndCopyValue(TraceHandle, TraceDetails))
 	{
-		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 		{
-			if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(TraceDetails.AudioDeviceID))
+			if (FAudioDevice* AudioDevice = DeviceManager->GetAudioDevice(TraceDetails.AudioDeviceID))
 			{
 				FActiveSound* ActiveSound = TraceDetails.ActiveSound;
 

@@ -387,7 +387,7 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 					ExistingSoundWave = FindObject<USoundWave>(Package, *AssetName);
 
 					// See if it's currently being played right now
-					FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+					FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 					if (AudioDeviceManager && ExistingSoundWave)
 					{
 						AudioDeviceManager->StopSoundsUsingResource(ExistingSoundWave, &ComponentsToRestart);

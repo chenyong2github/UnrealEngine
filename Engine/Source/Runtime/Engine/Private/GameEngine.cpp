@@ -1801,7 +1801,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	}
 
 	// Update Audio. This needs to occur after rendering as the rendering code updates the listener position.
-	FAudioDeviceManager* GameAudioDeviceManager = GEngine->GetAudioDeviceManager();
+	FAudioDeviceManager* GameAudioDeviceManager = FAudioDeviceManager::Get();
 	if (GameAudioDeviceManager)
 	{
 		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Update Audio"));

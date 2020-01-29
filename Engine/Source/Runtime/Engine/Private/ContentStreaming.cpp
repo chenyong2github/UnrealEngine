@@ -1179,13 +1179,15 @@ void FStreamingManagerCollection::PropagateLightingScenarioChange()
 void FStreamingManagerCollection::OnAudioStreamingParamsChanged()
 {
 	// Before we swap out the audio streaming manager, we'll need to stop all sounds running on all audio devices:
-	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	TArray<FAudioDevice*>& AudioDevices = DeviceManager->GetAudioDevices();
-	for (FAudioDevice* AudioDevice : AudioDevices)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		if (AudioDevice)
+		TArray<FAudioDevice*>& AudioDevices = DeviceManager->GetAudioDevices();
+		for (FAudioDevice* AudioDevice : AudioDevices)
 		{
-			AudioDevice->StopAllSounds(true);
+			if (AudioDevice)
+			{
+				AudioDevice->StopAllSounds(true);
+			}
 		}
 	}
 

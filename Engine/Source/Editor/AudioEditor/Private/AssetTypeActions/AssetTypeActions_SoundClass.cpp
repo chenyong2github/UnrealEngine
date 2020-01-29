@@ -73,7 +73,7 @@ void FAssetTypeActions_SoundClass::GetActions(const TArray<UObject*>& InObjects,
 
 void FAssetTypeActions_SoundClass::ExecuteMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
@@ -87,7 +87,7 @@ void FAssetTypeActions_SoundClass::ExecuteMute(TArray<TWeakObjectPtr<USoundClass
 
 void FAssetTypeActions_SoundClass::ExecuteSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
@@ -101,7 +101,7 @@ void FAssetTypeActions_SoundClass::ExecuteSolo(TArray<TWeakObjectPtr<USoundClass
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
@@ -119,7 +119,7 @@ bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USo
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{		
 		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
@@ -137,7 +137,7 @@ bool FAssetTypeActions_SoundClass::IsActionCheckedSolo(TArray<TWeakObjectPtr<USo
 
 bool FAssetTypeActions_SoundClass::CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{
 		// Allow muting if we're not Soloing.
 		for (TWeakObjectPtr<USoundClass> i : Objects)
@@ -158,7 +158,7 @@ bool FAssetTypeActions_SoundClass::CanExecuteMuteCommand(TArray<TWeakObjectPtr<U
 
 bool FAssetTypeActions_SoundClass::CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 	{
 		// Allow Soloing if we're not Muting.
 		for (TWeakObjectPtr<USoundClass> i : Objects)

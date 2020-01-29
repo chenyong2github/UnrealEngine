@@ -93,11 +93,7 @@ void USoundEffectPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 
 void USoundEffectSourcePresetChain::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (GEngine)
-	{
-		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-		AudioDeviceManager->UpdateSourceEffectChain(GetUniqueID(), Chain, bPlayEffectChainTails);
-	}
+	FAudioDeviceManager::GetChecked().UpdateSourceEffectChain(GetUniqueID(), Chain, bPlayEffectChainTails);
 }
 #endif // WITH_EDITORONLY_DATA
 

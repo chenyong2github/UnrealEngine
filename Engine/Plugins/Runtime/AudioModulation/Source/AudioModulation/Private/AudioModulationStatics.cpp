@@ -111,10 +111,7 @@ AudioModulation::FAudioModulationImpl* UAudioModulationStatics::GetModulationImp
 	}
 	else
 	{
-		if (GEngine)
-		{
-			AudioDevice = GEngine->GetMainAudioDevice();
-		}
+		AudioDevice = FAudioDeviceManager::GetMainDevice();
 	}
 
 	if (AudioDevice && AudioDevice->IsModulationPluginEnabled())

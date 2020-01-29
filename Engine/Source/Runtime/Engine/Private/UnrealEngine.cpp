@@ -1744,20 +1744,7 @@ void UEngine::OnExternalUIChange(bool bInIsOpening)
 
 void UEngine::ShutdownAudioDeviceManager()
 {
-	// Shutdown the main audio device in the UEEngine
-	if (AudioDeviceManager)
-	{
-		FAudioCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
-
-		FAudioThread::StopAudioThread();
-
-		AudioDeviceManager->ShutdownAllAudioDevices();
-
-		delete AudioDeviceManager;
-		AudioDeviceManager = NULL;
-	}
+	FAudioDeviceManager::Shutdown();
 }
 
 void UEngine::PreExit()
@@ -2728,7 +2715,7 @@ void UEngine::FinishDestroy()
 	{
 		// shut down all subsystems.
 		GEngine = NULL;
-		ShutdownAudioDeviceManager();
+		FAudioDeviceManager::Shutdown();
 
 		FURL::StaticExit();
 	}
@@ -2744,7 +2731,7 @@ void UEngine::Serialize(FArchive& Ar)
 	if (Ar.IsCountingMemory())
 	{
 		// Only use the main audio device when counting memory
-		if (FAudioDevice* AudioDevice = GetMainAudioDevice())
+		if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetMainDevice())
 		{
 			AudioDevice->CountBytes(Ar);
 		}
@@ -2756,9 +2743,9 @@ void UEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collect
 	UEngine* This = CastChecked<UEngine>(InThis);
 
 	// track objects in all the active audio devices
-	if (This->AudioDeviceManager)
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
-		This->AudioDeviceManager->AddReferencedObjects(Collector);
+		AudioDeviceManager->AddReferencedObjects(Collector);
 	}
 
 	// TODO: This is quite dangerous as FWorldContext::AddReferencedObjects could fail to be updated when something it
@@ -2846,53 +2833,38 @@ UFont* UEngine::GetAdditionalFont(int32 AdditionalFontIndex)
 	return GEngine->AdditionalFonts.IsValidIndex(AdditionalFontIndex) ? GEngine->AdditionalFonts[AdditionalFontIndex] : NULL;
 }
 
-class FAudioDeviceManager* UEngine::GetAudioDeviceManager()
+FAudioDeviceManager* UEngine::GetAudioDeviceManager()
 {
-	return AudioDeviceManager;
+	return FAudioDeviceManager::Get();
 }
 
 uint32 UEngine::GetAudioDeviceHandle() const
 {
-	return MainAudioDeviceHandle;
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	return AudioDeviceManager ? AudioDeviceManager->GetMainAudioDeviceHandle() : INDEX_NONE;
 }
 
 FAudioDevice* UEngine::GetMainAudioDevice()
 {
-	if (AudioDeviceManager != nullptr)
-	{
-		return AudioDeviceManager->GetAudioDevice(MainAudioDeviceHandle);
-	}
-	return nullptr;
+	return FAudioDeviceManager::GetMainDevice();
 }
 
 FAudioDevice* UEngine::GetActiveAudioDevice()
 {
-	if (AudioDeviceManager != nullptr)
-	{
-		return AudioDeviceManager->GetActiveAudioDevice();
-	}
-	return nullptr;
+	return FAudioDeviceManager::GetActiveDevice();
 }
 
 void UEngine::InitializeAudioDeviceManager()
 {
-	if (AudioDeviceManager == nullptr && bUseSound)
+	if (bUseSound)
 	{
-		AudioDeviceManager = new FAudioDeviceManager();
-		if (AudioDeviceManager->Initialize())
-		{
-			MainAudioDeviceHandle = AudioDeviceManager->GetMainAudioDeviceHandle();
-		}
-		else
-		{
-			ShutdownAudioDeviceManager();
-		}
+		FAudioDeviceManager::Initialize();
 	}
 }
 
 bool UEngine::UseSound() const
 {
-	return (bUseSound && AudioDeviceManager != nullptr);
+	return bUseSound && FAudioDeviceManager::Get() != nullptr;
 }
 /**
 * A fake stereo rendering device used to test stereo rendering without an attached device.
@@ -3832,15 +3804,9 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		return true;
 	}
 
-	FAudioDevice* AudioDevice = nullptr;
-	if (InWorld)
-	{
-		AudioDevice = InWorld->GetAudioDevice();
-	}
-	else
-	{
-		AudioDevice = GetMainAudioDevice();
-	}
+	FAudioDevice* AudioDevice = InWorld
+		? InWorld->GetAudioDevice()
+		: FAudioDeviceManager::GetMainDevice();
 
 	if (AudioDevice && AudioDevice->Exec(InWorld, Cmd, Ar) == true)
 	{

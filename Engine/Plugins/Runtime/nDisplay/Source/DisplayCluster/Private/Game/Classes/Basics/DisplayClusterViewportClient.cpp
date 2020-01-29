@@ -315,19 +315,13 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 								bool bUpdateListenerPosition = true;
 
 								// If the main audio device is used for multiple PIE viewport clients, we only
-								// want to update the main audio device listener position if it is in focus
-								if (GEngine)
+								// want to update the main audio device listener position if it is in focus.
+								// If there is more than one world referencing the main audio device
+								if (FAudioDeviceManager::GetChecked().GetNumMainAudioDeviceWorlds() > 1)
 								{
-									FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-
-									// If there is more than one world referencing the main audio device
-									if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
+									if (AudioDevice == FAudioDeviceManager::GetMainDevice() && !HasAudioFocus())
 									{
-										uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
-										if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !HasAudioFocus())
-										{
-											bUpdateListenerPosition = false;
-										}
+										bUpdateListenerPosition = false;
 									}
 								}
 
