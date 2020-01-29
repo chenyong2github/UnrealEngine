@@ -50,6 +50,13 @@ namespace executable
 		std::vector<ImportModule> modules;
 	};
 
+	struct PdbInfo
+	{
+		char path[MAX_PATH];	// can be an absolute or relative path
+		GUID guid;
+		uint32_t age;
+	};
+
 
 	Image* OpenImage(const wchar_t* filename, file::OpenMode::Enum openMode);
 	void CloseImage(Image*& image);
@@ -63,6 +70,9 @@ namespace executable
 	ImportModuleDB* GatherImportModuleDB(const Image* image, const ImageSectionDB* imageSections);
 	void DestroyImportModuleDB(ImportModuleDB* database);
 
+	// reads the PDB info stored in the image's debug directories (if available)
+	PdbInfo* GatherPdbInfo(const Image* image, const ImageSectionDB* imageSections);
+	void DestroyPdbInfo(PdbInfo* pdbInfo);
 
 
 

@@ -399,6 +399,14 @@ void ClientUserCommandThread::BuildPatch(const wchar_t* moduleNames[], const wch
 }
 
 
+void ClientUserCommandThread::TriggerRestart(void)
+{
+	ProxyCommand<commands::TriggerRestart>* proxy = new ProxyCommand<commands::TriggerRestart>(false, 0u);
+
+	PushUserCommand(proxy);
+}
+
+
 void ClientUserCommandThread::ApplySettingBool(const char* settingName, int value)
 {
 	ProxyCommand<commands::ApplySettingBool>* proxy = new ProxyCommand<commands::ApplySettingBool>(false, 0u);

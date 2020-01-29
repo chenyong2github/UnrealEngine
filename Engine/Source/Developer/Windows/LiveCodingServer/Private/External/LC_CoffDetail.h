@@ -67,7 +67,7 @@ namespace coffDetail
 	template <typename AuxSymbolType>
 	inline uint32_t GetAssociatedComdatSectionIndex(const AuxSymbolType* symbol)
 	{
-		static_assert(false, "Invalid function overload.");
+		static_assert(false, "Invalid function overload");
 		return 0u;
 	}
 
@@ -86,7 +86,9 @@ namespace coffDetail
 		typedef std::make_unsigned<decltype(symbol->Section.HighNumber)>::type UnsignedHighSectionNumberType;
 
 		const uint32_t sectionIndex = static_cast<uint32_t>(static_cast<UnsignedSectionNumberType>(symbol->Section.Number) - 1u);
-		const uint32_t highSectionIndex = static_cast<uint32_t>(static_cast<UnsignedHighSectionNumberType>(symbol->Section.HighNumber) - 1u);
+
+		// note that the high number is zero-based instead of one-based
+		const uint32_t highSectionIndex = static_cast<uint32_t>(static_cast<UnsignedHighSectionNumberType>(symbol->Section.HighNumber));
 
 		return (highSectionIndex << 16u) | sectionIndex;
 	}

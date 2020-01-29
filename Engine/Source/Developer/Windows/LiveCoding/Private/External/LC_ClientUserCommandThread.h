@@ -63,6 +63,8 @@ public:
 	void LogMessage(const wchar_t* message);
 	void BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count);
 
+	void TriggerRestart(void);
+
 	// BEGIN EPIC MOD - Adding ShowConsole command
 	void ShowConsole();
 	// END EPIC MOD

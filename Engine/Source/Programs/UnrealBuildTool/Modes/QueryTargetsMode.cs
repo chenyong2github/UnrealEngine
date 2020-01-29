@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 			}
 
 			// Write information about these targets
-			WriteTargetInfo(ProjectFile, Assembly, OutputFile);
+			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments);
 			Log.TraceInformation("Written {0}", OutputFile);
 			return 0;
 		}
@@ -87,7 +87,8 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">The project file for the targets being built</param>
 		/// <param name="Assembly">The rules assembly for this target</param>
 		/// <param name="OutputFile">Output file to write to</param>
-		public static void WriteTargetInfo(FileReference ProjectFile, RulesAssembly Assembly, FileReference OutputFile)
+		/// <param name="Arguments"></param>
+		public static void WriteTargetInfo(FileReference ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments)
 		{
 			// Construct all the targets in this assembly
 			List<string> TargetNames = new List<string>();
@@ -106,7 +107,7 @@ namespace UnrealBuildTool
 					try
 					{
 						string Architecture = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform).GetDefaultArchitecture(ProjectFile);
-						TargetRules = Assembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, Architecture, ProjectFile, new CommandLineArguments(new string[0]));
+						TargetRules = Assembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, Architecture, ProjectFile, Arguments);
 					}
 					catch (Exception Ex)
 					{

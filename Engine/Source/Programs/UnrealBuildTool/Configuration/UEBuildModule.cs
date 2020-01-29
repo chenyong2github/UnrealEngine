@@ -337,9 +337,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Determines the distribution level of a module based on its directory and includes.
 		/// </summary>
-		/// <param name="ProjectDir">The project directory, if available</param>
+		/// <param name="RootDirectories">The set of additional paths to check, if available</param>
 		/// <returns>Map of the restricted folder types to the first found instance</returns>
-		public Dictionary<RestrictedFolder, DirectoryReference> FindRestrictedFolderReferences(DirectoryReference ProjectDir)
+		public Dictionary<RestrictedFolder, DirectoryReference> FindRestrictedFolderReferences(List<DirectoryReference> RootDirectories)
 		{
 			Dictionary<RestrictedFolder, DirectoryReference> References = new Dictionary<RestrictedFolder, DirectoryReference>();
 			if (!Rules.bLegalToDistributeObjectCode)
@@ -357,17 +357,9 @@ namespace UnrealBuildTool
 				foreach(DirectoryReference ReferencedDir in ReferencedDirs)
 				{
 					// Find the base directory containing this reference
-					DirectoryReference BaseDir;
+					DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => ReferencedDir.IsUnderDirectory(x));
 					// @todo platplug does this need to check platform extension engine directories? what are ReferencedDir's here?
-					if(ReferencedDir.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-					{
-						BaseDir = UnrealBuildTool.EngineDirectory;
-					}
-					else if(ProjectDir != null && ReferencedDir.IsUnderDirectory(ProjectDir))
-					{
-						BaseDir = ProjectDir;
-					}
-					else
+					if (BaseDir == null)
 					{
 						continue;
 					}

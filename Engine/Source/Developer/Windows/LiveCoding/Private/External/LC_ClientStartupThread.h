@@ -42,6 +42,8 @@ public:
 
 	void InstallExceptionHandler(void);
 
+	void TriggerRestart(void);
+
 	void ApplySettingBool(const char* settingName, int value);
 	void ApplySettingInt(const char* settingName, int value);
 	void ApplySettingString(const char* settingName, const wchar_t* value);

@@ -1197,6 +1197,7 @@ namespace UnrealBuildTool
 		/// Which C++ stanard to use for compiling this target
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CppStd")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
 
@@ -1447,6 +1448,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// HoloLens-specific target settings.
 		/// </summary>
+		[ConfigSubObject]
 		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
 
 		/// <summary>
