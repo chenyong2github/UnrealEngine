@@ -319,6 +319,16 @@ bool FUnixPlatformProcess::SetProcessLimits(EProcessResource::Type Resource, uin
 	return true;
 }
 
+const FString FUnixPlatformProcess::GetModulesDirectory()
+{
+	static FString CachedModulePath;
+	if (CachedModulePath.IsEmpty())
+	{
+		CachedModulePath = FPaths::GetPath(FString(ExecutablePath()));
+	}
+
+	return CachedModulePath;
+}
 
 const TCHAR* FUnixPlatformProcess::ExecutablePath()
 {
