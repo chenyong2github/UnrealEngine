@@ -44,6 +44,8 @@ namespace Chaos
 			check(false);
 			return false;
 		}
+
+		const void* GetQueryData() const { return nullptr; }
 	};
 
 	/**

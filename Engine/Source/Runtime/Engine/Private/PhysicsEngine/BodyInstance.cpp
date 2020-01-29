@@ -894,8 +894,14 @@ void FBodyInstance::UpdatePhysicsFilterData()
 	}
 
 		if(bUpdateMassProperties)
-	{
+		{
 			UpdateMassProperties();
+		}
+
+		//If filtering changed we must update GT structure right away
+		if (FPhysScene* PhysScene = GetPhysicsScene())
+		{
+			PhysScene->GetScene().UpdateActorInAccelerationStructure(Actor);
 		}
 	});
 

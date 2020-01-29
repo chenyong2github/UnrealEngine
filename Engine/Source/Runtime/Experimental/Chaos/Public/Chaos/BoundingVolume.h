@@ -196,6 +196,7 @@ public:
 				CollectedResults.Add(Instance.Payload);
 				return true;
 			}
+			const void* GetQueryData() const { return nullptr; }
 			TArray<TPayloadType>& CollectedResults;
 		};
 
@@ -372,9 +373,15 @@ private:
 	{
 		TVector<T, d> TmpPosition;
 		T TOI;
+		const void* QueryData = Visitor.GetQueryData();
 
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start,
 				CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
@@ -391,6 +398,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start, CurData.Dir,
 				CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
@@ -525,8 +537,14 @@ private:
 	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
 	{
 		T TOI = 0;
+		const void* QueryData = Visitor.GetQueryData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
@@ -544,6 +562,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
@@ -749,8 +772,14 @@ private:
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	bool OverlapImp(const TAABB<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
+		const void* QueryData = Visitor.GetQueryData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			if (QueryBounds.Intersects(InstanceBounds))
 			{
@@ -764,6 +793,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			if (QueryBounds.Intersects(InstanceBounds))
 			{
