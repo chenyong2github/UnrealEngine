@@ -1611,6 +1611,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+	{
+		SCOPED_BOOT_TIMING("BeginPreInitTextLocalization");
+		BeginPreInitTextLocalization();
+	}
+
 #if !(IS_PROGRAM || WITH_EDITOR)
 	// Initialize I/O dispatcher if available
 	{
