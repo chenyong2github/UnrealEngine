@@ -206,6 +206,7 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(UGameplayAbility* InAbility, int32 In
 	, InputPressed(false)
 	, RemoveAfterActivation(false)
 	, PendingRemove(false)
+	, bActivateOnce(false) 
 {
 	Handle.GenerateNewHandle();
 }
@@ -219,6 +220,7 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(TSubclassOf<UGameplayAbility> InAbili
 	, InputPressed(false)
 	, RemoveAfterActivation(false)
 	, PendingRemove(false)
+	, bActivateOnce(false)
 {
 	Handle.GenerateNewHandle();
 }
@@ -231,6 +233,7 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(FGameplayAbilitySpecDef& InDef, int32
 	, InputPressed(false)
 	, RemoveAfterActivation(false)
 	, PendingRemove(false)
+	, bActivateOnce(false)
 {
 	Handle.GenerateNewHandle();
 	InDef.AssignedHandle = Handle;
