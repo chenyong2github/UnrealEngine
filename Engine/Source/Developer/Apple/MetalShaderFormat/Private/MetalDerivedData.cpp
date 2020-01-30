@@ -2052,7 +2052,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			}
 			
 			
-			if(strnstr((const char*)Results.target->Data(), "spvBufferSizeConstants", Results.target->Size()))
+			if(strstr((const char*)Results.target->Data(), "spvBufferSizeConstants"))
 			{
 				MetaData += FString::Printf(TEXT("// @SideTable: spvBufferSizeConstants(%d)\n"), SideTableIndex);
 			}
