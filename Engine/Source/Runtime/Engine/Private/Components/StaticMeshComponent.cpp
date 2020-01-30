@@ -338,7 +338,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 			}
 		}
 
-		GComponentsWithLegacyLightmaps.AddAnnotation(this, LegacyComponentData);
+		GComponentsWithLegacyLightmaps.AddAnnotation(this, MoveTemp(LegacyComponentData));
 	}
 
 	if (Ar.UE4Ver() < VER_UE4_AUTO_WELDING)

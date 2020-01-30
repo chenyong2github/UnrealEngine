@@ -1334,7 +1334,7 @@ FOnUserDefinedPinRenamed& UK2Node::OnUserDefinedPinRenamed()
 	{
 		FPinRenamedAnnotation NewEvent;
 		NewEvent.bIsDefault = false;
-		GOnUserDefinedPinRenamedAnnotation.AddAnnotation(this, NewEvent);
+		GOnUserDefinedPinRenamedAnnotation.AddAnnotation(this, MoveTemp(NewEvent));
 	}
 
 	return Map.FindChecked(this).PinRenamedEvent;

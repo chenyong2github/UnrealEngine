@@ -1392,7 +1392,7 @@ void UMaterial::MarkUsageFlagDirty(EMaterialUsage Usage, bool CurrentValue, bool
 	{
 		FMaterialsWithDirtyUsageFlags Annotation = GMaterialsWithDirtyUsageFlags.GetAnnotation(this);
 		Annotation.MarkUsageFlagDirty(Usage);
-		GMaterialsWithDirtyUsageFlags.AddAnnotation(this,Annotation);
+		GMaterialsWithDirtyUsageFlags.AddAnnotation(this, MoveTemp(Annotation));
 	}
 #endif
 }
